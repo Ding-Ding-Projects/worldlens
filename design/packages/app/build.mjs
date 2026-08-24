@@ -227,6 +227,17 @@ async function main() {
 
     copyZstdWasmAsset("dist/main");
 
+    await build({
+        entryPoints: ["src/main/converter/isolatedWorker.ts"],
+        outfile: "dist/main/converter/isolatedWorker.js",
+        bundle: true,
+        platform: "node",
+        format: "esm",
+        target: "node22",
+        sourcemap: true,
+        banner: { js: nodeBuiltinRequireShimBanner },
+    });
+
     /** Preload: sandboxed preloads must be CommonJS. */
     await build({
         entryPoints: ["src/preload/index.ts"],

@@ -1,9 +1,9 @@
 import type { IpcMain } from "electron";
 import { OllamaClient, resolveOllamaRuntime } from "./client.js";
 import { fetchExhaustiveCatalog, mergeInstalledTags, readCatalogCache, refreshOfficialCatalog, writeCatalogCache, type OllamaCatalogSnapshot } from "./catalog.js";
-import { ensureOllamaRuntime, readOllamaRuntimeState, type OllamaProvisionProgress } from "./provision.js";
+import { ensureOllamaRuntime, readOllamaRuntimeState, restartOllamaRuntime, stopOllamaRuntime, superviseOllamaRuntime, waitForOllamaReadiness, type OllamaProvisionProgress } from "./provision.js";
 
-export const OLLAMA_CHANNELS = ["ollama:health", "ollama:tags", "ollama:running", "ollama:show", "ollama:catalog", "ollama:catalogRefresh", "ollama:runtime", "ollama:runtimeEnsure", "ollama:delete", "ollama:copy", "ollama:pull", "ollama:generate", "ollama:chat", "ollama:cancel"] as const;
+export const OLLAMA_CHANNELS = ["ollama:health", "ollama:tags", "ollama:running", "ollama:show", "ollama:catalog", "ollama:catalogRefresh", "ollama:runtime", "ollama:runtimeEnsure", "ollama:runtimeCancel", "ollama:runtimeStop", "ollama:runtimeRestart", "ollama:runtimeProbe", "ollama:delete", "ollama:copy", "ollama:pull", "ollama:generate", "ollama:chat", "ollama:cancel"] as const;
 export interface OllamaIpc { dispose(): void; }
 export interface OllamaIpcOptions { readonly baseUrl?: string; readonly dataDir?: string; readonly bundledExecutable?: string | null; readonly managedExecutable?: string | null; readonly catalog?: OllamaCatalogSnapshot | null; }
 
@@ -54,6 +54,7 @@ export function registerOllamaHandlers(ipcMain: Pick<IpcMain, "handle" | "remove
     const client = new OllamaClient(options.baseUrl);
     let catalog = options.catalog ?? null;
     const active = new Map<string, AbortController>();
+    let runtimeController: AbortController | null = null;
     ipcMain.handle("ollama:health", () => client.health());
     ipcMain.handle("ollama:tags", () => client.tags().catch((error) => ({ models: [], error: error instanceof Error ? error.message : String(error) })));
     ipcMain.handle("ollama:running", () => client.ps().catch((error) => ({ models: [], error: error instanceof Error ? error.message : String(error) })));
@@ -61,7 +62,11 @@ export function registerOllamaHandlers(ipcMain: Pick<IpcMain, "handle" | "remove
     ipcMain.handle("ollama:catalog", async () => catalog ?? await readCatalogCache(options.dataDir ?? ".") ?? { version: 1, variants: [], fetchedAt: null, pages: 0, complete: false, revision: null, stale: true, source: "No verified catalog refresh has completed." });
     ipcMain.handle("ollama:catalogRefresh", async (_event, _signal?: unknown) => { try { const fresh = await refreshOfficialCatalog(options.dataDir ?? "."); const installed = await client.tags().catch(() => ({ models: [] })); catalog = mergeInstalledTags(fresh, Array.isArray(installed.models) ? installed.models : []); await writeCatalogCache(options.dataDir ?? ".", catalog); return { ok: true, catalog }; } catch (error) { const cached = await readCatalogCache(options.dataDir ?? "."); return { ok: false, catalog: cached, message: error instanceof Error ? error.message : String(error) }; } });
     ipcMain.handle("ollama:runtime", async () => { const state = options.dataDir ? await readOllamaRuntimeState(options.dataDir) : null; return state ? { origin: "managed", executable: state.executable, canonicalSource: null, reason: "Using the verified user-scoped Ollama runtime." } : resolveOllamaRuntime(options); });
-    ipcMain.handle("ollama:runtimeEnsure", (event: { readonly sender: { send(channel: string, payload: OllamaProvisionProgress): void } }) => ensureOllamaRuntime(options.dataDir === undefined ? { onProgress: (progress) => event.sender.send("ollama:runtimeProgress", progress) } : { dataDir: options.dataDir, onProgress: (progress) => event.sender.send("ollama:runtimeProgress", progress) }));
+    ipcMain.handle("ollama:runtimeEnsure", (event: { readonly sender: { send(channel: string, payload: OllamaProvisionProgress): void } }) => { runtimeController?.abort(); runtimeController = new AbortController(); const request = options.dataDir === undefined ? { signal: runtimeController.signal, onProgress: (progress: OllamaProvisionProgress) => event.sender.send("ollama:runtimeProgress", progress) } : { dataDir: options.dataDir, signal: runtimeController.signal, onProgress: (progress: OllamaProvisionProgress) => event.sender.send("ollama:runtimeProgress", progress) }; return ensureOllamaRuntime(request).finally(() => { runtimeController = null; }); });
+    ipcMain.handle("ollama:runtimeCancel", () => { if (!runtimeController) return false; runtimeController.abort(); runtimeController = null; return true; });
+    ipcMain.handle("ollama:runtimeStop", async () => { const state = options.dataDir ? await readOllamaRuntimeState(options.dataDir) : null; return stopOllamaRuntime(state?.executable); });
+    ipcMain.handle("ollama:runtimeRestart", async () => { const state = options.dataDir ? await readOllamaRuntimeState(options.dataDir) : null; if (!state) return { ok: false, message: "No verified managed runtime is available to restart." }; restartOllamaRuntime(state.executable); try { await waitForOllamaReadiness(); return { ok: true }; } catch (error) { stopOllamaRuntime(state.executable); return { ok: false, message: error instanceof Error ? error.message : String(error) }; } });
+    ipcMain.handle("ollama:runtimeProbe", async () => { try { await waitForOllamaReadiness(); return { ok: true }; } catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; } });
     ipcMain.handle("ollama:delete", (_event, name: unknown) => { const value = stringArg(name); return value === null ? { error: "Choose a model tag." } : client.delete(value).catch((error) => ({ error: error instanceof Error ? error.message : String(error) })); });
     ipcMain.handle("ollama:copy", (_event, source: unknown, destination: unknown) => { const from = stringArg(source); const to = stringArg(destination); return from === null || to === null ? { error: "Choose both source and destination tags." } : client.copy(from, to).catch((error) => ({ error: error instanceof Error ? error.message : String(error) })); });
     const runStream = async (operationId: unknown, start: (signal: AbortSignal) => Promise<Response>): Promise<readonly Record<string, unknown>[]> => {
@@ -78,5 +83,5 @@ export function registerOllamaHandlers(ipcMain: Pick<IpcMain, "handle" | "remove
     ipcMain.handle("ollama:generate", (_event, request: unknown, operationId: unknown) => typeof request !== "object" || request === null ? [{ error: "Generation request is invalid." }] : runStream(operationId, (signal) => client.generate(request as Record<string, unknown>)));
     ipcMain.handle("ollama:chat", (_event, request: unknown, operationId: unknown) => typeof request !== "object" || request === null ? [{ error: "Chat request is invalid." }] : runStream(operationId, (signal) => client.chat(request as Record<string, unknown>)));
     ipcMain.handle("ollama:cancel", (_event, operationId: unknown) => { const id = stringArg(operationId); if (id === null) return false; const controller = active.get(id); if (!controller) return false; controller.abort(); return true; });
-    return { dispose: () => { for (const controller of active.values()) controller.abort(); active.clear(); for (const channel of OLLAMA_CHANNELS) ipcMain.removeHandler(channel); } };
+    return { dispose: () => { for (const controller of active.values()) controller.abort(); active.clear(); runtimeController?.abort(); runtimeController = null; for (const channel of OLLAMA_CHANNELS) ipcMain.removeHandler(channel); } };
 }

@@ -2347,6 +2347,7 @@ interface WorldlensBridge {
         pause(): Promise<unknown>;
         resume(): Promise<unknown>;
         cancel(id: string): Promise<unknown>;
+        retry(id: string): Promise<unknown>;
         openInEditor(path: string): Promise<unknown>;
     };
     ollama: {
@@ -2358,6 +2359,10 @@ interface WorldlensBridge {
         catalogRefresh(): Promise<unknown>;
         runtime(): Promise<unknown>;
         runtimeEnsure(): Promise<unknown>;
+        runtimeCancel(): Promise<unknown>;
+        runtimeStop(): Promise<unknown>;
+        runtimeRestart(): Promise<unknown>;
+        runtimeProbe(): Promise<unknown>;
         onRuntimeProgress(listener: (progress: unknown) => void): () => void;
         delete(name: string): Promise<unknown>;
         copy(source: string, destination: string): Promise<unknown>;
@@ -4353,6 +4358,7 @@ const bridge: WorldlensBridge = {
         pause: () => ipcRenderer.invoke("converter:pause"),
         resume: () => ipcRenderer.invoke("converter:resume"),
         cancel: (id: string) => ipcRenderer.invoke("converter:cancel", id),
+        retry: (id: string) => ipcRenderer.invoke("converter:retry", id),
         openInEditor: (path: string) => ipcRenderer.invoke("converter:openInEditor", path),
     },
     ollama: {
@@ -4364,6 +4370,10 @@ const bridge: WorldlensBridge = {
         catalogRefresh: () => ipcRenderer.invoke("ollama:catalogRefresh"),
         runtime: () => ipcRenderer.invoke("ollama:runtime"),
         runtimeEnsure: () => ipcRenderer.invoke("ollama:runtimeEnsure"),
+        runtimeCancel: () => ipcRenderer.invoke("ollama:runtimeCancel"),
+        runtimeStop: () => ipcRenderer.invoke("ollama:runtimeStop"),
+        runtimeRestart: () => ipcRenderer.invoke("ollama:runtimeRestart"),
+        runtimeProbe: () => ipcRenderer.invoke("ollama:runtimeProbe"),
         delete: (name: string) => ipcRenderer.invoke("ollama:delete", name),
         copy: (source: string, destination: string) => ipcRenderer.invoke("ollama:copy", source, destination),
         pull: (name: string, operationId: string) => ipcRenderer.invoke("ollama:pull", name, operationId),

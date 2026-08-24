@@ -183,10 +183,10 @@ async function refreshStoreCatalog(): Promise<void> {
     try {
         const result = await bridge.catalogRefresh();
         if (result.catalog) {
-            const raw = result.catalog as { readonly variants?: readonly { readonly name: string; readonly family: string | null; readonly size?: number; readonly quantization: string | null; readonly context?: number }[]; readonly fetchedAt?: string; readonly pages?: number; readonly complete?: boolean; readonly revision?: string | null };
+            const raw = result.catalog as { readonly variants?: readonly { readonly name: string; readonly family: string | null; readonly size?: number; readonly quantization: string | null; readonly context?: number }[]; readonly fetchedAt?: string; readonly pages?: number; readonly complete?: boolean; readonly revision?: string | null; readonly completenessReason?: string };
             const groups = new Map<string, { readonly family: string; readonly description: string; readonly capabilities: readonly string[]; readonly tags: { readonly tag: string; readonly sizeBytes: number | null; readonly contextWindow: number | null; readonly quantization: string | null }[] }>();
             for (const variant of raw.variants ?? []) { const family = variant.family ?? variant.name.split(":")[0]!; const existing = groups.get(family) ?? { family, description: "Official Ollama catalog variant", capabilities: [], tags: [] }; groups.set(family, { ...existing, tags: [...existing.tags, { tag: variant.name.includes(":") ? variant.name.slice(variant.name.indexOf(":") + 1) : variant.name, sizeBytes: typeof variant.size === "number" ? variant.size : null, contextWindow: typeof variant.context === "number" ? variant.context : null, quantization: variant.quantization ?? null }] }); }
-            setCatalog({ models: [...groups.values()], revision: { sourceRevision: raw.revision ?? null, refreshedAt: raw.fetchedAt ?? new Date().toISOString(), pageCount: raw.pages ?? 0, complete: raw.complete === true } }, result.ok !== true);
+            setCatalog({ models: [...groups.values()], revision: { sourceRevision: raw.revision ?? null, refreshedAt: raw.fetchedAt ?? new Date().toISOString(), pageCount: raw.pages ?? 0, complete: raw.complete === true, completenessReason: raw.completenessReason ?? null } }, result.ok !== true || raw.complete !== true);
         }
     } finally {
         refreshingCatalog.value = false;

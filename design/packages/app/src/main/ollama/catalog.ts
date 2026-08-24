@@ -20,15 +20,18 @@ export interface OllamaCatalogSnapshot {
     readonly revision: string | null;
     readonly stale: boolean;
     readonly source: string;
+    readonly completenessReason?: string;
 }
 
 export interface OllamaCatalogSource { readonly fetchPage: (cursor: string | null) => Promise<OllamaPage<OllamaCatalogVariant>>; }
 
-export const OFFICIAL_OLLAMA_CATALOG_URL = "https://ollama.com/api/library";
+/** Official documented tags endpoint. It reports tags available to this Ollama service, not an undocumented library scrape. */
+export const OFFICIAL_OLLAMA_CATALOG_URL = "https://ollama.com/api/tags";
 const MAX_OFFICIAL_PAGE_BYTES = 2 * 1024 * 1024;
 const MAX_OFFICIAL_PAGES = 200;
+const MAX_CATALOG_VARIANTS = 100_000;
 
-interface OfficialPage { readonly models?: readonly { readonly name?: string; readonly description?: string; readonly capabilities?: readonly string[]; readonly tags?: readonly { readonly tag?: string; readonly size?: number; readonly context?: number; readonly quantization?: string }[] }[]; readonly nextPage?: string | null; readonly revision?: string | null; }
+interface OfficialPage { readonly models?: readonly { readonly name?: string; readonly size?: number; readonly details?: { readonly family?: string; readonly parameter_size?: string; readonly quantization_level?: string }; }[]; }
 
 async function officialPage(url: string, signal?: AbortSignal): Promise<OllamaPage<OllamaCatalogVariant>> {
     const response = await fetch(url, { redirect: "error", signal: signal ?? AbortSignal.timeout(15_000), headers: { accept: "application/json" } });
@@ -37,13 +40,17 @@ async function officialPage(url: string, signal?: AbortSignal): Promise<OllamaPa
     const body = await response.text(); if (body.length > MAX_OFFICIAL_PAGE_BYTES) throw new Error("Official Ollama catalog page exceeded the safety limit.");
     const page = JSON.parse(body) as OfficialPage;
     const items: OllamaCatalogVariant[] = [];
-    for (const model of page.models ?? []) if (typeof model.name === "string" && model.name.length > 0) for (const tag of model.tags ?? []) if (typeof tag.tag === "string" && tag.tag.length > 0) items.push({ name: `${model.name}:${tag.tag}`, ...(typeof tag.size === "number" ? { size: tag.size } : {}), family: model.name, capabilities: model.capabilities ?? [], quantization: tag.quantization ?? null, parameterSize: null, catalogSource: OFFICIAL_OLLAMA_CATALOG_URL });
-    return { items, next: typeof page.nextPage === "string" && page.nextPage.length > 0 ? page.nextPage : null, revision: page.revision ?? response.headers.get("etag") };
+    for (const model of page.models ?? []) {
+        if (typeof model.name !== "string" || model.name.length === 0 || model.name.length > 256) continue;
+        const family = model.details?.family ?? null;
+        items.push({ name: model.name, ...(typeof model.size === "number" ? { size: model.size } : {}), family, capabilities: [], quantization: model.details?.quantization_level ?? null, parameterSize: model.details?.parameter_size ?? null, catalogSource: OFFICIAL_OLLAMA_CATALOG_URL });
+    }
+    return { items, next: null, revision: response.headers.get("etag") };
 }
 
 export async function refreshOfficialCatalog(dataDir: string, signal?: AbortSignal): Promise<OllamaCatalogSnapshot> {
-    const source: OllamaCatalogSource = { fetchPage: (cursor) => officialPage(cursor ?? OFFICIAL_OLLAMA_CATALOG_URL, signal) };
-    const snapshot = await fetchExhaustiveCatalog(source);
+    const page = await officialPage(OFFICIAL_OLLAMA_CATALOG_URL, signal);
+    const snapshot: OllamaCatalogSnapshot = { version: 1, variants: page.items, fetchedAt: new Date().toISOString(), pages: 1, complete: false, revision: page.revision, stale: false, source: OFFICIAL_OLLAMA_CATALOG_URL, completenessReason: "The documented /api/tags endpoint reports service-visible tags. Ollama does not document an exhaustive public library pagination endpoint, so this snapshot is never presented as the whole library." };
     await mkdir(join(dataDir, "ollama"), { recursive: true });
     await atomicWriteTextFile(join(dataDir, "ollama", "catalog.json"), JSON.stringify(snapshot, null, 2));
     return snapshot;
@@ -55,7 +62,11 @@ export async function writeCatalogCache(dataDir: string, snapshot: OllamaCatalog
 }
 
 export async function readCatalogCache(dataDir: string, staleAfterMs = 24 * 60 * 60 * 1000): Promise<OllamaCatalogSnapshot | null> {
-    try { const snapshot = JSON.parse(await readFile(join(dataDir, "ollama", "catalog.json"), "utf8")) as OllamaCatalogSnapshot; return markCatalogStale(snapshot, staleAfterMs); } catch { return null; }
+    try {
+        const snapshot = JSON.parse(await readFile(join(dataDir, "ollama", "catalog.json"), "utf8")) as OllamaCatalogSnapshot;
+        if (snapshot.version !== 1 || !Array.isArray(snapshot.variants) || snapshot.variants.length > MAX_CATALOG_VARIANTS || typeof snapshot.fetchedAt !== "string" || typeof snapshot.pages !== "number" || typeof snapshot.complete !== "boolean" || typeof snapshot.source !== "string") return null;
+        return markCatalogStale(snapshot, staleAfterMs);
+    } catch { return null; }
 }
 
 /** Exhaustive page walk. It refuses to call a curated one-page fallback complete. */
@@ -67,6 +78,7 @@ export async function fetchExhaustiveCatalog(source: OllamaCatalogSource, now = 
     while (true) {
         const page = await source.fetchPage(cursor);
         pages += 1;
+        if (page.items.length > MAX_CATALOG_VARIANTS || variants.length + page.items.length > MAX_CATALOG_VARIANTS) throw new Error("Ollama catalog variant count exceeded the safety limit.");
         variants.push(...page.items);
         revision ??= page.revision;
         if (page.next === null) break;
