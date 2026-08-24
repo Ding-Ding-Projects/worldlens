@@ -27,7 +27,6 @@ set "ROOT=%~dp0"
 set "DESIGN=%ROOT%design"
 set "APPDIR=%DESIGN%\packages\app"
 set "TOOLCHAIN=%LOCALAPPDATA%\worldlens-toolchain"
-set "PNPM_VERSION=10.33.0"
 set "NPM_CONFIG_REGISTRY=https://registry.npmjs.org/"
 set "SILENT_MODE=0"
 set "RUN_MODE=0"
@@ -71,6 +70,11 @@ if /i "%~1"=="/silent" (
 goto :bad_argument
 
 :arguments_ready
+call :validate_silent
+if errorlevel 1 (
+    echo ERROR: SILENT must be unset, 0 or 1. 1>&2
+    exit /b 2
+)
 if defined SILENT if not "%SILENT%"=="0" set "SILENT_MODE=1"
 if defined RUN_AFTER_BUILD if /i not "%RUN_AFTER_BUILD%"=="0" if /i not "%RUN_AFTER_BUILD%"=="1" goto :invalid_run_env
 if defined RUN_AFTER_BUILD if /i "%RUN_AFTER_BUILD%"=="1" set "RUN_MODE=1"
@@ -85,11 +89,9 @@ echo.
 rem The root fetcher is the only acquisition path. It installs Node, Git,
 rem GitHub CLI, Java and the committed project bootstrap without manual setup.
 echo [1/4] Install and verify all build dependencies
-if "%SILENT_MODE%"=="1" (
-    call "%ROOT%download-dependencies.bat" --silent
-) else (
-    call "%ROOT%download-dependencies.bat"
-)
+set "FETCH_ARGS="
+if "%SILENT_MODE%"=="1" set "FETCH_ARGS=--silent"
+call "%ROOT%download-dependencies.bat" %FETCH_ARGS%
 if errorlevel 1 goto :dependency_failed
 echo.
 
@@ -104,6 +106,9 @@ if exist "%LOCALAPPDATA%\worldlens-toolchain\java\temurin-25\bin\java.exe" set "
 if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
 
 echo [2/4] Resolve the pinned pnpm command
+set "PNPM_VERSION="
+for /f "tokens=* usebackq" %%v in (`node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('design/package.json','utf8')).packageManager;if(!/^pnpm@[^\s]+$/.test(p))process.exit(1);process.stdout.write(p.slice(5))" 2^>nul`) do set "PNPM_VERSION=%%v"
+if not defined PNPM_VERSION goto :no_pnpm
 set "NPM_CLI="
 for /f "tokens=* usebackq" %%p in (`node -e "const fs=require('node:fs'),path=require('node:path'),d=path.dirname(process.execPath);const p=[path.join(d,'node_modules','npm','bin','npm-cli.js'),path.join(d,'..','lib','node_modules','npm','bin','npm-cli.js'),path.join(d,'..','share','node_modules','npm','bin','npm-cli.js')].find(fs.existsSync);if(p)process.stdout.write(p)" 2^>nul`) do set "NPM_CLI=%%p"
 if not defined NPM_CLI goto :no_pnpm
@@ -114,11 +119,18 @@ echo       pnpm %PNPM_ACTUAL% is runnable through the pinned npm CLI
 echo.
 
 echo [3/4] Build the real workspace outputs
+set "RECEIPT_FILE=%TEMP%\worldlens-build-receipt-%RANDOM%-%RANDOM%.json"
+node "%ROOT%scripts\build-receipt.mjs" prepare --repo "%ROOT%." --receipt "%RECEIPT_FILE%"
+if errorlevel 1 goto :receipt_prepare_failed
 pushd "%DESIGN%" >nul || goto :no_design
 node "%NPM_CLI%" exec --yes --registry=https://registry.npmjs.org/ --package=pnpm@%PNPM_VERSION% -- pnpm build
 set "BUILD_RESULT=%ERRORLEVEL%"
 popd >nul
 if not "%BUILD_RESULT%"=="0" goto :build_failed
+node "%ROOT%scripts\build-receipt.mjs" finalize --repo "%ROOT%." --receipt "%RECEIPT_FILE%"
+if errorlevel 1 goto :receipt_finalize_failed
+node "%ROOT%scripts\build-receipt.mjs" verify --repo "%ROOT%." --receipt "%RECEIPT_FILE%"
+if errorlevel 1 goto :receipt_verify_failed
 echo.
 
 rem Do not treat a successful bundler exit code as a runnable app. These are
@@ -126,7 +138,7 @@ rem the outputs the development app actually loads, so they are checked before
 rem any --run path can launch it.
 echo [4/4] Verify the built app and Electron runtime
 pushd "%APPDIR%" >nul || goto :no_app
-node -e "const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process'); const required=[path.resolve('dist/main/index.js'),path.resolve('dist/preload/index.cjs'),path.resolve('..','ui','dist','index.html')]; for(const file of required){const s=fs.statSync(file);if(!s.isFile()||s.size<128)throw new Error('required build artifact is missing or too small: '+file)} const exe=require('electron'); const s=fs.statSync(exe);if(!s.isFile()||s.size<1000000)throw new Error('Electron executable is missing or incomplete');const r=spawnSync(exe,['--version'],{encoding:'utf8'});if(r.status!==0)throw new Error('Electron executable returned '+r.status+': '+String(r.stderr||r.stdout||'').trim());process.stdout.write('      verified main, preload, UI and '+String(r.stdout||r.stderr||'').trim()+'\n');"
+node -e "const fs=require('node:fs'),path=require('node:path'),{spawnSync}=require('node:child_process'); const required=[path.resolve('dist/main/index.js'),path.resolve('dist/preload/index.cjs'),path.resolve('dist/render-engines/manifest.json'),path.resolve('..','ui','dist','index.html')]; for(const file of required){const s=fs.statSync(file);if(!s.isFile()||s.size<128)throw new Error('required build artifact is missing or too small: '+file)} const exe=require('electron'); const s=fs.statSync(exe);if(!s.isFile()||s.size<1000000)throw new Error('Electron executable is missing or incomplete');const r=spawnSync(exe,['--version'],{encoding:'utf8'});if(r.status!==0)throw new Error('Electron executable returned '+r.status+': '+String(r.stderr||r.stdout||'').trim());process.stdout.write('      verified main, preload, engine manifest, UI and '+String(r.stdout||r.stderr||'').trim()+'\n');"
 set "ARTIFACT_RESULT=%ERRORLEVEL%"
 popd >nul
 if not "%ARTIFACT_RESULT%"=="0" goto :artifact_failed
@@ -191,4 +203,18 @@ echo ERROR: the pinned pnpm workspace build failed. The command output above nam
 exit /b 1
 :artifact_failed
 echo ERROR: build output or Electron was not runnable. Launch was refused until artifacts were verified. 1>&2
+exit /b 1
+:receipt_prepare_failed
+echo ERROR: stale build outputs could not be quarantined and a source receipt could not be written. 1>&2
+exit /b 1
+:receipt_finalize_failed
+echo ERROR: the build receipt could not record fresh output hashes, sizes and Electron provenance. 1>&2
+exit /b 1
+:receipt_verify_failed
+echo ERROR: the build receipt did not match the current source or exact fresh outputs. Launch was refused. 1>&2
+exit /b 1
+:validate_silent
+if not defined SILENT exit /b 0
+if "%SILENT%"=="0" exit /b 0
+if "%SILENT%"=="1" exit /b 0
 exit /b 1

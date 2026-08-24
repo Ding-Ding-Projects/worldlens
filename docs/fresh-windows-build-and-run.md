@@ -20,14 +20,21 @@ browser cache. It does not ask the user to prepare a toolchain first.
 4. Verifies downloaded archive bytes with SHA-256 before extracting them.
 5. Refreshes the current process `PATH`, so a tool installed during this invocation is available
    immediately.
-6. Provisions the user-scoped Eclipse Temurin 25 build runtime.
-7. Runs `scripts/bootstrap.mjs`, which installs and verifies the pinned workspace dependencies,
+6. Initializes every git submodule recursively and verifies each checkout against the exact
+   gitlink commit recorded by the source checkout.
+7. Provisions the user-scoped Eclipse Temurin 25.0.4+7 build runtime from the committed release,
+   URL, and SHA-256 manifest.
+8. Runs `scripts/bootstrap.mjs`, which installs and verifies the pinned workspace dependencies,
    Electron binary, Java and Gradle prerequisites, BlueMap outputs, and Playwright tooling.
 
-The build then runs the pinned `pnpm@10.33.0` command through the active Node npm CLI. Before any
-launch, it verifies the application main bundle, preload bundle, UI `index.html`, and the Electron
-binary by starting Electron with `--version`. A successful build therefore proves the outputs the
-development application actually loads, not merely that a package manager returned exit code 0.
+The build derives its pnpm version from `design/package.json`, then runs that exact package through
+the active Node npm CLI. The bootstrap uses `pnpm install --frozen-lockfile` and rejects any lockfile
+change. Before any launch, it clears owned output directories, records the current source commit and
+tracked-index digest, verifies the application main bundle, preload bundle, engine manifest, UI
+`index.html`, and Electron binary by starting Electron with `--version`, then writes and re-reads a
+receipt containing fresh hashes, sizes, timestamps, and Electron provenance. A successful build
+therefore proves the outputs the development application actually loads, not merely that a package
+manager returned exit code 0.
 
 ## Launch modes
 
@@ -54,6 +61,12 @@ success.
 All toolchain locations are user-scoped under `%LOCALAPPDATA%\worldlens-toolchain` or the
 repository's existing ignored dependency directories. The scripts do not change an unrelated
 machine-wide toolchain and do not install signing material.
+
+The scripts invoke batch files and repositories through absolute paths, so a shell with
+`NoDefaultCurrentDirectoryInExePath=1` still follows the same route. A Microsoft Store app-execution
+alias that cannot see the installed tool is treated as unusable and the verified portable route is
+selected. Package-manager and archive extraction failures leave the destination absent or in a
+quarantined temporary directory, and the next run starts from a fresh extraction directory.
 
 ## Verification
 

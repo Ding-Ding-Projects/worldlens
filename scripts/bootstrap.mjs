@@ -132,8 +132,10 @@ function step(name, fn) {
 /* -------------------------------------------------------------------------- */
 
 function nodeDependencies() {
+  const lockfile = join(designRoot, "pnpm-lock.yaml");
+  const lockBefore = existsSync(lockfile) ? readFileSync(lockfile) : null;
   if (!checkOnly) {
-    const install = runPinnedPnpm(["install"], {
+    const install = runPinnedPnpm(["install", "--frozen-lockfile"], {
       cwd: designRoot,
       env: { ...process.env, CI: process.env.CI ?? "true" },
     });
@@ -141,6 +143,13 @@ function nodeDependencies() {
       return {
         ok: false,
         detail: "pinned pnpm install failed; see the output above",
+      };
+    }
+    const lockAfter = existsSync(lockfile) ? readFileSync(lockfile) : null;
+    if (lockBefore === null || lockAfter === null || !lockBefore.equals(lockAfter)) {
+      return {
+        ok: false,
+        detail: "pnpm install changed or failed to preserve design/pnpm-lock.yaml",
       };
     }
   }

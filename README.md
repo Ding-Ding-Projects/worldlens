@@ -887,19 +887,19 @@ post-build question for `--run`. Use `.\build.bat /s` or `.\build.bat --silent` 
 build that never launches. See [`docs/fresh-windows-build-and-run.md`](docs/fresh-windows-build-and-run.md)
 for the exact acquisition, failure, and verification contract.
 
-Requires **Node 22+** and **pnpm 10**. The upstream Java reference is a git submodule; the port
-reads it directly.
+The developer-only direct bootstrap path below requires **Node 22+** and **pnpm 10**. A fresh
+Windows installation should use `.\build.bat --run`, which acquires those tools first. The upstream
+Java reference is a git submodule; the port reads it directly.
 
-```sh
+```powershell
 git clone https://github.com/Ding-Ding-Projects/worldlens.git
 cd worldlens
-git submodule update --init --recursive
-
-node scripts/bootstrap.mjs
+.\build.bat --run
 ```
 
-That one command installs and **verifies** everything: workspace dependencies, the
-Electron binary, a JDK matching upstream's toolchain, Gradle, the BlueMap jars built from the
+That one command installs and **verifies** everything: every git submodule at its recorded
+gitlink commit, workspace dependencies, the
+Electron binary, the committed exact JDK release, Gradle, the BlueMap jars built from the
 vendored source, and the Playwright tooling the Electron screenshot harness drives. It asks nothing and
 needs no administrator rights, and every install is repository-local or user-scoped so no
 machine-wide toolchain is touched.
@@ -913,8 +913,8 @@ scratch. The command also invokes the exact `pnpm` version pinned by `design/pac
 different global package-manager version cannot quietly decide the dependency graph.
 
 ```sh
-node scripts/bootstrap.mjs --check       # verify only, install nothing
-node scripts/bootstrap.mjs --skip-jars   # skip the slow first Gradle build
+node scripts/bootstrap.mjs --check       # developer-only verify, install nothing
+node scripts/bootstrap.mjs --skip-jars   # developer-only skip the slow first Gradle build
 
 cd design
 pnpm build
