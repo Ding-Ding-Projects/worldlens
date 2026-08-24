@@ -294,6 +294,8 @@ async function check(): Promise<void> {
 }
 
 async function publish(): Promise<void> {
+    const publication = props.publicationRecord;
+    const publicationIdentity = publicationRecordIdentity(publication);
     const result = await pages.publish({
         ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
         renderId: renderId.value.trim(),
@@ -304,7 +306,9 @@ async function publish(): Promise<void> {
         acknowledgePublish: acknowledge.value,
     });
     if (result === null) return;
-    const publication = props.publicationRecord;
+    // The project editor can invalidate the publication and hand us a new record while
+    // this upload is in flight. A late answer from record A must not repaint record B.
+    if (publicationIdentity !== publicationRecordIdentity(props.publicationRecord)) return;
     if (!result.ok) {
         if (publication !== null && publication !== undefined) {
             emit("state", { ...publication, state: "failed" });
@@ -377,6 +381,11 @@ async function refreshStatus(site: PagesRecord): Promise<void> {
 
 function rowTitle(row: PagesRow): string {
     return row.target.length > 0 ? row.target : row.renderId;
+}
+
+function publicationRecordIdentity(record: ProjectPagesStateRecord | null | undefined): string | null {
+    if (record === null || record === undefined) return null;
+    return `${record.key}\0${record.generation}\0${record.renderId}`;
 }
 
 function selectInitialRender(): void {

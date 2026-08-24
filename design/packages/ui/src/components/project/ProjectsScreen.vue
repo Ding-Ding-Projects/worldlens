@@ -170,11 +170,13 @@ const renderTarget = ref<RemoteTarget | null>(null);
 const remotePreflightPassed = ref(false);
 const preflightTargetId = ref<string | null>(null);
 const preflightContextKey = ref<string | null>(null);
+const preflightContextGeneration = ref<number | null>(null);
 const renderModes = ref<readonly string[]>(["local"]);
 const importOpen = ref(false);
 const projectPagesState = ref<ProjectPagesState>("off");
 const pagesFailure = ref<string | null>(null);
 const publicationGeneration = ref(0);
+const renderContextGeneration = ref(0);
 const verifiedRenders = ref<Record<string, { world: string; projectId: string; renderId: string; projectSnapshot: string }>>({});
 
 async function loadRenderModes(): Promise<void> {
@@ -328,8 +330,8 @@ const shellPagesState = computed<ProjectPagesState>(() => {
     return projectPagesState.value;
 });
 
-function resetRenderDestination(): void {
-    const previousKey = renderContextKey.value;
+function resetRenderDestination(previousKey: string | null): void {
+    renderContextGeneration.value += 1;
     publicationGeneration.value += 1;
     if (previousKey !== null) emit("pages-invalidated", previousKey, publicationGeneration.value);
     renderLocation.value = "local";
@@ -337,11 +339,12 @@ function resetRenderDestination(): void {
     remotePreflightPassed.value = false;
     preflightTargetId.value = null;
     preflightContextKey.value = null;
+    preflightContextGeneration.value = null;
 }
 
 watch(
-    [openWorld, () => openProject.value?.id ?? null],
-    () => resetRenderDestination(),
+    renderContextKey,
+    (_next, previous) => resetRenderDestination(previous),
     { flush: "sync" },
 );
 
@@ -349,11 +352,13 @@ watch(
     () => (openProject.value === null ? null : renderAffectingProjectSnapshot(openProject.value)),
     (next, previous) => {
         if (next === null || previous === undefined || next === previous) return;
+        renderContextGeneration.value += 1;
         const key = renderContextKey.value;
         publicationGeneration.value += 1;
         if (key !== null) emit("pages-invalidated", key, publicationGeneration.value);
         preflightTargetId.value = null;
         preflightContextKey.value = null;
+        preflightContextGeneration.value = null;
         remotePreflightPassed.value = false;
     },
 );
@@ -954,7 +959,8 @@ async function startRender(world: string, project: ProjectFile): Promise<void> {
             renderTarget.value === null ||
             !remotePreflightPassed.value ||
             preflightTargetId.value !== renderTarget.value.id ||
-            preflightContextKey.value !== renderContextKey.value)
+            preflightContextKey.value !== renderContextKey.value ||
+            preflightContextGeneration.value !== renderContextGeneration.value)
     ) {
         raiseNotice(
             "warning",
@@ -1161,6 +1167,7 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
             :can-render-in-docker="renderModes.includes('docker')"
             :can-render-remotely="remote !== null"
             :remote-preflight-passed="remotePreflightPassed"
+            :render-context-generation="renderContextGeneration"
             :can-open-ci="props.canOpenCi ?? false"
             :can-import-project="host !== null && configHost !== null"
             :can-publish-existing="currentVerifiedRender !== null"
@@ -1173,11 +1180,13 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
                 remotePreflightPassed = false
                 preflightTargetId = null
                 preflightContextKey = null
+                preflightContextGeneration = null
             }"
             @update:render-preflight="(value: boolean) => {
                 remotePreflightPassed = value
                 preflightTargetId = value ? renderTarget?.id ?? null : null
                 preflightContextKey = value ? renderContextKey : null
+                preflightContextGeneration = value ? renderContextGeneration : null
             }"
             @destination="chooseDestination"
             @pages-toggle="handlePagesToggle"

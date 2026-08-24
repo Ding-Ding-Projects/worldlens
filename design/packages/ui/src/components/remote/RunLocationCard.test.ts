@@ -24,6 +24,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
+import { defineComponent, h, ref } from "vue";
 import RunLocationCard from "./RunLocationCard.vue";
 import runLocationCardSource from "./RunLocationCard.vue?raw";
 import type {
@@ -135,6 +136,7 @@ function remoteBridge(
     answer: PreflightReport | ((target: RemoteTarget) => Promise<PreflightReport>),
     trust = vi.fn(async () => ({ ok: true, message: "recorded." })),
 ): RemoteBridge {
+    const preflight = typeof answer === "function" ? answer : async () => answer;
     return {
         validateRemoteTarget: async () => ({ ok: true, target, summary: "renderer@build.lan:22" }),
         describeRemoteTarget: async () => ({
@@ -144,7 +146,7 @@ function remoteBridge(
             leavesBehind: "Nothing.",
             authentication: "Your SSH agent.",
         }),
-        remotePreflight: async (nextTarget) => typeof answer === "function" ? answer(nextTarget) : answer,
+        remotePreflight: async (nextTarget: unknown) => preflight(nextTarget as RemoteTarget),
         trustRemoteHostKey: trust,
         startRemoteRender: async () => ({ ok: false, renderId: "", failure: { code: "x", message: "", detail: null, exitCode: null } }),
         cancelRemoteRender: async () => false,
@@ -499,6 +501,42 @@ describe("choosing a machine", () => {
         pending[1]?.resolve(report({ ok: true, target: "build.lan" }));
         await flushPromises();
         expect(wrapper.vm.report?.ok).toBe(true);
+    });
+
+    it("rejects a preflight response after the owning project context changes", async () => {
+        let resolve!: (value: PreflightReport) => void;
+        const remote = remoteBridge(() => new Promise((complete) => {
+                resolve = complete;
+            }));
+        const Parent = defineComponent({
+            setup() {
+                const contextGeneration = ref(1);
+                return { contextGeneration };
+            },
+            render() {
+                return h(RunLocationCard, {
+                    remoteBridge: remote,
+                    storage: storageWith([target]),
+                    contextGeneration: this.contextGeneration,
+                });
+            },
+        });
+        const wrapper = mount(Parent, { global: { plugins: [i18n, vuetify] } });
+        const card = wrapper.findComponent(RunLocationCard);
+        await flushPromises();
+
+        card.vm.selectedId = "t-1";
+        await flushPromises();
+        void card.vm.check();
+        await flushPromises();
+
+        wrapper.vm.contextGeneration = 2;
+        await wrapper.vm.$nextTick();
+        resolve(report({ ok: true, target: "build.lan" }));
+        await flushPromises();
+
+        expect(card.vm.report).toBeNull();
+        expect(card.emitted("update:preflight")?.at(-1)).toEqual([false]);
     });
 });
 

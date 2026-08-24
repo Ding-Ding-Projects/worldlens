@@ -147,7 +147,11 @@ function sshBridge() {
             return () => listeners.delete(listener);
         },
     };
-    return bridge;
+    return Object.assign(bridge, {
+        fire(event: SshWorldSourceEvent): void {
+            listeners.forEach((listener) => listener(event));
+        },
+    });
 }
 
 function mounted(bridge: SshWorldSourceBridge) {
@@ -272,5 +276,134 @@ describe("the mounted SSH world-source wizard path", () => {
         } finally {
             vi.useRealTimers();
         }
+    });
+
+    it("ignores late progress and success after a timed-out cancellation", async () => {
+        vi.useFakeTimers();
+        try {
+            const bridge = sshBridge();
+            type FetchResult = Awaited<ReturnType<SshWorldSourceBridge["fetch"]>>;
+            let resolveFetch!: (value: FetchResult) => void;
+            bridge.fetch = vi.fn(
+                () => new Promise<FetchResult>((resolve) => {
+                    resolveFetch = resolve;
+                }),
+            );
+            bridge.cancel = vi.fn(() => new Promise<boolean>(() => {}));
+            const wrapper = mounted(bridge);
+            const vm = wrapper.vm as unknown as {
+                chooseTarget(id: string): void;
+                detect(): Promise<void>;
+                trust(key: { type: string; base64: string; fingerprint: string; line: string }): Promise<void>;
+                chooseRemoteFolder(path: string): void;
+                surveyRemote(): Promise<void>;
+                localParent: string;
+                fetchWorld(): Promise<void>;
+                cancelFetch(): Promise<void>;
+                fetchId: string | null;
+                fetching: boolean;
+                cancelRequested: boolean;
+                fetchLines: string[];
+                fetchFailure: string | null;
+            };
+            await wrapper.get("[data-test='ssh-open']").trigger("click");
+            vm.chooseTarget("server");
+            await vm.detect();
+            await vm.trust({ type: "ssh-ed25519", base64: "AAAA", fingerprint: "SHA256:review-me", line: "server ssh-ed25519 AAAA" });
+            vm.chooseRemoteFolder("/srv/minecraft/world");
+            await vm.surveyRemote();
+            vm.localParent = "C:\\Fetched Worlds";
+
+            const fetchPromise = vm.fetchWorld();
+            await vi.runOnlyPendingTimersAsync();
+            await Promise.resolve();
+            bridge.fire({ kind: "line", id: "fetch-1", message: "before cancel" });
+            expect(vm.fetchId).toBe("fetch-1");
+
+            const cancelPromise = vm.cancelFetch();
+            await vi.advanceTimersByTimeAsync(5000);
+            await cancelPromise;
+            expect(vm.cancelRequested).toBe(true);
+            expect(vm.fetching).toBe(false);
+
+            bridge.fire({ kind: "line", id: "fetch-1", message: "late progress" });
+            resolveFetch({
+                id: "fetch-1",
+                result: {
+                    ok: true,
+                    kind: "posix",
+                    transfer: "rsync",
+                    message: "late success",
+                },
+            });
+            await fetchPromise;
+            await flushPromises();
+
+            expect(vm.fetchLines).not.toContain("late progress");
+            expect(vm.fetchFailure).toContain("did not confirm cancellation");
+            expect(wrapper.emitted("use")).toBeUndefined();
+            wrapper.unmount();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it("ignores a late failure after cancellation", async () => {
+        const bridge = sshBridge();
+        type FetchResult = Awaited<ReturnType<SshWorldSourceBridge["fetch"]>>;
+        let resolveFetch!: (value: FetchResult) => void;
+        bridge.fetch = vi.fn(
+            () => new Promise<FetchResult>((resolve) => {
+                resolveFetch = resolve;
+            }),
+        );
+        const wrapper = mounted(bridge);
+        const vm = wrapper.vm as unknown as {
+            chooseTarget(id: string): void;
+            detect(): Promise<void>;
+            trust(key: { type: string; base64: string; fingerprint: string; line: string }): Promise<void>;
+            chooseRemoteFolder(path: string): void;
+            surveyRemote(): Promise<void>;
+            localParent: string;
+            fetchId: string | null;
+            fetching: boolean;
+            cancelRequested: boolean;
+            cancelFetch(): Promise<void>;
+            fetchFailure: string | null;
+            fetchWorld(): Promise<void>;
+        };
+        await wrapper.get("[data-test='ssh-open']").trigger("click");
+        vm.chooseTarget("server");
+        await vm.detect();
+        await vm.trust({ type: "ssh-ed25519", base64: "AAAA", fingerprint: "SHA256:review-me", line: "server ssh-ed25519 AAAA" });
+        vm.chooseRemoteFolder("/srv/minecraft/world");
+        await vm.surveyRemote();
+        vm.localParent = "C:\\Fetched Worlds";
+        const fetchPromise = vm.fetchWorld();
+        await flushPromises();
+        bridge.fire({ kind: "line", id: "fetch-1", message: "before cancel" });
+        expect(vm.fetchId).toBe("fetch-1");
+        await vm.cancelFetch();
+        resolveFetch({
+            id: "fetch-1",
+            result: {
+                ok: false,
+                failure: {
+                    code: "late",
+                    message: "late failure",
+                    detail: null,
+                    setting: null,
+                    remoteCode: "late",
+                    target: null,
+                },
+                hostKeys: [],
+            },
+        });
+        await fetchPromise;
+        await flushPromises();
+        expect(vm.cancelRequested).toBe(true);
+        expect(vm.fetchFailure).not.toBe("late failure");
+        expect(wrapper.emitted("use")).toBeUndefined();
+        wrapper.unmount();
     });
 });

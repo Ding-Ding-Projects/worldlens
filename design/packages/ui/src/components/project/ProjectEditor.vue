@@ -165,6 +165,8 @@ const props = withDefaults(
         canRenderInDocker?: boolean;
         canRenderRemotely?: boolean;
         remotePreflightPassed?: boolean;
+        /** Generation of the render-affecting project context, owned by ProjectsScreen. */
+        renderContextGeneration?: number;
         canOpenCi?: boolean;
         canImportProject?: boolean;
         canPublishExisting?: boolean;
@@ -191,6 +193,7 @@ const props = withDefaults(
         canRenderInDocker: false,
         canRenderRemotely: false,
         remotePreflightPassed: false,
+        renderContextGeneration: 0,
         canOpenCi: false,
         canImportProject: false,
         canPublishExisting: false,
@@ -1311,6 +1314,7 @@ const renderButtonLabel = computed(() =>
                 :can-render-locally="renderable"
                 :location="renderLocationValue"
                 :can-open-ci="props.canOpenCi"
+                :context-generation="props.renderContextGeneration"
                 @update:location="emit('update:render-location', $event)"
                 @update:target="emit('update:render-target', $event)"
                 @update:preflight="emit('update:render-preflight', $event)"
