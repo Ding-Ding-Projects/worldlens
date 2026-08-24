@@ -870,6 +870,23 @@ above this one.
 
 ## Build it
 
+### Fresh Windows, one command
+
+On a fresh Windows installation with no Node.js, package manager, Java runtime, Git, GitHub CLI,
+Electron cache, or project dependencies installed, copy and paste this exact command from the checkout:
+
+```powershell
+.\build.bat --run
+```
+
+It calls the root `download-dependencies.bat` fetcher, obtains pinned user-scoped tools from the
+canonical package sources or their verified portable archives, refreshes the current process
+`PATH`, runs the committed bootstrap, builds the real workspace outputs, verifies the app and UI
+artifacts, and launches only after those proofs pass. There is no preparatory install step and no
+post-build question for `--run`. Use `.\build.bat /s` or `.\build.bat --silent` for a noninteractive
+build that never launches. See [`docs/fresh-windows-build-and-run.md`](docs/fresh-windows-build-and-run.md)
+for the exact acquisition, failure, and verification contract.
+
 Requires **Node 22+** and **pnpm 10**. The upstream Java reference is a git submodule; the port
 reads it directly.
 
