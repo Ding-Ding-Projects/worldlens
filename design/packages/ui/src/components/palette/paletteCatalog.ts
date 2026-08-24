@@ -65,7 +65,13 @@ import {
     type SettingsSectionAnchor,
 } from "../settings/settingsSections.js";
 import { schoolModeEnabled } from "../setup/schoolMode.js";
-import type { PaletteChoice, PaletteItem, Translate } from "./paletteItems.js";
+import {
+    withDiscoveryMetadata,
+    type PaletteChoice,
+    type PaletteDirectoryEntry,
+    type PaletteItem,
+    type Translate,
+} from "./paletteItems.js";
 import { PALETTE_SIZES, type PaletteSize } from "./palettePrefs.js";
 import { viewerSettingItems } from "./viewerSettings.js";
 
@@ -101,10 +107,7 @@ export interface PaletteSettingsTarget {
  * this is that type restated rather than a wider one invented here.
  */
 export type PaletteConfigTarget =
-    | ScreenId
-    | "history"
-    | { readonly screen: ScreenId; readonly fieldPath: string }
-    | null;
+    ScreenId | "history" | { readonly screen: ScreenId; readonly fieldPath: string } | null;
 
 /** One page of the shell's tab strip, as much of it as the palette needs. */
 export interface PalettePageRef {
@@ -173,6 +176,8 @@ export interface PaletteCatalogInput {
     readonly size: PaletteSize;
     readonly setSize: (size: PaletteSize) => void;
     readonly kidModeActive?: boolean;
+    /** Optional live registries supplied by the owning shell, docs and recovery surfaces. */
+    readonly directoryEntries?: readonly PaletteDirectoryEntry[];
 }
 
 /**
@@ -207,7 +212,10 @@ function hasMarkers(markerSet: MarkerSetData): boolean {
  */
 const PAGE_NOTES: Record<string, { description: [string, string]; keywords: readonly string[] }> = {
     map: {
-        description: ["palette.page.map", "The rendered map itself, with the viewer's own menu, markers and camera."],
+        description: [
+            "palette.page.map",
+            "The rendered map itself, with the viewer's own menu, markers and camera.",
+        ],
         keywords: ["viewer", "world", "3d", "canvas", "camera", "marker"],
     },
     world: {
@@ -243,7 +251,16 @@ const PAGE_NOTES: Record<string, { description: [string, string]; keywords: read
             "palette.page.ciRender",
             "Rendering on GitHub's machines instead of this one: a repository, the consents, the upload, and the run watched job by job.",
         ],
-        keywords: ["github", "runner", "actions", "ci", "cloud", "remote render", "workflow", "upload"],
+        keywords: [
+            "github",
+            "runner",
+            "actions",
+            "ci",
+            "cloud",
+            "remote render",
+            "workflow",
+            "upload",
+        ],
     },
     servers: {
         description: [
@@ -271,7 +288,17 @@ const PAGE_NOTES: Record<string, { description: [string, string]; keywords: read
             "palette.page.worldRepo",
             "Keeping a world in a git repository so it updates incrementally, and adopting a repository this application already prepared on another computer.",
         ],
-        keywords: ["git", "repository", "sync", "world repo", "adopt", "adoption", "clone", "marker", "incremental"],
+        keywords: [
+            "git",
+            "repository",
+            "sync",
+            "world repo",
+            "adopt",
+            "adoption",
+            "clone",
+            "marker",
+            "incremental",
+        ],
     },
     mcservers: {
         description: [
@@ -298,51 +325,87 @@ const PAGE_NOTES: Record<string, { description: [string, string]; keywords: read
         ],
     },
     structures: {
-        description: ["palette.page.structures", "Placing and managing structure schematics inside a rendered world."],
+        description: [
+            "palette.page.structures",
+            "Placing and managing structure schematics inside a rendered world.",
+        ],
         keywords: ["structure", "schematic", "placement", "build"],
     },
     chunker: {
-        description: ["palette.page.chunker", "Converting and repairing a world's chunk data between formats."],
+        description: [
+            "palette.page.chunker",
+            "Converting and repairing a world's chunk data between formats.",
+        ],
         keywords: ["chunk", "convert", "repair", "format", "region"],
     },
     authenticator: {
-        description: ["palette.page.authenticator", "The built-in TOTP authenticator: pairing, live codes, and every registered secret."],
+        description: [
+            "palette.page.authenticator",
+            "The built-in TOTP authenticator: pairing, live codes, and every registered secret.",
+        ],
         keywords: ["totp", "otp", "two-factor", "2fa", "authenticator", "qr code", "code"],
     },
     locks: {
-        description: ["palette.page.locks", "Every-element toy lock: which elements are locked, and by password or OTP."],
+        description: [
+            "palette.page.locks",
+            "Every-element toy lock: which elements are locked, and by password or OTP.",
+        ],
         keywords: ["lock", "unlock", "password", "otp", "toy lock"],
     },
     support: {
-        description: ["palette.page.support", "Support Tickets: the recovery route for a locked-out element or account."],
+        description: [
+            "palette.page.support",
+            "Support Tickets: the recovery route for a locked-out element or account.",
+        ],
         keywords: ["support", "ticket", "recovery", "locked out", "forgotten password"],
     },
     renders: {
-        description: ["palette.page.renders", "Every render this app has run, and its current progress or result."],
+        description: [
+            "palette.page.renders",
+            "Every render this app has run, and its current progress or result.",
+        ],
         keywords: ["render", "progress", "job", "history", "log"],
     },
     preview: {
-        description: ["palette.page.preview", "A live preview of a rendered map before it is published anywhere."],
+        description: [
+            "palette.page.preview",
+            "A live preview of a rendered map before it is published anywhere.",
+        ],
         keywords: ["preview", "live", "local server"],
     },
     docs: {
-        description: ["palette.page.docs", "This app's own bundled, offline documentation browser."],
+        description: [
+            "palette.page.docs",
+            "This app's own bundled, offline documentation browser.",
+        ],
         keywords: ["docs", "documentation", "help", "manual", "offline"],
     },
     ollama: {
-        description: ["palette.page.ollama", "The local Ollama suite manager: models, the store, chat, and harness profiles."],
+        description: [
+            "palette.page.ollama",
+            "The local Ollama suite manager: models, the store, chat, and harness profiles.",
+        ],
         keywords: ["ollama", "model", "llm", "chat", "local ai", "harness"],
     },
     dockerHosting: {
-        description: ["palette.page.dockerHosting", "Hosting a rendered map or server through Docker on a saved host."],
+        description: [
+            "palette.page.dockerHosting",
+            "Hosting a rendered map or server through Docker on a saved host.",
+        ],
         keywords: ["docker", "hosting", "container", "host"],
     },
     screenshots: {
-        description: ["palette.page.screenshots", "Every captured screenshot this app has taken, and where it was captured from."],
+        description: [
+            "palette.page.screenshots",
+            "Every captured screenshot this app has taken, and where it was captured from.",
+        ],
         keywords: ["screenshot", "capture", "image", "picture"],
     },
     browserExtension: {
-        description: ["palette.page.browserExtension", "The companion browser extension: install, download capture, and its status."],
+        description: [
+            "palette.page.browserExtension",
+            "The companion browser extension: install, download capture, and its status.",
+        ],
         keywords: ["browser extension", "download capture", "install extension", "chrome", "edge"],
     },
 };
@@ -373,10 +436,17 @@ function pageItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
             title: page.label,
             description:
                 note === undefined
-                    ? t("palette.page.generic", "One of this app's pages, on the tab strip along the top.")
+                    ? t(
+                          "palette.page.generic",
+                          "One of this app's pages, on the tab strip along the top.",
+                      )
                     : t(note.description[0], note.description[1]),
             keywords: [page.id, ...(note?.keywords ?? [])],
-            where: t("palette.where.page", { page: page.label }, "Shows the {page} page, exactly as its tab does."),
+            where: t(
+                "palette.where.page",
+                { page: page.label },
+                "Shows the {page} page, exactly as its tab does.",
+            ),
             go: () => openPage(page.id),
         };
     });
@@ -495,19 +565,20 @@ function settingsSectionItems(input: PaletteCatalogInput, group: string): Palett
         (anchor) => !schoolModeEnabled() || anchor !== "vocabulary",
     ).map((anchor: SettingsSectionAnchor): PaletteItem => {
         const section = copy[anchor];
-        const keywords = anchor === "language-and-tone" && schoolModeEnabled()
-            ? [section.title]
-            : anchor === "kid-mode"
-              ? [
-                    anchor.replaceAll("-", " "),
-                    t("settings.kidMode.kidModeOption", "Kid Mode"),
-                    t("settings.kidMode.adultModeOption", "Adult Mode"),
-                    t("settings.kidMode.name", "What to call the child"),
-                    t("settings.kidMode.celebrations", "Celebrate finished jobs"),
-                    t("settings.kidMode.sound", "Play a sound with a celebration"),
-                    t("settings.kidMode.labelStyle", "Labels"),
-                ]
-              : [anchor.replaceAll("-", " ")];
+        const keywords =
+            anchor === "language-and-tone" && schoolModeEnabled()
+                ? [section.title]
+                : anchor === "kid-mode"
+                  ? [
+                        anchor.replaceAll("-", " "),
+                        t("settings.kidMode.kidModeOption", "Kid Mode"),
+                        t("settings.kidMode.adultModeOption", "Adult Mode"),
+                        t("settings.kidMode.name", "What to call the child"),
+                        t("settings.kidMode.celebrations", "Celebrate finished jobs"),
+                        t("settings.kidMode.sound", "Play a sound with a celebration"),
+                        t("settings.kidMode.labelStyle", "Labels"),
+                    ]
+                  : [anchor.replaceAll("-", " ")];
         // Every section reveals now, including the twelve no render can name. Whether a
         // failure could point here decides nothing about whether the palette can: the
         // palette knows exactly which section was picked, so opening Settings and leaving
@@ -547,7 +618,11 @@ function configScreenItems(input: PaletteCatalogInput, group: string): PaletteIt
                     "palette.config.allDescription",
                     "The options editor holds one tab per group of settings. Open it and pick the tab named below.",
                 ),
-                keywords: SCREENS.flatMap((screen) => [screen.id, screen.label, screen.description]),
+                keywords: SCREENS.flatMap((screen) => [
+                    screen.id,
+                    screen.label,
+                    screen.description,
+                ]),
                 where: t(
                     "palette.where.configAll",
                     "Opens the server configuration editor at its first tab, Core. The tab strip along the top has the rest.",
@@ -557,22 +632,20 @@ function configScreenItems(input: PaletteCatalogInput, group: string): PaletteIt
         ];
     }
 
-    const screens = SCREENS.map(
-        (screen): PaletteItem => ({
-            kind: "destination",
-            id: `config.${screen.id}`,
-            group,
-            title: screen.label,
-            description: screen.description,
-            keywords: [screen.id, "bluemap", "conf"],
-            where: t(
-                "palette.where.configScreen",
-                { tab: screen.label },
-                "Opens the server configuration editor at the {tab} tab.",
-            ),
-            go: () => actions.openConfig(screen.id),
-        }),
-    );
+    const screens = SCREENS.map((screen): PaletteItem => ({
+        kind: "destination",
+        id: `config.${screen.id}`,
+        group,
+        title: screen.label,
+        description: screen.description,
+        keywords: [screen.id, "bluemap", "conf"],
+        where: t(
+            "palette.where.configScreen",
+            { tab: screen.label },
+            "Opens the server configuration editor at the {tab} tab.",
+        ),
+        go: () => actions.openConfig(screen.id),
+    }));
     screens.push({
         kind: "destination",
         id: "config.maps.render-mask",
@@ -617,7 +690,16 @@ function configHistoryItem(input: PaletteCatalogInput, group: string): PaletteIt
             "palette.config.historyDescription",
             "Every saved version of the open config folder, kept on this computer: browse them, see what each one changed, and put one back.",
         ),
-        keywords: ["history", "versions", "revisions", "restore", "undo", "backup", "bluemap", "conf"],
+        keywords: [
+            "history",
+            "versions",
+            "revisions",
+            "restore",
+            "undo",
+            "backup",
+            "bluemap",
+            "conf",
+        ],
         where: routed
             ? t(
                   "palette.where.configHistoryRouted",
@@ -649,7 +731,10 @@ function menuPageItems(input: PaletteCatalogInput, group: string): PaletteItem[]
             id: "menu.maps",
             group,
             title: t("maps.title", "Maps"),
-            description: t("palette.menu.maps", "Every map this server publishes, and which one is on screen."),
+            description: t(
+                "palette.menu.maps",
+                "Every map this server publishes, and which one is on screen.",
+            ),
             keywords: ["world", "dimension", "nether", "end", "switch"],
             where: t("palette.where.menuPage", "Opens the menu at this page."),
             go: () => app.appState.menu.openPage("maps", () => t("maps.title", "Maps")),
@@ -672,7 +757,10 @@ function menuPageItems(input: PaletteCatalogInput, group: string): PaletteItem[]
             id: "menu.info",
             group,
             title: t("info.title", "Info"),
-            description: t("palette.menu.info", "What the controls do, and what this build of BlueMap is."),
+            description: t(
+                "palette.menu.info",
+                "What the controls do, and what this build of BlueMap is.",
+            ),
             keywords: ["help", "about", "version", "controls", "keys"],
             where: t("palette.where.menuPage", "Opens the menu at this page."),
             go: () => app.appState.menu.openPage("info", () => t("info.title", "Info")),
@@ -686,10 +774,16 @@ function menuPageItems(input: PaletteCatalogInput, group: string): PaletteItem[]
             id: "menu.markers",
             group,
             title: t("markers.title", "Markers"),
-            description: t("palette.menu.markers", "Every marker set on this map, and the markers inside them."),
+            description: t(
+                "palette.menu.markers",
+                "Every marker set on this map, and the markers inside them.",
+            ),
             keywords: ["poi", "label", "point of interest"],
             where: t("palette.where.menuPage", "Opens the menu at this page."),
-            go: () => app.appState.menu.openPage("markers", () => t("markers.title", "Markers"), { markerSet: root }),
+            go: () =>
+                app.appState.menu.openPage("markers", () => t("markers.title", "Markers"), {
+                    markerSet: root,
+                }),
         });
     }
 
@@ -700,10 +794,16 @@ function menuPageItems(input: PaletteCatalogInput, group: string): PaletteItem[]
             id: "menu.players",
             group,
             title: t("players.title", "Players"),
-            description: t("palette.menu.players", "Who is online right now, and where they are standing."),
+            description: t(
+                "palette.menu.players",
+                "Who is online right now, and where they are standing.",
+            ),
             keywords: ["online", "who", "people"],
             where: t("palette.where.menuPage", "Opens the menu at this page."),
-            go: () => app.appState.menu.openPage("markers", () => t("players.title", "Players"), { markerSet: players }),
+            go: () =>
+                app.appState.menu.openPage("markers", () => t("players.title", "Players"), {
+                    markerSet: players,
+                }),
         });
     }
 
@@ -744,7 +844,16 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
                 "palette.chrome.noticeCentre",
                 "Every message this app has raised, searchable and filterable by level, including the ones that dismissed themselves before you read them.",
             ),
-            keywords: ["notification", "notice", "history", "toast", "message", "bell", "alert", "dismissed"],
+            keywords: [
+                "notification",
+                "notice",
+                "history",
+                "toast",
+                "message",
+                "bell",
+                "alert",
+                "dismissed",
+            ],
             run: () => openNoticeCentre(),
         });
     }
@@ -803,7 +912,15 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
                 "palette.chrome.tutorial",
                 "A short guided walkthrough of finding a world, rendering it, and opening the result, with the real controls highlighted as it goes.",
             ),
-            keywords: ["tour", "tutorial", "walkthrough", "guide", "onboarding", "getting started", "how to"],
+            keywords: [
+                "tour",
+                "tutorial",
+                "walkthrough",
+                "guide",
+                "onboarding",
+                "getting started",
+                "how to",
+            ],
             run: () => openTutorial(),
         });
     }
@@ -826,7 +943,17 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
                 "palette.chrome.eula",
                 "Mojang's licence document in its own docked panel: the same text the first-run step shows, fetched, categorised and searchable.",
             ),
-            keywords: ["eula", "licence", "license", "mojang", "minecraft", "legal", "terms", "agreement", "gavel"],
+            keywords: [
+                "eula",
+                "licence",
+                "license",
+                "mojang",
+                "minecraft",
+                "legal",
+                "terms",
+                "agreement",
+                "gavel",
+            ],
             run: () => openEula(),
         });
     }
@@ -842,7 +969,16 @@ function chromeItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
                 "palette.chrome.welcome",
                 "The introduction from first-run setup, kept reachable: what this app is for, in its own docked panel, with a Start here button that goes to the wizard.",
             ),
-            keywords: ["welcome", "intro", "introduction", "about", "what is this", "start here", "help", "first run"],
+            keywords: [
+                "welcome",
+                "intro",
+                "introduction",
+                "about",
+                "what is this",
+                "start here",
+                "help",
+                "first run",
+            ],
             run: () => openWelcome(),
         });
     }
@@ -887,7 +1023,15 @@ function appearanceItems(input: PaletteCatalogInput, group: string): PaletteItem
                 "palette.appearance.presetDescription",
                 "The saved look applied underneath every element's own customisation. Built-in presets and any you have saved yourself.",
             ),
-            keywords: ["theme", "preset", "appearance", "look", "contrast", "large text", "font size"],
+            keywords: [
+                "theme",
+                "preset",
+                "appearance",
+                "look",
+                "contrast",
+                "large text",
+                "font size",
+            ],
             control: {
                 kind: "choice",
                 value: state.activePreset === "" ? NO_PRESET : state.activePreset,
@@ -998,7 +1142,12 @@ export function buildPaletteCatalog(input: PaletteCatalogInput): PaletteItem[] {
     const { t } = input;
     const hasPages = (input.pages?.length ?? 0) > 0;
 
-    return [
+    const supplied = (input.directoryEntries ?? []).map((entry): PaletteItem => ({
+        ...entry,
+        kind: "destination",
+    }));
+
+    return withDiscoveryMetadata([
         ...shellItems(input, t("palette.group.app", "App"), hasPages),
         ...pageItems(input, t("palette.group.pages", "Pages")),
         ...chromeItems(input, t("palette.group.chrome", "Shell")),
@@ -1009,7 +1158,8 @@ export function buildPaletteCatalog(input: PaletteCatalogInput): PaletteItem[] {
         ...menuPageItems(input, t("palette.group.menu", "Menu")),
         ...viewerSettingItems(input.app, input.t, input.locale),
         ...paletteOwnItems(input, t("palette.group.palette", "Command palette")),
-    ];
+        ...supplied,
+    ]);
 }
 
 /** The anchors the catalogue is expected to cover, re-exported so a test can assert on them. */

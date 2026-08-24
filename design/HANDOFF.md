@@ -5446,3 +5446,31 @@ prove a final map, lowres rebuild, merged metadata, public result, or disk ceili
 
 No new workflow, tests, captures, merge, disk measurement, cleanup, or release action was run in
 this records-only lane. Issue #67 remains open pending a fresh run with the required receipts.
+## Discoverability and rich command results — lane handoff (2026-08-24)
+
+This lane extends the existing palette without changing `App.vue` or replacing any feature
+route. `paletteDiscovery.ts` persists only stable favourites and a bounded recent-destination id
+list. `PaletteRow.vue` now exposes an accessible favourite toggle, location breadcrumb, related
+action labels, and honest disabled/recovery copy while keeping switches, selects, and numeric
+fields wired to the original live setters. `paletteCatalog.ts` accepts optional tab/group/article/
+appearance/recovery directory entries from the owning shell and enriches every built-in row with
+validated discovery metadata. `featureDirectoryInventory.ts` is the hand-written fail-closed
+route list with a deliberate remove-one negative regression.
+
+Verification on commit `feature/discoverability-rich-results` before integration:
+
+- `pnpm install --frozen-lockfile` completed from the checked-in lockfile. It emitted only the
+  pre-existing workspace-bin warnings for unbuilt CLI package outputs.
+- Workspace packages `@worldlens/design-system`, `@worldlens/shared`, `@worldlens/config`, and
+  `@worldlens/viewer` built successfully.
+- Focused palette and directory tests: **4 files, 61 tests passed**.
+- `pnpm --filter @worldlens/ui build` passed, transforming 1,934 modules and producing the UI
+  bundle. Vite emitted its existing dynamic-import and large-chunk warnings only.
+- Full UI typecheck remains red on pre-existing unrelated files; no new diagnostic referenced the
+  palette changes. Existing mounted `CommandPalette.test.ts` also has a baseline Vuetify CSS-loader
+  failure in this checkout, so the new pure model/inventory tests and production build are the
+  decisive lane evidence.
+
+The integration lane still needs to pass its host-owned `App.vue` directory registries into
+`directoryEntries` if it has live article, recovery, tab, group, or appearance registries to add.
+No push, merge, cleanup, or external issue mutation was performed here.

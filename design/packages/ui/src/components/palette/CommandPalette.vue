@@ -2,7 +2,16 @@
 import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArrowCollapse, mdiArrowExpand, mdiClose } from "@mdi/js";
-import { VBtn, VCard, VDialog, VDivider, VIcon, VToolbar, VToolbarTitle, VTooltip } from "vuetify/components";
+import {
+    VBtn,
+    VCard,
+    VDialog,
+    VDivider,
+    VIcon,
+    VToolbar,
+    VToolbarTitle,
+    VTooltip,
+} from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { blueMapApp } from "../../stores/bluemap.js";
@@ -14,7 +23,21 @@ import {
     type PaletteSettingsTarget,
     type PaletteShellActions,
 } from "./paletteCatalog.js";
-import { countByKind, filterItems, groupItems, paletteSample, type PaletteItem } from "./paletteItems.js";
+import {
+    countByKind,
+    filterItems,
+    groupItems,
+    paletteSample,
+    type PaletteItem,
+} from "./paletteItems.js";
+import {
+    orderPaletteItems,
+    readPaletteDiscovery,
+    recordPaletteDestination,
+    togglePaletteFavourite,
+    writePaletteDiscovery,
+    type PaletteDiscoveryState,
+} from "./paletteDiscovery.js";
 import { readPaletteSize, writePaletteSize, type PaletteSize } from "./palettePrefs.js";
 import { useKidMode } from "../../kid/kidMode.js";
 
@@ -107,6 +130,7 @@ const titleId = useId();
 /* -------------------------------------------------------------------------- */
 
 const size = ref<PaletteSize>(readPaletteSize());
+const discovery = ref<PaletteDiscoveryState>(readPaletteDiscovery());
 
 watch(size, (value) => {
     writePaletteSize(value);
@@ -186,7 +210,9 @@ const matcher = computed(() => createSettingMatcher(query.value, regexMode.value
 
 const visible = computed(() => filterItems(items.value, matcher.value));
 
-const groups = computed(() => groupItems(visible.value));
+const orderedVisible = computed(() => orderPaletteItems(visible.value, discovery.value));
+
+const groups = computed(() => groupItems(orderedVisible.value));
 
 const sample = computed(() => paletteSample(items.value));
 
@@ -199,16 +225,28 @@ const summary = computed(() => {
     if (!matcher.value.active) {
         return t(
             "palette.search.total",
-            { commands: counted.commands, settings: counted.settings, places: counted.destinations },
+            {
+                commands: counted.commands,
+                settings: counted.settings,
+                places: counted.destinations,
+            },
             "{commands} commands, {settings} settings and {places} places.",
         );
     }
     return t(
         "palette.search.found",
-        { shown: visible.value.length, total: items.value.length },
+        { shown: orderedVisible.value.length, total: items.value.length },
         "{shown} of {total} rows match.",
     );
 });
+
+watch(
+    discovery,
+    (value) => {
+        writePaletteDiscovery(value);
+    },
+    { deep: true },
+);
 
 /* -------------------------------------------------------------------------- */
 /* Focus, and moving through the list with the keyboard                       */
@@ -222,7 +260,8 @@ let cameFrom: HTMLElement | null = null;
 
 function focusableOrigin(value: Element | null): HTMLElement | null {
     if (!(value instanceof HTMLElement) || value === globalThis.document?.body) return null;
-    if (value.hasAttribute("disabled") || value.getAttribute("aria-disabled") === "true") return null;
+    if (value.hasAttribute("disabled") || value.getAttribute("aria-disabled") === "true")
+        return null;
     const tabIndex = value.getAttribute("tabindex");
     if (tabIndex !== null && Number(tabIndex) < 0) return null;
     return value;
@@ -267,7 +306,12 @@ function move(delta: number): void {
     );
     // From the search box (which is not in the list) down goes to the first row and up goes
     // to the last, so both arrows are useful on the first keystroke after opening.
-    const next = current === -1 ? (delta > 0 ? 0 : targets.length - 1) : (current + delta + targets.length) % targets.length;
+    const next =
+        current === -1
+            ? delta > 0
+                ? 0
+                : targets.length - 1
+            : (current + delta + targets.length) % targets.length;
     targets[next]?.focus();
 }
 
@@ -314,7 +358,7 @@ function onKeydown(event: KeyboardEvent): void {
  * the control and the user says what they want it to be.
  */
 function onSearchEnter(): void {
-    const first = visible.value[0];
+    const first = orderedVisible.value[0];
     if (first === undefined) return;
     if (first.kind === "setting") {
         move(1);
@@ -323,6 +367,10 @@ function onSearchEnter(): void {
     if (first.kind === "command") first.run();
     else first.go();
     close();
+}
+
+function toggleFavourite(item: PaletteItem): void {
+    discovery.value = togglePaletteFavourite(discovery.value, item.id);
 }
 
 function close(): void {
@@ -359,7 +407,8 @@ watch(
 );
 
 /** A row was run or a destination chosen: the palette has done its job and steps out. */
-function onActivate(): void {
+function onActivate(item: PaletteItem): void {
+    discovery.value = recordPaletteDestination(discovery.value, item);
     close();
 }
 
@@ -425,7 +474,9 @@ function onActivate(): void {
                     v-model:regex="regexMode"
                     v-model:flags="flags"
                     :label="t('palette.search.label', 'Search everything')"
-                    :placeholder="t('palette.search.hint', 'a command, a setting, or where you want to go')"
+                    :placeholder="
+                        t('palette.search.hint', 'a command, a setting, or where you want to go')
+                    "
                     :sample="sample"
                     :summary="summary"
                     density="comfortable"
@@ -443,7 +494,9 @@ function onActivate(): void {
                             v-for="item in group.items"
                             :key="item.id"
                             :item="item"
+                            :favourite="discovery.favourites.includes(item.id)"
                             @activate="onActivate"
+                            @toggle-favourite="toggleFavourite"
                         />
                     </ul>
                 </template>
@@ -451,8 +504,14 @@ function onActivate(): void {
                 <p v-if="visible.length === 0" class="mb-palette__empty" role="status">
                     {{
                         matcher.error !== null
-                            ? t("palette.search.badPattern", "The pattern is not valid, so nothing is listed.")
-                            : t("palette.search.noMatches", "Nothing in this app matches that.")
+                            ? t(
+                                  "palette.search.badPattern",
+                                  "The pattern is not valid, so nothing is listed.",
+                              )
+                            : t(
+                                  "palette.search.noMatches",
+                                  "Nothing in this app matches that. Try a feature name, a page, a setting, or a location breadcrumb; use the adjacent regex builder only when you need a pattern.",
+                              )
                     }}
                 </p>
 
