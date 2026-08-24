@@ -40,9 +40,9 @@ const target: RemoteTarget = {
     keepRemoteFiles: false,
 };
 
-function memoryStorage(): TargetStorage {
+function memoryStorage(targets: readonly RemoteTarget[] = [target]): TargetStorage {
     const values = new Map<string, string>([
-        ["worldlens-remote-targets", JSON.stringify({ version: 1, targets: [target] })],
+        ["worldlens-remote-targets", JSON.stringify({ version: 1, targets })],
     ]);
     return {
         getItem: (key) => values.get(key) ?? null,
@@ -247,7 +247,7 @@ describe("the mounted SSH world-source wizard path", () => {
         const wrapper = mounted(bridge);
         const vm = wrapper.vm as unknown as {
             fetchId: string | null;
-            cancelFetch(): Promise<void>;
+            cancelFetch(): Promise<boolean>;
             fetchFailure: string | null;
         };
         vm.fetchId = "fetch-1";
@@ -260,18 +260,30 @@ describe("the mounted SSH world-source wizard path", () => {
         vi.useFakeTimers();
         try {
             const bridge = sshBridge();
-            bridge.cancel = vi.fn(() => new Promise<boolean>(() => {}));
+            let resolveCancel!: (confirmed: boolean) => void;
+            bridge.cancel = vi.fn(
+                () => new Promise<boolean>((resolve) => {
+                    resolveCancel = resolve;
+                }),
+            );
             const wrapper = mounted(bridge);
             const vm = wrapper.vm as unknown as {
                 fetchId: string | null;
-                cancelFetch(): Promise<void>;
+                cancelFetch(): Promise<boolean>;
                 fetchFailure: string | null;
+                fetching: boolean;
+                cancellationPending: boolean;
             };
             vm.fetchId = "fetch-1";
             const pending = vm.cancelFetch();
             await vi.advanceTimersByTimeAsync(5000);
+            expect(vm.fetching).toBe(false);
+            expect(vm.cancellationPending).toBe(true);
+            expect(vm.fetchFailure).toContain("not been confirmed after five seconds");
+            resolveCancel(true);
             await pending;
-            expect(vm.fetchFailure).toContain("did not confirm cancellation");
+            expect(vm.fetching).toBe(false);
+            expect(vm.cancellationPending).toBe(false);
             wrapper.unmount();
         } finally {
             vi.useRealTimers();
@@ -289,7 +301,12 @@ describe("the mounted SSH world-source wizard path", () => {
                     resolveFetch = resolve;
                 }),
             );
-            bridge.cancel = vi.fn(() => new Promise<boolean>(() => {}));
+            let resolveCancel!: (confirmed: boolean) => void;
+            bridge.cancel = vi.fn(
+                () => new Promise<boolean>((resolve) => {
+                    resolveCancel = resolve;
+                }),
+            );
             const wrapper = mounted(bridge);
             const vm = wrapper.vm as unknown as {
                 chooseTarget(id: string): void;
@@ -299,10 +316,11 @@ describe("the mounted SSH world-source wizard path", () => {
                 surveyRemote(): Promise<void>;
                 localParent: string;
                 fetchWorld(): Promise<void>;
-                cancelFetch(): Promise<void>;
+                cancelFetch(): Promise<boolean>;
                 fetchId: string | null;
                 fetching: boolean;
                 cancelRequested: boolean;
+                cancellationPending: boolean;
                 fetchLines: string[];
                 fetchFailure: string | null;
             };
@@ -322,9 +340,9 @@ describe("the mounted SSH world-source wizard path", () => {
 
             const cancelPromise = vm.cancelFetch();
             await vi.advanceTimersByTimeAsync(5000);
-            await cancelPromise;
             expect(vm.cancelRequested).toBe(true);
-            expect(vm.fetching).toBe(false);
+            expect(vm.fetching).toBe(true);
+            expect(vm.cancellationPending).toBe(true);
 
             bridge.fire({ kind: "line", id: "fetch-1", message: "late progress" });
             resolveFetch({
@@ -336,11 +354,15 @@ describe("the mounted SSH world-source wizard path", () => {
                     message: "late success",
                 },
             });
+            resolveCancel(true);
+            await cancelPromise;
             await fetchPromise;
             await flushPromises();
 
             expect(vm.fetchLines).not.toContain("late progress");
-            expect(vm.fetchFailure).toContain("did not confirm cancellation");
+            expect(vm.fetchFailure).toBeNull();
+            expect(vm.fetching).toBe(false);
+            expect(vm.cancellationPending).toBe(false);
             expect(wrapper.emitted("use")).toBeUndefined();
             wrapper.unmount();
         } finally {
@@ -368,7 +390,7 @@ describe("the mounted SSH world-source wizard path", () => {
             fetchId: string | null;
             fetching: boolean;
             cancelRequested: boolean;
-            cancelFetch(): Promise<void>;
+            cancelFetch(): Promise<boolean>;
             fetchFailure: string | null;
             fetchWorld(): Promise<void>;
         };
@@ -403,6 +425,73 @@ describe("the mounted SSH world-source wizard path", () => {
         await flushPromises();
         expect(vm.cancelRequested).toBe(true);
         expect(vm.fetchFailure).not.toBe("late failure");
+        expect(wrapper.emitted("use")).toBeUndefined();
+        wrapper.unmount();
+    });
+
+    it("waits for confirmed cancellation before switching SSH targets", async () => {
+        type FetchResult = Awaited<ReturnType<SshWorldSourceBridge["fetch"]>>;
+        const bridge = sshBridge();
+        const second: RemoteTarget = { ...target, id: "server-2", label: "Second server" };
+        let resolveFetch!: (value: FetchResult) => void;
+        const order: string[] = [];
+        bridge.fetch = vi.fn(
+            () => new Promise<FetchResult>((resolve) => {
+                resolveFetch = resolve;
+            }),
+        );
+        bridge.cancel = vi.fn(async () => {
+            order.push("cancel");
+            return true;
+        });
+        const wrapper = mount(SshWorldSourcePanel, {
+            props: { bridge, remoteBridge: remoteBridge(), storage: memoryStorage([target, second]) },
+            global: {
+                plugins: [
+                    createVuetify(),
+                    createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", messages: {} }),
+                ],
+                stubs: {
+                    AppearanceTarget: { template: "<section><slot /></section>" },
+                    ConfigSearchField: { template: "<div />" },
+                    RemoteTargetEditor: { template: "<div />" },
+                    RemoteFileBrowser: { template: "<div />" },
+                    PathField: { template: "<div />" },
+                },
+            },
+        });
+        const vm = wrapper.vm as unknown as {
+            selectedId: string | null;
+            chooseTarget(id: string): void;
+            fetchId: string | null;
+            fetchWorld(): Promise<void>;
+            chooseRemoteFolder(path: string): void;
+            surveyRemote(): Promise<void>;
+            localParent: string;
+            detect(): Promise<void>;
+            trust(key: { type: string; base64: string; fingerprint: string; line: string }): Promise<void>;
+        };
+        vm.chooseTarget("server");
+        await vm.detect();
+        await vm.trust({ type: "ssh-ed25519", base64: "AAAA", fingerprint: "SHA256:review-me", line: "server ssh-ed25519 AAAA" });
+        vm.chooseRemoteFolder("/srv/minecraft/world");
+        await vm.surveyRemote();
+        vm.localParent = "C:\\Fetched Worlds";
+        void vm.fetchWorld();
+        await flushPromises();
+        bridge.fire({ kind: "line", id: "fetch-1", message: "started" });
+        expect(vm.fetchId).toBe("fetch-1");
+
+        vm.chooseTarget("server-2");
+        expect(vm.selectedId).toBe("server");
+        await flushPromises();
+        expect(order).toEqual(["cancel"]);
+        expect(vm.selectedId).toBe("server-2");
+        resolveFetch({
+            id: "fetch-1",
+            result: { ok: true, kind: "posix", transfer: "rsync", message: "late" },
+        });
+        await flushPromises();
         expect(wrapper.emitted("use")).toBeUndefined();
         wrapper.unmount();
     });

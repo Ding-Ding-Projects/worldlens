@@ -107,8 +107,8 @@ async function cancelTransferAndClose(): Promise<void> {
         return;
     }
     try {
-        await sshPanel.value?.cancelFetch();
-        if (!activeTransfer.value) {
+        const confirmed = (await sshPanel.value?.cancelFetch()) === true;
+        if (confirmed && !activeTransfer.value) {
             await restoreFocus();
             emit("close");
         }

@@ -221,7 +221,7 @@ function fakeBridge(
 
 function mountScreen(bridge: PagesBridge | null, publicationRecord?: TestProjectPagesStateRecord | null) {
     return mount(PagesScreen, {
-        props: { bridge, publicationRecord },
+        props: publicationRecord === undefined ? { bridge } : { bridge, publicationRecord },
         global: {
             plugins: [
                 createVuetify(),

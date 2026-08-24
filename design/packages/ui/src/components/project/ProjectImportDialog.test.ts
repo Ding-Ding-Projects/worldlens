@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
+import { defineComponent, h, ref } from "vue";
 import ProjectImportDialog from "./ProjectImportDialog.vue";
 import type { ConfigHost } from "../config/configHost.js";
 import type { ProjectHost } from "./projectHost.js";
@@ -20,7 +21,13 @@ Object.defineProperty(globalThis, "visualViewport", {
     },
 });
 
-function render(overrides: Partial<{ config: ConfigHost; host: ProjectHost }> = {}) {
+function render(
+    overrides: Partial<{ config: ConfigHost; host: ProjectHost }> = {},
+    sshStub = defineComponent({
+        emits: ["use"],
+        template: '<button data-test="ssh-stub" @click="$emit(\'use\', \'C:/ssh-world\')">SSH</button>',
+    }),
+) {
     const config: ConfigHost = overrides.config ?? {
         name: "test",
         separator: "/",
@@ -45,10 +52,7 @@ function render(overrides: Partial<{ config: ConfigHost; host: ProjectHost }> = 
         global: {
             plugins: [i18n, createVuetify()],
             stubs: {
-                SshWorldSourcePanel: {
-                    template: '<button data-test="ssh-stub" @click="$emit(\'use\', \'C:/ssh-world\')">SSH</button>',
-                    emits: ["use"],
-                },
+                SshWorldSourcePanel: sshStub,
             },
         },
         attachTo: document.body,
@@ -79,6 +83,63 @@ describe("ProjectImportDialog", () => {
         expect(archive?.hasAttribute("disabled")).toBe(true);
         expect(document.body.textContent).toContain("Safe archive extraction");
         expect(document.body.textContent).toContain("world folder");
+        wrapper.unmount();
+    });
+
+    it("keeps the outer dialog open while SSH cancellation is pending or unconfirmed", async () => {
+        let resolveCancel!: (confirmed: boolean) => void;
+        const cancellation = new Promise<boolean>((resolve) => {
+            resolveCancel = resolve;
+        });
+        const SshStub = defineComponent({
+            emits: ["use"],
+            setup(_, { expose }) {
+                const fetching = ref(true);
+                expose({
+                    fetching,
+                    cancelFetch: () => cancellation,
+                });
+                return () => h("div", { "data-test": "ssh-active" });
+            },
+        });
+        const wrapper = render({}, SshStub);
+        const vm = wrapper.vm as unknown as { cancelTransferAndClose(): Promise<void> };
+        await flushPromises();
+        expect(wrapper.findComponent({ name: "VDialog" }).props("persistent")).toBe(true);
+        const closing = vm.cancelTransferAndClose();
+        await Promise.resolve();
+        expect(wrapper.emitted("close")).toBeUndefined();
+
+        wrapper.findComponent({ name: "VDialog" }).vm.$emit("update:modelValue", false);
+        expect(wrapper.emitted("close")).toBeUndefined();
+
+        resolveCancel(false);
+        await closing;
+        await flushPromises();
+        expect(wrapper.emitted("close")).toBeUndefined();
+        wrapper.unmount();
+    });
+
+    it("closes the outer dialog only after SSH cancellation is confirmed", async () => {
+        const SshStub = defineComponent({
+            emits: ["use"],
+            setup(_, { expose }) {
+                const fetching = ref(true);
+                expose({
+                    fetching,
+                    cancelFetch: async () => {
+                        fetching.value = false;
+                        return true;
+                    },
+                });
+                return () => h("div", { "data-test": "ssh-active" });
+            },
+        });
+        const wrapper = render({}, SshStub);
+        const vm = wrapper.vm as unknown as { cancelTransferAndClose(): Promise<void> };
+        await vm.cancelTransferAndClose();
+        await flushPromises();
+        expect(wrapper.emitted("close")).toHaveLength(1);
         wrapper.unmount();
     });
 });

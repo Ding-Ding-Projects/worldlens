@@ -115,6 +115,7 @@ const fetchLines = ref<string[]>([]);
 const fetchFailure = ref<string | null>(null);
 const fetchedFolder = ref<string | null>(null);
 const cancelRequested = ref(false);
+const cancellationPending = ref(false);
 let fetchGeneration = 0;
 let baselineActive = new Set<string>();
 let stopListening: (() => void) | null = null;
@@ -162,10 +163,15 @@ function resetAfterTarget(): void {
 }
 
 function chooseTarget(id: string | null): void {
+    if (fetching.value) {
+        if (id === selectedId.value || cancellationPending.value) return;
+        void cancelFetch().then((confirmed) => {
+            if (confirmed) chooseTarget(id);
+        });
+        return;
+    }
     fetchGeneration += 1;
     cancelRequested.value = true;
-    fetching.value = false;
-    stopActivePoll();
     selectedId.value = id;
     resetAfterTarget();
 }
@@ -291,6 +297,7 @@ async function fetchWorld(): Promise<void> {
     if (bridge === null || target === null || !canFetch.value) return;
     const generation = ++fetchGeneration;
     cancelRequested.value = false;
+    cancellationPending.value = false;
     fetching.value = true;
     fetchId.value = null;
     fetchLines.value = [];
@@ -333,30 +340,45 @@ async function fetchWorld(): Promise<void> {
     }
 }
 
-async function cancelFetch(): Promise<void> {
-    if (bridge === null || fetchId.value === null) return;
+async function cancelFetch(): Promise<boolean> {
+    if (bridge === null || fetchId.value === null || cancellationPending.value) return false;
     const id = fetchId.value;
     cancelRequested.value = true;
     fetchGeneration += 1;
-    fetching.value = false;
+    cancellationPending.value = true;
     stopActivePoll();
+    let timeoutHandle: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+        fetchFailure.value = t(
+            "world.ssh.cancelTimeout",
+            "Cancellation has not been confirmed after five seconds. The transfer and this dialog stay open until the bridge confirms it.",
+        );
+    }, 5000);
     try {
-        const stopped = await Promise.race([
-            bridge.cancel(id),
-            new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000)),
-        ]);
-        if (!stopped) {
-            fetchFailure.value = t(
-                "world.ssh.cancelMiss",
-                "That transfer did not confirm cancellation yet. The panel stays open so its state is not hidden.",
-            );
+        const stopped = await bridge.cancel(id);
+        if (timeoutHandle !== null) clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+        if (stopped === true) {
+            cancellationPending.value = false;
+            fetching.value = false;
+            fetchFailure.value = null;
+            return true;
         }
+        cancellationPending.value = false;
+        fetchFailure.value = t(
+            "world.ssh.cancelMiss",
+            "That transfer did not confirm cancellation. The transfer stays open so its state is not hidden.",
+        );
+        return false;
     } catch (error) {
+        if (timeoutHandle !== null) clearTimeout(timeoutHandle);
+        timeoutHandle = null;
+        cancellationPending.value = false;
         fetchFailure.value = t(
             "world.ssh.cancelFailed",
             { message: error instanceof Error ? error.message : String(error) },
             "Cancellation could not reach the transfer: {message}",
         );
+        return false;
     }
 }
 
@@ -381,6 +403,7 @@ defineExpose({
     fetchId,
     fetching,
     cancelRequested,
+    cancellationPending,
     fetchLines,
     fetchFailure,
     chooseTarget,
@@ -648,13 +671,18 @@ defineExpose({
                             <v-btn
                                 v-if="fetching"
                                 :prepend-icon="mdiStop"
-                                :disabled="fetchId === null"
+                                :disabled="fetchId === null || cancellationPending"
+                                :loading="cancellationPending"
                                 color="error"
                                 variant="tonal"
                                 data-test="ssh-cancel"
                                 @click="cancelFetch"
                             >
-                                {{ t("world.ssh.cancel", "Cancel the transfer") }}
+                                {{
+                                    cancellationPending
+                                        ? t("world.ssh.cancelling", "Waiting for cancellation")
+                                        : t("world.ssh.cancel", "Cancel the transfer")
+                                }}
                             </v-btn>
                         </div>
                         <p v-if="!canFetch" class="mb-ssh-world__disabled">
