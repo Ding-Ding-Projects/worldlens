@@ -1353,7 +1353,11 @@ function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTM
             regexBuilder(menu, filter, "lock actions");
             menu.append(filter, action);
             document.body.append(menu);
-            if (event instanceof MouseEvent) { menu.style.left = `${Math.min(event.clientX, window.innerWidth - 300)}px`; menu.style.top = `${Math.min(event.clientY, window.innerHeight - 80)}px`; }
+            const rect = target.getBoundingClientRect();
+            const left = event instanceof MouseEvent ? event.clientX : rect.left;
+            const top = event instanceof MouseEvent ? event.clientY : rect.bottom;
+            menu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - 320))}px`;
+            menu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - 120))}px`;
             action.focus();
             const dismiss = (next: Event): void => { if (!menu.contains(next.target as Node)) { menu.remove(); document.removeEventListener("pointerdown", dismiss); target.focus(); } };
             document.addEventListener("pointerdown", dismiss);
