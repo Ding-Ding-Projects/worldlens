@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "eea9b9c32cc6c712951fc35822fcd32f670a7c7e",
+        shortSha: "eea9b9c32c",
+        date: "2026-08-24T03:44:58-04:00",
+        subject: "Harden complete version catalogue flows",
+        details: "Remove the silent manifest ceiling, preserve partial refresh facts, validate every upstream shape and URL, and verify Wiki articles through a bounded main-process cache. Page large filtered results and give every picker its own search builder, because a dropdown that cannot find its older values is a very small cupboard pretending to be a warehouse.\n\n版本表唔再靜雞雞截斷，部分更新會講清楚邊種 flavour 舊咗，所有 upstream 形狀同 HTTPS URL 都先驗證。Wiki 由主程序限時查同落 cache，大表分頁，版本、loader、世界類型每個 picker 都有自己個搜尋同 regex builder，唔使喺細櫃入面搵成個倉庫。",
+        category: "interface",
+        areas: ["interface", "shell", "docs"],
+        files: 17,
+    },
+    {
         sha: "b54c5ce012fddcef678703a53c38112073f7ccce",
         shortSha: "b54c5ce012",
         date: "2026-08-24T03:14:14-04:00",
