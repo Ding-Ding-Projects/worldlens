@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { duplicateCaptureComplaints, validateCaptureManifest, validateMatrix } from "./ui-smoke-matrix.mjs";
 
 const base = {
@@ -15,18 +16,10 @@ const base = {
 };
 
 test("matrix validates complete row shape", () => {
-  const matrix = structuredClone(base);
-  const required = [
-    "host-profile-adopt-server", "server-detail-back-to-list", "new-server-flavour", "new-server-version-family", "new-server-version-exact",
-    "new-server-runtime", "new-server-java-autoprovision", "new-server-resources", "new-server-world-browse", "new-server-review",
-    "java-autoprovision-progress", "java-autoprovision-retry", "direct-world-folder-browse", "mounted-world-installation", "project-create",
-    "project-open", "project-import-local", "project-import-ssh", "render-split-arrow", "render-local", "render-docker", "render-ssh",
-    "render-github-actions", "pages-toggle-disabled", "pages-toggle-enable", "pages-toggle-published", "pages-toggle-failed-retry",
-    "render-finished-select", "render-failed-select", "appearance-core", "appearance-creative-studio", "command-palette-inline-control",
-    "settings-runtime", "settings-file-converter", "settings-ollama", "site-documentation-route",
-  ];
-  for (const id of required) matrix.rows.push({ ...matrix.rows[0], id, capture: { ...matrix.rows[0].capture, path: `docs/screenshots/ui-smoke/${id}.png` } });
-  assert.deepEqual(validateMatrix(matrix), { rowCount: 37, routeCount: 37 });
+  const matrix = JSON.parse(readFileSync(new URL("../docs/ui-smoke/smoke-matrix.json", import.meta.url), "utf8"));
+  const result = validateMatrix(matrix);
+  assert.equal(result.rowCount, 117);
+  assert.equal(result.routeCount, 117);
 });
 
 test("matrix fails closed when a required route is removed", () => {
@@ -44,7 +37,7 @@ test("manifest fails closed when a new surface lacks a capture", () => {
     "render-finished-select", "render-failed-select", "appearance-core", "appearance-creative-studio", "command-palette-inline-control",
     "settings-runtime", "settings-file-converter", "settings-ollama", "site-documentation-route",
   ]) matrix.rows.push({ ...matrix.rows[0], id, capture: { ...matrix.rows[0].capture, path: `docs/screenshots/ui-smoke/${id}.png` } });
-  assert.throws(() => validateCaptureManifest(matrix, { schemaVersion: 1, commit: "1".repeat(40), driver: "cheap-lowlevel-cdp", captures: [] }, { requireFiles: false }), /every new surface needs a capture/);
+  assert.throws(() => validateCaptureManifest(matrix, { schemaVersion: 1, commit: "1".repeat(40), driver: "cheap-lowlevel-cdp", captures: [] }, { requireFiles: false }), /every new surface needs a primary capture/);
 });
 
 test("duplicate capture hashes fail closed", () => {

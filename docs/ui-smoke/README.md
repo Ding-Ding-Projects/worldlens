@@ -24,9 +24,10 @@ The tooling lane does not run the final app smoke while integration is incomplet
 ```powershell
 node scripts/ui-smoke-matrix.mjs --plan-only
 node --test scripts/ui-smoke-matrix.test.mjs
+node scripts/ui-smoke-selector-audit.mjs
 ```
 
-The validator must fail when a required route, row field, expected surface identity, immediate capture mapping, issue linkage, or duplicate row is removed. A capture manifest is not considered valid until it contains a full SHA, one CDP page target, a dynamic HWND, focus owner, timestamp, and a matching image hash for every new surface.
+The validator must fail when a required route, row field, expected surface identity, immediate capture mapping, issue linkage, or duplicate row is removed. The selector audit must fail when a selector is absent from the current UI source. A capture manifest is not considered valid until it contains a full SHA, one CDP page target, a dynamic HWND, focus owner, timestamp, and a matching image hash for every new surface.
 
 ## Final built-artifact command
 

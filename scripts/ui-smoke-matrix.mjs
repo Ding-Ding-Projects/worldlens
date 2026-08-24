@@ -74,47 +74,89 @@ const REQUIRED_ROUTE_IDS = [
   "settings-file-converter",
   "settings-ollama",
   "site-documentation-route",
+  "first-run-eula",
+  "first-run-recovery",
+  "startup-recovery",
+  "update-available",
+  "update-progress",
+  "update-ready",
+  "update-failure",
+  "notifications-center",
+  "problems-panel",
+  "changelog-viewer",
+  "local-history",
+  "config-editor",
+  "map-destination",
+  "storage-destination",
+  "gallery-destination",
+  "external-editor-picker",
+  "theme-picker",
+  "light-theme",
+  "personal-vocabulary-picker",
+  "super-confirmation",
+  "tab-overflow",
+  "tab-group",
+  "tab-pin",
+  "tab-bulk-close",
+  "regex-builder",
+  "native-file-picker",
+  "native-folder-picker",
+  "contrast-theme",
+  "narrow-320-layout",
+  "scale-125-layout",
+  "scale-150-layout",
+  "scale-200-layout",
+  "bilingual-layout",
+  "reduced-motion-layout",
+  "focus-return",
+  "server-host-refresh",
+  "server-host-identity",
+  "server-config-editor",
+  "server-plugin-manager",
+  "server-backup-manager",
+  "server-world-operations",
+  "server-player-manager",
+  "server-console",
+  "server-start-stop",
+  "version-search-wiki",
+  "java-bundled-fallback",
+  "engine-unavailable-repair",
+  "engine-progress",
+  "engine-cancel",
+  "engine-failure-retry",
+  "render-healthy",
+  "render-unavailable",
+  "render-progress",
+  "render-cancel",
+  "render-failure-retry",
+  "render-completion",
+  "import-success",
+  "import-reject",
+  "import-migrate",
+  "import-duplicate",
+  "import-cancel",
+  "import-progress",
+  "appearance-font-picker",
+  "appearance-color-picker",
+  "appearance-rainbow",
+  "appearance-lock-wizard",
+  "settings-runtime-missing",
+  "converter-unavailable-adapter",
+  "converter-progress-cancel",
+  "ollama-missing-recovery",
+  "ollama-catalog-refresh",
+  "ollama-model-pull",
+  "ollama-chat",
+  "site-settings-equivalent",
+  "site-appearance-equivalent",
+  "site-lock-equivalent",
+  "site-offline-docs",
+  "site-export-import",
+  "site-notification-center",
+  "site-command-palette"
 ];
 
-const REQUIRED_NEW_SURFACE_ROWS = new Set([
-  "server-list-host-profile",
-  "host-profile-adopt-server",
-  "server-detail-back-to-list",
-  "new-server-flavour",
-  "new-server-version-family",
-  "new-server-version-exact",
-  "new-server-runtime",
-  "new-server-java-autoprovision",
-  "new-server-resources",
-  "new-server-world-browse",
-  "new-server-review",
-  "java-autoprovision-progress",
-  "java-autoprovision-retry",
-  "direct-world-folder-browse",
-  "mounted-world-installation",
-  "project-create",
-  "project-open",
-  "project-import-local",
-  "project-import-ssh",
-  "render-split-arrow",
-  "render-local",
-  "render-docker",
-  "render-ssh",
-  "render-github-actions",
-  "pages-toggle-disabled",
-  "pages-toggle-enable",
-  "pages-toggle-published",
-  "pages-toggle-failed-retry",
-  "render-finished-select",
-  "render-failed-select",
-  "appearance-core",
-  "appearance-creative-studio",
-  "command-palette-inline-control",
-  "settings-runtime",
-  "settings-file-converter",
-  "settings-ollama",
-  "site-documentation-route",
-]);
+const REQUIRED_NEW_SURFACE_ROWS = new Set(REQUIRED_ROUTE_IDS);
 
 function normalise(value) {
   return value.replaceAll("\\", "/");
@@ -197,17 +239,25 @@ export function validateCaptureManifest(matrix, manifest, { requireFiles = true 
   assert(manifest.driver === matrix.execution.driver, "capture manifest driver does not match smoke matrix");
   assert(Array.isArray(manifest.captures), "capture manifest captures must be an array");
   const byId = new Map();
+  const captureIds = new Set();
   for (const capture of manifest.captures) {
     assert(typeof capture.rowId === "string" && capture.rowId.length > 0, "capture rowId is required");
-    assert(!byId.has(capture.rowId), `duplicate capture rowId: ${capture.rowId}`);
-    byId.set(capture.rowId, capture);
+    assert(typeof capture.captureId === "string" && capture.captureId.length > 0, `${capture.rowId}: captureId is required`);
+    assert(!captureIds.has(capture.captureId), `duplicate captureId: ${capture.captureId}`);
+    captureIds.add(capture.captureId);
+    const kind = capture.kind ?? "primary";
+    assert(kind === "primary" || kind === "failure", `${capture.rowId}: capture kind must be primary or failure`);
+    const prior = byId.get(capture.rowId) ?? [];
+    assert(!(kind === "primary" && prior.some((entry) => (entry.kind ?? "primary") === "primary")), `${capture.rowId}: duplicate primary capture`);
+    byId.set(capture.rowId, [...prior, capture]);
     const row = matrix.rows.find((candidate) => candidate.id === capture.rowId);
     assert(row, `capture refers to unknown matrix row: ${capture.rowId}`);
-    assert(normalise(capture.path) === normalise(row.capture.path), `${capture.rowId}: capture path does not match matrix`);
+    if (kind === "primary") assert(normalise(capture.path) === normalise(row.capture.path), `${capture.rowId}: capture path does not match matrix`);
+    if (kind === "failure") assert(capture.path.startsWith("docs/screenshots/ui-smoke/failures/"), `${capture.rowId}: failure capture must be under the failure evidence folder`);
     assert(typeof capture.action === "string" && capture.action.length > 0, `${capture.rowId}: captured action is required`);
     assert(typeof capture.windowIdentity === "object" && capture.windowIdentity !== null, `${capture.rowId}: windowIdentity is required`);
-    assert(capture.windowIdentity.targetCount === 1, `${capture.rowId}: CDP targetCount must be exactly 1`);
-    assert(capture.windowIdentity.targetType === "page", `${capture.rowId}: CDP targetType must be page`);
+    assert((capture.targetCount ?? capture.windowIdentity.targetCount) === 1, `${capture.rowId}: CDP targetCount must be exactly 1`);
+    assert((capture.targetType ?? capture.windowIdentity.targetType) === "page", `${capture.rowId}: CDP targetType must be page`);
     assert(typeof capture.windowIdentity.title === "string" && capture.windowIdentity.title.length > 0, `${capture.rowId}: window title is required`);
     assert(typeof capture.windowIdentity.hwnd === "number" && capture.windowIdentity.hwnd > 0, `${capture.rowId}: dynamically resolved HWND is required`);
     assert(typeof capture.focusOwner === "string" && capture.focusOwner.length > 0, `${capture.rowId}: focus owner is required`);
@@ -220,7 +270,7 @@ export function validateCaptureManifest(matrix, manifest, { requireFiles = true 
     }
   }
   for (const row of matrix.rows) {
-    if (row.opensNewSurface) assert(byId.has(row.id), `${row.id}: every new surface needs a capture manifest entry`);
+    if (row.opensNewSurface) assert(byId.get(row.id)?.some((entry) => (entry.kind ?? "primary") === "primary"), `${row.id}: every new surface needs a primary capture manifest entry`);
   }
   return { captureCount: manifest.captures.length };
 }
