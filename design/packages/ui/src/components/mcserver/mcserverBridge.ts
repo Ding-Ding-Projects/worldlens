@@ -184,6 +184,7 @@ interface RawBridge {
             authorizeRestore?(id: string, request: unknown): Promise<unknown>;
             issueRestoreReceipt?(id: string, request: unknown): Promise<unknown>;
             restore?(id: string, request: unknown): Promise<unknown>;
+            onProgress?(listener: (serverId: string, progress: unknown) => void): () => void;
         };
         aws?: {
             plan?(request: unknown): Promise<unknown>;
@@ -393,6 +394,10 @@ export function backupIssueRestoreChallenge(id: string, request: unknown, root: 
 export function backupRestore(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<void>> {
     const b = bridge(root);
     return call(b?.backup?.restore ? () => b.backup!.restore!(id, request) : undefined);
+}
+export function onBackupProgress(listener: (serverId: string, progress: unknown) => void, root: unknown = globalThis): () => void {
+    const b = bridge(root);
+    return typeof b?.backup?.onProgress === "function" ? b.backup.onProgress(listener) : () => {};
 }
 
 export function awsPlan(request: AwsServerSpec, root: unknown = globalThis): Promise<Answer<AwsProvisionPlan>> {

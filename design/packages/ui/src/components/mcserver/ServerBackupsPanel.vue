@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VCard, VCardText, VChip, VList, VListItem, VSelect, VSwitch, VTextField } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
-import { backupAuthorizeRestore, backupCancel, backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, backupRestoreStep, type BackupEntry } from "./mcserverBridge.js";
+import { backupAuthorizeRestore, backupCancel, backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, backupRestoreStep, onBackupProgress, type BackupEntry } from "./mcserverBridge.js";
 import { useServerStore } from "./useServers.js";
 
 const props = defineProps<{ serverId: string }>();
@@ -16,6 +16,8 @@ const selectedTag = ref("");
 const entries = ref<readonly BackupEntry[]>([]);
 const worldOptions = ref<string[]>([]);
 const worldsLoading = ref(false);
+const phase = ref("idle");
+const progressMessage = ref("");
 const message = ref<string | null>(null);
 const busy = ref(false);
 const backupConsent = ref(false);
@@ -45,6 +47,7 @@ async function create(): Promise<void> {
     if (busy.value) return;
     if (owner.value.trim() === "" || repo.value.trim() === "" || server.value === undefined) return;
     busy.value = true;
+    phase.value = "scan";
     const result = await backupCreate(props.serverId, {
         owner: owner.value.trim(),
         repo: repo.value.trim(),
@@ -60,6 +63,12 @@ async function cancel(): Promise<void> {
     const result = await backupCancel(props.serverId);
     message.value = result.ok ? t("mcserver.backup.cancelRequested", "Cancellation requested. The current transfer will finish its safe cleanup before stopping.") : result.failure?.message ?? t("mcserver.backup.cancelFailed", "The active backup could not be cancelled.");
 }
+const stopProgress = onBackupProgress((serverId, progress) => {
+    if (serverId !== props.serverId || typeof progress !== "object" || progress === null) return;
+    const value = progress as { phase?: unknown; message?: unknown };
+    if (typeof value.phase === "string") phase.value = value.phase;
+    if (typeof value.message === "string") progressMessage.value = value.message;
+});
 async function restore(): Promise<void> {
     if (busy.value) return;
     if (selectedTag.value === "" || owner.value.trim() === "" || repo.value.trim() === "") return;
@@ -132,6 +141,7 @@ onMounted(async () => {
         message.value = result.failure?.message ?? t("mcserver.backup.worldsFailed", "The mounted world folders could not be listed.");
     }
 });
+onBeforeUnmount(stopProgress);
 </script>
 
 <template>
@@ -150,6 +160,7 @@ onMounted(async () => {
                 <VBtn v-if="busy" variant="text" color="error" @click="cancel">{{ t("mcserver.backup.cancel", "Cancel") }}</VBtn>
             </div>
             <VProgressLinear v-if="busy" indeterminate color="primary" class="mb-3" role="progressbar" :aria-label="t('mcserver.backup.progress', 'Backup operation in progress')" />
+            <div v-if="busy" role="status" aria-live="polite" class="text-body-2 mb-3">{{ phase }}<span v-if="progressMessage"> · {{ progressMessage }}</span></div>
             <VAlert v-if="!targetValid" type="warning" variant="tonal" class="mb-3">{{ t("mcserver.backup.targetInvalid", "Choose a mounted folder inside this server's recognized directory.") }}</VAlert>
             <VSwitch v-if="server?.origin === 'adopted'" v-model="backupConsent" :label="t('mcserver.backup.consent', 'I consent to reading this adopted server for backup')" density="compact" hide-details class="mb-2" />
             <VSwitch v-if="server?.origin === 'adopted'" v-model="restoreConsent" :label="t('mcserver.backup.restoreConsent', 'I consent to restoring this adopted server')" density="compact" hide-details class="mb-2" />

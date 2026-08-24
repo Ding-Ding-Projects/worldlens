@@ -24,7 +24,7 @@ import { BackupRunner, type BackupRequest, type BackupResult, type BackupRunnerO
 import { listBackups, type BackupListing } from "../../backup/catalog.js";
 import type { GitHubCallOptions } from "../../backup/github.js";
 import { inspectBackupSource } from "../../backup/source.js";
-import { fail, ok, type Answer, type ServerTransport, type TransportRef } from "../transport/types.js";
+import { fail, ok, type Answer, type BackupProgress, type ServerTransport, type TransportRef } from "../transport/types.js";
 
 /** Whether a server's `TransportRef` names a folder this machine's filesystem can pack
  *  directly. `local-process` always does; `local-docker` does whenever its `serverDir` is
@@ -52,6 +52,7 @@ export interface ServerBackupRequest {
     /** Required for ssh-docker: the transport is the only byte-safe route to remote files. */
     readonly transport?: ServerTransport;
     readonly signal?: AbortSignal;
+    readonly onProgress?: (progress: BackupProgress) => void;
 }
 
 export async function materializeRemoteFolder(transport: ServerTransport, remoteRoot: string, localRoot: string, signal?: AbortSignal): Promise<Answer<void>> {
@@ -101,7 +102,10 @@ export async function createServerBackup(
         try {
             const materialized = request.transport.copyDirectoryToLocal === undefined
                 ? await materializeRemoteFolder(request.transport, request.worldFolder, staging, request.signal)
-                : await request.transport.copyDirectoryToLocal(request.worldFolder, staging, request.signal === undefined ? {} : { signal: request.signal });
+                : await request.transport.copyDirectoryToLocal(request.worldFolder, staging, {
+                    ...(request.signal === undefined ? {} : { signal: request.signal }),
+                    ...(request.onProgress === undefined ? {} : { onProgress: request.onProgress }),
+                });
             if (!materialized.ok) return materialized;
             const { transport: _remoteTransport, ...localRequest } = request;
             return createServerBackup(runnerOptions, {

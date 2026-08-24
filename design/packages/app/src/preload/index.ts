@@ -2460,6 +2460,7 @@ interface WorldlensBridge {
             authorizeRestore(id: string, request: { challenge: string }): Promise<unknown>;
             issueRestoreReceipt(id: string, request: { owner: string; repo: string; tag: string; worldFolder?: string; challenge: string }): Promise<unknown>;
             restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string; worldFolder?: string; restoreConsent?: boolean; restoreReceipt?: string }): Promise<unknown>;
+            onProgress(listener: (serverId: string, progress: unknown) => void): () => void;
         };
         /** Proves the stored RCON password and port work. Never returns the password. */
         rconTest(id: string): Promise<unknown>;
@@ -3613,6 +3614,11 @@ const bridge: WorldlensBridge = {
             authorizeRestore: (id, request) => ipcRenderer.invoke("mcserver:backup:restore:authorize", id, request),
             issueRestoreReceipt: (id, request) => ipcRenderer.invoke("mcserver:backup:restore:issue", id, request),
             restore: (id, request) => ipcRenderer.invoke("mcserver:backup:restore", id, request),
+            onProgress: (listener) => {
+                const forward = (_event: Electron.IpcRendererEvent, serverId: string, progress: unknown) => listener(serverId, progress);
+                ipcRenderer.on("mcserver:backup:progress", forward);
+                return () => ipcRenderer.off("mcserver:backup:progress", forward);
+            },
         },
         webConsole: {
             status: () => ipcRenderer.invoke("mcserver:webconsole:status"),

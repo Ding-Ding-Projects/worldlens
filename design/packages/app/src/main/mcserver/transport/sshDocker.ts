@@ -34,7 +34,7 @@ import {
 } from "../../runtime/command.js";
 import { scpArguments, scpRemotePath, sshCommandRunner, type SshOptionsInput } from "../../remote/ssh.js";
 import { createDockerTransport, type FileChannel } from "./dockerTransport.js";
-import { fail, ok, type Answer, type ServerTransport, type TransportCapabilities } from "./types.js";
+import { fail, ok, type Answer, type BackupProgress, type ServerTransport, type TransportCapabilities } from "./types.js";
 
 export interface SshDockerOptions extends SshOptionsInput {
     /** Stable id of the configured host, carried on the ref so the UI can name it. */
@@ -48,6 +48,7 @@ export interface SshDockerOptions extends SshOptionsInput {
     /** The local `scp` binary, and the runner that launches it. Both injected for tests. */
     readonly scp?: string;
     readonly runner?: CommandRunner;
+    readonly onProgress?: (progress: BackupProgress) => void;
 }
 
 interface RestoreFile {
@@ -244,6 +245,8 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
     return {
         ...transport,
         async copyDirectoryToLocal(sourceFolder, localDestination, copyOptions = {}) {
+            const progress = copyOptions.onProgress ?? (() => undefined);
+            progress({ phase: "scan", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Scanning the remote world before staging." });
             if (!safeContainerPath(sourceFolder) || !(sourceFolder === options.serverDir || sourceFolder.startsWith(`${options.serverDir.replace(/\/$/, "")}/`))) return fail("invalid-request", "The remote backup source is outside the container scope.");
             if (copyOptions.signal?.aborted) return fail("timeout", "The remote backup was cancelled before staging.");
             await mkdir(localDestination, { recursive: true });
@@ -283,7 +286,9 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                     }
                 }
                 if (result.ok) {
+                    progress({ phase: "stable-staging", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Creating a stable remote backup snapshot." });
                     const copied = await remoteRunner(docker, ["cp", `${options.containerRef}:${sourceFolder}`, remoteHostStage], { timeoutMs: 300_000 });
+                    progress({ phase: "docker-copy", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Copying the stable snapshot on the Docker host." });
                     if (!copied.ok) {
                         result = fail("command-failed", "The remote world could not be staged for backup.", copied.stderr || copied.stdout);
                     } else {
@@ -291,6 +296,7 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                     const stagedManifest: { relative: string; bytes: number; sha256: string }[] = [];
                     if (!stagedListing.ok) result = fail("command-failed", "The staged remote backup manifest could not be read.", stagedListing.stderr || stagedListing.stdout);
                     if (result.ok) {
+                        progress({ phase: "remote-hash", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Hashing the stable remote snapshot." });
                         const rows = stagedListing.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
                         if (rows.length !== Number(remoteManifest?.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).length ?? -1)) result = fail("stale-document", "The remote backup changed while it was being staged.");
                         for (const row of rows) {
@@ -302,6 +308,7 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                             stagedManifest.push({ relative: match[2]!.slice(remoteHostStage.length + 1), bytes: Number(match[1]!), sha256: digest });
                         }
                     }
+                    progress({ phase: "scp", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Copying the verified snapshot to local backup storage. Transfer totals are not available from this SCP runner." });
                     const fetched = result.ok ? await runner(scp, [...scpArguments(options, ["-r"]), `${scpRemotePath(options.target, remoteHostStage)}/.`, localDestination], {
                         timeoutMs: 300_000,
                         ...(copyOptions.signal === undefined ? {} : { signal: copyOptions.signal }),
@@ -309,6 +316,7 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                     if (fetched === null) result = result.ok ? fail("command-failed", "The staged remote backup did not produce an outcome.") : result;
                     if (fetched !== null && !fetched.ok) result = fail("unreachable", "The remote world could not be copied to local backup storage.", fetched.stderr || fetched.stdout || fetched.spawnError);
                     if (result.ok) {
+                        progress({ phase: "local-verify", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Verifying local paths, sizes, and SHA-256 values." });
                         const localManifest = await localRestoreManifest(localDestination, copyOptions.signal);
                         if (!localManifest.ok) result = localManifest;
                         else if (localManifest.value.length !== stagedManifest.length || localManifest.value.some((entry) => !stagedManifest.some((remote) => remote.relative === entry.relative && remote.bytes === entry.bytes && remote.sha256 === entry.sha256))) result = fail("stale-document", "The remote backup changed while it was being copied and was refused.");
@@ -317,16 +325,21 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                 }
             } finally {
                 if (cleanupRequired) {
+                    progress({ phase: "cleanup", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Cleaning temporary remote backup staging." });
                     const cleaned = await cleanupRemotePath(remoteHostStage);
                     if (!cleaned.ok) cleanupWarning = cleaned.failure.message;
                     cleanupRequired = false;
                 }
                 if (cleanupWarning !== undefined) {
+                    progress({ phase: "warning", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: cleanupWarning });
                     result = result.ok
                         ? ok({ cleanupWarning })
                         : fail(result.failure.code, result.failure.message, `${result.failure.detail ?? ""}\n${cleanupWarning}`.trim());
                 }
             }
+            if (copyOptions.signal?.aborted) progress({ phase: "cancelled", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Remote backup staging was cancelled after safe cleanup." });
+            else if (result.ok) progress({ phase: "complete", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Remote backup staging completed." });
+            else progress({ phase: "partial", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: result.failure.message });
             return result;
         },
         async atomicRestoreDirectory(sourceFolder, targetFolder, restoreOptions = {}) {

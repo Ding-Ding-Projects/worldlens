@@ -580,6 +580,9 @@ function registerIpc(): void {
                 : await dialog.showMessageBox(ownerWindow, dialogOptions);
             return answer.response === 1;
         },
+        onBackupProgress: (serverId, progress) => {
+            for (const window of BrowserWindow.getAllWindows()) window.webContents.send("mcserver:backup:progress", serverId, progress);
+        },
     });
     app.on("will-quit", () => mcServerIpc?.dispose());
 

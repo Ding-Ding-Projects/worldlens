@@ -79,6 +79,7 @@ import {
 import { recordedFor, scanHostKeys, trustHostKey } from "../remote/hostkey.js";
 import { openSshRconTunnel, type SshRconTunnel } from "./rcon/sshTunnel.js";
 import { sshCommandRunner } from "../remote/ssh.js";
+import type { BackupProgress } from "./transport/types.js";
 
 export const MCSERVER_CHANNELS = {
     list: "mcserver:list",
@@ -150,6 +151,7 @@ export const MCSERVER_CHANNELS = {
 
 /** The console line shape pushed to the renderer as the session lives. Never the RCON password. */
 export const MCSERVER_CONSOLE_LINE_EVENT = "mcserver:console:line";
+export const MCSERVER_BACKUP_PROGRESS_EVENT = "mcserver:backup:progress";
 
 export type McServerChannel = (typeof MCSERVER_CHANNELS)[keyof typeof MCSERVER_CHANNELS];
 
@@ -200,6 +202,7 @@ export interface McServerIpcOptions {
     readonly now?: () => string;
     /** Main-process native confirmation session, never renderer-supplied proof. */
     readonly nativeRestoreConfirm?: (request: { serverId: string; target: string; owner: string; repo: string; tag: string }) => Promise<boolean>;
+    readonly onBackupProgress?: (serverId: string, progress: BackupProgress) => void;
     readonly adoptions?: AdoptionStore;
     /**
      * This installation's own Docker ownership value - see `adopt/discover.ts`'s note on
@@ -1503,6 +1506,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                     repo: body.repo,
                     adopted: opened.value.record.origin === "adopted",
                     signal: controller.signal,
+                    onProgress: (progress) => options.onBackupProgress?.(id, progress),
                     ...(typeof body.accountId === "string" ? { accountId: body.accountId } : {}),
                     ...(body.acknowledgePublic === true ? { acknowledgePublic: true } : {}),
                     ...(typeof body.resumeTag === "string" ? { resumeTag: body.resumeTag } : {}),

@@ -101,6 +101,15 @@ export type Answer<T> =
     | { readonly ok: true; readonly value: T }
     | { readonly ok: false; readonly failure: TransportFailure };
 
+export type BackupProgressPhase = "scan" | "stable-staging" | "docker-copy" | "remote-hash" | "scp" | "local-verify" | "cleanup" | "cancelled" | "partial" | "warning" | "complete";
+export interface BackupProgress {
+    readonly phase: BackupProgressPhase;
+    readonly bytesDone: number;
+    readonly bytesTotal: number | null;
+    readonly rateBytesPerSecond: number | null;
+    readonly message: string;
+}
+
 export function ok<T>(value: T): Answer<T> {
     return { ok: true, value };
 }
@@ -325,7 +334,7 @@ export interface ServerTransport {
     atomicRestoreDirectory?(sourceFolder: string, targetFolder: string, options?: { signal?: AbortSignal; retainRollback?: boolean }): Promise<Answer<{ restoredFiles: number; rolledBack: boolean; cleanupWarning?: string }>>;
     /** Byte-safe recursive copy for remote backup staging. It streams through the transport
      * rather than materialising a file in the main process. */
-    copyDirectoryToLocal?(sourceFolder: string, localDestination: string, options?: { signal?: AbortSignal }): Promise<Answer<{ cleanupWarning?: string }>>;
+    copyDirectoryToLocal?(sourceFolder: string, localDestination: string, options?: { signal?: AbortSignal; onProgress?: (progress: BackupProgress) => void }): Promise<Answer<{ cleanupWarning?: string }>>;
 }
 
 /** Shared dependencies every transport takes, so none of them reaches for a global. */
