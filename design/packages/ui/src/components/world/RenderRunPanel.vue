@@ -98,6 +98,20 @@ const advice = computed(() => {
 
 const mapList = computed(() => props.run.mapIds.value.join(", "));
 
+const engineProvisionPercent = computed(() => {
+    const progress = props.run.engineProvisioning.value;
+    if (progress === null || progress.total === null || progress.total <= 0) return null;
+    return Math.min(100, Math.max(0, ((progress.received ?? 0) / progress.total) * 100));
+});
+
+const engineProvisionBytes = computed(() => {
+    const progress = props.run.engineProvisioning.value;
+    if (progress === null || progress.received === null) return "";
+    return progress.total === null
+        ? `${progress.received.toLocaleString()} bytes`
+        : `${progress.received.toLocaleString()} / ${progress.total.toLocaleString()} bytes`;
+});
+
 /**
  * The engine that ran, preferring the record over the expectation.
  *
@@ -173,6 +187,33 @@ function openMap(): void {
 
         <v-card-text>
             <template v-if="run.active.value">
+                <div
+                    v-if="run.engineProvisioning.value"
+                    class="mb-world-run__engine-provision"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <p class="mb-world-run__line">
+                        <strong>{{
+                            t("world.run.engineProvisioning", "Preparing the render engine")
+                        }}</strong>
+                        <span class="mb-world-run__stage">{{
+                            run.engineProvisioning.value.stage
+                        }}</span>
+                    </p>
+                    <p class="mb-world-run__note">{{ run.engineProvisioning.value.message }}</p>
+                    <v-progress-linear
+                        :model-value="engineProvisionPercent ?? undefined"
+                        :indeterminate="engineProvisionPercent === null"
+                        color="primary"
+                        height="8"
+                        rounded
+                        aria-label="Render engine provisioning progress"
+                    />
+                    <p v-if="engineProvisionBytes" class="mb-world-run__note mb-world-run__bytes">
+                        {{ engineProvisionBytes }}
+                    </p>
+                </div>
                 <p class="mb-world-run__line">
                     <strong>{{ phaseText }}</strong>
                 </p>
@@ -355,12 +396,23 @@ function openMap(): void {
                     :lines="run.log.value"
                     :history="run.history.value"
                     :render-id="run.renderId.value ?? 'unknown'"
-                    :provenance="run.provenance.value?.engine ?? run.engine.value?.label ?? 'render'"
-                    :history-warning="run.historyWarning.value === 'storage-unavailable'
-                        ? t('world.console.storageUnavailable', 'Console history could not be saved; the live render is unchanged.')
-                        : run.historyWarning.value === 'retention-limit' || run.historyWarning.value === 'storage-limit'
-                          ? t('world.console.retentionWarning', 'Console history reached its retention limit; older lines remain unavailable.')
-                          : ''"
+                    :provenance="
+                        run.provenance.value?.engine ?? run.engine.value?.label ?? 'render'
+                    "
+                    :history-warning="
+                        run.historyWarning.value === 'storage-unavailable'
+                            ? t(
+                                  'world.console.storageUnavailable',
+                                  'Console history could not be saved; the live render is unchanged.',
+                              )
+                            : run.historyWarning.value === 'retention-limit' ||
+                                run.historyWarning.value === 'storage-limit'
+                              ? t(
+                                    'world.console.retentionWarning',
+                                    'Console history reached its retention limit; older lines remain unavailable.',
+                                )
+                              : ''
+                    "
                     :history-complete="run.historyComplete.value"
                     :history-updated-at="run.historyUpdatedAt.value"
                     :evicted-lines="run.evictedLines.value"
@@ -452,6 +504,15 @@ function openMap(): void {
 
 .mb-world-run__engine {
     margin-block-start: 12px;
+}
+
+.mb-world-run__engine-provision {
+    margin-block: 8px 12px;
+}
+
+.mb-world-run__stage,
+.mb-world-run__bytes {
+    font-variant-numeric: tabular-nums;
 }
 
 .mb-world-run__actions {

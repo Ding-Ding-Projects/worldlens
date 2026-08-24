@@ -30,6 +30,7 @@ import {
 } from "@worldlens/server";
 import { LocalMapHandler, defaultStorageDirectory } from "./render/index.js";
 import { typescriptEngine, upstreamJavaEngine } from "./render/engine.js";
+import { packagedUpstreamJavaIsUsable } from "./render/engineProvisioning.js";
 import { installRenderIpc } from "./render/ipc.js";
 import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
@@ -147,7 +148,7 @@ import { registerBedrockHandlers, BEDROCK_EVENT_CHANNEL } from "./bedrock/index.
 import type { BedrockIpc } from "./bedrock/index.js";
 import { registerRepairHandlers } from "./repair/index.js";
 import type { RepairIpc } from "./repair/index.js";
-import { ensureJava } from "./java/index.js";
+import { ensureJava, resolveCliJar } from "./java/index.js";
 import { registerSysdepHandlers, SYSDEP_INSTALL_EVENT_CHANNEL } from "./sysdeps/ipc.js";
 import type { SysdepIpc } from "./sysdeps/ipc.js";
 import { spawnProcessRunner } from "./sysdeps/process.js";
@@ -816,6 +817,39 @@ function startJavaDiscovery(): JavaIpc {
         // it should be naming sits in `resources/bundled/java`.
         resourcesPath: app.isPackaged ? process.resourcesPath : null,
         ensure: ensureJava,
+        renderEngine: async () => {
+            try {
+                const packaged = app.isPackaged && process.resourcesPath !== undefined;
+                if (packaged && !(await packagedUpstreamJavaIsUsable(process.resourcesPath))) {
+                    const managed = resolveCliJar({
+                        resourcesPath: null,
+                        repoRoot: null,
+                        dataDir: app.getPath("userData"),
+                    });
+                    return {
+                        available: managed.source === "managed",
+                        version: managed.source === "managed" ? managed.version : null,
+                        source: managed.source === "managed" ? "managed" : null,
+                        reason:
+                            managed.source === "managed"
+                                ? "The packaged jar needs repair; a managed copy is ready."
+                                : "The packaged BlueMap jar is missing or malformed.",
+                    };
+                }
+                const jar = resolveCliJar({
+                    resourcesPath: app.isPackaged ? process.resourcesPath : null,
+                    dataDir: app.getPath("userData"),
+                });
+                return { available: true, version: jar.version, source: jar.source, reason: null };
+            } catch (error) {
+                return {
+                    available: false,
+                    version: null,
+                    source: null,
+                    reason: error instanceof Error ? error.message : String(error),
+                };
+            }
+        },
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
                 if (!window.isDestroyed())

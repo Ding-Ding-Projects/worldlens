@@ -70,6 +70,10 @@ export interface JavaSetting {
     readonly rejected: ComputedRef<readonly JavaRejectionReadout[]>;
     /** The feature version being required, when a report says so. */
     readonly required: ComputedRef<number | null>;
+    readonly renderEngineAvailable: ComputedRef<boolean | null>;
+    readonly renderEngineVersion: ComputedRef<string | null>;
+    readonly renderEngineSource: ComputedRef<string | null>;
+    readonly renderEngineReason: ComputedRef<string | null>;
 
     load(): Promise<void>;
 
@@ -172,6 +176,18 @@ export function createJavaSetting(options: JavaSettingOptions = {}): JavaSetting
 
     const rejected = computed<readonly JavaRejectionReadout[]>(() => report.value?.rejected ?? []);
     const required = computed<number | null>(() => report.value?.required ?? null);
+    const renderEngineAvailable = computed<boolean | null>(
+        () => report.value?.renderEngine?.available ?? null,
+    );
+    const renderEngineVersion = computed<string | null>(
+        () => report.value?.renderEngine?.version ?? null,
+    );
+    const renderEngineSource = computed<string | null>(
+        () => report.value?.renderEngine?.source ?? null,
+    );
+    const renderEngineReason = computed<string | null>(
+        () => report.value?.renderEngine?.reason ?? null,
+    );
 
     async function loadRenders(): Promise<void> {
         const list = bridge?.listRenders;
@@ -181,7 +197,11 @@ export function createJavaSetting(options: JavaSettingOptions = {}): JavaSetting
             lastRender.value =
                 newest === null
                     ? null
-                    : { renderId: newest.renderId, engine: newest.engine, startedAt: newest.startedAt };
+                    : {
+                          renderId: newest.renderId,
+                          engine: newest.engine,
+                          startedAt: newest.startedAt,
+                      };
         } catch {
             // A render list that cannot be read is not a Java failure and must not be
             // reported as one. The section simply has one fewer fact to show.
@@ -295,6 +315,10 @@ export function createJavaSetting(options: JavaSettingOptions = {}): JavaSetting
         canQuoteRenders,
         rejected,
         required,
+        renderEngineAvailable,
+        renderEngineVersion,
+        renderEngineSource,
+        renderEngineReason,
         load,
         canProvision,
         consent,

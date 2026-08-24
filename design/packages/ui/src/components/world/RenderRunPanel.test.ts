@@ -176,6 +176,28 @@ function timedRun(mapIds: string[] = ["survival"]) {
 }
 
 describe("what the panel says, rendered", () => {
+    it("shows engine repair progress and byte counts before the render starts", () => {
+        const fake = fakeBridge();
+        const run = createRenderRun(fake.bridge);
+        void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+        fake.emit({
+            type: "engine-provisioning",
+            renderId: "world-abc",
+            stage: "downloading",
+            message: "Downloading the verified BlueMap engine",
+            received: 42,
+            total: 100,
+            at: "t1",
+        });
+
+        const wrapper = render(run);
+        expect(wrapper.text()).toContain("Preparing the render engine");
+        expect(wrapper.text()).toContain("Downloading the verified BlueMap engine");
+        expect(wrapper.text()).toContain("42 / 100 bytes");
+        expect(wrapper.find('[role="status"]').exists()).toBe(true);
+        wrapper.unmount();
+    });
+
     it("names the duration and the folder the tiles went into", () => {
         const { fake, run } = startedRun();
         fake.emit({

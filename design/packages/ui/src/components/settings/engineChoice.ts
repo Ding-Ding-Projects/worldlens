@@ -24,17 +24,33 @@ export const RENDER_ENGINE_DESCRIPTORS: readonly RenderEngineDescriptor[] = [
         id: "upstream-java",
         name: "BlueMap original engine",
         version: "Resolved from the packaged render-engine manifest",
-        provenance: "Upstream BlueMap source and packaged Java runtime; existing projects keep this path.",
-        capabilities: ["Original BlueMap compatibility", "JVM-backed local render", "Established server/plugin parity"],
-        unsupported: ["Unavailable when no suitable JVM is present", "Needs the packaged or discovered Java runtime"],
+        provenance:
+            "Upstream BlueMap source and packaged Java runtime; existing projects keep this path.",
+        capabilities: [
+            "Original BlueMap compatibility",
+            "JVM-backed local render",
+            "Established server/plugin parity",
+        ],
+        unsupported: [
+            "Unavailable when no suitable JVM is present",
+            "Needs the packaged or discovered Java runtime",
+        ],
     },
     {
         id: "typescript",
         name: "Worldlens app engine",
         version: "Resolved from the packaged render-engine manifest",
-        provenance: "This application's TypeScript engine, shipped with the app and usable without a JVM.",
-        capabilities: ["JVM-free local render", "Offline packaged operation", "Shared project format and render history"],
-        unsupported: ["Some upstream-only integrations may be unavailable", "Capability differences are reported before render"],
+        provenance:
+            "This application's TypeScript engine, shipped with the app and usable without a JVM.",
+        capabilities: [
+            "JVM-free local render",
+            "Offline packaged operation",
+            "Shared project format and render history",
+        ],
+        unsupported: [
+            "Some upstream-only integrations may be unavailable",
+            "Capability differences are reported before render",
+        ],
     },
 ];
 
@@ -62,9 +78,13 @@ function readState(storage: Storage | null | undefined): RenderEngineChoiceState
         const raw = storage.getItem(ENGINE_CHOICE_STORAGE_KEY);
         if (raw === null) return freshState();
         const parsed: unknown = JSON.parse(raw);
-        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return freshState();
+        if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+            return freshState();
         const candidate = parsed as Record<string, unknown>;
-        if (candidate.version !== ENGINE_CHOICE_STORAGE_VERSION || !isSelection(candidate.globalDefault)) {
+        if (
+            candidate.version !== ENGINE_CHOICE_STORAGE_VERSION ||
+            !isSelection(candidate.globalDefault)
+        ) {
             return freshState();
         }
         return { version: ENGINE_CHOICE_STORAGE_VERSION, globalDefault: candidate.globalDefault };
@@ -93,9 +113,13 @@ export function globalRenderEngineDefault(): RenderEngineSelection {
 }
 
 /** Resolve automatic deterministically: keep Java where it is available, otherwise use the app engine. */
-export function resolveRenderEngine(selection: RenderEngineSelection, javaAvailable: boolean): RenderEngineId {
+export function resolveRenderEngine(
+    selection: RenderEngineSelection,
+    javaAvailable: boolean,
+    artifactAvailable = true,
+): RenderEngineId {
     if (isEngine(selection)) return selection;
-    return javaAvailable ? "upstream-java" : "typescript";
+    return javaAvailable && artifactAvailable ? "upstream-java" : "typescript";
 }
 
 export function setGlobalRenderEngineDefault(selection: RenderEngineSelection): void {
@@ -142,8 +166,20 @@ export function descriptorForRenderEngine(id: RenderEngineId): RenderEngineDescr
     return RENDER_ENGINE_DESCRIPTORS[0]!;
 }
 
-export function renderEngineChoiceSearchValues(selection: RenderEngineSelection, javaAvailable: boolean): string[] {
-    const resolved = resolveRenderEngine(selection, javaAvailable);
+export function renderEngineChoiceSearchValues(
+    selection: RenderEngineSelection,
+    javaAvailable: boolean,
+    artifactAvailable = true,
+): string[] {
+    const resolved = resolveRenderEngine(selection, javaAvailable, artifactAvailable);
     const descriptor = descriptorForRenderEngine(resolved);
-    return [selection, resolved, descriptor.name, descriptor.version, descriptor.provenance, ...descriptor.capabilities, ...descriptor.unsupported];
+    return [
+        selection,
+        resolved,
+        descriptor.name,
+        descriptor.version,
+        descriptor.provenance,
+        ...descriptor.capabilities,
+        ...descriptor.unsupported,
+    ];
 }

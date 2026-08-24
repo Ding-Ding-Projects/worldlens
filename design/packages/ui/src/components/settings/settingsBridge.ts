@@ -86,6 +86,12 @@ export interface JavaRuntimeReadout {
     readonly rejected: readonly JavaRejectionReadout[];
     /** The feature version that was required, so a message can quote it. */
     readonly required: number;
+    readonly renderEngine?: {
+        readonly available: boolean;
+        readonly version: string | null;
+        readonly source: "bundled" | "staged" | "gradle" | "managed" | null;
+        readonly reason: string | null;
+    };
 }
 
 /**
@@ -112,7 +118,8 @@ export interface JavaDownloadConsentReadout {
 
 /** Mirrors `ProvisionEvent` in `main/java/provision.ts`. */
 export interface JavaProvisionEventReadout {
-    readonly stage: "resolving" | "downloading" | "verifying" | "extracting" | "installing" | "done";
+    readonly stage:
+        "resolving" | "downloading" | "verifying" | "extracting" | "installing" | "done";
     readonly message: string;
     readonly received: number | null;
     readonly total: number | null;
@@ -120,7 +127,11 @@ export interface JavaProvisionEventReadout {
 
 /** Mirrors `JavaProvisionOutcome` in `main/java/ipc.ts`. Never rejects. */
 export type JavaProvisionReadout =
-    | { readonly ok: true; readonly installation: JavaInstallationReadout; readonly provisioned: boolean }
+    | {
+          readonly ok: true;
+          readonly installation: JavaInstallationReadout;
+          readonly provisioned: boolean;
+      }
     | { readonly ok: false; readonly message: string };
 
 /**
@@ -166,8 +177,7 @@ export type RenderMemoryWriteResult =
 
 /** What this row asks the main process to store. Mirrors `RenderMemorySetting`. */
 export type RenderMemoryWriteRequest =
-    | { readonly mode: "automatic" }
-    | { readonly mode: "manual"; readonly megabytes: number };
+    { readonly mode: "automatic" } | { readonly mode: "manual"; readonly megabytes: number };
 
 /**
  * Reading and writing the render process's `-Xmx` ceiling.
@@ -294,7 +304,9 @@ export function canWriteRenderMemory(bridge: SettingsBridge | null): boolean {
 }
 
 /** The current ceiling, or null when this build cannot ask about it. */
-export async function readRenderMemory(bridge: SettingsBridge | null): Promise<RenderMemoryReadout | null> {
+export async function readRenderMemory(
+    bridge: SettingsBridge | null,
+): Promise<RenderMemoryReadout | null> {
     if (!isFunction(bridge?.renderMemory)) return null;
     return await bridge.renderMemory();
 }
@@ -307,8 +319,7 @@ export async function writeRenderMemory(
     if (!isFunction(bridge?.setRenderMemory)) {
         return {
             ok: false,
-            reason:
-                "This build cannot change how much memory a render may use. The desktop app owns that setting; a browser tab has no access to it.",
+            reason: "This build cannot change how much memory a render may use. The desktop app owns that setting; a browser tab has no access to it.",
         };
     }
     return await bridge.setRenderMemory(setting);
@@ -336,7 +347,8 @@ export async function writeStorageDirectory(
     bridge: SettingsBridge | null,
     value: string,
 ): Promise<StorageWriteResult> {
-    if (isFunction(bridge?.setMapStorageDirectory)) return await bridge.setMapStorageDirectory(value);
+    if (isFunction(bridge?.setMapStorageDirectory))
+        return await bridge.setMapStorageDirectory(value);
     if (isFunction(bridge?.setStorageDirectory)) return await bridge.setStorageDirectory(value);
     return {
         ok: false,
@@ -381,8 +393,7 @@ export async function writeDownloadConcurrency(
     if (!isFunction(bridge?.setDownloadConcurrency)) {
         return {
             ok: false,
-            reason:
-                "This build cannot change how many parts a download fetches at once. The desktop app owns that setting; a browser tab has no access to it.",
+            reason: "This build cannot change how many parts a download fetches at once. The desktop app owns that setting; a browser tab has no access to it.",
         };
     }
     return await bridge.setDownloadConcurrency(workers);
