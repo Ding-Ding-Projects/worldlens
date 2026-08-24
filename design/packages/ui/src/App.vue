@@ -130,6 +130,10 @@ import { routeKidProfile } from "./kid/profileRoute.js";
 import { resolveCatalogues, type ResolvedCatalogue } from "./components/shell/catalogueSearch.js";
 import { useTheme } from "vuetify";
 import { isWorldArchive, looksLikeMinecraftWorld } from "./components/world/worldDropModel.js";
+import {
+    createRuntimeSettingsCoordinator,
+    loadRuntimeSettings,
+} from "./components/runtimeSettings/index.js";
 
 const { t } = useI18n();
 const schoolMode = useSchoolMode();
@@ -178,6 +182,47 @@ watch(
  * Vuetify MD3 theme. Both belong to the shell, so they are installed once, here.
  */
 const currentApp = computed(() => blueMapApp.value);
+
+function applyRootRuntimeValues(values: Readonly<Record<string, string | number>>): void {
+    if (typeof document === "undefined") return;
+    if (typeof values.accent === "string") {
+        const hex = values.accent.replace("#", "");
+        const parse = (offset: number): number =>
+            Number.parseInt(hex.slice(offset, offset + 2), 16) || 0;
+        document.documentElement.style.setProperty(
+            "--v-theme-primary",
+            `${parse(0)}, ${parse(2)}, ${parse(4)}`,
+        );
+    }
+    if (typeof values.fontFamily === "string") document.body.style.fontFamily = values.fontFamily;
+    if (typeof values.fontSize === "number") document.body.style.fontSize = `${values.fontSize}em`;
+    if (typeof values.displayName === "string") document.title = values.displayName;
+}
+const rootRuntimeCoordinator = createRuntimeSettingsCoordinator({
+    readState: () => loadRuntimeSettings(),
+    applyTemporary: applyRootRuntimeValues,
+    clearTemporary: () => {
+        const base = loadRuntimeSettings().values;
+        applyRootRuntimeValues({
+            accent: base.accent,
+            fontFamily: base.fontFamily,
+            fontSize: base.fontSize,
+            displayName: base.displayName,
+        });
+    },
+    bridge:
+        typeof window === "undefined" || window.worldlens?.runtimeSettings === undefined
+            ? null
+            : window.worldlens.runtimeSettings,
+});
+onMounted(() => {
+    document.documentElement.dataset.runtimeCoordinator = "active";
+    rootRuntimeCoordinator.start();
+});
+onUnmounted(() => {
+    rootRuntimeCoordinator.stop();
+    delete document.documentElement.dataset.runtimeCoordinator;
+});
 provideBlueMap(currentApp);
 useBlueMapTheme(currentApp);
 
@@ -1341,46 +1386,101 @@ function openProject(world: string): void {
 async function onWorldDrop(event: DragEvent): Promise<void> {
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length === 0) {
-        raiseNotice("warning", t("world.drop.empty", "Nothing was dropped. Choose a world folder or a world archive."));
+        raiseNotice(
+            "warning",
+            t("world.drop.empty", "Nothing was dropped. Choose a world folder or a world archive."),
+        );
         return;
     }
     if (runningRenderCount.value > 0) {
-        raiseNotice("warning", t("world.drop.busy", "A render is already running, so this world was not opened."));
+        raiseNotice(
+            "warning",
+            t("world.drop.busy", "A render is already running, so this world was not opened."),
+        );
         return;
     }
     const file = files[0];
     if (file === undefined) return;
     if (files.length > 1) {
-        raiseNotice("info", t("world.drop.multiple", { count: files.length }, "Several items were dropped; checking the first one."));
+        raiseNotice(
+            "info",
+            t(
+                "world.drop.multiple",
+                { count: files.length },
+                "Several items were dropped; checking the first one.",
+            ),
+        );
     }
-    const pathForFile = (globalThis as { worldlens?: { pathForDroppedFile?: (file: File) => string | null } }).worldlens?.pathForDroppedFile;
+    const pathForFile = (
+        globalThis as { worldlens?: { pathForDroppedFile?: (file: File) => string | null } }
+    ).worldlens?.pathForDroppedFile;
     const path = typeof pathForFile === "function" ? pathForFile(file) : null;
     if (path === null) {
-        raiseNotice("warning", t("world.drop.noPath", "This drop has no local file path. Use the world folder field or Browse instead."));
+        raiseNotice(
+            "warning",
+            t(
+                "world.drop.noPath",
+                "This drop has no local file path. Use the world folder field or Browse instead.",
+            ),
+        );
         return;
     }
     if (isWorldArchive(file.name)) {
-        const extract = (globalThis as { worldlens?: { extractDroppedWorld?: (archive: string) => Promise<string | null> } }).worldlens?.extractDroppedWorld;
+        const extract = (
+            globalThis as {
+                worldlens?: { extractDroppedWorld?: (archive: string) => Promise<string | null> };
+            }
+        ).worldlens?.extractDroppedWorld;
         if (typeof extract !== "function") {
-            raiseNotice("warning", t("world.drop.archiveUnavailable", "That world archive was recognised, but this build cannot unpack dropped archives yet."));
+            raiseNotice(
+                "warning",
+                t(
+                    "world.drop.archiveUnavailable",
+                    "That world archive was recognised, but this build cannot unpack dropped archives yet.",
+                ),
+            );
             return;
         }
         const extracted = await extract(path).catch(() => null);
         if (extracted === null) {
-            raiseNotice("error", t("world.drop.archiveFailed", "The world archive could not be unpacked."));
+            raiseNotice(
+                "error",
+                t("world.drop.archiveFailed", "The world archive could not be unpacked."),
+            );
             return;
         }
         revealDroppedWorld(extracted);
         return;
     }
-    const inspect = (globalThis as { worldlens?: { inspectWorldFolder?: (folder: string) => Promise<{ entries: readonly { path: string }[] }> } }).worldlens?.inspectWorldFolder;
+    const inspect = (
+        globalThis as {
+            worldlens?: {
+                inspectWorldFolder?: (
+                    folder: string,
+                ) => Promise<{ entries: readonly { path: string }[] }>;
+            };
+        }
+    ).worldlens?.inspectWorldFolder;
     if (typeof inspect !== "function") {
-        raiseNotice("warning", t("world.drop.unavailable", "This build cannot inspect dropped folders. Use the world field or Browse instead."));
+        raiseNotice(
+            "warning",
+            t(
+                "world.drop.unavailable",
+                "This build cannot inspect dropped folders. Use the world field or Browse instead.",
+            ),
+        );
         return;
     }
     const listing = await inspect(path).catch(() => null);
     if (listing === null || !looksLikeMinecraftWorld(listing.entries.map((entry) => entry.path))) {
-        raiseNotice("warning", t("world.drop.notWorld", { name: file.name }, '"{name}" does not look like a Minecraft world (no level.dat and world data were found).'));
+        raiseNotice(
+            "warning",
+            t(
+                "world.drop.notWorld",
+                { name: file.name },
+                '"{name}" does not look like a Minecraft world (no level.dat and world data were found).',
+            ),
+        );
         return;
     }
     revealDroppedWorld(path);
@@ -2211,7 +2311,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <CreateServerWizard
+                            v-model="mcServerCreateOpen"
+                            @created="(id) => (mcServerOpenId = id)"
+                        />
                         <AdoptionBrowser
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
@@ -2470,7 +2573,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <CreateServerWizard
+                            v-model="mcServerCreateOpen"
+                            @created="(id) => (mcServerOpenId = id)"
+                        />
                         <AdoptionBrowser
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
@@ -2770,7 +2876,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         v-model="mcServerAdoptBrowseOpen"
                                         @picked="reviewMcServerCandidate"
                                     />
-                        <AdoptionReviewDialog
+                                    <AdoptionReviewDialog
                                         v-model="mcServerAdoptOpen"
                                         :record="mcServerAdoptRecord"
                                         :container-id="mcServerAdoptContainerId"

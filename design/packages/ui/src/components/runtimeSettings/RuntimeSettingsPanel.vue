@@ -81,6 +81,7 @@ const originalPrimary =
 let narrator: NarratorController | null = null;
 let unsubscribeVoices: (() => void) | null = null;
 let coordinator: ReturnType<typeof createRuntimeSettingsCoordinator> | null = null;
+let ownsCoordinator = false;
 
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
 const activeValues = computed(() =>
@@ -451,7 +452,10 @@ onMounted(() => {
         },
         bridge: (bridge ?? null) as RuntimeCoordinatorBridge | null,
     });
-    coordinator.start();
+    if (document.documentElement.dataset.runtimeCoordinator !== "active") {
+        coordinator.start();
+        ownsCoordinator = true;
+    }
     if (bridge !== undefined)
         void bridge.status().then((record) => {
             statusRecord.value = record;
@@ -465,7 +469,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-    coordinator?.stop();
+    if (ownsCoordinator) coordinator?.stop();
+    ownsCoordinator = false;
     coordinator = null;
     if (clockTimer !== null) clearInterval(clockTimer);
     if (temporaryTimer !== null) clearTimeout(temporaryTimer);
@@ -532,404 +537,437 @@ onUnmounted(() => {
             </li>
         </ul>
 
-        <TabbedNavigation ref="runtimeTabs" :pages="runtimePages" storage-key="worldlens-runtime-settings-tabs" window-label="Runtime settings" strip-label="Runtime settings sections">
-        <template #status>
-        <article
-            id="runtime-panel-status"
-            role="tabpanel"
-            aria-labelledby="runtime-tab-status"
-            class="mb-runtime-settings__panel"
+        <TabbedNavigation
+            ref="runtimeTabs"
+            :pages="runtimePages"
+            storage-key="worldlens-runtime-settings-tabs"
+            window-label="Runtime settings"
+            strip-label="Runtime settings sections"
         >
-            <h4>Status Hub</h4>
-            <p class="mb-runtime-settings__notice" aria-live="polite">{{ statusMessage }}</p>
-            <dl class="mb-runtime-settings__status-list">
-                <div>
-                    <dt>Time awareness</dt>
-                    <dd>
-                        {{
-                            state.values.accommodations.timeAwareness
-                                ? `Session ${sessionSeconds}s, unchanged ${idleSeconds}s`
-                                : "Off"
-                        }}
-                    </dd>
-                </div>
-                <div>
-                    <dt>Runtime settings</dt>
-                    <dd>
-                        ✅ Local state version {{ state.version }},
-                        {{ state.schedules.length }} schedule rule(s)
-                    </dd>
-                </div>
-                <div>
-                    <dt>Narrator</dt>
-                    <dd>
-                        {{
-                            !speechAvailable
-                                ? "⚠️ Speech synthesis is unavailable on this computer"
-                                : `✅ ${voiceList.length} voice(s) reported, with late updates watched`
-                        }}
-                    </dd>
-                </div>
-                <div>
-                    <dt>External sources</dt>
-                    <dd>
-                        {{
-                            externalRules.length === 0
-                                ? "⏸️ None configured, no request made"
-                                : `⏳ ${externalRules.length} configured, refresh is user-started`
-                        }}
-                    </dd>
-                </div>
-                <div>
-                    <dt>Status delivery</dt>
-                    <dd>
-                        {{
-                            statusRecord === null
-                                ? "⏳ Reading main-process delivery status"
-                                : statusRecord.deliveryAvailable
-                                  ? "✅ Authenticated delivery is available"
-                                  : `⚠️ ${statusRecord.message}`
-                        }}
-                    </dd>
-                </div>
-            </dl>
-            <p class="mb-runtime-settings__hint">
-                The Status Hub record is evidence, not a promise. Unavailable delivery stays visible
-                instead of pretending a message was sent.
-            </p>
-        </article>
-        </template>
-        <template #narrator>
-        <article
-            id="runtime-panel-narrator"
-            role="tabpanel"
-            aria-labelledby="runtime-tab-narrator"
-            class="mb-runtime-settings__panel"
-        >
-            <h4>Spoken narrator</h4>
-            <p class="mb-runtime-settings__hint">
-                Narration is off until enabled. Voice lists are read from this computer, stable
-                voice ids are retained, and Both speaks English then Cantonese in order.
-            </p>
-            <label
-                ><input
-                    type="checkbox"
-                    :checked="state.values.narrator.enabled"
-                    @change="
-                        persistValues({
-                            narrator: {
-                                ...state.values.narrator,
-                                enabled: ($event.target as HTMLInputElement).checked,
-                            },
-                        })
-                    "
-                />
-                Enable narration</label
-            >
-            <SearchablePicker
-                :model-value="state.values.narrator.language"
-                label="Narration language"
-                :options="[
-                    { id: 'en', label: 'English' },
-                    { id: 'yue', label: 'Cantonese' },
-                    { id: 'both', label: 'Both, English then Cantonese' },
-                ]"
-                @update:model-value="
-                    (value) =>
-                        persistValues({
-                            narrator: {
-                                ...state.values.narrator,
-                                language: value as RuntimeLanguage,
-                            },
-                        })
-                "
-            />
-            <SearchablePicker
-                :model-value="state.values.narrator.englishVoiceId ?? ''"
-                label="English voice"
-                :options="[
-                    { id: '', label: 'Choose automatically' },
-                    ...voiceList
-                        .filter((voice) => voice.lang.toLowerCase().startsWith('en'))
-                        .map((voice) => ({
-                            id: voice.id,
-                            label: `${voice.name} · ${voice.lang}${voice.networkBacked ? ' · network-backed' : ''}`,
-                        })),
-                ]"
-                @update:model-value="
-                    (value) =>
-                        persistValues({
-                            narrator: { ...state.values.narrator, englishVoiceId: value || null },
-                        })
-                "
-            />
-            <p class="mb-runtime-settings__hint">{{ narratorVoiceLabel("en") }}</p>
-            <SearchablePicker
-                :model-value="state.values.narrator.cantoneseVoiceId ?? ''"
-                label="Cantonese voice"
-                :options="[
-                    { id: '', label: 'Choose automatically' },
-                    ...voiceList
-                        .filter((voice) =>
-                            ['yue', 'zh-hk'].some((prefix) =>
-                                voice.lang.toLowerCase().startsWith(prefix),
-                            ),
-                        )
-                        .map((voice) => ({
-                            id: voice.id,
-                            label: `${voice.name} · ${voice.lang}${voice.networkBacked ? ' · network-backed' : ''}`,
-                        })),
-                ]"
-                @update:model-value="
-                    (value) =>
-                        persistValues({
-                            narrator: { ...state.values.narrator, cantoneseVoiceId: value || null },
-                        })
-                "
-            />
-            <p class="mb-runtime-settings__hint">{{ narratorVoiceLabel("yue") }}</p>
-            <label
-                >Rate
-                <input
-                    type="range"
-                    min="0.1"
-                    max="4"
-                    step="0.1"
-                    :value="state.values.narrator.rate"
-                    @input="
-                        persistValues({
-                            narrator: {
-                                ...state.values.narrator,
-                                rate: Number(($event.target as HTMLInputElement).value),
-                            },
-                        })
-                    "
-            /></label>
-            <label
-                >Pitch
-                <input
-                    type="range"
-                    min="0"
-                    max="2"
-                    step="0.1"
-                    :value="state.values.narrator.pitch"
-                    @input="
-                        persistValues({
-                            narrator: {
-                                ...state.values.narrator,
-                                pitch: Number(($event.target as HTMLInputElement).value),
-                            },
-                        })
-                    "
-            /></label>
-            <label
-                ><input
-                    type="checkbox"
-                    :checked="state.values.narrator.quietHours"
-                    @change="
-                        persistValues({
-                            narrator: {
-                                ...state.values.narrator,
-                                quietHours: ($event.target as HTMLInputElement).checked,
-                            },
-                        })
-                    "
-                />
-                Quiet mode, yield to reduced sound and assistive technology</label
-            >
-            <button type="button" @click="speakTest">Speak a test message</button>
-        </article>
-        </template>
-        <template #schedule>
-        <article
-            id="runtime-panel-schedule"
-            role="tabpanel"
-            aria-labelledby="runtime-tab-schedule"
-            class="mb-runtime-settings__panel"
-        >
-            <h4>Scheduled settings</h4>
-            <p class="mb-runtime-settings__hint">
-                Times use this computer's local timezone. Every day means all weekdays.
-                Cross-midnight windows are supported, and a higher priority wins before the stable
-                id tie-breaker.
-            </p>
-            <div class="mb-runtime-settings__grid">
-                <label>Label <input v-model="scheduleLabel" /></label>
-                <SearchablePicker
-                    :model-value="scheduleSetting"
-                    label="Scheduled setting"
-                    :options="
-                        [
-                            'language',
-                            'theme',
-                            'density',
-                            'accent',
-                            'fontFamily',
-                            'fontSize',
-                            'motion',
-                            'displayName',
-                        ].map((key) => ({
-                            id: key,
-                            label: scheduleFieldLabel(key as RuntimeSettingKey),
-                        }))
-                    "
-                    @update:model-value="(value) => (scheduleSetting = value as RuntimeSettingKey)"
-                />
-                <label>Value <input v-model="scheduleValue" /></label>
-                <label
-                    >Priority
-                    <input
-                        v-model.number="schedulePriority"
-                        type="number"
-                        min="-100000"
-                        max="100000"
-                        step="1"
-                /></label>
-                <SearchablePicker
-                    :model-value="scheduleSource"
-                    label="Source"
-                    :options="[
-                        { id: 'local', label: 'Local' },
-                        { id: 'https', label: 'Validated HTTPS API' },
-                        { id: 'homeAssistant', label: 'Home Assistant boolean' },
-                    ]"
-                    @update:model-value="(value) => (scheduleSource = value as RuntimeSource)"
-                />
-                <label>Start time <input v-model="scheduleStart" type="time" /></label>
-                <label>End time <input v-model="scheduleEnd" type="time" /></label>
-                <label>Start date <input v-model="scheduleStartDate" type="date" /></label>
-                <label>End date <input v-model="scheduleEndDate" type="date" /></label>
-                <fieldset class="mb-runtime-settings__weekdays">
-                    <legend>Days</legend>
+            <template #status>
+                <article
+                    id="runtime-panel-status"
+                    role="tabpanel"
+                    aria-labelledby="runtime-tab-status"
+                    class="mb-runtime-settings__panel"
+                >
+                    <h4>Status Hub</h4>
+                    <p class="mb-runtime-settings__notice" aria-live="polite">
+                        {{ statusMessage }}
+                    </p>
+                    <dl class="mb-runtime-settings__status-list">
+                        <div>
+                            <dt>Time awareness</dt>
+                            <dd>
+                                {{
+                                    state.values.accommodations.timeAwareness
+                                        ? `Session ${sessionSeconds}s, unchanged ${idleSeconds}s`
+                                        : "Off"
+                                }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Runtime settings</dt>
+                            <dd>
+                                ✅ Local state version {{ state.version }},
+                                {{ state.schedules.length }} schedule rule(s)
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Narrator</dt>
+                            <dd>
+                                {{
+                                    !speechAvailable
+                                        ? "⚠️ Speech synthesis is unavailable on this computer"
+                                        : `✅ ${voiceList.length} voice(s) reported, with late updates watched`
+                                }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>External sources</dt>
+                            <dd>
+                                {{
+                                    externalRules.length === 0
+                                        ? "⏸️ None configured, no request made"
+                                        : `⏳ ${externalRules.length} configured, refresh is user-started`
+                                }}
+                            </dd>
+                        </div>
+                        <div>
+                            <dt>Status delivery</dt>
+                            <dd>
+                                {{
+                                    statusRecord === null
+                                        ? "⏳ Reading main-process delivery status"
+                                        : statusRecord.deliveryAvailable
+                                          ? "✅ Authenticated delivery is available"
+                                          : `⚠️ ${statusRecord.message}`
+                                }}
+                            </dd>
+                        </div>
+                    </dl>
+                    <p class="mb-runtime-settings__hint">
+                        The Status Hub record is evidence, not a promise. Unavailable delivery stays
+                        visible instead of pretending a message was sent.
+                    </p>
+                </article>
+            </template>
+            <template #narrator>
+                <article
+                    id="runtime-panel-narrator"
+                    role="tabpanel"
+                    aria-labelledby="runtime-tab-narrator"
+                    class="mb-runtime-settings__panel"
+                >
+                    <h4>Spoken narrator</h4>
+                    <p class="mb-runtime-settings__hint">
+                        Narration is off until enabled. Voice lists are read from this computer,
+                        stable voice ids are retained, and Both speaks English then Cantonese in
+                        order.
+                    </p>
                     <label
                         ><input
                             type="checkbox"
-                            :checked="scheduleWeekdays.length === 0"
-                            @change="scheduleWeekdays = []"
-                        />
-                        Every day</label
-                    >
-                    <label
-                        v-for="day in [
-                            { id: 0, name: 'Sunday' },
-                            { id: 1, name: 'Monday' },
-                            { id: 2, name: 'Tuesday' },
-                            { id: 3, name: 'Wednesday' },
-                            { id: 4, name: 'Thursday' },
-                            { id: 5, name: 'Friday' },
-                            { id: 6, name: 'Saturday' },
-                        ]"
-                        :key="day.id"
-                        ><input
-                            type="checkbox"
-                            :checked="scheduleWeekdays.includes(day.id)"
+                            :checked="state.values.narrator.enabled"
                             @change="
-                                scheduleWeekdays = scheduleWeekdays.includes(day.id)
-                                    ? scheduleWeekdays.filter((selected) => selected !== day.id)
-                                    : [...scheduleWeekdays, day.id]
+                                persistValues({
+                                    narrator: {
+                                        ...state.values.narrator,
+                                        enabled: ($event.target as HTMLInputElement).checked,
+                                    },
+                                })
                             "
                         />
-                        {{ day.name }}</label
+                        Enable narration</label
                     >
-                </fieldset>
-                <label v-if="scheduleSource !== 'local'"
-                    >HTTPS or loopback URL <input v-model="scheduleUrl" inputmode="url"
-                /></label>
-                <label v-if="scheduleSource === 'homeAssistant'"
-                    >Boolean entity id
-                    <input v-model="scheduleEntity" placeholder="input_boolean.night"
-                /></label>
-                <label v-if="scheduleSource === 'homeAssistant'"
-                    >Credential-vault reference <input v-model="scheduleCredentialRef"
-                /></label>
-            </div>
-            <button type="button" @click="addSchedule">Add scheduled rule</button>
-            <button
-                type="button"
-                :disabled="externalRules.length === 0"
-                @click="refreshExternalSources"
-            >
-                Refresh external sources
-            </button>
-            <ul class="mb-runtime-settings__rules" aria-label="Scheduled rules">
-                <li v-for="rule in state.schedules" :key="rule.id">
-                    <span
-                        ><strong>{{ rule.label }}</strong> ·
-                        {{ scheduleFieldLabel(rule.setting) }} = {{ rule.value }} ·
-                        {{ rule.startTime }} to {{ rule.endTime }} · {{ rule.source }}</span
+                    <SearchablePicker
+                        :model-value="state.values.narrator.language"
+                        label="Narration language"
+                        :options="[
+                            { id: 'en', label: 'English' },
+                            { id: 'yue', label: 'Cantonese' },
+                            { id: 'both', label: 'Both, English then Cantonese' },
+                        ]"
+                        @update:model-value="
+                            (value) =>
+                                persistValues({
+                                    narrator: {
+                                        ...state.values.narrator,
+                                        language: value as RuntimeLanguage,
+                                    },
+                                })
+                        "
+                    />
+                    <SearchablePicker
+                        :model-value="state.values.narrator.englishVoiceId ?? ''"
+                        label="English voice"
+                        :options="[
+                            { id: '', label: 'Choose automatically' },
+                            ...voiceList
+                                .filter((voice) => voice.lang.toLowerCase().startsWith('en'))
+                                .map((voice) => ({
+                                    id: voice.id,
+                                    label: `${voice.name} · ${voice.lang}${voice.networkBacked ? ' · network-backed' : ''}`,
+                                })),
+                        ]"
+                        @update:model-value="
+                            (value) =>
+                                persistValues({
+                                    narrator: {
+                                        ...state.values.narrator,
+                                        englishVoiceId: value || null,
+                                    },
+                                })
+                        "
+                    />
+                    <p class="mb-runtime-settings__hint">{{ narratorVoiceLabel("en") }}</p>
+                    <SearchablePicker
+                        :model-value="state.values.narrator.cantoneseVoiceId ?? ''"
+                        label="Cantonese voice"
+                        :options="[
+                            { id: '', label: 'Choose automatically' },
+                            ...voiceList
+                                .filter((voice) =>
+                                    ['yue', 'zh-hk'].some((prefix) =>
+                                        voice.lang.toLowerCase().startsWith(prefix),
+                                    ),
+                                )
+                                .map((voice) => ({
+                                    id: voice.id,
+                                    label: `${voice.name} · ${voice.lang}${voice.networkBacked ? ' · network-backed' : ''}`,
+                                })),
+                        ]"
+                        @update:model-value="
+                            (value) =>
+                                persistValues({
+                                    narrator: {
+                                        ...state.values.narrator,
+                                        cantoneseVoiceId: value || null,
+                                    },
+                                })
+                        "
+                    />
+                    <p class="mb-runtime-settings__hint">{{ narratorVoiceLabel("yue") }}</p>
+                    <label
+                        >Rate
+                        <input
+                            type="range"
+                            min="0.1"
+                            max="4"
+                            step="0.1"
+                            :value="state.values.narrator.rate"
+                            @input="
+                                persistValues({
+                                    narrator: {
+                                        ...state.values.narrator,
+                                        rate: Number(($event.target as HTMLInputElement).value),
+                                    },
+                                })
+                            "
+                    /></label>
+                    <label
+                        >Pitch
+                        <input
+                            type="range"
+                            min="0"
+                            max="2"
+                            step="0.1"
+                            :value="state.values.narrator.pitch"
+                            @input="
+                                persistValues({
+                                    narrator: {
+                                        ...state.values.narrator,
+                                        pitch: Number(($event.target as HTMLInputElement).value),
+                                    },
+                                })
+                            "
+                    /></label>
+                    <label
+                        ><input
+                            type="checkbox"
+                            :checked="state.values.narrator.quietHours"
+                            @change="
+                                persistValues({
+                                    narrator: {
+                                        ...state.values.narrator,
+                                        quietHours: ($event.target as HTMLInputElement).checked,
+                                    },
+                                })
+                            "
+                        />
+                        Quiet mode, yield to reduced sound and assistive technology</label
                     >
+                    <button type="button" @click="speakTest">Speak a test message</button>
+                </article>
+            </template>
+            <template #schedule>
+                <article
+                    id="runtime-panel-schedule"
+                    role="tabpanel"
+                    aria-labelledby="runtime-tab-schedule"
+                    class="mb-runtime-settings__panel"
+                >
+                    <h4>Scheduled settings</h4>
+                    <p class="mb-runtime-settings__hint">
+                        Times use this computer's local timezone. Every day means all weekdays.
+                        Cross-midnight windows are supported, and a higher priority wins before the
+                        stable id tie-breaker.
+                    </p>
+                    <div class="mb-runtime-settings__grid">
+                        <label>Label <input v-model="scheduleLabel" /></label>
+                        <SearchablePicker
+                            :model-value="scheduleSetting"
+                            label="Scheduled setting"
+                            :options="
+                                [
+                                    'language',
+                                    'theme',
+                                    'density',
+                                    'accent',
+                                    'fontFamily',
+                                    'fontSize',
+                                    'motion',
+                                    'displayName',
+                                ].map((key) => ({
+                                    id: key,
+                                    label: scheduleFieldLabel(key as RuntimeSettingKey),
+                                }))
+                            "
+                            @update:model-value="
+                                (value) => (scheduleSetting = value as RuntimeSettingKey)
+                            "
+                        />
+                        <label>Value <input v-model="scheduleValue" /></label>
+                        <label
+                            >Priority
+                            <input
+                                v-model.number="schedulePriority"
+                                type="number"
+                                min="-100000"
+                                max="100000"
+                                step="1"
+                        /></label>
+                        <SearchablePicker
+                            :model-value="scheduleSource"
+                            label="Source"
+                            :options="[
+                                { id: 'local', label: 'Local' },
+                                { id: 'https', label: 'Validated HTTPS API' },
+                                { id: 'homeAssistant', label: 'Home Assistant boolean' },
+                            ]"
+                            @update:model-value="
+                                (value) => (scheduleSource = value as RuntimeSource)
+                            "
+                        />
+                        <label>Start time <input v-model="scheduleStart" type="time" /></label>
+                        <label>End time <input v-model="scheduleEnd" type="time" /></label>
+                        <label>Start date <input v-model="scheduleStartDate" type="date" /></label>
+                        <label>End date <input v-model="scheduleEndDate" type="date" /></label>
+                        <fieldset class="mb-runtime-settings__weekdays">
+                            <legend>Days</legend>
+                            <label
+                                ><input
+                                    type="checkbox"
+                                    :checked="scheduleWeekdays.length === 0"
+                                    @change="scheduleWeekdays = []"
+                                />
+                                Every day</label
+                            >
+                            <label
+                                v-for="day in [
+                                    { id: 0, name: 'Sunday' },
+                                    { id: 1, name: 'Monday' },
+                                    { id: 2, name: 'Tuesday' },
+                                    { id: 3, name: 'Wednesday' },
+                                    { id: 4, name: 'Thursday' },
+                                    { id: 5, name: 'Friday' },
+                                    { id: 6, name: 'Saturday' },
+                                ]"
+                                :key="day.id"
+                                ><input
+                                    type="checkbox"
+                                    :checked="scheduleWeekdays.includes(day.id)"
+                                    @change="
+                                        scheduleWeekdays = scheduleWeekdays.includes(day.id)
+                                            ? scheduleWeekdays.filter(
+                                                  (selected) => selected !== day.id,
+                                              )
+                                            : [...scheduleWeekdays, day.id]
+                                    "
+                                />
+                                {{ day.name }}</label
+                            >
+                        </fieldset>
+                        <label v-if="scheduleSource !== 'local'"
+                            >HTTPS or loopback URL <input v-model="scheduleUrl" inputmode="url"
+                        /></label>
+                        <label v-if="scheduleSource === 'homeAssistant'"
+                            >Boolean entity id
+                            <input v-model="scheduleEntity" placeholder="input_boolean.night"
+                        /></label>
+                        <label v-if="scheduleSource === 'homeAssistant'"
+                            >Credential-vault reference <input v-model="scheduleCredentialRef"
+                        /></label>
+                    </div>
+                    <button type="button" @click="addSchedule">Add scheduled rule</button>
                     <button
                         type="button"
-                        :aria-label="`Remove ${rule.label}`"
-                        @click="removeSchedule(rule.id)"
+                        :disabled="externalRules.length === 0"
+                        @click="refreshExternalSources"
                     >
-                        Remove
+                        Refresh external sources
                     </button>
-                </li>
-                <li v-if="state.schedules.length === 0" class="mb-runtime-settings__empty">
-                    No scheduled rules yet.
-                </li>
-            </ul>
-        </article>
-        </template>
-        <template #accommodations>
-        <article
-            id="runtime-panel-accommodations"
-            role="tabpanel"
-            aria-labelledby="runtime-tab-accommodations"
-            class="mb-runtime-settings__panel"
-        >
-            <h4>Attention modes</h4>
-            <p class="mb-runtime-settings__hint">
-                These are independent interface accommodations, off by default, non-medical, and
-                never hide work without an obvious way back.
-            </p>
-            <label
-                v-for="item in accommodationItems"
-                :key="item.key"
-                class="mb-runtime-settings__accommodation"
-            >
-                <input
-                    type="checkbox"
-                    :checked="state.values.accommodations[item.key]"
-                    @change="
-                        setAccommodationValue(item.key, ($event.target as HTMLInputElement).checked)
-                    "
-                />
-                <span
-                    ><strong>{{ item.title }}</strong
-                    ><small>{{ item.detail }}</small></span
+                    <ul class="mb-runtime-settings__rules" aria-label="Scheduled rules">
+                        <li v-for="rule in state.schedules" :key="rule.id">
+                            <span
+                                ><strong>{{ rule.label }}</strong> ·
+                                {{ scheduleFieldLabel(rule.setting) }} = {{ rule.value }} ·
+                                {{ rule.startTime }} to {{ rule.endTime }} · {{ rule.source }}</span
+                            >
+                            <button
+                                type="button"
+                                :aria-label="`Remove ${rule.label}`"
+                                @click="removeSchedule(rule.id)"
+                            >
+                                Remove
+                            </button>
+                        </li>
+                        <li v-if="state.schedules.length === 0" class="mb-runtime-settings__empty">
+                            No scheduled rules yet.
+                        </li>
+                    </ul>
+                </article>
+            </template>
+            <template #accommodations>
+                <article
+                    id="runtime-panel-accommodations"
+                    role="tabpanel"
+                    aria-labelledby="runtime-tab-accommodations"
+                    class="mb-runtime-settings__panel"
                 >
-            </label>
-            <label
-                >One thing at a time, current next action
-                <input
-                    :value="state.values.nextAction"
-                    placeholder="Choose one next action"
-                    @change="
-                        persistValues({ nextAction: ($event.target as HTMLInputElement).value })
-                    "
-                />
-            </label>
-            <button v-if="state.values.accommodations.focus" type="button" @click="restoreFocus">
-                Restore interface emphasis
-            </button>
-            <div
-                v-if="momentumVisible"
-                class="mb-runtime-settings__momentum"
-                role="status"
-                aria-live="polite"
-            >
-                <strong>Momentum reminder</strong>
-                <span>Nothing changed here for {{ idleSeconds }} seconds.</span>
-                <button type="button" @click="dismissMomentum">Not now for 15 minutes</button>
-            </div>
-            <p class="mb-runtime-settings__hint">
-                Current scheduled preview: {{ activeValues.theme }}, {{ activeValues.density }},
-                {{ activeValues.motion }}, display name {{ activeValues.displayName }}.
-            </p>
-        </article>
-        </template>
+                    <h4>Attention modes</h4>
+                    <p class="mb-runtime-settings__hint">
+                        These are independent interface accommodations, off by default, non-medical,
+                        and never hide work without an obvious way back.
+                    </p>
+                    <label
+                        v-for="item in accommodationItems"
+                        :key="item.key"
+                        class="mb-runtime-settings__accommodation"
+                    >
+                        <input
+                            type="checkbox"
+                            :checked="state.values.accommodations[item.key]"
+                            @change="
+                                setAccommodationValue(
+                                    item.key,
+                                    ($event.target as HTMLInputElement).checked,
+                                )
+                            "
+                        />
+                        <span
+                            ><strong>{{ item.title }}</strong
+                            ><small>{{ item.detail }}</small></span
+                        >
+                    </label>
+                    <label
+                        >One thing at a time, current next action
+                        <input
+                            :value="state.values.nextAction"
+                            placeholder="Choose one next action"
+                            @change="
+                                persistValues({
+                                    nextAction: ($event.target as HTMLInputElement).value,
+                                })
+                            "
+                        />
+                    </label>
+                    <button
+                        v-if="state.values.accommodations.focus"
+                        type="button"
+                        @click="restoreFocus"
+                    >
+                        Restore interface emphasis
+                    </button>
+                    <div
+                        v-if="momentumVisible"
+                        class="mb-runtime-settings__momentum"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <strong>Momentum reminder</strong>
+                        <span>Nothing changed here for {{ idleSeconds }} seconds.</span>
+                        <button type="button" @click="dismissMomentum">
+                            Not now for 15 minutes
+                        </button>
+                    </div>
+                    <p class="mb-runtime-settings__hint">
+                        Current scheduled preview: {{ activeValues.theme }},
+                        {{ activeValues.density }}, {{ activeValues.motion }}, display name
+                        {{ activeValues.displayName }}.
+                    </p>
+                </article>
+            </template>
         </TabbedNavigation>
     </section>
 </template>

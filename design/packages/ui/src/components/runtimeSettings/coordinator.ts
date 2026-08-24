@@ -16,11 +16,13 @@ export interface RuntimeCoordinatorBridge {
 export function createRuntimeSettingsCoordinator(options: {
     readState: () => RuntimeSettingsState;
     applyTemporary: (values: Readonly<Record<string, string | number>>) => void;
+    clearTemporary?: () => void;
     bridge: RuntimeCoordinatorBridge | null;
     intervalMs?: number;
 }): { start(): void; stop(): void; refreshNow(): Promise<void> } {
     let timer: ReturnType<typeof setInterval> | null = null;
     let generation = 0;
+    let expiry: ReturnType<typeof setTimeout> | null = null;
     const refreshNow = async (): Promise<void> => {
         const run = ++generation;
         if (options.bridge === null) return;
@@ -43,8 +45,19 @@ export function createRuntimeSettingsCoordinator(options: {
             ),
         );
         if (run !== generation) return;
-        for (const result of results)
-            if (result.ok && result.values !== undefined) options.applyTemporary(result.values);
+        for (const result of results) {
+            if (result.ok && result.values !== undefined) {
+                options.applyTemporary(result.values);
+                if (expiry !== null) clearTimeout(expiry);
+                expiry = setTimeout(
+                    () => {
+                        options.clearTemporary?.();
+                        expiry = null;
+                    },
+                    5 * 60 * 1000,
+                );
+            }
+        }
     };
     return {
         start() {
@@ -57,6 +70,9 @@ export function createRuntimeSettingsCoordinator(options: {
             generation += 1;
             if (timer !== null) clearInterval(timer);
             timer = null;
+            if (expiry !== null) clearTimeout(expiry);
+            expiry = null;
+            options.clearTemporary?.();
         },
         refreshNow,
     };
