@@ -1,5 +1,19 @@
 # Roadmap
 
+## Universal runtime settings completion: 2026-08-24
+
+- [x] Add the main-process Home Assistant registry with a versioned bounded metadata file,
+      operating-system vault enrollment, re-authentication, removal, restart read-back, and
+      no-plaintext fallback.
+- [x] Add authenticated Status Hub registration, evidence submission, reply polling, and reply
+      confirmation through the protected bridge, with an honest disabled state when unconfigured.
+- [x] Add protected runtime history with its own credential, date/action/search filtering,
+      anchored regex search, redacted export, diff records, and append-only restore records.
+- [x] Route runtime settings copy through English, Cantonese, bilingual, and five-level resources,
+      and propagate the live runtime state from the root shell to every mounted surface.
+- [ ] Capture the final built runtime-settings states through the approved Windows headless route;
+      source implementation and focused verification are complete, while capture remains pending.
+
 ## Reusable design system package — 2026-08-22
 
 - [x] Publish the shared WorldLens colour roles, Material Design 3 tokens, Vuetify themes,

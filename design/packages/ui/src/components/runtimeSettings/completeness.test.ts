@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 describe("runtime settings hand-written completeness inventory", () => {
     it("has one row for each shipped runtime contract and no empty evidence fields", () => {
         expect(validateRuntimeCoverage()).toEqual([]);
-        expect(RUNTIME_COVERAGE).toHaveLength(4);
+        expect(RUNTIME_COVERAGE).toHaveLength(6);
     });
 
     it("turns red when a required row is removed, then returns green when restored", () => {

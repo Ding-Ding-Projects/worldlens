@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useI18n } from "vue-i18n";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import {
@@ -13,7 +12,7 @@ import {
     type RuntimeSource,
     type RuntimeValues,
 } from "./model.js";
-import { scheduleFieldLabel, applyTemporaryExternalValues } from "./schedule.js";
+import { scheduleFieldLabel } from "./schedule.js";
 import {
     createNarratorController,
     resolveVoiceStatus,
@@ -33,7 +32,7 @@ import { languageMode, funnyLevel } from "../setup/setupI18n.js";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
-type RuntimeTab = "status" | "narrator" | "schedule" | "accommodations";
+type RuntimeTab = "status" | "narrator" | "schedule" | "accommodations" | "history";
 interface RuntimeSearchItem {
     id: string;
     tab: RuntimeTab;
@@ -42,18 +41,23 @@ interface RuntimeSearchItem {
     accommodation?: AccommodationKey;
 }
 
-const { t } = useI18n();
 function rt(key: RuntimeStringKey): string {
     const mode = languageMode();
     if (mode === "bilingual") return runtimeBilingualString(key, funnyLevel("en"), funnyLevel("yue"));
     return runtimeString(key, mode === "yue" ? "yue" : "en", mode === "yue" ? funnyLevel("yue") : funnyLevel("en"));
+}
+function rtf(key: RuntimeStringKey, values: Record<string, string | number>): string {
+    return Object.entries(values).reduce(
+        (text, [name, value]) => text.replaceAll(`{${name}}`, String(value)),
+        rt(key),
+    );
 }
 const state = ref<RuntimeSettingsState>(loadRuntimeSettings());
 const runtimeTabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 const query = ref("");
 const regexMode = ref(false);
 const flags = ref("im");
-const statusMessage = ref(t("runtime.status.ready", "Runtime settings are local and ready."));
+const statusMessage = ref(rt("statusReady"));
 const voiceList = ref<VoiceInfo[]>([]);
 const speechAvailable = computed(() => typeof speechSynthesis !== "undefined");
 const statusRecord = ref<{
@@ -62,6 +66,23 @@ const statusRecord = ref<{
     source: "local-main-process";
     message: string;
 } | null>(null);
+const configuredSources = ref<readonly { id: string; source: "homeAssistant"; url: string; entityId: string; credentialRef: string }[]>([]);
+const haSourceId = ref("");
+const haUrl = ref("");
+const haEntityId = ref("");
+const haCredential = ref("");
+const statusHubResult = ref<{ ok: boolean; message: string; cursor?: string; replies?: readonly { id: string; at: string; kind: string; text: string }[] } | null>(null);
+const historyConfigured = ref(false);
+const historyUnlocked = ref(false);
+const historyPassword = ref("");
+const historyQuery = ref("");
+const historyRegex = ref(false);
+const historyFlags = ref("im");
+const historyFrom = ref("");
+const historyTo = ref("");
+const historyDiff = ref("");
+const historyEntries = ref<readonly { id: string; at: string; action: string; fields: readonly string[]; digest: string }[]>([]);
+const runtimeBridge = typeof window === "undefined" ? undefined : window.worldlens?.runtimeSettings;
 const temporaryValues = ref<Partial<RuntimeValues>>({});
 const sessionOpenedAt = Date.now();
 const lastChangedAt = ref(Date.now());
@@ -122,54 +143,35 @@ const externalRules = computed(() =>
     state.value.schedules.filter((rule) => rule.source !== "local"),
 );
 
-const accommodationItems: readonly { key: AccommodationKey; title: string; detail: string }[] = [
-    {
-        key: "focus",
-        title: "Focus",
-        detail: "Bring the current item forward without hiding anything.",
-    },
-    {
-        key: "lowStimulation",
-        title: "Low stimulation",
-        detail: "Reduce non-essential motion, colour and notices.",
-    },
-    {
-        key: "timeAwareness",
-        title: "Time awareness",
-        detail: "Show elapsed session time where the work happens.",
-    },
-    {
-        key: "oneThingAtATime",
-        title: "One thing at a time",
-        detail: "Keep one user-chosen next action visible.",
-    },
-    {
-        key: "momentum",
-        title: "Momentum",
-        detail: "Offer a dismissible prompt after a quiet period.",
-    },
-];
+const accommodationItems = computed<readonly { key: AccommodationKey; title: string; detail: string }[]>(() => [
+    { key: "focus", title: rt("focus"), detail: rt("focusDetail") },
+    { key: "lowStimulation", title: rt("lowStimulation"), detail: rt("lowStimulationDetail") },
+    { key: "timeAwareness", title: rt("timeAwareness"), detail: rt("timeAwarenessDetail") },
+    { key: "oneThingAtATime", title: rt("oneThingAtATime"), detail: rt("oneThingAtATimeDetail") },
+    { key: "momentum", title: rt("momentum"), detail: rt("momentumDetail") },
+]);
 
 const searchableItems = computed<RuntimeSearchItem[]>(() => [
     {
         id: "status",
         tab: "status" as const,
-        title: "Status Hub",
-        detail: "Factual runtime records and delivery availability.",
+        title: rt("statusTitle"),
+        detail: rt("statusDetail"),
     },
     {
         id: "narrator",
         tab: "narrator" as const,
-        title: "Spoken narrator",
-        detail: "Narration language, voices, rate, pitch and quiet behaviour.",
+        title: rt("narratorTitle"),
+        detail: rt("narratorDetail"),
     },
     {
         id: "schedule",
         tab: "schedule" as const,
-        title: "Scheduled settings",
-        detail: "Versioned local, HTTPS and Home Assistant rules.",
+        title: rt("scheduleTitle"),
+        detail: rt("scheduleDetail"),
     },
-    ...accommodationItems.map((item) => ({
+    { id: "history", tab: "history" as const, title: rt("history"), detail: rt("historyHint") },
+    ...accommodationItems.value.map((item) => ({
         id: item.key,
         tab: "accommodations" as const,
         title: item.title,
@@ -188,22 +190,9 @@ const sample = computed(() =>
     searchableItems.value.map((item) => `${item.title} ${item.detail}`).join("\n"),
 );
 const summary = computed(() => {
-    if (matcher.value.error !== null)
-        return t(
-            "runtime.search.invalid",
-            "The pattern is not valid, so no runtime settings are listed.",
-        );
-    if (!matcher.value.active)
-        return t(
-            "runtime.search.total",
-            { n: searchableItems.value.length },
-            "{n} runtime settings.",
-        );
-    return t(
-        "runtime.search.found",
-        { shown: visibleItems.value.length, total: searchableItems.value.length },
-        "{shown} of {total} runtime settings match.",
-    );
+    if (matcher.value.error !== null) return rt("invalidPattern");
+    if (!matcher.value.active) return `${searchableItems.value.length} ${rt("runtimeSettings")}.`;
+    return `${visibleItems.value.length} / ${searchableItems.value.length} ${rt("runtimeSettings")}.`;
 });
 
 function persistValues(patch: Parameters<typeof updateRuntimeValues>[1]): void {
@@ -211,10 +200,8 @@ function persistValues(patch: Parameters<typeof updateRuntimeValues>[1]): void {
     recordAppSetting("runtimeSettings", state.value);
     runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
     lastChangedAt.value = Date.now();
-    statusMessage.value = t(
-        "runtime.status.saved",
-        "Saved locally and recorded in runtime settings history.",
-    );
+    statusMessage.value = rt("saved");
+    void runtimeBridge?.historyAppend({ action: "updated", fields: Object.keys(patch) });
 }
 
 function setAccommodationValue(key: AccommodationKey, enabled: boolean): void {
@@ -222,21 +209,127 @@ function setAccommodationValue(key: AccommodationKey, enabled: boolean): void {
     recordAppSetting("runtimeSettings", state.value);
     runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
     lastChangedAt.value = Date.now();
-    statusMessage.value = t(
-        "runtime.status.saved",
-        "Saved locally and recorded in runtime settings history.",
-    );
+    statusMessage.value = rt("saved");
+    void runtimeBridge?.historyAppend({ action: "updated", fields: [`accommodations.${key}`] });
 }
 
 function openItem(item: (typeof searchableItems.value)[number]): void {
     runtimeTabs.value?.revealPage(item.tab);
 }
 
+async function loadConfiguredSources(): Promise<void> {
+    configuredSources.value = (await runtimeBridge?.sources()) ?? [];
+}
+
+async function saveHomeAssistant(): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    const result = await runtimeBridge.saveHomeAssistant({
+        id: haSourceId.value,
+        url: haUrl.value,
+        entityId: haEntityId.value,
+        credential: haCredential.value,
+    });
+    haCredential.value = "";
+    statusMessage.value = result.message;
+    if (result.ok) await loadConfiguredSources();
+}
+
+async function removeConfiguredSource(id: string): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    const result = await runtimeBridge.removeSource(id);
+    statusMessage.value = result.message;
+    if (result.ok) await loadConfiguredSources();
+}
+
+async function registerStatusHub(): Promise<void> {
+    statusHubResult.value = runtimeBridge === undefined
+        ? { ok: false, message: rt("statusHubUnavailable") }
+        : await runtimeBridge.statusHubRegister();
+    statusMessage.value = statusHubResult.value.message;
+}
+
+async function submitStatusEvidence(): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    statusHubResult.value = await runtimeBridge.statusHubSubmitEvidence({
+        sessionSeconds: sessionSeconds.value,
+        stateVersion: state.value.version,
+        scheduleCount: state.value.schedules.length,
+        narratorVoices: voiceList.value.length,
+        at: new Date().toISOString(),
+    });
+    statusMessage.value = statusHubResult.value.message;
+}
+
+async function pollStatusReplies(): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    statusHubResult.value = await runtimeBridge.statusHubPollReplies(statusHubResult.value?.cursor);
+    statusMessage.value = statusHubResult.value.message;
+}
+
+async function confirmStatusReply(id: string): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    statusHubResult.value = await runtimeBridge.statusHubConfirmReply(id);
+    statusMessage.value = statusHubResult.value.message;
+}
+
+async function refreshHistory(): Promise<void> {
+    const result = await runtimeBridge?.historyPresence();
+    historyConfigured.value = result?.configured ?? false;
+    historyUnlocked.value = result?.unlocked ?? false;
+    if (historyUnlocked.value) {
+        const filter = {
+            query: historyQuery.value,
+            regex: historyRegex.value,
+            flags: historyFlags.value,
+            ...(historyFrom.value === "" ? {} : { from: historyFrom.value }),
+            ...(historyTo.value === "" ? {} : { to: historyTo.value }),
+        };
+        historyEntries.value = (await runtimeBridge?.historyList(filter)) ?? [];
+    }
+}
+
+async function setHistoryCredential(): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    const result = await runtimeBridge.historySetCredential(historyPassword.value);
+    historyPassword.value = "";
+    statusMessage.value = result.message;
+    await refreshHistory();
+}
+
+async function unlockHistory(): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    const result = await runtimeBridge.historyVerify(historyPassword.value);
+    historyPassword.value = "";
+    statusMessage.value = result.message;
+    await refreshHistory();
+}
+
+async function exportHistory(): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    const value = await runtimeBridge.historyExport("markdown");
+    await navigator.clipboard?.writeText(value);
+    statusMessage.value = rt("exportHistory");
+}
+
+async function viewHistoryDiff(id: string): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    const result = await runtimeBridge.historyDiff(id) as { ok?: boolean; message?: string; entry?: { digest: string; fields: readonly string[] } };
+    historyDiff.value = result.entry === undefined ? (result.message ?? "") : `${result.entry.fields.join(", ")} · ${result.entry.digest}`;
+}
+
+async function restoreHistory(id: string): Promise<void> {
+    if (runtimeBridge === undefined) return;
+    const result = await runtimeBridge.historyRestore(id) as { ok?: boolean; message?: string };
+    statusMessage.value = result.message ?? rt("historyUnavailable");
+    await refreshHistory();
+}
+
 const runtimePages = computed<TabPage[]>(() => [
-    { id: "status", label: "Status Hub", icon: null },
-    { id: "narrator", label: "Narrator", icon: null },
-    { id: "schedule", label: "Scheduled settings", icon: null },
-    { id: "accommodations", label: "Attention modes", icon: null },
+    { id: "status", label: rt("statusTitle"), icon: null },
+    { id: "narrator", label: rt("narratorTitle"), icon: null },
+    { id: "schedule", label: rt("scheduleTitle"), icon: null },
+    { id: "accommodations", label: rt("accommodationsTitle"), icon: null },
+    { id: "history", label: rt("history"), icon: null },
 ]);
 
 const scheduleSetting = ref<RuntimeSettingKey>("theme");
@@ -259,27 +352,18 @@ function addSchedule(): void {
         !/^([01]\d|2[0-3]):[0-5]\d$/.test(scheduleStart.value) ||
         !/^([01]\d|2[0-3]):[0-5]\d$/.test(scheduleEnd.value)
     ) {
-        statusMessage.value = t(
-            "runtime.schedule.invalid",
-            "Enter a label and valid start and end times before adding the rule.",
-        );
+        statusMessage.value = rt("invalidSchedule");
         return;
     }
     if (scheduleSource.value !== "local" && !scheduleUrl.value.trim()) {
-        statusMessage.value = t(
-            "runtime.schedule.sourceRequired",
-            "An external source needs a validated HTTPS or loopback URL.",
-        );
+        statusMessage.value = rt("sourceRequired");
         return;
     }
     if (
         scheduleSource.value === "homeAssistant" &&
         (!scheduleEntity.value.trim() || !scheduleCredentialRef.value.trim())
     ) {
-        statusMessage.value = t(
-            "runtime.schedule.homeAssistantRequired",
-            "Home Assistant needs an entity id and a credential-vault reference.",
-        );
+        statusMessage.value = rt("homeAssistantRequired");
         return;
     }
     const id = `${scheduleSetting.value}-${Date.now().toString(36)}`;
@@ -312,18 +396,16 @@ function addSchedule(): void {
         const saved = updateRuntimeValues(next, {}, undefined);
         state.value = saved;
         recordRuntimeHistory("created", ["schedules", scheduleSetting.value]);
+        void runtimeBridge?.historyAppend({ action: "created", fields: ["schedules", scheduleSetting.value] });
         recordAppSetting("runtimeSettings", state.value);
         runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
-        statusMessage.value = t(
-            "runtime.schedule.added",
-            "The scheduled rule was added and recorded locally.",
-        );
+        statusMessage.value = rt("scheduleAdded");
     } catch (error) {
         state.value = loadRuntimeSettings();
         statusMessage.value =
             error instanceof Error
                 ? error.message
-                : t("runtime.schedule.invalid", "The scheduled rule could not be saved.");
+                : rt("invalidSchedule");
     }
 }
 
@@ -335,30 +417,23 @@ function removeSchedule(id: string): void {
     // Save the new state through the same validator used for ordinary setting changes.
     updateRuntimeValues(state.value, {});
     recordRuntimeHistory("deleted", ["schedules"]);
+    void runtimeBridge?.historyAppend({ action: "deleted", fields: ["schedules"] });
     recordAppSetting("runtimeSettings", state.value);
     runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
-    statusMessage.value = t(
-        "runtime.schedule.deleted",
-        "The scheduled rule was removed and recorded locally.",
-    );
+    statusMessage.value = rt("scheduleDeleted");
 }
 
 async function refreshExternalSources(): Promise<void> {
     if (externalRules.value.length === 0) {
-        statusMessage.value = t(
-            "runtime.schedule.none",
-            "No external source is configured, so nothing was requested.",
-        );
+        statusMessage.value = rt("noExternal");
         return;
     }
     if (coordinator === null) {
-        statusMessage.value =
-            "External settings are unavailable because the privileged bridge is not present.";
+        statusMessage.value = rt("bridgeUnavailable");
         return;
     }
     await coordinator.refreshNow();
-    statusMessage.value =
-        "External settings refresh completed through the privileged bridge. Values are temporary and the local base remains recoverable.";
+    statusMessage.value = rt("refreshComplete");
 }
 
 function dismissMomentum(): void {
@@ -413,8 +488,12 @@ function narratorVoiceLabel(language: "en" | "yue"): string {
     const status = narratorStatus(language);
     const effective = status.effective;
     return effective === null
-        ? "No matching voice is available on this computer."
-        : `Effective ${language === "yue" ? "Cantonese" : "English"} voice: ${effective.name}${status.networkBacked ? " (network-backed)" : ""}.`;
+        ? rt("noMatchingVoice")
+        : rtf("effectiveVoice", {
+              language: language === "yue" ? rt("cantonese") : rt("english"),
+              name: effective.name,
+              network: status.networkBacked ? " (network-backed)" : "",
+          });
 }
 
 function speakTest(): void {
@@ -424,10 +503,7 @@ function speakTest(): void {
         "runtime-settings-test",
         { reducedSound: state.value.values.narrator.quietHours },
     );
-    statusMessage.value = t(
-        "runtime.narrator.testQueued",
-        "The test message was queued, or was skipped because quiet or assistive technology settings are active.",
-    );
+    statusMessage.value = rt("testQueued");
 }
 
 onMounted(() => {
@@ -443,7 +519,7 @@ onMounted(() => {
             state.value = loadRuntimeSettings();
         };
     }
-    const bridge = typeof window === "undefined" ? undefined : window.worldlens?.runtimeSettings;
+    const bridge = runtimeBridge;
     coordinator = createRuntimeSettingsCoordinator({
         readState: () => state.value,
         applyTemporary: (values) => {
@@ -467,6 +543,8 @@ onMounted(() => {
         void bridge.status().then((record) => {
             statusRecord.value = record;
         });
+    void loadConfiguredSources();
+    void refreshHistory();
     narrator = createNarratorController();
     voiceList.value = [...narrator.voices()];
     unsubscribeVoices = narrator.subscribe(() => {
@@ -505,13 +583,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-    <section class="mb-runtime-settings" aria-label="Runtime settings">
+    <section class="mb-runtime-settings" :aria-label="rt('runtimeSettingsLabel')">
         <ConfigSearchField
             v-model="query"
             v-model:regex="regexMode"
             v-model:flags="flags"
-            label="Find runtime settings"
-            placeholder="Try narrator, night, focus or voice"
+            :label="rt('findRuntimeSettings')"
+            :placeholder="rt('runtimeSearchPlaceholder')"
             :sample="sample"
             :summary="summary"
         />
@@ -519,7 +597,7 @@ onUnmounted(() => {
         <ul
             v-if="matcher.active"
             class="mb-runtime-settings__results"
-            aria-label="Runtime setting results"
+            :aria-label="rt('runtimeResults')"
         >
             <li v-for="item in visibleItems" :key="item.id" class="mb-runtime-settings__result">
                 <button type="button" @click="openItem(item)">
@@ -530,7 +608,7 @@ onUnmounted(() => {
                     v-if="item.accommodation"
                     type="checkbox"
                     :checked="state.values.accommodations[item.accommodation]"
-                    :aria-label="`Adjust ${item.title}`"
+                    :aria-label="`${rt('adjust')} ${item.title}`"
                     @change="
                         setAccommodationValue(
                             item.accommodation,
@@ -540,7 +618,7 @@ onUnmounted(() => {
                 />
             </li>
             <li v-if="visibleItems.length === 0" class="mb-runtime-settings__empty">
-                No runtime setting matches this search.
+                {{ rt("runtimeNoMatch") }}
             </li>
         </ul>
 
@@ -548,8 +626,8 @@ onUnmounted(() => {
             ref="runtimeTabs"
             :pages="runtimePages"
             storage-key="worldlens-runtime-settings-tabs"
-            window-label="Runtime settings"
-            strip-label="Runtime settings sections"
+            :window-label="rt('runtimeSettingsLabel')"
+            :strip-label="rt('runtimeResults')"
         >
             <template #status>
                 <article
@@ -564,59 +642,91 @@ onUnmounted(() => {
                     </p>
                     <dl class="mb-runtime-settings__status-list">
                         <div>
-                            <dt>Time awareness</dt>
+                            <dt>{{ rt("timeAwareness") }}</dt>
                             <dd>
                                 {{
                                     state.values.accommodations.timeAwareness
                                         ? `Session ${sessionSeconds}s, unchanged ${idleSeconds}s`
-                                        : "Off"
+                                        : rt("off")
                                 }}
                             </dd>
                         </div>
                         <div>
-                            <dt>Runtime settings</dt>
+                            <dt>{{ rt("runtimeSettings") }}</dt>
                             <dd>
-                                ✅ Local state version {{ state.version }},
-                                {{ state.schedules.length }} schedule rule(s)
+                                {{ rtf("localState", { version: state.version, count: state.schedules.length }) }}
                             </dd>
                         </div>
                         <div>
-                            <dt>Narrator</dt>
+                            <dt>{{ rt("narrator") }}</dt>
                             <dd>
                                 {{
                                     !speechAvailable
-                                        ? "⚠️ Speech synthesis is unavailable on this computer"
-                                        : `✅ ${voiceList.length} voice(s) reported, with late updates watched`
+                                        ? rt("speechUnavailable")
+                                        : rtf("voicesReported", { count: voiceList.length })
                                 }}
                             </dd>
                         </div>
                         <div>
-                            <dt>External sources</dt>
+                            <dt>{{ rt("externalSources") }}</dt>
                             <dd>
                                 {{
                                     externalRules.length === 0
-                                        ? "⏸️ None configured, no request made"
-                                        : `⏳ ${externalRules.length} configured, refresh is user-started`
+                                        ? rt("noneConfigured")
+                                        : rtf("externalConfigured", { count: externalRules.length })
                                 }}
                             </dd>
                         </div>
                         <div>
-                            <dt>Status delivery</dt>
+                            <dt>{{ rt("statusDelivery") }}</dt>
                             <dd>
                                 {{
                                     statusRecord === null
-                                        ? "⏳ Reading main-process delivery status"
+                                    ? rt("statusReading")
                                         : statusRecord.deliveryAvailable
-                                          ? "✅ Authenticated delivery is available"
+                                          ? rt("authenticatedAvailable")
                                           : `⚠️ ${statusRecord.message}`
                                 }}
                             </dd>
                         </div>
                     </dl>
                     <p class="mb-runtime-settings__hint">
-                        The Status Hub record is evidence, not a promise. Unavailable delivery stays
-                        visible instead of pretending a message was sent.
+                        {{ rt("statusEvidenceHint") }}
                     </p>
+                    <div class="mb-runtime-settings__status-actions">
+                        <button type="button" :disabled="!statusRecord?.deliveryAvailable" @click="registerStatusHub">
+                            {{ rt("registerStatusHub") }}
+                        </button>
+                        <button type="button" :disabled="!statusRecord?.deliveryAvailable" @click="submitStatusEvidence">
+                            {{ rt("submitEvidence") }}
+                        </button>
+                        <button type="button" :disabled="!statusRecord?.deliveryAvailable" @click="pollStatusReplies">
+                            {{ rt("pollReplies") }}
+                        </button>
+                    </div>
+                    <p v-if="statusRecord !== null && !statusRecord.deliveryAvailable" class="mb-runtime-settings__hint">
+                        {{ rt("statusHubUnavailable") }}
+                    </p>
+                    <ul v-if="statusHubResult?.replies?.length" class="mb-runtime-settings__rules" :aria-label="rt('pollReplies')">
+                        <li v-for="reply in statusHubResult.replies" :key="reply.id">
+                            <span><strong>{{ reply.kind }}</strong> · {{ reply.text }}</span>
+                            <button type="button" @click="confirmStatusReply(reply.id)">{{ rt("confirmReply") }}</button>
+                        </li>
+                    </ul>
+                    <fieldset class="mb-runtime-settings__source-form">
+                        <legend>{{ rt("homeAssistantSources") }}</legend>
+                        <label>{{ rt("sourceId") }} <input v-model="haSourceId" autocomplete="off" /></label>
+                        <label>{{ rt("homeAssistantUrl") }} <input v-model="haUrl" inputmode="url" autocomplete="off" /></label>
+                        <label>{{ rt("entityId") }} <input v-model="haEntityId" autocomplete="off" /></label>
+                        <label>{{ rt("homeAssistantCredential") }} <input v-model="haCredential" type="password" autocomplete="new-password" /></label>
+                        <button type="button" @click="saveHomeAssistant">{{ rt("saveHomeAssistant") }}</button>
+                    </fieldset>
+                    <ul class="mb-runtime-settings__rules" :aria-label="rt('homeAssistantSources')">
+                        <li v-for="source in configuredSources" :key="source.id">
+                            <span>{{ rtf("configuredSource", { id: source.id, entity: source.entityId }) }}</span>
+                            <button type="button" @click="removeConfiguredSource(source.id)">{{ rt("remove") }}</button>
+                        </li>
+                    </ul>
                 </article>
             </template>
             <template #narrator>
@@ -628,9 +738,7 @@ onUnmounted(() => {
                 >
             <h4>{{ rt("narratorTitle") }}</h4>
                     <p class="mb-runtime-settings__hint">
-                        Narration is off until enabled. Voice lists are read from this computer,
-                        stable voice ids are retained, and Both speaks English then Cantonese in
-                        order.
+                        {{ rt("narrationHint") }}
                     </p>
                     <label
                         ><input
@@ -645,15 +753,15 @@ onUnmounted(() => {
                                 })
                             "
                         />
-                        Enable narration</label
+                        {{ rt("enableNarration") }}</label
                     >
                     <SearchablePicker
                         :model-value="state.values.narrator.language"
-                        label="Narration language"
+                        :label="rt('narrationLanguage')"
                         :options="[
-                            { id: 'en', label: 'English' },
-                            { id: 'yue', label: 'Cantonese' },
-                            { id: 'both', label: 'Both, English then Cantonese' },
+                            { id: 'en', label: rt('english') },
+                            { id: 'yue', label: rt('cantonese') },
+                            { id: 'both', label: rt('bothEnglishThenCantonese') },
                         ]"
                         @update:model-value="
                             (value) =>
@@ -667,9 +775,9 @@ onUnmounted(() => {
                     />
                     <SearchablePicker
                         :model-value="state.values.narrator.englishVoiceId ?? ''"
-                        label="English voice"
+                        :label="rt('englishVoice')"
                         :options="[
-                            { id: '', label: 'Choose automatically' },
+                            { id: '', label: rt('chooseAutomatically') },
                             ...voiceList
                                 .filter((voice) => voice.lang.toLowerCase().startsWith('en'))
                                 .map((voice) => ({
@@ -690,9 +798,9 @@ onUnmounted(() => {
                     <p class="mb-runtime-settings__hint">{{ narratorVoiceLabel("en") }}</p>
                     <SearchablePicker
                         :model-value="state.values.narrator.cantoneseVoiceId ?? ''"
-                        label="Cantonese voice"
+                        :label="rt('cantoneseVoice')"
                         :options="[
-                            { id: '', label: 'Choose automatically' },
+                            { id: '', label: rt('chooseAutomatically') },
                             ...voiceList
                                 .filter((voice) =>
                                     ['yue', 'zh-hk'].some((prefix) =>
@@ -716,7 +824,7 @@ onUnmounted(() => {
                     />
                     <p class="mb-runtime-settings__hint">{{ narratorVoiceLabel("yue") }}</p>
                     <label
-                        >Rate
+                        >{{ rt("rate") }}
                         <input
                             type="range"
                             min="0.1"
@@ -733,7 +841,7 @@ onUnmounted(() => {
                             "
                     /></label>
                     <label
-                        >Pitch
+                        >{{ rt("pitch") }}
                         <input
                             type="range"
                             min="0"
@@ -762,9 +870,9 @@ onUnmounted(() => {
                                 })
                             "
                         />
-                        Quiet mode, yield to reduced sound and assistive technology</label
+                        {{ rt("quietNarration") }}</label
                     >
-                    <button type="button" @click="speakTest">Speak a test message</button>
+                    <button type="button" @click="speakTest">{{ rt("speakTest") }}</button>
                 </article>
             </template>
             <template #schedule>
@@ -776,15 +884,13 @@ onUnmounted(() => {
                 >
             <h4>{{ rt("scheduleTitle") }}</h4>
                     <p class="mb-runtime-settings__hint">
-                        Times use this computer's local timezone. Every day means all weekdays.
-                        Cross-midnight windows are supported, and a higher priority wins before the
-                        stable id tie-breaker.
+                        {{ rt("scheduleHint") }}
                     </p>
                     <div class="mb-runtime-settings__grid">
-                        <label>Label <input v-model="scheduleLabel" /></label>
+                        <label>{{ rt("label") }} <input v-model="scheduleLabel" /></label>
                         <SearchablePicker
                             :model-value="scheduleSetting"
-                            label="Scheduled setting"
+                            :label="rt('scheduledSetting')"
                             :options="
                                 [
                                     'language',
@@ -804,9 +910,9 @@ onUnmounted(() => {
                                 (value) => (scheduleSetting = value as RuntimeSettingKey)
                             "
                         />
-                        <label>Value <input v-model="scheduleValue" /></label>
+                        <label>{{ rt("value") }} <input v-model="scheduleValue" /></label>
                         <label
-                            >Priority
+                            >{{ rt("priority") }}
                             <input
                                 v-model.number="schedulePriority"
                                 type="number"
@@ -816,39 +922,39 @@ onUnmounted(() => {
                         /></label>
                         <SearchablePicker
                             :model-value="scheduleSource"
-                            label="Source"
+                            :label="rt('source')"
                             :options="[
-                                { id: 'local', label: 'Local' },
-                                { id: 'https', label: 'Validated HTTPS API' },
-                                { id: 'homeAssistant', label: 'Home Assistant boolean' },
+                                { id: 'local', label: rt('local') },
+                                { id: 'https', label: rt('validatedHttpsApi') },
+                                { id: 'homeAssistant', label: rt('homeAssistantBoolean') },
                             ]"
                             @update:model-value="
                                 (value) => (scheduleSource = value as RuntimeSource)
                             "
                         />
-                        <label>Start time <input v-model="scheduleStart" type="time" /></label>
-                        <label>End time <input v-model="scheduleEnd" type="time" /></label>
-                        <label>Start date <input v-model="scheduleStartDate" type="date" /></label>
-                        <label>End date <input v-model="scheduleEndDate" type="date" /></label>
+                        <label>{{ rt("startTime") }} <input v-model="scheduleStart" type="time" /></label>
+                        <label>{{ rt("endTime") }} <input v-model="scheduleEnd" type="time" /></label>
+                        <label>{{ rt("startDate") }} <input v-model="scheduleStartDate" type="date" /></label>
+                        <label>{{ rt("endDate") }} <input v-model="scheduleEndDate" type="date" /></label>
                         <fieldset class="mb-runtime-settings__weekdays">
-                            <legend>Days</legend>
+                            <legend>{{ rt("days") }}</legend>
                             <label
                                 ><input
                                     type="checkbox"
                                     :checked="scheduleWeekdays.length === 0"
                                     @change="scheduleWeekdays = []"
                                 />
-                                Every day</label
+                                {{ rt("everyDay") }}</label
                             >
                             <label
                                 v-for="day in [
-                                    { id: 0, name: 'Sunday' },
-                                    { id: 1, name: 'Monday' },
-                                    { id: 2, name: 'Tuesday' },
-                                    { id: 3, name: 'Wednesday' },
-                                    { id: 4, name: 'Thursday' },
-                                    { id: 5, name: 'Friday' },
-                                    { id: 6, name: 'Saturday' },
+                                    { id: 0, name: rt('sunday') },
+                                    { id: 1, name: rt('monday') },
+                                    { id: 2, name: rt('tuesday') },
+                                    { id: 3, name: rt('wednesday') },
+                                    { id: 4, name: rt('thursday') },
+                                    { id: 5, name: rt('friday') },
+                                    { id: 6, name: rt('saturday') },
                                 ]"
                                 :key="day.id"
                                 ><input
@@ -866,25 +972,25 @@ onUnmounted(() => {
                             >
                         </fieldset>
                         <label v-if="scheduleSource !== 'local'"
-                            >HTTPS or loopback URL <input v-model="scheduleUrl" inputmode="url"
+                            >{{ rt("url") }} <input v-model="scheduleUrl" inputmode="url"
                         /></label>
                         <label v-if="scheduleSource === 'homeAssistant'"
-                            >Boolean entity id
-                            <input v-model="scheduleEntity" placeholder="input_boolean.night"
+                            >{{ rt("entityId") }}
+                            <input v-model="scheduleEntity" :placeholder="rt('entityId')"
                         /></label>
                         <label v-if="scheduleSource === 'homeAssistant'"
-                            >Credential-vault reference <input v-model="scheduleCredentialRef"
+                            >{{ rt("credentialVaultReference") }} <input v-model="scheduleCredentialRef"
                         /></label>
                     </div>
-                    <button type="button" @click="addSchedule">Add scheduled rule</button>
+                    <button type="button" @click="addSchedule">{{ rt("addSchedule") }}</button>
                     <button
                         type="button"
                         :disabled="externalRules.length === 0"
                         @click="refreshExternalSources"
                     >
-                        Refresh external sources
+                        {{ rt("refreshExternal") }}
                     </button>
-                    <ul class="mb-runtime-settings__rules" aria-label="Scheduled rules">
+                    <ul class="mb-runtime-settings__rules" :aria-label="rt('scheduledRules')">
                         <li v-for="rule in state.schedules" :key="rule.id">
                             <span
                                 ><strong>{{ rule.label }}</strong> ·
@@ -893,14 +999,14 @@ onUnmounted(() => {
                             >
                             <button
                                 type="button"
-                                :aria-label="`Remove ${rule.label}`"
+                                :aria-label="`${rt('remove')} ${rule.label}`"
                                 @click="removeSchedule(rule.id)"
                             >
-                                Remove
+                                {{ rt("remove") }}
                             </button>
                         </li>
                         <li v-if="state.schedules.length === 0" class="mb-runtime-settings__empty">
-                            No scheduled rules yet.
+                            {{ rt("noRules") }}
                         </li>
                     </ul>
                 </article>
@@ -914,8 +1020,7 @@ onUnmounted(() => {
                 >
             <h4>{{ rt("accommodationsTitle") }}</h4>
                     <p class="mb-runtime-settings__hint">
-                        These are independent interface accommodations, off by default, non-medical,
-                        and never hide work without an obvious way back.
+                        {{ rt("accommodationsHint") }}
                     </p>
                     <label
                         v-for="item in accommodationItems"
@@ -938,10 +1043,10 @@ onUnmounted(() => {
                         >
                     </label>
                     <label
-                        >One thing at a time, current next action
+                        >{{ rt("nextAction") }}
                         <input
                             :value="state.values.nextAction"
-                            placeholder="Choose one next action"
+                            :placeholder="rt('chooseNextAction')"
                             @change="
                                 persistValues({
                                     nextAction: ($event.target as HTMLInputElement).value,
@@ -954,7 +1059,7 @@ onUnmounted(() => {
                         type="button"
                         @click="restoreFocus"
                     >
-                        Restore interface emphasis
+                        {{ rt("restoreEmphasis") }}
                     </button>
                     <div
                         v-if="momentumVisible"
@@ -962,17 +1067,57 @@ onUnmounted(() => {
                         role="status"
                         aria-live="polite"
                     >
-                        <strong>Momentum reminder</strong>
-                        <span>Nothing changed here for {{ idleSeconds }} seconds.</span>
+                        <strong>{{ rt("momentumReminder") }}</strong>
+                        <span>{{ rtf("nothingChanged", { seconds: idleSeconds }) }}</span>
                         <button type="button" @click="dismissMomentum">
-                            Not now for 15 minutes
+                            {{ rt("notNow") }}
                         </button>
                     </div>
                     <p class="mb-runtime-settings__hint">
-                        Current scheduled preview: {{ activeValues.theme }},
-                        {{ activeValues.density }}, {{ activeValues.motion }}, display name
-                        {{ activeValues.displayName }}.
+                        {{ rtf("currentPreview", { theme: activeValues.theme, density: activeValues.density, motion: activeValues.motion, displayName: activeValues.displayName }) }}
                     </p>
+                </article>
+            </template>
+            <template #history>
+                <article
+                    id="runtime-panel-history"
+                    role="tabpanel"
+                    aria-labelledby="runtime-tab-history"
+                    class="mb-runtime-settings__panel"
+                >
+                    <h4>{{ rt("history") }}</h4>
+                    <p class="mb-runtime-settings__hint">{{ rt("historyHint") }}</p>
+                    <label>{{ rt("historyPassword") }} <input v-model="historyPassword" type="password" autocomplete="new-password" /></label>
+                    <div class="mb-runtime-settings__status-actions">
+                        <button v-if="!historyConfigured" type="button" @click="setHistoryCredential">{{ rt("setHistoryCredential") }}</button>
+                        <button v-else type="button" @click="unlockHistory">{{ rt("unlockHistory") }}</button>
+                        <button type="button" :disabled="!historyUnlocked" @click="exportHistory">{{ rt("exportHistory") }}</button>
+                    </div>
+                    <ConfigSearchField
+                        v-model="historyQuery"
+                        v-model:regex="historyRegex"
+                        v-model:flags="historyFlags"
+                        :label="rt('historySearch')"
+                        :sample="historyEntries.map((entry) => `${entry.action} ${entry.fields.join(' ')}`).join('\n')"
+                        :summary="`${historyEntries.length}`"
+                        @update:model-value="refreshHistory"
+                    />
+                    <div class="mb-runtime-settings__grid">
+                        <label>{{ rt("fromDate") }} <input v-model="historyFrom" type="date" @change="refreshHistory" /></label>
+                        <label>{{ rt("toDate") }} <input v-model="historyTo" type="date" @change="refreshHistory" /></label>
+                    </div>
+                    <p v-if="historyDiff" class="mb-runtime-settings__hint">{{ historyDiff }}</p>
+                    <p v-if="!historyUnlocked" class="mb-runtime-settings__hint">{{ rt("historyUnavailable") }}</p>
+                    <ul v-else class="mb-runtime-settings__rules" :aria-label="rt('history')">
+                        <li v-for="entry in historyEntries" :key="entry.id">
+                            <span><strong>{{ entry.action }}</strong> · {{ entry.at }} · {{ entry.fields.join(", ") }}</span>
+                            <span class="mb-runtime-settings__status-actions">
+                                <code>{{ entry.digest.slice(0, 12) }}</code>
+                                <button type="button" @click="viewHistoryDiff(entry.id)">{{ rt("viewDiff") }}</button>
+                                <button type="button" @click="restoreHistory(entry.id)">{{ rt("restoreRevision") }}</button>
+                            </span>
+                        </li>
+                    </ul>
                 </article>
             </template>
         </TabbedNavigation>

@@ -2205,9 +2205,54 @@ export interface RuntimeStatusRecord {
     readonly message: string;
 }
 
+export interface RuntimeConfiguredSource {
+    readonly id: string;
+    readonly source: "homeAssistant";
+    readonly url: string;
+    readonly entityId: string;
+    readonly credentialRef: string;
+}
+
+export interface RuntimeStatusHubReply {
+    readonly id: string;
+    readonly at: string;
+    readonly kind: string;
+    readonly text: string;
+}
+
+export interface RuntimeStatusHubResult {
+    readonly ok: boolean;
+    readonly message: string;
+    readonly projectId?: string;
+    readonly sessionId?: string;
+    readonly cursor?: string;
+    readonly replies?: readonly RuntimeStatusHubReply[];
+    readonly authRequired?: boolean;
+}
+
 export interface RuntimeSettingsBridge {
     refreshExternal(request: RuntimeExternalRequest): Promise<RuntimeExternalAnswer>;
     status(): Promise<RuntimeStatusRecord>;
+    sources(): Promise<readonly RuntimeConfiguredSource[]>;
+    saveHomeAssistant(input: {
+        readonly id: string;
+        readonly url: string;
+        readonly entityId: string;
+        readonly credential: string;
+    }): Promise<{ readonly ok: boolean; readonly message: string; readonly source?: RuntimeConfiguredSource }>;
+    removeSource(id: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+    statusHubRegister(): Promise<RuntimeStatusHubResult>;
+    statusHubSubmitEvidence(evidence: unknown): Promise<RuntimeStatusHubResult>;
+    statusHubPollReplies(cursor?: string): Promise<RuntimeStatusHubResult>;
+    statusHubConfirmReply(replyId: string): Promise<RuntimeStatusHubResult>;
+    historyPresence(): Promise<{ readonly configured: boolean; readonly unlocked: boolean }>;
+    historySetCredential(password: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+    historyVerify(password: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+    historyList(input?: { readonly query?: string; readonly action?: string; readonly from?: string; readonly to?: string }): Promise<readonly { readonly id: string; readonly at: string; readonly action: string; readonly fields: readonly string[]; readonly digest: string }[]>;
+    historyAppend(input: { readonly action: string; readonly fields: readonly string[] }): Promise<unknown>;
+    historyExport(format: "json" | "markdown"): Promise<string>;
+    historyDiff(id: string): Promise<unknown>;
+    historyRestore(id: string): Promise<unknown>;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -4315,6 +4360,21 @@ const bridge: WorldlensBridge = {
         refreshExternal: (request) =>
             ipcRenderer.invoke("runtimeSettings:refreshExternal", request),
         status: () => ipcRenderer.invoke("runtimeSettings:status"),
+        sources: () => ipcRenderer.invoke("runtimeSettings:sources"),
+        saveHomeAssistant: (input) => ipcRenderer.invoke("runtimeSettings:saveHomeAssistant", input),
+        removeSource: (id) => ipcRenderer.invoke("runtimeSettings:removeSource", id),
+        statusHubRegister: () => ipcRenderer.invoke("runtimeSettings:statusHubRegister"),
+        statusHubSubmitEvidence: (evidence) => ipcRenderer.invoke("runtimeSettings:statusHubSubmitEvidence", evidence),
+        statusHubPollReplies: (cursor) => ipcRenderer.invoke("runtimeSettings:statusHubPollReplies", cursor),
+        statusHubConfirmReply: (replyId) => ipcRenderer.invoke("runtimeSettings:statusHubConfirmReply", replyId),
+        historyPresence: () => ipcRenderer.invoke("runtimeSettings:historyPresence"),
+        historySetCredential: (password) => ipcRenderer.invoke("runtimeSettings:historySetCredential", password),
+        historyVerify: (password) => ipcRenderer.invoke("runtimeSettings:historyVerify", password),
+        historyList: (input) => ipcRenderer.invoke("runtimeSettings:historyList", input),
+        historyAppend: (input) => ipcRenderer.invoke("runtimeSettings:historyAppend", input),
+        historyExport: (format) => ipcRenderer.invoke("runtimeSettings:historyExport", format),
+        historyDiff: (id) => ipcRenderer.invoke("runtimeSettings:historyDiff", id),
+        historyRestore: (id) => ipcRenderer.invoke("runtimeSettings:historyRestore", id),
     },
 
     gallery: {

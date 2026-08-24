@@ -718,6 +718,48 @@ interface RuntimeSettingsBridge {
         readonly source: "local-main-process";
         readonly message: string;
     }>;
+    sources(): Promise<readonly {
+        readonly id: string;
+        readonly source: "homeAssistant";
+        readonly url: string;
+        readonly entityId: string;
+        readonly credentialRef: string;
+    }[]>;
+    saveHomeAssistant(input: {
+        readonly id: string;
+        readonly url: string;
+        readonly entityId: string;
+        readonly credential: string;
+    }): Promise<{ readonly ok: boolean; readonly message: string; readonly source?: {
+        readonly id: string;
+        readonly source: "homeAssistant";
+        readonly url: string;
+        readonly entityId: string;
+        readonly credentialRef: string;
+    } }>;
+    removeSource(id: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+    statusHubRegister(): Promise<RuntimeStatusHubResult>;
+    statusHubSubmitEvidence(evidence: unknown): Promise<RuntimeStatusHubResult>;
+    statusHubPollReplies(cursor?: string): Promise<RuntimeStatusHubResult>;
+    statusHubConfirmReply(replyId: string): Promise<RuntimeStatusHubResult>;
+    historyPresence(): Promise<{ readonly configured: boolean; readonly unlocked: boolean }>;
+    historySetCredential(password: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+    historyVerify(password: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+    historyList(input?: { readonly query?: string; readonly action?: string; readonly from?: string; readonly to?: string }): Promise<readonly { readonly id: string; readonly at: string; readonly action: string; readonly fields: readonly string[]; readonly digest: string }[]>;
+    historyAppend(input: { readonly action: string; readonly fields: readonly string[] }): Promise<unknown>;
+    historyExport(format: "json" | "markdown"): Promise<string>;
+    historyDiff(id: string): Promise<unknown>;
+    historyRestore(id: string): Promise<unknown>;
+}
+
+interface RuntimeStatusHubResult {
+    readonly ok: boolean;
+    readonly message: string;
+    readonly projectId?: string;
+    readonly sessionId?: string;
+    readonly cursor?: string;
+    readonly replies?: readonly { readonly id: string; readonly at: string; readonly kind: string; readonly text: string }[];
+    readonly authRequired?: boolean;
 }
 
 interface WorldlensBridge {

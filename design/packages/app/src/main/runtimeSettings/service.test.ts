@@ -46,4 +46,24 @@ describe("main-process runtime settings service", () => {
         expect(result).toMatchObject({ ok: true, values: { theme: "dark" } });
         service.dispose();
     });
+
+    it("uses the authenticated Status Hub bridge for registration, evidence, replies and confirmation", async () => {
+        const calls: { method: string; url: string; body?: string }[] = [];
+        const service = createRuntimeSettingsService({
+            statusHub: { baseUrl: "http://127.0.0.1:8099", projectId: "project", sessionId: "session", credentialRef: "status-hub" },
+            readStatusHubCredential: async () => "vault-only-token",
+            fetcher: async (input, init) => {
+                calls.push({ method: init?.method ?? "GET", url: String(input), ...(typeof init?.body === "string" ? { body: init.body } : {}) });
+                return new Response(JSON.stringify({ projectId: "project", sessionId: "session", cursor: "next", replies: [{ id: "reply-1", at: new Date().toISOString(), kind: "question", text: "Ready?" }] }), { status: 200 });
+            },
+        });
+        expect(service.status()).toMatchObject({ registered: true, deliveryAvailable: true });
+        expect((await service.statusHubRegister()).ok).toBe(true);
+        expect((await service.statusHubSubmitEvidence({ state: "running" })).ok).toBe(true);
+        expect((await service.statusHubPollReplies()).replies?.[0]?.id).toBe("reply-1");
+        expect((await service.statusHubConfirmReply("reply-1")).ok).toBe(true);
+        expect(calls.map((call) => call.method)).toEqual(["POST", "POST", "GET", "POST"]);
+        expect(calls.every((call) => call.body === undefined || !call.body.includes("vault-only-token"))).toBe(true);
+        service.dispose();
+    });
 });

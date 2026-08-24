@@ -4,7 +4,9 @@ This article documents the desktop runtime settings surface added in the univers
 
 ## Status Hub
 
-The Settings panel includes a factual Status Hub tab. It reports the persisted settings format version, schedule count, speech-synthesis availability and voice count, configured external sources, and whether authenticated Status Hub delivery is available. When that delivery route is absent, the panel says so and does not render a send action. Local records remain useful without pretending that a message reached another service.
+The Settings panel includes a factual Status Hub tab. It reports the persisted settings format version, schedule count, speech-synthesis availability and voice count, configured external sources, and whether authenticated Status Hub delivery is available. When that delivery route is absent, the panel says so and disables registration, evidence submission, reply polling, and reply confirmation rather than rendering a fake send action. When configured, those operations use the main process authenticated bridge and return the service response to the panel. Tokens never enter renderer state, history, evidence, or exports.
+
+The main-process status client is configured only when a complete project, session, endpoint, and operating-system credential are present. Registration, evidence submission, reply polling, and confirmation are separate bounded requests with redirect rejection, response limits, and a five-second deadline. An unconfigured build remains useful locally and reports the unavailable route plainly.
 
 ## Narrator
 
@@ -12,7 +14,7 @@ Narration is off by default. When enabled, the user chooses English, Cantonese, 
 
 ## Scheduled settings
 
-Rules are versioned, bounded and validated before persistence. They can target language, theme, density, accent, font family, font size, motion, or display name. Every rule has a stable id, priority, local-time start and end, optional dates, optional weekday selection, and a source. Local rules apply deterministically by priority and then id. Cross-midnight windows are supported. External requests run in the privileged main process through a typed preload bridge, never from the renderer. The main process accepts only HTTPS, with loopback HTTP reserved for an explicit development route, rejects URL credentials, private and reserved addresses, redirect responses, unsafe ports and DNS changes, and applies a five-second timeout, a 512 KiB response cap, and an allowlist of appearance fields. Home Assistant rules require a boolean entity id and a credential-vault reference. The token is read only in the operating-system vault and never enters renderer state. A validated external value is temporary and never overwrites the recoverable local base.
+Rules are versioned, bounded and validated before persistence. They can target language, theme, density, accent, font family, font size, motion, or display name. Every rule has a stable id, priority, local-time start and end, optional dates, optional weekday selection, and a source. Local rules apply deterministically by priority and then id. Cross-midnight windows are supported. External requests run in the privileged main process through a typed preload bridge, never from the renderer. The main process accepts only HTTPS, with loopback HTTP reserved for an explicit development route, rejects URL credentials, private and reserved addresses, redirect responses, unsafe ports and DNS changes, and applies a five-second timeout, a 512 KiB response cap, and an allowlist of appearance fields. Home Assistant rules require a boolean entity id and a credential-vault reference. The Settings panel can enroll, re-authenticate, list, and remove a Home Assistant source. The versioned bounded registry stores only non-secret metadata plus an operating-system-encrypted credential envelope. A machine without a working vault is refused instead of falling back to plaintext. The token is read only in the operating-system vault and never enters renderer state. A validated external value is temporary and never overwrites the recoverable local base.
 
 The settings surface states that times use the computer's local timezone. Daylight-saving transitions follow the platform's local clock. An invalid or incomplete date, time, source URL, entity id, or vault reference is rejected beside the editor rather than guessed.
 
@@ -24,7 +26,7 @@ Active scheduled values apply live to document theme, density and motion attribu
 
 ## Search, history and verification
 
-The panel has its own plain-text-first search field and an adjacent anchored full regex builder. Search results open the owning tab, and accommodation results expose a live checkbox directly in the result. Every saved change records changed field names in the local runtime history store without credentials or external values. The hand-written inventory is `design/packages/ui/src/components/runtimeSettings/completeness.ts`; focused tests cover bounded parsing, cross-midnight matching, deterministic precedence, local history and external-source failure states.
+The panel has its own plain-text-first search field and an adjacent anchored full regex builder. Search results open the owning tab, and accommodation results expose a live checkbox directly in the result. Runtime history has its own protected tab and credential, date/action/text filtering, an anchored regex builder, redacted Markdown or JSON export, digest-backed diff records, and append-only restore records. Every saved change records changed field names in the local runtime history store without credentials or external values. The hand-written inventory is `design/packages/ui/src/components/runtimeSettings/completeness.ts`; focused tests cover bounded parsing, cross-midnight matching, deterministic precedence, vault-backed registry enrollment, Status Hub request sequencing, protected history, and external-source failure states.
 
 Built-artifact capture evidence is intentionally marked pending in the inventory until the final Windows headless smoke wave records the real runtime-settings tab at the exact integrated commit.
 
@@ -56,7 +58,9 @@ Focus、Low stimulation、Time awareness、One thing at a time、Momentum 係五
 
 ### 搜尋、歷史同驗證
 
-面板有自己嘅普通文字搜尋，同一個貼住搜尋框嘅完整 regex builder。結果可以直接開返所屬分頁，注意力模式結果仲可以即場調校。每次保存會將改動欄位寫入本地歷史，唔會寫憑證或者外部內容。真正整合版本嘅 Windows headless capture 會喺最後 smoke wave 補入 inventory，未有之前唔扮完成。
+面板有自己嘅普通文字搜尋，同一個貼住搜尋框嘅完整 regex builder。結果可以直接開返所屬分頁，注意力模式結果仲可以即場調校。執行歷史有自己嘅憑證、日期／動作／文字篩選、regex builder、去敏感資料匯出、diff 同追加式還原。每次保存會將改動欄位寫入本地歷史，唔會寫憑證或者外部內容。真正整合版本嘅 Windows headless capture 會喺最後 smoke wave 補入 inventory，未有之前唔扮完成。
+
+Home Assistant 來源可以喺面板登記、重新認證、列出同移除。憑證只會去作業系統憑證庫，冇憑證庫就拒絕寫入，唔會跌落明文。Status Hub 如果未有完整設定，就會老實顯示未能使用，唔會畫假提交掣；有設定時，登記、證據、回覆輪詢同確認都經主程序認證橋接。
 
 ### 建議文章
 

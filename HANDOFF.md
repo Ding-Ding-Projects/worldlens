@@ -1,5 +1,24 @@
 # Handoff
 
+## 2026-08-24: universal runtime settings implementation lane
+
+This lane completes the non-capture runtime settings contracts on `feature/universal-runtime-settings`.
+The main process now owns a bounded versioned Home Assistant source registry with encrypted
+operating-system-vault credentials, enrollment, re-authentication, removal, and restart-safe
+metadata. The authenticated Status Hub bridge provides separate project registration, evidence
+submission, reply polling, and reply confirmation calls and exposes no submission control when the
+endpoint or credential is not configured. Runtime history has its own protected credential, bounded
+date/action/search filtering with regex mode, diff records, redacted Markdown or JSON export, and
+append-only restore records. The root UI applies theme, density, motion, accent, font, display name,
+and accommodation changes live across windows through the shared runtime channel.
+
+Focused evidence: the runtime-settings unit set passes 27 tests across 10 files, including registry
+vault refusal and restart metadata, Status Hub request sequencing, protected history, bounded model
+parsing, schedule precedence, narrator voice enumeration and coordinator generation handling. Full
+workspace type checks remain red on pre-existing unrelated package errors; no new diagnostics mention
+the runtime-settings files. Final built-artifact capture evidence remains pending for the Windows
+headless capture lane.
+
 ## 2026-08-23: runtimes inside the installer, and the GUI defects that exposed them
 
 ### What the project is now, in one paragraph

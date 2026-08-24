@@ -176,6 +176,9 @@ import type { AddonIpc } from "./addons/index.js";
 import { registerVocabularyHandlers } from "./vocabulary/index.js";
 import { registerRuntimeSettingsHandlers } from "./runtimeSettings/ipc.js";
 import type { RuntimeSettingsIpc } from "./runtimeSettings/ipc.js";
+import { RuntimeSourceRegistry } from "./runtimeSettings/registry.js";
+import { createRuntimeSettingsService } from "./runtimeSettings/service.js";
+import { RuntimeHistoryService } from "./runtimeSettings/history.js";
 
 const squirrelStartupHandled = handleSquirrelShortcutEvent({
     platform: process.platform,
@@ -480,6 +483,8 @@ let schoolModeIpc: SchoolModeIpc | null = null;
 let lockIpc: LockIpc | null = null;
 let mcServerIpc: McServerIpc | null = null;
 let runtimeSettingsIpc: RuntimeSettingsIpc | null = null;
+let runtimeSourceRegistry: RuntimeSourceRegistry | null = null;
+let runtimeHistoryService: RuntimeHistoryService | null = null;
 
 function registerIpc(): void {
     if (ipcRegistered) return;
@@ -568,7 +573,36 @@ function registerIpc(): void {
     });
     app.on("will-quit", () => mcServerIpc?.dispose());
 
-    runtimeSettingsIpc = registerRuntimeSettingsHandlers(ipcMain);
+    runtimeSourceRegistry = new RuntimeSourceRegistry({
+        file: path.join(app.getPath("userData"), "runtime-settings-sources.json"),
+        safeStorage,
+    });
+    runtimeHistoryService = new RuntimeHistoryService({
+        file: path.join(app.getPath("userData"), "runtime-settings-history.json"),
+        credentialFile: path.join(app.getPath("userData"), "runtime-settings-history-credential.json"),
+        safeStorage,
+    });
+    const statusHubUrl = process.env.WORLDLENS_STATUS_HUB_URL?.trim() ?? "";
+    const statusHubProject = process.env.WORLDLENS_STATUS_HUB_PROJECT?.trim() ?? "";
+    const statusHubSession = process.env.WORLDLENS_STATUS_HUB_SESSION?.trim() ?? "";
+    const statusHubToken = process.env.WORLDLENS_STATUS_HUB_TOKEN ?? "";
+    const statusHub =
+        statusHubUrl !== "" && statusHubProject !== "" && statusHubSession !== "" && statusHubToken !== ""
+            ? {
+                  baseUrl: statusHubUrl,
+                  projectId: statusHubProject,
+                  sessionId: statusHubSession,
+                  credentialRef: "environment-status-hub",
+              }
+            : null;
+    const runtimeServiceOptions = {
+        readConfiguredSource: (id) => runtimeSourceRegistry?.get(id) ?? null,
+        readCredential: (id) => runtimeSourceRegistry?.useCredential(id, async (value) => value) ?? Promise.resolve(null),
+        statusHub,
+        ...(statusHub === null ? {} : { readStatusHubCredential: async (_reference: string) => statusHubToken }),
+    };
+    const runtimeService = createRuntimeSettingsService(runtimeServiceOptions);
+    runtimeSettingsIpc = registerRuntimeSettingsHandlers(ipcMain, runtimeService, runtimeSourceRegistry, runtimeHistoryService);
     app.on("will-quit", () => runtimeSettingsIpc?.dispose());
 
     registerVocabularyHandlers(ipcMain, { applicationDataDirectory });

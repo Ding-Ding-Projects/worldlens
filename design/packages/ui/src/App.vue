@@ -183,7 +183,7 @@ watch(
  */
 const currentApp = computed(() => blueMapApp.value);
 
-function applyRootRuntimeValues(values: Readonly<Record<string, string | number>>): void {
+function applyRootRuntimeValues(values: Readonly<Record<string, unknown>>): void {
     if (typeof document === "undefined") return;
     if (typeof values.accent === "string") {
         const hex = values.accent.replace("#", "");
@@ -197,7 +197,20 @@ function applyRootRuntimeValues(values: Readonly<Record<string, string | number>
     if (typeof values.fontFamily === "string") document.body.style.fontFamily = values.fontFamily;
     if (typeof values.fontSize === "number") document.body.style.fontSize = `${values.fontSize}em`;
     if (typeof values.displayName === "string") document.title = values.displayName;
+    if (typeof values.theme === "string") document.documentElement.dataset.runtimeTheme = values.theme;
+    if (typeof values.density === "string") document.documentElement.dataset.runtimeDensity = values.density;
+    if (typeof values.motion === "string") document.documentElement.dataset.runtimeMotion = values.motion;
+    if (typeof values.accommodations === "object" && values.accommodations !== null) {
+        const accommodations = values.accommodations as Record<string, unknown>;
+        document.documentElement.dataset.runtimeLowStimulation = accommodations.lowStimulation === true ? "true" : "false";
+        document.documentElement.dataset.runtimeFocus = accommodations.focus === true ? "true" : "false";
+        document.documentElement.dataset.runtimeTimeAwareness = accommodations.timeAwareness === true ? "true" : "false";
+        document.documentElement.dataset.runtimeOneThing = accommodations.oneThingAtATime === true ? "true" : "false";
+        document.documentElement.dataset.runtimeMomentum = accommodations.momentum === true ? "true" : "false";
+    }
 }
+applyRootRuntimeValues(loadRuntimeSettings().values as unknown as Readonly<Record<string, unknown>>);
+let rootRuntimeChannel: BroadcastChannel | null = null;
 const rootRuntimeCoordinator = createRuntimeSettingsCoordinator({
     readState: () => loadRuntimeSettings(),
     applyTemporary: applyRootRuntimeValues,
@@ -217,10 +230,16 @@ const rootRuntimeCoordinator = createRuntimeSettingsCoordinator({
 });
 onMounted(() => {
     document.documentElement.dataset.runtimeCoordinator = "active";
+    if (typeof BroadcastChannel !== "undefined") {
+        rootRuntimeChannel = new BroadcastChannel("worldlens-runtime-settings");
+        rootRuntimeChannel.onmessage = () => applyRootRuntimeValues(loadRuntimeSettings().values as unknown as Readonly<Record<string, unknown>>);
+    }
     rootRuntimeCoordinator.start();
 });
 onUnmounted(() => {
     rootRuntimeCoordinator.stop();
+    rootRuntimeChannel?.close();
+    rootRuntimeChannel = null;
     delete document.documentElement.dataset.runtimeCoordinator;
 });
 provideBlueMap(currentApp);

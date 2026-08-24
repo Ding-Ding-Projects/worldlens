@@ -22,12 +22,1225 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
-- Extract reusable WorldLens design system package - [`d32e7a24be`](https://github.com/Ding-Ding-Projects/worldlens/commit/d32e7a24be60fddfa6e95d2a4d84c080c19a37dc)
+- Route runtime headings through locale levels - [`2b99bbc2c4`](https://github.com/Ding-Ding-Projects/worldlens/commit/2b99bbc2c46dfdcb1541124f64a58535a2684850)
+- Localize and coordinate runtime settings - [`827979401e`](https://github.com/Ding-Ding-Projects/worldlens/commit/827979401e280755ebd8956239043b7efd866bf5)
+- Use full runtime settings tabs - [`b2536de712`](https://github.com/Ding-Ding-Projects/worldlens/commit/b2536de71223bce4c522809e3d566e67e706f564)
+- Pin runtime sources and apply live coordination - [`2c39d22f12`](https://github.com/Ding-Ding-Projects/worldlens/commit/2c39d22f1243dd1a45d0997193f8038225e49d68)
+- Harden runtime settings integration - [`3f94074846`](https://github.com/Ding-Ding-Projects/worldlens/commit/3f94074846350250ed0577e90dadd6cd4dc90c0f)
+- Add runtime settings and accommodations panel - [`f2693d51d4`](https://github.com/Ding-Ding-Projects/worldlens/commit/f2693d51d45c3bc8ed0ef0e8e109d9f5d1f65ad6)
+
+### Documentation
+
+- Capture the missing direct-world browse action - [`1f55f1402f`](https://github.com/Ding-Ding-Projects/worldlens/commit/1f55f1402f49018c96326a158d0f92a9e391bbdf)
+- Add the project render-route baseline - [`8dc5c65a0b`](https://github.com/Ding-Ding-Projects/worldlens/commit/8dc5c65a0bb834fcccde08c134870c7d16c8af8a)
+- Record pre-fix server and engine evidence - [`366e90b994`](https://github.com/Ding-Ding-Projects/worldlens/commit/366e90b994f354798bb921bc058463e19844cfd7)
+
+## 1.0.1647 - 2026-08-22
+
+Tagged at [`ff7ddb32ee`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de).
+
+### Documentation
+
+- Write an honest handoff for the bundled-runtime session - [`ff7ddb32ee`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de)
+
+## 1.0.1644 - 2026-08-22
+
+Tagged at [`e27ddd9edf`](https://github.com/Ding-Ding-Projects/worldlens/commit/e27ddd9edfc326d94c155b2dfdf79322dda1e2a3).
+
+### Documentation
+
+- Record the measured installer size, and why my estimate was wrong - [`e27ddd9edf`](https://github.com/Ding-Ding-Projects/worldlens/commit/e27ddd9edfc326d94c155b2dfdf79322dda1e2a3)
+
+## 1.0.1640 - 2026-08-22
+
+Tagged at [`214f32f83d`](https://github.com/Ding-Ding-Projects/worldlens/commit/214f32f83d346b24b96358d0c4c47c0bf6eee1ff).
+
+### Desktop shell
+
+- Wire the fourth call site, the one my own guard could not see - [`214f32f83d`](https://github.com/Ding-Ding-Projects/worldlens/commit/214f32f83d346b24b96358d0c4c47c0bf6eee1ff)
+
+## 1.0.1637 - 2026-08-22
+
+Tagged at [`966590b4e3`](https://github.com/Ding-Ding-Projects/worldlens/commit/966590b4e385921ca76eb3154ef745837e524f02).
+
+### Desktop shell
+
+- Actually offer the bundled runtime to the code that resolves a JVM - [`966590b4e3`](https://github.com/Ding-Ding-Projects/worldlens/commit/966590b4e385921ca76eb3154ef745837e524f02)
+
+## 1.0.1635 - 2026-08-22
+
+Tagged at [`ec7b80addf`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec7b80addfd7fff62a254495a9b33d57bb1ca648).
+
+### Interface
+
+- Scope the no-signing proof to what this build generates, and stop the copy claiming Java is fetched - [`68b7d8066e`](https://github.com/Ding-Ding-Projects/worldlens/commit/68b7d8066eaa94909edd2690867015911bdfefa9)
+
+### Desktop shell
+
+- Put the runtimes inside the installer, and fix three screens that proved it was needed - [`72585824f9`](https://github.com/Ding-Ding-Projects/worldlens/commit/72585824f9e4910eb82a5939685bd72f314ab9db)
+
+### Build, release and tooling
+
+- Compare the vendored path as an absolute path, so the exclusion can match - [`ec7b80addf`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec7b80addfd7fff62a254495a9b33d57bb1ca648)
+- Repair the workflow file my own escaping corrupted - [`78bd28f959`](https://github.com/Ding-Ding-Projects/worldlens/commit/78bd28f959ed1a70f86d5fd9ee1fe454d67f1ca8)
+
+## 1.0.1626 - 2026-08-22
+
+Tagged at [`0c464f7003`](https://github.com/Ding-Ding-Projects/worldlens/commit/0c464f70035401440e53a572b6bf421fcedd3ce3).
+
+### Interface
+
+- Merge the adoption candidate browser lane - [`0c464f7003`](https://github.com/Ding-Ding-Projects/worldlens/commit/0c464f70035401440e53a572b6bf421fcedd3ce3) _(summary of 2 commits, also listed here)_
+- Give adoption the candidate browser its button always implied - [`2c2769ccda`](https://github.com/Ding-Ding-Projects/worldlens/commit/2c2769ccda9a6ad07f9e7c8e1ccdbf405b99c6be)
+
+### Landing page and documentation site
+
+- Merge the capture provenance lane - [`8e588389f1`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e588389f1566b41693c528f0590dfa200da4cfd) _(summary of 2 commits, also listed here)_
+- Point the capture tooling at the route that still exists - [`8ef8316e79`](https://github.com/Ding-Ding-Projects/worldlens/commit/8ef8316e7988791bc75127d86065d9c16963dbd4)
+
+## 1.0.1622 - 2026-08-22
+
+Tagged at [`1c4f4fa558`](https://github.com/Ding-Ding-Projects/worldlens/commit/1c4f4fa558f1dd7f50949ca567ff27afb03bd7fd).
+
+### Server, CLI and configuration
+
+- Reconcile the hosted-runner inventory with the workflows it describes - [`1c4f4fa558`](https://github.com/Ding-Ding-Projects/worldlens/commit/1c4f4fa558f1dd7f50949ca567ff27afb03bd7fd)
+
+## 1.0.1619 - 2026-08-22
+
+Tagged at [`7a62413e6e`](https://github.com/Ding-Ding-Projects/worldlens/commit/7a62413e6e33d399723e4001b3edfc4958093434).
+
+### Interface
+
+- Bring the GUI's colours and elevation back onto the design system - [`917ffa8a9a`](https://github.com/Ding-Ding-Projects/worldlens/commit/917ffa8a9a059d668c49628e47286d9b779270d6)
+
+### Documentation
+
+- Record the colour transcription and the elevation guard in the article - [`7a62413e6e`](https://github.com/Ding-Ding-Projects/worldlens/commit/7a62413e6e33d399723e4001b3edfc4958093434)
+
+## 1.0.1615 - 2026-08-22
+
+Tagged at [`09f9ca3573`](https://github.com/Ding-Ding-Projects/worldlens/commit/09f9ca3573e8327c0b1c6a4635d1c155300ab0a8).
+
+### Elsewhere in the repository
+
+- Design system update - [`09f9ca3573`](https://github.com/Ding-Ding-Projects/worldlens/commit/09f9ca3573e8327c0b1c6a4635d1c155300ab0a8)
+
+## 1.0.1613 - 2026-08-22
+
+Tagged at [`e10b86011d`](https://github.com/Ding-Ding-Projects/worldlens/commit/e10b86011d6b8997f7897030c3835a62a8549d89).
+
+### Interface
+
+- Put a five-level message back in the table that holds five-level messages - [`e10b86011d`](https://github.com/Ding-Ding-Projects/worldlens/commit/e10b86011d6b8997f7897030c3835a62a8549d89)
+
+## 1.0.1611 - 2026-08-22
+
+Tagged at [`c36d43df88`](https://github.com/Ding-Ding-Projects/worldlens/commit/c36d43df88a959c536a167dda6b93fe46cbf3603).
+
+### Interface
+
+- Fix workspace package staging and Vue template build - [`c36d43df88`](https://github.com/Ding-Ding-Projects/worldlens/commit/c36d43df88a959c536a167dda6b93fe46cbf3603)
+- Extract the reusable WorldLens design system - [`d32e7a24be`](https://github.com/Ding-Ding-Projects/worldlens/commit/d32e7a24be60fddfa6e95d2a4d84c080c19a37dc)
+- Merge remote-tracking branch 'origin/lane/issue153-reconcile-worldgen' - [`d679692410`](https://github.com/Ding-Ding-Projects/worldlens/commit/d679692410a0f3121e9aea0908fcbcd2be884940) _(summary of 2 commits, also listed here)_
+- Reconcile UI world generation with Anvil writer - [`c41c24b54a`](https://github.com/Ding-Ding-Projects/worldlens/commit/c41c24b54a5b2df8b1744dee9764ca30dd87e217)
+- Run vanilla world generation with Chunky - [`678e7b7b16`](https://github.com/Ding-Ding-Projects/worldlens/commit/678e7b7b16c19092cbd175833412db28bc083b48)
+- Merge remote-tracking branch 'origin/lane/issue156-world-drop' - [`c6bd881738`](https://github.com/Ding-Ding-Projects/worldlens/commit/c6bd8817387858a9a16e81e28a71190820c22dfe) _(summary of 2 commits, also listed here)_
+- Handle dropped Minecraft worlds - [`16f09c4c58`](https://github.com/Ding-Ding-Projects/worldlens/commit/16f09c4c58c8c49c78a2dd27ccde0741659317be)
+- Merge remote-tracking branch 'origin/lane/issue161-two-corner' - [`41f5f5e99e`](https://github.com/Ding-Ding-Projects/worldlens/commit/41f5f5e99e56aa5647ee51f5dac20cfe435ac55e) _(summary of 2 commits, also listed here)_
+- Add two-corner map picking to fill and clone - [`39104ae276`](https://github.com/Ding-Ding-Projects/worldlens/commit/39104ae2768ef2781c371528f124e181da9912c3)
+- Merge remote-tracking branch 'origin/lane/issue155-modloader-profiles' - [`4d5a10d588`](https://github.com/Ding-Ding-Projects/worldlens/commit/4d5a10d588fc96ef7e92b1394bb91e2369b236d2) _(summary of 2 commits, also listed here)_
+- Add interactive mod-loader profiles - [`b429d5de82`](https://github.com/Ding-Ding-Projects/worldlens/commit/b429d5de82d6ba76877461b52536b9e42b8ca6a4)
+- test: cover remaining Minecraft server searches - [`58e87518c2`](https://github.com/Ding-Ding-Projects/worldlens/commit/58e87518c2a2c1521e2688874d42f73d549bc63f)
+- Repair what the parallel merges left broken - [`83bc94050e`](https://github.com/Ding-Ding-Projects/worldlens/commit/83bc94050e872289b04c5ced1d65a0af5bfff77d)
+- Merge remote-tracking branch 'origin/lane/issue152-aws-interface' - [`c61a156ae5`](https://github.com/Ding-Ding-Projects/worldlens/commit/c61a156ae5b04d4c801c86510229a068ca2172de) _(summary of 2 commits, also listed here)_
+- Expose AWS EC2 hosting in the server wizard - [`6edd68e984`](https://github.com/Ding-Ding-Projects/worldlens/commit/6edd68e98464cad8c07039e97ac699283d5e70bb)
+
+### Desktop shell
+
+- Merge remote-tracking branch 'origin/lane/issue158-typed-schemas' - [`c2004a3d9b`](https://github.com/Ding-Ding-Projects/worldlens/commit/c2004a3d9babcaaf518126702462497326f710f6) _(summary of 2 commits, also listed here)_
+- Add typed mod-loader and player record schemas - [`9ec36bd4c8`](https://github.com/Ding-Ding-Projects/worldlens/commit/9ec36bd4c86594105b4fcb3337c94a4d20a30eb7)
+- Merge remote-tracking branch 'origin/lane/issue159-schema-verify' - [`2dc9827076`](https://github.com/Ding-Ding-Projects/worldlens/commit/2dc9827076d5166d1a5ccc43da3a3a5cbf19dd7d) _(summary of 2 commits, also listed here)_
+- Verify upstream config schema defaults - [`7e3d4a4c04`](https://github.com/Ding-Ding-Projects/worldlens/commit/7e3d4a4c04fc5834d49705a998b91e4b651a5a24)
+
+### Build, release and tooling
+
+- Register the design-system workspace lock - [`7dee8c66fc`](https://github.com/Ding-Ding-Projects/worldlens/commit/7dee8c66fcda8f0f34b3123cf9fe11040ec07b5f)
+
+### Documentation
+
+- Integrate the reusable WorldLens design system - [`e6638a7e60`](https://github.com/Ding-Ding-Projects/worldlens/commit/e6638a7e608e221c6bdd77f638d014368ae3d04f) _(summary of 4 commits, also listed here)_
+- Document the reusable design-system contract - [`2a15644093`](https://github.com/Ding-Ding-Projects/worldlens/commit/2a1564409317f4b10291803448b46f1b8105b8e1)
+
+## 1.0.1577 - 2026-08-22
+
+Tagged at [`331d0579ea`](https://github.com/Ding-Ding-Projects/worldlens/commit/331d0579ea333c3e76bfa43000ffb5a2486782c6).
+
+### Interface
+
+- Merge remote-tracking branch 'origin/lane/issue151-config-ipc' - [`331d0579ea`](https://github.com/Ding-Ding-Projects/worldlens/commit/331d0579ea333c3e76bfa43000ffb5a2486782c6) _(summary of 2 commits, also listed here)_
+- Wire schema config editor through IPC - [`21775b3e1b`](https://github.com/Ding-Ding-Projects/worldlens/commit/21775b3e1b0126878f5b1416416d3ed579ad6fb5)
+
+## 1.0.1575 - 2026-08-22
+
+Tagged at [`53f596cd07`](https://github.com/Ding-Ding-Projects/worldlens/commit/53f596cd0782fbc34f7063a715768d3381aa9ae4).
+
+### Interface
+
+- Merge remote-tracking branch 'origin/lane/issue150-adoption-wiring' - [`53f596cd07`](https://github.com/Ding-Ding-Projects/worldlens/commit/53f596cd0782fbc34f7063a715768d3381aa9ae4) _(summary of 2 commits, also listed here)_
+- Wire Minecraft server adoption review - [`3a8adcfd4f`](https://github.com/Ding-Ding-Projects/worldlens/commit/3a8adcfd4f151f213b8e2766466de94101e075fe)
+
+## 1.0.1573 - 2026-08-22
+
+Tagged at [`f67c07380c`](https://github.com/Ding-Ding-Projects/worldlens/commit/f67c07380c0dc733a7e12bda8f48b9932be7fca3).
+
+### Interface
+
+- Replace remaining raw UI elements - [`f67c07380c`](https://github.com/Ding-Ding-Projects/worldlens/commit/f67c07380c0dc733a7e12bda8f48b9932be7fca3)
+
+## 1.0.1570 - 2026-08-22
+
+Tagged at [`f3065d1e5c`](https://github.com/Ding-Ding-Projects/worldlens/commit/f3065d1e5ce7791423c0a629c3c14fc394e17088).
+
+### Interface
+
+- Replace mcserver HTML text with Vuetify primitives - [`f3065d1e5c`](https://github.com/Ding-Ding-Projects/worldlens/commit/f3065d1e5ce7791423c0a629c3c14fc394e17088)
+
+## 1.0.1568 - 2026-08-22
+
+Tagged at [`69d919e4bb`](https://github.com/Ding-Ding-Projects/worldlens/commit/69d919e4bbf5d7ea39386beafadc00514d0eae99).
+
+### Interface
+
+- Replace generic controls with Vuetify primitives - [`69d919e4bb`](https://github.com/Ding-Ding-Projects/worldlens/commit/69d919e4bbf5d7ea39386beafadc00514d0eae99)
+
+## 1.0.1565 - 2026-08-22
+
+Tagged at [`acfc5f073e`](https://github.com/Ding-Ding-Projects/worldlens/commit/acfc5f073ecc00604c701f2fede13b0ec84868b4).
+
+### Documentation
+
+- Merge remote-tracking branch 'origin/lane/issue160-captures' - [`acfc5f073e`](https://github.com/Ding-Ding-Projects/worldlens/commit/acfc5f073ecc00604c701f2fede13b0ec84868b4) _(summary of 2 commits, also listed here)_
+- Document issue 160 screenshot refresh boundary - [`d2525043eb`](https://github.com/Ding-Ding-Projects/worldlens/commit/d2525043eb76d367b566bfae3427af957282c0ef)
+
+## 1.0.1564 - 2026-08-22
+
+Tagged at [`c5824a93c8`](https://github.com/Ding-Ding-Projects/worldlens/commit/c5824a93c8cf6c54ac05a2ddbcc05bff95638ac7).
+
+### Interface
+
+- Align docs model with cloud hosting index - [`ac68506120`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac685061202886fffadcbf2c07d4b5b2b1b1bf49)
+- Update KidHome language coverage for six tiles - [`21b9e22b7a`](https://github.com/Ding-Ding-Projects/worldlens/commit/21b9e22b7a43f04012373c5b32d028f0e3447d51)
+
+### Desktop shell
+
+- Merge remote-tracking branch 'origin/lane/issue162-gates' - [`c5824a93c8`](https://github.com/Ding-Ding-Projects/worldlens/commit/c5824a93c8cf6c54ac05a2ddbcc05bff95638ac7) _(summary of 6 commits, also listed here)_
+- Keep CI render fixture on the Java engine - [`ff39386608`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff393866083b85d7209dbabbe20450c2b8a45663)
+- Clear app typecheck errors and trim UI baseline - [`4a57871c5d`](https://github.com/Ding-Ding-Projects/worldlens/commit/4a57871c5d0ca79608a0e92d026b6a0635802b8b)
+
+### Documentation
+
+- Index AWS and Cloudflare documentation - [`ae9199339c`](https://github.com/Ding-Ding-Projects/worldlens/commit/ae9199339cf655f0793f564f5861709c5d4453bc)
+
+## 1.0.1560 - 2026-08-22
+
+Tagged at [`2de2566ebe`](https://github.com/Ding-Ding-Projects/worldlens/commit/2de2566ebe654d9ccb141f19d8de36b8259b9332).
+
+### Interface
+
+- Merge branch 'lane/home-redesign' - [`2de2566ebe`](https://github.com/Ding-Ding-Projects/worldlens/commit/2de2566ebe654d9ccb141f19d8de36b8259b9332) _(summary of 2 commits, also listed here)_
+- feat(ui): replace the home page index with a state-led dashboard - [`8f417d73e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/8f417d73e57f2bbf96f4cdc8c4b8be5cb27d6a73)
+
+## 1.0.1558 - 2026-08-22
+
+Tagged at [`b4163b3f3e`](https://github.com/Ding-Ding-Projects/worldlens/commit/b4163b3f3eff1c0de3caa756cd8e13a485e10d53).
+
+### Interface
+
+- Dedupe the documentation index after two lanes fixed it at once - [`b4163b3f3e`](https://github.com/Ding-Ding-Projects/worldlens/commit/b4163b3f3eff1c0de3caa756cd8e13a485e10d53)
+
+### Documentation
+
+- Merge branch 'lane/handoff-reconcile-2026-08-22' - [`4140788a4c`](https://github.com/Ding-Ding-Projects/worldlens/commit/4140788a4ce12043c05bcbed3035c23d2d0bc1f3) _(summary of 2 commits, also listed here)_
+- Reconcile handoff and roadmap evidence - [`6e6e6aaf48`](https://github.com/Ding-Ding-Projects/worldlens/commit/6e6e6aaf48b2056068373783a1db4c095961d9b3)
+- Merge branch 'lane/docs-refresh-2026-08-22' - [`46514f4eb0`](https://github.com/Ding-Ding-Projects/worldlens/commit/46514f4eb0fbee6c09e1a96d6930873d85e10c28) _(summary of 2 commits, also listed here)_
+- Refresh documentation indexes and article counts - [`bc7b1afa3e`](https://github.com/Ding-Ding-Projects/worldlens/commit/bc7b1afa3ed81b77d00fbd3f044e7f85dc529d82)
+
+## 1.0.1554 - 2026-08-22
+
+Tagged at [`ec48f79312`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec48f79312428bfeb311f08e4116c39d594aa4af).
+
+### Interface
+
+- Merge branch 'lane/world-generator' - [`ec48f79312`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec48f79312428bfeb311f08e4116c39d594aa4af) _(summary of 5 commits, also listed here)_
+- Put the caveat on screen, and make the dialog compile - [`ea3c6e4821`](https://github.com/Ding-Ding-Projects/worldlens/commit/ea3c6e4821ae37a5f47342e02009d7f03aefd0b4)
+- Make Generate actually generate, and say loudly what it is not - [`f5a6dbfcb2`](https://github.com/Ding-Ding-Projects/worldlens/commit/f5a6dbfcb2ec31e1de121ae4de952c98184768a7)
+- Do not assume the map app has a material shell - [`d90cba33a7`](https://github.com/Ding-Ding-Projects/worldlens/commit/d90cba33a7d9a2b23034f661157b9edff2d0ad5c)
+- Merge branch 'lane/ui-aws' - [`62d3518f82`](https://github.com/Ding-Ding-Projects/worldlens/commit/62d3518f8293993ac149dccb0345a67af3dbae56) _(summary of 2 commits, also listed here)_
+- feat(ui): wire up the AWS hosting panel nobody could reach, and give it a proper suit - [`e777725db0`](https://github.com/Ding-Ding-Projects/worldlens/commit/e777725db085c254feb4e7989124d874a5a5f3e8)
+- Merge branch 'lane/aws-settings' - [`81fc4ed5dd`](https://github.com/Ding-Ding-Projects/worldlens/commit/81fc4ed5ddef613aa49fbacba1ba4dca6eea919b) _(summary of 2 commits, also listed here)_
+- feat(settings,palette): wire AWS accounts into Settings and fill palette gaps - [`9c9b027428`](https://github.com/Ding-Ding-Projects/worldlens/commit/9c9b027428c14a06b12dc89302b814772911066a)
+- Index the five documents nothing linked to - [`0224cc0b4b`](https://github.com/Ding-Ding-Projects/worldlens/commit/0224cc0b4b61cf923d73a1b14dfe296a68b01fb6)
+- Merge branch 'lane/command-builder' - [`4bd8fe5c66`](https://github.com/Ding-Ding-Projects/worldlens/commit/4bd8fe5c669fcd646cbd590c1a2bc0854c2df716) _(summary of 2 commits, also listed here)_
+- feat(mcserver): add a fully interactive Minecraft command builder - [`4f1eca5003`](https://github.com/Ding-Ding-Projects/worldlens/commit/4f1eca50039dff75b05753eb8eace0c34b320a22)
+- Merge branch 'lane/search-bars' - [`e617ef2630`](https://github.com/Ding-Ding-Projects/worldlens/commit/e617ef2630688787e5d97d922e3568253b0e645f) _(summary of 2 commits, also listed here)_
+- feat(ui): add search filters to installed plugins and adoption review; write search-coverage inventory - [`9077dc5093`](https://github.com/Ding-Ding-Projects/worldlens/commit/9077dc509343c2dcd5cbcbf7cfd9e5647ab57dc4)
+
+### Rendering and world data
+
+- Give the map's build-command action a name of its own - [`b8c728bcbc`](https://github.com/Ding-Ding-Projects/worldlens/commit/b8c728bcbcae5b061567aaf0531f4a42544caf9a)
+
+### Desktop shell
+
+- Delete the second world generator, keep the one that was already here - [`06e5579bfe`](https://github.com/Ding-Ding-Projects/worldlens/commit/06e5579bfe406258c439d753d44efeb52fb1ecf7)
+- World generator: settings model, plan builder, and GUI dialog (checkpoint, unreconciled duplicate) - [`dc00e3f652`](https://github.com/Ding-Ding-Projects/worldlens/commit/dc00e3f652000be6ead4873fe697715484b72a4a)
+- Merge branch 'lane/flavour-configs' - [`f5e7ffa944`](https://github.com/Ding-Ding-Projects/worldlens/commit/f5e7ffa944bbb03f3d959dff9cd3d5401bf8873b) _(summary of 3 commits, also listed here)_
+- Add the Velocity proxy configuration schema - [`f77359264f`](https://github.com/Ding-Ding-Projects/worldlens/commit/f77359264fa7b759fe1eb15c92abfef263bb0546)
+- Add typed FieldMeta schemas for Paper, Spigot, Bukkit and Purpur YAML configs; preserve in-flight TOML parser wiring - [`31c60dee62`](https://github.com/Ding-Ding-Projects/worldlens/commit/31c60dee62072c84a6655c4a6e895b9e83e36f9b)
+
+### Documentation
+
+- Merge branch 'lane/screenshot-notes' - [`4dd206ad13`](https://github.com/Ding-Ding-Projects/worldlens/commit/4dd206ad13553f6da4a1cd528c66e72ce699877a) _(summary of 2 commits, also listed here)_
+- docs: explain the screenshot staleness check and why a moving tree can't be captured - [`017acad805`](https://github.com/Ding-Ding-Projects/worldlens/commit/017acad8051e38ec09765b90d976fce89729c88f)
+- Merge branch 'lane/docs-refresh' - [`5918ccb49c`](https://github.com/Ding-Ding-Projects/worldlens/commit/5918ccb49c027ae5030cdab348dfe5070669994f) _(summary of 3 commits, also listed here)_
+- docs: describe the live version catalogue and link the screen recording - [`82c88f5a3b`](https://github.com/Ding-Ding-Projects/worldlens/commit/82c88f5a3bfc990784f1f06ae26d0e16a11121e6)
+- docs: cover the Minecraft server manager in README, ROADMAP and the site - [`44328b6e03`](https://github.com/Ding-Ding-Projects/worldlens/commit/44328b6e030ff74b3e04c9e934b50d48d63e2939)
+
+## 1.0.1549 - 2026-08-22
+
+Tagged at [`a90f588f7c`](https://github.com/Ding-Ding-Projects/worldlens/commit/a90f588f7c13b93cc43d83acedd116e724a0471d).
+
+### Documentation
+
+- Record the handoff for the server hosting manager - [`a90f588f7c`](https://github.com/Ding-Ding-Projects/worldlens/commit/a90f588f7c13b93cc43d83acedd116e724a0471d)
+
+## 1.0.1542 - 2026-08-22
+
+Tagged at [`9ee1037da5`](https://github.com/Ding-Ding-Projects/worldlens/commit/9ee1037da525105eec0a53e51f57946c17b24533).
+
+### Documentation
+
+- Write down the rule this project is actually built on - [`9ee1037da5`](https://github.com/Ding-Ding-Projects/worldlens/commit/9ee1037da525105eec0a53e51f57946c17b24533)
+
+## 1.0.1541 - 2026-08-22
+
+Tagged at [`f7984e3ac0`](https://github.com/Ding-Ding-Projects/worldlens/commit/f7984e3ac095772ceefc33da3e3449faef3739ce).
+
+### Documentation
+
+- Move the recordings beside the rest of the documentation - [`f7984e3ac0`](https://github.com/Ding-Ding-Projects/worldlens/commit/f7984e3ac095772ceefc33da3e3449faef3739ce)
+
+## 1.0.1540 - 2026-08-22
+
+Tagged at [`4967c08ba4`](https://github.com/Ding-Ding-Projects/worldlens/commit/4967c08ba4b77e161111f3c58513b3ab7559d2d8).
+
+### Documentation
+
+- Publish a screen recording of the app, and say how it was made - [`4967c08ba4`](https://github.com/Ding-Ding-Projects/worldlens/commit/4967c08ba4b77e161111f3c58513b3ab7559d2d8)
+
+## 1.0.1539 - 2026-08-22
+
+Tagged at [`f02370ebb9`](https://github.com/Ding-Ding-Projects/worldlens/commit/f02370ebb9b3965fa1dc0c139de7885d9ab7421f).
+
+### Desktop shell
+
+- Move Paper and Velocity to the API that still exists - [`f02370ebb9`](https://github.com/Ding-Ding-Projects/worldlens/commit/f02370ebb9b3965fa1dc0c139de7885d9ab7421f)
+
+## 1.0.1538 - 2026-08-22
+
+Tagged at [`07dfa52938`](https://github.com/Ding-Ding-Projects/worldlens/commit/07dfa52938838211a8cf408c907754779e70ca74).
+
+### Interface
+
+- Stop the version step arguing with itself - [`07dfa52938`](https://github.com/Ding-Ding-Projects/worldlens/commit/07dfa52938838211a8cf408c907754779e70ca74)
+
+## 1.0.1537 - 2026-08-22
+
+Tagged at [`e2ed371f33`](https://github.com/Ding-Ding-Projects/worldlens/commit/e2ed371f33b49947c6adbbff8b6a870e2611350b).
+
+### Interface
+
+- Add-player dialog picks a known name instead of demanding one be typed - [`e2ed371f33`](https://github.com/Ding-Ding-Projects/worldlens/commit/e2ed371f33b49947c6adbbff8b6a870e2611350b)
+- Choose a Minecraft version instead of typing one - [`a2d927e738`](https://github.com/Ding-Ding-Projects/worldlens/commit/a2d927e73812057b7c8a13f15d1d7c1326738850)
+- Stop the server wizard asking for things it can answer itself - [`b7ed090986`](https://github.com/Ding-Ding-Projects/worldlens/commit/b7ed090986a29dd8a750ddd8756f2947655a2fea)
+- Make the Host Server buttons actually do something - [`289b8e9837`](https://github.com/Ding-Ding-Projects/worldlens/commit/289b8e9837fda1b99d0ac1fc790253afe0d32008)
+
+### Desktop shell
+
+- Refuse a version cache written before the fields this build reads - [`4490154de7`](https://github.com/Ding-Ding-Projects/worldlens/commit/4490154de7d70d08766e672013abc8c1914de09e)
+
+### Landing page and documentation site
+
+- Repair the site's red typecheck and its stale vocabulary tests - [`fcc7de483b`](https://github.com/Ding-Ding-Projects/worldlens/commit/fcc7de483b9bda1ecb2314ffbaeb1fe277383ef9)
+
+## 1.0.1525 - 2026-08-21
+
+Tagged at [`464b95892c`](https://github.com/Ding-Ding-Projects/worldlens/commit/464b95892c7951b4fa7989e30d6c7fbf0c1d9803).
+
+### Build, release and tooling
+
+- Stop tracking a linked worktree I accidentally committed into main - [`464b95892c`](https://github.com/Ding-Ding-Projects/worldlens/commit/464b95892c7951b4fa7989e30d6c7fbf0c1d9803)
+
+## 1.0.1524 - 2026-08-21
+
+Tagged at [`e7eb996b28`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7eb996b28942acc8b25751bf77b8eaefb96e844).
+
+### Desktop shell
+
+- Read every AWS account this machine can reach, and be honest about credits - [`e7eb996b28`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7eb996b28942acc8b25751bf77b8eaefb96e844)
+
+## 1.0.1521 - 2026-08-21
+
+Tagged at [`d46480a50d`](https://github.com/Ding-Ding-Projects/worldlens/commit/d46480a50df3a8d9aa066f7636162e7a6363cc14).
+
+### Interface
+
+- Wire AWS's known-hosts file, and clear one lint error - [`d46480a50d`](https://github.com/Ding-Ding-Projects/worldlens/commit/d46480a50df3a8d9aa066f7636162e7a6363cc14)
+
+## 1.0.1519 - 2026-08-21
+
+Tagged at [`3b4152de95`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b4152de9512e8b1df5cb3d3e6ae01d5b70fb226).
+
+### Desktop shell
+
+- Merge branch 'lane/mcserver-aws': a fourth place to run a server - [`3b4152de95`](https://github.com/Ding-Ding-Projects/worldlens/commit/3b4152de9512e8b1df5cb3d3e6ae01d5b70fb226) _(summary of 2 commits, also listed here)_
+- feat(mcserver): add AWS EC2 as a fourth server hosting target - [`0c404bfe1d`](https://github.com/Ding-Ding-Projects/worldlens/commit/0c404bfe1ddfc6bfa6cbb7250654c3eb8d15f1c3)
+
+## 1.0.1515 - 2026-08-21
+
+Tagged at [`5176cd7175`](https://github.com/Ding-Ding-Projects/worldlens/commit/5176cd71758ccd64438774b01947a60e131be3f8).
+
+### Interface
+
+- Test split rendering properly, and find the bug the examples missed - [`5176cd7175`](https://github.com/Ding-Ding-Projects/worldlens/commit/5176cd71758ccd64438774b01947a60e131be3f8)
+
+## 1.0.1512 - 2026-08-21
+
+Tagged at [`84eb4596d0`](https://github.com/Ding-Ding-Projects/worldlens/commit/84eb4596d0bce6418176e987ca4dd7d48c519b46).
+
+### Interface
+
+- Give Host Server somewhere to actually go - [`84eb4596d0`](https://github.com/Ding-Ding-Projects/worldlens/commit/84eb4596d0bce6418176e987ca4dd7d48c519b46)
+
+## 1.0.1511 - 2026-08-21
+
+Tagged at [`2ee5c03192`](https://github.com/Ding-Ding-Projects/worldlens/commit/2ee5c031929e5e158f4d07ba9de8b136785d7c8b).
+
+### Desktop shell
+
+- Bridge the config layer, so no surface needs a schema of its own - [`2ee5c03192`](https://github.com/Ding-Ding-Projects/worldlens/commit/2ee5c031929e5e158f4d07ba9de8b136785d7c8b)
+
+## 1.0.1510 - 2026-08-21
+
+Tagged at [`10357c4423`](https://github.com/Ding-Ding-Projects/worldlens/commit/10357c44231474718aa5b7026c93435e1d3d7583).
+
+### Interface
+
+- Merge branch 'lane/ui-wizard': a wizard that asks real questions - [`10357c4423`](https://github.com/Ding-Ding-Projects/worldlens/commit/10357c44231474718aa5b7026c93435e1d3d7583) _(summary of 2 commits, also listed here)_
+- feat(ui): real multi-step create-server wizard and card-based server list - [`8ed396f7dc`](https://github.com/Ding-Ding-Projects/worldlens/commit/8ed396f7dc1fdd630f51e6c4ef3f2626d6772959)
+
+## 1.0.1508 - 2026-08-21
+
+Tagged at [`565019294d`](https://github.com/Ding-Ding-Projects/worldlens/commit/565019294d6a20bdc9d3b1855eba1259c3f982c9).
+
+### Interface
+
+- Merge branch 'lane/ui-panels': the panels stop being placeholders - [`565019294d`](https://github.com/Ding-Ding-Projects/worldlens/commit/565019294d6a20bdc9d3b1855eba1259c3f982c9) _(summary of 2 commits, also listed here)_
+- feat(ui): wire the mcserver panels to the real bridge, not just its shadow - [`146c23139d`](https://github.com/Ding-Ding-Projects/worldlens/commit/146c23139d482f6d0dd3db7658aca8f9ecd4af6c)
+
+## 1.0.1506 - 2026-08-21
+
+Tagged at [`4e2dcd737d`](https://github.com/Ding-Ding-Projects/worldlens/commit/4e2dcd737de32771a2f87d77bea5c794a35b9c51).
+
+### Interface
+
+- Add a refresh button, and finish the owner fix I only half did - [`4e2dcd737d`](https://github.com/Ding-Ding-Projects/worldlens/commit/4e2dcd737de32771a2f87d77bea5c794a35b9c51)
+
+## 1.0.1504 - 2026-08-21
+
+Tagged at [`db69d9c312`](https://github.com/Ding-Ding-Projects/worldlens/commit/db69d9c312c97125f4e99abcca5408f5ff202cc9).
+
+### Interface
+
+- Make choosing an organization actually change the repository list - [`db69d9c312`](https://github.com/Ding-Ding-Projects/worldlens/commit/db69d9c312c97125f4e99abcca5408f5ff202cc9)
+
+## 1.0.1502 - 2026-08-21
+
+Tagged at [`76495cf609`](https://github.com/Ding-Ding-Projects/worldlens/commit/76495cf6091c083fb9eaf794e84014b6f4baa264).
+
+### Desktop shell
+
+- Give the missing Java runtime a button instead of a shrug - [`76495cf609`](https://github.com/Ding-Ding-Projects/worldlens/commit/76495cf6091c083fb9eaf794e84014b6f4baa264)
+
+## 1.0.1500 - 2026-08-21
+
+Tagged at [`e4e3779fb8`](https://github.com/Ding-Ding-Projects/worldlens/commit/e4e3779fb87c7481692635977327937f7b591c26).
+
+### Interface
+
+- Stop the vocabulary eating words, and stop the progress line moving - [`e4e3779fb8`](https://github.com/Ding-Ding-Projects/worldlens/commit/e4e3779fb87c7481692635977327937f7b591c26)
+
+## 1.0.1498 - 2026-08-21
+
+Tagged at [`4a49213ee9`](https://github.com/Ding-Ding-Projects/worldlens/commit/4a49213ee9fae1f66f9ff500e63399d0004334bf).
+
+### Interface
+
+- Let a project say where it renders, where it is served, and on whose domain - [`52937c75ce`](https://github.com/Ding-Ding-Projects/worldlens/commit/52937c75ce6298109e43d42ccadd22e7077b2bb7)
+
+### Desktop shell
+
+- Clear the lint the seven lanes left behind - [`4a49213ee9`](https://github.com/Ding-Ding-Projects/worldlens/commit/4a49213ee9fae1f66f9ff500e63399d0004334bf)
+- Merge branch 'feat/aws-render' - [`1e8a5c8bbc`](https://github.com/Ding-Ding-Projects/worldlens/commit/1e8a5c8bbcbe8066ff670e520fb4ee99b4eb6f3e) _(summary of 8 commits, also listed here)_
+- Put a map on your own domain, and out of your own house - [`d56989d353`](https://github.com/Ding-Ding-Projects/worldlens/commit/d56989d353c53db141a6f7ec6a046fe568c6dbee)
+- Hold the one credential this app is actually responsible for - [`4aa52af25c`](https://github.com/Ding-Ding-Projects/worldlens/commit/4aa52af25c1ebca682ddddcb4088e6e6d4433471)
+- Show the bill before creating anything that sends one - [`014acab9e3`](https://github.com/Ding-Ding-Projects/worldlens/commit/014acab9e3d96ae32b763279a35ea9ee8119211d)
+- Run a render on AWS Batch, and tell the truth about what it is doing - [`532b2d51fd`](https://github.com/Ding-Ding-Projects/worldlens/commit/532b2d51fdc7e18e02b6765a01b90a563a4c175f)
+- Teach cloud rendering that GitHub is a place, not the only place - [`c78acd1e4e`](https://github.com/Ding-Ding-Projects/worldlens/commit/c78acd1e4e17f05046c1747a3b89da8ea0bce4fa)
+- Start Docker from the button, and stop blaming Docker for SSH - [`a86e780e7a`](https://github.com/Ding-Ding-Projects/worldlens/commit/a86e780e7a37e90ecf17b2ebcaaf850d4450cbd5)
+
+### Documentation
+
+- Write down what the AWS and Cloudflare routes actually do, and fix a doc that lied - [`a961463402`](https://github.com/Ding-Ding-Projects/worldlens/commit/a9614634020209e132d13487580c71b5a8afe637)
+
+## 1.0.1491 - 2026-08-21
+
+Tagged at [`4efb00a166`](https://github.com/Ding-Ding-Projects/worldlens/commit/4efb00a1664b5654ab188bb126e372233d0a4208).
+
+### Interface
+
+- feat(ui): Minecraft server hosting screens, wired end to end - [`fd7fd36fbb`](https://github.com/Ding-Ding-Projects/worldlens/commit/fd7fd36fbb9b385e4369190e5442fc68c0226df1)
+
+### Documentation
+
+- Merge branch 'lane/mcserver-ui' properly, recording the parent it lost - [`4efb00a166`](https://github.com/Ding-Ding-Projects/worldlens/commit/4efb00a1664b5654ab188bb126e372233d0a4208) _(summary of 2 commits, also listed here)_
+
+## 1.0.1490 - 2026-08-21
+
+Tagged at [`ef851c6af4`](https://github.com/Ding-Ding-Projects/worldlens/commit/ef851c6af465e09831bcce67a68069c2f65a471e).
+
+### Interface
+
+- Merge branch 'lane/mcserver-ui' - [`92d2ebcbb7`](https://github.com/Ding-Ding-Projects/worldlens/commit/92d2ebcbb7280f5e8958a78117590be577ec636e)
+
+### Desktop shell
+
+- Merge branch 'feat/mcserver': run Minecraft servers, not only draw their maps - [`ef851c6af4`](https://github.com/Ding-Ding-Projects/worldlens/commit/ef851c6af465e09831bcce67a68069c2f65a471e) _(summary of 22 commits, also listed here)_
+- Merge branch 'lane/mcserver-adopt' - [`f729de791f`](https://github.com/Ding-Ding-Projects/worldlens/commit/f729de791f187f9329eef393f36b946f48d210ca) _(summary of 2 commits, also listed here)_
+- feat(mcserver): adopt existing Docker containers, plus world/backup handling - [`efa1d6722c`](https://github.com/Ding-Ding-Projects/worldlens/commit/efa1d6722cc860af87313f68a64937356f434db6)
+- Merge branch 'lane/mcserver-console' - [`74341a5f00`](https://github.com/Ding-Ding-Projects/worldlens/commit/74341a5f0023b7a9b5019a0bef14f409a1b5378d) _(summary of 2 commits, also listed here)_
+- feat(mcserver): add RCON client, console supervisor and player management - [`b5321248cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/b5321248cd681252f6fb4205e67bb5aba59f6963)
+- Merge branch 'lane/mcserver-webconsole' - [`665a4dfab1`](https://github.com/Ding-Ding-Projects/worldlens/commit/665a4dfab189b871a0a3043251226e4bc9ad1169) _(summary of 2 commits, also listed here)_
+- feat(mcserver): add password-gated web console with the full unlock ladder - [`db7ac20a71`](https://github.com/Ding-Ding-Projects/worldlens/commit/db7ac20a7116c824a2bf506146aa4c1d3fd2d5e5)
+- Merge branch 'lane/mcserver-flavours' - [`382b8c3f56`](https://github.com/Ding-Ding-Projects/worldlens/commit/382b8c3f56f73e4fca5aab12352b4b26d7de2aba) _(summary of 2 commits, also listed here)_
+- feat(mcserver): fetch real flavour catalogues and wire up server creation - [`361bcb2ae6`](https://github.com/Ding-Ding-Projects/worldlens/commit/361bcb2ae636e99812501ea615143eb0a60a034e)
+- Merge branch 'lane/mcserver-plugins' - [`ad7efb2c83`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad7efb2c83164c0c8d711d14e5a8a5c5d7f58bf9) _(summary of 2 commits, also listed here)_
+- feat(mcserver): add plugin/mod browsing and installs from Modrinth, Hangar and SpigotMC - [`04d48178a1`](https://github.com/Ding-Ding-Projects/worldlens/commit/04d48178a1c48d0369d7b2d8278ee0d9b4dc7580)
+- Merge branch 'lane/mcserver-config' - [`fceff8a4b2`](https://github.com/Ding-Ding-Projects/worldlens/commit/fceff8a4b21356d5152617bb00930699c47f8004) _(summary of 2 commits, also listed here)_
+- feat(mcserver): typed config document model and server.properties schema - [`bd0c709c6a`](https://github.com/Ding-Ding-Projects/worldlens/commit/bd0c709c6ad3c5e332b895f88713e73bb0fc566d)
+- Give the server module one front door - [`a40f07a17a`](https://github.com/Ding-Ding-Projects/worldlens/commit/a40f07a17ab22ba8682c349416c7f0c0f46dcf5f)
+- Make the server layer reachable, and prove it is actually plugged in - [`2962022fb0`](https://github.com/Ding-Ding-Projects/worldlens/commit/2962022fb0ef8d5b2cb4e5a9b8cf06159544f175)
+- Reach a container's server, whether the daemon is here or in another country - [`8c718cd3df`](https://github.com/Ding-Ding-Projects/worldlens/commit/8c718cd3df50f555ba195185c38c650e356d0a9b)
+- Run a server as a local process, and teach scope.ts that Windows exists - [`950d940f24`](https://github.com/Ding-Ding-Projects/worldlens/commit/950d940f245fc00e449a951484671305d21bf375)
+- Lay the one seam every Minecraft server feature will stand on - [`f6524ab4fe`](https://github.com/Ding-Ding-Projects/worldlens/commit/f6524ab4fe05bf3b9343dcbd05ba7d9212bb62d1)
+
+### Documentation
+
+- Tell the README the app is learning to run servers, not just draw them - [`e2c55e53da`](https://github.com/Ding-Ding-Projects/worldlens/commit/e2c55e53dab9d4d953a84c996ee69e8ce2e74362)
+- Document the transport layer, including what it has not proven - [`4656287027`](https://github.com/Ding-Ding-Projects/worldlens/commit/465628702770615706a538fcd993185929b516aa)
+- Record the server manager on the roadmap, with its evidence boundary - [`70949c1c36`](https://github.com/Ding-Ding-Projects/worldlens/commit/70949c1c3620f06193647b1e45d9ed1279d57c24)
+
+## 1.0.1481 - 2026-08-21
+
+Tagged at [`3182146332`](https://github.com/Ding-Ding-Projects/worldlens/commit/318214633224df7b8052cfb598edb7842ea9dda0).
+
+### Rendering and world data
+
+- Run the tests the speed pass skipped, and fix what they caught - [`3182146332`](https://github.com/Ding-Ding-Projects/worldlens/commit/318214633224df7b8052cfb598edb7842ea9dda0)
+
+## 1.0.1471 - 2026-08-21
+
+Tagged at [`50983bfd7f`](https://github.com/Ding-Ding-Projects/worldlens/commit/50983bfd7f54f43874e47b3d72efe8d52d170bc0).
+
+### Interface
+
+- Merge branch 'lane/adult-default' - [`50983bfd7f`](https://github.com/Ding-Ding-Projects/worldlens/commit/50983bfd7f54f43874e47b3d72efe8d52d170bc0) _(summary of 2 commits, also listed here)_
+- Open in Adult Mode on a fresh install - [`f3dc0d765e`](https://github.com/Ding-Ding-Projects/worldlens/commit/f3dc0d765ebf7525c8e28de32648ce5d16ffb217)
+
+### Landing page and documentation site
+
+- Merge branch 'lane/site-refresh' - [`e03f05390e`](https://github.com/Ding-Ding-Projects/worldlens/commit/e03f05390e1f5c5919e7560c6dd95473c5cd156c) _(summary of 2 commits, also listed here)_
+- site: register the orphaned issue-139 capture and link the orphaned engine-choice article - [`519fc13fb7`](https://github.com/Ding-Ding-Projects/worldlens/commit/519fc13fb7ee1888bdab05ea62673caf47212a9c)
+
+## 1.0.1468 - 2026-08-21
+
+Tagged at [`4e700ec360`](https://github.com/Ding-Ding-Projects/worldlens/commit/4e700ec3605b415201439e1af33b1add26c935ff).
+
+### Documentation
+
+- Move the capture inventory's hand-written total to 229 - [`4e700ec360`](https://github.com/Ding-Ding-Projects/worldlens/commit/4e700ec3605b415201439e1af33b1add26c935ff)
+
+## 1.0.1464 - 2026-08-21
+
+Tagged at [`9d0c0944d5`](https://github.com/Ding-Ding-Projects/worldlens/commit/9d0c0944d5e7ba429bbffa6ad7a7291fc1dfaebc).
+
+### Interface
+
+- Merge branch 'lane/reauth' - [`3baea57b4b`](https://github.com/Ding-Ding-Projects/worldlens/commit/3baea57b4bdf6b3105daa98e56a3268e44e71ddb) _(summary of 2 commits, also listed here)_
+- Stop telling a rate-limited upload to go reauthenticate; retry it instead - [`b905a5d47e`](https://github.com/Ding-Ding-Projects/worldlens/commit/b905a5d47ef8479a0234aeeb2fc70796d2018042)
+- Connect toy locks to the shell, and make a locked element actually locked - [`f53399e9a3`](https://github.com/Ding-Ding-Projects/worldlens/commit/f53399e9a39285fa82c9fd210c33efcdbacd7d8a)
+- Merge branch 'lane/clone' - [`b19e512802`](https://github.com/Ding-Ding-Projects/worldlens/commit/b19e512802b57505e5b4161c9228c827bebc8d58) _(summary of 2 commits, also listed here)_
+- fix(ui): name which bridge call failed in the project save banner - [`26ffea6fc7`](https://github.com/Ding-Ding-Projects/worldlens/commit/26ffea6fc765c1ceea2f662fd49351d99f50312f)
+- Merge branch 'lane/pages' - [`e739df1a4c`](https://github.com/Ding-Ding-Projects/worldlens/commit/e739df1a4cfc2860ad839c3603c0d3c9a4c296bd) _(summary of 2 commits, also listed here)_
+- Catch Pages-publish 404s the root-URL probe can never see - [`67dfc9786d`](https://github.com/Ding-Ding-Projects/worldlens/commit/67dfc9786d65ff8dd6914d58b12a6e8a1d96e04e)
+- Show the cloud-config refusal inside its dialog, and the upload as it happens - [`7b6afc048f`](https://github.com/Ding-Ding-Projects/worldlens/commit/7b6afc048f8104c4496ac5319b01d73b527a42a1)
+- Render worlds of any size by uploading them as 1.5 GB verified parts - [`e75736d229`](https://github.com/Ding-Ding-Projects/worldlens/commit/e75736d229b1b6422eae5a7babc9981bfbc1f9ce)
+- Merge current main before issue-80 continuation - [`44a5e5cf2b`](https://github.com/Ding-Ding-Projects/worldlens/commit/44a5e5cf2b396df7933e1a38498ad94db65b35e7) _(summary of 63 commits, also listed here)_
+- Merge the shared Kid-mode transition repair - [`05886abbc7`](https://github.com/Ding-Ding-Projects/worldlens/commit/05886abbc75f432ead4b6acbff0e83ec00f65422) _(summary of 2 commits, also listed here)_
+- Keep shared mode transitions honest across the Kid surface - [`db9e7e8544`](https://github.com/Ding-Ding-Projects/worldlens/commit/db9e7e85448cd422f7e78b4f2011360d25d05dfc)
+- Merge the reviewed issue-reporting surface - [`03c2c3a0ea`](https://github.com/Ding-Ding-Projects/worldlens/commit/03c2c3a0ea28384a3547492bd7351564fb59edb0) _(summary of 2 commits, also listed here)_
+- Mount reviewed issue reporting surface - [`ea3222be51`](https://github.com/Ding-Ding-Projects/worldlens/commit/ea3222be51f6a61eca51a09de459c84c4e3925b5)
+- fix(ui): clone project payloads before IPC - [`261c528b32`](https://github.com/Ding-Ding-Projects/worldlens/commit/261c528b32832be8b4aff8059455509ba79b536e)
+- Merge the save-clone IPC safety repair - [`0c78fc4a6e`](https://github.com/Ding-Ding-Projects/worldlens/commit/0c78fc4a6e38b5dae5e418aa163978209929771d) _(summary of 2 commits, also listed here)_
+- fix(ui): clone project payloads before IPC - [`fe1dec62e1`](https://github.com/Ding-Ding-Projects/worldlens/commit/fe1dec62e1aea10accc988658ee39af76d995d8f)
+
+### Rendering and world data
+
+- fix(viewer): stop map WASD controls from eating keystrokes typed into text fields - [`06c6d0e96a`](https://github.com/Ding-Ding-Projects/worldlens/commit/06c6d0e96ad37750d28acdc12cb9891201e2c76d)
+
+### Desktop shell
+
+- Merge branch 'lane/pause' - [`7d67272bb4`](https://github.com/Ding-Ding-Projects/worldlens/commit/7d67272bb41d092283c12c2d456fb1fce41e98c3) _(summary of 2 commits, also listed here)_
+- Give the backup pipeline a real pause, and stop the split re-cutting 8.69 GB on every resume - [`b1dcb86d13`](https://github.com/Ding-Ding-Projects/worldlens/commit/b1dcb86d1361486659883df95f2d9525efd97c2c)
+- Merge branch 'lane/artifact' - [`fa3b5c32c5`](https://github.com/Ding-Ding-Projects/worldlens/commit/fa3b5c32c5b6810c51620d9ce9814c33a2ecf22a) _(summary of 2 commits, also listed here)_
+- Make the unregistered-CI-map refusal say what it actually found - [`1629cd69e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/1629cd69e53ff43f5b8f51d198e5a796b42405b5)
+- Merge verified artifact recovery for failed render runs - [`4bda51bbf7`](https://github.com/Ding-Ding-Projects/worldlens/commit/4bda51bbf7ef00f29d0b706eb92bde969420f9ea) _(summary of 2 commits, also listed here)_
+- Recover verified maps from Pages-only render failures - [`37fda1177d`](https://github.com/Ding-Ding-Projects/worldlens/commit/37fda1177dcbb3980b4cb72bb9266423beaebe33)
+- Merge the privacy-safe issue-reporting bridge - [`296f5fc974`](https://github.com/Ding-Ding-Projects/worldlens/commit/296f5fc974fc79b9daf78806d9d0916b814ca475) _(summary of 2 commits, also listed here)_
+- Wire privacy-safe diagnostic issue reporting bridge - [`d223f946b7`](https://github.com/Ding-Ding-Projects/worldlens/commit/d223f946b787259cb26a947d79a792c2cb5a6425)
+- Merge packaged TypeScript renderer dependency staging - [`d0153330ec`](https://github.com/Ding-Ding-Projects/worldlens/commit/d0153330ec46c12ed9ae06ae4895b1ca78fe4475) _(summary of 2 commits, also listed here)_
+- Stage TypeScript render runtime dependencies in the package - [`de679bc2c8`](https://github.com/Ding-Ding-Projects/worldlens/commit/de679bc2c88dc48f27e3d7d681a3a1fcd77a5670)
+- Harden profile migration recovery and receipts - [`f803b814e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/f803b814e252b8fec9dd42e108642728657fd639)
+- Harden profile migration recovery and receipts - [`9e1a5309c4`](https://github.com/Ding-Ding-Projects/worldlens/commit/9e1a5309c4793c110e0ccfb16236cc81487f1be9)
+- Repair managed map publication workflow - [`2adea2747a`](https://github.com/Ding-Ding-Projects/worldlens/commit/2adea2747a970f3f8f3415f8e019a13635bdc0f2)
+- Merge the managed render workflow repair - [`fda617e5d0`](https://github.com/Ding-Ding-Projects/worldlens/commit/fda617e5d0227a05bfef4c38245c5a5562ab658c) _(summary of 2 commits, also listed here)_
+- Repair managed map publication workflow - [`eb4272c877`](https://github.com/Ding-Ding-Projects/worldlens/commit/eb4272c87711cd20a7585a9424868a1c06facf4e)
+
+### Landing page and documentation site
+
+- Merge the Pages hydration proof - [`95f27fe311`](https://github.com/Ding-Ding-Projects/worldlens/commit/95f27fe3115f325252088c4c68ec3ffae6bb1b16) _(summary of 2 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`59057c15d2`](https://github.com/Ding-Ding-Projects/worldlens/commit/59057c15d282de0047254fc0937d63148280972b)
+
+### Build, release and tooling
+
+- Merge current main into issue acceptance jer - [`0eb136de7e`](https://github.com/Ding-Ding-Projects/worldlens/commit/0eb136de7e65afa5acac775eafc965a603091a3f) _(summary of 2 commits, also listed here)_
+
+### Documentation
+
+- Register the issue 139 capture, and recapture it from the real build - [`9d0c0944d5`](https://github.com/Ding-Ding-Projects/worldlens/commit/9d0c0944d5e7ba429bbffa6ad7a7291fc1dfaebc)
+- Merge the issue 80 evidence correction - [`a4ea5ec1b3`](https://github.com/Ding-Ding-Projects/worldlens/commit/a4ea5ec1b335cba4b520b4514bc3e1d5b1d79043) _(summary of 2 commits, also listed here)_
+- Clarify Issue #80 source versus packaged evidence - [`b9598583d6`](https://github.com/Ding-Ding-Projects/worldlens/commit/b9598583d6575f9c2962fc697d16d907ca18d7de)
+- Correct render-engine documentation with the open wiring audit - [`9b4f825797`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b4f825797b921a4755636b8e89a5ccff7c70cdb)
+- Document public update-feed continuity - [`ea13d441ac`](https://github.com/Ding-Ding-Projects/worldlens/commit/ea13d441ac2ebc4558b44a56ca1c45701f93b22c)
+- Document public update-feed continuity - [`38a3f92664`](https://github.com/Ding-Ding-Projects/worldlens/commit/38a3f9266461598cd2c07d25b5ed46d911478e9d)
+- Merge the issue 62 cleanup ledger - [`209f9624a3`](https://github.com/Ding-Ding-Projects/worldlens/commit/209f9624a3302c9f0c138dfdf47d1fff98d01d81) _(summary of 2 commits, also listed here)_
+- Record the issue 62 cleanup evidence boundary - [`0d16a2ed08`](https://github.com/Ding-Ding-Projects/worldlens/commit/0d16a2ed080195c9cd976107cf0011aec3e3ebce)
+- Merge the save-render workflow and evidence lane - [`2bd480f0d9`](https://github.com/Ding-Ding-Projects/worldlens/commit/2bd480f0d91cb7d6d59083b7f3dc602b1d55e36f) _(summary of 4 commits, also listed here)_
+- Add the issue 139 save-clone error capture - [`75f2197df3`](https://github.com/Ding-Ding-Projects/worldlens/commit/75f2197df3bc888e5df9e4a05fd6b0ca9dccb316)
+
+### Elsewhere in the repository
+
+- Merge the privacy reporting history marker - [`3f424746e7`](https://github.com/Ding-Ding-Projects/worldlens/commit/3f424746e7c6fdd2f79047142ddce7ade4803843) _(summary of 2 commits, also listed here)_
+- Merge the render-engine documentation audit - [`6e4de2af06`](https://github.com/Ding-Ding-Projects/worldlens/commit/6e4de2af065392e967dbe4d1af32c3efee1aed42) _(summary of 2 commits, also listed here)_
+- Merge the alternate migration lane history - [`436c82b3f4`](https://github.com/Ding-Ding-Projects/worldlens/commit/436c82b3f4ef36fea9985afe3f9a09e73f39c929) _(summary of 3 commits, also listed here)_
+- Merge the profile migration recovery hardening - [`2391662229`](https://github.com/Ding-Ding-Projects/worldlens/commit/23916622290625e77beedc20d54c06faf420bf52) _(summary of 3 commits, also listed here)_
+- Merge the runtime reachability regression proof - [`ba7de25e4f`](https://github.com/Ding-Ding-Projects/worldlens/commit/ba7de25e4ffcd01644cea464b4e17292a17a4156) _(summary of 2 commits, also listed here)_
+
+## 1.0.1420 - 2026-08-19
+
+Tagged at [`e400633874`](https://github.com/Ding-Ding-Projects/worldlens/commit/e40063387404ebbf97ce50403d99d3e072d93eab).
+
+### Documentation
+
+- Integrate Issue 78 engine records - [`e400633874`](https://github.com/Ding-Ding-Projects/worldlens/commit/e40063387404ebbf97ce50403d99d3e072d93eab) _(summary of 2 commits, also listed here)_
+- Reconcile Issue 78 engine records - [`cac8017ad7`](https://github.com/Ding-Ding-Projects/worldlens/commit/cac8017ad7f4682038757b9603c704188488626a)
+
+## 1.0.1418 - 2026-08-19
+
+Tagged at [`80eefd172d`](https://github.com/Ding-Ding-Projects/worldlens/commit/80eefd172d35b9329f95b464e20b56d415826025).
+
+### Desktop shell
+
+- Integrate the packaged TypeScript runtime closure - [`80eefd172d`](https://github.com/Ding-Ding-Projects/worldlens/commit/80eefd172d35b9329f95b464e20b56d415826025) _(summary of 3 commits, also listed here)_
+- Stage the TypeScript runtime dependency closure - [`f4872eeeaa`](https://github.com/Ding-Ding-Projects/worldlens/commit/f4872eeeaac81a9db5edab94121f4612e83b9c90)
+- Stage workspace packages for TypeScript engine - [`728bca0b7d`](https://github.com/Ding-Ding-Projects/worldlens/commit/728bca0b7d448be66a38c49c24d52c29bd9f6844)
+
+## 1.0.1416 - 2026-08-19
+
+Tagged at [`e3cf7f30b4`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3cf7f30b40989d83a6b8833b1f42894efa55623).
+
+### Interface
+
+- Integrate global engine choice for new projects - [`e3cf7f30b4`](https://github.com/Ding-Ding-Projects/worldlens/commit/e3cf7f30b40989d83a6b8833b1f42894efa55623) _(summary of 2 commits, also listed here)_
+- Honor the global engine choice for new projects - [`91fde17cc4`](https://github.com/Ding-Ding-Projects/worldlens/commit/91fde17cc4ab20344df9a063f563ce941cc6bfbd)
+
+## 1.0.1411 - 2026-08-19
+
+Tagged at [`36c1d4d7c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/36c1d4d7c97cfe05ff9ef5b273125317a8a92224).
+
+### Documentation
+
+- Integrate Issue 84 navigation record correction - [`36c1d4d7c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/36c1d4d7c97cfe05ff9ef5b273125317a8a92224) _(summary of 2 commits, also listed here)_
+- Correct Issue 84 navigation records - [`c7d05989c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/c7d05989c98e160c184632a75cb0f73869cc2735)
+
+## 1.0.1406 - 2026-08-19
+
+Tagged at [`44080e74cf`](https://github.com/Ding-Ding-Projects/worldlens/commit/44080e74cf5bb48152fff15e36d9f4a35bf37bcd).
+
+### Documentation
+
+- Integrate render history audit correction - [`44080e74cf`](https://github.com/Ding-Ding-Projects/worldlens/commit/44080e74cf5bb48152fff15e36d9f4a35bf37bcd) _(summary of 2 commits, also listed here)_
+- Clarify render-history storage records - [`e2895acfb3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e2895acfb3c22f999f355e907f00d2662d5235be)
+
+## 1.0.1405 - 2026-08-19
+
+Tagged at [`c067621ef3`](https://github.com/Ding-Ding-Projects/worldlens/commit/c067621ef3e0838ee54d9b16f86634004c786c11).
+
+### Documentation
+
+- Integrate banner renderer boundary records - [`c067621ef3`](https://github.com/Ding-Ding-Projects/worldlens/commit/c067621ef3e0838ee54d9b16f86634004c786c11) _(summary of 2 commits, also listed here)_
+- Clarify banner acceptance renderer boundary - [`1df406a84b`](https://github.com/Ding-Ding-Projects/worldlens/commit/1df406a84bf27c20e72ea62a37df8fb3c5428d20)
+- Integrate account-routing records correction - [`cabb2d5624`](https://github.com/Ding-Ding-Projects/worldlens/commit/cabb2d56241889b0f4bb7c6d691e15c04d38f04f) _(summary of 2 commits, also listed here)_
+- Reconcile Issue 52 account restoration records - [`c3ebb488a2`](https://github.com/Ding-Ding-Projects/worldlens/commit/c3ebb488a229ddba812c7ba027b0f888170c3eeb)
+
+## 1.0.1404 - 2026-08-19
+
+Tagged at [`a8c6ead546`](https://github.com/Ding-Ding-Projects/worldlens/commit/a8c6ead546311b245a3292e805f6c20ca3389bdf).
+
+### Documentation
+
+- Integrate packaged Docker IPC evidence - [`a8c6ead546`](https://github.com/Ding-Ding-Projects/worldlens/commit/a8c6ead546311b245a3292e805f6c20ca3389bdf) _(summary of 2 commits, also listed here)_
+- docs: record packaged Docker IPC proof - [`8bca0774ae`](https://github.com/Ding-Ding-Projects/worldlens/commit/8bca0774ae48912df990303a90a848d3939c59a6)
+
+## 1.0.1398 - 2026-08-19
+
+Tagged at [`761d9c5be8`](https://github.com/Ding-Ding-Projects/worldlens/commit/761d9c5be80475908093554da2174a6de13c2c6f).
+
+### Documentation
+
+- Integrate packaged ledger runtime evidence - [`761d9c5be8`](https://github.com/Ding-Ding-Projects/worldlens/commit/761d9c5be80475908093554da2174a6de13c2c6f) _(summary of 2 commits, also listed here)_
+- Record packaged release ledger runtime proof - [`cd38fbedd3`](https://github.com/Ding-Ding-Projects/worldlens/commit/cd38fbedd3ef1d9d6f00c9b20bcb72bad4d636a6)
+
+## 1.0.1394 - 2026-08-19
+
+Tagged at [`ad07eb0aea`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad07eb0aea6fd0e31aeb7ac59235eaf103860a39).
+
+### Desktop shell
+
+- Integrate absolute packaged-profile validation - [`ad07eb0aea`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad07eb0aea6fd0e31aeb7ac59235eaf103860a39) _(summary of 2 commits, also listed here)_
+- Require absolute direct-launch profiles - [`36fabc542a`](https://github.com/Ding-Ding-Projects/worldlens/commit/36fabc542a95a89a915e675bd92d8e3547e0027d)
+
+## 1.0.1392 - 2026-08-19
+
+Tagged at [`06a9fda182`](https://github.com/Ding-Ding-Projects/worldlens/commit/06a9fda1823672ef4feaa8d3f681550c5fff8074).
+
+### Desktop shell
+
+- Integrate safe packaged direct-launch seam - [`06a9fda182`](https://github.com/Ding-Ding-Projects/worldlens/commit/06a9fda1823672ef4feaa8d3f681550c5fff8074) _(summary of 2 commits, also listed here)_
+- Add a safe direct-launch smoke switch - [`f361b377e6`](https://github.com/Ding-Ding-Projects/worldlens/commit/f361b377e667ed2b505626158e507cd582f38829)
+
+## 1.0.1388 - 2026-08-19
+
+Tagged at [`ce80f03c7c`](https://github.com/Ding-Ding-Projects/worldlens/commit/ce80f03c7c86612afcdf9d882037eac87fb24c89).
+
+### Documentation
+
+- Integrate Docker lifecycle proof records - [`ce80f03c7c`](https://github.com/Ding-Ding-Projects/worldlens/commit/ce80f03c7c86612afcdf9d882037eac87fb24c89) _(summary of 2 commits, also listed here)_
+- Record Issue 69 daemon lifecycle proof - [`b817845833`](https://github.com/Ding-Ding-Projects/worldlens/commit/b817845833142501dbed2fbb21a8be3a9e0272e7)
+
+## 1.0.1386 - 2026-08-19
+
+Tagged at [`35a70b5f47`](https://github.com/Ding-Ding-Projects/worldlens/commit/35a70b5f47455350e3d77ecee348c617eb02cf56).
+
+### Documentation
+
+- Integrate Docker evidence baseline correction - [`35a70b5f47`](https://github.com/Ding-Ding-Projects/worldlens/commit/35a70b5f47455350e3d77ecee348c617eb02cf56) _(summary of 2 commits, also listed here)_
+- Refresh Issue 69 evidence baseline - [`4db4d3317a`](https://github.com/Ding-Ding-Projects/worldlens/commit/4db4d3317a12be554426c3c597046a7b1337eced)
+- Integrate Docker daemon boundary records - [`af33021bc1`](https://github.com/Ding-Ding-Projects/worldlens/commit/af33021bc16ecaf43d4fbe1e249da76788eb4c73) _(summary of 2 commits, also listed here)_
+- docs: record Docker daemon probe - [`c428a8da75`](https://github.com/Ding-Ding-Projects/worldlens/commit/c428a8da75a4da221df173af71d22a848d15e14c)
+
+## 1.0.1380 - 2026-08-19
+
+Tagged at [`b5dd1fd332`](https://github.com/Ding-Ding-Projects/worldlens/commit/b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170).
+
+### Documentation
+
+- Integrate terminal two-wave receipt records - [`b5dd1fd332`](https://github.com/Ding-Ding-Projects/worldlens/commit/b5dd1fd332de7e0eee3e9b3a5b233fceae4e6170) _(summary of 2 commits, also listed here)_
+- Record terminal two-wave receipt evidence - [`8878a079ca`](https://github.com/Ding-Ding-Projects/worldlens/commit/8878a079ca5f97a4077a88065c888bf945afe4de)
+
+## 1.0.1378 - 2026-08-19
+
+Tagged at [`c305df9635`](https://github.com/Ding-Ding-Projects/worldlens/commit/c305df96357b2ada1286d5842d663d6a795fadde).
+
+### Desktop shell
+
+- Integrate packaged release-ledger hardening - [`cde827c40d`](https://github.com/Ding-Ding-Projects/worldlens/commit/cde827c40d16302761fdd73a9f0b20bb39f77bde) _(summary of 2 commits, also listed here)_
+- Reject malformed packaged release-ledger rows - [`8e3969f5f6`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e3969f5f64d7e429b9db7fff9f8ecfc6ff73735)
+
+### Documentation
+
+- Integrate release ledger publication trail - [`c305df9635`](https://github.com/Ding-Ding-Projects/worldlens/commit/c305df96357b2ada1286d5842d663d6a795fadde) _(summary of 2 commits, also listed here)_
+- Clarify the release ledger publication trail - [`cb3bd3f9d1`](https://github.com/Ding-Ding-Projects/worldlens/commit/cb3bd3f9d197f43b88cc501adb0dcb59b0d84ba4)
+
+## 1.0.1373 - 2026-08-19
+
+Tagged at [`873eb0eae7`](https://github.com/Ding-Ding-Projects/worldlens/commit/873eb0eae7c5b9208c3570a15cf81cf9704a29c7).
+
+### Documentation
+
+- Reconcile six-phase release ledger records - [`873eb0eae7`](https://github.com/Ding-Ding-Projects/worldlens/commit/873eb0eae7c5b9208c3570a15cf81cf9704a29c7) _(summary of 2 commits, also listed here)_
+- Align six-phase release ledger records - [`4729256126`](https://github.com/Ding-Ding-Projects/worldlens/commit/472925612661e8ca040a41f4c3dfffcb707569a6)
+
+## 1.0.1371 - 2026-08-19
+
+Tagged at [`82a723bba0`](https://github.com/Ding-Ding-Projects/worldlens/commit/82a723bba0fc671e9880334c669086f2e07dc8b2).
+
+### Documentation
+
+- Merge current main before receipt rerun - [`82a723bba0`](https://github.com/Ding-Ding-Projects/worldlens/commit/82a723bba0fc671e9880334c669086f2e07dc8b2) _(summary of 2 commits, also listed here)_
+- Repair multi-group receipt assembly - [`f749940e02`](https://github.com/Ding-Ding-Projects/worldlens/commit/f749940e028b9f8b1184e023b3fcd2913b6c69c1)
+
+## 1.0.1368 - 2026-08-19
+
+Tagged at [`43065ebc69`](https://github.com/Ding-Ding-Projects/worldlens/commit/43065ebc697c50dab42e69907a79841aa93087b4).
+
+### Documentation
+
+- Recover malformed banner layers safely - [`43065ebc69`](https://github.com/Ding-Ding-Projects/worldlens/commit/43065ebc697c50dab42e69907a79841aa93087b4)
+
+## 1.0.1364 - 2026-08-19
+
+Tagged at [`bc2a2017d6`](https://github.com/Ding-Ding-Projects/worldlens/commit/bc2a2017d662771e1a12ca7f12585362828623c2).
+
+### Documentation
+
+- Repair the hosted receipt action pin - [`bc2a2017d6`](https://github.com/Ding-Ding-Projects/worldlens/commit/bc2a2017d662771e1a12ca7f12585362828623c2)
+
+## 1.0.1361 - 2026-08-19
+
+Tagged at [`69ff3df8bb`](https://github.com/Ding-Ding-Projects/worldlens/commit/69ff3df8bbfc57f8126b7e676a63201aee34c74e).
+
+### Documentation
+
+- Preserve every release-producing workflow run - [`69ff3df8bb`](https://github.com/Ding-Ding-Projects/worldlens/commit/69ff3df8bbfc57f8126b7e676a63201aee34c74e)
+
+## 1.0.1359 - 2026-08-19
+
+Tagged at [`f901b527c3`](https://github.com/Ding-Ding-Projects/worldlens/commit/f901b527c3b77943d59d9f1e5950615550bc0006).
+
+### Documentation
+
+- Preserve Docker image startup commands - [`f901b527c3`](https://github.com/Ding-Ding-Projects/worldlens/commit/f901b527c3b77943d59d9f1e5950615550bc0006)
+- Enforce complete phase release evidence - [`4a7aad1eda`](https://github.com/Ding-Ding-Projects/worldlens/commit/4a7aad1eda64b24337de2e50d4dd50fb625167ff)
+
+## 1.0.1354 - 2026-08-19
+
+Tagged at [`2dab83bfdf`](https://github.com/Ding-Ding-Projects/worldlens/commit/2dab83bfdf9e782e0e797c70913235272c80da6c).
+
+### Interface
+
+- Expose guided Docker container creation - [`2dab83bfdf`](https://github.com/Ding-Ding-Projects/worldlens/commit/2dab83bfdf9e782e0e797c70913235272c80da6c)
+- Segment retained render history and expose retention facts - [`ec5d9a0ca8`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec5d9a0ca8fa54863fea5e656c929fa44c602558)
+
+## 1.0.1349 - 2026-08-19
+
+Tagged at [`86024f0ffe`](https://github.com/Ding-Ding-Projects/worldlens/commit/86024f0ffeb2599ffd653a09e4fae3d020b7becc).
+
+### Documentation
+
+- Limit GitHub Actions to build and release work - [`86024f0ffe`](https://github.com/Ding-Ding-Projects/worldlens/commit/86024f0ffeb2599ffd653a09e4fae3d020b7becc)
+
+## 1.0.1345 - 2026-08-19
+
+Tagged at [`2ab8c85883`](https://github.com/Ding-Ding-Projects/worldlens/commit/2ab8c85883c46dc871b2405212b976df42f88500).
+
+### Documentation
+
+- Harden migration writes and legacy key boundaries - [`2ab8c85883`](https://github.com/Ding-Ding-Projects/worldlens/commit/2ab8c85883c46dc871b2405212b976df42f88500)
+
+## 1.0.1342 - 2026-08-19
+
+Tagged at [`bf13113d59`](https://github.com/Ding-Ding-Projects/worldlens/commit/bf13113d592792cc576a38e6222135bce41045a2).
+
+### Documentation
+
+- Use retained render history across console actions - [`bf13113d59`](https://github.com/Ding-Ding-Projects/worldlens/commit/bf13113d592792cc576a38e6222135bce41045a2)
+
+## 1.0.1339 - 2026-08-19
+
+Tagged at [`9702e6daac`](https://github.com/Ding-Ding-Projects/worldlens/commit/9702e6daac6483ce7b2eeb268110c87cfbe5c55e).
+
+### Build, release and tooling
+
+- Merge remote-tracking branch 'origin/main' into codex/issue-70-marker-editor - [`9702e6daac`](https://github.com/Ding-Ding-Projects/worldlens/commit/9702e6daac6483ce7b2eeb268110c87cfbe5c55e) _(summary of 15 commits, also listed here)_
+
+### Documentation
+
+- Complete marker geometry controls and live preview - [`6fc95e22db`](https://github.com/Ding-Ding-Projects/worldlens/commit/6fc95e22db2a696ea36b0a8181f74e4a276abae2)
+
+## 1.0.1336 - 2026-08-19
+
+Tagged at [`98aac09930`](https://github.com/Ding-Ding-Projects/worldlens/commit/98aac099304cddd0228b6dc51da3cbf07c557277).
+
+### Build, release and tooling
+
+- Pin render workflows to the current toolchain - [`98aac09930`](https://github.com/Ding-Ding-Projects/worldlens/commit/98aac099304cddd0228b6dc51da3cbf07c557277)
+
+## 1.0.1333 - 2026-08-19
+
+Tagged at [`9f52322cdf`](https://github.com/Ding-Ding-Projects/worldlens/commit/9f52322cdfe284553499486bb1a8ffd2916331e3).
+
+### Build, release and tooling
+
+- Separate live launch proof from cleanup proof - [`9f52322cdf`](https://github.com/Ding-Ding-Projects/worldlens/commit/9f52322cdfe284553499486bb1a8ffd2916331e3)
+- Write Lowlevel receipts before app cleanup - [`bdd8758910`](https://github.com/Ding-Ding-Projects/worldlens/commit/bdd8758910e901627edff29488a7ac9b2cdf32de)
+- Target the teleported settings overflow - [`d7f29c01f1`](https://github.com/Ding-Ding-Projects/worldlens/commit/d7f29c01f18e698b6ebe20eb0f6eac54c14081bf)
+
+## 1.0.1325 - 2026-08-19
+
+Tagged at [`25e3f2f1ce`](https://github.com/Ding-Ding-Projects/worldlens/commit/25e3f2f1ce282a3d4464ea40e2763d7aab96c045).
+
+### Build, release and tooling
+
+- Package the app before Lowlevel smoke - [`25e3f2f1ce`](https://github.com/Ding-Ding-Projects/worldlens/commit/25e3f2f1ce282a3d4464ea40e2763d7aab96c045)
+- Pin the generated site seed to LF - [`7b868bf17d`](https://github.com/Ding-Ding-Projects/worldlens/commit/7b868bf17d86e5b784518947bd0941eafc0c4b4b)
+- Report bounded dirty-checkout evidence - [`b53e6252b5`](https://github.com/Ding-Ding-Projects/worldlens/commit/b53e6252b54d581d7865aed369d8a72c714180f6)
+
+## 1.0.1318 - 2026-08-19
+
+Tagged at [`ca069aaa4e`](https://github.com/Ding-Ding-Projects/worldlens/commit/ca069aaa4e039b7debb41a02892764433ec7f853).
+
+### Build, release and tooling
+
+- Keep the CI check job build-only - [`ca069aaa4e`](https://github.com/Ding-Ding-Projects/worldlens/commit/ca069aaa4e039b7debb41a02892764433ec7f853)
+- Accept native line endings in Lowlevel evidence wiring - [`ee7b3f145f`](https://github.com/Ding-Ding-Projects/worldlens/commit/ee7b3f145fe23c1e56846bcbf1069b2e2f903452)
+
+## 1.0.1313 - 2026-08-19
+
+Tagged at [`d4169f87c0`](https://github.com/Ding-Ding-Projects/worldlens/commit/d4169f87c06ce352d721b59b0fbf08c98caaf7f9).
+
+### Interface
+
+- Export the persistent marker-layer host - [`ade3e1ef9f`](https://github.com/Ding-Ding-Projects/worldlens/commit/ade3e1ef9f801e9bfd2490cdd791f518ae4b0dd2)
+- Repair release-ledger Markdown export syntax - [`9dbc61ee19`](https://github.com/Ding-Ding-Projects/worldlens/commit/9dbc61ee1981da0baeca558e91f0dbc1caace8c9)
+- Merge current main into packaged release-smoke evidence - [`3fcda8e0d3`](https://github.com/Ding-Ding-Projects/worldlens/commit/3fcda8e0d35d927ea00e4b070e6da349db59adce) _(summary of 2 commits, also listed here)_
+- Unify local personal-vocabulary upload and cache handling - [`6f92672033`](https://github.com/Ding-Ding-Projects/worldlens/commit/6f9267203397041950967ab892e76253ce810d6f)
+- Merge current main into two-wave receipt support - [`2bae2162ed`](https://github.com/Ding-Ding-Projects/worldlens/commit/2bae2162ed8c097f55a9af7712b708a8238fd328) _(summary of 5 commits, also listed here)_
+- Remove trailing blank lines from the release ledger UI - [`8d162f01cb`](https://github.com/Ding-Ding-Projects/worldlens/commit/8d162f01cb24bbbfed8bf7a698120e1a0fd037e4)
+- Merge current main into Docker hosting management - [`5544bc821d`](https://github.com/Ding-Ding-Projects/worldlens/commit/5544bc821d69d1c9f0aa9d26b84b8654e7104594) _(summary of 7 commits, also listed here)_
+- Add an installation-owned Docker hosting manager - [`29b4639f2a`](https://github.com/Ding-Ding-Projects/worldlens/commit/29b4639f2a920bb54f1dc1db51463ad472f11103)
+- Merge current main into marker authoring - [`a77f502a30`](https://github.com/Ding-Ding-Projects/worldlens/commit/a77f502a30b2b040967e1118b5de617df1aecb94) _(summary of 5 commits, also listed here)_
+- Add a fail-closed JavaScript add-on foundation - [`e5bfc2a1e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/e5bfc2a1e2faff0f9914cbbec24eaf2b94acca31)
+- Expand marker authoring across BlueMap schemas - [`e322ea2e0d`](https://github.com/Ding-Ding-Projects/worldlens/commit/e322ea2e0d66d2cb468751909964fbb67336dbd3)
+
+### Rendering and world data
+
+- Narrow hosted receipt timestamps and tile counts - [`805270d722`](https://github.com/Ding-Ding-Projects/worldlens/commit/805270d722a8f2db8e99bd157e1e1bde384fe874)
+- Preserve validated annotation narrowing - [`50dd2ffe5a`](https://github.com/Ding-Ding-Projects/worldlens/commit/50dd2ffe5a692c9a7ba13821457853f711b370b2)
+- Allow live-player metadata to clear cleanly - [`d0d5a3833f`](https://github.com/Ding-Ding-Projects/worldlens/commit/d0d5a3833f6aa3749b019d9561cf7a84b4779280)
+- Type marker event payload after runtime validation - [`b2a786a131`](https://github.com/Ding-Ding-Projects/worldlens/commit/b2a786a131b35b8a7abd66c202b3a13982efa023)
+- Add deterministic two-wave merge receipts - [`07fb94fa64`](https://github.com/Ding-Ding-Projects/worldlens/commit/07fb94fa64335f204a49a94af76554e615e763e7)
+- Merge current main into live-player tracking - [`68c9225d89`](https://github.com/Ding-Ding-Projects/worldlens/commit/68c9225d89ef12c8fb0248cd2cde050f69dfd933) _(summary of 3 commits, also listed here)_
+- Upgrade the viewer to Three.js 0.180 - [`646eab780a`](https://github.com/Ding-Ding-Projects/worldlens/commit/646eab780a8b8776eabe7c1ea4fb38b703e96390)
+
+### Server, CLI and configuration
+
+- Omit absent local-live mount options - [`d4169f87c0`](https://github.com/Ding-Ding-Projects/worldlens/commit/d4169f87c06ce352d721b59b0fbf08c98caaf7f9)
+- Narrow remote health versions without undefined - [`c8ba7f2e58`](https://github.com/Ding-Ding-Projects/worldlens/commit/c8ba7f2e58df37413cb5b5f480bd6e58cfc79091)
+- Add the add-on persistence helper - [`e4de3ea357`](https://github.com/Ding-Ding-Projects/worldlens/commit/e4de3ea357b93cb2ab6d4fac4cc32a26241eaea1)
+- Remove trailing blank line from the live-player provider - [`7fbc6c8149`](https://github.com/Ding-Ding-Projects/worldlens/commit/7fbc6c814987832bf117e378b61b6be4a9301977)
+
+### Desktop shell
+
+- Merge current main into the add-on foundation - [`e80a24f448`](https://github.com/Ding-Ding-Projects/worldlens/commit/e80a24f44864a5194b967fb710f25797549fe72e) _(summary of 3 commits, also listed here)_
+- Add bounded resumable static map export - [`e11d424a38`](https://github.com/Ding-Ding-Projects/worldlens/commit/e11d424a383a6cae6530964c90a7baa53a65c5c9)
+- Merge current main into the screenshot gallery - [`6dc0bf3e86`](https://github.com/Ding-Ding-Projects/worldlens/commit/6dc0bf3e862637efd5af33cfe8ab198717928a2e) _(summary of 4 commits, also listed here)_
+- Merge current main into map tools - [`684774d89a`](https://github.com/Ding-Ding-Projects/worldlens/commit/684774d89a734753645c140aca25cfadb6e69522) _(summary of 2 commits, also listed here)_
+- Add a real multi-server operations dashboard - [`d3482a3421`](https://github.com/Ding-Ding-Projects/worldlens/commit/d3482a34215ed7c81a21e3728ad04cef6fd08c46)
+- Add a private user-owned screenshot gallery - [`e2b67bc248`](https://github.com/Ding-Ding-Projects/worldlens/commit/e2b67bc248035b9c61cbd40d7f527b7ddb51b352)
+- Merge current main into Linux scope record - [`4c0c928b4e`](https://github.com/Ding-Ding-Projects/worldlens/commit/4c0c928b4e58be283fb5465e018eec2428a36f57) _(summary of 2 commits, also listed here)_
+- Harden updater handoff records and evidence contract - [`094ff9633b`](https://github.com/Ding-Ding-Projects/worldlens/commit/094ff9633b46dfb1976708e9a7e734b690f14ce5)
+- Remove trailing blank line from issue report backend - [`85758d9498`](https://github.com/Ding-Ding-Projects/worldlens/commit/85758d94983e978d1a0955364fea957ba4bbd980)
+
+### Landing page and documentation site
+
+- Merge current main into CI-render reachability - [`27d2538055`](https://github.com/Ding-Ding-Projects/worldlens/commit/27d2538055ccc6acf509667a641e345109a67536) _(summary of 4 commits, also listed here)_
+- Bind release smoke evidence to packaged artifacts - [`56a2017775`](https://github.com/Ding-Ding-Projects/worldlens/commit/56a2017775dd665c0ff6e91844ec6e8a75e87563)
+
+### Build, release and tooling
+
+- Declare live-player NBT input and fix recursive typing - [`e8577a9a58`](https://github.com/Ding-Ding-Projects/worldlens/commit/e8577a9a581ba4e1c81b6b783c1757ac03ff6524)
+- Use ordinary wording in the render workflow - [`235fec3d75`](https://github.com/Ding-Ding-Projects/worldlens/commit/235fec3d75589744ea5045b78f78029a35d83177)
+- Harden CI-render reachability and receipt provenance - [`fef3e7bc6d`](https://github.com/Ding-Ding-Projects/worldlens/commit/fef3e7bc6d15187eb91a6c04f8dfef9dac9e68fb)
+
+### Documentation
+
+- Add a verified historical phase-release ledger - [`ebc044f599`](https://github.com/Ding-Ding-Projects/worldlens/commit/ebc044f59968c9870cb67f347969bd09f9fba048)
+- Merge current main into static map export - [`8c471fedf2`](https://github.com/Ding-Ding-Projects/worldlens/commit/8c471fedf27c78a0209c7a8daea64f1452030d2c) _(summary of 6 commits, also listed here)_
+- Use ordinary public wording in the Three.js parity article - [`6aa3852424`](https://github.com/Ding-Ding-Projects/worldlens/commit/6aa3852424cfc623adab5f4059701789a4e695f3)
+- Add optional local live-player tracking - [`02e9101b5c`](https://github.com/Ding-Ding-Projects/worldlens/commit/02e9101b5c9a3e87a5164462695a1c2064bd7002)
+- Add scoped map measurements and waypoints - [`8454cf6da0`](https://github.com/Ding-Ding-Projects/worldlens/commit/8454cf6da00972097fd701f66b29c5c3a4cb7ecd)
+- Use ordinary wording in the screenshot-gallery handoff - [`9823d8576c`](https://github.com/Ding-Ding-Projects/worldlens/commit/9823d8576cc79a3aa06fb5a110547c7a3feb719e)
+- Merge current main into privacy-safe issue reporting - [`652b9e572f`](https://github.com/Ding-Ding-Projects/worldlens/commit/652b9e572ff338151badf51268007d75b28f445b) _(summary of 4 commits, also listed here)_
+- Record the deferred Linux desktop support boundary - [`235615fb2f`](https://github.com/Ding-Ding-Projects/worldlens/commit/235615fb2f8c1e02d944c1436827355038e10655)
+
+### Elsewhere in the repository
+
+- Add privacy-safe local issue report drafts - [`45de168691`](https://github.com/Ding-Ding-Projects/worldlens/commit/45de168691852ad234fea36b16d99d83a361343a)
+
+## 1.0.1257 - 2026-08-19
+
+Tagged at [`86190b9f42`](https://github.com/Ding-Ding-Projects/worldlens/commit/86190b9f4222cb3866af703a92488a2711a22f7a).
+
+### Interface
+
+- Merge current main into Java runtime proof - [`86190b9f42`](https://github.com/Ding-Ding-Projects/worldlens/commit/86190b9f4222cb3866af703a92488a2711a22f7a) _(summary of 4 commits, also listed here)_
+- Merge current main into adapter smoke contract - [`95ddab6c60`](https://github.com/Ding-Ding-Projects/worldlens/commit/95ddab6c601837ea4a07574587e81d7b804da3c1) _(summary of 2 commits, also listed here)_
+- Mount remote hosting in real application navigation - [`8e78a95c75`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e78a95c752b074112d8548086d3a68de4b00a93)
+
+### Desktop shell
+
+- Harden managed Java provisioning and render evidence - [`e95dc79588`](https://github.com/Ding-Ding-Projects/worldlens/commit/e95dc79588d8475d50f2553b6d7e60119cc60884)
+
+### Documentation
+
+- Add exact server-adapter smoke contract - [`1950350193`](https://github.com/Ding-Ding-Projects/worldlens/commit/1950350193a08bc6bd58c2a6a77e4c07f9bff4f9)
+
+## 1.0.1250 - 2026-08-19
+
+Tagged at [`b2f5a9de63`](https://github.com/Ding-Ding-Projects/worldlens/commit/b2f5a9de6349bd7e7d2c3149a926b2a0e00cf998).
+
+### Interface
+
+- Merge current main into SSH flow hardening - [`b2f5a9de63`](https://github.com/Ding-Ding-Projects/worldlens/commit/b2f5a9de6349bd7e7d2c3149a926b2a0e00cf998) _(summary of 11 commits, also listed here)_
+- Merge current main into Docker world import - [`4d5ddb5a39`](https://github.com/Ding-Ding-Projects/worldlens/commit/4d5ddb5a399c7872e332dfcc9af9ade563c3ebeb) _(summary of 9 commits, also listed here)_
+- Merge current main into sign-out confirmation - [`9b0dd60e90`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b0dd60e9091916d315521daaa406da45fb59ce9) _(summary of 7 commits, also listed here)_
+- Merge remote-tracking branch 'origin/main' into codex/issue-89-typed-banner-patterns - [`0a23b8c622`](https://github.com/Ding-Ding-Projects/worldlens/commit/0a23b8c622009b8bd9d5795f09daf25fe41819b4) _(summary of 13 commits, also listed here)_
+- Gate GitHub sign-out with truthful super confirmation - [`653b9e748d`](https://github.com/Ding-Ding-Projects/worldlens/commit/653b9e748dc1b5cb24917bd4e5dcb22a6994cece)
+
+### Rendering and world data
+
+- Render patterned banners from real block entities - [`5315eb9cc7`](https://github.com/Ding-Ding-Projects/worldlens/commit/5315eb9cc70bdce61b8430314924868124dca85e)
+
+### Desktop shell
+
+- Merge current main into patterned-banner proof - [`b7f2baf988`](https://github.com/Ding-Ding-Projects/worldlens/commit/b7f2baf98852f14b4a219a9ad419a17ac9f05249) _(summary of 41 commits, also listed here)_
+- Harden Docker world import acknowledgements and failures - [`45bec2a451`](https://github.com/Ding-Ding-Projects/worldlens/commit/45bec2a451b5b14da92cabe5565528ed57c58b4b)
+- Harden SSH transfer cancellation and remote hosting ownership - [`05138f9efa`](https://github.com/Ding-Ding-Projects/worldlens/commit/05138f9efa1417ca73a2d36f87bbcf537cd578d3)
+
+### Documentation
+
+- Render and prove typed banner patterns - [`204452506f`](https://github.com/Ding-Ding-Projects/worldlens/commit/204452506f85ac89869317fc508e09029e1bfe06)
+
+## 1.0.1242 - 2026-08-19
+
+Tagged at [`cef51bcfb3`](https://github.com/Ding-Ding-Projects/worldlens/commit/cef51bcfb34d620f6dce98e3e09ea33d334fd46f).
+
+### Interface
+
+- Persist complete render-console history - [`b4d5d9da53`](https://github.com/Ding-Ding-Projects/worldlens/commit/b4d5d9da53f7c88647a198984deb8ab7c3fe3ed2)
+
+### Desktop shell
+
+- Merge current main into render-console history - [`cef51bcfb3`](https://github.com/Ding-Ding-Projects/worldlens/commit/cef51bcfb34d620f6dce98e3e09ea33d334fd46f) _(summary of 3 commits, also listed here)_
+- Harden profile migration and update continuity - [`28c60eb2ab`](https://github.com/Ding-Ding-Projects/worldlens/commit/28c60eb2abe09427b5645c402e3ebb1c6efadce8)
+- Route release commands through the selected GitHub host - [`5032119cce`](https://github.com/Ding-Ding-Projects/worldlens/commit/5032119cced250dd29ce1ed91317e2d819a8d361)
+
+## 1.0.1233 - 2026-08-19
+
+Tagged at [`ac46de28ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac46de28bab162ab58e045e5e46af23620f07f54).
+
+### Build, release and tooling
+
+- Fix Lowlevel consent and settings navigation - [`ac46de28ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac46de28bab162ab58e045e5e46af23620f07f54) _(summary of 2 commits, also listed here)_
+- Make Lowlevel E2E decline consent and use overflow - [`ba265790b9`](https://github.com/Ding-Ding-Projects/worldlens/commit/ba265790b97869e12e0a371ef069c696177fd6d2)
+
+## 1.0.1230 - 2026-08-19
+
+Tagged at [`25ac596dc9`](https://github.com/Ding-Ding-Projects/worldlens/commit/25ac596dc9186dfc6273a203e4ad563f62325852).
+
+### Desktop shell
+
+- Fix cloud-first engine selection - [`25ac596dc9`](https://github.com/Ding-Ding-Projects/worldlens/commit/25ac596dc9186dfc6273a203e4ad563f62325852) _(summary of 2 commits, also listed here)_
+- Use the supported cloud render engine - [`1e74e2f6e5`](https://github.com/Ding-Ding-Projects/worldlens/commit/1e74e2f6e553f607f9c3cc9bdf35334ce66f547a)
+
+## 1.0.1227 - 2026-08-19
+
+Tagged at [`8cbf12be33`](https://github.com/Ding-Ding-Projects/worldlens/commit/8cbf12be33b890e0eace0d9a566689b1050b9491).
+
+### Interface
+
+- Verify render engine selection contracts - [`f016570ad5`](https://github.com/Ding-Ding-Projects/worldlens/commit/f016570ad5306487e9913bebff70f709e175688e)
+
+### Server, CLI and configuration
+
+- Recognize generated SQL storage fields - [`e437ccd2bc`](https://github.com/Ding-Ding-Projects/worldlens/commit/e437ccd2bcc388bd88e2356dc8cd3861f86ca1f6)
+
+### Desktop shell
+
+- Integrate per-project render engine choice - [`8cbf12be33`](https://github.com/Ding-Ding-Projects/worldlens/commit/8cbf12be33b890e0eace0d9a566689b1050b9491) _(summary of 4 commits, also listed here)_
+- Add per-project render engine choice - [`e9e4850c12`](https://github.com/Ding-Ding-Projects/worldlens/commit/e9e4850c1227269f9de41e59f6fd5341bd79454d)
+
+### Build, release and tooling
+
+- Merge remote-tracking branch 'origin/main' into codex/issue-78-render-engine-choice - [`90dd65451b`](https://github.com/Ding-Ding-Projects/worldlens/commit/90dd65451bbb4ebaa24f20fc5b0b249ac3c7c4a8) _(summary of 10 commits, also listed here)_
+- Merge remote-tracking branch 'origin/main' into codex/issue-65-cli-resource-sql-parity - [`68cec06923`](https://github.com/Ding-Ding-Projects/worldlens/commit/68cec0692352076f7098130ffb690792afd5cab3) _(summary of 8 commits, also listed here)_
+
+### Documentation
+
+- Integrate standalone CLI parity proof - [`950ff5bea9`](https://github.com/Ding-Ding-Projects/worldlens/commit/950ff5bea9f1f6965a6a80472235b8c5cdaa5d9e) _(summary of 6 commits, also listed here)_
+- Record verified CLI Docker and PostgreSQL proof - [`fc8b3399ce`](https://github.com/Ding-Ding-Projects/worldlens/commit/fc8b3399ce031a11d5cd42efe568aa346e24f298)
+- Merge current main into CLI parity proof - [`538b40f4ad`](https://github.com/Ding-Ding-Projects/worldlens/commit/538b40f4ad9a483bbabe7da2d097c267412cae7a) _(summary of 39 commits, also listed here)_
+- Complete CLI resource and SQL parity - [`82b2388d78`](https://github.com/Ding-Ding-Projects/worldlens/commit/82b2388d786bf45390cb6870cb1252f829c425c5)
+
+## 1.0.1223 - 2026-08-19
+
+Tagged at [`227b18d40b`](https://github.com/Ding-Ding-Projects/worldlens/commit/227b18d40b92d8b0976256f20a246eb1693db978).
+
+### Interface
+
+- Verify cloud-first configuration wiring - [`b095b1c45a`](https://github.com/Ding-Ding-Projects/worldlens/commit/b095b1c45a581d65acf94193f2202748088d135e)
+
+### Documentation
+
+- Integrate cloud-first render configuration - [`227b18d40b`](https://github.com/Ding-Ding-Projects/worldlens/commit/227b18d40b92d8b0976256f20a246eb1693db978) _(summary of 4 commits, also listed here)_
+- Merge remote-tracking branch 'origin/main' into codex/issue-57-cloud-first-config - [`0f4c2e23d4`](https://github.com/Ding-Ding-Projects/worldlens/commit/0f4c2e23d4755ee4122a774bee888c8d4da506c4) _(summary of 7 commits, also listed here)_
+- Add cloud-first render configuration - [`14797c90aa`](https://github.com/Ding-Ding-Projects/worldlens/commit/14797c90aa7638112843282bd852dd7e785f10a8)
+
+## 1.0.1222 - 2026-08-19
+
+Tagged at [`8bded64312`](https://github.com/Ding-Ding-Projects/worldlens/commit/8bded643122313852a2acea65be0c4776c769203).
+
+### Rendering and world data
+
+- Retry SQLite persistence and prove sentinel assets - [`e11537c462`](https://github.com/Ding-Ding-Projects/worldlens/commit/e11537c462ab4788485bddb3ed30e4551b6938a8)
+- Make SQL oracle negatives and cleanup exact - [`f3b916c4b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/f3b916c4b1003c057d79105b2dd460abaafbc69f)
+
+### Landing page and documentation site
+
+- Enforce the public compatibility contract - [`4873f150e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/4873f150e272866135e93e280ce0ad879c2eb44e)
+
+### Build, release and tooling
+
+- Integrate Lowlevel error evidence - [`8bded64312`](https://github.com/Ding-Ding-Projects/worldlens/commit/8bded643122313852a2acea65be0c4776c769203) _(summary of 3 commits, also listed here)_
+- Integrate public compatibility contract proof - [`647a65ba7d`](https://github.com/Ding-Ding-Projects/worldlens/commit/647a65ba7d42df1371849d9ed44c02caf9776dee) _(summary of 4 commits, also listed here)_
+- Make SQL compatibility reports self-verifying - [`f3c94d2ff7`](https://github.com/Ding-Ding-Projects/worldlens/commit/f3c94d2ff74d007249996850e32b16b96b268ce5)
+- Fix SQL oracle authentication and driver probes - [`ec9e8eb591`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec9e8eb59128336d64d5789b273f75bd6ff4edfb)
+- Use real SQL adapters in compatibility oracle - [`5ecc6d7f12`](https://github.com/Ding-Ding-Projects/worldlens/commit/5ecc6d7f1241a0ccb25993386ec6ab2cb3f5ef76)
+- Constrain SQL oracle drivers and cleanup - [`ad40362ea7`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad40362ea751d3ece123bfb900e0aa756aa7e767)
+- Merge remote-tracking branch 'origin/main' into codex/issue-66-sql-cross-engine-proof - [`8f881833c1`](https://github.com/Ding-Ding-Projects/worldlens/commit/8f881833c132ff4430329e233555e47fbf560d37) _(summary of 9 commits, also listed here)_
+- Preserve Lowlevel runtime error evidence - [`1942885129`](https://github.com/Ding-Ding-Projects/worldlens/commit/1942885129bb8dadac3b5bae14d60d25ca2a2f0b)
+- Make headless onboarding decline consent - [`f54af41581`](https://github.com/Ding-Ding-Projects/worldlens/commit/f54af41581a33b878682a7f0f0490e8b15084375)
+
+### Documentation
+
+- Merge remote-tracking branch 'origin/main' into codex/issue-60-public-compatibility-contract - [`2691fe4c01`](https://github.com/Ding-Ding-Projects/worldlens/commit/2691fe4c01f6a84445b0befee438338b2e62cef7) _(summary of 25 commits, also listed here)_
+- Integrate SQL cross-engine compatibility proof - [`179bae4c6b`](https://github.com/Ding-Ding-Projects/worldlens/commit/179bae4c6b0b4919eb948ffd761528ac9221218e) _(summary of 11 commits, also listed here)_
+- Merge current main into SQL compatibility proof - [`22488af6a6`](https://github.com/Ding-Ding-Projects/worldlens/commit/22488af6a63bc3d7cd6072eaf7c17514f177d925) _(summary of 20 commits, also listed here)_
+- Record verified SQL cross-engine matrix - [`6a39709f8f`](https://github.com/Ding-Ding-Projects/worldlens/commit/6a39709f8fff18c7a2a8743e91df0883c4ab8717)
+- Add SQLite and PostgreSQL compatibility oracle - [`2db3574c3a`](https://github.com/Ding-Ding-Projects/worldlens/commit/2db3574c3a24e66ce40e49f1fbfb80634d58f910)
+- Merge remote-tracking branch 'origin/main' into codex/issue-60-public-compatibility-contract - [`5a78cb5e7d`](https://github.com/Ding-Ding-Projects/worldlens/commit/5a78cb5e7d304a1e6881527b9724bdeb3b7a443a) _(summary of 25 commits, also listed here)_
+
+## 1.0.1214 - 2026-08-19
+
+Tagged at [`f148a5385d`](https://github.com/Ding-Ding-Projects/worldlens/commit/f148a5385d801bd4c3acea2a5c417e7a70b0c900).
+
+### Interface
+
+- Integrate render queue restart recovery - [`f148a5385d`](https://github.com/Ding-Ding-Projects/worldlens/commit/f148a5385d801bd4c3acea2a5c417e7a70b0c900) _(summary of 9 commits, also listed here)_
+- Complete render queue restart recovery - [`1aa02093c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/1aa02093c98a01e7066e9762e91e21f5758805b4)
+
+### Rendering and world data
+
+- Add focused render-queue acceptance coverage - [`0a3b1d2e3f`](https://github.com/Ding-Ding-Projects/worldlens/commit/0a3b1d2e3fbaa516e270079dfef4d7e30e76846a)
+
+### Build, release and tooling
+
+- Merge remote-tracking branch 'origin/main' into codex/issue-64-render-queue-persistence - [`538575a4e4`](https://github.com/Ding-Ding-Projects/worldlens/commit/538575a4e49c29de38a96c2ca621c78e5cdcc038) _(summary of 5 commits, also listed here)_
+- Merge remote-tracking branch 'origin/main' into codex/issue-64-render-queue-persistence - [`76e368de58`](https://github.com/Ding-Ding-Projects/worldlens/commit/76e368de58f40ca6abe1b4e24f306c6fba9f92b2) _(summary of 2 commits, also listed here)_
+
+### Documentation
+
+- Merge current main into queue restart proof - [`326fc6e583`](https://github.com/Ding-Ding-Projects/worldlens/commit/326fc6e5834b486341a6bb318a68e2244d2e7853) _(summary of 45 commits, also listed here)_
+- Record render-queue acceptance evidence - [`b6784d9a79`](https://github.com/Ding-Ding-Projects/worldlens/commit/b6784d9a79883ec57c5b4316077454709f3d8c5b)
+
+## 1.0.1212 - 2026-08-19
+
+Tagged at [`81229a31f9`](https://github.com/Ding-Ding-Projects/worldlens/commit/81229a31f91d8606270b0d1de936236f422ee675).
+
+### Server, CLI and configuration
+
+- Integrate render queue priority proof - [`81229a31f9`](https://github.com/Ding-Ding-Projects/worldlens/commit/81229a31f91d8606270b0d1de936236f422ee675) _(summary of 3 commits, also listed here)_
+- Prove render queue priority under load - [`5f2fe71136`](https://github.com/Ding-Ding-Projects/worldlens/commit/5f2fe71136127e818e53862807d5a30e1611592a)
+
+### Build, release and tooling
+
+- Verify persisted cloud-render removal without another dispatch - [`b0aa932181`](https://github.com/Ding-Ding-Projects/worldlens/commit/b0aa932181114ae0ee12409ec38eb7927bb267bf)
+- Start live capture timing after the HTML artifact exists - [`d1d6335392`](https://github.com/Ding-Ding-Projects/worldlens/commit/d1d6335392a5a1f71782b5ab0f672c0824e41a4b)
+- Write promotion receipts for live Pages captures - [`ddc07860d0`](https://github.com/Ding-Ding-Projects/worldlens/commit/ddc07860d04568e15e3bd94654fbb480e3c46409)
+- Hold Pages routes stable for three seconds - [`8f5bb1d77a`](https://github.com/Ding-Ding-Projects/worldlens/commit/8f5bb1d77aa909538991d5536267f1044bf5cab9)
+- Wait for Pages hash routes to settle before capture - [`50c6e7ef20`](https://github.com/Ding-Ding-Projects/worldlens/commit/50c6e7ef2035765d7a7fd0c96e973398e1ac04e9)
+- Resolve the exact Pages hash before every proof phase - [`aaed8f1913`](https://github.com/Ding-Ding-Projects/worldlens/commit/aaed8f191394f6ec92fa56a9a14d6368d709606f)
+- Verify exact hash-routed Pages targets during capture - [`ea9704e14b`](https://github.com/Ding-Ding-Projects/worldlens/commit/ea9704e14bdf9caddbc50e76bf8802eb9f2f1c13)
+- Allow the live repository preflight two minutes - [`4ba56523cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/4ba56523cd7fa1a2106b15c64122ae12926f5f70)
+- Keep the Lowlevel retry alive until GitHub lists the run - [`7070f6fd54`](https://github.com/Ding-Ding-Projects/worldlens/commit/7070f6fd5409846f39d11a4c7c51d9b385b70234)
+
+### Documentation
+
+- Merge remote-tracking branch 'origin/main' into codex/issue-68-render-priority-parity - [`2bb87a7ebc`](https://github.com/Ding-Ding-Projects/worldlens/commit/2bb87a7ebc97163d9d0d5fc70749d37283e98c63) _(summary of 2 commits, also listed here)_
+- Refresh the complete Lowlevel UI evidence set - [`faadd0aea6`](https://github.com/Ding-Ding-Projects/worldlens/commit/faadd0aea6141b4b013688760d7fa6b72354289a)
+- Document the live Bayville Pages deployment - [`8e6247f261`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e6247f26164122ffac80ba31d62d9d80f60d356)
+- Publish Pages after skipped render waves - [`edd98f2957`](https://github.com/Ding-Ding-Projects/worldlens/commit/edd98f2957933e42eaf2ca54029107c55e8809da)
+
+## 1.0.1194 - 2026-08-19
+
+Tagged at [`0eae8eda0d`](https://github.com/Ding-Ding-Projects/worldlens/commit/0eae8eda0d3458b9c4f9e387ce1d41dd4230bacd).
+
+### Rendering and world data
+
+- Preserve the BlueMap web shell across resumed shards - [`0eae8eda0d`](https://github.com/Ding-Ding-Projects/worldlens/commit/0eae8eda0d3458b9c4f9e387ce1d41dd4230bacd)
+- Merge current main into compatibility contract - [`563b7e8240`](https://github.com/Ding-Ding-Projects/worldlens/commit/563b7e8240b9bffe7ad79db66366ba3cbb0cce31) _(summary of 19 commits, also listed here)_
+
+### Desktop shell
+
+- Clear terminal run metadata during retry dispatch - [`a084b15761`](https://github.com/Ding-Ding-Projects/worldlens/commit/a084b157616141d165e2418d66744bb810d3339f)
+- Dispatch a fresh run after a failed cloud render - [`84f41e2fb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/84f41e2fb6767f24a22c6ac3d3ec37d62d1e1be6)
+
+### Build, release and tooling
+
+- Merge current main before compatibility delivery - [`e8bb0cb431`](https://github.com/Ding-Ding-Projects/worldlens/commit/e8bb0cb431363f6b68ac311c474bbd8347cc8d91) _(summary of 2 commits, also listed here)_
+- Complete the two-phase public render dispatch - [`8972a84f70`](https://github.com/Ding-Ding-Projects/worldlens/commit/8972a84f70d0fd7e8f02ff6b7eb90f243149e250)
+- Target the mandatory public disclosure directly - [`7abbf94fd7`](https://github.com/Ding-Ding-Projects/worldlens/commit/7abbf94fd77652535a4b2d62b7e941f4ab136c16)
+- Handle unchanged-world retries in the public Pages journey - [`db43392a60`](https://github.com/Ding-Ding-Projects/worldlens/commit/db43392a607a8e08d4ea313905346bc747ac7071)
+
+### Documentation
+
+- Merge current main before failed-run retry delivery - [`3354ec6fcb`](https://github.com/Ding-Ding-Projects/worldlens/commit/3354ec6fcbb324315e6a1702eb5d61551bab2800) _(summary of 9 commits, also listed here)_
+- Remove private vocabulary from compatibility handoff - [`e86b0b60b3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e86b0b60b3a551384a7fa8c9dff924e5e2967b59)
+- Merge issue #60 Windows compatibility contract - [`b002286bf1`](https://github.com/Ding-Ding-Projects/worldlens/commit/b002286bf1e345b708ac2ce6f1540f253e2577aa) _(summary of 4 commits, also listed here)_
+- Reconcile compatibility handoff status - [`e4a54b89c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/e4a54b89c9cf3ef329c2a8f4ebb6cee27fc48acd)
+- Document Windows 1.0 compatibility contract - [`ec7e80011d`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec7e80011da149398731398f8baf372edfbc0926)
+
+## 1.0.1183 - 2026-08-19
+
+Tagged at [`39c920626a`](https://github.com/Ding-Ding-Projects/worldlens/commit/39c920626a9f900a299ee577d0e0f38e7ed8b31f).
+
+### Interface
+
 - Fix generated Pages verification for new repositories - [`3366bfcc5a`](https://github.com/Ding-Ding-Projects/worldlens/commit/3366bfcc5acccb5b22d9225fa8bbc2ce8cb0bb0f)
 
 ### Rendering and world data
 
-- Merge current main into compatibility contract - [`563b7e8240`](https://github.com/Ding-Ding-Projects/worldlens/commit/563b7e8240b9bffe7ad79db66366ba3cbb0cce31) _(summary of 19 commits, also listed here)_
 - Add focused render-queue acceptance coverage - [`c439b3a1fd`](https://github.com/Ding-Ding-Projects/worldlens/commit/c439b3a1fd44fbab8666c4f57ec0941dfce2a69b)
 - Merge remote-tracking branch 'origin/main' into codex/issue-91-retire-local-webserver - [`bee28ea506`](https://github.com/Ding-Ding-Projects/worldlens/commit/bee28ea506b97d3dc9931303159a98de88e8ddda) _(summary of 4 commits, also listed here)_
 - Merge issue #89 banner compatibility proof - [`e7810cf0b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/e7810cf0b1d4b22964ef83ccccaf55f55261a837) _(summary of 2 commits, also listed here)_
@@ -40,20 +1253,12 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
-- Merge current main before compatibility delivery - [`e8bb0cb431`](https://github.com/Ding-Ding-Projects/worldlens/commit/e8bb0cb431363f6b68ac311c474bbd8347cc8d91) _(summary of 2 commits, also listed here)_
-- Complete the two-phase public render dispatch - [`8972a84f70`](https://github.com/Ding-Ding-Projects/worldlens/commit/8972a84f70d0fd7e8f02ff6b7eb90f243149e250)
-- Target the mandatory public disclosure directly - [`7abbf94fd7`](https://github.com/Ding-Ding-Projects/worldlens/commit/7abbf94fd77652535a4b2d62b7e941f4ab136c16)
-- Handle unchanged-world retries in the public Pages journey - [`db43392a60`](https://github.com/Ding-Ding-Projects/worldlens/commit/db43392a607a8e08d4ea313905346bc747ac7071)
 - Add Lowlevel public Pages retry journey - [`39c920626a`](https://github.com/Ding-Ding-Projects/worldlens/commit/39c920626a9f900a299ee577d0e0f38e7ed8b31f)
 - Merge current main before runtime proof delivery - [`6b5c39ec12`](https://github.com/Ding-Ding-Projects/worldlens/commit/6b5c39ec120795acc2e58ad3786eb09ffef22863) _(summary of 2 commits, also listed here)_
 - Capture private Pages refusal before render fallback - [`55f8aada78`](https://github.com/Ding-Ding-Projects/worldlens/commit/55f8aada785ad0aac6ee6b7d1752d5e5663b9097)
 
 ### Documentation
 
-- Remove private vocabulary from compatibility handoff - [`e86b0b60b3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e86b0b60b3a551384a7fa8c9dff924e5e2967b59)
-- Merge issue #60 Windows compatibility contract - [`b002286bf1`](https://github.com/Ding-Ding-Projects/worldlens/commit/b002286bf1e345b708ac2ce6f1540f253e2577aa) _(summary of 4 commits, also listed here)_
-- Reconcile compatibility handoff status - [`e4a54b89c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/e4a54b89c9cf3ef329c2a8f4ebb6cee27fc48acd)
-- Document Windows 1.0 compatibility contract - [`ec7e80011d`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec7e80011da149398731398f8baf372edfbc0926)
 - Record render-queue acceptance evidence - [`b526739446`](https://github.com/Ding-Ding-Projects/worldlens/commit/b526739446cae2906631f83c041aa7b7ff247139)
 
 ## 1.0.1172 - 2026-08-19

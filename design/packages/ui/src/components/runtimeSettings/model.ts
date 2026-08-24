@@ -157,7 +157,7 @@ function hasOnlyKeys(record: Record<string, unknown>, allowed: readonly string[]
     return Object.keys(record).every((key) => allowed.includes(key));
 }
 
-function validSourceUrl(url: string): boolean {
+function validSourceUrl(url: string, allowPrivateNetwork = false): boolean {
     try {
         const parsed = new URL(url);
         return (
@@ -165,7 +165,8 @@ function validSourceUrl(url: string): boolean {
             (parsed.protocol === "http:" &&
                 (parsed.hostname === "localhost" ||
                     parsed.hostname === "127.0.0.1" ||
-                    parsed.hostname === "[::1]"))
+                    parsed.hostname === "[::1]" ||
+                    allowPrivateNetwork))
         );
     } catch {
         return false;
@@ -189,7 +190,7 @@ function validateSourceConfig(source: RuntimeSource, value: unknown): value is R
     const url = value.url;
     const entityId = value.entityId;
     const credentialRef = value.credentialRef;
-    if (url !== undefined && (!boundedString(url, 2048) || !validSourceUrl(url))) return false;
+    if (url !== undefined && (!boundedString(url, 2048) || !validSourceUrl(url, source === "homeAssistant"))) return false;
     if (
         entityId !== undefined &&
         (!boundedString(entityId, 256) || !/^[a-zA-Z0-9_.-]+\.[a-zA-Z0-9_.-]+$/.test(entityId))

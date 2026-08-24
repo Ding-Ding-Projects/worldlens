@@ -1,4 +1,4 @@
-import type { RuntimeSettingsState } from "./model.js";
+import { resolveScheduledValues, type RuntimeSettingsState } from "./model.js";
 
 export interface RuntimeCoordinatorBridge {
     refreshExternal(request: {
@@ -15,7 +15,7 @@ export interface RuntimeCoordinatorBridge {
 
 export function createRuntimeSettingsCoordinator(options: {
     readState: () => RuntimeSettingsState;
-    applyTemporary: (values: Readonly<Record<string, string | number>>) => void;
+    applyTemporary: (values: Readonly<Record<string, unknown>>) => void;
     clearTemporary?: () => void;
     bridge: RuntimeCoordinatorBridge | null;
     intervalMs?: number;
@@ -23,8 +23,16 @@ export function createRuntimeSettingsCoordinator(options: {
     let timer: ReturnType<typeof setInterval> | null = null;
     let generation = 0;
     let expiry: ReturnType<typeof setTimeout> | null = null;
+    let externalValues: Readonly<Record<string, unknown>> = {};
+    const applyLocalSchedule = (): void => {
+        const state = options.readState();
+        const local = resolveScheduledValues(state.values, state.schedules);
+        const changed = Object.keys(local).some((key) => local[key as keyof typeof local] !== state.values[key as keyof typeof state.values]);
+        if (changed) options.applyTemporary(local as unknown as Readonly<Record<string, unknown>>);
+    };
     const refreshNow = async (): Promise<void> => {
         const run = ++generation;
+        applyLocalSchedule();
         if (options.bridge === null) return;
         const rules = options
             .readState()
@@ -47,11 +55,14 @@ export function createRuntimeSettingsCoordinator(options: {
         if (run !== generation) return;
         for (const result of results) {
             if (result.ok && result.values !== undefined) {
+                externalValues = { ...externalValues, ...result.values };
                 options.applyTemporary(result.values);
                 if (expiry !== null) clearTimeout(expiry);
                 expiry = setTimeout(
                     () => {
-                        options.clearTemporary?.();
+                        externalValues = {};
+                        applyLocalSchedule();
+                        if (Object.keys(externalValues).length === 0) options.clearTemporary?.();
                         expiry = null;
                     },
                     5 * 60 * 1000,
@@ -72,6 +83,7 @@ export function createRuntimeSettingsCoordinator(options: {
             timer = null;
             if (expiry !== null) clearTimeout(expiry);
             expiry = null;
+            externalValues = {};
             options.clearTemporary?.();
         },
         refreshNow,
