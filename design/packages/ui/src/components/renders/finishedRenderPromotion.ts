@@ -1,4 +1,5 @@
 export interface FinishedRenderSummary {
+    readonly promotionId?: string;
     readonly outcome: "running" | "finished" | "failed" | "cancelled";
     readonly dataRoot: string | null;
     readonly maps: readonly { readonly id: string }[];
@@ -12,10 +13,12 @@ export interface FinishedRenderSummary {
  */
 export function promoteFinishedLocalRenders(
     summaries: readonly FinishedRenderSummary[],
-    open: (dataRoot: string, mapIds: readonly string[]) => void,
+    open: (dataRoot: string, mapIds: readonly string[], promotionId?: string) => void,
 ): void {
     for (const summary of summaries) {
         if (summary.outcome !== "finished" || summary.dataRoot === null) continue;
-        open(summary.dataRoot, summary.maps.map((map) => map.id));
+        const mapIds = summary.maps.map((map) => map.id);
+        if (summary.promotionId === undefined) open(summary.dataRoot, mapIds);
+        else open(summary.dataRoot, mapIds, summary.promotionId);
     }
 }

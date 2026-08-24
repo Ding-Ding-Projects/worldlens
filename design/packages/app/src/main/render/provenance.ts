@@ -19,6 +19,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ProjectRenderEngine } from "@worldlens/config";
 import type { RuntimeMode } from "../runtime/plan.js";
+import { isCompletedOutputManifest, type CompletedOutputManifest } from "./outputManifest.js";
 
 /** Bumped when the shape below changes incompatibly. */
 export const RENDER_RECORD_VERSION = 1;
@@ -125,6 +126,8 @@ export interface RenderRecord {
     readonly failureCode: string | null;
     readonly durationMs: number | null;
     readonly appVersion: string | null;
+    readonly configHash?: string;
+    readonly outputManifest?: CompletedOutputManifest;
 }
 
 /** A one-line description for an About or map-details surface. */
@@ -166,6 +169,8 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
     }
     if (!isRecord(parsed)) return null;
     if (parsed.recordVersion !== RENDER_RECORD_VERSION) return null;
+    if (parsed.outputManifest !== undefined && !isCompletedOutputManifest(parsed.outputManifest))
+        return null;
 
     const renderId = readString(parsed.renderId);
     const engine = readString(parsed.engine);
@@ -197,6 +202,8 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
         failureCode: readString(parsed.failureCode),
         durationMs: typeof parsed.durationMs === "number" ? parsed.durationMs : null,
         appVersion: readString(parsed.appVersion),
+        ...(typeof parsed.configHash === "string" ? { configHash: parsed.configHash } : {}),
+        ...(parsed.outputManifest === undefined ? {} : { outputManifest: parsed.outputManifest }),
     };
 }
 

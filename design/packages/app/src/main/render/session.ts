@@ -83,6 +83,10 @@ export interface RenderSessionMap {
     readonly world: string;
     readonly dimension: string;
     readonly name: string;
+    /** The resolved viewer order used when the session was started. */
+    readonly sorting: number;
+    /** The resolved starting position, absent when the engine used its default. */
+    readonly startPos?: { readonly x: number; readonly z: number };
     /**
      * The complete `maps/<id>.conf` body the render was started with, when it had one.
      *
@@ -251,11 +255,13 @@ export function newRenderSession(input: NewSessionInput): RenderSession {
     return {
         sessionVersion: RENDER_SESSION_VERSION,
         renderId: input.renderId,
-        maps: input.maps.map((map) => ({
+        maps: input.maps.map((map, index) => ({
             id: map.id,
             world: map.world,
             dimension: map.dimension ?? "minecraft:overworld",
             name: map.name ?? map.id,
+            sorting: map.sorting ?? index,
+            ...(map.startPos === undefined ? {} : { startPos: { ...map.startPos } }),
             ...(map.config === undefined ? {} : { config: map.config }),
         })),
         configDir: input.configDir,
@@ -303,17 +309,41 @@ function readMaps(value: unknown): RenderSessionMap[] {
         const world = readString(entry.world);
         if (id === null || world === null) continue;
         const config = readString(entry.config);
+        const sorting =
+            entry.sorting === undefined
+                ? maps.length
+                : typeof entry.sorting === "number" && Number.isSafeInteger(entry.sorting)
+                  ? entry.sorting
+                  : null;
+        if (sorting === null) continue;
+        const startPos = readStartPos(entry.startPos);
+        if (entry.startPos !== undefined && startPos === undefined) continue;
         maps.push({
             id,
             world,
             name: readString(entry.name) ?? id,
             dimension: readString(entry.dimension) ?? "minecraft:overworld",
+            sorting,
+            ...(startPos === null || startPos === undefined ? {} : { startPos }),
             // Absent rather than empty for a session written before this field existed,
             // which is the truth about it: that render had no config body.
             ...(config === null ? {} : { config }),
         });
     }
     return maps;
+}
+
+function readStartPos(
+    value: unknown,
+): { readonly x: number; readonly z: number } | null | undefined {
+    if (value === undefined || value === null) return null;
+    if (!isRecord(value)) return undefined;
+    return typeof value.x === "number" &&
+        Number.isFinite(value.x) &&
+        typeof value.z === "number" &&
+        Number.isFinite(value.z)
+        ? { x: value.x, z: value.z }
+        : undefined;
 }
 
 function readProgress(value: unknown): RenderSessionProgress | null {
@@ -503,7 +533,9 @@ export class RenderSessionStore {
         return typeof configured === "string" ? configured : configured();
     }
 
-    async start(input: Omit<NewSessionInput, "ownerInstance" | "ownerPid">): Promise<RenderSession> {
+    async start(
+        input: Omit<NewSessionInput, "ownerInstance" | "ownerPid">,
+    ): Promise<RenderSession> {
         const session = newRenderSession({
             ...input,
             ownerInstance: this.instanceId,

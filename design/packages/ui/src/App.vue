@@ -503,6 +503,15 @@ onMounted(() => {
     const bridge = (
         globalThis as {
             worldlens?: {
+                finishedRenderPromotions?: () => Promise<
+                    readonly {
+                        promotionId: string;
+                        outcome?: "finished";
+                        dataRoot: string;
+                        mapIds: readonly string[];
+                    }[]
+                >;
+                claimPromotionNotification?: (promotionId: string) => Promise<boolean>;
                 listRenders?: () => Promise<
                     readonly {
                         outcome: "running" | "finished" | "failed" | "cancelled";
@@ -513,12 +522,62 @@ onMounted(() => {
             };
         }
     ).worldlens;
-    if (typeof bridge?.listRenders !== "function") return;
-    void bridge.listRenders().then((summaries) => {
-        promoteFinishedLocalRenders(summaries, (dataRoot, mapIds) => {
-            openRenderedMap(dataRoot, mapIds);
-        });
-    });
+    const promote = (
+        summaries: readonly {
+            readonly promotionId?: string;
+            readonly outcome?: "running" | "finished" | "failed" | "cancelled";
+            readonly dataRoot: string | null;
+            readonly mapIds?: readonly string[];
+            readonly maps?: readonly { readonly id: string }[];
+        }[],
+    ) => {
+        promoteFinishedLocalRenders(
+            summaries.map((summary) => ({
+                ...(summary.promotionId === undefined ? {} : { promotionId: summary.promotionId }),
+                outcome: summary.outcome ?? "finished",
+                dataRoot: summary.dataRoot,
+                maps: summary.mapIds ? summary.mapIds.map((id) => ({ id })) : (summary.maps ?? []),
+            })),
+            (dataRoot, mapIds, promotionId) => {
+                const alreadyCatalogued = profilesStore.profiles.some(
+                    (profile) => profile.dataRoot === dataRoot,
+                );
+                if (!alreadyCatalogued) openRenderedMap(dataRoot, mapIds);
+                else
+                    addLocalMap(
+                        dataRoot,
+                        mapIds.length > 0 ? mapIds.join(", ") : t("world.rendered", "Rendered map"),
+                    );
+                if (promotionId === undefined) return;
+                const claim = bridge?.claimPromotionNotification;
+                if (typeof claim !== "function") return;
+                void claim(promotionId)
+                    .then((claimed) => {
+                        if (!claimed) return;
+                        raiseNotice(
+                            "success",
+                            t(
+                                "world.renderPromotion.recovered",
+                                "Finished render recovered and added to Your maps.",
+                            ),
+                            { category: "render-promotion", cooldownMs: 1_000 },
+                        );
+                    })
+                    .catch(() => undefined);
+            },
+        );
+    };
+    if (typeof bridge?.finishedRenderPromotions === "function") {
+        void bridge
+            .finishedRenderPromotions()
+            .then(promote)
+            .catch(() => undefined);
+    } else if (typeof bridge?.listRenders === "function") {
+        void bridge
+            .listRenders()
+            .then(promote)
+            .catch(() => undefined);
+    }
 });
 onUnmounted(() => {
     renderIndicator.dispose();
@@ -1500,46 +1559,101 @@ function openProject(world: string): void {
 async function onWorldDrop(event: DragEvent): Promise<void> {
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length === 0) {
-        raiseNotice("warning", t("world.drop.empty", "Nothing was dropped. Choose a world folder or a world archive."));
+        raiseNotice(
+            "warning",
+            t("world.drop.empty", "Nothing was dropped. Choose a world folder or a world archive."),
+        );
         return;
     }
     if (runningRenderCount.value > 0) {
-        raiseNotice("warning", t("world.drop.busy", "A render is already running, so this world was not opened."));
+        raiseNotice(
+            "warning",
+            t("world.drop.busy", "A render is already running, so this world was not opened."),
+        );
         return;
     }
     const file = files[0];
     if (file === undefined) return;
     if (files.length > 1) {
-        raiseNotice("info", t("world.drop.multiple", { count: files.length }, "Several items were dropped; checking the first one."));
+        raiseNotice(
+            "info",
+            t(
+                "world.drop.multiple",
+                { count: files.length },
+                "Several items were dropped; checking the first one.",
+            ),
+        );
     }
-    const pathForFile = (globalThis as { worldlens?: { pathForDroppedFile?: (file: File) => string | null } }).worldlens?.pathForDroppedFile;
+    const pathForFile = (
+        globalThis as { worldlens?: { pathForDroppedFile?: (file: File) => string | null } }
+    ).worldlens?.pathForDroppedFile;
     const path = typeof pathForFile === "function" ? pathForFile(file) : null;
     if (path === null) {
-        raiseNotice("warning", t("world.drop.noPath", "This drop has no local file path. Use the world folder field or Browse instead."));
+        raiseNotice(
+            "warning",
+            t(
+                "world.drop.noPath",
+                "This drop has no local file path. Use the world folder field or Browse instead.",
+            ),
+        );
         return;
     }
     if (isWorldArchive(file.name)) {
-        const extract = (globalThis as { worldlens?: { extractDroppedWorld?: (archive: string) => Promise<string | null> } }).worldlens?.extractDroppedWorld;
+        const extract = (
+            globalThis as {
+                worldlens?: { extractDroppedWorld?: (archive: string) => Promise<string | null> };
+            }
+        ).worldlens?.extractDroppedWorld;
         if (typeof extract !== "function") {
-            raiseNotice("warning", t("world.drop.archiveUnavailable", "That world archive was recognised, but this build cannot unpack dropped archives yet."));
+            raiseNotice(
+                "warning",
+                t(
+                    "world.drop.archiveUnavailable",
+                    "That world archive was recognised, but this build cannot unpack dropped archives yet.",
+                ),
+            );
             return;
         }
         const extracted = await extract(path).catch(() => null);
         if (extracted === null) {
-            raiseNotice("error", t("world.drop.archiveFailed", "The world archive could not be unpacked."));
+            raiseNotice(
+                "error",
+                t("world.drop.archiveFailed", "The world archive could not be unpacked."),
+            );
             return;
         }
         revealDroppedWorld(extracted);
         return;
     }
-    const inspect = (globalThis as { worldlens?: { inspectWorldFolder?: (folder: string) => Promise<{ entries: readonly { path: string }[] }> } }).worldlens?.inspectWorldFolder;
+    const inspect = (
+        globalThis as {
+            worldlens?: {
+                inspectWorldFolder?: (
+                    folder: string,
+                ) => Promise<{ entries: readonly { path: string }[] }>;
+            };
+        }
+    ).worldlens?.inspectWorldFolder;
     if (typeof inspect !== "function") {
-        raiseNotice("warning", t("world.drop.unavailable", "This build cannot inspect dropped folders. Use the world field or Browse instead."));
+        raiseNotice(
+            "warning",
+            t(
+                "world.drop.unavailable",
+                "This build cannot inspect dropped folders. Use the world field or Browse instead.",
+            ),
+        );
         return;
     }
     const listing = await inspect(path).catch(() => null);
     if (listing === null || !looksLikeMinecraftWorld(listing.entries.map((entry) => entry.path))) {
-        raiseNotice("warning", t("world.drop.notWorld", { name: file.name }, '"{name}" does not look like a Minecraft world (no level.dat and world data were found).'));
+        raiseNotice(
+            "warning",
+            t(
+                "world.drop.notWorld",
+                { name: file.name },
+                '"{name}" does not look like a Minecraft world (no level.dat and world data were found).',
+            ),
+        );
         return;
     }
     revealDroppedWorld(path);
@@ -2925,7 +3039,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         v-model="mcServerAdoptBrowseOpen"
                                         @picked="reviewMcServerCandidate"
                                     />
-                        <AdoptionReviewDialog
+                                    <AdoptionReviewDialog
                                         v-model="mcServerAdoptOpen"
                                         :record="mcServerAdoptRecord"
                                         :container-id="mcServerAdoptContainerId"

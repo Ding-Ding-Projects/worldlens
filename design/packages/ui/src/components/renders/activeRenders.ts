@@ -341,10 +341,15 @@ export function createActiveRenders(options: ActiveRendersOptions = {}): ActiveR
                       : [...localIds.value, event.renderId];
               });
 
-    function pruneFinishedTracks(activeIds: readonly string[]): void {
+    function pruneFinishedTracks(
+        activeIds: readonly string[],
+        retainedFinishedIds: readonly string[],
+    ): void {
         const stillActive = new Set(activeIds);
+        const retained = new Set(retainedFinishedIds);
         for (const [renderId, track] of [...localTracks]) {
             if (stillActive.has(renderId)) continue;
+            if (retained.has(renderId)) continue;
             if (track.run.active.value) continue; // still starting/running by its own account
             // Kept for one more pass so a render that just finished still shows its result;
             // dropped once its state is a genuine ending and it has fallen off the active list.
@@ -359,14 +364,39 @@ export function createActiveRenders(options: ActiveRendersOptions = {}): ActiveR
     async function reconcileLocal(): Promise<void> {
         if (worldBridge === null) return;
         let active: readonly string[] = [];
+        let summaries: readonly RenderSummary[] = [];
         try {
-            active = await worldBridge.activeRenders();
+            [active, summaries] = await Promise.all([
+                worldBridge.activeRenders(),
+                worldBridge.listRenders(),
+            ]);
         } catch {
             return;
         }
         for (const renderId of active) ensureTrack(renderId);
+        const finishedIds: string[] = [];
+        for (const summary of summaries) {
+            if (summary.outcome !== "finished" || summary.dataRoot === null) continue;
+            const track = ensureTrack(summary.renderId);
+            track.seed = summary;
+            finishedIds.push(summary.renderId);
+            track.run.settle({
+                ok: true,
+                renderId: summary.renderId,
+                dataRoot: summary.dataRoot,
+                mapIds: summary.maps.map((map) => map.id),
+                engine: {
+                    id: summary.engineId,
+                    label: summary.engine,
+                    version: summary.engine,
+                    javaVersion: null,
+                },
+                durationMs: summary.durationMs ?? 0,
+            });
+        }
         localIds.value = [...new Set([...localIds.value, ...active])];
-        pruneFinishedTracks(active);
+        localIds.value = [...new Set([...localIds.value, ...finishedIds])];
+        pruneFinishedTracks(active, finishedIds);
         bump();
     }
 
