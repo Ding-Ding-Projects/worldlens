@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "44f3153e4dfcfdaa71aa8189de9ef387c000b38b",
+        shortSha: "44f3153e4d",
+        date: "2026-08-24T04:13:46-04:00",
+        subject: "Keep runtime voice levels distinct",
+        details: "Runtime copy now keeps the calm and maximum settings text stable while making every intermediate voice level materially distinct. The feature article also joins the documentation index, so the reader can actually find the work that just got built.\n\nRuntime copy 而家保留平靜同最玩味級別嘅穩定字眼，中間每級都有真差異。功能文章亦加入文件索引，讀者終於搵得到啱啱砌好嗰堆嘢。",
+        category: "interface",
+        areas: ["interface", "docs"],
+        files: 2,
+    },
+    {
         sha: "8248370a0e91b54471b4f13047af7f5bd85735c9",
         shortSha: "8248370a0e",
         date: "2026-08-24T03:56:09-04:00",

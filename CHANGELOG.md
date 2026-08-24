@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Keep runtime voice levels distinct - [`44f3153e4d`](https://github.com/Ding-Ding-Projects/worldlens/commit/44f3153e4dfcfdaa71aa8189de9ef387c000b38b)
 - Harden runtime credentials and evidence - [`8248370a0e`](https://github.com/Ding-Ding-Projects/worldlens/commit/8248370a0e91b54471b4f13047af7f5bd85735c9)
 - Complete protected runtime settings flows - [`e6ee1999df`](https://github.com/Ding-Ding-Projects/worldlens/commit/e6ee1999dff9b0d12346cebe8008f2e32e916afa)
 - Route runtime headings through locale levels - [`2b99bbc2c4`](https://github.com/Ding-Ding-Projects/worldlens/commit/2b99bbc2c46dfdcb1541124f64a58535a2684850)
