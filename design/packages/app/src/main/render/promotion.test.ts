@@ -27,6 +27,11 @@ async function fixture(): Promise<{ root: string; renderId: string }> {
         join(workspace.webRoot, "maps", "overworld", "settings.json"),
         JSON.stringify({ id: "overworld", name: "Overworld" }),
     );
+    await mkdir(join(workspace.webRoot, "maps", "overworld", "tiles"), { recursive: true });
+    await writeFile(
+        join(workspace.webRoot, "maps", "overworld", "tiles", "0.bin"),
+        "rendered payload",
+    );
     const record = {
         recordVersion: 1,
         renderId,
@@ -137,6 +142,72 @@ describe("RenderPromotionStore", () => {
         expect(await restarted.claimNotification(promotionId!)).toBe(false);
     });
 
+    it("releases the mutation queue when durable lock acquisition throws", async () => {
+        const { root, renderId } = await fixture();
+        const blocker = join(root, "storage-blocker");
+        await writeFile(blocker, "not a directory");
+        let blocked = true;
+        const store = new RenderPromotionStore({
+            storageDir: () => (blocked ? blocker : root),
+        });
+        await expect(store.promote(renderId)).rejects.toThrow();
+        blocked = false;
+        expect((await store.promote(renderId)).created).toBe(true);
+    });
+
+    it("keeps a slow live lease alive beyond the stale threshold", async () => {
+        const { root, renderId } = await fixture();
+        const writes = vi.fn(async (path: string, text: string) => {
+            await new Promise<void>((resolveWait) => setTimeout(resolveWait, 80));
+            await writeFile(path, text);
+        });
+        const store = new RenderPromotionStore({
+            storageDir: root,
+            writeText: writes,
+            lockStaleMs: 20,
+            lockHeartbeatMs: 5,
+            lockRetryMs: 5,
+            lockRetries: 40,
+        });
+        const first = store.promote(renderId);
+        let lockText = "";
+        for (let attempt = 0; attempt < 40 && lockText.length === 0; attempt += 1) {
+            try {
+                lockText = await readFile(join(root, ".finished-render-promotions.lock"), "utf8");
+            } catch {
+                await new Promise<void>((resolveWait) => setTimeout(resolveWait, 2));
+            }
+        }
+        expect(lockText).not.toBe("");
+        const firstLease = JSON.parse(lockText) as { heartbeatAt: string };
+        await new Promise<void>((resolveWait) => setTimeout(resolveWait, 45));
+        const secondLease = JSON.parse(
+            await readFile(join(root, ".finished-render-promotions.lock"), "utf8"),
+        ) as { heartbeatAt: string };
+        expect(secondLease.heartbeatAt).not.toBe(firstLease.heartbeatAt);
+        expect((await first).created).toBe(true);
+    });
+
+    it("shares the durable lock across case and junction aliases on Windows", async () => {
+        if (process.platform !== "win32") return;
+        const { root, renderId } = await fixture();
+        const alias = `${root}-alias`;
+        await rm(alias, { recursive: true, force: true });
+        try {
+            await symlink(root, alias, "junction");
+        } catch {
+            return;
+        }
+        const first = new RenderPromotionStore({ storageDir: root });
+        const second = new RenderPromotionStore({ storageDir: root.toUpperCase() });
+        const results = await Promise.all([first.promote(renderId), second.promote(renderId)]);
+        expect(results.filter((result) => result.created)).toHaveLength(1);
+        expect((await second.list()).map((entry) => entry.renderId)).toEqual([renderId]);
+        const junction = new RenderPromotionStore({ storageDir: alias });
+        expect((await junction.promote(renderId)).failure?.reason).toBe("unsafe-path");
+        await rm(alias, { recursive: true, force: true });
+    });
+
     it("drops stale output without mounting it", async () => {
         const { root, renderId } = await fixture();
         const unmount = vi.fn();
@@ -170,6 +241,24 @@ describe("RenderPromotionStore", () => {
         expect(unmount).toHaveBeenCalledWith(renderId);
     });
 
+    it("rewrites a persisted receipt whose manifest map array is malformed", async () => {
+        const { root, renderId } = await fixture();
+        const unmount = vi.fn();
+        const store = new RenderPromotionStore({ storageDir: root, unmount });
+        expect((await store.promote(renderId)).created).toBe(true);
+        const file = join(root, "finished-render-promotions.json");
+        const catalogue = JSON.parse(await readFile(file, "utf8")) as {
+            promotions: Array<Record<string, unknown>>;
+        };
+        const manifest = catalogue.promotions[0]!.outputManifest as Record<string, unknown>;
+        manifest.maps = [];
+        await writeFile(file, JSON.stringify(catalogue));
+        const recovered = await store.reconcile();
+        expect(recovered.promotions).toHaveLength(1);
+        expect(recovered.promotions[0]?.outputManifest?.maps).toHaveLength(1);
+        expect(unmount).toHaveBeenCalledWith(renderId);
+    });
+
     it("rejects a symlinked output ancestor when the platform permits creating one", async () => {
         const { root, renderId } = await fixture();
         const workspace = renderWorkspace(root, renderId);
@@ -186,9 +275,38 @@ describe("RenderPromotionStore", () => {
         expect((await verifyFinishedRender(workspace)).failure).not.toBeNull();
     });
 
+    it("detects a same-size tail tamper through the full-byte payload fingerprint", async () => {
+        const { root, renderId } = await fixture();
+        const store = new RenderPromotionStore({ storageDir: root });
+        const first = await store.promote(renderId);
+        const originalId = first.promotion?.promotionId;
+        await writeFile(
+            join(root, renderId, "web", "maps", "overworld", "tiles", "0.bin"),
+            "rendered payloaD",
+        );
+        const recovered = await store.reconcile();
+        expect(recovered.promotions).toHaveLength(1);
+        expect(recovered.promotions[0]?.promotionId).not.toBe(originalId);
+    });
+
     it("refuses malformed, incomplete, missing-output and session-mismatch receipts", async () => {
         const { root, renderId } = await fixture();
         const workspace = renderWorkspace(root, renderId);
+        const record = JSON.parse(await readFile(workspace.recordFile, "utf8")) as Record<
+            string,
+            unknown
+        >;
+        record.outputManifest = {
+            version: 1,
+            fileCount: 1,
+            totalBytes: 1,
+            payloadFingerprint: "a".repeat(64),
+            maps: [],
+        };
+        await writeFile(workspace.recordFile, JSON.stringify(record));
+        expect((await verifyFinishedRender(workspace)).failure?.reason).toBe("missing-record");
+        delete record.outputManifest;
+        await writeFile(workspace.recordFile, JSON.stringify(record));
         await writeFile(join(workspace.webRoot, "settings.json"), "not json");
         expect((await verifyFinishedRender(workspace)).failure?.reason).toBe("missing-output");
         await writeFile(
@@ -201,6 +319,51 @@ describe("RenderPromotionStore", () => {
             JSON.stringify({ status: "interrupted" }),
         );
         expect((await verifyFinishedRender(workspace)).failure?.reason).toBe("missing-session");
+    });
+
+    it("recomputes the canonical config fingerprint instead of trusting its shape", async () => {
+        const { root, renderId } = await fixture();
+        const workspace = renderWorkspace(root, renderId);
+        const record = JSON.parse(await readFile(workspace.recordFile, "utf8")) as Record<
+            string,
+            unknown
+        >;
+        record.configHash = "a".repeat(64);
+        await writeFile(workspace.recordFile, JSON.stringify(record));
+        const sessionFile = join(workspace.root, "session.json");
+        const session = JSON.parse(await readFile(sessionFile, "utf8")) as Record<string, unknown>;
+        session.configHash = "a".repeat(64);
+        await writeFile(sessionFile, JSON.stringify(session));
+        expect((await verifyFinishedRender(workspace)).failure?.reason).toBe("provenance-mismatch");
+    });
+
+    it("accepts a legitimate non-default sorting and start position when persisted", async () => {
+        const { root, renderId } = await fixture();
+        const workspace = renderWorkspace(root, renderId);
+        const record = JSON.parse(await readFile(workspace.recordFile, "utf8")) as Record<
+            string,
+            unknown
+        >;
+        const sessionFile = join(workspace.root, "session.json");
+        const session = JSON.parse(await readFile(sessionFile, "utf8")) as Record<string, unknown>;
+        const maps = [
+            {
+                id: "overworld",
+                world: "C:/world",
+                dimension: "minecraft:overworld",
+                name: "Overworld",
+                sorting: 7,
+                startPos: { x: 12, z: -4 },
+                config: 'lighting: { sky: "night" }',
+            },
+        ];
+        const configHash = renderConfigFingerprint(maps);
+        record.configHash = configHash;
+        session.maps = maps;
+        session.configHash = configHash;
+        await writeFile(workspace.recordFile, JSON.stringify(record));
+        await writeFile(sessionFile, JSON.stringify(session));
+        expect((await verifyFinishedRender(workspace)).failure).toBeNull();
     });
 
     it("keeps the previous catalogue when the catalogue write fails", async () => {
@@ -228,6 +391,7 @@ describe("RenderPromotionStore", () => {
             expect(result.failure).toBeNull();
             expect(result.promotion?.outputRoot.replaceAll("\\", "/")).toBe(`${fixtureRoot}/web`);
             expect(result.promotion?.mapIds).toEqual(["overworld", "nether", "end"]);
+            expect(result.promotion?.verificationStatus).toBe("migrated-unverified");
         } catch (error) {
             // The fixture is a local evidence input, not a build prerequisite for CI. A checkout without
             // it keeps the test meaningful by proving the verifier does not throw.

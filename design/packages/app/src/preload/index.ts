@@ -498,6 +498,7 @@ export interface FinishedRenderPromotion {
     };
     readonly startedAt: string;
     readonly finishedAt: string;
+    readonly verificationStatus: "verified" | "migrated-unverified";
     readonly outputIdentity: string;
     readonly verifiedReceipt: {
         readonly verifiedAt: string;

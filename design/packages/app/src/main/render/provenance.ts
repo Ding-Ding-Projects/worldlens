@@ -19,7 +19,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ProjectRenderEngine } from "@worldlens/config";
 import type { RuntimeMode } from "../runtime/plan.js";
-import type { CompletedOutputManifest } from "./outputManifest.js";
+import { isCompletedOutputManifest, type CompletedOutputManifest } from "./outputManifest.js";
 
 /** Bumped when the shape below changes incompatibly. */
 export const RENDER_RECORD_VERSION = 1;
@@ -169,6 +169,8 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
     }
     if (!isRecord(parsed)) return null;
     if (parsed.recordVersion !== RENDER_RECORD_VERSION) return null;
+    if (parsed.outputManifest !== undefined && !isCompletedOutputManifest(parsed.outputManifest))
+        return null;
 
     const renderId = readString(parsed.renderId);
     const engine = readString(parsed.engine);
@@ -201,24 +203,8 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
         durationMs: typeof parsed.durationMs === "number" ? parsed.durationMs : null,
         appVersion: readString(parsed.appVersion),
         ...(typeof parsed.configHash === "string" ? { configHash: parsed.configHash } : {}),
-        ...(isOutputManifest(parsed.outputManifest)
-            ? { outputManifest: parsed.outputManifest }
-            : {}),
+        ...(parsed.outputManifest === undefined ? {} : { outputManifest: parsed.outputManifest }),
     };
-}
-
-function isOutputManifest(value: unknown): value is CompletedOutputManifest {
-    if (typeof value !== "object" || value === null) return false;
-    const record = value as Record<string, unknown>;
-    return (
-        record.version === 1 &&
-        typeof record.fileCount === "number" &&
-        Number.isSafeInteger(record.fileCount) &&
-        typeof record.totalBytes === "number" &&
-        Number.isSafeInteger(record.totalBytes) &&
-        typeof record.payloadFingerprint === "string" &&
-        /^[a-f0-9]{64}$/.test(record.payloadFingerprint)
-    );
 }
 
 /** Anything that is not one of the two known runtimes reads as "not recorded". */

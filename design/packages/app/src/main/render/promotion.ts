@@ -1,13 +1,19 @@
 /** Durable, validated promotion of finished render output into the local catalogue. */
 
-import { createHash } from "node:crypto";
-import { lstat, readFile } from "node:fs/promises";
-import { join, relative, resolve, sep } from "node:path";
+import { randomUUID } from "node:crypto";
+import { lstat, mkdir, open, readFile, rm, stat } from "node:fs/promises";
+import { constants as fsConstants, realpathSync } from "node:fs";
+import { join, relative, resolve } from "node:path";
 import { atomicWriteTextFile } from "../storage/atomicReplace.js";
 import { isValidMapId } from "./config.js";
 import { readRenderRecord, type RenderRecord } from "./provenance.js";
-import { readRenderSession } from "./session.js";
-import { verifyCompletedOutputManifest, type CompletedOutputManifest } from "./outputManifest.js";
+import { readRenderSession, renderConfigFingerprint } from "./session.js";
+import {
+    buildCompletedOutputManifest,
+    isCompletedOutputManifest,
+    verifyCompletedOutputManifest,
+    type CompletedOutputManifest,
+} from "./outputManifest.js";
 import {
     isValidRenderId,
     listRenderIds,
@@ -23,6 +29,19 @@ const MAX_ENGINE_TEXT_LENGTH = 256;
 const MAX_REQUIRED_FILES = 256;
 const MAX_REQUIRED_FILE_LENGTH = 1024;
 const FILE_MUTATIONS = new Map<string, Promise<void>>();
+const LOCK_RETRY_MS = 100;
+const LOCK_RETRIES = 120;
+const LOCK_STALE_MS = 10 * 60 * 1000;
+const LOCK_HEARTBEAT_MS = 1_000;
+const PROCESS_START_IDENTITY = `${Math.floor(Date.now() - process.uptime() * 1_000)}:${randomUUID()}`;
+
+interface LockLease {
+    readonly version: 1;
+    readonly ownerPid: number;
+    readonly ownerStartIdentity: string;
+    readonly leaseId: string;
+    readonly heartbeatAt: string;
+}
 
 export interface FinishedRenderPromotion {
     readonly promotionVersion: 1;
@@ -49,6 +68,8 @@ export interface FinishedRenderPromotion {
     };
     readonly startedAt: string;
     readonly finishedAt: string;
+    /** Legacy records without a config hash are retained as explicitly unverified migrations. */
+    readonly verificationStatus: "verified" | "migrated-unverified";
     readonly outputIdentity: string;
     readonly outputManifest?: CompletedOutputManifest;
     readonly verifiedReceipt: {
@@ -93,6 +114,10 @@ export interface RenderPromotionStoreOptions {
     readonly projectId?: string | null;
     readonly writeText?: (path: string, text: string) => Promise<void>;
     readonly unmount?: (renderId: string) => void;
+    readonly lockRetryMs?: number;
+    readonly lockRetries?: number;
+    readonly lockStaleMs?: number;
+    readonly lockHeartbeatMs?: number;
 }
 
 export class RenderPromotionStore {
@@ -112,6 +137,24 @@ export class RenderPromotionStore {
 
     file(): string {
         return join(this.storageDir(), FINISHED_PROMOTION_FILE);
+    }
+
+    private lockFile(): string {
+        return join(this.canonicalStorageDir(), ".finished-render-promotions.lock");
+    }
+
+    private canonicalStorageDir(): string {
+        const resolved = resolve(this.storageDir());
+        try {
+            const real = realpathSync.native(resolved);
+            return process.platform === "win32" || process.platform === "darwin"
+                ? real.toLowerCase()
+                : real;
+        } catch {
+            return process.platform === "win32" || process.platform === "darwin"
+                ? resolved.toLowerCase()
+                : resolved;
+        }
     }
 
     async list(): Promise<readonly FinishedRenderPromotion[]> {
@@ -240,18 +283,67 @@ export class RenderPromotionStore {
     }
 
     private async serial<T>(work: () => Promise<T>): Promise<T> {
-        const key = this.file();
+        const key = this.canonicalStorageDir();
         const previous = FILE_MUTATIONS.get(key) ?? Promise.resolve();
         let release: (() => void) | undefined;
         const current = new Promise<void>((resolveRelease) => (release = resolveRelease));
         FILE_MUTATIONS.set(key, current);
         await previous;
+        let lock: (() => Promise<void>) | undefined;
         try {
+            lock = await this.acquireDurableLock();
             return await work();
         } finally {
+            await lock?.();
             release?.();
             if (FILE_MUTATIONS.get(key) === current) FILE_MUTATIONS.delete(key);
         }
+    }
+
+    private async acquireDurableLock(): Promise<() => Promise<void>> {
+        await mkdir(this.canonicalStorageDir(), { recursive: true });
+        const path = this.lockFile();
+        const retryMs = this.options.lockRetryMs ?? LOCK_RETRY_MS;
+        const retries = this.options.lockRetries ?? LOCK_RETRIES;
+        const staleMs = this.options.lockStaleMs ?? LOCK_STALE_MS;
+        const heartbeatMs = this.options.lockHeartbeatMs ?? LOCK_HEARTBEAT_MS;
+        for (let attempt = 0; attempt < retries; attempt += 1) {
+            try {
+                const handle = await open(path, "wx");
+                const lease: LockLease = {
+                    version: 1,
+                    ownerPid: process.pid,
+                    ownerStartIdentity: PROCESS_START_IDENTITY,
+                    leaseId: randomUUID(),
+                    heartbeatAt: new Date().toISOString(),
+                };
+                await handle.writeFile(`${JSON.stringify(lease)}\n`, "utf8");
+                await handle.close();
+                let released = false;
+                const heartbeat = setInterval(() => {
+                    void refreshLease(path, lease);
+                }, heartbeatMs);
+                heartbeat.unref?.();
+                return async () => {
+                    if (released) return;
+                    released = true;
+                    clearInterval(heartbeat);
+                    if (await ownsLease(path, lease)) await rm(path, { force: true });
+                };
+            } catch (error) {
+                if (!isAlreadyExists(error)) throw error;
+                try {
+                    const lease = await readLease(path);
+                    const age = Date.now() - (await stat(path)).mtimeMs;
+                    if (lease !== null && age > staleMs && !(await isLeaseOwnerAlive(lease)))
+                        await rm(path, { force: true });
+                } catch {
+                    // The competing process may have released it between stat and rm.
+                }
+                await new Promise<void>((resolveWait) => setTimeout(resolveWait, retryMs));
+            }
+        }
+        throw new Error("The render promotion catalogue lock remained held.");
     }
 
     private async reloadUnlocked(): Promise<void> {
@@ -352,7 +444,7 @@ export async function verifyFinishedRender(
             "provenance-mismatch",
             "workspace, record and session render ids differ",
         );
-    if (session.outputRoot !== workspace.webRoot)
+    if (canonicalTextPath(session.outputRoot) !== canonicalTextPath(workspace.webRoot))
         return failure(
             workspace.renderId,
             "provenance-mismatch",
@@ -374,6 +466,21 @@ export async function verifyFinishedRender(
             workspace.renderId,
             "provenance-mismatch",
             "session config identity is missing or malformed",
+        );
+    if (
+        record.configHash !== undefined &&
+        renderConfigFingerprint(session.maps) !== session.configHash
+    )
+        return failure(
+            workspace.renderId,
+            "provenance-mismatch",
+            "session config identity does not match its canonical map configuration",
+        );
+    if (record.configHash !== undefined && record.configHash !== session.configHash)
+        return failure(
+            workspace.renderId,
+            "provenance-mismatch",
+            "record and session config identities differ",
         );
     if (
         !sameTimestamp(record.finishedAt, session.endedAt) ||
@@ -441,7 +548,6 @@ export async function verifyFinishedRender(
             "web/settings.json map set differs from the completed record",
         );
     const requiredFiles = ["settings.json"];
-    const outputFiles = [rootSettingsPath];
     for (const mapId of mapIds) {
         if (!outputMaps.includes(mapId))
             return failure(
@@ -465,24 +571,36 @@ export async function verifyFinishedRender(
                 `map settings identity differs for ${mapId}`,
             );
         requiredFiles.push(relative(workspace.webRoot, mapSettings).replaceAll("\\", "/"));
-        outputFiles.push(mapSettings);
     }
-    const identity = await outputIdentity(workspace, outputFiles);
-    if (identity === null)
+    const outputManifest =
+        record.outputManifest ?? (await buildCompletedOutputManifest(workspace.webRoot, mapIds));
+    if (outputManifest === null)
         return failure(
             workspace.renderId,
             "missing-output",
-            "required output files disappeared while verifying",
+            "completed output manifest is missing or could not be computed",
         );
     if (
         record.outputManifest !== undefined &&
-        !(await verifyCompletedOutputManifest(workspace.webRoot, record.outputManifest))
+        !(await verifyCompletedOutputManifest(workspace.webRoot, outputManifest, mapIds))
     )
         return failure(
             workspace.renderId,
             "provenance-mismatch",
             "completed output manifest no longer matches the output tree",
         );
+    if (
+        outputManifest.maps.length !== mapIds.length ||
+        new Set(outputManifest.maps.map((map) => map.id)).size !== outputManifest.maps.length ||
+        outputManifest.maps.some((map) => !mapIds.includes(map.id)) ||
+        outputManifest.maps.some((map) => map.fileCount < 2 || map.totalBytes <= 0)
+    )
+        return failure(
+            workspace.renderId,
+            "malformed-output",
+            "a map has no rendered payload beyond settings",
+        );
+    const identity = outputManifest.payloadFingerprint;
 
     const promotion: FinishedRenderPromotion = {
         promotionVersion: 1,
@@ -509,8 +627,9 @@ export async function verifyFinishedRender(
         },
         startedAt: record.startedAt,
         finishedAt: record.finishedAt,
+        verificationStatus: record.configHash === undefined ? "migrated-unverified" : "verified",
         outputIdentity: identity,
-        ...(record.outputManifest === undefined ? {} : { outputManifest: record.outputManifest }),
+        outputManifest,
         verifiedReceipt: { verifiedAt: new Date().toISOString(), requiredFiles },
         notificationDelivered: false,
     };
@@ -525,36 +644,64 @@ function failure(
     return { promotion: null, created: false, failure: { renderId, reason, detail } };
 }
 
-async function outputIdentity(
-    workspace: RenderWorkspace,
-    files: readonly string[],
-): Promise<string | null> {
-    const hash = createHash("sha256");
-    hash.update(workspace.renderId);
-    for (const file of files) {
-        try {
-            hash.update(relative(workspace.webRoot, file));
-            const bytes = await readFile(file);
-            hash.update(String(bytes.byteLength));
-            hash.update(bytes);
-        } catch {
-            return null;
-        }
-    }
-    return hash.digest("hex");
-}
-
 async function safeJsonFile(
     path: string,
     workspaceRoot: string,
 ): Promise<Record<string, unknown> | null> {
     try {
         await assertNoLinks(path, workspaceRoot);
-        const parsed: unknown = JSON.parse(await readFile(path, "utf8"));
+        const before = await lstat(path);
+        const noFollow = process.platform === "win32" ? 0 : fsConstants.O_NOFOLLOW;
+        const handle = await open(path, fsConstants.O_RDONLY | noFollow);
+        let text: string;
+        try {
+            const opened = await handle.stat();
+            const afterOpen = await lstat(path);
+            if (
+                before.isSymbolicLink() ||
+                afterOpen.isSymbolicLink() ||
+                !sameFileIdentity(before, opened) ||
+                !sameFileIdentity(afterOpen, opened)
+            )
+                return null;
+            text = await handle.readFile("utf8");
+            const after = await handle.stat();
+            const afterPath = await lstat(path);
+            if (
+                !sameFileIdentity(opened, after) ||
+                afterPath.isSymbolicLink() ||
+                !sameFileIdentity(afterPath, after)
+            )
+                return null;
+        } finally {
+            await handle.close();
+        }
+        const parsed: unknown = JSON.parse(text);
         return isRecord(parsed) ? parsed : null;
     } catch {
         return null;
     }
+}
+
+function sameFileIdentity(
+    left: { size: number; mtimeMs: number; ctimeMs: number; ino?: number; dev?: number },
+    right: { size: number; mtimeMs: number; ctimeMs: number; ino?: number; dev?: number },
+): boolean {
+    return (
+        left.size === right.size &&
+        left.mtimeMs === right.mtimeMs &&
+        left.ctimeMs === right.ctimeMs &&
+        (left.ino === undefined ||
+            right.ino === undefined ||
+            left.ino === 0 ||
+            right.ino === 0 ||
+            left.ino === right.ino) &&
+        (left.dev === undefined ||
+            right.dev === undefined ||
+            left.dev === 0 ||
+            right.dev === 0 ||
+            left.dev === right.dev)
+    );
 }
 
 async function assertNoLinks(target: string, stopAt: string): Promise<void> {
@@ -578,8 +725,16 @@ async function assertNoLinks(target: string, stopAt: string): Promise<void> {
 }
 
 function isInside(root: string, child: string): boolean {
-    const prefix = root.endsWith(sep) ? root : `${root}${sep}`;
-    return child === root || child.startsWith(prefix);
+    const fold = (value: string) => {
+        const normalized = value.replaceAll("\\", "/");
+        return process.platform === "win32" || process.platform === "darwin"
+            ? normalized.toLowerCase()
+            : normalized;
+    };
+    const foldedRoot = fold(root);
+    const foldedChild = fold(child);
+    const prefix = foldedRoot.endsWith("/") ? foldedRoot : `${foldedRoot}/`;
+    return foldedChild === foldedRoot || foldedChild.startsWith(prefix);
 }
 
 function sameMap(
@@ -628,32 +783,31 @@ function sameStablePromotion(
     const stable = (value: FinishedRenderPromotion) => ({
         ...value,
         notificationDelivered: false,
+        outputRoot: canonicalTextPath(value.outputRoot),
+        provenance: {
+            ...value.provenance,
+            recordFile: canonicalTextPath(value.provenance.recordFile),
+            sessionFile: canonicalTextPath(value.provenance.sessionFile),
+        },
         verifiedReceipt: { ...value.verifiedReceipt, verifiedAt: "" },
     });
     return JSON.stringify(stable(left)) === JSON.stringify(stable(right));
+}
+
+function canonicalTextPath(value: string): string {
+    const normalized = value.replaceAll("\\", "/");
+    return process.platform === "win32" || process.platform === "darwin"
+        ? normalized.toLowerCase()
+        : normalized;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
 }
 
-function isOutputManifest(value: unknown): value is CompletedOutputManifest {
-    if (!isRecord(value)) return false;
-    return (
-        value.version === 1 &&
-        typeof value.fileCount === "number" &&
-        Number.isSafeInteger(value.fileCount) &&
-        value.fileCount >= 0 &&
-        typeof value.totalBytes === "number" &&
-        Number.isSafeInteger(value.totalBytes) &&
-        value.totalBytes >= 0 &&
-        typeof value.payloadFingerprint === "string" &&
-        /^[a-f0-9]{64}$/.test(value.payloadFingerprint)
-    );
-}
-
 function isPromotion(value: unknown): value is FinishedRenderPromotion {
     if (!isRecord(value)) return false;
+    const mapIds = Array.isArray(value.mapIds) ? value.mapIds : null;
     const engine = isRecord(value.engine) ? value.engine : null;
     const provenance = isRecord(value.provenance) ? value.provenance : null;
     const receipt = isRecord(value.verifiedReceipt) ? value.verifiedReceipt : null;
@@ -667,7 +821,7 @@ function isPromotion(value: unknown): value is FinishedRenderPromotion {
         value.dataRoot === `/local/${encodeURIComponent(value.renderId)}` &&
         typeof value.outputRoot === "string" &&
         typeof value.outputIdentity === "string" &&
-        (value.outputManifest === undefined || isOutputManifest(value.outputManifest)) &&
+        (value.outputManifest === undefined || isCompletedOutputManifest(value.outputManifest)) &&
         Array.isArray(value.mapIds) &&
         value.mapIds.length > 0 &&
         value.mapIds.length <= 64 &&
@@ -682,6 +836,8 @@ function isPromotion(value: unknown): value is FinishedRenderPromotion {
         value.startedAt.length <= 64 &&
         typeof value.finishedAt === "string" &&
         value.finishedAt.length <= 64 &&
+        (value.verificationStatus === "verified" ||
+            value.verificationStatus === "migrated-unverified") &&
         engine !== null &&
         (engine.id === "upstream-java" || engine.id === "typescript") &&
         typeof engine.version === "string" &&
@@ -720,10 +876,80 @@ function isPromotion(value: unknown): value is FinishedRenderPromotion {
             (typeof value.projectId === "string" &&
                 value.projectId.length <= MAX_PROJECT_ID_LENGTH)) &&
         typeof value.notificationDelivered === "boolean" &&
-        value.promotionId === `${value.renderId}:${value.outputIdentity}`;
+        value.promotionId === `${value.renderId}:${value.outputIdentity}` &&
+        (value.outputManifest === undefined ||
+            (value.outputIdentity === value.outputManifest.payloadFingerprint &&
+                mapIds !== null &&
+                value.outputManifest.maps.length === mapIds.length &&
+                value.outputManifest.maps.every((map) => mapIds.includes(map.id))));
     return ok;
 }
 
 function describe(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+function isAlreadyExists(error: unknown): boolean {
+    return (
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        (error as { code?: unknown }).code === "EEXIST"
+    );
+}
+
+async function readLease(path: string): Promise<LockLease | null> {
+    try {
+        const value: unknown = JSON.parse(await readFile(path, "utf8"));
+        if (!isRecord(value)) return null;
+        return value.version === 1 &&
+            typeof value.ownerPid === "number" &&
+            Number.isSafeInteger(value.ownerPid) &&
+            value.ownerPid > 0 &&
+            typeof value.ownerStartIdentity === "string" &&
+            value.ownerStartIdentity.length > 0 &&
+            typeof value.leaseId === "string" &&
+            value.leaseId.length > 0 &&
+            typeof value.heartbeatAt === "string"
+            ? (value as unknown as LockLease)
+            : null;
+    } catch {
+        return null;
+    }
+}
+
+async function ownsLease(path: string, expected: LockLease): Promise<boolean> {
+    const current = await readLease(path);
+    return (
+        current !== null &&
+        current.ownerPid === expected.ownerPid &&
+        current.ownerStartIdentity === expected.ownerStartIdentity &&
+        current.leaseId === expected.leaseId
+    );
+}
+
+async function refreshLease(path: string, lease: LockLease): Promise<void> {
+    try {
+        if (!(await ownsLease(path, lease))) return;
+        const handle = await open(path, "r+");
+        try {
+            const updated: LockLease = { ...lease, heartbeatAt: new Date().toISOString() };
+            await handle.truncate(0);
+            await handle.writeFile(`${JSON.stringify(updated)}\n`, "utf8");
+        } finally {
+            await handle.close();
+        }
+    } catch {
+        // A missing or replaced lease is not recreated by the heartbeat.
+    }
+}
+
+async function isLeaseOwnerAlive(lease: LockLease): Promise<boolean> {
+    if (lease.ownerPid === process.pid) return lease.ownerStartIdentity === PROCESS_START_IDENTITY;
+    try {
+        process.kill(lease.ownerPid, 0);
+        return true;
+    } catch {
+        return false;
+    }
 }

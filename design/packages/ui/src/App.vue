@@ -492,7 +492,7 @@ onMounted(() => {
     ) => {
         promoteFinishedLocalRenders(
             summaries.map((summary) => ({
-                promotionId: summary.promotionId,
+                ...(summary.promotionId === undefined ? {} : { promotionId: summary.promotionId }),
                 outcome: summary.outcome ?? "finished",
                 dataRoot: summary.dataRoot,
                 maps: summary.mapIds ? summary.mapIds.map((id) => ({ id })) : (summary.maps ?? []),
@@ -502,6 +502,11 @@ onMounted(() => {
                     (profile) => profile.dataRoot === dataRoot,
                 );
                 if (!alreadyCatalogued) openRenderedMap(dataRoot, mapIds);
+                else
+                    addLocalMap(
+                        dataRoot,
+                        mapIds.length > 0 ? mapIds.join(", ") : t("world.rendered", "Rendered map"),
+                    );
                 if (promotionId === undefined) return;
                 const claim = bridge?.claimPromotionNotification;
                 if (typeof claim !== "function") return;

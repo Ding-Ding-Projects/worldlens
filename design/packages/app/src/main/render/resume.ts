@@ -211,10 +211,7 @@ export async function findInterruptedRenders(
 }
 
 export type ResumeRefusalCode =
-    | "no-session"
-    | "not-interrupted"
-    | "already-running"
-    | "config-changed";
+    "no-session" | "not-interrupted" | "already-running" | "config-changed";
 
 export interface ResumePlan {
     readonly ok: true;
@@ -254,6 +251,8 @@ export function resumeRequestFor(session: RenderSession): RenderRequest {
             world: map.world,
             name: map.name,
             dimension: map.dimension,
+            sorting: map.sorting,
+            ...(map.startPos === undefined ? {} : { startPos: { ...map.startPos } }),
             ...(map.config === undefined ? {} : { config: map.config }),
         })),
         // Stated rather than left out. `-f` re-renders everything and would throw away

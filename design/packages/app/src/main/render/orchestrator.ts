@@ -1237,7 +1237,10 @@ export class RenderOrchestrator {
         let outputManifest: Awaited<ReturnType<typeof buildCompletedOutputManifest>> | undefined;
         if (this.options.promoteFinished !== undefined) {
             try {
-                outputManifest = await buildCompletedOutputManifest(workspace.webRoot);
+                outputManifest = await buildCompletedOutputManifest(
+                    workspace.webRoot,
+                    request.maps.map((map) => map.id),
+                );
             } catch {
                 outputManifest = null;
             }

@@ -212,9 +212,7 @@ export const EMPTY_RENDER: ProjectRender = {
  * The execution route a project asks for. Project format version 1 predates the field, so
  * absence deliberately means the original local behaviour rather than forcing a migration.
  */
-export function projectRenderRoute(
-    project: ProjectFile,
-): "local" | "github-actions" | "aws-batch" {
+export function projectRenderRoute(project: ProjectFile): "local" | "github-actions" | "aws-batch" {
     const route = project.render.route;
     if (route === "github-actions" || route === "aws-batch") {
         return route;
@@ -1268,6 +1266,7 @@ export function projectToRenderRequest(project: ProjectFile, world: string): Ren
 
     return {
         maps,
+        projectId: project.id,
         engine: project.render.engine,
         force: project.render.force,
         fixEdges: project.render.fixEdges,

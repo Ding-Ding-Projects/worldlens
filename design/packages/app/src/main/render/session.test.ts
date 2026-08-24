@@ -192,6 +192,7 @@ describe("RenderSessionStore", () => {
                 world: join(root, "world"),
                 name: "overworld",
                 dimension: "minecraft:overworld",
+                sorting: 0,
             },
         ]);
     });
