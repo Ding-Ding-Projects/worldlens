@@ -80,6 +80,24 @@ describe("mounted universal contracts surface", () => {
         expect(document.activeElement).toBe(origin);
     });
 
+    it("opens the same exact-origin wizard from the ContextMenu key", () => {
+        const view = createSiteUniversalContractsView({ i18n: new I18n(new Preferences()), appearance: appearanceStub });
+        document.body.append(view);
+        const origin = view.querySelector<HTMLElement>("button");
+        expect(origin).not.toBeNull();
+        origin?.focus();
+        origin?.dispatchEvent(new KeyboardEvent("keydown", { key: "ContextMenu", bubbles: true }));
+        const menuAction = document.querySelector<HTMLButtonElement>('[role="menuitem"]');
+        expect(menuAction).not.toBeNull();
+        menuAction?.click();
+        const wizard = document.querySelector<HTMLElement>(".mb-contract-lock-wizard");
+        expect(wizard?.dataset.targetId).toBe(origin?.dataset.contractElementId);
+        expect(wizard?.getAttribute("role")).toBe("dialog");
+        (wizard?.querySelector("button:last-of-type") as HTMLButtonElement | null)?.click();
+        expect(document.querySelector(".mb-contract-lock-wizard")).toBeNull();
+        expect(document.activeElement).toBe(origin);
+    });
+
     it("marks the QR evidence mode as synthetic and secret-free", () => {
         expect(SAFE_QR_CAPTURE_MODE.includesSecret).toBe(false);
         expect(SAFE_QR_CAPTURE_MODE.captureMetadataOmitted).toEqual(expect.arrayContaining(["secret", "uri", "qrPayload"]));

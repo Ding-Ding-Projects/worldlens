@@ -1536,6 +1536,9 @@ function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTM
             if (dismiss !== undefined) document.addEventListener("pointerdown", dismiss);
         };
         target.addEventListener("contextmenu", open);
-        target.addEventListener("keydown", (event) => { if (event instanceof KeyboardEvent && event.shiftKey && event.key === "F10") open(event); });
+        target.addEventListener("keydown", (event) => {
+            if (!(event instanceof KeyboardEvent)) return;
+            if ((event.shiftKey && event.key === "F10") || event.key === "ContextMenu") open(event);
+        });
     }
 }
