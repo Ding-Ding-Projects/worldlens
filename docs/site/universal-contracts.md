@@ -1,0 +1,97 @@
+# Universal contracts on the static site
+
+The site exposes a dedicated **Universal contracts** tab. It documents and demonstrates the
+site's own controls without pretending to be the installed application. The tab is keyboard
+reachable, responsive from narrow layouts, and all state is stored locally in the visitor's
+browser.
+
+## Language and tone
+
+The existing site language mode remains the source of truth for English, playful Hong Kong
+Cantonese, and bilingual copy. The two funny-level sliders remain independent. This tab uses a
+compact bilingual equivalent for its own headings and keeps security and storage facts exact.
+
+## Appearance
+
+The site already registers every rendered element with the per-element appearance editor. The
+Universal contracts tab adds a visible local studio for a continuous color field, numeric color
+entry, typography size, weight, italic, underline, strikethrough, capitalization, character
+spacing, and line height. The full editor supplies state layers, font previews, color-space
+translations, presets, import, export, and reset. Rainbow is represented as a sentinel, never as
+a CSS color string, and reduced motion settles the hue.
+
+Every mutation appends a redacted visitor-local history entry. Passwords, TOTP secrets, QR
+payloads, and file metadata are never copied into history or exports.
+
+## Search, menus, and tabs
+
+The tab has its own plain-text search. Its adjacent builder supports a bounded JavaScript regular
+expression, flags, sample text, syntax feedback, and a valid or invalid state. Dropdowns expose a
+local filter and the same builder affordance. The site's browser-style tabs, groups, overflow,
+bulk actions, and four tab searches remain provided by the shared tab modules.
+
+## Locks
+
+Each lock record names its target, scope, method, credential digest, and duration. A lock can be
+for an element, property, tab, or group. Passwords are SHA-256 digests only. TOTP credentials are
+kept in this tab's memory because a static site has no operating-system vault; after a reload the
+site asks the visitor to register the URI again rather than pretending the secret survived safely.
+The lock list keeps locked targets searchable and offers an honest Support Tickets route after a
+wrong answer. Clearing this site's storage is the self-service recovery route. These are toy
+experience locks, not encryption or security boundaries.
+
+## Authenticator
+
+Registration accepts an `otpauth://totp/` URI or the same fields manually, validates issuer,
+account, base32, algorithm, digits, and period, and generates RFC 6238 codes locally. The surface
+shows the current countdown and next-code boundary, groups entries, and offers clipboard and
+local QR-image input where the browser supports it. The URI remains the accessible text
+alternative to a QR image. No secret is sent over the network or persisted in localStorage.
+
+## Support Tickets
+
+Support Tickets are fictional, local, and non-networked. A ticket moves through received, triaged,
+and resolved states. The plain disclosure is intentionally outside the funny-level treatment:
+nothing is sent, no outside ticket exists, and nobody reads it. The recovery action points back to
+browser storage clearing. The site never clears storage from an unconfirmed button; it requires
+two exact keys and a full-range confirmation slider.
+
+## Unlock ladder
+
+A static site cannot perform server-side nonce grading. The shipped equivalent generates a
+single-use local nonce, checks a timed arithmetic challenge, and clears only a local waiting
+timestamp. It does not create a session, set a cookie, reveal a credential, or refund the attempt
+budget. The ladder has three attempts per rolling hour and falls back to the clock after that.
+School-mode users start at the sums, with the hidden dim-sum rung absent.
+
+## Privacy and browser boundary
+
+The site uses local browser storage only. It makes no network request for these controls. Browser
+storage can be cleared by the visitor or reclaimed by the browser, so the surface never claims the
+strength of a desktop credential vault. The closest static equivalent is stated beside the control
+when a server, native vault, or second window cannot exist on a static host.
+
+## Verification
+
+The hand-written inventory is `src/policy/siteUniversalInventory.ts`. Its negative regression
+removes a row and proves red, then restores the row and proves green. Focused tests cover URI
+round-tripping, RFC 6238 SHA-1 vectors, malformed base32, secret exclusion, lock digest storage,
+waiting-only clearing, and inventory deletion detection.
+
+Run:
+
+```text
+pnpm --filter @worldlens/site run typecheck
+pnpm exec vitest run design/packages/site/src/universal design/packages/site/src/policy/siteUniversalInventory.test.ts
+pnpm --filter @worldlens/site run build
+```
+
+The built interaction capture inventory is maintained with the site's existing capture harness.
+When a browser lacks a native capability such as QR image decoding, the surface says so and keeps
+the URI and manual path available.
+
+### Suggested articles
+
+- The site's appearance and settings articles for the complete editor and scheduled values.
+- The tab navigation article for groups, overflow, and bulk close behavior.
+- The app lock and authenticator articles for the installed application's stronger local boundary.

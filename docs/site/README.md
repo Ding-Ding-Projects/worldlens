@@ -28,3 +28,8 @@ screenshot-target count, resolved count, missing filenames, and whether capture 
 pinned to a candidate commit. This keeps “complete for the checked-in files” distinct from
 “fresh release-smoke proof”; the former may be true while the latter is honestly still pending.
 
+## Universal contracts
+
+See [Universal contracts](universal-contracts.md) for the site-only appearance, search, lock,
+authenticator, Support Tickets, waiting-ladder, privacy, and verification surface added in this
+task.

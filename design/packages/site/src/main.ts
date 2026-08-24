@@ -22,6 +22,7 @@ import "./dimsum/dimsum.css";
 import "./content/content.css";
 import "./walkthroughs/walkthroughs.css";
 import "./shots/shots.css";
+import "./universal/siteContracts.css";
 
 import { AppearanceController } from "./appearance/index.js";
 import {
@@ -105,6 +106,7 @@ import { sharedRegexEvaluator } from "./search/evaluator.js";
 import { SearchQueryModel } from "./search/queryModel.js";
 import type { CandidateField } from "./search/runSearch.js";
 import type { NotificationRecord } from "./notifications/Notifications.js";
+import { createSiteUniversalContractsView } from "./universal/siteContracts.js";
 
 /* -------------------------------------------------------------------------- */
 /* Small DOM helpers                                                          */
@@ -1667,6 +1669,16 @@ function boot(): void {
         },
     });
 
+    tabs.registerPage({
+        id: "universal-contracts",
+        label: { key: "site.universalContractsTab" },
+        closable: true,
+        render: (host) => {
+            host.replaceChildren(createSiteUniversalContractsView({ i18n }));
+            decoratePage(host, "universal-contracts", appearance);
+        },
+    });
+
     const palette = createShellPalette({
         prefs,
         tabs,
@@ -1857,6 +1869,13 @@ function createShellPalette(options: {
             description: options.i18n.t("site.descriptionNotifications"),
             kind: "command",
             run: () => options.tabs.reveal("notifications"),
+        },
+        {
+            id: "open-universal-contracts",
+            label: options.i18n.t("site.universalContractsTab"),
+            description: "Appearance, locks, authenticator, support recovery, and waiting-only ladder",
+            kind: "page",
+            run: () => options.tabs.reveal("universal-contracts"),
         },
         {
             id: "open-settings",
