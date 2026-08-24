@@ -52,6 +52,9 @@ cannot tell it is stale.
 - [`../porting-conventions.md`](../porting-conventions.md) governs the ported code these
   contracts sit on top of. The contracts are additions beyond upstream BlueMap, so anything they
   change about ported behaviour belongs in [`../deviations.md`](../deviations.md).
+- [`./discoverability-rich-results.md`](./discoverability-rich-results.md) documents the
+  searchable feature directory, local favourites and recent destinations, breadcrumbs, related
+  actions, disabled-state recovery, and the explicit inventory that keeps routes from vanishing.
 # Contracts
 
 - [JavaScript/ESM add-ons](./addons.md): manifest, capability consent, deterministic registry and worker sandbox.

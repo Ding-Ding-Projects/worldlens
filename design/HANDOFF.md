@@ -5446,3 +5446,92 @@ prove a final map, lowres rebuild, merged metadata, public result, or disk ceili
 
 No new workflow, tests, captures, merge, disk measurement, cleanup, or release action was run in
 this records-only lane. Issue #67 remains open pending a fresh run with the required receipts.
+
+## Discoverability corrective candidate — 2026-08-24
+
+The rejected discovery candidate was repaired in the same jer. Keyboard Enter now routes through a
+shared activation decision that refuses disabled results, keeps the result visible, and announces
+the exact reason and recovery text. Arrow navigation filters disabled rows and disabled controls.
+Choice results now use `PaletteChoiceField`, a real searchable dropdown with its own local query and
+adjacent regex builder, rather than a second plain select.
+
+The host now passes typed live directory entries through `CommandPalette`: `TabbedNavigation`
+exposes current tab/group projections, `WorkPane` forwards them, and `App.vue` adds those entries,
+all bundled docs articles, every canonical Home catalogue feature, appearance controls, and the
+Support Tickets recovery route. All routes reuse existing activation and docs request paths.
+
+Discovery persistence now bounds favourite count and id length, normalizes records, and prunes ids
+that are not present in the current catalogue. The history manifest includes `palette-discovery`
+and `remoteTargetRecency`, with a source sweep that fails on an unlisted literal
+`recordAppSetting` call. The palette fake viewer fixtures now provide the real
+`setMapCoordinatePreview` seam, so the focused mounted suite exercises the intended boundary.
+
+Verification for the corrective candidate:
+
+- Palette, directory, activation, live-control, and history-manifest checks: **11 files, 178 tests
+  passed**.
+- UI production build passed after transforming 1,938 modules.
+- Typecheck still reports only the existing unrelated diagnostics. No diagnostic references the
+  corrective palette, tab projection, host registry, or persistence changes.
+- ESLint passed for the new and changed TypeScript palette files. The configured ESLint run ignores
+  the Vue files because no matching configuration is supplied; the production Vite build compiled
+  those Vue files successfully.
+- `git diff --check` and the public vocabulary scan are required before commit. This candidate does
+  not push, merge, or remove any checkout.
+## Discoverability and rich command results — lane handoff (2026-08-24)
+
+This lane extends the existing palette without changing `App.vue` or replacing any feature
+route. `paletteDiscovery.ts` persists only stable favourites and a bounded recent-destination id
+list. `PaletteRow.vue` now exposes an accessible favourite toggle, location breadcrumb, related
+action labels, and honest disabled/recovery copy while keeping switches, selects, and numeric
+fields wired to the original live setters. `paletteCatalog.ts` accepts optional tab/group/article/
+appearance/recovery directory entries from the owning shell and enriches every built-in row with
+validated discovery metadata. `featureDirectoryInventory.ts` is the hand-written fail-closed
+route list with a deliberate remove-one negative regression.
+
+Verification on commit `feature/discoverability-rich-results` before integration:
+
+- `pnpm install --frozen-lockfile` completed from the checked-in lockfile. It emitted only the
+  pre-existing workspace-bin warnings for unbuilt CLI package outputs.
+- Workspace packages `@worldlens/design-system`, `@worldlens/shared`, `@worldlens/config`, and
+  `@worldlens/viewer` built successfully.
+- Focused palette and directory tests: **4 files, 61 tests passed**.
+- `pnpm --filter @worldlens/ui build` passed, transforming 1,934 modules and producing the UI
+  bundle. Vite emitted its existing dynamic-import and large-chunk warnings only.
+- Full UI typecheck remains red on pre-existing unrelated files; no new diagnostic referenced the
+  palette changes. Existing mounted `CommandPalette.test.ts` also has a baseline Vuetify CSS-loader
+  failure in this checkout, so the new pure model/inventory tests and production build are the
+  decisive lane evidence.
+
+The integration lane still needs to pass its host-owned `App.vue` directory registries into
+`directoryEntries` if it has live article, recovery, tab, group, or appearance registries to add.
+No push, merge, cleanup, or external issue mutation was performed here.
+
+## Second discovery corrective candidate — 2026-08-24
+
+The second review's residuals are repaired in the next candidate. Arrow traversal now returns only
+real enabled primary actions or live controls. It never falls back to a row or a favourite button,
+and mounted coverage exercises enabled, disabled, enabled movement in both directions.
+
+Empty persisted groups are omitted from the live directory projection. The choice dropdown passes
+the originating control label into both its local search field and list accessibility label.
+Registry-shrink pruning is generation-checked, queued once, and refuses to overwrite a newer user
+change. Duplicate ids fail closed after built-in and supplied entries are combined, with both
+source classes named in the error.
+
+The production page inventory now lists every adult `App.vue` tab page and asserts each page appears
+both in the real source and in the palette. Every fixed page receives an individual deletion
+regression. A measured 512-result bound fails closed before the non-virtualized card can grow past
+its supported control-instantiation limit.
+
+Verification for this candidate:
+
+- Palette, directory, activation, mounted-control, registry, and history-manifest checks: **11
+  files, 187 tests passed**.
+- UI production build passed after transforming **1,938 modules**.
+- Typecheck attribution reports only the three existing unrelated `App.vue` diagnostics and no
+  palette, tab, registry, persistence, copy, or control diagnostic.
+- ESLint passed for the changed TypeScript palette files. The configured Vue lint route remains
+  unavailable for these Vue files because no matching configuration is supplied; Vite compiled
+  them successfully.
+- `git diff --check` and the public vocabulary scan are clean. No push, merge, or cleanup was done.

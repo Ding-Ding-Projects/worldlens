@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiArrowRightCircleOutline, mdiFlashOutline, mdiTuneVariant } from "@mdi/js";
-import { VIcon, VSelect, VSwitch, VTextField } from "vuetify/components";
+import {
+    mdiArrowRightCircleOutline,
+    mdiFlashOutline,
+    mdiStar,
+    mdiStarOutline,
+    mdiTuneVariant,
+} from "@mdi/js";
+import { VIcon, VSwitch, VTextField } from "vuetify/components";
 import { parseNumberInput, roundToStep } from "../config/fieldValue.js";
 import type { PaletteItem } from "./paletteItems.js";
+import PaletteChoiceField from "./PaletteChoiceField.vue";
 
 /**
  * One row of the palette, and the place the "no decorative controls" rule is actually kept.
@@ -29,13 +36,21 @@ import type { PaletteItem } from "./paletteItems.js";
  * box the user is halfway through typing into must not be rewritten under the cursor, which
  * is why the watch below refuses to touch a focused field.
  */
-const props = defineProps<{ item: PaletteItem }>();
+const props = withDefaults(
+    defineProps<{
+        item: PaletteItem;
+        favourite?: boolean;
+    }>(),
+    { favourite: false },
+);
 
 const emit = defineEmits<{
     /** A command was run or a destination chosen. The palette closes on this. */
     activate: [item: PaletteItem];
     /** A setting was written. The palette stays open and announces it. */
     changed: [item: PaletteItem];
+    /** The user changed the local favourite marker, not the feature itself. */
+    toggleFavourite: [item: PaletteItem];
 }>();
 
 const { t } = useI18n();
@@ -61,6 +76,16 @@ const icon = computed(() => {
  * way to tell which of the two they have landed on.
  */
 const kindLabel = computed(() => {
+    if (props.item.resultClass !== undefined) {
+        const labels: Record<string, string> = {
+            tab: t("palette.kind.tab", "Tab"),
+            group: t("palette.kind.group", "Group"),
+            article: t("palette.kind.article", "Article"),
+            recovery: t("palette.kind.recovery", "Recovery"),
+            appearance: t("palette.kind.appearance", "Appearance"),
+        };
+        return labels[props.item.resultClass] ?? t("palette.kind.destination", "Opens");
+    }
     switch (props.item.kind) {
         case "command":
             return t("palette.kind.command", "Command");
@@ -73,6 +98,7 @@ const kindLabel = computed(() => {
 
 function activate(): void {
     const item = props.item;
+    if (item.disabled !== undefined) return;
     if (item.kind === "command") item.run();
     else if (item.kind === "destination") item.go();
     else return;
@@ -145,7 +171,11 @@ function endEditing(): void {
 </script>
 
 <template>
-    <li class="mb-palette-row" data-palette-row>
+    <li
+        class="mb-palette-row"
+        data-palette-row
+        :aria-disabled="props.item.disabled !== undefined ? 'true' : undefined"
+    >
         <!--
             A command and a destination are one button covering the whole row: there is
             nothing inside either of them that is separately operable, so a nested control
@@ -156,6 +186,8 @@ function endEditing(): void {
             type="button"
             class="mb-palette-row__go"
             :aria-describedby="descriptionId"
+            :disabled="props.item.disabled !== undefined"
+            :aria-disabled="props.item.disabled !== undefined ? 'true' : undefined"
             @click="activate"
         >
             <v-icon class="mb-palette-row__icon" :icon="icon" size="20" aria-hidden="true" />
@@ -167,6 +199,19 @@ function endEditing(): void {
                     <template v-if="props.item.kind === 'destination'">
                         {{ " " }}{{ props.item.where }}
                     </template>
+                    <template v-if="props.item.disabled !== undefined">
+                        {{ " " }}{{ props.item.disabled.reason }}
+                        <template v-if="props.item.disabled.recovery !== undefined">
+                            {{ " " }}{{ props.item.disabled.recovery }}
+                        </template>
+                    </template>
+                </span>
+                <span
+                    v-if="props.item.location?.length"
+                    class="mb-palette-row__location"
+                    :aria-label="t('palette.row.location', 'Location')"
+                >
+                    {{ props.item.location.join(" › ") }}
                 </span>
             </span>
 
@@ -180,6 +225,19 @@ function endEditing(): void {
                 <span class="mb-palette-row__title">{{ props.item.title }}</span>
                 <span :id="descriptionId" class="mb-palette-row__detail">
                     {{ props.item.description }}
+                    <template v-if="props.item.disabled !== undefined">
+                        {{ " " }}{{ props.item.disabled.reason }}
+                        <template v-if="props.item.disabled.recovery !== undefined">
+                            {{ " " }}{{ props.item.disabled.recovery }}
+                        </template>
+                    </template>
+                </span>
+                <span
+                    v-if="props.item.location?.length"
+                    class="mb-palette-row__location"
+                    :aria-label="t('palette.row.location', 'Location')"
+                >
+                    {{ props.item.location.join(" › ") }}
                 </span>
             </span>
 
@@ -195,6 +253,7 @@ function endEditing(): void {
                     :model-value="props.item.control.value"
                     :aria-label="props.item.title"
                     :aria-describedby="descriptionId"
+                    :disabled="props.item.disabled !== undefined"
                     color="primary"
                     density="compact"
                     hide-details
@@ -202,18 +261,12 @@ function endEditing(): void {
                     @update:model-value="setToggle"
                 />
 
-                <v-select
+                <PaletteChoiceField
                     v-else-if="props.item.control.kind === 'choice'"
-                    class="mb-palette-row__select"
                     :model-value="props.item.control.value"
-                    :items="[...props.item.control.options]"
-                    item-title="label"
-                    item-value="id"
-                    :aria-label="props.item.title"
-                    :aria-describedby="descriptionId"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
+                    :options="props.item.control.options"
+                    :label="props.item.title"
+                    :disabled="props.item.disabled !== undefined"
                     @update:model-value="setChoice"
                 />
 
@@ -228,6 +281,7 @@ function endEditing(): void {
                     :suffix="props.item.control.unit"
                     :aria-label="props.item.title"
                     :aria-describedby="descriptionId"
+                    :disabled="props.item.disabled !== undefined"
                     variant="outlined"
                     density="compact"
                     hide-details
@@ -238,12 +292,48 @@ function endEditing(): void {
                 />
             </div>
         </div>
+
+        <button
+            type="button"
+            class="mb-palette-row__favourite"
+            :aria-label="
+                props.favourite
+                    ? t(
+                          'palette.row.removeFavourite',
+                          { title: props.item.title },
+                          'Remove {title} from favourites',
+                      )
+                    : t(
+                          'palette.row.addFavourite',
+                          { title: props.item.title },
+                          'Add {title} to favourites',
+                      )
+            "
+            :aria-pressed="props.favourite ? 'true' : 'false'"
+            @click.stop="emit('toggleFavourite', props.item)"
+        >
+            <v-icon
+                :icon="props.favourite ? mdiStar : mdiStarOutline"
+                size="18"
+                aria-hidden="true"
+            />
+        </button>
+
+        <div
+            v-if="props.item.relatedLabels?.length"
+            class="mb-palette-row__related"
+            :aria-label="t('palette.row.related', 'Related actions')"
+        >
+            {{ t("palette.row.suggestedNext", "Suggested next") }}:
+            {{ props.item.relatedLabels.join(", ") }}
+        </div>
     </li>
 </template>
 
 <style>
 .mb-palette-row {
     list-style: none;
+    position: relative;
 }
 
 .mb-palette-row__go,
@@ -256,6 +346,11 @@ function endEditing(): void {
     border-radius: 12px;
     text-align: start;
     color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-palette-row__go:disabled {
+    cursor: not-allowed;
+    opacity: 0.62;
 }
 
 .mb-palette-row__go {
@@ -306,6 +401,43 @@ function endEditing(): void {
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
+    overflow-wrap: anywhere;
+}
+
+.mb-palette-row__location {
+    font-size: 0.6875rem;
+    line-height: 1.35;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    overflow-wrap: anywhere;
+}
+
+.mb-palette-row__favourite {
+    position: absolute;
+    inset-inline-end: 8px;
+    inset-block-start: 7px;
+    z-index: 1;
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: rgb(var(--v-theme-primary));
+    cursor: pointer;
+}
+
+.mb-palette-row__favourite:hover {
+    background: rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.mb-palette-row__favourite:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: -1px;
+}
+
+.mb-palette-row__related {
+    padding: 0 48px 6px 44px;
+    font-size: 0.6875rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
 }
 

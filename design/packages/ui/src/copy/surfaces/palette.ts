@@ -97,6 +97,78 @@ export const PALETTE_VOICED = {
             "地圖自己嘅設定，一開咗張地圖就會喺呢度現身。冇地圖喺畫面，呢啲設定就等於要調校一張唔存在嘅圖，所以索性唔喺呢張清單度出現。",
         ],
     },
+    "palette.row.location": {
+        en: ["Location", "Location", "Location", "Where it lives", "Where this little control lives"],
+        yue: ["位置", "位置", "位置", "佢喺邊度", "呢粒掣喺邊度住"],
+    },
+    "palette.row.related": {
+        en: ["Related actions", "Related actions", "Related actions", "Useful next actions", "Other handy things to try"],
+        yue: ["相關操作", "相關操作", "相關操作", "有用嘅下一步", "仲有啲方便嘅下一步可以玩"],
+    },
+    "palette.row.suggestedNext": {
+        en: ["Suggested next", "Suggested next", "Suggested next", "Useful next", "Next little thing to try"],
+        yue: ["建議下一步", "建議下一步", "建議下一步", "有用嘅下一步", "下一步可以試吓呢樣"],
+    },
+    "palette.row.addFavourite": {
+        en: ["Add {title} to favourites", "Add {title} to favourites", "Add {title} to favourites", "Keep {title} in favourites", "Pin {title} here so it stops hiding"],
+        yue: ["將 {title} 加入最愛", "將 {title} 加入最愛", "將 {title} 加入最愛", "將 {title} 留喺最愛", "將 {title} 放喺最愛，費事佢周圍匿"],
+    },
+    "palette.row.removeFavourite": {
+        en: ["Remove {title} from favourites", "Remove {title} from favourites", "Remove {title} from favourites", "Take {title} out of favourites", "送 {title} 離開最愛，俾佢放假"],
+        yue: ["由最愛移除 {title}", "由最愛移除 {title}", "由最愛移除 {title}", "將 {title} 由最愛拎走", "送 {title} 離開最愛，俾佢抖吓"],
+    },
+    "palette.choice.menuLabel": {
+        en: ["{title} options", "{title} options", "{title} options", "Choices for {title}", "The many little choices for {title}"],
+        yue: ["{title} 選項", "{title} 選項", "{title} 選項", "{title} 嘅選擇", "{title} 呢堆細細粒選擇"],
+    },
+    "palette.choice.searchLabel": {
+        en: ["Search {title} options", "Search {title} options", "Search {title} options", "Find a {title} option", "Find the exact {title} choice hiding in this little menu"],
+        yue: ["搜尋 {title} 選項", "搜尋 {title} 選項", "搜尋 {title} 選項", "搵 {title} 選項", "喺呢張細選單搵返啱啱好嘅 {title} 選擇"],
+    },
+    "palette.directory.tab": {
+        en: ["An open tab in the live workspace.", "An open tab in the live workspace.", "An open tab in the live workspace.", "An open tab in the live workspace.", "An open tab in the live workspace, still doing its job."],
+        yue: ["目前工作區開緊嘅分頁。", "目前工作區開緊嘅分頁。", "目前工作區開緊嘅分頁。", "目前工作區開緊嘅分頁。", "目前工作區開緊嘅分頁，仲未收工。"],
+    },
+    "palette.directory.tabGroup": {
+        en: ["A live tab group in the workspace.", "A live tab group in the workspace.", "A live tab group in the workspace.", "A named tab group in the workspace.", "A named tab group keeping its tab family together."],
+        yue: ["工作區目前嘅分頁群組。", "工作區目前嘅分頁群組。", "工作區目前嘅分頁群組。", "工作區入面有名有姓嘅分頁群組。", "一班分頁親戚住埋一齊嘅群組。"],
+    },
+    "palette.directory.article": {
+        en: ["A bundled offline documentation article.", "A bundled offline documentation article.", "A bundled offline documentation article.", "An offline article bundled with the app.", "An offline article that stayed home and brought its own words."],
+        yue: ["內置嘅離線文件文章。", "內置嘅離線文件文章。", "內置嘅離線文件文章。", "跟住程式一齊離線帶住嘅文章。", "唔使出街搵，自己帶埋字返嚟嘅文章。"],
+    },
+    "palette.directory.appearanceDescription": {
+        en: ["Adjust the appearance of the live interface.", "Adjust the appearance of the live interface.", "Adjust the appearance of the live interface.", "Adjust the live interface appearance.", "Tune the live interface until it behaves itself visually."],
+        yue: ["調整目前介面嘅外觀。", "調整目前介面嘅外觀。", "調整目前介面嘅外觀。", "調整目前介面嘅實時外觀。", "調校個介面嘅樣，直到佢肯乖乖企好。"],
+    },
+    "palette.directory.recoveryDescription": {
+        en: ["Find retry, support, and recovery routes.", "Find retry, support, and recovery routes.", "Find retry, support, and recovery routes.", "Find retry, support, and recovery routes here.", "The sensible exits for when a feature has stepped on a rake."],
+        yue: ["搵重試、支援同復原路線。", "搵重試、支援同復原路線。", "搵重試、支援同復原路線。", "喺呢度搵重試、支援同復原路線。", "功能踩親香蕉皮嗰陣，呢度有條正經出口。"],
+    },
+    "palette.where.tab": {
+        en: ["Focuses the {tab} tab.", "Focuses the {tab} tab.", "Focuses the {tab} tab.", "Jumps to the {tab} tab.", "Flies straight to the {tab} tab."],
+        yue: ["聚焦 {tab} 分頁。", "聚焦 {tab} 分頁。", "聚焦 {tab} 分頁。", "直接跳去 {tab} 分頁。", "一嘢飛去 {tab} 分頁。"],
+    },
+    "palette.where.tabGroup": {
+        en: ["Focuses the first available tab in this group.", "Focuses the first available tab in this group.", "Focuses the first available tab in this group.", "Jumps to the first tab in this group.", "Jumps into the first tab in this group, where the tab family is waiting."],
+        yue: ["聚焦呢個群組第一個可用分頁。", "聚焦呢個群組第一個可用分頁。", "聚焦呢個群組第一個可用分頁。", "跳去呢個群組第一個分頁。", "跳入呢個群組第一個分頁，成班分頁親戚等緊你。"],
+    },
+    "palette.where.article": {
+        en: ["Opens the {article} article.", "Opens the {article} article.", "Opens the {article} article.", "Opens the {article} article directly.", "Opens the {article} article, no paper hunt required."],
+        yue: ["打開 {article} 文章。", "打開 {article} 文章。", "打開 {article} 文章。", "直接打開 {article} 文章。", "直接打開 {article} 文章，唔使周圍搵紙。"],
+    },
+    "palette.where.catalogueFeature": {
+        en: ["Opens this feature through its existing catalogue route.", "Opens this feature through its existing catalogue route.", "Opens this feature through its existing catalogue route.", "Opens this feature through the existing catalogue route.", "Uses the existing catalogue route, so navigation does not grow a second head."],
+        yue: ["經現有目錄路線打開呢個功能。", "經現有目錄路線打開呢個功能。", "經現有目錄路線打開呢個功能。", "經現有目錄路線打開呢個功能。", "沿用原本目錄路線，唔畀導航生多個頭。"],
+    },
+    "palette.where.appearance": {
+        en: ["Opens the appearance settings surface.", "Opens the appearance settings surface.", "Opens the appearance settings surface.", "Opens appearance settings directly.", "Opens the appearance settings, where every little visual knob lives."],
+        yue: ["打開外觀設定介面。", "打開外觀設定介面。", "打開外觀設定介面。", "直接打開外觀設定。", "打開外觀設定，所有細細粒外觀掣都喺度。"],
+    },
+    "palette.where.recovery": {
+        en: ["Opens the Support Tickets recovery surface.", "Opens the Support Tickets recovery surface.", "Opens the Support Tickets recovery surface.", "Opens the Support Tickets recovery surface directly.", "Opens Support Tickets, the app's sensible little emergency desk."],
+        yue: ["打開支援票復原介面。", "打開支援票復原介面。", "打開支援票復原介面。", "直接打開支援票復原介面。", "打開支援票，程式自己嗰張正經小型急救枱。"],
+    },
     /*
      * `badPattern` and `noMatches` are the same distinction `settings.search.*` already draws
      * next door: a broken pattern is the app refusing to guess, an empty result is the app
@@ -1040,6 +1112,16 @@ export const PALETTE_FIXED = {
     "palette.kind.command": { en: "Command", yue: "指令" },
     "palette.kind.setting": { en: "Setting", yue: "設定" },
     "palette.kind.destination": { en: "Opens", yue: "會開" },
+    "palette.kind.tab": { en: "Tab", yue: "分頁" },
+    "palette.kind.group": { en: "Group", yue: "群組" },
+    "palette.kind.article": { en: "Article", yue: "文章" },
+    "palette.kind.recovery": { en: "Recovery", yue: "復原" },
+    "palette.kind.appearance": { en: "Appearance", yue: "外觀" },
+    "palette.group.documentation": { en: "Documentation", yue: "文件" },
+    "palette.group.recovery": { en: "Recovery", yue: "復原" },
+    "palette.directory.appearance": { en: "Appearance controls", yue: "外觀控制" },
+    "palette.directory.recovery": { en: "Recovery actions", yue: "復原操作" },
+    "palette.choice.none": { en: "Choose", yue: "揀一樣" },
 
     /* The headings rows are bucketed under, first-seen order in the catalogue. */
     "palette.group.app": { en: "App", yue: "程式" },
@@ -1107,8 +1189,26 @@ export const PALETTE_FACTS = {
     },
     "palette.search.noMatches": { en: ["Nothing", "matches"], yue: ["冇嘢符合"] },
     "palette.page.generic": { en: ["tab strip"], yue: ["分頁列"] },
+    "palette.row.location": { en: ["Location"], yue: ["位置"] },
+    "palette.row.related": { en: ["Related actions"], yue: ["相關操作"] },
+    "palette.row.suggestedNext": { en: ["Suggested next"], yue: ["建議下一步"] },
+    "palette.row.addFavourite": { en: ["{title}", "favourites"], yue: ["{title}", "最愛"] },
+    "palette.row.removeFavourite": { en: ["{title}", "favourites"], yue: ["{title}", "最愛"] },
+    "palette.choice.menuLabel": { en: ["{title}", "options"], yue: ["{title}", "選項"] },
+    "palette.choice.searchLabel": { en: ["{title}", "options"], yue: ["{title}", "選項"] },
+    "palette.directory.tab": { en: ["open tab"], yue: ["開緊嘅分頁"] },
+    "palette.directory.tabGroup": { en: ["tab group"], yue: ["分頁群組"] },
+    "palette.directory.article": { en: ["documentation article"], yue: ["文件文章"] },
+    "palette.directory.appearanceDescription": { en: ["appearance"], yue: ["外觀"] },
+    "palette.directory.recoveryDescription": { en: ["recovery"], yue: ["復原"] },
 
     "palette.where.page": { en: ["{page}"], yue: ["{page}"] },
+    "palette.where.tab": { en: ["{tab}"], yue: ["{tab}"] },
+    "palette.where.tabGroup": { en: ["tab"], yue: ["分頁"] },
+    "palette.where.article": { en: ["{article}"], yue: ["{article}"] },
+    "palette.where.catalogueFeature": { en: ["catalogue route"], yue: ["目錄路線"] },
+    "palette.where.appearance": { en: ["appearance settings"], yue: ["外觀設定"] },
+    "palette.where.recovery": { en: ["Support Tickets"], yue: ["支援票"] },
     "palette.where.settings": { en: ["Settings panel"], yue: ["設定面板"] },
     "palette.where.config": { en: ["server configuration editor"], yue: ["伺服器設定編輯器"] },
     "palette.where.profiles": { en: ["server list"], yue: ["伺服器清單"] },

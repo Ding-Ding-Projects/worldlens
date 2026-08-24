@@ -30,7 +30,7 @@ function baseInput(pages: readonly PalettePageRef[]): PaletteCatalogInput {
         locale: "en",
         pages,
         canRouteConfigScreens: false,
-        size: "compact",
+        size: "card",
         setSize: () => {},
         actions: {
             revealSetting: () => {},
