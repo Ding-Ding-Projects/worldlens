@@ -364,6 +364,7 @@ defineExpose({
     fetchId,
     fetching,
     fetchLines,
+    fetchFailure,
     chooseTarget,
     chooseRemoteFolder,
     detect,

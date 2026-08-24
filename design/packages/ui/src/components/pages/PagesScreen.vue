@@ -46,6 +46,7 @@ import type { PagesRow } from "./pagesHosting.js";
 import { resolvePagesBridge } from "./pagesBridge.js";
 import type { PagesBridge, PagesCandidate, PagesPreflight, PagesRecord } from "./pagesBridge.js";
 import StaticExportCard from "./StaticExportCard.vue";
+import type { ProjectPagesStateRecord } from "../project/ProjectEditor.vue";
 
 /**
  * Putting a map this computer rendered on the internet, at an address somebody else can open.
@@ -90,6 +91,7 @@ const props = withDefaults(
         repoBridge?: BackupBridge | null | undefined;
         /** A verified render chosen by another surface, such as the project editor. */
         initialRenderId?: string | null;
+        publicationRecord?: ProjectPagesStateRecord | null;
     }>(),
     {},
 );
@@ -99,7 +101,7 @@ const emit = defineEmits<{
     open: [url: string];
     /** Open the in-app gh CLI account recovery surface. */
     openSettings: [anchor: "github-account"];
-    state: [state: "pending" | "published" | "failed", renderId: string];
+    state: [record: ProjectPagesStateRecord];
 }>();
 
 const { t } = useI18n();
@@ -302,12 +304,17 @@ async function publish(): Promise<void> {
         acknowledgePublish: acknowledge.value,
     });
     if (result === null) return;
+    const publication = props.publicationRecord;
     if (!result.ok) {
-        emit("state", "failed", renderId.value.trim());
+        if (publication !== null && publication !== undefined) {
+            emit("state", { ...publication, state: "failed" });
+        }
         raiseNotice("error", result.failure.message);
         return;
     }
-    emit("state", result.report.verified ? "published" : "pending", renderId.value.trim());
+    if (publication !== null && publication !== undefined) {
+        emit("state", { ...publication, state: result.report.verified ? "published" : "pending" });
+    }
     // Two different sentences on purpose. "Published" and "published and answering" are not
     // the same claim, and the one people act on is the second.
     raiseNotice(

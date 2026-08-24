@@ -76,6 +76,7 @@ export {
     projectFromWizard,
     projectOptionName,
     projectRenderRoute,
+    renderAffectingProjectSnapshot,
     projectSearchText,
     projectToRenderRequest,
     renderProblems,

@@ -234,4 +234,43 @@ describe("the mounted SSH world-source wizard path", () => {
         expect(wrapper.find("[data-test='local-path-field']").exists()).toBe(true);
         wrapper.unmount();
     });
+
+    it("reports cancellation rejection without an unhandled promise", async () => {
+        const bridge = sshBridge();
+        bridge.cancel = vi.fn(async () => {
+            throw new Error("cancel socket refused");
+        });
+        const wrapper = mounted(bridge);
+        const vm = wrapper.vm as unknown as {
+            fetchId: string | null;
+            cancelFetch(): Promise<void>;
+            fetchFailure: string | null;
+        };
+        vm.fetchId = "fetch-1";
+        await vm.cancelFetch();
+        expect(vm.fetchFailure).toContain("cancel socket refused");
+        wrapper.unmount();
+    });
+
+    it("keeps a pending close honest when cancellation never settles", async () => {
+        vi.useFakeTimers();
+        try {
+            const bridge = sshBridge();
+            bridge.cancel = vi.fn(() => new Promise<boolean>(() => {}));
+            const wrapper = mounted(bridge);
+            const vm = wrapper.vm as unknown as {
+                fetchId: string | null;
+                cancelFetch(): Promise<void>;
+                fetchFailure: string | null;
+            };
+            vm.fetchId = "fetch-1";
+            const pending = vm.cancelFetch();
+            await vi.advanceTimersByTimeAsync(5000);
+            await pending;
+            expect(vm.fetchFailure).toContain("did not confirm cancellation");
+            wrapper.unmount();
+        } finally {
+            vi.useRealTimers();
+        }
+    });
 });

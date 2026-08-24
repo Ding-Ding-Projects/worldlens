@@ -22,6 +22,7 @@ import {
     createProjectFromGeneratedDefaults,
     projectRenderRoute,
     projectHostingRoute,
+    renderAffectingProjectSnapshot,
     projectToRenderRequest,
     renderProblems,
     touch,
@@ -308,7 +309,7 @@ const renderContextKey = computed(() =>
 const currentVerifiedRender = computed(() => {
     if (renderContextKey.value === null || openProject.value === null) return null;
     const record = verifiedRenders.value[renderContextKey.value];
-    return record !== undefined && record.projectSnapshot === serializeProjectFile(openProject.value)
+    return record !== undefined && record.projectSnapshot === renderAffectingProjectSnapshot(openProject.value)
         ? record
         : null;
 });
@@ -319,7 +320,7 @@ const shellPagesState = computed<ProjectPagesState>(() => {
         record !== undefined &&
         record.key === renderContextKey.value &&
         openProject.value !== null &&
-        record.projectSnapshot === serializeProjectFile(openProject.value) &&
+        record.projectSnapshot === renderAffectingProjectSnapshot(openProject.value) &&
         (currentVerifiedRender.value === null || record.renderId === currentVerifiedRender.value.renderId)
     ) {
         return record.state;
@@ -342,6 +343,19 @@ watch(
     [openWorld, () => openProject.value?.id ?? null],
     () => resetRenderDestination(),
     { flush: "sync" },
+);
+
+watch(
+    () => (openProject.value === null ? null : renderAffectingProjectSnapshot(openProject.value)),
+    (next, previous) => {
+        if (next === null || previous === undefined || next === previous) return;
+        const key = renderContextKey.value;
+        publicationGeneration.value += 1;
+        if (key !== null) emit("pages-invalidated", key, publicationGeneration.value);
+        preflightTargetId.value = null;
+        preflightContextKey.value = null;
+        remotePreflightPassed.value = false;
+    },
 );
 
 /**
@@ -751,7 +765,7 @@ function pagesRecord(state: ProjectPagesState, renderId: string): ProjectPagesSt
         key: renderContextKey.value,
         state,
         renderId,
-        projectSnapshot: serializeProjectFile(openProject.value),
+        projectSnapshot: renderAffectingProjectSnapshot(openProject.value),
         generation: publicationGeneration.value,
     };
 }
@@ -989,7 +1003,7 @@ async function startRender(world: string, project: ProjectFile): Promise<void> {
                 world,
                 projectId: project.id,
                 renderId: result.renderId,
-                projectSnapshot: serializeProjectFile(project),
+                projectSnapshot: renderAffectingProjectSnapshot(project),
             },
         };
     }
@@ -1033,6 +1047,47 @@ async function renderRow(world: string): Promise<void> {
 
 function notify(level: "info" | "success" | "warning" | "error", message: string): void {
     raiseNotice(level, message);
+}
+
+async function handlePagesToggle(enabled: boolean): Promise<void> {
+    if (!enabled) {
+        projectPagesState.value = "off";
+        pagesFailure.value = null;
+        publicationGeneration.value += 1;
+        if (renderContextKey.value !== null) {
+            emit("pages-invalidated", renderContextKey.value, publicationGeneration.value);
+        }
+        return;
+    }
+    if (currentVerifiedRender.value === null || openWorld.value === null || openProject.value === null) {
+        projectPagesState.value = "failed";
+        pagesFailure.value = "Pages setup needs a verified finished render for this project first.";
+        return;
+    }
+
+    const world = openWorld.value;
+    const project = openProject.value;
+    try {
+        const pending = await host?.notifyAutosaveChange?.(world, project);
+        const flushed = await host?.flushAutosave?.(world, "boundary");
+        if (flushed !== undefined && flushed !== null && !flushed.ok) {
+            throw new Error(flushed.message);
+        }
+        if (host?.flushAutosave === undefined && host?.writeProject !== undefined) {
+            const written = await host.writeProject(world, project);
+            if (!written.ok) throw new Error(written.message);
+        } else if (host === null || (host.flushAutosave === undefined && pending === undefined)) {
+            throw new Error("The project host could not persist the Pages setting.");
+        }
+        savedProject.value = project;
+        projectPagesState.value = "pending";
+        pagesFailure.value = null;
+        const record = pagesRecord("pending", currentVerifiedRender.value.renderId);
+        if (record !== null) emit("publishExisting", record);
+    } catch (error) {
+        projectPagesState.value = "failed";
+        pagesFailure.value = error instanceof Error ? error.message : String(error);
+    }
 }
 </script>
 
@@ -1125,23 +1180,7 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
                 preflightContextKey = value ? renderContextKey : null
             }"
             @destination="chooseDestination"
-            @pages-toggle="(enabled: boolean) => {
-                if (enabled) {
-                    if (currentVerifiedRender === null) {
-                        projectPagesState = 'failed'
-                        pagesFailure = 'Pages setup needs a verified finished render for this project first.'
-                    } else {
-                        projectPagesState = 'pending'
-                        pagesFailure = null
-                        const record = pagesRecord('pending', currentVerifiedRender.renderId)
-                        if (record !== null) emit('publishExisting', record)
-                    }
-                } else {
-                    projectPagesState = 'off'
-                    pagesFailure = null
-                    if (renderContextKey !== null) emit('pages-invalidated', renderContextKey, publicationGeneration)
-                }
-            }"
+            @pages-toggle="handlePagesToggle"
             @save="save"
             @revert="revert"
             @close="closeEditor"
