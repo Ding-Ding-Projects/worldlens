@@ -64,6 +64,15 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
     assert.match(fetcher, /WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :gh_portable/);
     assert.match(fetcher, /ensure-pnpm\.mjs/);
     assert.match(fetcher, /WORLDLENS_PNPM_CLI/);
+    const digest = lineIndex(fetcherLines, /^if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :node_portable$/, "Node digest preference");
+    const nodePath = lineIndex(fetcherLines, /^if exist "%PORTABLE_NODE%\\node\.exe"/, "Node managed path probe");
+    assert.ok(digest < nodePath, "Node digest preference must precede PATH acceptance");
+    const gitDigest = lineIndex(fetcherLines, /^if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :git_portable$/, "Git digest preference");
+    const gitPath = lineIndex(fetcherLines, /^if exist "%PORTABLE_GIT%\\cmd\\git\.exe"/, "Git managed path probe");
+    assert.ok(gitDigest < gitPath, "Git digest preference must precede PATH acceptance");
+    const ghDigest = lineIndex(fetcherLines, /^if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :gh_portable$/, "GitHub CLI digest preference");
+    const ghPath = lineIndex(fetcherLines, /^if exist "%PORTABLE_GH%\\bin\\gh\.exe"/, "GitHub CLI managed path probe");
+    assert.ok(ghDigest < ghPath, "GitHub CLI digest preference must precede PATH acceptance");
   }, "pinned fresh-machine tool acquisition");
   check(() => {
     assert.doesNotMatch(fetcher, /api\.adoptium\.net\/v3\/assets\/latest/);
@@ -219,5 +228,43 @@ test("the supported help invocation works from a path with spaces when current-d
     assert.match(`${result.stdout}${result.stderr}`, /Usage: .*build\.bat --run/);
   } finally {
     rmSync(fixture, { recursive: true, force: true });
+  }
+});
+
+test("digest-required route selection ignores compatible fake PATH tools and selects portable for all three tools", () => {
+  const root = mkdtempSync(join(tmpdir(), "worldlens-route-fixture-"));
+  try {
+    for (const [name, output] of [["node", "v24.19.0"], ["git", "git version 2.55.0.windows.3"], ["gh", "gh version 2.98.0"]]) {
+      writeFileSync(join(root, `${name}.cmd`), `@echo off\necho ${output}\n`);
+    }
+    const log = join(root, "routes.log");
+    const run = (digestRequired) => spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", "download-dependencies.bat --silent"], {
+      cwd: repoRoot,
+      encoding: "utf8",
+      env: {
+        SystemRoot: process.env.SystemRoot,
+        ComSpec: process.env.ComSpec,
+        Path: `${root};${process.env.SystemRoot}\\System32`,
+        LOCALAPPDATA: join(root, "local"),
+        WORLDLENS_FETCH_ROUTE_DRY_RUN: "1",
+        WORLDLENS_FETCH_ROUTE_LOG: log,
+        WORLDLENS_REQUIRE_PACKAGE_DIGEST: digestRequired ? "1" : "0",
+      },
+    });
+    const digest = run(true);
+    assert.equal(digest.status, 0, `${digest.stdout}${digest.stderr}`);
+    const digestLines = readFileSync(log, "utf8");
+    for (const name of ["node", "git", "gh"]) {
+      assert.match(digestLines, new RegExp(`detected-path-${name}`));
+      assert.match(digestLines, new RegExp(`selected-portable-${name}`));
+      assert.doesNotMatch(digestLines, new RegExp(`selected-path-${name}`));
+    }
+    rmSync(log, { force: true });
+    const warm = run(false);
+    assert.equal(warm.status, 0, `${warm.stdout}${warm.stderr}`);
+    const warmLines = readFileSync(log, "utf8");
+    for (const name of ["node", "git", "gh"]) assert.match(warmLines, new RegExp(`selected-path-${name}`));
+  } finally {
+    rmSync(root, { recursive: true, force: true });
   }
 });

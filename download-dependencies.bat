@@ -39,6 +39,7 @@ rem Test-only probe. It deliberately performs no network, extraction, PATH edit,
 rem or project install. This lets the committed contract test exercise both a
 rem cold user profile and a warm portable-toolchain profile safely.
 if /i "%WORLDLENS_FETCH_DRY_RUN%"=="1" goto :dry_run
+if /i "%WORLDLENS_FETCH_ROUTE_DRY_RUN%"=="1" goto :route_fixture
 
 echo == Worldlens dependency fetch ==
 echo    repository: %ROOT%
@@ -46,12 +47,12 @@ if "%FETCH_SILENT%"=="1" echo    mode: silent
 echo.
 
 rem --- Node ------------------------------------------------------------------
+if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :node_portable
 if exist "%PORTABLE_NODE%\node.exe" set "PATH=%PORTABLE_NODE%;%PATH%"
 echo [1/5] Node 22 or newer
 call :probe_node
 if "%NODE_OK%"=="1" goto :node_ready
 echo       no usable Node found - trying the exact user-scoped Windows package
-if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :node_portable
 where winget >nul 2>&1
 if errorlevel 1 goto :node_portable
 call winget install --id OpenJS.NodeJS.LTS --version 24.19.0 --exact --source winget --scope user --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
@@ -83,12 +84,12 @@ echo       using %NODE_VERSION%
 echo.
 
 rem --- Git -------------------------------------------------------------------
+if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :git_portable
 if exist "%PORTABLE_GIT%\cmd\git.exe" set "PATH=%PORTABLE_GIT%\cmd;%PATH%"
 echo [2/5] Git
 call :probe_git
 if "%GIT_OK%"=="1" goto :git_ready
 echo       no usable Git found - trying the exact user-scoped Windows package
-if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :git_portable
 where winget >nul 2>&1
 if errorlevel 1 goto :git_portable
 call winget install --id Git.Git --version 2.55.0.3 --exact --source winget --scope user --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
@@ -110,13 +111,13 @@ echo       using %GIT_VERSION%
 echo.
 
 rem --- GitHub CLI ------------------------------------------------------------
+if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :gh_portable
 if exist "%PORTABLE_GH%\bin\gh.exe" set "PATH=%PORTABLE_GH%\bin;%PATH%"
 if exist "%LOCALAPPDATA%\Microsoft\WinGet\Links\gh.exe" set "PATH=%LOCALAPPDATA%\Microsoft\WinGet\Links;%PATH%"
 echo [3/5] GitHub CLI
 call :probe_gh
 if "%GH_OK%"=="1" goto :gh_ready
 echo       no usable GitHub CLI found - trying the exact user-scoped Windows package
-if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :gh_portable
 where winget >nul 2>&1
 if errorlevel 1 goto :gh_portable
 call winget install --id GitHub.cli --version 2.98.0 --exact --source winget --scope user --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
@@ -227,6 +228,19 @@ if exist "%PORTABLE_NODE%\node.exe" (
 ) else (
     echo DRY RUN: cold user-scoped toolchain profile detected; acquisition routes are ready.
 )
+exit /b 0
+:route_fixture
+if not defined WORLDLENS_FETCH_ROUTE_LOG goto :bad_argument
+call :fixture_route node
+call :fixture_route git
+call :fixture_route gh
+exit /b 0
+:fixture_route
+where %1 >nul 2>&1
+if errorlevel 1 >>"%WORLDLENS_FETCH_ROUTE_LOG%" echo missing-path-%1
+if not errorlevel 1 >>"%WORLDLENS_FETCH_ROUTE_LOG%" echo detected-path-%1
+if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" >>"%WORLDLENS_FETCH_ROUTE_LOG%" echo selected-portable-%1
+if not "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" >>"%WORLDLENS_FETCH_ROUTE_LOG%" echo selected-path-%1
 exit /b 0
 :no_node
 echo ERROR: no runnable Node 22+ could be obtained from WinGet or the official portable archive. 1>&2
