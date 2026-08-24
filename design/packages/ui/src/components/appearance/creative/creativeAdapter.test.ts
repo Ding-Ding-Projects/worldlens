@@ -26,4 +26,17 @@ describe("creative adapter integration", () => {
         resetCreativeDocumentFor("creative-test-target");
         expect(creativeDocumentFor(appearanceState().value, "creative-test-target")).toBeNull();
     });
+
+    it("migrates a persisted version 1 document and writes the migrated value through core history", () => {
+        const current = createCreativeDocument();
+        const legacy = JSON.parse(JSON.stringify(current)) as Record<string, unknown>;
+        legacy.version = 1;
+        delete (legacy.canvas as Record<string, unknown>).grid;
+        const state = appearanceState().value;
+        state.elements["legacy-migration-target"] = { typography: {}, surface: {}, inherit: "", preserved: { creativeDocument: legacy } };
+        const migrated = creativeDocumentFor(state, "legacy-migration-target");
+        expect(migrated?.version).toBe(2);
+        expect(creativeDocumentFor(appearanceState().value, "legacy-migration-target")?.canvas.grid).toBeDefined();
+        resetCreativeDocumentFor("legacy-migration-target");
+    });
 });

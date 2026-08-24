@@ -5,6 +5,7 @@ import {
     addCreativeLayer,
     createCreativeDocument,
     createCreativeLayer,
+    commitCreativeChange,
     exportCreativeDocument,
     groupCreativeLayers,
     duplicateCreativeLayers,
@@ -25,7 +26,7 @@ import {
     updateCreativeLayer,
     CREATIVE_BLEND_MODES,
 } from "./creativeDocument.js";
-import { applyCreativeLogoVariant, resetCreativeLogoPipeline } from "./creativeLogoPipeline.js";
+import { applyCreativeLogoVariant, resetCreativeLogoPipeline, syncCreativeLogoStore } from "./creativeLogoPipeline.js";
 import { renderCreativeSvg } from "./creativeRenderer.js";
 import {
     type CreativeAppearanceCapabilities,
@@ -57,9 +58,13 @@ const regexMode = ref(false);
 const regexFlags = ref("i");
 const fileInput = ref<HTMLInputElement>();
 const importError = ref("");
+const fieldError = ref("");
 const importState = ref<"idle" | "reading" | "ready" | "error">("idle");
 const regexSample = ref("");
 const regexPattern = ref("");
+const presetQuery = ref("");
+const presetRegexMode = ref(false);
+const presetRegexFlags = ref("i");
 
 watch(() => props.modelValue, (value) => { if (value) document.value = value; });
 
@@ -69,6 +74,16 @@ const visibleLayers = computed(() => {
     try {
         const matcher = regexMode.value ? new RegExp(source, regexFlags.value) : undefined;
         return document.value.layers.filter((layer) => matcher ? matcher.test(`${layer.name} ${layer.kind}`) : `${layer.name} ${layer.kind}`.toLocaleLowerCase().includes(source.toLocaleLowerCase()));
+    } catch {
+        return [];
+    }
+});
+
+const visiblePresets = computed(() => {
+    if (!presetQuery.value) return document.value.presets;
+    try {
+        const matcher = presetRegexMode.value ? new RegExp(presetQuery.value, presetRegexFlags.value) : null;
+        return document.value.presets.filter((preset) => matcher ? matcher.test(preset.name) : preset.name.toLocaleLowerCase().includes(presetQuery.value.toLocaleLowerCase()));
     } catch {
         return [];
     }
@@ -86,6 +101,14 @@ const regexStatus = computed(() => {
 });
 
 function publish(next: CreativeAppearanceDocument): void {
+    if (JSON.stringify(next.logo) !== JSON.stringify(document.value.logo)) {
+        try {
+            syncCreativeLogoStore(next);
+        } catch (error) {
+            fieldError.value = error instanceof Error ? error.message : "The logo history state could not be replayed.";
+            return;
+        }
+    }
     document.value = next;
     emit("update:modelValue", next);
     emit("changed", next);
@@ -106,7 +129,28 @@ function add(kind: "text" | "vector" | "gradient" | "group"): void {
 
 function updateSelected(patch: Partial<CreativeLayer>, action = "adjust layer"): void {
     if (!selectedLayer.value) return;
-    publish(updateCreativeLayer(document.value, selectedLayer.value.id, patch, action));
+    fieldError.value = "";
+    const incoming = patch as Record<string, unknown>;
+    const numericKeys = ["x", "y", "width", "height", "rotation", "scaleX", "scaleY", "opacity", "strokeWidth"] as const;
+    for (const key of numericKeys) {
+        const value = incoming[key];
+        if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) {
+            fieldError.value = `${key} must be a finite number.`;
+            return;
+        }
+    }
+    const normalized = { ...patch } as Record<string, unknown>;
+    if (typeof normalized.name === "string") normalized.name = normalized.name.trim().slice(0, 96);
+    if (typeof normalized.opacity === "number") normalized.opacity = Math.min(1, Math.max(0, normalized.opacity));
+    if (typeof normalized.width === "number") normalized.width = Math.max(1, Math.min(8192, normalized.width));
+    if (typeof normalized.height === "number") normalized.height = Math.max(1, Math.min(8192, normalized.height));
+    if (typeof normalized.scaleX === "number") normalized.scaleX = Math.max(0.01, Math.min(100, normalized.scaleX));
+    if (typeof normalized.scaleY === "number") normalized.scaleY = Math.max(0.01, Math.min(100, normalized.scaleY));
+    if (document.value.canvas.grid.snap) {
+        if (typeof normalized.x === "number") normalized.x = Math.round(normalized.x / document.value.canvas.grid.size) * document.value.canvas.grid.size;
+        if (typeof normalized.y === "number") normalized.y = Math.round(normalized.y / document.value.canvas.grid.size) * document.value.canvas.grid.size;
+    }
+    publish(updateCreativeLayer(document.value, selectedLayer.value.id, normalized as Partial<CreativeLayer>, action));
 }
 
 function updateTypography(patch: Partial<TypographySpec>, action = "adjust typography"): void {
@@ -130,7 +174,8 @@ function inputValue(event: Event): string {
 }
 
 function inputNumber(event: Event): number {
-    return Number(inputValue(event));
+    const raw = inputValue(event).trim();
+    return raw === "" ? Number.NaN : Number(raw);
 }
 
 function blendValue(event: Event): CreativeLayer["blendMode"] {
@@ -185,10 +230,22 @@ function updateCanvasField(patch: Partial<CreativeAppearanceDocument["canvas"]>,
     publish(setCreativeCanvas(document.value, patch, action));
 }
 
+function addGuide(axis: "x" | "y"): void {
+    const position = axis === "x" ? Math.round(document.value.canvas.width / 2) : Math.round(document.value.canvas.height / 2);
+    const guide = { id: `guide-${Date.now().toString(36)}`, axis, position };
+    updateCanvasField({ guides: [...document.value.canvas.guides, guide] }, `add ${axis} guide`);
+}
+
+function removeGuide(id: string): void {
+    updateCanvasField({ guides: document.value.canvas.guides.filter((guide) => guide.id !== id) }, "remove guide");
+}
+
 function generateLogoVariants(): void {
     const svg = renderCreativeSvg(document.value);
-    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-    const variants = [24, 64, 128, 256, 512].map((size) => ({ id: `logo-${size}`, width: size, height: size, dataUrl }));
+    const variants = [24, 64, 128, 256, 512].map((size) => {
+        const sizedSvg = svg.replace("<svg ", `<svg width="${size}" height="${size}" `);
+        return { id: `logo-${size}`, width: size, height: size, dataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sizedSvg)}` };
+    });
     const next = setCreativeLogo(document.value, { enabled: true, target: "app-logo", variants });
     try {
         publish(applyCreativeLogoVariant(next, variants[2]!));
@@ -200,6 +257,33 @@ function generateLogoVariants(): void {
 
 function resetLogoPipeline(): void {
     publish(resetCreativeLogoPipeline(document.value));
+}
+
+function applyPreset(id: string): void {
+    const preset = document.value.presets.find((candidate) => candidate.id === id);
+    if (!preset) return;
+    publish(commitCreativeChange(document.value, { canvas: structuredClone(preset.canvas), layers: structuredClone(preset.layers), selectedLayerIds: [] }, "apply creative preset"));
+}
+
+function renamePreset(id: string, event: Event): void {
+    const name = inputValue(event).trim().slice(0, 96);
+    if (!name) return;
+    publish(commitCreativeChange({ ...document.value, presets: document.value.presets.map((preset) => preset.id === id ? { ...preset, name } : preset) }, { canvas: document.value.canvas, layers: document.value.layers, selectedLayerIds: document.value.selectedLayerIds }, "rename creative preset"));
+}
+
+function deletePreset(id: string): void {
+    publish(commitCreativeChange({ ...document.value, presets: document.value.presets.filter((preset) => preset.id !== id) }, { canvas: document.value.canvas, layers: document.value.layers, selectedLayerIds: document.value.selectedLayerIds }, "delete creative preset"));
+}
+
+function exportPreset(id: string): void {
+    const preset = document.value.presets.find((candidate) => candidate.id === id);
+    if (!preset) return;
+    const blob = new Blob([JSON.stringify({ format: "worldlens-creative-preset", version: 1, preset }, null, 2)], { type: "application/json" });
+    const anchor = window.document.createElement("a");
+    anchor.href = URL.createObjectURL(blob);
+    anchor.download = `${preset.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "creative-preset"}.json`;
+    anchor.click();
+    URL.revokeObjectURL(anchor.href);
 }
 
 async function copyRegex(): Promise<void> {
@@ -331,7 +415,13 @@ async function onAssetImport(event: Event): Promise<void> {
                         <label>Grid size <input :value="document.canvas.grid.size" type="number" min="1" max="512" @change="updateCanvasField({ grid: { ...document.canvas.grid, size: inputNumber($event) } }, 'adjust grid')" /></label>
                         <label class="mb-creative-studio__check"><input :checked="document.canvas.grid.snap" type="checkbox" @change="updateCanvasField({ grid: { ...document.canvas.grid, snap: !document.canvas.grid.snap } }, 'toggle snapping')" /> Snap</label>
                         <label>Safe area <input :value="document.canvas.safeArea.inset" type="number" min="0" max="512" @change="updateCanvasField({ safeArea: { ...document.canvas.safeArea, inset: inputNumber($event) } }, 'adjust safe area')" /></label>
+                        <label>Crop top <input :value="document.canvas.crop.top" type="number" min="0" @change="updateCanvasField({ crop: { ...document.canvas.crop, top: inputNumber($event) } }, 'crop canvas')" /></label>
+                        <label>Crop right <input :value="document.canvas.crop.right" type="number" min="0" @change="updateCanvasField({ crop: { ...document.canvas.crop, right: inputNumber($event) } }, 'crop canvas')" /></label>
+                        <label>Crop bottom <input :value="document.canvas.crop.bottom" type="number" min="0" @change="updateCanvasField({ crop: { ...document.canvas.crop, bottom: inputNumber($event) } }, 'crop canvas')" /></label>
+                        <label>Crop left <input :value="document.canvas.crop.left" type="number" min="0" @change="updateCanvasField({ crop: { ...document.canvas.crop, left: inputNumber($event) } }, 'crop canvas')" /></label>
+                        <div class="mb-creative-studio__guide-actions"><button type="button" @click="addGuide('x')">Add vertical guide</button><button type="button" @click="addGuide('y')">Add horizontal guide</button></div>
                     </div>
+                    <div v-if="document.canvas.guides.length" class="mb-creative-studio__guide-list" aria-label="Canvas guides"><span v-for="guide in document.canvas.guides" :key="guide.id">{{ guide.axis }} {{ guide.position }} <button type="button" :aria-label="`Remove guide ${guide.id}`" @click="removeGuide(guide.id)">×</button></span></div>
                     <div class="mb-creative-studio__logo-controls">
                         <label class="mb-creative-studio__check"><input :checked="document.logo.enabled" type="checkbox" @change="publish(setCreativeLogo(document, { enabled: !document.logo.enabled }))" /> Compose as app logo</label>
                         <label>Logo target <input :value="document.logo.target" list="creative-logo-targets" @change="publish(setCreativeLogo(document, { target: logoTargetValue($event) }))" /></label>
@@ -341,6 +431,16 @@ async function onAssetImport(event: Event): Promise<void> {
                     </div>
                     <div v-if="document.logo.variants.length" class="mb-creative-studio__logo-variants" aria-label="Logo size previews">
                         <figure v-for="variant in document.logo.variants" :key="variant.id"><img :src="variant.dataUrl" :alt="`Logo preview at ${variant.width} by ${variant.height} pixels`" /><figcaption>{{ variant.width }} × {{ variant.height }} px</figcaption></figure>
+                    </div>
+                    <div class="mb-creative-studio__preset-manager" aria-label="Creative preset manager">
+                        <div class="mb-creative-studio__preset-search"><input v-model="presetQuery" type="search" aria-label="Search creative presets" /><button type="button" :aria-pressed="presetRegexMode" aria-label="Toggle preset regex builder" @click="presetRegexMode = !presetRegexMode">.*</button><input v-if="presetRegexMode" v-model="presetRegexFlags" aria-label="Preset regex flags" maxlength="8" /></div>
+                        <p v-if="visiblePresets.length === 0" class="mb-creative-studio__hint">No saved preset matches this search.</p>
+                        <div v-for="preset in visiblePresets" :key="preset.id" class="mb-creative-studio__preset-row">
+                            <input :value="preset.name" :aria-label="`Rename preset ${preset.name}`" @change="renamePreset(preset.id, $event)" />
+                            <button type="button" @click="applyPreset(preset.id)">Apply</button>
+                            <button type="button" @click="exportPreset(preset.id)">Export</button>
+                            <button type="button" @click="deletePreset(preset.id)">Delete</button>
+                        </div>
                     </div>
                 </details>
                 <div class="mb-creative-studio__canvas" v-html="renderCreativeSvg(document)" />
@@ -412,6 +512,7 @@ async function onAssetImport(event: Event): Promise<void> {
                 <p v-else class="mb-creative-studio__empty">Select a layer to edit it here.</p>
                 <p v-if="importState === 'ready'" class="mb-creative-studio__success" role="status">Import complete. The previous document was replaced only after validation.</p>
                 <p v-if="importState === 'error'" class="mb-creative-studio__error" role="alert">{{ importError }}</p>
+                <p v-if="fieldError" class="mb-creative-studio__error" role="alert">{{ fieldError }}</p>
                 <p v-if="!capabilities.masks" class="mb-creative-studio__hint">Masks remain visible but unavailable: {{ capabilities.reasonByCapability.masks ?? 'this renderer does not support them yet.' }}</p>
             </aside>
         </div>
@@ -449,6 +550,11 @@ async function onAssetImport(event: Event): Promise<void> {
 .mb-creative-studio__logo-variants { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 8px; }
 .mb-creative-studio__logo-variants figure { display: grid; gap: 4px; place-items: center; margin: 0; font-size: .7rem; }
 .mb-creative-studio__logo-variants img { inline-size: 64px; block-size: 64px; object-fit: contain; border: 1px dashed rgba(var(--v-theme-on-surface), .24); border-radius: 8px; background: repeating-conic-gradient(rgba(var(--v-theme-on-surface), .08) 0 25%, transparent 0 50%) 50% / 12px 12px; }
+.mb-creative-studio__preset-manager { display: grid; gap: 7px; margin-block-start: 8px; }
+.mb-creative-studio__preset-manager > label { display: grid; gap: 4px; font-size: .75rem; }
+.mb-creative-studio__preset-search { display: flex; gap: 5px; }
+.mb-creative-studio__preset-search input[type="search"] { flex: 1; min-inline-size: 0; }
+.mb-creative-studio__preset-row { display: grid; grid-template-columns: minmax(90px, 1fr) repeat(3, auto); gap: 5px; align-items: center; }
 .mb-creative-studio__layer-list { display: flex; flex-direction: column; gap: 4px; padding: 0; margin: 10px 0 0; list-style: none; }
 .mb-creative-studio__layer-list li { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 2px; border-radius: 8px; }
 .mb-creative-studio__layer-list li.is-selected { background: rgba(var(--v-theme-primary), .16); }

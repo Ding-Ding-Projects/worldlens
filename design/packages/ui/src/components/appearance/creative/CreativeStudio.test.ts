@@ -40,4 +40,5 @@ describe("CreativeStudio", () => {
         expect(wrapper.text()).toContain("not valid JSON");
         expect(wrapper.text()).toContain("Live SVG preview");
     });
+
 });

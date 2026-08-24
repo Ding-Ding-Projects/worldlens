@@ -48,12 +48,22 @@ function styleAttribute(layer: CreativeLayer, extra = ""): string {
 }
 
 function maskMarkup(layer: CreativeLayer): { readonly defs: string; readonly attribute: string } {
-    if (!layer.mask?.enabled) return { defs: "", attribute: "" };
+    const inner = layer.effects.innerGlow;
+    const innerId = `creative-inner-glow-${escape(layer.id)}`;
+    const innerDefs = inner.color && inner.radius > 0
+        ? `<filter id="${innerId}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="${cssValue(inner.radius)}" result="blur"/><feFlood flood-color="${cssValue(inner.color)}" result="colour"/><feComposite in="colour" in2="blur" operator="in" result="glow"/><feComposite in="glow" in2="SourceAlpha" operator="in" result="inner"/><feMerge><feMergeNode in="inner"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`
+        : "";
+    const clipId = `creative-clip-${escape(layer.id)}`;
+    const clipDefs = layer.clipped && "x" in layer && "y" in layer && "width" in layer && "height" in layer
+        ? `<clipPath id="${clipId}"><rect x="${cssValue(layer.x)}" y="${cssValue(layer.y)}" width="${cssValue(layer.width)}" height="${cssValue(layer.height)}"/></clipPath>`
+        : "";
+    const clipAttribute = clipDefs ? ` clip-path="url(#${clipId})"` : "";
+    if (!layer.mask?.enabled) return { defs: `${innerDefs}${clipDefs}`, attribute: `${clipAttribute}${innerDefs ? ` filter="url(#${innerId})"` : ""}` };
     const maskId = `creative-mask-${escape(layer.id)}`;
     const shape = layer.mask.kind === "ellipse"
         ? `<ellipse cx="${cssValue(layer.mask.x + layer.mask.width / 2)}" cy="${cssValue(layer.mask.y + layer.mask.height / 2)}" rx="${cssValue(layer.mask.width / 2)}" ry="${cssValue(layer.mask.height / 2)}" fill="white"/>`
         : `<rect x="${cssValue(layer.mask.x)}" y="${cssValue(layer.mask.y)}" width="${cssValue(layer.mask.width)}" height="${cssValue(layer.mask.height)}" rx="${cssValue(layer.mask.feather)}" fill="white"/>`;
-    return { defs: `<mask id="${maskId}">${shape}</mask>`, attribute: ` mask="url(#${maskId})"` };
+    return { defs: `${innerDefs}${clipDefs}<mask id="${maskId}">${shape}</mask>`, attribute: `${clipAttribute} mask="url(#${maskId})"${innerDefs ? ` filter="url(#${innerId})"` : ""}` };
 }
 
 function textStyle(layer: CreativeTextLayer): string {
@@ -96,7 +106,21 @@ function renderLayer(layer: CreativeLayer, children: readonly CreativeLayer[], s
  */
 export function renderCreativeSvg(document: CreativeAppearanceDocument): string {
     const roots = document.layers.filter((layer) => layer.parentId === null).map((layer) => renderLayer(layer, document.layers)).join("");
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${cssValue(document.canvas.width)} ${cssValue(document.canvas.height)}" role="img" aria-label="Creative appearance preview"><rect width="100%" height="100%" fill="${cssValue(document.canvas.background)}"/>${roots}</svg>`;
+    const crop = document.canvas.crop;
+    const cropWidth = Math.max(1, document.canvas.width - crop.left - crop.right);
+    const cropHeight = Math.max(1, document.canvas.height - crop.top - crop.bottom);
+    const gridId = "creative-grid";
+    const grid = document.canvas.grid.enabled
+        ? `<defs><pattern id="${gridId}" width="${cssValue(document.canvas.grid.size)}" height="${cssValue(document.canvas.grid.size)}" patternUnits="userSpaceOnUse"><path d="M ${cssValue(document.canvas.grid.size)} 0 L 0 0 0 ${cssValue(document.canvas.grid.size)}" fill="none" stroke="#ffffff" stroke-opacity=".16" stroke-width="1"/></pattern></defs><rect x="${cssValue(crop.left)}" y="${cssValue(crop.top)}" width="${cssValue(cropWidth)}" height="${cssValue(cropHeight)}" fill="url(#${gridId})" pointer-events="none"/>`
+        : "";
+    const guides = document.canvas.guides.map((guide) => guide.axis === "x"
+        ? `<line data-guide-id="${escape(guide.id)}" x1="${cssValue(guide.position)}" y1="${cssValue(crop.top)}" x2="${cssValue(guide.position)}" y2="${cssValue(crop.top + cropHeight)}" stroke="#00e5ff" stroke-dasharray="6 4" pointer-events="none"/>`
+        : `<line data-guide-id="${escape(guide.id)}" x1="${cssValue(crop.left)}" y1="${cssValue(guide.position)}" x2="${cssValue(crop.left + cropWidth)}" y2="${cssValue(guide.position)}" stroke="#00e5ff" stroke-dasharray="6 4" pointer-events="none"/>`).join("");
+    const safe = document.canvas.safeArea.enabled
+        ? `<rect x="${cssValue(crop.left + document.canvas.safeArea.inset)}" y="${cssValue(crop.top + document.canvas.safeArea.inset)}" width="${cssValue(Math.max(1, cropWidth - document.canvas.safeArea.inset * 2))}" height="${cssValue(Math.max(1, cropHeight - document.canvas.safeArea.inset * 2))}" fill="none" stroke="#ffcc00" stroke-dasharray="4 4" pointer-events="none"/>`
+        : "";
+    const rulers = document.canvas.rulers ? `<g stroke="#ffffff" stroke-opacity=".4" stroke-width="1" pointer-events="none">${Array.from({ length: Math.ceil(cropWidth / 100) }, (_, index) => `<line x1="${cssValue(crop.left + index * 100)}" y1="${cssValue(crop.top)}" x2="${cssValue(crop.left + index * 100)}" y2="${cssValue(crop.top + 8)}"/>`).join("")}${Array.from({ length: Math.ceil(cropHeight / 100) }, (_, index) => `<line x1="${cssValue(crop.left)}" y1="${cssValue(crop.top + index * 100)}" x2="${cssValue(crop.left + 8)}" y2="${cssValue(crop.top + index * 100)}"/>`).join("")}</g>` : "";
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${cssValue(crop.left)} ${cssValue(crop.top)} ${cssValue(cropWidth)} ${cssValue(cropHeight)}" role="img" aria-label="Creative appearance preview"><rect width="${cssValue(document.canvas.width)}" height="${cssValue(document.canvas.height)}" fill="${cssValue(document.canvas.background)}"/>${grid}${roots}${guides}${safe}${rulers}</svg>`;
 }
 
 export function renderCreativePreviewText(document: CreativeAppearanceDocument): string {

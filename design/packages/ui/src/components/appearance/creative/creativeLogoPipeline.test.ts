@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import { createCreativeDocument } from "./creativeDocument.js";
+import { createCreativeDocument, undoCreative } from "./creativeDocument.js";
 import { renderCreativeSvg } from "./creativeRenderer.js";
-import { applyCreativeLogoVariant, resetCreativeLogoPipeline } from "./creativeLogoPipeline.js";
+import { applyCreativeLogoVariant, resetCreativeLogoPipeline, syncCreativeLogoStore } from "./creativeLogoPipeline.js";
 import { logoStore, resetLogoToShipped, setLogoPersistence } from "../../appLogo/logoStore.js";
 
 describe("creative logo pipeline", () => {
@@ -15,6 +15,10 @@ describe("creative logo pipeline", () => {
         expect(logoStore.custom?.dataUrl).toBe(variant.dataUrl);
         expect(logoStore.custom?.width).toBe(128);
         expect(next.logo.target).toBe("app-logo");
+        syncCreativeLogoStore(undoCreative(next));
+        expect(logoStore.custom).toBeNull();
+        syncCreativeLogoStore(next);
+        expect(logoStore.custom?.dataUrl).toBe(variant.dataUrl);
         const reset = resetCreativeLogoPipeline(next);
         expect(logoStore.custom).toBeNull();
         expect(reset.logo.enabled).toBe(false);

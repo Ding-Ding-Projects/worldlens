@@ -11,6 +11,8 @@ import {
     updateCreativeLayer,
     validateCreativeAssetBytes,
     validateCreativeDocument,
+    setCreativeCanvas,
+    duplicateCreativeLayers,
 } from "./creativeDocument.js";
 import { renderCreativePreviewText } from "./creativeRenderer.js";
 
@@ -60,6 +62,20 @@ describe("creative appearance document", () => {
         expect(document.layers.filter((layer) => layer.parentId === group!.id)).toHaveLength(2);
     });
 
+    it("remaps nested parent IDs when duplicating a group", () => {
+        let document = createCreativeDocument();
+        document = addCreativeLayer(document, createCreativeLayer("group"));
+        const groupId = document.layers[0]!.id;
+        document = addCreativeLayer(document, createCreativeLayer("text"));
+        const childId = document.layers[1]!.id;
+        document = updateCreativeLayer(document, childId, { parentId: groupId }, "nest child");
+        document = duplicateCreativeLayers(document, [groupId]);
+        const groups = document.layers.filter((layer) => layer.kind === "group");
+        expect(groups).toHaveLength(2);
+        const copy = groups[1]!;
+        expect(document.layers.some((layer) => layer.parentId === copy.id)).toBe(true);
+    });
+
     it("round trips export and import without trusting arbitrary JSON", () => {
         let document = createCreativeDocument();
         document = addCreativeLayer(document, createCreativeLayer("gradient"));
@@ -107,6 +123,8 @@ describe("creative appearance document", () => {
         expect(validateCreativeDocument(badStops)).toBe(false);
         const badAsset = { ...JSON.parse(JSON.stringify(document)) as typeof document, layers: [{ ...document.layers[0]!, kind: "raster", dataUrl: "data:image/png;base64,not-a-real-png" } as never] };
         expect(validateCreativeDocument(badAsset)).toBe(false);
+        const badCrop = { ...document, canvas: { ...document.canvas, crop: { top: 500, right: 600, bottom: 400, left: 500 } } };
+        expect(validateCreativeDocument(badCrop)).toBe(false);
     });
 
     it("renders masks, effects, clipping, gradients, and safe text as real SVG state", () => {
@@ -134,5 +152,28 @@ describe("creative appearance document", () => {
         expect(rendered).toContain('y="192"');
         expect(rendered).toContain('translate(308 282) scale(1.5 0.5) rotate(12) translate(-308 -282)');
         expect(rendered).not.toContain('translate(436 474)');
+    });
+
+    it("renders crop, rulers, guides, grid, safe area, clipping, and inner glow state", () => {
+        let document = createCreativeDocument();
+        document = setCreativeCanvas(document, {
+            crop: { top: 10, right: 20, bottom: 30, left: 40 },
+            rulers: true,
+            guides: [{ id: "guide-a", axis: "x", position: 100 }],
+            grid: { enabled: true, size: 20, snap: true },
+            safeArea: { enabled: true, inset: 24 },
+        }, "canvas guides");
+        document = addCreativeLayer(document, createCreativeLayer("vector"));
+        document = updateCreativeLayer(document, document.layers[0]!.id, {
+            mask: { enabled: true, kind: "rectangle", x: 0, y: 0, width: 100, height: 100, feather: 2 },
+            effects: { ...document.layers[0]!.effects, innerGlow: { radius: 5, color: "#ffffff" } },
+        }, "inner glow");
+        const rendered = renderCreativePreviewText(document);
+        expect(rendered).toContain('viewBox="40 10 964 728"');
+        expect(rendered).toContain("creative-grid");
+        expect(rendered).toContain("guide-a");
+        expect(rendered).toContain("creative-inner-glow-");
+        expect(rendered).toContain('mask="url(#creative-mask-');
+        expect(rendered).toContain("#ffcc00");
     });
 });

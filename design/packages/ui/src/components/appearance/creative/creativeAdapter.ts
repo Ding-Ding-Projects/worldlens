@@ -1,14 +1,22 @@
 import { recordFor, withRecord, type AppearanceState } from "../appearanceStore.js";
 import { appearanceState, commitAppearance } from "../useAppearance.js";
-import { validateCreativeDocument } from "./creativeDocument.js";
+import { migrateCreativeDocument, validateCreativeDocument } from "./creativeDocument.js";
 import type { CreativeAppearanceDocument } from "./creativeTypes.js";
 
 /** The preserved record key used by the core appearance store for creative documents. */
 export const CREATIVE_RECORD_KEY = "creativeDocument";
+const migratedTargets = new Set<string>();
 
 export function creativeDocumentFor(state: AppearanceState, targetId: string): CreativeAppearanceDocument | null {
     const candidate = recordFor(state, targetId).preserved[CREATIVE_RECORD_KEY];
-    return validateCreativeDocument(candidate) ? candidate : null;
+    const migrated = migrateCreativeDocument(candidate);
+    if (!validateCreativeDocument(migrated)) return null;
+    if (migrated !== candidate && !migratedTargets.has(targetId)) {
+        migratedTargets.add(targetId);
+        const record = recordFor(state, targetId);
+        commitAppearance(withRecord(state, targetId, { ...record, preserved: { ...record.preserved, [CREATIVE_RECORD_KEY]: migrated } }));
+    }
+    return migrated;
 }
 
 /**

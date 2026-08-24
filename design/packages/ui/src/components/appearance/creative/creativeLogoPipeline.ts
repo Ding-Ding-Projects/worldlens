@@ -43,7 +43,8 @@ export function applyCreativeLogoVariant(document: CreativeAppearanceDocument, v
     const mark: LogoCustomMark = { dataUrl: variant.dataUrl, format: "svg", width: variant.width, height: variant.height };
     try {
         setCustomLogo(mark);
-        return setCreativeLogo(document, { enabled: true, target: "app-logo" });
+        const variants = [...document.logo.variants.filter((candidate) => candidate.id !== variant.id), variant].slice(-8);
+        return setCreativeLogo(document, { enabled: true, target: "app-logo", variants });
     } catch (error) {
         try {
             if (prior.custom !== null) setCustomLogo(prior.custom);
@@ -63,4 +64,18 @@ export function applyCreativeLogoVariant(document: CreativeAppearanceDocument, v
 export function resetCreativeLogoPipeline(document: CreativeAppearanceDocument): CreativeAppearanceDocument {
     resetLogoToShipped();
     return setCreativeLogo(document, { enabled: false, target: "appearance-target", variants: [] });
+}
+
+/** Replays a logo snapshot during creative undo or redo without creating a second document edit. */
+export function syncCreativeLogoStore(document: CreativeAppearanceDocument): void {
+    if (!document.logo.enabled || document.logo.variants.length === 0) {
+        resetLogoToShipped();
+        return;
+    }
+    const variant = document.logo.variants.find((candidate) => candidate.width === 512) ?? document.logo.variants[document.logo.variants.length - 1];
+    if (!variant) return;
+    const bytes = svgBytes(variant.dataUrl);
+    const validation = validateLogoBytes(bytes);
+    if (!validation.ok || validation.image.format !== "svg") throw new Error("The saved logo variant failed the app-logo byte validation during history replay.");
+    setCustomLogo({ dataUrl: variant.dataUrl, format: "svg", width: variant.width, height: variant.height });
 }

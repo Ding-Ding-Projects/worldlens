@@ -21,6 +21,7 @@ import {
     type CreativeLogoComposition,
 } from "./creativeTypes.js";
 import { DEFAULT_TYPOGRAPHY, type TypographySpec } from "../typographySpec.js";
+import { validateLogoBytes } from "../../appLogo/logoValidation.js";
 
 const BLEND_MODES: readonly CreativeBlendMode[] = [
     "normal", "multiply", "screen", "overlay", "darken", "lighten", "color-dodge",
@@ -294,8 +295,20 @@ export function resetCreativeLayer(document: CreativeAppearanceDocument, layerId
 
 export function duplicateCreativeLayers(document: CreativeAppearanceDocument, ids: readonly string[]): CreativeAppearanceDocument {
     const selected = new Set(ids);
-    const copies = document.layers.filter((layer) => selected.has(layer.id)).map((layer) => ({
-        ...clone(layer), id: id(layer.kind), name: `${layer.name} copy`, x: "x" in layer ? layer.x + 24 : undefined,
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const layer of document.layers) {
+            if (layer.parentId !== null && selected.has(layer.parentId) && !selected.has(layer.id)) {
+                selected.add(layer.id);
+                changed = true;
+            }
+        }
+    }
+    const sourceLayers = document.layers.filter((layer) => selected.has(layer.id));
+    const remap = new Map(sourceLayers.map((layer) => [layer.id, id(layer.kind)]));
+    const copies = sourceLayers.map((layer) => ({
+        ...clone(layer), id: remap.get(layer.id)!, name: `${layer.name} copy`, parentId: layer.parentId !== null && remap.has(layer.parentId) ? remap.get(layer.parentId)! : layer.parentId, x: "x" in layer ? layer.x + 24 : undefined,
         y: "y" in layer ? layer.y + 24 : undefined,
     } as CreativeLayer));
     if (copies.length === 0 || document.layers.length + copies.length > CREATIVE_LIMITS.maxLayers) return document;
@@ -383,6 +396,18 @@ function validRasterDataUrl(value: unknown): value is string {
     }
 }
 
+function validLogoVariantDataUrl(value: unknown): value is string {
+    if (typeof value !== "string") return false;
+    const match = /^data:image\/svg\+xml;charset=utf-8,(.+)$/i.exec(value);
+    if (!match) return false;
+    try {
+        const result = validateLogoBytes(new TextEncoder().encode(decodeURIComponent(match[1]!)));
+        return result.ok && result.image.format === "svg";
+    } catch {
+        return false;
+    }
+}
+
 function validEffects(value: unknown): value is CreativeEffectStack {
     if (!isObject(value) || !validNumber(value.blur, 0, 128) || !validNumber(value.brightness, 0, 8) || !validNumber(value.contrast, 0, 8) || !validNumber(value.saturation, 0, 8) || !validNumber(value.hue, -360, 360) || !validNumber(value.grayscale, 0, 1) || !validNumber(value.sepia, 0, 1) || !validNumber(value.invert, 0, 1) || !isObject(value.shadow) || !isObject(value.innerGlow) || !isObject(value.outerGlow)) return false;
     return validNumber(value.shadow.x, -4096, 4096) && validNumber(value.shadow.y, -4096, 4096) && validNumber(value.shadow.blur, 0, 256) && validColor(value.shadow.color) && validNumber(value.innerGlow.radius, 0, 256) && validColor(value.innerGlow.color) && validNumber(value.outerGlow.radius, 0, 256) && validColor(value.outerGlow.color);
@@ -407,7 +432,8 @@ function validLayer(layer: unknown, depth: number, ids: Set<string>, canvas: Cre
 
 function validCanvas(value: unknown): value is CreativeCanvas {
     if (!isObject(value) || !validNumber(value.width, 1, 4096) || !validNumber(value.height, 1, 4096) || !validColor(value.background) || value.width * value.height > CREATIVE_LIMITS.maxCanvasPixels) return false;
-    return isObject(value.crop) && validNumber(value.crop.top, 0, value.height) && validNumber(value.crop.right, 0, value.width) && validNumber(value.crop.bottom, 0, value.height) && validNumber(value.crop.left, 0, value.width) && typeof value.rulers === "boolean" && isObject(value.grid) && typeof value.grid.enabled === "boolean" && validNumber(value.grid.size, 1, 512) && typeof value.grid.snap === "boolean" && isObject(value.safeArea) && validNumber(value.safeArea.inset, 0, 512) && typeof value.safeArea.enabled === "boolean" && Array.isArray(value.guides) && value.guides.length <= 128 && value.guides.every((guide) => isObject(guide) && typeof guide.id === "string" && ["x", "y"].includes(String(guide.axis)) && validNumber(guide.position, -4096, 8192));
+    const guideIds = new Set<string>();
+    return isObject(value.crop) && validNumber(value.crop.top, 0, value.height) && validNumber(value.crop.right, 0, value.width) && validNumber(value.crop.bottom, 0, value.height) && validNumber(value.crop.left, 0, value.width) && value.crop.top + value.crop.bottom < value.height && value.crop.left + value.crop.right < value.width && typeof value.rulers === "boolean" && isObject(value.grid) && typeof value.grid.enabled === "boolean" && validNumber(value.grid.size, 1, 512) && typeof value.grid.snap === "boolean" && isObject(value.safeArea) && validNumber(value.safeArea.inset, 0, 512) && typeof value.safeArea.enabled === "boolean" && Array.isArray(value.guides) && value.guides.length <= 128 && value.guides.every((guide) => isObject(guide) && typeof guide.id === "string" && !guideIds.has(guide.id) && (guideIds.add(guide.id), ["x", "y"].includes(String(guide.axis)) && validNumber(guide.position, -4096, 8192)));
 }
 
 function validLayerGraph(value: unknown, canvas: CreativeCanvas): value is readonly CreativeLayer[] {
@@ -437,6 +463,10 @@ function selectedIdsValid(layers: unknown, selected: unknown): boolean {
     return selected.every((id) => typeof id === "string" && ids.has(id));
 }
 
+function validLogoComposition(value: unknown): boolean {
+    return isObject(value) && typeof value.enabled === "boolean" && ["app-logo", "appearance-target"].includes(String(value.target)) && isObject(value.safeArea) && validNumber(value.safeArea.inset, 0, 512) && typeof value.safeArea.enabled === "boolean" && Array.isArray(value.variants) && value.variants.length <= 8 && value.variants.every((variant) => isObject(variant) && typeof variant.id === "string" && validNumber(variant.width, 1, 2048) && validNumber(variant.height, 1, 2048) && validLogoVariantDataUrl(variant.dataUrl));
+}
+
 export function validateCreativeDocument(value: unknown): value is CreativeAppearanceDocument {
     if (!isObject(value) || value.format !== CREATIVE_DOCUMENT_FORMAT || value.version !== CREATIVE_DOCUMENT_VERSION) return false;
     const canvas = value.canvas;
@@ -445,8 +475,8 @@ export function validateCreativeDocument(value: unknown): value is CreativeAppea
     if (!selectedIdsValid(value.layers, value.selectedLayerIds)) return false;
     if (!Array.isArray(value.history) || value.history.length > CREATIVE_LIMITS.maxHistory || !validNumber(value.historyCursor, 0, Math.max(0, value.history.length - 1))) return false;
     if (!Array.isArray(value.presets) || value.presets.length > 32 || !value.presets.every((preset) => isObject(preset) && typeof preset.id === "string" && typeof preset.name === "string" && validCanvas(preset.canvas) && validLayerGraph(preset.layers, preset.canvas))) return false;
-    if (!isObject(value.logo) || typeof value.logo.enabled !== "boolean" || !["app-logo", "appearance-target"].includes(String(value.logo.target)) || !isObject(value.logo.safeArea) || !validNumber(value.logo.safeArea.inset, 0, 512) || typeof value.logo.safeArea.enabled !== "boolean" || !Array.isArray(value.logo.variants) || value.logo.variants.length > 8 || !value.logo.variants.every((variant) => isObject(variant) && typeof variant.id === "string" && validNumber(variant.width, 1, 2048) && validNumber(variant.height, 1, 2048) && typeof variant.dataUrl === "string" && /^data:image\/svg\+xml;charset=utf-8,/i.test(variant.dataUrl))) return false;
-    return value.history.every((entry) => isObject(entry) && typeof entry.id === "string" && typeof entry.action === "string" && typeof entry.timestamp === "string" && validCanvas(entry.canvas) && validLayerGraph(entry.layers, entry.canvas) && selectedIdsValid(entry.layers, entry.selectedLayerIds) && Array.isArray(entry.presets) && entry.presets.every((preset) => isObject(preset) && validCanvas(preset.canvas) && validLayerGraph(preset.layers, preset.canvas)) && isObject(entry.logo));
+    if (!validLogoComposition(value.logo)) return false;
+    return value.history.every((entry) => isObject(entry) && typeof entry.id === "string" && typeof entry.action === "string" && typeof entry.timestamp === "string" && validCanvas(entry.canvas) && validLayerGraph(entry.layers, entry.canvas) && selectedIdsValid(entry.layers, entry.selectedLayerIds) && Array.isArray(entry.presets) && entry.presets.every((preset) => isObject(preset) && validCanvas(preset.canvas) && validLayerGraph(preset.layers, preset.canvas)) && validLogoComposition(entry.logo));
 }
 
 export function importCreativeDocument(text: string): CreativeImportResult {
