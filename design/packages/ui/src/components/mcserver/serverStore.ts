@@ -183,11 +183,19 @@ export interface AdoptionCandidate {
     readonly image: string;
     readonly guessedFlavour: string | null;
     readonly guessedVersion: string | null;
+    readonly confidence?: "high" | "medium" | "low";
+    readonly evidence?: readonly string[];
+    readonly mounts?: readonly { readonly source: string; readonly destination: string }[];
+    readonly ports?: readonly number[];
+    readonly blockers?: readonly string[];
+    readonly serverDir?: string | null;
+    readonly detected?: { readonly serverDir?: string | null };
 }
 
 export interface AdoptConfirmRequest {
     readonly id: string;
     readonly containerId: string;
+    readonly hostId?: string | null;
     readonly consent?: {
         readonly configWrite?: boolean;
         readonly lifecycle?: boolean;
@@ -312,7 +320,7 @@ export interface McServerHost {
         action(id: string, request: { action: string; name: string; reason?: string }): Promise<Answer<void>>;
     };
     readonly adopt?: {
-        discover(): Promise<Answer<readonly AdoptionCandidate[]>>;
+        discover(request?: { readonly hostId?: string | null }): Promise<Answer<readonly AdoptionCandidate[]>>;
         confirm(request: AdoptConfirmRequest): Promise<Answer<ServerRecord>>;
         release(id: string, options?: { restoreSnapshot?: boolean }): Promise<Answer<void>>;
     };
@@ -399,7 +407,7 @@ export interface ServerStore {
     onJavaProgress(listener: (progress: JavaProvisionProgress) => void): () => void;
     createServer(request: CreateServerRequest): Promise<Answer<ServerRecord>>;
 
-    adoptDiscover(): Promise<Answer<readonly AdoptionCandidate[]>>;
+    adoptDiscover(hostId?: string | null): Promise<Answer<readonly AdoptionCandidate[]>>;
     adoptConfirm(request: AdoptConfirmRequest): Promise<Answer<ServerRecord>>;
     adoptRelease(id: string, options?: { restoreSnapshot?: boolean }): Promise<Answer<void>>;
 
@@ -600,7 +608,25 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             if (host.java?.provision === undefined) {
                 return notWired("installing Java automatically");
             }
-            return host.java.provision(version);
+            const result = await host.java.provision(version);
+            if (!result.ok || result.value === undefined) return result;
+            const raw = result.value as unknown as {
+                outcome?: string;
+                feature?: number;
+                java?: { executable?: string; version?: { version?: string } };
+            };
+            if (raw.java?.executable === undefined) return result as Answer<JavaResolution>;
+            return {
+                ok: true,
+                value: {
+                    found: true,
+                    executable: raw.java.executable,
+                    source: "provisioned",
+                    version: raw.java.version?.version ?? null,
+                    requiredFeature: raw.feature ?? (Number(version) || 0),
+                    message: raw.outcome === "already-installed" ? "Java is already available." : "Java was provisioned and verified.",
+                },
+            };
         },
         onJavaProgress(listener): () => void {
             if (host?.java?.onProgress === undefined) return () => {};
@@ -616,10 +642,10 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             return result;
         },
 
-        async adoptDiscover(): Promise<Answer<readonly AdoptionCandidate[]>> {
+        async adoptDiscover(hostId?: string | null): Promise<Answer<readonly AdoptionCandidate[]>> {
             if (host === null) return noHost();
             if (host.adopt === undefined) return notWired("adopting existing containers");
-            return host.adopt.discover();
+            return host.adopt.discover(hostId === undefined ? undefined : { hostId });
         },
         async adoptConfirm(request): Promise<Answer<ServerRecord>> {
             if (host === null) return noHost();

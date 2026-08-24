@@ -77,6 +77,7 @@ import {
 } from "./hostProfiles.js";
 import { recordedFor, scanHostKeys, trustHostKey } from "../remote/hostkey.js";
 import { openSshRconTunnel, type SshRconTunnel } from "./rcon/sshTunnel.js";
+import { sshCommandRunner } from "../remote/ssh.js";
 
 export const MCSERVER_CHANNELS = {
     list: "mcserver:list",
@@ -347,6 +348,15 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
     const rconHostFor = options.rconHostFor ?? defaultRconHostFor;
     const openRconTunnel = options.sshRconTunnel ?? openSshRconTunnel;
     const rconTunnels = new Map<string, SshRconTunnel>();
+
+    async function closeRconTunnelIfUnused(serverId: string): Promise<void> {
+        const active = [...consoleSessions.values()].some((entry) => entry.serverId === serverId);
+        if (active) return;
+        const tunnel = rconTunnels.get(serverId);
+        if (tunnel === undefined) return;
+        rconTunnels.delete(serverId);
+        await tunnel.close();
+    }
     /** Live console supervisors, keyed by the stable session id `console:open` handed out. */
     const consoleSessions = new Map<string, { readonly serverId: string; readonly supervisor: ConsoleSupervisor; unsubscribe(): void }>();
 
@@ -469,6 +479,45 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             password,
             socketFactory: rconSocketFactory,
         });
+    }
+
+    async function adoptionRunner(hostId: unknown): Promise<Answer<{ runner: CommandRunner; hostId: string | null }>> {
+        if (hostId === undefined || hostId === null || hostId === "") {
+            const runner = options.factory?.runner;
+            return runner === undefined
+                ? fail("unsupported", "Adoption needs a Docker command runner in this build.")
+                : ok({ runner, hostId: null });
+        }
+        if (!isRecordId(hostId)) return fail("invalid-request", "That SSH host profile id is not valid.");
+        const profile = await hostProfiles.get(hostId);
+        if (!profile.ok) return profile;
+        const ssh = hostProfiles.sshHost(hostId);
+        if (ssh === null) return fail("not-found", "That SSH host profile is not available.");
+        return ok({
+            runner: sshCommandRunner({ ...ssh, ...(options.factory?.runner === undefined ? {} : { runner: options.factory.runner }) }),
+            hostId,
+        });
+    }
+
+    function rconConsoleTransport(id: string, transport: ServerTransport): ServerTransport {
+        if (transport.ref.kind !== "ssh-docker") return transport;
+        return {
+            ...transport,
+            capabilities: { ...transport.capabilities, console: "rcon" },
+            async attach(attachOptions) {
+                const attached = await transport.attach(attachOptions);
+                if (!attached.ok) return attached;
+                return ok({
+                    ...attached.value,
+                    async send(command: string) {
+                        const rcon = await openRcon(id);
+                        if (!rcon.ok) return rcon;
+                        const reply = await runOneCommand(rcon.value, command);
+                        return reply.ok ? ok(undefined) : reply;
+                    },
+                });
+            },
+        };
     }
 
     const handlers: Record<string, (...args: never[]) => Promise<unknown>> = {
@@ -618,7 +667,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (!opened.ok) return opened;
             const tailLines = typeof tail === "number" && tail > 0 && tail <= 5_000 ? Math.floor(tail) : 200;
 
-            const supervisor = new ConsoleSupervisor({ transport: opened.value.transport, tail: tailLines });
+            const supervisor = new ConsoleSupervisor({ transport: rconConsoleTransport(opened.value.record.id, opened.value.transport), tail: tailLines });
             const sender = (event as { sender?: { send(channel: string, ...args: unknown[]): void } } | undefined)?.sender;
             const unsubscribe = supervisor.onUpdate((update) => {
                 try {
@@ -652,6 +701,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             entry.unsubscribe();
             entry.supervisor.close();
             consoleSessions.delete(sessionId);
+            await closeRconTunnelIfUnused(id);
             return { ok: true, value: undefined };
         },
 
@@ -911,9 +961,12 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         [MCSERVER_CHANNELS.javaProvision]: async (event: unknown, id: unknown) => {
             if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
             const found = await registry.get(id);
-            if (!found.ok) return found;
-
-            const requirement = requiredJavaFeature(found.value.minecraftVersion ?? "");
+            if (!found.ok && found.failure.code !== "not-found") return found;
+            // The create wizard asks for a runtime before a server record exists. A saved
+            // server id still works, while a version or Java feature string is accepted as
+            // the pre-creation form. No fake registry record is created for this probe.
+            const version = found.ok ? found.value.minecraftVersion ?? "" : id;
+            const requirement = requiredJavaFeature(version);
             const feature = requirement.known ? requirement.feature : REQUIRED_JAVA_FEATURE;
 
             // Already there is a real answer, and a far better one than downloading two
@@ -927,7 +980,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 ...(options.javaEnv === undefined ? {} : { env: options.javaEnv }),
             });
             if (discovery.installation !== null) {
-                return ok({ outcome: "already-installed", java: discovery.installation, feature });
+                return ok({ outcome: "already-installed", java: discovery.installation, feature, version });
             }
 
             const sender = (event as { sender?: { send?: (channel: string, ...args: unknown[]) => void } } | null)
@@ -940,14 +993,28 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                     // it is doing instead of showing a spinner that never changes.
                     onEvent: (progress) => {
                         try {
-                            sender?.send?.("mcserver:java:progress", id, progress);
+                            const phase = progress.stage === "downloading"
+                                ? "downloading"
+                                : progress.stage === "extracting" || progress.stage === "installing"
+                                  ? "extracting"
+                                  : progress.stage === "done"
+                                    ? "done"
+                                    : progress.stage === "verifying"
+                                      ? "verifying"
+                                      : "failed";
+                            sender?.send?.("mcserver:java:progress", id, {
+                                phase,
+                                receivedBytes: progress.received ?? 0,
+                                totalBytes: progress.total,
+                                message: progress.message,
+                            });
                         } catch {
                             // A renderer that has gone away is not a reason to abandon a
                             // download that is otherwise working.
                         }
                     },
                 });
-                return ok({ outcome: "installed", java: record, feature });
+                return ok({ outcome: "installed", java: record, feature, version });
             } catch (error) {
                 // `provisionJava` throws; every other handler here answers. Translated rather
                 // than propagated, so the renderer keeps one shape to render.
@@ -1141,19 +1208,14 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             });
         },
 
-        [MCSERVER_CHANNELS.adoptDiscover]: async () => {
-            const runner = options.factory?.runner;
-            if (runner === undefined) {
-                return fail("unsupported", "Discovering existing containers needs a way to run docker commands, which this build did not provide.");
-            }
-            return discoverAdoptionCandidates({ runner, docker, ...(options.dockerOwnerValue === undefined ? {} : { ownerValue: options.dockerOwnerValue }) });
+        [MCSERVER_CHANNELS.adoptDiscover]: async (_event: never, request?: unknown) => {
+            const body = typeof request === "object" && request !== null ? request as Record<string, unknown> : {};
+            const selected = await adoptionRunner(body.hostId);
+            if (!selected.ok) return selected;
+            return discoverAdoptionCandidates({ runner: selected.value.runner, docker, ...(options.dockerOwnerValue === undefined ? {} : { ownerValue: options.dockerOwnerValue }) });
         },
 
         [MCSERVER_CHANNELS.adopt]: async (_event: never, request: unknown) => {
-            const runner = options.factory?.runner;
-            if (runner === undefined) {
-                return fail("unsupported", "Adopting a container needs a way to run docker commands, which this build did not provide.");
-            }
             if (typeof request !== "object" || request === null) {
                 return fail("invalid-request", "That adoption request could not be read.");
             }
@@ -1161,6 +1223,9 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (!isRecordId(body.id) || typeof body.containerId !== "string" || body.containerId === "") {
                 return fail("invalid-request", "That adoption request is missing a server name or a container to adopt.");
             }
+            const selected = await adoptionRunner(body.hostId);
+            if (!selected.ok) return selected;
+            const runner = selected.value.runner;
 
             // Adopting is always one-at-a-time. This handler only ever names one
             // container, and `refuseBulkAdoption` is asserted here as a standing
@@ -1198,9 +1263,13 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             }
 
             const consent = readConsent(body.consent);
+            const remote = selected.value.hostId !== null;
+            const writeScope = candidate.detected.serverDir === null ? [] : ["."];
             const record: AdoptionRecord = {
                 id: body.id,
-                transport: { kind: "local-docker", containerRef: candidate.containerId, serverDir },
+                transport: remote
+                    ? { kind: "ssh-docker", hostId: selected.value.hostId!, containerRef: candidate.containerId, serverDir }
+                    : { kind: "local-docker", containerRef: candidate.containerId, serverDir },
                 containerId: candidate.containerId,
                 containerName: candidate.containerName,
                 fingerprint,
@@ -1211,7 +1280,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 mode: "record-only",
                 detected: { flavour: candidate.detected.flavour, minecraftVersion: candidate.detected.minecraftVersion },
                 serverDir,
-                writeScope: [],
+                writeScope,
                 consent,
                 preAdoptionBackup: null,
                 releasedAt: null,
@@ -1230,7 +1299,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 updatedAt: now(),
                 hasRconSecret: false,
                 rconPort: null,
-                writeScope: [],
+                writeScope,
             };
             const savedServer = await registry.put(serverRecord);
             if (!savedServer.ok) return savedServer;

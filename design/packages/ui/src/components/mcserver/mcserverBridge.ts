@@ -158,7 +158,7 @@ interface RawBridge {
             updates?(request: unknown): Promise<unknown>;
         };
         adopt?: {
-            discover?(): Promise<unknown>;
+            discover?(request?: { hostId?: string | null }): Promise<unknown>;
             confirm?(request: unknown): Promise<unknown>;
             release?(id: string, options?: unknown): Promise<unknown>;
         };
@@ -292,9 +292,11 @@ export function pluginsUpdates(
     return call(b?.plugins?.updates ? () => b.plugins!.updates!(request) : undefined);
 }
 
-export function adoptDiscover(root: unknown = globalThis): Promise<Answer<readonly AdoptionCandidate[]>> {
-    const b = bridge(root);
-    return call(b?.adopt?.discover ? () => b.adopt!.discover!() : undefined);
+export function adoptDiscover(hostIdOrRoot?: string | null | unknown, root: unknown = globalThis): Promise<Answer<readonly AdoptionCandidate[]>> {
+    const hostId = typeof hostIdOrRoot === "string" || hostIdOrRoot === null ? hostIdOrRoot : undefined;
+    const actualRoot = hostId === undefined && hostIdOrRoot !== undefined ? hostIdOrRoot : root;
+    const b = bridge(actualRoot);
+    return call(b?.adopt?.discover ? () => b.adopt!.discover!({ hostId }) : undefined);
 }
 export function adoptConfirm(
     request: {

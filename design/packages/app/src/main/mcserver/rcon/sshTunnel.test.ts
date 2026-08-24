@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { spawn } from "node:child_process";
 
 import { openSshRconTunnel, sshRconForwardArguments } from "./sshTunnel.js";
 import type { SshOptionsInput } from "../../remote/ssh.js";
@@ -46,6 +47,28 @@ describe("SSH RCON tunnel", () => {
         });
         expect(result.ok).toBe(false);
         if (!result.ok) expect(result.failure.code).toBe("unreachable");
+    });
+
+    it("releases the reservation before a real forwarding child binds and probes it", async () => {
+        const child = await openSshRconTunnel({
+            ssh,
+            remotePort: 25_575,
+            settleMs: 500,
+            retries: 0,
+            spawnProcess: (_command, args) => {
+                const mapping = args.find((value) => value.startsWith("127.0.0.1:")) ?? "";
+                const localPort = Number(mapping.split(":")[1]);
+                return spawn(
+                    process.execPath,
+                    ["-e", `require('net').createServer().listen(${String(localPort)}, '127.0.0.1')`],
+                    { stdio: "ignore", windowsHide: true },
+                );
+            },
+        });
+        expect(child.ok).toBe(true);
+        if (!child.ok) return;
+        expect(child.value.localPort).toBeGreaterThan(0);
+        await child.value.close();
     });
 
     it("rejects an invalid remote port without spawning", async () => {

@@ -37,6 +37,7 @@ const props = defineProps<{
     ports?: readonly { readonly container: number; readonly host: number | null }[];
     blockers?: readonly string[];
     containerId?: string | null;
+    hostId?: string | null;
 }>();
 const emit = defineEmits<{ "update:modelValue": [value: boolean]; confirmed: [record: ServerRecord] }>();
 
@@ -112,7 +113,7 @@ async function confirm(): Promise<void> {
         failure.value = t("mcserver.adopt.noContainer", "No container was selected for adoption.");
         return;
     }
-    const result = await store.adoptConfirm({ id: props.record.id, containerId: props.containerId, consent: { ...consent } });
+    const result = await store.adoptConfirm({ id: props.record.id, containerId: props.containerId, hostId: props.hostId, consent: { ...consent } });
     if (result.ok) {
         emit("confirmed", result.value ?? props.record);
         open.value = false;
