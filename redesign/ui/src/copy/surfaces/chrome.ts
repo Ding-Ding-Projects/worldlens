@@ -345,6 +345,7 @@ export const CHROME_FIXED = {
     "tabs.page.pages": { en: "Publish to Pages", yue: "發佈到 Pages" },
     "tabs.page.worldRepo": { en: "World repository", yue: "世界 Repository" },
     "tabs.page.preview": { en: "Watch it live", yue: "即時直播睇" },
+    "tabs.page.tools": { en: "Local tools", yue: "本機工具" },
     "tabs.group.newName": { en: "New group", yue: "新群組" },
 
     "world.rendered": { en: "Rendered map", yue: "算好嘅地圖" },

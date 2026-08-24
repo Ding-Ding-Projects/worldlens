@@ -174,6 +174,8 @@ import { handleSquirrelShortcutEvent } from "./squirrelShortcuts.js";
 import { registerAddonHandlers } from "./addons/index.js";
 import type { AddonIpc } from "./addons/index.js";
 import { registerVocabularyHandlers } from "./vocabulary/index.js";
+import { registerConverterHandlers, type ConverterIpc } from "./converter/index.js";
+import { registerOllamaHandlers, type OllamaIpc } from "./ollama/index.js";
 
 const squirrelStartupHandled = handleSquirrelShortcutEvent({
     platform: process.platform,
@@ -477,6 +479,8 @@ let ipcRegistered = false;
 let schoolModeIpc: SchoolModeIpc | null = null;
 let lockIpc: LockIpc | null = null;
 let mcServerIpc: McServerIpc | null = null;
+let converterIpc: ConverterIpc | null = null;
+let ollamaIpc: OllamaIpc | null = null;
 
 function registerIpc(): void {
     if (ipcRegistered) return;
@@ -564,6 +568,17 @@ function registerIpc(): void {
         safeStorage,
     });
     app.on("will-quit", () => mcServerIpc?.dispose());
+
+    // Local conversion and Ollama are registered even when their bundled dependencies are
+    // unavailable. The renderer receives a complete catalog with disabled reasons rather
+    // than a missing tab or a button that sends somebody hunting for a manual install.
+    converterIpc = registerConverterHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+        ...(app.isPackaged ? { bundledFiles: { "pdf-core": path.join(process.resourcesPath, "converter", "pdf-core.adapter"), "image-png": path.join(process.resourcesPath, "converter", "image-png.adapter"), "image-jpeg": path.join(process.resourcesPath, "converter", "image-jpeg.adapter"), "archive-zip": path.join(process.resourcesPath, "converter", "archive-zip.adapter"), "data-json": path.join(process.resourcesPath, "converter", "data-json.adapter"), "text-markdown": path.join(process.resourcesPath, "converter", "text-markdown.adapter"), "binary-base64": path.join(process.resourcesPath, "converter", "binary-base64.adapter"), "audio-ogg": path.join(process.resourcesPath, "converter", "audio-ogg.adapter"), "video-webm": path.join(process.resourcesPath, "converter", "video-webm.adapter") } } : {}),
+    });
+    app.on("will-quit", () => converterIpc?.dispose());
+    ollamaIpc = registerOllamaHandlers(ipcMain);
+    app.on("will-quit", () => ollamaIpc?.dispose());
 
     registerVocabularyHandlers(ipcMain, { applicationDataDirectory });
 

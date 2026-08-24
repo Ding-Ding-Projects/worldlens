@@ -33,6 +33,7 @@ import {
     mdiProgressClock,
     mdiServerNetwork,
     mdiSourceRepository,
+    mdiRobotOutline,
     mdiWeb,
 } from "@mdi/js";
 import type { Component } from "vue";
@@ -48,7 +49,8 @@ export type CoreJobId =
     | "preview"
     | "backups"
     | "worldrepo"
-    | "docs";
+    | "docs"
+    | "tools";
 
 /**
  * Jobs that exist only where a sanitized public contract for them is in this checkout.
@@ -81,6 +83,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     backups: "backups",
     worldrepo: "worldrepo",
     docs: "docs",
+    tools: "tools",
     memory: "memory",
 } as const satisfies Record<string, JobId>;
 
@@ -255,6 +258,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelFallback: "Docs",
         icon: mdiFileDocumentOutline,
         seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "tools",
+        semanticName: "tools",
+        labelKey: "tabs.page.tools",
+        labelFallback: "Local tools",
+        icon: mdiRobotOutline,
+        seedGroup: "rendering",
         pinnedOnFreshWorkspace: false,
     },
     {

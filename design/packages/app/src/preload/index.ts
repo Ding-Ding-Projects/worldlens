@@ -2338,6 +2338,29 @@ type CiCloudRenderConfigResult =
     | { readonly ok: false; readonly failure: { readonly code: string; readonly message: string } };
 
 interface WorldlensBridge {
+    converter: {
+        catalog(): Promise<unknown>;
+        inspect(path: string): Promise<unknown>;
+        pdf(request: unknown): Promise<unknown>;
+        enqueue(items: unknown): Promise<unknown>;
+        queue(): Promise<unknown>;
+        pause(): Promise<unknown>;
+        resume(): Promise<unknown>;
+        cancel(id: string): Promise<unknown>;
+    };
+    ollama: {
+        health(): Promise<unknown>;
+        tags(): Promise<unknown>;
+        running(): Promise<unknown>;
+        show(name: string): Promise<unknown>;
+        catalog(): Promise<unknown>;
+        runtime(): Promise<unknown>;
+        delete(name: string): Promise<unknown>;
+        copy(source: string, destination: string): Promise<unknown>;
+        pull(name: string): Promise<unknown>;
+        generate(request: unknown): Promise<unknown>;
+        chat(request: unknown): Promise<unknown>;
+    };
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
@@ -4315,6 +4338,29 @@ const bridge: WorldlensBridge = {
         return () => {
             ipcRenderer.off("backup:event", forward);
         };
+    },
+    converter: {
+        catalog: () => ipcRenderer.invoke("converter:catalog"),
+        inspect: (path: string) => ipcRenderer.invoke("converter:inspect", path),
+        pdf: (request: unknown) => ipcRenderer.invoke("converter:pdf", request),
+        enqueue: (items: unknown) => ipcRenderer.invoke("converter:enqueue", items),
+        queue: () => ipcRenderer.invoke("converter:queue"),
+        pause: () => ipcRenderer.invoke("converter:pause"),
+        resume: () => ipcRenderer.invoke("converter:resume"),
+        cancel: (id: string) => ipcRenderer.invoke("converter:cancel", id),
+    },
+    ollama: {
+        health: () => ipcRenderer.invoke("ollama:health"),
+        tags: () => ipcRenderer.invoke("ollama:tags"),
+        running: () => ipcRenderer.invoke("ollama:running"),
+        show: (name: string) => ipcRenderer.invoke("ollama:show", name),
+        catalog: () => ipcRenderer.invoke("ollama:catalog"),
+        runtime: () => ipcRenderer.invoke("ollama:runtime"),
+        delete: (name: string) => ipcRenderer.invoke("ollama:delete", name),
+        copy: (source: string, destination: string) => ipcRenderer.invoke("ollama:copy", source, destination),
+        pull: (name: string) => ipcRenderer.invoke("ollama:pull", name),
+        generate: (request: unknown) => ipcRenderer.invoke("ollama:generate", request),
+        chat: (request: unknown) => ipcRenderer.invoke("ollama:chat", request),
     },
 };
 
