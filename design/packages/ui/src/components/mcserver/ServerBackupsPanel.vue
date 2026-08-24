@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { VAlert, VBtn, VCard, VCardText, VChip, VList, VListItem, VSelect, VSwitch, VTextField } from "vuetify/components";
+import { VAlert, VBtn, VCard, VCardText, VChip, VList, VListItem, VProgressLinear, VSelect, VSwitch, VTextField } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { backupAuthorizeRestore, backupCancel, backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, backupRestoreStep, onBackupProgress, type BackupEntry } from "./mcserverBridge.js";
 import { useServerStore } from "./useServers.js";

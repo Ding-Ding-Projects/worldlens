@@ -22,6 +22,7 @@ import PluginManager from "./PluginManager.vue";
 import PlayerManager from "./PlayerManager.vue";
 import WebConsolePanel from "./WebConsolePanel.vue";
 import AdoptionReviewDialog from "./AdoptionReviewDialog.vue";
+import ServerBackupsPanel from "./ServerBackupsPanel.vue";
 import { SERVER_STORE } from "./useServers.js";
 import { createServerStore, type McServerHost } from "./serverStore.js";
 import type { ServerRecord } from "./serverModel.js";
@@ -156,6 +157,14 @@ describe("mcserver panels mount against a real store and bridge", () => {
         await flushPromises();
         expect(wrapper.text()).toContain("Test Server");
         expect(wrapper.text()).toContain("Web console");
+    });
+
+    it("ServerBackupsPanel mounts with mounted-world targeting and progress controls", async () => {
+        const wrapper = await mountWith(ServerBackupsPanel, { serverId: "srv-1" });
+        await flushPromises();
+        expect(wrapper.text()).toContain("Backups and restore");
+        expect(wrapper.findComponent({ name: "VSelect" }).exists()).toBe(true);
+        expect(wrapper.text()).toContain("No verified backups are listed yet");
     });
 
     it("AdoptionReviewDialog mounts closed without throwing", async () => {
