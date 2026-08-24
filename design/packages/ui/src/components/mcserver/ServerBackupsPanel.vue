@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VCard, VCardText, VChip, VList, VListItem, VSelect, VSwitch, VTextField } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
-import { backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, type BackupEntry } from "./mcserverBridge.js";
+import { backupCancel, backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, type BackupEntry } from "./mcserverBridge.js";
 import { useServerStore } from "./useServers.js";
 
 const props = defineProps<{ serverId: string }>();
@@ -51,6 +51,11 @@ async function create(): Promise<void> {
     busy.value = false;
     message.value = result.ok ? t("mcserver.backup.created", "Backup created.") : result.failure?.message ?? t("mcserver.backup.createFailed", "Backup could not be created.");
     if (result.ok) await refresh();
+}
+async function cancel(): Promise<void> {
+    if (!busy.value) return;
+    const result = await backupCancel(props.serverId);
+    message.value = result.ok ? t("mcserver.backup.cancelRequested", "Cancellation requested. The current transfer will finish its safe cleanup before stopping.") : result.failure?.message ?? t("mcserver.backup.cancelFailed", "The active backup could not be cancelled.");
 }
 async function restore(): Promise<void> {
     if (busy.value) return;
@@ -114,7 +119,9 @@ onMounted(async () => {
             <div class="d-flex ga-2 mb-3">
                 <VBtn :loading="busy" :disabled="owner.trim() === '' || repo.trim() === '' || !targetValid" variant="tonal" @click="refresh">{{ t("mcserver.backup.refresh", "Refresh backups") }}</VBtn>
                 <VBtn :loading="busy" :disabled="owner.trim() === '' || repo.trim() === '' || !targetValid || (server?.origin === 'adopted' && !backupConsent)" color="primary" @click="create">{{ t("mcserver.backup.create", "Create backup") }}</VBtn>
+                <VBtn v-if="busy" variant="text" color="error" @click="cancel">{{ t("mcserver.backup.cancel", "Cancel") }}</VBtn>
             </div>
+            <VProgressLinear v-if="busy" indeterminate color="primary" class="mb-3" role="progressbar" :aria-label="t('mcserver.backup.progress', 'Backup operation in progress')" />
             <VAlert v-if="!targetValid" type="warning" variant="tonal" class="mb-3">{{ t("mcserver.backup.targetInvalid", "Choose a mounted folder inside this server's recognized directory.") }}</VAlert>
             <VSwitch v-if="server?.origin === 'adopted'" v-model="backupConsent" :label="t('mcserver.backup.consent', 'I consent to reading this adopted server for backup')" density="compact" hide-details class="mb-2" />
             <VSwitch v-if="server?.origin === 'adopted'" v-model="restoreConsent" :label="t('mcserver.backup.restoreConsent', 'I consent to restoring this adopted server')" density="compact" hide-details class="mb-2" />

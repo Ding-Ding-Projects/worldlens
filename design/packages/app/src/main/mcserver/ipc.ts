@@ -124,6 +124,7 @@ export const MCSERVER_CHANNELS = {
     adoptRelease: "mcserver:adopt:release",
     worldsList: "mcserver:worlds:list",
     backupCreate: "mcserver:backup:create",
+    backupCancel: "mcserver:backup:cancel",
     backupList: "mcserver:backup:list",
     backupRestore: "mcserver:backup:restore",
     backupRestoreChallenge: "mcserver:backup:restore:challenge",
@@ -365,6 +366,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
     const rconTunnels = new Map<string, SshRconTunnel>();
     const restoreReceipts = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
     const restoreChallenges = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
+    const activeBackupControllers = new Map<string, AbortController>();
     const RESTORE_AUTH_LIMIT = 128;
     const sweepRestoreAuth = (): void => {
         const current = Date.now();
@@ -1470,6 +1472,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (options.backup === undefined) {
                 return fail("unsupported", "Backups are not set up in this build.");
             }
+            if (!isRecordId(id)) return fail("invalid-request", "That backup server id could not be read.");
             const opened = await open(id);
             if (!opened.ok) return opened;
             if (typeof request !== "object" || request === null) {
@@ -1482,17 +1485,32 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (opened.value.record.origin === "adopted" && body.backupConsent !== true) {
                 return fail("denied", "Backing up an adopted server needs explicit backup consent.");
             }
-            return createServerBackup(options.backup.runnerOptions, {
-                ref: opened.value.record.ref,
-                transport: opened.value.transport,
-                worldFolder: body.worldFolder,
-                owner: body.owner,
-                repo: body.repo,
-                adopted: opened.value.record.origin === "adopted",
-                ...(typeof body.accountId === "string" ? { accountId: body.accountId } : {}),
-                ...(body.acknowledgePublic === true ? { acknowledgePublic: true } : {}),
-                ...(typeof body.resumeTag === "string" ? { resumeTag: body.resumeTag } : {}),
-            });
+            const controller = new AbortController();
+            activeBackupControllers.set(id, controller);
+            try {
+                return await createServerBackup(options.backup.runnerOptions, {
+                    ref: opened.value.record.ref,
+                    transport: opened.value.transport,
+                    worldFolder: body.worldFolder,
+                    owner: body.owner,
+                    repo: body.repo,
+                    adopted: opened.value.record.origin === "adopted",
+                    signal: controller.signal,
+                    ...(typeof body.accountId === "string" ? { accountId: body.accountId } : {}),
+                    ...(body.acknowledgePublic === true ? { acknowledgePublic: true } : {}),
+                    ...(typeof body.resumeTag === "string" ? { resumeTag: body.resumeTag } : {}),
+                });
+            } finally {
+                activeBackupControllers.delete(id);
+            }
+        },
+
+        [MCSERVER_CHANNELS.backupCancel]: async (_event: never, id: unknown) => {
+            if (!isRecordId(id)) return fail("invalid-request", "That backup id could not be read.");
+            const controller = activeBackupControllers.get(id);
+            if (controller === undefined) return fail("not-found", "That backup is not active in this process.");
+            controller.abort();
+            return ok({ cancelled: true });
         },
 
         [MCSERVER_CHANNELS.backupList]: async (_event: never, owner: unknown, repo: unknown) => {
@@ -1692,6 +1710,8 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             rconTunnels.clear();
             restoreChallenges.clear();
             restoreReceipts.clear();
+            for (const controller of activeBackupControllers.values()) controller.abort();
+            activeBackupControllers.clear();
             for (const channel of Object.keys(handlers)) {
                 ipcMain.removeHandler(channel);
             }

@@ -177,6 +177,7 @@ interface RawBridge {
         };
         backup?: {
             create?(id: string, request: unknown): Promise<unknown>;
+            cancel?(id: string): Promise<unknown>;
             list?(owner: string, repo: string): Promise<unknown>;
             issueRestoreChallenge?(id: string, request: unknown): Promise<unknown>;
             issueRestoreReceipt?(id: string, request: unknown): Promise<unknown>;
@@ -362,6 +363,10 @@ export function webConsoleBind(root: unknown = globalThis): Promise<Answer<WebCo
 export function backupCreate(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<BackupEntry>> {
     const b = bridge(root);
     return call(b?.backup?.create ? () => b.backup!.create!(id, request) : undefined);
+}
+export function backupCancel(id: string, root: unknown = globalThis): Promise<Answer<{ cancelled: boolean }>> {
+    const b = bridge(root);
+    return call(b?.backup?.cancel ? () => b.backup!.cancel!(id) : undefined);
 }
 export function backupList(owner: string, repo: string, root: unknown = globalThis): Promise<Answer<readonly BackupEntry[]>> {
     const b = bridge(root);

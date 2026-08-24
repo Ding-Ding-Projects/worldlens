@@ -2453,6 +2453,7 @@ interface WorldlensBridge {
                 id: string,
                 request: { owner: string; repo: string; worldFolder: string; accountId?: string; acknowledgePublic?: boolean; resumeTag?: string; backupConsent?: boolean },
             ): Promise<unknown>;
+            cancel(id: string): Promise<unknown>;
             list(owner: string, repo: string): Promise<unknown>;
             issueRestoreChallenge(id: string, request: { owner: string; repo: string; tag: string; worldFolder?: string }): Promise<unknown>;
             issueRestoreReceipt(id: string, request: { owner: string; repo: string; tag: string; worldFolder?: string; challenge: string; proof: { keyOne: true; keyTwo: true; travel: 100 } }): Promise<unknown>;
@@ -3603,6 +3604,7 @@ const bridge: WorldlensBridge = {
         },
         backup: {
             create: (id, request) => ipcRenderer.invoke("mcserver:backup:create", id, request),
+            cancel: (id) => ipcRenderer.invoke("mcserver:backup:cancel", id),
             list: (owner, repo) => ipcRenderer.invoke("mcserver:backup:list", owner, repo),
             issueRestoreChallenge: (id, request) => ipcRenderer.invoke("mcserver:backup:restore:challenge", id, request),
             issueRestoreReceipt: (id, request) => ipcRenderer.invoke("mcserver:backup:restore:issue", id, request),
