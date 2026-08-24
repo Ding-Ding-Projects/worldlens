@@ -169,6 +169,24 @@ describe("turning an appearance into CSS", () => {
         expect(missing.style["font-family"]).toContain('"Fallback Face"');
     });
 
+    it("parses state effect colours and reports malformed values without applying them", () => {
+        const resolved = resolveRecords(
+            record({
+                states: {
+                    hover: {
+                        effect: { shadowColor: "not-a-colour", glowColor: "red" },
+                    },
+                },
+            }),
+        );
+        const style = appearanceStyle(resolved, CAPABILITIES, undefined, "hover");
+        expect(style.style["--appearance-state-shadow-color"]).toBeUndefined();
+        expect(style.style["--appearance-state-glow-color"]).toBe("rgb(255 0 0)");
+        expect(style.unreadableColors.map((entry) => entry.property)).toContain(
+            "effect.shadowColor",
+        );
+    });
+
     it("emits the typography and the surface together", () => {
         const style = appearanceStyle(
             resolveRecords(

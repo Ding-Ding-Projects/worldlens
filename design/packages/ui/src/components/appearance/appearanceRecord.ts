@@ -370,6 +370,7 @@ export function resetAppearanceStateProperty(
     if (layer === undefined) return record;
     const nextLayer: AppearanceStateLayer = { ...layer };
     if (group === "shape") delete nextLayer.shape;
+    else if (String(id) === "__group__") delete (nextLayer as Record<string, unknown>)[group];
     else {
         const values = { ...(layer[group] ?? {}) } as Record<string, unknown>;
         delete values[id];
@@ -628,12 +629,20 @@ export function appearanceStyle(
         }
         if (effect.opacity !== undefined)
             style.opacity = String(Math.max(0, Math.min(1, effect.opacity)));
-        if (effect.shadowColor !== undefined)
-            style["--appearance-state-shadow-color"] = effect.shadowColor;
+        if (effect.shadowColor !== undefined) {
+            const shadowColor = resolveColor(
+                "effect.shadowColor",
+                effect.shadowColor,
+                unreadableColors,
+            );
+            if (shadowColor !== "") style["--appearance-state-shadow-color"] = shadowColor;
+        }
         if (effect.shadowBlur !== undefined)
             style["--appearance-state-shadow-blur"] = `${Math.max(0, effect.shadowBlur)}px`;
-        if (effect.glowColor !== undefined)
-            style["--appearance-state-glow-color"] = effect.glowColor;
+        if (effect.glowColor !== undefined) {
+            const glowColor = resolveColor("effect.glowColor", effect.glowColor, unreadableColors);
+            if (glowColor !== "") style["--appearance-state-glow-color"] = glowColor;
+        }
         if (effect.glowRadius !== undefined)
             style["--appearance-state-glow-radius"] = `${Math.max(0, effect.glowRadius)}px`;
     }

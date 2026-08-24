@@ -518,6 +518,11 @@ export function useAppearanceTarget(
                     layer.spacing as Record<string, unknown> | undefined,
                 ) as never,
             };
+            for (const key of Object.keys(nextLayer)) {
+                if ((nextLayer as Record<string, unknown>)[key] === undefined) {
+                    delete (nextLayer as Record<string, unknown>)[key];
+                }
+            }
             if (layer.shape !== undefined && locked("shape", stateName)) {
                 if (previous.shape === undefined) delete nextLayer.shape;
                 else nextLayer.shape = previous.shape;

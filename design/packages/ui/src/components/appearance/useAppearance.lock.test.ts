@@ -6,10 +6,11 @@ import { describe, expect, it } from "vitest";
 import { LOCK_STORE } from "../locks/useLocks.js";
 import { createLockStore } from "../locks/lockStore.js";
 import { createLock, type LockRecord } from "../locks/lockModel.js";
-import { emptyRecord } from "./appearanceRecord.js";
+import { emptyRecord, resolveStateAppearance } from "./appearanceRecord.js";
 import {
     emptyState,
     importTheme,
+    resolveTarget,
     withoutPreset,
     withPreset,
     withRecord,
@@ -165,5 +166,46 @@ describe("appearance setters and real lock store", () => {
         if (!imported.ok) return;
         target.commitState(imported.state);
         expect(appearanceState().value.elements.locked?.surface.gap).toBe(4);
+    });
+
+    it("writes compound state groups directly and resets each group as one unit", async () => {
+        commitAppearance(emptyState());
+        const Test = defineComponent({
+            setup(_, { expose }) {
+                const target = useAppearanceTarget("compound");
+                expose({ target });
+                return () => h("div");
+            },
+        });
+        const view = mount(Test);
+        const target = (view.vm as unknown as { target: ReturnType<typeof useAppearanceTarget> })
+            .target;
+        target.setState("hover", {
+            icon: { name: "star", color: "red", size: 20, opacity: 1 },
+            badge: {
+                text: "new",
+                color: "white",
+                backgroundColor: "blue",
+                shape: "pill",
+                visible: true,
+            },
+            separator: { visible: true, color: "red", thickness: 2, style: "solid" },
+        });
+        const layer = appearanceState().value.elements.compound?.states.hover;
+        expect(layer?.icon?.name).toBe("star");
+        expect(layer?.icon && "icon" in layer.icon).toBe(false);
+        expect(layer?.badge?.text).toBe("new");
+        expect(layer?.separator?.visible).toBe(true);
+        const resolved = resolveStateAppearance(
+            resolveTarget(appearanceState().value, "compound"),
+            "hover",
+        );
+        expect(resolved.surface.icon.name).toBe("star");
+        expect(resolved.surface.badge.text).toBe("new");
+        expect(resolved.surface.separator.visible).toBe(true);
+        target.resetStateProperty("hover", "icon", "__group__");
+        target.resetStateProperty("hover", "badge", "__group__");
+        target.resetStateProperty("hover", "separator", "__group__");
+        expect(appearanceState().value.elements.compound?.states.hover).toBeUndefined();
     });
 });

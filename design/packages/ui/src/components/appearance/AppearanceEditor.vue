@@ -401,6 +401,10 @@ function setSurfaceValue<K extends SurfacePropertyId>(id: K, value: unknown): vo
         target.setState(stateName, { ...layer, shape: value as never });
         return;
     }
+    if (group === "icon" || group === "badge" || group === "separator") {
+        target.setState(stateName, { ...layer, [group]: value } as never);
+        return;
+    }
     target.setState(stateName, {
         ...layer,
         [group]: { ...((layer[group] ?? {}) as Record<string, unknown>), [id]: value },
@@ -429,7 +433,9 @@ function resetSurfaceValue(id: SurfacePropertyId): void {
             target.isPropertyLocked(group, editingState.value)
         )
             return;
-        target.resetStateProperty(editingState.value, group, id);
+        const property =
+            group === "icon" || group === "badge" || group === "separator" ? "__group__" : id;
+        target.resetStateProperty(editingState.value, group, property);
     }
 }
 
