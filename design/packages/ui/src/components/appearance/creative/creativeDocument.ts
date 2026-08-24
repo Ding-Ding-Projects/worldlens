@@ -43,6 +43,7 @@ const DEFAULT_LOGO: CreativeLogoComposition = {
     enabled: false,
     target: "appearance-target" as const,
     activeVariantId: null,
+    presentation: { presetId: "square", crop: { top: 0, right: 0, bottom: 0, left: 0 }, fit: "contain", focalPoint: { x: 50, y: 50 }, background: "transparent", backgroundColor: "#1e1e1e" },
     safeArea: { inset: 10, enabled: true },
     variants: [],
 };
@@ -66,6 +67,10 @@ function id(prefix: string): string {
 
 function clamp(value: number, minimum: number, maximum: number): number {
     return Math.min(maximum, Math.max(minimum, Number.isFinite(value) ? value : minimum));
+}
+
+function snapCoordinate(document: CreativeAppearanceDocument, value: number): number {
+    return document.canvas.grid.snap ? Math.round(value / document.canvas.grid.size) * document.canvas.grid.size : value;
 }
 
 function clone<T>(value: T): T {
@@ -132,7 +137,7 @@ export function createTextLayer(overrides: Partial<CreativeTextLayer> = {}): Cre
         id: overrides.id ?? id("text"), name: cleanName(overrides.name ?? "Text", "Text"), kind: "text",
         parentId: overrides.parentId ?? null, visible: overrides.visible ?? true,
         opacity: clamp(overrides.opacity ?? 1, 0, 1), blendMode: overrides.blendMode ?? "normal",
-        clipped: overrides.clipped ?? false, locked: overrides.locked ?? false, mask: overrides.mask ?? null,
+        clipped: overrides.clipped ?? false, clipSourceId: overrides.clipSourceId ?? null, locked: overrides.locked ?? false, mask: overrides.mask ?? null,
         effects: clone(overrides.effects ?? DEFAULT_EFFECTS), text: (overrides.text ?? "Double-click to edit").slice(0, CREATIVE_LIMITS.maxTextLength),
         x: overrides.x ?? 96, y: overrides.y ?? 140, width: overrides.width ?? 640, height: overrides.height ?? 96,
         rotation: overrides.rotation ?? 0, scaleX: overrides.scaleX ?? 1, scaleY: overrides.scaleY ?? 1, fill: overrides.fill ?? "#f8f9fa",
@@ -145,7 +150,7 @@ export function createVectorLayer(overrides: Partial<CreativeVectorLayer> = {}):
         id: overrides.id ?? id("shape"), name: cleanName(overrides.name ?? "Shape", "Shape"), kind: "vector",
         parentId: overrides.parentId ?? null, visible: overrides.visible ?? true,
         opacity: clamp(overrides.opacity ?? 1, 0, 1), blendMode: overrides.blendMode ?? "normal",
-        clipped: overrides.clipped ?? false, locked: overrides.locked ?? false, mask: overrides.mask ?? null,
+        clipped: overrides.clipped ?? false, clipSourceId: overrides.clipSourceId ?? null, locked: overrides.locked ?? false, mask: overrides.mask ?? null,
         effects: clone(overrides.effects ?? DEFAULT_EFFECTS), shape: overrides.shape ?? "rect",
         x: overrides.x ?? 128, y: overrides.y ?? 192, width: overrides.width ?? 360, height: overrides.height ?? 180,
         rotation: overrides.rotation ?? 0, scaleX: overrides.scaleX ?? 1, scaleY: overrides.scaleY ?? 1, fill: overrides.fill ?? "#8ab4f8", stroke: overrides.stroke ?? "#ffffff",
@@ -158,7 +163,7 @@ export function createGradientLayer(overrides: Partial<CreativeGradientLayer> = 
         id: overrides.id ?? id("gradient"), name: cleanName(overrides.name ?? "Gradient", "Gradient"), kind: "gradient",
         parentId: overrides.parentId ?? null, visible: overrides.visible ?? true,
         opacity: clamp(overrides.opacity ?? 1, 0, 1), blendMode: overrides.blendMode ?? "normal",
-        clipped: overrides.clipped ?? false, locked: overrides.locked ?? false, mask: overrides.mask ?? null,
+        clipped: overrides.clipped ?? false, clipSourceId: overrides.clipSourceId ?? null, locked: overrides.locked ?? false, mask: overrides.mask ?? null,
         effects: clone(overrides.effects ?? DEFAULT_EFFECTS), x: overrides.x ?? 0, y: overrides.y ?? 0,
         width: overrides.width ?? 1024, height: overrides.height ?? 768, angle: overrides.angle ?? 0, scaleX: overrides.scaleX ?? 1, scaleY: overrides.scaleY ?? 1,
         stops: clone(overrides.stops ?? [{ offset: 0, color: "#8ab4f8" }, { offset: 1, color: "#c58af9" }]),
@@ -171,7 +176,7 @@ export function createCreativeLayer(kind: Exclude<CreativeLayer["kind"], "raster
     if (kind === "gradient") return createGradientLayer();
     return {
         id: id("group"), name: "Group", kind: "group", parentId: null, visible: true, opacity: 1,
-        blendMode: "normal", clipped: false, locked: false, mask: null, effects: clone(DEFAULT_EFFECTS),
+        blendMode: "normal", clipped: false, clipSourceId: null, locked: false, mask: null, effects: clone(DEFAULT_EFFECTS),
     };
 }
 
@@ -182,7 +187,7 @@ export function createRasterLayer(
 ): CreativeLayer {
     return {
         id: id("image"), name: cleanName(overrides.name ?? "Imported image", "Imported image"), kind: "raster",
-        parentId: overrides.parentId ?? null, visible: true, opacity: 1, blendMode: "normal", clipped: false, mask: null,
+        parentId: overrides.parentId ?? null, visible: true, opacity: 1, blendMode: "normal", clipped: false, clipSourceId: null, mask: null,
         effects: clone(DEFAULT_EFFECTS), dataUrl, x: 0, y: 0, width: asset.width, height: asset.height,
         rotation: 0, flipX: false, flipY: false,
     } as CreativeLayer;
@@ -285,8 +290,8 @@ export function groupCreativeLayers(document: CreativeAppearanceDocument, ids: r
 export function resetCreativeLayer(document: CreativeAppearanceDocument, layerId: string): CreativeAppearanceDocument {
     const layer = document.layers.find((candidate) => candidate.id === layerId);
     if (layer === undefined) return document;
-    const reset = layer.kind === "group" ? { ...layer, visible: true, opacity: 1, blendMode: "normal" as const, clipped: false, locked: false, mask: null, effects: clone(DEFAULT_EFFECTS) }
-        : layer.kind === "raster" ? { ...layer, visible: true, opacity: 1, blendMode: "normal" as const, clipped: false, locked: false, mask: null, effects: clone(DEFAULT_EFFECTS), x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }
+    const reset = layer.kind === "group" ? { ...layer, visible: true, opacity: 1, blendMode: "normal" as const, clipped: false, clipSourceId: null, locked: false, mask: null, effects: clone(DEFAULT_EFFECTS) }
+        : layer.kind === "raster" ? { ...layer, visible: true, opacity: 1, blendMode: "normal" as const, clipped: false, clipSourceId: null, locked: false, mask: null, effects: clone(DEFAULT_EFFECTS), x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }
         : layer.kind === "text" ? createTextLayer({ id: layer.id, name: layer.name, parentId: layer.parentId })
         : layer.kind === "vector" ? createVectorLayer({ id: layer.id, name: layer.name, parentId: layer.parentId })
             : layer.kind === "gradient" ? createGradientLayer({ id: layer.id, name: layer.name, parentId: layer.parentId })
@@ -341,11 +346,29 @@ export function alignCreativeLayers(document: CreativeAppearanceDocument, ids: r
     const maxBottom = Math.max(...selected.map((layer) => layer.y + layer.height));
     const layers = document.layers.map((layer) => {
         if (!ids.includes(layer.id) || !("x" in layer) || !("y" in layer)) return layer;
-        const x = axis === "left" ? minX : axis === "center" ? (minX + maxRight - layer.width) / 2 : axis === "right" ? maxRight - layer.width : layer.x;
-        const y = axis === "top" ? minY : axis === "middle" ? (minY + maxBottom - layer.height) / 2 : axis === "bottom" ? maxBottom - layer.height : layer.y;
+        const x = snapCoordinate(document, axis === "left" ? minX : axis === "center" ? (minX + maxRight - layer.width) / 2 : axis === "right" ? maxRight - layer.width : layer.x);
+        const y = snapCoordinate(document, axis === "top" ? minY : axis === "middle" ? (minY + maxBottom - layer.height) / 2 : axis === "bottom" ? maxBottom - layer.height : layer.y);
         return { ...layer, x, y } as CreativeLayer;
     });
     return commitCreativeChange(document, { canvas: document.canvas, layers, selectedLayerIds: [...ids] }, `align ${axis}`);
+}
+
+export function distributeCreativeLayers(document: CreativeAppearanceDocument, ids: readonly string[], axis: "horizontal" | "vertical"): CreativeAppearanceDocument {
+    const selected = document.layers.filter((layer): layer is Exclude<CreativeLayer, { kind: "group" }> => ids.includes(layer.id) && "x" in layer && "y" in layer).sort((left, right) => axis === "horizontal" ? left.x - right.x : left.y - right.y);
+    if (selected.length < 3) return document;
+    const first = selected[0]!;
+    const last = selected[selected.length - 1]!;
+    const totalSpan = axis === "horizontal" ? (last.x + last.width - first.x) : (last.y + last.height - first.y);
+    const occupied = selected.reduce((sum, layer) => sum + (axis === "horizontal" ? layer.width : layer.height), 0);
+    const gap = Math.max(0, (totalSpan - occupied) / (selected.length - 1));
+    let cursor = axis === "horizontal" ? first.x : first.y;
+    const positions = new Map<string, number>();
+    for (const layer of selected) {
+        positions.set(layer.id, snapCoordinate(document, cursor));
+        cursor += (axis === "horizontal" ? layer.width : layer.height) + gap;
+    }
+    const layers = document.layers.map((layer) => positions.has(layer.id) ? { ...layer, ...(axis === "horizontal" ? { x: positions.get(layer.id) } : { y: positions.get(layer.id) }) } as CreativeLayer : layer);
+    return commitCreativeChange(document, { canvas: document.canvas, layers, selectedLayerIds: [...ids] }, axis === "horizontal" ? "distribute horizontal layers" : "distribute vertical layers");
 }
 
 export function setCreativeLogo(document: CreativeAppearanceDocument, logo: Partial<CreativeAppearanceDocument["logo"]>): CreativeAppearanceDocument {
@@ -420,7 +443,7 @@ function validLayer(layer: unknown, depth: number, ids: Set<string>, canvas: Cre
     ids.add(layer.id);
     if (layer.name.length > CREATIVE_LIMITS.maxNameLength || !["group", "raster", "vector", "text", "gradient"].includes(layer.kind)) return false;
     if (layer.parentId !== null && typeof layer.parentId !== "string") return false;
-    if (typeof layer.visible !== "boolean" || typeof layer.locked !== "boolean" || typeof layer.clipped !== "boolean" || !validNumber(layer.opacity, 0, 1) || !BLEND_MODES.includes(layer.blendMode as CreativeBlendMode) || !validEffects(layer.effects)) return false;
+    if (typeof layer.visible !== "boolean" || typeof layer.locked !== "boolean" || typeof layer.clipped !== "boolean" || (layer.clipSourceId !== null && typeof layer.clipSourceId !== "string") || !validNumber(layer.opacity, 0, 1) || !BLEND_MODES.includes(layer.blendMode as CreativeBlendMode) || !validEffects(layer.effects)) return false;
     if (layer.mask !== null && (!isObject(layer.mask) || typeof layer.mask.enabled !== "boolean" || !["rectangle", "ellipse"].includes(String(layer.mask.kind)) || !validNumber(layer.mask.x) || !validNumber(layer.mask.y) || !validNumber(layer.mask.width, 1, canvas.width) || !validNumber(layer.mask.height, 1, canvas.height) || !validNumber(layer.mask.feather, 0, 256))) return false;
     if (layer.kind === "group") return true;
     if (!validNumber(layer.x, -canvas.width, canvas.width * 2) || !validNumber(layer.y, -canvas.height, canvas.height * 2) || !validNumber(layer.width, 1, canvas.width * 2) || !validNumber(layer.height, 1, canvas.height * 2) || (layer.kind !== "gradient" && !validNumber(layer.rotation, -3600, 3600)) || !validNumber(layer.scaleX, 0.01, 100) || !validNumber(layer.scaleY, 0.01, 100)) return false;
@@ -442,6 +465,10 @@ function validLayerGraph(value: unknown, canvas: CreativeCanvas): value is reado
     const ids = new Set<string>();
     if (!value.every((layer) => validLayer(layer, 0, ids, canvas))) return false;
     for (const layer of value) {
+        if (layer.clipSourceId !== null) {
+            const source = value.find((candidate) => candidate.id === layer.clipSourceId);
+            if (!source || source.id === layer.id || source.parentId !== layer.parentId || source.kind === "group") return false;
+        }
         if (layer.parentId === null) continue;
         const parent = value.find((candidate) => candidate.id === layer.parentId);
         if (!parent || parent.kind !== "group") return false;
@@ -465,7 +492,7 @@ function selectedIdsValid(layers: unknown, selected: unknown): boolean {
 }
 
 function validLogoComposition(value: unknown): boolean {
-    if (!isObject(value) || typeof value.enabled !== "boolean" || !["app-logo", "appearance-target"].includes(String(value.target)) || (value.activeVariantId !== null && typeof value.activeVariantId !== "string") || !isObject(value.safeArea) || !validNumber(value.safeArea.inset, 0, 512) || typeof value.safeArea.enabled !== "boolean" || !Array.isArray(value.variants) || value.variants.length > 8) return false;
+    if (!isObject(value) || typeof value.enabled !== "boolean" || !["app-logo", "appearance-target"].includes(String(value.target)) || (value.activeVariantId !== null && typeof value.activeVariantId !== "string") || !isObject(value.presentation) || typeof value.presentation.presetId !== "string" || !isObject(value.presentation.crop) || !validNumber(value.presentation.crop.top, 0, 40) || !validNumber(value.presentation.crop.right, 0, 40) || !validNumber(value.presentation.crop.bottom, 0, 40) || !validNumber(value.presentation.crop.left, 0, 40) || !["fill", "contain"].includes(String(value.presentation.fit)) || !isObject(value.presentation.focalPoint) || !validNumber(value.presentation.focalPoint.x, 0, 100) || !validNumber(value.presentation.focalPoint.y, 0, 100) || !["transparent", "solid"].includes(String(value.presentation.background)) || !validColor(value.presentation.backgroundColor) || !isObject(value.safeArea) || !validNumber(value.safeArea.inset, 0, 512) || typeof value.safeArea.enabled !== "boolean" || !Array.isArray(value.variants) || value.variants.length > 8) return false;
     const variantIds = new Set<string>();
     if (!value.variants.every((variant) => isObject(variant) && typeof variant.id === "string" && !variantIds.has(variant.id) && (variantIds.add(variant.id), validNumber(variant.width, 1, 2048) && validNumber(variant.height, 1, 2048) && validLogoVariantDataUrl(variant.dataUrl)))) return false;
     return value.activeVariantId === null || variantIds.has(value.activeVariantId);
@@ -510,6 +537,7 @@ function migrateLayer(raw: unknown): Record<string, unknown> {
     return {
         ...value,
         locked: typeof value.locked === "boolean" ? value.locked : false,
+        clipSourceId: typeof value.clipSourceId === "string" ? value.clipSourceId : null,
         scaleX: "scaleX" in value ? value.scaleX : 1,
         scaleY: "scaleY" in value ? value.scaleY : 1,
         ...(kind === "group" ? {} : {}),
@@ -519,7 +547,7 @@ function migrateLayer(raw: unknown): Record<string, unknown> {
 function migrateLogo(raw: unknown): Record<string, unknown> {
     const value = isObject(raw) ? raw : {};
     const variants = Array.isArray(value.variants) ? value.variants : [];
-    return { ...clone(DEFAULT_LOGO), ...value, safeArea: isObject(value.safeArea) ? value.safeArea : clone(DEFAULT_LOGO.safeArea), variants, activeVariantId: typeof value.activeVariantId === "string" ? value.activeVariantId : (isObject(variants[0]) && typeof variants[0].id === "string" ? variants[0].id : null) };
+    return { ...clone(DEFAULT_LOGO), ...value, presentation: isObject(value.presentation) ? { ...clone(DEFAULT_LOGO.presentation), ...value.presentation } : clone(DEFAULT_LOGO.presentation), safeArea: isObject(value.safeArea) ? value.safeArea : clone(DEFAULT_LOGO.safeArea), variants, activeVariantId: typeof value.activeVariantId === "string" ? value.activeVariantId : (isObject(variants[0]) && typeof variants[0].id === "string" ? variants[0].id : null) };
 }
 
 function valueOrEmpty(value: Record<string, unknown>): Record<string, unknown> {

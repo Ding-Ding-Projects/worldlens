@@ -82,6 +82,7 @@ export interface CreativeLayerBase {
     readonly opacity: number;
     readonly blendMode: CreativeBlendMode;
     readonly clipped: boolean;
+    readonly clipSourceId: string | null;
     readonly locked: boolean;
     readonly mask: CreativeMask | null;
     readonly effects: CreativeEffectStack;
@@ -187,8 +188,18 @@ export interface CreativeLogoComposition {
     readonly enabled: boolean;
     readonly target: "app-logo" | "appearance-target";
     readonly activeVariantId: string | null;
+    readonly presentation: CreativeLogoPresentation;
     readonly safeArea: { readonly inset: number; readonly enabled: boolean };
     readonly variants: readonly { readonly id: string; readonly width: number; readonly height: number; readonly dataUrl: string }[];
+}
+
+export interface CreativeLogoPresentation {
+    readonly presetId: string;
+    readonly crop: { readonly top: number; readonly right: number; readonly bottom: number; readonly left: number };
+    readonly fit: "fill" | "contain";
+    readonly focalPoint: { readonly x: number; readonly y: number };
+    readonly background: "transparent" | "solid";
+    readonly backgroundColor: string;
 }
 
 /**

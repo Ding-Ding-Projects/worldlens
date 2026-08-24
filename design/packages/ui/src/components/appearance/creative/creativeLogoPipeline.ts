@@ -4,8 +4,13 @@ import {
     resetLogoToShipped,
     selectLogoPreset,
     setCustomLogo,
+    updateLogoBackground,
+    updateLogoCrop,
+    updateLogoFit,
+    updateLogoFocalPoint,
     type LogoCustomMark,
 } from "../../appLogo/logoStore.js";
+import { LOGO_PRESET_IDS, type LogoPresetId } from "../../appLogo/logoPresets.js";
 import { setCreativeLogo } from "./creativeDocument.js";
 import type { CreativeAppearanceDocument } from "./creativeTypes.js";
 
@@ -20,6 +25,17 @@ function svgBytes(dataUrl: string): Uint8Array {
     const match = /^data:image\/svg\+xml;charset=utf-8,(.+)$/i.exec(dataUrl);
     if (!match) throw new Error("The generated logo variant is not a local SVG data URL.");
     return new TextEncoder().encode(decodeURIComponent(match[1]!));
+}
+
+function presentationFromStore() {
+    return {
+        presetId: logoStore.presetId,
+        crop: { ...logoStore.crop },
+        fit: logoStore.fit,
+        focalPoint: { ...logoStore.focalPoint },
+        background: logoStore.background,
+        backgroundColor: logoStore.backgroundColor,
+    };
 }
 
 /**
@@ -43,7 +59,7 @@ export function applyCreativeLogoVariant(document: CreativeAppearanceDocument, v
     const mark: LogoCustomMark = { dataUrl: variant.dataUrl, format: "svg", width: variant.width, height: variant.height };
     try {
         const variants = [...document.logo.variants.filter((candidate) => candidate.id !== variant.id), variant].slice(-8);
-        const next = setCreativeLogo(document, { enabled: true, activeVariantId: variant.id, variants });
+        const next = setCreativeLogo(document, { enabled: true, activeVariantId: variant.id, variants, presentation: presentationFromStore() });
         if (document.logo.target !== "app-logo") return next;
         setCustomLogo(mark);
         return next;
@@ -80,5 +96,14 @@ export function syncCreativeLogoStore(document: CreativeAppearanceDocument): voi
     const bytes = svgBytes(variant.dataUrl);
     const validation = validateLogoBytes(bytes);
     if (!validation.ok || validation.image.format !== "svg") throw new Error("The saved logo variant failed the app-logo byte validation during history replay.");
+    if ((LOGO_PRESET_IDS as readonly string[]).includes(document.logo.presentation.presetId)) selectLogoPreset(document.logo.presentation.presetId as LogoPresetId);
+    updateLogoCrop(document.logo.presentation.crop);
+    updateLogoFit(document.logo.presentation.fit);
+    updateLogoFocalPoint(document.logo.presentation.focalPoint);
+    updateLogoBackground(document.logo.presentation.background, document.logo.presentation.backgroundColor);
     setCustomLogo({ dataUrl: variant.dataUrl, format: "svg", width: variant.width, height: variant.height });
+}
+
+export function releaseCreativeLogoOwnership(previousTarget: CreativeAppearanceDocument["logo"]["target"], nextTarget: CreativeAppearanceDocument["logo"]["target"]): void {
+    if (previousTarget === "app-logo" && nextTarget !== "app-logo") resetLogoToShipped();
 }

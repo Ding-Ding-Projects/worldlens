@@ -47,15 +47,16 @@ function styleAttribute(layer: CreativeLayer, extra = ""): string {
     return ` style="mix-blend-mode:${cssValue(layer.blendMode)};${escape(effectStyle(layer))}${extra}"`;
 }
 
-function maskMarkup(layer: CreativeLayer): { readonly defs: string; readonly attribute: string } {
+function maskMarkup(layer: CreativeLayer, children: readonly CreativeLayer[]): { readonly defs: string; readonly attribute: string } {
     const inner = layer.effects.innerGlow;
     const innerId = `creative-inner-glow-${escape(layer.id)}`;
     const innerDefs = inner.color && inner.radius > 0
         ? `<filter id="${innerId}" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur in="SourceAlpha" stdDeviation="${cssValue(inner.radius)}" result="blur"/><feFlood flood-color="${cssValue(inner.color)}" result="colour"/><feComposite in="colour" in2="blur" operator="in" result="glow"/><feComposite in="glow" in2="SourceAlpha" operator="in" result="inner"/><feMerge><feMergeNode in="inner"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`
         : "";
     const clipId = `creative-clip-${escape(layer.id)}`;
-    const clipDefs = layer.clipped && "x" in layer && "y" in layer && "width" in layer && "height" in layer
-        ? `<clipPath id="${clipId}"><rect x="${cssValue(layer.x)}" y="${cssValue(layer.y)}" width="${cssValue(layer.width)}" height="${cssValue(layer.height)}"/></clipPath>`
+    const source = layer.clipSourceId === null ? null : children.find((candidate) => candidate.id === layer.clipSourceId) ?? null;
+    const clipDefs = layer.clipped && source !== null && "x" in source && "y" in source && "width" in source && "height" in source
+        ? `<clipPath id="${clipId}"><rect x="${cssValue(source.x)}" y="${cssValue(source.y)}" width="${cssValue(source.width)}" height="${cssValue(source.height)}"/></clipPath>`
         : "";
     const clipAttribute = clipDefs ? ` clip-path="url(#${clipId})"` : "";
     if (!layer.mask?.enabled) return { defs: `${innerDefs}${clipDefs}`, attribute: `${clipAttribute}${innerDefs ? ` filter="url(#${innerId})"` : ""}` };
@@ -77,7 +78,7 @@ function renderLayer(layer: CreativeLayer, children: readonly CreativeLayer[], s
     const nextSeen = new Set(seen).add(layer.id);
     if (!layer.visible) return "";
     const nested = children.filter((candidate) => candidate.parentId === layer.id).map((candidate) => renderLayer(candidate, children, nextSeen)).join("");
-    const mask = maskMarkup(layer);
+    const mask = maskMarkup(layer, children);
     const shared = `data-layer-id="${escape(layer.id)}"${opacityBlend(layer)}${mask.attribute}${transform(layer)}`;
     if (layer.kind === "group") return `<g ${shared}${styleAttribute(layer)} aria-label="${escape(layer.name)}"><defs>${mask.defs}</defs>${nested}</g>`;
     if (layer.kind === "vector") {

@@ -11,6 +11,7 @@ import {
     duplicateCreativeLayers,
     ungroupCreativeLayers,
     alignCreativeLayers,
+    distributeCreativeLayers,
     setCreativeCanvas,
     setCreativeLogo,
     saveCreativePreset,
@@ -26,7 +27,7 @@ import {
     updateCreativeLayer,
     CREATIVE_BLEND_MODES,
 } from "./creativeDocument.js";
-import { applyCreativeLogoVariant, resetCreativeLogoPipeline, syncCreativeLogoStore, type CreativeLogoVariantInput } from "./creativeLogoPipeline.js";
+import { applyCreativeLogoVariant, releaseCreativeLogoOwnership, resetCreativeLogoPipeline, syncCreativeLogoStore, type CreativeLogoVariantInput } from "./creativeLogoPipeline.js";
 import { renderCreativeSvg } from "./creativeRenderer.js";
 import {
     type CreativeAppearanceCapabilities,
@@ -54,6 +55,7 @@ const capabilities = computed(() => safeCreativeCapabilities(props.capabilities)
 const selected = computed(() => document.value.selectedLayerIds);
 const selectedLayer = computed(() => document.value.layers.find((layer) => layer.id === selected.value[0]));
 const editableSelection = computed(() => selected.value.length > 0 && selected.value.every((id) => !document.value.layers.find((layer) => layer.id === id)?.locked));
+const clipSources = computed(() => selectedLayer.value ? document.value.layers.filter((layer) => layer.id !== selectedLayer.value!.id && layer.parentId === selectedLayer.value!.parentId && layer.kind !== "group") : []);
 const query = ref("");
 const regexMode = ref(false);
 const regexFlags = ref("i");
@@ -109,6 +111,7 @@ const regexStatus = computed(() => {
 });
 
 function publish(next: CreativeAppearanceDocument): void {
+    releaseCreativeLogoOwnership(document.value.logo.target, next.logo.target);
     if (JSON.stringify(next.logo) !== JSON.stringify(document.value.logo)) {
         try {
             syncCreativeLogoStore(next);
@@ -285,6 +288,10 @@ function applyLogoVariant(variant: CreativeLogoVariantInput): void {
     }
 }
 
+function updateLogoPresentation(patch: Partial<CreativeAppearanceDocument["logo"]["presentation"]>): void {
+    publish(setCreativeLogo(document.value, { presentation: { ...document.value.logo.presentation, ...patch } }));
+}
+
 function applyPreset(id: string): void {
     const preset = document.value.presets.find((candidate) => candidate.id === id);
     if (!preset) return;
@@ -387,6 +394,12 @@ async function onAssetImport(event: Event): Promise<void> {
             <button type="button" :disabled="selected.length !== 1 || selectedLayer?.kind !== 'group' || !editableSelection" @click="publish(ungroupCreativeLayers(document, selected[0]!))">Ungroup</button>
             <button type="button" :disabled="selected.length < 2 || !editableSelection" @click="publish(alignCreativeLayers(document, selected, 'left'))">Align left</button>
             <button type="button" :disabled="selected.length < 2 || !editableSelection" @click="publish(alignCreativeLayers(document, selected, 'middle'))">Align middle</button>
+            <button type="button" :disabled="selected.length < 2 || !editableSelection" @click="publish(alignCreativeLayers(document, selected, 'right'))">Align right</button>
+            <button type="button" :disabled="selected.length < 2 || !editableSelection" @click="publish(alignCreativeLayers(document, selected, 'top'))">Align top</button>
+            <button type="button" :disabled="selected.length < 2 || !editableSelection" @click="publish(alignCreativeLayers(document, selected, 'center'))">Align center</button>
+            <button type="button" :disabled="selected.length < 2 || !editableSelection" @click="publish(alignCreativeLayers(document, selected, 'bottom'))">Align bottom</button>
+            <button type="button" :disabled="selected.length < 3 || !editableSelection" @click="publish(distributeCreativeLayers(document, selected, 'horizontal'))">Distribute horizontal</button>
+            <button type="button" :disabled="selected.length < 3 || !editableSelection" @click="publish(distributeCreativeLayers(document, selected, 'vertical'))">Distribute vertical</button>
             <button type="button" :disabled="selected.length === 0 || !editableSelection" @click="publish(removeCreativeLayers(document, selected))">Delete selected</button>
             <button type="button" :disabled="document.historyCursor <= 0" @click="publish(undoCreative(document))">Undo</button>
             <button type="button" :disabled="document.historyCursor >= document.history.length - 1" @click="publish(redoCreative(document))">Redo</button>
@@ -452,6 +465,18 @@ async function onAssetImport(event: Event): Promise<void> {
                         <label class="mb-creative-studio__check"><input :checked="document.logo.enabled" type="checkbox" @change="publish(setCreativeLogo(document, { enabled: !document.logo.enabled }))" /> Compose as app logo</label>
                         <label>Logo target <input :value="document.logo.target" list="creative-logo-targets" @change="publish(setCreativeLogo(document, { target: logoTargetValue($event) }))" /></label>
                         <datalist id="creative-logo-targets"><option value="app-logo" /><option value="appearance-target" /></datalist>
+                        <label>Logo preset <input :value="document.logo.presentation.presetId" @change="updateLogoPresentation({ presetId: inputValue($event) })" /></label>
+                        <label>Logo fit <input :value="document.logo.presentation.fit" list="creative-logo-fit" @change="updateLogoPresentation({ fit: inputValue($event) === 'fill' ? 'fill' : 'contain' })" /></label>
+                        <datalist id="creative-logo-fit"><option value="fill" /><option value="contain" /></datalist>
+                        <label>Focal X <input :value="document.logo.presentation.focalPoint.x" type="number" min="0" max="100" @change="updateLogoPresentation({ focalPoint: { ...document.logo.presentation.focalPoint, x: inputNumber($event) } })" /></label>
+                        <label>Focal Y <input :value="document.logo.presentation.focalPoint.y" type="number" min="0" max="100" @change="updateLogoPresentation({ focalPoint: { ...document.logo.presentation.focalPoint, y: inputNumber($event) } })" /></label>
+                        <label>Logo background <input :value="document.logo.presentation.background" list="creative-logo-background" @change="updateLogoPresentation({ background: inputValue($event) === 'solid' ? 'solid' : 'transparent' })" /></label>
+                        <datalist id="creative-logo-background"><option value="transparent" /><option value="solid" /></datalist>
+                        <label>Background colour <input :value="document.logo.presentation.backgroundColor" @change="updateLogoPresentation({ backgroundColor: inputValue($event) })" /></label>
+                        <label>Logo crop top <input :value="document.logo.presentation.crop.top" type="number" min="0" max="40" @change="updateLogoPresentation({ crop: { ...document.logo.presentation.crop, top: inputNumber($event) } })" /></label>
+                        <label>Logo crop right <input :value="document.logo.presentation.crop.right" type="number" min="0" max="40" @change="updateLogoPresentation({ crop: { ...document.logo.presentation.crop, right: inputNumber($event) } })" /></label>
+                        <label>Logo crop bottom <input :value="document.logo.presentation.crop.bottom" type="number" min="0" max="40" @change="updateLogoPresentation({ crop: { ...document.logo.presentation.crop, bottom: inputNumber($event) } })" /></label>
+                        <label>Logo crop left <input :value="document.logo.presentation.crop.left" type="number" min="0" max="40" @change="updateLogoPresentation({ crop: { ...document.logo.presentation.crop, left: inputNumber($event) } })" /></label>
                         <button type="button" @click="publish(saveCreativePreset(document, `Logo preset ${document.presets.length + 1}`))">Save preset</button>
                         <button type="button" @click="generateLogoVariants">Generate logo variants</button>
                     </div>
@@ -497,6 +522,7 @@ async function onAssetImport(event: Event): Promise<void> {
                     <label v-if="selectedLayer.kind === 'raster'" class="mb-creative-studio__check"><input :checked="selectedLayer.flipX" type="checkbox" @change="updateSelected({ flipX: !selectedLayer.flipX }, 'flip layer')" /> Flip horizontal</label>
                     <label v-if="selectedLayer.kind === 'raster'" class="mb-creative-studio__check"><input :checked="selectedLayer.flipY" type="checkbox" @change="updateSelected({ flipY: !selectedLayer.flipY }, 'flip layer')" /> Flip vertical</label>
                     <label class="mb-creative-studio__check"><input :checked="selectedLayer.clipped" type="checkbox" @change="updateSelected({ clipped: !selectedLayer.clipped }, 'toggle clipping mask')" /> Use as clipping mask</label>
+                    <label v-if="clipSources.length">Clip source <input :value="selectedLayer.clipSourceId ?? ''" list="creative-clip-sources" aria-label="Search clipping source layers" @change="updateSelected({ clipped: true, clipSourceId: inputValue($event) || null }, 'set clipping source')" /><datalist id="creative-clip-sources"><option v-for="source in clipSources" :key="source.id" :value="source.id">{{ source.name }}</option></datalist></label>
                     <button v-if="selectedLayer.mask === null" type="button" @click="updateSelected({ mask: { enabled: true, kind: 'rectangle', x: 0, y: 0, width: layerWidth(selectedLayer), height: layerHeight(selectedLayer), feather: 0 } }, 'add mask')">Add mask</button>
                     <fieldset class="mb-creative-studio__effect-fields"><legend>Effects</legend>
                         <label>Blur <input :value="selectedLayer.effects.blur" type="range" min="0" max="128" step="1" @input="updateEffect({ blur: inputNumber($event) })" /></label>
@@ -504,8 +530,16 @@ async function onAssetImport(event: Event): Promise<void> {
                         <label>Contrast <input :value="selectedLayer.effects.contrast" type="range" min="0" max="3" step="0.01" @input="updateEffect({ contrast: inputNumber($event) })" /></label>
                         <label>Saturation <input :value="selectedLayer.effects.saturation" type="range" min="0" max="3" step="0.01" @input="updateEffect({ saturation: inputNumber($event) })" /></label>
                         <label>Hue <input :value="selectedLayer.effects.hue" type="range" min="-360" max="360" step="1" @input="updateEffect({ hue: inputNumber($event) })" /></label>
+                        <label>Grayscale <input :value="selectedLayer.effects.grayscale" type="range" min="0" max="1" step="0.01" @input="updateEffect({ grayscale: inputNumber($event) })" /></label>
+                        <label>Sepia <input :value="selectedLayer.effects.sepia" type="range" min="0" max="1" step="0.01" @input="updateEffect({ sepia: inputNumber($event) })" /></label>
+                        <label>Invert <input :value="selectedLayer.effects.invert" type="range" min="0" max="1" step="0.01" @input="updateEffect({ invert: inputNumber($event) })" /></label>
                         <label>Shadow colour <input :value="selectedLayer.effects.shadow.color" type="text" @change="updateEffect({ shadow: { ...selectedLayer.effects.shadow, color: inputValue($event) } })" /></label>
+                        <label>Shadow X <input :value="selectedLayer.effects.shadow.x" type="number" @change="updateEffect({ shadow: { ...selectedLayer.effects.shadow, x: inputNumber($event) } })" /></label>
+                        <label>Shadow Y <input :value="selectedLayer.effects.shadow.y" type="number" @change="updateEffect({ shadow: { ...selectedLayer.effects.shadow, y: inputNumber($event) } })" /></label>
+                        <label>Shadow blur <input :value="selectedLayer.effects.shadow.blur" type="number" min="0" max="256" @change="updateEffect({ shadow: { ...selectedLayer.effects.shadow, blur: inputNumber($event) } })" /></label>
+                        <label>Outer glow radius <input :value="selectedLayer.effects.outerGlow.radius" type="number" min="0" max="256" @change="updateEffect({ outerGlow: { ...selectedLayer.effects.outerGlow, radius: inputNumber($event) } })" /></label>
                         <label>Outer glow colour <input :value="selectedLayer.effects.outerGlow.color" type="text" @change="updateEffect({ outerGlow: { ...selectedLayer.effects.outerGlow, color: inputValue($event) } })" /></label>
+                        <label>Inner glow radius <input :value="selectedLayer.effects.innerGlow.radius" type="number" min="0" max="256" @change="updateEffect({ innerGlow: { ...selectedLayer.effects.innerGlow, radius: inputNumber($event) } })" /></label>
                         <label>Inner glow colour <input :value="selectedLayer.effects.innerGlow.color" type="text" @change="updateEffect({ innerGlow: { ...selectedLayer.effects.innerGlow, color: inputValue($event) } })" /></label>
                     </fieldset>
                     <fieldset v-if="selectedLayer.mask" class="mb-creative-studio__effect-fields"><legend>Mask</legend>
