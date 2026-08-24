@@ -9,6 +9,9 @@
     "size": 4533784
   },
   "winget": {
+    "provenance": "exact-version-and-executable-probe",
+    "digestAvailable": false,
+    "portablePreferredWhenDigestRequired": true,
     "node": { "id": "OpenJS.NodeJS.LTS", "version": "24.19.0" },
     "git": { "id": "Git.Git", "version": "2.55.0.3" },
     "gh": { "id": "GitHub.cli", "version": "2.98.0" }
@@ -53,9 +56,6 @@
   },
   "electron": {
     "version": "37.10.3",
-    "archive": "electron-v37.10.3-win32-x64.zip",
-    "archiveSha256": "af69b8a4326432a8bf655eb23f808dcff02bcb2555cac9667e72e943f53542e4",
-    "archiveSize": 133848303,
     "executableRelativePath": "node_modules/.pnpm/electron@37.10.3/node_modules/electron/dist/electron.exe",
     "executableSha256": "8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac",
     "executableSize": 204521984

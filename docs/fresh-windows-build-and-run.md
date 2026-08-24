@@ -20,7 +20,8 @@ browser cache. It does not ask the user to prepare a toolchain first.
    installed tool's exact version grammar. WinGet's public package-manager route does not expose a
    stable archive digest to this script, so the verifiable boundary is the canonical package ID,
    requested version, successful install exit, and independent executable version probe. The
-   scripts do not claim that this route has a package SHA-256 proof.
+   manifest records this explicitly as `digestAvailable: false`; when a caller requires archive
+   digest proof, the portable route is the supported preference and the WinGet route is disabled.
 4. Falls back to pinned official portable archives when the package manager route is unavailable.
 5. Verifies downloaded archive bytes with committed SHA-256 values before extracting them.
 6. Refreshes the current process `PATH`, so a tool installed during this invocation is available
@@ -42,6 +43,10 @@ tracked-index digest, verifies the application main bundle, preload bundle, engi
 receipt containing fresh hashes, sizes, timestamps, and Electron provenance. A successful build
 therefore proves the outputs the development application actually loads, not merely that a package
 manager returned exit code 0.
+
+The Electron download cache itself is validated by Electron's committed `checksums.json` during
+the bootstrap repair path. The build manifest deliberately records the installed executable's
+version, exact path, size, and SHA-256 instead of repeating an unused archive claim.
 
 ## Launch modes
 

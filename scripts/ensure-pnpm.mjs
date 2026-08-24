@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, lstatSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -38,6 +38,22 @@ function verifyTarball(file) {
   return bytes;
 }
 
+export function installedTreeDigest(root) {
+  const entries = [];
+  function walk(directory, prefix = "") {
+    for (const entry of readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+      const absolute = join(directory, entry.name);
+      if (entry.isDirectory()) walk(absolute, relative);
+      else if (entry.isSymbolicLink()) entries.push(`link:${relative}:${readFileSync(absolute, "utf8")}`);
+      else if (entry.isFile()) entries.push(`file:${relative}:${digest(readFileSync(absolute), "sha256")}:${statSync(absolute).size}`);
+      else throw new Error(`unsupported pnpm install tree entry: ${relative}`);
+    }
+  }
+  walk(root);
+  return digest(Buffer.from(entries.join("\n")), "sha256");
+}
+
 async function ensureTarball() {
   mkdirSync(toolchainRoot, { recursive: true });
   if (!existsSync(tarball)) {
@@ -52,7 +68,7 @@ async function ensureTarball() {
   verifyTarball(tarball);
 }
 
-function installedCli() {
+function installedState() {
   const candidates = [
     join(installRoot, "node_modules", "pnpm", "bin", "pnpm.cjs"),
     join(installRoot, "node_modules", "pnpm", "bin", "pnpm.js"),
@@ -61,11 +77,21 @@ function installedCli() {
   if (!cli) return null;
   const packageJson = JSON.parse(readFileSync(join(installRoot, "node_modules", "pnpm", "package.json"), "utf8"));
   if (packageJson.version !== pin.version) return null;
-  return cli;
+  return { cli, treeDigest: installedTreeDigest(installRoot) };
+}
+
+function verifiedInstall() {
+  const state = installedState();
+  if (!state || !existsSync(receipt)) return null;
+  const record = JSON.parse(readFileSync(receipt, "utf8"));
+  if (record.schemaVersion !== 1 || record.package?.sha256 !== pin.sha256 || record.package?.integrity !== pin.integrity || record.package?.size !== pin.size) return null;
+  if (resolve(record.installRoot) !== resolve(installRoot) || resolve(record.installed) !== resolve(state.cli)) return null;
+  if (record.installedTreeSha256 !== state.treeDigest) return null;
+  return state.cli;
 }
 
 function install() {
-  const cli = installedCli();
+  const cli = verifiedInstall();
   if (cli) return cli;
   rmSync(installRoot, { recursive: true, force: true });
   mkdirSync(installRoot, { recursive: true });
@@ -75,10 +101,11 @@ function install() {
     shell: false,
   });
   assert.equal(result.status, 0, `npm could not install the verified pnpm package, exit ${result.status}`);
-  const installed = installedCli();
+  const installed = installedState();
   assert.ok(installed, "verified pnpm package did not install its expected CLI");
-  writeFileSync(receipt, JSON.stringify({ schemaVersion: 1, package: pin, tarball, installed, verifiedAt: new Date().toISOString() }, null, 2) + "\n");
-  return installed;
+  const treeDigest = installedTreeDigest(installRoot);
+  writeFileSync(receipt, JSON.stringify({ schemaVersion: 1, package: pin, installRoot, installed: installed.cli, installedTreeSha256: treeDigest, verifiedAt: new Date().toISOString() }, null, 2) + "\n");
+  return installed.cli;
 }
 
 async function main() {
@@ -91,8 +118,8 @@ async function main() {
   if (checkOnly) {
     assert.ok(existsSync(tarball), "verified pnpm tarball is missing");
     verifyTarball(tarball);
-    assert.ok(installedCli(), "verified pnpm CLI is missing");
-    process.stdout.write(`${installedCli()}\n`);
+    assert.ok(verifiedInstall(), "verified pnpm CLI or install receipt is missing or tampered");
+    process.stdout.write(`${verifiedInstall()}\n`);
     return;
   }
   await ensureTarball();

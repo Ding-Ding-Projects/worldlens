@@ -51,6 +51,7 @@ echo [1/5] Node 22 or newer
 call :probe_node
 if "%NODE_OK%"=="1" goto :node_ready
 echo       no usable Node found - trying the exact user-scoped Windows package
+if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :node_portable
 where winget >nul 2>&1
 if errorlevel 1 goto :node_portable
 call winget install --id OpenJS.NodeJS.LTS --version 24.19.0 --exact --source winget --scope user --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
@@ -87,6 +88,7 @@ echo [2/5] Git
 call :probe_git
 if "%GIT_OK%"=="1" goto :git_ready
 echo       no usable Git found - trying the exact user-scoped Windows package
+if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :git_portable
 where winget >nul 2>&1
 if errorlevel 1 goto :git_portable
 call winget install --id Git.Git --version 2.55.0.3 --exact --source winget --scope user --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
@@ -114,6 +116,7 @@ echo [3/5] GitHub CLI
 call :probe_gh
 if "%GH_OK%"=="1" goto :gh_ready
 echo       no usable GitHub CLI found - trying the exact user-scoped Windows package
+if "%WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :gh_portable
 where winget >nul 2>&1
 if errorlevel 1 goto :gh_portable
 call winget install --id GitHub.cli --version 2.98.0 --exact --source winget --scope user --silent --disable-interactivity --accept-package-agreements --accept-source-agreements

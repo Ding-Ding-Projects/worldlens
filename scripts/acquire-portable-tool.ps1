@@ -3,7 +3,9 @@ param(
     [Parameter(Mandatory = $true)]
     [ValidateSet("node", "git", "gh")]
     [string]$Tool,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$TestFixture,
+    [switch]$TestFailAfterBackup
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,25 +39,32 @@ try {
     New-Item -ItemType Directory -Force -Path $toolchain | Out-Null
     if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
-    Write-Output "Downloading pinned $Tool $version from $url"
-    Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing
-    $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $expected) { throw "$Tool SHA-256 mismatch: expected $expected, received $actual." }
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
-    Expand-Archive -LiteralPath $archive -DestinationPath $staging -Force
-
-    if ($Tool -eq "node") {
-        $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "node.exe") } | Select-Object -First 1
-    } elseif ($Tool -eq "git") {
-        $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "cmd\git.exe") } | Select-Object -First 1
+    if ($TestFixture) {
+        $root = New-Item -ItemType Directory -Force -Path (Join-Path $staging "fixture")
+        if ($Tool -eq "node") { New-Item -ItemType File -Force -Path (Join-Path $root.FullName "node.exe") | Out-Null }
+        elseif ($Tool -eq "git") { New-Item -ItemType Directory -Force -Path (Join-Path $root.FullName "cmd") | Out-Null; New-Item -ItemType File -Force -Path (Join-Path $root.FullName "cmd\git.exe") | Out-Null }
+        else { New-Item -ItemType Directory -Force -Path (Join-Path $root.FullName "bin") | Out-Null; New-Item -ItemType File -Force -Path (Join-Path $root.FullName "bin\gh.exe") | Out-Null }
     } else {
-        $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "bin\gh.exe") } | Select-Object -First 1
+        Write-Output "Downloading pinned $Tool $version from $url"
+        Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing
+        $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actual -ne $expected) { throw "$Tool SHA-256 mismatch: expected $expected, received $actual." }
+        Expand-Archive -LiteralPath $archive -DestinationPath $staging -Force
+        if ($Tool -eq "node") {
+            $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "node.exe") } | Select-Object -First 1
+        } elseif ($Tool -eq "git") {
+            $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "cmd\git.exe") } | Select-Object -First 1
+        } else {
+            $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "bin\gh.exe") } | Select-Object -First 1
+        }
     }
     if ($null -eq $root) { throw "$Tool archive did not contain its expected executable layout." }
     if (Test-Path -LiteralPath $rollback) { Remove-Item -LiteralPath $rollback -Recurse -Force }
     $hadDestination = Test-Path -LiteralPath $destination
     if ($hadDestination) { Move-Item -LiteralPath $destination -Destination $rollback }
     try {
+        if ($TestFailAfterBackup) { throw "fixture replacement failure after backup" }
         Move-Item -LiteralPath $root.FullName -Destination $destination
     }
     catch {

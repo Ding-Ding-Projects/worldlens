@@ -23,6 +23,8 @@ function exactLine(output, pattern, label) {
 export function probe(tool) {
   if (tool === "manifest") {
     assert.equal(manifest.schemaVersion, 1);
+    assert.equal(manifest.winget.digestAvailable, false);
+    assert.equal(manifest.winget.portablePreferredWhenDigestRequired, true);
     assert.equal(manifest.winget.node.version, "24.19.0");
     assert.equal(manifest.winget.git.version, "2.55.0.3");
     assert.equal(manifest.winget.gh.version, "2.98.0");
@@ -36,9 +38,7 @@ export function probe(tool) {
     assert.equal(manifest.java.release, "jdk-25.0.4+7");
     assert.equal(manifest.java.version, "25.0.4+7");
     assert.equal(manifest.electron.version, "37.10.3");
-    assert.match(manifest.electron.archiveSha256, /^[0-9a-f]{64}$/);
     assert.match(manifest.electron.executableSha256, /^[0-9a-f]{64}$/);
-    assert.equal(manifest.electron.archiveSize, 133848303);
     assert.equal(manifest.electron.executableSize, 204521984);
     return "manifest-valid";
   }

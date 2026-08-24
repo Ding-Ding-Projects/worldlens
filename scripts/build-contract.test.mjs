@@ -23,7 +23,7 @@ function countLines(lines, pattern) {
   return lines.filter(({ text }) => pattern.test(text)).length;
 }
 
-export function assertBuildContract({ build, fetcher, installer, portableScript, manifest, readme }) {
+export function assertBuildContract({ build, fetcher, installer, portableScript, manifest, handoff, readme }) {
   const buildLines = executableLines(build);
   const fetcherLines = executableLines(fetcher);
   const failures = [];
@@ -56,10 +56,12 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
     assert.match(portableScript, /Move-Item -LiteralPath \$rollback -Destination \$destination/);
     assert.match(manifest, /bb819d6eb8f5bfda294bbc83a7e4ec6539da67c4233d54b0d655b9248b15e29d/);
     assert.match(manifest, /b12919e609b4fa1176ba8a155b49f761419a0c7cc97b42e6be09874a3f760ab6/);
-    assert.match(manifest, /af69b8a4326432a8bf655eb23f808dcff02bcb2555cac9667e72e943f53542e4/);
     assert.match(manifest, /8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac/);
     assert.match(fetcher, /scripts\\toolchain-manifest\.json/);
     assert.match(fetcher, /toolchain-probe\.mjs" manifest/);
+    assert.match(fetcher, /WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :node_portable/);
+    assert.match(fetcher, /WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :git_portable/);
+    assert.match(fetcher, /WORLDLENS_REQUIRE_PACKAGE_DIGEST%"=="1" goto :gh_portable/);
     assert.match(fetcher, /ensure-pnpm\.mjs/);
     assert.match(fetcher, /WORLDLENS_PNPM_CLI/);
   }, "pinned fresh-machine tool acquisition");
@@ -84,6 +86,12 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
     assert.match(manifest, /"integrity": "sha512-/);
     assert.match(manifest, /"size": 4533784/);
   }, "immutable pnpm package provenance");
+  check(() => {
+    assert.match(handoff, /worldlens-toolchain/);
+    assert.match(handoff, /installedTreeSha256/);
+    assert.match(handoff, /pnpmReceipt/);
+    assert.match(handoff, /outside the managed/);
+  }, "managed dependency handoff provenance");
 
   check(() => {
     lineIndex(fetcherLines, /^node "%ROOT%scripts\\verify-submodules\.mjs" --init --repo "%ROOT%\."$/, "submodule initialization");
@@ -131,6 +139,7 @@ function sources() {
     installer: readFileSync(join(repoRoot, "build-installer.bat"), "utf8"),
     portableScript: readFileSync(join(repoRoot, "scripts", "acquire-portable-tool.ps1"), "utf8"),
     manifest: readFileSync(join(repoRoot, "scripts", "toolchain-manifest.json"), "utf8"),
+    handoff: readFileSync(join(repoRoot, "scripts", "deps-handoff.mjs"), "utf8"),
     readme: readFileSync(join(repoRoot, "README.md"), "utf8"),
   };
 }
