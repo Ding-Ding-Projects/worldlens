@@ -26,7 +26,12 @@ import {
 import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
 import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
-import { releaseDateLabel, wikiUrlFor } from "./versionPresentation.js";
+import {
+    releaseDateLabel,
+    wikiArticleStateFor,
+    wikiArticleStateLabel,
+    wikiUrlFor,
+} from "./versionPresentation.js";
 import { useServerStore } from "./useServers.js";
 import {
     validateMemoryMb,
@@ -106,6 +111,68 @@ const versionQuery = ref("");
 const versionUseRegex = ref(false);
 const versionFlags = ref("i");
 const minecraftVersion = ref("");
+const expandedFamilies = ref<Record<string, boolean>>({});
+const MAX_RENDERED_VERSION_ROWS = 500;
+
+function familyStorageKey(): string {
+    return `worldlens.mcserver.version-families.v1:${flavour.value}`;
+}
+
+function loadFamilyExpansion(): void {
+    try {
+        const raw = localStorage.getItem(familyStorageKey());
+        const parsed = raw === null ? null : (JSON.parse(raw) as unknown);
+        expandedFamilies.value =
+            typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+                ? Object.fromEntries(
+                      Object.entries(parsed).filter(
+                          (entry): entry is [string, boolean] => typeof entry[1] === "boolean",
+                      ),
+                  )
+                : {};
+    } catch {
+        expandedFamilies.value = {};
+    }
+}
+
+function persistFamilyExpansion(): void {
+    try {
+        localStorage.setItem(familyStorageKey(), JSON.stringify(expandedFamilies.value));
+    } catch {
+        // Private preference storage can be unavailable in a restricted profile.
+    }
+}
+
+function familyKey(stability: string, family: string): string {
+    return `${stability}:${family}`;
+}
+
+function familyIsExpanded(stability: string, family: string): boolean {
+    return expandedFamilies.value[familyKey(stability, family)] ?? true;
+}
+
+function toggleFamily(stability: string, family: string): void {
+    const key = familyKey(stability, family);
+    expandedFamilies.value = {
+        ...expandedFamilies.value,
+        [key]: !familyIsExpanded(stability, family),
+    };
+}
+
+const renderedVersionGroups = computed(() => {
+    let remaining = MAX_RENDERED_VERSION_ROWS;
+    return versionGroups.value.map((group) => ({
+        ...group,
+        families: group.families.map((family) => {
+            const versions = family.versions.slice(0, Math.max(0, remaining));
+            remaining -= versions.length;
+            return { ...family, versions };
+        }),
+    }));
+});
+
+watch(flavour, loadFamilyExpansion, { immediate: true });
+watch(expandedFamilies, persistFamilyExpansion, { deep: true });
 
 async function loadCatalogue(): Promise<void> {
     if (!store.hasCatalogue) return;
@@ -174,6 +241,7 @@ const versionEnteredByHand = computed(
 const selectedWikiUrl = computed(() =>
     minecraftVersion.value.trim() === "" ? null : wikiUrlFor(minecraftVersion.value),
 );
+const selectedWikiState = computed(() => wikiArticleStateFor(minecraftVersion.value));
 
 const versionOptions = computed(() =>
     filteredVersions.value.map((entry) => {
@@ -600,7 +668,8 @@ const canAdvanceFromVersion = computed(() => minecraftVersion.value.trim() !== "
 const canAdvanceFromModLoader = computed(
     () =>
         !isModLoader.value ||
-        (modLoaderVersion.value.trim() !== "" && validateModsDirectory(modsDirectory.value) === null),
+        (modLoaderVersion.value.trim() !== "" &&
+            validateModsDirectory(modsDirectory.value) === null),
 );
 const canAdvanceFromRuntime = computed(() => {
     // The server folder field lives on THIS step, so this step is where a missing one has
@@ -641,8 +710,8 @@ const advanceBlockedReason = computed<string | null>(() => {
         case "mod-loader":
             return canAdvanceFromModLoader.value
                 ? null
-                : validateModsDirectory(modsDirectory.value) ??
-                  t("mcserver.wizard.pickModLoader", "Choose a loader version first.");
+                : (validateModsDirectory(modsDirectory.value) ??
+                      t("mcserver.wizard.pickModLoader", "Choose a loader version first."));
         case "runtime":
             if (folderError.value !== null) return folderError.value;
             if (whereItRuns.value === "local-docker" && dockerAvailability.available !== true) {
@@ -840,7 +909,7 @@ const canAdvance = computed(() => {
                             }}
                         </div>
                         <div
-                            v-for="group in versionGroups"
+                            v-for="group in renderedVersionGroups"
                             :key="group.stability"
                             class="wl-mcserver-wizard__version-group"
                         >
@@ -851,32 +920,109 @@ const canAdvance = computed(() => {
                                         : t("mcserver.wizard.snapshots", "Snapshots")
                                 }}
                             </div>
-                            <VBtn
-                                v-for="entry in group.versions"
-                                :key="entry.version"
-                                variant="text"
-                                block
-                                class="wl-mcserver-wizard__version-row"
-                                :class="{
-                                    'wl-mcserver-wizard__version-row--selected':
-                                        minecraftVersion === entry.version,
-                                }"
-                                @click="minecraftVersion = entry.version"
+                            <section
+                                v-for="family in group.families"
+                                :key="family.family"
+                                class="wl-mcserver-wizard__family"
                             >
-                                <span>{{ entry.version }}</span>
-                                <span class="text-caption text-medium-emphasis">
-                                    {{
+                                <VBtn
+                                    variant="text"
+                                    block
+                                    class="wl-mcserver-wizard__family-row"
+                                    :aria-expanded="
+                                        familyIsExpanded(group.stability, family.family)
+                                    "
+                                    :aria-label="
                                         t(
-                                            "mcserver.wizard.needsJava",
-                                            { n: entry.javaFeature },
-                                            "Needs Java {n}",
+                                            'mcserver.wizard.toggleFamily',
+                                            { family: family.family, n: family.count },
+                                            '{family}, {n} exact versions',
                                         )
-                                    }}
-                                    <template v-if="releaseDateLabel(entry.releasedAt)">
-                                        &#183; {{ releaseDateLabel(entry.releasedAt) }}
-                                    </template>
-                                </span>
-                            </VBtn>
+                                    "
+                                    @click="toggleFamily(group.stability, family.family)"
+                                >
+                                    <span>{{ family.family }}</span>
+                                    <VChip size="small" variant="tonal">{{ family.count }}</VChip>
+                                    <VChip
+                                        v-if="family.recommended"
+                                        size="small"
+                                        color="primary"
+                                        variant="tonal"
+                                    >
+                                        {{ t("mcserver.wizard.recommended", "Recommended") }}
+                                    </VChip>
+                                    <span class="text-caption text-medium-emphasis ml-auto">
+                                        {{ family.latestVersion }}
+                                    </span>
+                                </VBtn>
+                                <div
+                                    v-if="familyIsExpanded(group.stability, family.family)"
+                                    class="wl-mcserver-wizard__family-versions"
+                                >
+                                    <div
+                                        v-for="entry in family.versions"
+                                        :key="entry.version"
+                                        class="wl-mcserver-wizard__version-row-wrap"
+                                    >
+                                        <VBtn
+                                            variant="text"
+                                            class="wl-mcserver-wizard__version-row"
+                                            :class="{
+                                                'wl-mcserver-wizard__version-row--selected':
+                                                    minecraftVersion === entry.version,
+                                            }"
+                                            :aria-label="entry.version"
+                                            @click="minecraftVersion = entry.version"
+                                        >
+                                            <span>{{ entry.version }}</span>
+                                            <span class="text-caption text-medium-emphasis">
+                                                {{
+                                                    t(
+                                                        "mcserver.wizard.needsJava",
+                                                        { n: entry.javaFeature },
+                                                        "Needs Java {n}",
+                                                    )
+                                                }}
+                                                <template v-if="releaseDateLabel(entry.releasedAt)">
+                                                    &#183; {{ releaseDateLabel(entry.releasedAt) }}
+                                                </template>
+                                            </span>
+                                        </VBtn>
+                                        <a
+                                            v-if="wikiUrlFor(entry.version)"
+                                            :href="wikiUrlFor(entry.version) ?? undefined"
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                            class="wl-mcserver-wizard__wiki-action"
+                                            :aria-label="`${entry.version}: ${wikiArticleStateLabel(entry.wikiState ?? wikiArticleStateFor(entry.version))}`"
+                                        >
+                                            <VIcon :icon="mdiOpenInNew" size="x-small" />
+                                            <span>{{ t("mcserver.wizard.wiki", "Wiki") }}</span>
+                                            <span class="text-caption">{{
+                                                wikiArticleStateLabel(
+                                                    entry.wikiState ??
+                                                        wikiArticleStateFor(entry.version),
+                                                )
+                                            }}</span>
+                                        </a>
+                                        <span v-else class="text-caption text-medium-emphasis">
+                                            {{ wikiArticleStateLabel("unavailable") }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                        <div
+                            v-if="flavourVersions.length > MAX_RENDERED_VERSION_ROWS"
+                            class="text-caption text-medium-emphasis"
+                        >
+                            {{
+                                t(
+                                    "mcserver.wizard.versionRenderLimit",
+                                    { n: MAX_RENDERED_VERSION_ROWS },
+                                    "Showing the first {n} matching versions. Search to narrow the list.",
+                                )
+                            }}
                         </div>
                     </template>
                     <VSelect
@@ -936,7 +1082,16 @@ const canAdvance = computed(() => {
                                 "Read about {v} on the Minecraft Wiki",
                             )
                         }}
+                        <span class="text-caption ml-1">{{
+                            wikiArticleStateLabel(selectedWikiState)
+                        }}</span>
                     </a>
+                    <div
+                        v-else-if="minecraftVersion.trim() !== ''"
+                        class="text-caption text-medium-emphasis"
+                    >
+                        {{ wikiArticleStateLabel("unavailable") }}
+                    </div>
                     <VSwitch
                         v-if="flavourVersions.length > 0"
                         v-model="typeVersionByHand"
@@ -972,29 +1127,48 @@ const canAdvance = computed(() => {
                         v-model="modLoaderVersion"
                         :items="modLoaderVersions"
                         :label="t('mcserver.wizard.loaderVersion', 'Mod-loader version')"
-                        :hint="t('mcserver.wizard.loaderVersionHint', 'Choose a published loader build.')"
+                        :hint="
+                            t(
+                                'mcserver.wizard.loaderVersionHint',
+                                'Choose a published loader build.',
+                            )
+                        "
                         persistent-hint
                     />
                     <VTextField
                         v-else
                         v-model="modLoaderVersion"
                         :label="t('mcserver.wizard.loaderVersion', 'Mod-loader version')"
-                        :hint="t('mcserver.wizard.loaderVersionUnavailable', 'Enter the loader version published for this Minecraft version.')"
+                        :hint="
+                            t(
+                                'mcserver.wizard.loaderVersionUnavailable',
+                                'Enter the loader version published for this Minecraft version.',
+                            )
+                        "
                         persistent-hint
                     />
                     <VTextField
                         v-model="modsDirectory"
                         :label="t('mcserver.wizard.modsDirectory', 'Mods directory')"
-                        :error-messages="validateModsDirectory(modsDirectory) ?? undefined"
-                        :hint="t('mcserver.wizard.modsDirectoryHint', 'The folder inside the server directory where mods are installed.')"
+                        :error-messages="validateModsDirectory(modsDirectory) ?? null"
+                        :hint="
+                            t(
+                                'mcserver.wizard.modsDirectoryHint',
+                                'The folder inside the server directory where mods are installed.',
+                            )
+                        "
                         persistent-hint
                     />
                     <VSwitch
                         v-for="library in commonApiLibraries"
                         :key="library"
                         :model-value="preinstallApiLibraries.includes(library)"
-                        :label="t('mcserver.wizard.preinstallApi', { library }, 'Pre-install {library}')"
-                        @update:model-value="(enabled) => setApiLibraryEnabled(library, enabled)"
+                        :label="
+                            t('mcserver.wizard.preinstallApi', { library }, 'Pre-install {library}')
+                        "
+                        @update:model-value="
+                            (enabled) => setApiLibraryEnabled(library, enabled === true)
+                        "
                     />
                 </div>
 
@@ -1464,15 +1638,55 @@ const canAdvance = computed(() => {
     flex-direction: column;
     gap: 2px;
 }
+.wl-mcserver-wizard__family {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.wl-mcserver-wizard__family-row {
+    min-height: 48px;
+    justify-content: flex-start;
+    gap: 8px;
+    text-align: left;
+}
+.wl-mcserver-wizard__family-versions {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-inline-start: 12px;
+}
+.wl-mcserver-wizard__version-row-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+}
 .wl-mcserver-wizard__version-row {
     display: flex;
     justify-content: space-between;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 48px;
     padding: 6px 8px;
     border-radius: 6px;
     background: transparent;
     border: 1px solid transparent;
     cursor: pointer;
     text-align: left;
+}
+.wl-mcserver-wizard__wiki-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 48px;
+    min-width: 48px;
+    padding-inline: 8px;
+    color: rgb(var(--v-theme-primary));
+    text-decoration: none;
+}
+.wl-mcserver-wizard__wiki-action:hover,
+.wl-mcserver-wizard__wiki-action:focus-visible {
+    text-decoration: underline;
 }
 .wl-mcserver-wizard__version-row--selected {
     border-color: rgb(var(--v-theme-primary));

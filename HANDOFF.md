@@ -1,5 +1,21 @@
 # Handoff
 
+## 2026-08-24: complete Java version catalogue lane
+
+The version-catalogue lane now keeps the complete Mojang release and snapshot manifest instead
+of the previous newest-25 slice. The main boundary bounds HTTPS responses and timeouts, validates
+manifest/detail schemas and URLs, records a cache source revision and timestamp, and serves an
+expired cache honestly when offline. The wizard groups exact versions into persistent family rows,
+keeps plain search and the adjacent regex builder, bounds mounted rows to 500, and gives every
+exact row a Wiki action with an explicit verified, unavailable, or offline-unverified state.
+
+Focused evidence on this lane: the catalogue and UI model suites report 37 passing tests across
+large manifests, malformed and oversized responses, cache fallback, family counts and ordering,
+plain and regex search, and Wiki URL state mapping. The app and UI typecheck commands still report
+the repository's existing missing built workspace package declarations and unrelated errors. No
+packaged-artifact capture was run in this lane. The exact commit and any integration evidence are
+recorded by the parent session after review.
+
 ## 2026-08-23: runtimes inside the installer, and the GUI defects that exposed them
 
 ### What the project is now, in one paragraph

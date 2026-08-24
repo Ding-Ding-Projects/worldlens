@@ -55,6 +55,10 @@ is ever configured by typing a command or editing a file by hand.
 
 - [x] Flavour and version catalogue (`flavours/catalogue.ts`, `javaRequirement.ts`), Java
       provisioning, and the "New server" wizard with a real picker at every step.
+- [ ] Complete Mojang Java release and snapshot catalogue with cached source revision, family
+      grouping, per-version Wiki states, and bounded wizard rendering. Focused source and UI
+      tests are green on this lane; packaged-artifact capture and full workspace Chuts remain
+      open.
 - [x] RCON client and protocol, the console session, and players/ops/whitelist/bans as real
       tables with row actions and an add-player dialog.
 - [x] The configuration editor: Minecraft's config keys described and rendered through a

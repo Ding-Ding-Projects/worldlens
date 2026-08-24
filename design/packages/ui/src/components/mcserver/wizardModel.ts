@@ -118,7 +118,31 @@ export function flavourCard(id: ServerFlavour): FlavourCard | undefined {
 
 export interface VersionGroup {
     readonly stability: "release" | "snapshot";
+    /** Family rows preserve the exact version entries while keeping large catalogues bounded. */
+    readonly families: readonly VersionFamily[];
+    /** Compatibility view for callers that only need a flat list. */
     readonly versions: readonly CatalogueVersionEntry[];
+}
+
+export interface VersionFamily {
+    readonly family: string;
+    readonly versions: readonly CatalogueVersionEntry[];
+    readonly count: number;
+    readonly latestVersion: string;
+    readonly recommended: boolean;
+}
+
+function familyForVersion(version: string): string {
+    const gameVersion = version.split("#", 1)[0] ?? version;
+    const numbered = /^(\d+\.\d+)(?:\.\d+)?(?:-(?:pre|rc).*)?$/.exec(gameVersion);
+    if (numbered?.[1] !== undefined) return `${numbered[1]}.x`;
+    const snapshot = /^(\d{2})w\d{2}[a-z](?:-.*)?$/i.exec(gameVersion);
+    if (snapshot?.[1] !== undefined) return `${snapshot[1]} snapshots`;
+    return "Other versions";
+}
+
+export function versionFamily(version: string): string {
+    return familyForVersion(version);
 }
 
 /** Newest first within each group, releases before snapshots. */
@@ -126,8 +150,27 @@ export function groupVersions(versions: readonly CatalogueVersionEntry[]): reado
     const releases = versions.filter((v) => v.stability === "release");
     const snapshots = versions.filter((v) => v.stability === "snapshot");
     const groups: VersionGroup[] = [];
-    if (releases.length > 0) groups.push({ stability: "release", versions: releases });
-    if (snapshots.length > 0) groups.push({ stability: "snapshot", versions: snapshots });
+    for (const [stability, entries] of [
+        ["release", releases],
+        ["snapshot", snapshots],
+    ] as const) {
+        if (entries.length === 0) continue;
+        const grouped = new Map<string, CatalogueVersionEntry[]>();
+        for (const entry of entries) {
+            const family = familyForVersion(entry.version);
+            const current = grouped.get(family);
+            if (current === undefined) grouped.set(family, [entry]);
+            else current.push(entry);
+        }
+        const families = [...grouped.entries()].map(([family, familyVersions], index) => ({
+            family,
+            versions: familyVersions,
+            count: familyVersions.length,
+            latestVersion: familyVersions[0]?.version ?? family,
+            recommended: stability === "release" && index === 0,
+        }));
+        groups.push({ stability, families, versions: entries });
+    }
     return groups;
 }
 

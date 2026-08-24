@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { gameVersionOf, isNumberedRelease, releaseDateLabel, wikiUrlFor } from "./versionPresentation.js";
+import {
+    gameVersionOf,
+    isNumberedRelease,
+    releaseDateLabel,
+    wikiArticleStateFor,
+    wikiUrlFor,
+} from "./versionPresentation.js";
 
 describe("presenting a version", () => {
     it("drops a build suffix, because only the game version means anything to the wiki", () => {
@@ -27,6 +33,13 @@ describe("presenting a version", () => {
         // Anything carrying characters a version name never has is refused outright.
         expect(wikiUrlFor("../../Main_Page")).toBeNull();
         expect(wikiUrlFor("1.21 4")).toBeNull();
+    });
+
+    it("keeps article verification honest", () => {
+        expect(wikiArticleStateFor("1.21.4")).toBe("offline-unverified");
+        expect(wikiArticleStateFor("1.21.4", true)).toBe("verified");
+        expect(wikiArticleStateFor("1.21.4", false)).toBe("unavailable");
+        expect(wikiArticleStateFor("../../Main_Page")).toBe("unavailable");
     });
 
     it("shows a date when there is one and says nothing when there is not", () => {
