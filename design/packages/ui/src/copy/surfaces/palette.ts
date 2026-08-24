@@ -121,6 +121,10 @@ export const PALETTE_VOICED = {
         en: ["{title} options", "{title} options", "{title} options", "Choices for {title}", "The many little choices for {title}"],
         yue: ["{title} 選項", "{title} 選項", "{title} 選項", "{title} 嘅選擇", "{title} 呢堆細細粒選擇"],
     },
+    "palette.choice.searchLabel": {
+        en: ["Search {title} options", "Search {title} options", "Search {title} options", "Find a {title} option", "Find the exact {title} choice hiding in this little menu"],
+        yue: ["搜尋 {title} 選項", "搜尋 {title} 選項", "搜尋 {title} 選項", "搵 {title} 選項", "喺呢張細選單搵返啱啱好嘅 {title} 選擇"],
+    },
     "palette.directory.tab": {
         en: ["An open tab in the live workspace.", "An open tab in the live workspace.", "An open tab in the live workspace.", "An open tab in the live workspace.", "An open tab in the live workspace, still doing its job."],
         yue: ["目前工作區開緊嘅分頁。", "目前工作區開緊嘅分頁。", "目前工作區開緊嘅分頁。", "目前工作區開緊嘅分頁。", "目前工作區開緊嘅分頁，仲未收工。"],
@@ -1191,6 +1195,7 @@ export const PALETTE_FACTS = {
     "palette.row.addFavourite": { en: ["{title}", "favourites"], yue: ["{title}", "最愛"] },
     "palette.row.removeFavourite": { en: ["{title}", "favourites"], yue: ["{title}", "最愛"] },
     "palette.choice.menuLabel": { en: ["{title}", "options"], yue: ["{title}", "選項"] },
+    "palette.choice.searchLabel": { en: ["{title}", "options"], yue: ["{title}", "選項"] },
     "palette.directory.tab": { en: ["open tab"], yue: ["開緊嘅分頁"] },
     "palette.directory.tabGroup": { en: ["tab group"], yue: ["分頁群組"] },
     "palette.directory.article": { en: ["documentation article"], yue: ["文件文章"] },

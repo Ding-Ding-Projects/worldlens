@@ -13,7 +13,7 @@
  */
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { defineComponent, h, nextTick, ref } from "vue";
+import { defineComponent, h, nextTick, ref, type PropType } from "vue";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -22,6 +22,7 @@ import type { BlueMapApp } from "@worldlens/viewer";
 import CommandPalette from "./CommandPalette.vue";
 import { usePaletteShortcut } from "./palettePrefs.js";
 import { setBlueMapApp } from "../../stores/bluemap.js";
+import type { PaletteDirectoryEntry } from "./paletteItems.js";
 import {
     deleteSchoolModeLocalRecord,
     enableSchoolMode,
@@ -106,8 +107,8 @@ const i18n = createI18n({
 });
 
 /** Just enough of the running viewer for the settings rows to be built and written. */
-function fakeApp(): { app: BlueMapApp; state: { debug: boolean; saved: number } } {
-    const state = { debug: false, saved: 0 };
+function fakeApp(): { app: BlueMapApp; state: { debug: boolean; saved: number; theme: string | null } } {
+    const state = { debug: false, saved: 0, theme: null as string | null };
     const data = {
         map: { views: ["perspective"], perspectiveView: true, flatView: false, freeFlightView: false },
         uniforms: {
@@ -144,7 +145,9 @@ function fakeApp(): { app: BlueMapApp; state: { debug: boolean; saved: number } 
                 data.superSampling = value;
             },
         },
-        setTheme: () => {},
+        setTheme: (value: string | null) => {
+            state.theme = value;
+        },
         setDebug: (value: boolean) => {
             state.debug = value;
         },
@@ -167,7 +170,10 @@ function fakeApp(): { app: BlueMapApp; state: { debug: boolean; saved: number } 
 
 /** The shell, near enough: the one prop `App.vue` binds and the events it listens for. */
 const Host = defineComponent({
-    props: { open: { type: Boolean, default: false } },
+    props: {
+        open: { type: Boolean, default: false },
+        directoryEntries: { type: Array as PropType<PaletteDirectoryEntry[]>, default: () => [] },
+    },
     emits: [
         "update:open",
         "reveal-setting",
@@ -183,6 +189,7 @@ const Host = defineComponent({
                 default: () => [
                     h(CommandPalette, {
                         open: props.open,
+                        directoryEntries: props.directoryEntries,
                         "onUpdate:open": (value: boolean) => emit("update:open", value),
                         onRevealSetting: (target: unknown) => emit("reveal-setting", target),
                         onOpenSettings: () => emit("open-settings"),
@@ -429,6 +436,98 @@ describe("settings rows are the real control", () => {
         expect(fake.state.debug).toBe(true);
         expect(fake.state.saved).toBeGreaterThan(0);
     });
+
+    it("filters and selects a choice in its local menu, calls the live setter, and keeps the palette open", async () => {
+        const fake = fakeApp();
+        setBlueMapApp(fake.app);
+        await open();
+        await type("operating system");
+        const row = rows()[0];
+        const choice = row?.querySelector<HTMLElement>(".mb-palette-choice");
+        expect(choice).not.toBeNull();
+        choice?.click();
+        await nextTick();
+        const localSearch = document.querySelector<HTMLInputElement>(".mb-menu-search input");
+        expect(localSearch).not.toBeNull();
+        if (localSearch === null) throw new Error("choice search field is missing");
+        localSearch.value = "dark";
+        localSearch.dispatchEvent(new Event("input", { bubbles: true }));
+        await nextTick();
+        document.querySelector<HTMLElement>(".v-list-item")?.click();
+        await nextTick();
+        expect(fake.state.theme).toBe("dark");
+        expect(wrapper?.emitted("update:open")).toBeUndefined();
+    });
+
+    it("moves enabled, disabled, enabled rows without landing on the disabled row or its star", async () => {
+        const entries: PaletteDirectoryEntry[] = [
+            {
+                id: "arrow.first",
+                resultClass: "tab",
+                group: "Arrow",
+                title: "First",
+                description: "First enabled result.",
+                keywords: ["arrow-test"],
+                where: "First.",
+                go: () => {},
+            },
+            {
+                id: "arrow.disabled",
+                resultClass: "tab",
+                group: "Arrow",
+                title: "Disabled",
+                description: "Disabled result.",
+                keywords: ["arrow-test"],
+                where: "Disabled.",
+                disabled: { reason: "The feature is unavailable.", recovery: "Open its setup first." },
+                go: () => {},
+            },
+            {
+                id: "arrow.last",
+                resultClass: "tab",
+                group: "Arrow",
+                title: "Last",
+                description: "Last enabled result.",
+                keywords: ["arrow-test"],
+                where: "Last.",
+                go: () => {},
+            },
+        ];
+        const ArrowHost = defineComponent({
+            setup() {
+                return () =>
+                    h(VApp, null, {
+                        default: () => [
+                            h(CommandPalette, {
+                                open: true,
+                                directoryEntries: entries,
+                                "onUpdate:open": () => {},
+                            }),
+                        ],
+                    });
+            },
+        });
+        wrapper = mount(ArrowHost, { attachTo: document.body, global: { plugins: [vuetify, i18n] } }) as unknown as VueWrapper<InstanceType<typeof Host>>;
+        await nextTick();
+        const card = document.querySelector<HTMLElement>(".mb-palette__card");
+        if (card === null) throw new Error("palette card is missing");
+        const search = document.querySelector<HTMLInputElement>(".mb-palette__search input");
+        if (search === null) throw new Error("palette search field is missing");
+        search.value = "arrow-test";
+        search.dispatchEvent(new Event("input", { bubbles: true }));
+        await nextTick();
+        const key = (name: "ArrowDown" | "ArrowUp") => card.dispatchEvent(new KeyboardEvent("keydown", { key: name, bubbles: true }));
+        key("ArrowDown");
+        await nextTick();
+        expect(document.activeElement?.closest("[data-palette-row]")?.textContent).toContain("First");
+        key("ArrowDown");
+        await nextTick();
+        expect(document.activeElement?.closest("[data-palette-row]")?.textContent).toContain("Last");
+        key("ArrowUp");
+        await nextTick();
+        expect(document.activeElement?.closest("[data-palette-row]")?.textContent).toContain("First");
+        expect(document.activeElement?.classList.contains("mb-palette-row__favourite")).toBe(false);
+    });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -549,5 +648,39 @@ describe("size", () => {
 
         expect(document.querySelector(".mb-palette--full")).not.toBeNull();
         expect(localStorage.getItem("worldlens-palette")).toBe('{"size":"full"}');
+    });
+});
+
+describe("discovery registry pruning", () => {
+    it("persists stale favourite and recent removal after the live registry shrinks", async () => {
+        localStorage.setItem(
+            "worldlens-palette-discovery",
+            JSON.stringify({ favourites: ["article.old"], recentDestinations: ["article.old"] }),
+        );
+        const oldEntry: PaletteDirectoryEntry = {
+            id: "article.old",
+            resultClass: "article",
+            group: "Docs",
+            title: "Old article",
+            description: "Old article.",
+            keywords: ["old"],
+            where: "Opens old article.",
+            go: () => {},
+        };
+        const mounted = mount(Host, {
+            props: { open: true, directoryEntries: [oldEntry] },
+            attachTo: document.body,
+            global: { plugins: [vuetify, i18n] },
+        });
+        wrapper = mounted;
+        await nextTick();
+        await mounted.setProps({ directoryEntries: [] });
+        await nextTick();
+        await Promise.resolve();
+        await nextTick();
+        expect(JSON.parse(localStorage.getItem("worldlens-palette-discovery") ?? "{}")).toEqual({
+            favourites: [],
+            recentDestinations: [],
+        });
     });
 });

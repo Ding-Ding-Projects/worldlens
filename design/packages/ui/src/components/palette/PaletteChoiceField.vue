@@ -51,6 +51,7 @@ function choose(id: string): void {
         <MenuSearchList
             :items="items"
             :label="t('palette.choice.menuLabel', { title: props.label }, '{title} options')"
+            :filter-label="t('palette.choice.searchLabel', { title: props.label }, 'Search {title} options')"
             @choose="choose"
         />
     </v-menu>

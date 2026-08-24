@@ -84,6 +84,12 @@ describe("PaletteChoiceField", () => {
                   },
               };
         expect(document.querySelector(".mb-menu-search input")).not.toBeNull();
+        expect(
+            [...document.querySelectorAll<HTMLElement>("[aria-label]")].map((element) => element.getAttribute("aria-label")),
+        ).toContain("Render quality options");
+        expect(
+            [...document.querySelectorAll<HTMLElement>(".mb-menu-search .v-label")].map((label) => label.textContent),
+        ).toContain("Search Render quality options");
         await searchElement.setValue("two");
         await nextTick();
         const visibleItems = [...document.querySelectorAll<HTMLElement>(".v-list-item")].map((item) => item.textContent ?? "");

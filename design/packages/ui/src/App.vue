@@ -93,6 +93,7 @@ import type {
     PaletteDirectoryEntry,
     PaletteSettingsTarget,
 } from "./components/palette/index.js";
+import { omitEmptyLiveGroups } from "./components/palette/paletteDiscovery.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
 import type { TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
@@ -1060,7 +1061,9 @@ interface LivePaletteTabEntry {
  * its existing UI, so the directory cannot invent a parallel navigation path.
  */
 const paletteDirectoryEntries = computed<readonly PaletteDirectoryEntry[]>(() => {
-    const live = (tabs.value?.discoveryEntries ?? []) as readonly LivePaletteTabEntry[];
+    const live = omitEmptyLiveGroups(
+        (tabs.value?.discoveryEntries ?? []) as readonly LivePaletteTabEntry[],
+    );
     const entries: PaletteDirectoryEntry[] = [];
 
     for (const entry of live) {

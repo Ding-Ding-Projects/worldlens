@@ -66,6 +66,8 @@ import {
 } from "../settings/settingsSections.js";
 import { schoolModeEnabled } from "../setup/schoolMode.js";
 import {
+    assertPaletteRegistryBound,
+    assertUniquePaletteIds,
     withDiscoveryMetadata,
     type PaletteChoice,
     type PaletteDirectoryEntry,
@@ -1147,7 +1149,7 @@ export function buildPaletteCatalog(input: PaletteCatalogInput): PaletteItem[] {
         kind: "destination",
     }));
 
-    return withDiscoveryMetadata([
+    const allItems = [
         ...shellItems(input, t("palette.group.app", "App"), hasPages),
         ...pageItems(input, t("palette.group.pages", "Pages")),
         ...chromeItems(input, t("palette.group.chrome", "Shell")),
@@ -1159,7 +1161,10 @@ export function buildPaletteCatalog(input: PaletteCatalogInput): PaletteItem[] {
         ...viewerSettingItems(input.app, input.t, input.locale),
         ...paletteOwnItems(input, t("palette.group.palette", "Command palette")),
         ...supplied,
-    ]);
+    ];
+    assertPaletteRegistryBound(allItems);
+    assertUniquePaletteIds(allItems);
+    return withDiscoveryMetadata(allItems);
 }
 
 /** The anchors the catalogue is expected to cover, re-exported so a test can assert on them. */

@@ -4,9 +4,11 @@ import {
     MAX_DISCOVERY_ID_LENGTH,
     MAX_FAVOURITES,
     MAX_RECENT_DESTINATIONS,
+    omitEmptyLiveGroups,
     readPaletteDiscovery,
     recordPaletteDestination,
     prunePaletteDiscovery,
+    prunePaletteDiscoveryAtGeneration,
     togglePaletteFavourite,
     writePaletteDiscovery,
 } from "./paletteDiscovery.js";
@@ -66,5 +68,27 @@ describe("palette discovery memory", () => {
             favourites: ["f.0"],
             recentDestinations: ["page.valid"],
         });
+    });
+
+    it("persists one registry-shrink repair and refuses a stale repair over a newer user change", () => {
+        const target = storage();
+        const state = { favourites: ["gone", "kept"], recentDestinations: ["gone"] } as const;
+        const repaired = prunePaletteDiscoveryAtGeneration(state, new Set(["kept"]), 4, 4);
+        expect(repaired).toEqual({ favourites: ["kept"], recentDestinations: [] });
+        if (repaired === null) throw new Error("expected a repair");
+        writePaletteDiscovery(repaired, target);
+        const newer = { favourites: ["new"], recentDestinations: [] } as const;
+        expect(prunePaletteDiscoveryAtGeneration(state, new Set(["kept"]), 4, 5)).toBeNull();
+        writePaletteDiscovery(newer, target);
+        expect(readPaletteDiscovery(target)).toEqual(newer);
+    });
+
+    it("omits empty persisted groups so the directory cannot expose an enabled no-op", () => {
+        expect(
+            omitEmptyLiveGroups([
+                { id: "group.empty", pageIds: [] },
+                { id: "group.full", pageIds: ["page.world"] },
+            ]),
+        ).toEqual([{ id: "group.full", pageIds: ["page.world"] }]);
     });
 });

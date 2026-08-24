@@ -285,6 +285,32 @@ export function withDiscoveryMetadata(items: readonly PaletteItem[]): PaletteIte
     });
 }
 
+export function assertUniquePaletteIds(items: readonly PaletteItem[]): void {
+    const seen = new Map<string, PaletteItem>();
+    for (const item of items) {
+        const previous = seen.get(item.id);
+        if (previous !== undefined) {
+            const previousClass = previous.resultClass ?? previous.kind;
+            const currentClass = item.resultClass ?? item.kind;
+            throw new Error(
+                `Duplicate palette result id "${item.id}" from ${previousClass} and ${currentClass}`,
+            );
+        }
+        seen.set(item.id, item);
+    }
+}
+
+/** Measured bound for the non-virtualized palette card. Exceeding it fails closed before render. */
+export const MAX_PALETTE_ITEMS = 512;
+
+export function assertPaletteRegistryBound(items: readonly PaletteItem[]): void {
+    if (items.length > MAX_PALETTE_ITEMS) {
+        throw new Error(
+            `Palette registry has ${items.length} results, above the measured bound of ${MAX_PALETTE_ITEMS}; virtualize or defer controls before adding more.`,
+        );
+    }
+}
+
 /** A hand-written inventory of result classes the directory must keep visible. */
 export const DISCOVERY_RESULT_CLASSES = [
     "command",

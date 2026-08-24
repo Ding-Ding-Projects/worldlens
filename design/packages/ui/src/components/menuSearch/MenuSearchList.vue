@@ -55,6 +55,8 @@ const props = defineProps<{
     items: readonly MenuSearchItem[];
     /** Names the list of rows for assistive technology, e.g. what the menu is for. */
     label: string;
+    /** Names the originating control in the local filter field, rather than a generic command menu. */
+    filterLabel?: string;
 }>();
 
 const emit = defineEmits<{ choose: [id: string] }>();
@@ -97,7 +99,7 @@ function onKeydown(event: KeyboardEvent): void {
             v-model="query"
             v-model:regex="regexMode"
             v-model:flags="flags"
-            :label="t('menuSearch.filter', 'Filter these commands')"
+            :label="props.filterLabel ?? t('menuSearch.filter', 'Filter these commands')"
             :sample="sample"
             class="mb-menu-search__filter"
         />

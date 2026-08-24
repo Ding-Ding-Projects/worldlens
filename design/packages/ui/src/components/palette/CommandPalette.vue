@@ -35,6 +35,7 @@ import {
 import {
     orderPaletteItems,
     prunePaletteDiscovery,
+    prunePaletteDiscoveryAtGeneration,
     readPaletteDiscovery,
     recordPaletteDestination,
     togglePaletteFavourite,
@@ -224,6 +225,28 @@ const usableDiscovery = computed(() =>
     ),
 );
 
+let registryGeneration = 0;
+watch(
+    items,
+    (currentItems) => {
+        const generation = ++registryGeneration;
+        const snapshot = discovery.value;
+        const next = prunePaletteDiscoveryAtGeneration(
+            snapshot,
+            new Set(currentItems.map((item) => item.id)),
+            generation,
+            registryGeneration,
+        );
+        if (next === null) return;
+        queueMicrotask(() => {
+            // A newer registry or a user click wins. This queued repair must never overwrite it.
+            if (registryGeneration !== generation || discovery.value !== snapshot) return;
+            discovery.value = next;
+        });
+    },
+    { immediate: true },
+);
+
 const orderedVisible = computed(() => orderPaletteItems(visible.value, usableDiscovery.value));
 
 const groups = computed(() => groupItems(orderedVisible.value));
@@ -302,15 +325,19 @@ function focusSearch(): void {
 function focusTargets(): HTMLElement[] {
     const root = listRef.value;
     if (root === null) return [];
-    return [...root.querySelectorAll<HTMLElement>("[data-palette-row]")]
-        .filter((row) => row.getAttribute("aria-disabled") !== "true")
-        .map(
-            (row) =>
-                row.querySelector<HTMLElement>(
-                    'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]):not([aria-disabled="true"])',
-                ) ?? row,
-        )
-        .filter((target) => target.getAttribute("aria-disabled") !== "true" && !target.hasAttribute("disabled"));
+    const targets: HTMLElement[] = [];
+    for (const row of root.querySelectorAll<HTMLElement>("[data-palette-row]")) {
+        // The star is deliberately excluded. Arrow navigation enters the action or the live
+        // setting, never the bookkeeping affordance beside it. Disabled rows contribute no
+        // fallback target at all, so ArrowDown cannot land on a row that cannot act.
+        const target = row.querySelector<HTMLElement>(
+            '.mb-palette-row__go:not(:disabled), .mb-palette-row__control button:not(:disabled), .mb-palette-row__control input:not(:disabled), .mb-palette-row__control select:not(:disabled), .mb-palette-row__control textarea:not(:disabled), .mb-palette-row__control [tabindex]:not([tabindex="-1"]):not([aria-disabled="true"])',
+        );
+        if (target === null || target.getAttribute("aria-disabled") === "true") continue;
+        if (target.hasAttribute("disabled")) continue;
+        targets.push(target);
+    }
+    return targets;
 }
 
 function move(delta: number): void {

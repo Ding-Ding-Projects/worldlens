@@ -1,7 +1,16 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { buildPaletteCatalog, type PaletteCatalogInput } from "./paletteCatalog.js";
+import {
+    assertPaletteRegistryBound,
+    assertUniquePaletteIds,
+    MAX_PALETTE_ITEMS,
+    type PaletteDirectoryEntry,
+    type PaletteItem,
+} from "./paletteItems.js";
 import {
     assertFeatureDirectoryInventory,
     assertFeatureDirectoryPages,
@@ -9,6 +18,7 @@ import {
     DISCOVERY_RESULT_CLASSES,
     FEATURE_DIRECTORY_REQUIRED_IDS,
 } from "./featureDirectoryInventory.js";
+import { assertProductionPageIds, PRODUCTION_APP_PAGE_IDS } from "./productionPageInventory.js";
 
 const t = (_key: string, ...rest: unknown[]): string => {
     const fallback = rest[rest.length - 1];
@@ -152,5 +162,61 @@ describe("feature directory inventory", () => {
             const removed = items.filter((item) => item.id !== `page.${page.id}`);
             expect(() => assertFeatureDirectoryPages(removed, pages)).toThrow(page.id);
         }
+    });
+
+    it("fails closed on built-in and supplied duplicate ids, naming both source classes", () => {
+        const collision: PaletteDirectoryEntry = {
+            id: "shell.settings",
+            resultClass: "article",
+            group: "Docs",
+            title: "Collision",
+            description: "Collision",
+            keywords: [],
+            where: "Collision",
+            go: () => {},
+        };
+        expect(() => buildPaletteCatalog({ ...input(), directoryEntries: [collision] })).toThrow(
+            /shell\.settings.*destination.*article/,
+        );
+
+        const suppliedA = { ...collision, id: "supplied.same", resultClass: "article" as const };
+        const suppliedB = { ...collision, id: "supplied.same", resultClass: "recovery" as const };
+        expect(() => assertUniquePaletteIds([
+            { ...suppliedA, kind: "destination" },
+            { ...suppliedB, kind: "destination" },
+        ])).toThrow(/supplied\.same.*article.*recovery/);
+    });
+
+    it("asserts every hand-written production App page exists in App.vue and the palette", () => {
+        const appSource = readFileSync(path.resolve(process.cwd(), "packages/ui/src/App.vue"), "utf8");
+        const pages = PRODUCTION_APP_PAGE_IDS.map((id) => ({ id, label: id }));
+        for (const id of PRODUCTION_APP_PAGE_IDS) {
+            const constant = `PAGE_${id.replace(/[A-Z]/g, (letter) => `_${letter}`).toUpperCase()}`;
+            expect(appSource).toContain(`id: ${constant}`);
+        }
+        const items = buildPaletteCatalog({ ...input(), pages, actions: { ...input().actions, openPage: () => {} } });
+        assertProductionPageIds(
+            items.filter((item) => item.id.startsWith("page.")).map((item) => item.id.slice(5)),
+        );
+        for (const id of PRODUCTION_APP_PAGE_IDS) {
+            const removed = items.filter((item) => item.id !== `page.${id}`);
+            expect(() => assertProductionPageIds(removed.filter((item) => item.id.startsWith("page.")).map((item) => item.id.slice(5)))).toThrow(id);
+        }
+    });
+
+    it("fails closed above the measured non-virtualized registry bound", () => {
+        const synthetic: PaletteItem[] = Array.from({ length: MAX_PALETTE_ITEMS + 1 }, (_, index) => ({
+            kind: "command" as const,
+            resultClass: "command" as const,
+            id: `synthetic.${index}`,
+            group: "Synthetic",
+            title: `Synthetic ${index}`,
+            description: "A bounded performance probe.",
+            keywords: [],
+            run: () => {},
+        }));
+        const started = performance.now();
+        expect(() => assertPaletteRegistryBound(synthetic)).toThrow(/measured bound/);
+        expect(performance.now() - started).toBeLessThan(100);
     });
 });

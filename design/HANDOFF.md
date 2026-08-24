@@ -5506,3 +5506,32 @@ Verification on commit `feature/discoverability-rich-results` before integration
 The integration lane still needs to pass its host-owned `App.vue` directory registries into
 `directoryEntries` if it has live article, recovery, tab, group, or appearance registries to add.
 No push, merge, cleanup, or external issue mutation was performed here.
+
+## Second discovery corrective candidate — 2026-08-24
+
+The second review's residuals are repaired in the next candidate. Arrow traversal now returns only
+real enabled primary actions or live controls. It never falls back to a row or a favourite button,
+and mounted coverage exercises enabled, disabled, enabled movement in both directions.
+
+Empty persisted groups are omitted from the live directory projection. The choice dropdown passes
+the originating control label into both its local search field and list accessibility label.
+Registry-shrink pruning is generation-checked, queued once, and refuses to overwrite a newer user
+change. Duplicate ids fail closed after built-in and supplied entries are combined, with both
+source classes named in the error.
+
+The production page inventory now lists every adult `App.vue` tab page and asserts each page appears
+both in the real source and in the palette. Every fixed page receives an individual deletion
+regression. A measured 512-result bound fails closed before the non-virtualized card can grow past
+its supported control-instantiation limit.
+
+Verification for this candidate:
+
+- Palette, directory, activation, mounted-control, registry, and history-manifest checks: **11
+  files, 187 tests passed**.
+- UI production build passed after transforming **1,938 modules**.
+- Typecheck attribution reports only the three existing unrelated `App.vue` diagnostics and no
+  palette, tab, registry, persistence, copy, or control diagnostic.
+- ESLint passed for the changed TypeScript palette files. The configured Vue lint route remains
+  unavailable for these Vue files because no matching configuration is supplied; Vite compiled
+  them successfully.
+- `git diff --check` and the public vocabulary scan are clean. No push, merge, or cleanup was done.

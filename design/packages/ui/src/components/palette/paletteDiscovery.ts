@@ -10,10 +10,23 @@
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 import type { PaletteItem } from "./paletteItems.js";
 
+export interface LivePaletteGroupProjection {
+    readonly id: string;
+    readonly pageId?: string;
+    readonly pageIds?: readonly string[];
+}
+
 export const DISCOVERY_STORAGE_KEY = "worldlens-palette-discovery";
 export const MAX_RECENT_DESTINATIONS = 8;
 export const MAX_FAVOURITES = 32;
 export const MAX_DISCOVERY_ID_LENGTH = 160;
+
+/** Empty persisted groups are not actionable, so they never become enabled no-op results. */
+export function omitEmptyLiveGroups<T extends LivePaletteGroupProjection>(
+    entries: readonly T[],
+): readonly T[] {
+    return entries.filter((entry) => entry.pageId !== undefined || (entry.pageIds?.length ?? 0) > 0);
+}
 
 export interface PaletteDiscoveryState {
     readonly favourites: readonly string[];
@@ -144,6 +157,23 @@ export function prunePaletteDiscovery(
         favourites: state.favourites.filter((id) => knownIds.has(id)),
         recentDestinations: state.recentDestinations.filter((id) => knownIds.has(id)),
     };
+}
+
+/** Returns a pruned snapshot only when it still belongs to the latest registry generation. */
+export function prunePaletteDiscoveryAtGeneration(
+    state: PaletteDiscoveryState,
+    knownIds: ReadonlySet<string>,
+    generation: number,
+    currentGeneration: number,
+): PaletteDiscoveryState | null {
+    if (generation !== currentGeneration) return null;
+    const next = prunePaletteDiscovery(state, knownIds);
+    const unchanged =
+        next.favourites.length === state.favourites.length &&
+        next.favourites.every((id, index) => id === state.favourites[index]) &&
+        next.recentDestinations.length === state.recentDestinations.length &&
+        next.recentDestinations.every((id, index) => id === state.recentDestinations[index]);
+    return unchanged ? null : next;
 }
 
 export function discoveryTags(item: PaletteItem, state: PaletteDiscoveryState): readonly string[] {
