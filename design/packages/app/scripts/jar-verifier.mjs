@@ -1,14 +1,17 @@
 import { createHash } from "node:crypto";
 import { lstat, open, realpath } from "node:fs/promises";
+import { isAbsolute, join, parse, relative, resolve, sep } from "node:path";
 
 const MAX_JAR_BYTES = 512 * 1024 * 1024;
 
-export async function verifyJarFile(path) {
+export async function verifyJarFile(path, options = {}) {
     let handle;
     try {
-        await assertSafePath(path);
+        if (typeof options.root !== "string" || options.root.length === 0)
+            return { ok: false, reason: "JAR verification requires an approved root" };
+        const identity = await assertSafePath(path, options.root);
         const before = await lstat(path);
-        const beforeReal = await realpath(path);
+        const beforeReal = identity.candidateReal;
         if (before.isSymbolicLink())
             return { ok: false, reason: "JAR path is a symlink or reparse point" };
         handle = await open(path, "r");
@@ -103,22 +106,38 @@ export function verifyJarBytes(bytes) {
     return { ok: true, reason: null };
 }
 
-async function assertSafePath(path) {
-    const absolute = path.replaceAll("/", "\\");
-    const root = /^[A-Za-z]:\\/.test(absolute)
-        ? absolute.slice(0, 3)
-        : absolute.startsWith("\\")
-          ? "\\"
-          : "/";
+async function assertSafePath(path, approvedRoot) {
+    const rootAbsolute = resolve(approvedRoot);
+    const candidateAbsolute = resolve(path);
+    const distance = relative(rootAbsolute, candidateAbsolute);
+    if (
+        distance.length === 0 ||
+        isAbsolute(distance) ||
+        distance === ".." ||
+        distance.startsWith(`..${sep}`)
+    )
+        throw new Error("JAR path escapes its approved root");
+    await walkSafeComponents(rootAbsolute);
+    await walkSafeComponents(candidateAbsolute);
+    const rootReal = await realpath(rootAbsolute);
+    const candidateReal = await realpath(candidateAbsolute);
+    const realDistance = relative(rootReal, candidateReal);
+    if (
+        realDistance.length === 0 ||
+        isAbsolute(realDistance) ||
+        realDistance === ".." ||
+        realDistance.startsWith(`..${sep}`)
+    )
+        throw new Error("JAR realpath escapes its approved root");
+    return { rootReal, candidateReal };
+}
+
+async function walkSafeComponents(absolute) {
+    const root = parse(absolute).root;
+    const parts = relative(root, absolute).split(sep).filter(Boolean);
     let current = root;
-    for (const part of absolute
-        .slice(root.length)
-        .split(/[\\/]+/u)
-        .filter(Boolean)) {
-        current =
-            current.endsWith("\\") || current.endsWith("/")
-                ? `${current}${part}`
-                : `${current}\\${part}`;
+    for (const part of parts) {
+        current = join(current, part);
         if ((await lstat(current)).isSymbolicLink())
             throw new Error(`JAR path contains a symlink or reparse point: ${current}`);
     }

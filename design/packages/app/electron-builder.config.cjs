@@ -76,7 +76,7 @@ async function assertStagedJavaEngine() {
     if (!existsSync(jarPath) || !statSync(jarPath).isFile())
         throw new Error(`Cannot package without the staged BlueMap CLI jar: ${jarPath}`);
     const descriptor = await import("./scripts/jar-verifier.mjs").then(({ verifyJarFile }) =>
-        verifyJarFile(jarPath),
+        verifyJarFile(jarPath, { root: staging }),
     );
     if (!descriptor.ok)
         throw new Error(`Cannot package an invalid staged BlueMap CLI JAR: ${descriptor.reason}`);

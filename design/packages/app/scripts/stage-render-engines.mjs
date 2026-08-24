@@ -444,7 +444,7 @@ async function newestGradleCliJar() {
 }
 
 async function verifiedJarMetadata(path) {
-    const descriptor = await verifyJarFile(path);
+    const descriptor = await verifyJarFile(path, { root: resolve(jarDirectory) });
     if (!descriptor.ok)
         throw new Error(
             `BlueMap CLI jar is not a valid JAR archive: ${path} (${descriptor.reason})`,

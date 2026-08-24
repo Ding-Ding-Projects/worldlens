@@ -90,7 +90,7 @@ export async function verifyManagedUpstreamJava(
     release: EngineRelease = PINNED_UPSTREAM_JAVA,
 ): Promise<VerifiedManagedEngine | null> {
     const path = managedUpstreamJavaJar(dataDir, release);
-    const verified = await verifyJarFile(path);
+    const verified = await verifyJarFile(path, { root: managedJarDirectory(dataDir) });
     if (!verified.ok || verified.size !== release.sizeBytes || verified.sha256 !== release.sha256)
         return null;
     return {
@@ -140,13 +140,17 @@ export async function packagedUpstreamJavaIsUsable(
         const jarPath = resolve(jarsRoot, jar.fileName);
         if (!jarPath.startsWith(`${jarsRoot}${process.platform === "win32" ? "\\" : "/"}`))
             return false;
-        return await verifyJar(jarPath, {
-            ...release,
-            version: java.version,
-            asset: jar.fileName,
-            sizeBytes: jar.size,
-            sha256: jar.sha256,
-        });
+        return await verifyJar(
+            jarPath,
+            {
+                ...release,
+                version: java.version,
+                asset: jar.fileName,
+                sizeBytes: jar.size,
+                sha256: jar.sha256,
+            },
+            jarsRoot,
+        );
     } catch {
         return false;
     }
@@ -233,7 +237,7 @@ async function ensureManagedUpstreamJavaOnce(
     }
 
     const target = managedUpstreamJavaJar(options.dataDir, release);
-    if (await verifyJar(target, release)) {
+    if (await verifyJar(target, release, managedJarDirectory(options.dataDir))) {
         emit?.({
             stage: "reused",
             message: "Using the verified managed BlueMap engine",
@@ -257,7 +261,7 @@ async function ensureManagedUpstreamJavaOnce(
             total: null,
         });
         await replaceWithRetry(temporary, target);
-        if (!(await verifyJar(target, release))) {
+        if (!(await verifyJar(target, release, managedJarDirectory(options.dataDir)))) {
             await rm(target, { force: true });
             throw new Error("the repaired BlueMap engine failed its post-install descriptor check");
         }
@@ -297,13 +301,13 @@ async function downloadToTemporary(
                 total: progress.total ?? release.sizeBytes,
             }),
     });
-    if (!(await verifyJarFile(target)).ok)
+    if (!(await verifyJarFile(target, { root: managedJarDirectory(options.dataDir) })).ok)
         throw new Error("BlueMap engine is not a valid JAR archive");
 }
 
-async function verifyJar(path: string, release: EngineRelease): Promise<boolean> {
+async function verifyJar(path: string, release: EngineRelease, root: string): Promise<boolean> {
     try {
-        const verified = await verifyJarFile(path);
+        const verified = await verifyJarFile(path, { root });
         return (
             verified.ok && verified.size === release.sizeBytes && verified.sha256 === release.sha256
         );

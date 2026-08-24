@@ -5,5 +5,8 @@ export interface JarVerification {
     readonly sha256?: string;
 }
 
-export function verifyJarFile(path: string): Promise<JarVerification>;
+export function verifyJarFile(
+    path: string,
+    options?: { readonly root?: string },
+): Promise<JarVerification>;
 export function verifyJarBytes(bytes: Uint8Array): JarVerification;
