@@ -448,7 +448,15 @@ const sections = computed<SettingsSectionText[]>(() => {
             anchor: "addons",
             title: text.addons.title,
             description: text.addons.description,
-            values: ["JavaScript", "ESM", "manifest", "capabilities", "enable", "disable", "import"],
+            values: [
+                "JavaScript",
+                "ESM",
+                "manifest",
+                "capabilities",
+                "enable",
+                "disable",
+                "import",
+            ],
         },
         // The commit, version and release tag this section is currently showing, so somebody
         // who can see a hash on screen can search for it. Facts rather than the sentences
@@ -534,7 +542,11 @@ const sections = computed<SettingsSectionText[]>(() => {
             values: [],
         },
     ];
-    return rows.filter((section) => !schoolModeEnabled() || section.anchor !== "vocabulary");
+    return rows.filter(
+        (section) =>
+            !schoolModeEnabled() ||
+            !["vocabulary", "language-and-tone", "runtime-settings"].includes(section.anchor),
+    );
 });
 
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
@@ -582,16 +594,18 @@ const searchSummary = computed(() => {
 
 /** One tab per section, in the surface's own order, labelled from the live copy. */
 const settingsPages = computed<TabPage[]>(() =>
-    SETTINGS_SECTIONS.filter((anchor) => !schoolModeEnabled() || anchor !== "vocabulary").map(
-        (anchor) => ({
-            id: anchor,
-            label: copy.value[anchor].title,
-            icon: null,
-        }),
-    ),
+    SETTINGS_SECTIONS.filter(
+        (anchor) =>
+            !schoolModeEnabled() ||
+            !["vocabulary", "language-and-tone", "runtime-settings"].includes(anchor),
+    ).map((anchor) => ({
+        id: anchor,
+        label: copy.value[anchor].title,
+        icon: null,
+    })),
 );
 const hiddenSettingsPages = computed<readonly string[]>(() =>
-    schoolModeEnabled() ? ["vocabulary"] : [],
+    schoolModeEnabled() ? ["vocabulary", "language-and-tone", "runtime-settings"] : [],
 );
 
 /* -------------------------------------------------------------------------- */

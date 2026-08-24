@@ -174,6 +174,8 @@ import { handleSquirrelShortcutEvent } from "./squirrelShortcuts.js";
 import { registerAddonHandlers } from "./addons/index.js";
 import type { AddonIpc } from "./addons/index.js";
 import { registerVocabularyHandlers } from "./vocabulary/index.js";
+import { registerRuntimeSettingsHandlers } from "./runtimeSettings/ipc.js";
+import type { RuntimeSettingsIpc } from "./runtimeSettings/ipc.js";
 
 const squirrelStartupHandled = handleSquirrelShortcutEvent({
     platform: process.platform,
@@ -477,6 +479,7 @@ let ipcRegistered = false;
 let schoolModeIpc: SchoolModeIpc | null = null;
 let lockIpc: LockIpc | null = null;
 let mcServerIpc: McServerIpc | null = null;
+let runtimeSettingsIpc: RuntimeSettingsIpc | null = null;
 
 function registerIpc(): void {
     if (ipcRegistered) return;
@@ -564,6 +567,9 @@ function registerIpc(): void {
         safeStorage,
     });
     app.on("will-quit", () => mcServerIpc?.dispose());
+
+    runtimeSettingsIpc = registerRuntimeSettingsHandlers(ipcMain);
+    app.on("will-quit", () => runtimeSettingsIpc?.dispose());
 
     registerVocabularyHandlers(ipcMain, { applicationDataDirectory });
 

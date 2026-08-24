@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RUNTIME_COVERAGE, validateRuntimeCoverage } from "./completeness.js";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
 
 describe("runtime settings hand-written completeness inventory", () => {
     it("has one row for each shipped runtime contract and no empty evidence fields", () => {
@@ -19,5 +21,18 @@ describe("runtime settings hand-written completeness inventory", () => {
         );
         expect(validateRuntimeCoverage(broken)).toContain("status-hub:implementation");
         expect(validateRuntimeCoverage(RUNTIME_COVERAGE)).toEqual([]);
+    });
+
+    it("turns red while captures are pending and verifies every source link exists", () => {
+        expect(
+            validateRuntimeCoverage(undefined, { requireCaptures: true }).some((error) =>
+                error.endsWith(":capture-pending"),
+            ),
+        ).toBe(true);
+        for (const row of RUNTIME_COVERAGE) {
+            for (const path of [...row.implementation, ...row.documentation, ...row.tests]) {
+                expect(existsSync(resolve(process.cwd(), "..", path)), path).toBe(true);
+            }
+        }
     });
 });

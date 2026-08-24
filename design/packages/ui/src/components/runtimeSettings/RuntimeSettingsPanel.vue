@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
@@ -11,8 +11,9 @@ import {
     type RuntimeSettingKey,
     type RuntimeSettingsState,
     type RuntimeSource,
+    type RuntimeValues,
 } from "./model.js";
-import { readExternalRule, scheduleFieldLabel, applyTemporaryExternalValues } from "./schedule.js";
+import { scheduleFieldLabel, applyTemporaryExternalValues } from "./schedule.js";
 import {
     createNarratorController,
     resolveVoiceStatus,
@@ -25,6 +26,8 @@ import {
     setAccommodation,
     updateRuntimeValues,
 } from "./store.js";
+import SearchablePicker from "./SearchablePicker.vue";
+import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 type RuntimeTab = "status" | "narrator" | "schedule" | "accommodations";
 interface RuntimeSearchItem {
@@ -44,12 +47,48 @@ const flags = ref("im");
 const statusMessage = ref(t("runtime.status.ready", "Runtime settings are local and ready."));
 const voiceList = ref<VoiceInfo[]>([]);
 const speechAvailable = computed(() => typeof speechSynthesis !== "undefined");
+const statusRecord = ref<{
+    registered: boolean;
+    deliveryAvailable: boolean;
+    source: "local-main-process";
+    message: string;
+} | null>(null);
+const temporaryValues = ref<Partial<RuntimeValues>>({});
+const sessionOpenedAt = Date.now();
+const lastChangedAt = ref(Date.now());
+const clock = ref(Date.now());
+const momentumDismissedUntil = ref(0);
+let clockTimer: ReturnType<typeof setInterval> | null = null;
+let temporaryTimer: ReturnType<typeof setTimeout> | null = null;
+let runtimeChannel: BroadcastChannel | null = null;
+const onRuntimeStorage = (event: StorageEvent): void => {
+    if (event.key === "worldlens:runtime-settings:v1") state.value = loadRuntimeSettings();
+};
+const originalDocumentTitle = typeof document === "undefined" ? "Worldlens" : document.title;
+const originalBodyFontFamily =
+    typeof document === "undefined" ? "" : document.body.style.fontFamily;
+const originalBodyFontSize = typeof document === "undefined" ? "" : document.body.style.fontSize;
 let narrator: NarratorController | null = null;
 let unsubscribeVoices: (() => void) | null = null;
 
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
 const activeValues = computed(() =>
-    resolveScheduledValues(state.value.values, state.value.schedules),
+    resolveScheduledValues(
+        { ...state.value.values, ...temporaryValues.value } as RuntimeValues,
+        state.value.schedules,
+    ),
+);
+const sessionSeconds = computed(() =>
+    Math.max(0, Math.floor((clock.value - sessionOpenedAt) / 1000)),
+);
+const idleSeconds = computed(() =>
+    Math.max(0, Math.floor((clock.value - lastChangedAt.value) / 1000)),
+);
+const momentumVisible = computed(
+    () =>
+        state.value.values.accommodations.momentum &&
+        idleSeconds.value >= 60 &&
+        clock.value >= momentumDismissedUntil.value,
 );
 const externalRules = computed(() =>
     state.value.schedules.filter((rule) => rule.source !== "local"),
@@ -141,6 +180,9 @@ const summary = computed(() => {
 
 function persistValues(patch: Parameters<typeof updateRuntimeValues>[1]): void {
     state.value = updateRuntimeValues(state.value, patch);
+    recordAppSetting("runtimeSettings", state.value);
+    runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
+    lastChangedAt.value = Date.now();
     statusMessage.value = t(
         "runtime.status.saved",
         "Saved locally and recorded in runtime settings history.",
@@ -149,6 +191,9 @@ function persistValues(patch: Parameters<typeof updateRuntimeValues>[1]): void {
 
 function setAccommodationValue(key: AccommodationKey, enabled: boolean): void {
     state.value = setAccommodation(state.value, key, enabled);
+    recordAppSetting("runtimeSettings", state.value);
+    runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
+    lastChangedAt.value = Date.now();
     statusMessage.value = t(
         "runtime.status.saved",
         "Saved locally and recorded in runtime settings history.",
@@ -239,6 +284,8 @@ function addSchedule(): void {
         const saved = updateRuntimeValues(next, {}, undefined);
         state.value = saved;
         recordRuntimeHistory("created", ["schedules", scheduleSetting.value]);
+        recordAppSetting("runtimeSettings", state.value);
+        runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
         statusMessage.value = t(
             "runtime.schedule.added",
             "The scheduled rule was added and recorded locally.",
@@ -260,6 +307,8 @@ function removeSchedule(id: string): void {
     // Save the new state through the same validator used for ordinary setting changes.
     updateRuntimeValues(state.value, {});
     recordRuntimeHistory("deleted", ["schedules"]);
+    recordAppSetting("runtimeSettings", state.value);
+    runtimeChannel?.postMessage({ type: "runtime-settings-updated" });
     statusMessage.value = t(
         "runtime.schedule.deleted",
         "The scheduled rule was removed and recorded locally.",
@@ -276,14 +325,74 @@ async function refreshExternalSources(): Promise<void> {
     }
     const rule = externalRules.value[0];
     if (rule === undefined) return;
-    const result = await readExternalRule(rule);
-    if (!result.ok || result.value === undefined) {
+    const bridge = typeof window === "undefined" ? undefined : window.worldlens?.runtimeSettings;
+    if (bridge === undefined) {
+        statusMessage.value =
+            "External settings are unavailable because the privileged bridge is not present.";
+        return;
+    }
+    const result = await bridge.refreshExternal({
+        id: rule.id,
+        source: rule.source as "https" | "homeAssistant",
+        url: rule.sourceConfig.url ?? "",
+        ...(rule.sourceConfig.entityId === undefined
+            ? {}
+            : { entityId: rule.sourceConfig.entityId }),
+    });
+    if (!result.ok || result.values === undefined) {
         statusMessage.value = result.message;
         return;
     }
-    state.value = applyTemporaryExternalValues(state.value, result.value);
+    temporaryValues.value = result.values as Partial<RuntimeValues>;
+    if (temporaryTimer !== null) clearTimeout(temporaryTimer);
+    temporaryTimer = setTimeout(
+        () => {
+            temporaryValues.value = {};
+            temporaryTimer = null;
+        },
+        5 * 60 * 1000,
+    );
     statusMessage.value = `${result.message} The value is temporary and the local base remains recoverable.`;
 }
+
+function dismissMomentum(): void {
+    momentumDismissedUntil.value = Date.now() + 15 * 60 * 1000;
+    lastChangedAt.value = Date.now();
+}
+
+function restoreFocus(): void {
+    setAccommodationValue("focus", false);
+}
+
+watch(
+    activeValues,
+    (values) => {
+        if (typeof document === "undefined") return;
+        document.documentElement.dataset.runtimeTheme = values.theme;
+        document.documentElement.dataset.runtimeDensity = values.density;
+        document.documentElement.dataset.runtimeMotion = values.motion;
+        document.documentElement.dataset.runtimeLowStimulation = values.accommodations
+            .lowStimulation
+            ? "true"
+            : "false";
+        document.documentElement.dataset.runtimeFocus = values.accommodations.focus
+            ? "true"
+            : "false";
+        document.documentElement.style.setProperty("--worldlens-runtime-accent", values.accent);
+        document.documentElement.style.setProperty(
+            "--worldlens-runtime-font-family",
+            values.fontFamily,
+        );
+        document.documentElement.style.setProperty(
+            "--worldlens-runtime-font-scale",
+            String(values.fontSize),
+        );
+        document.body.style.fontFamily = values.fontFamily;
+        document.body.style.fontSize = `${values.fontSize}em`;
+        document.title = values.displayName;
+    },
+    { deep: true, immediate: true },
+);
 
 function narratorStatus(language: "en" | "yue"): ReturnType<typeof resolveVoiceStatus> {
     const chosen =
@@ -314,6 +423,21 @@ function speakTest(): void {
 }
 
 onMounted(() => {
+    clockTimer = setInterval(() => {
+        clock.value = Date.now();
+    }, 1000);
+    window.addEventListener("storage", onRuntimeStorage);
+    if (typeof BroadcastChannel !== "undefined") {
+        runtimeChannel = new BroadcastChannel("worldlens-runtime-settings");
+        runtimeChannel.onmessage = () => {
+            state.value = loadRuntimeSettings();
+        };
+    }
+    const bridge = typeof window === "undefined" ? undefined : window.worldlens?.runtimeSettings;
+    if (bridge !== undefined)
+        void bridge.status().then((record) => {
+            statusRecord.value = record;
+        });
     narrator = createNarratorController();
     voiceList.value = [...narrator.voices()];
     unsubscribeVoices = narrator.subscribe(() => {
@@ -323,6 +447,21 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    if (clockTimer !== null) clearInterval(clockTimer);
+    if (temporaryTimer !== null) clearTimeout(temporaryTimer);
+    window.removeEventListener("storage", onRuntimeStorage);
+    runtimeChannel?.close();
+    runtimeChannel = null;
+    if (typeof document !== "undefined") {
+        document.title = originalDocumentTitle;
+        document.body.style.fontFamily = originalBodyFontFamily;
+        document.body.style.fontSize = originalBodyFontSize;
+        delete document.documentElement.dataset.runtimeTheme;
+        delete document.documentElement.dataset.runtimeDensity;
+        delete document.documentElement.dataset.runtimeMotion;
+        delete document.documentElement.dataset.runtimeLowStimulation;
+        delete document.documentElement.dataset.runtimeFocus;
+    }
     unsubscribeVoices?.();
     unsubscribeVoices = null;
     narrator?.dispose();
@@ -400,6 +539,16 @@ onUnmounted(() => {
             <p class="mb-runtime-settings__notice" aria-live="polite">{{ statusMessage }}</p>
             <dl class="mb-runtime-settings__status-list">
                 <div>
+                    <dt>Time awareness</dt>
+                    <dd>
+                        {{
+                            state.values.accommodations.timeAwareness
+                                ? `Session ${sessionSeconds}s, unchanged ${idleSeconds}s`
+                                : "Off"
+                        }}
+                    </dd>
+                </div>
+                <div>
                     <dt>Runtime settings</dt>
                     <dd>
                         ✅ Local state version {{ state.version }},
@@ -429,8 +578,13 @@ onUnmounted(() => {
                 <div>
                     <dt>Status delivery</dt>
                     <dd>
-                        ⚠️ Authenticated Status Hub delivery is unavailable in this build. These
-                        factual records remain local, and no send control is shown.
+                        {{
+                            statusRecord === null
+                                ? "⏳ Reading main-process delivery status"
+                                : statusRecord.deliveryAvailable
+                                  ? "✅ Authenticated delivery is available"
+                                  : `⚠️ ${statusRecord.message}`
+                        }}
                     </dd>
                 </div>
             </dl>
@@ -467,51 +621,43 @@ onUnmounted(() => {
                 />
                 Enable narration</label
             >
-            <label
-                >Language
-                <select
-                    :value="state.values.narrator.language"
-                    @change="
+            <SearchablePicker
+                :model-value="state.values.narrator.language"
+                label="Narration language"
+                :options="[
+                    { id: 'en', label: 'English' },
+                    { id: 'yue', label: 'Cantonese' },
+                    { id: 'both', label: 'Both, English then Cantonese' },
+                ]"
+                @update:model-value="
+                    (value) =>
                         persistValues({
                             narrator: {
                                 ...state.values.narrator,
-                                language: ($event.target as HTMLSelectElement)
-                                    .value as RuntimeLanguage,
+                                language: value as RuntimeLanguage,
                             },
                         })
-                    "
-                >
-                    <option value="en">English</option>
-                    <option value="yue">Cantonese</option>
-                    <option value="both">Both, English then Cantonese</option>
-                </select>
-            </label>
-            <label
-                >English voice
-                <select
-                    :value="state.values.narrator.englishVoiceId ?? ''"
-                    @change="
+                "
+            />
+            <SearchablePicker
+                :model-value="state.values.narrator.englishVoiceId ?? ''"
+                label="English voice"
+                :options="[
+                    { id: '', label: 'Choose automatically' },
+                    ...voiceList
+                        .filter((voice) => voice.lang.toLowerCase().startsWith('en'))
+                        .map((voice) => ({
+                            id: voice.id,
+                            label: `${voice.name} · ${voice.lang}${voice.networkBacked ? ' · network-backed' : ''}`,
+                        })),
+                ]"
+                @update:model-value="
+                    (value) =>
                         persistValues({
-                            narrator: {
-                                ...state.values.narrator,
-                                englishVoiceId: ($event.target as HTMLSelectElement).value || null,
-                            },
+                            narrator: { ...state.values.narrator, englishVoiceId: value || null },
                         })
-                    "
-                >
-                    <option value="">Choose automatically</option>
-                    <option
-                        v-for="voice in voiceList.filter((voice) =>
-                            voice.lang.toLowerCase().startsWith('en'),
-                        )"
-                        :key="voice.id"
-                        :value="voice.id"
-                    >
-                        {{ voice.name }} · {{ voice.lang
-                        }}{{ voice.networkBacked ? " · network-backed" : "" }}
-                    </option>
-                </select>
-            </label>
+                "
+            />
             <p class="mb-runtime-settings__hint">
                 {{
                     narratorStatus("en").installed
@@ -519,35 +665,29 @@ onUnmounted(() => {
                         : "Choose automatically is active, or the selected English voice is not installed and will fall back."
                 }}
             </p>
-            <label
-                >Cantonese voice
-                <select
-                    :value="state.values.narrator.cantoneseVoiceId ?? ''"
-                    @change="
-                        persistValues({
-                            narrator: {
-                                ...state.values.narrator,
-                                cantoneseVoiceId:
-                                    ($event.target as HTMLSelectElement).value || null,
-                            },
-                        })
-                    "
-                >
-                    <option value="">Choose automatically</option>
-                    <option
-                        v-for="voice in voiceList.filter((voice) =>
-                            ['yue', 'zh-hk', 'zh-tw'].some((prefix) =>
+            <SearchablePicker
+                :model-value="state.values.narrator.cantoneseVoiceId ?? ''"
+                label="Cantonese voice"
+                :options="[
+                    { id: '', label: 'Choose automatically' },
+                    ...voiceList
+                        .filter((voice) =>
+                            ['yue', 'zh-hk'].some((prefix) =>
                                 voice.lang.toLowerCase().startsWith(prefix),
                             ),
-                        )"
-                        :key="voice.id"
-                        :value="voice.id"
-                    >
-                        {{ voice.name }} · {{ voice.lang
-                        }}{{ voice.networkBacked ? " · network-backed" : "" }}
-                    </option>
-                </select>
-            </label>
+                        )
+                        .map((voice) => ({
+                            id: voice.id,
+                            label: `${voice.name} · ${voice.lang}${voice.networkBacked ? ' · network-backed' : ''}`,
+                        })),
+                ]"
+                @update:model-value="
+                    (value) =>
+                        persistValues({
+                            narrator: { ...state.values.narrator, cantoneseVoiceId: value || null },
+                        })
+                "
+            />
             <p class="mb-runtime-settings__hint">{{ narratorVoiceLabel("yue") }}</p>
             <label
                 >Rate
@@ -616,27 +756,26 @@ onUnmounted(() => {
             </p>
             <div class="mb-runtime-settings__grid">
                 <label>Label <input v-model="scheduleLabel" /></label>
-                <label
-                    >Setting
-                    <select v-model="scheduleSetting">
-                        <option
-                            v-for="key in [
-                                'language',
-                                'theme',
-                                'density',
-                                'accent',
-                                'fontFamily',
-                                'fontSize',
-                                'motion',
-                                'displayName',
-                            ]"
-                            :key="key"
-                            :value="key"
-                        >
-                            {{ scheduleFieldLabel(key as RuntimeSettingKey) }}
-                        </option>
-                    </select>
-                </label>
+                <SearchablePicker
+                    :model-value="scheduleSetting"
+                    label="Scheduled setting"
+                    :options="
+                        [
+                            'language',
+                            'theme',
+                            'density',
+                            'accent',
+                            'fontFamily',
+                            'fontSize',
+                            'motion',
+                            'displayName',
+                        ].map((key) => ({
+                            id: key,
+                            label: scheduleFieldLabel(key as RuntimeSettingKey),
+                        }))
+                    "
+                    @update:model-value="(value) => (scheduleSetting = value as RuntimeSettingKey)"
+                />
                 <label>Value <input v-model="scheduleValue" /></label>
                 <label
                     >Priority
@@ -647,18 +786,53 @@ onUnmounted(() => {
                         max="100000"
                         step="1"
                 /></label>
-                <label
-                    >Source
-                    <select v-model="scheduleSource">
-                        <option value="local">Local</option>
-                        <option value="https">Validated HTTPS API</option>
-                        <option value="homeAssistant">Home Assistant boolean</option>
-                    </select></label
-                >
+                <SearchablePicker
+                    :model-value="scheduleSource"
+                    label="Source"
+                    :options="[
+                        { id: 'local', label: 'Local' },
+                        { id: 'https', label: 'Validated HTTPS API' },
+                        { id: 'homeAssistant', label: 'Home Assistant boolean' },
+                    ]"
+                    @update:model-value="(value) => (scheduleSource = value as RuntimeSource)"
+                />
                 <label>Start time <input v-model="scheduleStart" type="time" /></label>
                 <label>End time <input v-model="scheduleEnd" type="time" /></label>
                 <label>Start date <input v-model="scheduleStartDate" type="date" /></label>
                 <label>End date <input v-model="scheduleEndDate" type="date" /></label>
+                <fieldset class="mb-runtime-settings__weekdays">
+                    <legend>Days</legend>
+                    <label
+                        ><input
+                            type="checkbox"
+                            :checked="scheduleWeekdays.length === 0"
+                            @change="scheduleWeekdays = []"
+                        />
+                        Every day</label
+                    >
+                    <label
+                        v-for="day in [
+                            { id: 0, name: 'Sunday' },
+                            { id: 1, name: 'Monday' },
+                            { id: 2, name: 'Tuesday' },
+                            { id: 3, name: 'Wednesday' },
+                            { id: 4, name: 'Thursday' },
+                            { id: 5, name: 'Friday' },
+                            { id: 6, name: 'Saturday' },
+                        ]"
+                        :key="day.id"
+                        ><input
+                            type="checkbox"
+                            :checked="scheduleWeekdays.includes(day.id)"
+                            @change="
+                                scheduleWeekdays = scheduleWeekdays.includes(day.id)
+                                    ? scheduleWeekdays.filter((selected) => selected !== day.id)
+                                    : [...scheduleWeekdays, day.id]
+                            "
+                        />
+                        {{ day.name }}</label
+                    >
+                </fieldset>
                 <label v-if="scheduleSource !== 'local'"
                     >HTTPS or loopback URL <input v-model="scheduleUrl" inputmode="url"
                 /></label>
@@ -728,6 +902,29 @@ onUnmounted(() => {
                     ><small>{{ item.detail }}</small></span
                 >
             </label>
+            <label
+                >One thing at a time, current next action
+                <input
+                    :value="state.values.nextAction"
+                    placeholder="Choose one next action"
+                    @change="
+                        persistValues({ nextAction: ($event.target as HTMLInputElement).value })
+                    "
+                />
+            </label>
+            <button v-if="state.values.accommodations.focus" type="button" @click="restoreFocus">
+                Restore interface emphasis
+            </button>
+            <div
+                v-if="momentumVisible"
+                class="mb-runtime-settings__momentum"
+                role="status"
+                aria-live="polite"
+            >
+                <strong>Momentum reminder</strong>
+                <span>Nothing changed here for {{ idleSeconds }} seconds.</span>
+                <button type="button" @click="dismissMomentum">Not now for 15 minutes</button>
+            </div>
             <p class="mb-runtime-settings__hint">
                 Current scheduled preview: {{ activeValues.theme }}, {{ activeValues.density }},
                 {{ activeValues.motion }}, display name {{ activeValues.displayName }}.
@@ -742,6 +939,8 @@ onUnmounted(() => {
     flex-direction: column;
     gap: 12px;
     min-width: 0;
+    font-family: var(--worldlens-runtime-font-family, inherit);
+    font-size: calc(1em * var(--worldlens-runtime-font-scale, 1));
 }
 .mb-runtime-settings__results,
 .mb-runtime-settings__rules {
@@ -831,6 +1030,19 @@ onUnmounted(() => {
     grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
     gap: 10px;
 }
+.mb-runtime-settings__weekdays {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    min-inline-size: 0;
+    border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
+    border-radius: 10px;
+    padding: 8px;
+}
+.mb-runtime-settings__weekdays legend {
+    padding-inline: 4px;
+    font-size: 0.8rem;
+}
 .mb-runtime-settings__panel label {
     display: grid;
     gap: 5px;
@@ -867,6 +1079,25 @@ onUnmounted(() => {
 }
 .mb-runtime-settings__accommodation small {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+.mb-runtime-settings__momentum {
+    display: grid;
+    gap: 6px;
+    padding: 12px;
+    border-radius: 12px;
+    background: rgba(var(--v-theme-primary), 0.14);
+}
+:global(html[data-runtime-low-stimulation="true"] *) {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+}
+:global(html[data-runtime-focus="true"] .mb-runtime-secondary) {
+    opacity: 0.42;
+}
+:global(html[data-runtime-focus="true"] .mb-runtime-primary) {
+    opacity: 1;
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 3px;
 }
 button:focus-visible,
 input:focus-visible,

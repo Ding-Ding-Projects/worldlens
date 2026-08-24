@@ -65,6 +65,7 @@ export interface RuntimeValues {
     readonly fontSize: number;
     readonly motion: RuntimeMotion;
     readonly displayName: string;
+    readonly nextAction: string;
     readonly accommodations: RuntimeAccommodations;
     readonly narrator: NarratorSettings;
 }
@@ -114,6 +115,7 @@ export const DEFAULT_RUNTIME_VALUES: RuntimeValues = {
     fontSize: 1,
     motion: "system",
     displayName: "Worldlens",
+    nextAction: "",
     accommodations: {
         focus: false,
         lowStimulation: false,
@@ -175,11 +177,15 @@ function validTime(value: string): boolean {
 }
 
 function validDate(value: string | null): boolean {
-    return value === null || /^\d{4}-\d{2}-\d{2}$/.test(value);
+    if (value === null) return true;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const parsed = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
 function validateSourceConfig(source: RuntimeSource, value: unknown): value is RuntimeSourceConfig {
     if (!isRecord(value)) return false;
+    if (!hasOnlyKeys(value, ["url", "entityId", "credentialRef"])) return false;
     const url = value.url;
     const entityId = value.entityId;
     const credentialRef = value.credentialRef;
@@ -201,6 +207,26 @@ function validateSourceConfig(source: RuntimeSource, value: unknown): value is R
     );
 }
 
+function validSettingValue(setting: RuntimeSettingKey, value: unknown): boolean {
+    if (setting === "fontSize")
+        return (
+            (typeof value === "number" && finiteNumber(value, 0.75, 2)) ||
+            (typeof value === "string" && finiteNumber(Number(value), 0.75, 2))
+        );
+    if (
+        typeof value !== "string" ||
+        value.length === 0 ||
+        value.length > (setting === "displayName" ? 120 : 512)
+    )
+        return false;
+    if (setting === "language") return ["en", "yue", "both"].includes(value);
+    if (setting === "theme") return ["system", "light", "dark", "contrast"].includes(value);
+    if (setting === "density") return ["comfortable", "compact", "spacious"].includes(value);
+    if (setting === "motion") return ["system", "full", "reduced"].includes(value);
+    if (setting === "accent") return /^#[0-9a-f]{6,8}$/i.test(value);
+    return true;
+}
+
 function parseValues(value: unknown): RuntimeValues | null {
     if (!isRecord(value)) return null;
     const accommodations = value.accommodations;
@@ -216,6 +242,7 @@ function parseValues(value: unknown): RuntimeValues | null {
             "fontSize",
             "motion",
             "displayName",
+            "nextAction",
             "accommodations",
             "narrator",
         ])
@@ -259,6 +286,7 @@ function parseValues(value: unknown): RuntimeValues | null {
         return null;
     if (!boundedString(value.displayName, 120) || value.displayName.trim().length === 0)
         return null;
+    if (!boundedString(value.nextAction, 240)) return null;
     for (const key of [
         "focus",
         "lowStimulation",
@@ -294,6 +322,7 @@ function parseValues(value: unknown): RuntimeValues | null {
         fontSize: value.fontSize,
         motion,
         displayName: value.displayName,
+        nextAction: value.nextAction,
         accommodations: {
             focus: accommodations.focus as boolean,
             lowStimulation: accommodations.lowStimulation as boolean,
@@ -357,7 +386,10 @@ function parseRule(value: unknown): ScheduledRule | null {
     ))
         return null;
     if (typeof value.value === "string" && value.value.length > 512) return null;
+    if (!validSettingValue(setting, value.value)) return null;
     if (!validateSourceConfig(source, value.sourceConfig)) return null;
+    if (value.startDate !== null && value.endDate !== null && value.startDate > value.endDate)
+        return null;
     return {
         id: value.id,
         label: value.label,
@@ -425,7 +457,9 @@ export function scheduledRuleMatches(rule: ScheduledRule, at: Date): boolean {
         const yesterday = (today + 6) % 7;
         if (rule.weekdays.length > 0 && !rule.weekdays.includes(yesterday)) return false;
     }
-    const currentDate = dateOnly(at);
+    const effectiveDate =
+        crossMidnight && minutes < end ? new Date(at.getTime() - 24 * 60 * 60 * 1000) : at;
+    const currentDate = dateOnly(effectiveDate);
     if (rule.startDate !== null && currentDate < rule.startDate) return false;
     if (rule.endDate !== null && currentDate > rule.endDate) return false;
     return true;
@@ -462,7 +496,11 @@ export function validateExternalSettingsPayload(
         if (key === "fontSize") {
             if (!finiteNumber(raw, 0.75, 2)) return null;
             result.fontSize = raw;
-        } else if (!boundedString(raw, key === "displayName" ? 120 : 512)) return null;
+        } else if (
+            !boundedString(raw, key === "displayName" ? 120 : 512) ||
+            !validSettingValue(key as RuntimeSettingKey, raw)
+        )
+            return null;
         else (result as Record<string, unknown>)[key] = raw;
     }
     return result as Partial<Pick<RuntimeValues, RuntimeSettingKey>>;

@@ -12,13 +12,15 @@ Narration is off by default. When enabled, the user chooses English, Cantonese, 
 
 ## Scheduled settings
 
-Rules are versioned, bounded and validated before persistence. They can target language, theme, density, accent, font family, font size, motion, or display name. Every rule has a stable id, priority, local-time start and end, optional dates, optional weekday selection, and a source. Local rules apply deterministically by priority and then id. Cross-midnight windows are supported. External sources accept only HTTPS, with loopback HTTP reserved for development, and have a five-second timeout, a 512 KiB response cap, redirect rejection, and an allowlist of appearance fields. Home Assistant rules require a boolean entity id and a credential-vault reference. A validated external value is temporary and never overwrites the recoverable local base.
+Rules are versioned, bounded and validated before persistence. They can target language, theme, density, accent, font family, font size, motion, or display name. Every rule has a stable id, priority, local-time start and end, optional dates, optional weekday selection, and a source. Local rules apply deterministically by priority and then id. Cross-midnight windows are supported. External requests run in the privileged main process through a typed preload bridge, never from the renderer. The main process accepts only HTTPS, with loopback HTTP reserved for an explicit development route, rejects URL credentials, private and reserved addresses, redirect responses, unsafe ports and DNS changes, and applies a five-second timeout, a 512 KiB response cap, and an allowlist of appearance fields. Home Assistant rules require a boolean entity id and a credential-vault reference. The token is read only in the operating-system vault and never enters renderer state. A validated external value is temporary and never overwrites the recoverable local base.
 
 The settings surface states that times use the computer's local timezone. Daylight-saving transitions follow the platform's local clock. An invalid or incomplete date, time, source URL, entity id, or vault reference is rejected beside the editor rather than guessed.
 
 ## Attention modes
 
-Focus, Low stimulation, Time awareness, One thing at a time, and Momentum are five separate switches. They are all off by default, persist independently, and use factual, non-medical copy. Focus does not hide content, Low stimulation reduces non-essential motion and notices, Time awareness shows elapsed time, One thing at a time keeps one user-chosen next action visible, and Momentum supplies a dismissible idle prompt. These modes do not diagnose or assess a person.
+Focus, Low stimulation, Time awareness, One thing at a time, and Momentum are five separate switches. They are all off by default, persist independently, and use factual, non-medical copy. Focus applies a visible de-emphasis with an obvious restore action, Low stimulation reduces non-essential motion and notices, Time awareness shows elapsed and unchanged time, One thing at a time keeps one user-chosen next action visible, and Momentum supplies a bounded dismissible idle prompt. These modes do not diagnose or assess a person.
+
+Active scheduled values apply live to document theme, density and motion attributes, accent and font variables, body typography, and display title. When a temporary external value expires, the persisted local base is restored. The panel subscribes to browser storage events and a same-profile `BroadcastChannel`, so another application window updates without restart. School mode removes this entire section, its narrator, schedules, vocabulary, and dim-sum references.
 
 ## Search, history and verification
 
@@ -46,9 +48,11 @@ Built-artifact capture evidence is intentionally marked pending in the inventory
 
 排程有版本、有上限，儲存之前會完整驗證。可以安排語言、主題、密度、主色、字體、字體大小、動態效果或者顯示名稱。每條規則有穩定識別碼、優先次序、本地時間、日期、星期同來源。跨午夜時間窗可用，規則撞車時先比優先次序，再用識別碼穩定決定。外部來源只准 HTTPS，開發用 HTTP 只限本機，回應有時間、大小、重新導向同欄位限制。Home Assistant 要有布林實體同憑證庫參照，外部值只係暫時套用，唔會覆蓋本地底稿。
 
+外部請求由有權限嘅主進程經 typed preload bridge 處理，renderer 唔會自己 fetch。網址唔准帶憑證，私有、保留、廣播同 DNS 變動地址會被拒絕。Home Assistant token 只可以由作業系統憑證庫讀取，唔會流入 renderer。排程值會即時套用到主題、密度、動態、主色、字體、顯示名稱同 body 字體，暫時值過期就返去本地底稿。面板會聽 storage event 同 BroadcastChannel，第二個視窗唔使重開都會更新。
+
 ### 注意力模式
 
-Focus、Low stimulation、Time awareness、One thing at a time、Momentum 係五個獨立掣，預設全部關閉。佢哋係介面方便功能，唔係醫療判斷，亦唔會將內容收埋到搵唔返。
+Focus、Low stimulation、Time awareness、One thing at a time、Momentum 係五個獨立掣，預設全部關閉。Focus 有明顯淡出同恢復掣，Low stimulation 會減少非必要動畫同通知，Time awareness 顯示用咗幾耐同幾耐冇改嘢，One thing at a time 保存使用者揀嘅下一步，Momentum 會喺閒置一段時間後畀一個有限期、可消除嘅提示。佢哋係介面方便功能，唔係醫療判斷，亦唔會將內容收埋到搵唔返。School mode 會移除呢個分頁同相關 narrator、schedule、vocabulary、dim-sum 內容。
 
 ### 搜尋、歷史同驗證
 

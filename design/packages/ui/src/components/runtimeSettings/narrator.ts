@@ -43,7 +43,7 @@ export function listVoices(adapter: SpeechAdapter | null): VoiceInfo[] {
 function languageMatches(voice: VoiceInfo, language: "en" | "yue"): boolean {
     const lower = voice.lang.toLowerCase();
     return language === "yue"
-        ? lower.startsWith("yue") || lower.startsWith("zh-hk") || lower.startsWith("zh-tw")
+        ? lower.startsWith("yue") || lower.startsWith("zh-hk")
         : lower.startsWith("en");
 }
 
@@ -95,6 +95,7 @@ export function createNarratorController(input?: SpeechAdapter | null): Narrator
         settings: NarratorSettings;
         text: { en: string; yue: string };
         category: string;
+        priority: number;
     }> = [];
     let speaking = false;
     const previousVoicesChanged = adapter?.onvoiceschanged ?? null;
@@ -117,7 +118,12 @@ export function createNarratorController(input?: SpeechAdapter | null): Narrator
         let index = 0;
         const speakPart = (): void => {
             const utterance = new SpeechSynthesisUtterance(parts[index] ?? "");
-            const language = next.settings.language === "yue" ? "yue" : "en";
+            const language: "en" | "yue" =
+                next.settings.language === "both"
+                    ? index === 0
+                        ? "en"
+                        : "yue"
+                    : next.settings.language;
             const selected = resolveVoiceStatus(
                 current,
                 language === "yue" ? next.settings.cantoneseVoiceId : next.settings.englishVoiceId,
@@ -164,11 +170,13 @@ export function createNarratorController(input?: SpeechAdapter | null): Narrator
             )
                 return;
             const now = Date.now();
-            if (now - (lastSpoken.get(category) ?? 0) < settings.cooldownMs) return;
+            const priority = category.toLowerCase().startsWith("error") ? 2 : 1;
+            if (priority < 2 && now - (lastSpoken.get(category) ?? 0) < settings.cooldownMs) return;
             lastSpoken.set(category, now);
             const existing = queue.findIndex((item) => item.category === category);
             if (existing >= 0) queue.splice(existing, 1);
-            queue.push({ settings, text, category });
+            if (priority >= 2) queue.splice(0, queue.length);
+            queue.push({ settings, text, category, priority });
             if (queue.length > 8) queue.splice(0, queue.length - 8);
             consume();
         },

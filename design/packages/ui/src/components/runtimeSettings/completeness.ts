@@ -15,11 +15,14 @@ export const RUNTIME_COVERAGE: readonly RuntimeCoverageRow[] = [
         id: "status-hub",
         implementation: [
             "design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue",
+            "design/packages/app/src/main/runtimeSettings/ipc.ts",
+            "design/packages/app/src/main/runtimeSettings/service.ts",
+            "design/packages/app/src/preload/index.ts",
         ],
         documentation: ["docs/runtime-settings-and-accommodations.md"],
         localization: ["settings.runtime.title", "settings.runtime.description"],
         persistence: ["design/packages/ui/src/components/runtimeSettings/store.ts"],
-        tests: ["design/packages/ui/src/components/runtimeSettings/model.test.ts"],
+        tests: ["design/packages/ui/src/components/runtimeSettings/model.test.ts", "design/packages/app/src/main/runtimeSettings/service.test.ts"],
         capture: "pending",
     },
     {
@@ -31,7 +34,7 @@ export const RUNTIME_COVERAGE: readonly RuntimeCoverageRow[] = [
         documentation: ["docs/runtime-settings-and-accommodations.md"],
         localization: ["runtime.narrator.testQueued"],
         persistence: ["design/packages/ui/src/components/runtimeSettings/store.ts"],
-        tests: ["design/packages/ui/src/components/runtimeSettings/schedule.test.ts"],
+        tests: ["design/packages/ui/src/components/runtimeSettings/narrator.test.ts"],
         capture: "pending",
     },
     {
@@ -65,6 +68,7 @@ export const RUNTIME_COVERAGE: readonly RuntimeCoverageRow[] = [
 
 export function validateRuntimeCoverage(
     rows: readonly RuntimeCoverageRow[] = RUNTIME_COVERAGE,
+    options: { requireCaptures?: boolean } = {},
 ): string[] {
     const errors: string[] = [];
     const ids = new Set<string>();
@@ -80,6 +84,8 @@ export function validateRuntimeCoverage(
             )
                 errors.push(`${row.id}:${field}`);
         }
+        if (options.requireCaptures === true && row.capture === "pending")
+            errors.push(`${row.id}:capture-pending`);
     }
     for (const required of [
         "status-hub",

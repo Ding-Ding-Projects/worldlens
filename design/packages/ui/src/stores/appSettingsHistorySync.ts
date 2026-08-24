@@ -46,7 +46,10 @@
  * anything `profilesHistory` does not already keep.
  */
 
-import { simpleHistoryReadFn, simpleHistorySaveFn } from "../components/history/simpleHistoryHost.js";
+import {
+    simpleHistoryReadFn,
+    simpleHistorySaveFn,
+} from "../components/history/simpleHistoryHost.js";
 
 /** The shape `settingsHistory:read` answers with, read defensively rather than trusted. */
 function valuesBagFrom(current: unknown): Record<string, unknown> {
@@ -141,6 +144,7 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "tabs.worldlens-settings-tabs", owner: "components/tabs/tabStorage.ts" },
     { key: "tabs.worldlens-config-editor-tabs", owner: "components/tabs/tabStorage.ts" },
     { key: "tabs.worldlens-project-editor-tabs", owner: "components/tabs/tabStorage.ts" },
+    { key: "runtimeSettings", owner: "components/runtimeSettings/RuntimeSettingsPanel.vue" },
 ];
 
 /** One store's key, its owner, and why it is deliberately never mirrored into history. */
@@ -167,7 +171,7 @@ export const EXCLUDED_APP_SETTINGS: readonly ExcludedAppSetting[] = [
             "splitter is being dragged or resized, not once on release. Mirroring it would " +
             "turn one resize gesture into dozens of history revisions of pure noise. The " +
             "discrete choice this geometry serves - which edge a panel is docked to - is " +
-            "wired under \"dockPlacement\".",
+            'wired under "dockPlacement".',
     },
     {
         key: "dockFloating",

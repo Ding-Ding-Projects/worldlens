@@ -30,19 +30,18 @@ function fakeVoice(
     return { voiceURI: uri, lang, name, localService, default: false } as SpeechSynthesisVoice;
 }
 
-function adapter(): SpeechAdapter & { spoken: FakeUtterance[] } {
-    const value: SpeechAdapter & { spoken: FakeUtterance[] } = {
-        voices: [fakeVoice("en-1", "en-US", "English")],
-        spoken: [],
+type FakeSpeech = SpeechAdapter & { voices: SpeechSynthesisVoice[]; spoken: FakeUtterance[] };
+function adapter(): FakeSpeech {
+    const voices = [fakeVoice("en-1", "en-US", "English")];
+    const spoken: FakeUtterance[] = [];
+    const value = {
+        voices,
+        spoken,
         onvoiceschanged: null,
-        getVoices() {
-            return this.voices;
-        },
-        speak(utterance) {
-            this.spoken.push(utterance as FakeUtterance);
-        },
-        cancel() {},
-    } as unknown as SpeechAdapter & { spoken: FakeUtterance[] };
+        getVoices: () => voices,
+        speak: (utterance: SpeechSynthesisUtterance) => spoken.push(utterance as FakeUtterance),
+        cancel: () => {},
+    } as unknown as FakeSpeech;
     return value;
 }
 
@@ -60,11 +59,11 @@ describe("runtime narrator", () => {
     it("uses stable voice ids and reports unavailable or network-backed choices", () => {
         const voice = fakeVoice("network-yue", "yue-HK", "Cantonese", false);
         expect(stableVoiceId(voice)).toBe("network-yue");
-        expect(listVoices({ getVoices: () => [voice] } as SpeechAdapter)[0]?.networkBacked).toBe(
-            true,
-        );
+        expect(
+            listVoices({ getVoices: () => [voice] } as unknown as SpeechAdapter)[0]?.networkBacked,
+        ).toBe(true);
         const status = resolveVoiceStatus(
-            listVoices({ getVoices: () => [voice] } as SpeechAdapter),
+            listVoices({ getVoices: () => [voice] } as unknown as SpeechAdapter),
             "missing",
             "en",
         );
@@ -76,22 +75,23 @@ describe("runtime narrator", () => {
         const speech = adapter();
         const controller = createNarratorController(speech);
         expect(controller.voices()).toHaveLength(1);
-        speech.voices = [
-            fakeVoice("en-1", "en-US", "English"),
-            fakeVoice("yue-1", "yue-HK", "Cantonese"),
-        ];
+        speech.voices.push(fakeVoice("yue-1", "yue-HK", "Cantonese"));
         speech.onvoiceschanged?.(new Event("voiceschanged"));
         expect(controller.voices()).toHaveLength(2);
         controller.speak(
-            { ...enabled, language: "both" },
+            { ...enabled, language: "both", englishVoiceId: "en-1", cantoneseVoiceId: "yue-1" },
             { en: "English", yue: "廣東話" },
             "status",
         );
         expect(speech.spoken).toHaveLength(1);
         expect(speech.spoken[0]?.text).toBe("English");
+        expect(speech.spoken[0]?.lang).toBe("en-US");
+        expect(speech.spoken[0]?.voice?.voiceURI).toBe("en-1");
         speech.spoken[0]?.onend?.();
         expect(speech.spoken).toHaveLength(2);
         expect(speech.spoken[1]?.text).toBe("廣東話");
+        expect(speech.spoken[1]?.lang).toBe("yue-HK");
+        expect(speech.spoken[1]?.voice?.voiceURI).toBe("yue-1");
         controller.dispose();
     });
 
