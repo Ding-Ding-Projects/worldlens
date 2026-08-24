@@ -19,7 +19,7 @@
  * exercising the real contract rather than tiptoeing around it.
  *
  * Run it with:
- *   WORLDLENS_SSH_DOCKER_HOST=docker@192.168.50.232 pnpm vitest run sshDocker.realNetwork
+ *   WORLDLENS_SSH_DOCKER_HOST=fixture-user@fixture-host pnpm vitest run sshDocker.realNetwork
  */
 
 import { execFileSync } from "node:child_process";
@@ -67,7 +67,7 @@ const runner = sshCommandRunner({
     runner: execFileCommandRunner,
     knownHostsFile,
     target: {
-        id: "realNetwork",
+        id: "fixture-network",
         label: "real network test host",
         host: HOST,
         port: 22,

@@ -174,7 +174,7 @@ describe("registerMcServerHandlers", () => {
     });
 
     it("refuses root and host-sensitive container destinations even when the host source is safe", () => {
-        for (const path of ["/", "/root", "/home", "/etc", "/usr", "/var"]) {
+        for (const path of ["/", "/root", "/home", "/etc", "/usr", "/var", "/opt/tmp", "/custom/server"]) {
             expect(safeContainerServerDir(path)).toBe(false);
         }
         expect(safeContainerServerDir("/data")).toBe(true);
@@ -193,25 +193,55 @@ describe("registerMcServerHandlers", () => {
         expect(JSON.stringify(answer)).not.toContain("fixture-password");
     });
 
-    it("issues a scoped one-time restore receipt only after native confirmation", async () => {
+    it("issues a scoped one-time restore receipt only after a main challenge and native evidence", async () => {
         const refused = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
             owner: "fixture-owner",
             repo: "fixture-backups",
             tag: "fixture-tag",
-            superConfirmed: false,
+            challenge: "not-issued",
+            proof: { keyOne: true, keyTwo: true, travel: 100 },
         })) as { ok: boolean; failure: { code: string } };
         expect(refused.ok).toBe(false);
         expect(refused.failure.code).toBe("denied");
-        const issued = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+        const challenge = (await invoke(MCSERVER_CHANNELS.backupRestoreChallenge, "survival", {
             owner: "fixture-owner",
             repo: "fixture-backups",
             tag: "fixture-tag",
             worldFolder: "/data",
-            superConfirmed: true,
+        })) as { ok: boolean; value?: { challenge: string; expiresAt: number } };
+        expect(challenge.ok).toBe(true);
+        const issued = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+            challenge: challenge.value?.challenge,
+            proof: { keyOne: true, keyTwo: true, travel: 100 },
         })) as { ok: boolean; value?: { receipt: string; expiresAt: number } };
         expect(issued.ok).toBe(true);
         expect(issued.value?.receipt.length).toBe(64);
         expect(issued.value?.expiresAt).toBeGreaterThan(Date.now());
+        const replay = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+            challenge: challenge.value?.challenge, proof: { keyOne: true, keyTwo: true, travel: 100 },
+        })) as { ok: boolean; failure: { code: string } };
+        expect(replay.ok).toBe(false);
+        expect(replay.failure.code).toBe("denied");
+    });
+
+    it("refuses fabricated confirmation booleans and wrong restore scopes", async () => {
+        const challenge = (await invoke(MCSERVER_CHANNELS.backupRestoreChallenge, "survival", {
+            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+        })) as { ok: boolean; value?: { challenge: string } };
+        expect(challenge.ok).toBe(true);
+        const wrongProof = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+            challenge: challenge.value?.challenge, superConfirmed: true,
+            proof: { keyOne: true, keyTwo: false, travel: 100 },
+        })) as { ok: boolean; failure: { code: string } };
+        expect(wrongProof.ok).toBe(false);
+        const wrongOwner = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "other-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+            challenge: challenge.value?.challenge, proof: { keyOne: true, keyTwo: true, travel: 100 },
+        })) as { ok: boolean; failure: { code: string } };
+        expect(wrongOwner.ok).toBe(false);
     });
 
     it("carries the record's write scope into the transport", async () => {

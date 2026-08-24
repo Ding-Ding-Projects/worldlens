@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { VAlert, VBtn, VCard, VCardText, VChip, VList, VListItem, VSwitch, VTextField } from "vuetify/components";
+import { VAlert, VBtn, VCard, VCardText, VChip, VList, VListItem, VSelect, VSwitch, VTextField } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
-import { backupCreate, backupIssueRestoreReceipt, backupList, backupRestore, type BackupEntry } from "./mcserverBridge.js";
+import { backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, type BackupEntry } from "./mcserverBridge.js";
 import { useServerStore } from "./useServers.js";
 
 const props = defineProps<{ serverId: string }>();
@@ -14,20 +14,32 @@ const repo = ref("");
 const worldFolder = ref("");
 const selectedTag = ref("");
 const entries = ref<readonly BackupEntry[]>([]);
+const worldOptions = ref<string[]>([]);
+const worldsLoading = ref(false);
 const message = ref<string | null>(null);
 const busy = ref(false);
 const backupConsent = ref(false);
 const restoreConsent = ref(false);
+const restoreChallenge = ref<string | null>(null);
+const restoreProof = ref<{ keyOne: true; keyTwo: true; travel: 100 } | null>(null);
 const server = computed(() => store.get(props.serverId));
 const target = computed(() => worldFolder.value.trim() || server.value?.ref.serverDir || "/data");
+const targetValid = computed(() => {
+    const root = server.value?.ref.serverDir;
+    return root !== undefined && (target.value === root || target.value.startsWith(`${root.replace(/\/$/, "")}/`));
+});
 
 async function refresh(): Promise<void> {
+    if (busy.value) return;
     if (owner.value.trim() === "" || repo.value.trim() === "") return;
+    busy.value = true;
     const result = await backupList(owner.value.trim(), repo.value.trim());
+    busy.value = false;
     if (result.ok) entries.value = result.value ?? [];
     else message.value = result.failure?.message ?? t("mcserver.backup.listFailed", "Backups could not be listed.");
 }
 async function create(): Promise<void> {
+    if (busy.value) return;
     if (owner.value.trim() === "" || repo.value.trim() === "" || server.value === undefined) return;
     busy.value = true;
     const result = await backupCreate(props.serverId, {
@@ -41,10 +53,16 @@ async function create(): Promise<void> {
     if (result.ok) await refresh();
 }
 async function restore(): Promise<void> {
+    if (busy.value) return;
     if (selectedTag.value === "" || owner.value.trim() === "" || repo.value.trim() === "") return;
+    if (restoreChallenge.value === null || restoreProof.value === null) {
+        message.value = t("mcserver.backup.challengeMissing", "Open the restore confirmation again so the main process can issue a fresh challenge.");
+        return;
+    }
     busy.value = true;
     const receipt = await backupIssueRestoreReceipt(props.serverId, {
-        owner: owner.value.trim(), repo: repo.value.trim(), tag: selectedTag.value, worldFolder: target.value, superConfirmed: true,
+        owner: owner.value.trim(), repo: repo.value.trim(), tag: selectedTag.value, worldFolder: target.value,
+        challenge: restoreChallenge.value, proof: restoreProof.value,
     });
     if (!receipt.ok || receipt.value === undefined) {
         busy.value = false;
@@ -58,7 +76,29 @@ async function restore(): Promise<void> {
     busy.value = false;
     message.value = result.ok ? t("mcserver.backup.restored", "Restore completed.") : result.failure?.message ?? t("mcserver.backup.restoreFailed", "Restore could not be completed.");
 }
-onMounted(() => { worldFolder.value = server.value?.ref.serverDir ?? ""; });
+async function prepareRestoreChallenge(): Promise<void> {
+    restoreChallenge.value = null;
+    restoreProof.value = null;
+    if (selectedTag.value === "" || owner.value.trim() === "" || repo.value.trim() === "") return;
+    const result = await backupIssueRestoreChallenge(props.serverId, { owner: owner.value.trim(), repo: repo.value.trim(), tag: selectedTag.value, worldFolder: target.value });
+    if (result.ok && result.value) restoreChallenge.value = result.value.challenge;
+    else message.value = result.failure?.message ?? t("mcserver.backup.challengeFailed", "The main process could not prepare this restore confirmation.");
+}
+function captureRestoreAuthorization(value: { keyOne: true; keyTwo: true; travel: 100 }): void {
+    restoreProof.value = value;
+}
+onMounted(async () => {
+    worldFolder.value = server.value?.ref.serverDir ?? "";
+    worldsLoading.value = true;
+    const result = await store.worldsList(props.serverId);
+    worldsLoading.value = false;
+    if (result.ok) {
+        worldOptions.value = (result.value ?? []).map((world) => world.folder);
+        if (worldOptions.value.length > 0) worldFolder.value = worldOptions.value[0]!;
+    } else {
+        message.value = result.failure?.message ?? t("mcserver.backup.worldsFailed", "The mounted world folders could not be listed.");
+    }
+});
 </script>
 
 <template>
@@ -69,12 +109,13 @@ onMounted(() => { worldFolder.value = server.value?.ref.serverDir ?? ""; });
             <div class="wl-mcserver-backup-fields">
                 <VTextField v-model="owner" :label="t('mcserver.backup.owner', 'Backup owner')" autocomplete="off" />
                 <VTextField v-model="repo" :label="t('mcserver.backup.repository', 'Backup repository')" autocomplete="off" />
-                <VTextField v-model="worldFolder" :label="t('mcserver.backup.target', 'World target folder')" />
+                <VSelect v-model="worldFolder" :items="worldOptions" :loading="worldsLoading" :label="t('mcserver.backup.target', 'Mounted world folder')" :hint="t('mcserver.backup.targetHint', 'Choose a discovered world folder. The server host validates it again before any transfer.')" persistent-hint />
             </div>
             <div class="d-flex ga-2 mb-3">
-                <VBtn :loading="busy" :disabled="owner.trim() === '' || repo.trim() === ''" variant="tonal" @click="refresh">{{ t("mcserver.backup.refresh", "Refresh backups") }}</VBtn>
-                <VBtn :loading="busy" :disabled="owner.trim() === '' || repo.trim() === '' || (server?.origin === 'adopted' && !backupConsent)" color="primary" @click="create">{{ t("mcserver.backup.create", "Create backup") }}</VBtn>
+                <VBtn :loading="busy" :disabled="owner.trim() === '' || repo.trim() === '' || !targetValid" variant="tonal" @click="refresh">{{ t("mcserver.backup.refresh", "Refresh backups") }}</VBtn>
+                <VBtn :loading="busy" :disabled="owner.trim() === '' || repo.trim() === '' || !targetValid || (server?.origin === 'adopted' && !backupConsent)" color="primary" @click="create">{{ t("mcserver.backup.create", "Create backup") }}</VBtn>
             </div>
+            <VAlert v-if="!targetValid" type="warning" variant="tonal" class="mb-3">{{ t("mcserver.backup.targetInvalid", "Choose a mounted folder inside this server's recognized directory.") }}</VAlert>
             <VSwitch v-if="server?.origin === 'adopted'" v-model="backupConsent" :label="t('mcserver.backup.consent', 'I consent to reading this adopted server for backup')" density="compact" hide-details class="mb-2" />
             <VSwitch v-if="server?.origin === 'adopted'" v-model="restoreConsent" :label="t('mcserver.backup.restoreConsent', 'I consent to restoring this adopted server')" density="compact" hide-details class="mb-2" />
             <VAlert v-if="message" type="info" variant="tonal" class="mb-3">{{ message }}</VAlert>
@@ -91,7 +132,9 @@ onMounted(() => { worldFolder.value = server.value?.ref.serverDir ?? ""; });
                 :action="t('mcserver.backup.restoreAction', { server: server?.name ?? serverId, tag: selectedTag || '(none)', target })"
                 :affected="[server?.name ?? serverId, selectedTag || '(none)', target]"
                 :confirm-label="t('mcserver.backup.restore', 'Restore')"
-                :disabled="selectedTag === '' || busy || (server?.origin === 'adopted' && !restoreConsent)"
+                :disabled="selectedTag === '' || busy || !targetValid || (server?.origin === 'adopted' && !restoreConsent)"
+                @open="prepareRestoreChallenge"
+                @authorized="captureRestoreAuthorization"
                 @confirm="restore"
             />
         </VCardText>

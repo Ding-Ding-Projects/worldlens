@@ -45,13 +45,20 @@ const props = withDefaults(
     { affected: () => [], disabled: false },
 );
 
-const emit = defineEmits<{ confirm: [] }>();
+const emit = defineEmits<{
+    confirm: [];
+    open: [];
+    authorized: [{ keyOne: true; keyTwo: true; travel: 100 }];
+}>();
 
 const { t } = useI18n();
 
 const open = ref(false);
 const activator = ref<HTMLElement | null>(null);
-const gate = createSuperConfirmGate(() => emit("confirm"));
+const gate = createSuperConfirmGate(() => {
+    emit("authorized", { keyOne: true, keyTwo: true, travel: 100 });
+    emit("confirm");
+});
 
 /**
  * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`,
@@ -126,7 +133,7 @@ function cancel(): void {
 
 <template>
     <span ref="activator" class="mb-config-confirm__anchor">
-        <slot name="activator" :props="{ onClick: () => (open = true), disabled: isDisabled }" />
+        <slot name="activator" :props="{ onClick: () => { open = true; emit('open'); }, disabled: isDisabled }" />
 
         <!--
             `target` anchors the gate to the control without also binding a click

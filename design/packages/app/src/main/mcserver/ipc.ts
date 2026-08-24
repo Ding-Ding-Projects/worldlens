@@ -126,6 +126,7 @@ export const MCSERVER_CHANNELS = {
     backupCreate: "mcserver:backup:create",
     backupList: "mcserver:backup:list",
     backupRestore: "mcserver:backup:restore",
+    backupRestoreChallenge: "mcserver:backup:restore:challenge",
     backupRestoreIssue: "mcserver:backup:restore:issue",
     awsPlan: "mcserver:aws:plan",
     awsProvision: "mcserver:aws:provision",
@@ -248,8 +249,8 @@ function isPath(value: unknown): value is string {
 
 export function safeContainerServerDir(value: string): boolean {
     const normalized = value.replace(/\/+$/, "") || "/";
-    const forbiddenRoots = new Set(["/", "/root", "/home", "/etc", "/usr", "/var"]);
-    return normalized.startsWith("/") && normalized.length <= 512 && !forbiddenRoots.has(normalized.toLowerCase()) && !/[\0\r\n]/.test(normalized) && !normalized.split("/").some((part) => part === "." || part === "..");
+    const recognized = normalized === "/data" || normalized === "/server" || normalized.startsWith("/data/") || normalized.startsWith("/server/");
+    return recognized && normalized.length <= 512 && !/[\0\r\n]/.test(normalized) && !normalized.split("/").some((part) => part === "." || part === "..");
 }
 
 function recognizedContainerMount(destination: string): boolean {
@@ -363,6 +364,13 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
     const openRconTunnel = options.sshRconTunnel ?? openSshRconTunnel;
     const rconTunnels = new Map<string, SshRconTunnel>();
     const restoreReceipts = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
+    const restoreChallenges = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
+    const RESTORE_AUTH_LIMIT = 128;
+    const sweepRestoreAuth = (): void => {
+        const current = Date.now();
+        for (const [digest, value] of restoreReceipts) if (value.expiresAt <= current) restoreReceipts.delete(digest);
+        for (const [digest, value] of restoreChallenges) if (value.expiresAt <= current) restoreChallenges.delete(digest);
+    };
 
     async function closeRconTunnelIfUnused(serverId: string): Promise<void> {
         const active = [...consoleSessions.values()].some((entry) => entry.serverId === serverId);
@@ -1369,6 +1377,13 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return fail("invalid-request", "This container has no server folder WorldLens could identify.");
             }
 
+            const existingAdoption = await adoptions.get(body.id);
+            if (existingAdoption.ok) return fail("denied", "That server id is already used by an adoption record.");
+            if (!existingAdoption.ok && existingAdoption.failure.code !== "not-found") return existingAdoption;
+            const existingServer = await registry.get(body.id);
+            if (existingServer.ok) return fail("denied", "That server id is already used by a server record.");
+            if (!existingServer.ok && existingServer.failure.code !== "not-found") return existingServer;
+
             const consent = readConsent(body.consent);
             const remote = selected.value.hostId !== null;
             const writeScope = candidate.detected.serverDir === null ? [] : ["."];
@@ -1395,6 +1410,12 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             const saved = await adoptions.put(record);
             if (!saved.ok) return saved;
 
+            const adoptionIdentity = { id: record.id, containerId: record.containerId, fingerprint: record.fingerprint, adoptedAt: record.adoptedAt };
+            const removeAdoptionIfOwned = async (): Promise<void> => {
+                const current = await adoptions.get(adoptionIdentity.id);
+                if (current.ok && current.value.containerId === adoptionIdentity.containerId && current.value.fingerprint === adoptionIdentity.fingerprint && current.value.adoptedAt === adoptionIdentity.adoptedAt) await adoptions.remove(adoptionIdentity.id);
+            };
+
             const serverRecord: ServerRecord = {
                 id: body.id,
                 name: candidate.containerName,
@@ -1408,20 +1429,24 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 rconPort: rconRaw === null ? null : rconPort as number,
                 writeScope,
             };
+            const removeServerIfOwned = async (): Promise<void> => {
+                const current = await registry.get(serverRecord.id);
+                if (current.ok && current.value.origin === "adopted" && current.value.createdAt === serverRecord.createdAt && current.value.ref.kind === serverRecord.ref.kind && current.value.ref.serverDir === serverRecord.ref.serverDir) await registry.remove(serverRecord.id);
+            };
             if (rconRaw !== null) {
                 const stored = await rconSecrets.put(body.id, rconPassword as string);
                 if (!stored) {
                     await rconSecrets.remove(body.id);
-                    await registry.remove(body.id);
-                    await adoptions.remove(body.id);
+                    await removeServerIfOwned();
+                    await removeAdoptionIfOwned();
                     return fail("denied", "The remote RCON password could not be stored in the credential vault.");
                 }
             }
             const savedServer = await registry.put(serverRecord);
             if (!savedServer.ok) {
                 if (rconRaw !== null) await rconSecrets.remove(body.id);
-                await registry.remove(body.id);
-                await adoptions.remove(body.id);
+                await removeServerIfOwned();
+                await removeAdoptionIfOwned();
                 return savedServer;
             }
 
@@ -1480,18 +1505,43 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             return listServerBackups(owner, repo, options.backup.githubCallOptions);
         },
 
+        [MCSERVER_CHANNELS.backupRestoreChallenge]: async (_event: never, id: unknown, request: unknown) => {
+            sweepRestoreAuth();
+            if (!isRecordId(id) || typeof request !== "object" || request === null) return fail("invalid-request", "A restore challenge needs a server and backup identity.");
+            const body = request as Record<string, unknown>;
+            if (typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") return fail("invalid-request", "A restore challenge needs a repository owner, name and release tag.");
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            const target = typeof body.worldFolder === "string" ? body.worldFolder : opened.value.record.ref.serverDir;
+            if (!safeContainerServerDir(target) || !(target === opened.value.record.ref.serverDir || target.startsWith(`${opened.value.record.ref.serverDir.replace(/\/$/, "")}/`))) return fail("invalid-request", "The restore target is outside this server's recognized folder.");
+            if (restoreChallenges.size + restoreReceipts.size >= RESTORE_AUTH_LIMIT) return fail("timeout", "Too many restore confirmations are waiting. Complete one or wait for them to expire.");
+            const challenge = randomBytes(32).toString("hex");
+            const digest = createHash("sha256").update(challenge).digest("hex");
+            const expiresAt = Date.now() + 60_000;
+            restoreChallenges.set(digest, { digest, serverId: id, target, owner: body.owner, repo: body.repo, tag: body.tag, expiresAt });
+            return ok({ challenge, expiresAt });
+        },
+
         [MCSERVER_CHANNELS.backupRestoreIssue]: async (_event: never, id: unknown, request: unknown) => {
+            sweepRestoreAuth();
             if (!isRecordId(id) || typeof request !== "object" || request === null) return fail("invalid-request", "A restore confirmation needs a server and backup identity.");
             const body = request as Record<string, unknown>;
-            if (body.superConfirmed !== true || typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") {
-                return fail("denied", "The native destructive confirmation has not completed for this restore.");
+            if (typeof body.challenge !== "string" || typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") {
+                return fail("denied", "This restore needs the main-process challenge and native confirmation evidence.");
             }
+            const proof = typeof body.proof === "object" && body.proof !== null ? body.proof as Record<string, unknown> : {};
+            if (proof.keyOne !== true || proof.keyTwo !== true || proof.travel !== 100) return fail("denied", "The two independent confirmation keys and the full slider travel are required.");
             const opened = await open(id);
             if (!opened.ok) return opened;
             const target = typeof body.worldFolder === "string" ? body.worldFolder : opened.value.record.ref.serverDir;
             if (!safeContainerServerDir(target) || !(target === opened.value.record.ref.serverDir || target.startsWith(`${opened.value.record.ref.serverDir.replace(/\/$/, "")}/`))) {
                 return fail("invalid-request", "The restore target is outside this server's scoped folder.");
             }
+            const challengeDigest = createHash("sha256").update(body.challenge).digest("hex");
+            const challenge = restoreChallenges.get(challengeDigest);
+            if (challenge === undefined || challenge.expiresAt < Date.now() || challenge.serverId !== id || challenge.target !== target || challenge.owner !== body.owner || challenge.repo !== body.repo || challenge.tag !== body.tag) return fail("denied", "This native confirmation challenge is expired, already used, or scoped to another restore.");
+            restoreChallenges.delete(challengeDigest);
+            if (restoreReceipts.size >= RESTORE_AUTH_LIMIT) return fail("timeout", "Too many restore receipts are waiting. Complete one or wait for them to expire.");
             const receipt = randomBytes(32).toString("hex");
             const digest = createHash("sha256").update(receipt).digest("hex");
             const expiresAt = Date.now() + 60_000;
@@ -1640,6 +1690,8 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             consoleSessions.clear();
             for (const tunnel of rconTunnels.values()) void tunnel.close();
             rconTunnels.clear();
+            restoreChallenges.clear();
+            restoreReceipts.clear();
             for (const channel of Object.keys(handlers)) {
                 ipcMain.removeHandler(channel);
             }

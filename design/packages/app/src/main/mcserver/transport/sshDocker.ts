@@ -253,15 +253,57 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
             let cleanupWarning: string | undefined;
             let result: Answer<{ cleanupWarning?: string }> = ok({});
             try {
-                const copied = await remoteRunner(docker, ["cp", `${options.containerRef}:${sourceFolder}`, remoteHostStage], { timeoutMs: 300_000 });
-                if (!copied.ok) {
-                    result = fail("command-failed", "The remote world could not be staged for backup.", copied.stderr || copied.stdout);
-                } else {
+                const remoteLinks = await remoteRunner(docker, ["exec", options.containerRef, "find", sourceFolder, "-type", "l", "-print"], { timeoutMs: 60_000 });
+                if (!remoteLinks.ok || remoteLinks.stdout.trim() !== "") {
+                    result = fail("unsupported", "The remote backup contains a symbolic link and was refused before staging.", remoteLinks.stderr || remoteLinks.stdout);
+                }
+                const remoteHardlinks = result.ok ? await remoteRunner(docker, ["exec", options.containerRef, "find", sourceFolder, "-type", "f", "-links", "+1", "-print"], { timeoutMs: 60_000 }) : null;
+                if (result.ok && (remoteHardlinks === null || !remoteHardlinks.ok || remoteHardlinks.stdout.trim() !== "")) result = fail("unsupported", "The remote backup contains a hard-linked file and was refused before staging.", remoteHardlinks === null ? null : remoteHardlinks.stderr || remoteHardlinks.stdout);
+                const remoteDirectories = result.ok ? await remoteRunner(docker, ["exec", options.containerRef, "find", sourceFolder, "-type", "d", "-print"], { timeoutMs: 60_000 }) : null;
+                if (result.ok && (remoteDirectories === null || !remoteDirectories.ok || remoteDirectories.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).length > RESTORE_LIMITS.maxDirectories)) result = fail("invalid-request", "The remote backup directory count is outside the safety limit.");
+                const remoteManifest = result.ok ? await remoteRunner(docker, ["exec", options.containerRef, "find", sourceFolder, "-type", "f", "-printf", "%s\\t%p\\n"], { timeoutMs: 60_000 }) : null;
+                if (result.ok && (remoteManifest === null || !remoteManifest.ok)) result = fail("command-failed", "The remote backup manifest could not be read before staging.", remoteManifest === null ? null : remoteManifest.stderr || remoteManifest.stdout);
+                if (result.ok && remoteManifest !== null) {
+                    const rows = remoteManifest.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+                    if (rows.length === 0 || rows.length > RESTORE_LIMITS.maxEntries) result = fail("invalid-request", "The remote backup file count is outside the safety limit.");
+                    let aggregate = 0;
+                    for (const row of rows) {
+                        const match = /^(\d+)\t(.+)$/.exec(row);
+                        const path = match?.[2] ?? "";
+                        const bytes = Number(match?.[1] ?? "NaN");
+                        if (match === null || !Number.isSafeInteger(bytes) || bytes < 0 || bytes > RESTORE_LIMITS.maxIndividualBytes || !safeContainerPath(path) || !path.startsWith(`${sourceFolder.replace(/\/$/, "")}/`) || Buffer.byteLength(path, "utf8") > RESTORE_LIMITS.maxPathBytes) {
+                            result = fail("invalid-request", "The remote backup manifest contains an unsafe or oversized path.");
+                            break;
+                        }
+                        aggregate += bytes;
+                        if (aggregate > RESTORE_LIMITS.maxAggregateBytes) {
+                            result = fail("invalid-request", "The remote backup exceeds the aggregate size limit.");
+                            break;
+                        }
+                    }
+                }
+                if (result.ok) {
+                    const copied = await remoteRunner(docker, ["cp", `${options.containerRef}:${sourceFolder}`, remoteHostStage], { timeoutMs: 300_000 });
+                    if (!copied.ok) {
+                        result = fail("command-failed", "The remote world could not be staged for backup.", copied.stderr || copied.stdout);
+                    } else {
                     const fetched = await runner(scp, [...scpArguments(options, ["-r"]), `${scpRemotePath(options.target, remoteHostStage)}/.`, localDestination], {
                         timeoutMs: 300_000,
                         ...(copyOptions.signal === undefined ? {} : { signal: copyOptions.signal }),
                     });
                     if (!fetched.ok) result = fail("unreachable", "The remote world could not be copied to local backup storage.", fetched.stderr || fetched.stdout || fetched.spawnError);
+                    if (result.ok) {
+                        const localManifest = await localRestoreManifest(localDestination, copyOptions.signal);
+                        if (!localManifest.ok) result = localManifest;
+                        else if (remoteManifest !== null) {
+                            const remoteRows = remoteManifest.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+                                const match = /^(\d+)\t(.+)$/.exec(line);
+                                return match === null || match[1] === undefined || match[2] === undefined ? null : { bytes: Number(match[1]), relative: match[2].slice(sourceFolder.replace(/\/$/, "").length + 1) };
+                            }).filter((entry): entry is { bytes: number; relative: string } => entry !== null);
+                            if (localManifest.value.length !== remoteRows.length || localManifest.value.some((entry) => !remoteRows.some((remote) => remote.relative === entry.relative && remote.bytes === entry.bytes))) result = fail("stale-document", "The remote backup changed while it was being copied and was refused.");
+                        }
+                    }
+                }
                 }
             } finally {
                 if (cleanupRequired) {
@@ -301,7 +343,9 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                 hostStageReady = false;
                 return cleaned.ok ? ok({ path: remoteHostStage, cleaned: true }) : ok({ path: remoteHostStage, cleaned: false });
             };
+            let outcome: Answer<{ restoredFiles: number; rolledBack: boolean; cleanupWarning?: string }> | null = null;
             try {
+                outcome = await (async (): Promise<Answer<{ restoredFiles: number; rolledBack: boolean; cleanupWarning?: string }>> => {
                 const sent = await runner(scp, [...scpArguments(options, ["-r"]), `${sourceFolder}/.`, scpRemotePath(options.target, remoteHostStage)], {
                     timeoutMs: 300_000,
                     ...(restoreOptions.signal === undefined ? {} : { signal: restoreOptions.signal }),
@@ -370,6 +414,7 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                     serverStopped = false;
                 }
                 return ok({ restoredFiles: manifest.value.length, rolledBack: false, ...(cleanupWarning === undefined ? {} : { cleanupWarning }) });
+                })();
             } finally {
                 if (containerStageReady && !newRenamed) {
                     const cleanedStage = await cleanupRemotePath(stage, true);
@@ -385,6 +430,12 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                 }
                 await cleanupHost();
             }
+            if (outcome === null) return fail("command-failed", "The restore did not produce an outcome.");
+            return cleanupWarning === undefined
+                ? outcome
+                : outcome.ok
+                    ? ok({ ...outcome.value, cleanupWarning })
+                    : fail(outcome.failure.code, outcome.failure.message, `${outcome.failure.detail ?? ""}\n${cleanupWarning}`.trim());
         },
     };
 }
