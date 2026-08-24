@@ -29,7 +29,6 @@ for (const key of ["CSC_LINK", "CSC_KEY_PASSWORD", "WIN_CSC_LINK", "WIN_CSC_KEY_
 // discovered after the other inputs above have been cleared.
 process.env.CSC_IDENTITY_AUTO_DISCOVERY = "false";
 
-const { existsSync, readFileSync, statSync } = require("node:fs");
 const { resolve } = require("node:path");
 
 /**
@@ -39,52 +38,8 @@ const { resolve } = require("node:path");
  */
 async function assertStagedJavaEngine() {
     const staging = resolve(__dirname, "../../../tools/oracle/out/jars");
-    const manifestPath = resolve(staging, "manifest.json");
-    if (!existsSync(manifestPath)) {
-        throw new Error(`Cannot package without the staged BlueMap CLI manifest: ${manifestPath}`);
-    }
-    let manifest;
-    try {
-        manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
-    } catch (error) {
-        throw new Error(`Cannot package with an unreadable BlueMap CLI manifest: ${String(error)}`);
-    }
-    const cli = Array.isArray(manifest?.jars)
-        ? manifest.jars.find((entry) => entry?.implementation === "cli")
-        : null;
-    if (
-        typeof cli?.fileName !== "string" ||
-        typeof cli.size !== "number" ||
-        typeof cli.sha256 !== "string"
-    ) {
-        throw new Error(
-            `Cannot package without a complete staged BlueMap CLI manifest: ${manifestPath}`,
-        );
-    }
-    const pathApi = require("node:path");
-    if (pathApi.basename(cli.fileName) !== cli.fileName) {
-        throw new Error(
-            `Cannot package a staged BlueMap CLI path containing traversal: ${cli.fileName}`,
-        );
-    }
-    const jarPath = resolve(staging, cli.fileName);
-    if (!jarPath.startsWith(`${staging}${pathApi.sep}`)) {
-        throw new Error(
-            `Cannot package a staged BlueMap CLI path outside the staging directory: ${cli.fileName}`,
-        );
-    }
-    if (!existsSync(jarPath) || !statSync(jarPath).isFile())
-        throw new Error(`Cannot package without the staged BlueMap CLI jar: ${jarPath}`);
-    const descriptor = await import("./scripts/jar-verifier.mjs").then(({ verifyJarFile }) =>
-        verifyJarFile(jarPath, { root: staging }),
-    );
-    if (!descriptor.ok)
-        throw new Error(`Cannot package an invalid staged BlueMap CLI JAR: ${descriptor.reason}`);
-    if (descriptor.size !== cli.size || descriptor.sha256 !== cli.sha256.toLowerCase()) {
-        throw new Error(
-            `Cannot package a staged BlueMap CLI jar whose size or SHA-256 differs from its manifest: ${jarPath}`,
-        );
-    }
+    const { validateStagedJavaEngine } = await import("./scripts/staged-java-engine.mjs");
+    await validateStagedJavaEngine(staging);
 }
 
 /**

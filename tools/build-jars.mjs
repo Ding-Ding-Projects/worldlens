@@ -23,7 +23,7 @@
  * its `projectDir`, so the nested path does not exist and Gradle rejects it.
  */
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { copyFile, mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
@@ -317,18 +317,40 @@ async function main() {
     // A manifest beside the jars, so packaging and the release step have one place to
     // read what is here and can check a jar has not changed since it was built.
     if (staged.length > 0) {
+        let sourceCommit = null;
+        try {
+            sourceCommit = execFileSync("git", ["-C", VENDOR_ROOT, "rev-parse", "HEAD"], {
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"],
+            }).trim();
+        } catch {
+            // A source archive without Git metadata can still be staged locally,
+            // but the release workflow supplies and requires the commit explicitly.
+        }
+        const sourceVersion = staged[0]?.version ?? null;
         await writeFile(
             join(options.staging, "manifest.json"),
             `${JSON.stringify(
                 {
+                    schemaVersion: 1,
                     stagedAt: new Date().toISOString(),
-                    source: "vendor/BlueMap",
+                    source: {
+                        repository: "https://github.com/BlueMap-Minecraft/BlueMap",
+                        commit: sourceCommit,
+                        path: "vendor/BlueMap",
+                        version: sourceVersion,
+                    },
                     jars: staged.map(({ implementation, version, fileName, size, sha256: digest }) => ({
                         implementation,
                         version,
                         fileName,
                         size,
                         sha256: digest,
+                        source: {
+                            repository: "https://github.com/BlueMap-Minecraft/BlueMap",
+                            commit: sourceCommit,
+                            path: "vendor/BlueMap",
+                        },
                     })),
                 },
                 null,
