@@ -89,6 +89,7 @@ defineExpose({
     renamePage: (pageId: string, label: string) => tabs.value?.renamePage(pageId, label),
     activePage: computed(() => tabs.value?.activePage ?? null),
     openPageIds: computed<readonly string[]>(() => tabs.value?.openPageIds ?? []),
+    discoveryEntries: computed(() => tabs.value?.discoveryEntries ?? []),
 });
 </script>
 

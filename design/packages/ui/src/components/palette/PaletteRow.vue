@@ -8,9 +8,10 @@ import {
     mdiStarOutline,
     mdiTuneVariant,
 } from "@mdi/js";
-import { VIcon, VSelect, VSwitch, VTextField } from "vuetify/components";
+import { VIcon, VSwitch, VTextField } from "vuetify/components";
 import { parseNumberInput, roundToStep } from "../config/fieldValue.js";
 import type { PaletteItem } from "./paletteItems.js";
+import PaletteChoiceField from "./PaletteChoiceField.vue";
 
 /**
  * One row of the palette, and the place the "no decorative controls" rule is actually kept.
@@ -170,7 +171,11 @@ function endEditing(): void {
 </script>
 
 <template>
-    <li class="mb-palette-row" data-palette-row>
+    <li
+        class="mb-palette-row"
+        data-palette-row
+        :aria-disabled="props.item.disabled !== undefined ? 'true' : undefined"
+    >
         <!--
             A command and a destination are one button covering the whole row: there is
             nothing inside either of them that is separately operable, so a nested control
@@ -256,19 +261,12 @@ function endEditing(): void {
                     @update:model-value="setToggle"
                 />
 
-                <v-select
+                <PaletteChoiceField
                     v-else-if="props.item.control.kind === 'choice'"
-                    class="mb-palette-row__select"
                     :model-value="props.item.control.value"
-                    :items="[...props.item.control.options]"
-                    item-title="label"
-                    item-value="id"
-                    :aria-label="props.item.title"
-                    :aria-describedby="descriptionId"
+                    :options="props.item.control.options"
+                    :label="props.item.title"
                     :disabled="props.item.disabled !== undefined"
-                    variant="outlined"
-                    density="compact"
-                    hide-details
                     @update:model-value="setChoice"
                 />
 

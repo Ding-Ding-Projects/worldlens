@@ -36,6 +36,7 @@ import { MarkerMenu, StudioMarkerLayerHost } from "./components/markers/index.js
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import {
     AppRail,
+    ALL_CATALOGUE_FEATURES,
     CataloguePage,
     WorkPane,
     NotificationPanel,
@@ -87,7 +88,11 @@ import { createActiveRenders } from "./components/renders/activeRenders.js";
 import type { ConsoleTarget } from "./components/renders/activeRenders.js";
 import { promoteFinishedLocalRenders } from "./components/renders/finishedRenderPromotion.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
-import type { PaletteConfigTarget, PaletteSettingsTarget } from "./components/palette/index.js";
+import type {
+    PaletteConfigTarget,
+    PaletteDirectoryEntry,
+    PaletteSettingsTarget,
+} from "./components/palette/index.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
 import type { TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
@@ -95,6 +100,7 @@ import PagesScreen from "./components/pages/PagesScreen.vue";
 import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
 import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { DocsPage } from "./components/docs/index.js";
+import { DOCS_ARTICLES } from "./components/docs/docsContent.js";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import DropRenderZone from "./components/dropRender/DropRenderZone.vue";
@@ -1034,6 +1040,115 @@ function onRailSelect(next: RailDestination): void {
 async function onActivateFeature(feature: CatalogueFeatureDefinition): Promise<void> {
     await shell.activateFeature(feature);
 }
+
+interface LivePaletteTabEntry {
+    readonly id: string;
+    readonly title: string;
+    readonly group: string;
+    readonly location: readonly string[];
+    readonly pageId?: string;
+    readonly pageIds?: readonly string[];
+    readonly groupId?: string | null;
+}
+
+/**
+ * The runtime registries behind the searchable feature directory.
+ *
+ * Pages are already passed through the typed `pages` prop. This second projection adds the live
+ * tab/group workspace, every bundled article, the canonical Home catalogue, and the two recovery
+ * surfaces. Each route uses the same shell activation function or the same docs request used by
+ * its existing UI, so the directory cannot invent a parallel navigation path.
+ */
+const paletteDirectoryEntries = computed<readonly PaletteDirectoryEntry[]>(() => {
+    const live = (tabs.value?.discoveryEntries ?? []) as readonly LivePaletteTabEntry[];
+    const entries: PaletteDirectoryEntry[] = [];
+
+    for (const entry of live) {
+        if (entry.pageId !== undefined) {
+            entries.push({
+                id: entry.id,
+                resultClass: "tab",
+                group: entry.group,
+                title: entry.title,
+                description: t("palette.directory.tab", "An open tab in the live workspace."),
+                keywords: [entry.pageId, entry.title],
+                location: entry.location,
+                where: t("palette.where.tab", { tab: entry.title }, "Focuses the {tab} tab."),
+                go: () => revealPage(entry.pageId as string),
+            });
+        } else {
+            entries.push({
+                id: entry.id,
+                resultClass: "group",
+                group: entry.group,
+                title: entry.title,
+                description: t("palette.directory.tabGroup", "A live tab group in the workspace."),
+                keywords: [entry.title, ...(entry.pageIds ?? [])],
+                location: entry.location,
+                where: t("palette.where.tabGroup", "Focuses the first available tab in this group."),
+                go: () => {
+                    const first = entry.pageIds?.[0];
+                    if (first !== undefined) revealPage(first);
+                },
+            });
+        }
+    }
+
+    for (const article of DOCS_ARTICLES) {
+        entries.push({
+            id: `article.${article.id}`,
+            resultClass: "article",
+            group: t("palette.group.documentation", "Documentation"),
+            title: article.title,
+            description: t("palette.directory.article", "A bundled offline documentation article."),
+            keywords: [article.id, article.file, article.category],
+            location: [t("palette.group.documentation", "Documentation"), article.category, article.title],
+            where: t("palette.where.article", { article: article.title }, "Opens the {article} article."),
+            go: () => requestDocsArticle(article.id),
+        });
+    }
+
+    for (const feature of ALL_CATALOGUE_FEATURES) {
+        entries.push({
+            id: `feature.${feature.key}`,
+            resultClass: feature.target.kind === "docs" ? "article" : "destination",
+            group: feature.groupFallback,
+            title: t(feature.nameKey, feature.nameFallback),
+            description: t(feature.blurbKey, feature.blurbFallback),
+            keywords: [feature.key, feature.groupFallback],
+            location: [feature.groupFallback, t(feature.nameKey, feature.nameFallback)],
+            where: t("palette.where.catalogueFeature", "Opens this feature through its existing catalogue route."),
+            go: () => {
+                void shell.activateFeature(feature);
+            },
+        });
+    }
+
+    entries.push({
+        id: "appearance.controls",
+        resultClass: "appearance",
+        group: t("palette.group.appearance", "Appearance"),
+        title: t("palette.directory.appearance", "Appearance controls"),
+        description: t("palette.directory.appearanceDescription", "Adjust the appearance of the live interface."),
+        keywords: ["appearance", "font", "colour", "color", "theme"],
+        location: [t("palette.group.appearance", "Appearance"), t("palette.directory.appearance", "Appearance controls")],
+        where: t("palette.where.appearance", "Opens the appearance settings surface."),
+        go: () => openSettings(),
+    });
+    entries.push({
+        id: "recovery.support",
+        resultClass: "recovery",
+        group: t("palette.group.recovery", "Recovery"),
+        title: t("palette.directory.recovery", "Recovery actions"),
+        description: t("palette.directory.recoveryDescription", "Find retry, support, and recovery routes."),
+        keywords: ["recovery", "retry", "support", "restore"],
+        location: [t("palette.group.recovery", "Recovery"), t("palette.directory.recovery", "Recovery actions")],
+        where: t("palette.where.recovery", "Opens the Support Tickets recovery surface."),
+        go: () => revealPage(PAGE_SUPPORT),
+    });
+
+    return entries;
+});
 
 /**
  * Navigating from outside the strip.
@@ -3056,6 +3171,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             <CommandPalette
                 :open="paletteOpen"
                 :pages="pages"
+                :directory-entries="paletteDirectoryEntries"
                 :can-route-config-screens="true"
                 @update:open="paletteOpen = $event"
                 @reveal-setting="revealPaletteSetting"

@@ -5446,6 +5446,38 @@ prove a final map, lowres rebuild, merged metadata, public result, or disk ceili
 
 No new workflow, tests, captures, merge, disk measurement, cleanup, or release action was run in
 this records-only lane. Issue #67 remains open pending a fresh run with the required receipts.
+
+## Discoverability corrective candidate — 2026-08-24
+
+The rejected discovery candidate was repaired in the same jer. Keyboard Enter now routes through a
+shared activation decision that refuses disabled results, keeps the result visible, and announces
+the exact reason and recovery text. Arrow navigation filters disabled rows and disabled controls.
+Choice results now use `PaletteChoiceField`, a real searchable dropdown with its own local query and
+adjacent regex builder, rather than a second plain select.
+
+The host now passes typed live directory entries through `CommandPalette`: `TabbedNavigation`
+exposes current tab/group projections, `WorkPane` forwards them, and `App.vue` adds those entries,
+all bundled docs articles, every canonical Home catalogue feature, appearance controls, and the
+Support Tickets recovery route. All routes reuse existing activation and docs request paths.
+
+Discovery persistence now bounds favourite count and id length, normalizes records, and prunes ids
+that are not present in the current catalogue. The history manifest includes `palette-discovery`
+and `remoteTargetRecency`, with a source sweep that fails on an unlisted literal
+`recordAppSetting` call. The palette fake viewer fixtures now provide the real
+`setMapCoordinatePreview` seam, so the focused mounted suite exercises the intended boundary.
+
+Verification for the corrective candidate:
+
+- Palette, directory, activation, live-control, and history-manifest checks: **11 files, 178 tests
+  passed**.
+- UI production build passed after transforming 1,938 modules.
+- Typecheck still reports only the existing unrelated diagnostics. No diagnostic references the
+  corrective palette, tab projection, host registry, or persistence changes.
+- ESLint passed for the new and changed TypeScript palette files. The configured ESLint run ignores
+  the Vue files because no matching configuration is supplied; the production Vite build compiled
+  those Vue files successfully.
+- `git diff --check` and the public vocabulary scan are required before commit. This candidate does
+  not push, merge, or remove any checkout.
 ## Discoverability and rich command results — lane handoff (2026-08-24)
 
 This lane extends the existing palette without changing `App.vue` or replacing any feature

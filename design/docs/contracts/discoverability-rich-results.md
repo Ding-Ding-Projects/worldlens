@@ -45,4 +45,3 @@ one required result and asserts red, then restores the result and asserts green.
 malformed storage, favourite persistence, recent-destination bounds, metadata validation, related
 route integrity, and the no-duplication ordering model. The UI build also compiles the real palette
 and row components.
-

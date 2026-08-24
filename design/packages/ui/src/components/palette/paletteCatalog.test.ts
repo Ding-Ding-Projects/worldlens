@@ -215,6 +215,7 @@ function fakeApp(options: { markers?: boolean; players?: boolean; views?: number
         setPerspectiveView: () => {},
         setFlatView: (...args: unknown[]) => calls.setFlatView?.push(args),
         setFreeFlight: () => {},
+        setMapCoordinatePreview: () => {},
     };
 
     return { app: app as unknown as BlueMapApp, calls, data };

@@ -571,6 +571,40 @@ const openPageIds = computed<readonly string[]>(() => [
     ...new Set(strip.value.tabs.map((tab) => tab.pageId)),
 ]);
 
+/**
+ * A read-only discovery projection for the host palette. It contains only the live tab/group
+ * labels and stable ids already rendered by this strip. Navigation still goes through
+ * `revealPage`, so the projection cannot create a second tab or a second persistence path.
+ */
+const discoveryEntries = computed(() => [
+    ...strip.value.tabs.map((tab) => {
+        const group = strip.value.groups.find((candidate) => candidate.tabIds.includes(tab.id));
+        return {
+            id: `tab.${tab.id}`,
+            tabId: tab.id,
+            pageId: tab.pageId,
+            title: tab.label,
+            group: group?.name ?? "Tabs",
+            groupId: group?.id ?? null,
+            groupName: group?.name ?? null,
+            location: [group?.name ?? "Tabs", tab.label],
+            pinned: strip.value.pinnedOrder.includes(tab.id),
+        };
+    }),
+    ...strip.value.groups.map((group) => ({
+        id: `group.${group.id}`,
+        groupId: group.id,
+        pageIds: group.tabIds
+            .map((tabId) => strip.value.tabs.find((tab) => tab.id === tabId)?.pageId)
+            .filter((pageId): pageId is string => pageId !== undefined),
+        title: group.name,
+        group: "Tab groups",
+        groupName: group.name,
+        location: ["Tab groups", group.name],
+        pinned: false,
+    })),
+]);
+
 watch(
     openPageIds,
     (value) => {
@@ -610,7 +644,7 @@ function renamePage(pageId: string, label: string): void {
  * narrower write: it can only add a tab for a page that has none, never move, close or
  * rename one that already exists.
  */
-defineExpose({ activePage, revealPage, renamePage, ensurePage, openPageIds });
+defineExpose({ activePage, revealPage, renamePage, ensurePage, openPageIds, discoveryEntries });
 
 function newGroup(tabId: string): void {
     update(createGroup(strip.value, { name: t("tabs.group.newName", "New group") }, [tabId]));

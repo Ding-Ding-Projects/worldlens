@@ -1,4 +1,9 @@
-import type { PaletteItem } from "./paletteItems.js";
+import { DISCOVERY_RESULT_CLASSES, type PaletteItem } from "./paletteItems.js";
+export { DISCOVERY_RESULT_CLASSES } from "./paletteItems.js";
+
+export interface FeatureDirectoryPageRef {
+    readonly id: string;
+}
 
 /**
  * Hand-written fail-closed inventory for the directory's canonical entry points.
@@ -36,6 +41,27 @@ export function assertFeatureDirectoryInventory(
         }
         if (item.kind === "destination" && item.where.trim().length === 0) {
             throw new Error(`Destination has no deep-link description: ${id}`);
+        }
+    }
+}
+
+export function assertFeatureDirectoryResultClasses(items: readonly PaletteItem[]): void {
+    const present = new Set(items.map((item) => item.resultClass));
+    for (const resultClass of DISCOVERY_RESULT_CLASSES) {
+        if (!present.has(resultClass)) {
+            throw new Error(`Feature directory result class is missing: ${resultClass}`);
+        }
+    }
+}
+
+export function assertFeatureDirectoryPages(
+    items: readonly PaletteItem[],
+    pages: readonly FeatureDirectoryPageRef[],
+): void {
+    const ids = new Set(items.map((item) => item.id));
+    for (const page of pages) {
+        if (!ids.has(`page.${page.id}`)) {
+            throw new Error(`Feature directory page is missing: ${page.id}`);
         }
     }
 }

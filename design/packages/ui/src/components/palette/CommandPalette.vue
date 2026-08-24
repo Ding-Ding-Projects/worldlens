@@ -16,6 +16,7 @@ import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { blueMapApp } from "../../stores/bluemap.js";
 import PaletteRow from "./PaletteRow.vue";
+import { paletteEnterIntent } from "./paletteActivation.js";
 import {
     buildPaletteCatalog,
     type PaletteConfigTarget,
@@ -28,10 +29,12 @@ import {
     filterItems,
     groupItems,
     paletteSample,
+    type PaletteDirectoryEntry,
     type PaletteItem,
 } from "./paletteItems.js";
 import {
     orderPaletteItems,
+    prunePaletteDiscovery,
     readPaletteDiscovery,
     recordPaletteDestination,
     togglePaletteFavourite,
@@ -88,8 +91,10 @@ const props = withDefaults(
         canRouteConfigScreens?: boolean;
         /** The shell's tab strip, passed through so every page is searchable here too. */
         pages?: readonly PalettePageRef[];
+        /** Live tab/group/article/appearance/recovery registries owned by the shell. */
+        directoryEntries?: readonly PaletteDirectoryEntry[];
     }>(),
-    { canRouteConfigScreens: false, pages: () => [] },
+    { canRouteConfigScreens: false, pages: () => [], directoryEntries: () => [] },
 );
 
 const emit = defineEmits<{
@@ -186,6 +191,7 @@ const items = computed<PaletteItem[]>(() =>
         locale: locale.value,
         actions,
         pages: props.pages,
+        directoryEntries: props.directoryEntries,
         canRouteConfigScreens: props.canRouteConfigScreens,
         size: size.value,
         setSize: (value) => {
@@ -200,6 +206,7 @@ const items = computed<PaletteItem[]>(() =>
 /* -------------------------------------------------------------------------- */
 
 const query = ref("");
+const actionNotice = ref("");
 const regexMode = ref(false);
 // `i` because nobody means case-sensitively when they type the name of a setting, and `m`
 // because a row's searchable text is several lines - title, explanation, current value - so
@@ -210,7 +217,14 @@ const matcher = computed(() => createSettingMatcher(query.value, regexMode.value
 
 const visible = computed(() => filterItems(items.value, matcher.value));
 
-const orderedVisible = computed(() => orderPaletteItems(visible.value, discovery.value));
+const usableDiscovery = computed(() =>
+    prunePaletteDiscovery(
+        discovery.value,
+        new Set(items.value.map((item) => item.id)),
+    ),
+);
+
+const orderedVisible = computed(() => orderPaletteItems(visible.value, usableDiscovery.value));
 
 const groups = computed(() => groupItems(orderedVisible.value));
 
@@ -288,12 +302,15 @@ function focusSearch(): void {
 function focusTargets(): HTMLElement[] {
     const root = listRef.value;
     if (root === null) return [];
-    return [...root.querySelectorAll<HTMLElement>("[data-palette-row]")].map(
-        (row) =>
-            row.querySelector<HTMLElement>(
-                'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
-            ) ?? row,
-    );
+    return [...root.querySelectorAll<HTMLElement>("[data-palette-row]")]
+        .filter((row) => row.getAttribute("aria-disabled") !== "true")
+        .map(
+            (row) =>
+                row.querySelector<HTMLElement>(
+                    'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]):not([aria-disabled="true"])',
+                ) ?? row,
+        )
+        .filter((target) => target.getAttribute("aria-disabled") !== "true" && !target.hasAttribute("disabled"));
 }
 
 function move(delta: number): void {
@@ -360,17 +377,25 @@ function onKeydown(event: KeyboardEvent): void {
 function onSearchEnter(): void {
     const first = orderedVisible.value[0];
     if (first === undefined) return;
-    if (first.kind === "setting") {
+    const intent = paletteEnterIntent(first);
+    if (intent.kind === "blocked") {
+        actionNotice.value = [intent.reason, intent.recovery ?? ""]
+            .filter((value) => value.length > 0)
+            .join(" ");
+        return;
+    }
+    if (intent.kind === "focus-control") {
         move(1);
         return;
     }
-    if (first.kind === "command") first.run();
-    else first.go();
+    if (intent.item.kind === "command") intent.item.run();
+    else if (intent.item.kind === "destination") intent.item.go();
+    else return;
     close();
 }
 
 function toggleFavourite(item: PaletteItem): void {
-    discovery.value = togglePaletteFavourite(discovery.value, item.id);
+    discovery.value = togglePaletteFavourite(usableDiscovery.value, item.id);
 }
 
 function close(): void {
@@ -390,6 +415,7 @@ watch(
             // A query left over from last time would hide most of the list from somebody who
             // has just pressed the shortcut and expects to see everything.
             query.value = "";
+            actionNotice.value = "";
             void nextTick(focusSearch);
             return;
         }
@@ -408,7 +434,7 @@ watch(
 
 /** A row was run or a destination chosen: the palette has done its job and steps out. */
 function onActivate(item: PaletteItem): void {
-    discovery.value = recordPaletteDestination(discovery.value, item);
+    discovery.value = recordPaletteDestination(usableDiscovery.value, item);
     close();
 }
 
@@ -482,6 +508,9 @@ function onActivate(item: PaletteItem): void {
                     density="comfortable"
                     @keydown.enter.prevent="onSearchEnter"
                 />
+                <p v-if="actionNotice" class="mb-palette__action-notice" role="status" aria-live="polite">
+                    {{ actionNotice }}
+                </p>
             </div>
 
             <v-divider />
@@ -494,7 +523,7 @@ function onActivate(item: PaletteItem): void {
                             v-for="item in group.items"
                             :key="item.id"
                             :item="item"
-                            :favourite="discovery.favourites.includes(item.id)"
+                            :favourite="usableDiscovery.favourites.includes(item.id)"
                             @activate="onActivate"
                             @toggle-favourite="toggleFavourite"
                         />
@@ -600,6 +629,13 @@ function onActivate(item: PaletteItem): void {
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
+}
+
+.mb-palette__action-notice {
+    margin: 8px 0 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-palette__hint {

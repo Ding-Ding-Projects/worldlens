@@ -159,6 +159,7 @@ function fakeApp(): { app: BlueMapApp; state: { debug: boolean; saved: number } 
         setPerspectiveView: () => {},
         setFlatView: () => {},
         setFreeFlight: () => {},
+        setMapCoordinatePreview: () => {},
     };
 
     return { app: app as unknown as BlueMapApp, state };

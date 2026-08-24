@@ -4,6 +4,9 @@ import { describe, expect, it } from "vitest";
 import { buildPaletteCatalog, type PaletteCatalogInput } from "./paletteCatalog.js";
 import {
     assertFeatureDirectoryInventory,
+    assertFeatureDirectoryPages,
+    assertFeatureDirectoryResultClasses,
+    DISCOVERY_RESULT_CLASSES,
     FEATURE_DIRECTORY_REQUIRED_IDS,
 } from "./featureDirectoryInventory.js";
 
@@ -40,6 +43,28 @@ function inputWithDirectoryEntries(): PaletteCatalogInput {
         ...input(),
         directoryEntries: [
             {
+                id: "tab.live",
+                resultClass: "tab",
+                group: "Tabs",
+                title: "Live tab",
+                description: "An open tab.",
+                keywords: ["tab"],
+                location: ["Tabs", "Live tab"],
+                where: "Focuses the live tab.",
+                go: () => {},
+            },
+            {
+                id: "group.live",
+                resultClass: "group",
+                group: "Tab groups",
+                title: "Live group",
+                description: "An open tab group.",
+                keywords: ["group"],
+                location: ["Tab groups", "Live group"],
+                where: "Focuses the group.",
+                go: () => {},
+            },
+            {
                 id: "docs.article.regex",
                 resultClass: "article",
                 group: "Documentation",
@@ -59,6 +84,17 @@ function inputWithDirectoryEntries(): PaletteCatalogInput {
                 keywords: ["recovery", "retry"],
                 location: ["Help", "Recovery"],
                 where: "Opens recovery actions.",
+                go: () => {},
+            },
+            {
+                id: "appearance.live",
+                resultClass: "appearance",
+                group: "Appearance",
+                title: "Appearance control",
+                description: "A live appearance control.",
+                keywords: ["appearance"],
+                location: ["Appearance", "Appearance control"],
+                where: "Opens appearance.",
                 go: () => {},
             },
         ],
@@ -93,5 +129,28 @@ describe("feature directory inventory", () => {
         expect(article?.resultClass).toBe("article");
         expect(recovery?.resultClass).toBe("recovery");
         expect(items.filter((item) => item.id === "docs.article.regex")).toHaveLength(1);
+    });
+
+    it("keeps all eight result classes explicit and fails one class at a time", () => {
+        const items = buildPaletteCatalog(inputWithDirectoryEntries());
+        assertFeatureDirectoryResultClasses(items);
+        for (const resultClass of DISCOVERY_RESULT_CLASSES) {
+            const removed = items.filter((item) => item.resultClass !== resultClass);
+            expect(() => assertFeatureDirectoryResultClasses(removed)).toThrow(resultClass);
+        }
+    });
+
+    it("enumerates every live page and turns red when any page row disappears", () => {
+        const pages = [
+            { id: "world", label: "World" },
+            { id: "projects", label: "Projects" },
+            { id: "docs", label: "Docs" },
+        ];
+        const items = buildPaletteCatalog({ ...input(), pages, actions: { ...input().actions, openPage: () => {} } });
+        assertFeatureDirectoryPages(items, pages);
+        for (const page of pages) {
+            const removed = items.filter((item) => item.id !== `page.${page.id}`);
+            expect(() => assertFeatureDirectoryPages(removed, pages)).toThrow(page.id);
+        }
     });
 });

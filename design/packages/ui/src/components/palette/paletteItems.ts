@@ -138,7 +138,7 @@ export interface PaletteDestination extends PaletteItemBase {
 
 /** A non-settings entry supplied by a tab, docs, appearance, or recovery registry. */
 export interface PaletteDirectoryEntry extends Omit<PaletteDestination, "kind"> {
-    readonly resultClass: "tab" | "group" | "article" | "recovery" | "appearance";
+    readonly resultClass: DiscoveryResultClass;
 }
 
 export type PaletteItem = PaletteCommand | PaletteSetting | PaletteDestination;
@@ -269,6 +269,13 @@ export function withDiscoveryMetadata(items: readonly PaletteItem[]): PaletteIte
             related.length > 0 ? related : neighbours.map((candidate) => candidate.id);
         return {
             ...item,
+            resultClass:
+                item.resultClass ??
+                (item.kind === "command"
+                    ? "command"
+                    : item.kind === "setting"
+                      ? "setting"
+                      : "destination"),
             location: item.location?.length ? item.location : [item.group, item.title],
             related: relatedIds,
             relatedLabels: relatedIds.map(

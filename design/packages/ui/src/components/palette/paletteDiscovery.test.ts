@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
     DEFAULT_DISCOVERY_STATE,
+    MAX_DISCOVERY_ID_LENGTH,
+    MAX_FAVOURITES,
     MAX_RECENT_DESTINATIONS,
     readPaletteDiscovery,
     recordPaletteDestination,
+    prunePaletteDiscovery,
     togglePaletteFavourite,
     writePaletteDiscovery,
 } from "./paletteDiscovery.js";
@@ -44,5 +47,24 @@ describe("palette discovery memory", () => {
         expect(state.recentDestinations).toHaveLength(MAX_RECENT_DESTINATIONS);
         expect(state.recentDestinations[0]).toBe(`page.${MAX_RECENT_DESTINATIONS + 1}`);
         expect(recordPaletteDestination(state, { id: "setting.x", kind: "setting" })).toBe(state);
+    });
+
+    it("bounds favourite count and id length, then ignores stale ids", () => {
+        const target = storage();
+        const tooLong = "x".repeat(MAX_DISCOVERY_ID_LENGTH + 1);
+        target.data.set(
+            "worldlens-palette-discovery",
+            JSON.stringify({
+                favourites: [tooLong, ...Array.from({ length: MAX_FAVOURITES + 4 }, (_, i) => `f.${i}`)],
+                recentDestinations: [tooLong, "page.valid", "page.unknown"],
+            }),
+        );
+        const state = readPaletteDiscovery(target);
+        expect(state.favourites).toHaveLength(MAX_FAVOURITES);
+        expect(state.favourites).not.toContain(tooLong);
+        expect(prunePaletteDiscovery(state, new Set(["f.0", "page.valid"]))).toEqual({
+            favourites: ["f.0"],
+            recentDestinations: ["page.valid"],
+        });
     });
 });

@@ -12,6 +12,8 @@ import type { PaletteItem } from "./paletteItems.js";
 
 export const DISCOVERY_STORAGE_KEY = "worldlens-palette-discovery";
 export const MAX_RECENT_DESTINATIONS = 8;
+export const MAX_FAVOURITES = 32;
+export const MAX_DISCOVERY_ID_LENGTH = 160;
 
 export interface PaletteDiscoveryState {
     readonly favourites: readonly string[];
@@ -36,11 +38,16 @@ function defaultStorage(): PaletteDiscoveryStorage | null {
     }
 }
 
-function ids(value: unknown): string[] {
+function ids(value: unknown, limit: number): string[] {
     if (!Array.isArray(value)) return [];
     return [
-        ...new Set(value.filter((id): id is string => typeof id === "string" && id.length > 0)),
-    ];
+        ...new Set(
+            value.filter(
+                (id): id is string =>
+                    typeof id === "string" && id.length > 0 && id.length <= MAX_DISCOVERY_ID_LENGTH,
+            ),
+        ),
+    ].slice(0, limit);
 }
 
 export function readPaletteDiscovery(
@@ -54,8 +61,8 @@ export function readPaletteDiscovery(
         if (parsed === null || typeof parsed !== "object") return DEFAULT_DISCOVERY_STATE;
         const value = parsed as { favourites?: unknown; recentDestinations?: unknown };
         return {
-            favourites: ids(value.favourites),
-            recentDestinations: ids(value.recentDestinations).slice(0, MAX_RECENT_DESTINATIONS),
+            favourites: ids(value.favourites, MAX_FAVOURITES),
+            recentDestinations: ids(value.recentDestinations, MAX_RECENT_DESTINATIONS),
         };
     } catch {
         return DEFAULT_DISCOVERY_STATE;
@@ -67,8 +74,8 @@ export function writePaletteDiscovery(
     storage: PaletteDiscoveryStorage | null = defaultStorage(),
 ): void {
     const normalized: PaletteDiscoveryState = {
-        favourites: ids(state.favourites),
-        recentDestinations: ids(state.recentDestinations).slice(0, MAX_RECENT_DESTINATIONS),
+        favourites: ids(state.favourites, MAX_FAVOURITES),
+        recentDestinations: ids(state.recentDestinations, MAX_RECENT_DESTINATIONS),
     };
     recordAppSetting("palette-discovery", normalized);
     if (storage === null) return;
@@ -85,7 +92,7 @@ export function togglePaletteFavourite(
 ): PaletteDiscoveryState {
     const favourites = state.favourites.includes(id)
         ? state.favourites.filter((candidate) => candidate !== id)
-        : [...state.favourites, id];
+        : [...state.favourites, id].slice(0, MAX_FAVOURITES);
     return { ...state, favourites };
 }
 
@@ -126,6 +133,17 @@ export function orderPaletteItems(
         }
         return 0;
     });
+}
+
+/** Drops stale ids when a feature was removed or capability-gated in this build. */
+export function prunePaletteDiscovery(
+    state: PaletteDiscoveryState,
+    knownIds: ReadonlySet<string>,
+): PaletteDiscoveryState {
+    return {
+        favourites: state.favourites.filter((id) => knownIds.has(id)),
+        recentDestinations: state.recentDestinations.filter((id) => knownIds.has(id)),
+    };
 }
 
 export function discoveryTags(item: PaletteItem, state: PaletteDiscoveryState): readonly string[] {
