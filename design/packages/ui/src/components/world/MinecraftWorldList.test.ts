@@ -13,11 +13,13 @@
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
+import { defineComponent, h } from "vue";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import MinecraftWorldList from "./MinecraftWorldList.vue";
 import WorldFolderStep from "./WorldFolderStep.vue";
 import { uncheckedWorld } from "./worldFolder.js";
+import { provideConfigHost, type ConfigHost } from "../config/configHost.js";
 import type {
     FolderScanResult,
     MinecraftFolder,
@@ -281,6 +283,75 @@ describe("the list is a listbox", () => {
         await options(view)[0]?.trigger("click");
         expect(view.emitted("choose")).toEqual([["/b"], ["/a"]]);
 
+        view.unmount();
+    });
+});
+
+describe("direct world browsing", () => {
+    function configHost(pickDirectory: ConfigHost["pickDirectory"]): ConfigHost {
+        return {
+            name: "test",
+            separator: "/",
+            readFolder: async () => ({ folder: "/", files: [] }),
+            writeFiles: async () => undefined,
+            deleteFiles: async () => undefined,
+            pickDirectory,
+            pickFile: async () => null,
+            testSqlConnection: async () => ({ ok: true, message: "" }),
+            suggestConfigFolder: async () => "/config",
+        };
+    }
+
+    it("browses a world directly, emits choose, and does not mount it", async () => {
+        const chosen: string[] = [];
+        const fake = fakeBridge();
+        const Harness = defineComponent({
+            setup() {
+                provideConfigHost(
+                    configHost(async () => "/portable/world"),
+                );
+                return () =>
+                    h(MinecraftWorldList, {
+                        modelValue: "",
+                        bridge: fake.bridge,
+                        onChoose: (folder: string) => chosen.push(folder),
+                    });
+            },
+        });
+        const view = mount(Harness, { global: { plugins: [vuetify, i18n()] } });
+        await flushPromises();
+
+        await view.find('[data-test="browse-world-folder"]').trigger("click");
+        await flushPromises();
+
+        expect(chosen).toEqual(["/portable/world"]);
+        expect(fake.unmounted).toEqual([]);
+        expect(view.text()).toContain("Browse for a world folder");
+        view.unmount();
+    });
+
+    it("leaves the current choice alone when the folder picker is cancelled", async () => {
+        const chosen: string[] = [];
+        const fake = fakeBridge();
+        const Harness = defineComponent({
+            setup() {
+                provideConfigHost(configHost(async () => null));
+                return () =>
+                    h(MinecraftWorldList, {
+                        modelValue: "/existing/world",
+                        bridge: fake.bridge,
+                        onChoose: (folder: string) => chosen.push(folder),
+                    });
+            },
+        });
+        const view = mount(Harness, { global: { plugins: [vuetify, i18n()] } });
+        await flushPromises();
+
+        await view.find('[data-test="browse-world-folder"]').trigger("click");
+        await flushPromises();
+
+        expect(chosen).toEqual([]);
+        expect(fake.unmounted).toEqual([]);
         view.unmount();
     });
 });

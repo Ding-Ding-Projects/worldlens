@@ -1370,6 +1370,9 @@ export const CIRENDER_FIXED = {
 
     /* The live run: transfer counter, job search, and the job that went wrong. */
     "cirender.transfer.bytes": { en: "{done} of {total}", yue: "{total} 入面嘅 {done}" },
+    "cirender.transfer.bytesLabel": { en: "Transferred", yue: "已傳送" },
+    "cirender.transfer.totalLabel": { en: "Total", yue: "總數" },
+    "cirender.transfer.unknownTotal": { en: "Unknown", yue: "未知" },
     // The upload's own piece count (files while packing, parts while splitting, release
     // assets while uploading), shown beside the byte count once there is more than one piece.
     "cirender.transfer.items": {

@@ -2303,23 +2303,46 @@ onBeforeUnmount(() => {
                     <template v-if="row.transfer !== null">
                         <VProgressLinear
                             :model-value="row.transfer.percent"
+                            :indeterminate="row.transfer.bytesTotal <= 0"
+                            :aria-busy="row.transfer.bytesTotal <= 0 ? 'true' : 'false'"
                             class="my-2"
                             data-test="transfer-bar"
                         />
-                        <p class="text-medium-emphasis" data-test="transfer">
-                            {{ row.transfer.description }} -
-                            {{
-                                t(
-                                    "cirender.transfer.bytes",
-                                    {
-                                        done: formatBytes(row.transfer.bytesDone, t),
-                                        total: formatBytes(row.transfer.bytesTotal, t),
-                                    },
-                                    "{done} of {total}",
-                                )
-                            }}
-                            <template v-if="row.transfer.assetsTotal > 0">
-                                -
+                        <div class="ci-transfer" data-test="transfer">
+                            <p
+                                class="ci-transfer__milestone text-medium-emphasis"
+                                data-test="transfer-milestone"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <span data-test="transfer-description">{{ row.transfer.description }}</span>
+                                <span
+                                    v-if="row.transfer.asset"
+                                    class="ci-transfer__asset"
+                                    data-test="transfer-current-item"
+                                >
+                                    {{ row.transfer.asset }}
+                                </span>
+                            </p>
+                            <p class="ci-transfer__bytes text-medium-emphasis" data-test="transfer-bytes">
+                                <span class="ci-transfer__label">{{ t("cirender.transfer.bytesLabel", "Transferred") }}</span>
+                                <span class="ci-transfer__value" data-test="transfer-bytes-done">
+                                    {{ formatBytes(row.transfer.bytesDone, t) }}
+                                </span>
+                                <span class="ci-transfer__label">{{ t("cirender.transfer.totalLabel", "Total") }}</span>
+                                <span class="ci-transfer__value" data-test="transfer-bytes-total">
+                                    {{
+                                        row.transfer.bytesTotal > 0
+                                            ? formatBytes(row.transfer.bytesTotal, t)
+                                            : t("cirender.transfer.unknownTotal", "Unknown")
+                                    }}
+                                </span>
+                            </p>
+                            <p
+                                v-if="row.transfer.assetsTotal > 0"
+                                class="ci-transfer__pieces text-medium-emphasis"
+                                data-test="transfer-pieces"
+                            >
                                 {{
                                     t(
                                         "cirender.transfer.items",
@@ -2330,8 +2353,8 @@ onBeforeUnmount(() => {
                                         "{done} of {total} pieces",
                                     )
                                 }}
-                            </template>
-                        </p>
+                            </p>
+                        </div>
                     </template>
 
                     <p data-test="run-label">{{ runLabel(row.run, t) }}</p>
@@ -2386,6 +2409,7 @@ onBeforeUnmount(() => {
                                 <span
                                     v-if="job.conclusion !== null"
                                     class="ml-2 text-medium-emphasis"
+                                    data-test="job-conclusion"
                                 >
                                     {{ job.conclusion }}
                                 </span>
@@ -2764,6 +2788,46 @@ onBeforeUnmount(() => {
     list-style: none;
     padding: 0;
     margin: 0.5rem 0 0;
+}
+
+.ci-transfer {
+    display: grid;
+    gap: 2px;
+}
+
+.ci-transfer__milestone,
+.ci-transfer__bytes,
+.ci-transfer__pieces {
+    margin: 0;
+}
+
+.ci-transfer__milestone {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ci-transfer__asset {
+    overflow-wrap: anywhere;
+}
+
+.ci-transfer__bytes {
+    display: grid;
+    grid-template-columns: max-content minmax(7ch, 10ch) max-content minmax(7ch, 10ch);
+    gap: 6px;
+    align-items: baseline;
+}
+
+.ci-transfer__value {
+    font-variant-numeric: tabular-nums;
+    min-inline-size: 7ch;
+    text-align: end;
+}
+
+@media (max-width: 520px) {
+    .ci-transfer__bytes {
+        grid-template-columns: max-content minmax(7ch, 1fr);
+    }
 }
 
 /*

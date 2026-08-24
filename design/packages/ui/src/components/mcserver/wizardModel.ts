@@ -121,6 +121,46 @@ export interface VersionGroup {
     readonly versions: readonly CatalogueVersionEntry[];
 }
 
+export interface VersionFamily {
+    readonly key: string;
+    readonly label: string;
+    readonly stability: "release" | "snapshot";
+    readonly versions: readonly CatalogueVersionEntry[];
+}
+
+/**
+ * Groups exact provider versions into a family without dropping any build row.
+ * Release families use `major.minor.x`; snapshots stay separate so a dated snapshot
+ * never looks like a stable release. Entries retain provider order within each family.
+ */
+export function groupVersionFamilies(
+    versions: readonly CatalogueVersionEntry[],
+): readonly VersionFamily[] {
+    const families: VersionFamily[] = [];
+    const byKey = new Map<string, VersionFamily>();
+    for (const entry of versions) {
+        const match = /^(\d+)\.(\d+)/.exec(entry.version);
+        const base = match === null ? entry.version : `${match[1]}.${match[2]}.x`;
+        const key = `${entry.stability}:${base}`;
+        const existing = byKey.get(key);
+        if (existing !== undefined) {
+            const replacement = { ...existing, versions: [...existing.versions, entry] };
+            byKey.set(key, replacement);
+            families[families.indexOf(existing)] = replacement;
+            continue;
+        }
+        const family: VersionFamily = {
+            key,
+            label: entry.stability === "snapshot" ? `Snapshots ${base}` : base,
+            stability: entry.stability,
+            versions: [entry],
+        };
+        byKey.set(key, family);
+        families.push(family);
+    }
+    return families;
+}
+
 /** Newest first within each group, releases before snapshots. */
 export function groupVersions(versions: readonly CatalogueVersionEntry[]): readonly VersionGroup[] {
     const releases = versions.filter((v) => v.stability === "release");
@@ -134,7 +174,16 @@ export function groupVersions(versions: readonly CatalogueVersionEntry[]): reado
 export function matchesVersionSearch(entry: CatalogueVersionEntry, query: string): boolean {
     const trimmed = query.trim();
     if (trimmed === "") return true;
-    return entry.version.toLowerCase().includes(trimmed.toLowerCase());
+    return versionSearchText(entry).toLowerCase().includes(trimmed.toLowerCase());
+}
+
+export function versionSearchText(entry: CatalogueVersionEntry): string {
+    return [
+        entry.version,
+        entry.stability,
+        `Java ${entry.javaFeature}`,
+        entry.releasedAt ?? "",
+    ].join(" ");
 }
 
 export function filterVersions(
@@ -147,7 +196,7 @@ export function filterVersions(
     if (!useRegex) return versions.filter((entry) => matchesVersionSearch(entry, query));
     try {
         const pattern = new RegExp(query, flags);
-        return versions.filter((entry) => pattern.test(entry.version));
+        return versions.filter((entry) => pattern.test(versionSearchText(entry)));
     } catch {
         return [];
     }

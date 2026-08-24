@@ -12,15 +12,14 @@ import {
     VDialog,
     VDivider,
     VIcon,
-    VListItem,
     VLabel,
     VProgressLinear,
     VRadio,
     VRadioGroup,
-    VSelect,
     VSlider,
     VSpacer,
     VSwitch,
+    VSelect,
     VTextField,
 } from "vuetify/components";
 import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
@@ -47,7 +46,7 @@ import {
     RUNTIME_OPTIONS,
     WIZARD_STEPS,
     filterVersions,
-    groupVersions,
+    groupVersionFamilies,
     memorySliderMax,
     DEFAULT_MODS_DIRECTORY,
     isModLoaderFlavour,
@@ -175,20 +174,6 @@ const selectedWikiUrl = computed(() =>
     minecraftVersion.value.trim() === "" ? null : wikiUrlFor(minecraftVersion.value),
 );
 
-const versionOptions = computed(() =>
-    filteredVersions.value.map((entry) => {
-        const released = releaseDateLabel(entry.releasedAt);
-        const java = t("mcserver.wizard.needsJava", { n: entry.javaFeature }, "Needs Java {n}");
-        return {
-            value: entry.version,
-            title: entry.version,
-            // The date is only mentioned when there is one. An upstream API that publishes
-            // no date leaves the version dateless rather than dated approximately.
-            subtitle: released === null ? java : `${java} · ${released}`,
-        };
-    }),
-);
-
 const filteredVersions = computed(() =>
     filterVersions(
         flavourVersions.value,
@@ -197,8 +182,25 @@ const filteredVersions = computed(() =>
         versionFlags.value,
     ),
 );
-const versionGroups = computed(() => groupVersions(filteredVersions.value));
-const versionSample = computed(() => flavourVersions.value.map((v) => v.version).join("\n"));
+const versionFamilies = computed(() => groupVersionFamilies(filteredVersions.value));
+const expandedVersionFamilies = ref<Record<string, boolean>>({});
+const versionSample = computed(() =>
+    flavourVersions.value
+        .map((v) => `${v.version} ${v.stability} Java ${v.javaFeature} ${v.releasedAt ?? ""}`)
+        .join("\n"),
+);
+
+function familyExpanded(key: string, index: number): boolean {
+    if (versionQuery.value.trim() !== "") return true;
+    return expandedVersionFamilies.value[key] ?? index === 0;
+}
+
+function toggleFamily(key: string, index: number): void {
+    expandedVersionFamilies.value = {
+        ...expandedVersionFamilies.value,
+        [key]: !familyExpanded(key, index),
+    };
+}
 
 const selectedVersionEntry = computed<CatalogueVersionEntry | undefined>(() =>
     flavourVersions.value.find((v) => v.version === minecraftVersion.value),
@@ -236,6 +238,7 @@ watch(flavour, () => {
     modLoaderVersion.value = "";
     preinstallApiLibraries.value = [];
     memoryMb.value = recommendedMemoryMb(flavour.value);
+    expandedVersionFamilies.value = {};
 });
 
 /* -------------------------------------------------------------------------- */
@@ -319,40 +322,91 @@ const javaResolution = ref<JavaResolution | null>(null);
 const javaChecking = ref(false);
 const javaProvisioning = ref(false);
 const javaProgress = ref<JavaProvisionProgress | null>(null);
+const javaFailure = ref<string | null>(null);
 let unsubscribeJavaProgress: (() => void) | null = null;
+let javaRequestId = 0;
 
 const requiredJavaFeature = computed(() => selectedVersionEntry.value?.javaFeature ?? 21);
+const javaNotRequired = computed(() => whereItRuns.value === "ssh-docker");
 
 async function checkJava(): Promise<void> {
-    if (!store.hasJava) return;
+    if (!store.hasJava || javaNotRequired.value || javaChecking.value || javaProvisioning.value) return;
+    const requestId = ++javaRequestId;
     javaChecking.value = true;
-    const result = await store.javaResolve(String(requiredJavaFeature.value));
-    if (result.ok && result.value) javaResolution.value = result.value;
-    javaChecking.value = false;
+    javaFailure.value = null;
+    try {
+        const result = await store.javaResolve(String(requiredJavaFeature.value));
+        if (requestId !== javaRequestId) return;
+        if (result.ok && result.value) {
+            javaResolution.value = result.value;
+            javaFailure.value = null;
+        } else {
+            javaResolution.value = null;
+            javaFailure.value =
+                result.failure?.message ??
+                t("mcserver.wizard.javaCheckFailed", "The Java check could not finish.");
+        }
+    } catch (error) {
+        if (requestId !== javaRequestId) return;
+        javaResolution.value = null;
+        javaFailure.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        if (requestId === javaRequestId) javaChecking.value = false;
+    }
 }
 
 async function provisionJava(): Promise<void> {
+    if (!store.hasJava || javaNotRequired.value || javaProvisioning.value || javaChecking.value) return;
+    const requestId = ++javaRequestId;
     javaProvisioning.value = true;
     javaProgress.value = null;
-    const result = await store.javaProvision(String(requiredJavaFeature.value));
-    if (result.ok && result.value) javaResolution.value = result.value;
-    javaProvisioning.value = false;
+    javaFailure.value = null;
+    try {
+        const result = await store.javaProvision(String(requiredJavaFeature.value));
+        if (requestId !== javaRequestId) return;
+        if (result.ok && result.value) {
+            javaResolution.value = result.value;
+            javaFailure.value = null;
+        } else {
+            javaResolution.value = null;
+            javaFailure.value =
+                result.failure?.message ??
+                t("mcserver.wizard.javaProvisionFailed", "Java could not be installed.");
+        }
+    } catch (error) {
+        if (requestId !== javaRequestId) return;
+        javaResolution.value = null;
+        javaFailure.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        if (requestId === javaRequestId) javaProvisioning.value = false;
+    }
+    // Ask the host again after provisioning. The provision response is not proof that the
+    // executable is discoverable through the same route a later server start will use.
+    if (requestId === javaRequestId && javaFailure.value === null) await checkJava();
 }
 
 watch(step, (value) => {
-    if (value === "java" && javaResolution.value === null && store.hasJava) void checkJava();
+    if (value === "java" && javaResolution.value === null && store.hasJava && !javaNotRequired.value) {
+        void checkJava();
+    }
 });
 
 onMounted(() => {
     unsubscribeJavaProgress = store.onJavaProgress((progress) => {
         javaProgress.value = progress;
+        if (progress.phase === "failed") javaFailure.value = progress.message;
     });
+    if (open.value) {
+        void loadCatalogue();
+        resetWizard();
+        void fillSuggestedFolder();
+    }
 });
 onUnmounted(() => {
     unsubscribeJavaProgress?.();
 });
 
-const canAutoProvisionJava = computed(() => store.hasJava);
+const canAutoProvisionJava = computed(() => store.hasJava && !javaNotRequired.value);
 
 /* -------------------------------------------------------------------------- */
 /* Step 5: resources                                                          */
@@ -473,7 +527,7 @@ async function create(): Promise<void> {
             version: minecraftVersion.value,
             memoryMb: memoryMb.value,
             acceptedEula: eulaAccepted.value,
-            provisionJavaIfMissing: true,
+            provisionJavaIfMissing: !javaNotRequired.value,
             ...(isModLoader.value
                 ? {
                       loaderVersion: modLoaderVersion.value.trim() || undefined,
@@ -562,6 +616,8 @@ function resetWizard(): void {
     serverId.value = "";
     serverName.value = "";
     eulaAccepted.value = false;
+    javaProgress.value = null;
+    javaFailure.value = null;
     createFailure.value = null;
 }
 
@@ -613,7 +669,9 @@ const canAdvanceFromRuntime = computed(() => {
     if (whereItRuns.value === "aws") return awsAvailable.value;
     return sshHost.value.trim() !== "";
 });
-const canAdvanceFromJava = computed(() => true);
+const canAdvanceFromJava = computed(
+    () => javaNotRequired.value || (!javaChecking.value && !javaProvisioning.value),
+);
 const canAdvanceFromResources = computed(
     () => memoryError.value === null && portError.value === null && folderError.value === null,
 );
@@ -839,73 +897,98 @@ const canAdvance = computed(() => {
                                 )
                             }}
                         </div>
-                        <div
-                            v-for="group in versionGroups"
-                            :key="group.stability"
-                            class="wl-mcserver-wizard__version-group"
+                        <p
+                            v-if="catalogue"
+                            class="text-caption text-medium-emphasis"
+                            data-test="version-catalogue-status"
                         >
-                            <div class="text-caption text-medium-emphasis text-uppercase">
-                                {{
-                                    group.stability === "release"
-                                        ? t("mcserver.wizard.releases", "Releases")
-                                        : t("mcserver.wizard.snapshots", "Snapshots")
-                                }}
-                            </div>
-                            <VBtn
-                                v-for="entry in group.versions"
-                                :key="entry.version"
-                                variant="text"
-                                block
-                                class="wl-mcserver-wizard__version-row"
-                                :class="{
-                                    'wl-mcserver-wizard__version-row--selected':
-                                        minecraftVersion === entry.version,
-                                }"
-                                @click="minecraftVersion = entry.version"
+                            {{
+                                t(
+                                    "mcserver.wizard.catalogueStatus",
+                                    {
+                                        fetchedAt: catalogue.fetchedAt,
+                                        completeness:
+                                            catalogue.failures.length === 0
+                                                ? t("mcserver.wizard.catalogueComplete", "complete")
+                                                : t("mcserver.wizard.catalogueIncomplete", "incomplete"),
+                                    },
+                                    "Catalogue refreshed {fetchedAt}; {completeness} for this flavour.",
+                                )
+                            }}
+                        </p>
+                        <section
+                            v-for="(family, familyIndex) in versionFamilies"
+                            :key="family.key"
+                            class="wl-mcserver-wizard__version-family"
+                            data-test="version-family"
+                        >
+                            <button
+                                type="button"
+                                class="wl-mcserver-wizard__version-family-toggle"
+                                :aria-expanded="familyExpanded(family.key, familyIndex) ? 'true' : 'false'"
+                                :aria-controls="`mcserver-version-family-${family.key.replace(/[^a-z0-9]+/gi, '-')}`"
+                                @click="toggleFamily(family.key, familyIndex)"
                             >
-                                <span>{{ entry.version }}</span>
-                                <span class="text-caption text-medium-emphasis">
-                                    {{
-                                        t(
-                                            "mcserver.wizard.needsJava",
-                                            { n: entry.javaFeature },
-                                            "Needs Java {n}",
-                                        )
-                                    }}
-                                    <template v-if="releaseDateLabel(entry.releasedAt)">
-                                        &#183; {{ releaseDateLabel(entry.releasedAt) }}
-                                    </template>
+                                <span>
+                                    {{ family.label }}
+                                    <span class="text-caption text-medium-emphasis">
+                                        · {{ family.stability === "release" ? t("mcserver.wizard.releases", "release") : t("mcserver.wizard.snapshots", "snapshot") }}
+                                    </span>
                                 </span>
-                            </VBtn>
-                        </div>
+                                <span class="text-caption text-medium-emphasis">
+                                    {{ t("mcserver.wizard.buildCount", { n: family.versions.length }, "{n} builds") }}
+                                </span>
+                            </button>
+                            <div
+                                v-if="familyExpanded(family.key, familyIndex)"
+                                :id="`mcserver-version-family-${family.key.replace(/[^a-z0-9]+/gi, '-')}`"
+                                class="wl-mcserver-wizard__version-family-entries"
+                            >
+                                <div
+                                    v-for="entry in family.versions"
+                                    :key="entry.version"
+                                    class="wl-mcserver-wizard__version-row"
+                                    data-test="version-entry"
+                                    :class="{
+                                        'wl-mcserver-wizard__version-row--selected':
+                                            minecraftVersion === entry.version,
+                                    }"
+                                >
+                                    <VBtn
+                                        variant="text"
+                                        class="wl-mcserver-wizard__version-choice"
+                                        :aria-label="`${entry.version}, ${family.stability}, Java ${entry.javaFeature}`"
+                                        @click="minecraftVersion = entry.version"
+                                    >
+                                        <span>{{ entry.version }}</span>
+                                        <span class="text-caption text-medium-emphasis">
+                                            {{
+                                                t(
+                                                    "mcserver.wizard.needsJava",
+                                                    { n: entry.javaFeature },
+                                                    "Needs Java {n}",
+                                                )
+                                            }}
+                                            <template v-if="releaseDateLabel(entry.releasedAt)">
+                                                &#183; {{ releaseDateLabel(entry.releasedAt) }}
+                                            </template>
+                                        </span>
+                                    </VBtn>
+                                    <a
+                                        class="wl-mcserver-wizard__version-wiki"
+                                        :href="wikiUrlFor(entry.version)"
+                                        target="_blank"
+                                        rel="noopener"
+                                        :aria-label="`Minecraft Wiki for ${entry.version}`"
+                                    >
+                                        {{ t("mcserver.wizard.openWiki", "Minecraft Wiki") }}
+                                    </a>
+                                </div>
+                            </div>
+                        </section>
                     </template>
-                    <VSelect
-                        v-if="!versionEnteredByHand"
-                        v-model="minecraftVersion"
-                        :items="versionOptions"
-                        item-title="title"
-                        item-value="value"
-                        :label="t('mcserver.wizard.version', 'Minecraft version')"
-                        :hint="
-                            t(
-                                'mcserver.wizard.versionHint',
-                                'Chosen from the versions this flavour actually publishes.',
-                            )
-                        "
-                        persistent-hint
-                        :no-data-text="
-                            t(
-                                'mcserver.wizard.noVersions',
-                                'No versions were fetched for this flavour.',
-                            )
-                        "
-                    >
-                        <template #item="{ props: itemProps, item }">
-                            <VListItem v-bind="itemProps" :subtitle="item.raw.subtitle" />
-                        </template>
-                    </VSelect>
                     <VTextField
-                        v-else
+                        v-if="versionEnteredByHand"
                         v-model="minecraftVersion"
                         :label="t('mcserver.wizard.versionByHand', 'Version not in the list')"
                         :hint="
@@ -1104,6 +1187,14 @@ const canAdvance = computed(() => {
 
                 <!-- Step 4: Java -->
                 <div v-else-if="step === 'java'" class="wl-mcserver-wizard__step">
+                    <VAlert v-if="javaNotRequired" type="info" variant="tonal" density="compact">
+                        {{
+                            t(
+                                "mcserver.wizard.remoteJava",
+                                "This remote-container flow uses Java on the existing server host. The local Java check is skipped.",
+                            )
+                        }}
+                    </VAlert>
                     <div class="text-body-2">
                         {{
                             t(
@@ -1113,7 +1204,12 @@ const canAdvance = computed(() => {
                             )
                         }}
                     </div>
-                    <VAlert v-if="!store.hasJava" type="info" variant="tonal" density="compact">
+                    <VAlert
+                        v-if="!javaNotRequired && !store.hasJava"
+                        type="info"
+                        variant="tonal"
+                        density="compact"
+                    >
                         {{
                             t(
                                 "mcserver.wizard.noJavaHost",
@@ -1121,9 +1217,31 @@ const canAdvance = computed(() => {
                             )
                         }}
                     </VAlert>
-                    <template v-else>
+                    <template v-else-if="!javaNotRequired && store.hasJava">
                         <VAlert v-if="javaChecking" type="info" variant="tonal" density="compact">
                             {{ t("mcserver.wizard.checkingJava", "Looking for a suitable Java…") }}
+                        </VAlert>
+                        <VAlert
+                            v-if="javaFailure"
+                            type="error"
+                            variant="tonal"
+                            density="compact"
+                            data-test="java-failure"
+                        >
+                            {{ javaFailure }}
+                            <template #append>
+                                <VBtn
+                                    size="small"
+                                    variant="tonal"
+                                    :disabled="javaChecking || javaProvisioning"
+                                    :loading="javaChecking"
+                                    :prepend-icon="mdiRefresh"
+                                    data-test="retry-java"
+                                    @click="checkJava"
+                                >
+                                    {{ t("common.retry", "Retry") }}
+                                </VBtn>
+                            </template>
                         </VAlert>
                         <VAlert
                             v-else-if="javaResolution?.found"
@@ -1464,15 +1582,64 @@ const canAdvance = computed(() => {
     flex-direction: column;
     gap: 2px;
 }
+.wl-mcserver-wizard__version-family {
+    border: 1px solid rgba(var(--v-border-color), 0.6);
+    border-radius: 8px;
+    overflow: hidden;
+}
+.wl-mcserver-wizard__version-family-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    inline-size: 100%;
+    min-block-size: 44px;
+    padding: 8px 12px;
+    border: 0;
+    background: rgba(var(--v-theme-surface-variant), 0.32);
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+}
+.wl-mcserver-wizard__version-family-toggle:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: -2px;
+}
+.wl-mcserver-wizard__version-family-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 4px;
+}
 .wl-mcserver-wizard__version-row {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    gap: 8px;
     padding: 6px 8px;
     border-radius: 6px;
     background: transparent;
     border: 1px solid transparent;
     cursor: pointer;
     text-align: left;
+}
+.wl-mcserver-wizard__version-choice {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    justify-content: space-between;
+    text-align: left;
+}
+.wl-mcserver-wizard__version-choice :deep(.v-btn__content) {
+    justify-content: space-between;
+    gap: 8px;
+    inline-size: 100%;
+    white-space: normal;
+}
+.wl-mcserver-wizard__version-wiki {
+    flex: 0 0 auto;
+    padding: 6px 8px;
+    color: rgb(var(--v-theme-primary));
+    font-size: 0.75rem;
 }
 .wl-mcserver-wizard__version-row--selected {
     border-color: rgb(var(--v-theme-primary));
