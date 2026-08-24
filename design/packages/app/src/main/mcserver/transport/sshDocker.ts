@@ -68,10 +68,10 @@ export const RESTORE_LIMITS = Object.freeze({
 
 async function hashFile(full: string, signal?: AbortSignal): Promise<Answer<{ bytes: number; sha256: string }>> {
     try {
+        const noFollow = (constants as unknown as { O_NOFOLLOW?: number }).O_NOFOLLOW;
         const before = await lstat(full);
         if (!before.isFile() || before.isSymbolicLink()) return fail("unsupported", "A restore file changed into a link before hashing.");
-        const noFollow = (constants as unknown as { O_NOFOLLOW?: number }).O_NOFOLLOW ?? 0;
-        const handle = await open(full, constants.O_RDONLY | noFollow);
+        const handle = await open(full, constants.O_RDONLY | (noFollow ?? 0));
         const digest = createHash("sha256");
         let bytes = 0;
         const buffer = Buffer.allocUnsafe(1024 * 1024);

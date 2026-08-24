@@ -1495,6 +1495,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (opened.value.record.origin === "adopted" && body.backupConsent !== true) {
                 return fail("denied", "Backing up an adopted server needs explicit backup consent.");
             }
+            if (body.quiesce === true && opened.value.record.origin === "adopted" && opened.value.adoption?.consent.lifecycle !== true) return fail("denied", "Quiescing an adopted server needs lifecycle consent.");
             if (activeBackupControllers.has(id)) return fail("denied", "A backup is already active for this server.");
             const controller = new AbortController();
             activeBackupControllers.set(id, controller);
@@ -1507,6 +1508,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                     repo: body.repo,
                     adopted: opened.value.record.origin === "adopted",
                     signal: controller.signal,
+                    quiesce: body.quiesce === true,
                     onProgress: (progress) => options.onBackupProgress?.(id, progress),
                     ...(typeof body.accountId === "string" ? { accountId: body.accountId } : {}),
                     ...(body.acknowledgePublic === true ? { acknowledgePublic: true } : {}),

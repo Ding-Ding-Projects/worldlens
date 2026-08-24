@@ -53,6 +53,7 @@ export interface ServerBackupRequest {
     readonly transport?: ServerTransport;
     readonly signal?: AbortSignal;
     readonly onProgress?: (progress: BackupProgress) => void;
+    readonly quiesce?: boolean;
 }
 
 export async function materializeRemoteFolder(transport: ServerTransport, remoteRoot: string, localRoot: string, signal?: AbortSignal): Promise<Answer<void>> {
@@ -94,8 +95,18 @@ export async function createServerBackup(
     runnerOptions: BackupRunnerOptions,
     request: ServerBackupRequest,
 ): Promise<Answer<BackupResult>> {
+    let restartAfter = false;
+    if (request.quiesce === true) {
+        const status = await request.transport?.status();
+        if (request.transport !== undefined && status?.ok && status.value.running) {
+            const stopped = await request.transport.stop({ graceful: true, timeoutMs: 60_000 });
+            if (!stopped.ok) return fail("command-failed", "The server could not be quiesced before backup.", stopped.failure.detail);
+            restartAfter = true;
+        }
+    }
+    const restart = async (): Promise<void> => { if (restartAfter && request.transport !== undefined) await request.transport.start(); };
     if (request.ref.kind === "ssh-docker") {
-        if (request.transport === undefined) return fail("unsupported", "A remote backup needs its scoped SSH Docker transport.");
+        if (request.transport === undefined) { await restart(); return fail("unsupported", "A remote backup needs its scoped SSH Docker transport."); }
         const stagingParent = runnerOptions.storageDir();
         await mkdir(stagingParent, { recursive: true });
         const staging = await mkdtemp(join(stagingParent, "remote-server-backup-"));
@@ -106,18 +117,22 @@ export async function createServerBackup(
                     ...(request.signal === undefined ? {} : { signal: request.signal }),
                     ...(request.onProgress === undefined ? {} : { onProgress: request.onProgress }),
                 });
-            if (!materialized.ok) return materialized;
+            if (!materialized.ok) { await restart(); return materialized; }
             const { transport: _remoteTransport, ...localRequest } = request;
-            return createServerBackup(runnerOptions, {
+            const result = await createServerBackup(runnerOptions, {
                 ...localRequest,
                 ref: { kind: "local-process", serverDir: staging },
                 worldFolder: staging,
+                quiesce: false,
             });
+            await restart();
+            return result;
         } finally {
             await rm(staging, { recursive: true, force: true });
         }
     }
     if (!hasLocallyPackableWorld(request.ref)) {
+        await restart();
         return fail(
             "unsupported",
             "This server's world lives on a machine this app cannot back up directly.",
@@ -141,6 +156,7 @@ export async function createServerBackup(
         ...(request.resumeTag === undefined ? {} : { resumeTag: request.resumeTag }),
     };
     const result = await runner.backup(backupRequest);
+    await restart();
     return ok(result);
 }
 

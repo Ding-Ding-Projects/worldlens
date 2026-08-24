@@ -22,6 +22,7 @@ const message = ref<string | null>(null);
 const busy = ref(false);
 const backupConsent = ref(false);
 const restoreConsent = ref(false);
+const quiesce = ref(true);
 const restoreChallenge = ref<string | null>(null);
 let transitionQueue = Promise.resolve();
 let sentKeyOne = false;
@@ -53,6 +54,7 @@ async function create(): Promise<void> {
         repo: repo.value.trim(),
         worldFolder: target.value,
         ...(server.value.origin === "adopted" ? { backupConsent: backupConsent.value } : {}),
+        quiesce: quiesce.value,
     });
     busy.value = false;
     message.value = result.ok ? t("mcserver.backup.created", "Backup created.") : result.failure?.message ?? t("mcserver.backup.createFailed", "Backup could not be created.");
@@ -163,6 +165,7 @@ onBeforeUnmount(stopProgress);
             <div v-if="busy" role="status" aria-live="polite" class="text-body-2 mb-3">{{ phase }}<span v-if="progressMessage"> · {{ progressMessage }}</span></div>
             <VAlert v-if="!targetValid" type="warning" variant="tonal" class="mb-3">{{ t("mcserver.backup.targetInvalid", "Choose a mounted folder inside this server's recognized directory.") }}</VAlert>
             <VSwitch v-if="server?.origin === 'adopted'" v-model="backupConsent" :label="t('mcserver.backup.consent', 'I consent to reading this adopted server for backup')" density="compact" hide-details class="mb-2" />
+            <VSwitch v-model="quiesce" :label="t('mcserver.backup.quiesce', 'Gracefully quiesce and flush the server before backup')" density="compact" hide-details class="mb-2" />
             <VSwitch v-if="server?.origin === 'adopted'" v-model="restoreConsent" :label="t('mcserver.backup.restoreConsent', 'I consent to restoring this adopted server')" density="compact" hide-details class="mb-2" />
             <VAlert v-if="message" type="info" variant="tonal" class="mb-3">{{ message }}</VAlert>
             <VList v-if="entries.length > 0" lines="two" class="mb-3">
