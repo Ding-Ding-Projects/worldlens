@@ -114,6 +114,8 @@ export interface ResolvedEngine {
     /** Absolute path to the `java` executable, or null for a no-JVM engine. */
     readonly javaExecutable: string | null;
     readonly javaVersion: string | null;
+    /** Provenance of a Java jar, explicit so managed repairs are distinguishable. */
+    readonly engineSource?: "bundled" | "staged" | "gradle" | "managed";
 }
 
 /**
@@ -603,7 +605,8 @@ export class RenderOrchestrator {
             };
         }
 
-        if (running.mode === "docker") return await this.adjustDockerSpeed(running, renderId, level);
+        if (running.mode === "docker")
+            return await this.adjustDockerSpeed(running, renderId, level);
         return this.adjustLocalSpeed(running, renderId, level);
     }
 
@@ -661,8 +664,7 @@ export class RenderOrchestrator {
                 appliedNow: true,
                 needsRestart: true,
                 reason: "priority-refused",
-                message:
-                    `Windows would not raise this render to '${result.requested.label}' without administrator rights, which this application never asks for. It kept ${landedWords} instead. The thread count and thread priority baked into this render's launch still only change on the next render.`,
+                message: `Windows would not raise this render to '${result.requested.label}' without administrator rights, which this application never asks for. It kept ${landedWords} instead. The thread count and thread priority baked into this render's launch still only change on the next render.`,
                 detail: null,
             };
         }
@@ -699,7 +701,8 @@ export class RenderOrchestrator {
                 appliedNow: false,
                 needsRestart: true,
                 reason: "not-running",
-                message: "This render has no container name recorded, so there is nothing to adjust.",
+                message:
+                    "This render has no container name recorded, so there is nothing to adjust.",
                 detail: null,
             };
         }
@@ -774,11 +777,12 @@ export class RenderOrchestrator {
     async render(request: RenderRequest): Promise<RenderResult> {
         if (request.jvmArgs === undefined) {
             const configured = this.options.jvmArgs;
-            const defaults = configured === undefined
-                ? []
-                : typeof configured === "function"
-                  ? configured()
-                  : configured;
+            const defaults =
+                configured === undefined
+                    ? []
+                    : typeof configured === "function"
+                      ? configured()
+                      : configured;
             if (defaults.length > 0) request = { ...request, jvmArgs: defaults };
         }
 
@@ -796,7 +800,11 @@ export class RenderOrchestrator {
             // Unreachable: `validateMaps` rejects an empty list. Written out anyway
             // because `noUncheckedIndexedAccess` is telling the truth about the type,
             // and a non-null assertion here would be a lie that outlives the check.
-            return this.fail(renderId, failures.invalidRequest("A render needs at least one map."), null);
+            return this.fail(
+                renderId,
+                failures.invalidRequest("A render needs at least one map."),
+                null,
+            );
         }
         renderId = request.renderId ?? renderIdForWorld(firstMap.world);
 
@@ -880,8 +888,12 @@ export class RenderOrchestrator {
         // legacy orchestrator a launch adapter yet. Refuse that shape before creating
         // workspaces or records; never run Java because the selected engine was absent.
         if (
-            (engine.launch === "java-cli" && (engine.enginePath === null || engine.javaExecutable === null)) ||
-            (engine.launch === "typescript" && (engine.enginePath === null || engine.driverPath === null || engine.driverPath === undefined))
+            (engine.launch === "java-cli" &&
+                (engine.enginePath === null || engine.javaExecutable === null)) ||
+            (engine.launch === "typescript" &&
+                (engine.enginePath === null ||
+                    engine.driverPath === null ||
+                    engine.driverPath === undefined))
         ) {
             return this.fail(
                 renderId,
@@ -932,7 +944,11 @@ export class RenderOrchestrator {
                 await this.writeContainerConfig(workspace, request);
             }
         } catch (error) {
-            return this.fail(renderId, failures.workspaceUnwritable(workspace.root, describe(error)), null);
+            return this.fail(
+                renderId,
+                failures.workspaceUnwritable(workspace.root, describe(error)),
+                null,
+            );
         }
 
         const description = describeEngineFor(engine, mode);
@@ -1020,38 +1036,44 @@ export class RenderOrchestrator {
                       mapName: firstMap.name ?? firstMap.id,
                       dimension: firstMap.dimension ?? "minecraft:overworld",
                       storageRoot: workspace.storageRoot,
-                      clientJar: await findRenderDataFile(workspace.dataDir, /^minecraft-client-.*\.jar$/i),
-                      resourceExtensions: await findRenderDataFile(workspace.dataDir, /^resourceExtensions\.zip$/i),
+                      clientJar: await findRenderDataFile(
+                          workspace.dataDir,
+                          /^minecraft-client-.*\.jar$/i,
+                      ),
+                      resourceExtensions: await findRenderDataFile(
+                          workspace.dataDir,
+                          /^resourceExtensions\.zip$/i,
+                      ),
                       cwd: workspace.root,
                       ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
                       onSignal,
                   })
                 : launch === null
                   ? new CliRun({
-                      javaExecutable: engine.javaExecutable as string,
-                      jarPath: engine.enginePath as string,
-                      configDir: workspace.configDir,
-                      // Deliberate, and the whole reason this directory exists: the CLI resolves
-                      // relative paths against its working directory, so anything that somehow
-                      // escaped being made absolute lands inside the render's own folder rather
-                      // than wherever the app was started from.
-                      cwd: workspace.root,
-                      ...(request.force === undefined ? {} : { force: request.force }),
-                      ...(request.fixEdges === undefined ? {} : { fixEdges: request.fixEdges }),
-                      ...(request.jvmArgs === undefined ? {} : { jvmArgs: request.jvmArgs }),
-                      ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
-                      onSignal,
+                        javaExecutable: engine.javaExecutable as string,
+                        jarPath: engine.enginePath as string,
+                        configDir: workspace.configDir,
+                        // Deliberate, and the whole reason this directory exists: the CLI resolves
+                        // relative paths against its working directory, so anything that somehow
+                        // escaped being made absolute lands inside the render's own folder rather
+                        // than wherever the app was started from.
+                        cwd: workspace.root,
+                        ...(request.force === undefined ? {} : { force: request.force }),
+                        ...(request.fixEdges === undefined ? {} : { fixEdges: request.fixEdges }),
+                        ...(request.jvmArgs === undefined ? {} : { jvmArgs: request.jvmArgs }),
+                        ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
+                        onSignal,
                     })
                   : new EngineProcess({
-                      launch,
-                      onSignal,
-                      ...(this.options.spawnEngine === undefined
-                          ? {}
-                          : { spawn: this.options.spawnEngine }),
-                      ...(this.options.stopContainer === undefined
-                          ? {}
-                          : { stopContainer: this.options.stopContainer }),
-                  });
+                        launch,
+                        onSignal,
+                        ...(this.options.spawnEngine === undefined
+                            ? {}
+                            : { spawn: this.options.spawnEngine }),
+                        ...(this.options.stopContainer === undefined
+                            ? {}
+                            : { stopContainer: this.options.stopContainer }),
+                    });
 
         this.running.set(renderId, {
             run,
@@ -1063,7 +1085,8 @@ export class RenderOrchestrator {
         // in the gap, and a container started with no record beside it is a render nobody
         // can find again: it keeps writing tiles into a bind-mounted folder with nothing
         // watching it, and the next launch has no name to ask the daemon about.
-        if (launch !== null) await this.startHandoff(launch, renderId, request, workspace, description);
+        if (launch !== null)
+            await this.startHandoff(launch, renderId, request, workspace, description);
 
         let result: RenderRunOutcome;
         try {
@@ -1294,6 +1317,7 @@ export class RenderOrchestrator {
             engine: engine.engine,
             engineVersion: engine.engineVersion,
             enginePath: engine.enginePath,
+            ...(engine.engineSource === undefined ? {} : { engineSource: engine.engineSource }),
             javaVersion: description.javaVersion,
             // Recorded beside the engine and the JVM because it is the same kind of fact:
             // how somebody can tell, months later, what actually produced these tiles.
@@ -1360,7 +1384,8 @@ export class RenderOrchestrator {
                 mode,
                 engineId: engine.engine,
                 command: launch?.command ?? engine.javaExecutable ?? "",
-                args: launch?.args ?? (engine.enginePath === null ? [] : ["-jar", engine.enginePath]),
+                args:
+                    launch?.args ?? (engine.enginePath === null ? [] : ["-jar", engine.enginePath]),
                 result: {
                     exitCode: result.exitCode,
                     signal: result.signal,
@@ -1505,7 +1530,9 @@ async function isDirectory(path: string): Promise<boolean> {
 
 /** Finds an already-cached render resource without downloading or guessing one. */
 async function findRenderDataFile(root: string, pattern: RegExp): Promise<string | null> {
-    const queue: Array<{ readonly path: string; readonly depth: number }> = [{ path: root, depth: 0 }];
+    const queue: Array<{ readonly path: string; readonly depth: number }> = [
+        { path: root, depth: 0 },
+    ];
     while (queue.length > 0) {
         const current = queue.shift();
         if (current === undefined) break;
@@ -1518,7 +1545,8 @@ async function findRenderDataFile(root: string, pattern: RegExp): Promise<string
         for (const entry of entries) {
             const path = join(current.path, entry.name);
             if (entry.isFile() && pattern.test(entry.name)) return path;
-            if (entry.isDirectory() && current.depth < 3) queue.push({ path, depth: current.depth + 1 });
+            if (entry.isDirectory() && current.depth < 3)
+                queue.push({ path, depth: current.depth + 1 });
         }
     }
     return null;

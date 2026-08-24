@@ -120,6 +120,7 @@ export {
     gradleJarDirectory,
     isBlueMapImplementation,
     listBlueMapJars,
+    managedJarDirectory,
     parseJarVersion,
     resolveBlueMapJar,
     resolveCliJar,
@@ -160,7 +161,12 @@ export {
 } from "./version.js";
 
 import type { FetchText } from "./adoptium.js";
-import type { DiscoverJavaOptions, JavaDiscovery, JavaInstallation, JavaRejection } from "./discovery.js";
+import type {
+    DiscoverJavaOptions,
+    JavaDiscovery,
+    JavaInstallation,
+    JavaRejection,
+} from "./discovery.js";
 import { describeDiscoveryFailure, discoverJava } from "./discovery.js";
 import type { FetchBinary } from "./download.js";
 import type { InstallArchiveOptions } from "./extract.js";

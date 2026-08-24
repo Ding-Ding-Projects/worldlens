@@ -51,28 +51,29 @@ export const RENDER_ENGINE_LABELS: Readonly<Record<RenderEngineId, string>> = {
 };
 
 /** Static route capabilities. Availability and version are resolved at runtime. */
-export const RENDER_ENGINE_CAPABILITIES: Readonly<Record<RenderEngineId, RenderEngineCapability>> = {
-    "upstream-java": {
-        id: "upstream-java",
-        label: RENDER_ENGINE_LABELS["upstream-java"],
-        requiresJvm: true,
-        supportsLocal: true,
-        supportsDocker: true,
-        supportsCli: true,
-        supportsRestart: true,
-        unsupportedSettings: [],
-    },
-    typescript: {
-        id: "typescript",
-        label: RENDER_ENGINE_LABELS.typescript,
-        requiresJvm: false,
-        supportsLocal: true,
-        supportsDocker: false,
-        supportsCli: false,
-        supportsRestart: true,
-        unsupportedSettings: ["BlueMap JVM flags", "BlueMap CLI-only diagnostics"],
-    },
-};
+export const RENDER_ENGINE_CAPABILITIES: Readonly<Record<RenderEngineId, RenderEngineCapability>> =
+    {
+        "upstream-java": {
+            id: "upstream-java",
+            label: RENDER_ENGINE_LABELS["upstream-java"],
+            requiresJvm: true,
+            supportsLocal: true,
+            supportsDocker: true,
+            supportsCli: true,
+            supportsRestart: true,
+            unsupportedSettings: [],
+        },
+        typescript: {
+            id: "typescript",
+            label: RENDER_ENGINE_LABELS.typescript,
+            requiresJvm: false,
+            supportsLocal: true,
+            supportsDocker: false,
+            supportsCli: false,
+            supportsRestart: true,
+            unsupportedSettings: ["BlueMap JVM flags", "BlueMap CLI-only diagnostics"],
+        },
+    };
 
 export type RenderOutcome = "running" | "finished" | "failed" | "cancelled";
 
@@ -95,6 +96,8 @@ export interface RenderRecord {
     readonly engineVersion: string;
     /** The jar that ran, absolute, so "which build was that" has an answer. */
     readonly enginePath: string | null;
+    /** Java jar provenance, including a repaired managed copy when one was needed. */
+    readonly engineSource?: "bundled" | "staged" | "gradle" | "managed";
     /** The JVM that ran it, e.g. `25.0.3`. Null for an engine that needs none. */
     readonly javaVersion: string | null;
     /**
@@ -179,6 +182,12 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
         engine,
         engineVersion,
         enginePath: readString(parsed.enginePath),
+        ...(parsed.engineSource === "bundled" ||
+        parsed.engineSource === "staged" ||
+        parsed.engineSource === "gradle" ||
+        parsed.engineSource === "managed"
+            ? { engineSource: parsed.engineSource }
+            : {}),
         javaVersion: readString(parsed.javaVersion),
         ...(runtime === undefined ? {} : { runtime }),
         maps: readMaps(parsed.maps),

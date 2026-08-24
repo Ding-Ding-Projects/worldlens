@@ -41,7 +41,11 @@ const JAVA: EnsureJavaResult = {
         source: "PATH",
         executable: "/jdk/bin/java",
         home: "/jdk",
-        version: { feature: 25, version: "25.0.3", runtime: "OpenJDK Runtime Environment Temurin-25.0.3+9" },
+        version: {
+            feature: 25,
+            version: "25.0.3",
+            runtime: "OpenJDK Runtime Environment Temurin-25.0.3+9",
+        },
     },
     provisioned: false,
     record: null,
@@ -67,6 +71,7 @@ describe("upstreamJavaEngine", () => {
             enginePath: "/jars/cli-5.22-27-shadow.jar",
             javaExecutable: "/jdk/bin/java",
             javaVersion: "25.0.3",
+            engineSource: "bundled",
         });
     });
 });
