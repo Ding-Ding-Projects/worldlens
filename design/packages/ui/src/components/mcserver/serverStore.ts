@@ -120,6 +120,8 @@ export interface CreateServerRequest {
     readonly version: string;
     readonly memoryMb: number;
     readonly acceptedEula: boolean;
+    /** The selected transport, explicit so local Docker cannot silently become local-process. */
+    readonly transport: TransportRef;
     readonly provisionJavaIfMissing?: boolean;
     readonly fabricInstallerVersion?: string;
     readonly loaderVersion?: string;
@@ -251,6 +253,8 @@ export interface McServerHost {
         onProgress?(listener: (progress: JavaProvisionProgress) => void): () => void;
     };
     create?(request: CreateServerRequest): Promise<Answer<ServerRecord>>;
+    /** Transport creation capabilities exposed by a typed host. Missing means unavailable. */
+    readonly createCapabilities?: { readonly localDocker?: boolean };
     readonly plugins?: {
         search(request: {
             sourceId: PluginSourceId;
@@ -339,6 +343,7 @@ export interface ServerStore {
     readonly hasCatalogue: boolean;
     readonly hasJava: boolean;
     readonly hasCreate: boolean;
+    readonly canCreateLocalDocker: boolean;
     readonly hasAdopt: boolean;
 
     catalogueList(): Promise<Answer<CatalogueSnapshot>>;
@@ -394,6 +399,7 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         hasCatalogue: host?.catalogue !== undefined,
         hasJava: host?.java !== undefined,
         hasCreate: host?.create !== undefined,
+        canCreateLocalDocker: host?.createCapabilities?.localDocker === true,
         hasAdopt: host?.adopt !== undefined,
 
         async load(): Promise<void> {

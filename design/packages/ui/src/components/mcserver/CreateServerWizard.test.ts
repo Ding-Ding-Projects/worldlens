@@ -357,7 +357,7 @@ describe("CreateServerWizard", () => {
 
         vm.minecraftVersion = "1.20.6";
         await flushAll();
-        expect(resolve).toHaveBeenCalledTimes(1);
+        expect(resolve).toHaveBeenCalledTimes(2);
         pending[0]?.(ok(foundJava("21")));
         await flushAll();
         expect(resolve).toHaveBeenCalledTimes(2);
@@ -427,5 +427,37 @@ describe("CreateServerWizard", () => {
         await flushAll();
         expect(document.querySelector('[data-test="java-remote-skip"]')).not.toBeNull();
         expect(resolve).toHaveBeenCalledTimes(2);
+    });
+
+    it("clears an in-flight provision when the selected version changes", async () => {
+        let finishProvision: ((answer: Answer<JavaResolution>) => void) | null = null;
+        const resolve = vi.fn(async () => ok(missingJava()));
+        const provision = vi.fn(
+            () => new Promise<Answer<JavaResolution>>((done) => (finishProvision = done)),
+        );
+        const { vm } = await javaVm(javaHost({ resolve, provision }));
+        const provisioning = vm.provisionJava();
+        await flushAll();
+        vm.minecraftVersion = "1.20.6";
+        await flushAll();
+        expect(document.querySelector('[data-test="java-progress"]')).toBeNull();
+
+        finishProvision?.(ok(foundJava()));
+        await provisioning;
+        expect(document.querySelector('[data-test="java-found"]')).toBeNull();
+    });
+
+    it("keeps local Docker creation disabled with an exact capability reason", async () => {
+        const wrapper = mountWizard(fakeHost());
+        await flushAll();
+        const vm = wrapper.vm as unknown as WizardVm;
+        vm.step = "runtime";
+        vm.whereItRuns = "local-docker";
+        await flushAll();
+
+        expect(document.body.textContent).toContain(
+            "cannot create a Docker server yet",
+        );
+        expect(document.querySelector('[data-test="docker-container-ref"]')).not.toBeNull();
     });
 });

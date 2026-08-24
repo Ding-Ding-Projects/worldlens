@@ -1418,7 +1418,28 @@ describe("Minecraft server detail navigation", () => {
         await webTab?.trigger("click");
         await settle();
 
-        await panel.find('[data-test="back-to-minecraft-servers"]').trigger("click");
+        const appApi = app.vm as unknown as {
+            shell: { select: (destination: "host" | "work") => void };
+            kid: { enabled: { value: boolean } };
+        };
+        appApi.shell.select("host");
+        await settle();
+        expect(app.findAllComponents({ name: "WebConsolePanel" })).toHaveLength(1);
+        appApi.shell.select("work");
+        await settle();
+        expect(app.findAllComponents({ name: "WebConsolePanel" })).toHaveLength(1);
+
+        appApi.kid.enabled.value = true;
+        await settle();
+        const kidShell = app.findComponent(KidShell);
+        expect(kidShell.exists()).toBe(true);
+        (kidShell.vm as unknown as { revealJob: (id: string) => void }).revealJob("mcservers");
+        await settle();
+        expect(app.findAllComponents({ name: "WebConsolePanel" })).toHaveLength(1);
+        appApi.kid.enabled.value = false;
+        await settle();
+
+        await app.find('[data-test="back-to-minecraft-servers"]').trigger("click");
         await settle();
 
         const list = app.findComponent({ name: "ServerListScreen" });

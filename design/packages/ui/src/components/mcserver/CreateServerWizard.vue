@@ -254,6 +254,7 @@ watch(flavour, () => {
 const whereItRuns = ref<WhereItRuns>("local-process");
 const serverDir = ref("");
 const sshHost = ref("");
+const dockerContainerRef = ref("");
 
 const awsAvailable = computed(() => {
     const bridge = (globalThis as { worldlens?: { mcserver?: { aws?: unknown } } }).worldlens;
@@ -359,11 +360,6 @@ async function checkJava(): Promise<void> {
     } finally {
         if (requestId === javaRequestId) {
             javaChecking.value = false;
-        } else if (!javaProvisioning.value) {
-            // A version change invalidated this answer while the host was still working.
-            // Release the single-flight guard and immediately resolve the newer version.
-            javaChecking.value = false;
-            void checkJava();
         }
     }
 }
@@ -391,7 +387,12 @@ async function provisionJava(): Promise<void> {
         javaResolution.value = null;
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
-        if (requestId === javaRequestId) javaProvisioning.value = false;
+        if (requestId === javaRequestId) {
+            javaProvisioning.value = false;
+        } else {
+            javaProvisioning.value = false;
+            javaProgress.value = null;
+        }
     }
     // Ask the host again after provisioning. The provision response is not proof that the
     // executable is discoverable through the same route a later server start will use.
@@ -404,12 +405,14 @@ watch(step, (value) => {
     }
 });
 
-watch([minecraftVersion, whereItRuns], () => {
-    if (step.value !== "java") return;
+watch([flavour, minecraftVersion, whereItRuns], () => {
     javaRequestId += 1;
     javaResolution.value = null;
     javaFailure.value = null;
-    if (!javaNotRequired.value && !javaChecking.value && !javaProvisioning.value) {
+    javaProgress.value = null;
+    javaChecking.value = false;
+    javaProvisioning.value = false;
+    if (step.value === "java" && !javaNotRequired.value) {
         void checkJava();
     }
 });
@@ -427,6 +430,10 @@ onMounted(() => {
 });
 onUnmounted(() => {
     unsubscribeJavaProgress?.();
+    javaRequestId += 1;
+    javaChecking.value = false;
+    javaProvisioning.value = false;
+    javaProgress.value = null;
 });
 
 const canAutoProvisionJava = computed(() => store.hasJava && !javaNotRequired.value);
@@ -496,6 +503,14 @@ const folderError = computed(() =>
         ? t("mcserver.wizard.folderRequired", "Choose a folder for this server.")
         : null,
 );
+const dockerContainerError = computed(() =>
+    whereItRuns.value === "local-docker"
+        ? validateServerId(
+              dockerContainerRef.value,
+              store.servers.value.map((server) => server.id),
+          )
+        : null,
+);
 
 const canCreate = computed(
     () =>
@@ -504,13 +519,18 @@ const canCreate = computed(
         memoryError.value === null &&
         portError.value === null &&
         folderError.value === null &&
+        dockerContainerError.value === null &&
         eulaAccepted.value &&
         minecraftVersion.value.trim() !== "",
 );
 
 function transportRef(): TransportRef {
     if (whereItRuns.value === "local-docker") {
-        return { kind: "local-docker", containerRef: serverId.value, serverDir: serverDir.value };
+        return {
+            kind: "local-docker",
+            containerRef: dockerContainerRef.value.trim(),
+            serverDir: serverDir.value,
+        };
     }
     if (whereItRuns.value === "ssh-docker") {
         return {
@@ -538,7 +558,7 @@ function transportRef(): TransportRef {
 }
 
 async function create(): Promise<void> {
-    if (!canCreate.value) return;
+    if (!canCreate.value || !canAdvanceFromRuntime.value || !canAdvanceFromJava.value) return;
     creating.value = true;
     createFailure.value = null;
 
@@ -550,6 +570,7 @@ async function create(): Promise<void> {
             version: minecraftVersion.value,
             memoryMb: memoryMb.value,
             acceptedEula: eulaAccepted.value,
+            transport: transportRef(),
             provisionJavaIfMissing: !javaNotRequired.value,
             ...(isModLoader.value
                 ? {
@@ -628,6 +649,7 @@ function resetWizard(): void {
     whereItRuns.value = "local-process";
     serverDir.value = "";
     sshHost.value = "";
+    dockerContainerRef.value = "";
     javaResolution.value = null;
     memoryMb.value = 2048;
     modLoaderVersion.value = "";
@@ -688,7 +710,13 @@ const canAdvanceFromRuntime = computed(() => {
     // which is a dead end rather than a validation message.
     if (folderError.value !== null) return false;
     if (whereItRuns.value === "local-process") return true;
-    if (whereItRuns.value === "local-docker") return dockerAvailability.available === true;
+    if (whereItRuns.value === "local-docker") {
+        return (
+            store.canCreateLocalDocker &&
+            dockerAvailability.available === true &&
+            dockerContainerError.value === null
+        );
+    }
     if (whereItRuns.value === "aws") return awsAvailable.value;
     return sshHost.value.trim() !== "";
 });
@@ -743,6 +771,15 @@ const advanceBlockedReason = computed<string | null>(() => {
                     "mcserver.wizard.awsUnavailable",
                     "AWS hosting is not available in this build.",
                 );
+            }
+            if (whereItRuns.value === "local-docker" && !store.canCreateLocalDocker) {
+                return t(
+                    "mcserver.wizard.dockerCreateUnavailable",
+                    "This build can inspect Docker but cannot create a Docker server yet. Choose Local process until the typed Docker create capability is available.",
+                );
+            }
+            if (whereItRuns.value === "local-docker" && dockerContainerError.value !== null) {
+                return dockerContainerError.value;
             }
             return null;
         case "java":
@@ -1137,11 +1174,26 @@ const canAdvance = computed(() => {
                             :key="option.id"
                             class="wl-mcserver-wizard__runtime-option"
                         >
-                            <VRadio :value="option.id" :label="option.name" />
+                            <VRadio
+                                :value="option.id"
+                                :label="option.name"
+                                :disabled="option.id === 'local-docker' && !store.canCreateLocalDocker"
+                            />
                             <div
                                 class="text-caption text-medium-emphasis wl-mcserver-wizard__runtime-desc"
                             >
                                 {{ option.description }}
+                            </div>
+                            <div
+                                v-if="option.id === 'local-docker' && !store.canCreateLocalDocker"
+                                class="text-caption text-error wl-mcserver-wizard__runtime-desc"
+                            >
+                                {{
+                                    t(
+                                        "mcserver.wizard.dockerCreateUnavailable",
+                                        "This build can inspect Docker but cannot create a Docker server yet. Choose Local process until the typed Docker create capability is available.",
+                                    )
+                                }}
                             </div>
                         </div>
                     </VRadioGroup>
@@ -1188,6 +1240,14 @@ const canAdvance = computed(() => {
                                 </VBtn>
                             </template>
                         </VAlert>
+                        <VTextField
+                            v-model="dockerContainerRef"
+                            label="Docker container name"
+                            hint="Use lower-case letters, numbers, and hyphens."
+                            :error-messages="dockerContainerError ?? undefined"
+                            persistent-hint
+                            data-test="docker-container-ref"
+                        />
                         <PathField
                             v-model="serverDir"
                             field="server folder"
