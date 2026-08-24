@@ -166,7 +166,8 @@ jobs:
             --stage tools/oracle/out/jars `
             --expected-version "$env:BLUEMAP_VERSION" `
             --expected-commit "$env:BLUEMAP_SOURCE_COMMIT" `
-            --expected-run-id "$env:GITHUB_RUN_ID"
+            --expected-run-id "$env:GITHUB_RUN_ID" `
+            --expected-run-attempt "$env:GITHUB_RUN_ATTEMPT"
 
       # Every build must carry a version Squirrel can order, or installing a newer
       # release over an older one silently does nothing: same version, nothing to do,

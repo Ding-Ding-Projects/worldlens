@@ -1,11 +1,13 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
 import { basename, join, relative, resolve, sep } from "node:path";
 
 import { verifyJarFile } from "./jar-verifier.mjs";
 
 export const STAGED_JAVA_ENGINE_SCHEMA = 1;
 export const BLUEMAP_SOURCE_REPOSITORY = "https://github.com/BlueMap-Minecraft/BlueMap";
+export const MAX_STAGED_JAVA_BYTES = 512 * 1024 * 1024;
 
 /**
  * Validate the manifest and the physical CLI jar that electron-builder is about
@@ -111,7 +113,32 @@ function isChildPath(root, candidate) {
     return distance.length > 0 && distance !== ".." && !distance.startsWith(`..${sep}`);
 }
 
-export async function hashFile(path) {
-    const bytes = await readFile(path);
-    return { size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
+export async function hashFile(path, options = {}) {
+    const maxBytes = options.maxBytes ?? MAX_STAGED_JAVA_BYTES;
+    const before = await stat(path);
+    if (!before.isFile()) throw new Error(`hash target is not a regular file: ${path}`);
+    if (before.size > maxBytes) throw new Error(`hash target exceeds the ${maxBytes}-byte limit: ${path}`);
+
+    const hash = createHash("sha256");
+    let size = 0;
+    const stream = createReadStream(path, { highWaterMark: 1024 * 1024 });
+    try {
+        for await (const chunk of stream) {
+            size += chunk.length;
+            if (size > maxBytes) throw new Error(`hash target exceeded the ${maxBytes}-byte limit while reading: ${path}`);
+            hash.update(chunk);
+        }
+    } finally {
+        stream.destroy();
+    }
+    const after = await stat(path);
+    if (
+        before.dev !== after.dev ||
+        before.ino !== after.ino ||
+        before.size !== after.size ||
+        before.mtimeMs !== after.mtimeMs
+    ) {
+        throw new Error(`hash target changed while it was being read: ${path}`);
+    }
+    return { size, sha256: hash.digest("hex") };
 }

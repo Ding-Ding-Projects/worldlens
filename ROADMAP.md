@@ -11,6 +11,10 @@
 - [x] Preserve safe build and package evidence with `always()` uploads that cannot mask the
       original build or package result.
 - [x] Add workflow-shaped cold-fixture negatives and focused package wiring coverage.
+- [x] Validate version, source commit, workflow run ID, and run attempt before touching the
+      artifact, then perform bounded streaming digest verification after JAR safety checks.
+- [x] Keep mutation coverage red when the canonical identity preflight or digest comparison
+      is removed.
 
 ## Reusable design system package — 2026-08-22
 

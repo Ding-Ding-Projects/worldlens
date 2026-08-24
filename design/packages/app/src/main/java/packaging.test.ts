@@ -165,6 +165,7 @@ describe("CI stages the CLI jar before packaging", () => {
         expect(block).toContain("--expected-version");
         expect(block).toContain("--expected-commit");
         expect(block).toContain("--expected-run-id");
+        expect(block).toContain("--expected-run-attempt");
         expect(block.indexOf("scripts/stage-packaged-jars.mjs")).toBeLessThan(block.indexOf("pnpm run make"));
     });
 

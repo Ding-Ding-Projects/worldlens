@@ -1,17 +1,20 @@
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readFile, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import assert from "node:assert/strict";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(HERE, "stage-packaged-jars.mjs");
+const SCRIPT_SOURCE = readFileSync(SCRIPT, "utf8");
 const VERSION = "5.23";
 const COMMIT = "0123456789abcdef0123456789abcdef01234567";
 const RUN_ID = "12345";
+const RUN_ATTEMPT = "1";
 
 function jarFixture() {
     const entries = [
@@ -67,7 +70,7 @@ function manifest(bytes, overrides = {}) {
     return {
         schemaVersion: 1,
         generatedAt: "2026-08-24T00:00:00.000Z",
-        workflow: overrides.workflow ?? { runId: RUN_ID, runAttempt: "1" },
+        workflow: overrides.workflow ?? { runId: RUN_ID, runAttempt: RUN_ATTEMPT },
         source,
         requiredJavaFeature: 25,
         jars: [{
@@ -93,22 +96,40 @@ async function fixture(overrides = {}) {
     return { root, artifactDir, stageDir, manifestPath: join(root, "manifest.json"), bytes };
 }
 
-function run(item) {
+function run(item, identity = {}) {
     try {
         execFileSync(process.execPath, [
             SCRIPT,
             "--artifact-dir", item.artifactDir,
             "--manifest", item.manifestPath,
             "--stage", item.stageDir,
-            "--expected-version", VERSION,
-            "--expected-commit", COMMIT,
-            "--expected-run-id", RUN_ID,
+            "--expected-version", identity.version ?? VERSION,
+            "--expected-commit", identity.commit ?? COMMIT,
+            "--expected-run-id", identity.runId ?? RUN_ID,
+            "--expected-run-attempt", identity.runAttempt ?? RUN_ATTEMPT,
         ], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
         return { ok: true, output: "" };
     } catch (error) {
         return { ok: false, output: `${error.stdout ?? ""}${error.stderr ?? ""}` };
     }
 }
+
+function assertCanonicalStageContract(source) {
+    assert.match(source, /^\s*assertExpectedIdentity\(options\);$/m, "identity preflight call disappeared");
+    assert.match(source, /actual\.size !== cli\.size \|\| actual\.sha256 !== cli\.sha256/, "artifact hash comparison disappeared");
+}
+
+test("the canonical identity preflight mutation turns red", () => {
+    const mutated = SCRIPT_SOURCE.replace("        assertExpectedIdentity(options);\n", "");
+    assert.notEqual(mutated, SCRIPT_SOURCE);
+    assert.throws(() => assertCanonicalStageContract(mutated), /identity preflight/);
+});
+
+test("the canonical hash comparison mutation turns red", () => {
+    const mutated = SCRIPT_SOURCE.replace("actual.size !== cli.size || actual.sha256 !== cli.sha256", "false");
+    assert.notEqual(mutated, SCRIPT_SOURCE);
+    assert.throws(() => assertCanonicalStageContract(mutated), /artifact hash/);
+});
 
 test("stages a workflow-shaped CLI artifact and writes the authoritative manifest", async () => {
     const item = await fixture();
@@ -138,3 +159,52 @@ for (const [name, overrides] of [
         assert.equal(result.ok, false, `negative fixture unexpectedly passed: ${name}`);
     });
 }
+
+for (const [name, identity] of [
+    ["empty version", { version: "" }],
+    ["malformed version", { version: "five.twenty-three" }],
+    ["empty source commit", { commit: "" }],
+    ["malformed source commit", { commit: "g".repeat(40) }],
+    ["empty run ID", { runId: "" }],
+    ["malformed run ID", { runId: "run-123" }],
+    ["empty run attempt", { runAttempt: "" }],
+    ["malformed run attempt", { runAttempt: "attempt-1" }],
+]) {
+    test(`rejects ${name} before touching the artifact`, async () => {
+        const item = await fixture();
+        const result = run(item, identity);
+        assert.equal(result.ok, false, `identity fixture unexpectedly passed: ${name}`);
+        assert.match(result.output, /expected BlueMap|expected workflow/);
+    });
+}
+
+test("rejects an oversized artifact before hashing its bytes", async () => {
+    const item = await fixture();
+    const jarPath = join(item.artifactDir, `bluemap-${VERSION}-cli.jar`);
+    const handle = await open(jarPath, "r+");
+    try {
+        await handle.truncate(512 * 1024 * 1024 + 1);
+    } finally {
+        await handle.close();
+    }
+    const result = run(item);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /invalid JAR|hard byte limit|exceeds/);
+});
+
+test("rejects a symlinked artifact before hashing or staging", async (t) => {
+    const item = await fixture();
+    const jarPath = join(item.artifactDir, `bluemap-${VERSION}-cli.jar`);
+    const target = join(item.root, "outside.jar");
+    await writeFile(target, item.bytes);
+    await unlink(jarPath);
+    try {
+        await symlink(target, jarPath);
+    } catch (error) {
+        t.skip(`symlink creation unavailable on this host: ${String(error)}`);
+        return;
+    }
+    const result = run(item);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /symlink|reparse|JAR path/);
+});

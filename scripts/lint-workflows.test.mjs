@@ -268,11 +268,11 @@ for (const [lineEnding, workflow] of [
   });
 }
 
-// 126, not the previous 128: `actions/checkout` and `actions/setup-node` each dropped one
+// 127, not the previous 128: the reusable BlueMap build now uploads its ninth safe evidence artifact.
 // use when the `workflows` job ("Lint the workflow files") was removed from ci.yml under
 // the "no lint in CI" policy - that job was the only place either action ran without also
 // using one of the other four identities below.
-test("all 126 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
+test("all 127 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
   const inventoryFiles = Object.keys(ACTION_INVENTORIES).sort();
   const workflowFiles = readdirSync(".github/workflows")
     .filter((name) => /\.ya?ml$/i.test(name))
@@ -293,7 +293,7 @@ test("all 126 actions in every executable workflow are SHA-pinned and checkouts 
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    126,
+    127,
   );
   assert.equal(Object.keys(PINNED_ACTIONS).length, 6);
 });

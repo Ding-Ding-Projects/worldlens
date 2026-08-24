@@ -26,7 +26,15 @@ function fail(message) {
 }
 
 function parseArguments(argv) {
-    const options = { artifactDir: null, manifest: null, stage: null, expectedVersion: null, expectedCommit: null, expectedRunId: null };
+    const options = {
+        artifactDir: null,
+        manifest: null,
+        stage: null,
+        expectedVersion: null,
+        expectedCommit: null,
+        expectedRunId: null,
+        expectedRunAttempt: null,
+    };
     for (let index = 0; index < argv.length; index += 1) {
         const argument = argv[index];
         const next = () => {
@@ -41,9 +49,10 @@ function parseArguments(argv) {
             case "--expected-version": options.expectedVersion = next(); break;
             case "--expected-commit": options.expectedCommit = next(); break;
             case "--expected-run-id": options.expectedRunId = next(); break;
+            case "--expected-run-attempt": options.expectedRunAttempt = next(); break;
             case "-h":
             case "--help":
-                process.stdout.write("Usage: node scripts/stage-packaged-jars.mjs --artifact-dir <dir> --manifest <manifest.json> --stage <dir> --expected-version <version> --expected-commit <sha> --expected-run-id <run-id>\n");
+                process.stdout.write("Usage: node scripts/stage-packaged-jars.mjs --artifact-dir <dir> --manifest <manifest.json> --stage <dir> --expected-version <version> --expected-commit <sha> --expected-run-id <run-id> --expected-run-attempt <attempt>\n");
                 process.exit(0);
                 break;
             default: throw new Error(`unrecognized argument '${argument}'`);
@@ -59,16 +68,17 @@ async function main() {
     let options;
     try {
         options = parseArguments(process.argv.slice(2));
+        assertExpectedIdentity(options);
         const sourceManifest = JSON.parse(await readFile(options.manifest, "utf8"));
         assertReleaseManifest(sourceManifest, options);
         const cli = sourceManifest.jars.find((entry) => entry.implementation === "cli");
         const artifact = resolve(options.artifactDir, cli.fileName);
+        const artifactVerification = await verifyJarFile(artifact, { root: options.artifactDir });
+        if (!artifactVerification.ok) throw new Error(`downloaded CLI artifact is not a valid JAR: ${artifactVerification.reason}`);
         const actual = await hashFile(artifact);
         if (actual.size !== cli.size || actual.sha256 !== cli.sha256) {
             throw new Error(`downloaded CLI artifact does not match manifest bytes or SHA-256: ${artifact}`);
         }
-        const artifactVerification = await verifyJarFile(artifact, { root: options.artifactDir });
-        if (!artifactVerification.ok) throw new Error(`downloaded CLI artifact is not a valid JAR: ${artifactVerification.reason}`);
 
         await rm(options.stage, { recursive: true, force: true });
         await mkdir(options.stage, { recursive: true });
@@ -96,6 +106,27 @@ async function main() {
     }
 }
 
+function assertExpectedIdentity(options) {
+    if (
+        typeof options.expectedVersion !== "string" ||
+        !/^\d+\.\d+(?:[-.][0-9A-Za-z.-]+)*$/.test(options.expectedVersion)
+    ) {
+        throw new Error("expected BlueMap version is empty or malformed");
+    }
+    if (typeof options.expectedCommit !== "string" || !/^[0-9a-f]{40}$/i.test(options.expectedCommit)) {
+        throw new Error("expected BlueMap source commit is empty or not a 40-hex SHA");
+    }
+    if (typeof options.expectedRunId !== "string" || !/^[1-9][0-9]*$/.test(options.expectedRunId)) {
+        throw new Error("expected workflow run ID is empty or malformed");
+    }
+    if (
+        typeof options.expectedRunAttempt !== "string" ||
+        !/^[1-9][0-9]*$/.test(options.expectedRunAttempt)
+    ) {
+        throw new Error("expected workflow run attempt is empty or malformed");
+    }
+}
+
 function assertReleaseManifest(manifest, options) {
     if (
         manifest === null ||
@@ -106,6 +137,7 @@ function assertReleaseManifest(manifest, options) {
         manifest.source?.version !== options.expectedVersion ||
         manifest.source?.commit !== options.expectedCommit ||
         manifest.workflow?.runId !== options.expectedRunId ||
+        manifest.workflow?.runAttempt !== options.expectedRunAttempt ||
         !Array.isArray(manifest.jars)
     ) {
         throw new Error("BlueMap release manifest is missing, stale, or mismatched with this workflow run");
