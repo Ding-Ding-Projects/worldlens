@@ -4,3 +4,4 @@ export * from "./narrator.js";
 export * from "./schedule.js";
 export * from "./store.js";
 export * from "./completeness.js";
+export * from "./coordinator.js";

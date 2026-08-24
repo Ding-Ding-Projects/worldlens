@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createRuntimeSettingsService, validateRuntimeExternalUrl } from "./service.js";
+import {
+    createRuntimeSettingsService,
+    isBlockedRuntimeAddress,
+    validateRuntimeExternalUrl,
+} from "./service.js";
 
 describe("main-process runtime settings service", () => {
     it("rejects URL credentials, loopback HTTPS, private hosts and non-HTTP schemes", () => {
@@ -9,6 +13,8 @@ describe("main-process runtime settings service", () => {
         expect(validateRuntimeExternalUrl("http://127.0.0.1/config", true).ok).toBe(true);
         expect(validateRuntimeExternalUrl("file:///tmp/settings").ok).toBe(false);
         expect(validateRuntimeExternalUrl("https://192.168.1.20/config").ok).toBe(false);
+        expect(isBlockedRuntimeAddress("::ffff:192.168.1.20")).toBe(true);
+        expect(isBlockedRuntimeAddress("::ffff:8.8.8.8")).toBe(false);
     });
 
     it("never hands Home Assistant credentials to the renderer and reports vault absence", async () => {

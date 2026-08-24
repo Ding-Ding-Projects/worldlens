@@ -22,7 +22,10 @@ export const RUNTIME_COVERAGE: readonly RuntimeCoverageRow[] = [
         documentation: ["docs/runtime-settings-and-accommodations.md"],
         localization: ["settings.runtime.title", "settings.runtime.description"],
         persistence: ["design/packages/ui/src/components/runtimeSettings/store.ts"],
-        tests: ["design/packages/ui/src/components/runtimeSettings/model.test.ts", "design/packages/app/src/main/runtimeSettings/service.test.ts"],
+        tests: [
+            "design/packages/ui/src/components/runtimeSettings/model.test.ts",
+            "design/packages/app/src/main/runtimeSettings/service.test.ts",
+        ],
         capture: "pending",
     },
     {

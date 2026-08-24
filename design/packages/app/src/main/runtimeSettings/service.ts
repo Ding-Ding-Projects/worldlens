@@ -1,11 +1,19 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
+import { request as httpsRequest } from "node:https";
 
 export interface RuntimeExternalRequest {
     readonly id: string;
     readonly source: "https" | "homeAssistant";
     readonly url: string;
     readonly entityId?: string;
+}
+export interface RuntimeConfiguredSource {
+    readonly id: string;
+    readonly source: "https" | "homeAssistant";
+    readonly url: string;
+    readonly entityId?: string;
+    readonly credentialRef?: string;
 }
 export interface RuntimeExternalAnswer {
     readonly ok: boolean;
@@ -37,10 +45,11 @@ const PRIVATE_V4 = [
     /^24\d\./,
     /^25[0-5]\./,
 ];
-function isBlockedAddress(address: string): boolean {
+export function isBlockedRuntimeAddress(address: string): boolean {
     if (isIP(address) === 4) return PRIVATE_V4.some((pattern) => pattern.test(address));
     if (isIP(address) === 6) {
         const normalized = address.toLowerCase();
+        if (normalized.startsWith("::ffff:")) return isBlockedRuntimeAddress(normalized.slice(7));
         return (
             normalized === "::1" ||
             normalized.startsWith("fe80:") ||
@@ -69,7 +78,7 @@ export function validateRuntimeExternalUrl(
         url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
     if (
         isIP(url.hostname) !== 0 &&
-        isBlockedAddress(url.hostname) &&
+        isBlockedRuntimeAddress(url.hostname) &&
         !(allowLoopbackDev && loopback && url.protocol === "http:")
     )
         return {
@@ -124,10 +133,75 @@ export interface RuntimeSettingsService {
     status(): RuntimeStatusRecord;
     dispose(): void;
 }
+
+async function withDeadline<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+    if (signal.aborted) throw Object.assign(new Error("Aborted"), { name: "AbortError" });
+    return await new Promise<T>((resolve, reject) => {
+        const abort = (): void =>
+            reject(Object.assign(new Error("Aborted"), { name: "AbortError" }));
+        signal.addEventListener("abort", abort, { once: true });
+        promise.then(
+            (value) => {
+                signal.removeEventListener("abort", abort);
+                resolve(value);
+            },
+            (error) => {
+                signal.removeEventListener("abort", abort);
+                reject(error);
+            },
+        );
+    });
+}
+
+function pinnedHttpsRequest(
+    url: URL,
+    address: string,
+    headers: Record<string, string>,
+    signal: AbortSignal,
+): Promise<{ status: number; body: string }> {
+    return new Promise((resolve, reject) => {
+        const request = httpsRequest(
+            {
+                hostname: address,
+                port: url.port || 443,
+                path: `${url.pathname}${url.search}`,
+                method: "GET",
+                headers: { ...headers, Host: url.host },
+                servername: url.hostname,
+                lookup: (_hostname, _options, callback) =>
+                    callback(null, address, isIP(address) as 4 | 6),
+            },
+            (response) => {
+                const chunks: Buffer[] = [];
+                let size = 0;
+                response.on("data", (chunk: Buffer) => {
+                    size += chunk.length;
+                    if (size <= 512 * 1024) chunks.push(chunk);
+                    else request.destroy(new Error("response-limit"));
+                });
+                response.on("end", () =>
+                    resolve({
+                        status: response.statusCode ?? 0,
+                        body: Buffer.concat(chunks).toString("utf8"),
+                    }),
+                );
+                response.on("error", reject);
+            },
+        );
+        request.on("error", reject);
+        signal.addEventListener(
+            "abort",
+            () => request.destroy(Object.assign(new Error("Aborted"), { name: "AbortError" })),
+            { once: true },
+        );
+        request.end();
+    });
+}
 export function createRuntimeSettingsService(
     options: {
         fetcher?: typeof fetch;
         readCredential?: (reference: string) => Promise<string | null>;
+        readConfiguredSource?: (id: string) => RuntimeConfiguredSource | null;
     } = {},
 ): RuntimeSettingsService {
     const fetcher = options.fetcher ?? fetch;
@@ -144,45 +218,93 @@ export function createRuntimeSettingsService(
             const run = ++generation;
             if (typeof request.id !== "string" || !/^[a-zA-Z0-9_.-]{1,80}$/.test(request.id))
                 return { ok: false, message: "The external rule id is not valid." };
-            const checked = validateRuntimeExternalUrl(request.url, false);
+            const configured =
+                request.source === "homeAssistant"
+                    ? (options.readConfiguredSource?.(request.id) ?? null)
+                    : null;
+            if (
+                request.source === "homeAssistant" &&
+                (configured === null || configured.source !== "homeAssistant")
+            )
+                return {
+                    ok: false,
+                    message:
+                        "Home Assistant source configuration is unavailable in the main process.",
+                    authRequired: true,
+                };
+            if (configured !== null && configured.id !== request.id)
+                return {
+                    ok: false,
+                    message: "The configured external source id does not match the requested rule.",
+                };
+            if (
+                request.source === "homeAssistant" &&
+                (configured?.entityId === undefined ||
+                    !/^[a-zA-Z0-9_.-]+\.[a-zA-Z0-9_.-]+$/.test(configured.entityId))
+            )
+                return {
+                    ok: false,
+                    message: "The configured Home Assistant entity id is not valid.",
+                };
+            const requestUrl = configured?.url ?? request.url;
+            const checked = validateRuntimeExternalUrl(requestUrl, false);
             if (!checked.ok) return checked;
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 5000);
             let addresses: string[];
             try {
-                addresses = (await lookup(checked.url.hostname, { all: true, verbatim: true })).map(
-                    (entry) => entry.address,
-                );
+                addresses = (
+                    await withDeadline(
+                        lookup(checked.url.hostname, { all: true, verbatim: true }),
+                        controller.signal,
+                    )
+                ).map((entry) => entry.address);
             } catch {
+                clearTimeout(timeout);
                 return { ok: false, message: "The external settings host could not be resolved." };
             }
-            if (addresses.length === 0 || addresses.some(isBlockedAddress))
+            if (addresses.length === 0 || addresses.some(isBlockedRuntimeAddress)) {
+                clearTimeout(timeout);
                 return {
                     ok: false,
                     message:
                         "The external settings host resolves to a private, local, reserved or multicast address.",
                 };
+            }
             const headers: Record<string, string> = { Accept: "application/json" };
             if (request.source === "homeAssistant") {
-                const reference =
-                    request.entityId === undefined ? "" : `home-assistant:${request.entityId}`;
+                const reference = configured?.credentialRef ?? "";
                 const token = await options.readCredential?.(reference);
-                if (token === null || token === undefined)
+                if (token === null || token === undefined) {
+                    clearTimeout(timeout);
                     return {
                         ok: false,
                         message:
                             "Home Assistant credentials are unavailable in the operating-system vault.",
                         authRequired: true,
                     };
+                }
                 headers.Authorization = `Bearer ${token}`;
             }
-            const controller = new AbortController();
-            const timeout = setTimeout(() => controller.abort(), 5000);
             try {
-                const response = await fetcher(checked.url, {
-                    method: "GET",
-                    headers,
-                    redirect: "error",
-                    signal: controller.signal,
-                });
+                const response =
+                    options.fetcher !== undefined
+                        ? await fetcher(checked.url, {
+                              method: "GET",
+                              headers,
+                              redirect: "error",
+                              signal: controller.signal,
+                          })
+                        : null;
+                const pinned =
+                    options.fetcher === undefined
+                        ? await pinnedHttpsRequest(
+                              checked.url,
+                              addresses[0]!,
+                              headers,
+                              controller.signal,
+                          )
+                        : null;
                 if (run !== generation)
                     return {
                         ok: false,
@@ -193,7 +315,7 @@ export function createRuntimeSettingsService(
                 ).map((entry) => entry.address);
                 if (
                     afterAddresses.length === 0 ||
-                    afterAddresses.some(isBlockedAddress) ||
+                    afterAddresses.some(isBlockedRuntimeAddress) ||
                     afterAddresses.some((address) => !addresses.includes(address))
                 )
                     return {
@@ -201,18 +323,19 @@ export function createRuntimeSettingsService(
                         message:
                             "The external settings host changed address during the request, so the response was discarded.",
                     };
-                if (response.status === 401 || response.status === 403)
+                const status = response?.status ?? pinned?.status ?? 0;
+                if (status === 401 || status === 403)
                     return {
                         ok: false,
                         message: "The external settings source rejected its credential.",
                         authRequired: true,
                     };
-                if (!response.ok)
+                if (response !== null && !response.ok)
                     return {
                         ok: false,
                         message: `The external settings source answered HTTP ${response.status}.`,
                     };
-                const body = await response.text();
+                const body = response !== null ? await response.text() : (pinned?.body ?? "");
                 if (body.length > 512 * 1024)
                     return {
                         ok: false,

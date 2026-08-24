@@ -27,6 +27,7 @@ import {
     updateRuntimeValues,
 } from "./store.js";
 import SearchablePicker from "./SearchablePicker.vue";
+import { createRuntimeSettingsCoordinator, type RuntimeCoordinatorBridge } from "./coordinator.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
 type RuntimeTab = "status" | "narrator" | "schedule" | "accommodations";
@@ -56,6 +57,7 @@ const statusRecord = ref<{
 const temporaryValues = ref<Partial<RuntimeValues>>({});
 const sessionOpenedAt = Date.now();
 const lastChangedAt = ref(Date.now());
+const lastActivityAt = ref(Date.now());
 const clock = ref(Date.now());
 const momentumDismissedUntil = ref(0);
 let clockTimer: ReturnType<typeof setInterval> | null = null;
@@ -64,12 +66,20 @@ let runtimeChannel: BroadcastChannel | null = null;
 const onRuntimeStorage = (event: StorageEvent): void => {
     if (event.key === "worldlens:runtime-settings:v1") state.value = loadRuntimeSettings();
 };
+const onRuntimeActivity = (): void => {
+    lastActivityAt.value = Date.now();
+};
 const originalDocumentTitle = typeof document === "undefined" ? "Worldlens" : document.title;
 const originalBodyFontFamily =
     typeof document === "undefined" ? "" : document.body.style.fontFamily;
 const originalBodyFontSize = typeof document === "undefined" ? "" : document.body.style.fontSize;
+const originalPrimary =
+    typeof document === "undefined"
+        ? ""
+        : document.documentElement.style.getPropertyValue("--v-theme-primary");
 let narrator: NarratorController | null = null;
 let unsubscribeVoices: (() => void) | null = null;
+let coordinator: ReturnType<typeof createRuntimeSettingsCoordinator> | null = null;
 
 const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
 const activeValues = computed(() =>
@@ -82,7 +92,10 @@ const sessionSeconds = computed(() =>
     Math.max(0, Math.floor((clock.value - sessionOpenedAt) / 1000)),
 );
 const idleSeconds = computed(() =>
-    Math.max(0, Math.floor((clock.value - lastChangedAt.value) / 1000)),
+    Math.max(
+        0,
+        Math.floor((clock.value - Math.max(lastChangedAt.value, lastActivityAt.value)) / 1000),
+    ),
 );
 const momentumVisible = computed(
     () =>
@@ -90,6 +103,12 @@ const momentumVisible = computed(
         idleSeconds.value >= 60 &&
         clock.value >= momentumDismissedUntil.value,
 );
+function accentRgb(value: string): string {
+    const hex = value.replace("#", "");
+    const parse = (offset: number): number =>
+        Number.parseInt(hex.slice(offset, offset + 2), 16) || 0;
+    return `${parse(0)}, ${parse(2)}, ${parse(4)}`;
+}
 const externalRules = computed(() =>
     state.value.schedules.filter((rule) => rule.source !== "local"),
 );
@@ -323,36 +342,14 @@ async function refreshExternalSources(): Promise<void> {
         );
         return;
     }
-    const rule = externalRules.value[0];
-    if (rule === undefined) return;
-    const bridge = typeof window === "undefined" ? undefined : window.worldlens?.runtimeSettings;
-    if (bridge === undefined) {
+    if (coordinator === null) {
         statusMessage.value =
             "External settings are unavailable because the privileged bridge is not present.";
         return;
     }
-    const result = await bridge.refreshExternal({
-        id: rule.id,
-        source: rule.source as "https" | "homeAssistant",
-        url: rule.sourceConfig.url ?? "",
-        ...(rule.sourceConfig.entityId === undefined
-            ? {}
-            : { entityId: rule.sourceConfig.entityId }),
-    });
-    if (!result.ok || result.values === undefined) {
-        statusMessage.value = result.message;
-        return;
-    }
-    temporaryValues.value = result.values as Partial<RuntimeValues>;
-    if (temporaryTimer !== null) clearTimeout(temporaryTimer);
-    temporaryTimer = setTimeout(
-        () => {
-            temporaryValues.value = {};
-            temporaryTimer = null;
-        },
-        5 * 60 * 1000,
-    );
-    statusMessage.value = `${result.message} The value is temporary and the local base remains recoverable.`;
+    await coordinator.refreshNow();
+    statusMessage.value =
+        "External settings refresh completed through the privileged bridge. Values are temporary and the local base remains recoverable.";
 }
 
 function dismissMomentum(): void {
@@ -379,6 +376,7 @@ watch(
             ? "true"
             : "false";
         document.documentElement.style.setProperty("--worldlens-runtime-accent", values.accent);
+        document.documentElement.style.setProperty("--v-theme-primary", accentRgb(values.accent));
         document.documentElement.style.setProperty(
             "--worldlens-runtime-font-family",
             values.fontFamily,
@@ -403,10 +401,11 @@ function narratorStatus(language: "en" | "yue"): ReturnType<typeof resolveVoiceS
 }
 
 function narratorVoiceLabel(language: "en" | "yue"): string {
-    const effective = narratorStatus(language).effective;
+    const status = narratorStatus(language);
+    const effective = status.effective;
     return effective === null
         ? "No matching voice is available on this computer."
-        : `Effective ${language === "yue" ? "Cantonese" : "English"} voice: ${effective.name}.`;
+        : `Effective ${language === "yue" ? "Cantonese" : "English"} voice: ${effective.name}${status.networkBacked ? " (network-backed)" : ""}.`;
 }
 
 function speakTest(): void {
@@ -427,6 +426,8 @@ onMounted(() => {
         clock.value = Date.now();
     }, 1000);
     window.addEventListener("storage", onRuntimeStorage);
+    window.addEventListener("pointerdown", onRuntimeActivity, { passive: true });
+    window.addEventListener("keydown", onRuntimeActivity, { passive: true });
     if (typeof BroadcastChannel !== "undefined") {
         runtimeChannel = new BroadcastChannel("worldlens-runtime-settings");
         runtimeChannel.onmessage = () => {
@@ -434,6 +435,22 @@ onMounted(() => {
         };
     }
     const bridge = typeof window === "undefined" ? undefined : window.worldlens?.runtimeSettings;
+    coordinator = createRuntimeSettingsCoordinator({
+        readState: () => state.value,
+        applyTemporary: (values) => {
+            temporaryValues.value = values as Partial<RuntimeValues>;
+            if (temporaryTimer !== null) clearTimeout(temporaryTimer);
+            temporaryTimer = setTimeout(
+                () => {
+                    temporaryValues.value = {};
+                    temporaryTimer = null;
+                },
+                5 * 60 * 1000,
+            );
+        },
+        bridge: (bridge ?? null) as RuntimeCoordinatorBridge | null,
+    });
+    coordinator.start();
     if (bridge !== undefined)
         void bridge.status().then((record) => {
             statusRecord.value = record;
@@ -447,15 +464,20 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+    coordinator?.stop();
+    coordinator = null;
     if (clockTimer !== null) clearInterval(clockTimer);
     if (temporaryTimer !== null) clearTimeout(temporaryTimer);
     window.removeEventListener("storage", onRuntimeStorage);
+    window.removeEventListener("pointerdown", onRuntimeActivity);
+    window.removeEventListener("keydown", onRuntimeActivity);
     runtimeChannel?.close();
     runtimeChannel = null;
     if (typeof document !== "undefined") {
         document.title = originalDocumentTitle;
         document.body.style.fontFamily = originalBodyFontFamily;
         document.body.style.fontSize = originalBodyFontSize;
+        document.documentElement.style.setProperty("--v-theme-primary", originalPrimary);
         delete document.documentElement.dataset.runtimeTheme;
         delete document.documentElement.dataset.runtimeDensity;
         delete document.documentElement.dataset.runtimeMotion;
@@ -658,13 +680,7 @@ onUnmounted(() => {
                         })
                 "
             />
-            <p class="mb-runtime-settings__hint">
-                {{
-                    narratorStatus("en").installed
-                        ? `Selected English voice is installed${narratorStatus("en").networkBacked ? " and network-backed" : ""}.`
-                        : "Choose automatically is active, or the selected English voice is not installed and will fall back."
-                }}
-            </p>
+            <p class="mb-runtime-settings__hint">{{ narratorVoiceLabel("en") }}</p>
             <SearchablePicker
                 :model-value="state.values.narrator.cantoneseVoiceId ?? ''"
                 label="Cantonese voice"
