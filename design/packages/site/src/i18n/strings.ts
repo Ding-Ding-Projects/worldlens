@@ -1222,6 +1222,7 @@ export const FIXED = {
     "site.searchTab": { en: "Search", yue: "搜尋" },
     "site.changelogTab": { en: "Changelog", yue: "變更記錄" },
     "site.notificationsTab": { en: "Notifications", yue: "通知" },
+    "site.universalContractsTab": { en: "Universal contracts", yue: "通用規格" },
     "site.discoveryTitle": { en: "Search everything", yue: "搜尋所有嘢" },
     "site.docsSearchHeading": { en: "Documentation search", yue: "說明文件搜尋" },
     "site.settingsSearchHeading": { en: "Settings search", yue: "設定搜尋" },
