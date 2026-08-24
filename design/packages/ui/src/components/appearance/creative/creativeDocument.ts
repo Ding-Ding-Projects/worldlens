@@ -16,6 +16,8 @@ import {
     type CreativeTextLayer,
     type CreativeVectorLayer,
     type CreativeImportResult,
+    type CreativePreset,
+    type CreativeLogoComposition,
 } from "./creativeTypes.js";
 import { DEFAULT_TYPOGRAPHY, type TypographySpec } from "../typographySpec.js";
 
@@ -35,6 +37,23 @@ const DEFAULT_EFFECTS: CreativeEffectStack = {
 const DEFAULT_MASK: CreativeMask = {
     enabled: false, kind: "rectangle", x: 0, y: 0, width: 100, height: 100, feather: 0,
 };
+const DEFAULT_LOGO: CreativeLogoComposition = {
+    enabled: false,
+    target: "appearance-target" as const,
+    safeArea: { inset: 10, enabled: true },
+    variants: [],
+};
+
+function canvasDefaults(width: number, height: number, background: string): CreativeCanvas {
+    return {
+        width, height, background,
+        crop: { top: 0, right: 0, bottom: 0, left: 0 },
+        rulers: true,
+        guides: [],
+        grid: { enabled: false, size: 16, snap: false },
+        safeArea: { inset: 10, enabled: false },
+    };
+}
 
 let sequence = 0;
 function id(prefix: string): string {
@@ -60,6 +79,8 @@ function snapshot(
     canvas: CreativeCanvas,
     layers: readonly CreativeLayer[],
     selectedLayerIds: readonly string[],
+    presets: readonly CreativePreset[] = [],
+    logo = DEFAULT_LOGO,
 ): CreativeHistoryEntry {
     return {
         id: id("history"),
@@ -68,6 +89,8 @@ function snapshot(
         canvas: clone(canvas),
         layers: clone(layers),
         selectedLayerIds: [...selectedLayerIds],
+        presets: clone(presets),
+        logo: clone(logo),
     };
 }
 
@@ -82,8 +105,10 @@ function withInitialHistory(
         canvas: clone(canvas),
         layers: clone(layers),
         selectedLayerIds: [...selectedLayerIds],
-        history: [snapshot("document created", canvas, layers, selectedLayerIds)],
+        history: [snapshot("document created", canvas, layers, selectedLayerIds, [], DEFAULT_LOGO)],
         historyCursor: 0,
+        presets: [],
+        logo: clone(DEFAULT_LOGO),
     };
 }
 
@@ -93,7 +118,7 @@ export function createCreativeDocument(
     const width = clamp(canvas.width ?? 1024, 1, 4096);
     const height = clamp(canvas.height ?? 768, 1, 4096);
     return withInitialHistory(
-        { width, height, background: canvas.background ?? "#202124" },
+        canvasDefaults(width, height, canvas.background ?? "#202124"),
         [],
         [],
     );
@@ -104,10 +129,10 @@ export function createTextLayer(overrides: Partial<CreativeTextLayer> = {}): Cre
         id: overrides.id ?? id("text"), name: cleanName(overrides.name ?? "Text", "Text"), kind: "text",
         parentId: overrides.parentId ?? null, visible: overrides.visible ?? true,
         opacity: clamp(overrides.opacity ?? 1, 0, 1), blendMode: overrides.blendMode ?? "normal",
-        clipped: overrides.clipped ?? false, mask: overrides.mask ?? null,
+        clipped: overrides.clipped ?? false, locked: overrides.locked ?? false, mask: overrides.mask ?? null,
         effects: clone(overrides.effects ?? DEFAULT_EFFECTS), text: (overrides.text ?? "Double-click to edit").slice(0, CREATIVE_LIMITS.maxTextLength),
         x: overrides.x ?? 96, y: overrides.y ?? 140, width: overrides.width ?? 640, height: overrides.height ?? 96,
-        rotation: overrides.rotation ?? 0, fill: overrides.fill ?? "#f8f9fa",
+        rotation: overrides.rotation ?? 0, scaleX: overrides.scaleX ?? 1, scaleY: overrides.scaleY ?? 1, fill: overrides.fill ?? "#f8f9fa",
         typography: clone(overrides.typography ?? ({ ...DEFAULT_TYPOGRAPHY } as Partial<TypographySpec>)),
     };
 }
@@ -117,10 +142,10 @@ export function createVectorLayer(overrides: Partial<CreativeVectorLayer> = {}):
         id: overrides.id ?? id("shape"), name: cleanName(overrides.name ?? "Shape", "Shape"), kind: "vector",
         parentId: overrides.parentId ?? null, visible: overrides.visible ?? true,
         opacity: clamp(overrides.opacity ?? 1, 0, 1), blendMode: overrides.blendMode ?? "normal",
-        clipped: overrides.clipped ?? false, mask: overrides.mask ?? null,
+        clipped: overrides.clipped ?? false, locked: overrides.locked ?? false, mask: overrides.mask ?? null,
         effects: clone(overrides.effects ?? DEFAULT_EFFECTS), shape: overrides.shape ?? "rect",
         x: overrides.x ?? 128, y: overrides.y ?? 192, width: overrides.width ?? 360, height: overrides.height ?? 180,
-        rotation: overrides.rotation ?? 0, fill: overrides.fill ?? "#8ab4f8", stroke: overrides.stroke ?? "#ffffff",
+        rotation: overrides.rotation ?? 0, scaleX: overrides.scaleX ?? 1, scaleY: overrides.scaleY ?? 1, fill: overrides.fill ?? "#8ab4f8", stroke: overrides.stroke ?? "#ffffff",
         strokeWidth: clamp(overrides.strokeWidth ?? 2, 0, 64),
     };
 }
@@ -130,9 +155,9 @@ export function createGradientLayer(overrides: Partial<CreativeGradientLayer> = 
         id: overrides.id ?? id("gradient"), name: cleanName(overrides.name ?? "Gradient", "Gradient"), kind: "gradient",
         parentId: overrides.parentId ?? null, visible: overrides.visible ?? true,
         opacity: clamp(overrides.opacity ?? 1, 0, 1), blendMode: overrides.blendMode ?? "normal",
-        clipped: overrides.clipped ?? false, mask: overrides.mask ?? null,
+        clipped: overrides.clipped ?? false, locked: overrides.locked ?? false, mask: overrides.mask ?? null,
         effects: clone(overrides.effects ?? DEFAULT_EFFECTS), x: overrides.x ?? 0, y: overrides.y ?? 0,
-        width: overrides.width ?? 1024, height: overrides.height ?? 768, angle: overrides.angle ?? 0,
+        width: overrides.width ?? 1024, height: overrides.height ?? 768, angle: overrides.angle ?? 0, scaleX: overrides.scaleX ?? 1, scaleY: overrides.scaleY ?? 1,
         stops: clone(overrides.stops ?? [{ offset: 0, color: "#8ab4f8" }, { offset: 1, color: "#c58af9" }]),
     };
 }
@@ -143,7 +168,7 @@ export function createCreativeLayer(kind: Exclude<CreativeLayer["kind"], "raster
     if (kind === "gradient") return createGradientLayer();
     return {
         id: id("group"), name: "Group", kind: "group", parentId: null, visible: true, opacity: 1,
-        blendMode: "normal", clipped: false, mask: null, effects: clone(DEFAULT_EFFECTS),
+        blendMode: "normal", clipped: false, locked: false, mask: null, effects: clone(DEFAULT_EFFECTS),
     };
 }
 
@@ -165,13 +190,14 @@ export function commitCreativeChange(
     next: Pick<CreativeAppearanceDocument, "canvas" | "layers" | "selectedLayerIds">,
     action: string,
 ): CreativeAppearanceDocument {
-    const entry = snapshot(action, next.canvas, next.layers, next.selectedLayerIds);
+    const entry = snapshot(action, next.canvas, next.layers, next.selectedLayerIds, document.presets, document.logo);
     const retained = document.history.slice(0, document.historyCursor + 1);
     const history = [...retained, entry].slice(-CREATIVE_LIMITS.maxHistory);
     return {
         format: CREATIVE_DOCUMENT_FORMAT, version: CREATIVE_DOCUMENT_VERSION,
         canvas: clone(next.canvas), layers: clone(next.layers), selectedLayerIds: [...next.selectedLayerIds],
         history, historyCursor: history.length - 1,
+        presets: clone(document.presets), logo: clone(document.logo),
     };
 }
 
@@ -180,7 +206,7 @@ function fromHistory(document: CreativeAppearanceDocument, cursor: number): Crea
     if (entry === undefined) return document;
     return {
         ...document, canvas: clone(entry.canvas), layers: clone(entry.layers),
-        selectedLayerIds: [...entry.selectedLayerIds], historyCursor: cursor,
+        selectedLayerIds: [...entry.selectedLayerIds], presets: clone(entry.presets), logo: clone(entry.logo), historyCursor: cursor,
     };
 }
 
@@ -215,9 +241,18 @@ export function addCreativeLayer(document: CreativeAppearanceDocument, layer: Cr
 }
 
 export function removeCreativeLayers(document: CreativeAppearanceDocument, ids: readonly string[]): CreativeAppearanceDocument {
-    const selected = new Set(ids);
-    const removedGroups = new Set(document.layers.filter((layer) => selected.has(layer.id) && layer.kind === "group").map((layer) => layer.id));
-    const keep = document.layers.filter((layer) => !selected.has(layer.id) && !removedGroups.has(layer.parentId ?? ""));
+    const removed = new Set(ids);
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const layer of document.layers) {
+            if (layer.parentId !== null && removed.has(layer.parentId) && !removed.has(layer.id)) {
+                removed.add(layer.id);
+                changed = true;
+            }
+        }
+    }
+    const keep = document.layers.filter((layer) => !removed.has(layer.id));
     return commitCreativeChange(document, { canvas: document.canvas, layers: keep, selectedLayerIds: [] }, "delete layers");
 }
 
@@ -247,11 +282,75 @@ export function groupCreativeLayers(document: CreativeAppearanceDocument, ids: r
 export function resetCreativeLayer(document: CreativeAppearanceDocument, layerId: string): CreativeAppearanceDocument {
     const layer = document.layers.find((candidate) => candidate.id === layerId);
     if (layer === undefined) return document;
-    const reset = layer.kind === "text" ? createTextLayer({ id: layer.id, name: layer.name, parentId: layer.parentId })
+    const reset = layer.kind === "group" ? { ...layer, visible: true, opacity: 1, blendMode: "normal" as const, clipped: false, locked: false, mask: null, effects: clone(DEFAULT_EFFECTS) }
+        : layer.kind === "raster" ? { ...layer, visible: true, opacity: 1, blendMode: "normal" as const, clipped: false, locked: false, mask: null, effects: clone(DEFAULT_EFFECTS), x: 0, y: 0, rotation: 0, scaleX: 1, scaleY: 1 }
+        : layer.kind === "text" ? createTextLayer({ id: layer.id, name: layer.name, parentId: layer.parentId })
         : layer.kind === "vector" ? createVectorLayer({ id: layer.id, name: layer.name, parentId: layer.parentId })
             : layer.kind === "gradient" ? createGradientLayer({ id: layer.id, name: layer.name, parentId: layer.parentId })
                 : layer;
     return updateCreativeLayer(document, layerId, reset, "reset layer");
+}
+
+export function duplicateCreativeLayers(document: CreativeAppearanceDocument, ids: readonly string[]): CreativeAppearanceDocument {
+    const selected = new Set(ids);
+    const copies = document.layers.filter((layer) => selected.has(layer.id)).map((layer) => ({
+        ...clone(layer), id: id(layer.kind), name: `${layer.name} copy`, x: "x" in layer ? layer.x + 24 : undefined,
+        y: "y" in layer ? layer.y + 24 : undefined,
+    } as CreativeLayer));
+    if (copies.length === 0 || document.layers.length + copies.length > CREATIVE_LIMITS.maxLayers) return document;
+    return commitCreativeChange(document, { canvas: document.canvas, layers: [...document.layers, ...copies], selectedLayerIds: copies.map((layer) => layer.id) }, "duplicate layers");
+}
+
+export function ungroupCreativeLayers(document: CreativeAppearanceDocument, groupId: string): CreativeAppearanceDocument {
+    const group = document.layers.find((layer) => layer.id === groupId && layer.kind === "group");
+    if (!group) return document;
+    const layers = document.layers.filter((layer) => layer.id !== groupId).map((layer) => layer.parentId === groupId ? { ...layer, parentId: group.parentId } : layer);
+    return commitCreativeChange(document, { canvas: document.canvas, layers, selectedLayerIds: layers.filter((layer) => layer.parentId === group.parentId).map((layer) => layer.id) }, "ungroup layers");
+}
+
+export function setCreativeCanvas(document: CreativeAppearanceDocument, patch: Partial<CreativeCanvas>, action = "adjust canvas"): CreativeAppearanceDocument {
+    const next = { ...document.canvas, ...clone(patch), width: clamp(patch.width ?? document.canvas.width, 1, 4096), height: clamp(patch.height ?? document.canvas.height, 1, 4096) };
+    return commitCreativeChange(document, { canvas: next, layers: document.layers, selectedLayerIds: document.selectedLayerIds }, action);
+}
+
+export function resetCreativeCanvas(document: CreativeAppearanceDocument): CreativeAppearanceDocument {
+    return setCreativeCanvas(document, canvasDefaults(1024, 768, "#202124"), "reset canvas");
+}
+
+export function alignCreativeLayers(document: CreativeAppearanceDocument, ids: readonly string[], axis: "left" | "center" | "right" | "top" | "middle" | "bottom"): CreativeAppearanceDocument {
+    const selected = document.layers.filter((layer): layer is Exclude<CreativeLayer, { kind: "group" }> => ids.includes(layer.id) && "x" in layer && "y" in layer);
+    if (selected.length < 2) return document;
+    const minX = Math.min(...selected.map((layer) => layer.x));
+    const maxRight = Math.max(...selected.map((layer) => layer.x + layer.width));
+    const minY = Math.min(...selected.map((layer) => layer.y));
+    const maxBottom = Math.max(...selected.map((layer) => layer.y + layer.height));
+    const layers = document.layers.map((layer) => {
+        if (!ids.includes(layer.id) || !("x" in layer) || !("y" in layer)) return layer;
+        const x = axis === "left" ? minX : axis === "center" ? (minX + maxRight - layer.width) / 2 : axis === "right" ? maxRight - layer.width : layer.x;
+        const y = axis === "top" ? minY : axis === "middle" ? (minY + maxBottom - layer.height) / 2 : axis === "bottom" ? maxBottom - layer.height : layer.y;
+        return { ...layer, x, y } as CreativeLayer;
+    });
+    return commitCreativeChange(document, { canvas: document.canvas, layers, selectedLayerIds: [...ids] }, `align ${axis}`);
+}
+
+export function setCreativeLogo(document: CreativeAppearanceDocument, logo: Partial<CreativeAppearanceDocument["logo"]>): CreativeAppearanceDocument {
+    const next = { ...document, logo: { ...document.logo, ...clone(logo) } };
+    const entry = snapshot("adjust logo composition", next.canvas, next.layers, next.selectedLayerIds, next.presets, next.logo);
+    const history = [...document.history.slice(0, document.historyCursor + 1), entry].slice(-CREATIVE_LIMITS.maxHistory);
+    return { ...next, history, historyCursor: history.length - 1 };
+}
+
+export function saveCreativePreset(document: CreativeAppearanceDocument, name: string): CreativeAppearanceDocument {
+    const preset = { id: id("preset"), name: cleanName(name, "Untitled preset"), canvas: clone(document.canvas), layers: clone(document.layers) };
+    const next = { ...document, presets: [...document.presets, preset].slice(-32) };
+    const entry = snapshot("save creative preset", next.canvas, next.layers, next.selectedLayerIds, next.presets, next.logo);
+    const history = [...document.history.slice(0, document.historyCursor + 1), entry].slice(-CREATIVE_LIMITS.maxHistory);
+    return { ...next, history, historyCursor: history.length - 1 };
+}
+
+export function resetCreativeDocument(document: CreativeAppearanceDocument): CreativeAppearanceDocument {
+    const next = createCreativeDocument();
+    return commitCreativeChange({ ...next, presets: document.presets, logo: document.logo }, { canvas: next.canvas, layers: [], selectedLayerIds: [] }, "reset creative document");
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -262,25 +361,74 @@ function validNumber(value: unknown, min = -1_000_000, max = 1_000_000): value i
     return typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
 }
 
-function validLayer(layer: unknown, depth: number): layer is CreativeLayer {
+const COLOR_RE = /^(?:#[0-9a-f]{3,8}|(?:rgb|rgba|hsl|hsla|hwb|oklab|oklch|lab|lch|color)\([^\n]{1,180}\)|[a-z]{1,32})$/i;
+
+function validColor(value: unknown): value is string {
+    return typeof value === "string" && value.length <= 192 && (value === "" || COLOR_RE.test(value));
+}
+
+function validRasterDataUrl(value: unknown): value is string {
+    if (typeof value !== "string" || value.length > CREATIVE_LIMITS.maxAssetBytes * 2) return false;
+    const match = /^data:(image\/(?:png|jpeg|webp|svg\+xml));base64,([a-z0-9+/=]+)$/i.exec(value);
+    if (!match || typeof globalThis.atob !== "function") return false;
+    try {
+        const binary = globalThis.atob(match[2]!);
+        if (binary.length > CREATIVE_LIMITS.maxAssetBytes) return false;
+        const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+        validateCreativeAssetBytes(bytes, match[1]!);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+function validEffects(value: unknown): value is CreativeEffectStack {
+    if (!isObject(value) || !validNumber(value.blur, 0, 128) || !validNumber(value.brightness, 0, 8) || !validNumber(value.contrast, 0, 8) || !validNumber(value.saturation, 0, 8) || !validNumber(value.hue, -360, 360) || !validNumber(value.grayscale, 0, 1) || !validNumber(value.sepia, 0, 1) || !validNumber(value.invert, 0, 1) || !isObject(value.shadow) || !isObject(value.innerGlow) || !isObject(value.outerGlow)) return false;
+    return validNumber(value.shadow.x, -4096, 4096) && validNumber(value.shadow.y, -4096, 4096) && validNumber(value.shadow.blur, 0, 256) && validColor(value.shadow.color) && validNumber(value.innerGlow.radius, 0, 256) && validColor(value.innerGlow.color) && validNumber(value.outerGlow.radius, 0, 256) && validColor(value.outerGlow.color);
+}
+
+function validLayer(layer: unknown, depth: number, ids: Set<string>, canvas: CreativeCanvas): layer is CreativeLayer {
     if (!isObject(layer) || depth > CREATIVE_LIMITS.maxNesting) return false;
-    if (typeof layer.id !== "string" || typeof layer.name !== "string" || typeof layer.kind !== "string") return false;
+    if (typeof layer.id !== "string" || layer.id.length === 0 || ids.has(layer.id) || typeof layer.name !== "string" || typeof layer.kind !== "string") return false;
+    ids.add(layer.id);
     if (layer.name.length > CREATIVE_LIMITS.maxNameLength || !["group", "raster", "vector", "text", "gradient"].includes(layer.kind)) return false;
     if (layer.parentId !== null && typeof layer.parentId !== "string") return false;
-    if (typeof layer.visible !== "boolean" || !validNumber(layer.opacity, 0, 1) || !BLEND_MODES.includes(layer.blendMode as CreativeBlendMode)) return false;
-    if (layer.kind === "text" && (typeof layer.text !== "string" || layer.text.length > CREATIVE_LIMITS.maxTextLength)) return false;
-    if (layer.kind === "raster" && (typeof layer.dataUrl !== "string" || !/^data:image\/(?:png|jpeg|webp|svg\+xml);base64,/i.test(layer.dataUrl))) return false;
+    if (typeof layer.visible !== "boolean" || typeof layer.locked !== "boolean" || typeof layer.clipped !== "boolean" || !validNumber(layer.opacity, 0, 1) || !BLEND_MODES.includes(layer.blendMode as CreativeBlendMode) || !validEffects(layer.effects)) return false;
+    if (layer.mask !== null && (!isObject(layer.mask) || typeof layer.mask.enabled !== "boolean" || !["rectangle", "ellipse"].includes(String(layer.mask.kind)) || !validNumber(layer.mask.x) || !validNumber(layer.mask.y) || !validNumber(layer.mask.width, 1, canvas.width) || !validNumber(layer.mask.height, 1, canvas.height) || !validNumber(layer.mask.feather, 0, 256))) return false;
+    if (layer.kind === "group") return true;
+    if (!validNumber(layer.x, -canvas.width, canvas.width * 2) || !validNumber(layer.y, -canvas.height, canvas.height * 2) || !validNumber(layer.width, 1, canvas.width * 2) || !validNumber(layer.height, 1, canvas.height * 2) || (layer.kind !== "gradient" && !validNumber(layer.rotation, -3600, 3600)) || !validNumber(layer.scaleX, 0.01, 100) || !validNumber(layer.scaleY, 0.01, 100)) return false;
+    if (layer.kind === "text" && (typeof layer.text !== "string" || layer.text.length > CREATIVE_LIMITS.maxTextLength || !validColor(layer.fill) || !isObject(layer.typography))) return false;
+    if (layer.kind === "raster" && !validRasterDataUrl(layer.dataUrl)) return false;
+    if (layer.kind === "vector" && (!validColor(layer.fill) || !validColor(layer.stroke) || !validNumber(layer.strokeWidth, 0, 64) || !["rect", "ellipse", "line"].includes(String(layer.shape)))) return false;
+    if (layer.kind === "gradient" && (!validNumber(layer.angle, -3600, 3600) || !Array.isArray(layer.stops) || layer.stops.length < 2 || layer.stops.length > 32 || !layer.stops.every((stop) => isObject(stop) && validNumber(stop.offset, 0, 1) && validColor(stop.color)))) return false;
     return true;
 }
 
 export function validateCreativeDocument(value: unknown): value is CreativeAppearanceDocument {
     if (!isObject(value) || value.format !== CREATIVE_DOCUMENT_FORMAT || value.version !== CREATIVE_DOCUMENT_VERSION) return false;
     const canvas = value.canvas;
-    if (!isObject(canvas) || !validNumber(canvas.width, 1, 4096) || !validNumber(canvas.height, 1, 4096) || typeof canvas.background !== "string") return false;
-    if (canvas.width * canvas.height > CREATIVE_LIMITS.maxCanvasPixels || !Array.isArray(value.layers) || value.layers.length > CREATIVE_LIMITS.maxLayers) return false;
-    if (!value.layers.every((layer) => validLayer(layer, 0)) || !Array.isArray(value.selectedLayerIds) || !value.selectedLayerIds.every((id) => typeof id === "string")) return false;
-    if (!Array.isArray(value.history) || value.history.length > CREATIVE_LIMITS.maxHistory || !validNumber(value.historyCursor, 0, value.history.length - 1)) return false;
-    return true;
+    if (!isObject(canvas) || !validNumber(canvas.width, 1, 4096) || !validNumber(canvas.height, 1, 4096) || !validColor(canvas.background) || canvas.width * canvas.height > CREATIVE_LIMITS.maxCanvasPixels) return false;
+    if (!isObject(canvas.crop) || !validNumber(canvas.crop.top, 0, canvas.height) || !validNumber(canvas.crop.right, 0, canvas.width) || !validNumber(canvas.crop.bottom, 0, canvas.height) || !validNumber(canvas.crop.left, 0, canvas.width) || typeof canvas.rulers !== "boolean" || !isObject(canvas.grid) || typeof canvas.grid.enabled !== "boolean" || !validNumber(canvas.grid.size, 1, 512) || typeof canvas.grid.snap !== "boolean" || !isObject(canvas.safeArea) || !validNumber(canvas.safeArea.inset, 0, 512) || typeof canvas.safeArea.enabled !== "boolean" || !Array.isArray(canvas.guides) || canvas.guides.length > 128 || !canvas.guides.every((guide) => isObject(guide) && typeof guide.id === "string" && ["x", "y"].includes(String(guide.axis)) && validNumber(guide.position, -4096, 8192))) return false;
+    if (!Array.isArray(value.layers) || value.layers.length > CREATIVE_LIMITS.maxLayers) return false;
+    const safeCanvas = canvas as unknown as CreativeCanvas;
+    const ids = new Set<string>();
+    if (!value.layers.every((layer) => validLayer(layer, 0, ids, safeCanvas))) return false;
+    if (value.layers.some((layer) => layer.parentId !== null && !ids.has(layer.parentId))) return false;
+    for (const layer of value.layers) {
+        const seen = new Set<string>();
+        let parent = layer.parentId;
+        while (parent !== null) {
+            if (seen.has(parent)) return false;
+            seen.add(parent);
+            const ancestor = value.layers.find((candidate) => candidate.id === parent);
+            parent = ancestor?.parentId ?? null;
+            if (seen.size > CREATIVE_LIMITS.maxNesting) return false;
+        }
+    }
+    if (!Array.isArray(value.selectedLayerIds) || value.selectedLayerIds.some((id) => typeof id !== "string" || !ids.has(id))) return false;
+    if (!Array.isArray(value.history) || value.history.length > CREATIVE_LIMITS.maxHistory || !validNumber(value.historyCursor, 0, Math.max(0, value.history.length - 1))) return false;
+    if (!Array.isArray(value.presets) || value.presets.length > 32 || !isObject(value.logo) || typeof value.logo.enabled !== "boolean" || !["app-logo", "appearance-target"].includes(String(value.logo.target)) || !isObject(value.logo.safeArea) || !validNumber(value.logo.safeArea.inset, 0, 512) || typeof value.logo.safeArea.enabled !== "boolean" || !Array.isArray(value.logo.variants) || value.logo.variants.length > 8 || !value.logo.variants.every((variant) => isObject(variant) && typeof variant.id === "string" && validNumber(variant.width, 1, 2048) && validNumber(variant.height, 1, 2048) && typeof variant.dataUrl === "string" && /^data:image\/svg\+xml;charset=utf-8,/i.test(variant.dataUrl))) return false;
+    return value.history.every((entry) => isObject(entry) && typeof entry.id === "string" && typeof entry.action === "string" && typeof entry.timestamp === "string" && isObject(entry.canvas) && Array.isArray(entry.layers) && Array.isArray(entry.selectedLayerIds) && Array.isArray(entry.presets) && isObject(entry.logo));
 }
 
 export function importCreativeDocument(text: string): CreativeImportResult {
@@ -309,7 +457,7 @@ export function validateCreativeAssetBytes(bytes: Uint8Array, mime = ""): Creati
         return { format: "png", width, height, frames: 1, mime: mime || "image/png" };
     }
     if (bytes.length >= 12 && bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) {
-        const animated = bytes.length >= 25 && bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38 && bytes[15] === 0x58 && (bytes[20] & 0x02) !== 0;
+        const animated = bytes.length >= 25 && bytes[12] === 0x56 && bytes[13] === 0x50 && bytes[14] === 0x38 && bytes[15] === 0x58 && (bytes[20]! & 0x02) !== 0;
         if (animated || bytes.includes(0x41) && bytes.includes(0x4e) && bytes.includes(0x49) && bytes.includes(0x4d)) throw new Error("Animated images are not supported.");
         return { format: "webp", width: 0, height: 0, frames: 1, mime: mime || "image/webp" };
     }

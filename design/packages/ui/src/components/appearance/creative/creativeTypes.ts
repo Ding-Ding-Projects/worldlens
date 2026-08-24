@@ -36,6 +36,11 @@ export interface CreativeCanvas {
     readonly width: number;
     readonly height: number;
     readonly background: string;
+    readonly crop: { readonly top: number; readonly right: number; readonly bottom: number; readonly left: number };
+    readonly rulers: boolean;
+    readonly guides: readonly { readonly id: string; readonly axis: "x" | "y"; readonly position: number }[];
+    readonly grid: { readonly enabled: boolean; readonly size: number; readonly snap: boolean };
+    readonly safeArea: { readonly inset: number; readonly enabled: boolean };
 }
 
 export interface CreativeEffectStack {
@@ -76,6 +81,7 @@ export interface CreativeLayerBase {
     readonly opacity: number;
     readonly blendMode: CreativeBlendMode;
     readonly clipped: boolean;
+    readonly locked: boolean;
     readonly mask: CreativeMask | null;
     readonly effects: CreativeEffectStack;
 }
@@ -92,6 +98,8 @@ export interface CreativeRasterLayer extends CreativeLayerBase {
     readonly width: number;
     readonly height: number;
     readonly rotation: number;
+    readonly scaleX: number;
+    readonly scaleY: number;
     readonly flipX: boolean;
     readonly flipY: boolean;
 }
@@ -104,6 +112,8 @@ export interface CreativeVectorLayer extends CreativeLayerBase {
     readonly width: number;
     readonly height: number;
     readonly rotation: number;
+    readonly scaleX: number;
+    readonly scaleY: number;
     readonly fill: string;
     readonly stroke: string;
     readonly strokeWidth: number;
@@ -117,6 +127,8 @@ export interface CreativeTextLayer extends CreativeLayerBase {
     readonly width: number;
     readonly height: number;
     readonly rotation: number;
+    readonly scaleX: number;
+    readonly scaleY: number;
     readonly fill: string;
     readonly typography: Partial<TypographySpec>;
 }
@@ -128,6 +140,8 @@ export interface CreativeGradientLayer extends CreativeLayerBase {
     readonly width: number;
     readonly height: number;
     readonly angle: number;
+    readonly scaleX: number;
+    readonly scaleY: number;
     readonly stops: readonly { readonly offset: number; readonly color: string }[];
 }
 
@@ -145,6 +159,8 @@ export interface CreativeHistoryEntry {
     readonly canvas: CreativeCanvas;
     readonly layers: readonly CreativeLayer[];
     readonly selectedLayerIds: readonly string[];
+    readonly presets: readonly CreativePreset[];
+    readonly logo: CreativeLogoComposition;
 }
 
 export interface CreativeAppearanceDocument {
@@ -155,6 +171,22 @@ export interface CreativeAppearanceDocument {
     readonly selectedLayerIds: readonly string[];
     readonly history: readonly CreativeHistoryEntry[];
     readonly historyCursor: number;
+    readonly presets: readonly CreativePreset[];
+    readonly logo: CreativeLogoComposition;
+}
+
+export interface CreativePreset {
+    readonly id: string;
+    readonly name: string;
+    readonly canvas: CreativeCanvas;
+    readonly layers: readonly CreativeLayer[];
+}
+
+export interface CreativeLogoComposition {
+    readonly enabled: boolean;
+    readonly target: "app-logo" | "appearance-target";
+    readonly safeArea: { readonly inset: number; readonly enabled: boolean };
+    readonly variants: readonly { readonly id: string; readonly width: number; readonly height: number; readonly dataUrl: string }[];
 }
 
 /**

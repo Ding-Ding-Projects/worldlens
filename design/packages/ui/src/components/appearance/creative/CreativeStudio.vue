@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import {
     addCreativeLayer,
     createCreativeDocument,
     createCreativeLayer,
     exportCreativeDocument,
     groupCreativeLayers,
+    duplicateCreativeLayers,
+    ungroupCreativeLayers,
+    alignCreativeLayers,
+    setCreativeCanvas,
+    setCreativeLogo,
+    saveCreativePreset,
+    resetCreativeDocument,
     importCreativeAsset,
     importCreativeDocument,
     removeCreativeLayers,
@@ -23,6 +31,7 @@ import {
     type CreativeAppearanceDocument,
     type CreativeLayer,
 } from "./creativeTypes.js";
+import type { TypographySpec } from "../typographySpec.js";
 
 const props = withDefaults(defineProps<{
     modelValue?: CreativeAppearanceDocument;
@@ -31,6 +40,7 @@ const props = withDefaults(defineProps<{
 }>(), {
     targetLabel: "Appearance target",
 });
+const { t } = useI18n();
 
 const emit = defineEmits<{
     "update:modelValue": [CreativeAppearanceDocument];
@@ -47,17 +57,30 @@ const regexFlags = ref("i");
 const fileInput = ref<HTMLInputElement>();
 const importError = ref("");
 const importState = ref<"idle" | "reading" | "ready" | "error">("idle");
+const regexSample = ref("");
+const regexPattern = ref("");
 
 watch(() => props.modelValue, (value) => { if (value) document.value = value; });
 
 const visibleLayers = computed(() => {
-    const source = query.value.trim();
+    const source = (regexMode.value ? regexPattern.value : query.value).trim();
     if (!source) return document.value.layers;
     try {
         const matcher = regexMode.value ? new RegExp(source, regexFlags.value) : undefined;
         return document.value.layers.filter((layer) => matcher ? matcher.test(`${layer.name} ${layer.kind}`) : `${layer.name} ${layer.kind}`.toLocaleLowerCase().includes(source.toLocaleLowerCase()));
     } catch {
         return [];
+    }
+});
+
+const regexStatus = computed(() => {
+    if (!regexMode.value) return { error: "", matches: 0, captures: [] as string[] };
+    try {
+        const matcher = new RegExp(regexPattern.value, regexFlags.value.includes("g") ? regexFlags.value : `${regexFlags.value}g`);
+        const matches = [...regexSample.value.matchAll(matcher)];
+        return { error: "", matches: matches.length, captures: matches.flatMap((match) => match.slice(1).filter((value): value is string => value !== undefined)) };
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : "Invalid regular expression.", matches: 0, captures: [] as string[] };
     }
 });
 
@@ -85,6 +108,22 @@ function updateSelected(patch: Partial<CreativeLayer>, action = "adjust layer"):
     publish(updateCreativeLayer(document.value, selectedLayer.value.id, patch, action));
 }
 
+function updateTypography(patch: Partial<TypographySpec>, action = "adjust typography"): void {
+    if (selectedLayer.value?.kind !== "text") return;
+    updateSelected({ typography: { ...selectedLayer.value.typography, ...patch } }, action);
+}
+
+function updateEffect(patch: Partial<CreativeLayer["effects"]>, action = "adjust effect"): void {
+    if (!selectedLayer.value) return;
+    updateSelected({ effects: { ...selectedLayer.value.effects, ...patch } }, action);
+}
+
+function updateGradientStop(index: number, patch: { color?: string; offset?: number }): void {
+    if (selectedLayer.value?.kind !== "gradient") return;
+    const stops = selectedLayer.value.stops.map((stop, stopIndex) => stopIndex === index ? { ...stop, ...patch } : stop);
+    updateSelected({ stops }, "adjust gradient stop");
+}
+
 function inputValue(event: Event): string {
     return (event.target as HTMLInputElement | HTMLTextAreaElement).value;
 }
@@ -97,8 +136,20 @@ function blendValue(event: Event): CreativeLayer["blendMode"] {
     return inputValue(event) as CreativeLayer["blendMode"];
 }
 
+function logoTargetValue(event: Event): "app-logo" | "appearance-target" {
+    return inputValue(event) === "app-logo" ? "app-logo" : "appearance-target";
+}
+
 function layerRotation(layer: CreativeLayer): number {
     return "rotation" in layer ? layer.rotation : 0;
+}
+
+function layerWidth(layer: CreativeLayer): number {
+    return "width" in layer ? layer.width : 100;
+}
+
+function layerHeight(layer: CreativeLayer): number {
+    return "height" in layer ? layer.height : 100;
 }
 
 function toggleSelected(): void {
@@ -108,6 +159,40 @@ function toggleSelected(): void {
 
 function toggleRegex(): void {
     regexMode.value = !regexMode.value;
+    regexPattern.value = regexMode.value ? query.value : "";
+}
+
+function addRegexToken(token: string): void {
+    regexPattern.value += token;
+    query.value = regexPattern.value;
+}
+
+function selectLayerByKeyboard(event: KeyboardEvent, layer: CreativeLayer, index: number): void {
+    if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectLayer(layer, event.shiftKey || event.ctrlKey || event.metaKey);
+        return;
+    }
+    if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    event.preventDefault();
+    const next = Math.max(0, Math.min(visibleLayers.value.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)));
+    const target = visibleLayers.value[next];
+    if (target) selectLayer(target, event.shiftKey);
+}
+
+function updateCanvasField(patch: Partial<CreativeAppearanceDocument["canvas"]>, action: string): void {
+    publish(setCreativeCanvas(document.value, patch, action));
+}
+
+function generateLogoVariants(): void {
+    const svg = renderCreativeSvg(document.value);
+    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    const variants = [24, 64, 128, 256, 512].map((size) => ({ id: `logo-${size}`, width: size, height: size, dataUrl }));
+    publish(setCreativeLogo(document.value, { enabled: true, target: "app-logo", variants }));
+}
+
+async function copyRegex(): Promise<void> {
+    if (typeof navigator !== "undefined" && navigator.clipboard) await navigator.clipboard.writeText(regexPattern.value);
 }
 
 function exportDocument(): void {
@@ -157,9 +242,9 @@ async function onAssetImport(event: Event): Promise<void> {
     <section class="mb-creative-studio" :aria-label="`Creative appearance studio for ${targetLabel}`">
         <header class="mb-creative-studio__header">
             <div>
-                <p class="mb-creative-studio__eyebrow">Creative appearance studio</p>
+                <p class="mb-creative-studio__eyebrow">{{ t('appearance.creative.eyebrow', 'Creative appearance studio') }}</p>
                 <h2>{{ targetLabel }}</h2>
-                <p class="mb-creative-studio__subhead">Compose layers, typography, masks and effects locally. The package identity never changes.</p>
+                <p class="mb-creative-studio__subhead">{{ t('appearance.creative.subhead', 'Compose layers, typography, masks and effects locally. The package identity never changes.') }}</p>
             </div>
             <div class="mb-creative-studio__actions">
                 <button type="button" @click="exportDocument">Export</button>
@@ -177,9 +262,14 @@ async function onAssetImport(event: Event): Promise<void> {
             <button type="button" @click="add('gradient')">Add gradient</button>
             <button type="button" @click="add('group')">Add group</button>
             <button type="button" :disabled="selected.length < 2" @click="publish(groupCreativeLayers(document, selected))">Group selected</button>
+            <button type="button" :disabled="selected.length === 0" @click="publish(duplicateCreativeLayers(document, selected))">Duplicate</button>
+            <button type="button" :disabled="selected.length !== 1 || selectedLayer?.kind !== 'group'" @click="publish(ungroupCreativeLayers(document, selected[0]!))">Ungroup</button>
+            <button type="button" :disabled="selected.length < 2" @click="publish(alignCreativeLayers(document, selected, 'left'))">Align left</button>
+            <button type="button" :disabled="selected.length < 2" @click="publish(alignCreativeLayers(document, selected, 'middle'))">Align middle</button>
             <button type="button" :disabled="selected.length === 0" @click="publish(removeCreativeLayers(document, selected))">Delete selected</button>
             <button type="button" :disabled="document.historyCursor <= 0" @click="publish(undoCreative(document))">Undo</button>
             <button type="button" :disabled="document.historyCursor >= document.history.length - 1" @click="publish(redoCreative(document))">Redo</button>
+            <button type="button" @click="publish(resetCreativeDocument(document))">Reset document</button>
         </div>
 
         <div class="mb-creative-studio__workbench">
@@ -189,10 +279,22 @@ async function onAssetImport(event: Event): Promise<void> {
                     <button type="button" :aria-pressed="regexMode" aria-label="Toggle layer regex builder" @click="toggleRegex">.*</button>
                     <input v-if="regexMode" v-model="regexFlags" class="mb-creative-studio__flags" aria-label="Regex flags" maxlength="8" />
                 </div>
+                <div v-if="regexMode" class="mb-creative-studio__regex-builder" aria-label="Layer regex builder">
+                    <div class="mb-creative-studio__regex-tokens" aria-label="Guided regex tokens">
+                        <button v-for="token in ['^', '$', '.*', '[ ]', '( )', '|', '+']" :key="token" type="button" @click="addRegexToken(token)">{{ token }}</button>
+                    </div>
+                    <input v-model="regexPattern" aria-label="Regex pattern" placeholder="Raw pattern" />
+                    <input v-model="regexFlags" aria-label="Regex flags" maxlength="8" placeholder="Flags" />
+                    <textarea v-model="regexSample" aria-label="Regex sample text" placeholder="Sample text for matches and captures" />
+                    <p v-if="regexStatus.error" class="mb-creative-studio__error" role="alert">{{ regexStatus.error }}</p>
+                    <p v-else class="mb-creative-studio__regex-help">{{ regexStatus.matches }} matches, {{ regexStatus.captures.length }} capture values.</p>
+                    <button type="button" @click="copyRegex">Copy pattern</button>
+                </div>
                 <p v-if="regexMode" class="mb-creative-studio__regex-help">Regex mode uses the local JavaScript engine. Invalid patterns show no matches.</p>
-                <ul class="mb-creative-studio__layer-list">
-                    <li v-for="layer in visibleLayers" :key="layer.id" :class="{ 'is-selected': selected.includes(layer.id) }">
-                        <button type="button" class="mb-creative-studio__layer-row" :aria-pressed="selected.includes(layer.id)" @click="selectLayer(layer, $event.ctrlKey || $event.metaKey)">
+                <div class="mb-creative-studio__selection-count" role="status">{{ selected.length }} layer{{ selected.length === 1 ? '' : 's' }} selected</div>
+                <ul class="mb-creative-studio__layer-list" role="listbox" aria-multiselectable="true" aria-label="Creative layers">
+                    <li v-for="(layer, index) in visibleLayers" :key="layer.id" role="option" :aria-selected="selected.includes(layer.id)" :class="{ 'is-selected': selected.includes(layer.id) }">
+                        <button type="button" class="mb-creative-studio__layer-row" :aria-pressed="selected.includes(layer.id)" @keydown="selectLayerByKeyboard($event, layer, index)" @click="selectLayer(layer, $event.ctrlKey || $event.metaKey || $event.shiftKey)">
                             <span class="mb-creative-studio__layer-kind" aria-hidden="true">{{ layer.kind === 'text' ? 'T' : layer.kind === 'vector' ? '◇' : layer.kind === 'gradient' ? '◒' : layer.kind === 'group' ? '▦' : '▧' }}</span>
                             <span class="mb-creative-studio__layer-name">{{ layer.name }}</span>
                             <span class="mb-creative-studio__layer-state">{{ Math.round(layer.opacity * 100) }}%</span>
@@ -206,6 +308,29 @@ async function onAssetImport(event: Event): Promise<void> {
             </aside>
 
             <main class="mb-creative-studio__canvas-area">
+                <details class="mb-creative-studio__canvas-controls" open>
+                    <summary>Canvas, crop, guides and logo variants</summary>
+                    <div class="mb-creative-studio__control-grid">
+                        <label>Width <input :value="document.canvas.width" type="number" min="1" max="4096" @change="updateCanvasField({ width: inputNumber($event) }, 'resize canvas')" /></label>
+                        <label>Height <input :value="document.canvas.height" type="number" min="1" max="4096" @change="updateCanvasField({ height: inputNumber($event) }, 'resize canvas')" /></label>
+                        <label>Background <input :value="document.canvas.background" type="text" @change="updateCanvasField({ background: inputValue($event) }, 'change canvas background')" /></label>
+                        <label class="mb-creative-studio__check"><input :checked="document.canvas.rulers" type="checkbox" @change="updateCanvasField({ rulers: !document.canvas.rulers }, 'toggle rulers')" /> Rulers</label>
+                        <label class="mb-creative-studio__check"><input :checked="document.canvas.grid.enabled" type="checkbox" @change="updateCanvasField({ grid: { ...document.canvas.grid, enabled: !document.canvas.grid.enabled } }, 'toggle grid')" /> Grid</label>
+                        <label>Grid size <input :value="document.canvas.grid.size" type="number" min="1" max="512" @change="updateCanvasField({ grid: { ...document.canvas.grid, size: inputNumber($event) } }, 'adjust grid')" /></label>
+                        <label class="mb-creative-studio__check"><input :checked="document.canvas.grid.snap" type="checkbox" @change="updateCanvasField({ grid: { ...document.canvas.grid, snap: !document.canvas.grid.snap } }, 'toggle snapping')" /> Snap</label>
+                        <label>Safe area <input :value="document.canvas.safeArea.inset" type="number" min="0" max="512" @change="updateCanvasField({ safeArea: { ...document.canvas.safeArea, inset: inputNumber($event) } }, 'adjust safe area')" /></label>
+                    </div>
+                    <div class="mb-creative-studio__logo-controls">
+                        <label class="mb-creative-studio__check"><input :checked="document.logo.enabled" type="checkbox" @change="publish(setCreativeLogo(document, { enabled: !document.logo.enabled }))" /> Compose as app logo</label>
+                        <label>Logo target <input :value="document.logo.target" list="creative-logo-targets" @change="publish(setCreativeLogo(document, { target: logoTargetValue($event) }))" /></label>
+                        <datalist id="creative-logo-targets"><option value="app-logo" /><option value="appearance-target" /></datalist>
+                        <button type="button" @click="publish(saveCreativePreset(document, `Logo preset ${document.presets.length + 1}`))">Save preset</button>
+                        <button type="button" @click="generateLogoVariants">Generate logo variants</button>
+                    </div>
+                    <div v-if="document.logo.variants.length" class="mb-creative-studio__logo-variants" aria-label="Logo size previews">
+                        <figure v-for="variant in document.logo.variants" :key="variant.id"><img :src="variant.dataUrl" :alt="`Logo preview at ${variant.width} by ${variant.height} pixels`" /><figcaption>{{ variant.width }} × {{ variant.height }} px</figcaption></figure>
+                    </div>
+                </details>
                 <div class="mb-creative-studio__canvas" v-html="renderCreativeSvg(document)" />
                 <p class="mb-creative-studio__canvas-caption">Live SVG preview, {{ document.canvas.width }} × {{ document.canvas.height }} px. Every adjustment above changes this preview.</p>
             </main>
@@ -225,8 +350,49 @@ async function onAssetImport(event: Event): Promise<void> {
                         <label>Width <input :value="selectedLayer.width" type="number" min="1" @change="updateSelected({ width: inputNumber($event) }, 'adjust width')" /></label>
                         <label>Height <input :value="selectedLayer.height" type="number" min="1" @change="updateSelected({ height: inputNumber($event) }, 'adjust height')" /></label>
                         <label>Rotation <input :value="layerRotation(selectedLayer)" type="number" min="-360" max="360" @change="updateSelected({ rotation: inputNumber($event) }, 'rotate layer')" /></label>
+                        <label>Scale X <input :value="'scaleX' in selectedLayer ? selectedLayer.scaleX : 1" type="number" min="0.01" max="100" step="0.01" @change="updateSelected({ scaleX: inputNumber($event) }, 'scale layer')" /></label>
+                        <label>Scale Y <input :value="'scaleY' in selectedLayer ? selectedLayer.scaleY : 1" type="number" min="0.01" max="100" step="0.01" @change="updateSelected({ scaleY: inputNumber($event) }, 'scale layer')" /></label>
                     </template>
+                    <label v-if="selectedLayer.kind === 'raster'" class="mb-creative-studio__check"><input :checked="selectedLayer.flipX" type="checkbox" @change="updateSelected({ flipX: !selectedLayer.flipX }, 'flip layer')" /> Flip horizontal</label>
+                    <label v-if="selectedLayer.kind === 'raster'" class="mb-creative-studio__check"><input :checked="selectedLayer.flipY" type="checkbox" @change="updateSelected({ flipY: !selectedLayer.flipY }, 'flip layer')" /> Flip vertical</label>
+                    <label class="mb-creative-studio__check"><input :checked="selectedLayer.clipped" type="checkbox" @change="updateSelected({ clipped: !selectedLayer.clipped }, 'toggle clipping mask')" /> Use as clipping mask</label>
+                    <label class="mb-creative-studio__check"><input :checked="selectedLayer.locked" type="checkbox" @change="updateSelected({ locked: !selectedLayer.locked }, 'toggle layer lock')" /> Lock layer</label>
+                    <button v-if="selectedLayer.mask === null" type="button" @click="updateSelected({ mask: { enabled: true, kind: 'rectangle', x: 0, y: 0, width: layerWidth(selectedLayer), height: layerHeight(selectedLayer), feather: 0 } }, 'add mask')">Add mask</button>
+                    <fieldset class="mb-creative-studio__effect-fields"><legend>Effects</legend>
+                        <label>Blur <input :value="selectedLayer.effects.blur" type="range" min="0" max="128" step="1" @input="updateEffect({ blur: inputNumber($event) })" /></label>
+                        <label>Brightness <input :value="selectedLayer.effects.brightness" type="range" min="0" max="3" step="0.01" @input="updateEffect({ brightness: inputNumber($event) })" /></label>
+                        <label>Contrast <input :value="selectedLayer.effects.contrast" type="range" min="0" max="3" step="0.01" @input="updateEffect({ contrast: inputNumber($event) })" /></label>
+                        <label>Saturation <input :value="selectedLayer.effects.saturation" type="range" min="0" max="3" step="0.01" @input="updateEffect({ saturation: inputNumber($event) })" /></label>
+                        <label>Hue <input :value="selectedLayer.effects.hue" type="range" min="-360" max="360" step="1" @input="updateEffect({ hue: inputNumber($event) })" /></label>
+                        <label>Shadow colour <input :value="selectedLayer.effects.shadow.color" type="text" @change="updateEffect({ shadow: { ...selectedLayer.effects.shadow, color: inputValue($event) } })" /></label>
+                        <label>Outer glow colour <input :value="selectedLayer.effects.outerGlow.color" type="text" @change="updateEffect({ outerGlow: { ...selectedLayer.effects.outerGlow, color: inputValue($event) } })" /></label>
+                        <label>Inner glow colour <input :value="selectedLayer.effects.innerGlow.color" type="text" @change="updateEffect({ innerGlow: { ...selectedLayer.effects.innerGlow, color: inputValue($event) } })" /></label>
+                    </fieldset>
+                    <fieldset v-if="selectedLayer.mask" class="mb-creative-studio__effect-fields"><legend>Mask</legend>
+                        <label class="mb-creative-studio__check"><input :checked="selectedLayer.mask.enabled" type="checkbox" @change="updateSelected({ mask: { ...selectedLayer.mask, enabled: !selectedLayer.mask.enabled } }, 'toggle mask')" /> Mask enabled</label>
+                        <label>Mask width <input :value="selectedLayer.mask.width" type="number" min="1" @change="updateSelected({ mask: { ...selectedLayer.mask, width: inputNumber($event) } }, 'resize mask')" /></label>
+                        <label>Mask height <input :value="selectedLayer.mask.height" type="number" min="1" @change="updateSelected({ mask: { ...selectedLayer.mask, height: inputNumber($event) } }, 'resize mask')" /></label>
+                        <label>Feather <input :value="selectedLayer.mask.feather" type="number" min="0" max="256" @change="updateSelected({ mask: { ...selectedLayer.mask, feather: inputNumber($event) } }, 'feather mask')" /></label>
+                    </fieldset>
                     <label v-if="selectedLayer.kind === 'text'">Text <textarea :value="selectedLayer.text" maxlength="8000" @input="updateSelected({ text: inputValue($event) }, 'edit text')" /></label>
+                    <fieldset v-if="selectedLayer.kind === 'text'" class="mb-creative-studio__effect-fields"><legend>Word-depth typography</legend>
+                        <label>Font family <input :value="selectedLayer.typography.fontFamily ?? 'Roboto'" @change="updateTypography({ fontFamily: inputValue($event) })" /></label>
+                        <label>Font size <input :value="selectedLayer.typography.fontSize ?? 14" type="number" min="1" max="512" @change="updateTypography({ fontSize: inputNumber($event) })" /></label>
+                        <label>Weight <input :value="selectedLayer.typography.fontWeight ?? 400" type="number" min="1" max="1000" @change="updateTypography({ fontWeight: inputNumber($event) })" /></label>
+                        <label class="mb-creative-studio__check"><input :checked="selectedLayer.typography.bold ?? false" type="checkbox" @change="updateTypography({ bold: !selectedLayer.typography.bold })" /> Bold</label>
+                        <label class="mb-creative-studio__check"><input :checked="selectedLayer.typography.smallCaps ?? false" type="checkbox" @change="updateTypography({ smallCaps: !selectedLayer.typography.smallCaps })" /> Small caps</label>
+                        <label>Text colour <input :value="selectedLayer.typography.textColor ?? ''" @change="updateTypography({ textColor: inputValue($event) })" /></label>
+                        <label>Highlight <input :value="selectedLayer.typography.highlight ?? ''" @change="updateTypography({ highlight: inputValue($event) })" /></label>
+                        <label>Letter spacing <input :value="selectedLayer.typography.letterSpacing ?? 0" type="number" min="-20" max="100" step="0.1" @change="updateTypography({ letterSpacing: inputNumber($event) })" /></label>
+                        <label>Line height <input :value="selectedLayer.typography.lineHeight ?? 1.5" type="number" min="0.5" max="5" step="0.1" @change="updateTypography({ lineHeight: inputNumber($event) })" /></label>
+                    </fieldset>
+                    <fieldset v-if="selectedLayer.kind === 'gradient'" class="mb-creative-studio__effect-fields"><legend>Gradient stops</legend>
+                        <label>Angle <input :value="selectedLayer.angle" type="number" min="-360" max="360" @change="updateSelected({ angle: inputNumber($event) }, 'rotate gradient')" /></label>
+                        <div v-for="(stop, stopIndex) in selectedLayer.stops" :key="`${selectedLayer.id}-stop-${stopIndex}`" class="mb-creative-studio__stop">
+                            <input :value="stop.color" aria-label="Gradient stop colour" @change="updateGradientStop(stopIndex, { color: inputValue($event) })" />
+                            <input :value="stop.offset" aria-label="Gradient stop position" type="range" min="0" max="1" step="0.01" @input="updateGradientStop(stopIndex, { offset: inputNumber($event) })" />
+                        </div>
+                    </fieldset>
                     <label v-if="'fill' in selectedLayer">Fill <input :value="selectedLayer.fill" type="text" @change="updateSelected({ fill: inputValue($event) }, 'change fill')" /></label>
                     <p v-if="selectedLayer.kind === 'text'" class="mb-creative-studio__hint">Text layers retain the full Word-depth typography shape for the core editor to compose later.</p>
                     <button type="button" @click="publish(resetCreativeLayer(document, selectedLayer.id))">Reset selected layer</button>
@@ -253,12 +419,24 @@ async function onAssetImport(event: Event): Promise<void> {
 .mb-creative-studio__file, .mb-creative-studio__asset-button input { position: absolute; inline-size: 1px; block-size: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 .mb-creative-studio__asset-button { display: inline-flex; align-items: center; min-block-size: 36px; padding: 6px 9px; border: 1px solid rgba(var(--v-theme-on-surface), .24); border-radius: 8px; cursor: pointer; }
 .mb-creative-studio__toolbar { padding: 8px; overflow-x: auto; }
+.mb-creative-studio__toolbar button, .mb-creative-studio__layer-row, .mb-creative-studio__visibility, .mb-creative-studio__move { min-block-size: 48px !important; }
 .mb-creative-studio__workbench { display: grid; grid-template-columns: minmax(190px, 250px) minmax(320px, 1fr) minmax(220px, 300px); gap: 12px; min-block-size: 480px; }
 .mb-creative-studio__layers, .mb-creative-studio__properties, .mb-creative-studio__canvas-area { min-inline-size: 0; padding: 12px; border: 1px solid rgba(var(--v-theme-on-surface), .16); border-radius: 16px; background: rgb(var(--v-theme-surface)); }
 .mb-creative-studio__layers, .mb-creative-studio__properties { overflow: auto; }
 .mb-creative-studio__search input[type="search"] { flex: 1 1 120px; min-inline-size: 0; }
 .mb-creative-studio__flags { max-inline-size: 56px; }
 .mb-creative-studio__regex-help, .mb-creative-studio__hint, .mb-creative-studio__canvas-caption { margin: 6px 0; font-size: .75rem; opacity: .72; }
+.mb-creative-studio__regex-builder, .mb-creative-studio__canvas-controls { display: flex; flex-direction: column; gap: 7px; margin-block: 8px; padding: 8px; border: 1px solid rgba(var(--v-theme-on-surface), .16); border-radius: 10px; }
+.mb-creative-studio__regex-tokens, .mb-creative-studio__control-grid, .mb-creative-studio__logo-controls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.mb-creative-studio__control-grid label, .mb-creative-studio__logo-controls label { display: grid; gap: 3px; font-size: .75rem; }
+.mb-creative-studio__check { display: flex !important; align-items: center; gap: 6px; }
+.mb-creative-studio__selection-count { font-size: .75rem; opacity: .72; padding-block: 4px; }
+.mb-creative-studio__effect-fields { display: grid; gap: 7px; border: 1px solid rgba(var(--v-theme-on-surface), .16); border-radius: 8px; padding: 8px; }
+.mb-creative-studio__effect-fields legend { padding-inline: 4px; font-size: .75rem; }
+.mb-creative-studio__stop { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.mb-creative-studio__logo-variants { display: flex; flex-wrap: wrap; gap: 8px; margin-block-start: 8px; }
+.mb-creative-studio__logo-variants figure { display: grid; gap: 4px; place-items: center; margin: 0; font-size: .7rem; }
+.mb-creative-studio__logo-variants img { inline-size: 64px; block-size: 64px; object-fit: contain; border: 1px dashed rgba(var(--v-theme-on-surface), .24); border-radius: 8px; background: repeating-conic-gradient(rgba(var(--v-theme-on-surface), .08) 0 25%, transparent 0 50%) 50% / 12px 12px; }
 .mb-creative-studio__layer-list { display: flex; flex-direction: column; gap: 4px; padding: 0; margin: 10px 0 0; list-style: none; }
 .mb-creative-studio__layer-list li { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 2px; border-radius: 8px; }
 .mb-creative-studio__layer-list li.is-selected { background: rgba(var(--v-theme-primary), .16); }

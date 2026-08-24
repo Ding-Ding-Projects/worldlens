@@ -21,6 +21,9 @@ import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import TypographyEditor from "./TypographyEditor.vue";
+import CreativeStudio from "./creative/CreativeStudio.vue";
+import { applyCreativeDocument, creativeDocumentFor } from "./creative/creativeAdapter.js";
+import { createCreativeDocument } from "./creative/creativeDocument.js";
 import { SURFACE_PROPERTIES, type SurfacePropertyId } from "./appearanceRecord.js";
 import {
     exportTheme,
@@ -108,7 +111,7 @@ const target = useAppearanceTarget(() => props.targetId);
 /** The editor's own appearance, which is what makes it a target like any other. */
 const self = useAppearanceTarget("appearance.editor");
 
-const tab = ref<"typography" | "surface" | "presets">("typography");
+const tab = ref<"typography" | "surface" | "presets" | "creative">("typography");
 
 /*
  * A search per tab, not one search over the editor.
@@ -135,6 +138,11 @@ const fileInput = ref<HTMLInputElement | null>(null);
 
 const resolved = computed(() => resolveTarget(state.value, props.targetId));
 const style = computed(() => target.style.value);
+const creativeDocument = computed(() => creativeDocumentFor(state.value, props.targetId) ?? createCreativeDocument());
+
+function applyCreative(next: Parameters<typeof applyCreativeDocument>[1]): void {
+    applyCreativeDocument(props.targetId, next);
+}
 
 const userPresets = computed(() => state.value.presets.filter((entry) => !entry.builtIn));
 
@@ -345,6 +353,7 @@ async function onFileChosen(event: Event): Promise<void> {
             <v-tab value="typography">{{ t("appearance.editor.typographyTab", "Text") }}</v-tab>
             <v-tab value="surface">{{ t("appearance.editor.surfaceTab", "Surface") }}</v-tab>
             <v-tab value="presets">{{ t("appearance.editor.presetsTab", "Presets") }}</v-tab>
+            <v-tab value="creative">{{ t("appearance.editor.creativeTab", "Creative studio") }}</v-tab>
         </v-tabs>
 
         <v-window v-model="tab" class="mb-appearance-editor__body">
@@ -660,6 +669,14 @@ async function onFileChosen(event: Event): Promise<void> {
                         </template>
                     </ConfigSuperConfirm>
                 </div>
+            </v-window-item>
+
+            <v-window-item value="creative">
+                <CreativeStudio
+                    :model-value="creativeDocument"
+                    :target-label="targetLabel"
+                    @update:model-value="applyCreative"
+                />
             </v-window-item>
         </v-window>
     </section>

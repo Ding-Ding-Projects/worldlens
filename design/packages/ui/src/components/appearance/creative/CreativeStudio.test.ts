@@ -1,11 +1,15 @@
 // @vitest-environment jsdom
 import { mount } from "@vue/test-utils";
 import { describe, expect, it } from "vitest";
+import { createI18n } from "vue-i18n";
 import CreativeStudio from "./CreativeStudio.vue";
+
+const i18n = createI18n({ legacy: false, locale: "en", messages: { en: { appearance: { creative: { eyebrow: "Creative appearance studio", subhead: "Compose layers locally." } } } } });
+const mountStudio = (props = {}) => mount(CreativeStudio, { props, global: { plugins: [i18n] } });
 
 describe("CreativeStudio", () => {
     it("mounts the layer controls and changes the live preview from an inline result control", async () => {
-        const wrapper = mount(CreativeStudio, { props: { targetLabel: "Logo" } });
+        const wrapper = mountStudio({ targetLabel: "Logo" });
         const textButton = wrapper.findAll("button").find((button) => button.text() === "Add text");
         expect(textButton).toBeDefined();
         await textButton!.trigger("click");
@@ -17,7 +21,7 @@ describe("CreativeStudio", () => {
     });
 
     it("keeps the regex builder beside layer search and reports empty matches honestly", async () => {
-        const wrapper = mount(CreativeStudio);
+        const wrapper = mountStudio();
         const regex = wrapper.find('button[aria-label="Toggle layer regex builder"]');
         expect(regex.exists()).toBe(true);
         await regex.trigger("click");
@@ -27,7 +31,7 @@ describe("CreativeStudio", () => {
     });
 
     it("keeps failed import state visible and does not replace the previous preview", async () => {
-        const wrapper = mount(CreativeStudio);
+        const wrapper = mountStudio();
         const input = wrapper.find('input[aria-label="Import creative document"]');
         const invalid = new File(["not json"], "broken.json", { type: "application/json" });
         Object.defineProperty(input.element, "files", { value: [invalid] });

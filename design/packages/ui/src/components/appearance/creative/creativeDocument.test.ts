@@ -77,4 +77,32 @@ describe("creative appearance document", () => {
         expect(() => validateCreativeAssetBytes(new TextEncoder().encode("<svg><script>alert(1)</script></svg>"), "image/svg+xml")).toThrow(/supported/);
         expect(() => validateCreativeAssetBytes(new Uint8Array(8 * 1024 * 1024 + 1))).toThrow(/8 MB/);
     });
+
+    it("fails closed on duplicate ids, orphan parents, cycles, invalid stops, and unsafe geometry", () => {
+        let document = createCreativeDocument();
+        document = addCreativeLayer(document, createCreativeLayer("gradient"));
+        const duplicate = { ...JSON.parse(JSON.stringify(document)) as typeof document, layers: [document.layers[0]!, { ...document.layers[0]!, name: "duplicate" }] };
+        expect(validateCreativeDocument(duplicate)).toBe(false);
+        const orphan = { ...JSON.parse(JSON.stringify(document)) as typeof document, layers: [{ ...document.layers[0]!, parentId: "missing" }] };
+        expect(validateCreativeDocument(orphan)).toBe(false);
+        const badStops = { ...JSON.parse(JSON.stringify(document)) as typeof document, layers: [{ ...document.layers[0]!, stops: [{ offset: 3, color: "not-a-colour" }] }] };
+        expect(validateCreativeDocument(badStops)).toBe(false);
+        const badAsset = { ...JSON.parse(JSON.stringify(document)) as typeof document, layers: [{ ...document.layers[0]!, kind: "raster", dataUrl: "data:image/png;base64,not-a-real-png" } as never] };
+        expect(validateCreativeDocument(badAsset)).toBe(false);
+    });
+
+    it("renders masks, effects, clipping, gradients, and safe text as real SVG state", () => {
+        let document = createCreativeDocument();
+        document = addCreativeLayer(document, createCreativeLayer("vector"));
+        const id = document.layers[0]!.id;
+        document = updateCreativeLayer(document, id, {
+            mask: { enabled: true, kind: "ellipse", x: 1, y: 2, width: 100, height: 80, feather: 4 },
+            clipped: true,
+            effects: { ...document.layers[0]!.effects, blur: 4, outerGlow: { radius: 8, color: "#ffffff" } },
+        }, "mask and effects");
+        const rendered = renderCreativePreviewText(document);
+        expect(rendered).toContain("creative-mask-");
+        expect(rendered).toContain("filter:blur(4px)");
+        expect(rendered).toContain("drop-shadow");
+    });
 });
