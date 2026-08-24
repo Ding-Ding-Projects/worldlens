@@ -150,34 +150,24 @@ jobs:
           name: bluemap-jar-index
           path: jar-index
 
-      # jars.ts's bundledJarDirectory() reads resources/jars in a packaged build, and
-      # electron-builder.config.cjs's extraResources copies this exact staging
-      # directory there - the same directory `tools/build-jars.mjs` stages into on a
-      # workstation, so a packaged build and a local checkout resolve the CLI jar the
-      # same way. actions/upload-artifact does not guarantee the jar lands at the
-      # artifact's top level, so the recursive search locates it rather than assuming a path.
+      # The release manifest is produced by tools/describe-jars.mjs and carries the
+      # source revision, exact release filename, byte count, and SHA-256. The canonical
+      # staging command below consumes that manifest and the downloaded artifact, so
+      # CI cannot invent a second copy path or silently package a stale jar.
       - name: Stage the CLI jar to bundle
         shell: pwsh
+        env:
+          BLUEMAP_VERSION: ${{ needs.jars.outputs.version }}
+          BLUEMAP_SOURCE_COMMIT: ${{ needs.jars.outputs.upstream-commit }}
         run: |
-          New-Item -ItemType Directory -Force -Path tools/oracle/out/jars | Out-Null
-          $jar = Get-ChildItem -LiteralPath jar-download -Recurse -File -Filter '*.jar' | Select-Object -First 1
-          if (-not $jar) {
-            Write-Host '::error::the bluemap-jar-cli artifact contained no .jar file'
-            exit 1
-          }
-          $index = Get-Content -LiteralPath jar-index/bluemap-jars.json -Raw | ConvertFrom-Json
-          $record = @($index.jars | Where-Object { $_.implementation -eq 'cli' })
-          if ($record.Count -ne 1 -or $record[0].fileName -ne $jar.Name) {
-            Write-Host '::error::the CLI jar does not match the same-run digest index'
-            exit 1
-          }
-          $actual = (Get-FileHash -LiteralPath $jar.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actual -ne $record[0].sha256) {
-            Write-Host '::error::the CLI jar failed its same-run SHA-256 provenance check'
-            exit 1
-          }
-          Copy-Item -LiteralPath $jar.FullName -Destination tools/oracle/out/jars/
-          Get-ChildItem -LiteralPath tools/oracle/out/jars
+          node scripts/stage-packaged-jars.mjs `
+            --artifact-dir jar-download `
+            --manifest jar-index/manifest.json `
+            --stage tools/oracle/out/jars `
+            --expected-version "$env:BLUEMAP_VERSION" `
+            --expected-commit "$env:BLUEMAP_SOURCE_COMMIT" `
+            --expected-run-id "$env:GITHUB_RUN_ID" `
+            --expected-run-attempt "$env:GITHUB_RUN_ATTEMPT"
 
       # Every build must carry a version Squirrel can order, or installing a newer
       # release over an older one silently does nothing: same version, nothing to do,
@@ -316,10 +306,34 @@ jobs:
           Write-Host "vendored (not this build's output, vendor signatures kept): $($vendoredExecutables.Count) executable(s) under resources\bundled"
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        continue-on-error: true
         with:
           name: windows-installer
           path: installer-out/
-          if-no-files-found: error
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Collect Windows package evidence
+        if: always()
+        shell: pwsh
+        run: |
+          @(
+            "run_id=$env:GITHUB_RUN_ID"
+            "commit=$env:GITHUB_SHA"
+            "job_status=${{ job.status }}"
+            "package_output_present=$([System.IO.Directory]::Exists((Join-Path $PWD 'design/packages/app/release')) )"
+            "staging_manifest_present=$([System.IO.File]::Exists((Join-Path $PWD 'tools/oracle/out/jars/manifest.json')) )"
+          ) | Out-File -LiteralPath package-build-evidence.txt -Encoding utf8
+
+      - name: Upload Windows package evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-package-evidence
+          path: package-build-evidence.txt
+          if-no-files-found: warn
           retention-days: 30
 
   # The renderer itself: all seven BlueMap implementations, built from the vendored

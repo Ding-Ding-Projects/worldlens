@@ -285,5 +285,31 @@ jobs:
             jars/bluemap-jars.md
             jars/bluemap-jars.json
             jars/bluemap-jars.sha256.txt
+            jars/manifest.json
           if-no-files-found: error
+          retention-days: 30
+
+      # Preserve safe provenance even when a later upload or release step fails. This
+      # evidence never contains credentials, source trees, or dependency caches, and
+      # its upload cannot turn the original build result green.
+      - name: Collect BlueMap build evidence
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          {
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "commit=${GITHUB_SHA}"
+            echo "job_status=${{ job.status }}"
+            find jars-staging jars -maxdepth 1 -type f -printf '%p\n' 2>/dev/null | sort
+          } > bluemap-build-evidence.txt
+
+      - name: Upload BlueMap build evidence
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bluemap-build-evidence
+          path: bluemap-build-evidence.txt
+          if-no-files-found: warn
           retention-days: 30

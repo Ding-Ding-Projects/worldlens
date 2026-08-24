@@ -1,5 +1,27 @@
 # Handoff
 
+## 2026-08-24: BlueMap CI installer manifest seam
+
+The Windows installer path now consumes one authoritative BlueMap CLI manifest from the
+reusable jar build. `tools/describe-jars.mjs` emits the schema with the exact source
+repository, source commit, version, release filename, byte count, and SHA-256. The new
+`scripts/stage-packaged-jars.mjs` validates that record and the physical JAR, stages it into
+`tools/oracle/out/jars`, and writes the packager manifest consumed by
+`design/packages/app/electron-builder.config.cjs`. Missing, stale, tampered, path-traversal,
+wrong-version, wrong-digest, absent-JAR, malformed identity, oversized, and symlinked inputs
+fail before electron-builder starts. Version, source commit, workflow run ID, and run attempt
+are validated before the downloaded artifact is touched. Containment, symlink identity, size,
+and JAR bounds are checked before the bounded streaming digest pass.
+
+The build workflow uploads the manifest with its jar index. The Windows package job passes the
+reusable job's version and source commit into the canonical staging command, then collects safe
+build and package evidence with `always()` and non-masking uploads. Focused cold-fixture tests
+cover the success path, refusal cases, and deliberate mutations of the canonical identity call
+and digest comparison. Local app build, typecheck, package-contract tests, actionlint structural
+validation, diff checks, and the public vocabulary scan remain the verification record. The
+repository workflow linter reports exactly 18 reviewed-inventory findings outside this lane, so
+its remaining verdict is not green proof.
+
 ## 2026-08-23: runtimes inside the installer, and the GUI defects that exposed them
 
 ### What the project is now, in one paragraph

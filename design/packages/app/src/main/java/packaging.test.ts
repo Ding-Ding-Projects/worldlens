@@ -157,4 +157,21 @@ describe("CI stages the CLI jar before packaging", () => {
                 "both jars.ts and electron-builder.config.cjs expect",
         ).toContain("tools/oracle/out/jars");
     });
+
+    it("downloads and invokes the authoritative manifest staging contract before packaging", () => {
+        const block = packageJobBlock();
+        expect(block).toContain("jar-index/manifest.json");
+        expect(block).toContain("scripts/stage-packaged-jars.mjs");
+        expect(block).toContain("--expected-version");
+        expect(block).toContain("--expected-commit");
+        expect(block).toContain("--expected-run-id");
+        expect(block).toContain("--expected-run-attempt");
+        expect(block.indexOf("scripts/stage-packaged-jars.mjs")).toBeLessThan(block.indexOf("pnpm run make"));
+    });
+
+    it("publishes the manifest from the reusable BlueMap build", () => {
+        const buildWorkflow = readFileSync(resolve(repoRoot, ".github", "workflows", "build-jars.yml"), "utf8");
+        expect(buildWorkflow).toContain("jars/manifest.json");
+        expect(buildWorkflow).toMatch(/name:\s*bluemap-jar-index[\s\S]*?jars\/manifest\.json/);
+    });
 });
