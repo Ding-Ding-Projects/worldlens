@@ -501,6 +501,37 @@ describe("the Java runtime", () => {
         expect(text).toContain("BlueMap engine (Java) 5.22-27 on Java 25.0.3");
         expect(text).toContain("not a reading of this machine now");
     });
+
+    it("renders the real verified engine artifact facts through the AppSettings bridge", async () => {
+        const bridge = fakeBridge();
+        bridge.javaRuntime = () =>
+            Promise.resolve({
+                installation: {
+                    source: "provisioned",
+                    executable: "C:/Worldlens/java/bin/java.exe",
+                    home: "C:/Worldlens/java",
+                    version: { feature: 25, version: "25.0.4.1", runtime: "Temurin" },
+                },
+                rejected: [],
+                required: 25,
+                renderEngine: {
+                    available: true,
+                    version: "5.23",
+                    source: "bundled",
+                    path: "C:/Worldlens/resources/jars/cli-5.23-shadow.jar",
+                    reason: null,
+                },
+            });
+        (globalThis as { worldlens?: unknown }).worldlens = bridge;
+        open({ anchor: "render-engine-choice" });
+        await settle();
+
+        const text = requireSection("render-engine-choice").textContent ?? "";
+        expect(text).toContain("5.23");
+        expect(text).toContain("bundled");
+        expect(text).toContain("C:/Worldlens/resources/jars/cli-5.23-shadow.jar");
+        expect(text).toContain("Java 25.0.4.1");
+    });
 });
 
 describe("the world folder", () => {
