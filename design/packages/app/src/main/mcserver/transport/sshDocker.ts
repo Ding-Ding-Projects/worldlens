@@ -23,7 +23,7 @@
 
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { readdir, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { lstat, readdir, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -68,6 +68,8 @@ export const RESTORE_LIMITS = Object.freeze({
 
 async function hashFile(full: string, signal?: AbortSignal): Promise<Answer<{ bytes: number; sha256: string }>> {
     try {
+        const before = await lstat(full);
+        if (!before.isFile() || before.isSymbolicLink()) return fail("unsupported", "A restore file changed into a link before hashing.");
         const digest = createHash("sha256");
         let bytes = 0;
         for await (const chunk of createReadStream(full)) {
@@ -77,6 +79,8 @@ async function hashFile(full: string, signal?: AbortSignal): Promise<Answer<{ by
             if (bytes > RESTORE_LIMITS.maxIndividualBytes) return fail("invalid-request", "A restore file exceeds the individual size limit.");
             digest.update(value);
         }
+        const after = await lstat(full);
+        if (!after.isFile() || after.isSymbolicLink() || (before.ino !== 0 && after.ino !== before.ino) || (before.dev !== 0 && after.dev !== before.dev)) return fail("stale-document", "A restore file changed identity while it was being hashed.");
         return ok({ bytes, sha256: digest.digest("hex") });
     } catch (error) {
         return fail("denied", "A staged restore file could not be read.", String(error));
@@ -255,6 +259,8 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
             let cleanupRequired = true;
             let cleanupWarning: string | undefined;
             let result: Answer<{ cleanupWarning?: string }> = ok({});
+            let sourceManifest: { relative: string; bytes: number; sha256: string }[] = [];
+            let stagedTotal = 0;
             try {
                 const remoteLinks = await remoteRunner(docker, ["exec", options.containerRef, "find", sourceFolder, "-type", "l", "-print"], { timeoutMs: 60_000 });
                 if (!remoteLinks.ok || remoteLinks.stdout.trim() !== "") {
@@ -284,6 +290,21 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                             break;
                         }
                     }
+                    if (result.ok) {
+                        progress({ phase: "remote-hash", bytesDone: 0, bytesTotal: aggregate, rateBytesPerSecond: null, message: "Hashing the source before creating the stable snapshot." });
+                        let hashedBytes = 0;
+                        for (const row of rows) {
+                            const match = /^(\d+)\t(.+)$/.exec(row);
+                            if (match === null || match[1] === undefined || match[2] === undefined) { result = fail("stale-document", "The source manifest is malformed."); break; }
+                            const hashed = await remoteRunner(docker, ["exec", options.containerRef, "sha256sum", "--", match[2]], { timeoutMs: 60_000 });
+                            const digest = hashed.stdout.trim().split(/\s+/)[0] ?? "";
+                            if (!hashed.ok || !/^[a-f0-9]{64}$/.test(digest)) { result = fail("stale-document", "The source hash could not be verified before staging."); break; }
+                            const bytes = Number(match[1]);
+                            sourceManifest.push({ relative: match[2].slice(sourceFolder.replace(/\/$/, "").length + 1), bytes, sha256: digest });
+                            hashedBytes += bytes;
+                            progress({ phase: "remote-hash", bytesDone: hashedBytes, bytesTotal: aggregate, rateBytesPerSecond: null, message: "Hashing the source before creating the stable snapshot." });
+                        }
+                    }
                 }
                 if (result.ok) {
                     progress({ phase: "stable-staging", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Creating a stable remote backup snapshot." });
@@ -298,7 +319,9 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                     if (result.ok) {
                         progress({ phase: "remote-hash", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Hashing the stable remote snapshot." });
                         const rows = stagedListing.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-                        if (rows.length !== Number(remoteManifest?.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).length ?? -1)) result = fail("stale-document", "The remote backup changed while it was being staged.");
+                        if (rows.length !== sourceManifest.length) result = fail("stale-document", "The remote backup changed while it was being staged.");
+                        let stagedBytes = 0;
+                        stagedTotal = sourceManifest.reduce((total, entry) => total + entry.bytes, 0);
                         for (const row of rows) {
                             const match = /^(\d+)\t(.+)$/.exec(row);
                             if (match === null || match[1] === undefined || match[2] === undefined) { result = fail("stale-document", "The staged remote backup manifest is malformed."); break; }
@@ -306,7 +329,10 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                             const digest = hashed.stdout.trim().split(/\s+/)[0] ?? "";
                             if (!hashed.ok || !/^[a-f0-9]{64}$/.test(digest)) { result = fail("stale-document", "The staged remote backup hash could not be verified."); break; }
                             stagedManifest.push({ relative: match[2]!.slice(remoteHostStage.length + 1), bytes: Number(match[1]!), sha256: digest });
+                            stagedBytes += Number(match[1]!);
+                            progress({ phase: "remote-hash", bytesDone: stagedBytes, bytesTotal: stagedTotal, rateBytesPerSecond: null, message: "Hashing the stable staged snapshot." });
                         }
+                        if (result.ok && (stagedManifest.length !== sourceManifest.length || stagedManifest.some((entry) => !sourceManifest.some((source) => source.relative === entry.relative && source.bytes === entry.bytes && source.sha256 === entry.sha256)))) result = fail("stale-document", "The stable staged snapshot differs from the source manifest.");
                     }
                     progress({ phase: "scp", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Copying the verified snapshot to local backup storage. Transfer totals are not available from this SCP runner." });
                     const fetched = result.ok ? await runner(scp, [...scpArguments(options, ["-r"]), `${scpRemotePath(options.target, remoteHostStage)}/.`, localDestination], {
@@ -319,7 +345,11 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                         progress({ phase: "local-verify", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "Verifying local paths, sizes, and SHA-256 values." });
                         const localManifest = await localRestoreManifest(localDestination, copyOptions.signal);
                         if (!localManifest.ok) result = localManifest;
-                        else if (localManifest.value.length !== stagedManifest.length || localManifest.value.some((entry) => !stagedManifest.some((remote) => remote.relative === entry.relative && remote.bytes === entry.bytes && remote.sha256 === entry.sha256))) result = fail("stale-document", "The remote backup changed while it was being copied and was refused.");
+                        else {
+                            const localTotal = localManifest.value.reduce((total, entry) => total + entry.bytes, 0);
+                            progress({ phase: "local-verify", bytesDone: localTotal, bytesTotal: stagedTotal, rateBytesPerSecond: null, message: "Local backup verification completed." });
+                            if (localManifest.value.length !== stagedManifest.length || localManifest.value.some((entry) => !stagedManifest.some((remote) => remote.relative === entry.relative && remote.bytes === entry.bytes && remote.sha256 === entry.sha256))) result = fail("stale-document", "The remote backup changed while it was being copied and was refused.");
+                        }
                     }
                 }
                 }

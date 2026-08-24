@@ -375,6 +375,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
     const restoreChallenges = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number; keyOne: boolean; keyTwo: boolean; travel: number }>();
     const activeBackupControllers = new Map<string, AbortController>();
     const restoreAuthorizations = new Map<string, { readonly challengeDigest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
+    const authorizingChallenges = new Set<string>();
     const RESTORE_AUTH_LIMIT = 128;
     const sweepRestoreAuth = (): void => {
         const current = Date.now();
@@ -1580,9 +1581,19 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             const challengeDigest = createHash("sha256").update(body.challenge).digest("hex");
             const challenge = restoreChallenges.get(challengeDigest);
             if (challenge === undefined || challenge.serverId !== id || challenge.expiresAt < Date.now() || !challenge.keyOne || !challenge.keyTwo || challenge.travel !== 100) return fail("denied", "The main-process confirmation session is incomplete or expired.");
+            if (authorizingChallenges.has(challengeDigest)) return fail("denied", "That restore confirmation is already being authorized.");
             if (options.nativeRestoreConfirm === undefined) return fail("unsupported", "This build has no main-process native restore confirmation provider.");
-            const confirmed = await options.nativeRestoreConfirm({ serverId: id, target: challenge.target, owner: challenge.owner, repo: challenge.repo, tag: challenge.tag });
-            if (!confirmed) return fail("denied", "The main-process native restore confirmation was not completed.");
+            authorizingChallenges.add(challengeDigest);
+            let confirmed = false;
+            try {
+                confirmed = await options.nativeRestoreConfirm({ serverId: id, target: challenge.target, owner: challenge.owner, repo: challenge.repo, tag: challenge.tag });
+            } finally {
+                authorizingChallenges.delete(challengeDigest);
+            }
+            if (!confirmed) {
+                restoreChallenges.delete(challengeDigest);
+                return fail("denied", "The main-process native restore confirmation was not completed.");
+            }
             const authorization = randomBytes(32).toString("hex");
             const authorizationDigest = createHash("sha256").update(authorization).digest("hex");
             restoreAuthorizations.set(authorizationDigest, { challengeDigest, serverId: id, target: challenge.target, owner: challenge.owner, repo: challenge.repo, tag: challenge.tag, expiresAt: challenge.expiresAt });
@@ -1761,6 +1772,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             rconTunnels.clear();
             restoreChallenges.clear();
             restoreAuthorizations.clear();
+            authorizingChallenges.clear();
             restoreReceipts.clear();
             for (const controller of activeBackupControllers.values()) controller.abort();
             activeBackupControllers.clear();
