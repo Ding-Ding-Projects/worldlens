@@ -367,7 +367,16 @@ export type RenderEvent =
           at: string;
       }
     | { type: "failed"; renderId: string; failure: RenderFailure; at: string }
-    | { type: "cancelled"; renderId: string; at: string };
+    | { type: "cancelled"; renderId: string; at: string }
+    | {
+          type: "engine-provisioning";
+          renderId: string;
+          stage: string;
+          message: string;
+          received: number | null;
+          total: number | null;
+          at: string;
+      };
 
 export type RenderResult =
     | {
@@ -2412,7 +2421,10 @@ interface WorldlensBridge {
             apply(
                 id: string,
                 path: string,
-                body: { expectedHash: string; changes: readonly { path: readonly string[]; value: unknown }[] },
+                body: {
+                    expectedHash: string;
+                    changes: readonly { path: readonly string[]; value: unknown }[];
+                },
             ): Promise<unknown>;
         };
         files: {
@@ -2430,7 +2442,12 @@ interface WorldlensBridge {
             confirm(request: {
                 id: string;
                 containerId: string;
-                consent?: { configWrite?: boolean; lifecycle?: boolean; pluginInstall?: boolean; consoleWrite?: boolean };
+                consent?: {
+                    configWrite?: boolean;
+                    lifecycle?: boolean;
+                    pluginInstall?: boolean;
+                    consoleWrite?: boolean;
+                };
             }): Promise<unknown>;
             /** Forgets the adoption. Never stops, removes or deletes the container or its files. */
             release(id: string, options?: { restoreSnapshot?: boolean }): Promise<unknown>;
@@ -2441,10 +2458,20 @@ interface WorldlensBridge {
         backup: {
             create(
                 id: string,
-                request: { owner: string; repo: string; worldFolder: string; accountId?: string; acknowledgePublic?: boolean; resumeTag?: string },
+                request: {
+                    owner: string;
+                    repo: string;
+                    worldFolder: string;
+                    accountId?: string;
+                    acknowledgePublic?: boolean;
+                    resumeTag?: string;
+                },
             ): Promise<unknown>;
             list(owner: string, repo: string): Promise<unknown>;
-            restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string }): Promise<unknown>;
+            restore(
+                id: string,
+                request: { owner: string; repo: string; tag: string; accountId?: string },
+            ): Promise<unknown>;
         };
         /** Proves the stored RCON password and port work. Never returns the password. */
         rconTest(id: string): Promise<unknown>;
@@ -2474,7 +2501,11 @@ interface WorldlensBridge {
          */
         webConsole: {
             status(): Promise<unknown>;
-            start(options?: { host?: string; port?: number; tlsTerminated?: boolean }): Promise<unknown>;
+            start(options?: {
+                host?: string;
+                port?: number;
+                tlsTerminated?: boolean;
+            }): Promise<unknown>;
             stop(): Promise<unknown>;
             setPassword(password: string): Promise<unknown>;
             bind(): Promise<unknown>;
@@ -2501,11 +2532,18 @@ interface WorldlensBridge {
                 /** When given, each returned version also carries its compatibility verdict. */
                 serverId?: string;
             }): Promise<unknown>;
-            install(id: string, request: { version: unknown; pluginsDir?: string; modsDir?: string }): Promise<unknown>;
+            install(
+                id: string,
+                request: { version: unknown; pluginsDir?: string; modsDir?: string },
+            ): Promise<unknown>;
             list(id: string, request?: { pluginsDir?: string; modsDir?: string }): Promise<unknown>;
             toggle(id: string, request: { path: string; enable: boolean }): Promise<unknown>;
             remove(id: string, path: string): Promise<unknown>;
-            updates(request: { sourceId: "modrinth" | "hangar" | "spigot"; projectId: string; installed: unknown }): Promise<unknown>;
+            updates(request: {
+                sourceId: "modrinth" | "hangar" | "spigot";
+                projectId: string;
+                installed: unknown;
+            }): Promise<unknown>;
         };
         catalogue: {
             list(): Promise<unknown>;
@@ -2550,7 +2588,10 @@ interface WorldlensBridge {
         awsAccounts: {
             list(): Promise<unknown>;
             setAlias(request: { profile: string; alias: string }): Promise<unknown>;
-            credits(request: { profile: string; period?: { start: string; end: string } }): Promise<unknown>;
+            credits(request: {
+                profile: string;
+                period?: { start: string; end: string };
+            }): Promise<unknown>;
         };
     };
     vocabulary: {
@@ -3588,7 +3629,8 @@ const bridge: WorldlensBridge = {
             status: () => ipcRenderer.invoke("mcserver:webconsole:status"),
             start: (options) => ipcRenderer.invoke("mcserver:webconsole:start", options),
             stop: () => ipcRenderer.invoke("mcserver:webconsole:stop"),
-            setPassword: (password) => ipcRenderer.invoke("mcserver:webconsole:setPassword", password),
+            setPassword: (password) =>
+                ipcRenderer.invoke("mcserver:webconsole:setPassword", password),
             bind: () => ipcRenderer.invoke("mcserver:webconsole:bind"),
         },
         // The RCON password itself never crosses this bridge in either direction: the
@@ -3598,7 +3640,8 @@ const bridge: WorldlensBridge = {
         consoleOpen: (id, tail) => ipcRenderer.invoke("mcserver:console:open", id, tail),
         consoleSend: (id, sessionId, command) =>
             ipcRenderer.invoke("mcserver:console:send", id, sessionId, command),
-        consoleClose: (id, sessionId) => ipcRenderer.invoke("mcserver:console:close", id, sessionId),
+        consoleClose: (id, sessionId) =>
+            ipcRenderer.invoke("mcserver:console:close", id, sessionId),
         onConsoleLine: (listener) => {
             const forward = (_event: IpcRendererEvent, sessionId: string, event: unknown): void =>
                 listener(sessionId, event);

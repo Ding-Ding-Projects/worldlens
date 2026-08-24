@@ -74,6 +74,13 @@ import type { Translate } from "./worldFolder.js";
 
 export type RunState = "idle" | "starting" | "running" | "finished" | "failed" | "cancelled";
 
+export interface EngineProvisionStatus {
+    readonly stage: string;
+    readonly message: string;
+    readonly received: number | null;
+    readonly total: number | null;
+}
+
 /**
  * How many log lines are kept.
  *
@@ -101,7 +108,11 @@ export type RenderLogLine = ConsoleLine;
  * mode does, rather than keeping whichever one was active when it was written.
  */
 const SIGNALS = {
-    starting: { key: "world.console.signal.starting", fallback: "Starting the render.", values: {} },
+    starting: {
+        key: "world.console.signal.starting",
+        fallback: "Starting the render.",
+        values: {},
+    },
     running: { key: "world.console.signal.running", fallback: "Running.", values: {} },
     watching: {
         key: "world.console.signal.watching",
@@ -166,13 +177,25 @@ export function phaseText(phase: string): ProgressText {
                 values: {},
             };
         case "loading-resources":
-            return { key: "world.run.phase.loadingResources", fallback: "Loading textures and models", values: {} };
+            return {
+                key: "world.run.phase.loadingResources",
+                fallback: "Loading textures and models",
+                values: {},
+            };
         case "loading-maps":
-            return { key: "world.run.phase.loadingMaps", fallback: "Reading the world", values: {} };
+            return {
+                key: "world.run.phase.loadingMaps",
+                fallback: "Reading the world",
+                values: {},
+            };
         case "rendering":
             return { key: "world.run.phase.rendering", fallback: "Rendering tiles", values: {} };
         case "watching":
-            return { key: "world.run.phase.watching", fallback: "Watching the world for changes", values: {} };
+            return {
+                key: "world.run.phase.watching",
+                fallback: "Watching the world for changes",
+                values: {},
+            };
         case "stopping":
             return { key: "world.run.phase.stopping", fallback: "Finishing up", values: {} };
         case "finished":
@@ -309,7 +332,11 @@ export function adviseOnFailure(failure: RenderFailure, t: Translate): FailureAd
                     "BlueMap builds its blocks from the Minecraft client files, which are downloaded from Mojang. That download is accepted once, in Settings, and it has not been. Nothing was started and nothing was written.",
                 ),
                 remedy: {
-                    settings: failure.settings ?? { surface: "settings", anchor: "mojang-download-consent", missing: true },
+                    settings: failure.settings ?? {
+                        surface: "settings",
+                        anchor: "mojang-download-consent",
+                        missing: true,
+                    },
                     actionKey: "world.run.fail.consentAction",
                     actionFallback: "Open the download setting",
                 },
@@ -322,7 +349,11 @@ export function adviseOnFailure(failure: RenderFailure, t: Translate): FailureAd
                     "The BlueMap engine runs on Java, and no Java runtime new enough to run it was found on this machine. The app can fetch one for you, or you can point it at one you already have.",
                 ),
                 remedy: {
-                    settings: failure.settings ?? { surface: "settings", anchor: "java-runtime", missing: true },
+                    settings: failure.settings ?? {
+                        surface: "settings",
+                        anchor: "java-runtime",
+                        missing: true,
+                    },
                     actionKey: "world.run.fail.javaAction",
                     actionFallback: "Set up the Java runtime",
                 },
@@ -424,6 +455,7 @@ export interface RenderRun {
     /** Learned from the engine, because the id is derived from the world folder. */
     readonly renderId: Ref<string | null>;
     readonly engine: Ref<EngineDescription | null>;
+    readonly engineProvisioning: Ref<EngineProvisionStatus | null>;
     /**
      * The record the render left behind, read once it has ended. Null until then,
      * and null on a build whose bridge cannot answer for it.
@@ -552,16 +584,22 @@ export interface RenderRunOptions {
 }
 
 /** Resolves a `route` option, whichever of its two shapes was given. */
-function resolveRoute(route: ProgressRoute | (() => ProgressRoute | null) | undefined): ProgressRoute | null {
+function resolveRoute(
+    route: ProgressRoute | (() => ProgressRoute | null) | undefined,
+): ProgressRoute | null {
     if (route === undefined) return null;
     return typeof route === "function" ? route() : route;
 }
 
-export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOptions = {}): RenderRun {
+export function createRenderRun(
+    bridge: WorldBridge | null,
+    options: RenderRunOptions = {},
+): RenderRun {
     const now = options.now ?? ((): number => Date.now());
     const state = ref<RunState>("idle");
     const renderId = ref<string | null>(null);
     const engine = ref<EngineDescription | null>(null);
+    const engineProvisioning = ref<EngineProvisionStatus | null>(null);
     const provenance = ref<RenderSummary | null>(null);
     const phase = ref<string | null>(null);
     const task = ref<RenderTaskProgress | null>(null);
@@ -581,7 +619,9 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
      */
     const log = shallowRef<readonly RenderLogLine[]>([]);
     const history = shallowRef<readonly RenderLogLine[]>([]);
-    const historyWarning = ref<"" | "storage-unavailable" | "retention-limit" | "storage-limit">("");
+    const historyWarning = ref<"" | "storage-unavailable" | "retention-limit" | "storage-limit">(
+        "",
+    );
     const historyComplete = ref<boolean | null>(null);
     const historyUpdatedAt = ref<string | null>(null);
     const evictedLines = ref(0);
@@ -787,7 +827,8 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
     function mapsCount(): ProgressCount | null {
         const planned = mapIds.value.length;
         const seen = observedMaps.value;
-        const total = planned > 0 ? Math.max(planned, seen.length) : seen.length > 0 ? seen.length : null;
+        const total =
+            planned > 0 ? Math.max(planned, seen.length) : seen.length > 0 ? seen.length : null;
         if (total === null) return null;
         if (state.value === "finished") return { done: total, total, unit: "maps" };
         const current = task.value?.mapId ?? null;
@@ -830,7 +871,9 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         const fraction = overallFraction();
         if (fraction === null) return NO_ESTIMATE;
         const remaining = eta.remainingMs(fraction);
-        return remaining === null ? NO_ESTIMATE : { source: "tracker", seconds: remaining / 1000, text: null };
+        return remaining === null
+            ? NO_ESTIMATE
+            : { source: "tracker", seconds: remaining / 1000, text: null };
     }
 
     function levels(): readonly ProgressLevel[] {
@@ -919,9 +962,9 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
     function mine(event: RenderEvent): boolean {
         if (renderId.value === null) {
             if (!adopting) return false;
-            if (event.type !== "started") return false;
+            if (event.type !== "started" && event.type !== "engine-provisioning") return false;
             renderId.value = event.renderId;
-            adopting = false;
+            if (event.type === "started") adopting = false;
             return true;
         }
         return event.renderId === renderId.value;
@@ -956,7 +999,8 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         if (nextHistory.length === history.value.length) return false;
         history.value = nextHistory;
         log.value = log.value.filter((line) => !requested.has(line.id));
-        const terminal = state.value === "finished" || state.value === "failed" || state.value === "cancelled";
+        const terminal =
+            state.value === "finished" || state.value === "failed" || state.value === "cancelled";
         persistHistory(terminal);
         return true;
     }
@@ -1099,6 +1143,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         switch (event.type) {
             case "started":
                 state.value = "running";
+                engineProvisioning.value = null;
                 engine.value = event.engine;
                 mapIds.value = event.mapIds;
                 startedAt.value = event.at;
@@ -1110,6 +1155,16 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
                 // absurdly short time remaining.
                 eta.reset();
                 signal(SIGNALS.running);
+                break;
+            case "engine-provisioning":
+                state.value = "starting";
+                phase.value = "engine-provisioning";
+                engineProvisioning.value = {
+                    stage: event.stage,
+                    message: event.message,
+                    received: event.received,
+                    total: event.total,
+                };
                 break;
             case "phase":
                 phase.value = event.phase;
@@ -1206,6 +1261,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         state.value = "idle";
         renderId.value = null;
         engine.value = null;
+        engineProvisioning.value = null;
         provenance.value = null;
         phase.value = null;
         task.value = null;
@@ -1392,7 +1448,8 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
             if (!acknowledged) {
                 // Nothing was actually asked to stop - drop the waiter rather than hang
                 // forever waiting for an ending that was never set in motion.
-                if (waiter !== null) inactiveWaiters = inactiveWaiters.filter((entry) => entry !== waiter);
+                if (waiter !== null)
+                    inactiveWaiters = inactiveWaiters.filter((entry) => entry !== waiter);
             } else {
                 await stopped;
             }
@@ -1414,6 +1471,7 @@ export function createRenderRun(bridge: WorldBridge | null, options: RenderRunOp
         state,
         renderId,
         engine,
+        engineProvisioning,
         provenance,
         phase,
         task,

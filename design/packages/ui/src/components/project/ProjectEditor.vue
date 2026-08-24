@@ -132,6 +132,9 @@ const props = withDefaults(
         /** Live Java capability discovered by the desktop bridge; null means this build cannot probe it. */
         javaAvailable?: boolean | null;
         javaVersion?: string | null;
+        renderEngineAvailable?: boolean | null;
+        renderEngineReason?: string | null;
+        renderEnginePath?: string | null;
         separator?: string;
         /** Where the app writes renders, used as the root of a new file storage. */
         defaultRoot?: string;
@@ -152,6 +155,9 @@ const props = withDefaults(
         consentAccepted: false,
         javaAvailable: null,
         javaVersion: null,
+        renderEngineAvailable: null,
+        renderEngineReason: null,
+        renderEnginePath: null,
         separator: "/",
         defaultRoot: "",
     },
@@ -1309,10 +1315,7 @@ const renderButtonLabel = computed(() =>
                     <p v-show="!navigatorCollapsed" class="mb-project-editor__eyebrow">
                         {{ t("project.workspace.heading", "Project structure") }}
                     </p>
-                    <p
-                        v-show="!navigatorCollapsed"
-                        class="mb-project-editor__navigator-note"
-                    >
+                    <p v-show="!navigatorCollapsed" class="mb-project-editor__navigator-note">
                         {{
                             t(
                                 "project.workspace.note",
@@ -1458,6 +1461,9 @@ const renderButtonLabel = computed(() =>
                                     :project-name="project.name"
                                     :java-available="props.javaAvailable"
                                     :java-version="props.javaVersion"
+                                    :render-engine-available="props.renderEngineAvailable"
+                                    :render-engine-reason="props.renderEngineReason"
+                                    :render-engine-path="props.renderEnginePath"
                                     :project-engine="project.render.engine"
                                     @update:project-engine="setRenderEngine"
                                 />
@@ -1475,7 +1481,9 @@ const renderButtonLabel = computed(() =>
                                     <v-select
                                         :model-value="selectedRenderRoute"
                                         :items="renderRouteItems"
-                                        :label="t('project.render.route', 'Where this project renders')"
+                                        :label="
+                                            t('project.render.route', 'Where this project renders')
+                                        "
                                         :hint="
                                             t(
                                                 'project.render.routeHint',
@@ -1562,7 +1570,9 @@ const renderButtonLabel = computed(() =>
                                 >
                                     <v-switch
                                         :model-value="project.render.fixEdges"
-                                        :label="t('project.render.fixEdges', 'Redraw the edges too')"
+                                        :label="
+                                            t('project.render.fixEdges', 'Redraw the edges too')
+                                        "
                                         :hint="
                                             t(
                                                 'project.render.fixEdgesHint',
@@ -1577,7 +1587,9 @@ const renderButtonLabel = computed(() =>
                                             (value: boolean | null) =>
                                                 emit(
                                                     'update:project',
-                                                    withRender(project, { fixEdges: value === true }),
+                                                    withRender(project, {
+                                                        fixEdges: value === true,
+                                                    }),
                                                 )
                                         "
                                     />
@@ -1615,7 +1627,9 @@ const renderButtonLabel = computed(() =>
                                             (value: boolean | null) =>
                                                 emit(
                                                     'update:project',
-                                                    withRender(project, { metrics: value === true }),
+                                                    withRender(project, {
+                                                        metrics: value === true,
+                                                    }),
                                                 )
                                         "
                                     />
@@ -1626,7 +1640,12 @@ const renderButtonLabel = computed(() =>
                                     path="render.outputFolder"
                                     :cost="costOf('outputFolder')"
                                     :cost-badge="costBadge"
-                                    :state="fieldDefaultText('outputFolder', project.render.outputFolder)"
+                                    :state="
+                                        fieldDefaultText(
+                                            'outputFolder',
+                                            project.render.outputFolder,
+                                        )
+                                    "
                                     :at-default="isRenderFieldDefault(project, 'outputFolder')"
                                     :revert-label="revertLabel('outputFolder')"
                                     @revert="resetRenderField('outputFolder')"
@@ -1790,7 +1809,6 @@ const renderButtonLabel = computed(() =>
                 </section>
             </aside>
         </div>
-
     </div>
 </template>
 

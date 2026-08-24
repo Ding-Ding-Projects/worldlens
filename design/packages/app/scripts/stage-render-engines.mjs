@@ -1,9 +1,9 @@
-import { createHash } from "node:crypto";
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { verifyJarFile } from "./jar-verifier.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, "..");
@@ -16,6 +16,15 @@ const configRoot = join(designRoot, "packages", "config");
 const driverSource = join(repositoryRoot, "tools", "oracle", "render-ts.mjs");
 const typescriptAssets = join(engineRoot, "assets");
 const jarDirectory = join(repositoryRoot, "tools", "oracle", "out", "jars");
+const gradleJarDirectory = join(
+    repositoryRoot,
+    "vendor",
+    "BlueMap",
+    "implementations",
+    "cli",
+    "build",
+    "libs",
+);
 const require = createRequire(import.meta.url);
 
 const runtimeWorkspacePackages = [
@@ -23,11 +32,6 @@ const runtimeWorkspacePackages = [
     { name: "@worldlens/nbt", root: nbtRoot },
     { name: "@worldlens/shared", root: sharedRoot },
 ];
-
-async function artifactMetadata(path) {
-    const bytes = await readFile(path);
-    return { size: bytes.byteLength, sha256: createHash("sha256").update(bytes).digest("hex") };
-}
 
 /**
  * Keep the TypeScript engine's bare workspace imports inside its staged package
@@ -62,7 +66,9 @@ async function stageRuntimePackage(packageDefinition, packageRoot) {
         const sourceDist = join(packageDefinition.root, "dist");
         const sourceDistInfo = await stat(sourceDist);
         if (!sourceDistInfo.isDirectory()) {
-            throw new Error(`workspace package ${packageDefinition.name} has no built dist directory: ${sourceDist}`);
+            throw new Error(
+                `workspace package ${packageDefinition.name} has no built dist directory: ${sourceDist}`,
+            );
         }
         await cp(sourceDist, join(targetRoot, "dist"), { recursive: true, force: true });
         await cp(sourceManifestPath, join(targetRoot, "package.json"), { force: true });
@@ -92,7 +98,9 @@ function resolveInstalledPackage(packageName, fromRoot) {
     try {
         entry = require.resolve(packageName, { paths: [fromRoot] });
     } catch (error) {
-        throw new Error(`runtime dependency ${packageName} required by ${fromRoot} is not installed: ${String(error)}`);
+        throw new Error(
+            `runtime dependency ${packageName} required by ${fromRoot} is not installed: ${String(error)}`,
+        );
     }
     // Package exports may intentionally omit ./package.json. Walk from the
     // resolved entry to the nearest manifest, which works for both regular
@@ -110,12 +118,16 @@ function resolveInstalledPackage(packageName, fromRoot) {
         }
         directory = dirname(directory);
     }
-    throw new Error(`resolved runtime dependency ${packageName} has no matching package.json: ${entry}`);
+    throw new Error(
+        `resolved runtime dependency ${packageName} has no matching package.json: ${entry}`,
+    );
 }
 
 async function stageRuntimePackageClosure(outputDirectory) {
     const packageRoot = join(outputDirectory, "typescript", "node_modules");
-    const workspaceDefinitions = new Map(runtimeWorkspacePackages.map((definition) => [definition.name, definition]));
+    const workspaceDefinitions = new Map(
+        runtimeWorkspacePackages.map((definition) => [definition.name, definition]),
+    );
     const queue = [
         ...runtimeWorkspacePackages.map((definition) => ({ ...definition, workspace: true })),
         { name: "@worldlens/engine", root: engineRoot, workspace: true, stage: false },
@@ -126,7 +138,9 @@ async function stageRuntimePackageClosure(outputDirectory) {
         const definition = queue.shift();
         if (visited.has(definition.name)) continue;
         visited.add(definition.name);
-        const sourceManifest = JSON.parse(await readFile(join(definition.root, "package.json"), "utf8"));
+        const sourceManifest = JSON.parse(
+            await readFile(join(definition.root, "package.json"), "utf8"),
+        );
         if (sourceManifest.name !== definition.name) {
             throw new Error(`runtime package manifest name mismatch for ${definition.name}`);
         }
@@ -134,7 +148,8 @@ async function stageRuntimePackageClosure(outputDirectory) {
             staged.push(await stageRuntimePackage(definition, packageRoot));
         }
         const optional = new Set(
-            sourceManifest.optionalDependencies && typeof sourceManifest.optionalDependencies === "object"
+            sourceManifest.optionalDependencies &&
+                typeof sourceManifest.optionalDependencies === "object"
                 ? Object.keys(sourceManifest.optionalDependencies)
                 : [],
         );
@@ -144,14 +159,19 @@ async function stageRuntimePackageClosure(outputDirectory) {
                 : [],
         );
         const optionalPeers = new Set(
-            sourceManifest.peerDependenciesMeta && typeof sourceManifest.peerDependenciesMeta === "object"
+            sourceManifest.peerDependenciesMeta &&
+                typeof sourceManifest.peerDependenciesMeta === "object"
                 ? Object.entries(sourceManifest.peerDependenciesMeta)
                       .filter(([, metadata]) => metadata?.optional === true)
                       .map(([name]) => name)
                 : [],
         );
-        if (sourceManifest.peerDependencies && typeof sourceManifest.peerDependencies === "object") {
-            for (const dependencyName of Object.keys(sourceManifest.peerDependencies)) dependencies.add(dependencyName);
+        if (
+            sourceManifest.peerDependencies &&
+            typeof sourceManifest.peerDependencies === "object"
+        ) {
+            for (const dependencyName of Object.keys(sourceManifest.peerDependencies))
+                dependencies.add(dependencyName);
         }
         for (const dependencyName of dependencies) {
             if (optional.has(dependencyName) || optionalPeers.has(dependencyName)) continue;
@@ -178,65 +198,33 @@ async function stageRuntimePackageClosure(outputDirectory) {
  * Stage the files and machine-readable description the packaged app can use to
  * discover both render engines. The TypeScript engine is always bundled from the
  * workspace package; the Java engine is present when the jar bootstrap has staged
- * its CLI jar. Missing Java output is reported in the manifest rather than turning
- * a no-JVM-capable build into a packaging failure.
+ * its CLI jar. A package without a verified CLI jar is rejected here, because
+ * electron-builder otherwise treats a missing extraResources source as a warning
+ * and emits an installer that cannot render.
  */
-export async function stageRenderEngines(outputDirectory = join(appRoot, "dist", "render-engines")) {
+export async function stageRenderEngines(
+    outputDirectory = join(appRoot, "dist", "render-engines"),
+    options = {},
+) {
     await rm(outputDirectory, { recursive: true, force: true });
     await mkdir(outputDirectory, { recursive: true });
 
     const typescriptOutput = join(outputDirectory, "typescript", "assets");
     await cp(typescriptAssets, typescriptOutput, { recursive: true, force: true });
-    await cp(join(engineRoot, "dist"), join(outputDirectory, "typescript", "dist"), { recursive: true, force: true });
-    await cp(join(sharedRoot, "dist"), join(outputDirectory, "shared", "dist"), { recursive: true, force: true });
+    await cp(join(engineRoot, "dist"), join(outputDirectory, "typescript", "dist"), {
+        recursive: true,
+        force: true,
+    });
+    await cp(join(sharedRoot, "dist"), join(outputDirectory, "shared", "dist"), {
+        recursive: true,
+        force: true,
+    });
     await cp(driverSource, join(outputDirectory, "typescript", "render-ts.mjs"));
     const stagedWorkspacePackages = await stageRuntimePackageClosure(outputDirectory);
 
-    let javaVersion = null;
-    let javaArtifact = null;
-    let stagedManifestFound = false;
-    try {
-        const stagedManifest = JSON.parse(await readFile(join(jarDirectory, "manifest.json"), "utf8"));
-        stagedManifestFound = true;
-        const cli = Array.isArray(stagedManifest.jars)
-            ? stagedManifest.jars.find((jar) => jar?.implementation === "cli")
-            : null;
-        if (typeof cli?.fileName === "string") {
-            const candidate = join(jarDirectory, cli.fileName);
-            const info = await stat(candidate);
-            if (!info.isFile()) throw new Error(`staged CLI jar is not a file: ${candidate}`);
-            const actual = await artifactMetadata(candidate);
-            if (typeof cli.size === "number" && cli.size !== actual.size) {
-                throw new Error(`staged CLI jar size differs from manifest: ${candidate}`);
-            }
-            if (typeof cli.sha256 === "string" && cli.sha256.toLowerCase() !== actual.sha256) {
-                throw new Error(`staged CLI jar digest differs from manifest: ${candidate}`);
-            }
-            javaArtifact = { fileName: cli.fileName, ...actual };
-            javaVersion = typeof cli.version === "string" ? cli.version : null;
-        }
-    } catch {
-        // A stale or malformed manifest is not evidence that a jar is usable.
-    }
-    try {
-        if (javaArtifact === null && !stagedManifestFound) {
-            const entries = await readdir(jarDirectory, { withFileTypes: true });
-            const candidates = entries
-                .filter((entry) => entry.isFile() && /^cli-(.+)-shadow\.jar$/.test(entry.name))
-                .map(async (entry) => ({
-                    name: entry.name,
-                    mtimeMs: (await stat(join(jarDirectory, entry.name))).mtimeMs,
-                }));
-            const ordered = (await Promise.all(candidates)).sort((left, right) => right.mtimeMs - left.mtimeMs);
-            const javaJar = ordered[0]?.name ?? null;
-            if (javaJar !== null) {
-                javaArtifact = { fileName: javaJar, ...(await artifactMetadata(join(jarDirectory, javaJar))) };
-                javaVersion = /^cli-(.+)-shadow\.jar$/.exec(javaJar)?.[1] ?? null;
-            }
-        }
-    } catch {
-        // The Java engine remains an honest unavailable capability until jars are staged.
-    }
+    const java = await resolveJavaArtifact(options.requireJava === true);
+    const javaVersion = java.version;
+    const javaArtifact = java.artifact;
 
     let typescriptVersion = "unknown";
     try {
@@ -279,8 +267,189 @@ export async function stageRenderEngines(outputDirectory = join(appRoot, "dist",
             },
         },
     };
-    await writeFile(join(outputDirectory, "manifest.json"), `${JSON.stringify(manifest, null, 4)}\n`, "utf8");
+    await writeFile(
+        join(outputDirectory, "manifest.json"),
+        `${JSON.stringify(manifest, null, 4)}\n`,
+        "utf8",
+    );
     return manifest;
+}
+
+async function resolveJavaArtifact(requireJava) {
+    const stagedManifestPath = join(jarDirectory, "manifest.json");
+    try {
+        const stagedManifest = JSON.parse(await readFile(stagedManifestPath, "utf8"));
+        const cli = Array.isArray(stagedManifest.jars)
+            ? stagedManifest.jars.find((jar) => jar?.implementation === "cli")
+            : null;
+        if (typeof cli?.fileName === "string") {
+            const candidate = stagedJarPath(cli.fileName);
+            const actual = await verifiedJarMetadata(candidate);
+            if (typeof cli.size !== "number" || cli.size !== actual.size) {
+                throw new Error(`staged CLI jar size differs from manifest: ${candidate}`);
+            }
+            if (typeof cli.sha256 !== "string" || cli.sha256.toLowerCase() !== actual.sha256) {
+                throw new Error(`staged CLI jar digest differs from manifest: ${candidate}`);
+            }
+            if (typeof cli.version !== "string" || cli.version.length === 0) {
+                throw new Error(`staged CLI jar version is missing from manifest: ${candidate}`);
+            }
+            return {
+                version: cli.version,
+                artifact: { fileName: cli.fileName, ...actual, source: "staged" },
+            };
+        }
+    } catch (error) {
+        // A local Gradle result below is authoritative when the staging manifest is
+        // absent or stale. If neither source is usable, the final error names both.
+        var stagedError = error;
+    }
+
+    const rawStaged = await newestJar(jarDirectory);
+    if (rawStaged !== null) {
+        const actual = await verifiedJarMetadata(rawStaged.path);
+        await writeCliManifest({
+            version: rawStaged.version,
+            fileName: rawStaged.fileName,
+            size: actual.size,
+            sha256: actual.sha256,
+            source: "staged",
+        });
+        return {
+            version: rawStaged.version,
+            artifact: { fileName: rawStaged.fileName, ...actual, source: "staged" },
+        };
+    }
+
+    const gradle = await newestGradleCliJar();
+    if (gradle !== null) {
+        await mkdir(jarDirectory, { recursive: true });
+        const destination = join(jarDirectory, gradle.fileName);
+        await cp(gradle.path, destination, { force: true });
+        const actual = await verifiedJarMetadata(destination);
+        let staged = { jars: [] };
+        try {
+            staged = JSON.parse(await readFile(stagedManifestPath, "utf8"));
+        } catch {
+            // A fresh local build may not have run tools/build-jars.mjs yet.
+        }
+        const jars = Array.isArray(staged.jars)
+            ? staged.jars.filter((jar) => jar?.implementation !== "cli")
+            : [];
+        jars.push({
+            implementation: "cli",
+            version: gradle.version,
+            fileName: gradle.fileName,
+            size: actual.size,
+            sha256: actual.sha256,
+            source: "gradle",
+        });
+        await writeFile(
+            stagedManifestPath,
+            `${JSON.stringify({ ...staged, source: "vendor/BlueMap", jars }, null, 4)}\n`,
+            "utf8",
+        );
+        return {
+            version: gradle.version,
+            artifact: { fileName: gradle.fileName, ...actual, source: "gradle" },
+        };
+    }
+
+    if (!requireJava) {
+        return { version: null, artifact: null };
+    }
+    const detail = stagedError instanceof Error ? ` Staging error: ${stagedError.message}` : "";
+    throw new Error(
+        `No verified BlueMap CLI jar is available for packaging. Looked in ${jarDirectory} and ${gradleJarDirectory}.${detail} ` +
+            "Run node scripts/bootstrap.mjs or node tools/build-jars.mjs --only cli before packaging.",
+    );
+}
+
+async function writeCliManifest(cli) {
+    const manifestPath = join(jarDirectory, "manifest.json");
+    let current = { jars: [] };
+    try {
+        current = JSON.parse(await readFile(manifestPath, "utf8"));
+    } catch {
+        // CI's downloaded asset intentionally has no build-jars manifest.
+    }
+    const jars = Array.isArray(current.jars)
+        ? current.jars.filter((jar) => jar?.implementation !== "cli")
+        : [];
+    jars.push(cli);
+    await writeFile(
+        manifestPath,
+        `${JSON.stringify({ ...current, source: current.source ?? "staged render-engine input", jars }, null, 4)}\n`,
+        "utf8",
+    );
+}
+
+async function newestJar(directory) {
+    let entries;
+    try {
+        entries = await readdir(directory, { withFileTypes: true });
+    } catch {
+        return null;
+    }
+    const candidates = [];
+    for (const entry of entries) {
+        const shadow = /^cli-(.+)-shadow\.jar$/.exec(entry.name);
+        const released = /^bluemap-(.+)-cli\.jar$/.exec(entry.name);
+        if (!entry.isFile() || (shadow === null && released === null)) continue;
+        const path = join(directory, entry.name);
+        const info = await stat(path);
+        candidates.push({
+            path,
+            fileName: entry.name,
+            version: (shadow ?? released)[1],
+            mtimeMs: info.mtimeMs,
+        });
+    }
+    candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
+    return candidates[0] ?? null;
+}
+
+function stagedJarPath(fileName) {
+    if (basename(fileName) !== fileName)
+        throw new Error(`staged CLI jar path contains traversal: ${fileName}`);
+    const candidate = resolve(jarDirectory, fileName);
+    if (!candidate.startsWith(`${resolve(jarDirectory)}${sep}`))
+        throw new Error(`staged CLI jar path escapes staging: ${fileName}`);
+    return candidate;
+}
+
+async function newestGradleCliJar() {
+    let entries;
+    try {
+        entries = await readdir(gradleJarDirectory, { withFileTypes: true });
+    } catch {
+        return null;
+    }
+    const candidates = [];
+    for (const entry of entries) {
+        const shadow = /^cli-(.+)-shadow\.jar$/.exec(entry.name);
+        const released = /^bluemap-(.+)-cli\.jar$/.exec(entry.name);
+        if (!entry.isFile() || (shadow === null && released === null)) continue;
+        const path = join(gradleJarDirectory, entry.name);
+        const info = await stat(path);
+        candidates.push({
+            path,
+            fileName: entry.name,
+            version: (shadow ?? released)[1],
+            mtimeMs: info.mtimeMs,
+        });
+    }
+    candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
+    return candidates[0] ?? null;
+}
+
+async function verifiedJarMetadata(path) {
+    const descriptor = await verifyJarFile(path, { root: resolve(jarDirectory) });
+    if (!descriptor.ok)
+        throw new Error(
+            `BlueMap CLI jar is not a valid JAR archive: ${path} (${descriptor.reason})`,
+        );
+    return { size: descriptor.size, sha256: descriptor.sha256 };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

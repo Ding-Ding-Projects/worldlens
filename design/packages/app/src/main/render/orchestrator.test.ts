@@ -8,7 +8,12 @@ import { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LocalMapHandler } from "./LocalMapHandler.js";
 import { RenderOrchestrator, EngineUnavailableError, classifyRunFailure } from "./orchestrator.js";
-import type { RenderEvent, RenderRequest, ResolvedEngine, SpeedAdjustmentResult } from "./orchestrator.js";
+import type {
+    RenderEvent,
+    RenderRequest,
+    ResolvedEngine,
+    SpeedAdjustmentResult,
+} from "./orchestrator.js";
 import type { SpawnCli } from "./runner.js";
 import type { DockerReport } from "../runtime/docker.js";
 import { containerName as dockerContainerName } from "../runtime/plan.js";
@@ -108,10 +113,15 @@ async function waitUntil(condition: () => boolean): Promise<void> {
  * Modelled on `runtime/process.test.ts`'s own `fakeChild`, kept local because that one is
  * not exported.
  */
-function fakeContainerChild(lines: readonly string[]): EngineChildProcess & { readonly killed: string[] } {
+function fakeContainerChild(
+    lines: readonly string[],
+): EngineChildProcess & { readonly killed: string[] } {
     const emitter = new EventEmitter();
     const killed: string[] = [];
-    const child = emitter as unknown as EngineChildProcess & { killed: string[]; exitCode: number | null };
+    const child = emitter as unknown as EngineChildProcess & {
+        killed: string[];
+        exitCode: number | null;
+    };
     Object.assign(child, {
         stdout: Readable.from(lines),
         stderr: Readable.from([]),
@@ -739,10 +749,7 @@ describe("classifyRunFailure", () => {
     });
 
     it("fails an exit that never happened", () => {
-        const failure = classifyRunFailure(
-            { ...base, exitCode: null, signal: "SIGINT" },
-            null,
-        );
+        const failure = classifyRunFailure({ ...base, exitCode: null, signal: "SIGINT" }, null);
         expect(failure?.code).toBe("cli-failed");
         expect(failure?.message).toContain("could not be started");
     });
@@ -759,6 +766,42 @@ describe("classifyRunFailure", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("cancellation", () => {
+    it("cancels an engine repair before a render process exists and forwards progress", async () => {
+        const events: RenderEvent[] = [];
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            hasConsent: () => true,
+            resolveEngine: (_engine, signal, onProgress) =>
+                new Promise<ResolvedEngine>((resolve, reject) => {
+                    onProgress?.({
+                        stage: "downloading",
+                        message: "Downloading the verified BlueMap engine",
+                        received: 10,
+                        total: 100,
+                    });
+                    signal?.addEventListener(
+                        "abort",
+                        () => reject(new Error("engine repair aborted")),
+                        { once: true },
+                    );
+                    void resolve;
+                }),
+            onEvent: (event) => events.push(event),
+        });
+
+        const pending = orchestrator.render(request({ renderId: "engine-repair" }));
+        await waitUntil(() => events.some((event) => event.type === "engine-provisioning"));
+        expect(orchestrator.activeRenderIds()).toEqual(["engine-repair"]);
+        expect(orchestrator.cancel("engine-repair")).toBe(true);
+        const result = await pending;
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("cancelled");
+        expect(events.some((event) => event.type === "cancelled")).toBe(true);
+        expect(events.some((event) => event.type === "failed")).toBe(false);
+    });
+
     it("stops a running render and records that it was cancelled", async () => {
         const marker = join(root, "ran-to-completion.txt");
         const script = await fakeCli({
@@ -834,7 +877,10 @@ describe("cancellation", () => {
 describe("adjustSpeed - local route", () => {
     it("applies each level's exact documented OS priority to the render's own live pid, immediately", async () => {
         const script = await fakeCli({
-            lines: ["[12:36:13 INFO] Start updating 1 maps ...", "[12:36:23 INFO] updating map 'overworld': 8.5%"],
+            lines: [
+                "[12:36:13 INFO] Start updating 1 maps ...",
+                "[12:36:23 INFO] updating map 'overworld': 8.5%",
+            ],
             sleepMs: 60_000,
         });
         const priorityCalls: Array<{ pid: number; priority: number }> = [];
@@ -853,7 +899,10 @@ describe("adjustSpeed - local route", () => {
         await waitUntil(() => orchestrator.activeRenderIds().includes("speed-local"));
 
         for (const level of [1, 2, 3, 4, 5] as const) {
-            const result: SpeedAdjustmentResult = await orchestrator.adjustSpeed("speed-local", level);
+            const result: SpeedAdjustmentResult = await orchestrator.adjustSpeed(
+                "speed-local",
+                level,
+            );
             expect(result.ok).toBe(true);
             expect(result.route).toBe("local");
             expect(result.appliedNow).toBe(true);
@@ -1001,7 +1050,9 @@ describe("adjustSpeed - docker route", () => {
             hostCpuCount: () => 8,
         });
 
-        const running = orchestrator.render(request({ renderId: "speed-docker", runtime: "docker" }));
+        const running = orchestrator.render(
+            request({ renderId: "speed-docker", runtime: "docker" }),
+        );
         await waitUntil(() => orchestrator.activeRenderIds().includes("speed-docker"));
 
         const expectedName = dockerContainerName(CONTAINER_PREFIX, "speed-docker");
@@ -1053,7 +1104,9 @@ describe("adjustSpeed - docker route", () => {
             runner,
         });
 
-        const running = orchestrator.render(request({ renderId: "speed-docker-gone", runtime: "docker" }));
+        const running = orchestrator.render(
+            request({ renderId: "speed-docker-gone", runtime: "docker" }),
+        );
         await waitUntil(() => orchestrator.activeRenderIds().includes("speed-docker-gone"));
 
         const result = await orchestrator.adjustSpeed("speed-docker-gone", 1);

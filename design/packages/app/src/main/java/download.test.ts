@@ -8,7 +8,8 @@ import { downloadVerified, sha256File } from "./download.js";
 
 const temporaryDirectories: string[] = [];
 afterAll(() => {
-    for (const directory of temporaryDirectories) rmSync(directory, { recursive: true, force: true });
+    for (const directory of temporaryDirectories)
+        rmSync(directory, { recursive: true, force: true });
 });
 
 function temporaryDirectory(): string {
@@ -68,6 +69,43 @@ function rangeServer(body: Buffer): { fetchBinary: FetchBinary; requests: Record
 }
 
 describe("downloadVerified", () => {
+    it("rejects a Content-Length above the hard ceiling before writing", async () => {
+        const directory = temporaryDirectory();
+        const target = join(directory, "too-large.zip");
+        const { fetchBinary } = rangeServer(ARCHIVE);
+        await expect(
+            downloadVerified({
+                url: "https://example.invalid/too-large.zip",
+                sha256: ARCHIVE_SHA256,
+                target,
+                maxSize: ARCHIVE.length - 1,
+                fetchBinary,
+            }),
+        ).rejects.toThrow(/hard size ceiling/);
+        expect(existsSync(target)).toBe(false);
+    });
+
+    it("rejects a streamed chunk that crosses the hard ceiling before writing it", async () => {
+        const directory = temporaryDirectory();
+        const target = join(directory, "chunk-too-large.zip");
+        const fetchBinary = async () => ({
+            ok: true,
+            status: 200,
+            headers: headers({ "content-length": "" }),
+            body: chunks(ARCHIVE),
+        });
+        await expect(
+            downloadVerified({
+                url: "https://example.invalid/chunk-too-large.zip",
+                sha256: ARCHIVE_SHA256,
+                target,
+                maxSize: ARCHIVE.length - 1,
+                fetchBinary,
+            }),
+        ).rejects.toThrow(/hard size ceiling/);
+        expect(existsSync(target)).toBe(false);
+    });
+
     it("downloads, verifies and renames into place", async () => {
         const directory = temporaryDirectory();
         const target = join(directory, "jdk.zip");
@@ -146,13 +184,15 @@ describe("downloadVerified", () => {
         writeFileSync(target, ARCHIVE);
         const { fetchBinary, requests } = rangeServer(ARCHIVE);
 
-        await expect(downloadVerified({
-            url: "https://example.invalid/jdk.zip",
-            sha256: ARCHIVE_SHA256,
-            target,
-            expectedSize: ARCHIVE.length + 1,
-            fetchBinary,
-        })).rejects.toThrow(/Size mismatch/);
+        await expect(
+            downloadVerified({
+                url: "https://example.invalid/jdk.zip",
+                sha256: ARCHIVE_SHA256,
+                target,
+                expectedSize: ARCHIVE.length + 1,
+                fetchBinary,
+            }),
+        ).rejects.toThrow(/Size mismatch/);
 
         expect(requests[0]?.range).toBeNull();
         expect(existsSync(target)).toBe(false);

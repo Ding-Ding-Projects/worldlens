@@ -122,6 +122,9 @@ const javaAvailable = computed<boolean | null>(() => {
     if (java.state.value === "missing") return false;
     return null;
 });
+const renderEngineAvailable = computed<boolean | null>(() => java.renderEngineAvailable.value);
+const renderEngineReason = computed<string | null>(() => java.renderEngineReason.value);
+const renderEnginePath = computed<string | null>(() => java.renderEnginePath.value);
 
 const host = props.host === undefined ? resolveProjectHost() : props.host;
 const bridge = props.bridge === undefined ? resolveWorldBridge() : props.bridge;
@@ -613,7 +616,11 @@ function openNewProjectFor(world: string, route: "local" | "github-actions" = "l
         createProjectFromGeneratedDefaults(worldLeaf(world), {
             world,
             separator: separator.value,
-            engine: resolveRenderEngine(globalRenderEngineDefault(), javaAvailable.value === true),
+            engine: resolveRenderEngine(
+                globalRenderEngineDefault(),
+                javaAvailable.value === true,
+                renderEngineAvailable.value === true,
+            ),
         }),
         { route },
     );
@@ -903,6 +910,9 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :consent-accepted="consentIsAccepted"
             :java-available="javaAvailable"
             :java-version="java.report.value?.installation?.version.version ?? null"
+            :render-engine-available="renderEngineAvailable"
+            :render-engine-reason="renderEngineReason"
+            :render-engine-path="renderEnginePath"
             :separator="separator"
             :default-root="defaultRoot"
             @update:project="(value) => (openProject = value)"

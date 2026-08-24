@@ -30,6 +30,10 @@ import {
 } from "@worldlens/server";
 import { LocalMapHandler, defaultStorageDirectory } from "./render/index.js";
 import { typescriptEngine, upstreamJavaEngine } from "./render/engine.js";
+import {
+    packagedUpstreamJavaIsUsable,
+    verifyManagedUpstreamJava,
+} from "./render/engineProvisioning.js";
 import { installRenderIpc } from "./render/ipc.js";
 import type { RenderIpc } from "./render/ipc.js";
 import { installDownloadIpc } from "./download/ipc.js";
@@ -147,7 +151,7 @@ import { registerBedrockHandlers, BEDROCK_EVENT_CHANNEL } from "./bedrock/index.
 import type { BedrockIpc } from "./bedrock/index.js";
 import { registerRepairHandlers } from "./repair/index.js";
 import type { RepairIpc } from "./repair/index.js";
-import { ensureJava } from "./java/index.js";
+import { ensureJava, resolveCliJar } from "./java/index.js";
 import { registerSysdepHandlers, SYSDEP_INSTALL_EVENT_CHANNEL } from "./sysdeps/ipc.js";
 import type { SysdepIpc } from "./sysdeps/ipc.js";
 import { spawnProcessRunner } from "./sysdeps/process.js";
@@ -645,8 +649,19 @@ function startRendering(): RenderIpc {
         resourcesPath: app.isPackaged ? process.resourcesPath : null,
         repositoryRoot: process.cwd(),
     });
-    const resolveEngine = (choice: "upstream-java" | "typescript") =>
-        choice === "typescript" ? typescriptResolver(choice) : javaResolver(choice);
+    const resolveEngine = (
+        choice: "upstream-java" | "typescript",
+        signal?: AbortSignal,
+        onProgress?: (progress: {
+            readonly stage: string;
+            readonly message: string;
+            readonly received: number | null;
+            readonly total: number | null;
+        }) => void,
+    ) =>
+        choice === "typescript"
+            ? typescriptResolver(choice)
+            : javaResolver(choice, signal, onProgress);
 
     const render = installRenderIpc({
         storageDir,
@@ -805,6 +820,59 @@ function startJavaDiscovery(): JavaIpc {
         // it should be naming sits in `resources/bundled/java`.
         resourcesPath: app.isPackaged ? process.resourcesPath : null,
         ensure: ensureJava,
+        renderEngine: async () => {
+            try {
+                const packaged = app.isPackaged && process.resourcesPath !== undefined;
+                if (packaged && !(await packagedUpstreamJavaIsUsable(process.resourcesPath))) {
+                    const managed = resolveCliJar({
+                        resourcesPath: null,
+                        repoRoot: null,
+                        dataDir: app.getPath("userData"),
+                    });
+                    const verifiedManaged =
+                        managed.source === "managed" &&
+                        (await verifyManagedUpstreamJava(app.getPath("userData")));
+                    return {
+                        available: verifiedManaged !== false && verifiedManaged !== null,
+                        version:
+                            verifiedManaged !== false && verifiedManaged !== null
+                                ? verifiedManaged.version
+                                : null,
+                        source:
+                            verifiedManaged !== false && verifiedManaged !== null
+                                ? verifiedManaged.source
+                                : null,
+                        reason:
+                            verifiedManaged !== false && verifiedManaged !== null
+                                ? "The packaged jar needs repair; a verified managed copy is ready."
+                                : "The packaged BlueMap jar is missing or malformed.",
+                        path:
+                            verifiedManaged !== false && verifiedManaged !== null
+                                ? verifiedManaged.path
+                                : null,
+                    };
+                }
+                const jar = resolveCliJar({
+                    resourcesPath: app.isPackaged ? process.resourcesPath : null,
+                    dataDir: app.getPath("userData"),
+                });
+                return {
+                    available: true,
+                    version: jar.version,
+                    source: jar.source,
+                    reason: null,
+                    path: jar.path,
+                };
+            } catch (error) {
+                return {
+                    available: false,
+                    version: null,
+                    source: null,
+                    reason: error instanceof Error ? error.message : String(error),
+                    path: null,
+                };
+            }
+        },
         broadcast: (event) => {
             for (const window of BrowserWindow.getAllWindows()) {
                 if (!window.isDestroyed())

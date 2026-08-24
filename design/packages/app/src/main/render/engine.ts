@@ -18,13 +18,15 @@
  */
 
 import { createHash } from "node:crypto";
-import { ensureJava, NoUsableJavaError, resolveCliJar } from "../java/index.js";
+import { ensureJava, execFileRunner, NoUsableJavaError, resolveCliJar } from "../java/index.js";
+import type { FetchBinary } from "../java/index.js";
 import type { JarLookupOptions } from "../java/index.js";
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve, basename } from "node:path";
 import { EngineUnavailableError } from "./orchestrator.js";
 import type { ResolvedEngine } from "./orchestrator.js";
 import type { RenderEngineId } from "./provenance.js";
+import { ensureManagedUpstreamJava, type EngineProvisionProgress } from "./engineProvisioning.js";
 
 export interface UpstreamEngineOptions {
     /** Electron's `userData`. Where a provisioned JDK is looked for and installed. */
@@ -39,6 +41,13 @@ export interface UpstreamEngineOptions {
      */
     readonly allowProvisioning?: boolean;
     readonly jarLookup?: JarLookupOptions;
+    readonly fetchBinary?: FetchBinary;
+    readonly onEngineProvisionProgress?: (progress: EngineProvisionProgress) => void;
+    readonly signal?: AbortSignal;
+    readonly probeEngine?: (
+        javaExecutable: string,
+        jarPath: string,
+    ) => Promise<{ readonly ok: boolean; readonly detail?: string }>;
 }
 
 export interface TypeScriptEngineOptions {
@@ -57,8 +66,16 @@ export interface TypeScriptEngineOptions {
  */
 export function upstreamJavaEngine(
     options: UpstreamEngineOptions,
-): (engine?: RenderEngineId) => Promise<ResolvedEngine> {
-    return async (engine: RenderEngineId = "upstream-java"): Promise<ResolvedEngine> => {
+): (
+    engine?: RenderEngineId,
+    signal?: AbortSignal,
+    onProgress?: (progress: EngineProvisionProgress) => void,
+) => Promise<ResolvedEngine> {
+    return async (
+        engine: RenderEngineId = "upstream-java",
+        signal = options.signal,
+        onProgress = options.onEngineProvisionProgress,
+    ): Promise<ResolvedEngine> => {
         if (engine !== "upstream-java") {
             throw new EngineUnavailableError(
                 "engine",
@@ -69,13 +86,43 @@ export function upstreamJavaEngine(
         // The jar first: it is a directory listing, where finding a JVM can mean
         // launching a process or downloading two hundred megabytes. Reporting "the
         // engine is not installed" without having spent that is the better order.
+        let managedRepair = null;
+        if (options.resourcesPath !== undefined && options.resourcesPath !== null) {
+            try {
+                managedRepair = await ensureManagedUpstreamJava({
+                    dataDir: options.dataDir,
+                    resourcesPath: options.resourcesPath,
+                    ...(options.fetchBinary === undefined
+                        ? {}
+                        : { fetchBinary: options.fetchBinary }),
+                    ...(onProgress === undefined ? {} : { onProgress }),
+                    ...(signal === undefined ? {} : { signal }),
+                });
+            } catch (error) {
+                throw new EngineUnavailableError("jar", describe(error));
+            }
+        }
         let jar;
         try {
-            jar = resolveCliJar(options.jarLookup ?? lookupFrom(options));
+            if (managedRepair?.source === "managed" && managedRepair.jarPath !== null) {
+                jar = {
+                    implementation: "cli" as const,
+                    path: managedRepair.jarPath,
+                    version: managedRepair.version,
+                    source: "managed" as const,
+                };
+            } else {
+                const lookup = options.jarLookup ?? lookupFrom(options);
+                jar = resolveCliJar({ ...lookup, dataDir: options.dataDir });
+            }
         } catch (error) {
             throw new EngineUnavailableError("jar", describe(error));
         }
-        if (options.resourcesPath !== undefined && options.resourcesPath !== null) {
+        if (
+            options.resourcesPath !== undefined &&
+            options.resourcesPath !== null &&
+            jar.source === "bundled"
+        ) {
             try {
                 await verifyStagedJavaArtifact(options.resourcesPath, jar.path, jar.version);
             } catch (error) {
@@ -96,9 +143,19 @@ export function upstreamJavaEngine(
                 ...(options.resourcesPath === undefined
                     ? {}
                     : { resourcesPath: options.resourcesPath }),
-                ...(options.allowProvisioning === undefined
+                allowProvisioning: options.allowProvisioning ?? true,
+                ...(onProgress === undefined
                     ? {}
-                    : { allowProvisioning: options.allowProvisioning }),
+                    : {
+                          onEvent: (event) =>
+                              onProgress({
+                                  stage: event.stage === "downloading" ? "downloading" : "checking",
+                                  message: event.message,
+                                  received: event.received,
+                                  total: event.total,
+                              }),
+                      }),
+                ...(signal === undefined ? {} : { signal }),
             });
         } catch (error) {
             if (error instanceof NoUsableJavaError) {
@@ -107,14 +164,47 @@ export function upstreamJavaEngine(
             throw new EngineUnavailableError("java", describe(error));
         }
 
+        if (managedRepair?.source === "managed") {
+            const probe =
+                options.probeEngine === undefined
+                    ? await probeManagedJar(java.installation.executable, jar.path)
+                    : await options.probeEngine(java.installation.executable, jar.path);
+            if (!probe.ok) {
+                throw new EngineUnavailableError(
+                    "jar",
+                    probe.detail ?? "the repaired BlueMap CLI jar did not answer its startup probe",
+                );
+            }
+        }
+
         return {
             engine: "upstream-java",
             engineVersion: jar.version,
+            engineSource: managedRepair?.source ?? jar.source,
             launch: "java-cli",
             enginePath: jar.path,
             javaExecutable: java.installation.executable,
             javaVersion: java.installation.version.version,
         };
+    };
+}
+
+async function probeManagedJar(
+    javaExecutable: string,
+    jarPath: string,
+): Promise<{ readonly ok: boolean; readonly detail?: string }> {
+    const result = await execFileRunner(javaExecutable, ["-jar", jarPath, "-h"]);
+    if (result.ok) return { ok: true };
+    const detail = `${result.stderr}\n${result.stdout}`
+        .trim()
+        .split(/\r?\n/u)
+        .find((line) => line.trim().length > 0);
+    return {
+        ok: false,
+        detail:
+            detail === undefined
+                ? "the repaired BlueMap CLI jar exited before its help probe completed"
+                : `the repaired BlueMap CLI jar failed its help probe: ${detail}`,
     };
 }
 
@@ -135,7 +225,14 @@ export function typescriptEngine(
                 : join(options.resourcesPath, "render-engines"),
             options.repositoryRoot === undefined || options.repositoryRoot === null
                 ? null
-                : join(options.repositoryRoot, "design", "packages", "app", "dist", "render-engines"),
+                : join(
+                      options.repositoryRoot,
+                      "design",
+                      "packages",
+                      "app",
+                      "dist",
+                      "render-engines",
+                  ),
         ].filter((root): root is string => root !== null);
         for (const root of roots) {
             const enginePath = join(root, "typescript", "dist", "index.js");
@@ -187,29 +284,52 @@ interface StagedJavaArtifact {
     readonly sha256: string;
 }
 
-async function verifyStagedJavaArtifact(resourcesPath: string, jarPath: string, jarVersion: string): Promise<void> {
+async function verifyStagedJavaArtifact(
+    resourcesPath: string,
+    jarPath: string,
+    jarVersion: string,
+): Promise<void> {
     const raw = await readFile(join(resourcesPath, "render-engines", "manifest.json"), "utf8");
     const parsed = JSON.parse(raw) as {
         manifestVersion?: unknown;
-        engines?: { "upstream-java"?: { available?: unknown; version?: unknown; jar?: StagedJavaArtifact | null } };
+        engines?: {
+            "upstream-java"?: {
+                available?: unknown;
+                version?: unknown;
+                jar?: StagedJavaArtifact | null;
+            };
+        };
     };
     const java = parsed.engines?.["upstream-java"];
-    if (parsed.manifestVersion !== 1 || java?.available !== true || java.jar === null || java.jar === undefined) {
-        throw new Error("the packaged render-engine manifest does not advertise a usable upstream-java artifact");
+    if (
+        parsed.manifestVersion !== 1 ||
+        java?.available !== true ||
+        java.jar === null ||
+        java.jar === undefined
+    ) {
+        throw new Error(
+            "the packaged render-engine manifest does not advertise a usable upstream-java artifact",
+        );
     }
     if (java.version !== jarVersion || java.jar.fileName !== basename(jarPath)) {
-        throw new Error("the packaged render-engine manifest does not match the staged upstream-java jar");
+        throw new Error(
+            "the packaged render-engine manifest does not match the staged upstream-java jar",
+        );
     }
     const bytes = await readFile(jarPath);
     const digest = createHash("sha256").update(bytes).digest("hex");
     if (java.jar.size !== bytes.byteLength || java.jar.sha256.toLowerCase() !== digest) {
-        throw new Error("the staged upstream-java jar failed the packaged manifest size or SHA-256 check");
+        throw new Error(
+            "the staged upstream-java jar failed the packaged manifest size or SHA-256 check",
+        );
     }
 }
 
 async function developmentTypeScriptVersion(base: string): Promise<string> {
     try {
-        const packageJson = JSON.parse(await readFile(join(base, "design", "packages", "engine", "package.json"), "utf8"));
+        const packageJson = JSON.parse(
+            await readFile(join(base, "design", "packages", "engine", "package.json"), "utf8"),
+        );
         return typeof packageJson.version === "string" && packageJson.version.length > 0
             ? packageJson.version
             : "unknown";
@@ -233,8 +353,14 @@ async function stagedTypeScriptVersion(root: string): Promise<string | null> {
                 };
             };
         };
-        if (manifest.manifestVersion !== 1 || manifest.engines?.typescript?.available !== true) return null;
-        if (!(await hasStagedTypeScriptPackageBoundary(root, manifest.engines.typescript.packageResolution))) {
+        if (manifest.manifestVersion !== 1 || manifest.engines?.typescript?.available !== true)
+            return null;
+        if (
+            !(await hasStagedTypeScriptPackageBoundary(
+                root,
+                manifest.engines.typescript.packageResolution,
+            ))
+        ) {
             return null;
         }
         return typeof manifest.engines?.typescript?.version === "string"
@@ -245,7 +371,11 @@ async function stagedTypeScriptVersion(root: string): Promise<string | null> {
     }
 }
 
-const STAGED_TYPESCRIPT_PACKAGES = ["@worldlens/config", "@worldlens/nbt", "@worldlens/shared"] as const;
+const STAGED_TYPESCRIPT_PACKAGES = [
+    "@worldlens/config",
+    "@worldlens/nbt",
+    "@worldlens/shared",
+] as const;
 const STAGED_TYPESCRIPT_PACKAGE_ROOT = "typescript/node_modules/@worldlens";
 
 interface StagedTypeScriptPackageRecord {
@@ -269,7 +399,8 @@ async function hasStagedTypeScriptPackageBoundary(
     root: string,
     resolution: StagedTypeScriptPackageResolution | undefined,
 ): Promise<boolean> {
-    if (resolution?.root !== STAGED_TYPESCRIPT_PACKAGE_ROOT || !Array.isArray(resolution.packages)) return false;
+    if (resolution?.root !== STAGED_TYPESCRIPT_PACKAGE_ROOT || !Array.isArray(resolution.packages))
+        return false;
     const records = resolution.packages as StagedTypeScriptPackageRecord[];
     if (records.length < STAGED_TYPESCRIPT_PACKAGES.length) return false;
 
@@ -334,9 +465,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 function lookupFrom(options: UpstreamEngineOptions): JarLookupOptions {
-    return options.resourcesPath === undefined
-        ? {}
-        : { resourcesPath: options.resourcesPath };
+    return options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath };
 }
 
 function describe(error: unknown): string {
