@@ -4,6 +4,7 @@ import { readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node
 import { spawnSync } from "node:child_process";
 import { dirname, join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
 const outputs = [
   "design/packages/app/dist/main/index.js",
@@ -11,11 +12,35 @@ const outputs = [
   "design/packages/app/dist/render-engines/manifest.json",
   "design/packages/ui/dist/index.html",
 ];
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const toolchainManifest = JSON.parse(readFileSync(join(repoRoot, "scripts/toolchain-manifest.json"), "utf8"));
 
 function git(repo, args) {
   const result = spawnSync("git", ["-C", repo, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], shell: false });
   assert.equal(result.status, 0, `git ${args.join(" ")} failed: ${result.stderr}`);
   return result.stdout.trim();
+}
+
+export function assertCleanSource(repo) {
+  const status = git(repo, ["status", "--porcelain=v1", "--untracked-files=all", "--ignore-submodules=none"]);
+  assert.equal(status, "", `source checkout is not clean before build: ${status}`);
+  const gitlinks = git(repo, ["ls-files", "-s"]).split(/\r?\n/).filter(Boolean).flatMap((line) => {
+    const match = /^160000 ([0-9a-f]{40}) 0\t(.+)$/.exec(line);
+    return match ? [{ expected: match[1], path: match[2] }] : [];
+  });
+  for (const entry of gitlinks) {
+    const submodule = resolve(repo, entry.path);
+    let actual;
+    try {
+      actual = git(submodule, ["rev-parse", "HEAD"]);
+    } catch (error) {
+      throw new Error(`source submodule ${entry.path} is not initialized: ${error.message}`);
+    }
+    assert.equal(actual, entry.expected, `source submodule ${entry.path} is at ${actual}, expected ${entry.expected}`);
+    const nestedStatus = git(submodule, ["status", "--porcelain=v1", "--untracked-files=all"]);
+    assert.equal(nestedStatus, "", `source submodule ${entry.path} is not clean: ${nestedStatus}`);
+  }
+  return true;
 }
 
 function sourceState(repo) {
@@ -44,18 +69,24 @@ function records(repo, startedAt) {
   });
 }
 
-function electronRecord(appDir, startedAt) {
+function electronRecord(appDir) {
   const requireFromApp = createRequire(join(appDir, "package.json"));
   const executable = requireFromApp("electron");
   const stats = statSync(executable);
-  assert.ok(stats.isFile() && stats.size > 1_000_000, "Electron executable is missing or incomplete");
-  assert.ok(stats.mtimeMs >= startedAt, "Electron executable is stale");
+  const expected = toolchainManifest.electron;
+  const expectedPath = resolve(appDir, "..", "..", expected.executableRelativePath);
+  assert.equal(resolve(executable), expectedPath, "Electron executable path is not the committed manifest path");
+  assert.ok(stats.isFile() && stats.size === expected.executableSize, "Electron executable size differs from the committed manifest");
+  assert.equal(sha256(executable), expected.executableSha256, "Electron executable hash differs from the committed manifest");
   const probe = spawnSync(executable, ["--version"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], shell: false });
   assert.equal(probe.status, 0, `Electron provenance probe failed: ${probe.stderr}`);
-  return { path: executable, sha256: sha256(executable), size: stats.size, mtimeMs: stats.mtimeMs, version: `${probe.stdout}${probe.stderr}`.trim() };
+  const version = `${probe.stdout}${probe.stderr}`.trim();
+  assert.match(version, new RegExp(`^v?${expected.version.replaceAll(".", "\\.")}$`), "Electron version differs from the committed manifest");
+  return { path: executable, sha256: sha256(executable), size: stats.size, version, manifest: { ...expected } };
 }
 
 export function prepare(repo, receipt) {
+  assertCleanSource(repo);
   const startedAt = Date.now();
   const design = resolve(repo, "design", "packages");
   for (const packageName of readdirSync(design)) {
@@ -70,7 +101,7 @@ export function prepare(repo, receipt) {
 export function finalize(repo, receipt) {
   const prior = JSON.parse(readFileSync(receipt, "utf8"));
   const appDir = resolve(repo, "design/packages/app");
-  const next = { ...prior, state: "verified", finishedAt: Date.now(), source: sourceState(repo), outputs: records(repo, prior.startedAt), electron: electronRecord(appDir, prior.startedAt) };
+  const next = { ...prior, state: "verified", finishedAt: Date.now(), source: sourceState(repo), outputs: records(repo, prior.startedAt), electron: electronRecord(appDir) };
   writeFileSync(receipt, JSON.stringify(next, null, 2) + "\n");
   return next;
 }
@@ -78,14 +109,15 @@ export function finalize(repo, receipt) {
 export function verify(repo, receipt) {
   const record = JSON.parse(readFileSync(receipt, "utf8"));
   assert.equal(record.state, "verified", "build receipt is not finalized");
+  assertCleanSource(repo);
   assert.deepEqual(record.source, sourceState(repo), "build receipt is for a different source commit or index");
   assert.deepEqual(record.outputs, records(repo, record.startedAt), "build outputs changed after receipt finalization");
-  const electron = electronRecord(resolve(repo, "design/packages/app"), record.startedAt);
+  const electron = electronRecord(resolve(repo, "design/packages/app"));
   assert.deepEqual(record.electron, electron, "Electron provenance changed after receipt finalization");
   return record;
 }
 
-export { outputs, records, sourceState };
+export { electronRecord, outputs, records, sourceState };
 
 const command = process.argv[2];
 const repoFlag = process.argv.indexOf("--repo");

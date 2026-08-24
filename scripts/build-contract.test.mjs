@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -51,8 +51,13 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
     assert.match(fetcher, /acquire-portable-tool\.ps1/);
     assert.match(portableScript, /Get-FileHash/);
     assert.match(portableScript, /finally/);
+    assert.match(portableScript, /\$rollback/);
+    assert.match(portableScript, /Move-Item -LiteralPath \$destination -Destination \$rollback/);
+    assert.match(portableScript, /Move-Item -LiteralPath \$rollback -Destination \$destination/);
     assert.match(manifest, /bb819d6eb8f5bfda294bbc83a7e4ec6539da67c4233d54b0d655b9248b15e29d/);
     assert.match(manifest, /b12919e609b4fa1176ba8a155b49f761419a0c7cc97b42e6be09874a3f760ab6/);
+    assert.match(manifest, /af69b8a4326432a8bf655eb23f808dcff02bcb2555cac9667e72e943f53542e4/);
+    assert.match(manifest, /8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac/);
     assert.match(fetcher, /scripts\\toolchain-manifest\.json/);
     assert.match(fetcher, /toolchain-probe\.mjs" manifest/);
   }, "pinned fresh-machine tool acquisition");
@@ -62,6 +67,12 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
     assert.match(manifest, /jdk-25\.0\.4\+7/);
     assert.match(manifest, /7caab7db43bf4b94a2e6252c699e70d90084f9aa7c943cd3414761fd540937ae/);
   }, "committed Java release and digest");
+  check(() => {
+    assert.match(build, /build-receipt\.mjs" prepare/);
+    assert.match(build, /build-receipt\.mjs" verify/);
+    assert.match(fetcher, /verify-submodules\.mjs" --init/);
+    assert.match(readFileSync(join(repoRoot, "scripts", "bootstrap.mjs"), "utf8"), /\["install", "--frozen-lockfile"\]/);
+  }, "clean source, submodule, and frozen-lockfile checks");
 
   check(() => {
     lineIndex(fetcherLines, /^node "%ROOT%scripts\\verify-submodules\.mjs" --init --repo "%ROOT%\."$/, "submodule initialization");
@@ -91,6 +102,10 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
     assert.match(installer, /set "POWERSHELL_EXE=pwsh"/);
     assert.match(installer, /set "POWERSHELL_EXE=powershell\.exe"/);
     assert.match(installer, /%POWERSHELL_EXE% -NoProfile/);
+    assert.match(installer, /call "%ROOT%download-dependencies\.bat" --silent/);
+    assert.match(installer, /set "WORLDLENS_DEPS_READY=1"/);
+    assert.match(installer, /call :validate_silent/);
+    assert.doesNotMatch(installer, /if exist "%ProgramFiles%\\nodejs\\node\.exe" set "PATH=/);
   }, "installer fresh-toolchain handoff");
 
   if (failures.length > 0) throw new Error(`Build contract failed:\n- ${failures.join("\n- ")}`);
@@ -150,6 +165,11 @@ test("invalid SILENT values are rejected before dependency acquisition", () => {
     });
     assert.equal(result.status, 2, `${value}: ${result.stdout}${result.stderr}`);
     assert.match(`${result.stdout}${result.stderr}`, /SILENT must be unset, 0 or 1/);
+    const installer = spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", "build-installer.bat --candidate 1"], {
+      cwd: repoRoot, encoding: "utf8", env: { ...process.env, SILENT: value },
+    });
+    assert.equal(installer.status, 2, `installer ${value}: ${installer.stdout}${installer.stderr}`);
+    assert.match(`${installer.stdout}${installer.stderr}`, /SILENT must be unset, 0 or 1/);
   }
 });
 
@@ -160,5 +180,22 @@ test("run aliases and silent conflict are rejected before dependency acquisition
     });
     assert.equal(result.status, 2, `${args}: ${result.stdout}${result.stderr}`);
     assert.match(`${result.stdout}${result.stderr}`, /cannot be combined/);
+  }
+});
+
+test("the supported help invocation works from a path with spaces when current-directory lookup is disabled", () => {
+  const fixture = mkdtempSync(join(tmpdir(), "worldlens build path "));
+  try {
+    const build = join(fixture, "build.bat");
+    copyFileSync(join(repoRoot, "build.bat"), build);
+    const result = spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/c", ".\\build.bat --help"], {
+      cwd: fixture,
+      encoding: "utf8",
+      env: { ...process.env, NoDefaultCurrentDirectoryInExePath: "1" },
+    });
+    assert.equal(result.status, 0, `${result.stdout}${result.stderr}`);
+    assert.match(`${result.stdout}${result.stderr}`, /Usage: .*build\.bat --run/);
+  } finally {
+    rmSync(fixture, { recursive: true, force: true });
   }
 });

@@ -91,8 +91,10 @@ rem GitHub CLI, Java and the committed project bootstrap without manual setup.
 echo [1/4] Install and verify all build dependencies
 set "FETCH_ARGS="
 if "%SILENT_MODE%"=="1" set "FETCH_ARGS=--silent"
-call "%ROOT%download-dependencies.bat" %FETCH_ARGS%
-if errorlevel 1 goto :dependency_failed
+if /i not "%WORLDLENS_DEPS_READY%"=="1" (
+    call "%ROOT%download-dependencies.bat" %FETCH_ARGS%
+    if errorlevel 1 goto :dependency_failed
+)
 echo.
 
 rem The fetcher refreshes PATH in this process because it is called, not spawned.

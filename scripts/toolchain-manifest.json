@@ -42,5 +42,14 @@
     "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_x64_windows_hotspot_25.0.4_7.zip",
     "sha256": "7caab7db43bf4b94a2e6252c699e70d90084f9aa7c943cd3414761fd540937ae",
     "architecture": "x64"
+  },
+  "electron": {
+    "version": "37.10.3",
+    "archive": "electron-v37.10.3-win32-x64.zip",
+    "archiveSha256": "af69b8a4326432a8bf655eb23f808dcff02bcb2555cac9667e72e943f53542e4",
+    "archiveSize": 133848303,
+    "executableRelativePath": "node_modules/.pnpm/electron@37.10.3/node_modules/electron/dist/electron.exe",
+    "executableSha256": "8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac",
+    "executableSize": 204521984
   }
 }

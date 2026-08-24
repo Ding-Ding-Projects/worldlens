@@ -16,15 +16,20 @@ browser cache. It does not ask the user to prepare a toolchain first.
 
 1. Checks for a runnable Node 22 or newer, Git, and GitHub CLI.
 2. Uses the user-scoped Windows package manager route when it is available.
-3. Falls back to pinned official portable archives when the package manager route is unavailable.
-4. Verifies downloaded archive bytes with SHA-256 before extracting them.
-5. Refreshes the current process `PATH`, so a tool installed during this invocation is available
+3. Requests exact WinGet package versions from the committed manifest and then verifies the
+   installed tool's exact version grammar. WinGet's public package-manager route does not expose a
+   stable archive digest to this script, so the verifiable boundary is the canonical package ID,
+   requested version, successful install exit, and independent executable version probe. The
+   scripts do not claim that this route has a package SHA-256 proof.
+4. Falls back to pinned official portable archives when the package manager route is unavailable.
+5. Verifies downloaded archive bytes with committed SHA-256 values before extracting them.
+6. Refreshes the current process `PATH`, so a tool installed during this invocation is available
    immediately.
-6. Initializes every git submodule recursively and verifies each checkout against the exact
+7. Initializes every git submodule recursively and verifies each checkout against the exact
    gitlink commit recorded by the source checkout.
-7. Provisions the user-scoped Eclipse Temurin 25.0.4+7 build runtime from the committed release,
+8. Provisions the user-scoped Eclipse Temurin 25.0.4+7 build runtime from the committed release,
    URL, and SHA-256 manifest.
-8. Runs `scripts/bootstrap.mjs`, which installs and verifies the pinned workspace dependencies,
+9. Runs `scripts/bootstrap.mjs`, which installs and verifies the pinned workspace dependencies,
    Electron binary, Java and Gradle prerequisites, BlueMap outputs, and Playwright tooling.
 
 The build derives its pnpm version from `design/package.json`, then runs that exact package through
@@ -66,7 +71,10 @@ The scripts invoke batch files and repositories through absolute paths, so a she
 `NoDefaultCurrentDirectoryInExePath=1` still follows the same route. A Microsoft Store app-execution
 alias that cannot see the installed tool is treated as unusable and the verified portable route is
 selected. Package-manager and archive extraction failures leave the destination absent or in a
-quarantined temporary directory, and the next run starts from a fresh extraction directory.
+quarantined temporary directory. A valid prior portable installation remains in place until the
+new archive passes its digest and executable-layout checks, then the old installation is moved to a
+rollback name while the new one is swapped in. The old installation is restored if that swap fails,
+and a later run recovers an interrupted rollback before acquiring another copy.
 
 ## Verification
 

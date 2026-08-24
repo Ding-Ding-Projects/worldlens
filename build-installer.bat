@@ -50,6 +50,11 @@ shift /1
 goto :parse_arguments
 
 :arguments_ready
+call :validate_silent
+if errorlevel 1 (
+    echo ERROR: SILENT must be unset, 0 or 1. 1>&2
+    exit /b 2
+)
 if defined SILENT if not "%SILENT%"=="0" set "SILENT_MODE=1"
 if not defined RELEASE_CANDIDATE goto :candidate_missing
 set "WORLDLENS_RELEASE_CANDIDATE=%RELEASE_CANDIDATE%"
@@ -94,24 +99,14 @@ echo.
 
 rem --- Fresh-checkout bootstrap and workspace build --------------------------
 echo [1/9] Bootstrap dependencies and build the workspace
+call "%ROOT%download-dependencies.bat" --silent
+if errorlevel 1 goto :workspace_failed
+set "WORLDLENS_DEPS_READY=1"
 call "%ROOT%build.bat" /s
 if errorlevel 1 goto :workspace_failed
 
-rem build.bat keeps its toolchain changes local. Rediscover the two user-scoped
-rem Node locations it may have populated so this parent wrapper can run the same
-rem committed release helpers after a genuinely cold start.
-if exist "%ProgramFiles%\nodejs\node.exe" set "PATH=%ProgramFiles%\nodejs;%PATH%"
-if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" set "PATH=%LOCALAPPDATA%\Programs\nodejs;%PATH%"
-if exist "%ProgramFiles%\Git\cmd\git.exe" set "PATH=%ProgramFiles%\Git\cmd;%PATH%"
-if exist "%LOCALAPPDATA%\Programs\Git\cmd\git.exe" set "PATH=%LOCALAPPDATA%\Programs\Git\cmd;%PATH%"
-if exist "%ProgramFiles%\GitHub CLI\gh.exe" set "PATH=%ProgramFiles%\GitHub CLI;%PATH%"
-if exist "%LOCALAPPDATA%\Programs\GitHub CLI\gh.exe" set "PATH=%LOCALAPPDATA%\Programs\GitHub CLI;%PATH%"
-if exist "%LOCALAPPDATA%\Microsoft\WinGet\Links\gh.exe" set "PATH=%LOCALAPPDATA%\Microsoft\WinGet\Links;%PATH%"
-if exist "%LOCALAPPDATA%\worldlens-toolchain\node\node.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\node;%PATH%"
-if exist "%LOCALAPPDATA%\worldlens-toolchain\git\cmd\git.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\git\cmd;%PATH%"
-if exist "%LOCALAPPDATA%\worldlens-toolchain\gh\bin\gh.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\gh\bin;%PATH%"
-if exist "%LOCALAPPDATA%\worldlens-toolchain\java\temurin-25\bin\java.exe" set "JAVA_HOME=%LOCALAPPDATA%\worldlens-toolchain\java\temurin-25"
-if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
+rem The canonical fetcher above owns all PATH refresh and user-scoped discovery.
+rem This wrapper no longer maintains a second list of guessed install folders.
 set "POWERSHELL_EXE=pwsh"
 where pwsh >nul 2>&1
 if errorlevel 1 set "POWERSHELL_EXE=powershell.exe"
@@ -308,6 +303,12 @@ git -C "%ROOT%." ls-files --others --exclude-standard -- > "%STATUS_FILE%"
 if errorlevel 1 exit /b 2
 for /f "usebackq delims=" %%s in ("%STATUS_FILE%") do exit /b 1
 exit /b 0
+
+:validate_silent
+if not defined SILENT exit /b 0
+if "%SILENT%"=="0" exit /b 0
+if "%SILENT%"=="1" exit /b 0
+exit /b 1
 
 :restore_manifest
 if not "%VERSION_STAMPED%"=="1" exit /b 0

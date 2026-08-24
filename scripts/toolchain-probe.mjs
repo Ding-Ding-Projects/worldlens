@@ -35,6 +35,11 @@ export function probe(tool) {
     assert.match(manifest.java.sha256, /^[0-9a-f]{64}$/);
     assert.equal(manifest.java.release, "jdk-25.0.4+7");
     assert.equal(manifest.java.version, "25.0.4+7");
+    assert.equal(manifest.electron.version, "37.10.3");
+    assert.match(manifest.electron.archiveSha256, /^[0-9a-f]{64}$/);
+    assert.match(manifest.electron.executableSha256, /^[0-9a-f]{64}$/);
+    assert.equal(manifest.electron.archiveSize, 133848303);
+    assert.equal(manifest.electron.executableSize, 204521984);
     return "manifest-valid";
   }
   if (tool === "node") {

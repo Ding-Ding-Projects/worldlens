@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet("node", "git", "gh")]
-    [string]$Tool
+    [string]$Tool,
+    [switch]$DryRun
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,6 +20,18 @@ $toolchain = Join-Path $env:LOCALAPPDATA "worldlens-toolchain"
 $archive = Join-Path $env:TEMP "worldlens-$Tool-$PID.zip"
 $staging = Join-Path $toolchain ".$Tool-extract-$PID"
 $destination = Join-Path $toolchain $Tool
+$rollback = Join-Path $toolchain ".$Tool-rollback-$PID"
+
+if ($DryRun) {
+    $destinationState = if (Test-Path -LiteralPath $destination) { "warm" } else { "cold" }
+    Write-Output "DRY RUN: $Tool uses the $destinationState user-scoped destination and a verified staging swap."
+    exit 0
+}
+
+if (-not (Test-Path -LiteralPath $destination)) {
+    $recovery = Get-ChildItem -LiteralPath $toolchain -Directory -Filter ".$Tool-rollback-*" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($null -ne $recovery) { Move-Item -LiteralPath $recovery.FullName -Destination $destination }
+}
 
 try {
     New-Item -ItemType Directory -Force -Path $toolchain | Out-Null
@@ -39,8 +52,19 @@ try {
         $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "bin\gh.exe") } | Select-Object -First 1
     }
     if ($null -eq $root) { throw "$Tool archive did not contain its expected executable layout." }
-    if (Test-Path -LiteralPath $destination) { Remove-Item -LiteralPath $destination -Recurse -Force }
-    Move-Item -LiteralPath $root.FullName -Destination $destination
+    if (Test-Path -LiteralPath $rollback) { Remove-Item -LiteralPath $rollback -Recurse -Force }
+    $hadDestination = Test-Path -LiteralPath $destination
+    if ($hadDestination) { Move-Item -LiteralPath $destination -Destination $rollback }
+    try {
+        Move-Item -LiteralPath $root.FullName -Destination $destination
+    }
+    catch {
+        if ($hadDestination -and (Test-Path -LiteralPath $rollback) -and -not (Test-Path -LiteralPath $destination)) {
+            Move-Item -LiteralPath $rollback -Destination $destination
+        }
+        throw
+    }
+    if (Test-Path -LiteralPath $rollback) { Remove-Item -LiteralPath $rollback -Recurse -Force }
     Write-Output "Installed pinned $Tool $version at $destination"
 }
 finally {
