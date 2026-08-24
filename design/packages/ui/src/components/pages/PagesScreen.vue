@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiContentCopy,
@@ -99,6 +99,7 @@ const emit = defineEmits<{
     open: [url: string];
     /** Open the in-app gh CLI account recovery surface. */
     openSettings: [anchor: "github-account"];
+    state: [state: "pending" | "published" | "failed", renderId: string];
 }>();
 
 const { t } = useI18n();
@@ -302,9 +303,11 @@ async function publish(): Promise<void> {
     });
     if (result === null) return;
     if (!result.ok) {
+        emit("state", "failed", renderId.value.trim());
         raiseNotice("error", result.failure.message);
         return;
     }
+    emit("state", result.report.verified ? "published" : "pending", renderId.value.trim());
     // Two different sentences on purpose. "Published" and "published and answering" are not
     // the same claim, and the one people act on is the second.
     raiseNotice(
@@ -369,12 +372,16 @@ function rowTitle(row: PagesRow): string {
     return row.target.length > 0 ? row.target : row.renderId;
 }
 
+function selectInitialRender(): void {
+    const requested = props.initialRenderId?.trim() ?? "";
+    if (requested !== "" && pages.candidates.value.some((row) => row.renderId === requested)) {
+        renderId.value = requested;
+    }
+}
+
 onMounted(() => {
     void pages.loadCandidates().then(() => {
-        const requested = props.initialRenderId?.trim() ?? "";
-        if (requested !== "" && pages.candidates.value.some((row) => row.renderId === requested)) {
-            renderId.value = requested;
-        }
+        selectInitialRender();
     });
     void pages.loadPublished();
     if (accountsList.canList) {
@@ -387,6 +394,8 @@ onMounted(() => {
         void loadAccountScope();
     }
 });
+
+watch(() => props.initialRenderId, selectInitialRender);
 
 onBeforeUnmount(() => {
     pages.dispose();

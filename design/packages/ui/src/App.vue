@@ -1316,6 +1316,8 @@ function openCiRenderedMap(where: { renderId: string; dataRoot: string; mapId: s
  */
 const projectToOpen = ref<string | null>(null);
 const ciWorldToOpen = ref<string | null>(null);
+const pagesRenderIdToOpen = ref<string | null>(null);
+const pagesProjectState = ref<"off" | "pending" | "published" | "failed">("off");
 const droppedWorldPath = ref<string | null>(null);
 
 function revealDroppedWorld(path: string): void {
@@ -1405,6 +1407,18 @@ function onWorldProjectOpened(world: string): void {
 function openCiRender(world: string | null = null): void {
     ciWorldToOpen.value = world;
     revealPage(PAGE_CIRENDER);
+}
+
+/** Opens the existing Pages flow with a typed render id when the project surface knows one. */
+function openPagesForWorld(_world: string, renderId: string | null): void {
+    pagesProjectState.value = "pending";
+    pagesRenderIdToOpen.value = renderId;
+    revealPage(PAGE_PAGES);
+}
+
+function onPagesState(state: "pending" | "published" | "failed", renderId: string): void {
+    pagesProjectState.value = state;
+    if (renderId !== "") pagesRenderIdToOpen.value = renderId;
 }
 
 /**
@@ -2100,10 +2114,13 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <ProjectsScreen
                             :settings-epoch="settingsEpoch"
                             :open-world="projectToOpen"
+                            :can-open-ci="true"
+                            :pages-state="pagesProjectState"
                             @consent="openSettings('mojang-download-consent')"
                             @settings="revealSetting"
                             @open-map="onLocalRenderOpened"
                             @cloud-render="openCiRender"
+                            @publish-existing="openPagesForWorld"
                             @dirty-change="unsavedProjectChanges = $event"
                         />
                     </div>
@@ -2257,7 +2274,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #pages>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
-                            <PagesScreen @open="onPagesOpened" />
+                            <PagesScreen :initial-render-id="pagesRenderIdToOpen" @open="onPagesOpened" @state="onPagesState" />
                         </div>
                     </div>
                 </template>
@@ -2581,10 +2598,13 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     <ProjectsScreen
                                         :settings-epoch="settingsEpoch"
                                         :open-world="projectToOpen"
+                                        :can-open-ci="true"
+                                        :pages-state="pagesProjectState"
                                         @consent="openSettings('mojang-download-consent')"
                                         @settings="revealSetting"
                                         @open-map="onLocalRenderOpened"
                                         @cloud-render="openCiRender"
+                                        @publish-existing="openPagesForWorld"
                                         @dirty-change="unsavedProjectChanges = $event"
                                     />
                                 </div>
@@ -2803,7 +2823,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #pages>
                                 <div class="mb-world-host mb-interactive">
                                     <div class="mb-shell-centre">
-                                        <PagesScreen @open="onPagesOpened" />
+                                        <PagesScreen :initial-render-id="pagesRenderIdToOpen" @open="onPagesOpened" @state="onPagesState" />
                                     </div>
                                 </div>
                             </template>

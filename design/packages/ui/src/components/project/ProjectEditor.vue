@@ -51,6 +51,8 @@ import type { RunLocation } from "../remote/runtimeChoice.js";
 import RenderDestinationMenu, {
     type RenderDestinationId,
 } from "./RenderDestinationMenu.vue";
+
+export type ProjectPagesState = "off" | "pending" | "published" | "failed";
 import { resolveProjectHistoryHost } from "./projectHost.js";
 import { readNavigatorCollapsed, writeNavigatorCollapsed } from "./navigatorCollapse.js";
 import { editorSettingCount, savePlanFacts } from "./projectFacts.js";
@@ -161,6 +163,8 @@ const props = withDefaults(
         canPublishExisting?: boolean;
         importReason?: string;
         publishReason?: string;
+        pagesState?: ProjectPagesState;
+        pagesFailure?: string | null;
     }>(),
     {
         dirty: false,
@@ -185,6 +189,8 @@ const props = withDefaults(
         canPublishExisting: false,
         importReason: "Importing a project needs a desktop file picker and a verified project host.",
         publishReason: "No verified finished render is available to publish yet.",
+        pagesState: "off",
+        pagesFailure: null,
     },
 );
 
@@ -220,6 +226,9 @@ const separatorValue = computed(() => props.separator ?? "/");
 const defaultRootValue = computed(() => props.defaultRoot ?? "");
 const renderLocationValue = computed(() => props.renderLocation ?? "local");
 const pagesEnabled = computed(() => projectHostingRoute(props.project) === "github-pages");
+const effectivePagesState = computed<ProjectPagesState>(() =>
+    props.pagesState === "off" && pagesEnabled.value ? "published" : props.pagesState,
+);
 
 const TAB_MAPS = "maps";
 const TAB_STORAGES = "storages";
@@ -1044,10 +1053,9 @@ function setOutputFolder(value: string): void {
 
 function setPagesEnabled(value: boolean | null): void {
     const enabled = value === true;
-    emit(
-        "update:project",
-        withRender(props.project, { hosting: enabled ? "github-pages" : "local" }),
-    );
+    if (!enabled) {
+        emit("update:project", withRender(props.project, { hosting: "local" }));
+    }
     emit("pages-toggle", enabled);
 }
 
@@ -1533,7 +1541,7 @@ const renderButtonLabel = computed(() =>
 
                                 <section class="mb-project-editor__pages-toggle" aria-live="polite">
                                     <v-switch
-                                        :model-value="pagesEnabled"
+                                        :model-value="effectivePagesState !== 'off'"
                                         :label="t('project.render.pages', 'Publish this project to GitHub Pages')"
                                         :hint="
                                             t(
@@ -1547,6 +1555,17 @@ const renderButtonLabel = computed(() =>
                                         inset
                                         @update:model-value="setPagesEnabled"
                                     />
+                                    <p class="mb-project-editor__pagesState" role="status">
+                                        <template v-if="effectivePagesState === 'pending'">
+                                            {{ t('project.render.pagesPending', 'Pages setup is pending. The project will not claim enabled until the existing guided publication flow accepts it.') }}
+                                        </template>
+                                        <template v-else-if="effectivePagesState === 'failed'">
+                                            {{ props.pagesFailure ?? t('project.render.pagesFailed', 'Pages setup failed. Automatic publication remains off until it succeeds.') }}
+                                        </template>
+                                        <template v-else-if="effectivePagesState === 'published'">
+                                            {{ t('project.render.pagesPublished', 'Pages publication is enabled for this project.') }}
+                                        </template>
+                                    </p>
                                 </section>
 
                                 <ProjectRenderOption
@@ -1945,6 +1964,13 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor__where {
     margin-block-start: 8px;
     overflow-wrap: anywhere;
+}
+
+.mb-project-editor__pagesState {
+    margin-block: 0 8px;
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: 0.8125rem;
+    line-height: 1.5;
 }
 
 .mb-project-editor__engineNote {

@@ -744,6 +744,22 @@ describe("the render location", () => {
         expect(wrapper.text()).toContain("Render with GitHub Actions (1 maps)");
         wrapper.unmount();
     });
+
+    it("keeps Pages pending until the shell handoff confirms publication", async () => {
+        const wrapper = await editor(undefined, { pagesState: "pending" });
+        await wrapper
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("How it renders"))
+            ?.trigger("click");
+        await flushPromises();
+        expect(wrapper.text()).toContain("Pages setup is pending");
+        const pagesSwitch = wrapper.find(".mb-project-editor__pages-toggle").findComponent({ name: "VSwitch" });
+        pagesSwitch.vm.$emit("update:modelValue", true);
+        await flushPromises();
+        expect(wrapper.emitted("pages-toggle")?.[0]).toEqual([true]);
+        expect((wrapper.props().project as ProjectFile).render.hosting).toBeUndefined();
+        wrapper.unmount();
+    });
 });
 
 describe("the render tab", () => {

@@ -21,6 +21,7 @@ import DiscoveredWorldsPanel from "./DiscoveredWorldsPanel.vue";
 import {
     createProjectFromGeneratedDefaults,
     projectRenderRoute,
+    projectHostingRoute,
     projectToRenderRequest,
     renderProblems,
     touch,
@@ -40,6 +41,7 @@ import { consentIsAccepted, refreshConsent } from "../world/consentState.js";
 import { resolveWorldCatalogBridge, type WorldCatalogBridge } from "../world/worldCatalog.js";
 import {
     readStorageDirectory,
+    probeWorldFolder,
     resolveOptionalWorldBridge,
     resolveWorldBridge,
     type OptionalWorldBridge,
@@ -65,6 +67,8 @@ import {
     type RunLocation,
 } from "../remote/index.js";
 import type { RenderDestinationId } from "./RenderDestinationMenu.vue";
+import type { ProjectPagesState } from "./ProjectEditor.vue";
+import ProjectImportDialog from "./ProjectImportDialog.vue";
 
 /**
  * Projects: the list of them, the editor for one, and the render one starts.
@@ -110,6 +114,7 @@ const props = withDefaults(
         remoteBridge?: RemoteBridge | null;
         runtimeBridge?: RuntimeBridge | null;
         canOpenCi?: boolean;
+        pagesState?: ProjectPagesState;
     }>(),
     { settingsEpoch: 0, openWorld: null, canOpenCi: false },
 );
@@ -124,7 +129,7 @@ const emit = defineEmits<{
     /** Opens the click-and-run GitHub Actions surface with this project's world prefilled. */
     cloudRender: [world: string];
     /** Opens the existing Pages flow with a verified render selected by the host. */
-    publishExisting: [world: string];
+    publishExisting: [world: string, renderId: string | null];
     /** Reports the editor's real serialized dirty state to process-wide restart protection. */
     "dirty-change": [dirty: boolean];
 }>();
@@ -161,6 +166,9 @@ const renderLocation = ref<RunLocation>("local");
 const renderTarget = ref<RemoteTarget | null>(null);
 const remotePreflightPassed = ref(false);
 const renderModes = ref<readonly string[]>(["local"]);
+const importOpen = ref(false);
+const projectPagesState = ref<ProjectPagesState>("off");
+const pagesFailure = ref<string | null>(null);
 
 async function loadRenderModes(): Promise<void> {
     if (runtime === null) return;
@@ -416,6 +424,8 @@ async function open(world: string): Promise<void> {
         openWorld.value = world;
         openProject.value = answer.project;
         savedProject.value = answer.project;
+        projectPagesState.value = projectHostingRoute(answer.project) === "github-pages" ? "published" : "off";
+        pagesFailure.value = null;
     } catch (error) {
         openFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
@@ -657,6 +667,8 @@ function openNewProjectFor(world: string, route: "local" | "github-actions" = "l
     openProject.value = project;
     savedProject.value = null;
     saveFailure.value = null;
+    projectPagesState.value = "off";
+    pagesFailure.value = null;
 
     raiseNotice(
         "info",
@@ -708,42 +720,18 @@ function chooseDestination(destination: RenderDestinationId): void {
             if (openWorld.value !== null) emit("cloudRender", openWorld.value);
             return;
         case "import-project":
-            void importProject();
+            importOpen.value = true;
             return;
         case "publish-existing":
-            if (openWorld.value !== null) emit("publishExisting", openWorld.value);
+            projectPagesState.value = "pending";
+            pagesFailure.value = null;
+            if (openWorld.value !== null) emit("publishExisting", openWorld.value, null);
             return;
     }
 }
 
-function folderFromFile(file: string): string | null {
-    const slash = Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\"));
-    return slash <= 0 ? null : file.slice(0, slash);
-}
-
-async function importProject(): Promise<void> {
-    if (host === null || configHost === null) {
-        raiseNotice(
-            "warning",
-            t(
-                "project.import.unsupported",
-                "This build cannot import a project because its verified project host or native file picker is missing.",
-            ),
-        );
-        return;
-    }
-    const folder = await configHost.pickDirectory({
-        title: t("project.import.pickFolder", "Choose a world folder containing worldlens.project.json"),
-    });
-    let world = folder;
-    if (world === null) {
-        const file = await configHost.pickFile({
-            title: t("project.import.pickFile", "Choose worldlens.project.json"),
-            extensions: ["json"],
-        });
-        world = file === null ? null : folderFromFile(file);
-    }
-    if (world === null || world === "") return;
+async function acceptImportedWorld(world: string): Promise<void> {
+    importOpen.value = false;
     await open(world);
 }
 
@@ -1042,13 +1030,19 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :can-open-ci="props.canOpenCi ?? false"
             :can-import-project="host !== null && configHost !== null"
             :can-publish-existing="false"
+            :pages-state="props.pagesState ?? projectPagesState"
+            :pages-failure="pagesFailure"
             @update:project="(value) => (openProject = value)"
             @update:render-location="(value: RunLocation) => (renderLocation = value)"
             @update:render-target="(value: RemoteTarget | null) => (renderTarget = value)"
             @update:render-preflight="(value: boolean) => (remotePreflightPassed = value)"
             @destination="chooseDestination"
             @pages-toggle="(enabled: boolean) => {
-                if (enabled && openWorld !== null) emit('publishExisting', openWorld)
+                if (enabled) {
+                    projectPagesState = 'pending'
+                    pagesFailure = null
+                    if (openWorld !== null) emit('publishExisting', openWorld, null)
+                }
             }"
             @save="save"
             @revert="revert"
@@ -1097,8 +1091,10 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             <DiscoveredWorldsPanel
                 :bridge="worldCatalogBridge"
                 :project-worlds="projectWorldPaths"
+                :probe="(folder: string) => probeWorldFolder(optional, folder)"
                 @use="useDiscoveredWorld"
                 @use-many="useDiscoveredWorlds"
+                @use-direct="useDiscoveredWorld"
                 @notify="notify"
             />
 
@@ -1187,6 +1183,15 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
                 </v-btn>
             </v-card-actions>
         </v-card>
+
+        <ProjectImportDialog
+            v-if="importOpen"
+            :config-host="configHost"
+            :project-host="host"
+            :remote-bridge="remote"
+            @close="importOpen = false"
+            @imported="acceptImportedWorld"
+        />
     </div>
 </template>
 
