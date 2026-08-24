@@ -8,7 +8,12 @@ import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import ColorField from "./ColorField.vue";
 import AppearanceChoiceField from "./AppearanceChoiceField.vue";
-import { fontFamilyStack, searchFonts, type FontFamily } from "./fontCatalog.js";
+import {
+    fontFamilyStack,
+    fontIdentityStatus,
+    searchFonts,
+    type FontFamily,
+} from "./fontCatalog.js";
 import {
     ASSUMED_SUPPORT_LABEL_KEY,
     TYPOGRAPHY_PROPERTIES,
@@ -218,6 +223,45 @@ const REGISTERED_AXES: readonly { tag: string; label: string; min: number; max: 
 const selectedFont = computed(() =>
     props.fonts.find((font) => font.family.toLowerCase() === props.spec.fontFamily.toLowerCase()),
 );
+const identityStatus = computed(() =>
+    fontIdentityStatus(props.spec.fontFamily, props.spec.fontIdentity, props.fonts),
+);
+
+const identityStatusMessage = computed(() => {
+    const status = identityStatus.value;
+    switch (status.kind) {
+        case "active-installed":
+            return t(
+                "appearance.type.fontIdentity.activeInstalled",
+                { family: status.resolvedFamily ?? status.family, identity: status.stableId || status.family },
+                "Installed font active: {family} ({identity}).",
+            );
+        case "active-bundled":
+            return t(
+                "appearance.type.fontIdentity.activeBundled",
+                { family: status.resolvedFamily ?? status.family },
+                "Bundled font active: {family}.",
+            );
+        case "identity-missing":
+            return t(
+                "appearance.type.fontIdentity.missing",
+                { identity: status.stableId, family: status.family },
+                "Saved font identity {identity} is not installed. Keeping it saved and using {family} as the current family fallback.",
+            );
+        case "identity-incompatible":
+            return t(
+                "appearance.type.fontIdentity.incompatible",
+                { identity: status.stableId, family: status.family, resolved: status.resolvedFamily ?? "" },
+                "Saved font identity {identity} belongs to {resolved}, not the selected family {family}. The selected family remains visible and the identity stays saved.",
+            );
+        case "family-missing":
+            return t(
+                "appearance.type.fontIdentity.familyMissing",
+                { family: status.family },
+                "Family {family} is not available here. The saved family and identity remain unchanged; the generic and CJK fallback stack is rendering.",
+            );
+    }
+});
 const selectedAxes = computed(
     () =>
         selectedFont.value?.axes?.map((axis) => ({
@@ -541,6 +585,13 @@ function number(value: string, fallback: number): number {
                             </div>
                         </v-menu>
                     </v-btn>
+                    <p
+                        class="mb-type-editor__fontIdentityStatus"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        {{ identityStatusMessage }}
+                    </p>
                 </template>
 
                 <v-text-field
@@ -1042,6 +1093,14 @@ function number(value: string, fallback: number): number {
 .mb-type-editor__fontButton {
     justify-content: flex-start;
     text-transform: none;
+}
+
+.mb-type-editor__fontIdentityStatus {
+    flex: 1 1 100%;
+    margin: 0;
+    font-size: 0.72rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    overflow-wrap: anywhere;
 }
 
 /*

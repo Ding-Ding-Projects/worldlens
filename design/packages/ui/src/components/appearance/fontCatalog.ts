@@ -56,6 +56,55 @@ export interface FontFamily {
     styles?: readonly string[];
 }
 
+export type FontIdentityStatusKind =
+    | "active-installed"
+    | "active-bundled"
+    | "identity-missing"
+    | "identity-incompatible"
+    | "family-missing";
+
+export interface FontIdentityStatus {
+    kind: FontIdentityStatusKind;
+    family: string;
+    stableId: string;
+    resolvedFamily: string | null;
+}
+
+/**
+ * Describes what the saved identity means on this machine without changing either saved field.
+ * A missing identity is not repaired silently because the user may install the face later.
+ */
+export function fontIdentityStatus(
+    family: string,
+    stableId: string,
+    catalog: readonly FontFamily[],
+): FontIdentityStatus {
+    const familyEntry = findEntry(catalog, family);
+    const identityEntry = findIdentity(catalog, stableId);
+    if (identityEntry !== undefined) {
+        const sameFamily = identityEntry.family.toLowerCase() === family.toLowerCase();
+        return {
+            kind: sameFamily
+                ? identityEntry.source === "installed"
+                    ? "active-installed"
+                    : "active-bundled"
+                : "identity-incompatible",
+            family,
+            stableId,
+            resolvedFamily: identityEntry.family,
+        };
+    }
+    if (familyEntry !== undefined) {
+        return {
+            kind: stableId === "" ? (familyEntry.source === "installed" ? "active-installed" : "active-bundled") : "identity-missing",
+            family,
+            stableId,
+            resolvedFamily: familyEntry.family,
+        };
+    }
+    return { kind: "family-missing", family, stableId, resolvedFamily: null };
+}
+
 const LATIN_SAMPLE = "The quick brown fox";
 const MONO_SAMPLE = "const size = 14;";
 const SIMPLIFIED_SAMPLE = "简体中文示例 Sample";

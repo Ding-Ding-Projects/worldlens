@@ -14,6 +14,7 @@ import {
     BUNDLED_FONTS,
     CJK_FALLBACK_STACK,
     fontFamilyStack,
+    fontIdentityStatus,
     mergeFontCatalog,
     queryInstalledFonts,
     searchFonts,
@@ -316,5 +317,34 @@ describe("asking the machine what it has", () => {
         const face = catalog.find((entry) => entry.family === "Static Face");
         expect(face?.stableId).toBe("StaticFace-Regular");
         expect(face?.axes).toBeUndefined();
+    });
+
+    it("distinguishes active, missing, incompatible, and unavailable identities", () => {
+        const catalog: FontFamily[] = [
+            {
+                family: "Active Face",
+                stableId: "active-id",
+                source: "installed",
+                sample: "x",
+                cjk: false,
+            },
+            {
+                family: "Other Face",
+                stableId: "other-id",
+                source: "installed",
+                sample: "x",
+                cjk: false,
+            },
+        ];
+        expect(fontIdentityStatus("Active Face", "active-id", catalog).kind).toBe(
+            "active-installed",
+        );
+        expect(fontIdentityStatus("Active Face", "missing-id", catalog).kind).toBe(
+            "identity-missing",
+        );
+        expect(fontIdentityStatus("Active Face", "other-id", catalog).kind).toBe(
+            "identity-incompatible",
+        );
+        expect(fontIdentityStatus("Gone Face", "gone-id", catalog).kind).toBe("family-missing");
     });
 });
