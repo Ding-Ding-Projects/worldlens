@@ -94,7 +94,7 @@ import { unsupportedEngineRoute } from "./engineChoice.js";
 import { CliRun, TypeScriptRun } from "./runner.js";
 import type { SpawnCli } from "./runner.js";
 import type { RenderSessionStore } from "./session.js";
-import { renderIdForWorld, renderWorkspace } from "./workspace.js";
+import { isValidRenderId, renderIdForWorld, renderWorkspace } from "./workspace.js";
 import type { RenderWorkspace } from "./workspace.js";
 import { collectEvidence } from "../repair/evidence.js";
 import type { RepairEvidence } from "../repair/evidence.js";
@@ -856,6 +856,13 @@ export class RenderOrchestrator {
             );
         }
         renderId = request.renderId ?? renderIdForWorld(firstMap.world);
+        if (!isValidRenderId(renderId)) {
+            return this.fail(
+                renderId,
+                failures.invalidRequest("The render id is not a safe identifier."),
+                null,
+            );
+        }
 
         // Consent, before anything else happens. Nothing has been created, nothing has
         // been probed, and nothing will be spawned.
@@ -1213,7 +1220,6 @@ export class RenderOrchestrator {
         record = { ...record, outcome: "finished", finishedAt, durationMs: result.durationMs };
         await this.saveRecord(workspace, record);
         await this.options.sessions?.complete(renderId);
-        this.mount(workspace, record);
         const promotion = await this.options.promoteFinished?.(renderId);
         if (promotion?.failure !== null && promotion?.failure !== undefined) {
             const detail = `${promotion.failure.reason}: ${promotion.failure.detail}`;
@@ -1227,6 +1233,7 @@ export class RenderOrchestrator {
             await this.options.sessions?.interrupt(renderId, "failed", detail);
             return this.fail(renderId, failures.promotionUnverified(detail), failedRecord);
         }
+        this.mount(workspace, record);
 
         const dataRoot = LocalMapHandler.dataRoot(renderId);
         this.emit({

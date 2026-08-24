@@ -166,6 +166,7 @@ export interface RenderIpc {
     /** Renders that were cut off and could be carried on, newest first. */
     interruptedRenders(): Promise<InterruptedRenderSummary[]>;
     finishedPromotions(): Promise<readonly FinishedRenderPromotion[]>;
+    claimPromotionNotification(promotionId: string): Promise<boolean>;
     dispose(): void;
 }
 
@@ -202,7 +203,12 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
     const containers =
         options.containers ?? new ContainerHandoffStore({ storageDir: () => storageDir });
     const promotions =
-        options.promotions ?? new RenderPromotionStore({ storageDir: () => storageDir });
+        options.promotions ??
+        new RenderPromotionStore({
+            storageDir: () => storageDir,
+            sourceCommit: process.env.GITHUB_SHA ?? null,
+            unmount: (renderId) => options.mounts.removeMount(renderId),
+        });
 
     const orchestrator = new RenderOrchestrator({
         storageDir: () => storageDir,
@@ -344,6 +350,15 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         return await promotions.list();
     });
 
+    ipcMain.handle(
+        "render:claimPromotionNotification",
+        async (_event: IpcMainInvokeEvent, promotionId: unknown) => {
+            return typeof promotionId === "string"
+                ? await promotions.claimNotification(promotionId)
+                : false;
+        },
+    );
+
     // Which engine rendered a given map. The README promises the app never switches
     // engines silently, and this is where the interface gets the answer to check it.
     ipcMain.handle("render:engine", async (_event: IpcMainInvokeEvent, renderId: string) => {
@@ -384,11 +399,10 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
 
     async function restoreFinished(): Promise<void> {
         await interrupted();
-        for (const renderId of await listRenderIds(storageDir)) {
-            const record = await orchestrator.mountExisting(renderId);
-            if (record !== null) await promotions.promote(renderId);
+        const recovered = await promotions.reconcile();
+        for (const promotion of recovered.promotions) {
+            await orchestrator.mountExisting(promotion.renderId);
         }
-        await promotions.reconcile();
     }
 
     return {
@@ -415,6 +429,8 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
             await restoreFinished();
             return await promotions.list();
         },
+        claimPromotionNotification: async (promotionId: string): Promise<boolean> =>
+            await promotions.claimNotification(promotionId),
         interruptedRenders: interrupted,
         dispose(): void {
             for (const channel of RENDER_CHANNELS) ipcMain.removeHandler(channel);
@@ -434,6 +450,7 @@ const RENDER_CHANNELS = [
     "render:dismissResume",
     "render:list",
     "render:promotions",
+    "render:claimPromotionNotification",
     "render:engine",
     "render:storageDirectory",
     "render:setStorageDirectory",

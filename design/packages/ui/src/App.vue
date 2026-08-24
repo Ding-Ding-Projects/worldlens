@@ -470,6 +470,7 @@ onMounted(() => {
                         mapIds: readonly string[];
                     }[]
                 >;
+                claimPromotionNotification?: (promotionId: string) => Promise<boolean>;
                 listRenders?: () => Promise<
                     readonly {
                         outcome: "running" | "finished" | "failed" | "cancelled";
@@ -497,30 +498,39 @@ onMounted(() => {
                 maps: summary.mapIds ? summary.mapIds.map((id) => ({ id })) : (summary.maps ?? []),
             })),
             (dataRoot, mapIds, promotionId) => {
-                openRenderedMap(dataRoot, mapIds);
-                if (promotionId === undefined) return;
-                const key = `worldlens-render-promotion-notified:${promotionId}`;
-                try {
-                    if (localStorage.getItem(key) === "1") return;
-                    localStorage.setItem(key, "1");
-                } catch {
-                    // A private-mode storage failure must not block the map promotion.
-                }
-                raiseNotice(
-                    "success",
-                    t(
-                        "world.renderPromotion.recovered",
-                        "Finished render recovered and added to Your maps.",
-                    ),
-                    { category: "render-promotion", cooldownMs: 1_000 },
+                const alreadyCatalogued = profilesStore.profiles.some(
+                    (profile) => profile.dataRoot === dataRoot,
                 );
+                if (!alreadyCatalogued) openRenderedMap(dataRoot, mapIds);
+                if (promotionId === undefined) return;
+                const claim = bridge?.claimPromotionNotification;
+                if (typeof claim !== "function") return;
+                void claim(promotionId)
+                    .then((claimed) => {
+                        if (!claimed) return;
+                        raiseNotice(
+                            "success",
+                            t(
+                                "world.renderPromotion.recovered",
+                                "Finished render recovered and added to Your maps.",
+                            ),
+                            { category: "render-promotion", cooldownMs: 1_000 },
+                        );
+                    })
+                    .catch(() => undefined);
             },
         );
     };
     if (typeof bridge?.finishedRenderPromotions === "function") {
-        void bridge.finishedRenderPromotions().then(promote);
+        void bridge
+            .finishedRenderPromotions()
+            .then(promote)
+            .catch(() => undefined);
     } else if (typeof bridge?.listRenders === "function") {
-        void bridge.listRenders().then(promote);
+        void bridge
+            .listRenders()
+            .then(promote)
+            .catch(() => undefined);
     }
 });
 onUnmounted(() => {
