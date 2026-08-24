@@ -88,6 +88,8 @@ const props = withDefaults(
         bridge?: PagesBridge | null | undefined;
         accountsBridge?: GhCliBridge | null | undefined;
         repoBridge?: BackupBridge | null | undefined;
+        /** A verified render chosen by another surface, such as the project editor. */
+        initialRenderId?: string | null;
     }>(),
     {},
 );
@@ -368,7 +370,12 @@ function rowTitle(row: PagesRow): string {
 }
 
 onMounted(() => {
-    void pages.loadCandidates();
+    void pages.loadCandidates().then(() => {
+        const requested = props.initialRenderId?.trim() ?? "";
+        if (requested !== "" && pages.candidates.value.some((row) => row.renderId === requested)) {
+            renderId.value = requested;
+        }
+    });
     void pages.loadPublished();
     if (accountsList.canList) {
         void accountsList.load().then(() => {

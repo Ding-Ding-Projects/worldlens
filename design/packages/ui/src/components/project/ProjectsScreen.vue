@@ -55,6 +55,16 @@ import { provideSettingsOpener } from "../downloads/index.js";
 import { raiseNotice } from "../../stores/notices.js";
 import { createJavaSetting } from "../settings/javaSetting.js";
 import { globalRenderEngineDefault, resolveRenderEngine } from "../settings/engineChoice.js";
+import {
+    createRenderRouter,
+    resolveRemoteBridge,
+    resolveRuntimeBridge,
+    type RemoteBridge,
+    type RemoteTarget,
+    type RuntimeBridge,
+    type RunLocation,
+} from "../remote/index.js";
+import type { RenderDestinationId } from "./RenderDestinationMenu.vue";
 
 /**
  * Projects: the list of them, the editor for one, and the render one starts.
@@ -97,8 +107,11 @@ const props = withDefaults(
          * prop works whether the screen was already there or has just been created.
          */
         openWorld?: string | null;
+        remoteBridge?: RemoteBridge | null;
+        runtimeBridge?: RuntimeBridge | null;
+        canOpenCi?: boolean;
     }>(),
-    { settingsEpoch: 0, openWorld: null },
+    { settingsEpoch: 0, openWorld: null, canOpenCi: false },
 );
 
 const emit = defineEmits<{
@@ -110,6 +123,8 @@ const emit = defineEmits<{
     openMap: [dataRoot: string, mapIds: readonly string[]];
     /** Opens the click-and-run GitHub Actions surface with this project's world prefilled. */
     cloudRender: [world: string];
+    /** Opens the existing Pages flow with a verified render selected by the host. */
+    publishExisting: [world: string];
     /** Reports the editor's real serialized dirty state to process-wide restart protection. */
     "dirty-change": [dirty: boolean];
 }>();
@@ -130,6 +145,8 @@ const optional =
 const worldCatalogBridge =
     props.worldCatalogBridge === undefined ? resolveWorldCatalogBridge() : props.worldCatalogBridge;
 const configHost = props.configHost === undefined ? createBridgeConfigHost() : props.configHost;
+const remote = props.remoteBridge === undefined ? resolveRemoteBridge() : props.remoteBridge;
+const runtime = props.runtimeBridge === undefined ? resolveRuntimeBridge() : props.runtimeBridge;
 provideConfigHost(configHost);
 
 /**
@@ -139,10 +156,26 @@ provideConfigHost(configHost);
  */
 provideSettingsOpener((target) => emit("settings", target));
 
-// Always "local": this screen renders through `bridge` directly, with no router and no
-// location picker, so every render it starts runs on this computer. See
-// `RenderRunOptions.route`.
-const run = createRenderRun(bridge, { route: "local" });
+/** The destination selected from the project editor's split button. */
+const renderLocation = ref<RunLocation>("local");
+const renderTarget = ref<RemoteTarget | null>(null);
+const remotePreflightPassed = ref(false);
+const renderModes = ref<readonly string[]>(["local"]);
+
+async function loadRenderModes(): Promise<void> {
+    if (runtime === null) return;
+    try {
+        renderModes.value = await runtime.renderModes();
+    } catch {
+        renderModes.value = ["local"];
+    }
+}
+
+const router = createRenderRouter(bridge, remote, () => ({
+    location: renderLocation.value,
+    target: renderTarget.value,
+}));
+const run = createRenderRun(router ?? bridge, { route: () => renderLocation.value });
 
 const separator = computed(() => configHost?.separator ?? "/");
 
@@ -204,6 +237,7 @@ onMounted(async () => {
     void reload();
     void refreshConsent(bridge);
     void java.load();
+    void loadRenderModes();
     try {
         const directory = await readStorageDirectory(optional);
         defaultRoot.value = directory?.current ?? "";
@@ -214,6 +248,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
     run.dispose();
+    router?.dispose();
 });
 
 /* -------------------------------------------------------------------------- */
@@ -644,6 +679,74 @@ function confirmCreate(): void {
     }
 }
 
+function setProjectRenderRoute(project: ProjectFile, route: "local" | "github-actions"): void {
+    openProject.value = withRender(project, { route });
+}
+
+/**
+ * The editor's destination menu is a dispatch surface, not a second render implementation.
+ * Local, Docker and SSH update the live router; GitHub opens the existing full wizard; import
+ * uses the native folder/file pickers and then the same schema-validating ProjectHost reader.
+ */
+function chooseDestination(destination: RenderDestinationId): void {
+    switch (destination) {
+        case "local":
+            renderLocation.value = "local";
+            if (openProject.value !== null) setProjectRenderRoute(openProject.value, "local");
+            return;
+        case "docker":
+            renderLocation.value = "docker";
+            if (openProject.value !== null) setProjectRenderRoute(openProject.value, "local");
+            return;
+        case "remote":
+            renderLocation.value = "remote";
+            if (openProject.value !== null) setProjectRenderRoute(openProject.value, "local");
+            return;
+        case "github-actions":
+            renderLocation.value = "local";
+            if (openProject.value !== null) setProjectRenderRoute(openProject.value, "github-actions");
+            if (openWorld.value !== null) emit("cloudRender", openWorld.value);
+            return;
+        case "import-project":
+            void importProject();
+            return;
+        case "publish-existing":
+            if (openWorld.value !== null) emit("publishExisting", openWorld.value);
+            return;
+    }
+}
+
+function folderFromFile(file: string): string | null {
+    const slash = Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\"));
+    return slash <= 0 ? null : file.slice(0, slash);
+}
+
+async function importProject(): Promise<void> {
+    if (host === null || configHost === null) {
+        raiseNotice(
+            "warning",
+            t(
+                "project.import.unsupported",
+                "This build cannot import a project because its verified project host or native file picker is missing.",
+            ),
+        );
+        return;
+    }
+    const folder = await configHost.pickDirectory({
+        title: t("project.import.pickFolder", "Choose a world folder containing worldlens.project.json"),
+    });
+    let world = folder;
+    if (world === null) {
+        const file = await configHost.pickFile({
+            title: t("project.import.pickFile", "Choose worldlens.project.json"),
+            extensions: ["json"],
+        });
+        world = file === null ? null : folderFromFile(file);
+    }
+    if (world === null || world === "") return;
+    await open(world);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Starting one from a world the catalogue already found                     */
 /* -------------------------------------------------------------------------- */
@@ -768,6 +871,30 @@ async function startRender(world: string, project: ProjectFile): Promise<void> {
         return;
     }
     if (run.active.value) return;
+
+    if (renderLocation.value === "docker" && !renderModes.value.includes("docker")) {
+        raiseNotice(
+            "error",
+            t(
+                "project.render.dockerUnavailable",
+                "Docker is not an active render channel in this build. The render was not sent to this computer as a fallback.",
+            ),
+        );
+        return;
+    }
+    if (
+        renderLocation.value === "remote" &&
+        (remote === null || renderTarget.value === null || !remotePreflightPassed.value)
+    ) {
+        raiseNotice(
+            "warning",
+            t(
+                "project.render.remoteNeedsPreflight",
+                "Choose an SSH machine and complete its host-key, Docker and disk checks before sending this world.",
+            ),
+        );
+        return;
+    }
 
     const problems = renderProblems(project);
     if (problems.length > 0) {
@@ -905,7 +1032,24 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :java-version="java.report.value?.installation?.version.version ?? null"
             :separator="separator"
             :default-root="defaultRoot"
+            :render-location="renderLocation"
+            :render-target="renderTarget"
+            :remote-bridge="remote"
+            :runtime-bridge="runtime"
+            :can-render-in-docker="renderModes.includes('docker')"
+            :can-render-remotely="remote !== null"
+            :remote-preflight-passed="remotePreflightPassed"
+            :can-open-ci="props.canOpenCi ?? false"
+            :can-import-project="host !== null && configHost !== null"
+            :can-publish-existing="false"
             @update:project="(value) => (openProject = value)"
+            @update:render-location="(value: RunLocation) => (renderLocation = value)"
+            @update:render-target="(value: RemoteTarget | null) => (renderTarget = value)"
+            @update:render-preflight="(value: boolean) => (remotePreflightPassed = value)"
+            @destination="chooseDestination"
+            @pages-toggle="(enabled: boolean) => {
+                if (enabled && openWorld !== null) emit('publishExisting', openWorld)
+            }"
             @save="save"
             @revert="revert"
             @close="closeEditor"

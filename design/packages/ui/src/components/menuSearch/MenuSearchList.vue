@@ -21,7 +21,7 @@ export interface MenuSearchItem {
     readonly id: string;
     readonly label: string;
     readonly disabled?: boolean;
-    readonly reason?: string;
+    readonly reason?: string | undefined;
 }
 
 /**

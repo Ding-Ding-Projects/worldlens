@@ -89,6 +89,8 @@ const emit = defineEmits<{
     "update:location": [value: RunLocation];
     /** The machine a remote render would use, or null. The shell hands this to the router. */
     "update:target": [value: RemoteTarget | null];
+    /** Whether the currently selected remote target passed every required check. */
+    "update:preflight": [value: boolean];
     /** Take the person to the surface that renders on GitHub's runners. */
     openCi: [];
 }>();
@@ -278,6 +280,7 @@ onMounted(() => {
 watch(selectedId, (id) => {
     report.value = null;
     trustMessage.value = null;
+    emit("update:preflight", false);
     emit("update:target", selected.value);
     // Chosen, not merely loaded: this fires on every real pick a person makes (including
     // picking the same machine again), which is exactly when "last used" should move.
@@ -289,6 +292,8 @@ watch(targets, () => {
     if (selectedId.value !== null && selected.value === null) selectedId.value = null;
     else emit("update:target", selected.value);
 });
+
+watch(report, (value) => emit("update:preflight", value?.ok === true));
 
 defineExpose({
     places,

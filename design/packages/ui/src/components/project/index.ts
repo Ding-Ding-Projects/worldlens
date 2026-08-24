@@ -20,6 +20,8 @@
 export { default as ProjectsScreen } from "./ProjectsScreen.vue";
 export { default as ProjectList } from "./ProjectList.vue";
 export { default as ProjectEditor } from "./ProjectEditor.vue";
+export { default as RenderDestinationMenu } from "./RenderDestinationMenu.vue";
+export type { RenderDestinationId } from "./RenderDestinationMenu.vue";
 export { default as ProjectMapsPanel } from "./ProjectMapsPanel.vue";
 export { default as ProjectStoragesPanel } from "./ProjectStoragesPanel.vue";
 
