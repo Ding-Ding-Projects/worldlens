@@ -42,9 +42,11 @@ export function applyCreativeLogoVariant(document: CreativeAppearanceDocument, v
     };
     const mark: LogoCustomMark = { dataUrl: variant.dataUrl, format: "svg", width: variant.width, height: variant.height };
     try {
-        setCustomLogo(mark);
         const variants = [...document.logo.variants.filter((candidate) => candidate.id !== variant.id), variant].slice(-8);
-        return setCreativeLogo(document, { enabled: true, target: "app-logo", variants });
+        const next = setCreativeLogo(document, { enabled: true, activeVariantId: variant.id, variants });
+        if (document.logo.target !== "app-logo") return next;
+        setCustomLogo(mark);
+        return next;
     } catch (error) {
         try {
             if (prior.custom !== null) setCustomLogo(prior.custom);
@@ -62,17 +64,18 @@ export function applyCreativeLogoVariant(document: CreativeAppearanceDocument, v
 }
 
 export function resetCreativeLogoPipeline(document: CreativeAppearanceDocument): CreativeAppearanceDocument {
-    resetLogoToShipped();
-    return setCreativeLogo(document, { enabled: false, target: "appearance-target", variants: [] });
+    if (document.logo.target === "app-logo") resetLogoToShipped();
+    return setCreativeLogo(document, { enabled: false, target: "appearance-target", activeVariantId: null, variants: [] });
 }
 
 /** Replays a logo snapshot during creative undo or redo without creating a second document edit. */
 export function syncCreativeLogoStore(document: CreativeAppearanceDocument): void {
-    if (!document.logo.enabled || document.logo.variants.length === 0) {
+    if (document.logo.target !== "app-logo") return;
+    if (!document.logo.enabled || document.logo.variants.length === 0 || document.logo.activeVariantId === null) {
         resetLogoToShipped();
         return;
     }
-    const variant = document.logo.variants.find((candidate) => candidate.width === 512) ?? document.logo.variants[document.logo.variants.length - 1];
+    const variant = document.logo.variants.find((candidate) => candidate.id === document.logo.activeVariantId);
     if (!variant) return;
     const bytes = svgBytes(variant.dataUrl);
     const validation = validateLogoBytes(bytes);

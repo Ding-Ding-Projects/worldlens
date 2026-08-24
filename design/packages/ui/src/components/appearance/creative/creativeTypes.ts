@@ -186,6 +186,7 @@ export interface CreativePreset {
 export interface CreativeLogoComposition {
     readonly enabled: boolean;
     readonly target: "app-logo" | "appearance-target";
+    readonly activeVariantId: string | null;
     readonly safeArea: { readonly inset: number; readonly enabled: boolean };
     readonly variants: readonly { readonly id: string; readonly width: number; readonly height: number; readonly dataUrl: string }[];
 }

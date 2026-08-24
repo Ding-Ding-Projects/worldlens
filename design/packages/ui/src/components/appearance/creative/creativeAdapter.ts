@@ -2,10 +2,23 @@ import { recordFor, withRecord, type AppearanceState } from "../appearanceStore.
 import { appearanceState, commitAppearance } from "../useAppearance.js";
 import { migrateCreativeDocument, validateCreativeDocument } from "./creativeDocument.js";
 import type { CreativeAppearanceDocument } from "./creativeTypes.js";
+import { syncCreativeLogoStore } from "./creativeLogoPipeline.js";
 
 /** The preserved record key used by the core appearance store for creative documents. */
 export const CREATIVE_RECORD_KEY = "creativeDocument";
 const migratedTargets = new Set<string>();
+
+/** Replays persisted app-logo composition during application startup. */
+export function syncPersistedCreativeLogos(): void {
+    const state = appearanceState().value;
+    for (const targetId of Object.keys(state.elements)) {
+        const document = creativeDocumentFor(state, targetId);
+        if (!document || document.logo.target !== "app-logo") continue;
+        try { syncCreativeLogoStore(document); } catch { /* The visible store keeps its prior valid mark. */ }
+    }
+}
+
+syncPersistedCreativeLogos();
 
 export function creativeDocumentFor(state: AppearanceState, targetId: string): CreativeAppearanceDocument | null {
     const candidate = recordFor(state, targetId).preserved[CREATIVE_RECORD_KEY];

@@ -42,6 +42,7 @@ const DEFAULT_MASK: CreativeMask = {
 const DEFAULT_LOGO: CreativeLogoComposition = {
     enabled: false,
     target: "appearance-target" as const,
+    activeVariantId: null,
     safeArea: { inset: 10, enabled: true },
     variants: [],
 };
@@ -464,7 +465,10 @@ function selectedIdsValid(layers: unknown, selected: unknown): boolean {
 }
 
 function validLogoComposition(value: unknown): boolean {
-    return isObject(value) && typeof value.enabled === "boolean" && ["app-logo", "appearance-target"].includes(String(value.target)) && isObject(value.safeArea) && validNumber(value.safeArea.inset, 0, 512) && typeof value.safeArea.enabled === "boolean" && Array.isArray(value.variants) && value.variants.length <= 8 && value.variants.every((variant) => isObject(variant) && typeof variant.id === "string" && validNumber(variant.width, 1, 2048) && validNumber(variant.height, 1, 2048) && validLogoVariantDataUrl(variant.dataUrl));
+    if (!isObject(value) || typeof value.enabled !== "boolean" || !["app-logo", "appearance-target"].includes(String(value.target)) || (value.activeVariantId !== null && typeof value.activeVariantId !== "string") || !isObject(value.safeArea) || !validNumber(value.safeArea.inset, 0, 512) || typeof value.safeArea.enabled !== "boolean" || !Array.isArray(value.variants) || value.variants.length > 8) return false;
+    const variantIds = new Set<string>();
+    if (!value.variants.every((variant) => isObject(variant) && typeof variant.id === "string" && !variantIds.has(variant.id) && (variantIds.add(variant.id), validNumber(variant.width, 1, 2048) && validNumber(variant.height, 1, 2048) && validLogoVariantDataUrl(variant.dataUrl)))) return false;
+    return value.activeVariantId === null || variantIds.has(value.activeVariantId);
 }
 
 export function validateCreativeDocument(value: unknown): value is CreativeAppearanceDocument {
@@ -512,6 +516,12 @@ function migrateLayer(raw: unknown): Record<string, unknown> {
     };
 }
 
+function migrateLogo(raw: unknown): Record<string, unknown> {
+    const value = isObject(raw) ? raw : {};
+    const variants = Array.isArray(value.variants) ? value.variants : [];
+    return { ...clone(DEFAULT_LOGO), ...value, safeArea: isObject(value.safeArea) ? value.safeArea : clone(DEFAULT_LOGO.safeArea), variants, activeVariantId: typeof value.activeVariantId === "string" ? value.activeVariantId : (isObject(variants[0]) && typeof variants[0].id === "string" ? variants[0].id : null) };
+}
+
 function valueOrEmpty(value: Record<string, unknown>): Record<string, unknown> {
     return value;
 }
@@ -526,7 +536,7 @@ export function migrateCreativeDocument(value: unknown): unknown {
             canvas: migrateCanvas(item.canvas),
             layers: Array.isArray(item.layers) ? item.layers.map(migrateLayer) : [],
             presets: Array.isArray(item.presets) ? item.presets : [],
-            logo: isObject(item.logo) ? item.logo : clone(DEFAULT_LOGO),
+            logo: migrateLogo(item.logo),
         };
     }) : [];
     return {
@@ -539,7 +549,7 @@ export function migrateCreativeDocument(value: unknown): unknown {
                 const item = isObject(preset) ? preset : {};
                 return { ...item, canvas: migrateCanvas(item.canvas), layers: Array.isArray(item.layers) ? item.layers.map(migrateLayer) : [] };
             }) : [],
-        logo: isObject(value.logo) ? value.logo : clone(DEFAULT_LOGO),
+        logo: migrateLogo(value.logo),
     };
 }
 

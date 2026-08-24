@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     addCreativeLayer,
@@ -26,7 +26,7 @@ import {
     updateCreativeLayer,
     CREATIVE_BLEND_MODES,
 } from "./creativeDocument.js";
-import { applyCreativeLogoVariant, resetCreativeLogoPipeline, syncCreativeLogoStore } from "./creativeLogoPipeline.js";
+import { applyCreativeLogoVariant, resetCreativeLogoPipeline, syncCreativeLogoStore, type CreativeLogoVariantInput } from "./creativeLogoPipeline.js";
 import { renderCreativeSvg } from "./creativeRenderer.js";
 import {
     type CreativeAppearanceCapabilities,
@@ -53,6 +53,7 @@ const document = ref(props.modelValue ? props.modelValue : createCreativeDocumen
 const capabilities = computed(() => safeCreativeCapabilities(props.capabilities));
 const selected = computed(() => document.value.selectedLayerIds);
 const selectedLayer = computed(() => document.value.layers.find((layer) => layer.id === selected.value[0]));
+const editableSelection = computed(() => selected.value.length > 0 && selected.value.every((id) => !document.value.layers.find((layer) => layer.id === id)?.locked));
 const query = ref("");
 const regexMode = ref(false);
 const regexFlags = ref("i");
@@ -66,7 +67,14 @@ const presetQuery = ref("");
 const presetRegexMode = ref(false);
 const presetRegexFlags = ref("i");
 
-watch(() => props.modelValue, (value) => { if (value) document.value = value; });
+watch(() => props.modelValue, (value) => {
+    if (!value) return;
+    document.value = value;
+    try { syncCreativeLogoStore(value); } catch (error) { fieldError.value = error instanceof Error ? error.message : "The saved logo state could not be restored."; }
+});
+onMounted(() => {
+    try { syncCreativeLogoStore(document.value); } catch (error) { fieldError.value = error instanceof Error ? error.message : "The saved logo state could not be restored."; }
+});
 
 const visibleLayers = computed(() => {
     const source = (regexMode.value ? regexPattern.value : query.value).trim();
@@ -129,6 +137,10 @@ function add(kind: "text" | "vector" | "gradient" | "group"): void {
 
 function updateSelected(patch: Partial<CreativeLayer>, action = "adjust layer"): void {
     if (!selectedLayer.value) return;
+    if (selectedLayer.value.locked) {
+        fieldError.value = "This layer is locked. Unlock it before editing.";
+        return;
+    }
     fieldError.value = "";
     const incoming = patch as Record<string, unknown>;
     const numericKeys = ["x", "y", "width", "height", "rotation", "scaleX", "scaleY", "opacity", "strokeWidth"] as const;
@@ -203,6 +215,11 @@ function toggleSelected(): void {
     updateSelected({ visible: !selectedLayer.value.visible }, "toggle layer visibility");
 }
 
+function toggleLayerLock(): void {
+    if (!selectedLayer.value) return;
+    publish(updateCreativeLayer(document.value, selectedLayer.value.id, { locked: !selectedLayer.value.locked }, "toggle layer lock"));
+}
+
 function toggleRegex(): void {
     regexMode.value = !regexMode.value;
     regexPattern.value = regexMode.value ? query.value : "";
@@ -246,7 +263,7 @@ function generateLogoVariants(): void {
         const sizedSvg = svg.replace("<svg ", `<svg width="${size}" height="${size}" `);
         return { id: `logo-${size}`, width: size, height: size, dataUrl: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sizedSvg)}` };
     });
-    const next = setCreativeLogo(document.value, { enabled: true, target: "app-logo", variants });
+    const next = setCreativeLogo(document.value, { enabled: true, target: document.value.logo.target, variants });
     try {
         publish(applyCreativeLogoVariant(next, variants[2]!));
     } catch (error) {
@@ -257,6 +274,15 @@ function generateLogoVariants(): void {
 
 function resetLogoPipeline(): void {
     publish(resetCreativeLogoPipeline(document.value));
+}
+
+function applyLogoVariant(variant: CreativeLogoVariantInput): void {
+    try {
+        publish(applyCreativeLogoVariant(document.value, variant));
+    } catch (error) {
+        importError.value = error instanceof Error ? error.message : "The logo variant could not be applied.";
+        importState.value = "error";
+    }
 }
 
 function applyPreset(id: string): void {
@@ -356,12 +382,12 @@ async function onAssetImport(event: Event): Promise<void> {
             <button type="button" @click="add('vector')">Add shape</button>
             <button type="button" @click="add('gradient')">Add gradient</button>
             <button type="button" @click="add('group')">Add group</button>
-            <button type="button" :disabled="selected.length < 2" @click="publish(groupCreativeLayers(document, selected))">Group selected</button>
-            <button type="button" :disabled="selected.length === 0" @click="publish(duplicateCreativeLayers(document, selected))">Duplicate</button>
-            <button type="button" :disabled="selected.length !== 1 || selectedLayer?.kind !== 'group'" @click="publish(ungroupCreativeLayers(document, selected[0]!))">Ungroup</button>
-            <button type="button" :disabled="selected.length < 2" @click="publish(alignCreativeLayers(document, selected, 'left'))">Align left</button>
-            <button type="button" :disabled="selected.length < 2" @click="publish(alignCreativeLayers(document, selected, 'middle'))">Align middle</button>
-            <button type="button" :disabled="selected.length === 0" @click="publish(removeCreativeLayers(document, selected))">Delete selected</button>
+            <button type="button" :disabled="selected.length < 2 || !editableSelection" @click="publish(groupCreativeLayers(document, selected))">Group selected</button>
+            <button type="button" :disabled="selected.length === 0 || !editableSelection" @click="publish(duplicateCreativeLayers(document, selected))">Duplicate</button>
+            <button type="button" :disabled="selected.length !== 1 || selectedLayer?.kind !== 'group' || !editableSelection" @click="publish(ungroupCreativeLayers(document, selected[0]!))">Ungroup</button>
+            <button type="button" :disabled="selected.length < 2 || !editableSelection" @click="publish(alignCreativeLayers(document, selected, 'left'))">Align left</button>
+            <button type="button" :disabled="selected.length < 2 || !editableSelection" @click="publish(alignCreativeLayers(document, selected, 'middle'))">Align middle</button>
+            <button type="button" :disabled="selected.length === 0 || !editableSelection" @click="publish(removeCreativeLayers(document, selected))">Delete selected</button>
             <button type="button" :disabled="document.historyCursor <= 0" @click="publish(undoCreative(document))">Undo</button>
             <button type="button" :disabled="document.historyCursor >= document.history.length - 1" @click="publish(redoCreative(document))">Redo</button>
             <button type="button" @click="publish(resetCreativeDocument(document))">Reset document</button>
@@ -395,9 +421,9 @@ async function onAssetImport(event: Event): Promise<void> {
                             <span class="mb-creative-studio__layer-name">{{ layer.name }}</span>
                             <span class="mb-creative-studio__layer-state">{{ Math.round(layer.opacity * 100) }}%</span>
                         </button>
-                        <button type="button" class="mb-creative-studio__visibility" :aria-label="`${layer.visible ? 'Hide' : 'Show'} ${layer.name}`" @click.stop="selectLayer(layer); toggleSelected()">{{ layer.visible ? '◉' : '○' }}</button>
-                        <button type="button" class="mb-creative-studio__move" aria-label="Move layer up" @click.stop="publish(reorderCreativeLayer(document, layer.id, -1))">↑</button>
-                        <button type="button" class="mb-creative-studio__move" aria-label="Move layer down" @click.stop="publish(reorderCreativeLayer(document, layer.id, 1))">↓</button>
+                        <button type="button" class="mb-creative-studio__visibility" :disabled="layer.locked" :aria-label="`${layer.visible ? 'Hide' : 'Show'} ${layer.name}`" @click.stop="selectLayer(layer); toggleSelected()">{{ layer.visible ? '◉' : '○' }}</button>
+                        <button type="button" class="mb-creative-studio__move" :disabled="layer.locked" aria-label="Move layer up" @click.stop="publish(reorderCreativeLayer(document, layer.id, -1))">↑</button>
+                        <button type="button" class="mb-creative-studio__move" :disabled="layer.locked" aria-label="Move layer down" @click.stop="publish(reorderCreativeLayer(document, layer.id, 1))">↓</button>
                     </li>
                 </ul>
                 <p v-if="visibleLayers.length === 0" class="mb-creative-studio__empty">No layer matches this search.</p>
@@ -430,7 +456,7 @@ async function onAssetImport(event: Event): Promise<void> {
                         <button type="button" @click="generateLogoVariants">Generate logo variants</button>
                     </div>
                     <div v-if="document.logo.variants.length" class="mb-creative-studio__logo-variants" aria-label="Logo size previews">
-                        <figure v-for="variant in document.logo.variants" :key="variant.id"><img :src="variant.dataUrl" :alt="`Logo preview at ${variant.width} by ${variant.height} pixels`" /><figcaption>{{ variant.width }} × {{ variant.height }} px</figcaption></figure>
+                        <figure v-for="variant in document.logo.variants" :key="variant.id" :class="{ 'is-active': document.logo.activeVariantId === variant.id }"><img :src="variant.dataUrl" :alt="`Logo preview at ${variant.width} by ${variant.height} pixels`" /><figcaption>{{ variant.width }} × {{ variant.height }} px</figcaption><button type="button" @click="applyLogoVariant(variant)">{{ document.logo.activeVariantId === variant.id ? 'Active' : 'Apply' }}</button></figure>
                     </div>
                     <div class="mb-creative-studio__preset-manager" aria-label="Creative preset manager">
                         <div class="mb-creative-studio__preset-search"><input v-model="presetQuery" type="search" aria-label="Search creative presets" /><button type="button" :aria-pressed="presetRegexMode" aria-label="Toggle preset regex builder" @click="presetRegexMode = !presetRegexMode">.*</button><input v-if="presetRegexMode" v-model="presetRegexFlags" aria-label="Preset regex flags" maxlength="8" /></div>
@@ -450,6 +476,9 @@ async function onAssetImport(event: Event): Promise<void> {
             <aside class="mb-creative-studio__properties" aria-label="Selected layer properties">
                 <template v-if="selectedLayer">
                     <h3>{{ selectedLayer.name }}</h3>
+                    <p v-if="selectedLayer.locked" class="mb-creative-studio__hint">This layer is locked. Unlock it in the layer list before editing.</p>
+                    <label class="mb-creative-studio__check"><input :checked="selectedLayer.locked" type="checkbox" @change="toggleLayerLock" /> Lock layer</label>
+                    <fieldset :disabled="selectedLayer.locked" class="mb-creative-studio__property-fieldset">
                     <label>Name <input :value="selectedLayer.name" maxlength="96" @change="updateSelected({ name: inputValue($event) }, 'rename layer')" /></label>
                     <label>Opacity <input :value="selectedLayer.opacity" type="range" min="0" max="1" step="0.01" @input="updateSelected({ opacity: inputNumber($event) }, 'adjust opacity')" /></label>
                     <label>Blend mode
@@ -468,7 +497,6 @@ async function onAssetImport(event: Event): Promise<void> {
                     <label v-if="selectedLayer.kind === 'raster'" class="mb-creative-studio__check"><input :checked="selectedLayer.flipX" type="checkbox" @change="updateSelected({ flipX: !selectedLayer.flipX }, 'flip layer')" /> Flip horizontal</label>
                     <label v-if="selectedLayer.kind === 'raster'" class="mb-creative-studio__check"><input :checked="selectedLayer.flipY" type="checkbox" @change="updateSelected({ flipY: !selectedLayer.flipY }, 'flip layer')" /> Flip vertical</label>
                     <label class="mb-creative-studio__check"><input :checked="selectedLayer.clipped" type="checkbox" @change="updateSelected({ clipped: !selectedLayer.clipped }, 'toggle clipping mask')" /> Use as clipping mask</label>
-                    <label class="mb-creative-studio__check"><input :checked="selectedLayer.locked" type="checkbox" @change="updateSelected({ locked: !selectedLayer.locked }, 'toggle layer lock')" /> Lock layer</label>
                     <button v-if="selectedLayer.mask === null" type="button" @click="updateSelected({ mask: { enabled: true, kind: 'rectangle', x: 0, y: 0, width: layerWidth(selectedLayer), height: layerHeight(selectedLayer), feather: 0 } }, 'add mask')">Add mask</button>
                     <fieldset class="mb-creative-studio__effect-fields"><legend>Effects</legend>
                         <label>Blur <input :value="selectedLayer.effects.blur" type="range" min="0" max="128" step="1" @input="updateEffect({ blur: inputNumber($event) })" /></label>
@@ -508,6 +536,7 @@ async function onAssetImport(event: Event): Promise<void> {
                     <label v-if="'fill' in selectedLayer">Fill <input :value="selectedLayer.fill" type="text" @change="updateSelected({ fill: inputValue($event) }, 'change fill')" /></label>
                     <p v-if="selectedLayer.kind === 'text'" class="mb-creative-studio__hint">Text layers retain the full Word-depth typography shape for the core editor to compose later.</p>
                     <button type="button" @click="publish(resetCreativeLayer(document, selectedLayer.id))">Reset selected layer</button>
+                    </fieldset>
                 </template>
                 <p v-else class="mb-creative-studio__empty">Select a layer to edit it here.</p>
                 <p v-if="importState === 'ready'" class="mb-creative-studio__success" role="status">Import complete. The previous document was replaced only after validation.</p>
