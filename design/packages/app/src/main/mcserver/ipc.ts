@@ -13,6 +13,7 @@
 
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { createHash, randomBytes } from "node:crypto";
 
 import type { IpcMain } from "electron";
 
@@ -125,6 +126,7 @@ export const MCSERVER_CHANNELS = {
     backupCreate: "mcserver:backup:create",
     backupList: "mcserver:backup:list",
     backupRestore: "mcserver:backup:restore",
+    backupRestoreIssue: "mcserver:backup:restore:issue",
     awsPlan: "mcserver:aws:plan",
     awsProvision: "mcserver:aws:provision",
     awsTeardown: "mcserver:aws:teardown",
@@ -244,6 +246,17 @@ function isPath(value: unknown): value is string {
     return typeof value === "string" && value.length > 0 && value.length <= 4_096 && !/[\0\r\n]/.test(value);
 }
 
+export function safeContainerServerDir(value: string): boolean {
+    const normalized = value.replace(/\/+$/, "") || "/";
+    const forbiddenRoots = new Set(["/", "/root", "/home", "/etc", "/usr", "/var"]);
+    return normalized.startsWith("/") && normalized.length <= 512 && !forbiddenRoots.has(normalized.toLowerCase()) && !/[\0\r\n]/.test(normalized) && !normalized.split("/").some((part) => part === "." || part === "..");
+}
+
+function recognizedContainerMount(destination: string): boolean {
+    const lower = destination.toLowerCase();
+    return lower === "/data" || lower === "/server";
+}
+
 function isPluginLoader(value: unknown): value is PluginLoader {
     return (
         value === "bukkit" ||
@@ -349,6 +362,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
     const rconHostFor = options.rconHostFor ?? defaultRconHostFor;
     const openRconTunnel = options.sshRconTunnel ?? openSshRconTunnel;
     const rconTunnels = new Map<string, SshRconTunnel>();
+    const restoreReceipts = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
 
     async function closeRconTunnelIfUnused(serverId: string): Promise<void> {
         const active = [...consoleSessions.values()].some((entry) => entry.serverId === serverId);
@@ -1345,10 +1359,12 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             // The mount source belongs to the Docker host. Transport paths are inside the
             // container, so persist the matching destination instead of a host filesystem
             // path that would make every later read target the wrong machine namespace.
-            const serverDir = candidate.mounts.find((mount) => {
-                const target = mount.destination.toLowerCase();
-                return target === "/data" || target === "/server" || target.includes("minecraft");
-            })?.destination ?? candidate.mounts[0]?.destination ?? "";
+            const explicitServerDir = typeof body.serverDir === "string" ? body.serverDir : null;
+            const recognizedMount = candidate.mounts.find((mount) => recognizedContainerMount(mount.destination))?.destination ?? null;
+            const serverDir = explicitServerDir ?? recognizedMount ?? "";
+            if (!safeContainerServerDir(serverDir) || !candidate.mounts.some((mount) => mount.destination === serverDir)) {
+                return fail("invalid-request", "This container has no safe recognized server mount. Choose an exact mounted /data or /server path.");
+            }
             if (serverDir === "") {
                 return fail("invalid-request", "This container has no server folder WorldLens could identify.");
             }
@@ -1394,11 +1410,18 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             };
             if (rconRaw !== null) {
                 const stored = await rconSecrets.put(body.id, rconPassword as string);
-                if (!stored) return fail("denied", "The remote RCON password could not be stored in the credential vault.");
+                if (!stored) {
+                    await rconSecrets.remove(body.id);
+                    await registry.remove(body.id);
+                    await adoptions.remove(body.id);
+                    return fail("denied", "The remote RCON password could not be stored in the credential vault.");
+                }
             }
             const savedServer = await registry.put(serverRecord);
             if (!savedServer.ok) {
                 if (rconRaw !== null) await rconSecrets.remove(body.id);
+                await registry.remove(body.id);
+                await adoptions.remove(body.id);
                 return savedServer;
             }
 
@@ -1457,6 +1480,25 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             return listServerBackups(owner, repo, options.backup.githubCallOptions);
         },
 
+        [MCSERVER_CHANNELS.backupRestoreIssue]: async (_event: never, id: unknown, request: unknown) => {
+            if (!isRecordId(id) || typeof request !== "object" || request === null) return fail("invalid-request", "A restore confirmation needs a server and backup identity.");
+            const body = request as Record<string, unknown>;
+            if (body.superConfirmed !== true || typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") {
+                return fail("denied", "The native destructive confirmation has not completed for this restore.");
+            }
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            const target = typeof body.worldFolder === "string" ? body.worldFolder : opened.value.record.ref.serverDir;
+            if (!safeContainerServerDir(target) || !(target === opened.value.record.ref.serverDir || target.startsWith(`${opened.value.record.ref.serverDir.replace(/\/$/, "")}/`))) {
+                return fail("invalid-request", "The restore target is outside this server's scoped folder.");
+            }
+            const receipt = randomBytes(32).toString("hex");
+            const digest = createHash("sha256").update(receipt).digest("hex");
+            const expiresAt = Date.now() + 60_000;
+            restoreReceipts.set(digest, { digest, serverId: id, target, owner: body.owner, repo: body.repo, tag: body.tag, expiresAt });
+            return ok({ receipt, expiresAt });
+        },
+
         [MCSERVER_CHANNELS.backupRestore]: async (_event: never, id: unknown, request: unknown) => {
             if (options.backup === undefined) {
                 return fail("unsupported", "Backups are not set up in this build.");
@@ -1470,9 +1512,19 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") {
                 return fail("invalid-request", "A restore needs a repository owner, name and release tag.");
             }
-            if (opened.value.record.origin === "adopted" && (body.restoreConsent !== true || typeof body.restoreReceipt !== "string" || body.restoreReceipt.length < 16)) {
-                return fail("denied", "Restoring an adopted server needs dedicated restore consent and destructive confirmation.");
+            if (typeof body.restoreReceipt !== "string" || body.restoreReceipt.length < 16) {
+                return fail("denied", "This restore needs a fresh main-process destructive confirmation receipt.");
             }
+            const receiptDigest = createHash("sha256").update(body.restoreReceipt).digest("hex");
+            const issued = restoreReceipts.get(receiptDigest);
+            const requestedTarget = typeof body.worldFolder === "string" ? body.worldFolder : opened.value.record.ref.serverDir;
+            if (issued === undefined || issued.expiresAt < Date.now() || issued.serverId !== id || issued.owner !== body.owner || issued.repo !== body.repo || issued.tag !== body.tag || issued.target !== requestedTarget) {
+                return fail("denied", "This restore receipt is expired, already used, or scoped to another server or backup.");
+            }
+            if (opened.value.record.origin === "adopted" && body.restoreConsent !== true) {
+                return fail("denied", "Restoring an adopted server needs dedicated restore consent.");
+            }
+            restoreReceipts.delete(receiptDigest);
             const restoreTransport = opened.value.record.origin === "adopted"
                 ? {
                       ...opened.value.transport,

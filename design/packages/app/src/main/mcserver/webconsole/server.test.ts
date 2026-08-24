@@ -95,7 +95,7 @@ describe("web console server", () => {
         expect(res.status).toBe(200);
         expect(res.body).toContain("Sign in");
         expect(res.body).toContain("Password");
-        for (const term of ["Gerk Tong Hui", "hui", "jer", "dewed", "poke guy", "Chut", "See Fut"]) {
+        for (const term of ["private-workspace-word", "private-remote-word", "private-branch-word", "private-delivery-word", "private-defect-word", "private-check-word", "private-dependency-word"]) {
             expect(res.body.toLowerCase()).not.toContain(term.toLowerCase());
         }
     });

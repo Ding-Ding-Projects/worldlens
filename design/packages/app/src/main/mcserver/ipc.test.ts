@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { MCSERVER_CHANNELS, registerMcServerHandlers, type IpcMainLike, type McServerIpc } from "./ipc.js";
+import { MCSERVER_CHANNELS, registerMcServerHandlers, safeContainerServerDir, type IpcMainLike, type McServerIpc } from "./ipc.js";
 import type { ServerRecord } from "./registry.js";
 import type { SafeStorageLike } from "./rcon/secret.js";
 import type { CommandOutput, CommandRunner } from "../runtime/command.js";
@@ -173,6 +173,14 @@ describe("registerMcServerHandlers", () => {
         expect(answer.failure.code).toBe("invalid-request");
     });
 
+    it("refuses root and host-sensitive container destinations even when the host source is safe", () => {
+        for (const path of ["/", "/root", "/home", "/etc", "/usr", "/var"]) {
+            expect(safeContainerServerDir(path)).toBe(false);
+        }
+        expect(safeContainerServerDir("/data")).toBe(true);
+        expect(safeContainerServerDir("/server/world")).toBe(true);
+    });
+
     it("configures RCON through the vault without returning the password", async () => {
         const answer = (await invoke(MCSERVER_CHANNELS.rconConfigure, "survival", { port: 25_575, password: "fixture-password" })) as {
             ok: boolean;
@@ -183,6 +191,27 @@ describe("registerMcServerHandlers", () => {
         expect(saved.ok && saved.value.hasRconSecret).toBe(true);
         expect(saved.ok && saved.value.rconPort).toBe(25_575);
         expect(JSON.stringify(answer)).not.toContain("fixture-password");
+    });
+
+    it("issues a scoped one-time restore receipt only after native confirmation", async () => {
+        const refused = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "fixture-owner",
+            repo: "fixture-backups",
+            tag: "fixture-tag",
+            superConfirmed: false,
+        })) as { ok: boolean; failure: { code: string } };
+        expect(refused.ok).toBe(false);
+        expect(refused.failure.code).toBe("denied");
+        const issued = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "fixture-owner",
+            repo: "fixture-backups",
+            tag: "fixture-tag",
+            worldFolder: "/data",
+            superConfirmed: true,
+        })) as { ok: boolean; value?: { receipt: string; expiresAt: number } };
+        expect(issued.ok).toBe(true);
+        expect(issued.value?.receipt.length).toBe(64);
+        expect(issued.value?.expiresAt).toBeGreaterThan(Date.now());
     });
 
     it("carries the record's write scope into the transport", async () => {

@@ -22,12 +22,14 @@
  */
 
 import { createHash, randomUUID } from "node:crypto";
-import { readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { readdir, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import {
     execFileCommandRunner,
+    type CommandOutput,
     type CommandRunner,
 } from "../../runtime/command.js";
 import { scpArguments, scpRemotePath, sshCommandRunner, type SshOptionsInput } from "../../remote/ssh.js";
@@ -54,9 +56,41 @@ interface RestoreFile {
     readonly sha256: string;
 }
 
-async function localRestoreManifest(root: string): Promise<Answer<readonly RestoreFile[]>> {
+export const RESTORE_LIMITS = Object.freeze({
+    maxEntries: 100_000,
+    maxDirectories: 20_000,
+    maxDepth: 32,
+    maxIndividualBytes: 2 * 1024 * 1024 * 1024,
+    maxAggregateBytes: 20 * 1024 * 1024 * 1024,
+    maxPathBytes: 4_096,
+});
+
+async function hashFile(full: string, signal?: AbortSignal): Promise<Answer<{ bytes: number; sha256: string }>> {
+    try {
+        const digest = createHash("sha256");
+        let bytes = 0;
+        for await (const chunk of createReadStream(full)) {
+            if (signal?.aborted) return fail("timeout", "The restore was cancelled while hashing a file.");
+            const value = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk as Buffer);
+            bytes += value.byteLength;
+            if (bytes > RESTORE_LIMITS.maxIndividualBytes) return fail("invalid-request", "A restore file exceeds the individual size limit.");
+            digest.update(value);
+        }
+        return ok({ bytes, sha256: digest.digest("hex") });
+    } catch (error) {
+        return fail("denied", "A staged restore file could not be read.", String(error));
+    }
+}
+
+export async function localRestoreManifest(root: string, signal?: AbortSignal): Promise<Answer<readonly RestoreFile[]>> {
     const files: RestoreFile[] = [];
-    const walk = async (folder: string, prefix: string): Promise<Answer<void>> => {
+    let directories = 0;
+    let aggregateBytes = 0;
+    const walk = async (folder: string, prefix: string, depth: number): Promise<Answer<void>> => {
+        if (signal?.aborted) return fail("timeout", "The restore was cancelled while validating its manifest.");
+        if (depth > RESTORE_LIMITS.maxDepth) return fail("invalid-request", "The restore directory depth exceeds the safety limit.");
+        directories += 1;
+        if (directories > RESTORE_LIMITS.maxDirectories) return fail("invalid-request", "The restore contains too many directories.");
         let entries;
         try {
             entries = await readdir(folder, { withFileTypes: true });
@@ -66,24 +100,25 @@ async function localRestoreManifest(root: string): Promise<Answer<readonly Resto
         for (const entry of entries) {
             if (entry.name === "." || entry.name === ".." || /[\\/\0\r\n]/.test(entry.name)) return fail("invalid-request", "The restore contains an invalid path.");
             const relative = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+            if (Buffer.byteLength(relative, "utf8") > RESTORE_LIMITS.maxPathBytes) return fail("invalid-request", "A restore path exceeds the safety limit.");
             const full = join(folder, entry.name);
             if (entry.isSymbolicLink()) return fail("unsupported", "The restore contains a symbolic link.");
             if (entry.isDirectory()) {
-                const nested = await walk(full, relative);
+                const nested = await walk(full, relative, depth + 1);
                 if (!nested.ok) return nested;
                 continue;
             }
             if (!entry.isFile()) return fail("unsupported", "The restore contains a non-regular file.");
-            try {
-                const bytes = await readFile(full);
-                files.push({ relative, bytes: bytes.byteLength, sha256: createHash("sha256").update(bytes).digest("hex") });
-            } catch (error) {
-                return fail("denied", "A staged restore file could not be read.", String(error));
-            }
+            if (files.length >= RESTORE_LIMITS.maxEntries) return fail("invalid-request", "The restore contains too many files.");
+            const hashed = await hashFile(full, signal);
+            if (!hashed.ok) return hashed;
+            aggregateBytes += hashed.value.bytes;
+            if (aggregateBytes > RESTORE_LIMITS.maxAggregateBytes) return fail("invalid-request", "The restore exceeds the aggregate size limit.");
+            files.push({ relative, bytes: hashed.value.bytes, sha256: hashed.value.sha256 });
         }
         return ok(undefined);
     };
-    const result = await walk(root, "");
+    const result = await walk(root, "", 0);
     return result.ok ? ok(files) : result;
 }
 
@@ -195,12 +230,57 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
     const remoteRunner = sshCommandRunner({ ...options, ...(options.runner === undefined ? {} : { runner: options.runner }) });
     const docker = options.docker ?? "docker";
     const scp = options.scp ?? "scp";
+    const cleanupRemotePath = async (path: string, containerPath = false): Promise<Answer<void>> => {
+        let last: CommandOutput | null = null;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            const answer = containerPath
+                ? await remoteRunner(docker, ["exec", options.containerRef, "rm", "-rf", "--", path], { timeoutMs: 30_000 })
+                : await remoteRunner("rm", ["-rf", "--", path], { timeoutMs: 30_000 });
+            if (answer.ok) return ok(undefined);
+            last = answer;
+        }
+        return fail("command-failed", "Temporary restore data could not be cleaned up.", last === null ? null : `${last.stderr}\n${last.stdout}`.trim().slice(0, 2_000) || null);
+    };
     return {
         ...transport,
+        async copyDirectoryToLocal(sourceFolder, localDestination, copyOptions = {}) {
+            if (!safeContainerPath(sourceFolder) || !(sourceFolder === options.serverDir || sourceFolder.startsWith(`${options.serverDir.replace(/\/$/, "")}/`))) return fail("invalid-request", "The remote backup source is outside the container scope.");
+            if (copyOptions.signal?.aborted) return fail("timeout", "The remote backup was cancelled before staging.");
+            await mkdir(localDestination, { recursive: true });
+            const id = randomUUID();
+            const remoteHostStage = `/tmp/worldlens-backup-${id}`;
+            let cleanupRequired = true;
+            let cleanupWarning: string | undefined;
+            let result: Answer<{ cleanupWarning?: string }> = ok({});
+            try {
+                const copied = await remoteRunner(docker, ["cp", `${options.containerRef}:${sourceFolder}`, remoteHostStage], { timeoutMs: 300_000 });
+                if (!copied.ok) {
+                    result = fail("command-failed", "The remote world could not be staged for backup.", copied.stderr || copied.stdout);
+                } else {
+                    const fetched = await runner(scp, [...scpArguments(options, ["-r"]), `${scpRemotePath(options.target, remoteHostStage)}/.`, localDestination], {
+                        timeoutMs: 300_000,
+                        ...(copyOptions.signal === undefined ? {} : { signal: copyOptions.signal }),
+                    });
+                    if (!fetched.ok) result = fail("unreachable", "The remote world could not be copied to local backup storage.", fetched.stderr || fetched.stdout || fetched.spawnError);
+                }
+            } finally {
+                if (cleanupRequired) {
+                    const cleaned = await cleanupRemotePath(remoteHostStage);
+                    if (!cleaned.ok) cleanupWarning = cleaned.failure.message;
+                    cleanupRequired = false;
+                }
+                if (cleanupWarning !== undefined) {
+                    result = result.ok
+                        ? ok({ cleanupWarning })
+                        : fail(result.failure.code, result.failure.message, `${result.failure.detail ?? ""}\n${cleanupWarning}`.trim());
+                }
+            }
+            return result;
+        },
         async atomicRestoreDirectory(sourceFolder, targetFolder, restoreOptions = {}) {
             if (!safeContainerPath(targetFolder) || !(targetFolder === options.serverDir || targetFolder.startsWith(`${options.serverDir.replace(/\/$/, "")}/`))) return fail("invalid-request", "The restore target path is outside the container scope.");
             if (!transport.capabilities.canBackupRestore) return fail("unsupported", "This server has not been granted backup-restore mutation capability.");
-            const manifest = await localRestoreManifest(sourceFolder);
+            const manifest = await localRestoreManifest(sourceFolder, restoreOptions.signal);
             if (!manifest.ok) return manifest;
             if (!manifest.value.some((file) => file.relative === "level.dat")) return fail("invalid-request", "The restore does not contain level.dat.");
             if (restoreOptions.signal?.aborted) return fail("timeout", "The restore was cancelled before staging.");
@@ -208,24 +288,29 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
             const remoteHostStage = `/tmp/worldlens-restore-${id}`;
             const stage = `${targetFolder.replace(/\/$/, "")}.worldlens-stage-${id}`;
             const rollback = `${targetFolder.replace(/\/$/, "")}.worldlens-rollback-${id}`;
-            let hostStageReady = false;
+            let hostStageReady = true;
             let containerStageReady = false;
             let oldRenamed = false;
             let newRenamed = false;
             let serverStopped = false;
-            const cleanupHost = async (): Promise<void> => { if (hostStageReady) await remoteRunner("rm", ["-rf", "--", remoteHostStage], { timeoutMs: 30_000 }).catch(() => {}); };
+            let cleanupWarning: string | undefined;
+            const cleanupHost = async (): Promise<Answer<{ path: string; cleaned: boolean }>> => {
+                if (!hostStageReady) return ok({ path: remoteHostStage, cleaned: true });
+                const cleaned = await cleanupRemotePath(remoteHostStage);
+                if (!cleaned.ok) cleanupWarning = cleaned.failure.message;
+                hostStageReady = false;
+                return cleaned.ok ? ok({ path: remoteHostStage, cleaned: true }) : ok({ path: remoteHostStage, cleaned: false });
+            };
             try {
                 const sent = await runner(scp, [...scpArguments(options, ["-r"]), `${sourceFolder}/.`, scpRemotePath(options.target, remoteHostStage)], {
                     timeoutMs: 300_000,
                     ...(restoreOptions.signal === undefined ? {} : { signal: restoreOptions.signal }),
                 });
                 if (!sent.ok) return fail("unreachable", "The restore could not be staged on the SSH host.", sent.stderr || sent.stdout || sent.spawnError);
-                hostStageReady = true;
                 const copied = await remoteRunner(docker, ["cp", remoteHostStage, `${options.containerRef}:${stage}`], { timeoutMs: 300_000 });
                 if (!copied.ok) return fail("command-failed", "The restore could not be copied into the container.", copied.stderr || copied.stdout);
                 containerStageReady = true;
                 await cleanupHost();
-                hostStageReady = false;
                 const devices = await Promise.all([
                     remoteRunner(docker, ["exec", options.containerRef, "stat", "-c", "%d", targetFolder]),
                     remoteRunner(docker, ["exec", options.containerRef, "stat", "-c", "%d", stage]),
@@ -275,17 +360,29 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                         ? fail("command-failed", "The restored world failed post-swap validation and the original world was restored.", restoredLevel.stderr || restoredLevel.stdout)
                         : fail("command-failed", "The restored world failed post-swap validation and rollback could not be proven.", `${restoredLevel.stderr}\n${rollbackResult.stderr}`.trim());
                 }
-                if (!restoreOptions.retainRollback) await remoteRunner(docker, ["exec", options.containerRef, "rm", "-rf", "--", rollback], { timeoutMs: 60_000 });
+                if (!restoreOptions.retainRollback) {
+                    const removedRollback = await cleanupRemotePath(rollback, true);
+                    if (!removedRollback.ok) cleanupWarning = removedRollback.failure.message;
+                }
                 if (running.value.running) {
                     const started = await transport.start();
                     if (!started.ok) return fail("command-failed", "The world was restored but the previously running server could not be restarted.", started.failure.message);
                     serverStopped = false;
                 }
-                return ok({ restoredFiles: manifest.value.length, rolledBack: false });
+                return ok({ restoredFiles: manifest.value.length, rolledBack: false, ...(cleanupWarning === undefined ? {} : { cleanupWarning }) });
             } finally {
-                if (containerStageReady && !newRenamed) await remoteRunner(docker, ["exec", options.containerRef, "rm", "-rf", "--", stage], { timeoutMs: 60_000 }).catch(() => {});
-                if (oldRenamed && !newRenamed) await remoteRunner(docker, ["exec", options.containerRef, "mv", "--", rollback, targetFolder], { timeoutMs: 60_000 }).catch(() => {});
-                if (serverStopped) await transport.start().catch(() => {});
+                if (containerStageReady && !newRenamed) {
+                    const cleanedStage = await cleanupRemotePath(stage, true);
+                    if (!cleanedStage.ok) cleanupWarning = cleanedStage.failure.message;
+                }
+                if (oldRenamed && !newRenamed) {
+                    const restored = await remoteRunner(docker, ["exec", options.containerRef, "mv", "--", rollback, targetFolder], { timeoutMs: 60_000 });
+                    if (!restored.ok) cleanupWarning = "The rollback sibling could not be restored automatically.";
+                }
+                if (serverStopped) {
+                    const restarted = await transport.start();
+                    if (!restarted.ok) cleanupWarning = "The server could not be restarted automatically after restore.";
+                }
                 await cleanupHost();
             }
         },

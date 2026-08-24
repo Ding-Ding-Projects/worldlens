@@ -283,7 +283,7 @@ describe("AdoptionReviewDialog evidence/mounts/ports filter", () => {
         ],
         ports: [
             { container: 25565, host: 25565 },
-            { container: 25575, host: null },
+            { container: 25575, host: 25576 },
         ],
         blockers: [],
         containerId: "container-1",
@@ -296,6 +296,12 @@ describe("AdoptionReviewDialog evidence/mounts/ports filter", () => {
         expect(body).toContain("server.properties");
         expect(body).toContain("/host/plugins");
         expect(body).toContain("25575");
+    });
+
+    it("uses the published host port for RCON and shows the container mapping", async () => {
+        await mountWith(AdoptionReviewDialog, dialogProps);
+        await flushPromises();
+        expect(document.body.textContent ?? "").toContain("25576 -> 25575");
     });
 
     it("narrows all three lists together and hides non-matching rows", async () => {

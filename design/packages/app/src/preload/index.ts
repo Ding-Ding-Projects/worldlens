@@ -2454,6 +2454,7 @@ interface WorldlensBridge {
                 request: { owner: string; repo: string; worldFolder: string; accountId?: string; acknowledgePublic?: boolean; resumeTag?: string; backupConsent?: boolean },
             ): Promise<unknown>;
             list(owner: string, repo: string): Promise<unknown>;
+            issueRestoreReceipt(id: string, request: { owner: string; repo: string; tag: string; worldFolder?: string; superConfirmed: true }): Promise<unknown>;
             restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string; worldFolder?: string; restoreConsent?: boolean; restoreReceipt?: string }): Promise<unknown>;
         };
         /** Proves the stored RCON password and port work. Never returns the password. */
@@ -3602,6 +3603,7 @@ const bridge: WorldlensBridge = {
         backup: {
             create: (id, request) => ipcRenderer.invoke("mcserver:backup:create", id, request),
             list: (owner, repo) => ipcRenderer.invoke("mcserver:backup:list", owner, repo),
+            issueRestoreReceipt: (id, request) => ipcRenderer.invoke("mcserver:backup:restore:issue", id, request),
             restore: (id, request) => ipcRenderer.invoke("mcserver:backup:restore", id, request),
         },
         webConsole: {

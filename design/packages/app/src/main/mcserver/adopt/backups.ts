@@ -99,7 +99,9 @@ export async function createServerBackup(
         await mkdir(stagingParent, { recursive: true });
         const staging = await mkdtemp(join(stagingParent, "remote-server-backup-"));
         try {
-            const materialized = await materializeRemoteFolder(request.transport, request.worldFolder, staging, request.signal);
+            const materialized = request.transport.copyDirectoryToLocal === undefined
+                ? await materializeRemoteFolder(request.transport, request.worldFolder, staging, request.signal)
+                : await request.transport.copyDirectoryToLocal(request.worldFolder, staging, request.signal === undefined ? {} : { signal: request.signal });
             if (!materialized.ok) return materialized;
             const { transport: _remoteTransport, ...localRequest } = request;
             return createServerBackup(runnerOptions, {

@@ -1,10 +1,10 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
-import { createSshDockerTransport } from "./sshDocker.js";
+import { createSshDockerTransport, localRestoreManifest, RESTORE_LIMITS } from "./sshDocker.js";
 import type { CommandOutput } from "../../runtime/command.js";
 
 function output(overrides: Partial<CommandOutput> = {}): CommandOutput {
@@ -99,6 +99,23 @@ describe("SSH Docker atomic restore", () => {
             const consent = await makeTransport("success", false).transport.atomicRestoreDirectory!(root, "/data");
             expect(consent.ok).toBe(false);
             if (!consent.ok) expect(consent.failure.code).toBe("unsupported");
+        } finally {
+            await rm(root, { recursive: true, force: true });
+        }
+    });
+
+    it("rejects excessive manifest depth before any remote staging", async () => {
+        const root = await mkdtemp(join(tmpdir(), "fixture-restore-bounds-"));
+        try {
+            let folder = root;
+            for (let depth = 0; depth <= RESTORE_LIMITS.maxDepth; depth += 1) {
+                folder = join(folder, `d${depth}`);
+                await mkdir(folder);
+            }
+            await writeFile(join(folder, "level.dat"), new Uint8Array([1]));
+            const manifest = await localRestoreManifest(root);
+            expect(manifest.ok).toBe(false);
+            if (!manifest.ok) expect(manifest.failure.message).toContain("depth");
         } finally {
             await rm(root, { recursive: true, force: true });
         }

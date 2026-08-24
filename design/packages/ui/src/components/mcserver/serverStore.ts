@@ -350,6 +350,7 @@ export interface McServerHost {
             },
         ): Promise<Answer<BackupEntry>>;
         list(owner: string, repo: string): Promise<Answer<readonly BackupEntry[]>>;
+        issueRestoreReceipt(id: string, request: { owner: string; repo: string; tag: string; worldFolder?: string; superConfirmed: true }): Promise<Answer<{ receipt: string; expiresAt: number }>>;
         restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string; worldFolder?: string; restoreConsent?: boolean; restoreReceipt?: string }): Promise<Answer<void>>;
     };
     readonly webConsole?: {

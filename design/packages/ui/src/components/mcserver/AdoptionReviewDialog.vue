@@ -61,12 +61,16 @@ const consent = reactive({
 });
 const rconPort = ref("");
 const rconPassword = ref("");
+const rconMapping = computed(() => {
+    const port = (props.ports ?? []).find((entry) => entry.container === 25_575);
+    return port === undefined ? null : `${port.host ?? "not published"} -> ${port.container}`;
+});
 
 watch(
     () => [props.modelValue, props.record?.id] as const,
     async ([isOpen, id]) => {
         if (isOpen && typeof id === "string") {
-            rconPort.value = String(props.ports?.find((port) => port.container === 25_575)?.container ?? "");
+            rconPort.value = String(props.ports?.find((port) => port.container === 25_575)?.host ?? "");
             rconPassword.value = "";
             probing.value = true;
             await store.probe(id);
@@ -237,6 +241,7 @@ async function confirmRelease(): Promise<void> {
 
                 <div class="text-subtitle-2 mt-3">{{ t("mcserver.adopt.rconTitle", "Remote RCON configuration") }}</div>
                 <div class="text-body-2 mb-2">{{ t("mcserver.adopt.rconDisclosure", "Optional. The password is written only to this computer's credential vault and is never returned to the interface or logs.") }}</div>
+                <div v-if="rconMapping" class="text-body-2 mb-2">Published RCON host port -> container port: {{ rconMapping }}</div>
                 <div class="wl-mcserver-adopt__rcon-fields">
                     <VTextField v-model="rconPort" type="number" min="1" max="65535" :label="t('mcserver.adopt.rconPort', 'RCON port')" />
                     <VTextField v-model="rconPassword" type="password" autocomplete="new-password" :label="t('mcserver.adopt.rconPassword', 'RCON password')" />

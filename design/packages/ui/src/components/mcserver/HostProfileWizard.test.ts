@@ -99,7 +99,7 @@ describe("HostProfileWizard", () => {
 
     it("renders an honest unavailable state when the host-profile bridge is absent", () => {
         const value = host();
-        delete (value as Partial<McServerHost>).hostProfiles;
+        delete (value as unknown as Record<string, unknown>).hostProfiles;
         const wrapper = mountWizard(value);
         expect(wrapper.find('button[aria-label="Browse for identity file"]').exists()).toBe(true);
         const save = wrapper.findAll("button").find((button) => button.text().includes("Save and check"));

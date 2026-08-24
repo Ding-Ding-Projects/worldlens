@@ -19,6 +19,7 @@ import ServerConfigEditor from "./ServerConfigEditor.vue";
 import PluginManager from "./PluginManager.vue";
 import PlayerManager from "./PlayerManager.vue";
 import AwsProvisionPanel from "./AwsProvisionPanel.vue";
+import ServerBackupsPanel from "./ServerBackupsPanel.vue";
 import { useServerStore } from "./useServers.js";
 import { flavourName, lifecycleBlockReason, stateLabel, transportSummary } from "./serverModel.js";
 import {
@@ -39,13 +40,13 @@ import {
  */
 const props = defineProps<{
     serverId: string;
-    initialTab?: "console" | "config" | "plugins" | "players" | "web" | "aws";
+    initialTab?: "console" | "config" | "plugins" | "players" | "web" | "backups" | "aws";
 }>();
 const emit = defineEmits<{ forgotten: [] }>();
 
 const { t } = useI18n();
 const store = useServerStore();
-const tab = ref<"console" | "config" | "plugins" | "players" | "web" | "aws">("console");
+const tab = ref<"console" | "config" | "plugins" | "players" | "web" | "backups" | "aws">("console");
 watch(
     () => props.initialTab,
     (value) => {
@@ -212,6 +213,7 @@ async function setPassword(): Promise<void> {
             <VTab value="plugins">{{ t("mcserver.panel.tabPlugins", "Plugins") }}</VTab>
             <VTab value="players">{{ t("mcserver.panel.tabPlayers", "Players") }}</VTab>
             <VTab value="web">{{ t("mcserver.panel.tabWeb", "Web console") }}</VTab>
+            <VTab value="backups">{{ t("mcserver.panel.tabBackups", "Backups and restore") }}</VTab>
             <VTab value="aws">{{ t("mcserver.panel.tabAws", "AWS hosting") }}</VTab>
         </VTabs>
         <VWindow v-model="tab">
@@ -315,6 +317,7 @@ async function setPassword(): Promise<void> {
                     </div>
                 </div>
             </VWindowItem>
+            <VWindowItem value="backups"><ServerBackupsPanel :server-id="server.id" /></VWindowItem>
             <VWindowItem value="aws"><AwsProvisionPanel :server-id="server.id" /></VWindowItem>
         </VWindow>
 

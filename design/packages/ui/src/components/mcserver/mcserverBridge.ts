@@ -90,6 +90,12 @@ export interface WebConsoleStatus {
     readonly hasPassword: boolean;
 }
 
+export interface BackupEntry {
+    readonly tag: string;
+    readonly createdAt: string;
+    readonly sizeBytes: number | null;
+}
+
 export interface HostProfileTargetInput {
     readonly label?: string;
     readonly host: string;
@@ -168,6 +174,12 @@ interface RawBridge {
             stop?(): Promise<unknown>;
             setPassword?(password: string): Promise<unknown>;
             bind?(): Promise<unknown>;
+        };
+        backup?: {
+            create?(id: string, request: unknown): Promise<unknown>;
+            list?(owner: string, repo: string): Promise<unknown>;
+            issueRestoreReceipt?(id: string, request: unknown): Promise<unknown>;
+            restore?(id: string, request: unknown): Promise<unknown>;
         };
         aws?: {
             plan?(request: unknown): Promise<unknown>;
@@ -344,6 +356,23 @@ export function webConsoleSetPassword(password: string, root: unknown = globalTh
 export function webConsoleBind(root: unknown = globalThis): Promise<Answer<WebConsoleStatus>> {
     const b = bridge(root);
     return call(b?.webConsole?.bind ? () => b.webConsole!.bind!() : undefined);
+}
+
+export function backupCreate(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<BackupEntry>> {
+    const b = bridge(root);
+    return call(b?.backup?.create ? () => b.backup!.create!(id, request) : undefined);
+}
+export function backupList(owner: string, repo: string, root: unknown = globalThis): Promise<Answer<readonly BackupEntry[]>> {
+    const b = bridge(root);
+    return call(b?.backup?.list ? () => b.backup!.list!(owner, repo) : undefined);
+}
+export function backupIssueRestoreReceipt(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<{ receipt: string; expiresAt: number }>> {
+    const b = bridge(root);
+    return call(b?.backup?.issueRestoreReceipt ? () => b.backup!.issueRestoreReceipt!(id, request) : undefined);
+}
+export function backupRestore(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<void>> {
+    const b = bridge(root);
+    return call(b?.backup?.restore ? () => b.backup!.restore!(id, request) : undefined);
 }
 
 export function awsPlan(request: AwsServerSpec, root: unknown = globalThis): Promise<Answer<AwsProvisionPlan>> {

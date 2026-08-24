@@ -322,7 +322,10 @@ export interface ServerTransport {
     /** Atomic replacement primitive available only for transports that can stage and rename
      * inside the same managed filesystem. Cancellation is ignored only between the two
      * critical renames. */
-    atomicRestoreDirectory?(sourceFolder: string, targetFolder: string, options?: { signal?: AbortSignal; retainRollback?: boolean }): Promise<Answer<{ restoredFiles: number; rolledBack: boolean }>>;
+    atomicRestoreDirectory?(sourceFolder: string, targetFolder: string, options?: { signal?: AbortSignal; retainRollback?: boolean }): Promise<Answer<{ restoredFiles: number; rolledBack: boolean; cleanupWarning?: string }>>;
+    /** Byte-safe recursive copy for remote backup staging. It streams through the transport
+     * rather than materialising a file in the main process. */
+    copyDirectoryToLocal?(sourceFolder: string, localDestination: string, options?: { signal?: AbortSignal }): Promise<Answer<{ cleanupWarning?: string }>>;
 }
 
 /** Shared dependencies every transport takes, so none of them reaches for a global. */
