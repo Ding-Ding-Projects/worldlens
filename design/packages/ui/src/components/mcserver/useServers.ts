@@ -106,6 +106,17 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         isFunction(webConsoleApi["setPassword"]) &&
         isFunction(webConsoleApi["bind"]);
 
+    const hostProfilesApi = api["hostProfiles"] as Record<string, unknown> | undefined;
+    const hostProfilesReady =
+        typeof hostProfilesApi === "object" &&
+        hostProfilesApi !== null &&
+        isFunction(hostProfilesApi["list"]) &&
+        isFunction(hostProfilesApi["get"]) &&
+        isFunction(hostProfilesApi["save"]) &&
+        isFunction(hostProfilesApi["forget"]) &&
+        isFunction(hostProfilesApi["scan"]) &&
+        isFunction(hostProfilesApi["trust"]);
+
     return {
         name: "Electron shell",
         list: api["list"] as McServerHost["list"],
@@ -139,5 +150,6 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         ...(worldsReady ? { worlds: worldsApi as unknown as NonNullable<McServerHost["worlds"]> } : {}),
         ...(backupReady ? { backup: backupApi as unknown as NonNullable<McServerHost["backup"]> } : {}),
         ...(webConsoleReady ? { webConsole: webConsoleApi as unknown as NonNullable<McServerHost["webConsole"]> } : {}),
+        ...(hostProfilesReady ? { hostProfiles: hostProfilesApi as unknown as NonNullable<McServerHost["hostProfiles"]> } : {}),
     } as McServerHost;
 }

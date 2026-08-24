@@ -2394,6 +2394,14 @@ interface WorldlensBridge {
         save(record: unknown): Promise<unknown>;
         /** Removes it from this app's list. Never deletes the container or the folder. */
         forget(id: string): Promise<unknown>;
+        hostProfiles: {
+            list(): Promise<unknown>;
+            get(hostId: string): Promise<unknown>;
+            save(request: unknown): Promise<unknown>;
+            forget(hostId: string): Promise<unknown>;
+            scan(hostId: string): Promise<unknown>;
+            trust(hostId: string, fingerprint: string): Promise<unknown>;
+        };
         /** Where a new server should live, so a path never has to be typed. */
         suggestFolder(name?: string): Promise<unknown>;
         probe(id: string): Promise<unknown>;
@@ -3556,6 +3564,14 @@ const bridge: WorldlensBridge = {
         get: (id) => ipcRenderer.invoke("mcserver:get", id),
         save: (record) => ipcRenderer.invoke("mcserver:save", record),
         forget: (id) => ipcRenderer.invoke("mcserver:forget", id),
+        hostProfiles: {
+            list: () => ipcRenderer.invoke("mcserver:hostProfiles:list"),
+            get: (hostId) => ipcRenderer.invoke("mcserver:hostProfiles:get", hostId),
+            save: (request) => ipcRenderer.invoke("mcserver:hostProfiles:save", request),
+            forget: (hostId) => ipcRenderer.invoke("mcserver:hostProfiles:forget", hostId),
+            scan: (hostId) => ipcRenderer.invoke("mcserver:hostProfiles:scan", hostId),
+            trust: (hostId, fingerprint) => ipcRenderer.invoke("mcserver:hostProfiles:trust", hostId, fingerprint),
+        },
         suggestFolder: (name) => ipcRenderer.invoke("mcserver:suggestFolder", name),
         probe: (id) => ipcRenderer.invoke("mcserver:probe", id),
         status: (id) => ipcRenderer.invoke("mcserver:status", id),

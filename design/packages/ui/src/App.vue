@@ -111,6 +111,7 @@ import ServerListScreen from "./components/mcserver/ServerListScreen.vue";
 import CreateServerWizard from "./components/mcserver/CreateServerWizard.vue";
 import AdoptionReviewDialog from "./components/mcserver/AdoptionReviewDialog.vue";
 import AdoptionBrowser from "./components/mcserver/AdoptionBrowser.vue";
+import HostProfileWizard from "./components/mcserver/HostProfileWizard.vue";
 import type { AdoptionCandidate } from "./components/mcserver/serverStore.js";
 import type { ServerRecord } from "./components/mcserver/serverModel.js";
 import WebConsolePanel from "./components/mcserver/WebConsolePanel.vue";
@@ -202,6 +203,7 @@ provideLockStore(lockStore);
 const mcServerStore = createServerStore({ host: resolveServerHost() });
 provideServerStore(mcServerStore);
 const mcServerCreateOpen = ref(false);
+const mcServerHostProfileOpen = ref(false);
 const mcServerOpenId = ref<string | null>(null);
 const mcServerAdoptOpen = ref(false);
 const mcServerAdoptBrowseOpen = ref(false);
@@ -861,6 +863,10 @@ const shell = createShellNavigation({
 });
 
 const destination = shell.destination;
+/** Exactly one shell tree owns the shared Minecraft modal state at a time. */
+const mcServerModalOwner = computed(() =>
+    kid.enabled.value ? "kid" : destination.value === "host" ? "adult-host" : "work",
+);
 
 /**
  * Targets this build could not route, and the panel that shows them.
@@ -2210,19 +2216,21 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             "
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
+                            @host-profile="mcServerHostProfileOpen = true"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
-                        <AdoptionBrowser
+                        <HostProfileWizard v-if="mcServerModalOwner === 'kid' && mcServerHostProfileOpen" @close="mcServerHostProfileOpen = false" @saved="mcServerHostProfileOpen = false" />
+                        <CreateServerWizard v-if="mcServerModalOwner === 'kid'" v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <AdoptionBrowser v-if="mcServerModalOwner === 'kid'"
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
                         />
-                        <AdoptionReviewDialog
+                        <AdoptionReviewDialog v-if="mcServerModalOwner === 'kid'"
                             v-model="mcServerAdoptOpen"
                             :record="mcServerAdoptRecord"
                             :container-id="mcServerAdoptContainerId"
                             @confirmed="completeMcServerAdoption"
                         />
-                        <CreateServerWizard
+                        <CreateServerWizard v-if="mcServerModalOwner === 'kid'"
                             v-model="mcServerCreateOpen"
                             @created="
                                 (id) => {
@@ -2469,19 +2477,21 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             "
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
+                            @host-profile="mcServerHostProfileOpen = true"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
-                        <AdoptionBrowser
+                        <HostProfileWizard v-if="mcServerModalOwner === 'adult-host' && mcServerHostProfileOpen" @close="mcServerHostProfileOpen = false" @saved="mcServerHostProfileOpen = false" />
+                        <CreateServerWizard v-if="mcServerModalOwner === 'adult-host'" v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
+                        <AdoptionBrowser v-if="mcServerModalOwner === 'adult-host'"
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
                         />
-                        <AdoptionReviewDialog
+                        <AdoptionReviewDialog v-if="mcServerModalOwner === 'adult-host'"
                             v-model="mcServerAdoptOpen"
                             :record="mcServerAdoptRecord"
                             :container-id="mcServerAdoptContainerId"
                             @confirmed="completeMcServerAdoption"
                         />
-                        <CreateServerWizard
+                        <CreateServerWizard v-if="mcServerModalOwner === 'adult-host'"
                             v-model="mcServerCreateOpen"
                             @created="
                                 (id) => {
@@ -2750,8 +2760,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         "
                                         @create="mcServerCreateOpen = true"
                                         @adopt="openMcServerAdoption"
+                                        @host-profile="mcServerHostProfileOpen = true"
                                     />
-                                    <CreateServerWizard
+                                    <HostProfileWizard v-if="mcServerModalOwner === 'work' && mcServerHostProfileOpen" @close="mcServerHostProfileOpen = false" @saved="mcServerHostProfileOpen = false" />
+                                    <CreateServerWizard v-if="mcServerModalOwner === 'work'"
                                         v-model="mcServerCreateOpen"
                                         @created="
                                             (id) => {
@@ -2766,11 +2778,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                             }
                                         "
                                     />
-                                    <AdoptionBrowser
+                                    <AdoptionBrowser v-if="mcServerModalOwner === 'work'"
                                         v-model="mcServerAdoptBrowseOpen"
                                         @picked="reviewMcServerCandidate"
                                     />
-                        <AdoptionReviewDialog
+                        <AdoptionReviewDialog v-if="mcServerModalOwner === 'work'"
                                         v-model="mcServerAdoptOpen"
                                         :record="mcServerAdoptRecord"
                                         :container-id="mcServerAdoptContainerId"

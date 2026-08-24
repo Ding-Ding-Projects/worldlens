@@ -85,6 +85,7 @@ export interface CatalogueVersionEntry {
 export interface CatalogueFlavour {
     readonly flavour: CatalogueFlavourId;
     readonly versions: readonly CatalogueVersionEntry[];
+    readonly complete?: boolean;
     /** Optional mod-loader metadata supplied by catalogues that publish it. */
     readonly loaderVersions?: readonly string[];
     readonly commonApiLibraries?: readonly string[];
@@ -94,6 +95,7 @@ export interface CatalogueSnapshot {
     readonly flavours: readonly CatalogueFlavour[];
     readonly fetchedAt: string;
     readonly stale: boolean;
+    readonly completeness?: "complete" | "partial";
     readonly failures: readonly { readonly flavour: CatalogueFlavourId; readonly reason: string }[];
 }
 
@@ -217,6 +219,37 @@ export interface WebConsoleStatus {
     readonly hasPassword: boolean;
 }
 
+export interface HostProfileRecord {
+    readonly hostId: string;
+    readonly target: {
+        readonly id: string;
+        readonly label: string;
+        readonly host: string;
+        readonly port: number;
+        readonly user: string;
+        readonly identityFile: string | null;
+        readonly workDir: string;
+        readonly image: string;
+        readonly docker: string;
+        readonly keepRemoteFiles: boolean;
+    };
+    readonly createdAt: string;
+    readonly updatedAt: string;
+}
+
+export interface HostKeyOffer {
+    readonly type: string;
+    readonly fingerprint: string;
+    readonly line: string;
+}
+
+export interface HostProfileScan {
+    readonly profile: HostProfileRecord;
+    readonly recorded: readonly HostKeyOffer[];
+    readonly offers: readonly HostKeyOffer[];
+    readonly detail: string | null;
+}
+
 /** What the Electron bridge's `mcserver` namespace looks like, from the renderer's side. */
 export interface McServerHost {
     readonly name: string;
@@ -308,6 +341,14 @@ export interface McServerHost {
         setPassword(password: string): Promise<Answer<void>>;
         bind(): Promise<Answer<void>>;
     };
+    readonly hostProfiles?: {
+        list(): Promise<Answer<readonly HostProfileRecord[]>>;
+        get(hostId: string): Promise<Answer<HostProfileRecord>>;
+        save(request: { hostId: string; target: Record<string, unknown> }): Promise<Answer<HostProfileRecord>>;
+        forget(hostId: string): Promise<Answer<void>>;
+        scan(hostId: string): Promise<Answer<HostProfileScan>>;
+        trust(hostId: string, fingerprint: string): Promise<Answer<{ ok: boolean; message: string }>>;
+    };
 }
 
 export interface ServerStore {
@@ -340,6 +381,16 @@ export interface ServerStore {
     readonly hasJava: boolean;
     readonly hasCreate: boolean;
     readonly hasAdopt: boolean;
+    readonly hasHostProfiles: boolean;
+
+    readonly hostProfiles: {
+        list(): Promise<Answer<readonly HostProfileRecord[]>>;
+        get(hostId: string): Promise<Answer<HostProfileRecord>>;
+        save(request: { hostId: string; target: Record<string, unknown> }): Promise<Answer<HostProfileRecord>>;
+        forget(hostId: string): Promise<Answer<void>>;
+        scan(hostId: string): Promise<Answer<HostProfileScan>>;
+        trust(hostId: string, fingerprint: string): Promise<Answer<{ ok: boolean; message: string }>>;
+    };
 
     catalogueList(): Promise<Answer<CatalogueSnapshot>>;
     catalogueRefresh(): Promise<Answer<CatalogueSnapshot>>;
@@ -395,6 +446,34 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         hasJava: host?.java !== undefined,
         hasCreate: host?.create !== undefined,
         hasAdopt: host?.adopt !== undefined,
+        hasHostProfiles: host?.hostProfiles !== undefined,
+
+        hostProfiles: {
+            async list() {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.list();
+            },
+            async get(hostId) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.get(hostId);
+            },
+            async save(request) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.save(request);
+            },
+            async forget(hostId) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.forget(hostId);
+            },
+            async scan(hostId) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.scan(hostId);
+            },
+            async trust(hostId, fingerprint) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.trust(hostId, fingerprint);
+            },
+        },
 
         async load(): Promise<void> {
             if (host === null) {

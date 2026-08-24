@@ -52,7 +52,10 @@ export interface VersionEntry {
 export interface FlavourCatalogue {
     readonly flavour: FlavourId;
     readonly versions: readonly VersionEntry[];
+    readonly complete: boolean;
 }
+
+export type CatalogueCompleteness = "complete" | "partial";
 
 export interface CatalogueSnapshot {
     readonly flavours: readonly FlavourCatalogue[];
@@ -60,6 +63,7 @@ export interface CatalogueSnapshot {
     readonly fetchedAt: string;
     /** True once `fetchedAt` is older than `CACHE_MAX_AGE_MS`. */
     readonly stale: boolean;
+    readonly completeness: CatalogueCompleteness;
     /** Flavours that could not be fetched this time, with why. Empty on a clean fetch. */
     readonly failures: readonly { readonly flavour: FlavourId; readonly reason: string }[];
 }
@@ -139,15 +143,23 @@ interface VanillaVersionDetail {
  * the ones that actually have a server jar - a release or snapshot - so `old_alpha` and
  * `old_beta` entries are skipped before a single per-version fetch is made.
  */
-async function fetchVanillaVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
+const MAX_ENTRIES_PER_FLAVOUR = 20_000;
+
+function boundEntries<T>(values: readonly T[], limit?: number): { readonly values: T[]; readonly complete: boolean } {
+    const ceiling = limit === undefined ? MAX_ENTRIES_PER_FLAVOUR : Math.min(MAX_ENTRIES_PER_FLAVOUR, Math.max(1, Math.floor(limit)));
+    return { values: values.slice(0, ceiling), complete: values.length <= ceiling && (limit === undefined || values.length <= limit) };
+}
+
+async function fetchVanillaVersions(fetchText: FetchText, limit?: number): Promise<{ entries: VersionEntry[]; complete: boolean }> {
     const manifestText = await fetchText("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json");
     const manifest = JSON.parse(manifestText) as VanillaManifest;
-    const candidates = manifest.versions
-        .filter((entry) => entry.type === "release" || entry.type === "snapshot")
-        .slice(0, limit);
+    const candidates = boundEntries(
+        manifest.versions.filter((entry) => entry.type === "release" || entry.type === "snapshot"),
+        limit,
+    );
 
     const entries: VersionEntry[] = [];
-    for (const candidate of candidates) {
+    for (const candidate of candidates.values) {
         const detailText = await fetchText(candidate.url);
         const detail = JSON.parse(detailText) as VanillaVersionDetail;
         const server = detail.downloads?.server;
@@ -163,7 +175,7 @@ async function fetchVanillaVersions(fetchText: FetchText, limit: number): Promis
             releasedAt: candidate.releaseTime ?? null,
         });
     }
-    return entries;
+    return { entries, complete: candidates.complete };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -197,6 +209,31 @@ interface PaperBuildV3 {
     } | undefined>;
 }
 
+interface PaperBuildPage {
+    readonly builds?: readonly PaperBuildV3[];
+    readonly next?: string | null;
+    readonly pagination?: { readonly next?: string | null };
+}
+
+async function fetchPaperBuilds(fetchText: FetchText, firstUrl: string): Promise<PaperBuildV3[]> {
+    const builds: PaperBuildV3[] = [];
+    const seen = new Set<string>();
+    let url: string | null = firstUrl;
+    while (url !== null && !seen.has(url) && builds.length <= MAX_ENTRIES_PER_FLAVOUR) {
+        seen.add(url);
+        const parsed: unknown = JSON.parse(await fetchText(url));
+        if (Array.isArray(parsed)) {
+            builds.push(...parsed as PaperBuildV3[]);
+            url = null;
+            continue;
+        }
+        const page = parsed as PaperBuildPage;
+        builds.push(...(Array.isArray(page.builds) ? page.builds : []));
+        url = page.next ?? page.pagination?.next ?? null;
+    }
+    return builds;
+}
+
 /**
  * Every game version v3 lists, newest line first.
  *
@@ -214,38 +251,35 @@ function paperVersionsNewestFirst(project: PaperProjectV3): string[] {
 async function fetchPaperFamilyVersions(
     fetchText: FetchText,
     project: "paper" | "velocity",
-    limit: number,
-): Promise<VersionEntry[]> {
+    limit?: number,
+): Promise<{ entries: VersionEntry[]; complete: boolean }> {
     const projectText = await fetchText(`https://fill.papermc.io/v3/projects/${project}`);
     const projectInfo = JSON.parse(projectText) as PaperProjectV3;
-    const gameVersions = paperVersionsNewestFirst(projectInfo).slice(0, limit);
+    const gameVersions = boundEntries(paperVersionsNewestFirst(projectInfo), limit);
 
     const entries: VersionEntry[] = [];
-    for (const version of gameVersions) {
-        const buildsText = await fetchText(
+    for (const version of gameVersions.values) {
+        const builds = await fetchPaperBuilds(
+            fetchText,
             `https://fill.papermc.io/v3/projects/${project}/versions/${encodeURIComponent(version)}/builds`,
         );
-        const builds = JSON.parse(buildsText) as readonly PaperBuildV3[];
-        // v3 returns builds newest first, the opposite of v2. Reading the last entry here
-        // would quietly offer the oldest build of every version.
-        const latest = Array.isArray(builds) ? builds[0] : undefined;
-        if (latest === undefined) continue;
-
-        // The server jar is published under this key; anything else is a different artifact.
-        const download = latest.downloads?.["server:default"];
-        if (download?.url === undefined) continue;
-
-        entries.push({
-            version: `${version}#${String(latest.id)}`,
-            // Upstream says STABLE for a finished build and names a channel otherwise.
-            stability: (latest.channel ?? "").toUpperCase() === "STABLE" ? "release" : "snapshot",
-            javaFeature: 21,
-            downloadUrl: download.url,
-            sha256: isSha256(download.checksums?.sha256) ? download.checksums.sha256.toLowerCase() : null,
-            releasedAt: latest.time ?? null,
-        });
+        // v3 returns builds newest first. Keep every build, not only the newest one, because
+        // existing worlds and plugins may require an older compatible build.
+        for (const build of builds) {
+            const download = build.downloads?.["server:default"];
+            if (download?.url === undefined) continue;
+            entries.push({
+                version: `${version}#${String(build.id)}`,
+                stability: (build.channel ?? "").toUpperCase() === "STABLE" ? "release" : "snapshot",
+                javaFeature: 21,
+                downloadUrl: download.url,
+                sha256: isSha256(download.checksums?.sha256) ? download.checksums.sha256.toLowerCase() : null,
+                releasedAt: build.time ?? null,
+            });
+        }
     }
-    return entries;
+    const bounded = boundEntries(entries, limit);
+    return { entries: bounded.values, complete: gameVersions.complete && bounded.complete };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -260,29 +294,29 @@ interface PurpurVersionBuilds {
     readonly builds: { readonly latest?: string; readonly all?: readonly string[] };
 }
 
-async function fetchPurpurVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
+async function fetchPurpurVersions(fetchText: FetchText, limit?: number): Promise<{ entries: VersionEntry[]; complete: boolean }> {
     const projectText = await fetchText("https://api.purpurmc.org/v2/purpur");
     const project = JSON.parse(projectText) as PurpurProject;
-    const gameVersions = project.versions.slice(-limit).reverse();
+    const gameVersions = boundEntries([...project.versions].reverse(), limit);
 
     const entries: VersionEntry[] = [];
-    for (const version of gameVersions) {
+    for (const version of gameVersions.values) {
         const versionText = await fetchText(`https://api.purpurmc.org/v2/purpur/${version}`);
         const versionInfo = JSON.parse(versionText) as PurpurVersionBuilds;
-        const latest = versionInfo.builds.latest;
-        if (latest === undefined) continue;
-        entries.push({
-            version: `${version}#${latest}`,
-            stability: "release",
-            javaFeature: 21,
-            downloadUrl: `https://api.purpurmc.org/v2/purpur/${version}/${latest}/download`,
-            // Purpur's build API does not publish a digest for this endpoint.
-            sha256: null,
-            // This API publishes no release date, and a guessed one would be repeated as fact.
-            releasedAt: null,
-        });
+        const builds = versionInfo.builds.all ?? (versionInfo.builds.latest === undefined ? [] : [versionInfo.builds.latest]);
+        for (const build of builds) {
+            entries.push({
+                version: `${version}#${build}`,
+                stability: "release",
+                javaFeature: 21,
+                downloadUrl: `https://api.purpurmc.org/v2/purpur/${version}/${build}/download`,
+                sha256: null,
+                releasedAt: null,
+            });
+        }
     }
-    return entries;
+    const bounded = boundEntries(entries, limit);
+    return { entries: bounded.values, complete: gameVersions.complete && bounded.complete };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -306,10 +340,11 @@ interface FabricLoaderEntry {
  * resolves the real jar URL once it also knows which Minecraft version was chosen, via
  * `fabricServerJarUrl` below.
  */
-async function fetchFabricLoaderVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
+async function fetchFabricLoaderVersions(fetchText: FetchText, limit?: number): Promise<{ entries: VersionEntry[]; complete: boolean }> {
     const text = await fetchText("https://meta.fabricmc.net/v2/versions/loader");
     const loaders = JSON.parse(text) as readonly FabricLoaderEntry[];
-    return loaders.slice(0, limit).map((loader) => ({
+    const bounded = boundEntries(loaders, limit);
+    return { entries: bounded.values.map((loader) => ({
         version: loader.version,
         stability: loader.stable ? "release" : "snapshot",
         // The loader tool itself runs on Java 8+; the server it produces follows the
@@ -320,7 +355,7 @@ async function fetchFabricLoaderVersions(fetchText: FetchText, limit: number): P
         sha256: null,
         // This API publishes no release date, and a guessed one would be repeated as fact.
         releasedAt: null,
-    }));
+    })), complete: bounded.complete };
 }
 
 /** The exact Fabric server jar download, once a game version, loader and installer are all chosen. */
@@ -336,28 +371,28 @@ export interface CatalogueOptions {
     readonly dataDir: string;
     readonly fetchText?: FetchText;
     readonly now?: () => string;
-    /** How many of the newest versions to keep per flavour. Bounds request volume. */
+    /** Optional explicit preview bound. Unset fetches the complete upstream catalogue. */
     readonly limitPerFlavour?: number;
 }
 
 async function fetchAllFlavours(
     fetchText: FetchText,
-    limit: number,
+    limit?: number,
 ): Promise<{ flavours: FlavourCatalogue[]; failures: { flavour: FlavourId; reason: string }[] }> {
-    const fetchers: Record<FlavourId, () => Promise<VersionEntry[]>> = {
-        vanilla: () => fetchVanillaVersions(fetchText, limit),
-        paper: () => fetchPaperFamilyVersions(fetchText, "paper", limit),
-        velocity: () => fetchPaperFamilyVersions(fetchText, "velocity", limit),
-        purpur: () => fetchPurpurVersions(fetchText, limit),
-        fabric: () => fetchFabricLoaderVersions(fetchText, limit),
+    const fetchers: Record<FlavourId, () => Promise<{ entries: VersionEntry[]; complete: boolean }>> = {
+            vanilla: () => fetchVanillaVersions(fetchText, limit),
+            paper: () => fetchPaperFamilyVersions(fetchText, "paper", limit),
+            velocity: () => fetchPaperFamilyVersions(fetchText, "velocity", limit),
+            purpur: () => fetchPurpurVersions(fetchText, limit),
+            fabric: () => fetchFabricLoaderVersions(fetchText, limit),
     };
 
     const flavours: FlavourCatalogue[] = [];
     const failures: { flavour: FlavourId; reason: string }[] = [];
     for (const flavour of FLAVOUR_IDS) {
         try {
-            const versions = await fetchers[flavour]();
-            flavours.push({ flavour, versions });
+            const fetched = await fetchers[flavour]();
+            flavours.push({ flavour, versions: fetched.entries, complete: fetched.complete });
         } catch (error) {
             failures.push({ flavour, reason: error instanceof Error ? error.message : String(error) });
         }
@@ -378,6 +413,7 @@ async function readCache(dataDir: string): Promise<CatalogueSnapshot | null> {
             flavours: parsed.flavours,
             fetchedAt: parsed.fetchedAt,
             stale: false, // recomputed by the caller against the current clock
+            completeness: parsed.completeness === "partial" ? "partial" : "complete",
             failures: Array.isArray(parsed.failures) ? parsed.failures : [],
         };
     } catch {
@@ -411,7 +447,7 @@ function withStaleness(snapshot: CatalogueSnapshot, now: () => string): Catalogu
 export async function refreshCatalogue(options: CatalogueOptions): Promise<Answer<CatalogueSnapshot>> {
     const fetchText = options.fetchText ?? defaultFetchText;
     const now = options.now ?? (() => new Date().toISOString());
-    const limit = options.limitPerFlavour ?? 25;
+    const limit = options.limitPerFlavour;
 
     const { flavours, failures } = await fetchAllFlavours(fetchText, limit);
     if (flavours.length === 0) {
@@ -427,10 +463,16 @@ export async function refreshCatalogue(options: CatalogueOptions): Promise<Answe
     const merged = FLAVOUR_IDS.map((id) => {
         const fetched = flavours.find((entry) => entry.flavour === id);
         if (fetched !== undefined) return fetched;
-        return previousById.get(id) ?? { flavour: id, versions: [] };
+        return previousById.get(id) ?? { flavour: id, versions: [], complete: false };
     });
 
-    const snapshot: CatalogueSnapshot = { flavours: merged, fetchedAt: now(), stale: false, failures };
+    const snapshot: CatalogueSnapshot = {
+        flavours: merged,
+        fetchedAt: now(),
+        stale: false,
+        completeness: merged.every((entry) => entry.complete) ? "complete" : "partial",
+        failures,
+    };
     await writeCache(options.dataDir, snapshot);
     return ok(snapshot);
 }

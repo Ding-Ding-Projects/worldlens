@@ -11,6 +11,7 @@
  * crash. It is a plausible-looking argument reaching `docker` or the filesystem.
  */
 
+import { homedir } from "node:os";
 import { join } from "node:path";
 
 import type { IpcMain } from "electron";
@@ -69,6 +70,13 @@ import { AWS_INSTANCE_TYPES, AWS_REGIONS } from "./aws/regions.js";
 import type { AwsServerSpec } from "./aws/types.js";
 import { listAccounts, setAccountAlias } from "./aws/accounts.js";
 import { readCredits, type CreditsPeriod } from "./aws/credits.js";
+import {
+    createHostProfileStore,
+    type HostProfileDraft,
+    type HostProfileStore,
+} from "./hostProfiles.js";
+import { recordedFor, scanHostKeys, trustHostKey } from "../remote/hostkey.js";
+import { openSshRconTunnel, type SshRconTunnel } from "./rcon/sshTunnel.js";
 
 export const MCSERVER_CHANNELS = {
     list: "mcserver:list",
@@ -124,6 +132,12 @@ export const MCSERVER_CHANNELS = {
     awsAccounts: "mcserver:aws:accounts",
     awsAccountAlias: "mcserver:aws:accountAlias",
     awsCredits: "mcserver:aws:credits",
+    hostProfilesList: "mcserver:hostProfiles:list",
+    hostProfileGet: "mcserver:hostProfiles:get",
+    hostProfileSave: "mcserver:hostProfiles:save",
+    hostProfileForget: "mcserver:hostProfiles:forget",
+    hostProfileScan: "mcserver:hostProfiles:scan",
+    hostProfileTrust: "mcserver:hostProfiles:trust",
 } as const;
 
 /** The console line shape pushed to the renderer as the session lives. Never the RCON password. */
@@ -173,6 +187,8 @@ export interface McServerIpcOptions {
      */
     readonly rconHostFor?: (ref: TransportRef) => string;
     readonly registry?: ServerRegistry;
+    /** Injectable profile store for tests; production uses the app-owned JSON store. */
+    readonly hostProfiles?: HostProfileStore;
     readonly now?: () => string;
     readonly adoptions?: AdoptionStore;
     /**
@@ -201,6 +217,9 @@ export interface McServerIpcOptions {
     readonly javaRunner?: JavaRunner;
     readonly javaExists?: (path: string) => boolean;
     readonly javaEnv?: NodeJS.ProcessEnv;
+    /** Local ssh binary and tunnel opener are injectable so tests never spawn a process. */
+    readonly ssh?: string;
+    readonly sshRconTunnel?: typeof openSshRconTunnel;
     /** The `CommandRunner` the AWS provisioning/teardown channels run the `aws` CLI through. */
     readonly awsRunner?: CommandRunner;
     readonly aws?: string;
@@ -210,6 +229,7 @@ export interface McServerIpc {
     dispose(): void;
     readonly registry: ServerRegistry;
     readonly adoptions: AdoptionStore;
+    readonly hostProfiles: HostProfileStore;
 }
 
 function isRecordId(value: unknown): value is string {
@@ -299,6 +319,12 @@ function readAwsTeardownTarget(request: unknown): AwsTeardownTarget | null {
 export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServerIpcOptions): McServerIpc {
     const registry = options.registry ?? createServerRegistry({ dataFolder: options.dataFolder, ...(options.now === undefined ? {} : { now: options.now }) });
     const adoptions = options.adoptions ?? createAdoptionStore({ dataFolder: options.dataFolder, ...(options.now === undefined ? {} : { now: options.now }) });
+    const hostProfiles = options.hostProfiles ?? createHostProfileStore({
+        dataFolder: options.dataFolder,
+        knownHostsFile: join(options.dataFolder, "known_hosts"),
+        userKnownHostsFile: join(homedir(), ".ssh", "known_hosts"),
+        ...(options.now === undefined ? {} : { now: options.now }),
+    });
     const now = options.now ?? (() => new Date().toISOString());
     const docker = options.docker ?? "docker";
 
@@ -319,6 +345,8 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
     const rconSecrets = new RconSecretStore({ dataFolder: options.dataFolder, safeStorage: options.safeStorage });
     const rconSocketFactory = options.rconSocketFactory ?? realRconSocketFactory;
     const rconHostFor = options.rconHostFor ?? defaultRconHostFor;
+    const openRconTunnel = options.sshRconTunnel ?? openSshRconTunnel;
+    const rconTunnels = new Map<string, SshRconTunnel>();
     /** Live console supervisors, keyed by the stable session id `console:open` handed out. */
     const consoleSessions = new Map<string, { readonly serverId: string; readonly supervisor: ConsoleSupervisor; unsubscribe(): void }>();
 
@@ -361,6 +389,13 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         const adopted = found.value.origin === "adopted" ? await adoptions.get(id) : null;
         const adoptionRecord = adopted !== null && adopted.ok ? adopted.value : null;
 
+        let sshHost = options.factory?.sshHost;
+        if (sshHost === undefined && found.value.ref.kind === "ssh-docker") {
+            // Load first so the store's synchronous factory lookup has a warm, validated
+            // cache. A missing profile remains a typed not-found answer from the factory.
+            await hostProfiles.get(found.value.ref.hostId);
+            sshHost = (hostId) => hostProfiles.sshHost(hostId);
+        }
         const built = createTransport(found.value.ref, {
             // The same `known_hosts` the remote-render side writes, so a host key trusted
             // once is trusted everywhere in this app - and never the user's own file, which
@@ -371,6 +406,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             // first use with a message about a parameter rather than about the machine.
             awsKnownHostsFile: join(options.dataFolder, "known_hosts"),
             ...options.factory,
+            ...(sshHost === undefined ? {} : { sshHost }),
             writeScope: found.value.writeScope,
             ...(adoptionRecord === null
                 ? {}
@@ -406,9 +442,30 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 "The RCON password for this server could not be unlocked from this machine's credential vault.",
             );
         }
+        let host = rconHostFor(found.value.ref);
+        let port = found.value.rconPort;
+        if (found.value.ref.kind === "ssh-docker") {
+            const profile = await hostProfiles.get(found.value.ref.hostId);
+            if (!profile.ok) return profile;
+            const ssh = hostProfiles.sshHost(found.value.ref.hostId);
+            if (ssh === null) return fail("not-found", "The SSH host profile for this server is not available.");
+            let tunnel = rconTunnels.get(found.value.id);
+            if (tunnel === undefined) {
+                const opened = await openRconTunnel({
+                    ssh,
+                    remotePort: found.value.rconPort,
+                    ...(options.ssh === undefined ? {} : { sshBinary: options.ssh }),
+                });
+                if (!opened.ok) return opened;
+                tunnel = opened.value;
+                rconTunnels.set(found.value.id, tunnel);
+            }
+            host = "127.0.0.1";
+            port = tunnel.localPort;
+        }
         return ok({
-            host: rconHostFor(found.value.ref),
-            port: found.value.rconPort,
+            host,
+            port,
             password,
             socketFactory: rconSocketFactory,
         });
@@ -416,6 +473,60 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
 
     const handlers: Record<string, (...args: never[]) => Promise<unknown>> = {
         [MCSERVER_CHANNELS.list]: async () => registry.list(),
+
+        [MCSERVER_CHANNELS.hostProfilesList]: async () => hostProfiles.list(),
+
+        [MCSERVER_CHANNELS.hostProfileGet]: async (_event: never, hostId: unknown) => {
+            if (!isRecordId(hostId)) return fail("invalid-request", "That SSH host profile id is not valid.");
+            return hostProfiles.get(hostId);
+        },
+
+        [MCSERVER_CHANNELS.hostProfileSave]: async (_event: never, request: unknown) => {
+            if (typeof request !== "object" || request === null) return fail("invalid-request", "That SSH host profile could not be read.");
+            const body = request as Record<string, unknown>;
+            if (!isRecordId(body.hostId) || typeof body.target !== "object" || body.target === null) {
+                return fail("invalid-request", "A host profile needs an id and connection details.");
+            }
+            return hostProfiles.save({ hostId: body.hostId, target: body.target as HostProfileDraft["target"] });
+        },
+
+        [MCSERVER_CHANNELS.hostProfileForget]: async (_event: never, hostId: unknown) => {
+            if (!isRecordId(hostId)) return fail("invalid-request", "That SSH host profile id is not valid.");
+            return hostProfiles.forget(hostId);
+        },
+
+        [MCSERVER_CHANNELS.hostProfileScan]: async (_event: never, hostId: unknown) => {
+            if (!isRecordId(hostId)) return fail("invalid-request", "That SSH host profile id is not valid.");
+            const profile = await hostProfiles.get(hostId);
+            if (!profile.ok) return profile;
+            const ssh = hostProfiles.sshHost(hostId);
+            if (ssh === null) return fail("not-found", "That SSH host profile is not available.");
+            const scanned = await scanHostKeys(profile.value.target, {
+                knownHostsFile: ssh.knownHostsFile,
+                ...(ssh.userKnownHostsFile === undefined ? {} : { userKnownHostsFile: ssh.userKnownHostsFile }),
+                ...(options.factory?.runner === undefined ? {} : { runner: options.factory.runner }),
+            });
+            return ok({
+                profile: profile.value,
+                recorded: await recordedFor(profile.value.target, ssh.knownHostsFile),
+                offers: scanned.offers,
+                detail: scanned.detail,
+            });
+        },
+
+        [MCSERVER_CHANNELS.hostProfileTrust]: async (_event: never, hostId: unknown, fingerprint: unknown) => {
+            if (!isRecordId(hostId) || typeof fingerprint !== "string") return fail("invalid-request", "A host profile and fingerprint are required.");
+            const profile = await hostProfiles.get(hostId);
+            if (!profile.ok) return profile;
+            const ssh = hostProfiles.sshHost(hostId);
+            if (ssh === null) return fail("not-found", "That SSH host profile is not available.");
+            const trusted = await trustHostKey(profile.value.target, fingerprint, {
+                knownHostsFile: ssh.knownHostsFile,
+                ...(ssh.userKnownHostsFile === undefined ? {} : { userKnownHostsFile: ssh.userKnownHostsFile }),
+                ...(options.factory?.runner === undefined ? {} : { runner: options.factory.runner }),
+            });
+            return trusted.ok ? ok(trusted) : fail("denied", trusted.message);
+        },
 
         [MCSERVER_CHANNELS.get]: async (_event: never, id: unknown) => {
             if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
@@ -1291,6 +1402,8 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 entry.supervisor.close();
             }
             consoleSessions.clear();
+            for (const tunnel of rconTunnels.values()) void tunnel.close();
+            rconTunnels.clear();
             for (const channel of Object.keys(handlers)) {
                 ipcMain.removeHandler(channel);
             }
@@ -1299,5 +1412,6 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 webConsoleHandle = null;
             }
         },
+        hostProfiles,
     };
 }

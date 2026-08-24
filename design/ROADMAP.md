@@ -1,5 +1,14 @@
 # Roadmap
 
+## Minecraft server host profiles and catalogue completeness — 2026-08-23
+
+- [x] Added bounded, versioned SSH host-profile persistence with strict host-key enrollment,
+      loopback-only RCON forwarding, and one active modal owner across the Kid, adult host, and
+      work shell mount sites.
+- [x] Removed the default 25-entry catalogue truncation, retained every Paper/Purpur build,
+      followed paginated Paper build responses, and exposed honest completeness beside the fetch
+      timestamp. Packaged real-host verification remains open.
+
 ## Documentation refresh — 2026-08-22
 
 - [x] Indexed the five root feature records previously absent from `docs/README.md`; issue ledgers,
