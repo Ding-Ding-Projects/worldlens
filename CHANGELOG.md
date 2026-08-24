@@ -22,6 +22,8 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Harden runtime credentials and evidence - [`8248370a0e`](https://github.com/Ding-Ding-Projects/worldlens/commit/8248370a0e91b54471b4f13047af7f5bd85735c9)
+- Complete protected runtime settings flows - [`e6ee1999df`](https://github.com/Ding-Ding-Projects/worldlens/commit/e6ee1999dff9b0d12346cebe8008f2e32e916afa)
 - Route runtime headings through locale levels - [`2b99bbc2c4`](https://github.com/Ding-Ding-Projects/worldlens/commit/2b99bbc2c46dfdcb1541124f64a58535a2684850)
 - Localize and coordinate runtime settings - [`827979401e`](https://github.com/Ding-Ding-Projects/worldlens/commit/827979401e280755ebd8956239043b7efd866bf5)
 - Use full runtime settings tabs - [`b2536de712`](https://github.com/Ding-Ding-Projects/worldlens/commit/b2536de71223bce4c522809e3d566e67e706f564)

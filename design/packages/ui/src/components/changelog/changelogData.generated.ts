@@ -26,6 +26,26 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "8248370a0e91b54471b4f13047af7f5bd85735c9",
+        shortSha: "8248370a0e",
+        date: "2026-08-24T03:56:09-04:00",
+        subject: "Harden runtime credentials and evidence",
+        details: "Status Hub now keeps its credential in the operating-system vault, pins its network request, records real service outcomes, and refuses mystery evidence fields. Home Assistant uses the saved source rather than trusting a caller's map, while runtime history keeps enough redacted before and after state to restore the actual settings. The UI even narrates real notices now, because a silent bell is just furniture.\n\nStatus Hub credential 而家收埋喺作業系統憑證庫，網絡請求釘住 DNS，服務結果照實記，奇怪 evidence 欄位一律收皮。Home Assistant 用返已儲存來源，唔信 caller 自己畫地圖；runtime history 保留足夠去敏感前後狀態，真係可以還原設定。通知亦接上旁白，個鐘唔再淨係做擺設。",
+        category: "interface",
+        areas: ["interface", "shell", "docs"],
+        files: 25,
+    },
+    {
+        sha: "e6ee1999dff9b0d12346cebe8008f2e32e916afa",
+        shortSha: "e6ee1999df",
+        date: "2026-08-24T03:25:12-04:00",
+        subject: "Complete protected runtime settings flows",
+        details: "The runtime settings lane now carries its own vault-backed Home Assistant registry, authenticated Status Hub operations, and protected append-only history instead of leaving those controls as decorative shells. The UI also keeps locale levels and root runtime values in step, so the settings panel stops wandering off with half the state.\n\n執行設定而家有自己嘅憑證庫 Home Assistant registry、認證 Status Hub 流程，同埋受保護嘅追加式歷史，唔再得個樣。介面語言等級同 root runtime state 一齊行，設定面板唔會再自己周街走。",
+        category: "interface",
+        areas: ["interface", "shell", "docs"],
+        files: 22,
+    },
+    {
         sha: "2b99bbc2c46dfdcb1541124f64a58535a2684850",
         shortSha: "2b99bbc2c4",
         date: "2026-08-24T03:03:00-04:00",
