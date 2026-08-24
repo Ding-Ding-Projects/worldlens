@@ -29,7 +29,7 @@
 import { colorParseErrorKey, parseColor, type ColorParseError } from "./colorParse.js";
 import { cssColor } from "./colorFormat.js";
 import { fontFamilyStack, type FontFamily } from "./fontCatalog.js";
-import { isRainbowColor, rainbowDuration } from "./rainbow.js";
+import { isRainbowColor, rainbowDuration, type RainbowSpeedLevel } from "./rainbow.js";
 import {
     DEFAULT_TYPOGRAPHY,
     mergeTypography,
@@ -356,6 +356,42 @@ export function resetSurface(record: AppearanceRecord, id: SurfacePropertyId): A
     return { ...record, surface };
 }
 
+export type AppearanceStatePropertyGroup = "typography" | "surface";
+
+/** Removes one opinion from one pseudo-state while retaining every sibling opinion. */
+export function resetAppearanceStateProperty(
+    record: AppearanceRecord,
+    state: AppearanceStateName,
+    group: AppearanceStatePropertyGroup,
+    id: TypographyPropertyId | SurfacePropertyId,
+): AppearanceRecord {
+    const layer = record.states[state];
+    if (layer === undefined) return record;
+    const nextLayer: AppearanceStateLayer = { ...layer };
+    const values = { ...(layer[group] ?? {}) } as Record<string, unknown>;
+    delete values[id];
+    if (Object.keys(values).length === 0) delete nextLayer[group];
+    else nextLayer[group] = values as never;
+    const states = { ...record.states, [state]: nextLayer };
+    if (Object.keys(nextLayer).length === 0) delete states[state];
+    return { ...record, states };
+}
+
+/** Resolves one named pseudo-state over a base appearance without mutating either record. */
+export function resolveStateAppearance(
+    resolved: ResolvedAppearance,
+    state: AppearanceStateName | undefined,
+): ResolvedAppearance {
+    if (state === undefined) return resolved;
+    const layer = resolved.states[state];
+    if (layer === undefined) return resolved;
+    return {
+        ...resolved,
+        typography: mergeTypography(resolved.typography, layer.typography ?? {}),
+        surface: mergeSurface(resolved.surface, layer.surface ?? {}),
+    };
+}
+
 /* -------------------------------------------------------------------------- */
 /* Colours, resolved but never replaced                                       */
 /* -------------------------------------------------------------------------- */
@@ -421,7 +457,11 @@ export interface AppearanceStyle {
     unreadableColors: UnreadableColor[];
 }
 
-function surfaceCss(surface: SurfaceSpec, unreadable: UnreadableColor[]): Record<string, string> {
+function surfaceCss(
+    surface: SurfaceSpec,
+    unreadable: UnreadableColor[],
+    rainbowSpeed: RainbowSpeedLevel,
+): Record<string, string> {
     const style: Record<string, string> = {};
 
     const background = resolveColor("backgroundColor", surface.backgroundColor, unreadable);
@@ -486,16 +526,9 @@ function surfaceCss(surface: SurfaceSpec, unreadable: UnreadableColor[]): Record
     style["--appearance-gap"] = `${Math.max(0, surface.gap)}px`;
     style["--appearance-margin-inline"] = `${surface.marginInline}px`;
     style["--appearance-margin-block"] = `${surface.marginBlock}px`;
-    style["--appearance-rainbow-duration"] = rainbowDuration(3);
+    style["--appearance-rainbow-duration"] = rainbowDuration(rainbowSpeed);
     style["--appearance-rainbow-color"] = "hsl(210 80% 55%)";
     style["--appearance-rainbow-reduced-color"] = "hsl(210 80% 55%)";
-    style["--appearance-rainbow"] = [
-        surface.icon.color,
-        surface.badge.color,
-        surface.badge.backgroundColor,
-    ].some(isRainbowColor)
-        ? "true"
-        : "false";
 
     return style;
 }
@@ -514,6 +547,7 @@ export function appearanceStyle(
     capabilities: TypographyCapabilities,
     catalog?: readonly FontFamily[],
     state: AppearanceStateName | undefined = undefined,
+    rainbowSpeed: RainbowSpeedLevel = 3,
 ): AppearanceStyle {
     const unreadableColors: UnreadableColor[] = [];
 
@@ -550,7 +584,22 @@ export function appearanceStyle(
     const stack = fontFamilyStack(typography.fontFamily, catalog);
     const text = typographyCss(typography, capabilities, stack);
 
-    const style = { ...text.style, ...surfaceCss(stateSurface, unreadableColors) };
+    const style = { ...text.style, ...surfaceCss(stateSurface, unreadableColors, rainbowSpeed) };
+    const rainbowValues = [
+        stateTypography.textColor,
+        stateTypography.highlight,
+        stateTypography.underlineColor,
+        stateTypography.outlineColor,
+        stateTypography.shadow.color,
+        stateTypography.glow.color,
+        stateSurface.backgroundColor,
+        stateSurface.borderColor,
+        stateSurface.icon.color,
+        stateSurface.badge.color,
+        stateSurface.badge.backgroundColor,
+        stateSurface.separator.color,
+    ];
+    style["--appearance-rainbow"] = rainbowValues.some(isRainbowColor) ? "true" : "false";
     if (stateLayer?.effect !== undefined) {
         const effect = stateLayer.effect;
         if (effect.elevation !== undefined) {

@@ -25,18 +25,32 @@
  * perfectly well render, and hiding controls is precisely what the contract forbids.
  */
 
-import { computed, onBeforeUnmount, onMounted, ref, shallowRef, type ComputedRef, type Ref } from "vue";
+import {
+    computed,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    shallowRef,
+    type ComputedRef,
+    type Ref,
+} from "vue";
 
 import {
     appearanceStyle,
     emptyRecord,
     resetSurface,
     resetTypography,
+    resetAppearanceStateProperty,
     type AppearanceRecord,
     type AppearanceStyle,
     type SurfacePropertyId,
     type SurfaceSpec,
+    type AppearanceStateLayer,
+    type AppearanceStateName,
+    type AppearanceStatePropertyGroup,
 } from "./appearanceRecord.js";
+import { appearancePropertyLockTarget } from "./appearanceLocks.js";
+import { useLockStore } from "../locks/useLocks.js";
 import {
     EDITOR_CHROME_TARGETS,
     readAppearanceState,
@@ -162,6 +176,13 @@ export interface AppearanceTargetBinding {
     setInherit: (presetId: string) => void;
     resetElement: () => void;
     resetEverything: () => void;
+    setState: (state: AppearanceStateName, layer: AppearanceStateLayer) => void;
+    resetStateProperty: (
+        state: AppearanceStateName,
+        group: AppearanceStatePropertyGroup,
+        property: string,
+    ) => void;
+    isPropertyLocked: (property: string, state?: AppearanceStateName) => boolean;
 }
 
 /**
@@ -172,21 +193,35 @@ export interface AppearanceTargetBinding {
  * instead of the one it happened to mount with. That is the contract's "loses its anchor when
  * tabs reorder" failure, prevented at the source rather than patched at the editor.
  */
-export function useAppearanceTarget(id: string | (() => string)): AppearanceTargetBinding {
+export function useAppearanceTarget(
+    id: string | (() => string),
+    stateName?: AppearanceStateName | (() => AppearanceStateName | undefined),
+): AppearanceTargetBinding {
     const targetId = computed(() => (typeof id === "function" ? id() : id));
 
     const record = computed(() => recordFor(state.value, targetId.value));
+
+    const activeState = computed(() => (typeof stateName === "function" ? stateName() : stateName));
+    const locks = useLockStore();
 
     const style = computed(() =>
         appearanceStyle(
             resolveTarget(state.value, targetId.value),
             typographyCapabilities,
             fonts.value,
+            activeState.value,
+            state.value.rainbowSpeed,
         ),
     );
 
     function update(next: AppearanceRecord): void {
         commitAppearance(withRecord(state.value, targetId.value, next));
+    }
+
+    function locked(property: string, stateName?: AppearanceStateName): boolean {
+        if (!locks.canList) return false;
+        const target = appearancePropertyLockTarget(targetId.value, property, stateName);
+        return locks.isLocked(target.surface, target.path);
     }
 
     return {
@@ -196,6 +231,7 @@ export function useAppearanceTarget(id: string | (() => string)): AppearanceTarg
         customised: computed(() => state.value.elements[targetId.value] !== undefined),
 
         setTypography(property, value) {
+            if (locked(property)) return;
             update({
                 ...record.value,
                 typography: { ...record.value.typography, [property]: value },
@@ -203,6 +239,7 @@ export function useAppearanceTarget(id: string | (() => string)): AppearanceTarg
         },
 
         setSurface(property, value) {
+            if (locked(property)) return;
             update({ ...record.value, surface: { ...record.value.surface, [property]: value } });
         },
 
@@ -211,6 +248,7 @@ export function useAppearanceTarget(id: string | (() => string)): AppearanceTarg
         },
 
         resetSurfaceProperty(property) {
+            if (locked(property)) return;
             update(resetSurface(record.value, property));
         },
 
@@ -225,6 +263,77 @@ export function useAppearanceTarget(id: string | (() => string)): AppearanceTarg
         resetEverything() {
             commitAppearance(withGlobalReset(state.value));
         },
+        setState(stateName, layer) {
+            const previous = record.value.states[stateName] ?? {};
+            const guardGroup = <T extends Record<string, unknown>>(
+                group: keyof AppearanceStateLayer,
+                incoming: T | undefined,
+            ): T | undefined => {
+                if (incoming === undefined) return undefined;
+                const before = previous[group];
+                const guarded = { ...incoming };
+                for (const property of Object.keys(incoming)) {
+                    if (locked(property, stateName)) {
+                        const value =
+                            before && typeof before === "object"
+                                ? (before as Record<string, unknown>)[property]
+                                : undefined;
+                        if (value === undefined) delete guarded[property];
+                        else (guarded as Record<string, unknown>)[property] = value;
+                    }
+                }
+                return guarded;
+            };
+            const nextLayer: AppearanceStateLayer = {
+                ...layer,
+                typography: guardGroup(
+                    "typography",
+                    layer.typography as Record<string, unknown> | undefined,
+                ) as never,
+                surface: guardGroup(
+                    "surface",
+                    layer.surface as Record<string, unknown> | undefined,
+                ) as never,
+                effect: guardGroup(
+                    "effect",
+                    layer.effect as Record<string, unknown> | undefined,
+                ) as never,
+                icon: guardGroup(
+                    "icon",
+                    layer.icon as Record<string, unknown> | undefined,
+                ) as never,
+                badge: guardGroup(
+                    "badge",
+                    layer.badge as Record<string, unknown> | undefined,
+                ) as never,
+                separator: guardGroup(
+                    "separator",
+                    layer.separator as Record<string, unknown> | undefined,
+                ) as never,
+                spacing: guardGroup(
+                    "spacing",
+                    layer.spacing as Record<string, unknown> | undefined,
+                ) as never,
+            };
+            if (layer.shape !== undefined && locked("shape", stateName)) {
+                if (previous.shape === undefined) delete nextLayer.shape;
+                else nextLayer.shape = previous.shape;
+            }
+            const next = { ...record.value.states, [stateName]: nextLayer };
+            update({ ...record.value, states: next });
+        },
+        resetStateProperty(stateName, group, property) {
+            if (locked(property, stateName)) return;
+            update(
+                resetAppearanceStateProperty(
+                    record.value,
+                    stateName,
+                    group,
+                    property as TypographyPropertyId | SurfacePropertyId,
+                ),
+            );
+        },
+        isPropertyLocked: locked,
     };
 }
 

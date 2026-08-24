@@ -26,6 +26,7 @@
 import {
     emptyRecord,
     mergeRecords,
+    isRecordEmpty,
     resolveRecords,
     SURFACE_PROPERTIES,
     DEFAULT_SURFACE,
@@ -42,6 +43,7 @@ import {
     type TypographySpec,
 } from "./typographySpec.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
+import type { RainbowSpeedLevel } from "./rainbow.js";
 
 /** The storage key, namespaced like every other preference this app keeps. */
 export const APPEARANCE_STORAGE_KEY = "worldlens-appearance";
@@ -158,6 +160,8 @@ export interface AppearanceState {
     presets: AppearancePreset[];
     /** The preset every element inherits from, or the empty string for none. */
     activePreset: string;
+    /** One global CSS animation speed shared by every rainbow appearance surface. */
+    rainbowSpeed: RainbowSpeedLevel;
 }
 
 export function emptyState(): AppearanceState {
@@ -169,6 +173,7 @@ export function emptyState(): AppearanceState {
             record: { ...entry.record },
         })),
         activePreset: "",
+        rainbowSpeed: 3,
     };
 }
 
@@ -231,13 +236,7 @@ export function withRecord(
     record: AppearanceRecord,
 ): AppearanceState {
     const elements: Record<string, AppearanceRecord> = { ...state.elements };
-    const empty =
-        Object.keys(record.typography).length === 0 &&
-        Object.keys(record.surface).length === 0 &&
-        record.inherit === "" &&
-        Object.keys(record.preserved).length === 0;
-
-    if (empty) delete elements[id];
+    if (isRecordEmpty(record)) delete elements[id];
     else elements[id] = record;
 
     return { ...state, elements };
@@ -361,30 +360,142 @@ function sanitiseRecord(raw: unknown, path: string): Sanitised {
                 continue;
             }
             const layer: AppearanceStateLayer = {};
-            for (const [key, value] of Object.entries(rawLayer)) {
-                if (
-                    key === "typography" ||
-                    key === "surface" ||
-                    key === "effect" ||
-                    key === "icon" ||
-                    key === "badge" ||
-                    key === "separator" ||
-                    key === "spacing" ||
-                    key === "shape"
-                ) {
-                    if (isObject(value) || key === "shape") {
-                        (layer as Record<string, unknown>)[key] = value;
-                    } else {
-                        record.preserved[`states.${stateName}.${key}`] = value;
-                        preservedKeys.push(`${path}states.${stateName}.${key}`);
+            const kept: Record<string, unknown> = {};
+            const reject = (key: string, value: unknown): void => {
+                kept[key] = value;
+                preservedKeys.push(`${path}states.${stateName}.${key}`);
+            };
+            const partial = (
+                value: unknown,
+                group:
+                    | "typography"
+                    | "surface"
+                    | "effect"
+                    | "icon"
+                    | "badge"
+                    | "separator"
+                    | "spacing",
+                defaults: Record<string, unknown>,
+                allowed: readonly string[],
+            ): Record<string, unknown> => {
+                if (!isObject(value)) {
+                    reject(group, value);
+                    return {};
+                }
+                const accepted: Record<string, unknown> = {};
+                for (const [key, item] of Object.entries(value)) {
+                    if (!allowed.includes(key)) {
+                        reject(`${group}.${key}`, item);
+                        continue;
                     }
+                    if (
+                        group === "surface" &&
+                        (key === "icon" || key === "badge" || key === "separator")
+                    ) {
+                        const nestedDefaults = defaults[key];
+                        if (!isObject(item) || !isObject(nestedDefaults)) {
+                            reject(`${group}.${key}`, item);
+                            continue;
+                        }
+                        const nested: Record<string, unknown> = {};
+                        for (const [nestedKey, nestedValue] of Object.entries(item)) {
+                            if (
+                                nestedKey in nestedDefaults &&
+                                typeMatches(nestedValue, nestedDefaults[nestedKey])
+                            )
+                                nested[nestedKey] = nestedValue;
+                            else reject(`${group}.${key}.${nestedKey}`, nestedValue);
+                        }
+                        accepted[key] = nested;
+                        continue;
+                    }
+                    if (typeMatches(item, defaults[key])) accepted[key] = item;
+                    else reject(`${group}.${key}`, item);
+                }
+                return accepted;
+            };
+            for (const [key, value] of Object.entries(rawLayer)) {
+                if (key === "typography") {
+                    layer.typography = partial(
+                        value,
+                        key,
+                        DEFAULT_TYPOGRAPHY as unknown as Record<string, unknown>,
+                        TYPOGRAPHY_PROPERTIES,
+                    );
+                } else if (key === "surface") {
+                    layer.surface = partial(
+                        value,
+                        key,
+                        DEFAULT_SURFACE as unknown as Record<string, unknown>,
+                        SURFACE_PROPERTIES,
+                    );
+                } else if (key === "effect") {
+                    layer.effect = partial(
+                        value,
+                        key,
+                        {
+                            elevation: 0,
+                            opacity: 1,
+                            shadowColor: "",
+                            shadowBlur: 0,
+                            glowColor: "",
+                            glowRadius: 0,
+                        },
+                        [
+                            "elevation",
+                            "opacity",
+                            "shadowColor",
+                            "shadowBlur",
+                            "glowColor",
+                            "glowRadius",
+                        ],
+                    );
+                } else if (key === "icon") {
+                    layer.icon = partial(
+                        value,
+                        key,
+                        DEFAULT_SURFACE.icon as unknown as Record<string, unknown>,
+                        ["name", "color", "size", "opacity"],
+                    );
+                } else if (key === "badge") {
+                    layer.badge = partial(
+                        value,
+                        key,
+                        DEFAULT_SURFACE.badge as unknown as Record<string, unknown>,
+                        ["text", "color", "backgroundColor", "shape", "visible"],
+                    );
+                } else if (key === "separator") {
+                    layer.separator = partial(
+                        value,
+                        key,
+                        DEFAULT_SURFACE.separator as unknown as Record<string, unknown>,
+                        ["visible", "color", "thickness", "style"],
+                    );
+                } else if (key === "spacing") {
+                    layer.spacing = partial(
+                        value,
+                        key,
+                        {
+                            gap: 0,
+                            marginInline: 0,
+                            marginBlock: 0,
+                            paddingInline: 0,
+                            paddingBlock: 0,
+                        },
+                        ["gap", "marginInline", "marginBlock", "paddingInline", "paddingBlock"],
+                    );
+                } else if (key === "shape") {
+                    if (["square", "rounded", "pill", "cut", "soft"].includes(String(value)))
+                        layer.shape = value as never;
+                    else reject(key, value);
                 } else if (key === "preserved" && isObject(value)) {
-                    layer.preserved = value;
+                    for (const [nestedKey, nestedValue] of Object.entries(value))
+                        kept[`preserved.${nestedKey}`] = nestedValue;
                 } else {
-                    record.preserved[`states.${stateName}.${key}`] = value;
-                    preservedKeys.push(`${path}states.${stateName}.${key}`);
+                    reject(key, value);
                 }
             }
+            if (Object.keys(kept).length > 0) layer.preserved = kept;
             record.states[stateName as AppearanceStateName] = layer;
         }
     }
@@ -493,6 +604,7 @@ export function exportTheme(state: AppearanceState): string {
             format: APPEARANCE_FORMAT,
             version: APPEARANCE_VERSION,
             activePreset: state.activePreset,
+            rainbowSpeed: state.rainbowSpeed,
             elements: state.elements,
             presets: state.presets.filter((entry) => !entry.builtIn),
         },
@@ -540,6 +652,10 @@ export function importState(raw: unknown): ImportResult {
 
     state.presets = sanitisePresets(raw.presets);
     if (typeof raw.activePreset === "string") state.activePreset = raw.activePreset;
+    if (typeof raw.rainbowSpeed === "number" && Number.isFinite(raw.rainbowSpeed)) {
+        const level = Math.max(1, Math.min(5, Math.round(raw.rainbowSpeed))) as RainbowSpeedLevel;
+        state.rainbowSpeed = level;
+    }
 
     return {
         ok: true,

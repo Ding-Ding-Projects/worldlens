@@ -1133,3 +1133,32 @@ describe("cross-instance dismissal: opening a second element's popup closes the 
         expect(elementA?.getAttribute("aria-expanded")).toBe("true");
     });
 });
+
+describe("host pseudo-state and rainbow rendering", () => {
+    it("applies the hover state from a real host event", async () => {
+        commitAppearance(
+            withRecord(appearanceState().value, "test.row", {
+                ...emptyRecord(),
+                states: { hover: { surface: { borderRadius: 19 } } },
+            }),
+        );
+        const view = mountTarget();
+        const element = view.find(".mb-appearance-target").element as HTMLElement;
+        element.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("19px");
+    });
+
+    it("renders rainbow on the real target and keeps the global speed persisted", async () => {
+        const state = withRecord(appearanceState().value, "test.row", {
+            ...emptyRecord(),
+            typography: { textColor: "__worldlens_rainbow__" },
+        });
+        commitAppearance({ ...state, rainbowSpeed: 5 });
+        const view = mountTarget();
+        const element = view.find(".mb-appearance-target").element as HTMLElement;
+        expect(element.dataset.appearanceRainbow).toBe("true");
+        expect(element.style.getPropertyValue("--appearance-rainbow-duration")).toBe("6s");
+        expect(JSON.stringify(appearanceState().value)).toContain('"rainbowSpeed":5');
+    });
+});

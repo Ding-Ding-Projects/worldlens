@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { VBtn, VMenu } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -27,7 +27,10 @@ const query = ref("");
 const regex = ref(false);
 const flags = ref("i");
 const anchor = ref<HTMLElement | null>(null);
+const menuContent = ref<HTMLElement | null>(null);
 const active = ref(0);
+const uid = useId();
+const listId = `${uid}-listbox`;
 
 const corpus = computed(() => props.items.map((item) => `${item.title} ${item.value}`).join("\n"));
 const visible = computed(() => {
@@ -48,7 +51,11 @@ watch(open, async (value) => {
         visible.value.findIndex((item) => item.value === props.modelValue),
     );
     await nextTick();
-    anchor.value?.querySelector<HTMLInputElement>("input")?.focus();
+    menuContent.value?.querySelector<HTMLInputElement>("input")?.focus();
+});
+
+watch(visible, (items) => {
+    active.value = Math.min(Math.max(items.length - 1, 0), active.value);
 });
 
 function choose(item: AppearanceChoice): void {
@@ -86,6 +93,7 @@ function onKeydown(event: KeyboardEvent): void {
             :aria-label="label"
             aria-haspopup="listbox"
             :aria-expanded="open ? 'true' : 'false'"
+            :aria-controls="open ? listId : undefined"
             @click="open = !open"
             @keydown="onKeydown"
         >
@@ -93,7 +101,7 @@ function onKeydown(event: KeyboardEvent): void {
             <span class="mb-appearance-choice__value">{{ currentTitle }}</span>
         </v-btn>
         <v-menu v-model="open" :close-on-content-click="false" location="bottom start" offset="6">
-            <div class="mb-appearance-choice__menu" @keydown="onKeydown">
+            <div ref="menuContent" class="mb-appearance-choice__menu" @keydown="onKeydown">
                 <ConfigSearchField
                     v-model="query"
                     v-model:regex="regex"
@@ -109,12 +117,21 @@ function onKeydown(event: KeyboardEvent): void {
                         )
                     "
                 />
-                <ul role="listbox" :aria-label="label" class="mb-appearance-choice__list">
+                <ul
+                    :id="listId"
+                    role="listbox"
+                    :aria-label="label"
+                    :aria-activedescendant="
+                        visible[active] ? `${uid}-option-${visible[active].value}` : undefined
+                    "
+                    class="mb-appearance-choice__list"
+                >
                     <li
                         v-for="(item, index) in visible"
+                        :id="`${uid}-option-${item.value}`"
                         :key="item.value"
                         role="option"
-                        :aria-selected="item.value === modelValue"
+                        :aria-selected="item.value === modelValue ? 'true' : 'false'"
                     >
                         <button
                             type="button"

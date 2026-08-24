@@ -8,6 +8,7 @@ import {
     VCheckbox,
     VDivider,
     VSlider,
+    VMenu,
     VTab,
     VTabs,
     VTextField,
@@ -23,6 +24,11 @@ import { createSettingMatcher } from "../config/regexEngine.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import TypographyEditor from "./TypographyEditor.vue";
 import { SURFACE_PROPERTIES, type SurfacePropertyId } from "./appearanceRecord.js";
+import {
+    APPEARANCE_STATES,
+    resolveStateAppearance,
+    type AppearanceStateName,
+} from "./appearanceRecord.js";
 import {
     exportTheme,
     importErrorKey,
@@ -40,6 +46,10 @@ import {
     useAppearanceTarget,
 } from "./useAppearance.js";
 import { resolveTarget } from "./appearanceStore.js";
+import { appearancePropertyLockTarget } from "./appearanceLocks.js";
+import { useLockStore } from "../locks/useLocks.js";
+import LockWizard from "../locks/LockWizard.vue";
+import UnlockPrompt from "../locks/UnlockPrompt.vue";
 import type { TypographyPropertyId, TypographySpec } from "./typographySpec.js";
 
 /**
@@ -109,6 +119,7 @@ const target = useAppearanceTarget(() => props.targetId);
 
 /** The editor's own appearance, which is what makes it a target like any other. */
 const self = useAppearanceTarget("appearance.editor");
+const locks = useLockStore();
 
 // The editor is a real rendered target, so it registers for as long as this instance exists.
 // This keeps the palette and target list honest when an anchored editor is mounted and closed.
@@ -119,6 +130,15 @@ useRegisteredTarget({
 });
 
 const tab = ref<"typography" | "surface" | "presets">("typography");
+const editingState = ref<AppearanceStateName | "base">("base");
+const propertyLockTarget = ref<ReturnType<typeof appearancePropertyLockTarget> | null>(null);
+const propertyLockOpen = ref(false);
+const propertyUnlockOpen = ref(false);
+const propertyLock = computed(() =>
+    propertyLockTarget.value === null
+        ? undefined
+        : locks.at(propertyLockTarget.value.surface, propertyLockTarget.value.path),
+);
 
 /*
  * A search per tab, not one search over the editor.
@@ -143,8 +163,37 @@ const importMessage = ref("");
 const importError = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
 
-const resolved = computed(() => resolveTarget(state.value, props.targetId));
+const baseResolved = computed(() => resolveTarget(state.value, props.targetId));
+const resolved = computed(() =>
+    resolveStateAppearance(
+        baseResolved.value,
+        editingState.value === "base" ? undefined : editingState.value,
+    ),
+);
 const style = computed(() => target.style.value);
+
+const stateChoices = computed(() => [
+    { title: t("appearance.state.base", "Base appearance"), value: "base" },
+    ...APPEARANCE_STATES.map((stateName) => ({
+        title: t(`appearance.state.${stateName}`, stateName[0].toUpperCase() + stateName.slice(1)),
+        value: stateName,
+    })),
+]);
+
+function openPropertyLock(property: string): void {
+    const stateName = editingState.value === "base" ? undefined : editingState.value;
+    propertyLockTarget.value = appearancePropertyLockTarget(props.targetId, property, stateName);
+    if (locks.at(propertyLockTarget.value.surface, propertyLockTarget.value.path) === undefined) {
+        propertyLockOpen.value = true;
+    } else {
+        propertyUnlockOpen.value = true;
+    }
+}
+
+function propertyIsLocked(property: string): boolean {
+    const stateName = editingState.value === "base" ? undefined : editingState.value;
+    return target.isPropertyLocked(property, stateName);
+}
 
 const userPresets = computed(() => state.value.presets.filter((entry) => !entry.builtIn));
 
@@ -190,7 +239,17 @@ function setTypography(id: TypographyPropertyId, value: unknown): void {
     // The editor emits a value for a property it named, and the binding is generic over the
     // property. Narrowing that pair without a per-property switch is not expressible, so the
     // assertion is confined to this one line rather than spread through the editor.
-    target.setTypography(id, value as TypographySpec[typeof id]);
+    if (editingState.value === "base") {
+        target.setTypography(id, value as TypographySpec[typeof id]);
+        return;
+    }
+    const stateName = editingState.value;
+    const layer = target.record.value.states[stateName] ?? {};
+    if (target.isPropertyLocked(id, stateName)) return;
+    target.setState(stateName, {
+        ...layer,
+        typography: { ...layer.typography, [id]: value },
+    });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -220,6 +279,25 @@ const SURFACE_LABELS: Readonly<Record<SurfacePropertyId, string>> = {
 
 function surfaceLabel(id: SurfacePropertyId): string {
     return t(`appearance.surface.${id}`, SURFACE_LABELS[id]);
+}
+
+function setSurfaceValue<K extends SurfacePropertyId>(id: K, value: unknown): void {
+    if (editingState.value === "base") {
+        target.setSurface(id, value as never);
+        return;
+    }
+    const stateName = editingState.value;
+    const layer = target.record.value.states[stateName] ?? {};
+    if (target.isPropertyLocked(id, stateName)) return;
+    target.setState(stateName, {
+        ...layer,
+        surface: { ...layer.surface, [id]: value },
+    });
+}
+
+function resetSurfaceValue(id: SurfacePropertyId): void {
+    if (editingState.value === "base") target.resetSurfaceProperty(id);
+    else target.resetStateProperty(editingState.value, "surface", id);
 }
 
 const borderStyles = computed(() =>
@@ -358,6 +436,15 @@ async function onFileChosen(event: Event): Promise<void> {
             >
                 {{ t("appearance.editor.resetElement", "Reset this element") }}
             </v-btn>
+            <AppearanceChoiceField
+                class="mb-appearance-editor__state-choice"
+                :model-value="editingState"
+                :items="stateChoices"
+                :label="t('appearance.editor.state', 'Editing state')"
+                @update:model-value="
+                    (value: string) => (editingState = value as AppearanceStateName | 'base')
+                "
+            />
         </header>
 
         <v-alert
@@ -394,8 +481,15 @@ async function onFileChosen(event: Event): Promise<void> {
                     :capabilities="typographyCapabilities"
                     :fonts="fonts"
                     :notes="style.notes"
+                    :locked="propertyIsLocked"
                     @set="setTypography"
-                    @reset="(id: TypographyPropertyId) => target.resetTypographyProperty(id)"
+                    @reset="
+                        (id: TypographyPropertyId) =>
+                            editingState === 'base'
+                                ? target.resetTypographyProperty(id)
+                                : target.resetStateProperty(editingState, 'typography', id)
+                    "
+                    @lock="openPropertyLock"
                 />
             </v-window-item>
 
@@ -427,7 +521,7 @@ async function onFileChosen(event: Event): Promise<void> {
                             :label="surfaceLabel(id)"
                             :contrast-foreground="resolved.typography.textColor"
                             @update:model-value="
-                                (value: string) => target.setSurface('backgroundColor', value)
+                                (value: string) => setSurfaceValue('backgroundColor', value)
                             "
                         />
                         <ColorField
@@ -435,7 +529,7 @@ async function onFileChosen(event: Event): Promise<void> {
                             :model-value="resolved.surface.borderColor"
                             :label="surfaceLabel(id)"
                             @update:model-value="
-                                (value: string) => target.setSurface('borderColor', value)
+                                (value: string) => setSurfaceValue('borderColor', value)
                             "
                         />
                         <AppearanceChoiceField
@@ -445,7 +539,7 @@ async function onFileChosen(event: Event): Promise<void> {
                             :label="surfaceLabel(id)"
                             @update:model-value="
                                 (value: 'none' | 'solid' | 'dashed' | 'dotted' | 'double') =>
-                                    target.setSurface('borderStyle', value)
+                                    setSurfaceValue('borderStyle', value)
                             "
                         />
                         <div v-else-if="id === 'icon'" class="mb-appearance-editor__nested">
@@ -457,7 +551,7 @@ async function onFileChosen(event: Event): Promise<void> {
                                 hide-details
                                 @update:model-value="
                                     (value: string) =>
-                                        target.setSurface('icon', {
+                                        setSurfaceValue('icon', {
                                             ...resolved.surface.icon,
                                             name: value,
                                         })
@@ -468,7 +562,7 @@ async function onFileChosen(event: Event): Promise<void> {
                                 :label="t('appearance.surface.iconColor', 'Icon colour')"
                                 @update:model-value="
                                     (value: string) =>
-                                        target.setSurface('icon', {
+                                        setSurfaceValue('icon', {
                                             ...resolved.surface.icon,
                                             color: value,
                                         })
@@ -485,7 +579,7 @@ async function onFileChosen(event: Event): Promise<void> {
                                 :aria-label="t('appearance.surface.iconSize', 'Icon size')"
                                 @update:model-value="
                                     (value: number) =>
-                                        target.setSurface('icon', {
+                                        setSurfaceValue('icon', {
                                             ...resolved.surface.icon,
                                             size: value,
                                         })
@@ -501,7 +595,7 @@ async function onFileChosen(event: Event): Promise<void> {
                                 hide-details
                                 @update:model-value="
                                     (value: string) =>
-                                        target.setSurface('badge', {
+                                        setSurfaceValue('badge', {
                                             ...resolved.surface.badge,
                                             text: value,
                                         })
@@ -517,7 +611,7 @@ async function onFileChosen(event: Event): Promise<void> {
                                 :label="t('appearance.surface.badgeShape', 'Badge shape')"
                                 @update:model-value="
                                     (value: string) =>
-                                        target.setSurface('badge', {
+                                        setSurfaceValue('badge', {
                                             ...resolved.surface.badge,
                                             shape: value as 'rounded' | 'pill' | 'square',
                                         })
@@ -532,7 +626,7 @@ async function onFileChosen(event: Event): Promise<void> {
                                 hide-details
                                 @update:model-value="
                                     (value: boolean | null) =>
-                                        target.setSurface('separator', {
+                                        setSurfaceValue('separator', {
                                             ...resolved.surface.separator,
                                             visible: value === true,
                                         })
@@ -543,7 +637,7 @@ async function onFileChosen(event: Event): Promise<void> {
                                 :label="t('appearance.surface.separatorColor', 'Separator colour')"
                                 @update:model-value="
                                     (value: string) =>
-                                        target.setSurface('separator', {
+                                        setSurfaceValue('separator', {
                                             ...resolved.surface.separator,
                                             color: value,
                                         })
@@ -557,7 +651,7 @@ async function onFileChosen(event: Event): Promise<void> {
                             :label="surfaceLabel(id)"
                             @update:model-value="
                                 (value: string) =>
-                                    target.setSurface(
+                                    setSurfaceValue(
                                         'shape',
                                         value as 'square' | 'rounded' | 'pill' | 'cut' | 'soft',
                                     )
@@ -570,7 +664,7 @@ async function onFileChosen(event: Event): Promise<void> {
                             :label="surfaceLabel(id)"
                             @update:model-value="
                                 (value: string) =>
-                                    target.setSurface(
+                                    setSurfaceValue(
                                         'density',
                                         value as 'comfortable' | 'compact' | 'spacious' | 'custom',
                                     )
@@ -583,7 +677,7 @@ async function onFileChosen(event: Event): Promise<void> {
                             :label="surfaceLabel(id)"
                             @update:model-value="
                                 (value: string) =>
-                                    target.setSurface(
+                                    setSurfaceValue(
                                         'motion',
                                         value as 'system' | 'standard' | 'reduced' | 'none',
                                     )
@@ -602,9 +696,7 @@ async function onFileChosen(event: Event): Promise<void> {
                                 density="compact"
                                 hide-details
                                 :aria-label="surfaceLabel(id)"
-                                @update:model-value="
-                                    (value: number) => target.setSurface(id, value)
-                                "
+                                @update:model-value="(value: number) => setSurfaceValue(id, value)"
                             />
                         </template>
 
@@ -620,8 +712,29 @@ async function onFileChosen(event: Event): Promise<void> {
                                     'Reset {property}',
                                 )
                             "
-                            @click="target.resetSurfaceProperty(id)"
+                            @click="resetSurfaceValue(id)"
                         />
+                        <v-btn
+                            v-if="locks.canList"
+                            size="x-small"
+                            variant="text"
+                            :aria-label="
+                                propertyIsLocked(id)
+                                    ? t(
+                                          'appearance.lock.unlock',
+                                          { property: surfaceLabel(id) },
+                                          'Unlock {property}',
+                                      )
+                                    : t(
+                                          'appearance.lock.lock',
+                                          { property: surfaceLabel(id) },
+                                          'Lock {property}',
+                                      )
+                            "
+                            @click="openPropertyLock(id)"
+                        >
+                            {{ propertyIsLocked(id) ? "🔓" : "🔒" }}
+                        </v-btn>
                     </div>
                 </div>
             </v-window-item>
@@ -833,6 +946,35 @@ async function onFileChosen(event: Event): Promise<void> {
                 </div>
             </v-window-item>
         </v-window>
+
+        <v-menu
+            v-model="propertyLockOpen"
+            :close-on-content-click="false"
+            location="bottom start"
+            @update:model-value="(value: boolean) => !value && (propertyLockTarget = null)"
+        >
+            <LockWizard
+                v-if="propertyLockTarget !== null"
+                :target="propertyLockTarget"
+                @created="propertyLockOpen = false"
+                @cancel="propertyLockOpen = false"
+            />
+        </v-menu>
+        <v-menu
+            v-model="propertyUnlockOpen"
+            :close-on-content-click="false"
+            location="bottom start"
+            @update:model-value="(value: boolean) => !value && (propertyLockTarget = null)"
+        >
+            <UnlockPrompt
+                v-if="propertyLockTarget !== null && propertyLock !== undefined"
+                :lock="propertyLock"
+                :data-folder="locks.dataFolder"
+                @unlocked="propertyUnlockOpen = false"
+                @cancel="propertyUnlockOpen = false"
+                @support="propertyUnlockOpen = false"
+            />
+        </v-menu>
     </section>
 </template>
 

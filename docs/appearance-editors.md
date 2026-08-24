@@ -230,10 +230,21 @@ Every record can carry independent state layers for `hover`, `focus`, `selected`
 effects, icon, badge, separator, shape, elevation, or spacing. Resolving a state never mutates the
 base record, and a missing state means that the base appearance remains in effect.
 
+The editor's **Editing state** picker authorises a state before any typography or surface control
+is changed. New state values are written through the same setters as base values, and reset removes
+only that state property's opinion. The host wrapper passes pointer, focus, and explicit host states
+through the same resolver, so a saved hover or focus appearance is applied to the real target and
+not only shown in a preview.
+
 Each base property and each declared state property has an independent appearance lock target.
 The target path is stable and contains only the element and property identity. Credentials are
 owned by the lock store and are never written into appearance records, presets, exports, or
 history. Unlocking one property therefore cannot unlock a different property.
+
+The editor exposes a lock or unlock action beside each base and state property. The action opens
+the real lock wizard, uses the stable property path, and routes a locked edit through the real
+unlock prompt. Setters enforce the same lock, so keyboard events, palette actions, imported state,
+and direct component calls cannot change a locked property behind the editor's back.
 
 The editor's own chrome registers dynamically while mounted, so it appears in the target list only
 when it exists and its own **Edit appearance...** route can return focus to the originating
@@ -244,8 +255,10 @@ keyboard listbox navigation, an honest no-match state, and focus return.
 ## Rainbow sentinel and unsupported chrome operations
 
 The animated rainbow is stored as the sentinel `__worldlens_rainbow__`, never as a changing colour
-string and never as a recent swatch. One global speed level maps to one CSS duration, and the hue
-wheel is animated in CSS. Reduced motion disables the animation and settles on one deliberate hue.
+string and never as a recent swatch. One persisted global speed level maps to one CSS duration for
+every target, and the hue wheel is animated in CSS. Reduced motion disables the animation and
+settles on one deliberate hue. Appearance targets mark themselves with the rainbow state, so the
+actual host surface animates rather than only the picker swatch.
 
 Crop, masks, document layers, and blend modes are not applicable to ordinary chrome appearance
 targets. They belong to document or render content rather than a tab, toolbar, badge, or dialog
@@ -269,6 +282,7 @@ schema.
 | `appearanceLocks.test.ts`        | Every base and declared state property has an independent stable lock target, with no credential material in the appearance data.                                                                                                    |
 | `rainbow.test.ts`                | The sentinel, global speed mapping, CSS hue rotation, and reduced-motion fixed hue.                                                                                                                                                  |
 | `appearanceCompleteness.test.ts` | Hand-written chrome, spacing, state, lock, rainbow, self-registration, and picker inventory, including a deliberate red then green negative regression.                                                                              |
+| `useAppearance.lock.test.ts`     | Mounted real lock-store wiring: a locked property setter is refused while the independent target identity remains available.                                                                                                         |
 | `AppearanceTarget.test.ts`       | Mounted: the context menu with the host's own items above the appearance ones, both keyboard paths, the editor anchored and returning focus, and the wrapper becoming a box only when a box declaration is present.                  |
 
 Run them with `npx vitest run packages/ui/src/components/appearance` from `design/`.

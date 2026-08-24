@@ -281,4 +281,13 @@ describe("asking the machine what it has", () => {
         expect(segoe[0]?.styles).toEqual(["Bold", "Regular"]);
         expect(segoe[0]?.axes).toEqual([{ tag: "wght", min: 400, max: 700, defaultValue: 400 }]);
     });
+
+    it("keeps a static font explicit about having no variable axes", () => {
+        const catalog = mergeFontCatalog([
+            { family: "Static Face", postscriptName: "StaticFace-Regular" },
+        ]);
+        const face = catalog.find((entry) => entry.family === "Static Face");
+        expect(face?.stableId).toBe("StaticFace-Regular");
+        expect(face?.axes).toBeUndefined();
+    });
 });
