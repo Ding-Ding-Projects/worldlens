@@ -21,7 +21,7 @@ describe("ProjectsScreen shell handoff contract", () => {
     });
 
     it("keeps the typed Pages handoff and initial render id in the shell", () => {
-        expect(appSource).toMatch(/function openPagesForWorld\(_world: string, renderId: string \| null\)/);
+        expect(appSource).toMatch(/function openPagesForWorld\(record: ProjectPagesStateRecord\)/);
         expect(appSource).toMatch(/:initial-render-id="pagesRenderIdToOpen"/);
     });
 });

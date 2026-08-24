@@ -757,7 +757,8 @@ describe("the render location", () => {
         pagesSwitch.vm.$emit("update:modelValue", true);
         await flushPromises();
         expect(wrapper.emitted("pages-toggle")?.[0]).toEqual([true]);
-        expect(wrapper.emitted("update:project")).toBeUndefined();
+        const update = wrapper.emitted("update:project")?.[0]?.[0] as ProjectFile | undefined;
+        expect(update?.render.hosting).toBe("github-pages");
         wrapper.unmount();
     });
 });

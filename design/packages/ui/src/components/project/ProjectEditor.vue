@@ -53,6 +53,13 @@ import RenderDestinationMenu, {
 } from "./RenderDestinationMenu.vue";
 
 export type ProjectPagesState = "off" | "pending" | "published" | "failed";
+export interface ProjectPagesStateRecord {
+    readonly key: string;
+    readonly state: ProjectPagesState;
+    readonly renderId: string;
+    readonly projectSnapshot: string;
+    readonly generation: number;
+}
 import { resolveProjectHistoryHost } from "./projectHost.js";
 import { readNavigatorCollapsed, writeNavigatorCollapsed } from "./navigatorCollapse.js";
 import { editorSettingCount, savePlanFacts } from "./projectFacts.js";
@@ -163,7 +170,7 @@ const props = withDefaults(
         canPublishExisting?: boolean;
         importReason?: string;
         publishReason?: string;
-        pagesState?: ProjectPagesState;
+        pagesState?: ProjectPagesState | undefined;
         pagesFailure?: string | null;
     }>(),
     {
@@ -1053,9 +1060,7 @@ function setOutputFolder(value: string): void {
 
 function setPagesEnabled(value: boolean | null): void {
     const enabled = value === true;
-    if (!enabled) {
-        emit("update:project", withRender(props.project, { hosting: "local" }));
-    }
+    emit("update:project", withRender(props.project, { hosting: enabled ? "github-pages" : "local" }));
     emit("pages-toggle", enabled);
 }
 

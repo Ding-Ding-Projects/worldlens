@@ -131,7 +131,10 @@ function runtimeBridge(
     };
 }
 
-function remoteBridge(report: PreflightReport, trust = vi.fn(async () => ({ ok: true, message: "recorded." }))): RemoteBridge {
+function remoteBridge(
+    answer: PreflightReport | ((target: RemoteTarget) => Promise<PreflightReport>),
+    trust = vi.fn(async () => ({ ok: true, message: "recorded." })),
+): RemoteBridge {
     return {
         validateRemoteTarget: async () => ({ ok: true, target, summary: "renderer@build.lan:22" }),
         describeRemoteTarget: async () => ({
@@ -141,7 +144,7 @@ function remoteBridge(report: PreflightReport, trust = vi.fn(async () => ({ ok: 
             leavesBehind: "Nothing.",
             authentication: "Your SSH agent.",
         }),
-        remotePreflight: async () => report,
+        remotePreflight: async (nextTarget) => typeof answer === "function" ? answer(nextTarget) : answer,
         trustRemoteHostKey: trust,
         startRemoteRender: async () => ({ ok: false, renderId: "", failure: { code: "x", message: "", detail: null, exitCode: null } }),
         cancelRemoteRender: async () => false,
@@ -467,6 +470,35 @@ describe("choosing a machine", () => {
         const emitted = wrapper.emitted("update:target");
         expect(emitted).toBeTruthy();
         expect(emitted?.at(-1)?.[0]).toMatchObject({ id: "t-1", host: "build.lan" });
+    });
+
+    it("ignores a stale preflight when selection moves A to B and back to A", async () => {
+        const second: RemoteTarget = { ...target, id: "t-2", host: "other.lan", label: "the other one" };
+        const pending: { target: RemoteTarget; resolve: (value: PreflightReport) => void }[] = [];
+        const wrapper = mountCard({
+            remoteBridge: remoteBridge((nextTarget) => new Promise((resolve) => pending.push({ target: nextTarget, resolve }))),
+            storage: storageWith([target, second]),
+        });
+        await flushPromises();
+
+        wrapper.vm.selectedId = "t-1";
+        await flushPromises();
+        void wrapper.vm.check();
+        await flushPromises();
+        wrapper.vm.selectedId = "t-2";
+        await flushPromises();
+        wrapper.vm.selectedId = "t-1";
+        await flushPromises();
+        void wrapper.vm.check();
+        await flushPromises();
+
+        expect(pending).toHaveLength(2);
+        pending[0]?.resolve(report({ ok: true, target: "build.lan" }));
+        await flushPromises();
+        expect(wrapper.vm.report).toBeNull();
+        pending[1]?.resolve(report({ ok: true, target: "build.lan" }));
+        await flushPromises();
+        expect(wrapper.vm.report?.ok).toBe(true);
     });
 });
 

@@ -322,11 +322,23 @@ async function fetchWorld(): Promise<void> {
 
 async function cancelFetch(): Promise<void> {
     if (bridge === null || fetchId.value === null) return;
-    const stopped = await bridge.cancel(fetchId.value);
-    if (!stopped) {
+    const id = fetchId.value;
+    try {
+        const stopped = await Promise.race([
+            bridge.cancel(id),
+            new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 5000)),
+        ]);
+        if (!stopped) {
+            fetchFailure.value = t(
+                "world.ssh.cancelMiss",
+                "That transfer did not confirm cancellation yet. The panel stays open so its state is not hidden.",
+            );
+        }
+    } catch (error) {
         fetchFailure.value = t(
-            "world.ssh.cancelMiss",
-            "That transfer had already ended before cancellation reached it.",
+            "world.ssh.cancelFailed",
+            { message: error instanceof Error ? error.message : String(error) },
+            "Cancellation could not reach the transfer: {message}",
         );
     }
 }

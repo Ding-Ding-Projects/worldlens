@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiChevronDown, mdiPlay } from "@mdi/js";
 import { VBtn, VBtnGroup, VCard, VCardSubtitle, VCardTitle, VIcon, VMenu } from "vuetify/components";
@@ -58,6 +58,8 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const open = ref(false);
+const arrowButton = ref<HTMLElement | null>(null);
+const menuSearch = ref<InstanceType<typeof MenuSearchList> | null>(null);
 const isDisabled = computed(() => props.disabled === true || props.rendering === true);
 const isMainDisabled = computed(() => props.mainDisabled === true || props.rendering === true);
 const isRendering = computed(() => props.rendering === true);
@@ -137,6 +139,16 @@ function choose(id: string): void {
     emit("choose", id as RenderDestinationId);
 }
 
+watch(open, async (value) => {
+    await nextTick();
+    if (value) {
+        const input = (menuSearch.value?.$el as HTMLElement | undefined)?.querySelector<HTMLInputElement>("input");
+        input?.focus();
+    } else {
+        arrowButton.value?.focus();
+    }
+});
+
 defineExpose({ open, items, choose });
 </script>
 
@@ -164,6 +176,7 @@ defineExpose({ open, items, choose });
                 <template #activator="{ props: activatorProps }">
                     <v-btn
                         v-bind="activatorProps"
+                        ref="arrowButton"
                         :disabled="isDisabled"
                         :aria-label="t('project.destination.choose', 'Choose where to render')"
                         :title="currentLabel"
@@ -173,10 +186,16 @@ defineExpose({ open, items, choose });
                         <v-icon :icon="mdiChevronDown" aria-hidden="true" />
                     </v-btn>
                 </template>
-                <v-card class="mb-render-destination__surface" role="dialog">
-                    <v-card-title>{{ t("project.destination.title", "Choose where to render") }}</v-card-title>
+                <v-card
+                    class="mb-render-destination__surface"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="render-destination-title"
+                >
+                    <v-card-title id="render-destination-title">{{ t("project.destination.title", "Choose where to render") }}</v-card-title>
                     <v-card-subtitle>{{ currentLabel }}</v-card-subtitle>
                     <MenuSearchList
+                        ref="menuSearch"
                         :items="items"
                         :label="t('project.destination.menuLabel', 'Render destinations')"
                         @choose="choose"

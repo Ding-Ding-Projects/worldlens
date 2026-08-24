@@ -5,6 +5,7 @@ import { mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import RenderDestinationMenu from "./RenderDestinationMenu.vue";
+import renderDestinationSource from "./RenderDestinationMenu.vue?raw";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -120,5 +121,12 @@ describe("RenderDestinationMenu", () => {
         expect(published?.disabled).toBe(true);
         expect(imported?.reason).toContain("desktop file picker");
         expect(published?.reason).toContain("finished render");
+    });
+
+    it("contains the mounted focus route for open and close", () => {
+        expect(renderDestinationSource).toContain("input?.focus()");
+        expect(renderDestinationSource).toContain("arrowButton.value?.focus()");
+        expect(renderDestinationSource).toContain("aria-modal=\"true\"");
+        expect(renderDestinationSource).toContain("aria-labelledby=\"render-destination-title\"");
     });
 });

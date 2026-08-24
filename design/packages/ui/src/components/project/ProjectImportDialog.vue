@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArchiveOutline, mdiFolderOpenOutline, mdiFileDocumentOutline } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardActions, VCardText, VCardTitle, VDialog, VDivider, VProgressLinear, VSpacer } from "vuetify/components";
@@ -23,8 +23,26 @@ const { t } = useI18n();
 const busy = ref(false);
 const failure = ref<string | null>(null);
 const selectedPath = ref<string | null>(null);
+const opener = ref<HTMLElement | null>(null);
+const errorAlert = ref<HTMLElement | null>(null);
 const sshPanel = ref<InstanceType<typeof SshWorldSourcePanel> | null>(null);
 const activeTransfer = computed(() => sshPanel.value?.fetching === true);
+
+onMounted(() => {
+    opener.value = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+});
+
+async function restoreFocus(): Promise<void> {
+    await nextTick();
+    opener.value?.focus();
+}
+
+watch(failure, async (value) => {
+    if (value !== null) {
+        await nextTick();
+        errorAlert.value?.focus();
+    }
+});
 
 function folderFromFile(file: string): string | null {
     const slash = Math.max(file.lastIndexOf("/"), file.lastIndexOf("\\"));
@@ -46,6 +64,7 @@ async function validateAndUse(world: string | null): Promise<void> {
             );
             return;
         }
+        await restoreFocus();
         emit("imported", world);
     } catch (error) {
         failure.value = error instanceof Error ? error.message : String(error);
@@ -77,16 +96,25 @@ function importedFromSsh(world: string): void {
 
 function requestClose(): void {
     if (activeTransfer.value) return;
+    void restoreFocus();
     emit("close");
 }
 
 async function cancelTransferAndClose(): Promise<void> {
     if (!activeTransfer.value) {
+        void restoreFocus();
         emit("close");
         return;
     }
-    await sshPanel.value?.cancelFetch();
-    if (!activeTransfer.value) emit("close");
+    try {
+        await sshPanel.value?.cancelFetch();
+        if (!activeTransfer.value) {
+            await restoreFocus();
+            emit("close");
+        }
+    } catch (error) {
+        failure.value = error instanceof Error ? error.message : String(error);
+    }
 }
 
 defineExpose({ pickFolder, pickProjectFile, validateAndUse, cancelTransferAndClose, busy, failure, activeTransfer });
@@ -100,7 +128,7 @@ defineExpose({ pickFolder, pickProjectFile, validateAndUse, cancelTransferAndClo
                 <p class="mb-project-import__lede">
                     {{ t("project.import.lede", "Choose a local project, fetch a verified project from an SSH machine, or review the archive route. The source is read-only; the imported local folder is inspected by the same project schema and history path as every other project.") }}
                 </p>
-                <v-alert v-if="failure" type="error" variant="tonal" density="compact" role="alert">
+                <v-alert v-if="failure" ref="errorAlert" tabindex="-1" type="error" variant="tonal" density="compact" role="alert">
                     {{ failure }}
                 </v-alert>
                 <v-progress-linear v-if="busy" indeterminate color="primary" class="my-3" />

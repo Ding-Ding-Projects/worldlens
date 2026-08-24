@@ -75,6 +75,7 @@ import {
 import { EulaSurface } from "./components/eula/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
+import type { ProjectPagesStateRecord } from "./components/project/ProjectEditor.vue";
 import { CiRenderScreen } from "./components/cirender/index.js";
 import { createCiRenders } from "./components/cirender/ciRenders.js";
 import { resolveCiRenderBridge } from "./components/cirender/ciRenderBridge.js";
@@ -1317,7 +1318,11 @@ function openCiRenderedMap(where: { renderId: string; dataRoot: string; mapId: s
 const projectToOpen = ref<string | null>(null);
 const ciWorldToOpen = ref<string | null>(null);
 const pagesRenderIdToOpen = ref<string | null>(null);
-const pagesProjectState = ref<"off" | "pending" | "published" | "failed">("off");
+const pagesStateByKey = ref<Record<string, ProjectPagesStateRecord>>({});
+const pagesProjectState = computed<ProjectPagesStateRecord | null>(() => {
+    const values = Object.values(pagesStateByKey.value);
+    return values.at(-1) ?? null;
+});
 const droppedWorldPath = ref<string | null>(null);
 
 function revealDroppedWorld(path: string): void {
@@ -1410,15 +1415,29 @@ function openCiRender(world: string | null = null): void {
 }
 
 /** Opens the existing Pages flow with a typed render id when the project surface knows one. */
-function openPagesForWorld(_world: string, renderId: string | null): void {
-    pagesProjectState.value = "pending";
-    pagesRenderIdToOpen.value = renderId;
+function openPagesForWorld(record: ProjectPagesStateRecord): void {
+    pagesStateByKey.value = { ...pagesStateByKey.value, [record.key]: record };
+    pagesRenderIdToOpen.value = record.renderId;
     revealPage(PAGE_PAGES);
 }
 
 function onPagesState(state: "pending" | "published" | "failed", renderId: string): void {
-    pagesProjectState.value = state;
+    const current = pagesProjectState.value;
+    if (current === null || current.renderId !== renderId) return;
+    if (current.state === "off") return;
+    pagesStateByKey.value = {
+        ...pagesStateByKey.value,
+        [current.key]: { ...current, state },
+    };
     if (renderId !== "") pagesRenderIdToOpen.value = renderId;
+}
+
+function onPagesInvalidated(key: string, generation: number): void {
+    const current = pagesStateByKey.value[key];
+    if (current === undefined || generation < current.generation) return;
+    const next = { ...pagesStateByKey.value };
+    delete next[key];
+    pagesStateByKey.value = next;
 }
 
 /**
@@ -2121,6 +2140,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @open-map="onLocalRenderOpened"
                             @cloud-render="openCiRender"
                             @publish-existing="openPagesForWorld"
+                            @pages-invalidated="onPagesInvalidated"
                             @dirty-change="unsavedProjectChanges = $event"
                         />
                     </div>
@@ -2605,6 +2625,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         @open-map="onLocalRenderOpened"
                                         @cloud-render="openCiRender"
                                         @publish-existing="openPagesForWorld"
+                                        @pages-invalidated="onPagesInvalidated"
                                         @dirty-change="unsavedProjectChanges = $event"
                                     />
                                 </div>

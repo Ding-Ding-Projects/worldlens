@@ -67,7 +67,8 @@ import {
     type RunLocation,
 } from "../remote/index.js";
 import type { RenderDestinationId } from "./RenderDestinationMenu.vue";
-import type { ProjectPagesState } from "./ProjectEditor.vue";
+import type { ProjectPagesState, ProjectPagesStateRecord } from "./ProjectEditor.vue";
+import { canonicalWorldIdentity } from "./projectIdentity.js";
 import ProjectImportDialog from "./ProjectImportDialog.vue";
 
 /**
@@ -114,7 +115,7 @@ const props = withDefaults(
         remoteBridge?: RemoteBridge | null;
         runtimeBridge?: RuntimeBridge | null;
         canOpenCi?: boolean;
-        pagesState?: ProjectPagesState;
+        pagesState?: ProjectPagesStateRecord | null;
     }>(),
     { settingsEpoch: 0, openWorld: null, canOpenCi: false },
 );
@@ -129,7 +130,8 @@ const emit = defineEmits<{
     /** Opens the click-and-run GitHub Actions surface with this project's world prefilled. */
     cloudRender: [world: string];
     /** Opens the existing Pages flow with a verified render selected by the host. */
-    publishExisting: [world: string, renderId: string | null];
+    publishExisting: [record: ProjectPagesStateRecord];
+    "pages-invalidated": [key: string, generation: number];
     /** Reports the editor's real serialized dirty state to process-wide restart protection. */
     "dirty-change": [dirty: boolean];
 }>();
@@ -171,6 +173,7 @@ const renderModes = ref<readonly string[]>(["local"]);
 const importOpen = ref(false);
 const projectPagesState = ref<ProjectPagesState>("off");
 const pagesFailure = ref<string | null>(null);
+const publicationGeneration = ref(0);
 const verifiedRenders = ref<Record<string, { world: string; projectId: string; renderId: string; projectSnapshot: string }>>({});
 
 async function loadRenderModes(): Promise<void> {
@@ -300,7 +303,7 @@ const dirty = computed(
 const renderContextKey = computed(() =>
     openWorld.value === null || openProject.value === null
         ? null
-        : `${openWorld.value}\0${openProject.value.id}`,
+        : `${canonicalWorldIdentity(openWorld.value)}\0${openProject.value.id}`,
 );
 const currentVerifiedRender = computed(() => {
     if (renderContextKey.value === null || openProject.value === null) return null;
@@ -309,8 +312,25 @@ const currentVerifiedRender = computed(() => {
         ? record
         : null;
 });
+const shellPagesState = computed<ProjectPagesState>(() => {
+    const record = props.pagesState;
+    if (
+        record !== null &&
+        record !== undefined &&
+        record.key === renderContextKey.value &&
+        openProject.value !== null &&
+        record.projectSnapshot === serializeProjectFile(openProject.value) &&
+        (currentVerifiedRender.value === null || record.renderId === currentVerifiedRender.value.renderId)
+    ) {
+        return record.state;
+    }
+    return projectPagesState.value;
+});
 
 function resetRenderDestination(): void {
+    const previousKey = renderContextKey.value;
+    publicationGeneration.value += 1;
+    if (previousKey !== null) emit("pages-invalidated", previousKey, publicationGeneration.value);
     renderLocation.value = "local";
     renderTarget.value = null;
     remotePreflightPassed.value = false;
@@ -725,6 +745,17 @@ function setProjectRenderRoute(project: ProjectFile, route: "local" | "github-ac
     openProject.value = withRender(project, { route });
 }
 
+function pagesRecord(state: ProjectPagesState, renderId: string): ProjectPagesStateRecord | null {
+    if (renderContextKey.value === null || openProject.value === null) return null;
+    return {
+        key: renderContextKey.value,
+        state,
+        renderId,
+        projectSnapshot: serializeProjectFile(openProject.value),
+        generation: publicationGeneration.value,
+    };
+}
+
 /**
  * The editor's destination menu is a dispatch surface, not a second render implementation.
  * Local, Docker and SSH update the live router; GitHub opens the existing full wizard; import
@@ -755,8 +786,9 @@ function chooseDestination(destination: RenderDestinationId): void {
         case "publish-existing":
             projectPagesState.value = "pending";
             pagesFailure.value = null;
-            if (openWorld.value !== null && currentVerifiedRender.value !== null) {
-                emit("publishExisting", openWorld.value, currentVerifiedRender.value.renderId);
+            if (currentVerifiedRender.value !== null) {
+                const record = pagesRecord("pending", currentVerifiedRender.value.renderId);
+                if (record !== null) emit("publishExisting", record);
             }
             return;
     }
@@ -953,7 +985,7 @@ async function startRender(world: string, project: ProjectFile): Promise<void> {
     if (result?.ok === true) {
         verifiedRenders.value = {
             ...verifiedRenders.value,
-            [`${world}\0${project.id}`]: {
+            [`${canonicalWorldIdentity(world)}\0${project.id}`]: {
                 world,
                 projectId: project.id,
                 renderId: result.renderId,
@@ -1077,7 +1109,7 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
             :can-open-ci="props.canOpenCi ?? false"
             :can-import-project="host !== null && configHost !== null"
             :can-publish-existing="currentVerifiedRender !== null"
-            :pages-state="props.pagesState ?? projectPagesState"
+            :pages-state="shellPagesState"
             :pages-failure="pagesFailure"
             @update:project="(value) => (openProject = value)"
             @update:render-location="(value: RunLocation) => (renderLocation = value)"
@@ -1101,11 +1133,13 @@ function notify(level: "info" | "success" | "warning" | "error", message: string
                     } else {
                         projectPagesState = 'pending'
                         pagesFailure = null
-                        if (openWorld !== null) emit('publishExisting', openWorld, currentVerifiedRender.renderId)
+                        const record = pagesRecord('pending', currentVerifiedRender.renderId)
+                        if (record !== null) emit('publishExisting', record)
                     }
                 } else {
                     projectPagesState = 'off'
                     pagesFailure = null
+                    if (renderContextKey !== null) emit('pages-invalidated', renderContextKey, publicationGeneration)
                 }
             }"
             @save="save"
