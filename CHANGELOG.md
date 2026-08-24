@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Close catalogue type safety gaps - [`7f90854fa9`](https://github.com/Ding-Ding-Projects/worldlens/commit/7f90854fa94e64434d7809b5379f75bc2feffe4f)
 - Keep catalogue copy publication safe - [`61c6f8af6a`](https://github.com/Ding-Ding-Projects/worldlens/commit/61c6f8af6af526ab4b9d4db807c4eb8e5855a2b4)
 - Harden complete version catalogue flows - [`eea9b9c32c`](https://github.com/Ding-Ding-Projects/worldlens/commit/eea9b9c32cc6c712951fc35822fcd32f670a7c7e)
 - Complete Mojang version catalogue grouping - [`b54c5ce012`](https://github.com/Ding-Ding-Projects/worldlens/commit/b54c5ce012fddcef678703a53c38112073f7ccce)

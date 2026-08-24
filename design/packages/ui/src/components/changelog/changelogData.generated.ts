@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "7f90854fa94e64434d7809b5379f75bc2feffe4f",
+        shortSha: "7f90854fa9",
+        date: "2026-08-24T04:04:54-04:00",
+        subject: "Close catalogue type safety gaps",
+        details: "Omit undefined optional values at the bridge boundary, carry artifact availability through the renderer type, and keep picker inputs normalized. The compiler now gets the same honest shape the runtime already had.\n\n橋接位唔再送 undefined 入 optional 欄位，renderer type 帶齊 artifact 狀態，picker input 亦先整理好。compiler 而家見到嘅形狀，同 runtime 真係收到嘅一樣老實。",
+        category: "interface",
+        areas: ["interface", "shell"],
+        files: 4,
+    },
+    {
         sha: "61c6f8af6af526ab4b9d4db807c4eb8e5855a2b4",
         shortSha: "61c6f8af6a",
         date: "2026-08-24T03:47:25-04:00",
