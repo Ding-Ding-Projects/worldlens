@@ -91,7 +91,7 @@ export async function fetchExhaustiveCatalog(source: OllamaCatalogSource, now = 
 export function mergeInstalledTags(snapshot: OllamaCatalogSnapshot, installed: readonly OllamaModelTag[], now = () => new Date().toISOString()): OllamaCatalogSnapshot {
     const seen = new Set(snapshot.variants.map((item) => item.name));
     const extra = installed.filter((item) => !seen.has(item.name)).map((item) => ({ ...item, family: null, capabilities: [], quantization: null, parameterSize: null, catalogSource: "local Ollama tags" }));
-    return { ...snapshot, variants: [...snapshot.variants, ...extra], fetchedAt: now(), stale: false };
+    return { ...snapshot, variants: [...snapshot.variants, ...extra], stale: snapshot.stale };
 }
 
 export function markCatalogStale(snapshot: OllamaCatalogSnapshot, staleAfterMs: number, now = Date.now()): OllamaCatalogSnapshot {

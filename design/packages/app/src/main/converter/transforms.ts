@@ -1,10 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { access, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { createReadStream } from "node:fs";
+import { access, mkdir, rename, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, extname } from "node:path";
 import { replaceFileWithRetry } from "../storage/atomicReplace.js";
 import YAML from "yaml";
 
-const MAX_BYTES = 1024 * 1024 * 1024;
+const MAX_BYTES = 256 * 1024 * 1024;
 const extension = (path: string): string => extname(path).toLowerCase().slice(1);
 const escapeHtml = (value: string): string => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
@@ -18,12 +19,23 @@ function hasNestedCsvValue(value: unknown): boolean {
     return typeof value === "object" && value !== null;
 }
 
+async function readBoundedChunks(source: string, size: number): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    let total = 0;
+    for await (const chunk of createReadStream(source, { highWaterMark: 64 * 1024 })) {
+        const bytes = Buffer.from(chunk);
+        total += bytes.byteLength;
+        if (total > size) throw new Error("The input exceeded the converter safety limit while streaming.");
+        chunks.push(bytes);
+    }
+    return Buffer.concat(chunks, total);
+}
+
 export async function runBuiltInTransform(source: string, target: string, adapterId: string): Promise<{ readonly bytes: number; readonly message: string }> {
     const sourceInfo = await stat(source);
     if (!sourceInfo.isFile()) throw new Error("The converter source is not a regular file.");
     if (sourceInfo.size > MAX_BYTES) throw new Error("The input exceeds the converter safety limit.");
-    const input = await readFile(source);
-    if (input.byteLength > MAX_BYTES) throw new Error("The input exceeds the converter safety limit.");
+    const input = await readBoundedChunks(source, MAX_BYTES);
     const sourceExt = extension(source); const targetExt = extension(target);
     let output: Buffer;
     if (adapterId === "data-json") {

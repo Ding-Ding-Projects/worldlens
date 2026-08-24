@@ -54,7 +54,11 @@ export function registerConverterHandlers(ipcMain: Pick<IpcMain, "handle" | "rem
     ipcMain.handle("converter:enqueue", async (_event, items: unknown) => {
         if (!Array.isArray(items)) return { ok: false, message: "Choose one or more files." };
         const safe = items.filter((item): item is Omit<ConverterQueueItem, "state" | "progress" | "message" | "updatedAt"> => typeof item?.id === "string" && typeof item.source === "string" && typeof item.target === "string" && typeof item.adapterId === "string");
-        try { return { ok: true, queue: await getQueue().enqueue(safe) }; } catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
+        try {
+            let snapshot = getQueue().snapshot();
+            for (let offset = 0; offset < safe.length; offset += 128) snapshot = await getQueue().enqueue(safe.slice(offset, offset + 128));
+            return { ok: true, queue: snapshot };
+        } catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
     });
     ipcMain.handle("converter:queue", async () => await getQueue().load());
     ipcMain.handle("converter:pause", async () => { await getQueue().pause(); return getQueue().snapshot(); });

@@ -17,4 +17,11 @@ describe("converter packaging contract", () => {
         expect(builder).toContain('from: "dist/bundled"');
         expect(builder).toContain('to: "bundled"');
     });
+
+    it("keeps the isolated converter worker offline and process-bounded", () => {
+        const worker = readFileSync(resolve(here, "isolatedWorker.ts"), "utf8");
+        expect(worker).not.toMatch(/from ["']node:(?:http|https|net|tls|child_process)["']/);
+        expect(worker).not.toContain("fetch(");
+        expect(readFileSync(resolve(here, "isolated.ts"), "utf8")).toContain("ELECTRON_RUN_AS_NODE");
+    });
 });

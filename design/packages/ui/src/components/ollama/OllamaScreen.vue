@@ -88,6 +88,11 @@ async function installRuntime(): Promise<void> {
     } finally { runtimeProvisioning.value = false; }
 }
 
+async function cancelRuntime(): Promise<void> { await globalThis.window?.worldlens?.ollama.runtimeCancel(); runtimeProgress.value = "Runtime acquisition cancelled. The source files remain untouched."; }
+async function stopRuntime(): Promise<void> { const result = await globalThis.window?.worldlens?.ollama.runtimeStop(); runtimeProgress.value = result ? "Managed Ollama runtime stopped." : "No managed Ollama runtime process was running."; await checkRuntime(); }
+async function restartRuntime(): Promise<void> { const result = await globalThis.window?.worldlens?.ollama.runtimeRestart(); runtimeProgress.value = result.ok ? "Managed Ollama runtime restarted and probed." : result.message ?? "Managed Ollama runtime restart did not complete."; await checkRuntime(); }
+async function probeRuntime(): Promise<void> { const result = await globalThis.window?.worldlens?.ollama.runtimeProbe(); runtimeProgress.value = result.ok ? "Managed Ollama readiness probe succeeded." : result.message ?? "Managed Ollama readiness probe did not succeed."; await checkRuntime(); }
+
 async function checkRuntime(): Promise<void> {
     checkingRuntime.value = true;
     try {
@@ -174,6 +179,7 @@ const storeRegex = ref(false);
 const storeFlags = ref("i");
 const refreshingCatalog = ref(false);
 const catalogAbort = ref<AbortController | null>(null);
+const catalogRefreshMessage = ref("");
 
 async function refreshStoreCatalog(): Promise<void> {
     if (refreshingCatalog.value) return;
@@ -182,6 +188,7 @@ async function refreshStoreCatalog(): Promise<void> {
     refreshingCatalog.value = true;
     try {
         const result = await bridge.catalogRefresh();
+        catalogRefreshMessage.value = result.ok ? "" : result.message ?? "The official source did not provide an exhaustive catalog, so refresh remains incomplete.";
         if (result.catalog) {
             const raw = result.catalog as { readonly variants?: readonly { readonly name: string; readonly family: string | null; readonly size?: number; readonly quantization: string | null; readonly context?: number }[]; readonly fetchedAt?: string; readonly pages?: number; readonly complete?: boolean; readonly revision?: string | null; readonly completenessReason?: string };
             const groups = new Map<string, { readonly family: string; readonly description: string; readonly capabilities: readonly string[]; readonly tags: { readonly tag: string; readonly sizeBytes: number | null; readonly contextWindow: number | null; readonly quantization: string | null }[] }>();
@@ -212,6 +219,15 @@ const detectedHardware = ref<DetectedHardware>({
     gpuDriverSupported: null,
     freeDiskBytes: null,
 });
+const hardwareEvidence = ref("Hardware evidence has not been refreshed.");
+
+async function refreshHardware(): Promise<void> {
+    const bridge = globalThis.window?.worldlens?.ollama;
+    if (!bridge) return;
+    const facts = await bridge.hardware();
+    detectedHardware.value = { totalRamBytes: facts.totalRamBytes, gpuVramBytes: facts.gpuVramBytes, gpuDriverSupported: facts.gpuDriverSupported, freeDiskBytes: facts.freeDiskBytes };
+    hardwareEvidence.value = `Architecture ${facts.architecture ?? "unknown"}; RAM ${facts.totalRamBytes === null ? "unknown" : Math.round(facts.totalRamBytes / 1024 / 1024) + " MiB"}; free disk ${facts.freeDiskBytes === null ? "unknown" : Math.round(facts.freeDiskBytes / 1024 / 1024) + " MiB"}; GPU ${facts.gpuModel ?? "not reported"}. Sources: ${facts.sources.join(", ")}.`;
+}
 
 function fitFor(variant: CatalogVariant): FitVerdict {
     const cached = ollamaStore.fitCache[variant.fullName];
@@ -271,6 +287,22 @@ const cartAggregateBytes = computed(() =>
 );
 
 const pulling = ref(false);
+const pullControllers = new Map<string, AbortController>();
+
+async function runPullItem(item: ReturnType<typeof enqueuePulls>[number]): Promise<void> {
+    const controller = new AbortController();
+    pullControllers.set(item.id, controller);
+    updatePullItem(item.id, { state: "pulling", statusLine: "Starting…", error: null });
+    try {
+        const result = await pullModel(item.modelName, (progress) => { const percent = typeof progress.total === "number" && progress.total > 0 && typeof progress.completed === "number" ? Math.round((progress.completed / progress.total) * 100) : null; updatePullItem(item.id, { percent, statusLine: progress.status }); }, { signal: controller.signal });
+        if (result.ok) updatePullItem(item.id, { state: "pulled", percent: 100, statusLine: "Pulled." });
+        else updatePullItem(item.id, { state: result.error.kind === "aborted" ? "cancelled" : "failed", error: result.error.message, statusLine: result.error.message });
+    } finally { pullControllers.delete(item.id); }
+}
+
+function cancelPull(id: string): void { pullControllers.get(id)?.abort(); updatePullItem(id, { state: "cancelled", statusLine: "Cancelled by the user." }); }
+async function retryPull(id: string): Promise<void> { const item = ollamaStore.pullQueue.find((candidate) => candidate.id === id); if (!item || (item.state !== "failed" && item.state !== "cancelled")) return; updatePullItem(id, { state: "queued", percent: 0, error: null, statusLine: "Queued for retry." }); await runPullItem(item); await refreshInstalledModels(); }
+function removePull(id: string): void { const index = ollamaStore.pullQueue.findIndex((item) => item.id === id); if (index >= 0 && !pullControllers.has(id)) ollamaStore.pullQueue.splice(index, 1); }
 
 async function startPulls(): Promise<void> {
     if (cart.value.size === 0) return;
@@ -288,22 +320,7 @@ async function startPulls(): Promise<void> {
             cursor += 1;
             if (index >= items.length) return;
             const item = items[index]!;
-            updatePullItem(item.id, { state: "pulling", statusLine: "Starting…" });
-            const result = await pullModel(item.modelName, (progress) => {
-                const percent =
-                    typeof progress.total === "number" &&
-                    progress.total > 0 &&
-                    typeof progress.completed === "number"
-                        ? Math.round((progress.completed / progress.total) * 100)
-                        : null;
-                updatePullItem(item.id, { percent, statusLine: progress.status });
-            });
-            if (result.ok) {
-                updatePullItem(item.id, { state: "pulled", percent: 100, statusLine: "Pulled." });
-            } else {
-                const state = result.error.kind === "aborted" ? "cancelled" : "failed";
-                updatePullItem(item.id, { state, error: result.error.message });
-            }
+            await runPullItem(item);
         }
     }
     await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
@@ -430,6 +447,7 @@ onMounted(() => {
     const bridge = globalThis.window?.worldlens?.ollama;
     stopRuntimeProgress = bridge?.onRuntimeProgress((progress) => { runtimeProgress.value = typeof progress.message === "string" ? progress.message : "Acquiring the runtime automatically."; });
     void checkRuntime();
+    void refreshHardware();
 });
 
 onBeforeUnmount(() => {
@@ -486,12 +504,16 @@ onBeforeUnmount(() => {
                     >
                         {{ t("ollama.runtime.recheck", "Check again") }}
                     </VBtn>
+                    <VBtn v-if="runtimeProvisioning" variant="tonal" @click="cancelRuntime">Cancel acquisition</VBtn>
+                    <VBtn variant="tonal" @click="probeRuntime">Probe readiness</VBtn>
+                    <VBtn variant="tonal" @click="restartRuntime">Restart runtime</VBtn>
+                    <VBtn variant="tonal" @click="stopRuntime">Stop runtime</VBtn>
                 </div>
             </div>
         </VAlert>
 
         <VCard v-else class="mb-ollama__ready" variant="tonal" color="success">
-            <VCardText>{{ runtimeLabel }} · {{ ollamaStore.runtime.version }}</VCardText>
+            <VCardText><div>{{ runtimeLabel }} · {{ ollamaStore.runtime.version }}</div><div class="mb-ollama__runtime-actions"><VBtn size="small" variant="tonal" @click="probeRuntime">Probe readiness</VBtn><VBtn size="small" variant="tonal" @click="restartRuntime">Restart runtime</VBtn><VBtn size="small" variant="tonal" @click="stopRuntime">Stop runtime</VBtn></div></VCardText>
         </VCard>
 
         <p class="mb-ollama__intro">
@@ -524,6 +546,7 @@ onBeforeUnmount(() => {
             <h2 id="ollama-store-heading" class="mb-ollama__heading">
                 {{ t("ollama.store.title", "Model Store") }}
             </h2>
+            <p class="mb-ollama__stale" role="status">{{ hardwareEvidence }} <VBtn size="small" variant="text" @click="refreshHardware">Refresh hardware evidence</VBtn></p>
 
             <div class="mb-ollama__store-toolbar">
                 <ConfigSearchField
@@ -549,6 +572,8 @@ onBeforeUnmount(() => {
                     {{ t("ollama.store.refresh", "Refresh catalogue") }}
                 </VBtn>
             </div>
+
+            <VAlert v-if="catalogRefreshMessage" class="mt-2" type="warning" variant="tonal" role="status">{{ catalogRefreshMessage }}</VAlert>
 
             <p v-if="ollamaStore.catalogStale" class="mb-ollama__stale" role="status">
                 {{ t("ollama.store.stale", "Showing the last verified catalogue. It is stale.") }}
@@ -692,6 +717,11 @@ onBeforeUnmount(() => {
                             :model-value="item.percent"
                             height="4"
                         />
+                    </template>
+                    <template #append>
+                        <VBtn v-if="item.state === 'pulling' || item.state === 'queued'" size="small" variant="text" @click="cancelPull(item.id)">Cancel</VBtn>
+                        <VBtn v-if="item.state === 'failed' || item.state === 'cancelled'" size="small" variant="text" @click="retryPull(item.id)">Retry</VBtn>
+                        <VBtn v-if="item.state !== 'pulling'" size="small" variant="text" @click="removePull(item.id)">Remove</VBtn>
                     </template>
                 </VListItem>
             </VList>

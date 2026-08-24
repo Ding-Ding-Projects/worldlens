@@ -713,12 +713,14 @@ interface OllamaBridge {
     show(name: string): Promise<Record<string, unknown>>;
     catalog(): Promise<Record<string, unknown>>;
     catalogRefresh(): Promise<{ readonly ok: boolean; readonly catalog?: Record<string, unknown> | null; readonly message?: string }>;
+    hardware(): Promise<{ readonly architecture: string | null; readonly totalRamBytes: number | null; readonly freeDiskBytes: number | null; readonly gpuModel: string | null; readonly gpuVramBytes: number | null; readonly gpuDriverSupported: boolean | null; readonly sources: readonly string[] }>;
     runtime(): Promise<Record<string, unknown>>;
     runtimeEnsure(): Promise<Record<string, unknown>>;
     runtimeCancel(): Promise<boolean>;
     runtimeStop(): Promise<boolean>;
     runtimeRestart(): Promise<{ readonly ok: boolean; readonly message?: string }>;
     runtimeProbe(): Promise<{ readonly ok: boolean; readonly message?: string }>;
+    onStreamProgress(listener: (progress: { readonly operationId?: string; readonly record?: Record<string, unknown> }) => void): () => void;
     onRuntimeProgress(listener: (progress: Record<string, unknown>) => void): () => void;
     delete(name: string): Promise<Record<string, unknown>>;
     copy(source: string, destination: string): Promise<Record<string, unknown>>;

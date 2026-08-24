@@ -2357,12 +2357,14 @@ interface WorldlensBridge {
         show(name: string): Promise<unknown>;
         catalog(): Promise<unknown>;
         catalogRefresh(): Promise<unknown>;
+        hardware(): Promise<unknown>;
         runtime(): Promise<unknown>;
         runtimeEnsure(): Promise<unknown>;
         runtimeCancel(): Promise<unknown>;
         runtimeStop(): Promise<unknown>;
         runtimeRestart(): Promise<unknown>;
         runtimeProbe(): Promise<unknown>;
+        onStreamProgress(listener: (progress: unknown) => void): () => void;
         onRuntimeProgress(listener: (progress: unknown) => void): () => void;
         delete(name: string): Promise<unknown>;
         copy(source: string, destination: string): Promise<unknown>;
@@ -4368,12 +4370,14 @@ const bridge: WorldlensBridge = {
         show: (name: string) => ipcRenderer.invoke("ollama:show", name),
         catalog: () => ipcRenderer.invoke("ollama:catalog"),
         catalogRefresh: () => ipcRenderer.invoke("ollama:catalogRefresh"),
+        hardware: () => ipcRenderer.invoke("ollama:hardware"),
         runtime: () => ipcRenderer.invoke("ollama:runtime"),
         runtimeEnsure: () => ipcRenderer.invoke("ollama:runtimeEnsure"),
         runtimeCancel: () => ipcRenderer.invoke("ollama:runtimeCancel"),
         runtimeStop: () => ipcRenderer.invoke("ollama:runtimeStop"),
         runtimeRestart: () => ipcRenderer.invoke("ollama:runtimeRestart"),
         runtimeProbe: () => ipcRenderer.invoke("ollama:runtimeProbe"),
+        onStreamProgress: (listener: (progress: unknown) => void) => { const forward = (_event: IpcRendererEvent, payload: unknown): void => listener(payload); ipcRenderer.on("ollama:streamProgress", forward); return () => ipcRenderer.off("ollama:streamProgress", forward); },
         delete: (name: string) => ipcRenderer.invoke("ollama:delete", name),
         copy: (source: string, destination: string) => ipcRenderer.invoke("ollama:copy", source, destination),
         pull: (name: string, operationId: string) => ipcRenderer.invoke("ollama:pull", name, operationId),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ConverterQueue } from "./queue.js";
@@ -10,12 +10,18 @@ describe("converter queue", () => {
         try {
             const running: string[] = [];
             let peak = 0;
-            const queue = new ConverterQueue({ stateFile: join(dir, "queue.json"), concurrency: 2, run: async (item, signal, report) => { running.push(item.id); peak = Math.max(peak, running.length); report(50, 10); await new Promise((resolve) => setTimeout(resolve, 20)); if (signal.aborted) return; report(100, 20); running.splice(running.indexOf(item.id), 1); } });
+            await writeFile(join(dir, "queue.json.page-99.json"), "stale", "utf8");
+            const queue = new ConverterQueue({ stateFile: join(dir, "queue.json"), concurrency: 2, pageSize: 2, run: async (item, signal, report) => { running.push(item.id); peak = Math.max(peak, running.length); report(50, 10); await new Promise((resolve) => setTimeout(resolve, 20)); if (signal.aborted) return; report(100, 20); running.splice(running.indexOf(item.id), 1); } });
             await queue.enqueue(Array.from({ length: 12 }, (_, index) => ({ id: `i${index}`, source: `s${index}`, target: `t${index}`, adapterId: "text", bytes: null })));
             await queue.cancel("i11");
             await new Promise((resolve) => setTimeout(resolve, 800));
             expect(peak).toBeLessThanOrEqual(2);
-            expect(JSON.parse(await readFile(join(dir, "queue.json"), "utf8")).version).toBe(1);
+            const index = JSON.parse(await readFile(join(dir, "queue.json"), "utf8"));
+            expect(index.version).toBe(1);
+            expect(index.items).toBeUndefined();
+            expect(index.pageCount).toBeGreaterThan(0);
+            expect((await readdir(dir)).some((name) => name.includes("queue.json.page-"))).toBe(true);
+            expect((await readdir(dir)).some((name) => name === "queue.json.page-99.json")).toBe(false);
             expect(queue.snapshot().items.find((item) => item.id === "i11")?.state).toBe("cancelled");
         } finally { await rm(dir, { recursive: true, force: true }); }
     });

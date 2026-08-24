@@ -55,6 +55,21 @@ function requestedPages(document: PDFDocument, pages: readonly number[] | undefi
     return selected;
 }
 
+function validateRequestShape(request: ConverterOperationRequest): void {
+    const operations: readonly PdfOperation[] = ["inspect", "split", "merge", "extract", "reorder", "rotate", "metadata"];
+    if (!operations.includes(request.operation)) throw new Error("The PDF operation is not supported.");
+    if (!Array.isArray(request.inputs) || request.inputs.length === 0 || request.inputs.length > MAX_PDF_INPUTS || request.inputs.some((input) => typeof input !== "string" || input.trim() === "" || input.length > 4096)) throw new Error("Choose between one and 32 valid PDF input paths.");
+    if (typeof request.output !== "string" || request.output.trim() === "" || request.output.length > 4096) throw new Error("Choose one valid PDF output path.");
+    if (typeof request.overwrite !== "boolean") throw new Error("The overwrite choice is invalid.");
+    if (request.pages !== undefined && (!Array.isArray(request.pages) || request.pages.length > 1024 || request.pages.some((page) => !Number.isInteger(page) || page < 0))) throw new Error("PDF page selections must be bounded non-negative integers.");
+    if (request.rotation !== undefined && ![0, 90, 180, 270].includes(request.rotation)) throw new Error("PDF rotation must be 0, 90, 180, or 270 degrees.");
+    if (request.outputs !== undefined && (!Array.isArray(request.outputs) || request.outputs.length > 1024 || request.outputs.some((output) => typeof output !== "string" || output.trim() === "" || output.length > 4096))) throw new Error("Split output paths are invalid or exceed the safety limit.");
+    if (request.metadata !== undefined) {
+        const allowed = new Set(["title", "author", "subject", "keywords", "creator", "producer"]);
+        for (const [key, value] of Object.entries(request.metadata)) if (!allowed.has(key) || typeof value !== "string" || value.length > 4096) throw new Error(`PDF metadata field ${key} is invalid or too large.`);
+    }
+}
+
 async function exists(path: string): Promise<boolean> { return stat(path).then(() => true).catch(() => false); }
 
 async function writeValidatedPdf(document: PDFDocument, outputPath: string, request: ConverterOperationRequest, expectedPages: number, expectedRotations: readonly number[], expectedMetadata: Readonly<Record<string, string>>): Promise<void> {
@@ -73,7 +88,7 @@ async function writeValidatedPdf(document: PDFDocument, outputPath: string, requ
         const actualRotations = rotationsOf(reopened);
         if (actualRotations.some((rotation, index) => rotation !== expectedRotations[index])) throw new Error("The written PDF failed page-rotation validation.");
         const actualMetadata = metadataOf(reopened);
-        for (const key of ["title", "author", "subject", "keywords"] as const) if (actualMetadata[key] !== (expectedMetadata[key] ?? "")) throw new Error(`The written PDF failed ${key} metadata validation.`);
+        for (const key of ["title", "author", "subject", "keywords", "creator", "producer"] as const) if (actualMetadata[key] !== (expectedMetadata[key] ?? "")) throw new Error(`The written PDF failed ${key} metadata validation.`);
         await replaceFileWithRetry(temp, target, rename);
     } catch (error) { await rm(temp, { force: true }).catch(() => undefined); throw error; }
     finally { await rm(temp, { force: true }).catch(() => undefined); }
@@ -101,6 +116,7 @@ async function readBoundedPdfInputs(inputs: readonly string[], signal?: AbortSig
 /** Bundled PDF operations have bounded preflight, atomic sibling writes, confirmation, and independent reopen validation. */
 export async function runPdfOperation(request: ConverterOperationRequest): Promise<ConverterOperationResult> {
     try {
+        validateRequestShape(request);
         if (request.output.trim() === "") return failed("Choose an output path.");
         const buffers = await readBoundedPdfInputs(request.inputs, request.signal);
         buffers.forEach((data, index) => assertPdf(data, request.inputs[index]!));
@@ -117,14 +133,15 @@ export async function runPdfOperation(request: ConverterOperationRequest): Promi
         if (request.operation === "merge") { let offset = 0; for (const document of documents) { await addFrom(document, document.getPages().map((_page, index) => index), offset); offset += document.getPageCount(); } }
         else await addFrom(first, requestedPages(first, request.pages), 0);
         if (request.operation === "rotate") outputDocument.getPages().forEach((page) => page.setRotation(degrees(request.rotation ?? 90)));
-        if (request.operation === "metadata") { const values = request.metadata ?? {}; if (values.title !== undefined) outputDocument.setTitle(values.title); if (values.author !== undefined) outputDocument.setAuthor(values.author); if (values.subject !== undefined) outputDocument.setSubject(values.subject); if (values.keywords !== undefined) outputDocument.setKeywords(values.keywords.split(",").map((value) => value.trim()).filter(Boolean)); }
+        if (request.operation === "metadata") { const values = request.metadata ?? {}; if (values.title !== undefined) outputDocument.setTitle(values.title); if (values.author !== undefined) outputDocument.setAuthor(values.author); if (values.subject !== undefined) outputDocument.setSubject(values.subject); if (values.keywords !== undefined) outputDocument.setKeywords(values.keywords.split(",").map((value) => value.trim()).filter(Boolean)); if (values.creator !== undefined) outputDocument.setCreator(values.creator); if (values.producer !== undefined) outputDocument.setProducer(values.producer); }
         const expectedMetadata = metadataOf(outputDocument);
         const expectedRotations = rotationsOf(outputDocument);
         const outputPaths: string[] = [];
         if (request.operation === "split" && request.outputs !== undefined) {
             const selected = requestedPages(first, request.pages);
             if (request.outputs.length !== selected.length) throw new Error("A split operation needs exactly one output path per selected page.");
-            for (let index = 0; index < selected.length; index += 1) { const one = await PDFDocument.create(); const [page] = await one.copyPages(first, [selected[index]!]); one.addPage(page!); await writeValidatedPdf(one, request.outputs[index]!, request, 1, [0], metadataOf(one)); outputPaths.push(resolve(request.outputs[index]!)); }
+            const sourceRotations = rotationsOf(first);
+            for (let index = 0; index < selected.length; index += 1) { const one = await PDFDocument.create(); const [page] = await one.copyPages(first, [selected[index]!]); one.addPage(page!); await writeValidatedPdf(one, request.outputs[index]!, request, 1, [sourceRotations[selected[index]!] ?? 0], metadataOf(one)); outputPaths.push(resolve(request.outputs[index]!)); }
         } else { await writeValidatedPdf(outputDocument, request.output, request, outputDocument.getPageCount(), expectedRotations, expectedMetadata); outputPaths.push(resolve(request.output)); }
         return { ok: true, output: outputPaths[0] ?? null, outputs: outputPaths, pages: outputDocument.getPageCount(), pageOrder, rotations: expectedRotations, metadata: expectedMetadata, message: `Wrote and reopened ${request.operation} output with ${outputDocument.getPageCount()} page${outputDocument.getPageCount() === 1 ? "" : "s"}.` };
     } catch (error) { return failed(error instanceof Error ? error.message : String(error)); }

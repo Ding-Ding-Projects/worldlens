@@ -1,5 +1,5 @@
-import { mkdir, readFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { mkdir, readdir, readFile, rm } from "node:fs/promises";
+import { basename, dirname } from "node:path";
 import { atomicWriteTextFile } from "../storage/atomicReplace.js";
 
 export type ConverterItemState = "queued" | "running" | "paused" | "completed" | "cancelled" | "failed";
@@ -29,6 +29,8 @@ export interface ConverterQueueRecord {
     readonly paused: boolean;
     readonly corruption?: string;
     readonly history?: readonly ConverterQueueOutcome[];
+    readonly pageSize?: number;
+    readonly pageCount?: number;
 }
 
 export interface ConverterQueueOptions {
@@ -58,15 +60,26 @@ export class ConverterQueue {
 
     async load(): Promise<ConverterQueueRecord> {
         try {
-            const parsed = JSON.parse(await readFile(this.input.stateFile, "utf8")) as Partial<ConverterQueueRecord>;
-            if (parsed.version !== 1 || !Array.isArray(parsed.items)) throw new Error("unsupported queue schema");
-            const items = parsed.items.filter((item): item is ConverterQueueItem => typeof item?.id === "string" && typeof item.source === "string" && typeof item.target === "string");
-            if (items.length !== parsed.items.length) throw new Error("one or more queue records are malformed");
-            this.record = { version: 1, paused: parsed.paused === true, items: items.map((item) => item.state === "running" ? { ...item, state: "queued" as const, message: "Recovered after an interrupted run." } : item), history: Array.isArray(parsed.history) ? parsed.history.slice(-1000) as ConverterQueueOutcome[] : [] };
+            const parsed = JSON.parse(await readFile(this.input.stateFile, "utf8")) as Partial<ConverterQueueRecord> & { readonly pageCount?: number; readonly pageSize?: number };
+            if (parsed.version !== 1) throw new Error("unsupported queue schema");
+            let items: ConverterQueueItem[] = [];
+            if (Array.isArray(parsed.items)) items = parsed.items as ConverterQueueItem[];
+            else {
+                const pageCount = parsed.pageCount ?? 0;
+                if (!Number.isInteger(pageCount) || pageCount < 0 || pageCount > 1_000_000) throw new Error("invalid queue page count");
+                for (let page = 1; page <= pageCount; page += 1) {
+                    const pageRecord = JSON.parse(await readFile(`${this.input.stateFile}.page-${page}.json`, "utf8")) as { readonly version?: number; readonly page?: number; readonly items?: readonly ConverterQueueItem[] };
+                    if (pageRecord.version !== 1 || pageRecord.page !== page || !Array.isArray(pageRecord.items)) throw new Error(`queue page ${page} is malformed`);
+                    items.push(...pageRecord.items);
+                }
+            }
+            const validItems = items.filter((item): item is ConverterQueueItem => typeof item?.id === "string" && typeof item.source === "string" && typeof item.target === "string" && typeof item.adapterId === "string");
+            if (validItems.length !== items.length) throw new Error("one or more queue records are malformed");
+            this.record = { version: 1, paused: parsed.paused === true, items: validItems.map((item) => item.state === "running" ? { ...item, state: "queued" as const, message: "Recovered after an interrupted run." } : item), history: Array.isArray(parsed.history) ? parsed.history.slice(-1000) as ConverterQueueOutcome[] : [], pageSize: this.options.pageSize, pageCount: Math.ceil(validItems.length / this.options.pageSize) };
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            if (message.includes("ENOENT")) this.record = { version: 1, items: [], paused: false, history: [] };
-            else this.record = { version: 1, items: [], paused: true, history: [], corruption: `Queue state could not be loaded: ${message}. The original file was kept for recovery.` };
+            if (message.includes("ENOENT")) this.record = { version: 1, items: [], paused: false, history: [], pageSize: this.options.pageSize, pageCount: 0 };
+            else this.record = { version: 1, items: [], paused: true, history: [], pageSize: this.options.pageSize, pageCount: 0, corruption: `Queue state could not be loaded: ${message}. The original file was kept for recovery.` };
         }
         return this.record;
     }
@@ -117,11 +130,19 @@ export class ConverterQueue {
 
     private async persist(): Promise<void> {
         await mkdir(dirname(this.input.stateFile), { recursive: true });
-        await atomicWriteTextFile(this.input.stateFile, JSON.stringify(this.record, null, 2));
         const pages = Math.ceil(this.record.items.length / this.options.pageSize);
+        this.record = { ...this.record, pageSize: this.options.pageSize, pageCount: pages };
+        const index = { version: 1, paused: this.record.paused, history: (this.record.history ?? []).slice(-1000), pageSize: this.options.pageSize, pageCount: pages };
+        await atomicWriteTextFile(this.input.stateFile, JSON.stringify(index, null, 2));
         for (let page = 0; page < pages; page += 1) {
             const items = this.record.items.slice(page * this.options.pageSize, (page + 1) * this.options.pageSize);
             await atomicWriteTextFile(`${this.input.stateFile}.page-${page + 1}.json`, JSON.stringify({ version: 1, page: page + 1, items }, null, 2));
+        }
+        const directory = dirname(this.input.stateFile);
+        const prefix = `${basename(this.input.stateFile)}.page-`;
+        for (const name of await readdir(directory)) {
+            const match = name.startsWith(prefix) ? /\.page-(\d+)\.json$/.exec(name) : null;
+            if (match && Number(match[1]) > pages) await rm(`${directory}/${name}`, { force: true });
         }
     }
 
