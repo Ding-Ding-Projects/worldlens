@@ -51,12 +51,14 @@ import {
     type AppearanceStateName,
     type AppearanceStatePropertyGroup,
     isRecordEmpty,
+    resolveStateAppearance,
 } from "./appearanceRecord.js";
 import {
     appearancePropertyLockTarget,
     legacyAppearancePropertyLockPath,
 } from "./appearanceLocks.js";
 import { useLockStore } from "../locks/useLocks.js";
+import type { LockStore } from "../locks/lockStore.js";
 import {
     EDITOR_CHROME_TARGETS,
     readAppearanceState,
@@ -94,7 +96,7 @@ export function appearanceState(): Ref<AppearanceState> {
  * writes to storage and exactly one thing to look at when a change fails to survive a
  * restart.
  */
-export function commitAppearance(next: AppearanceState): void {
+export function commitAppearance(next: AppearanceState, locks?: LockStore): void {
     state.value = next;
     writeAppearanceState(next);
 }
@@ -181,6 +183,7 @@ export interface AppearanceTargetBinding {
     setInherit: (presetId: string) => void;
     resetElement: () => void;
     resetEverything: () => void;
+    commitState: (next: AppearanceState) => void;
     setState: (state: AppearanceStateName, layer: AppearanceStateLayer) => void;
     resetStateProperty: (
         state: AppearanceStateName,
@@ -220,7 +223,73 @@ export function useAppearanceTarget(
     );
 
     function update(next: AppearanceRecord): void {
-        commitAppearance(withRecord(state.value, targetId.value, next));
+        const nextState = withRecord(state.value, targetId.value, next);
+        commitAppearance(reconcileLockedState(state.value, nextState), locks);
+    }
+
+    function lockedForState(
+        elementId: string,
+        property: string,
+        stateName?: AppearanceStateName,
+    ): boolean {
+        return lockedFor(elementId, property, stateName);
+    }
+
+    function reconcileLockedState(
+        previous: AppearanceState,
+        next: AppearanceState,
+    ): AppearanceState {
+        const elements: Record<string, AppearanceRecord> = { ...next.elements };
+        const ids = new Set([...Object.keys(previous.elements), ...Object.keys(next.elements)]);
+        for (const elementId of ids) {
+            const oldRecord = recordFor(previous, elementId);
+            const nextRecord = elements[elementId] ?? emptyRecord();
+            const oldResolved = resolveTarget(previous, elementId);
+            const kept: AppearanceRecord = {
+                ...nextRecord,
+                typography: { ...nextRecord.typography },
+                surface: { ...nextRecord.surface },
+                states: { ...nextRecord.states },
+            };
+            for (const property of TYPOGRAPHY_PROPERTIES) {
+                if (
+                    !lockedForState(elementId, property) ||
+                    oldResolved.typography[property] === undefined
+                )
+                    continue;
+                (kept.typography as Record<string, unknown>)[property] =
+                    oldResolved.typography[property];
+            }
+            for (const property of SURFACE_PROPERTIES) {
+                if (
+                    !lockedForState(elementId, property) ||
+                    oldResolved.surface[property] === undefined
+                )
+                    continue;
+                (kept.surface as Record<string, unknown>)[property] = oldResolved.surface[property];
+            }
+            for (const stateName of APPEARANCE_STATES) {
+                const oldState = resolveStateAppearance(oldResolved, stateName);
+                const nextLayer = kept.states[stateName];
+                const nextState = { ...(nextLayer ?? {}) };
+                for (const property of TYPOGRAPHY_PROPERTIES) {
+                    if (!lockedForState(elementId, property, stateName)) continue;
+                    const value = oldState.typography[property];
+                    if (value !== undefined)
+                        nextState.typography = { ...nextState.typography, [property]: value };
+                }
+                for (const property of SURFACE_PROPERTIES) {
+                    if (!lockedForState(elementId, property, stateName)) continue;
+                    const value = oldState.surface[property];
+                    if (value !== undefined)
+                        nextState.surface = { ...nextState.surface, [property]: value };
+                }
+                if (Object.keys(nextState).length > 0) kept.states[stateName] = nextState;
+            }
+            if (isRecordEmpty(kept)) delete elements[elementId];
+            else elements[elementId] = kept;
+        }
+        return { ...next, elements };
     }
 
     function lockedFor(
@@ -338,7 +407,10 @@ export function useAppearanceTarget(
                 const kept = preserveLockedRecord(elementId, source);
                 if (!isRecordEmpty(kept)) elements[elementId] = kept;
             }
-            commitAppearance({ ...state.value, elements, activePreset: "" });
+            commitAppearance({ ...state.value, elements, activePreset: "" }, locks);
+        },
+        commitState(next) {
+            commitAppearance(reconcileLockedState(state.value, next), locks);
         },
         setState(stateName, layer) {
             const previous = record.value.states[stateName] ?? {};

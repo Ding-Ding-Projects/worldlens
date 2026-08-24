@@ -35,6 +35,7 @@ import {
     appearanceStyle,
     SURFACE_PROPERTIES,
     type BorderStyle,
+    type SurfaceSpec,
     type SurfacePropertyId,
 } from "./appearanceRecord.js";
 import {
@@ -185,12 +186,23 @@ const resolved = computed(() =>
         editingState.value === "base" ? undefined : editingState.value,
     ),
 );
+const selectedRecord = computed(() =>
+    editingState.value === "base"
+        ? target.record.value
+        : (target.record.value.states[editingState.value] ?? {}),
+);
+const selectedTypographyOverrides = computed<Partial<TypographySpec>>(
+    () => selectedRecord.value.typography ?? {},
+);
+const selectedSurfaceOverrides = computed<Partial<SurfaceSpec>>(
+    () => selectedRecord.value.surface ?? {},
+);
 const style = computed(() =>
     appearanceStyle(
         resolved.value,
         typographyCapabilities,
         fonts.value,
-        editingState.value === "base" ? undefined : editingState.value,
+        undefined,
         state.value.rainbowSpeed,
     ),
 );
@@ -394,11 +406,11 @@ function savePreset(): void {
 }
 
 function deletePreset(id: string): void {
-    commitAppearance(withoutPreset(state.value, id));
+    target.commitState(withoutPreset(state.value, id));
 }
 
 function setActivePreset(id: string): void {
-    commitAppearance({ ...state.value, activePreset: id });
+    target.commitState({ ...state.value, activePreset: id });
 }
 
 /**
@@ -434,7 +446,7 @@ async function onFileChosen(event: Event): Promise<void> {
         return;
     }
 
-    commitAppearance(result.state);
+    target.commitState(result.state);
     importError.value = "";
     importMessage.value =
         result.report.preservedKeys.length === 0
@@ -523,7 +535,7 @@ async function onFileChosen(event: Event): Promise<void> {
             <v-window-item value="typography">
                 <TypographyEditor
                     :spec="resolved.typography"
-                    :overrides="target.record.value.typography"
+                    :overrides="selectedTypographyOverrides"
                     :capabilities="typographyCapabilities"
                     :fonts="fonts"
                     :notes="style.notes"
@@ -747,7 +759,7 @@ async function onFileChosen(event: Event): Promise<void> {
                         </template>
 
                         <v-btn
-                            v-if="id in target.record.value.surface"
+                            v-if="id in selectedSurfaceOverrides"
                             :icon="mdiRestore"
                             size="x-small"
                             variant="text"

@@ -249,6 +249,11 @@ function findEntry(catalog: readonly FontFamily[], family: string): FontFamily |
     return catalog.find((entry) => entry.family.toLowerCase() === wanted);
 }
 
+function findIdentity(catalog: readonly FontFamily[], stableId: string): FontFamily | undefined {
+    if (stableId === "") return undefined;
+    return catalog.find((entry) => entry.stableId === stableId);
+}
+
 /**
  * Builds the full CSS `font-family` value for a chosen family.
  *
@@ -264,13 +269,15 @@ function findEntry(catalog: readonly FontFamily[], family: string): FontFamily |
 export function fontFamilyStack(
     family: string,
     catalog: readonly FontFamily[] = BUNDLED_FONTS,
+    stableId = "",
 ): string {
-    const entry = findEntry(catalog, family);
+    const entry = findIdentity(catalog, stableId) ?? findEntry(catalog, family);
+    const resolvedFamily = entry?.family ?? family;
     const generic: FontGeneric = entry?.generic ?? "sans-serif";
 
     const seen = new Set<string>();
     const parts: string[] = [];
-    for (const candidate of [family, ...LATIN_FALLBACKS[generic], ...CJK_FALLBACK_STACK]) {
+    for (const candidate of [resolvedFamily, ...LATIN_FALLBACKS[generic], ...CJK_FALLBACK_STACK]) {
         const key = candidate.toLowerCase();
         if (candidate === "" || seen.has(key)) continue;
         seen.add(key);

@@ -131,6 +131,44 @@ describe("turning an appearance into CSS", () => {
         expect(resolveRecords(record).states.hover?.preserved).toEqual({ future: "kept" });
     });
 
+    it("reports diagnostics from the selected state rather than the base layer", () => {
+        const resolved = resolveRecords(
+            record({
+                typography: { textColor: "red" },
+                states: { hover: { typography: { textColor: "not-a-colour" } } },
+            }),
+        );
+        const base = appearanceStyle(resolved, CAPABILITIES);
+        const hover = appearanceStyle(resolved, CAPABILITIES, undefined, "hover");
+        expect(base.unreadableColors).toEqual([]);
+        expect(hover.unreadableColors[0]?.authored).toBe("not-a-colour");
+    });
+
+    it("uses the stable font identity during actual style resolution and falls back honestly", () => {
+        const catalog = [
+            {
+                family: "Localized Face",
+                stableId: "face-regular",
+                source: "installed" as const,
+                sample: "x",
+                cjk: false,
+            },
+        ];
+        const resolved = resolveRecords(
+            record({ typography: { fontFamily: "Missing display", fontIdentity: "face-regular" } }),
+        );
+        const matched = appearanceStyle(resolved, CAPABILITIES, catalog);
+        const missing = appearanceStyle(
+            resolveRecords(
+                record({ typography: { fontFamily: "Fallback Face", fontIdentity: "missing" } }),
+            ),
+            CAPABILITIES,
+            catalog,
+        );
+        expect(matched.style["font-family"]).toContain('"Localized Face"');
+        expect(missing.style["font-family"]).toContain('"Fallback Face"');
+    });
+
     it("emits the typography and the surface together", () => {
         const style = appearanceStyle(
             resolveRecords(

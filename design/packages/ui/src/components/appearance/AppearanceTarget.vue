@@ -544,6 +544,7 @@ function onKeydown(event: KeyboardEvent): void {
         :data-appearance-rainbow="
             target.style.value.style['--appearance-rainbow'] === 'true' ? 'true' : undefined
         "
+        :data-appearance-state="activeState ?? undefined"
         :aria-haspopup="haspopup"
         :aria-expanded="menuOpen || editorOpen ? 'true' : 'false'"
         :aria-controls="menuOpen ? menuId : editorOpen ? editorId : undefined"

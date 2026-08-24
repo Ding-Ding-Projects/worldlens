@@ -581,7 +581,7 @@ export function appearanceStyle(
         },
     };
 
-    const stack = fontFamilyStack(typography.fontFamily, catalog);
+    const stack = fontFamilyStack(typography.fontFamily, catalog, typography.fontIdentity);
     const text = typographyCss(typography, capabilities, stack);
 
     const style = { ...text.style, ...surfaceCss(stateSurface, unreadableColors, rainbowSpeed) };

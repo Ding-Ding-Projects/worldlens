@@ -1184,17 +1184,21 @@ describe("host pseudo-state and rainbow rendering", () => {
         element.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
         await nextTick();
         expect(element.style.borderRadius).toBe("1px");
+        expect(element.dataset.appearanceState).toBe("hover");
         element.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
         await nextTick();
         expect(element.style.borderRadius).toBe("2px");
+        expect(element.dataset.appearanceState).toBe("focus");
         element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
         await nextTick();
         expect(element.style.borderRadius).toBe("3px");
+        expect(element.dataset.appearanceState).toBe("pressed");
         element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
         await nextTick();
         element.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
         await nextTick();
         expect(element.style.borderRadius).toBe("2px");
+        expect(element.dataset.appearanceState).toBe("focus");
         const explicit = mount(AppearanceTarget, {
             attachTo: document.body,
             global: { plugins: [vuetify, i18n] },
@@ -1203,6 +1207,7 @@ describe("host pseudo-state and rainbow rendering", () => {
         });
         await nextTick();
         expect(explicit.element.style.borderRadius).toBe("4px");
+        expect((explicit.element as HTMLElement).dataset.appearanceState).toBe("selected");
         explicit.unmount();
     });
 });

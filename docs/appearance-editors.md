@@ -110,6 +110,11 @@ stack it builds ends in a generic, and CJK-capable faces are appended, because t
 contains a Chinese, Japanese or Korean character a Latin-only face has nothing to draw with and
 the browser falls back to whatever it likes.
 
+When the platform reports a stable font identity, the record stores it beside the display family
+and uses it to resolve the actual rendered face. If that identity is missing on a later machine,
+resolution falls back to the saved display family and then the documented generic and CJK fallback
+stack.
+
 ### The editor edits itself
 
 The editor's root carries the resolved appearance of the `appearance.editor` target, so pointing
@@ -244,7 +249,10 @@ history. Unlocking one property therefore cannot unlock a different property.
 The editor exposes a lock or unlock action beside each base and state property. The action opens
 the real lock wizard, uses the stable property path, and routes a locked edit through the real
 unlock prompt. Setters enforce the same lock, so keyboard events, palette actions, imported state,
-and direct component calls cannot change a locked property behind the editor's back.
+and direct component calls cannot change a locked property behind the editor's back. Active-preset
+changes, preset removal, an element's inherited-preset change, theme import, and every reset route
+reconcile against the current lock list. A locked effective value is materialized into the element
+record before the old source disappears, so a preset cannot silently change a locked property.
 
 The editor's own chrome registers dynamically while mounted, so it appears in the target list only
 when it exists and its own **Edit appearance...** route can return focus to the originating

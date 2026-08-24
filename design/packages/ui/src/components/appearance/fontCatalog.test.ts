@@ -133,6 +133,33 @@ describe("building a font-family stack", () => {
         ];
         expect(fontFamilyStack("Fira Code", catalog).endsWith(", monospace")).toBe(true);
     });
+
+    it("consumes stable identity when it is present and falls back to the display family when missing", () => {
+        const catalog: FontFamily[] = [
+            {
+                family: "Localized Face",
+                stableId: "face-regular",
+                source: "installed",
+                sample: "x",
+                cjk: false,
+            },
+            {
+                family: "Fallback Face",
+                stableId: "face-fallback",
+                source: "installed",
+                sample: "x",
+                cjk: false,
+            },
+        ];
+        expect(
+            fontFamilyStack("Missing display name", catalog, "face-regular").startsWith(
+                '"Localized Face"',
+            ),
+        ).toBe(true);
+        expect(
+            fontFamilyStack("Fallback Face", catalog, "missing-id").startsWith('"Fallback Face"'),
+        ).toBe(true);
+    });
 });
 
 describe("merging enumerated families into the catalog", () => {

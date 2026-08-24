@@ -435,7 +435,7 @@ function number(value: string, fallback: number): number {
                         variant="outlined"
                         size="small"
                         class="mb-type-editor__fontButton"
-                        :style="{ fontFamily: fontFamilyStack(spec.fontFamily, fonts) }"
+                        :style="{ fontFamily: fontFamilyStack(spec.fontFamily, fonts, spec.fontIdentity) }"
                         :aria-label="
                             t(
                                 'appearance.type.fontOpen',
@@ -508,7 +508,7 @@ function number(value: string, fallback: number): number {
                                                     font.family === spec.fontFamily,
                                             }"
                                             :style="{
-                                                fontFamily: fontFamilyStack(font.family, fonts),
+                                                fontFamily: fontFamilyStack(font.family, fonts, font.stableId),
                                             }"
                                             :aria-current="
                                                 font.family === spec.fontFamily ? 'true' : undefined

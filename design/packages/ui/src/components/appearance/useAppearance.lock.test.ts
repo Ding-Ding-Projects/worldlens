@@ -7,7 +7,13 @@ import { LOCK_STORE } from "../locks/useLocks.js";
 import { createLockStore } from "../locks/lockStore.js";
 import { createLock, type LockRecord } from "../locks/lockModel.js";
 import { emptyRecord } from "./appearanceRecord.js";
-import { emptyState } from "./appearanceStore.js";
+import {
+    emptyState,
+    importTheme,
+    withoutPreset,
+    withPreset,
+    withRecord,
+} from "./appearanceStore.js";
 import { appearancePropertyLockTarget } from "./appearanceLocks.js";
 import { appearanceState, commitAppearance, useAppearanceTarget } from "./useAppearance.js";
 
@@ -108,5 +114,56 @@ describe("appearance setters and real lock store", () => {
         await nextTick();
         expect(appearanceState().value.elements.locked?.surface.gap).toBe(4);
         expect(appearanceState().value.elements.global?.surface.gap).toBe(2);
+    });
+
+    it("reconciles locked values through preset, inherit, removal, and theme import changes", async () => {
+        const gapTarget = appearancePropertyLockTarget("locked", "gap");
+        const made = await createLock(
+            gapTarget,
+            { method: "password", password: "preset-test" },
+            { id: "preset-lock", iterations: 1, now: "2026-08-24T00:00:00.000Z" },
+        );
+        expect(made.ok).toBe(true);
+        if (!made.ok) return;
+        const store = createLockStore({
+            host: {
+                name: "preset test host",
+                load: async () => [made.record],
+                save: async () => {},
+                vault: null,
+                dataFolder: "C:/test-data",
+            },
+        });
+        await store.load();
+        let state = withRecord(emptyState(), "locked", { ...emptyRecord(), surface: { gap: 4 } });
+        state = withPreset(state, "user.demo", "Demo", { ...emptyRecord(), surface: { gap: 99 } });
+        commitAppearance(state);
+        const Test = defineComponent({
+            setup(_, { expose }) {
+                const target = useAppearanceTarget("locked");
+                expose({ target });
+                return () => h("div");
+            },
+        });
+        const view = mount(Test, { global: { provide: { [LOCK_STORE as symbol]: store } } });
+        const target = (view.vm as unknown as { target: ReturnType<typeof useAppearanceTarget> })
+            .target;
+
+        target.commitState({ ...appearanceState().value, activePreset: "builtin.largeText" });
+        expect(appearanceState().value.elements.locked?.surface.gap).toBe(4);
+        target.commitState(withoutPreset(appearanceState().value, "user.demo"));
+        expect(appearanceState().value.elements.locked?.surface.gap).toBe(4);
+        target.setInherit("builtin.highContrast");
+        expect(appearanceState().value.elements.locked?.surface.gap).toBe(4);
+        const imported = importTheme(
+            JSON.stringify({
+                format: "worldlens-appearance",
+                elements: { locked: { surface: { gap: 1 } } },
+            }),
+        );
+        expect(imported.ok).toBe(true);
+        if (!imported.ok) return;
+        target.commitState(imported.state);
+        expect(appearanceState().value.elements.locked?.surface.gap).toBe(4);
     });
 });
