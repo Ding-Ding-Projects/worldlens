@@ -40,7 +40,7 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
-- Unify BlueMap CI artifact staging with the packager manifest contract (pending this task commit)
+- Unify BlueMap CI artifact staging with the packager manifest contract - [`fc1c606770`](https://github.com/Ding-Ding-Projects/worldlens/commit/fc1c60677081a0e31cd4c7be3ae990941afaba3b)
 
 - Merge current main before compatibility delivery - [`e8bb0cb431`](https://github.com/Ding-Ding-Projects/worldlens/commit/e8bb0cb431363f6b68ac311c474bbd8347cc8d91) _(summary of 2 commits, also listed here)_
 - Complete the two-phase public render dispatch - [`8972a84f70`](https://github.com/Ding-Ding-Projects/worldlens/commit/8972a84f70d0fd7e8f02ff6b7eb90f243149e250)
