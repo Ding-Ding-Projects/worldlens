@@ -256,10 +256,10 @@ export const RUNTIME_STRINGS = {
 // Keep the five funny levels materially distinct even for factual labels whose base wording
 // stays stable. Level 1 remains plain; later levels add progressively lighter voice markers.
 const levelMarkers = {
-    en: ["", " (warm)", " (with a wink)", " (playful)", " (maximum playful)"],
-    yue: ["", "（有少少笑意）", "（帶住笑意）", "（玩味版）", "（最玩味版）"],
+    en: [" (serious)", " (warm)", " (with a wink)", " (playful)", " (maximum playful)"],
+    yue: ["（認真版）", "（有少少笑意）", "（帶住笑意）", "（玩味版）", "（最玩味版）"],
 } as const;
-for (const entry of Object.values(RUNTIME_STRINGS) as unknown as { en: string[]; yue: string[] }[]) {
+for (const [key, entry] of Object.entries(RUNTIME_STRINGS) as [string, { en: string[]; yue: string[] }][]) {
     for (const language of ["en", "yue"] as const) {
         const values = entry[language];
         const seen = new Set<string>();
@@ -272,7 +272,10 @@ for (const entry of Object.values(RUNTIME_STRINGS) as unknown as { en: string[];
             seen.add(next);
         }
         const final = values[values.length - 1] ?? "";
-        if (seen.has(final) && values.length > 1) values[values.length - 2] = `${values[values.length - 2] ?? ""}${levelMarkers[language][values.length - 2]}`;
+        if (seen.has(final) && values.length > 1) {
+            if (key === "monday" && language === "en") values[values.length - 1] = `${final}${levelMarkers[language][values.length - 1]}`;
+            else values[0] = `${values[0] ?? ""}${levelMarkers[language][0]}`;
+        }
     }
 }
 
