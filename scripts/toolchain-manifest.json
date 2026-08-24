@@ -1,5 +1,13 @@
 {
   "schemaVersion": 1,
+  "pnpm": {
+    "version": "10.33.0",
+    "tarball": "https://registry.npmjs.org/pnpm/-/pnpm-10.33.0.tgz",
+    "sha256": "bfcc1bcbad279b13a516c446a75b3c58b6904b45d57a1951411015e50b751a80",
+    "shasum": "46a0bef28aad690765997ab6da6d5475bdd4148e",
+    "integrity": "sha512-EFaLtKavtYyes2MNqQzJUWQXq+vT+rvmc58K55VyjaFJHp21pUTHatjrdXD1xLs9bGN7LLQb/c20f6gjyGSTGQ==",
+    "size": 4533784
+  },
   "winget": {
     "node": { "id": "OpenJS.NodeJS.LTS", "version": "24.19.0" },
     "git": { "id": "Git.Git", "version": "2.55.0.3" },

@@ -99,9 +99,9 @@ echo.
 
 rem --- Fresh-checkout bootstrap and workspace build --------------------------
 echo [1/9] Bootstrap dependencies and build the workspace
+set "WORLDLENS_DEPS_HANDOFF_FILE=%TEMP%\worldlens-deps-handoff-%RANDOM%-%RANDOM%.json"
 call "%ROOT%download-dependencies.bat" --silent
 if errorlevel 1 goto :workspace_failed
-set "WORLDLENS_DEPS_READY=1"
 call "%ROOT%build.bat" /s
 if errorlevel 1 goto :workspace_failed
 
@@ -128,12 +128,7 @@ if errorlevel 1 goto :runtime_handoff_failed
 java -version >nul 2>&1
 if errorlevel 1 goto :runtime_handoff_failed
 
-set "NPM_CLI="
-for /f "tokens=* usebackq" %%p in (`node -e "const fs=require('node:fs'),path=require('node:path'),d=path.dirname(process.execPath);const p=[path.join(d,'node_modules','npm','bin','npm-cli.js'),path.join(d,'..','lib','node_modules','npm','bin','npm-cli.js'),path.join(d,'..','share','node_modules','npm','bin','npm-cli.js')].find(fs.existsSync);if(p)process.stdout.write(p)" 2^>nul`) do set "NPM_CLI=%%p"
-if not defined NPM_CLI goto :runtime_handoff_failed
-set "PNPM_VERSION="
-for /f "tokens=* usebackq" %%v in (`node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('design/package.json','utf8')).packageManager;if(!/^pnpm@[^\s]+$/.test(p))process.exit(1);process.stdout.write(p.slice(5))" 2^>nul`) do set "PNPM_VERSION=%%v"
-if not defined PNPM_VERSION goto :runtime_handoff_failed
+if not defined WORLDLENS_PNPM_CLI goto :runtime_handoff_failed
 
 rem --- Exact source identity -------------------------------------------------
 echo.
@@ -222,7 +217,7 @@ set "STAMP_RESULT=%ERRORLEVEL%"
 if not "%STAMP_RESULT%"=="0" goto :stamp_failed_restore
 
 pushd "%APPDIR%" >nul || goto :package_directory_failed_restore
-node "%NPM_CLI%" exec --yes --registry=https://registry.npmjs.org/ --package=pnpm@%PNPM_VERSION% -- pnpm run make
+node "%WORLDLENS_PNPM_CLI%" run make
 set "MAKE_RESULT=%ERRORLEVEL%"
 popd >nul
 
@@ -324,6 +319,7 @@ echo       restored package.json byte for byte
 exit /b 0
 
 :cleanup_temporary
+if exist "%WORLDLENS_DEPS_HANDOFF_FILE%" del /q "%WORLDLENS_DEPS_HANDOFF_FILE%" >nul 2>&1
 if exist "%STATE_FILE%" del /q "%STATE_FILE%" >nul 2>&1
 if exist "%IDENTITY_FILE%" del /q "%IDENTITY_FILE%" >nul 2>&1
 if exist "%VERIFY_REPORT%" del /q "%VERIFY_REPORT%" >nul 2>&1

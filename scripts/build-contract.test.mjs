@@ -60,6 +60,8 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
     assert.match(manifest, /8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac/);
     assert.match(fetcher, /scripts\\toolchain-manifest\.json/);
     assert.match(fetcher, /toolchain-probe\.mjs" manifest/);
+    assert.match(fetcher, /ensure-pnpm\.mjs/);
+    assert.match(fetcher, /WORLDLENS_PNPM_CLI/);
   }, "pinned fresh-machine tool acquisition");
   check(() => {
     assert.doesNotMatch(fetcher, /api\.adoptium\.net\/v3\/assets\/latest/);
@@ -73,6 +75,15 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
     assert.match(fetcher, /verify-submodules\.mjs" --init/);
     assert.match(readFileSync(join(repoRoot, "scripts", "bootstrap.mjs"), "utf8"), /\["install", "--frozen-lockfile"\]/);
   }, "clean source, submodule, and frozen-lockfile checks");
+  check(() => {
+    assert.match(build, /node "%WORLDLENS_PNPM_CLI%" build/);
+    assert.match(build, /deps-handoff\.mjs" validate/);
+    assert.doesNotMatch(build, /WORLDLENS_DEPS_READY/);
+    assert.doesNotMatch(build, /npm exec.*pnpm@/);
+    assert.doesNotMatch(installer, /npm exec.*pnpm@/);
+    assert.match(manifest, /"integrity": "sha512-/);
+    assert.match(manifest, /"size": 4533784/);
+  }, "immutable pnpm package provenance");
 
   check(() => {
     lineIndex(fetcherLines, /^node "%ROOT%scripts\\verify-submodules\.mjs" --init --repo "%ROOT%\."$/, "submodule initialization");
@@ -81,7 +92,7 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
 
   check(() => {
     const prepare = lineIndex(buildLines, /^node "%ROOT%scripts\\build-receipt\.mjs" prepare /, "receipt prepare");
-    const buildStep = lineIndex(buildLines, /^node "%NPM_CLI%" exec .* pnpm build$/, "workspace build");
+    const buildStep = lineIndex(buildLines, /^node "%WORLDLENS_PNPM_CLI%" build$/, "workspace build");
     const finalize = lineIndex(buildLines, /^node "%ROOT%scripts\\build-receipt\.mjs" finalize /, "receipt finalize");
     const verify = lineIndex(buildLines, /^node "%ROOT%scripts\\build-receipt\.mjs" verify /, "receipt verify");
     const launch = lineIndex(buildLines, /^:launch$/, "launch label");
@@ -98,12 +109,14 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
   check(() => assert.match(readme, /\.\\build\.bat --run/), "README copy-and-paste command");
   check(() => {
     assert.doesNotMatch(installer, /set "PNPM_VERSION=10\.33\.0"/);
-    assert.match(installer, /design[\\\/]package\.json/);
     assert.match(installer, /set "POWERSHELL_EXE=pwsh"/);
     assert.match(installer, /set "POWERSHELL_EXE=powershell\.exe"/);
     assert.match(installer, /%POWERSHELL_EXE% -NoProfile/);
     assert.match(installer, /call "%ROOT%download-dependencies\.bat" --silent/);
-    assert.match(installer, /set "WORLDLENS_DEPS_READY=1"/);
+    assert.match(installer, /WORLDLENS_DEPS_HANDOFF_FILE/);
+    assert.doesNotMatch(installer, /WORLDLENS_DEPS_READY/);
+    assert.match(installer, /WORLDLENS_PNPM_CLI/);
+    assert.doesNotMatch(installer, /npm exec.*pnpm@/);
     assert.match(installer, /call :validate_silent/);
     assert.doesNotMatch(installer, /if exist "%ProgramFiles%\\nodejs\\node\.exe" set "PATH=/);
   }, "installer fresh-toolchain handoff");

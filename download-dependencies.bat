@@ -71,6 +71,13 @@ if not "%NODE_OK%"=="1" goto :no_node
 :node_ready
 node "%ROOT%scripts\toolchain-probe.mjs" manifest >nul 2>&1
 if errorlevel 1 goto :manifest_failed
+set "PNPM_CLI_FILE=%TEMP%\worldlens-pnpm-cli-%RANDOM%-%RANDOM%.txt"
+node "%ROOT%scripts\ensure-pnpm.mjs" > "%PNPM_CLI_FILE%"
+if errorlevel 1 goto :pnpm_failed
+set "WORLDLENS_PNPM_CLI="
+set /p "WORLDLENS_PNPM_CLI=" < "%PNPM_CLI_FILE%"
+del /q "%PNPM_CLI_FILE%" >nul 2>&1
+if not defined WORLDLENS_PNPM_CLI goto :pnpm_failed
 echo       using %NODE_VERSION%
 echo.
 
@@ -155,6 +162,10 @@ node scripts\bootstrap.mjs
 set "BOOTSTRAP_RESULT=%ERRORLEVEL%"
 popd >nul
 if not "%BOOTSTRAP_RESULT%"=="0" goto :bootstrap_failed
+if defined WORLDLENS_DEPS_HANDOFF_FILE (
+    node "%ROOT%scripts\deps-handoff.mjs" write --file "%WORLDLENS_DEPS_HANDOFF_FILE%" --repo "%ROOT%." --pnpm-cli "%WORLDLENS_PNPM_CLI%"
+    if errorlevel 1 goto :handoff_failed
+)
 echo.
 echo == Dependencies installed and verified ==
 echo    Node: %NODE_VERSION%
@@ -228,6 +239,13 @@ echo ERROR: repository root %ROOT% is unavailable. 1>&2
 exit /b 1
 :manifest_failed
 echo ERROR: scripts\toolchain-manifest.json is missing, so exact acquisition cannot proceed. 1>&2
+exit /b 1
+:pnpm_failed
+if exist "%PNPM_CLI_FILE%" del /q "%PNPM_CLI_FILE%" >nul 2>&1
+echo ERROR: the committed pnpm tarball integrity or CLI installation could not be verified. 1>&2
+exit /b 1
+:handoff_failed
+echo ERROR: the scoped dependency handoff could not be written. 1>&2
 exit /b 1
 :submodule_failed
 echo ERROR: every gitlink must initialize and verify at its recorded commit before bootstrap. 1>&2

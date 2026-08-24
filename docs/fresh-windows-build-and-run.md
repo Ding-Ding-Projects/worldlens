@@ -32,9 +32,11 @@ browser cache. It does not ask the user to prepare a toolchain first.
 9. Runs `scripts/bootstrap.mjs`, which installs and verifies the pinned workspace dependencies,
    Electron binary, Java and Gradle prerequisites, BlueMap outputs, and Playwright tooling.
 
-The build derives its pnpm version from `design/package.json`, then runs that exact package through
-the active Node npm CLI. The bootstrap uses `pnpm install --frozen-lockfile` and rejects any lockfile
-change. Before any launch, it clears owned output directories, records the current source commit and
+The build downloads the committed `pnpm@10.33.0` package tarball, verifies its SHA-256, SHA-1, and
+SHA-512 integrity values, installs that exact CLI, and writes a short-lived source-bound handoff
+receipt. The build and bootstrap consume only that verified CLI, not a mutable `npm exec` lookup.
+The pnpm version is cross-checked against `design/package.json`. The bootstrap uses
+`pnpm install --frozen-lockfile` and rejects any lockfile change. Before any launch, it clears owned output directories, records the current source commit and
 tracked-index digest, verifies the application main bundle, preload bundle, engine manifest, UI
 `index.html`, and Electron binary by starting Electron with `--version`, then writes and re-reads a
 receipt containing fresh hashes, sizes, timestamps, and Electron provenance. A successful build
@@ -54,6 +56,11 @@ manager returned exit code 0.
 `--run` and silent mode are rejected together before dependency acquisition. This prevents a
 headless automation invocation from launching a desktop process unexpectedly. `RUN_AFTER_BUILD`
 must be `0` or `1` when present.
+
+The installer wrapper creates a short-lived internal handoff receipt after the canonical fetcher
+completes. `build.bat` validates the receipt against the current source commit and exact pnpm CLI
+before it can skip a second fetch. A caller cannot skip acquisition with a plain environment
+boolean.
 
 ## Failure behavior
 

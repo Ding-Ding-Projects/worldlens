@@ -91,7 +91,12 @@ rem GitHub CLI, Java and the committed project bootstrap without manual setup.
 echo [1/4] Install and verify all build dependencies
 set "FETCH_ARGS="
 if "%SILENT_MODE%"=="1" set "FETCH_ARGS=--silent"
-if /i not "%WORLDLENS_DEPS_READY%"=="1" (
+set "DEPS_HANDOFF_OK=0"
+if defined WORLDLENS_DEPS_HANDOFF_FILE (
+    node "%ROOT%scripts\deps-handoff.mjs" validate --file "%WORLDLENS_DEPS_HANDOFF_FILE%" --repo "%ROOT%."
+    if not errorlevel 1 set "DEPS_HANDOFF_OK=1"
+)
+if "%DEPS_HANDOFF_OK%"=="0" (
     call "%ROOT%download-dependencies.bat" %FETCH_ARGS%
     if errorlevel 1 goto :dependency_failed
 )
@@ -108,16 +113,10 @@ if exist "%LOCALAPPDATA%\worldlens-toolchain\java\temurin-25\bin\java.exe" set "
 if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
 
 echo [2/4] Resolve the pinned pnpm command
-set "PNPM_VERSION="
-for /f "tokens=* usebackq" %%v in (`node -e "const fs=require('node:fs');const p=JSON.parse(fs.readFileSync('design/package.json','utf8')).packageManager;if(!/^pnpm@[^\s]+$/.test(p))process.exit(1);process.stdout.write(p.slice(5))" 2^>nul`) do set "PNPM_VERSION=%%v"
-if not defined PNPM_VERSION goto :no_pnpm
-set "NPM_CLI="
-for /f "tokens=* usebackq" %%p in (`node -e "const fs=require('node:fs'),path=require('node:path'),d=path.dirname(process.execPath);const p=[path.join(d,'node_modules','npm','bin','npm-cli.js'),path.join(d,'..','lib','node_modules','npm','bin','npm-cli.js'),path.join(d,'..','share','node_modules','npm','bin','npm-cli.js')].find(fs.existsSync);if(p)process.stdout.write(p)" 2^>nul`) do set "NPM_CLI=%%p"
-if not defined NPM_CLI goto :no_pnpm
-set "PNPM_ACTUAL="
-for /f "tokens=* usebackq" %%v in (`node "%NPM_CLI%" exec --yes --registry=https://registry.npmjs.org/ --package=pnpm@%PNPM_VERSION% -- pnpm --version 2^>nul`) do if "%%v"=="%PNPM_VERSION%" set "PNPM_ACTUAL=%%v"
+if not defined WORLDLENS_PNPM_CLI goto :no_pnpm
+for /f "tokens=* usebackq" %%v in (`node "%WORLDLENS_PNPM_CLI%" --version 2^>nul`) do set "PNPM_ACTUAL=%%v"
 if not defined PNPM_ACTUAL goto :no_pnpm
-echo       pnpm %PNPM_ACTUAL% is runnable through the pinned npm CLI
+echo       pnpm %PNPM_ACTUAL% is runnable through the committed integrity-verified package
 echo.
 
 echo [3/4] Build the real workspace outputs
@@ -125,7 +124,7 @@ set "RECEIPT_FILE=%TEMP%\worldlens-build-receipt-%RANDOM%-%RANDOM%.json"
 node "%ROOT%scripts\build-receipt.mjs" prepare --repo "%ROOT%." --receipt "%RECEIPT_FILE%"
 if errorlevel 1 goto :receipt_prepare_failed
 pushd "%DESIGN%" >nul || goto :no_design
-node "%NPM_CLI%" exec --yes --registry=https://registry.npmjs.org/ --package=pnpm@%PNPM_VERSION% -- pnpm build
+node "%WORLDLENS_PNPM_CLI%" build
 set "BUILD_RESULT=%ERRORLEVEL%"
 popd >nul
 if not "%BUILD_RESULT%"=="0" goto :build_failed
@@ -159,7 +158,7 @@ if errorlevel 2 goto :done
 :launch
 echo Starting Worldlens after verified build artifacts...
 pushd "%DESIGN%" >nul
-node "%NPM_CLI%" exec --yes --registry=https://registry.npmjs.org/ --package=pnpm@%PNPM_VERSION% -- pnpm --filter @worldlens/app start
+node "%WORLDLENS_PNPM_CLI%" --filter @worldlens/app start
 set "START_RESULT=%ERRORLEVEL%"
 popd >nul
 exit /b %START_RESULT%
@@ -191,8 +190,8 @@ exit /b 2
 echo ERROR: dependency acquisition failed. The fetcher output names the exact version, source or probe that failed. 1>&2
 exit /b 1
 :no_pnpm
-echo ERROR: pnpm@%PNPM_VERSION% is not runnable through the active Node/npm runtime. 1>&2
-echo        The pinned npm CLI route failed, so the build is stopping rather than guessing. 1>&2
+echo ERROR: the committed integrity-verified pnpm package is not runnable through the active Node runtime. 1>&2
+echo        The package receipt or exact CLI probe failed, so the build is stopping rather than guessing. 1>&2
 exit /b 1
 :no_design
 echo ERROR: design workspace not found at %DESIGN%. 1>&2
