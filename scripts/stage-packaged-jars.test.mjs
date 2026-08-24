@@ -173,6 +173,25 @@ test("stages a workflow-shaped CLI artifact and writes the authoritative manifes
     assert.equal(staged.jars[0].size, item.bytes.length);
 });
 
+test("accepts the exact downloaded manifest shape with top-level JAR version", async () => {
+    const item = await fixture();
+    const downloaded = JSON.parse(await readFile(item.manifestPath, "utf8"));
+    assert.equal(downloaded.source.version, VERSION);
+    assert.equal(downloaded.jars[0].version, VERSION);
+    assert.equal(downloaded.jars[0].source.version, VERSION);
+    assert.equal(run(item).ok, true);
+});
+
+test("names a missing top-level JAR version field", async () => {
+    const item = await fixture();
+    const downloaded = JSON.parse(await readFile(item.manifestPath, "utf8"));
+    delete downloaded.jars[0].version;
+    await writeFile(item.manifestPath, `${JSON.stringify(downloaded, null, 2)}\n`);
+    const result = run(item);
+    assert.equal(result.ok, false);
+    assert.match(result.output, /manifest\.jars\[cli\]\.version mismatch/);
+});
+
 for (const [name, overrides] of [
     ["missing manifest", { manifestMissing: true }],
     ["wrong digest", { sha256: "f".repeat(64) }],

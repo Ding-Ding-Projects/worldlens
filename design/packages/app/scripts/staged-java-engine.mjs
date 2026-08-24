@@ -27,13 +27,11 @@ export async function validateStagedJavaEngine(staging, options = {}) {
 
     const source = assertManifestShape(manifest, manifestPath);
     if (options.expectedVersion !== undefined && source.version !== options.expectedVersion) {
-        throw new Error(
-            `Cannot package a stale BlueMap CLI manifest: expected version ${options.expectedVersion}, got ${source.version}`,
-        );
+        throw new Error(`manifest.source.version mismatch: expected ${options.expectedVersion}, got ${source.version}`);
     }
     if (options.expectedCommit !== undefined && source.commit !== options.expectedCommit) {
         throw new Error(
-            `Cannot package a BlueMap CLI manifest from commit ${source.commit}; expected ${options.expectedCommit}`,
+            `manifest.source.commit mismatch: expected ${options.expectedCommit}, got ${source.commit}`,
         );
     }
 
@@ -63,7 +61,7 @@ export async function validateStagedJavaEngine(staging, options = {}) {
 
 function assertManifestShape(manifest, manifestPath) {
     if (manifest === null || typeof manifest !== "object" || manifest.schemaVersion !== STAGED_JAVA_ENGINE_SCHEMA) {
-        throw new Error(`Cannot package with an unsupported BlueMap CLI manifest schema: ${manifestPath}`);
+        throw new Error(`manifest.schemaVersion mismatch: ${manifestPath}`);
     }
     const source = manifest.source;
     if (
@@ -75,7 +73,7 @@ function assertManifestShape(manifest, manifestPath) {
         typeof source.version !== "string" ||
         !/^\d+\.\d+(?:[-.][0-9A-Za-z.-]+)*$/.test(source.version)
     ) {
-        throw new Error(`Cannot package without complete BlueMap source provenance: ${manifestPath}`);
+        throw new Error(`manifest.source provenance is incomplete or mismatched: ${manifestPath}`);
     }
     if (!Array.isArray(manifest.jars) || manifest.jars.length === 0) {
         throw new Error(`Cannot package without a complete staged BlueMap CLI manifest: ${manifestPath}`);
@@ -85,18 +83,11 @@ function assertManifestShape(manifest, manifestPath) {
 
 function assertJarRecord(entry, source, manifestPath) {
     const expectedFile = `bluemap-${source.version}-cli.jar`;
-    if (
-        entry.version !== source.version ||
-        entry.fileName !== expectedFile ||
-        !Number.isSafeInteger(entry.size) ||
-        entry.size <= 0 ||
-        !/^[0-9a-f]{64}$/.test(entry.sha256)
-    ) {
-        throw new Error(`Cannot package with a mismatched BlueMap CLI filename, version, size, or SHA-256: ${manifestPath}`);
-    }
-    if (basename(entry.fileName) !== entry.fileName || entry.fileName.includes("\\")) {
-        throw new Error(`Cannot package a staged BlueMap CLI path containing traversal: ${entry.fileName}`);
-    }
+    if (entry.version !== source.version) throw new Error(`manifest.jars[cli].version mismatch: expected ${source.version}, got ${entry.version}`);
+    if (entry.fileName !== expectedFile) throw new Error(`manifest.jars[cli].fileName mismatch: expected ${expectedFile}, got ${entry.fileName}`);
+    if (basename(entry.fileName) !== entry.fileName || entry.fileName.includes("\\")) throw new Error(`manifest.jars[cli].fileName contains traversal: ${entry.fileName}`);
+    if (!Number.isSafeInteger(entry.size) || entry.size <= 0) throw new Error("manifest.jars[cli].size is missing or invalid");
+    if (!/^[0-9a-f]{64}$/.test(entry.sha256)) throw new Error("manifest.jars[cli].sha256 is missing or invalid");
     if (
         entry.source === null ||
         typeof entry.source !== "object" ||
@@ -104,7 +95,7 @@ function assertJarRecord(entry, source, manifestPath) {
         entry.source.commit !== source.commit ||
         entry.source.path !== source.path
     ) {
-        throw new Error(`Cannot package without matching BlueMap CLI artifact provenance: ${manifestPath}`);
+        throw new Error(`manifest.jars[cli].source provenance mismatch: ${manifestPath}`);
     }
 }
 
