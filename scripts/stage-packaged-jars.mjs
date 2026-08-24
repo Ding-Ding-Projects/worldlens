@@ -128,35 +128,25 @@ function assertExpectedIdentity(options) {
 }
 
 function assertReleaseManifest(manifest, options) {
-    if (
-        manifest === null ||
-        typeof manifest !== "object" ||
-        manifest.schemaVersion !== STAGED_JAVA_ENGINE_SCHEMA ||
-        manifest.source?.repository !== BLUEMAP_SOURCE_REPOSITORY ||
-        manifest.source?.path !== "vendor/BlueMap" ||
-        manifest.source?.version !== options.expectedVersion ||
-        manifest.source?.commit !== options.expectedCommit ||
-        manifest.workflow?.runId !== options.expectedRunId ||
-        manifest.workflow?.runAttempt !== options.expectedRunAttempt ||
-        !Array.isArray(manifest.jars)
-    ) {
-        throw new Error("BlueMap release manifest is missing, stale, or mismatched with this workflow run");
-    }
+    if (manifest === null || typeof manifest !== "object") throw new Error("manifest must be an object");
+    if (manifest.schemaVersion !== STAGED_JAVA_ENGINE_SCHEMA) throw new Error("manifest.schemaVersion mismatch");
+    if (manifest.source?.repository !== BLUEMAP_SOURCE_REPOSITORY) throw new Error("manifest.source.repository mismatch");
+    if (manifest.source?.path !== "vendor/BlueMap") throw new Error("manifest.source.path mismatch");
+    if (manifest.source?.version !== options.expectedVersion) throw new Error("manifest.source.version mismatch");
+    if (manifest.source?.commit !== options.expectedCommit) throw new Error("manifest.source.commit mismatch");
+    if (manifest.workflow?.runId !== options.expectedRunId) throw new Error("manifest.workflow.runId mismatch");
+    if (manifest.workflow?.runAttempt !== options.expectedRunAttempt) throw new Error("manifest.workflow.runAttempt mismatch");
+    if (!Array.isArray(manifest.jars)) throw new Error("manifest.jars must be an array");
     const cliEntries = manifest.jars.filter((entry) => entry?.implementation === "cli");
-    if (cliEntries.length !== 1) throw new Error("BlueMap release manifest does not contain exactly one CLI artifact");
+    if (cliEntries.length !== 1) throw new Error("manifest.jars[implementation=cli] must contain exactly one entry");
     const cli = cliEntries[0];
-    if (
-        cli.version !== options.expectedVersion ||
-        cli.fileName !== `bluemap-${options.expectedVersion}-cli.jar` ||
-        !Number.isSafeInteger(cli.size) ||
-        cli.size <= 0 ||
-        !/^[0-9a-f]{64}$/.test(cli.sha256) ||
-        cli.source?.repository !== manifest.source.repository ||
-        cli.source?.commit !== manifest.source.commit ||
-        cli.source?.path !== manifest.source.path
-    ) {
-        throw new Error("BlueMap CLI release manifest has a mismatched version, filename, size, digest, or provenance");
-    }
+    if (cli.version !== options.expectedVersion) throw new Error("manifest.jars[cli].version mismatch");
+    if (cli.fileName !== `bluemap-${options.expectedVersion}-cli.jar`) throw new Error("manifest.jars[cli].fileName mismatch");
+    if (!Number.isSafeInteger(cli.size) || cli.size <= 0) throw new Error("manifest.jars[cli].size is missing or invalid");
+    if (!/^[0-9a-f]{64}$/.test(cli.sha256)) throw new Error("manifest.jars[cli].sha256 is missing or invalid");
+    if (cli.source?.repository !== manifest.source.repository) throw new Error("manifest.jars[cli].source.repository mismatch");
+    if (cli.source?.commit !== manifest.source.commit) throw new Error("manifest.jars[cli].source.commit mismatch");
+    if (cli.source?.path !== manifest.source.path) throw new Error("manifest.jars[cli].source.path mismatch");
 }
 
 await main();
