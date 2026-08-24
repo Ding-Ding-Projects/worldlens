@@ -25,13 +25,14 @@ const MAX_SECRET_BYTES = 128;
 export type LockMethod = "password" | "totp";
 export type LockDuration = "session" | "15m" | "1h";
 export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";
-export type TotpDigits = 6 | 7 | 8;
+export type TotpDigits = 6 | 8;
 
 export const PBKDF2_ITERATIONS = 120_000;
 
 export interface SiteLock {
     readonly id: string;
     readonly target: string;
+    readonly targetLabel: string;
     readonly scope: "element" | "tab" | "group" | "property";
     readonly method: LockMethod;
     readonly credentialDigest: string;
@@ -89,6 +90,7 @@ export interface SiteContractState {
     readonly tickets: readonly SupportTicket[];
     readonly history: readonly SiteHistoryEntry[];
     readonly presets: readonly SiteAppearancePreset[];
+    readonly selection: { readonly authenticatorIds: readonly string[]; readonly ticketIds: readonly string[] };
     readonly appearance: {
         readonly colour: string;
         readonly rainbow: boolean;
@@ -150,6 +152,7 @@ function emptyState(): SiteContractState {
         tickets: [],
         history: [],
         presets: [],
+        selection: { authenticatorIds: [], ticketIds: [] },
         appearance: { ...DEFAULT_APPEARANCE },
         ladder: { waitingUntil: 0, used: 0, budgetStartedAt: Date.now() },
         ladderMachine: null,
@@ -162,16 +165,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isSiteLock(value: unknown): value is SiteLock {
     if (!isRecord(value)) return false;
-    return typeof value.id === "string" && typeof value.target === "string" &&
+    return typeof value.id === "string" && typeof value.target === "string" && typeof value.targetLabel === "string" &&
         (value.scope === "element" || value.scope === "tab" || value.scope === "group" || value.scope === "property") &&
         (value.method === "password" || value.method === "totp") && typeof value.credentialDigest === "string" &&
-        typeof value.credentialSalt === "string" && value.kdf === "PBKDF2-SHA-256" &&
-        typeof value.iterations === "number" && Number.isInteger(value.iterations) && value.iterations >= 100_000 &&
+        typeof value.credentialSalt === "string" && value.credentialSalt.length >= 16 && value.credentialSalt.length <= 128 && value.kdf === "PBKDF2-SHA-256" &&
+        typeof value.iterations === "number" && Number.isInteger(value.iterations) && value.iterations >= 100_000 && value.iterations <= 500_000 &&
         (value.duration === "session" || value.duration === "15m" || value.duration === "1h") &&
         typeof value.createdAt === "string" && (value.lockedUntil === null || typeof value.lockedUntil === "number") &&
-        (value.totp === null || (isRecord(value.totp) &&
+        ((value.method === "password" && value.totp === null) || (value.method === "totp" && isRecord(value.totp) &&
             (value.totp.algorithm === "SHA1" || value.totp.algorithm === "SHA256" || value.totp.algorithm === "SHA512") &&
-            (value.totp.digits === 6 || value.totp.digits === 7 || value.totp.digits === 8) &&
+            (value.totp.digits === 6 || value.totp.digits === 8) &&
             typeof value.totp.period === "number" && Number.isInteger(value.totp.period) && value.totp.period >= 5 && value.totp.period <= 300));
 }
 
@@ -179,7 +182,7 @@ function isAuthenticatorEntry(value: unknown): value is AuthenticatorEntry {
     if (!isRecord(value)) return false;
     return typeof value.id === "string" && typeof value.issuer === "string" && typeof value.account === "string" &&
         (value.algorithm === "SHA1" || value.algorithm === "SHA256" || value.algorithm === "SHA512") &&
-        (value.digits === 6 || value.digits === 7 || value.digits === 8) && typeof value.period === "number" &&
+        (value.digits === 6 || value.digits === 8) && typeof value.period === "number" &&
         Number.isInteger(value.period) && value.period >= 5 && value.period <= 300 &&
         typeof value.group === "string" && typeof value.secretAvailable === "boolean";
 }
@@ -218,6 +221,10 @@ function revive(value: unknown): SiteContractState | undefined {
         tickets: tickets.slice(0, MAX_TICKETS).filter(isSupportTicket),
         history: history.slice(0, MAX_HISTORY).filter(isHistoryEntry),
         presets: (Array.isArray(value.presets) ? value.presets : []).slice(0, 50).filter(isAppearancePreset),
+        selection: isRecord(value.selection) ? {
+            authenticatorIds: Array.isArray(value.selection.authenticatorIds) ? value.selection.authenticatorIds.filter((id): id is string => typeof id === "string").slice(0, 100) : [],
+            ticketIds: Array.isArray(value.selection.ticketIds) ? value.selection.ticketIds.filter((id): id is string => typeof id === "string").slice(0, 100) : [],
+        } : { authenticatorIds: [], ticketIds: [] },
         appearance: {
             colour: typeof appearance.colour === "string" ? appearance.colour : base.appearance.colour,
             rainbow: appearance.rainbow === true,
@@ -240,7 +247,7 @@ function revive(value: unknown): SiteContractState | undefined {
             used: numberInRange(ladder.used, 0, LADDER_BUDGET, 0),
             budgetStartedAt: numberInRange(ladder.budgetStartedAt, 0, Number.MAX_SAFE_INTEGER, Date.now()),
         },
-        ladderMachine: isRecord(value.ladderMachine) ? value.ladderMachine as unknown as LadderSnapshot : null,
+        ladderMachine: isLadderSnapshot(value.ladderMachine) ? value.ladderMachine : null,
     };
 }
 
@@ -325,6 +332,7 @@ export class SiteContractStore {
 
     addLock(input: {
         readonly target: string;
+        readonly targetLabel: string;
         readonly scope: SiteLock["scope"];
         readonly method: LockMethod;
         readonly credentialDigest: string;
@@ -338,6 +346,7 @@ export class SiteContractStore {
         const lock: SiteLock = {
             id: randomId("lock"),
             target: input.target.trim().slice(0, 120),
+            targetLabel: input.targetLabel.trim().slice(0, 120),
             scope: input.scope,
             method: input.method,
             credentialDigest: input.credentialDigest,
@@ -351,7 +360,7 @@ export class SiteContractStore {
         };
         if (input.sessionSecret !== undefined) this.sessionSecrets.set(lock.id, input.sessionSecret);
         this.current = { ...this.current, locks: [...this.current.locks, lock] };
-        this.commit("lock.created", lock.id, `Created ${lock.method} lock for ${lock.target}`);
+        this.commit("lock.created", lock.id, `Created ${lock.method} lock for ${lock.targetLabel}`);
         return lock;
     }
 
@@ -360,7 +369,7 @@ export class SiteContractStore {
         if (found === undefined) return;
         this.sessionSecrets.delete(id);
         this.current = { ...this.current, locks: this.current.locks.filter((lock) => lock.id !== id) };
-        this.commit("lock.removed", id, `Removed lock for ${found.target}`);
+        this.commit("lock.removed", id, `Removed lock for ${found.targetLabel}`);
     }
 
     async verifyLock(id: string, answer: string): Promise<boolean> {
@@ -450,6 +459,12 @@ export class SiteContractStore {
 
     saveLadderMachine(snapshot: LadderSnapshot): void {
         this.current = { ...this.current, ladderMachine: structuredClone(snapshot) };
+        this.prefs.writeJson(STATE_KEY, this.current);
+        this.emit();
+    }
+
+    setSelection(kind: "authenticator" | "ticket", ids: readonly string[]): void {
+        this.current = { ...this.current, selection: kind === "authenticator" ? { authenticatorIds: [...ids].slice(0, 100), ticketIds: this.current.selection.ticketIds } : { authenticatorIds: this.current.selection.authenticatorIds, ticketIds: [...ids].slice(0, 100) } };
         this.prefs.writeJson(STATE_KEY, this.current);
         this.emit();
     }
@@ -558,7 +573,7 @@ export function parseOtpAuthUri(raw: string): TotpUri {
     const algorithmRaw = (url.searchParams.get("algorithm") || "SHA1").toUpperCase();
     if (algorithmRaw !== "SHA1" && algorithmRaw !== "SHA256" && algorithmRaw !== "SHA512") throw new Error("Algorithm must be SHA1, SHA256, or SHA512.");
     const digitsRaw = Number(url.searchParams.get("digits") || "6");
-    if (digitsRaw !== 6 && digitsRaw !== 7 && digitsRaw !== 8) throw new Error("Digits must be 6, 7, or 8.");
+    if (digitsRaw !== 6 && digitsRaw !== 8) throw new Error("Digits must be 6 or 8.");
     const period = Number(url.searchParams.get("period") || "30");
     if (!Number.isInteger(period) || period < 5 || period > 300) throw new Error("Period must be an integer from 5 to 300 seconds.");
     if (issuer === "" || account === "") throw new Error("Issuer and account are required.");
@@ -685,6 +700,26 @@ export interface LadderSnapshot {
     readonly waitingUntil: number;
     readonly attemptBudgetUsed: number;
     readonly escalation: number;
+}
+
+function isLadderSnapshot(value: unknown): value is LadderSnapshot {
+    if (!isRecord(value)) return false;
+    const stages = ["dim-sum", "sums", "whack-a-mole", "clock", "cleared"];
+    const sums = value.sumAnswers;
+    const visible = value.visibleMoles;
+    const hits = value.hitMoles;
+    return typeof value.stage === "string" && stages.includes(value.stage) &&
+        typeof value.wrongDishes === "number" && Number.isInteger(value.wrongDishes) && value.wrongDishes >= 0 && value.wrongDishes <= 5 &&
+        typeof value.sumIndex === "number" && Number.isInteger(value.sumIndex) && value.sumIndex >= 0 && value.sumIndex <= 10 &&
+        Array.isArray(sums) && sums.length === 10 && sums.every((item) => typeof item === "number" && Number.isInteger(item)) &&
+        Array.isArray(visible) && visible.length <= 16 && visible.every((item) => typeof item === "number" && Number.isInteger(item) && item >= 0 && item < 16) &&
+        Array.isArray(hits) && hits.every((item) => typeof item === "number" && Number.isInteger(item) && visible.includes(item)) &&
+        (value.moleStartedAt === null || typeof value.moleStartedAt === "number") &&
+        typeof value.moleDurationMs === "number" && value.moleDurationMs >= 1000 && value.moleDurationMs <= 10_000 &&
+        typeof value.nonce === "string" && value.nonce.length >= 8 && value.nonce.length <= 128 &&
+        typeof value.nonceIssuedAt === "number" && typeof value.nonceConsumed === "boolean" &&
+        typeof value.waitingUntil === "number" && typeof value.attemptBudgetUsed === "number" && Number.isInteger(value.attemptBudgetUsed) && value.attemptBudgetUsed >= 0 && value.attemptBudgetUsed <= LADDER_BUDGET &&
+        typeof value.escalation === "number" && Number.isInteger(value.escalation) && value.escalation >= 0 && value.escalation <= 100;
 }
 
 /** Explicit all-rung ladder. It never returns a credential, cookie, or session. */
@@ -915,6 +950,8 @@ export function createSiteUniversalContractsView(options: {
     const activeTimers = new Set<number>();
     let authenticatorQuery = "";
     let ticketQuery = "";
+    const selectedAuthenticatorIds = new Set(store.snapshot.selection.authenticatorIds);
+    const selectedTicketIds = new Set(store.snapshot.selection.ticketIds);
 
     const render = (): void => {
         const version = ++renderVersion;
@@ -1052,13 +1089,13 @@ export function createSiteUniversalContractsView(options: {
 
         const locks = section("Toy locks and recovery", "Each target gets its own password or TOTP credential and duration. This is a browser experience lock, not encryption or protection from another person with storage access.");
         locks.id = "contract-locks";
-        const targetOptions = ["Universal contract page", "Appearance colour property", "Universal contracts tab", "Support Tickets group", "Authenticator code property"] as const;
-        const target = document.createElement("select"); target.className = "md-field__input"; targetOptions.forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; target.append(item); });
+        const targetOptions = [{ id: "site.contract.page", label: "Universal contract page" }, { id: "site.contract.appearance.colour", label: "Appearance colour property" }, { id: "site.contract.tab", label: "Universal contracts tab" }, { id: "site.contract.support.group", label: "Support Tickets group" }, { id: "site.contract.auth.code", label: "Authenticator code property" }] as const;
+        const target = document.createElement("select"); target.className = "md-field__input"; targetOptions.forEach((value) => { const item = document.createElement("option"); item.value = value.id; item.textContent = value.label; target.append(item); });
         const method = document.createElement("select"); method.className = "md-field__input"; ["password", "totp"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; method.append(item); });
         const scope = document.createElement("select"); scope.className = "md-field__input"; ["element", "property", "tab", "group"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; scope.append(item); });
         const duration = document.createElement("select"); duration.className = "md-field__input"; ["session", "15m", "1h"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; duration.append(item); });
         const lockAlgorithm = document.createElement("select"); lockAlgorithm.className = "md-field__input"; ["SHA1", "SHA256", "SHA512"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; lockAlgorithm.append(item); });
-        const lockDigits = document.createElement("select"); lockDigits.className = "md-field__input"; ["6", "7", "8"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; lockDigits.append(item); });
+        const lockDigits = document.createElement("select"); lockDigits.className = "md-field__input"; ["6", "8"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; lockDigits.append(item); });
         const lockPeriod = document.createElement("input"); lockPeriod.className = "md-field__input"; lockPeriod.type = "number"; lockPeriod.value = "30"; lockPeriod.min = "5"; lockPeriod.max = "300";
         const credential = document.createElement("input"); credential.type = "password"; credential.className = "md-field__input"; credential.autocomplete = "new-password";
         const lockForm = document.createElement("form"); lockForm.className = "mb-contract-grid";
@@ -1072,11 +1109,12 @@ export function createSiteUniversalContractsView(options: {
             try {
                 const salt = freshCredentialSalt();
                 const digest = await deriveCredential(credential.value, salt);
-                const lockInput = { target: target.value, scope: scope.value as SiteLock["scope"], method: method.value as LockMethod, credentialDigest: digest, credentialSalt: salt, iterations: PBKDF2_ITERATIONS, duration: duration.value as LockDuration };
+                const targetLabel = target.selectedOptions[0]?.textContent ?? target.value;
+                const lockInput = { target: target.value, targetLabel, scope: scope.value as SiteLock["scope"], method: method.value as LockMethod, credentialDigest: digest, credentialSalt: salt, iterations: PBKDF2_ITERATIONS, duration: duration.value as LockDuration };
                 const totp = { algorithm: lockAlgorithm.value as TotpAlgorithm, digits: Number(lockDigits.value) as TotpDigits, period: numberInRange(Number(lockPeriod.value), 5, 300, 30) };
                 const lock = store.addLock(method.value === "totp" ? { ...lockInput, sessionSecret: credential.value, totp } : { ...lockInput, totp: null });
                 credential.value = "";
-                lockStatus.textContent = `${lock.target} is locked independently. Clearing this site's storage is the recovery route.`;
+                lockStatus.textContent = `${lock.targetLabel} is locked independently. Clearing this site's storage is the recovery route.`;
                 render();
             } catch (error) { lockStatus.textContent = error instanceof Error ? error.message : "The browser could not create this local lock."; }
         });
@@ -1084,11 +1122,11 @@ export function createSiteUniversalContractsView(options: {
         const lockList = document.createElement("div"); lockList.className = "mb-contract-list";
         for (const lock of state.locks) {
             const row = document.createElement("article"); row.className = "mb-contract-row"; row.dataset.lockId = lock.id;
-            const label = document.createElement("strong"); label.textContent = `${lock.target} · ${lock.scope} · ${lock.method} · ${lock.duration}`;
-            const answer = document.createElement("input"); answer.type = "password"; answer.className = "md-field__input"; answer.placeholder = "Unlock answer"; answer.setAttribute("aria-label", `Unlock ${lock.target}`);
-            const unlock = button("Unlock", async () => { const ok = await store.verifyLock(lock.id, answer.value); row.dataset.unlocked = String(ok); row.classList.toggle("is-unlocked", ok); status.textContent = ok ? `${lock.target} is unlocked for its chosen duration.` : "That answer did not match. Use the local Support Tickets recovery route if needed."; });
+            const label = document.createElement("strong"); label.textContent = `${lock.targetLabel} · ${lock.target} · ${lock.scope} · ${lock.method} · ${lock.duration}`;
+            const answer = document.createElement("input"); answer.type = "password"; answer.className = "md-field__input"; answer.placeholder = "Unlock answer"; answer.setAttribute("aria-label", `Unlock ${lock.targetLabel}`);
+            const unlock = button("Unlock", async () => { const ok = await store.verifyLock(lock.id, answer.value); row.dataset.unlocked = String(ok); row.classList.toggle("is-unlocked", ok); status.textContent = ok ? `${lock.targetLabel} is unlocked for its chosen duration.` : "That answer did not match. Use the local Support Tickets recovery route if needed."; });
             const remove = button("Remove lock", () => {
-                void confirmDestructive(`Remove the independent lock for ${lock.target}?`).then((confirmed) => {
+                void confirmDestructive(`Remove the independent lock for ${lock.targetLabel}?`).then((confirmed) => {
                     if (confirmed) { store.removeLock(lock.id); render(); }
                 });
             });
@@ -1104,7 +1142,7 @@ export function createSiteUniversalContractsView(options: {
         const authForm = document.createElement("form"); authForm.className = "mb-contract-grid";
         const issuer = document.createElement("input"); issuer.className = "md-field__input"; const account = document.createElement("input"); account.className = "md-field__input"; const secret = document.createElement("input"); secret.className = "md-field__input"; secret.type = "password";
         const algorithm = document.createElement("select"); algorithm.className = "md-field__input"; ["SHA1", "SHA256", "SHA512"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; algorithm.append(item); });
-        const digits = document.createElement("select"); digits.className = "md-field__input"; ["6", "7", "8"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; digits.append(item); });
+        const digits = document.createElement("select"); digits.className = "md-field__input"; ["6", "8"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; digits.append(item); });
         const period = document.createElement("input"); period.className = "md-field__input"; period.type = "number"; period.value = "30"; period.min = "5"; period.max = "300";
         authForm.append(inputLabel("otpauth URI", uri, "URI is parsed locally and its issuer, account, algorithm, digits, and period are displayed before registration."), inputLabel("Issuer", issuer), inputLabel("Account", account), inputLabel("Base32 secret", secret, "Shown only while you are registering; the stored entry keeps no secret in browser storage."), inputLabel("Algorithm", algorithm), inputLabel("Digits", digits), inputLabel("Period seconds", period));
         const qrPayload = document.createElement("div"); qrPayload.className = "mb-contract-qr"; qrPayload.setAttribute("role", "group"); qrPayload.setAttribute("aria-label", "Local QR enrollment and text alternative");
@@ -1150,11 +1188,10 @@ export function createSiteUniversalContractsView(options: {
         authSearch.addEventListener("input", () => { authenticatorQuery = authSearch.value; render(); });
         regexBuilder(auth, authSearch, "authenticator entries");
         const authList = document.createElement("div"); authList.className = "mb-contract-list";
-        const selectedAuth = new Set<string>();
         for (const entry of state.authenticators) {
             if (!matchesContractQuery(`${entry.issuer} ${entry.account} ${entry.group}`, authSearch.value, authSearch.dataset.regexPattern ?? "", authSearch.dataset.regexFlags ?? "i")) continue;
             const row = document.createElement("article"); row.className = "mb-contract-row";
-            const selectAuth = document.createElement("input"); selectAuth.type = "checkbox"; selectAuth.checked = selectedAuth.has(entry.id); selectAuth.setAttribute("aria-label", `Select ${entry.issuer} ${entry.account}`); selectAuth.addEventListener("change", () => { if (selectAuth.checked) selectedAuth.add(entry.id); else selectedAuth.delete(entry.id); });
+            const selectAuth = document.createElement("input"); selectAuth.type = "checkbox"; selectAuth.checked = selectedAuthenticatorIds.has(entry.id); selectAuth.setAttribute("aria-label", `Select ${entry.issuer} ${entry.account}`); selectAuth.addEventListener("change", () => { if (selectAuth.checked) selectedAuthenticatorIds.add(entry.id); else selectedAuthenticatorIds.delete(entry.id); store.setSelection("authenticator", [...selectedAuthenticatorIds]); });
             const current = document.createElement("output"); current.textContent = "Code unavailable until this tab's in-memory secret is registered again.";
             const next = document.createElement("output"); next.textContent = "Next code unavailable until this tab's in-memory secret is registered again.";
             const countdown = document.createElement("span"); countdown.setAttribute("role", "timer");
@@ -1177,7 +1214,9 @@ export function createSiteUniversalContractsView(options: {
             })); authList.append(row);
         }
         const authActions = document.createElement("div"); authActions.className = "mb-contract-actions";
-        authActions.append(button("Export selected metadata, secrets omitted", () => safeDownload("worldlens-authenticator-metadata.json", JSON.stringify({ version: 1, omitted: ["TOTP secrets", "QR payloads"], entries: state.authenticators.filter((entry) => selectedAuth.has(entry.id)) }, null, 2))), button("Remove selected entries", () => { void confirmDestructive(`Remove ${selectedAuth.size} selected authenticator entries? Secrets in this tab will also be forgotten.`).then((confirmed) => { if (!confirmed) return; for (const id of selectedAuth) store.removeAuthenticator(id); render(); }); }));
+        const authScope = document.createElement("select"); authScope.className = "md-field__input"; [{ value: "shown", label: "Visible matches" }, { value: "all", label: "Every authenticator entry" }].forEach((option) => { const item = document.createElement("option"); item.value = option.value; item.textContent = option.label; authScope.append(item); });
+        const authScopeLabel = inputLabel("Bulk scope", authScope, "Choose visible matches or every entry. Skipped records remain listed in the result status.");
+        authActions.append(authScopeLabel, button("Select all in scope", () => { const entries = authScope.value === "all" ? state.authenticators : state.authenticators.filter((entry) => matchesContractQuery(`${entry.issuer} ${entry.account} ${entry.group}`, authenticatorQuery)); entries.forEach((entry) => selectedAuthenticatorIds.add(entry.id)); store.setSelection("authenticator", [...selectedAuthenticatorIds]); render(); }), button("Invert visible matches", () => { state.authenticators.filter((entry) => matchesContractQuery(`${entry.issuer} ${entry.account} ${entry.group}`, authenticatorQuery)).forEach((entry) => { if (selectedAuthenticatorIds.has(entry.id)) selectedAuthenticatorIds.delete(entry.id); else selectedAuthenticatorIds.add(entry.id); }); store.setSelection("authenticator", [...selectedAuthenticatorIds]); render(); }), button("Export selected metadata, secrets omitted", () => safeDownload("worldlens-authenticator-metadata.json", JSON.stringify({ version: 1, scope: authScope.value, omitted: ["TOTP secrets", "QR payloads"], entries: state.authenticators.filter((entry) => selectedAuthenticatorIds.has(entry.id)) }, null, 2))), button("Remove selected entries", () => { void confirmDestructive(`Remove ${selectedAuthenticatorIds.size} selected authenticator entries? Secrets in this tab will also be forgotten.`).then((confirmed) => { if (!confirmed) return; for (const id of selectedAuthenticatorIds) store.removeAuthenticator(id); selectedAuthenticatorIds.clear(); store.setSelection("authenticator", []); render(); }); }));
         auth.append(authSearch, authActions, authList); root.append(auth);
 
         const support = section("Support Tickets", "This is a fictional local recovery desk. Nothing is sent anywhere, no ticket exists outside this browser, no network request is made, and nobody is reading it.");
@@ -1191,13 +1230,15 @@ export function createSiteUniversalContractsView(options: {
         ticketSearch.addEventListener("input", () => { ticketQuery = ticketSearch.value; render(); });
         regexBuilder(support, ticketSearch, "Support Tickets");
         const ticketList = document.createElement("div"); ticketList.className = "mb-contract-list";
-        const selectedTickets = new Set<string>();
         for (const ticket of state.tickets) {
             if (!matchesContractQuery(`${ticket.id} ${ticket.category} ${ticket.description} ${ticket.status}`, ticketSearch.value, ticketSearch.dataset.regexPattern ?? "", ticketSearch.dataset.regexFlags ?? "i")) continue;
-            const row = document.createElement("article"); row.className = "mb-contract-row"; row.append(document.createTextNode(`${ticket.id} · ${ticket.category} · ${ticket.status}`), document.createElement("br"), document.createTextNode(ticket.description), button("Advance fictional status", () => { store.advanceTicket(ticket.id); render(); })); ticketList.append(row);
+            const row = document.createElement("article"); row.className = "mb-contract-row";
+            const selectTicket = document.createElement("input"); selectTicket.type = "checkbox"; selectTicket.checked = selectedTicketIds.has(ticket.id); selectTicket.setAttribute("aria-label", `Select ${ticket.id}`); selectTicket.addEventListener("change", () => { if (selectTicket.checked) selectedTicketIds.add(ticket.id); else selectedTicketIds.delete(ticket.id); store.setSelection("ticket", [...selectedTicketIds]); });
+            row.append(selectTicket, document.createTextNode(`${ticket.id} · ${ticket.category} · ${ticket.status}`), document.createElement("br"), document.createTextNode(ticket.description), button("Advance fictional status", () => { store.advanceTicket(ticket.id); render(); })); ticketList.append(row);
         }
         const ticketActions = document.createElement("div"); ticketActions.className = "mb-contract-actions";
-        ticketActions.append(button("Export redacted ticket list", () => safeDownload("worldlens-support-tickets.json", JSON.stringify({ version: 1, disclosure: "Local fictional tickets only. No network request.", tickets: state.tickets }, null, 2))), button("Select all shown tickets", () => { state.tickets.filter((ticket) => matchesContractQuery(`${ticket.id} ${ticket.category} ${ticket.description} ${ticket.status}`, ticketSearch.value, ticketSearch.dataset.regexPattern ?? "", ticketSearch.dataset.regexFlags ?? "i")).forEach((ticket) => selectedTickets.add(ticket.id)); ticketStatus.textContent = `${selectedTickets.size} local tickets selected.`; }), button("Advance selected tickets", () => { for (const id of selectedTickets) store.advanceTicket(id); render(); }));
+        const ticketScope = document.createElement("select"); ticketScope.className = "md-field__input"; [{ value: "shown", label: "Visible matches" }, { value: "all", label: "Every ticket" }].forEach((option) => { const item = document.createElement("option"); item.value = option.value; item.textContent = option.label; ticketScope.append(item); });
+        ticketActions.append(inputLabel("Bulk scope", ticketScope, "Choose visible matches or every ticket. Skipped records remain listed in the result status."), button("Select all in scope", () => { const tickets = ticketScope.value === "all" ? state.tickets : state.tickets.filter((ticket) => matchesContractQuery(`${ticket.id} ${ticket.category} ${ticket.description} ${ticket.status}`, ticketQuery)); tickets.forEach((ticket) => selectedTicketIds.add(ticket.id)); store.setSelection("ticket", [...selectedTicketIds]); ticketStatus.textContent = `${selectedTicketIds.size} selected. Scope: ${ticketScope.value}.`; render(); }), button("Invert visible matches", () => { state.tickets.filter((ticket) => matchesContractQuery(`${ticket.id} ${ticket.category} ${ticket.description} ${ticket.status}`, ticketQuery)).forEach((ticket) => { if (selectedTicketIds.has(ticket.id)) selectedTicketIds.delete(ticket.id); else selectedTicketIds.add(ticket.id); }); store.setSelection("ticket", [...selectedTicketIds]); render(); }), button("Export redacted ticket list", () => safeDownload("worldlens-support-tickets.json", JSON.stringify({ version: 1, scope: ticketScope.value, disclosure: "Local fictional tickets only. No network request.", tickets: state.tickets.filter((ticket) => selectedTicketIds.has(ticket.id)) }, null, 2))), button("Advance selected tickets", () => { for (const id of selectedTicketIds) store.advanceTicket(id); ticketStatus.textContent = `${selectedTicketIds.size} selected, with any missing records skipped.`; render(); }));
         const resetInfo = document.createElement("p"); resetInfo.className = "mb-help"; resetInfo.textContent = "Recovery uses the browser's clear-site-storage action. The site never clears itself without a two-key confirmation.";
         const clearKeyOne = document.createElement("input"); clearKeyOne.className = "md-field__input"; clearKeyOne.placeholder = "Type CLEAR";
         const clearKeyTwo = document.createElement("input"); clearKeyTwo.className = "md-field__input"; clearKeyTwo.placeholder = "Type SITE";
@@ -1251,14 +1292,14 @@ export function createSiteUniversalContractsView(options: {
         state.history.slice(0, 30).forEach((entry) => { const row = document.createElement("article"); row.className = "mb-contract-row"; row.textContent = `${entry.at} · ${entry.action} · ${entry.target} · ${entry.detail}`; historyList.append(row); });
         history.append(button("Export redacted local history", () => safeDownload("worldlens-site-history.json", JSON.stringify({ version: 1, omitted: ["passwords", "TOTP secrets", "QR payloads", "file metadata"], entries: store.snapshot.history }, null, 2))), historyList); root.append(history);
 
-        installUniversalLockWizards(root, (origin, name) => {
-            const matching = [...target.options].find((option) => option.value === name);
-            if (matching === undefined) { const option = document.createElement("option"); option.value = name; option.textContent = name; target.append(option); }
-            target.value = name;
+        installUniversalLockWizards(root, (origin, id, name) => {
+            const matching = [...target.options].find((option) => option.value === id);
+            if (matching === undefined) { const option = document.createElement("option"); option.value = id; option.textContent = name; target.append(option); }
+            target.value = id;
             scope.value = "element";
             locks.scrollIntoView({ behavior: "smooth", block: "start" });
             credential.focus();
-            origin.dataset.lockWizardOrigin = name;
+            origin.dataset.lockWizardOrigin = id;
         });
 
         if (version !== renderVersion) return;
@@ -1267,18 +1308,32 @@ export function createSiteUniversalContractsView(options: {
         // Avoid rebuilding while a field owns focus. Mutating controls already update their own
         // visible value; the next explicit action or language change rebuilds the full page.
     });
-    options.i18n.subscribe(render);
+    const unsubscribeI18n = options.i18n.subscribe(render);
+    root.addEventListener("site-contracts-dispose", () => {
+        activeCamera?.stop();
+        activeCamera = null;
+        for (const timer of activeTimers) window.clearInterval(timer);
+        activeTimers.clear();
+        unsubscribeI18n();
+        unsubscribe();
+    }, { once: true });
     render();
     root.dataset.cleanup = "site-contracts-local-only";
-    void unsubscribe;
     return root;
 }
 
-function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTMLElement, name: string) => void): void {
+export function disposeSiteUniversalContractsView(root: HTMLElement): void {
+    root.dispatchEvent(new Event("site-contracts-dispose"));
+}
+
+function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTMLElement, id: string, name: string) => void): void {
+    let elementIndex = 0;
     const targets = [root, ...root.querySelectorAll<HTMLElement>("*")];
     for (const target of targets) {
         if (target.dataset.contractLockWizard === "true") continue;
         target.dataset.contractLockWizard = "true";
+        const stableId = target.dataset.contractElementId ?? `site.element.${elementIndex++}`;
+        target.dataset.contractElementId = stableId;
         const name = target.getAttribute("aria-label") ?? target.textContent?.trim().replace(/\s+/g, " ").slice(0, 80) ?? "unnamed element";
         const open = (event: Event): void => {
             event.preventDefault();
@@ -1291,9 +1346,10 @@ function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTM
             filter.className = "md-field__input";
             filter.placeholder = "Filter lock actions";
             filter.setAttribute("aria-label", "Filter lock actions");
-            const action = button(`Lock this element: ${name}`, () => { menu.remove(); openWizard(target, name); });
+            const action = button(`Lock this element: ${name}`, () => { menu.remove(); openWizard(target, stableId, name); });
             action.setAttribute("role", "menuitem");
             filter.addEventListener("input", () => { action.hidden = !matchesContractQuery(action.textContent ?? "", filter.value, filter.dataset.regexPattern ?? "", filter.dataset.regexFlags ?? "i"); });
+            filter.addEventListener("regexchange", () => { action.hidden = !matchesContractQuery(action.textContent ?? "", filter.value, filter.dataset.regexPattern ?? "", filter.dataset.regexFlags ?? "i"); });
             regexBuilder(menu, filter, "lock actions");
             menu.append(filter, action);
             document.body.append(menu);

@@ -47,7 +47,7 @@ experience locks, not encryption or security boundaries.
 
 The URI and manual secret fields are hidden until the visitor explicitly reveals them.
 Registration accepts an `otpauth://totp/` URI or the same fields manually, validates issuer,
-account, base32, algorithm, 6, 7, or 8 digits, and arbitrary bounded period values, and generates
+account, base32, algorithm, 6 or 8 digits, and arbitrary bounded period values, and generates
 RFC 6238 codes locally. The bundled QR encoder produces a real local SVG, with the URI as its text
 alternative. Local QR-image decoding and camera scanning use `BarcodeDetector` when the browser
 provides it, otherwise the controls stay visible with an honest disabled-state explanation.

@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { I18n } from "../i18n/I18n.js";
 import { Preferences } from "../platform/Preferences.js";
-import { createSiteUniversalContractsView } from "./siteContracts.js";
+import { createSiteUniversalContractsView, disposeSiteUniversalContractsView } from "./siteContracts.js";
 
 const appearanceStub = { store: { subscribe: () => () => undefined } } as never;
 
@@ -36,7 +36,16 @@ describe("mounted universal contracts surface", () => {
         expect(image?.accept).toContain("image/");
         expect(view.textContent).toContain("QR image file, local only");
         expect(view.querySelector("video")).not.toBeNull();
+        expect(view.querySelector('input[placeholder^="otpauth"]')?.getAttribute("type")).toBe("password");
+        expect(view.querySelector('input[type="password"]')).not.toBeNull();
         expect(view.outerHTML).not.toContain("secret=");
         expect(view.outerHTML).not.toContain("JBSWY3DPEHPK3PXP");
+    });
+
+    it("exposes a lifecycle cleanup hook for timers, camera streams, and subscriptions", () => {
+        const view = createSiteUniversalContractsView({ i18n: new I18n(new Preferences()), appearance: appearanceStub });
+        document.body.append(view);
+        expect(() => disposeSiteUniversalContractsView(view)).not.toThrow();
+        expect(view.dataset.cleanup).toBe("site-contracts-local-only");
     });
 });

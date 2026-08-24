@@ -41,13 +41,12 @@ describe("site universal contracts", () => {
         expect(await generateTotp(secret, 59_000, { algorithm: "SHA1", digits: 8, period: 30 })).toBe("94287082");
     });
 
-    it("generates the RFC 6238 SHA256 and SHA512 vectors and supports seven digits", async () => {
+    it("generates the RFC 6238 SHA256 and SHA512 vectors and rejects seven digits", async () => {
         const sha256Secret = encodeBase32(new TextEncoder().encode("12345678901234567890123456789012"));
         const sha512Secret = encodeBase32(new TextEncoder().encode("1234567890123456789012345678901234567890123456789012345678901234"));
         expect(await generateTotp(sha256Secret, 59_000, { algorithm: "SHA256", digits: 8, period: 30 })).toBe("46119246");
         expect(await generateTotp(sha512Secret, 59_000, { algorithm: "SHA512", digits: 8, period: 30 })).toBe("90693936");
-        const seven = await generateTotp(sha256Secret, 59_000, { algorithm: "SHA256", digits: 7, period: 45 });
-        expect(seven).toMatch(/^\d{7}$/);
+        expect(() => parseOtpAuthUri("otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example&digits=7")).toThrow(/6 or 8/);
     });
 
     it("stores metadata and redacted history but not authenticator secrets", async () => {
@@ -62,13 +61,13 @@ describe("site universal contracts", () => {
     it("keeps lock credentials as digests and clears waiting only", async () => {
         const storage = new MemoryStorage();
         const store = new SiteContractStore(new Preferences(storage));
-        const salt = "lock-salt-1";
+        const salt = "lock-salt-123456";
         const digest = await deriveCredential("correct horse battery staple", salt);
-        const lock = store.addLock({ target: "button", scope: "element", method: "password", credentialDigest: digest, credentialSalt: salt, iterations: 120_000, duration: "session", totp: null });
+        const lock = store.addLock({ target: "site.element.button", targetLabel: "button", scope: "element", method: "password", credentialDigest: digest, credentialSalt: salt, iterations: 120_000, duration: "session", totp: null });
         const stored = storage.getItem("mbm-site:site.universal.contracts.v1") ?? "";
         expect(stored).not.toContain("correct horse battery staple");
         expect(stored).toContain("PBKDF2-SHA-256");
-        expect(stored).toContain("lock-salt-1");
+        expect(stored).toContain("lock-salt-123456");
         store.beginLadderWait(1000);
         expect(store.snapshot.ladder.waitingUntil).toBeGreaterThan(Date.now());
         expect(await store.verifyLock(lock.id, "correct horse battery staple")).toBe(true);
@@ -81,6 +80,27 @@ describe("site universal contracts", () => {
         const two = await deriveCredential("same", "salt-b", 100_000);
         expect(one).not.toBe(two);
         await expect(deriveCredential("same", "salt", 99_999)).rejects.toThrow(/work factor/);
+    });
+
+    it("rejects revived lock records with an invalid KDF bound or TOTP method shape", () => {
+        const storage = new MemoryStorage();
+        storage.setItem("mbm-site:site.universal.contracts.v1", JSON.stringify({ version: 1, locks: [{ id: "bad", target: "x", scope: "element", method: "password", credentialDigest: "x", credentialSalt: "short", kdf: "PBKDF2-SHA-256", iterations: 900_000, duration: "session", createdAt: "now", lockedUntil: null, totp: { algorithm: "SHA1", digits: 6, period: 30 } }], authenticators: [], tickets: [], history: [], presets: [], appearance: {}, ladder: {} }));
+        expect(new SiteContractStore(new Preferences(storage)).snapshot.locks).toHaveLength(0);
+    });
+
+    it("deep-rejects an unbounded ladder snapshot on revival", () => {
+        const storage = new MemoryStorage();
+        storage.setItem("mbm-site:site.universal.contracts.v1", JSON.stringify({ version: 1, locks: [], authenticators: [], tickets: [], history: [], presets: [], appearance: {}, ladder: {}, ladderMachine: { stage: "sums", wrongDishes: 0, sumIndex: 0, sumAnswers: [], visibleMoles: [], hitMoles: [], moleStartedAt: null, moleDurationMs: 999999, nonce: "x", nonceIssuedAt: 0, nonceConsumed: false, waitingUntil: 0, attemptBudgetUsed: 999, escalation: 999 } }));
+        expect(new SiteContractStore(new Preferences(storage)).snapshot.ladderMachine).toBeNull();
+    });
+
+    it("persists authenticator and ticket selections across store recreation", () => {
+        const storage = new MemoryStorage();
+        const first = new SiteContractStore(new Preferences(storage));
+        first.setSelection("authenticator", ["a1"]);
+        first.setSelection("ticket", ["t1", "t2"]);
+        const second = new SiteContractStore(new Preferences(storage));
+        expect(second.snapshot.selection).toEqual({ authenticatorIds: ["a1"], ticketIds: ["t1", "t2"] });
     });
 
     it("generates a real bundled local QR SVG", () => {
@@ -101,10 +121,13 @@ describe("site universal contracts", () => {
         moles.answerSum(0, 1000);
         expect(moles.snapshot().stage).toBe("whack-a-mole");
         moles.startMoles(1000);
+        const started = moles.snapshot();
+        expect(moles.startMoles(1000).moleStartedAt).toBe(started.moleStartedAt);
         moles.submitMoles(1500);
         expect(moles.snapshot().stage).toBe("whack-a-mole");
         moles.submitMoles(5000);
         expect(moles.snapshot().stage).toBe("clock");
+        expect(moles.clearClock(1000).stage).toBe("clock");
         const expired = new UnlockLadderMachine({ schoolMode: true, now: 1000, waitingMs: 1000 });
         expect(expired.answerSum(7, 62_000).stage).toBe("clock");
     });

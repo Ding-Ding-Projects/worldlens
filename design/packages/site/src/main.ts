@@ -106,7 +106,7 @@ import { sharedRegexEvaluator } from "./search/evaluator.js";
 import { SearchQueryModel } from "./search/queryModel.js";
 import type { CandidateField } from "./search/runSearch.js";
 import type { NotificationRecord } from "./notifications/Notifications.js";
-import { createSiteUniversalContractsView } from "./universal/siteContracts.js";
+import { createSiteUniversalContractsView, disposeSiteUniversalContractsView } from "./universal/siteContracts.js";
 
 /* -------------------------------------------------------------------------- */
 /* Small DOM helpers                                                          */
@@ -1674,8 +1674,10 @@ function boot(): void {
         label: { key: "site.universalContractsTab" },
         closable: true,
         render: (host) => {
-            host.replaceChildren(createSiteUniversalContractsView({ i18n, appearance }));
+            const view = createSiteUniversalContractsView({ i18n, appearance });
+            host.replaceChildren(view);
             decoratePage(host, "universal-contracts", appearance);
+            return () => disposeSiteUniversalContractsView(view);
         },
     });
 

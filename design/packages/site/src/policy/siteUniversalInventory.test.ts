@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { existsSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { assertGlobalPagesCrossCheck, assertSiteUniversalInventory, SITE_UNIVERSAL_INVENTORY } from "./siteUniversalInventory.js";
+import { assertGlobalPagesCrossCheck, assertSiteUniversalInventory, REQUIRED_UNIVERSAL_SITE_IDS, SITE_UNIVERSAL_INVENTORY } from "./siteUniversalInventory.js";
 import { PAGES_FEATURE_COVERAGE } from "./globalFeatureCoverage.js";
 
 describe("site universal inventory", () => {
@@ -13,7 +13,7 @@ describe("site universal inventory", () => {
         for (const row of SITE_UNIVERSAL_INVENTORY) {
             expect(existsSync(resolve(oakKay, row.implementation))).toBe(true);
             expect(existsSync(resolve(oakKay, row.tests))).toBe(true);
-            expect(existsSync(resolve(oakKay, row.capture))).toBe(true);
+            expect(existsSync(resolve(oakKay, row.capture.path))).toBe(true);
         }
     });
 
@@ -32,14 +32,17 @@ describe("site universal inventory", () => {
 
     it("cross-checks every existing Pages inventory row, with a red then green mutation", () => {
         expect(() => assertGlobalPagesCrossCheck(PAGES_FEATURE_COVERAGE)).not.toThrow();
-        expect(() => assertGlobalPagesCrossCheck(PAGES_FEATURE_COVERAGE.slice(1))).toThrow(/missing/);
+        for (const id of REQUIRED_UNIVERSAL_SITE_IDS) {
+            const without = PAGES_FEATURE_COVERAGE.filter((row) => row.id !== id);
+            expect(() => assertGlobalPagesCrossCheck(without)).toThrow(/missing/);
+        }
         expect(() => assertGlobalPagesCrossCheck(PAGES_FEATURE_COVERAGE)).not.toThrow();
     });
 
     it("turns red for pending or stale evidence and green when restored", () => {
         const pending = SITE_UNIVERSAL_INVENTORY.map((row, index) => index === 0 ? { ...row, status: "pending" as const } : row);
         expect(() => assertSiteUniversalInventory(pending)).toThrow(/pending/);
-        const stale = SITE_UNIVERSAL_INVENTORY.map((row, index) => index === 0 ? { ...row, freshness: "old" as "candidate" } : row);
+        const stale = SITE_UNIVERSAL_INVENTORY.map((row, index) => index === 0 ? { ...row, freshness: "candidate" as never } : row);
         expect(() => assertSiteUniversalInventory(stale)).toThrow(/stale/);
         expect(() => assertSiteUniversalInventory(SITE_UNIVERSAL_INVENTORY)).not.toThrow();
     });
