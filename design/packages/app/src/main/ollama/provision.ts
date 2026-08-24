@@ -54,6 +54,11 @@ export async function stopOllamaRuntimeAndWait(executable?: string): Promise<boo
     return stopped;
 }
 
+export async function rollbackOllamaRuntime(dataDir: string): Promise<void> {
+    await stopOllamaRuntimeAndWait();
+    await rm(join(dataDir, "ollama-runtime"), { recursive: true, force: true });
+}
+
 export function restartOllamaRuntime(executable: string): void { stopOllamaRuntime(executable); superviseOllamaRuntime(executable); }
 
 function sha256(bytes: Buffer): string { return createHash("sha256").update(bytes).digest("hex"); }

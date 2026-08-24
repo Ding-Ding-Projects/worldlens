@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
-import { ensureOllamaRuntime, restartOllamaRuntime, stopOllamaRuntimeAndWait, waitForOllamaReadiness } from "../dist/main/ollama/provision.js";
+import { ensureOllamaRuntime, readOllamaRuntimeState, restartOllamaRuntime, rollbackOllamaRuntime, stopOllamaRuntimeAndWait, waitForOllamaReadiness } from "../dist/main/ollama/provision.js";
 
 const execFileAsync = promisify(execFile);
 const dataDir = process.env.WORLDLENS_SMOKE_ROOT ?? await mkdtemp(join(tmpdir(), "worldlens-ollama-runtime-smoke-"));
@@ -17,7 +17,9 @@ try {
     restartOllamaRuntime(executable);
     await waitForOllamaReadiness();
     if (!await stopOllamaRuntimeAndWait(executable)) throw new Error("The managed runtime did not stop after restart.");
-    console.log("Managed Ollama runtime smoke verified version, readiness, stop, and restart.");
+    await rollbackOllamaRuntime(dataDir);
+    if (await readOllamaRuntimeState(dataDir) !== null) throw new Error("Managed Ollama rollback left persisted runtime state behind.");
+    console.log("Managed Ollama runtime smoke verified download, version, readiness, stop, restart, rollback, and cleanup.");
 } finally {
     await stopOllamaRuntimeAndWait(executable ?? undefined);
     await rm(dataDir, { recursive: true, force: true });
