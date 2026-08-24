@@ -120,6 +120,73 @@ describe("reset", () => {
 });
 
 describe("turning an appearance into CSS", () => {
+    it("resolves chrome metadata and state layers without losing unknown values", () => {
+        const record = recordWithState();
+        const resolved = resolveRecords(record);
+        expect(resolved.surface.shape).toBe("pill");
+        expect(resolved.surface.icon.name).toBe("star");
+        const hover = appearanceStyle(resolved, CAPABILITIES, undefined, "hover");
+        expect(hover.style["border-radius"]).toBe("20px");
+        expect(hover.style["--appearance-gap"]).toBe("8px");
+        expect(resolveRecords(record).states.hover?.preserved).toEqual({ future: "kept" });
+    });
+
+    it("reports diagnostics from the selected state rather than the base layer", () => {
+        const resolved = resolveRecords(
+            record({
+                typography: { textColor: "red" },
+                states: { hover: { typography: { textColor: "not-a-colour" } } },
+            }),
+        );
+        const base = appearanceStyle(resolved, CAPABILITIES);
+        const hover = appearanceStyle(resolved, CAPABILITIES, undefined, "hover");
+        expect(base.unreadableColors).toEqual([]);
+        expect(hover.unreadableColors[0]?.authored).toBe("not-a-colour");
+    });
+
+    it("uses the stable font identity during actual style resolution and falls back honestly", () => {
+        const catalog = [
+            {
+                family: "Localized Face",
+                stableId: "face-regular",
+                source: "installed" as const,
+                sample: "x",
+                cjk: false,
+            },
+        ];
+        const resolved = resolveRecords(
+            record({ typography: { fontFamily: "Missing display", fontIdentity: "face-regular" } }),
+        );
+        const matched = appearanceStyle(resolved, CAPABILITIES, catalog);
+        const missing = appearanceStyle(
+            resolveRecords(
+                record({ typography: { fontFamily: "Fallback Face", fontIdentity: "missing" } }),
+            ),
+            CAPABILITIES,
+            catalog,
+        );
+        expect(matched.style["font-family"]).toContain('"Localized Face"');
+        expect(missing.style["font-family"]).toContain('"Fallback Face"');
+    });
+
+    it("parses state effect colours and reports malformed values without applying them", () => {
+        const resolved = resolveRecords(
+            record({
+                states: {
+                    hover: {
+                        effect: { shadowColor: "not-a-colour", glowColor: "red" },
+                    },
+                },
+            }),
+        );
+        const style = appearanceStyle(resolved, CAPABILITIES, undefined, "hover");
+        expect(style.style["--appearance-state-shadow-color"]).toBeUndefined();
+        expect(style.style["--appearance-state-glow-color"]).toBe("rgb(255 0 0)");
+        expect(style.unreadableColors.map((entry) => entry.property)).toContain(
+            "effect.shadowColor",
+        );
+    });
+
     it("emits the typography and the surface together", () => {
         const style = appearanceStyle(
             resolveRecords(
@@ -232,3 +299,19 @@ describe("turning an appearance into CSS", () => {
         expect(style.notes.some((note) => note.code === "decoration-style-conflict")).toBe(true);
     });
 });
+
+function recordWithState(): AppearanceRecord {
+    return record({
+        surface: {
+            icon: { name: "star", color: "gold", size: 20, opacity: 1 },
+            shape: "pill",
+            borderRadius: 12,
+        },
+        states: {
+            hover: {
+                surface: { borderRadius: 20, gap: 8 },
+                preserved: { future: "kept" },
+            },
+        },
+    });
+}

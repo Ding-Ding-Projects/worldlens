@@ -14,6 +14,7 @@ import {
     BUNDLED_FONTS,
     CJK_FALLBACK_STACK,
     fontFamilyStack,
+    fontIdentityStatus,
     mergeFontCatalog,
     queryInstalledFonts,
     searchFonts,
@@ -32,13 +33,22 @@ afterEach(() => {
 
 describe("what the app ships with", () => {
     it("lists the two families that are genuinely bundled", () => {
-        const bundled = BUNDLED_FONTS.filter((entry) => entry.source === "bundled").map((entry) => entry.family);
+        const bundled = BUNDLED_FONTS.filter((entry) => entry.source === "bundled").map(
+            (entry) => entry.family,
+        );
         expect(bundled).toContain("Roboto");
         expect(bundled).toContain("Roboto Mono");
     });
 
     it("offers the common Windows CJK faces and marks them as CJK", () => {
-        for (const family of ["Microsoft YaHei", "Microsoft JhengHei", "Yu Gothic", "Malgun Gothic", "SimSun", "MingLiU"]) {
+        for (const family of [
+            "Microsoft YaHei",
+            "Microsoft JhengHei",
+            "Yu Gothic",
+            "Malgun Gothic",
+            "SimSun",
+            "MingLiU",
+        ]) {
             const entry = BUNDLED_FONTS.find((candidate) => candidate.family === family);
             expect(entry?.cjk).toBe(true);
         }
@@ -114,15 +124,54 @@ describe("building a font-family stack", () => {
 
     it("uses the catalog it is handed rather than only the bundled one", () => {
         const catalog: FontFamily[] = [
-            { family: "Fira Code", source: "installed", sample: "x", cjk: false, generic: "monospace" },
+            {
+                family: "Fira Code",
+                source: "installed",
+                sample: "x",
+                cjk: false,
+                generic: "monospace",
+            },
         ];
         expect(fontFamilyStack("Fira Code", catalog).endsWith(", monospace")).toBe(true);
+    });
+
+    it("consumes stable identity when it is present and falls back to the display family when missing", () => {
+        const catalog: FontFamily[] = [
+            {
+                family: "Localized Face",
+                stableId: "face-regular",
+                source: "installed",
+                sample: "x",
+                cjk: false,
+            },
+            {
+                family: "Fallback Face",
+                stableId: "face-fallback",
+                source: "installed",
+                sample: "x",
+                cjk: false,
+            },
+        ];
+        expect(
+            fontFamilyStack("Missing display name", catalog, "face-regular").startsWith(
+                '"Localized Face"',
+            ),
+        ).toBe(true);
+        expect(
+            fontFamilyStack("Fallback Face", catalog, "missing-id").startsWith('"Fallback Face"'),
+        ).toBe(true);
     });
 });
 
 describe("merging enumerated families into the catalog", () => {
     const fixture: readonly FontFamily[] = [
-        { family: "Roboto", source: "bundled", sample: "bundled sample", cjk: false, generic: "sans-serif" },
+        {
+            family: "Roboto",
+            source: "bundled",
+            sample: "bundled sample",
+            cjk: false,
+            generic: "sans-serif",
+        },
         { family: "SimSun", source: "bundled", sample: "宋體", cjk: true, generic: "serif" },
     ];
 
@@ -147,7 +196,10 @@ describe("merging enumerated families into the catalog", () => {
     });
 
     it("sorts by family name, deterministically", () => {
-        const scrambled = mergeFontCatalog([{ family: "Zapfino" }, { family: "Andale Mono" }, { family: "Menlo" }], fixture);
+        const scrambled = mergeFontCatalog(
+            [{ family: "Zapfino" }, { family: "Andale Mono" }, { family: "Menlo" }],
+            fixture,
+        );
         expect(scrambled.map((entry) => entry.family)).toEqual([
             "Andale Mono",
             "Menlo",
@@ -177,7 +229,10 @@ describe("merging enumerated families into the catalog", () => {
     });
 
     it("returns the catalog untouched when nothing was enumerated", () => {
-        expect(mergeFontCatalog([], fixture).map((entry) => entry.source)).toEqual(["bundled", "bundled"]);
+        expect(mergeFontCatalog([], fixture).map((entry) => entry.source)).toEqual([
+            "bundled",
+            "bundled",
+        ]);
     });
 
     it("copies rather than aliasing the entries it was given", () => {
@@ -196,7 +251,10 @@ describe("searching the catalog", () => {
 
     it("takes a predicate, so the caller's own plain-or-regex matcher is the one that runs", () => {
         const matches = (text: string): boolean => text.toLowerCase().includes("roboto");
-        expect(searchFonts(catalog, matches).map((entry) => entry.family)).toEqual(["Roboto", "Roboto Mono"]);
+        expect(searchFonts(catalog, matches).map((entry) => entry.family)).toEqual([
+            "Roboto",
+            "Roboto Mono",
+        ]);
     });
 
     it("matches the family name and nothing else, so a sample cannot pull in a false hit", () => {
@@ -215,7 +273,8 @@ describe("asking the machine what it has", () => {
     });
 
     it("falls back silently when the permission prompt is denied, because that is a valid answer", async () => {
-        withFontQuery.queryLocalFonts = () => Promise.reject(new Error("The user denied permission."));
+        withFontQuery.queryLocalFonts = () =>
+            Promise.reject(new Error("The user denied permission."));
         await expect(queryInstalledFonts()).resolves.toEqual([...BUNDLED_FONTS]);
     });
 
@@ -228,7 +287,16 @@ describe("asking the machine what it has", () => {
 
     it("merges what it got, collapsing the per-style records into one row per family", async () => {
         withFontQuery.queryLocalFonts = () =>
-            Promise.resolve([{ family: "Segoe UI" }, { family: "Segoe UI" }, { family: "Zapfino" }]);
+            Promise.resolve([
+                { family: "Segoe UI", postscriptName: "SegoeUI-Regular", style: "Regular" },
+                {
+                    family: "Segoe UI",
+                    postscriptName: "SegoeUI-Bold",
+                    style: "Bold",
+                    axes: [{ tag: "wght", min: 400, max: 700, defaultValue: 400 }],
+                },
+                { family: "Zapfino", postscriptName: "Zapfino-Regular" },
+            ]);
 
         const catalog = await queryInstalledFonts();
         const segoe = catalog.filter((entry) => entry.family === "Segoe UI");
@@ -237,5 +305,46 @@ describe("asking the machine what it has", () => {
         expect(segoe[0]?.generic).toBe("sans-serif");
         expect(catalog.find((entry) => entry.family === "Zapfino")?.source).toBe("installed");
         expect(catalog.find((entry) => entry.family === "Roboto")?.source).toBe("bundled");
+        expect(segoe[0]?.stableId).toBe("SegoeUI-Bold");
+        expect(segoe[0]?.styles).toEqual(["Bold", "Regular"]);
+        expect(segoe[0]?.axes).toEqual([{ tag: "wght", min: 400, max: 700, defaultValue: 400 }]);
+    });
+
+    it("keeps a static font explicit about having no variable axes", () => {
+        const catalog = mergeFontCatalog([
+            { family: "Static Face", postscriptName: "StaticFace-Regular" },
+        ]);
+        const face = catalog.find((entry) => entry.family === "Static Face");
+        expect(face?.stableId).toBe("StaticFace-Regular");
+        expect(face?.axes).toBeUndefined();
+    });
+
+    it("distinguishes active, missing, incompatible, and unavailable identities", () => {
+        const catalog: FontFamily[] = [
+            {
+                family: "Active Face",
+                stableId: "active-id",
+                source: "installed",
+                sample: "x",
+                cjk: false,
+            },
+            {
+                family: "Other Face",
+                stableId: "other-id",
+                source: "installed",
+                sample: "x",
+                cjk: false,
+            },
+        ];
+        expect(fontIdentityStatus("Active Face", "active-id", catalog).kind).toBe(
+            "active-installed",
+        );
+        expect(fontIdentityStatus("Active Face", "missing-id", catalog).kind).toBe(
+            "identity-missing",
+        );
+        expect(fontIdentityStatus("Active Face", "other-id", catalog).kind).toBe(
+            "identity-incompatible",
+        );
+        expect(fontIdentityStatus("Gone Face", "gone-id", catalog).kind).toBe("family-missing");
     });
 });

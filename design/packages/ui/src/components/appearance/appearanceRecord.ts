@@ -29,6 +29,7 @@
 import { colorParseErrorKey, parseColor, type ColorParseError } from "./colorParse.js";
 import { cssColor } from "./colorFormat.js";
 import { fontFamilyStack, type FontFamily } from "./fontCatalog.js";
+import { isRainbowColor, rainbowDuration, type RainbowSpeedLevel } from "./rainbow.js";
 import {
     DEFAULT_TYPOGRAPHY,
     mergeTypography,
@@ -45,6 +46,83 @@ import {
 /* -------------------------------------------------------------------------- */
 
 export type BorderStyle = "none" | "solid" | "dashed" | "dotted" | "double";
+
+/** Chrome metadata that is rendered by the host rather than by the text box itself. */
+export interface IconSpec {
+    name: string;
+    color: string;
+    size: number;
+    opacity: number;
+}
+
+export type BadgeShape = "rounded" | "pill" | "square";
+
+export interface BadgeSpec {
+    text: string;
+    color: string;
+    backgroundColor: string;
+    shape: BadgeShape;
+    visible: boolean;
+}
+
+export type SeparatorStyle = "none" | "solid" | "dashed" | "dotted" | "double";
+
+export interface SeparatorSpec {
+    visible: boolean;
+    color: string;
+    thickness: number;
+    style: SeparatorStyle;
+}
+
+/** Shape variants are named so a host can map them to its own Material primitives. */
+export type ShapeVariant = "square" | "rounded" | "pill" | "cut" | "soft";
+export type DensityLevel = "comfortable" | "compact" | "spacious" | "custom";
+export type MotionLevel = "system" | "standard" | "reduced" | "none";
+
+export interface SpacingSpec {
+    gap: number;
+    marginInline: number;
+    marginBlock: number;
+    paddingInline: number;
+    paddingBlock: number;
+}
+
+/** The explicit pseudo-state inventory, kept hand-written so a missing state cannot hide. */
+export type AppearanceStateName =
+    "hover" | "focus" | "selected" | "expanded" | "collapsed" | "disabled" | "pressed" | "active";
+
+export const APPEARANCE_STATES: readonly AppearanceStateName[] = [
+    "hover",
+    "focus",
+    "selected",
+    "expanded",
+    "collapsed",
+    "disabled",
+    "pressed",
+    "active",
+];
+
+export interface AppearanceEffectSpec {
+    elevation: number;
+    opacity: number;
+    shadowColor: string;
+    shadowBlur: number;
+    glowColor: string;
+    glowRadius: number;
+}
+
+/** One state layer. Credentials never belong here; locks live in the lock store by path. */
+export interface AppearanceStateLayer {
+    typography?: Partial<TypographySpec>;
+    surface?: Partial<SurfaceSpec>;
+    effect?: Partial<AppearanceEffectSpec>;
+    icon?: Partial<IconSpec>;
+    badge?: Partial<BadgeSpec>;
+    separator?: Partial<SeparatorSpec>;
+    shape?: ShapeVariant;
+    spacing?: Partial<SpacingSpec>;
+    preserved?: Record<string, unknown>;
+}
 
 /**
  * Everything about an element that is not its text.
@@ -65,6 +143,15 @@ export interface SurfaceSpec {
     /** Material's elevation steps, 0 to 5, rendered as the tonal shadow for that level. */
     elevation: number;
     opacity: number;
+    icon: IconSpec;
+    badge: BadgeSpec;
+    separator: SeparatorSpec;
+    shape: ShapeVariant;
+    density: DensityLevel;
+    motion: MotionLevel;
+    gap: number;
+    marginInline: number;
+    marginBlock: number;
 }
 
 export type SurfacePropertyId = keyof SurfaceSpec;
@@ -80,6 +167,15 @@ export const SURFACE_PROPERTIES: readonly SurfacePropertyId[] = [
     "paddingBlock",
     "elevation",
     "opacity",
+    "icon",
+    "badge",
+    "separator",
+    "shape",
+    "density",
+    "motion",
+    "gap",
+    "marginInline",
+    "marginBlock",
 ];
 
 /**
@@ -100,6 +196,15 @@ export const DEFAULT_SURFACE: SurfaceSpec = {
     paddingBlock: 0,
     elevation: 0,
     opacity: 1,
+    icon: { name: "", color: "", size: 24, opacity: 1 },
+    badge: { text: "", color: "", backgroundColor: "", shape: "rounded", visible: false },
+    separator: { visible: false, color: "", thickness: 1, style: "solid" },
+    shape: "square",
+    density: "comfortable",
+    motion: "system",
+    gap: 0,
+    marginInline: 0,
+    marginBlock: 0,
 };
 
 function mergeSurface(base: SurfaceSpec, ...layers: Partial<SurfaceSpec>[]): SurfaceSpec {
@@ -114,6 +219,22 @@ function mergeSurface(base: SurfaceSpec, ...layers: Partial<SurfaceSpec>[]): Sur
             paddingBlock: layer.paddingBlock ?? current.paddingBlock,
             elevation: layer.elevation ?? current.elevation,
             opacity: layer.opacity ?? current.opacity,
+            icon:
+                layer.icon === undefined ? { ...current.icon } : { ...current.icon, ...layer.icon },
+            badge:
+                layer.badge === undefined
+                    ? { ...current.badge }
+                    : { ...current.badge, ...layer.badge },
+            separator:
+                layer.separator === undefined
+                    ? { ...current.separator }
+                    : { ...current.separator, ...layer.separator },
+            shape: layer.shape ?? current.shape,
+            density: layer.density ?? current.density,
+            motion: layer.motion ?? current.motion,
+            gap: layer.gap ?? current.gap,
+            marginInline: layer.marginInline ?? current.marginInline,
+            marginBlock: layer.marginBlock ?? current.marginBlock,
         }),
         { ...base },
     );
@@ -140,10 +261,12 @@ export interface AppearanceRecord {
     inherit: string;
     /** Keys from a future version of the format, kept so exporting does not lose them. */
     preserved: Record<string, unknown>;
+    /** Per-state opinions. Unknown state properties survive import and export. */
+    states: Partial<Record<AppearanceStateName, AppearanceStateLayer>>;
 }
 
 export function emptyRecord(): AppearanceRecord {
-    return { typography: {}, surface: {}, inherit: "", preserved: {} };
+    return { typography: {}, surface: {}, inherit: "", preserved: {}, states: {} };
 }
 
 /** True when the record expresses no opinion at all, so the editor can offer no reset. */
@@ -152,7 +275,8 @@ export function isRecordEmpty(record: AppearanceRecord): boolean {
         Object.keys(record.typography).length === 0 &&
         Object.keys(record.surface).length === 0 &&
         record.inherit === "" &&
-        Object.keys(record.preserved).length === 0
+        Object.keys(record.preserved).length === 0 &&
+        Object.keys(record.states).length === 0
     );
 }
 
@@ -170,6 +294,7 @@ export function mergeRecords(...records: readonly AppearanceRecord[]): Appearanc
             surface: { ...current.surface, ...next.surface },
             inherit: next.inherit === "" ? current.inherit : next.inherit,
             preserved: { ...current.preserved, ...next.preserved },
+            states: mergeStateLayers(current.states, next.states),
         }),
         emptyRecord(),
     );
@@ -179,6 +304,32 @@ export function mergeRecords(...records: readonly AppearanceRecord[]): Appearanc
 export interface ResolvedAppearance {
     typography: TypographySpec;
     surface: SurfaceSpec;
+    states: Partial<Record<AppearanceStateName, AppearanceStateLayer>>;
+}
+
+function mergeStateLayers(
+    base: Partial<Record<AppearanceStateName, AppearanceStateLayer>>,
+    next: Partial<Record<AppearanceStateName, AppearanceStateLayer>>,
+): Partial<Record<AppearanceStateName, AppearanceStateLayer>> {
+    const merged: Partial<Record<AppearanceStateName, AppearanceStateLayer>> = { ...base };
+    for (const state of APPEARANCE_STATES) {
+        const left = base[state];
+        const right = next[state];
+        if (left === undefined && right === undefined) continue;
+        merged[state] = {
+            ...left,
+            ...right,
+            typography: { ...left?.typography, ...right?.typography },
+            surface: { ...left?.surface, ...right?.surface },
+            effect: { ...left?.effect, ...right?.effect },
+            icon: { ...left?.icon, ...right?.icon },
+            badge: { ...left?.badge, ...right?.badge },
+            separator: { ...left?.separator, ...right?.separator },
+            spacing: { ...left?.spacing, ...right?.spacing },
+            preserved: { ...left?.preserved, ...right?.preserved },
+        };
+    }
+    return merged;
 }
 
 export function resolveRecords(...records: readonly AppearanceRecord[]): ResolvedAppearance {
@@ -186,6 +337,7 @@ export function resolveRecords(...records: readonly AppearanceRecord[]): Resolve
     return {
         typography: mergeTypography(DEFAULT_TYPOGRAPHY, merged.typography),
         surface: mergeSurface(DEFAULT_SURFACE, merged.surface),
+        states: merged.states,
     };
 }
 
@@ -202,6 +354,62 @@ export function resetSurface(record: AppearanceRecord, id: SurfacePropertyId): A
     const surface: Partial<SurfaceSpec> = { ...record.surface };
     delete surface[id];
     return { ...record, surface };
+}
+
+export type AppearanceStatePropertyGroup =
+    "typography" | "surface" | "effect" | "spacing" | "icon" | "badge" | "separator" | "shape";
+
+/** Removes one opinion from one pseudo-state while retaining every sibling opinion. */
+export function resetAppearanceStateProperty(
+    record: AppearanceRecord,
+    state: AppearanceStateName,
+    group: AppearanceStatePropertyGroup,
+    id: TypographyPropertyId | SurfacePropertyId,
+): AppearanceRecord {
+    const layer = record.states[state];
+    if (layer === undefined) return record;
+    const nextLayer: AppearanceStateLayer = { ...layer };
+    if (group === "shape") delete nextLayer.shape;
+    else if (String(id) === "__group__") delete (nextLayer as Record<string, unknown>)[group];
+    else {
+        const values = { ...(layer[group] ?? {}) } as Record<string, unknown>;
+        delete values[id];
+        if (Object.keys(values).length === 0) delete nextLayer[group];
+        else (nextLayer as Record<string, unknown>)[group] = values;
+    }
+    const states = { ...record.states, [state]: nextLayer };
+    if (Object.keys(nextLayer).length === 0) delete states[state];
+    return { ...record, states };
+}
+
+/** Resolves one named pseudo-state over a base appearance without mutating either record. */
+export function resolveStateAppearance(
+    resolved: ResolvedAppearance,
+    state: AppearanceStateName | undefined,
+): ResolvedAppearance {
+    if (state === undefined) return resolved;
+    const layer = resolved.states[state];
+    if (layer === undefined) return resolved;
+    const surface = {
+        ...resolved.surface,
+        ...(layer.surface ?? {}),
+        ...(layer.icon === undefined ? {} : { icon: { ...resolved.surface.icon, ...layer.icon } }),
+        ...(layer.badge === undefined
+            ? {}
+            : { badge: { ...resolved.surface.badge, ...layer.badge } }),
+        ...(layer.separator === undefined
+            ? {}
+            : { separator: { ...resolved.surface.separator, ...layer.separator } }),
+        ...(layer.shape === undefined ? {} : { shape: layer.shape }),
+        ...(layer.spacing === undefined ? {} : layer.spacing),
+        ...(layer.effect?.elevation === undefined ? {} : { elevation: layer.effect.elevation }),
+        ...(layer.effect?.opacity === undefined ? {} : { opacity: layer.effect.opacity }),
+    };
+    return {
+        ...resolved,
+        typography: mergeTypography(resolved.typography, layer.typography ?? {}),
+        surface: mergeSurface(resolved.surface, surface),
+    };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -226,12 +434,9 @@ export interface UnreadableColor {
  * of the time, and treating that as an error would fill the editor with warnings about
  * settings nobody has touched.
  */
-function resolveColor(
-    property: string,
-    authored: string,
-    into: UnreadableColor[],
-): string {
+function resolveColor(property: string, authored: string, into: UnreadableColor[]): string {
     if (authored.trim() === "") return "";
+    if (isRainbowColor(authored)) return "var(--appearance-rainbow-color)";
 
     const parsed = parseColor(authored);
     if (!parsed.ok) {
@@ -272,7 +477,11 @@ export interface AppearanceStyle {
     unreadableColors: UnreadableColor[];
 }
 
-function surfaceCss(surface: SurfaceSpec, unreadable: UnreadableColor[]): Record<string, string> {
+function surfaceCss(
+    surface: SurfaceSpec,
+    unreadable: UnreadableColor[],
+    rainbowSpeed: RainbowSpeedLevel,
+): Record<string, string> {
     const style: Record<string, string> = {};
 
     const background = resolveColor("backgroundColor", surface.backgroundColor, unreadable);
@@ -300,6 +509,47 @@ function surfaceCss(surface: SurfaceSpec, unreadable: UnreadableColor[]): Record
 
     if (surface.opacity < 1) style.opacity = String(Math.max(0, surface.opacity));
 
+    // These custom properties are the stable seam for host chrome. The appearance model keeps
+    // icon and badge identity as data, while each host decides which real Material primitive
+    // consumes them. Unknown names remain harmless and exportable rather than being discarded.
+    if (surface.icon.name !== "") style["--appearance-icon-name"] = surface.icon.name;
+    if (surface.icon.color !== "") {
+        const iconColor = resolveColor("icon.color", surface.icon.color, unreadable);
+        if (iconColor !== "") style["--appearance-icon-color"] = iconColor;
+    }
+    style["--appearance-icon-size"] = `${Math.max(1, surface.icon.size)}px`;
+    style["--appearance-icon-opacity"] = String(Math.max(0, Math.min(1, surface.icon.opacity)));
+    if (surface.badge.text !== "") style["--appearance-badge-text"] = surface.badge.text;
+    if (surface.badge.color !== "") {
+        const badgeColor = resolveColor("badge.color", surface.badge.color, unreadable);
+        if (badgeColor !== "") style["--appearance-badge-color"] = badgeColor;
+    }
+    if (surface.badge.backgroundColor !== "") {
+        const badgeBackground = resolveColor(
+            "badge.backgroundColor",
+            surface.badge.backgroundColor,
+            unreadable,
+        );
+        if (badgeBackground !== "") style["--appearance-badge-background"] = badgeBackground;
+    }
+    style["--appearance-badge-shape"] = surface.badge.shape;
+    style["--appearance-badge-visible"] = surface.badge.visible ? "1" : "0";
+    if (surface.separator.visible) {
+        const separatorColor = resolveColor("separator.color", surface.separator.color, unreadable);
+        if (separatorColor !== "") style["--appearance-separator-color"] = separatorColor;
+        style["--appearance-separator-width"] = `${Math.max(0, surface.separator.thickness)}px`;
+        style["--appearance-separator-style"] = surface.separator.style;
+    }
+    style["--appearance-shape"] = surface.shape;
+    style["--appearance-density"] = surface.density;
+    style["--appearance-motion"] = surface.motion;
+    style["--appearance-gap"] = `${Math.max(0, surface.gap)}px`;
+    style["--appearance-margin-inline"] = `${surface.marginInline}px`;
+    style["--appearance-margin-block"] = `${surface.marginBlock}px`;
+    style["--appearance-rainbow-duration"] = rainbowDuration(rainbowSpeed);
+    style["--appearance-rainbow-color"] = "hsl(210 80% 55%)";
+    style["--appearance-rainbow-reduced-color"] = "hsl(210 80% 55%)";
+
     return style;
 }
 
@@ -316,42 +566,95 @@ export function appearanceStyle(
     resolved: ResolvedAppearance,
     capabilities: TypographyCapabilities,
     catalog?: readonly FontFamily[],
+    state: AppearanceStateName | undefined = undefined,
+    rainbowSpeed: RainbowSpeedLevel = 3,
 ): AppearanceStyle {
     const unreadableColors: UnreadableColor[] = [];
 
+    const stateLayer = state === undefined ? undefined : resolved.states[state];
+    const stateTypography =
+        stateLayer?.typography === undefined
+            ? resolved.typography
+            : mergeTypography(resolved.typography, stateLayer.typography);
+    const stateSurface =
+        stateLayer?.surface === undefined
+            ? resolved.surface
+            : mergeSurface(resolved.surface, stateLayer.surface);
+
     const typography: TypographySpec = {
-        ...resolved.typography,
-        textColor: resolveColor("textColor", resolved.typography.textColor, unreadableColors),
-        highlight: resolveColor("highlight", resolved.typography.highlight, unreadableColors),
+        ...stateTypography,
+        textColor: resolveColor("textColor", stateTypography.textColor, unreadableColors),
+        highlight: resolveColor("highlight", stateTypography.highlight, unreadableColors),
         underlineColor: resolveColor(
             "underlineColor",
-            resolved.typography.underlineColor,
+            stateTypography.underlineColor,
             unreadableColors,
         ),
-        outlineColor: resolveColor(
-            "outlineColor",
-            resolved.typography.outlineColor,
-            unreadableColors,
-        ),
+        outlineColor: resolveColor("outlineColor", stateTypography.outlineColor, unreadableColors),
         shadow: {
-            ...resolved.typography.shadow,
-            color: resolveColor(
-                "shadow.color",
-                resolved.typography.shadow.color,
-                unreadableColors,
-            ),
+            ...stateTypography.shadow,
+            color: resolveColor("shadow.color", stateTypography.shadow.color, unreadableColors),
         },
         glow: {
-            ...resolved.typography.glow,
-            color: resolveColor("glow.color", resolved.typography.glow.color, unreadableColors),
+            ...stateTypography.glow,
+            color: resolveColor("glow.color", stateTypography.glow.color, unreadableColors),
         },
     };
 
-    const stack = fontFamilyStack(typography.fontFamily, catalog);
+    const stack = fontFamilyStack(typography.fontFamily, catalog, typography.fontIdentity);
     const text = typographyCss(typography, capabilities, stack);
 
+    const style = { ...text.style, ...surfaceCss(stateSurface, unreadableColors, rainbowSpeed) };
+    const rainbowValues = [
+        stateTypography.textColor,
+        stateTypography.highlight,
+        stateTypography.underlineColor,
+        stateTypography.outlineColor,
+        stateTypography.shadow.color,
+        stateTypography.glow.color,
+        stateSurface.backgroundColor,
+        stateSurface.borderColor,
+        stateSurface.icon.color,
+        stateSurface.badge.color,
+        stateSurface.badge.backgroundColor,
+        stateSurface.separator.color,
+    ];
+    style["--appearance-rainbow"] = rainbowValues.some(isRainbowColor) ? "true" : "false";
+    if (stateLayer?.effect !== undefined) {
+        const effect = stateLayer.effect;
+        if (effect.elevation !== undefined) {
+            const level = Math.round(Math.min(5, Math.max(0, effect.elevation)));
+            const shadow = ELEVATION_SHADOWS[level] ?? "";
+            if (shadow !== "") style["box-shadow"] = shadow;
+        }
+        if (effect.opacity !== undefined)
+            style.opacity = String(Math.max(0, Math.min(1, effect.opacity)));
+        if (effect.shadowColor !== undefined) {
+            const shadowColor = resolveColor(
+                "effect.shadowColor",
+                effect.shadowColor,
+                unreadableColors,
+            );
+            if (shadowColor !== "") style["--appearance-state-shadow-color"] = shadowColor;
+        }
+        if (effect.shadowBlur !== undefined)
+            style["--appearance-state-shadow-blur"] = `${Math.max(0, effect.shadowBlur)}px`;
+        if (effect.glowColor !== undefined) {
+            const glowColor = resolveColor("effect.glowColor", effect.glowColor, unreadableColors);
+            if (glowColor !== "") style["--appearance-state-glow-color"] = glowColor;
+        }
+        if (effect.glowRadius !== undefined)
+            style["--appearance-state-glow-radius"] = `${Math.max(0, effect.glowRadius)}px`;
+    }
+    if (stateLayer?.shape !== undefined) style["--appearance-shape"] = stateLayer.shape;
+    if (stateLayer?.spacing !== undefined) {
+        for (const [key, value] of Object.entries(stateLayer.spacing)) {
+            if (typeof value === "number") style[`--appearance-${key}`] = `${value}px`;
+        }
+    }
+
     return {
-        style: { ...text.style, ...surfaceCss(resolved.surface, unreadableColors) },
+        style,
         unsupported: [...text.unsupported],
         notes: [...text.notes],
         unreadableColors,

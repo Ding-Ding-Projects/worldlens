@@ -2,9 +2,10 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiCheck, mdiContentCopy, mdiEyedropperVariant } from "@mdi/js";
-import { VAlert, VBtn, VChip, VDivider, VSelect, VTextField, VTooltip } from "vuetify/components";
+import { VAlert, VBtn, VChip, VDivider, VTextField, VTooltip } from "vuetify/components";
 
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import AppearanceChoiceField from "./AppearanceChoiceField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     colorRepresentations,
@@ -30,6 +31,12 @@ import {
     rgbToOklch,
     type Rgb,
 } from "./colorSpaces.js";
+import {
+    isRainbowColor,
+    RAINBOW_SENTINEL,
+    rainbowDuration,
+    type RainbowSpeedLevel,
+} from "./rainbow.js";
 
 /**
  * The infinite colour picker, with its translator.
@@ -106,6 +113,8 @@ const BLACK = rgb(0, 0, 0);
 
 const working = ref<Rgb>(BLACK);
 const notation = ref<ColorSpaceId>("hex");
+const rainbow = ref(false);
+const rainbowSpeed = ref<RainbowSpeedLevel>(3);
 const rawText = ref("");
 const rawError = ref("");
 /** Set when the user has been told the notation was changed to avoid clipping. */
@@ -119,6 +128,12 @@ let alive = true;
 /** Reads the model into the working colour, keeping the notation the caller wrote in. */
 function adoptModel(value: string): void {
     rawText.value = value;
+    if (isRainbowColor(value)) {
+        rainbow.value = true;
+        rawError.value = "";
+        return;
+    }
+    rainbow.value = false;
     if (value.trim() === "") {
         rawError.value = "";
         working.value = BLACK;
@@ -173,6 +188,14 @@ const writeSpace = computed<ColorSpaceId>(() => {
 });
 
 function write(): void {
+    if (rainbow.value) {
+        notationSwitched.value = false;
+        written.value = RAINBOW_SENTINEL;
+        rawText.value = RAINBOW_SENTINEL;
+        rawError.value = "";
+        emit("update:modelValue", RAINBOW_SENTINEL);
+        return;
+    }
     const text = formatColor(working.value, writeSpace.value) ?? formatColor(working.value, "hex");
     if (text === null) return;
 
@@ -186,7 +209,13 @@ function write(): void {
 }
 
 function setColor(next: Rgb): void {
+    rainbow.value = false;
     working.value = next;
+    write();
+}
+
+function setRainbow(enabled: boolean): void {
+    rainbow.value = enabled;
     write();
 }
 
@@ -604,7 +633,11 @@ const gamutLabel = computed(() => {
 </script>
 
 <template>
-    <div class="mb-color-picker">
+    <div
+        class="mb-color-picker"
+        :data-appearance-rainbow="rainbow ? 'true' : 'false'"
+        :style="{ '--appearance-rainbow-duration': rainbowDuration(rainbowSpeed) }"
+    >
         <div class="mb-color-picker__header">
             <span
                 class="mb-color-picker__swatch"
@@ -626,7 +659,28 @@ const gamutLabel = computed(() => {
             >
                 {{ gamutLabel }}
             </v-chip>
+            <v-btn
+                size="x-small"
+                variant="tonal"
+                :aria-pressed="rainbow ? 'true' : 'false'"
+                @click="setRainbow(!rainbow)"
+            >
+                {{ t("appearance.color.rainbow", "Animated rainbow") }}
+            </v-btn>
         </div>
+
+        <label v-if="rainbow" class="mb-color-picker__rainbow-speed">
+            <span>{{ t("appearance.color.rainbowSpeed", "Rainbow speed") }}</span>
+            <input
+                v-model.number="rainbowSpeed"
+                type="range"
+                min="1"
+                max="5"
+                step="1"
+                :aria-label="t('appearance.color.rainbowSpeed', 'Rainbow speed')"
+            />
+            <span>{{ rainbowDuration(rainbowSpeed) }}</span>
+        </label>
 
         <!--
             The continuous field. Two real range inputs carry saturation and brightness so
@@ -740,8 +794,8 @@ const gamutLabel = computed(() => {
         <v-divider class="mb-color-picker__rule" />
 
         <div class="mb-color-picker__entry">
-            <v-select
-                v-model="notation"
+            <AppearanceChoiceField
+                :model-value="notation"
                 :items="
                     COLOR_SPACES.filter((space) => space !== 'named').map((space) => ({
                         title: t(colorSpaceLabelKey(space), spaceNames[space]),
@@ -749,11 +803,13 @@ const gamutLabel = computed(() => {
                     }))
                 "
                 :label="t('appearance.color.notation', 'Notation')"
-                density="compact"
-                variant="outlined"
-                hide-details
                 class="mb-color-picker__notation"
-                @update:model-value="write"
+                @update:model-value="
+                    (value: string) => {
+                        notation = value as ColorSpaceId;
+                        write();
+                    }
+                "
             />
             <v-text-field
                 v-for="entry in components"
@@ -1047,6 +1103,33 @@ const gamutLabel = computed(() => {
 
 .mb-color-picker__notation {
     flex: 1 1 140px;
+}
+
+@keyframes worldlens-appearance-rainbow {
+    from {
+        filter: hue-rotate(0deg);
+    }
+    to {
+        filter: hue-rotate(360deg);
+    }
+}
+
+.mb-color-picker[data-appearance-rainbow="true"] .mb-color-picker__swatch {
+    background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
+    animation: worldlens-appearance-rainbow var(--appearance-rainbow-duration, 16s) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-color-picker[data-appearance-rainbow="true"] .mb-color-picker__swatch {
+        animation: none;
+        filter: hue-rotate(210deg);
+    }
+}
+
+.mb-color-picker__rainbow-speed {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .mb-color-picker__number {

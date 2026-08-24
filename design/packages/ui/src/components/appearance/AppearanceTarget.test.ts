@@ -1133,3 +1133,81 @@ describe("cross-instance dismissal: opening a second element's popup closes the 
         expect(elementA?.getAttribute("aria-expanded")).toBe("true");
     });
 });
+
+describe("host pseudo-state and rainbow rendering", () => {
+    it("applies the hover state from a real host event", async () => {
+        commitAppearance(
+            withRecord(appearanceState().value, "test.row", {
+                ...emptyRecord(),
+                states: { hover: { surface: { borderRadius: 19 } } },
+            }),
+        );
+        const view = mountTarget();
+        const element = view.find(".mb-appearance-target").element as HTMLElement;
+        element.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("19px");
+    });
+
+    it("renders rainbow on the real target and keeps the global speed persisted", async () => {
+        const state = withRecord(appearanceState().value, "test.row", {
+            ...emptyRecord(),
+            typography: { textColor: "__worldlens_rainbow__" },
+        });
+        commitAppearance({ ...state, rainbowSpeed: 5 });
+        const view = mountTarget();
+        const element = view.find(".mb-appearance-target").element as HTMLElement;
+        expect(element.dataset.appearanceRainbow).toBe("true");
+        expect(element.style.getPropertyValue("--appearance-rainbow-duration")).toBe("6s");
+        expect(JSON.stringify(appearanceState().value)).toContain('"rainbowSpeed":5');
+    });
+
+    it("keeps pointer, focus, pressed, and explicit state independent with documented precedence", async () => {
+        commitAppearance(
+            withRecord(appearanceState().value, "test.row", {
+                ...emptyRecord(),
+                states: {
+                    hover: { surface: { borderRadius: 1 } },
+                    focus: { surface: { borderRadius: 2 } },
+                    pressed: { surface: { borderRadius: 3 } },
+                    selected: { surface: { borderRadius: 4 } },
+                },
+            }),
+        );
+        wrapper = mount(AppearanceTarget, {
+            attachTo: document.body,
+            global: { plugins: [vuetify, i18n] },
+            props: { id: "test.row", label: "The test row" },
+            slots: { default: () => h("button", { class: "host-button" }, "Host control") },
+        });
+        const element = targetElement();
+        element.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("1px");
+        expect(element.dataset.appearanceState).toBe("hover");
+        element.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("2px");
+        expect(element.dataset.appearanceState).toBe("focus");
+        element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("3px");
+        expect(element.dataset.appearanceState).toBe("pressed");
+        element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true }));
+        await nextTick();
+        element.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+        await nextTick();
+        expect(element.style.borderRadius).toBe("2px");
+        expect(element.dataset.appearanceState).toBe("focus");
+        const explicit = mount(AppearanceTarget, {
+            attachTo: document.body,
+            global: { plugins: [vuetify, i18n] },
+            props: { id: "test.row", label: "The test row", state: "selected" },
+            slots: { default: () => h("button", { class: "host-button" }, "Host control") },
+        });
+        await nextTick();
+        expect(explicit.element.style.borderRadius).toBe("4px");
+        expect((explicit.element as HTMLElement).dataset.appearanceState).toBe("selected");
+        explicit.unmount();
+    });
+});
