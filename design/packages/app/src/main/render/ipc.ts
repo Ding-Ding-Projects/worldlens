@@ -223,7 +223,8 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         appVersion: options.appVersion ?? null,
         sessions,
         containers,
-        promoteFinished: async (renderId: string) => await promotions.promote(renderId),
+        promoteFinished: async (renderId: string, projectId: string | null) =>
+            await promotions.promote(renderId, projectId),
         ...(options.docker === undefined ? {} : { docker: options.docker }),
         ...(options.dockerImage === undefined ? {} : { dockerImage: options.dockerImage }),
         ...(options.home === undefined ? {} : { home: options.home }),
@@ -341,8 +342,12 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
     );
 
     ipcMain.handle("render:list", async () => {
-        await restoreFinished();
-        return await summarise(storageDir, options.mounts);
+        const recovered = await restoreFinished();
+        return await summarise(
+            storageDir,
+            options.mounts,
+            new Set(recovered.map((promotion) => promotion.renderId)),
+        );
     });
 
     ipcMain.handle("render:promotions", async () => {
@@ -397,12 +402,13 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         return found.map((entry) => entry.summary);
     }
 
-    async function restoreFinished(): Promise<void> {
+    async function restoreFinished(): Promise<readonly FinishedRenderPromotion[]> {
         await interrupted();
         const recovered = await promotions.reconcile();
         for (const promotion of recovered.promotions) {
             await orchestrator.mountExisting(promotion.renderId);
         }
+        return recovered.promotions;
     }
 
     return {
@@ -417,17 +423,18 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
             // running when the app died stops being described as running. The list it
             // returns is dropped here because the interface asks for it over IPC; what
             // matters is that the files on disk have been made honest.
-            await restoreFinished();
+            const recovered = await restoreFinished();
             const summaries: RenderSummary[] = [];
-            for (const renderId of await listRenderIds(storageDir)) {
-                const record = await orchestrator.mountExisting(renderId);
+            for (const promotion of recovered) {
+                const record = await readRenderRecord(
+                    renderWorkspace(storageDir, promotion.renderId).recordFile,
+                );
                 if (record !== null) summaries.push(toSummary(record, options.mounts));
             }
             return summaries;
         },
         async finishedPromotions(): Promise<readonly FinishedRenderPromotion[]> {
-            await restoreFinished();
-            return await promotions.list();
+            return await restoreFinished();
         },
         claimPromotionNotification: async (promotionId: string): Promise<boolean> =>
             await promotions.claimNotification(promotionId),
@@ -456,11 +463,19 @@ const RENDER_CHANNELS = [
     "render:setStorageDirectory",
 ] as const;
 
-async function summarise(storageDir: string, mounts: LocalMapHandler): Promise<RenderSummary[]> {
+async function summarise(
+    storageDir: string,
+    mounts: LocalMapHandler,
+    verifiedFinishedIds: ReadonlySet<string> = new Set(),
+): Promise<RenderSummary[]> {
     const summaries: RenderSummary[] = [];
     for (const renderId of await listRenderIds(storageDir)) {
         const record = await readRenderRecord(renderWorkspace(storageDir, renderId).recordFile);
-        if (record !== null) summaries.push(toSummary(record, mounts));
+        if (
+            record !== null &&
+            (record.outcome !== "finished" || verifiedFinishedIds.has(record.renderId))
+        )
+            summaries.push(toSummary(record, mounts));
     }
     return summaries;
 }

@@ -291,6 +291,7 @@ export interface RenderMapRequest {
 
 export interface RenderRequest {
     maps: RenderMapRequest[];
+    projectId?: string;
     /**
      * Where to run the engine. Absent means on this computer, as it always did.
      *

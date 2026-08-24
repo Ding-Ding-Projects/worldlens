@@ -7,6 +7,7 @@ import { atomicWriteTextFile } from "../storage/atomicReplace.js";
 import { isValidMapId } from "./config.js";
 import { readRenderRecord, type RenderRecord } from "./provenance.js";
 import { readRenderSession } from "./session.js";
+import { verifyCompletedOutputManifest, type CompletedOutputManifest } from "./outputManifest.js";
 import {
     isValidRenderId,
     listRenderIds,
@@ -49,6 +50,7 @@ export interface FinishedRenderPromotion {
     readonly startedAt: string;
     readonly finishedAt: string;
     readonly outputIdentity: string;
+    readonly outputManifest?: CompletedOutputManifest;
     readonly verifiedReceipt: {
         readonly verifiedAt: string;
         readonly requiredFiles: readonly string[];
@@ -180,12 +182,15 @@ export class RenderPromotionStore {
         });
     }
 
-    async promote(renderId: string): Promise<PromotionResult> {
+    async promote(
+        renderId: string,
+        projectId: string | null = this.options.projectId ?? null,
+    ): Promise<PromotionResult> {
         return await this.serial(async () => {
             await this.reloadUnlocked();
             const checked = await verifyFinishedRender(
                 renderWorkspace(this.storageDir(), renderId),
-                this.verificationOptions(),
+                this.verificationOptions(projectId),
             );
             if (checked.promotion === null) return checked;
             const existing = this.promotions.find(
@@ -222,14 +227,14 @@ export class RenderPromotionStore {
         });
     }
 
-    private verificationOptions(): {
+    private verificationOptions(projectId: string | null = this.options.projectId ?? null): {
         readonly sourceCommit: string | null;
         readonly projectId: string | null;
         readonly storageRoot: string;
     } {
         return {
             sourceCommit: this.options.sourceCommit ?? null,
-            projectId: this.options.projectId ?? null,
+            projectId,
             storageRoot: resolve(this.storageDir()),
         };
     }
@@ -387,7 +392,10 @@ export async function verifyFinishedRender(
             "malformed-output",
             "record contains an invalid or duplicate map id",
         );
-    if (!record.maps.every((map, index) => sameMap(map, session.maps[index])))
+    if (
+        record.maps.length !== session.maps.length ||
+        !record.maps.every((map, index) => sameMap(map, session.maps[index]))
+    )
         return failure(
             workspace.renderId,
             "provenance-mismatch",
@@ -421,6 +429,16 @@ export async function verifyFinishedRender(
             workspace.renderId,
             "malformed-output",
             "web/settings.json has no valid map list",
+        );
+    if (
+        outputMaps.length !== mapIds.length ||
+        new Set(outputMaps).size !== outputMaps.length ||
+        mapIds.some((id) => !outputMaps.includes(id))
+    )
+        return failure(
+            workspace.renderId,
+            "provenance-mismatch",
+            "web/settings.json map set differs from the completed record",
         );
     const requiredFiles = ["settings.json"];
     const outputFiles = [rootSettingsPath];
@@ -456,6 +474,15 @@ export async function verifyFinishedRender(
             "missing-output",
             "required output files disappeared while verifying",
         );
+    if (
+        record.outputManifest !== undefined &&
+        !(await verifyCompletedOutputManifest(workspace.webRoot, record.outputManifest))
+    )
+        return failure(
+            workspace.renderId,
+            "provenance-mismatch",
+            "completed output manifest no longer matches the output tree",
+        );
 
     const promotion: FinishedRenderPromotion = {
         promotionVersion: 1,
@@ -483,6 +510,7 @@ export async function verifyFinishedRender(
         startedAt: record.startedAt,
         finishedAt: record.finishedAt,
         outputIdentity: identity,
+        ...(record.outputManifest === undefined ? {} : { outputManifest: record.outputManifest }),
         verifiedReceipt: { verifiedAt: new Date().toISOString(), requiredFiles },
         notificationDelivered: false,
     };
@@ -609,6 +637,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
 }
 
+function isOutputManifest(value: unknown): value is CompletedOutputManifest {
+    if (!isRecord(value)) return false;
+    return (
+        value.version === 1 &&
+        typeof value.fileCount === "number" &&
+        Number.isSafeInteger(value.fileCount) &&
+        value.fileCount >= 0 &&
+        typeof value.totalBytes === "number" &&
+        Number.isSafeInteger(value.totalBytes) &&
+        value.totalBytes >= 0 &&
+        typeof value.payloadFingerprint === "string" &&
+        /^[a-f0-9]{64}$/.test(value.payloadFingerprint)
+    );
+}
+
 function isPromotion(value: unknown): value is FinishedRenderPromotion {
     if (!isRecord(value)) return false;
     const engine = isRecord(value.engine) ? value.engine : null;
@@ -624,6 +667,7 @@ function isPromotion(value: unknown): value is FinishedRenderPromotion {
         value.dataRoot === `/local/${encodeURIComponent(value.renderId)}` &&
         typeof value.outputRoot === "string" &&
         typeof value.outputIdentity === "string" &&
+        (value.outputManifest === undefined || isOutputManifest(value.outputManifest)) &&
         Array.isArray(value.mapIds) &&
         value.mapIds.length > 0 &&
         value.mapIds.length <= 64 &&

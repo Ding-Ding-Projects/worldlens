@@ -81,6 +81,8 @@ import * as failures from "./failure.js";
 import type { RenderFailure } from "./failure.js";
 import { LocalMapHandler } from "./LocalMapHandler.js";
 import type { PromotionResult } from "./promotion.js";
+import { buildCompletedOutputManifest } from "./outputManifest.js";
+import { renderConfigFingerprint } from "./session.js";
 import type { RenderPhase, RenderSignal, RenderTaskProgress, CliLogLevel } from "./progress.js";
 import {
     RENDER_ENGINE_LABELS,
@@ -131,6 +133,7 @@ export const RENDER_RUNTIME_MODES: readonly RuntimeMode[] = ["local", "docker"];
 
 export interface RenderRequest {
     readonly maps: readonly RenderMapRequest[];
+    readonly projectId?: string;
     /** Concrete project choice. Absent is the legacy Java request shape. */
     readonly engine?: RenderEngineId;
     /**
@@ -466,7 +469,10 @@ export interface RenderOrchestratorOptions {
      */
     readonly jvmArgs?: readonly string[] | (() => readonly string[]);
     /** Persist and verify a finished output before its terminal event is broadcast. */
-    readonly promoteFinished?: (renderId: string) => Promise<PromotionResult>;
+    readonly promoteFinished?: (
+        renderId: string,
+        projectId: string | null,
+    ) => Promise<PromotionResult>;
 
     /* ---- The container half. Every one of these is optional and local ignores them. ---- */
 
@@ -863,6 +869,16 @@ export class RenderOrchestrator {
                 null,
             );
         }
+        if (
+            request.projectId !== undefined &&
+            (request.projectId.length === 0 || request.projectId.length > 256)
+        ) {
+            return this.fail(
+                renderId,
+                failures.invalidRequest("The project id is not valid."),
+                null,
+            );
+        }
 
         // Consent, before anything else happens. Nothing has been created, nothing has
         // been probed, and nothing will be spawned.
@@ -1218,9 +1234,30 @@ export class RenderOrchestrator {
         }
 
         record = { ...record, outcome: "finished", finishedAt, durationMs: result.durationMs };
+        let outputManifest: Awaited<ReturnType<typeof buildCompletedOutputManifest>> | undefined;
+        if (this.options.promoteFinished !== undefined) {
+            try {
+                outputManifest = await buildCompletedOutputManifest(workspace.webRoot);
+            } catch {
+                outputManifest = null;
+            }
+        }
+        if (this.options.promoteFinished !== undefined && outputManifest === null) {
+            const detail = "The completed output manifest could not be verified.";
+            const failedRecord = {
+                ...record,
+                outcome: "failed" as const,
+                failureCode: "promotion-unverified",
+            };
+            await this.saveRecord(workspace, failedRecord);
+            await this.options.sessions?.interrupt(renderId, "failed", detail);
+            return this.fail(renderId, failures.promotionUnverified(detail), failedRecord);
+        }
+        if (outputManifest !== undefined && outputManifest !== null)
+            record = { ...record, outputManifest };
         await this.saveRecord(workspace, record);
         await this.options.sessions?.complete(renderId);
-        const promotion = await this.options.promoteFinished?.(renderId);
+        const promotion = await this.options.promoteFinished?.(renderId, request.projectId ?? null);
         if (promotion?.failure !== null && promotion?.failure !== undefined) {
             const detail = `${promotion.failure.reason}: ${promotion.failure.detail}`;
             const failedRecord = {
@@ -1437,6 +1474,7 @@ export class RenderOrchestrator {
             failureCode: null,
             durationMs: null,
             appVersion: this.options.appVersion ?? null,
+            configHash: renderConfigFingerprint(request.maps),
         };
     }
 

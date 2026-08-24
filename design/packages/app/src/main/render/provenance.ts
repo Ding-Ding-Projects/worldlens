@@ -19,6 +19,7 @@ import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ProjectRenderEngine } from "@worldlens/config";
 import type { RuntimeMode } from "../runtime/plan.js";
+import type { CompletedOutputManifest } from "./outputManifest.js";
 
 /** Bumped when the shape below changes incompatibly. */
 export const RENDER_RECORD_VERSION = 1;
@@ -125,6 +126,8 @@ export interface RenderRecord {
     readonly failureCode: string | null;
     readonly durationMs: number | null;
     readonly appVersion: string | null;
+    readonly configHash?: string;
+    readonly outputManifest?: CompletedOutputManifest;
 }
 
 /** A one-line description for an About or map-details surface. */
@@ -197,7 +200,25 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
         failureCode: readString(parsed.failureCode),
         durationMs: typeof parsed.durationMs === "number" ? parsed.durationMs : null,
         appVersion: readString(parsed.appVersion),
+        ...(typeof parsed.configHash === "string" ? { configHash: parsed.configHash } : {}),
+        ...(isOutputManifest(parsed.outputManifest)
+            ? { outputManifest: parsed.outputManifest }
+            : {}),
     };
+}
+
+function isOutputManifest(value: unknown): value is CompletedOutputManifest {
+    if (typeof value !== "object" || value === null) return false;
+    const record = value as Record<string, unknown>;
+    return (
+        record.version === 1 &&
+        typeof record.fileCount === "number" &&
+        Number.isSafeInteger(record.fileCount) &&
+        typeof record.totalBytes === "number" &&
+        Number.isSafeInteger(record.totalBytes) &&
+        typeof record.payloadFingerprint === "string" &&
+        /^[a-f0-9]{64}$/.test(record.payloadFingerprint)
+    );
 }
 
 /** Anything that is not one of the two known runtimes reads as "not recorded". */

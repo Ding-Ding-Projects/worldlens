@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RenderPromotionStore, verifyFinishedRender } from "./promotion.js";
 import { renderConfigFingerprint } from "./session.js";
+import { buildCompletedOutputManifest } from "./outputManifest.js";
 import { renderWorkspace } from "./workspace.js";
 
 const roots: string[] = [];
@@ -194,7 +195,7 @@ describe("RenderPromotionStore", () => {
             join(workspace.webRoot, "settings.json"),
             JSON.stringify({ maps: ["other"] }),
         );
-        expect((await verifyFinishedRender(workspace)).failure?.reason).toBe("malformed-output");
+        expect((await verifyFinishedRender(workspace)).failure?.reason).toBe("provenance-mismatch");
         await writeFile(
             join(workspace.root, "session.json"),
             JSON.stringify({ status: "interrupted" }),
@@ -233,4 +234,19 @@ describe("RenderPromotionStore", () => {
             if (!(error instanceof Error) || !/ENOENT|not found/i.test(error.message)) throw error;
         }
     });
+
+    it("keeps the retained large fixture manifest stable across read-only passes", async () => {
+        const outputRoot = "C:/Worldlens-Capture/maps/royalty-update-5387b773f8c7/web";
+        try {
+            const before = await buildCompletedOutputManifest(outputRoot);
+            if (before === null) return;
+            const after = await buildCompletedOutputManifest(outputRoot);
+            expect(after).toEqual(before);
+            expect(before.fileCount).toBeGreaterThan(0);
+            expect(before.totalBytes).toBeGreaterThan(0);
+            expect(before.payloadFingerprint).toMatch(/^[a-f0-9]{64}$/);
+        } catch (error) {
+            if (!(error instanceof Error) || !/ENOENT|not found/i.test(error.message)) throw error;
+        }
+    }, 180_000);
 });
