@@ -1674,7 +1674,7 @@ function boot(): void {
         label: { key: "site.universalContractsTab" },
         closable: true,
         render: (host) => {
-            host.replaceChildren(createSiteUniversalContractsView({ i18n }));
+            host.replaceChildren(createSiteUniversalContractsView({ i18n, appearance }));
             decoratePage(host, "universal-contracts", appearance);
         },
     });

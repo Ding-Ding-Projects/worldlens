@@ -11,6 +11,8 @@ export interface SiteUniversalInventoryRow {
     readonly tests: string;
     readonly builtInteraction: string;
     readonly capture: string;
+    readonly status: "implemented" | "pending";
+    readonly freshness: "candidate" | "verified";
 }
 
 export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
@@ -22,6 +24,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/i18n/I18n.test.ts",
         builtInteraction: "Universal contracts language selector",
         capture: "site-universal-contracts-language.png",
+        status: "implemented",
+        freshness: "candidate",
     },
     {
         id: "appearance",
@@ -31,6 +35,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/appearance/editor/appearanceEditor.test.ts",
         builtInteraction: "Edit appearance on the universal surface",
         capture: "site-universal-contracts-appearance.png",
+        status: "implemented",
+        freshness: "candidate",
     },
     {
         id: "search-and-regex",
@@ -40,6 +46,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/search/attachBuilder.test.ts",
         builtInteraction: "Universal contract search builder",
         capture: "site-universal-contracts-search.png",
+        status: "implemented",
+        freshness: "candidate",
     },
     {
         id: "tabs",
@@ -49,6 +57,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/tabs/TabStrip.test.ts",
         builtInteraction: "Universal contracts tab",
         capture: "site-universal-contracts-tabs.png",
+        status: "implemented",
+        freshness: "candidate",
     },
     {
         id: "locks",
@@ -58,6 +68,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/universal/siteContracts.test.ts",
         builtInteraction: "Create and unlock a site element lock",
         capture: "site-universal-contracts-locks.png",
+        status: "implemented",
+        freshness: "candidate",
     },
     {
         id: "authenticator",
@@ -67,6 +79,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/universal/siteContracts.test.ts",
         builtInteraction: "Register an otpauth URI and inspect its countdown",
         capture: "site-universal-contracts-authenticator.png",
+        status: "implemented",
+        freshness: "candidate",
     },
     {
         id: "support-tickets",
@@ -76,6 +90,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/universal/siteContracts.test.ts",
         builtInteraction: "Create a local recovery ticket",
         capture: "site-universal-contracts-support.png",
+        status: "implemented",
+        freshness: "candidate",
     },
     {
         id: "unlock-ladder",
@@ -85,6 +101,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/universal/siteContracts.test.ts",
         builtInteraction: "Solve the local waiting challenge",
         capture: "site-universal-contracts-ladder.png",
+        status: "implemented",
+        freshness: "candidate",
     },
     {
         id: "history",
@@ -94,6 +112,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/universal/siteContracts.test.ts",
         builtInteraction: "Export and clear redacted site history",
         capture: "site-universal-contracts-history.png",
+        status: "implemented",
+        freshness: "candidate",
     },
     {
         id: "privacy-boundary",
@@ -103,6 +123,8 @@ export const SITE_UNIVERSAL_INVENTORY: readonly SiteUniversalInventoryRow[] = [
         tests: "src/universal/siteContracts.test.ts",
         builtInteraction: "Storage disclosure and no-network recovery route",
         capture: "site-universal-contracts-privacy.png",
+        status: "implemented",
+        freshness: "candidate",
     },
 ];
 
@@ -121,8 +143,20 @@ export function assertSiteUniversalInventory(
             if (typeof value !== "string" || value.trim() === "")
                 throw new Error(`Site universal inventory ${row.id} has an empty ${field}`);
         }
+        if (row.status !== "implemented") throw new Error(`Site universal inventory row is pending: ${row.id}`);
+        if (row.freshness !== "candidate" && row.freshness !== "verified") throw new Error(`Site universal inventory row has stale evidence: ${row.id}`);
     }
     for (const expected of SITE_UNIVERSAL_INVENTORY) {
         if (!ids.has(expected.id)) throw new Error(`Missing site universal inventory row: ${expected.id}`);
     }
 }
+
+/** Cross-check the universal additions against every pre-existing Pages contract row. */
+export function assertGlobalPagesCrossCheck(
+    coverage: readonly { readonly id: string }[] = PAGES_FEATURE_COVERAGE,
+): void {
+    const available = new Set(coverage.map((row) => row.id));
+    const missing = REQUIRED_PAGES_FEATURE_IDS.filter((id) => !available.has(id));
+    if (missing.length > 0) throw new Error(`Pages inventory rows missing from site cross-check: ${missing.join(", ")}`);
+}
+import { PAGES_FEATURE_COVERAGE, REQUIRED_PAGES_FEATURE_IDS } from "./globalFeatureCoverage.js";

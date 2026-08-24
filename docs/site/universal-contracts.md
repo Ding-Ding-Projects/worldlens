@@ -14,11 +14,12 @@ compact bilingual equivalent for its own headings and keeps security and storage
 ## Appearance
 
 The site already registers every rendered element with the per-element appearance editor. The
-Universal contracts tab adds a visible local studio for a continuous color field, numeric color
+Universal contracts tab opens that same editor for its own color control and editor chrome, rather
+than substituting a second native color picker. The visible local studio covers continuous color
 entry, typography size, weight, italic, underline, strikethrough, capitalization, character
 spacing, and line height. The full editor supplies state layers, font previews, color-space
-translations, presets, import, export, and reset. Rainbow is represented as a sentinel, never as
-a CSS color string, and reduced motion settles the hue.
+translations, rainbow sentinel support, named presets, import, export, and reset. Rainbow is
+represented as a sentinel, never as a CSS color string, and reduced motion settles the hue.
 
 Every mutation appends a redacted visitor-local history entry. Passwords, TOTP secrets, QR
 payloads, and file metadata are never copied into history or exports.
@@ -26,16 +27,18 @@ payloads, and file metadata are never copied into history or exports.
 ## Search, menus, and tabs
 
 The tab has its own plain-text search. Its adjacent builder supports a bounded JavaScript regular
-expression, flags, sample text, syntax feedback, and a valid or invalid state. Dropdowns expose a
-local filter and the same builder affordance. The site's browser-style tabs, groups, overflow,
-bulk actions, and four tab searches remain provided by the shared tab modules.
+expression, flags, sample text, syntax feedback, and a valid or invalid state. The resulting
+pattern and flags drive the actual predicate, not only a data attribute. Dropdowns expose a local
+filter and the same builder affordance. The site's browser-style tabs, groups, overflow, bulk
+actions, and four tab searches remain provided by the shared tab modules.
 
 ## Locks
 
-Each lock record names its target, scope, method, credential digest, and duration. A lock can be
-for an element, property, tab, or group. Passwords are SHA-256 digests only. TOTP credentials are
-kept in this tab's memory because a static site has no operating-system vault; after a reload the
-site asks the visitor to register the URI again rather than pretending the secret survived safely.
+Each lock record names its target, scope, method, per-lock random salt, PBKDF2-SHA-256 work factor,
+and duration. A lock can be for an element, property, tab, or group. Passwords never use unsalted
+SHA-256. TOTP locks keep their own algorithm, digit count, period, and tab-memory secret because a
+static site has no operating-system vault; after a reload the site asks the visitor to register
+the URI again rather than pretending the secret survived safely.
 The lock list keeps locked targets searchable and offers an honest Support Tickets route after a
 wrong answer. Clearing this site's storage is the self-service recovery route. These are toy
 experience locks, not encryption or security boundaries.
@@ -43,10 +46,14 @@ experience locks, not encryption or security boundaries.
 ## Authenticator
 
 Registration accepts an `otpauth://totp/` URI or the same fields manually, validates issuer,
-account, base32, algorithm, digits, and period, and generates RFC 6238 codes locally. The surface
-shows the current countdown and next-code boundary, groups entries, and offers clipboard and
-local QR-image input where the browser supports it. The URI remains the accessible text
-alternative to a QR image. No secret is sent over the network or persisted in localStorage.
+account, base32, algorithm, 6, 7, or 8 digits, and arbitrary bounded period values, and generates
+RFC 6238 codes locally. The bundled QR encoder produces a real local SVG, with the URI as its text
+alternative. Local QR-image decoding and camera scanning use `BarcodeDetector` when the browser
+provides it, otherwise the controls stay visible with an honest disabled-state explanation.
+Registration remains pending until the current code confirms the entry. The surface shows the
+current countdown and next-code boundary, groups entries, searches them with a real predicate,
+supports reorder and bulk metadata export, and omits secrets from every export. No secret is sent
+over the network or persisted in localStorage.
 
 ## Support Tickets
 
@@ -58,11 +65,13 @@ two exact keys and a full-range confirmation slider.
 
 ## Unlock ladder
 
-A static site cannot perform server-side nonce grading. The shipped equivalent generates a
-single-use local nonce, checks a timed arithmetic challenge, and clears only a local waiting
-timestamp. It does not create a session, set a cookie, reveal a credential, or refund the attempt
-budget. The ladder has three attempts per rolling hour and falls back to the clock after that.
-School-mode users start at the sums, with the hidden dim-sum rung absent.
+A static site cannot perform server-side nonce grading, so the browser equivalent states that
+boundary while still shipping every rung locally. The state machine runs the dim-sum choices,
+five-wrong transition, ten sums, wrong-sum transition, timed whack-a-mole with one hit per visible
+mole, early-submit refusal, and final clock. It generates expiring nonces, consumes a rolling
+three-wait budget, preserves escalation, and clears waiting only. It does not create a session,
+set a cookie, reveal a credential, or refund the attempt budget. School-mode users start at the
+sums, with the hidden dim-sum rung absent.
 
 ## Privacy and browser boundary
 

@@ -11,6 +11,9 @@
 import type { I18n } from "../i18n/I18n.js";
 import { Preferences } from "../platform/Preferences.js";
 import { confirmDestructive } from "../settings/confirm.js";
+import qrcode from "qrcode-generator";
+import type { AppearanceController } from "../appearance/controller.js";
+import { openAppearanceEditor } from "../appearance/editor/appearanceEditor.js";
 
 const STATE_KEY = "site.universal.contracts.v1";
 const MAX_TICKETS = 100;
@@ -21,6 +24,10 @@ const MAX_SECRET_BYTES = 128;
 
 export type LockMethod = "password" | "totp";
 export type LockDuration = "session" | "15m" | "1h";
+export type TotpAlgorithm = "SHA1" | "SHA256" | "SHA512";
+export type TotpDigits = 6 | 7 | 8;
+
+export const PBKDF2_ITERATIONS = 120_000;
 
 export interface SiteLock {
     readonly id: string;
@@ -28,6 +35,14 @@ export interface SiteLock {
     readonly scope: "element" | "tab" | "group" | "property";
     readonly method: LockMethod;
     readonly credentialDigest: string;
+    readonly credentialSalt: string;
+    readonly kdf: "PBKDF2-SHA-256";
+    readonly iterations: number;
+    readonly totp: {
+        readonly algorithm: TotpAlgorithm;
+        readonly digits: TotpDigits;
+        readonly period: number;
+    } | null;
     readonly duration: LockDuration;
     readonly createdAt: string;
     readonly lockedUntil: number | null;
@@ -37,8 +52,8 @@ export interface AuthenticatorEntry {
     readonly id: string;
     readonly issuer: string;
     readonly account: string;
-    readonly algorithm: "SHA1" | "SHA256" | "SHA512";
-    readonly digits: 6 | 8;
+    readonly algorithm: TotpAlgorithm;
+    readonly digits: TotpDigits;
     readonly period: number;
     readonly group: string;
     readonly secretAvailable: boolean;
@@ -60,12 +75,20 @@ export interface SiteHistoryEntry {
     readonly detail: string;
 }
 
+export interface SiteAppearancePreset {
+    readonly id: string;
+    readonly name: string;
+    readonly appearance: SiteContractState["appearance"];
+    readonly createdAt: string;
+}
+
 export interface SiteContractState {
     readonly version: 1;
     readonly locks: readonly SiteLock[];
     readonly authenticators: readonly AuthenticatorEntry[];
     readonly tickets: readonly SupportTicket[];
     readonly history: readonly SiteHistoryEntry[];
+    readonly presets: readonly SiteAppearancePreset[];
     readonly appearance: {
         readonly colour: string;
         readonly rainbow: boolean;
@@ -125,6 +148,7 @@ function emptyState(): SiteContractState {
         authenticators: [],
         tickets: [],
         history: [],
+        presets: [],
         appearance: { ...DEFAULT_APPEARANCE },
         ladder: { waitingUntil: 0, used: 0, budgetStartedAt: Date.now() },
     };
@@ -139,15 +163,21 @@ function isSiteLock(value: unknown): value is SiteLock {
     return typeof value.id === "string" && typeof value.target === "string" &&
         (value.scope === "element" || value.scope === "tab" || value.scope === "group" || value.scope === "property") &&
         (value.method === "password" || value.method === "totp") && typeof value.credentialDigest === "string" &&
+        typeof value.credentialSalt === "string" && value.kdf === "PBKDF2-SHA-256" &&
+        typeof value.iterations === "number" && Number.isInteger(value.iterations) && value.iterations >= 100_000 &&
         (value.duration === "session" || value.duration === "15m" || value.duration === "1h") &&
-        typeof value.createdAt === "string" && (value.lockedUntil === null || typeof value.lockedUntil === "number");
+        typeof value.createdAt === "string" && (value.lockedUntil === null || typeof value.lockedUntil === "number") &&
+        (value.totp === null || (isRecord(value.totp) &&
+            (value.totp.algorithm === "SHA1" || value.totp.algorithm === "SHA256" || value.totp.algorithm === "SHA512") &&
+            (value.totp.digits === 6 || value.totp.digits === 7 || value.totp.digits === 8) &&
+            typeof value.totp.period === "number" && Number.isInteger(value.totp.period) && value.totp.period >= 5 && value.totp.period <= 300));
 }
 
 function isAuthenticatorEntry(value: unknown): value is AuthenticatorEntry {
     if (!isRecord(value)) return false;
     return typeof value.id === "string" && typeof value.issuer === "string" && typeof value.account === "string" &&
         (value.algorithm === "SHA1" || value.algorithm === "SHA256" || value.algorithm === "SHA512") &&
-        (value.digits === 6 || value.digits === 8) && typeof value.period === "number" &&
+        (value.digits === 6 || value.digits === 7 || value.digits === 8) && typeof value.period === "number" &&
         Number.isInteger(value.period) && value.period >= 5 && value.period <= 300 &&
         typeof value.group === "string" && typeof value.secretAvailable === "boolean";
 }
@@ -165,6 +195,11 @@ function isHistoryEntry(value: unknown): value is SiteHistoryEntry {
         typeof value.target === "string" && typeof value.detail === "string";
 }
 
+function isAppearancePreset(value: unknown): value is SiteAppearancePreset {
+    if (!isRecord(value) || typeof value.id !== "string" || typeof value.name !== "string" || typeof value.createdAt !== "string") return false;
+    return isRecord(value.appearance) && typeof value.appearance.colour === "string";
+}
+
 function revive(value: unknown): SiteContractState | undefined {
     if (!isRecord(value) || value.version !== 1) return undefined;
     const base = emptyState();
@@ -180,6 +215,7 @@ function revive(value: unknown): SiteContractState | undefined {
         authenticators: authenticators.slice(0, 100).filter(isAuthenticatorEntry),
         tickets: tickets.slice(0, MAX_TICKETS).filter(isSupportTicket),
         history: history.slice(0, MAX_HISTORY).filter(isHistoryEntry),
+        presets: (Array.isArray(value.presets) ? value.presets : []).slice(0, 50).filter(isAppearancePreset),
         appearance: {
             colour: typeof appearance.colour === "string" ? appearance.colour : base.appearance.colour,
             rainbow: appearance.rainbow === true,
@@ -245,7 +281,16 @@ export class SiteContractStore {
     }
 
     setAppearance(patch: Partial<SiteContractState["appearance"]>): void {
-        this.current = { ...this.current, appearance: { ...this.current.appearance, ...patch } };
+        const next = { ...this.current.appearance, ...patch };
+        this.current = { ...this.current, appearance: {
+            ...next,
+            colour: typeof next.colour === "string" && (/^#[0-9a-f]{6}$/i.test(next.colour) || /^#[0-9a-f]{8}$/i.test(next.colour)) ? next.colour : this.current.appearance.colour,
+            fontSize: numberInRange(next.fontSize, 10, 48, this.current.appearance.fontSize),
+            weight: numberInRange(next.weight, 100, 900, this.current.appearance.weight),
+            letterSpacing: numberInRange(next.letterSpacing, -0.2, 1, this.current.appearance.letterSpacing),
+            wordSpacing: numberInRange(next.wordSpacing, 0, 2, this.current.appearance.wordSpacing),
+            lineHeight: numberInRange(next.lineHeight, 1, 3, this.current.appearance.lineHeight),
+        } };
         this.commit("appearance.changed", "appearance", "Appearance values changed locally");
     }
 
@@ -254,12 +299,36 @@ export class SiteContractStore {
         this.commit("appearance.reset", "appearance", "Appearance returned to the shipped values");
     }
 
+    saveAppearancePreset(name: string): SiteAppearancePreset {
+        const preset: SiteAppearancePreset = { id: randomId("preset"), name: name.trim().slice(0, 80) || "Untitled appearance", appearance: { ...this.current.appearance }, createdAt: nowIso() };
+        this.current = { ...this.current, presets: [preset, ...this.current.presets].slice(0, 50) };
+        this.commit("appearance.preset.created", preset.id, `Saved appearance preset ${preset.name}`);
+        return preset;
+    }
+
+    applyAppearancePreset(id: string): boolean {
+        const preset = this.current.presets.find((candidate) => candidate.id === id);
+        if (preset === undefined) return false;
+        this.current = { ...this.current, appearance: { ...preset.appearance } };
+        this.commit("appearance.preset.applied", id, `Applied appearance preset ${preset.name}`);
+        return true;
+    }
+
+    removeAppearancePreset(id: string): void {
+        if (!this.current.presets.some((preset) => preset.id === id)) return;
+        this.current = { ...this.current, presets: this.current.presets.filter((preset) => preset.id !== id) };
+        this.commit("appearance.preset.removed", id, "Removed one local appearance preset");
+    }
+
     addLock(input: {
         readonly target: string;
         readonly scope: SiteLock["scope"];
         readonly method: LockMethod;
         readonly credentialDigest: string;
+        readonly credentialSalt: string;
+        readonly iterations: number;
         readonly sessionSecret?: string;
+        readonly totp?: SiteLock["totp"];
         readonly duration: LockDuration;
     }): SiteLock {
         const lockedUntil = input.duration === "session" ? null : Date.now() + (input.duration === "15m" ? 900_000 : 3_600_000);
@@ -269,6 +338,10 @@ export class SiteContractStore {
             scope: input.scope,
             method: input.method,
             credentialDigest: input.credentialDigest,
+            credentialSalt: input.credentialSalt,
+            kdf: "PBKDF2-SHA-256",
+            iterations: input.iterations,
+            totp: input.totp ?? null,
             duration: input.duration,
             createdAt: nowIso(),
             lockedUntil,
@@ -294,9 +367,9 @@ export class SiteContractStore {
         if (lock.method === "totp") {
             const secret = this.sessionSecrets.get(id);
             if (secret === undefined) return false;
-            return (await generateTotp(secret, Date.now(), { algorithm: "SHA1", digits: 6, period: 30 })) === answer;
+            return (await generateTotp(secret, Date.now(), lock.totp ?? { algorithm: "SHA1", digits: 6, period: 30 })) === answer;
         }
-        return (await sha256(answer)) === lock.credentialDigest;
+        return (await deriveCredential(answer, lock.credentialSalt, lock.iterations)) === lock.credentialDigest;
     }
 
     addAuthenticator(entry: AuthenticatorEntry, secret: string): void {
@@ -314,6 +387,16 @@ export class SiteContractStore {
         if (!this.current.authenticators.some((entry) => entry.id === id)) return;
         this.current = { ...this.current, authenticators: this.current.authenticators.filter((entry) => entry.id !== id) };
         this.commit("authenticator.removed", id, "Removed authenticator metadata; no secret entered history");
+    }
+
+    reorderAuthenticator(id: string, direction: "up" | "down"): void {
+        const entries = [...this.current.authenticators];
+        const index = entries.findIndex((entry) => entry.id === id);
+        const next = direction === "up" ? index - 1 : index + 1;
+        if (index < 0 || next < 0 || next >= entries.length) return;
+        [entries[index], entries[next]] = [entries[next]!, entries[index]!];
+        this.current = { ...this.current, authenticators: entries };
+        this.commit("authenticator.reordered", id, `Moved authenticator ${direction}`);
     }
 
     addTicket(category: string, description: string): SupportTicket {
@@ -382,11 +465,23 @@ export class SiteContractStore {
     }
 }
 
-export async function sha256(value: string): Promise<string> {
-    if (typeof crypto === "undefined" || typeof crypto.subtle?.digest !== "function")
-        throw new Error("This browser cannot verify a password locally because Web Crypto is unavailable.");
-    const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-    return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+export function freshCredentialSalt(): string {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** Bounded, per-lock password KDF. Unsalted SHA-256 is intentionally not accepted here. */
+export async function deriveCredential(value: string, salt: string, iterations = PBKDF2_ITERATIONS): Promise<string> {
+    if (!Number.isInteger(iterations) || iterations < 100_000 || iterations > 500_000)
+        throw new Error("Password work factor must be between 100000 and 500000 PBKDF2 iterations.");
+    const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(value), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits(
+        { name: "PBKDF2", salt: new TextEncoder().encode(salt), iterations, hash: "SHA-256" },
+        key,
+        256,
+    );
+    return Array.from(new Uint8Array(bits), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
 const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
@@ -410,7 +505,7 @@ export function decodeBase32(input: string): Uint8Array {
     return new Uint8Array(output);
 }
 
-function encodeBase32(bytes: Uint8Array): string {
+export function encodeBase32(bytes: Uint8Array): string {
     let buffer = 0;
     let bits = 0;
     let result = "";
@@ -436,8 +531,8 @@ export interface TotpUri {
     readonly issuer: string;
     readonly account: string;
     readonly secret: string;
-    readonly algorithm: "SHA1" | "SHA256" | "SHA512";
-    readonly digits: 6 | 8;
+    readonly algorithm: TotpAlgorithm;
+    readonly digits: TotpDigits;
     readonly period: number;
 }
 
@@ -454,16 +549,93 @@ export function parseOtpAuthUri(raw: string): TotpUri {
     const algorithmRaw = (url.searchParams.get("algorithm") || "SHA1").toUpperCase();
     if (algorithmRaw !== "SHA1" && algorithmRaw !== "SHA256" && algorithmRaw !== "SHA512") throw new Error("Algorithm must be SHA1, SHA256, or SHA512.");
     const digitsRaw = Number(url.searchParams.get("digits") || "6");
-    if (digitsRaw !== 6 && digitsRaw !== 8) throw new Error("Digits must be 6 or 8.");
+    if (digitsRaw !== 6 && digitsRaw !== 7 && digitsRaw !== 8) throw new Error("Digits must be 6, 7, or 8.");
     const period = Number(url.searchParams.get("period") || "30");
     if (!Number.isInteger(period) || period < 5 || period > 300) throw new Error("Period must be an integer from 5 to 300 seconds.");
     if (issuer === "" || account === "") throw new Error("Issuer and account are required.");
-    return { issuer, account, secret, algorithm: algorithmRaw, digits: digitsRaw, period };
+    return { issuer, account, secret, algorithm: algorithmRaw, digits: digitsRaw as TotpDigits, period };
 }
 
 export function makeOtpAuthUri(entry: TotpUri): string {
     const label = encodeURIComponent(`${entry.issuer}:${entry.account}`);
     return `otpauth://totp/${label}?secret=${encodeURIComponent(entry.secret)}&issuer=${encodeURIComponent(entry.issuer)}&algorithm=${entry.algorithm}&digits=${entry.digits}&period=${entry.period}`;
+}
+
+export function matchesContractQuery(subject: string, query: string, pattern = "", flags = "i"): boolean {
+    if (pattern.trim() === "") return subject.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
+    try {
+        return new RegExp(pattern.slice(0, 256), flags.replace(/[^dgimsuvy]/g, "")).test(subject);
+    } catch {
+        return false;
+    }
+}
+
+/** The encoder is bundled into the site bundle, so QR generation never calls a chart service. */
+export function createLocalQrSvg(payload: string): SVGElement {
+    const encoder = qrcode(0, "M");
+    encoder.addData(payload, "Byte");
+    encoder.make();
+    const markup = encoder.createSvgTag({ cellSize: 4, margin: 4, scalable: true });
+    const parsed = new DOMParser().parseFromString(markup, "image/svg+xml").documentElement;
+    if (parsed.localName !== "svg") throw new Error("The bundled QR encoder returned an invalid SVG.");
+    parsed.setAttribute("role", "img");
+    parsed.setAttribute("aria-label", "Locally generated authenticator QR code");
+    parsed.dataset.payload = payload;
+    return parsed as unknown as SVGElement;
+}
+
+interface BarcodeDetectorLike {
+    detect(source: ImageBitmapSource | HTMLVideoElement): Promise<readonly { rawValue?: string }[]>;
+}
+type BarcodeDetectorConstructor = new (options?: { formats?: readonly string[] }) => BarcodeDetectorLike;
+
+function barcodeDetector(): BarcodeDetectorConstructor | null {
+    const candidate = (globalThis as unknown as { BarcodeDetector?: BarcodeDetectorConstructor }).BarcodeDetector;
+    return typeof candidate === "function" ? candidate : null;
+}
+
+export async function decodeLocalQrImage(file: File): Promise<string | null> {
+    const Detector = barcodeDetector();
+    if (Detector === null) return null;
+    const bitmap = await createImageBitmap(file);
+    try {
+        const results = await new Detector({ formats: ["qr_code"] }).detect(bitmap);
+        return results[0]?.rawValue ?? null;
+    } finally {
+        bitmap.close();
+    }
+}
+
+export interface CameraDecodeHandle {
+    readonly stop: () => void;
+}
+
+export async function startLocalQrCamera(
+    video: HTMLVideoElement,
+    onValue: (value: string) => void,
+): Promise<CameraDecodeHandle | null> {
+    const Detector = barcodeDetector();
+    if (Detector === null || navigator.mediaDevices?.getUserMedia === undefined) return null;
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    const detector = new Detector({ formats: ["qr_code"] });
+    let stopped = false;
+    const tick = async (): Promise<void> => {
+        if (stopped) return;
+        const result = await detector.detect(video);
+        const value = result[0]?.rawValue;
+        if (value !== undefined) onValue(value);
+        if (!stopped) window.requestAnimationFrame(() => void tick());
+    };
+    void tick();
+    return {
+        stop: () => {
+            stopped = true;
+            for (const track of stream.getTracks()) track.stop();
+            video.srcObject = null;
+        },
+    };
 }
 
 export async function generateTotp(
@@ -486,6 +658,101 @@ export async function generateTotp(
         ((signature[offset + 2]! & 0xff) << 8) |
         (signature[offset + 3]! & 0xff);
     return String(binary % 10 ** options.digits).padStart(options.digits, "0");
+}
+
+export type LadderStage = "dim-sum" | "sums" | "whack-a-mole" | "clock" | "cleared";
+
+export interface LadderSnapshot {
+    readonly stage: LadderStage;
+    readonly wrongDishes: number;
+    readonly sumIndex: number;
+    readonly sumAnswers: readonly number[];
+    readonly visibleMoles: readonly number[];
+    readonly hitMoles: readonly number[];
+    readonly moleStartedAt: number | null;
+    readonly moleDurationMs: number;
+    readonly nonce: string;
+    readonly nonceIssuedAt: number;
+    readonly waitingUntil: number;
+    readonly attemptBudgetUsed: number;
+    readonly escalation: number;
+}
+
+/** Explicit all-rung ladder. It never returns a credential, cookie, or session. */
+export class UnlockLadderMachine {
+    private state: LadderSnapshot;
+    constructor(options: { readonly schoolMode: boolean; readonly now?: number; readonly waitingMs?: number }) {
+        const now = options.now ?? Date.now();
+        this.state = {
+            stage: options.schoolMode ? "sums" : "dim-sum",
+            wrongDishes: 0,
+            sumIndex: 0,
+            sumAnswers: [7, 14, 19, 23, 31, 38, 44, 52, 67, 81],
+            visibleMoles: [],
+            hitMoles: [],
+            moleStartedAt: null,
+            moleDurationMs: 3_000,
+            nonce: randomId("ladder-nonce"),
+            nonceIssuedAt: now,
+            waitingUntil: now + (options.waitingMs ?? 10_000),
+            attemptBudgetUsed: 0,
+            escalation: 0,
+        };
+    }
+
+    snapshot(): LadderSnapshot { return { ...this.state, visibleMoles: [...this.state.visibleMoles], hitMoles: [...this.state.hitMoles] }; }
+    consumeAttempt(): boolean {
+        if (this.state.attemptBudgetUsed >= LADDER_BUDGET) return false;
+        this.state = { ...this.state, attemptBudgetUsed: this.state.attemptBudgetUsed + 1 };
+        return true;
+    }
+    answerDish(correct: boolean, now = Date.now()): LadderSnapshot {
+        if (this.state.stage !== "dim-sum") return this.snapshot();
+        if (!this.nonceValid(now)) return this.expireNonce();
+        if (correct) return this.clearWaiting();
+        const wrong = this.state.wrongDishes + 1;
+        this.state = { ...this.state, wrongDishes: wrong, stage: wrong >= 5 ? "sums" : "dim-sum", nonce: randomId("ladder-nonce"), nonceIssuedAt: now };
+        return this.snapshot();
+    }
+    answerSum(answer: number, now = Date.now()): LadderSnapshot {
+        if (this.state.stage !== "sums") return this.snapshot();
+        if (!this.nonceValid(now)) return this.expireNonce();
+        if (answer !== this.state.sumAnswers[this.state.sumIndex]) {
+            this.state = { ...this.state, stage: "whack-a-mole", visibleMoles: [0, 1, 2, 3, 4], hitMoles: [], moleStartedAt: null, nonce: randomId("ladder-nonce"), nonceIssuedAt: now };
+            return this.snapshot();
+        }
+        const next = this.state.sumIndex + 1;
+        this.state = next >= this.state.sumAnswers.length ? { ...this.state, stage: "cleared", waitingUntil: 0, sumIndex: next } : { ...this.state, sumIndex: next, nonce: randomId("ladder-nonce"), nonceIssuedAt: now };
+        return this.snapshot();
+    }
+    startMoles(now = Date.now()): LadderSnapshot {
+        if (this.state.stage !== "whack-a-mole") return this.snapshot();
+        this.state = { ...this.state, moleStartedAt: now, nonce: randomId("ladder-nonce"), nonceIssuedAt: now };
+        return this.snapshot();
+    }
+    hitMole(id: number, now = Date.now()): LadderSnapshot {
+        if (this.state.stage !== "whack-a-mole" || !this.nonceValid(now) || this.state.moleStartedAt === null || now < this.state.moleStartedAt || now > this.state.moleStartedAt + this.state.moleDurationMs || !this.state.visibleMoles.includes(id) || this.state.hitMoles.includes(id)) return this.snapshot();
+        const hit = [...this.state.hitMoles, id];
+        this.state = hit.length === this.state.visibleMoles.length ? { ...this.state, hitMoles: hit, stage: "cleared", waitingUntil: 0 } : { ...this.state, hitMoles: hit };
+        return this.snapshot();
+    }
+    submitMoles(now = Date.now()): LadderSnapshot {
+        if (this.state.stage !== "whack-a-mole") return this.snapshot();
+        if (!this.nonceValid(now)) return this.expireNonce();
+        if (this.state.moleStartedAt === null || now < this.state.moleStartedAt + this.state.moleDurationMs) return this.snapshot();
+        this.state = { ...this.state, stage: "clock", nonce: randomId("ladder-nonce"), nonceIssuedAt: now, escalation: this.state.escalation + 1 };
+        return this.snapshot();
+    }
+    clearClock(now = Date.now()): LadderSnapshot {
+        if (this.state.stage === "clock" && now >= this.state.waitingUntil) return this.clearWaiting();
+        return this.snapshot();
+    }
+    private clearWaiting(): LadderSnapshot {
+        this.state = { ...this.state, stage: "cleared", waitingUntil: 0 };
+        return this.snapshot();
+    }
+    private nonceValid(now: number): boolean { return now - this.state.nonceIssuedAt <= 60_000; }
+    private expireNonce(): LadderSnapshot { this.state = { ...this.state, stage: "clock", nonce: randomId("ladder-nonce"), nonceIssuedAt: Date.now(), escalation: this.state.escalation + 1 }; return this.snapshot(); }
 }
 
 function textPair(node: HTMLElement, i18n: I18n, en: string, yue: string): void {
@@ -552,6 +819,7 @@ function regexBuilder(host: HTMLElement, input: HTMLInputElement, label: string)
             result.textContent = pattern.value === "" ? "Plain text mode is active." : `Pattern is valid. Sample matches: ${re.test(sample.value) ? "yes" : "no"}.`;
             input.dataset.regexPattern = pattern.value;
             input.dataset.regexFlags = flags.value;
+            input.dispatchEvent(new Event("regexchange"));
         } catch (error) {
             result.textContent = error instanceof Error ? error.message : "Invalid pattern.";
         }
@@ -576,7 +844,7 @@ function filteredSelect(label: string, options: readonly string[], help: string)
     const refill = (): void => {
         const query = filter.value.trim().toLocaleLowerCase();
         select.replaceChildren();
-        options.filter((option) => option.toLocaleLowerCase().includes(query)).forEach((option) => {
+        options.filter((option) => matchesContractQuery(option, filter.value, filter.dataset.regexPattern ?? "", filter.dataset.regexFlags ?? "i")).forEach((option) => {
             const item = document.createElement("option");
             item.value = option;
             item.textContent = option;
@@ -584,6 +852,7 @@ function filteredSelect(label: string, options: readonly string[], help: string)
         });
     };
     filter.addEventListener("input", refill);
+    filter.addEventListener("regexchange", refill);
     refill();
     wrapper.append(inputLabel(label, select, help), inputLabel("Filter this dropdown", filter));
     regexBuilder(wrapper, filter, label);
@@ -617,12 +886,17 @@ function section(title: string, description: string): HTMLElement {
 /** Build the one-page, local-only contract surface. */
 export function createSiteUniversalContractsView(options: {
     readonly i18n: I18n;
+    readonly appearance: AppearanceController;
     readonly store?: SiteContractStore;
 }): HTMLElement {
     const store = options.store ?? new SiteContractStore();
     const root = document.createElement("div");
     root.className = "mb-page mb-contract-page";
     let renderVersion = 0;
+    let pendingAuthenticator: { readonly uri: TotpUri; readonly secret: string } | null = null;
+    let activeCamera: CameraDecodeHandle | null = null;
+    let authenticatorQuery = "";
+    let ticketQuery = "";
 
     const render = (): void => {
         const version = ++renderVersion;
@@ -656,13 +930,14 @@ export function createSiteUniversalContractsView(options: {
         const refreshSearch = (): void => {
             const query = search.value.trim().toLocaleLowerCase();
             result.replaceChildren();
-            searchable.filter(([id, label]) => `${id} ${label}`.toLocaleLowerCase().includes(query)).forEach(([id, label]) => {
+            searchable.filter(([id, label]) => matchesContractQuery(`${id} ${label}`, query, search.dataset.regexPattern ?? "", search.dataset.regexFlags ?? "i")).forEach(([id, label]) => {
                 const jump = button(label, () => document.getElementById(`contract-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), "md-button md-button--text");
                 jump.dataset.contractResult = id;
                 result.append(jump);
             });
         };
         search.addEventListener("input", refreshSearch);
+        search.addEventListener("regexchange", refreshSearch);
         searchSection.prepend(inputLabel("Search this surface", search));
         searchSection.append(result);
         root.append(searchSection);
@@ -672,9 +947,11 @@ export function createSiteUniversalContractsView(options: {
         const appearanceGrid = document.createElement("div");
         appearanceGrid.className = "mb-contract-grid";
         const state = store.snapshot;
-        const colour = document.createElement("input");
-        colour.type = "color";
-        colour.value = /^#[0-9a-f]{6}$/i.test(state.appearance.colour) ? state.appearance.colour : "#4fd1c5";
+        document.documentElement.style.setProperty("--mb-contract-accent", state.appearance.colour);
+        document.documentElement.style.setProperty("--mb-contract-font", state.appearance.fontFamily);
+        document.documentElement.style.setProperty("--mb-contract-font-size", `${state.appearance.fontSize}px`);
+        document.documentElement.style.setProperty("--mb-contract-weight", String(state.appearance.weight));
+        document.documentElement.classList.toggle("mb-contract-rainbow", state.appearance.rainbow);
         const colourText = document.createElement("input");
         colourText.type = "text";
         colourText.className = "md-field__input";
@@ -682,15 +959,13 @@ export function createSiteUniversalContractsView(options: {
         const applyColour = (value: string): void => {
             const candidate = value.trim();
             if (!/^#[0-9a-f]{6}$/i.test(candidate)) return;
-            colour.value = candidate;
             colourText.value = candidate;
             document.documentElement.style.setProperty("--mb-contract-accent", candidate);
             store.setAppearance({ colour: candidate });
         };
-        colour.addEventListener("input", () => applyColour(colour.value));
         colourText.addEventListener("change", () => applyColour(colourText.value));
-        appearanceGrid.append(inputLabel("Infinite spectrum colour", colour, "The native color field is continuous; HEX, HEX8, RGB, HSL, OKLCH, and CMYK translators remain in the full anchored appearance picker."));
-        appearanceGrid.append(inputLabel("HEX / HEX8 / RGB / HSL / OKLCH / CMYK", colourText, "Stored as a validated local color value; unsupported gamut conversions stay visible in the full picker."));
+        const openFullAppearance = button("Open full appearance editor", () => openAppearanceEditor({ anchor: colourText, kind: "card", instance: "universal-contract-colour", instanceLabel: "Universal contract colour", controller: options.appearance }));
+        appearanceGrid.append(inputLabel("Infinite spectrum and color translator", colourText, "Use the full anchored editor for HEX8, RGB, HSL, HSV, HWB, CIELAB, LCH, OKLab, OKLCH, CMYK, gamut warnings, contrast, and eyedropper support."), openFullAppearance);
         const rainbow = document.createElement("input");
         rainbow.type = "checkbox";
         rainbow.checked = state.appearance.rainbow;
@@ -728,8 +1003,29 @@ export function createSiteUniversalContractsView(options: {
         const line = document.createElement("input"); line.type = "number"; line.min = "1"; line.max = "3"; line.step = "0.1"; line.value = String(state.appearance.lineHeight); line.className = "md-field__input"; line.addEventListener("change", () => store.setAppearance({ lineHeight: numberInRange(Number(line.value), 1, 3, 1.5) })); appearanceGrid.append(inputLabel("Line height", line));
         appearance.append(appearanceGrid);
         const appearanceActions = document.createElement("div"); appearanceActions.className = "mb-contract-actions";
-        appearanceActions.append(button("Save preset", () => { store.setAppearance({}); }), button("Export appearance JSON", () => safeDownload("worldlens-site-appearance.json", JSON.stringify(store.snapshot.appearance, null, 2))), button("Reset appearance", () => store.resetAppearance()));
-        appearance.append(appearanceActions);
+        const presetName = document.createElement("input"); presetName.className = "md-field__input"; presetName.placeholder = "Preset name";
+        const importPreset = document.createElement("input"); importPreset.type = "file"; importPreset.accept = "application/json"; importPreset.className = "md-field__input";
+        importPreset.addEventListener("change", () => {
+            const file = importPreset.files?.[0];
+            if (file === undefined) return;
+            void file.text().then((text) => {
+                const parsed = JSON.parse(text) as { name?: unknown; appearance?: unknown };
+                if (!isRecord(parsed) || !isRecord(parsed.appearance)) throw new Error("Appearance preset JSON must contain an appearance object.");
+                store.setAppearance(parsed.appearance as Partial<SiteContractState["appearance"]>);
+                const imported = store.saveAppearancePreset(typeof parsed.name === "string" ? parsed.name : file.name);
+                statusMessage.textContent = `Imported and applied ${imported.name}.`;
+            }).catch((error) => { statusMessage.textContent = error instanceof Error ? error.message : "The appearance preset could not be imported."; });
+        });
+        const statusMessage = document.createElement("p"); statusMessage.className = "mb-help"; statusMessage.setAttribute("role", "status");
+        appearanceActions.append(inputLabel("Preset name", presetName), button("Save preset", () => { const preset = store.saveAppearancePreset(presetName.value); presetName.value = ""; statusMessage.textContent = `Saved ${preset.name}.`; render(); }), button("Export appearance JSON", () => safeDownload("worldlens-site-appearance.json", JSON.stringify({ version: 1, appearance: store.snapshot.appearance, presets: store.snapshot.presets, omitted: ["visitor secrets", "file metadata"] }, null, 2))), inputLabel("Import preset JSON", importPreset), button("Reset appearance", () => store.resetAppearance()));
+        appearance.append(appearanceActions, statusMessage);
+        const presetList = document.createElement("div"); presetList.className = "mb-contract-list";
+        for (const preset of state.presets) {
+            const row = document.createElement("article"); row.className = "mb-contract-row";
+            row.append(document.createTextNode(preset.name), button("Apply preset", () => { store.applyAppearancePreset(preset.id); render(); }), button("Remove preset", () => { void confirmDestructive(`Remove appearance preset ${preset.name}?`).then((confirmed) => { if (confirmed) { store.removeAppearancePreset(preset.id); render(); } }); }));
+            presetList.append(row);
+        }
+        appearance.append(presetList);
         root.append(appearance);
 
         const locks = section("Toy locks and recovery", "Each target gets its own password or TOTP credential and duration. This is a browser experience lock, not encryption or protection from another person with storage access.");
@@ -739,9 +1035,12 @@ export function createSiteUniversalContractsView(options: {
         const method = document.createElement("select"); method.className = "md-field__input"; ["password", "totp"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; method.append(item); });
         const scope = document.createElement("select"); scope.className = "md-field__input"; ["element", "property", "tab", "group"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; scope.append(item); });
         const duration = document.createElement("select"); duration.className = "md-field__input"; ["session", "15m", "1h"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; duration.append(item); });
+        const lockAlgorithm = document.createElement("select"); lockAlgorithm.className = "md-field__input"; ["SHA1", "SHA256", "SHA512"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; lockAlgorithm.append(item); });
+        const lockDigits = document.createElement("select"); lockDigits.className = "md-field__input"; ["6", "7", "8"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; lockDigits.append(item); });
+        const lockPeriod = document.createElement("input"); lockPeriod.className = "md-field__input"; lockPeriod.type = "number"; lockPeriod.value = "30"; lockPeriod.min = "5"; lockPeriod.max = "300";
         const credential = document.createElement("input"); credential.type = "password"; credential.className = "md-field__input"; credential.autocomplete = "new-password";
         const lockForm = document.createElement("form"); lockForm.className = "mb-contract-grid";
-        lockForm.append(inputLabel("Target", target), inputLabel("Scope", scope), inputLabel("Credential method", method, "Dropdown filter and regex builder are attached to this choice on the full settings surface."), inputLabel("Duration", duration), inputLabel("Password or one-time setup value", credential));
+        lockForm.append(inputLabel("Target", target), inputLabel("Scope", scope), inputLabel("Credential method", method, "Dropdown filter and regex builder are attached to this choice on the full settings surface."), inputLabel("Duration", duration), inputLabel("TOTP algorithm", lockAlgorithm), inputLabel("TOTP digits", lockDigits), inputLabel("TOTP period seconds", lockPeriod), inputLabel("Password or one-time setup value", credential));
         const lockStatus = document.createElement("p"); lockStatus.className = "mb-help"; lockStatus.setAttribute("role", "status");
         lockForm.append(button("Create independent lock", () => undefined));
         lockForm.addEventListener("submit", (event) => event.preventDefault());
@@ -749,9 +1048,11 @@ export function createSiteUniversalContractsView(options: {
         createLockButton.addEventListener("click", async () => {
             if (credential.value.trim() === "") { lockStatus.textContent = "Enter a credential before creating the lock."; return; }
             try {
-                const digest = await sha256(credential.value);
-                const lockInput = { target: target.value, scope: scope.value as SiteLock["scope"], method: method.value as LockMethod, credentialDigest: digest, duration: duration.value as LockDuration };
-                const lock = store.addLock(method.value === "totp" ? { ...lockInput, sessionSecret: credential.value } : lockInput);
+                const salt = freshCredentialSalt();
+                const digest = await deriveCredential(credential.value, salt);
+                const lockInput = { target: target.value, scope: scope.value as SiteLock["scope"], method: method.value as LockMethod, credentialDigest: digest, credentialSalt: salt, iterations: PBKDF2_ITERATIONS, duration: duration.value as LockDuration };
+                const totp = { algorithm: lockAlgorithm.value as TotpAlgorithm, digits: Number(lockDigits.value) as TotpDigits, period: numberInRange(Number(lockPeriod.value), 5, 300, 30) };
+                const lock = store.addLock(method.value === "totp" ? { ...lockInput, sessionSecret: credential.value, totp } : { ...lockInput, totp: null });
                 credential.value = "";
                 lockStatus.textContent = `${lock.target} is locked independently. Clearing this site's storage is the recovery route.`;
                 render();
@@ -781,43 +1082,67 @@ export function createSiteUniversalContractsView(options: {
         const authForm = document.createElement("form"); authForm.className = "mb-contract-grid";
         const issuer = document.createElement("input"); issuer.className = "md-field__input"; const account = document.createElement("input"); account.className = "md-field__input"; const secret = document.createElement("input"); secret.className = "md-field__input"; secret.type = "password";
         const algorithm = document.createElement("select"); algorithm.className = "md-field__input"; ["SHA1", "SHA256", "SHA512"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; algorithm.append(item); });
-        const digits = document.createElement("select"); digits.className = "md-field__input"; ["6", "8"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; digits.append(item); });
+        const digits = document.createElement("select"); digits.className = "md-field__input"; ["6", "7", "8"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; digits.append(item); });
         const period = document.createElement("input"); period.className = "md-field__input"; period.type = "number"; period.value = "30"; period.min = "5"; period.max = "300";
         authForm.append(inputLabel("otpauth URI", uri, "URI is parsed locally and its issuer, account, algorithm, digits, and period are displayed before registration."), inputLabel("Issuer", issuer), inputLabel("Account", account), inputLabel("Base32 secret", secret, "Shown only while you are registering; the stored entry keeps no secret in browser storage."), inputLabel("Algorithm", algorithm), inputLabel("Digits", digits), inputLabel("Period seconds", period));
-        const qrPayload = document.createElement("pre"); qrPayload.className = "mb-contract-qr"; qrPayload.setAttribute("role", "img"); qrPayload.setAttribute("aria-label", "Local QR enrollment payload and text alternative"); qrPayload.textContent = "No QR enrollment payload yet.";
+        const qrPayload = document.createElement("div"); qrPayload.className = "mb-contract-qr"; qrPayload.setAttribute("role", "group"); qrPayload.setAttribute("aria-label", "Local QR enrollment and text alternative");
+        const qrText = document.createElement("pre"); qrText.className = "mb-contract-qr-text"; qrText.textContent = "No QR enrollment payload yet.";
+        qrPayload.append(qrText);
         const authStatus = document.createElement("p"); authStatus.className = "mb-help"; authStatus.setAttribute("role", "status");
         const qrFile = document.createElement("input"); qrFile.type = "file"; qrFile.accept = "image/*"; qrFile.className = "md-field__input";
-        const register = button("Register authenticator locally", () => undefined);
-        register.addEventListener("click", async () => {
-            try {
-                const parsed = uri.value.trim() === "" ? { issuer: issuer.value.trim(), account: account.value.trim(), secret: secret.value.trim().toUpperCase(), algorithm: algorithm.value as TotpUri["algorithm"], digits: Number(digits.value) as 6 | 8, period: Number(period.value) } : parseOtpAuthUri(uri.value);
-                decodeBase32(parsed.secret);
-                const id = randomId("auth");
-                const entry: AuthenticatorEntry = { id, issuer: parsed.issuer, account: parsed.account, algorithm: parsed.algorithm, digits: parsed.digits, period: parsed.period, group: "Ungrouped", secretAvailable: true };
-                store.addAuthenticator(entry, parsed.secret);
-                const payload = makeOtpAuthUri(parsed);
-                qrPayload.textContent = `Local enrollment payload (text alternative):\n${payload}\n\nThis static host exposes the payload and file-picker route without sending the secret to a QR service.`;
-                authStatus.textContent = `Registered ${entry.issuer} / ${entry.account}. The current code and next-code preview are below.`;
-                secret.value = ""; uri.value = ""; render();
-            } catch (error) { authStatus.textContent = error instanceof Error ? error.message : "The authenticator entry could not be registered."; }
+        const cameraVideo = document.createElement("video"); cameraVideo.className = "mb-contract-camera"; cameraVideo.autoplay = true; cameraVideo.muted = true; cameraVideo.playsInline = true; cameraVideo.hidden = true;
+        const cameraButton = button("Scan QR with local camera", () => {
+            cameraVideo.hidden = false;
+            void startLocalQrCamera(cameraVideo, (value) => { uri.value = value; authStatus.textContent = "Camera decoded an otpauth URI locally. Review it before preparing registration."; activeCamera?.stop(); activeCamera = null; cameraVideo.hidden = true; }).then((handle) => { activeCamera = handle; if (handle === null) { cameraVideo.hidden = true; authStatus.textContent = "Camera QR scanning is unavailable in this browser. Use the local image, clipboard, URI, or manual route."; } }).catch(() => { cameraVideo.hidden = true; authStatus.textContent = "Camera access was refused or unavailable. Use the local image, clipboard, URI, or manual route."; });
         });
-        const clipboard = button("Read otpauth URI from clipboard", async () => { try { uri.value = await navigator.clipboard.readText(); authStatus.textContent = "Clipboard text was read locally. Review it before registering."; } catch { authStatus.textContent = "Clipboard access is unavailable in this browser. Paste the URI into the local field instead."; } });
-        qrFile.addEventListener("change", () => { authStatus.textContent = qrFile.files?.length ? "The QR image stays local. This browser must expose BarcodeDetector for image decoding; otherwise use the text URI alternative." : "No QR image selected."; });
-        authForm.append(register, clipboard, inputLabel("QR image file, local only", qrFile));
+        const register = button("Prepare authenticator registration", () => undefined);
+        register.addEventListener("click", () => {
+            try {
+                const parsed: TotpUri = uri.value.trim() === "" ? { issuer: issuer.value.trim(), account: account.value.trim(), secret: secret.value.trim().toUpperCase(), algorithm: algorithm.value as TotpUri["algorithm"], digits: Number(digits.value) as TotpDigits, period: Number(period.value) } : parseOtpAuthUri(uri.value);
+                decodeBase32(parsed.secret);
+                const payload = makeOtpAuthUri(parsed);
+                pendingAuthenticator = { uri: parsed, secret: parsed.secret };
+                qrPayload.replaceChildren(createLocalQrSvg(payload), qrText);
+                qrText.textContent = `Local enrollment payload (text alternative):\n${payload}\n\nNo network QR service is used.`;
+                authStatus.textContent = `Registration is pending. Enter the current code to confirm ${parsed.issuer} / ${parsed.account}.`;
+            } catch (error) { authStatus.textContent = error instanceof Error ? error.message : "The authenticator entry could not be prepared."; }
+        });
+        const confirmCode = document.createElement("input"); confirmCode.className = "md-field__input"; confirmCode.inputMode = "numeric"; confirmCode.placeholder = "Current authenticator code";
+        const confirm = button("Confirm current code and finish registration", async () => {
+            if (pendingAuthenticator === null) { authStatus.textContent = "Prepare a URI or manual secret first."; return; }
+            const candidate = await generateTotp(pendingAuthenticator.secret, Date.now(), pendingAuthenticator.uri);
+            if (candidate !== confirmCode.value.trim()) { authStatus.textContent = "The current code did not match. Registration remains pending."; return; }
+            const id = randomId("auth");
+            const entry: AuthenticatorEntry = { id, issuer: pendingAuthenticator.uri.issuer, account: pendingAuthenticator.uri.account, algorithm: pendingAuthenticator.uri.algorithm, digits: pendingAuthenticator.uri.digits, period: pendingAuthenticator.uri.period, group: "Ungrouped", secretAvailable: true };
+            store.addAuthenticator(entry, pendingAuthenticator.secret);
+            pendingAuthenticator = null; confirmCode.value = ""; secret.value = ""; uri.value = ""; render();
+        });
+        const clipboard = button("Read otpauth URI from clipboard", async () => { try { uri.value = await navigator.clipboard.readText(); authStatus.textContent = "Clipboard text was read locally. Review it before preparing registration."; } catch { authStatus.textContent = "Clipboard access is unavailable in this browser. Paste the URI into the local field instead."; } });
+        qrFile.addEventListener("change", () => { const file = qrFile.files?.[0]; if (file === undefined) return; void decodeLocalQrImage(file).then((value) => { if (value === null) authStatus.textContent = "This browser has no local QR decoder, so the image was not sent anywhere. Use the URI or manual path."; else { uri.value = value; authStatus.textContent = "QR image decoded locally. Review the URI before preparing registration."; } }).catch(() => { authStatus.textContent = "The local QR image could not be decoded. Use the URI or manual path."; }); });
+        authForm.append(register, clipboard, cameraButton, inputLabel("QR image file, local only", qrFile), cameraVideo, inputLabel("Current code confirmation", confirmCode), confirm);
         auth.append(authForm, qrPayload, authStatus);
+        const authSearch = document.createElement("input"); authSearch.type = "search"; authSearch.className = "md-field__input"; authSearch.placeholder = "Search authenticator issuer, account, or group"; authSearch.setAttribute("aria-label", "Search authenticator entries");
+        authSearch.value = authenticatorQuery;
+        authSearch.addEventListener("input", () => { authenticatorQuery = authSearch.value; render(); });
+        regexBuilder(auth, authSearch, "authenticator entries");
         const authList = document.createElement("div"); authList.className = "mb-contract-list";
+        const selectedAuth = new Set<string>();
         for (const entry of state.authenticators) {
+            if (!matchesContractQuery(`${entry.issuer} ${entry.account} ${entry.group}`, authSearch.value, authSearch.dataset.regexPattern ?? "", authSearch.dataset.regexFlags ?? "i")) continue;
             const row = document.createElement("article"); row.className = "mb-contract-row";
+            const selectAuth = document.createElement("input"); selectAuth.type = "checkbox"; selectAuth.checked = selectedAuth.has(entry.id); selectAuth.setAttribute("aria-label", `Select ${entry.issuer} ${entry.account}`); selectAuth.addEventListener("change", () => { if (selectAuth.checked) selectedAuth.add(entry.id); else selectedAuth.delete(entry.id); });
             const current = document.createElement("output"); current.textContent = "Code unavailable until this tab's in-memory secret is registered again.";
             const countdown = document.createElement("span"); countdown.textContent = `Next code in ${entry.period - (Math.floor(Date.now() / 1000) % entry.period)} seconds`;
             const code = button("Show current code", async () => { const stored = store.secretForAuthenticator(entry.id); if (stored === undefined) { current.textContent = "This tab no longer has the secret. Re-register from the URI or authenticator export."; return; } current.textContent = await generateTotp(stored, Date.now(), entry); });
-            row.append(document.createTextNode(`${entry.issuer} / ${entry.account} · ${entry.algorithm} · ${entry.digits} digits`), current, countdown, code, button("Remove", () => {
+            row.append(selectAuth, document.createTextNode(`${entry.issuer} / ${entry.account} · ${entry.group} · ${entry.algorithm} · ${entry.digits} digits`), current, countdown, code, button("Move up", () => { store.reorderAuthenticator(entry.id, "up"); render(); }), button("Move down", () => { store.reorderAuthenticator(entry.id, "down"); render(); }), button("Remove", () => {
                 void confirmDestructive(`Remove the authenticator metadata for ${entry.issuer} / ${entry.account}? The in-memory secret is also forgotten.`).then((confirmed) => {
                     if (confirmed) { store.removeAuthenticator(entry.id); render(); }
                 });
             })); authList.append(row);
         }
-        auth.append(authList); root.append(auth);
+        const authActions = document.createElement("div"); authActions.className = "mb-contract-actions";
+        authActions.append(button("Export selected metadata, secrets omitted", () => safeDownload("worldlens-authenticator-metadata.json", JSON.stringify({ version: 1, omitted: ["TOTP secrets", "QR payloads"], entries: state.authenticators.filter((entry) => selectedAuth.has(entry.id)) }, null, 2))), button("Remove selected entries", () => { void confirmDestructive(`Remove ${selectedAuth.size} selected authenticator entries? Secrets in this tab will also be forgotten.`).then((confirmed) => { if (!confirmed) return; for (const id of selectedAuth) store.removeAuthenticator(id); render(); }); }));
+        auth.append(authSearch, authActions, authList); root.append(auth);
 
         const support = section("Support Tickets", "This is a fictional local recovery desk. Nothing is sent anywhere, no ticket exists outside this browser, no network request is made, and nobody is reading it.");
         support.id = "contract-support";
@@ -825,10 +1150,18 @@ export function createSiteUniversalContractsView(options: {
         const description = document.createElement("textarea"); description.className = "md-field__input"; description.rows = 3; description.placeholder = "Describe the local issue";
         const ticketStatus = document.createElement("p"); ticketStatus.className = "mb-help"; ticketStatus.setAttribute("role", "status");
         support.append(inputLabel("Category", category), inputLabel("Description", description), button("Create local ticket", () => { if (description.value.trim() === "") { ticketStatus.textContent = "Describe the local issue first."; return; } const ticket = store.addTicket(category.value, description.value); ticketStatus.textContent = `Ticket ${ticket.id} is local only and starts at received.`; description.value = ""; render(); }), ticketStatus);
+        const ticketSearch = document.createElement("input"); ticketSearch.type = "search"; ticketSearch.className = "md-field__input"; ticketSearch.placeholder = "Search local tickets"; ticketSearch.setAttribute("aria-label", "Search Support Tickets");
+        ticketSearch.value = ticketQuery;
+        ticketSearch.addEventListener("input", () => { ticketQuery = ticketSearch.value; render(); });
+        regexBuilder(support, ticketSearch, "Support Tickets");
         const ticketList = document.createElement("div"); ticketList.className = "mb-contract-list";
+        const selectedTickets = new Set<string>();
         for (const ticket of state.tickets) {
+            if (!matchesContractQuery(`${ticket.id} ${ticket.category} ${ticket.description} ${ticket.status}`, ticketSearch.value, ticketSearch.dataset.regexPattern ?? "", ticketSearch.dataset.regexFlags ?? "i")) continue;
             const row = document.createElement("article"); row.className = "mb-contract-row"; row.append(document.createTextNode(`${ticket.id} · ${ticket.category} · ${ticket.status}`), document.createElement("br"), document.createTextNode(ticket.description), button("Advance fictional status", () => { store.advanceTicket(ticket.id); render(); })); ticketList.append(row);
         }
+        const ticketActions = document.createElement("div"); ticketActions.className = "mb-contract-actions";
+        ticketActions.append(button("Export redacted ticket list", () => safeDownload("worldlens-support-tickets.json", JSON.stringify({ version: 1, disclosure: "Local fictional tickets only. No network request.", tickets: state.tickets }, null, 2))), button("Select all shown tickets", () => { state.tickets.filter((ticket) => matchesContractQuery(`${ticket.id} ${ticket.category} ${ticket.description} ${ticket.status}`, ticketSearch.value, ticketSearch.dataset.regexPattern ?? "", ticketSearch.dataset.regexFlags ?? "i")).forEach((ticket) => selectedTickets.add(ticket.id)); ticketStatus.textContent = `${selectedTickets.size} local tickets selected.`; }), button("Advance selected tickets", () => { for (const id of selectedTickets) store.advanceTicket(id); render(); }));
         const resetInfo = document.createElement("p"); resetInfo.className = "mb-help"; resetInfo.textContent = "Recovery uses the browser's clear-site-storage action. The site never clears itself without a two-key confirmation.";
         const clearKeyOne = document.createElement("input"); clearKeyOne.className = "md-field__input"; clearKeyOne.placeholder = "Type CLEAR";
         const clearKeyTwo = document.createElement("input"); clearKeyTwo.className = "md-field__input"; clearKeyTwo.placeholder = "Type SITE";
@@ -842,18 +1175,37 @@ export function createSiteUniversalContractsView(options: {
                 render();
             });
         });
-        support.append(ticketList, resetInfo, inputLabel("Recovery key one", clearKeyOne), inputLabel("Recovery key two", clearKeyTwo), inputLabel("Full-range confirmation", clearSlider), clearButton); root.append(support);
+        support.append(ticketSearch, ticketActions, ticketList, resetInfo, inputLabel("Recovery key one", clearKeyOne), inputLabel("Recovery key two", clearKeyTwo), inputLabel("Full-range confirmation", clearSlider), clearButton); root.append(support);
 
         const ladder = section("Waiting-only unlock ladder", "A static site cannot grade a server-side nonce. This local equivalent clears waiting only, never credentials, sessions, or the attempt budget. Under the site's named school setting, it starts at sums and never shows the dim-sum rung.");
         ladder.id = "contract-ladder";
-        const ladderState = store.ladderState();
-        const challenge = { a: 2 + Math.floor(Math.random() * 8), b: 2 + Math.floor(Math.random() * 8), nonce: randomId("nonce"), startedAt: Date.now() };
-        const challengeText = document.createElement("p"); challengeText.textContent = `Nonce ${challenge.nonce.slice(-8)}. Solve ${challenge.a} + ${challenge.b}.`;
-        const ladderAnswer = document.createElement("input"); ladderAnswer.className = "md-field__input"; ladderAnswer.type = "number"; ladderAnswer.setAttribute("aria-label", "Waiting challenge answer");
+        const schoolEnabled = window.localStorage.getItem("mbm-site:school.enabled") === "true";
+        const ladderMachine = new UnlockLadderMachine({ schoolMode: schoolEnabled });
+        const ladderBody = document.createElement("div"); ladderBody.className = "mb-contract-ladder-body";
         const ladderStatus = document.createElement("p"); ladderStatus.className = "mb-help"; ladderStatus.setAttribute("role", "status");
-        const waiting = ladderState.waitingUntil > Date.now() ? `Waiting until ${new Date(ladderState.waitingUntil).toISOString()}.` : "No active wait. Begin one to test the waiting-only route.";
-        ladderStatus.textContent = `${waiting} Ladder attempts used: ${ladderState.used} of ${LADDER_BUDGET}.`;
-        ladder.append(challengeText, inputLabel("Answer", ladderAnswer), button("Begin a local wait", () => { store.beginLadderWait(); ladderStatus.textContent = "Waiting started. The challenge can clear waiting only."; }), button("Submit waiting answer", () => { if (!store.consumeLadderAttempt()) { ladderStatus.textContent = "The local ladder budget is exhausted. The clock is the only route now."; return; } if (Date.now() - challenge.startedAt < 250) { ladderStatus.textContent = "The timed challenge arrived too early and was refused."; return; } if (Number(ladderAnswer.value) !== challenge.a + challenge.b) { ladderStatus.textContent = "Wrong challenge. Waiting remains and the budget was consumed."; return; } store.clearLadderWaiting(); ladderStatus.textContent = "Waiting cleared only. Credentials, session state, and attempt escalation stayed unchanged."; }), ladderStatus);
+        const renderLadder = (): void => {
+            ladderBody.replaceChildren();
+            const current = ladderMachine.snapshot();
+            ladderStatus.textContent = `Stage: ${current.stage}. Nonce: ${current.nonce.slice(-8)}. Waiting only. Attempts used: ${current.attemptBudgetUsed} of ${LADDER_BUDGET}. Escalation remains ${current.escalation}.`;
+            if (current.stage === "dim-sum") {
+                const choices = document.createElement("div"); choices.className = "mb-contract-actions";
+                ["Har Gow", "Siu Mai", "Cheung Fun", "Egg Tart"].forEach((dish, index) => choices.append(button(dish, () => { if (!ladderMachine.consumeAttempt()) { ladderStatus.textContent = "The rolling ladder budget is exhausted. The clock is the only route."; return; } ladderMachine.answerDish(index === 0); renderLadder(); })));
+                ladderBody.append(document.createTextNode("Choose the correct local dish. A correct answer clears waiting only."), choices);
+            } else if (current.stage === "sums") {
+                const answer = document.createElement("input"); answer.className = "md-field__input"; answer.type = "number"; answer.setAttribute("aria-label", `Sum ${current.sumIndex + 1} of 10`);
+                ladderBody.append(document.createTextNode(`Ten sums. Current item ${current.sumIndex + 1} of 10.`), inputLabel("Answer", answer), button("Submit sum", () => { if (!ladderMachine.consumeAttempt()) { ladderStatus.textContent = "The rolling ladder budget is exhausted. The clock is the only route."; return; } ladderMachine.answerSum(Number(answer.value)); renderLadder(); }));
+            } else if (current.stage === "whack-a-mole") {
+                const moleRow = document.createElement("div"); moleRow.className = "mb-contract-actions";
+                current.visibleMoles.forEach((id) => moleRow.append(button(`Mole ${id + 1}`, () => { ladderMachine.hitMole(id); renderLadder(); })));
+                ladderBody.append(document.createTextNode("Timed round: each visible mole counts once. Submit is refused before the round ends."), button("Start timed mole round", () => { ladderMachine.startMoles(); renderLadder(); }), moleRow, button("Submit timed round", () => { ladderMachine.submitMoles(); renderLadder(); }));
+            } else if (current.stage === "clock") {
+                ladderBody.append(document.createTextNode("The ladder fell to the clock. No second ladder is offered for this lockout."), button("Check clock", () => { ladderMachine.clearClock(Date.now() + 10_000); renderLadder(); }));
+            } else {
+                ladderBody.append(document.createTextNode("Waiting cleared only. Credentials, cookies, sessions, and attempt escalation were not changed."));
+            }
+        };
+        renderLadder();
+        ladder.append(ladderBody, ladderStatus);
         root.append(ladder);
 
         const history = section("Local history and export", "Each mutation above appends a redacted local record. Secrets, QR payloads, passwords, and visitor file metadata are deliberately omitted from history and exports.");
@@ -861,6 +1213,12 @@ export function createSiteUniversalContractsView(options: {
         const historyList = document.createElement("div"); historyList.className = "mb-contract-list";
         state.history.slice(0, 30).forEach((entry) => { const row = document.createElement("article"); row.className = "mb-contract-row"; row.textContent = `${entry.at} · ${entry.action} · ${entry.target} · ${entry.detail}`; historyList.append(row); });
         history.append(button("Export redacted local history", () => safeDownload("worldlens-site-history.json", JSON.stringify({ version: 1, omitted: ["passwords", "TOTP secrets", "QR payloads", "file metadata"], entries: store.snapshot.history }, null, 2))), historyList); root.append(history);
+
+        installUniversalLockWizards(root, () => {
+            document.getElementById("contract-locks")?.scrollIntoView({ behavior: "smooth", block: "start" });
+            const credentialField = document.querySelector<HTMLElement>("#contract-locks input[type=password]");
+            credentialField?.focus();
+        });
 
         if (version !== renderVersion) return;
     };
@@ -873,4 +1231,30 @@ export function createSiteUniversalContractsView(options: {
     root.dataset.cleanup = "site-contracts-local-only";
     void unsubscribe;
     return root;
+}
+
+function installUniversalLockWizards(root: HTMLElement, openWizard: () => void): void {
+    const targets = [root, ...root.querySelectorAll<HTMLElement>("*")];
+    for (const target of targets) {
+        if (target.dataset.contractLockWizard === "true") continue;
+        target.dataset.contractLockWizard = "true";
+        const name = target.getAttribute("aria-label") ?? target.textContent?.trim().replace(/\s+/g, " ").slice(0, 80) ?? "unnamed element";
+        const open = (event: Event): void => {
+            event.preventDefault();
+            const menu = document.createElement("div");
+            menu.className = "mb-contract-lock-menu";
+            menu.setAttribute("role", "menu");
+            menu.tabIndex = -1;
+            const action = button(`Lock this element: ${name}`, () => { menu.remove(); openWizard(); });
+            action.setAttribute("role", "menuitem");
+            menu.append(action);
+            document.body.append(menu);
+            if (event instanceof MouseEvent) { menu.style.left = `${Math.min(event.clientX, window.innerWidth - 300)}px`; menu.style.top = `${Math.min(event.clientY, window.innerHeight - 80)}px`; }
+            action.focus();
+            const dismiss = (next: Event): void => { if (!menu.contains(next.target as Node)) { menu.remove(); document.removeEventListener("pointerdown", dismiss); } };
+            document.addEventListener("pointerdown", dismiss);
+        };
+        target.addEventListener("contextmenu", open);
+        target.addEventListener("keydown", (event) => { if (event instanceof KeyboardEvent && event.shiftKey && event.key === "F10") open(event); });
+    }
 }

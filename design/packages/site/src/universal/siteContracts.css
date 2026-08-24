@@ -100,6 +100,32 @@
     overflow-wrap: anywhere;
 }
 
+.mb-contract-qr svg {
+    display: block;
+    inline-size: min(280px, 100%);
+    block-size: auto;
+    margin-block-end: 12px;
+    background: #fff;
+}
+
+.mb-contract-camera {
+    inline-size: min(320px, 100%);
+    min-block-size: 180px;
+    border-radius: 14px;
+    background: #111;
+}
+
+.mb-contract-lock-menu {
+    position: fixed;
+    z-index: 10000;
+    max-inline-size: min(320px, calc(100vw - 24px));
+    padding: 10px;
+    border: 1px solid var(--outv);
+    border-radius: 12px;
+    background: var(--s-cont);
+    box-shadow: var(--e3, 0 8px 24px rgb(0 0 0 / 28%));
+}
+
 .mb-contract-page select,
 .mb-contract-page input,
 .mb-contract-page textarea {
