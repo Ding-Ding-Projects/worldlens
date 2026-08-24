@@ -1,5 +1,3 @@
-import { existsSync } from "node:fs";
-
 /** Hand-written runtime-settings inventory. A row disappearing is a red contract failure. */
 export interface RuntimeCoverageRow {
     readonly id: string;
@@ -101,7 +99,7 @@ export const RUNTIME_COVERAGE: readonly RuntimeCoverageRow[] = [
 
 export function validateRuntimeCoverage(
     rows: readonly RuntimeCoverageRow[] = RUNTIME_COVERAGE,
-    options: { requireCaptures?: boolean; root?: string } = {},
+    options: { requireCaptures?: boolean; root?: string; exists?: (path: string) => boolean } = {},
 ): string[] {
     const errors: string[] = [];
     const ids = new Set<string>();
@@ -119,7 +117,7 @@ export function validateRuntimeCoverage(
             if (options.root !== undefined && field !== "localization" && Array.isArray(values)) {
                 for (const value of values) {
                     const path = `${options.root}/${value}`.replaceAll("/", "\\");
-                    if (!existsSync(path)) errors.push(`${row.id}:${field}:missing:${value}`);
+                    if (options.exists !== undefined && !options.exists(path)) errors.push(`${row.id}:${field}:missing:${value}`);
                 }
             }
         }

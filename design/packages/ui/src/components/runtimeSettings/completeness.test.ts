@@ -39,7 +39,7 @@ describe("runtime settings hand-written completeness inventory", () => {
     it("checks implementation and documentation paths when a repository root is supplied", () => {
         const cwd = resolve(process.cwd());
         const root = existsSync(resolve(cwd, "packages")) ? resolve(cwd, "..") : resolve(cwd, "..", "..", "..");
-        const errors = validateRuntimeCoverage(RUNTIME_COVERAGE, { root });
+        const errors = validateRuntimeCoverage(RUNTIME_COVERAGE, { root, exists: existsSync });
         expect(errors).toEqual([]);
         expect(validateRuntimeCoverageForRelease()).toEqual(expect.arrayContaining(["status-hub:capture-pending"]));
     });
