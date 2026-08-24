@@ -552,7 +552,7 @@ export class RenderOrchestrator {
     private readonly running = new Map<string, RunningRender>();
     private readonly pending = new Map<
         string,
-        { readonly controller: AbortController; visible: boolean }
+        { readonly controller: AbortController; readonly token: symbol; visible: boolean }
     >();
 
     constructor(options: RenderOrchestratorOptions) {
@@ -811,18 +811,16 @@ export class RenderOrchestrator {
      * that already names `jvmArgs` - none does today - is left exactly as it is.
      */
     async render(request: RenderRequest): Promise<RenderResult> {
-        const ownedPending = new Set(this.pending.keys());
+        const token = Symbol("render-lifecycle");
         try {
-            return await this.renderInternal(request);
+            return await this.renderInternal(request, token);
         } finally {
-            for (const renderId of this.pending.keys()) {
-                if (!ownedPending.has(renderId) && !this.running.has(renderId))
-                    this.pending.delete(renderId);
-            }
+            for (const [renderId, pending] of this.pending)
+                if (pending.token === token) this.pending.delete(renderId);
         }
     }
 
-    private async renderInternal(request: RenderRequest): Promise<RenderResult> {
+    private async renderInternal(request: RenderRequest, token: symbol): Promise<RenderResult> {
         if (request.jvmArgs === undefined) {
             const configured = this.options.jvmArgs;
             const defaults =
@@ -912,7 +910,7 @@ export class RenderOrchestrator {
         }
 
         const provisionAbort = new AbortController();
-        const pendingRender = { controller: provisionAbort, visible: false };
+        const pendingRender = { controller: provisionAbort, token, visible: false };
         this.pending.set(renderId, pendingRender);
         let engine: ResolvedEngine;
         try {

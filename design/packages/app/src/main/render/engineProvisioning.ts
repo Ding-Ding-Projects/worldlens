@@ -165,6 +165,7 @@ export function ensureManagedUpstreamJava(
     if (running !== undefined) return attachFlight(running, options);
     const controller = new AbortController();
     const listeners = new Set<(progress: EngineProvisionProgress) => void>();
+    let flight: EngineFlight;
     const operation = Promise.resolve()
         .then(() =>
             ensureManagedUpstreamJavaOnce({
@@ -173,8 +174,10 @@ export function ensureManagedUpstreamJava(
                 onProgress: (progress) => listeners.forEach((listener) => listener(progress)),
             }),
         )
-        .finally(() => inflight.delete(key));
-    const flight = { key, controller, listeners, waiters: 0, promise: operation };
+        .finally(() => {
+            if (inflight.get(key) === flight) inflight.delete(key);
+        });
+    flight = { key, controller, listeners, waiters: 0, promise: operation };
     inflight.set(key, flight);
     return attachFlight(flight, options);
 }

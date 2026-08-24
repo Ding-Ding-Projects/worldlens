@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { lstat, open } from "node:fs/promises";
+import { lstat, open, realpath } from "node:fs/promises";
 
 const MAX_JAR_BYTES = 512 * 1024 * 1024;
 
@@ -7,8 +7,22 @@ export async function verifyJarFile(path) {
     let handle;
     try {
         await assertSafePath(path);
+        const before = await lstat(path);
+        const beforeReal = await realpath(path);
+        if (before.isSymbolicLink())
+            return { ok: false, reason: "JAR path is a symlink or reparse point" };
         handle = await open(path, "r");
         const info = await handle.stat();
+        const after = await lstat(path);
+        const afterReal = await realpath(path);
+        if (
+            after.isSymbolicLink() ||
+            beforeReal !== afterReal ||
+            !sameIdentity(before, after) ||
+            !sameIdentity(info, after)
+        ) {
+            return { ok: false, reason: "JAR path changed while it was being opened" };
+        }
         if (!info.isFile() || info.size > MAX_JAR_BYTES)
             return { ok: false, reason: "JAR exceeds the hard byte limit" };
         const bytes = await handle.readFile();
@@ -108,4 +122,13 @@ async function assertSafePath(path) {
         if ((await lstat(current)).isSymbolicLink())
             throw new Error(`JAR path contains a symlink or reparse point: ${current}`);
     }
+}
+
+function sameIdentity(left, right) {
+    return (
+        left.dev === right.dev &&
+        left.ino === right.ino &&
+        left.size === right.size &&
+        left.mtimeMs === right.mtimeMs
+    );
 }
