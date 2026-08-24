@@ -28,6 +28,8 @@ import {
 } from "./store.js";
 import SearchablePicker from "./SearchablePicker.vue";
 import { createRuntimeSettingsCoordinator, type RuntimeCoordinatorBridge } from "./coordinator.js";
+import { runtimeBilingualString, runtimeString, type RuntimeStringKey } from "./runtimeStrings.js";
+import { languageMode, funnyLevel } from "../setup/setupI18n.js";
 import { TabbedNavigation, type TabPage } from "../tabs/index.js";
 import { recordAppSetting } from "../../stores/appSettingsHistorySync.js";
 
@@ -41,6 +43,11 @@ interface RuntimeSearchItem {
 }
 
 const { t } = useI18n();
+function rt(key: RuntimeStringKey): string {
+    const mode = languageMode();
+    if (mode === "bilingual") return runtimeBilingualString(key, funnyLevel("en"), funnyLevel("yue"));
+    return runtimeString(key, mode === "yue" ? "yue" : "en", mode === "yue" ? funnyLevel("yue") : funnyLevel("en"));
+}
 const state = ref<RuntimeSettingsState>(loadRuntimeSettings());
 const runtimeTabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 const query = ref("");
@@ -551,7 +558,7 @@ onUnmounted(() => {
                     aria-labelledby="runtime-tab-status"
                     class="mb-runtime-settings__panel"
                 >
-                    <h4>Status Hub</h4>
+            <h4>{{ rt("statusTitle") }}</h4>
                     <p class="mb-runtime-settings__notice" aria-live="polite">
                         {{ statusMessage }}
                     </p>
@@ -619,7 +626,7 @@ onUnmounted(() => {
                     aria-labelledby="runtime-tab-narrator"
                     class="mb-runtime-settings__panel"
                 >
-                    <h4>Spoken narrator</h4>
+            <h4>{{ rt("narratorTitle") }}</h4>
                     <p class="mb-runtime-settings__hint">
                         Narration is off until enabled. Voice lists are read from this computer,
                         stable voice ids are retained, and Both speaks English then Cantonese in
@@ -767,7 +774,7 @@ onUnmounted(() => {
                     aria-labelledby="runtime-tab-schedule"
                     class="mb-runtime-settings__panel"
                 >
-                    <h4>Scheduled settings</h4>
+            <h4>{{ rt("scheduleTitle") }}</h4>
                     <p class="mb-runtime-settings__hint">
                         Times use this computer's local timezone. Every day means all weekdays.
                         Cross-midnight windows are supported, and a higher priority wins before the
@@ -905,7 +912,7 @@ onUnmounted(() => {
                     aria-labelledby="runtime-tab-accommodations"
                     class="mb-runtime-settings__panel"
                 >
-                    <h4>Attention modes</h4>
+            <h4>{{ rt("accommodationsTitle") }}</h4>
                     <p class="mb-runtime-settings__hint">
                         These are independent interface accommodations, off by default, non-medical,
                         and never hide work without an obvious way back.
