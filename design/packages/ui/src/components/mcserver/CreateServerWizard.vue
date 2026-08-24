@@ -349,8 +349,13 @@ const requiredJavaFeature = computed(() => selectedVersionEntry.value?.javaFeatu
 const javaNotRequired = computed(() => whereItRuns.value === "ssh-docker");
 
 async function checkJava(): Promise<void> {
-    if (!store.hasJava || javaNotRequired.value || javaOperation !== null || javaDisposed) return;
+    if (!store.hasJava || javaNotRequired.value || javaDisposed) return;
+    if (javaOperation !== null) {
+        if (step.value === "java") queuedJavaGeneration = javaGeneration;
+        return;
+    }
     const generation = javaGeneration;
+    queuedJavaGeneration = null;
     javaOperation = { kind: "check", generation };
     javaChecking.value = true;
     javaFailure.value = null;
@@ -388,8 +393,13 @@ async function checkJava(): Promise<void> {
 }
 
 async function provisionJava(): Promise<void> {
-    if (!store.hasJava || javaNotRequired.value || javaOperation !== null || javaDisposed) return;
+    if (!store.hasJava || javaNotRequired.value || javaDisposed) return;
+    if (javaOperation !== null) {
+        if (step.value === "java") queuedJavaGeneration = javaGeneration;
+        return;
+    }
     const generation = javaGeneration;
+    queuedJavaGeneration = null;
     javaOperation = { kind: "provision", generation };
     javaProvisioning.value = true;
     javaProgress.value = null;
@@ -664,6 +674,7 @@ async function fillSuggestedFolder(): Promise<void> {
 }
 
 function resetWizard(): void {
+    invalidateJavaSession();
     step.value = "flavour";
     flavour.value = "paper";
     minecraftVersion.value = "";
@@ -687,12 +698,24 @@ function resetWizard(): void {
     createFailure.value = null;
 }
 
+function invalidateJavaSession(): void {
+    javaGeneration += 1;
+    queuedJavaGeneration = null;
+    javaResolution.value = null;
+    javaProgress.value = null;
+    javaFailure.value = null;
+    javaChecking.value = false;
+    javaProvisioning.value = false;
+}
+
 watch(open, (isOpen) => {
     if (isOpen) {
         void loadCatalogue();
         resetWizard();
         // After the reset, so it is not immediately cleared again.
         void fillSuggestedFolder();
+    } else {
+        invalidateJavaSession();
     }
 });
 

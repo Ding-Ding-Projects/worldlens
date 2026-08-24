@@ -385,6 +385,63 @@ describe("CreateServerWizard", () => {
         expect(document.querySelector('[data-test="java-found"]')?.textContent).toContain("17");
     });
 
+    it("does not let a closed wizard session receive stale Java results or progress", async () => {
+        const pending: Array<(answer: Answer<JavaResolution>) => void> = [];
+        let progressListener: ((progress: JavaProvisionProgress) => void) | null = null;
+        const resolve = vi.fn(
+            () => new Promise<Answer<JavaResolution>>((done) => pending.push(done)),
+        );
+        const wrapper = mountWizard(
+            javaHost({
+                resolve,
+                onProgress: (listener) => {
+                    progressListener = listener;
+                    return () => {
+                        progressListener = null;
+                    };
+                },
+            }),
+        );
+        await flushAll();
+        const vm = wrapper.vm as unknown as WizardVm;
+        vm.step = "java";
+        await flushAll();
+        expect(resolve).toHaveBeenCalledTimes(1);
+
+        await wrapper.setProps({ modelValue: false });
+        await flushAll();
+        await wrapper.setProps({ modelValue: true });
+        await flushAll();
+        vm.step = "java";
+        await flushAll();
+
+        const emitProgress = progressListener as unknown as (
+            progress: JavaProvisionProgress,
+        ) => void;
+        emitProgress({
+            phase: "failed",
+            receivedBytes: 1,
+            totalBytes: 2,
+            message: "stale Java progress",
+        });
+        pending[0]?.({
+            ok: false,
+            failure: { code: "stale", message: "stale Java failure", detail: null },
+        });
+        await flushAll();
+
+        // The new session waited for the old host call, then started exactly one
+        // fresh operation. Neither stale progress nor the stale failure crossed over.
+        expect(resolve).toHaveBeenCalledTimes(2);
+        expect(document.querySelector('[data-test="java-progress"]')).toBeNull();
+        expect(document.querySelector('[data-test="java-failure"]')).toBeNull();
+
+        pending[1]?.(ok(foundJava()));
+        await flushAll();
+        expect(document.querySelector('[data-test="java-found"]')).not.toBeNull();
+        wrapper.unmount();
+    });
+
     it("shows real provisioning progress, failure, retry, and post-install re-resolution", async () => {
         let progressListener: ((progress: JavaProvisionProgress) => void) | null = null;
         const resolve = vi
