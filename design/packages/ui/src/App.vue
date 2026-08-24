@@ -81,6 +81,7 @@ import { resolveCiRenderBridge } from "./components/cirender/ciRenderBridge.js";
 import RendersScreen from "./components/renders/RendersScreen.vue";
 import StructureList from "./components/structures/StructureList.vue";
 import ChunkerScreen from "./components/chunker/ChunkerScreen.vue";
+import { ConverterScreen } from "./components/converter/index.js";
 import OllamaScreen from "./components/ollama/OllamaScreen.vue";
 import { structureStore } from "./components/structures/structureStore.js";
 import { createActiveRenders } from "./components/renders/activeRenders.js";
@@ -402,6 +403,7 @@ const PAGE_STRUCTURES = "structures";
  * to is the review nobody reads.
  */
 const PAGE_CHUNKER = "chunker";
+const PAGE_CONVERTER = "converter";
 /*
  * Three surfaces that were built, tested and unreachable until this.
  *
@@ -557,6 +559,11 @@ const pages = computed<TabPage[]>(() => [
     {
         id: PAGE_CHUNKER,
         label: t("tabs.page.chunker", "Convert"),
+        icon: mdiSwapHorizontal,
+    },
+    {
+        id: PAGE_CONVERTER,
+        label: t("tabs.page.converter", "File converter"),
         icon: mdiSwapHorizontal,
     },
     {
@@ -2148,6 +2155,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #chunker>
                     <ChunkerScreen />
                 </template>
+                <template #converter>
+                    <div class="mb-world-host mb-interactive">
+                        <ConverterScreen />
+                    </div>
+                </template>
 
                 <template #structures>
                     <div class="mb-world-host mb-interactive">
@@ -2662,6 +2674,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
                             <template #chunker>
                                 <ChunkerScreen />
+                            </template>
+                            <template #converter>
+                                <div class="mb-world-host mb-interactive">
+                                    <ConverterScreen />
+                                </div>
                             </template>
 
                             <template #structures>

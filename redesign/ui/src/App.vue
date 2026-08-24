@@ -13,7 +13,6 @@ import {
     mdiProgressClock,
     mdiServerNetwork,
     mdiSourceRepository,
-    mdiRobotOutline,
     mdiWeb,
 } from "@mdi/js";
 import type { MenuPage } from "@worldlens/viewer";
@@ -78,7 +77,6 @@ import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
 import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { DocsPage } from "./components/docs/index.js";
 import ScreenshotGallery from "./components/gallery/ScreenshotGallery.vue";
-import { ConverterOllamaScreen } from "./components/converter/index.js";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import { addLocalMap, profilesStore } from "./stores/profiles.js";
@@ -161,7 +159,6 @@ const PAGE_WORLDREPO = "worldrepo";
 const PAGE_PREVIEW = "preview";
 const PAGE_DOCS = "docs";
 const PAGE_SCREENSHOTS = "screenshots";
-const PAGE_TOOLS = "tools";
 
 /**
  * A count of everything in progress, kept alive for the whole life of the shell rather than
@@ -281,7 +278,6 @@ const pages = computed<TabPage[]>(() => [
     // same reach as every other destination in the strip.
     { id: PAGE_DOCS, label: t("tabs.page.docs", "Docs"), icon: mdiFileDocumentOutline },
     { id: PAGE_SCREENSHOTS, label: t("tabs.page.screenshots", "Screenshots"), icon: mdiImageMultipleOutline },
-    { id: PAGE_TOOLS, label: t("tabs.page.tools", "Local tools"), icon: mdiRobotOutline },
 ]);
 
 /**
@@ -1478,11 +1474,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <template #screenshots>
                             <div class="mb-world-host mb-interactive">
                                 <ScreenshotGallery />
-                            </div>
-                        </template>
-                        <template #tools>
-                            <div class="mb-world-host mb-interactive">
-                                <ConverterOllamaScreen />
                             </div>
                         </template>
                         </WorkPane>

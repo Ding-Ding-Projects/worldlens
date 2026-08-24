@@ -18,6 +18,8 @@ pretending a stale cache is authoritative.
 
 The application reports whether it is using a bundled runtime, a verified user-scoped managed runtime, or an unavailable runtime with an in-app automatic acquisition route. It never sends a user to a manual installation page. A runtime acquisition implementation must verify its pinned official source, digest, cancellation and post-install health probe before switching the active origin.
 
+The current Windows x64 managed pin is Ollama `v0.32.5`, asset `ollama-windows-amd64.zip`, with the official release digest recorded in `packages/app/src/main/ollama/provision.ts`. The acquisition stream writes to a unique temporary file, verifies the digest, extracts with the platform archive tool, probes `ollama.exe --version`, starts the local service and persists the verified origin.
+
 Progress and chat streams are cancelled when their terminal state is received or when the user presses Stop. An unreachable, slow, malformed, oversized, or cancelled request becomes a visible result with a recovery message rather than an unhandled rejection. A stalled stream is abandoned after its bounded per-chunk timeout. Prompts, model names, responses, and downloaded weights stay on the local endpoint. The transport does not log response bodies, does not send data to a cloud fallback, and bounds response growth. Deleting a model or chat is protected by the app's native super-confirmation flow.
 
 ## Failure modes

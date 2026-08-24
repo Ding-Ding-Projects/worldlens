@@ -6,7 +6,6 @@ import {
     mdiChatOutline,
     mdiDeleteOutline,
     mdiDownloadOutline,
-    mdiOpenInNew,
     mdiPencilOutline,
     mdiPlus,
     mdiRefresh,
@@ -40,12 +39,7 @@ import {
     type OllamaChatMessage,
 } from "./ollamaApi.js";
 import { assessFit, type DetectedHardware, type FitVerdict } from "./hardwareFit.js";
-import {
-    catalogIsStale,
-    flattenVariants,
-    refreshCatalog,
-    type CatalogVariant,
-} from "./ollamaCatalog.js";
+import { flattenVariants, type CatalogVariant } from "./ollamaCatalog.js";
 import {
     appendChatMessage,
     cacheFit,
@@ -74,17 +68,36 @@ import {
 
 const { t } = useI18n();
 
-const OLLAMA_DOWNLOAD_URL = "https://ollama.com/download";
-
 /* -------------------------------------------------------------------------- */
 /* Runtime health                                                             */
 /* -------------------------------------------------------------------------- */
 
 const checkingRuntime = ref(false);
+const runtimeProvisioning = ref(false);
+const runtimeProgress = ref("");
+
+async function installRuntime(): Promise<void> {
+    const bridge = globalThis.window?.worldlens?.ollama;
+    if (!bridge || runtimeProvisioning.value) return;
+    runtimeProvisioning.value = true;
+    runtimeProgress.value = "Acquiring the pinned official runtime automatically.";
+    try {
+        const result = await bridge.runtimeEnsure();
+        if (typeof result === "object" && result !== null && "ok" in result && result.ok === true) await checkRuntime();
+        else setRuntimeStatus({ state: "missing", version: null, checkedAt: new Date().toISOString(), detail: typeof result === "object" && result !== null && "message" in result ? String(result.message) : "Automatic acquisition did not complete." });
+    } finally { runtimeProvisioning.value = false; }
+}
 
 async function checkRuntime(): Promise<void> {
     checkingRuntime.value = true;
     try {
+        const bridge = globalThis.window?.worldlens?.ollama;
+        const runtime = bridge ? await bridge.runtime() : null;
+        if (runtime && runtime.origin === "unavailable") {
+            setRuntimeStatus({ state: "missing", version: null, checkedAt: new Date().toISOString(), detail: typeof runtime.reason === "string" ? runtime.reason : "The runtime is not available." });
+            if (!runtimeProvisioning.value) await installRuntime();
+            return;
+        }
         const result = await fetchVersion();
         if (!result.ok) {
             const state =
@@ -134,10 +147,7 @@ const runtimeLabel = computed(() => {
 const runtimeGuidance = computed(() => {
     switch (ollamaStore.runtime.state) {
         case "missing":
-            return t(
-                "ollama.runtime.missingGuidance",
-                "Ollama itself is not installed. Install it, then check again.",
-            );
+            return t("ollama.runtime.missingGuidance", "The application will acquire the pinned runtime automatically. No manual installation step is required.");
         case "stopped":
             return t(
                 "ollama.runtime.stoppedGuidance",
@@ -155,10 +165,6 @@ const runtimeGuidance = computed(() => {
 
 const runtimeReady = computed(() => ollamaStore.runtime.state === "ready");
 
-function openDownloadPage(): void {
-    globalThis.open?.(OLLAMA_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
-}
-
 /* -------------------------------------------------------------------------- */
 /* Model Store                                                                */
 /* -------------------------------------------------------------------------- */
@@ -171,23 +177,19 @@ const catalogAbort = ref<AbortController | null>(null);
 
 async function refreshStoreCatalog(): Promise<void> {
     if (refreshingCatalog.value) return;
+    const bridge = globalThis.window?.worldlens?.ollama;
+    if (!bridge) return;
     refreshingCatalog.value = true;
-    const controller = new AbortController();
-    catalogAbort.value = controller;
     try {
-        const fetchImpl = (globalThis as { fetch?: typeof fetch }).fetch;
-        if (!fetchImpl) return;
-        const result = await refreshCatalog(fetchImpl, { signal: controller.signal });
-        if (result.ok) {
-            setCatalog(result.catalog, catalogIsStale(result.catalog.revision));
-        } else if (result.partial) {
-            setCatalog(result.partial, true);
+        const result = await bridge.catalogRefresh();
+        if (result.catalog) {
+            const raw = result.catalog as { readonly variants?: readonly { readonly name: string; readonly family: string | null; readonly size?: number; readonly quantization: string | null; readonly context?: number }[]; readonly fetchedAt?: string; readonly pages?: number; readonly complete?: boolean; readonly revision?: string | null };
+            const groups = new Map<string, { readonly family: string; readonly description: string; readonly capabilities: readonly string[]; readonly tags: { readonly tag: string; readonly sizeBytes: number | null; readonly contextWindow: number | null; readonly quantization: string | null }[] }>();
+            for (const variant of raw.variants ?? []) { const family = variant.family ?? variant.name.split(":")[0]!; const existing = groups.get(family) ?? { family, description: "Official Ollama catalog variant", capabilities: [], tags: [] }; groups.set(family, { ...existing, tags: [...existing.tags, { tag: variant.name.includes(":") ? variant.name.slice(variant.name.indexOf(":") + 1) : variant.name, sizeBytes: typeof variant.size === "number" ? variant.size : null, contextWindow: typeof variant.context === "number" ? variant.context : null, quantization: variant.quantization ?? null }] }); }
+            setCatalog({ models: [...groups.values()], revision: { sourceRevision: raw.revision ?? null, refreshedAt: raw.fetchedAt ?? new Date().toISOString(), pageCount: raw.pages ?? 0, complete: raw.complete === true } }, result.ok !== true);
         }
     } finally {
-        if (catalogAbort.value === controller) {
-            refreshingCatalog.value = false;
-            catalogAbort.value = null;
-        }
+        refreshingCatalog.value = false;
     }
 }
 
@@ -422,7 +424,11 @@ async function retryLast(): Promise<void> {
     await sendMessage();
 }
 
+let stopRuntimeProgress: (() => void) | undefined;
+
 onMounted(() => {
+    const bridge = globalThis.window?.worldlens?.ollama;
+    stopRuntimeProgress = bridge?.onRuntimeProgress((progress) => { runtimeProgress.value = typeof progress.message === "string" ? progress.message : "Acquiring the runtime automatically."; });
     void checkRuntime();
 });
 
@@ -431,6 +437,7 @@ onBeforeUnmount(() => {
     // and its session reference reachable, then append late chunks after the user has moved on.
     chatAbort.value?.abort();
     catalogAbort.value?.abort();
+    stopRuntimeProgress?.();
 });
 </script>
 
@@ -455,17 +462,19 @@ onBeforeUnmount(() => {
                 <p v-if="runtimeGuidance" class="mb-ollama__runtime-guidance">
                     {{ runtimeGuidance }}
                 </p>
+                <p v-if="runtimeProgress" class="mb-ollama__runtime-guidance">{{ runtimeProgress }}</p>
                 <div class="mb-ollama__runtime-actions">
                     <VBtn
                         v-if="ollamaStore.runtime.state === 'missing'"
                         variant="tonal"
-                        :append-icon="mdiOpenInNew"
-                        @click="openDownloadPage"
+                        :prepend-icon="mdiDownloadOutline"
+                        :loading="runtimeProvisioning"
+                        @click="installRuntime"
                     >
                         {{
                             t(
-                                "ollama.runtime.openDownload",
-                                "Open the official Ollama download page",
+                                "ollama.runtime.acquireAutomatically",
+                                "Acquire Ollama automatically",
                             )
                         }}
                     </VBtn>

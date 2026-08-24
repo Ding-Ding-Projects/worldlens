@@ -94,6 +94,10 @@ const PINNED_CHUNKER = {
     url: "https://github.com/HiveGamesOSS/Chunker/releases/download/1.19.1/chunker-cli-1.19.1.jar",
 };
 
+/** These adapters are implemented inside the main bundle, not represented by fake files. */
+const BUILTIN_CONVERTER_ADAPTERS = ["data-json", "text-markdown", "binary-base64"];
+const converterRegistrySource = join(appRoot, "src", "main", "converter", "registry.ts");
+
 const log = (message) => process.stdout.write(`[stage-bundled-runtimes] ${message}\n`);
 
 const sha256Of = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -217,7 +221,22 @@ function report() {
         const size = present ? `${(treeBytes(tree) / 1048576).toFixed(1)} MB on disk` : "absent";
         log(`${name.padEnd(8)} ${version.padEnd(14)} ${present ? "staged " : "MISSING"}  ${size}`);
     }
+    const converterManifest = join(outRoot, "converter", "manifest.json");
+    const converterPresent = existsSync(converterManifest);
+    if (!converterPresent) missing += 1;
+    log(`converter ${converterPresent ? "STAGED" : "MISSING"}  ${converterManifest}`);
     return missing;
+}
+
+function stageBuiltinConverterManifest() {
+    const source = readFileSync(converterRegistrySource, "utf8");
+    for (const id of BUILTIN_CONVERTER_ADAPTERS) {
+        const row = new RegExp(`id: "${id}"[^\\n]*builtIn: true`).test(source);
+        if (!row) throw new Error(`Converter ${id} is promised as built-in but has no explicit builtIn proof in ${converterRegistrySource}.`);
+    }
+    const directory = join(outRoot, "converter");
+    mkdirSync(directory, { recursive: true });
+    writeFileSync(join(directory, "manifest.json"), `${JSON.stringify({ version: 1, origin: "main-bundle", adapters: BUILTIN_CONVERTER_ADAPTERS }, null, 4)}\n`, "utf8");
 }
 
 async function main() {
@@ -263,6 +282,7 @@ async function main() {
     await fetchVerified(PINNED_CHUNKER.url, chunkerCache, PINNED_CHUNKER.sha256, PINNED_CHUNKER.sizeBytes);
     mkdirSync(chunkerOut, { recursive: true });
     copyFileSync(chunkerCache, chunkerJar);
+    stageBuiltinConverterManifest();
 
     writeFileSync(
         join(outRoot, "manifest.json"),

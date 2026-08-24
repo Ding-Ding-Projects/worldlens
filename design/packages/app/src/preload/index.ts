@@ -2347,6 +2347,7 @@ interface WorldlensBridge {
         pause(): Promise<unknown>;
         resume(): Promise<unknown>;
         cancel(id: string): Promise<unknown>;
+        openInEditor(path: string): Promise<unknown>;
     };
     ollama: {
         health(): Promise<unknown>;
@@ -2354,12 +2355,16 @@ interface WorldlensBridge {
         running(): Promise<unknown>;
         show(name: string): Promise<unknown>;
         catalog(): Promise<unknown>;
+        catalogRefresh(): Promise<unknown>;
         runtime(): Promise<unknown>;
+        runtimeEnsure(): Promise<unknown>;
+        onRuntimeProgress(listener: (progress: unknown) => void): () => void;
         delete(name: string): Promise<unknown>;
         copy(source: string, destination: string): Promise<unknown>;
-        pull(name: string): Promise<unknown>;
-        generate(request: unknown): Promise<unknown>;
-        chat(request: unknown): Promise<unknown>;
+        pull(name: string, operationId: string): Promise<unknown>;
+        generate(request: unknown, operationId: string): Promise<unknown>;
+        chat(request: unknown, operationId: string): Promise<unknown>;
+        cancel(operationId: string): Promise<unknown>;
     };
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
@@ -4348,6 +4353,7 @@ const bridge: WorldlensBridge = {
         pause: () => ipcRenderer.invoke("converter:pause"),
         resume: () => ipcRenderer.invoke("converter:resume"),
         cancel: (id: string) => ipcRenderer.invoke("converter:cancel", id),
+        openInEditor: (path: string) => ipcRenderer.invoke("converter:openInEditor", path),
     },
     ollama: {
         health: () => ipcRenderer.invoke("ollama:health"),
@@ -4355,12 +4361,20 @@ const bridge: WorldlensBridge = {
         running: () => ipcRenderer.invoke("ollama:running"),
         show: (name: string) => ipcRenderer.invoke("ollama:show", name),
         catalog: () => ipcRenderer.invoke("ollama:catalog"),
+        catalogRefresh: () => ipcRenderer.invoke("ollama:catalogRefresh"),
         runtime: () => ipcRenderer.invoke("ollama:runtime"),
+        runtimeEnsure: () => ipcRenderer.invoke("ollama:runtimeEnsure"),
         delete: (name: string) => ipcRenderer.invoke("ollama:delete", name),
         copy: (source: string, destination: string) => ipcRenderer.invoke("ollama:copy", source, destination),
-        pull: (name: string) => ipcRenderer.invoke("ollama:pull", name),
-        generate: (request: unknown) => ipcRenderer.invoke("ollama:generate", request),
-        chat: (request: unknown) => ipcRenderer.invoke("ollama:chat", request),
+        pull: (name: string, operationId: string) => ipcRenderer.invoke("ollama:pull", name, operationId),
+        generate: (request: unknown, operationId: string) => ipcRenderer.invoke("ollama:generate", request, operationId),
+        chat: (request: unknown, operationId: string) => ipcRenderer.invoke("ollama:chat", request, operationId),
+        cancel: (operationId: string) => ipcRenderer.invoke("ollama:cancel", operationId),
+        onRuntimeProgress: (listener: (progress: unknown) => void) => {
+            const forward = (_event: IpcRendererEvent, payload: unknown): void => listener(payload);
+            ipcRenderer.on("ollama:runtimeProgress", forward);
+            return () => ipcRenderer.off("ollama:runtimeProgress", forward);
+        },
     },
 };
 

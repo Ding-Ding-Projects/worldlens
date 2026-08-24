@@ -1,5 +1,9 @@
-import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
-import { dirname, resolve, sep } from "node:path";
+import { readFile, stat } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { randomBytes } from "node:crypto";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { PDFDocument, degrees } from "pdf-lib";
+import { replaceFileWithRetry } from "../storage/atomicReplace.js";
 
 export type PdfOperation = "inspect" | "split" | "merge" | "extract" | "reorder" | "rotate" | "metadata";
 
@@ -10,6 +14,7 @@ export interface ConverterOperationRequest {
     readonly overwrite: boolean;
     readonly pages?: readonly number[];
     readonly rotation?: 0 | 90 | 180 | 270;
+    readonly metadata?: Readonly<Record<string, string>>;
 }
 
 export interface ConverterOperationResult {
@@ -21,11 +26,6 @@ export interface ConverterOperationResult {
 }
 
 const PDF = Buffer.from("%PDF-");
-
-function safeOutput(input: string, output: string): boolean {
-    const root = resolve(dirname(input));
-    return resolve(output).startsWith(root + sep) || resolve(output) === root;
-}
 
 function assertPdf(data: Buffer, path: string): void {
     if (!data.subarray(0, PDF.byteLength).equals(PDF)) throw new Error(`${path} is not a PDF by byte signature.`);
@@ -41,19 +41,22 @@ function assertPdf(data: Buffer, path: string): void {
 export async function runPdfOperation(request: ConverterOperationRequest): Promise<ConverterOperationResult> {
     if (request.inputs.length === 0 || request.output.trim() === "") return { ok: false, output: null, pages: null, metadata: {}, message: "Choose at least one PDF and an output path." };
     if (!request.overwrite && await stat(request.output).then(() => true).catch(() => false)) return { ok: false, output: null, pages: null, metadata: {}, message: "The output already exists. Confirm overwrite before converting." };
-    if (!safeOutput(request.inputs[0]!, request.output)) return { ok: false, output: null, pages: null, metadata: {}, message: "The output must stay beside the selected PDF unless the destination is explicitly browsed." };
-    const buffers = await Promise.all(request.inputs.map((input) => readFile(input)));
+    const buffers = await Promise.all(request.inputs.map(async (input) => { const data = await readFile(input); if (data.byteLength > 256 * 1024 * 1024) throw new Error(`${input} exceeds the PDF adapter safety limit.`); return data; }));
     buffers.forEach((data, index) => assertPdf(data, request.inputs[index]!));
-    if (request.operation !== "inspect") return { ok: false, output: null, pages: null, metadata: {}, message: `The bundled PDF adapter does not expose ${request.operation} in this build yet. No output was written.` };
-    const text = buffers[0]!.toString("latin1");
-    const pages = Math.max(1, (text.match(/\/Type\s*\/Page\b/g) ?? []).length);
-    return { ok: true, output: null, pages, metadata: {}, message: `Inspected ${pages} page${pages === 1 ? "" : "s"}.`, };
-}
-
-/** Atomic copy used by lossless adapters after independent output validation. */
-export async function atomicCopyValidated(source: string, output: string): Promise<void> {
-    const sourceData = await readFile(source);
-    await mkdir(dirname(output), { recursive: true });
-    const temp = `${output}.${process.pid}.${Date.now()}.writing`;
-    try { await writeFile(temp, sourceData); await copyFile(temp, output); } finally { await import("node:fs/promises").then(({ rm }) => rm(temp, { force: true })); }
+    const documents = await Promise.all(buffers.map((buffer) => PDFDocument.load(buffer, { updateMetadata: false })));
+    const first = documents[0]!;
+    const metadata = { title: first.getTitle() ?? "", author: first.getAuthor() ?? "", subject: first.getSubject() ?? "", keywords: first.getKeywords() ?? "", creator: first.getCreator() ?? "", producer: first.getProducer() ?? "" };
+    if (request.operation === "inspect") return { ok: true, output: null, pages: first.getPageCount(), metadata, message: `Inspected ${first.getPageCount()} page${first.getPageCount() === 1 ? "" : "s"}.` };
+    const outputDocument = await PDFDocument.create();
+    const indices = request.pages && request.pages.length > 0 ? request.pages : first.getPages().map((_page, index) => index);
+    const addFrom = async (document: PDFDocument, selected: readonly number[]) => { const pages = await outputDocument.copyPages(document, [...selected]); pages.forEach((page) => outputDocument.addPage(page)); };
+    if (request.operation === "merge") for (const document of documents) await addFrom(document, document.getPages().map((_page, index) => index));
+    else await addFrom(first, indices);
+    if (request.operation === "rotate") outputDocument.getPages().forEach((page) => page.setRotation(degrees(request.rotation ?? 90)));
+    if (request.operation === "metadata") { const values = request.metadata ?? {}; if (values.title !== undefined) outputDocument.setTitle(values.title); if (values.author !== undefined) outputDocument.setAuthor(values.author); if (values.subject !== undefined) outputDocument.setSubject(values.subject); if (values.keywords !== undefined) outputDocument.setKeywords(values.keywords.split(",").map((value) => value.trim()).filter(Boolean)); }
+    const outputBytes = await outputDocument.save({ useObjectStreams: true });
+    await mkdir(dirname(resolve(request.output)), { recursive: true });
+    const temp = `${resolve(request.output)}.${process.pid}.${randomBytes(6).toString("hex")}.writing`;
+    try { await writeFile(temp, outputBytes, { flag: "wx" }); const reopened = await PDFDocument.load(await readFile(temp), { updateMetadata: false }); if (reopened.getPageCount() !== outputDocument.getPageCount()) throw new Error("The written PDF failed page-count validation."); await replaceFileWithRetry(temp, resolve(request.output), rename); } catch (error) { await rm(temp, { force: true }).catch(() => undefined); throw error; } finally { await rm(temp, { force: true }).catch(() => undefined); }
+    return { ok: true, output: resolve(request.output), pages: outputDocument.getPageCount(), metadata, message: `Wrote and reopened ${request.operation} output with ${outputDocument.getPageCount()} page${outputDocument.getPageCount() === 1 ? "" : "s"}.` };
 }

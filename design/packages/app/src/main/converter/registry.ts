@@ -69,8 +69,25 @@ function matchesSignature(source: Uint8Array, signature: ByteSignature): boolean
 }
 
 export function detectAdapter(source: Uint8Array, registry: readonly ConverterAdapter[]): ConverterAdapter | null {
-    if (source.byteLength > MAX_INPUT_BYTES) return null;
-    return registry.find((adapter) => adapter.signatures.some((signature) => matchesSignature(source, signature))) ?? null;
+    return detectAdapters(source, registry)[0] ?? null;
+}
+
+function utf8Text(source: Uint8Array): string | null {
+    try { const text = new TextDecoder("utf-8", { fatal: true }).decode(source); return text; } catch { return null; }
+}
+
+/** Returns every plausible content adapter, because extensionless text and Base64 can overlap. */
+export function detectAdapters(source: Uint8Array, registry: readonly ConverterAdapter[]): readonly ConverterAdapter[] {
+    if (source.byteLength > MAX_INPUT_BYTES) return [];
+    const candidates = registry.filter((adapter) => adapter.signatures.some((signature) => matchesSignature(source, signature)));
+    const text = utf8Text(source)?.trim() ?? "";
+    if (text.startsWith("{") || text.startsWith("[")) {
+        try { JSON.parse(text); const json = registry.find((adapter) => adapter.id === "data-json"); if (json) candidates.push(json); } catch { /* not JSON */ }
+    }
+    if (text.length >= 4 && text.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(text)) {
+        const base64 = registry.find((adapter) => adapter.id === "binary-base64"); if (base64) candidates.push(base64);
+    }
+    return [...new Map(candidates.map((adapter) => [adapter.id, adapter])).values()];
 }
 
 export function validateAdapterRegistry(registry: readonly ConverterAdapter[]): void {

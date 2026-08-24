@@ -686,10 +686,54 @@ type SharedSchoolModeFailureCode =
     | "storage-unavailable"
     | "host-unavailable";
 
+interface ConverterBridge {
+    catalog(): Promise<readonly ConverterAdapterRecord[]>;
+    inspect(path: string): Promise<ConverterInspectionResult>;
+    pdf(request: ConverterPdfRequest): Promise<ConverterOperationResult>;
+    enqueue(items: readonly ConverterQueueDraft[]): Promise<{ readonly ok: boolean; readonly queue?: ConverterQueueRecord; readonly message?: string }>;
+    queue(): Promise<ConverterQueueRecord>;
+    pause(): Promise<ConverterQueueRecord>;
+    resume(): Promise<ConverterQueueRecord>;
+    cancel(id: string): Promise<boolean>;
+    openInEditor(path: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+}
+interface ConverterAdapterRecord { readonly id: string; readonly name: string; readonly category: string; readonly sourceExtensions: readonly string[]; readonly targetExtensions: readonly string[]; readonly bundled: boolean; readonly available: boolean; readonly unavailableReason: string | null; readonly lossiness: string; }
+interface ConverterInspection { readonly ok: boolean; readonly path?: string; readonly bytes?: number; readonly adapter?: ConverterAdapterRecord | null; readonly candidates?: readonly ConverterAdapterRecord[]; readonly ambiguous?: boolean; readonly message: string; }
+type ConverterInspectionResult = ConverterInspection;
+interface ConverterQueueDraft { readonly id: string; readonly source: string; readonly target: string; readonly adapterId: string; readonly bytes: number | null; }
+interface ConverterQueueItem extends ConverterQueueDraft { readonly state: string; readonly progress: number; readonly message: string | null; readonly updatedAt: string; }
+interface ConverterQueueRecord { readonly version: 1; readonly items: readonly ConverterQueueItem[]; readonly paused: boolean; }
+interface ConverterPdfRequest { readonly operation: string; readonly inputs: readonly string[]; readonly output: string; readonly overwrite: boolean; readonly pages?: readonly number[]; readonly rotation?: number; }
+interface ConverterOperationResult { readonly ok: boolean; readonly output: string | null; readonly pages: number | null; readonly metadata: Readonly<Record<string, string>>; readonly message: string; }
+interface OllamaBridge {
+    health(): Promise<{ readonly ok: boolean; readonly version: string | null; readonly message: string }>;
+    tags(): Promise<{ readonly models?: readonly Record<string, unknown>[]; readonly error?: string }>;
+    running(): Promise<{ readonly models?: readonly Record<string, unknown>[]; readonly error?: string }>;
+    show(name: string): Promise<Record<string, unknown>>;
+    catalog(): Promise<Record<string, unknown>>;
+    catalogRefresh(): Promise<{ readonly ok: boolean; readonly catalog?: Record<string, unknown> | null; readonly message?: string }>;
+    runtime(): Promise<Record<string, unknown>>;
+    runtimeEnsure(): Promise<Record<string, unknown>>;
+    onRuntimeProgress(listener: (progress: Record<string, unknown>) => void): () => void;
+    delete(name: string): Promise<Record<string, unknown>>;
+    copy(source: string, destination: string): Promise<Record<string, unknown>>;
+    pull(name: string, operationId: string): Promise<readonly Record<string, unknown>[]>;
+    generate(request: Record<string, unknown>, operationId: string): Promise<readonly Record<string, unknown>[]>;
+    chat(request: Record<string, unknown>, operationId: string): Promise<readonly Record<string, unknown>[]>;
+    cancel(operationId: string): Promise<boolean>;
+}
+
 interface WorldlensBridge {
+    dialog: {
+        pickFile(options: { readonly title: string; readonly extensions?: readonly string[]; readonly startIn?: string }): Promise<string | null>;
+        pickFolder(options: { readonly title: string; readonly startIn?: string }): Promise<string | null>;
+    };
+    converter: ConverterBridge;
+    ollama: OllamaBridge;
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    revealPath(path: string): Promise<{ readonly ok: boolean; readonly message?: string }>;
     releaseLedgerRead?: () => Promise<unknown>;
     dashboardSnapshot(): Promise<DashboardSnapshot>;
     dashboardRefresh(options?: { readonly concurrency?: number; readonly retries?: number; readonly backoffMs?: number }): Promise<DashboardSnapshot>;

@@ -20,11 +20,11 @@
         "prescreenshots": "node ../../scripts/ensure-electron-binary.mjs"
     },
     "devDependencies": {
+        "@bokuweb/zstd-wasm": "^0.0.27",
+        "@playwright/test": "^1.50.0",
         "electron": "^37.10.3",
         "electron-builder": "^26.0.0",
         "esbuild": "^0.25.12",
-        "@playwright/test": "^1.50.0",
-        "@bokuweb/zstd-wasm": "^0.0.27",
         "rcedit": "5.0.2",
         "sharp": "0.35.3"
     },
@@ -38,6 +38,7 @@
         "@worldlens/shared": "workspace:*",
         "@worldlens/worldgen": "workspace:*",
         "electron-store": "^10.1.0",
+        "pdf-lib": "1.17.1",
         "yaml": "^2.6.1"
     }
 }

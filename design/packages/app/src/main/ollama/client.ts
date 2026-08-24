@@ -39,12 +39,12 @@ export class OllamaClient {
     }
     delete(name: string): Promise<Record<string, unknown>> { return requestJson(this.baseUrl, "/api/delete", { method: "DELETE", body: JSON.stringify({ name }), headers: { "content-type": "application/json" } }); }
     copy(source: string, destination: string): Promise<Record<string, unknown>> { return requestJson(this.baseUrl, "/api/copy", { method: "POST", body: JSON.stringify({ source, destination }), headers: { "content-type": "application/json" } }); }
-    generate(request: Record<string, unknown>): Promise<Response> { return this.stream("/api/generate", request); }
-    chat(request: Record<string, unknown>): Promise<Response> { return this.stream("/api/chat", request); }
-    private stream(path: string, body: Record<string, unknown>): Promise<Response> {
+    generate(request: Record<string, unknown>, signal?: AbortSignal): Promise<Response> { return this.stream("/api/generate", request, signal); }
+    chat(request: Record<string, unknown>, signal?: AbortSignal): Promise<Response> { return this.stream("/api/chat", request, signal); }
+    private stream(path: string, body: Record<string, unknown>, signal?: AbortSignal): Promise<Response> {
         const base = safeBaseUrl(this.baseUrl);
         if (base === null) return Promise.reject(new Error("Ollama requests are restricted to the local loopback service."));
-        return fetch(new URL(path, base), { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", accept: "application/x-ndjson" }, redirect: "error", signal: AbortSignal.timeout(30 * 60_000) });
+        return fetch(new URL(path, base), { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", accept: "application/x-ndjson" }, redirect: "error", signal: signal ?? AbortSignal.timeout(30 * 60_000) });
     }
 }
 
@@ -53,6 +53,6 @@ export interface OllamaRuntimePlan { readonly origin: "bundled" | "managed" | "u
 /** Bundle first. If licensing prevents bundling, this returns a verified managed acquisition plan, never a browser instruction. */
 export function resolveOllamaRuntime(options: { readonly bundledExecutable?: string | null; readonly managedExecutable?: string | null }): OllamaRuntimePlan {
     if (options.bundledExecutable) return { origin: "bundled", executable: options.bundledExecutable, canonicalSource: null, reason: "Using the application-bundled Ollama runtime." };
-    if (options.managedExecutable) return { origin: "managed", executable: options.managedExecutable, canonicalSource: "https://ollama.com/download/windows", reason: "Using a verified user-scoped runtime acquired by the application." };
-    return { origin: "unavailable", executable: null, canonicalSource: "https://ollama.com/download/windows", reason: "The application has not acquired a verified runtime yet. Use the in-app automatic acquisition action; no manual install step is required." };
+    if (options.managedExecutable) return { origin: "managed", executable: options.managedExecutable, canonicalSource: "https://github.com/ollama/ollama/releases/download/v0.32.5/ollama-windows-amd64.zip", reason: "Using a verified user-scoped runtime acquired by the application." };
+    return { origin: "unavailable", executable: null, canonicalSource: "https://github.com/ollama/ollama/releases/download/v0.32.5/ollama-windows-amd64.zip", reason: "The application has not acquired a verified runtime yet. Use the in-app automatic acquisition action; no manual install step is required." };
 }

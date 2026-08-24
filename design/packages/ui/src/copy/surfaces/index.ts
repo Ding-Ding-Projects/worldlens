@@ -28,6 +28,7 @@ import {
 import { CHANGELOG_FACTS, CHANGELOG_FIXED, CHANGELOG_VOICED } from "./changelog.js";
 import { CHROME_FACTS, CHROME_FIXED, CHROME_VOICED } from "./chrome.js";
 import { CHUNKER_FACTS, CHUNKER_FIXED, CHUNKER_VOICED } from "./chunker.js";
+import { CONVERTER_FACTS, CONVERTER_FIXED, CONVERTER_VOICED } from "./converter.js";
 import {
     CHUNKERROUTE_FACTS,
     CHUNKERROUTE_FIXED,
@@ -93,6 +94,7 @@ import { VOCABULARY_FACTS, VOCABULARY_FIXED, VOCABULARY_VOICED } from "./vocabul
 export const SURFACE_VOICED = {
     ...CHROME_VOICED,
     ...CHUNKER_VOICED,
+    ...CONVERTER_VOICED,
     ...CHUNKERROUTE_VOICED,
     ...CIRENDERROUTE_VOICED,
     ...SHELL_VOICED,
@@ -152,6 +154,7 @@ export const SURFACE_VOICED = {
 export const SURFACE_FIXED = {
     ...CHROME_FIXED,
     ...CHUNKER_FIXED,
+    ...CONVERTER_FIXED,
     ...CHUNKERROUTE_FIXED,
     ...CIRENDERROUTE_FIXED,
     ...SHELL_FIXED,
@@ -211,6 +214,7 @@ export const SURFACE_FIXED = {
 export const SURFACE_FACTS = {
     ...CHROME_FACTS,
     ...CHUNKER_FACTS,
+    ...CONVERTER_FACTS,
     ...CHUNKERROUTE_FACTS,
     ...CIRENDERROUTE_FACTS,
     ...SHELL_FACTS,

@@ -577,7 +577,7 @@ function registerIpc(): void {
         ...(app.isPackaged ? { bundledFiles: { "pdf-core": path.join(process.resourcesPath, "converter", "pdf-core.adapter"), "image-png": path.join(process.resourcesPath, "converter", "image-png.adapter"), "image-jpeg": path.join(process.resourcesPath, "converter", "image-jpeg.adapter"), "archive-zip": path.join(process.resourcesPath, "converter", "archive-zip.adapter"), "data-json": path.join(process.resourcesPath, "converter", "data-json.adapter"), "text-markdown": path.join(process.resourcesPath, "converter", "text-markdown.adapter"), "binary-base64": path.join(process.resourcesPath, "converter", "binary-base64.adapter"), "audio-ogg": path.join(process.resourcesPath, "converter", "audio-ogg.adapter"), "video-webm": path.join(process.resourcesPath, "converter", "video-webm.adapter") } } : {}),
     });
     app.on("will-quit", () => converterIpc?.dispose());
-    ollamaIpc = registerOllamaHandlers(ipcMain);
+    ollamaIpc = registerOllamaHandlers(ipcMain, { dataDir: app.getPath("userData") });
     app.on("will-quit", () => ollamaIpc?.dispose());
 
     registerVocabularyHandlers(ipcMain, { applicationDataDirectory });

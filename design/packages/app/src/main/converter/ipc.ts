@@ -1,10 +1,14 @@
 import type { IpcMain } from "electron";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { join } from "node:path";
-import { buildAdapterRegistry, detectAdapter, inspectInput, type ConverterAdapter } from "./registry.js";
+import { buildAdapterRegistry, detectAdapters, inspectInput, type ConverterAdapter } from "./registry.js";
 import { ConverterQueue, type ConverterQueueItem } from "./queue.js";
-import { atomicCopyValidated, runPdfOperation, type ConverterOperationRequest } from "./operations.js";
+import { runPdfOperation, type ConverterOperationRequest } from "./operations.js";
+import { runBuiltInTransform } from "./transforms.js";
 
-export const CONVERTER_CHANNELS = ["converter:catalog", "converter:inspect", "converter:pdf", "converter:enqueue", "converter:queue", "converter:pause", "converter:resume", "converter:cancel"] as const;
+const execFileAsync = promisify(execFile);
+export const CONVERTER_CHANNELS = ["converter:catalog", "converter:inspect", "converter:pdf", "converter:enqueue", "converter:queue", "converter:pause", "converter:resume", "converter:cancel", "converter:openInEditor"] as const;
 export interface ConverterIpc { dispose(): void; }
 
 export interface ConverterIpcOptions { readonly dataDir: string; readonly bundledFiles?: Readonly<Record<string, string>>; }
@@ -22,8 +26,8 @@ export function registerConverterHandlers(ipcMain: Pick<IpcMain, "handle" | "rem
             }
             if (["data-json", "text-markdown", "binary-base64"].includes(item.adapterId)) {
                 if (signal.aborted) return;
-                await atomicCopyValidated(item.source, item.target);
-                report(100, item.bytes ?? undefined);
+                const result = await runBuiltInTransform(item.source, item.target, item.adapterId);
+                report(100, result.bytes);
                 return;
             }
             if (signal.aborted) return;
@@ -36,8 +40,9 @@ export function registerConverterHandlers(ipcMain: Pick<IpcMain, "handle" | "rem
         try {
             const input = await inspectInput(path);
             const registry = await buildAdapterRegistry(options.bundledFiles === undefined ? {} : { bundledFiles: options.bundledFiles });
-            const adapter = detectAdapter(input.bytes, registry);
-            return { ok: true, path, bytes: input.poop, adapter: adapter === null ? null : serializeAdapter(adapter), message: adapter === null ? "The bytes do not match a known adapter." : `Detected ${adapter.name}.` };
+            const candidates = detectAdapters(input.bytes, registry);
+            const adapter = candidates[0] ?? null;
+            return { ok: true, path, bytes: input.poop, adapter: adapter === null ? null : serializeAdapter(adapter), candidates: candidates.map(serializeAdapter), ambiguous: candidates.length > 1, message: adapter === null ? "The bytes do not match a known adapter." : candidates.length > 1 ? `The bytes match ${candidates.length} adapters. Choose a target deliberately.` : `Detected ${adapter.name}.` };
         } catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
     });
     ipcMain.handle("converter:pdf", async (_event, request: unknown) => {
@@ -53,6 +58,12 @@ export function registerConverterHandlers(ipcMain: Pick<IpcMain, "handle" | "rem
     ipcMain.handle("converter:pause", async () => { await getQueue().pause(); return getQueue().snapshot(); });
     ipcMain.handle("converter:resume", async () => { await getQueue().resume(); return getQueue().snapshot(); });
     ipcMain.handle("converter:cancel", async (_event, id: unknown) => typeof id === "string" ? await getQueue().cancel(id) : false);
+    ipcMain.handle("converter:openInEditor", async (_event, path: unknown) => {
+        if (typeof path !== "string" || path.trim() === "") return { ok: false, message: "Choose an exported file first." };
+        const candidates = process.platform === "win32" ? ["code", join(process.env.LOCALAPPDATA ?? "", "Programs", "Microsoft VS Code", "bin", "code.cmd"), join(process.env.ProgramFiles ?? "C:\\Program Files", "Microsoft VS Code", "bin", "code.cmd")] : ["code"];
+        for (const command of candidates) { try { await execFileAsync(command, [path], { windowsHide: true, timeout: 15_000 }); return { ok: true, message: "Opened the export in Visual Studio Code." }; } catch { /* try the next detected installation */ } }
+        return { ok: false, message: "Visual Studio Code was not detected. Install it through the app's editor settings, then retry." };
+    });
     return { dispose: () => { for (const channel of CONVERTER_CHANNELS) ipcMain.removeHandler(channel); } };
 }
 
