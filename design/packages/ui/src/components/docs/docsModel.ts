@@ -76,6 +76,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "command-palette.md",
     "notification-centre.md",
     "changelog-viewer.md",
+    "runtime-settings-and-accommodations.md",
     "tabbed-navigation.md",
     "project-editor.md",
     "appearance-editors.md",
