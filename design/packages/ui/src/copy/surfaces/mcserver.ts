@@ -23,14 +23,14 @@ export const MCSERVER_VOICED = {
             "The {flavour} list is from {at} and could not be refreshed: {reason}",
             "The {flavour} list is still from {at}; refresh stopped with: {reason}",
             "The {flavour} list is wearing its {at} coat because refresh stopped with: {reason}",
-            "The {flavour} list is proudly reusing {at}. Refresh met this poke guy: {reason}",
+            "The {flavour} list is proudly reusing {at}. Refresh met this failure: {reason}",
         ],
         yue: [
             "{flavour} 版本表係 {at} 嗰份，未能更新：{reason}",
             "{flavour} 版本表係 {at} 嗰份，未能更新：{reason}",
             "{flavour} 版本表仲係 {at} 嗰份，更新喺呢度停咗：{reason}",
             "{flavour} 版本表著住 {at} 嗰件外套，因為更新喺呢度停咗：{reason}",
-            "{flavour} 版本表好有骨氣咁重用 {at} 嗰份，更新撞到呢隻 poke guy：{reason}",
+            "{flavour} 版本表好有骨氣咁重用 {at} 嗰份，更新撞到呢個問題：{reason}",
         ],
     } satisfies VoicedString,
     "mcserver.wizard.missingServerArtifact": {

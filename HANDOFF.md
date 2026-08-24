@@ -19,8 +19,8 @@ English and Cantonese five-level copy catalogue.
 Focused evidence for this continuation: 42 relevant tests passed, including the 5001-entry
 manifest, stale partial refresh, deep cache rejection, Wiki verification cache, modern snapshot
 families, searchable picker, and mounted wizard. The IPC suite remains unrun because workspace
-package declarations for `@worldlens/parts` are not built in this Gerk Tong Hui. The copy suite
-still reports pre-existing unrelated catalogue and em-dash poke guys.
+package declarations for `@worldlens/parts` are not built in this checkout. The copy suite
+still reports pre-existing unrelated catalogue and em-dash failures.
 
 ## 2026-08-24: complete Java version catalogue lane
 
