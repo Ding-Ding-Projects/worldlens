@@ -1491,6 +1491,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (opened.value.record.origin === "adopted" && body.backupConsent !== true) {
                 return fail("denied", "Backing up an adopted server needs explicit backup consent.");
             }
+            if (activeBackupControllers.has(id)) return fail("denied", "A backup is already active for this server.");
             const controller = new AbortController();
             activeBackupControllers.set(id, controller);
             try {
@@ -1538,7 +1539,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (!opened.ok) return opened;
             const target = typeof body.worldFolder === "string" ? body.worldFolder : opened.value.record.ref.serverDir;
             if (!safeContainerServerDir(target) || !(target === opened.value.record.ref.serverDir || target.startsWith(`${opened.value.record.ref.serverDir.replace(/\/$/, "")}/`))) return fail("invalid-request", "The restore target is outside this server's recognized folder.");
-            if (restoreChallenges.size + restoreReceipts.size >= RESTORE_AUTH_LIMIT) return fail("timeout", "Too many restore confirmations are waiting. Complete one or wait for them to expire.");
+            if (restoreChallenges.size + restoreAuthorizations.size + restoreReceipts.size >= RESTORE_AUTH_LIMIT) return fail("timeout", "Too many restore confirmations are waiting. Complete one or wait for them to expire.");
             const challenge = randomBytes(32).toString("hex");
             const digest = createHash("sha256").update(challenge).digest("hex");
             const expiresAt = Date.now() + 60_000;

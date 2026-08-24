@@ -287,21 +287,31 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                     if (!copied.ok) {
                         result = fail("command-failed", "The remote world could not be staged for backup.", copied.stderr || copied.stdout);
                     } else {
-                    const fetched = await runner(scp, [...scpArguments(options, ["-r"]), `${scpRemotePath(options.target, remoteHostStage)}/.`, localDestination], {
+                    const stagedListing = await remoteRunner("find", [remoteHostStage, "-type", "f", "-printf", "%s\\t%p\\n"], { timeoutMs: 60_000 });
+                    const stagedManifest: { relative: string; bytes: number; sha256: string }[] = [];
+                    if (!stagedListing.ok) result = fail("command-failed", "The staged remote backup manifest could not be read.", stagedListing.stderr || stagedListing.stdout);
+                    if (result.ok) {
+                        const rows = stagedListing.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+                        if (rows.length !== Number(remoteManifest?.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).length ?? -1)) result = fail("stale-document", "The remote backup changed while it was being staged.");
+                        for (const row of rows) {
+                            const match = /^(\d+)\t(.+)$/.exec(row);
+                            if (match === null || match[1] === undefined || match[2] === undefined) { result = fail("stale-document", "The staged remote backup manifest is malformed."); break; }
+                            const hashed = await remoteRunner("sha256sum", ["--", match[2]], { timeoutMs: 60_000 });
+                            const digest = hashed.stdout.trim().split(/\s+/)[0] ?? "";
+                            if (!hashed.ok || !/^[a-f0-9]{64}$/.test(digest)) { result = fail("stale-document", "The staged remote backup hash could not be verified."); break; }
+                            stagedManifest.push({ relative: match[2]!.slice(remoteHostStage.length + 1), bytes: Number(match[1]!), sha256: digest });
+                        }
+                    }
+                    const fetched = result.ok ? await runner(scp, [...scpArguments(options, ["-r"]), `${scpRemotePath(options.target, remoteHostStage)}/.`, localDestination], {
                         timeoutMs: 300_000,
                         ...(copyOptions.signal === undefined ? {} : { signal: copyOptions.signal }),
-                    });
-                    if (!fetched.ok) result = fail("unreachable", "The remote world could not be copied to local backup storage.", fetched.stderr || fetched.stdout || fetched.spawnError);
+                    }) : null;
+                    if (fetched === null) result = result.ok ? fail("command-failed", "The staged remote backup did not produce an outcome.") : result;
+                    if (fetched !== null && !fetched.ok) result = fail("unreachable", "The remote world could not be copied to local backup storage.", fetched.stderr || fetched.stdout || fetched.spawnError);
                     if (result.ok) {
                         const localManifest = await localRestoreManifest(localDestination, copyOptions.signal);
                         if (!localManifest.ok) result = localManifest;
-                        else if (remoteManifest !== null) {
-                            const remoteRows = remoteManifest.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
-                                const match = /^(\d+)\t(.+)$/.exec(line);
-                                return match === null || match[1] === undefined || match[2] === undefined ? null : { bytes: Number(match[1]), relative: match[2].slice(sourceFolder.replace(/\/$/, "").length + 1) };
-                            }).filter((entry): entry is { bytes: number; relative: string } => entry !== null);
-                            if (localManifest.value.length !== remoteRows.length || localManifest.value.some((entry) => !remoteRows.some((remote) => remote.relative === entry.relative && remote.bytes === entry.bytes))) result = fail("stale-document", "The remote backup changed while it was being copied and was refused.");
-                        }
+                        else if (localManifest.value.length !== stagedManifest.length || localManifest.value.some((entry) => !stagedManifest.some((remote) => remote.relative === entry.relative && remote.bytes === entry.bytes && remote.sha256 === entry.sha256))) result = fail("stale-document", "The remote backup changed while it was being copied and was refused.");
                     }
                 }
                 }
@@ -331,7 +341,7 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
             const stage = `${targetFolder.replace(/\/$/, "")}.worldlens-stage-${id}`;
             const rollback = `${targetFolder.replace(/\/$/, "")}.worldlens-rollback-${id}`;
             let hostStageReady = true;
-            let containerStageReady = false;
+            let containerStageCleanupRequired = true;
             let oldRenamed = false;
             let newRenamed = false;
             let serverStopped = false;
@@ -353,7 +363,7 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                 if (!sent.ok) return fail("unreachable", "The restore could not be staged on the SSH host.", sent.stderr || sent.stdout || sent.spawnError);
                 const copied = await remoteRunner(docker, ["cp", remoteHostStage, `${options.containerRef}:${stage}`], { timeoutMs: 300_000 });
                 if (!copied.ok) return fail("command-failed", "The restore could not be copied into the container.", copied.stderr || copied.stdout);
-                containerStageReady = true;
+                containerStageCleanupRequired = true;
                 await cleanupHost();
                 const devices = await Promise.all([
                     remoteRunner(docker, ["exec", options.containerRef, "stat", "-c", "%d", targetFolder]),
@@ -389,7 +399,7 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                     return rollbackResult.ok ? fail("command-failed", "The restore swap failed and the original world was restored.", second.stderr || second.stdout) : fail("command-failed", "The restore swap failed and rollback could not be proven.", `${second.stderr}\n${rollbackResult.stderr}`.trim());
                 }
                 newRenamed = true;
-                containerStageReady = false;
+                containerStageCleanupRequired = false;
                 const restoredLevel = await remoteRunner(docker, ["exec", options.containerRef, "test", "-f", `${targetFolder}/level.dat`]);
                 if (!restoredLevel.ok) {
                     const failedWorld = `${targetFolder}.worldlens-failed-${id}`;
@@ -416,7 +426,7 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                 return ok({ restoredFiles: manifest.value.length, rolledBack: false, ...(cleanupWarning === undefined ? {} : { cleanupWarning }) });
                 })();
             } finally {
-                if (containerStageReady && !newRenamed) {
+                if (containerStageCleanupRequired && !newRenamed) {
                     const cleanedStage = await cleanupRemotePath(stage, true);
                     if (!cleanedStage.ok) cleanupWarning = cleanedStage.failure.message;
                 }
