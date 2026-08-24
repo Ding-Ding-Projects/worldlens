@@ -45,6 +45,7 @@ experience locks, not encryption or security boundaries.
 
 ## Authenticator
 
+The URI and manual secret fields are hidden until the visitor explicitly reveals them.
 Registration accepts an `otpauth://totp/` URI or the same fields manually, validates issuer,
 account, base32, algorithm, 6, 7, or 8 digits, and arbitrary bounded period values, and generates
 RFC 6238 codes locally. The bundled QR encoder produces a real local SVG, with the URI as its text
@@ -52,8 +53,9 @@ alternative. Local QR-image decoding and camera scanning use `BarcodeDetector` w
 provides it, otherwise the controls stay visible with an honest disabled-state explanation.
 Registration remains pending until the current code confirms the entry. The surface shows the
 current countdown and next-code boundary, groups entries, searches them with a real predicate,
-supports reorder and bulk metadata export, and omits secrets from every export. No secret is sent
-over the network or persisted in localStorage.
+supports reorder and bulk metadata export, and omits secrets from every export. The full URI is
+available only through an explicit copy action and is not placed in a data attribute, history
+entry, export, capture metadata, or localStorage. No secret is sent over the network.
 
 ## Support Tickets
 
@@ -69,7 +71,8 @@ A static site cannot perform server-side nonce grading, so the browser equivalen
 boundary while still shipping every rung locally. The state machine runs the dim-sum choices,
 five-wrong transition, ten sums, wrong-sum transition, timed whack-a-mole with one hit per visible
 mole, early-submit refusal, and final clock. It generates expiring nonces, consumes a rolling
-three-wait budget, preserves escalation, and clears waiting only. It does not create a session,
+three-wait budget, persists bounded stage and escalation state across rerender or reload, and
+clears waiting only. It calls the real clock rather than manufacturing a future timestamp. It does not create a session,
 set a cookie, reveal a credential, or refund the attempt budget. School-mode users start at the
 sums, with the hidden dim-sum rung absent.
 

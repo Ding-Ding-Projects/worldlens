@@ -36,5 +36,7 @@ describe("mounted universal contracts surface", () => {
         expect(image?.accept).toContain("image/");
         expect(view.textContent).toContain("QR image file, local only");
         expect(view.querySelector("video")).not.toBeNull();
+        expect(view.outerHTML).not.toContain("secret=");
+        expect(view.outerHTML).not.toContain("JBSWY3DPEHPK3PXP");
     });
 });

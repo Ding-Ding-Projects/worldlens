@@ -109,6 +109,7 @@ export interface SiteContractState {
         readonly used: number;
         readonly budgetStartedAt: number;
     };
+    readonly ladderMachine: LadderSnapshot | null;
 }
 
 type Listener = (snapshot: SiteContractState) => void;
@@ -151,6 +152,7 @@ function emptyState(): SiteContractState {
         presets: [],
         appearance: { ...DEFAULT_APPEARANCE },
         ladder: { waitingUntil: 0, used: 0, budgetStartedAt: Date.now() },
+        ladderMachine: null,
     };
 }
 
@@ -238,6 +240,7 @@ function revive(value: unknown): SiteContractState | undefined {
             used: numberInRange(ladder.used, 0, LADDER_BUDGET, 0),
             budgetStartedAt: numberInRange(ladder.budgetStartedAt, 0, Number.MAX_SAFE_INTEGER, Date.now()),
         },
+        ladderMachine: isRecord(value.ladderMachine) ? value.ladderMachine as unknown as LadderSnapshot : null,
     };
 }
 
@@ -445,6 +448,12 @@ export class SiteContractStore {
         this.commit("ladder.waiting.cleared", "ladder", "Cleared waiting only; credentials and attempt budget stayed unchanged");
     }
 
+    saveLadderMachine(snapshot: LadderSnapshot): void {
+        this.current = { ...this.current, ladderMachine: structuredClone(snapshot) };
+        this.prefs.writeJson(STATE_KEY, this.current);
+        this.emit();
+    }
+
     clearSiteState(): void {
         this.sessionSecrets.clear();
         this.current = emptyState();
@@ -580,7 +589,6 @@ export function createLocalQrSvg(payload: string): SVGElement {
     if (parsed.localName !== "svg") throw new Error("The bundled QR encoder returned an invalid SVG.");
     parsed.setAttribute("role", "img");
     parsed.setAttribute("aria-label", "Locally generated authenticator QR code");
-    parsed.dataset.payload = payload;
     return parsed as unknown as SVGElement;
 }
 
@@ -673,6 +681,7 @@ export interface LadderSnapshot {
     readonly moleDurationMs: number;
     readonly nonce: string;
     readonly nonceIssuedAt: number;
+    readonly nonceConsumed: boolean;
     readonly waitingUntil: number;
     readonly attemptBudgetUsed: number;
     readonly escalation: number;
@@ -681,8 +690,12 @@ export interface LadderSnapshot {
 /** Explicit all-rung ladder. It never returns a credential, cookie, or session. */
 export class UnlockLadderMachine {
     private state: LadderSnapshot;
-    constructor(options: { readonly schoolMode: boolean; readonly now?: number; readonly waitingMs?: number }) {
+    constructor(options: { readonly schoolMode: boolean; readonly now?: number; readonly waitingMs?: number; readonly initial?: LadderSnapshot | null }) {
         const now = options.now ?? Date.now();
+        if (options.initial !== null && options.initial !== undefined) {
+            this.state = { ...options.initial, visibleMoles: [...options.initial.visibleMoles], hitMoles: [...options.initial.hitMoles], sumAnswers: [...options.initial.sumAnswers] };
+            return;
+        }
         this.state = {
             stage: options.schoolMode ? "sums" : "dim-sum",
             wrongDishes: 0,
@@ -694,6 +707,7 @@ export class UnlockLadderMachine {
             moleDurationMs: 3_000,
             nonce: randomId("ladder-nonce"),
             nonceIssuedAt: now,
+            nonceConsumed: false,
             waitingUntil: now + (options.waitingMs ?? 10_000),
             attemptBudgetUsed: 0,
             escalation: 0,
@@ -708,26 +722,27 @@ export class UnlockLadderMachine {
     }
     answerDish(correct: boolean, now = Date.now()): LadderSnapshot {
         if (this.state.stage !== "dim-sum") return this.snapshot();
-        if (!this.nonceValid(now)) return this.expireNonce();
+        if (!this.takeNonce(now)) return this.expireNonce();
         if (correct) return this.clearWaiting();
         const wrong = this.state.wrongDishes + 1;
-        this.state = { ...this.state, wrongDishes: wrong, stage: wrong >= 5 ? "sums" : "dim-sum", nonce: randomId("ladder-nonce"), nonceIssuedAt: now };
+        this.state = { ...this.state, wrongDishes: wrong, stage: wrong >= 5 ? "sums" : "dim-sum", nonce: randomId("ladder-nonce"), nonceIssuedAt: now, nonceConsumed: false };
         return this.snapshot();
     }
     answerSum(answer: number, now = Date.now()): LadderSnapshot {
         if (this.state.stage !== "sums") return this.snapshot();
-        if (!this.nonceValid(now)) return this.expireNonce();
+        if (!this.takeNonce(now)) return this.expireNonce();
         if (answer !== this.state.sumAnswers[this.state.sumIndex]) {
-            this.state = { ...this.state, stage: "whack-a-mole", visibleMoles: [0, 1, 2, 3, 4], hitMoles: [], moleStartedAt: null, nonce: randomId("ladder-nonce"), nonceIssuedAt: now };
+            this.state = { ...this.state, stage: "whack-a-mole", visibleMoles: [0, 1, 2, 3, 4], hitMoles: [], moleStartedAt: null, nonce: randomId("ladder-nonce"), nonceIssuedAt: now, nonceConsumed: false };
             return this.snapshot();
         }
         const next = this.state.sumIndex + 1;
-        this.state = next >= this.state.sumAnswers.length ? { ...this.state, stage: "cleared", waitingUntil: 0, sumIndex: next } : { ...this.state, sumIndex: next, nonce: randomId("ladder-nonce"), nonceIssuedAt: now };
+        this.state = next >= this.state.sumAnswers.length ? { ...this.state, stage: "cleared", waitingUntil: 0, sumIndex: next } : { ...this.state, sumIndex: next, nonce: randomId("ladder-nonce"), nonceIssuedAt: now, nonceConsumed: false };
         return this.snapshot();
     }
     startMoles(now = Date.now()): LadderSnapshot {
-        if (this.state.stage !== "whack-a-mole") return this.snapshot();
-        this.state = { ...this.state, moleStartedAt: now, nonce: randomId("ladder-nonce"), nonceIssuedAt: now };
+        if (this.state.stage !== "whack-a-mole" || this.state.moleStartedAt !== null) return this.snapshot();
+        if (!this.takeNonce(now)) return this.expireNonce();
+        this.state = { ...this.state, moleStartedAt: now, nonce: randomId("ladder-nonce"), nonceIssuedAt: now, nonceConsumed: false };
         return this.snapshot();
     }
     hitMole(id: number, now = Date.now()): LadderSnapshot {
@@ -740,7 +755,8 @@ export class UnlockLadderMachine {
         if (this.state.stage !== "whack-a-mole") return this.snapshot();
         if (!this.nonceValid(now)) return this.expireNonce();
         if (this.state.moleStartedAt === null || now < this.state.moleStartedAt + this.state.moleDurationMs) return this.snapshot();
-        this.state = { ...this.state, stage: "clock", nonce: randomId("ladder-nonce"), nonceIssuedAt: now, escalation: this.state.escalation + 1 };
+        if (!this.takeNonce(now)) return this.expireNonce();
+        this.state = { ...this.state, stage: "clock", nonce: randomId("ladder-nonce"), nonceIssuedAt: now, nonceConsumed: false, escalation: this.state.escalation + 1 };
         return this.snapshot();
     }
     clearClock(now = Date.now()): LadderSnapshot {
@@ -751,8 +767,9 @@ export class UnlockLadderMachine {
         this.state = { ...this.state, stage: "cleared", waitingUntil: 0 };
         return this.snapshot();
     }
-    private nonceValid(now: number): boolean { return now - this.state.nonceIssuedAt <= 60_000; }
-    private expireNonce(): LadderSnapshot { this.state = { ...this.state, stage: "clock", nonce: randomId("ladder-nonce"), nonceIssuedAt: Date.now(), escalation: this.state.escalation + 1 }; return this.snapshot(); }
+    private nonceValid(now: number): boolean { return !this.state.nonceConsumed && now - this.state.nonceIssuedAt <= 60_000; }
+    private takeNonce(now: number): boolean { if (!this.nonceValid(now)) return false; this.state = { ...this.state, nonceConsumed: true }; return true; }
+    private expireNonce(): LadderSnapshot { this.state = { ...this.state, stage: "clock", nonce: randomId("ladder-nonce"), nonceIssuedAt: Date.now(), nonceConsumed: false, escalation: this.state.escalation + 1 }; return this.snapshot(); }
 }
 
 function textPair(node: HTMLElement, i18n: I18n, en: string, yue: string): void {
@@ -895,11 +912,16 @@ export function createSiteUniversalContractsView(options: {
     let renderVersion = 0;
     let pendingAuthenticator: { readonly uri: TotpUri; readonly secret: string } | null = null;
     let activeCamera: CameraDecodeHandle | null = null;
+    const activeTimers = new Set<number>();
     let authenticatorQuery = "";
     let ticketQuery = "";
 
     const render = (): void => {
         const version = ++renderVersion;
+        activeCamera?.stop();
+        activeCamera = null;
+        for (const timer of activeTimers) window.clearInterval(timer);
+        activeTimers.clear();
         root.replaceChildren();
         const title = document.createElement("h1");
         title.className = "mb-page-title";
@@ -1078,7 +1100,7 @@ export function createSiteUniversalContractsView(options: {
 
         const auth = section("Local authenticator", "Register an otpauth URI, manual base32 values, clipboard text, or a QR image when this browser exposes a local decoder. Secrets stay in this tab's memory and never enter localStorage, history, export, or the network.");
         auth.id = "contract-authenticator";
-        const uri = document.createElement("textarea"); uri.className = "md-field__input"; uri.rows = 3; uri.placeholder = "otpauth://totp/Issuer:Account?...";
+        const uri = document.createElement("input"); uri.className = "md-field__input"; uri.type = "password"; uri.placeholder = "otpauth://totp/Issuer:Account?..."; uri.autocomplete = "off";
         const authForm = document.createElement("form"); authForm.className = "mb-contract-grid";
         const issuer = document.createElement("input"); issuer.className = "md-field__input"; const account = document.createElement("input"); account.className = "md-field__input"; const secret = document.createElement("input"); secret.className = "md-field__input"; secret.type = "password";
         const algorithm = document.createElement("select"); algorithm.className = "md-field__input"; ["SHA1", "SHA256", "SHA512"].forEach((value) => { const item = document.createElement("option"); item.value = value; item.textContent = value; algorithm.append(item); });
@@ -1086,7 +1108,7 @@ export function createSiteUniversalContractsView(options: {
         const period = document.createElement("input"); period.className = "md-field__input"; period.type = "number"; period.value = "30"; period.min = "5"; period.max = "300";
         authForm.append(inputLabel("otpauth URI", uri, "URI is parsed locally and its issuer, account, algorithm, digits, and period are displayed before registration."), inputLabel("Issuer", issuer), inputLabel("Account", account), inputLabel("Base32 secret", secret, "Shown only while you are registering; the stored entry keeps no secret in browser storage."), inputLabel("Algorithm", algorithm), inputLabel("Digits", digits), inputLabel("Period seconds", period));
         const qrPayload = document.createElement("div"); qrPayload.className = "mb-contract-qr"; qrPayload.setAttribute("role", "group"); qrPayload.setAttribute("aria-label", "Local QR enrollment and text alternative");
-        const qrText = document.createElement("pre"); qrText.className = "mb-contract-qr-text"; qrText.textContent = "No QR enrollment payload yet.";
+        const qrText = document.createElement("pre"); qrText.className = "mb-contract-qr-text"; qrText.textContent = "No QR enrollment payload yet. The secret is deliberately omitted from visible text and metadata.";
         qrPayload.append(qrText);
         const authStatus = document.createElement("p"); authStatus.className = "mb-help"; authStatus.setAttribute("role", "status");
         const qrFile = document.createElement("input"); qrFile.type = "file"; qrFile.accept = "image/*"; qrFile.className = "md-field__input";
@@ -1103,7 +1125,7 @@ export function createSiteUniversalContractsView(options: {
                 const payload = makeOtpAuthUri(parsed);
                 pendingAuthenticator = { uri: parsed, secret: parsed.secret };
                 qrPayload.replaceChildren(createLocalQrSvg(payload), qrText);
-                qrText.textContent = `Local enrollment payload (text alternative):\n${payload}\n\nNo network QR service is used.`;
+                qrText.textContent = `Local QR generated for ${parsed.issuer} / ${parsed.account}. Algorithm ${parsed.algorithm}, ${parsed.digits} digits, ${parsed.period} second period. The enrollment URI is available only through the explicit copy action.`;
                 authStatus.textContent = `Registration is pending. Enter the current code to confirm ${parsed.issuer} / ${parsed.account}.`;
             } catch (error) { authStatus.textContent = error instanceof Error ? error.message : "The authenticator entry could not be prepared."; }
         });
@@ -1117,9 +1139,11 @@ export function createSiteUniversalContractsView(options: {
             store.addAuthenticator(entry, pendingAuthenticator.secret);
             pendingAuthenticator = null; confirmCode.value = ""; secret.value = ""; uri.value = ""; render();
         });
-        const clipboard = button("Read otpauth URI from clipboard", async () => { try { uri.value = await navigator.clipboard.readText(); authStatus.textContent = "Clipboard text was read locally. Review it before preparing registration."; } catch { authStatus.textContent = "Clipboard access is unavailable in this browser. Paste the URI into the local field instead."; } });
+        const revealUri = button("Reveal URI briefly", () => { uri.type = uri.type === "password" ? "text" : "password"; authStatus.textContent = uri.type === "text" ? "The URI is revealed only in this active field. Hide it again before capturing or sharing the page." : "The URI is hidden again."; });
+        const copyUri = button("Copy enrollment URI", async () => { if (pendingAuthenticator === null) { authStatus.textContent = "Prepare registration first."; return; } try { await navigator.clipboard.writeText(makeOtpAuthUri(pendingAuthenticator.uri)); authStatus.textContent = "The URI was copied only after the explicit copy action."; } catch { authStatus.textContent = "Clipboard writing is unavailable. Reveal the URI only when you need to copy it manually."; } });
+        const clipboard = button("Read otpauth URI from clipboard", async () => { try { uri.value = await navigator.clipboard.readText(); authStatus.textContent = "Clipboard text was read locally. Review it before preparing registration."; } catch { authStatus.textContent = "Clipboard access is unavailable in this browser. Paste the URI into the hidden local field instead."; } });
         qrFile.addEventListener("change", () => { const file = qrFile.files?.[0]; if (file === undefined) return; void decodeLocalQrImage(file).then((value) => { if (value === null) authStatus.textContent = "This browser has no local QR decoder, so the image was not sent anywhere. Use the URI or manual path."; else { uri.value = value; authStatus.textContent = "QR image decoded locally. Review the URI before preparing registration."; } }).catch(() => { authStatus.textContent = "The local QR image could not be decoded. Use the URI or manual path."; }); });
-        authForm.append(register, clipboard, cameraButton, inputLabel("QR image file, local only", qrFile), cameraVideo, inputLabel("Current code confirmation", confirmCode), confirm);
+        authForm.append(register, revealUri, copyUri, clipboard, cameraButton, inputLabel("QR image file, local only", qrFile), cameraVideo, inputLabel("Current code confirmation", confirmCode), confirm);
         auth.append(authForm, qrPayload, authStatus);
         const authSearch = document.createElement("input"); authSearch.type = "search"; authSearch.className = "md-field__input"; authSearch.placeholder = "Search authenticator issuer, account, or group"; authSearch.setAttribute("aria-label", "Search authenticator entries");
         authSearch.value = authenticatorQuery;
@@ -1132,9 +1156,21 @@ export function createSiteUniversalContractsView(options: {
             const row = document.createElement("article"); row.className = "mb-contract-row";
             const selectAuth = document.createElement("input"); selectAuth.type = "checkbox"; selectAuth.checked = selectedAuth.has(entry.id); selectAuth.setAttribute("aria-label", `Select ${entry.issuer} ${entry.account}`); selectAuth.addEventListener("change", () => { if (selectAuth.checked) selectedAuth.add(entry.id); else selectedAuth.delete(entry.id); });
             const current = document.createElement("output"); current.textContent = "Code unavailable until this tab's in-memory secret is registered again.";
-            const countdown = document.createElement("span"); countdown.textContent = `Next code in ${entry.period - (Math.floor(Date.now() / 1000) % entry.period)} seconds`;
-            const code = button("Show current code", async () => { const stored = store.secretForAuthenticator(entry.id); if (stored === undefined) { current.textContent = "This tab no longer has the secret. Re-register from the URI or authenticator export."; return; } current.textContent = await generateTotp(stored, Date.now(), entry); });
-            row.append(selectAuth, document.createTextNode(`${entry.issuer} / ${entry.account} · ${entry.group} · ${entry.algorithm} · ${entry.digits} digits`), current, countdown, code, button("Move up", () => { store.reorderAuthenticator(entry.id, "up"); render(); }), button("Move down", () => { store.reorderAuthenticator(entry.id, "down"); render(); }), button("Remove", () => {
+            const next = document.createElement("output"); next.textContent = "Next code unavailable until this tab's in-memory secret is registered again.";
+            const countdown = document.createElement("span"); countdown.setAttribute("role", "timer");
+            const skew = document.createElement("span"); skew.textContent = "Clock skew cannot be measured without a trusted server time on this static host.";
+            const refreshCodes = async (): Promise<void> => {
+                const stored = store.secretForAuthenticator(entry.id);
+                if (stored === undefined) { current.textContent = "This tab no longer has the secret. Re-register from the URI or authenticator export."; next.textContent = "Next code unavailable."; return; }
+                const now = Date.now();
+                current.textContent = await generateTotp(stored, now, entry);
+                next.textContent = await generateTotp(stored, now + entry.period * 1000, entry);
+                countdown.textContent = `Next code in ${entry.period - (Math.floor(now / 1000) % entry.period)} seconds`;
+            };
+            const code = button("Refresh current and next code", () => { void refreshCodes(); });
+            void refreshCodes();
+            const timer = window.setInterval(() => { void refreshCodes(); }, 1000); activeTimers.add(timer);
+            row.append(selectAuth, document.createTextNode(`${entry.issuer} / ${entry.account} · ${entry.group} · ${entry.algorithm} · ${entry.digits} digits`), current, next, countdown, skew, code, button("Move up", () => { store.reorderAuthenticator(entry.id, "up"); render(); }), button("Move down", () => { store.reorderAuthenticator(entry.id, "down"); render(); }), button("Remove", () => {
                 void confirmDestructive(`Remove the authenticator metadata for ${entry.issuer} / ${entry.account}? The in-memory secret is also forgotten.`).then((confirmed) => {
                     if (confirmed) { store.removeAuthenticator(entry.id); render(); }
                 });
@@ -1180,7 +1216,8 @@ export function createSiteUniversalContractsView(options: {
         const ladder = section("Waiting-only unlock ladder", "A static site cannot grade a server-side nonce. This local equivalent clears waiting only, never credentials, sessions, or the attempt budget. Under the site's named school setting, it starts at sums and never shows the dim-sum rung.");
         ladder.id = "contract-ladder";
         const schoolEnabled = window.localStorage.getItem("mbm-site:school.enabled") === "true";
-        const ladderMachine = new UnlockLadderMachine({ schoolMode: schoolEnabled });
+        const ladderMachine = new UnlockLadderMachine({ schoolMode: schoolEnabled, initial: store.snapshot.ladderMachine });
+        const saveLadder = (): void => store.saveLadderMachine(ladderMachine.snapshot());
         const ladderBody = document.createElement("div"); ladderBody.className = "mb-contract-ladder-body";
         const ladderStatus = document.createElement("p"); ladderStatus.className = "mb-help"; ladderStatus.setAttribute("role", "status");
         const renderLadder = (): void => {
@@ -1189,17 +1226,17 @@ export function createSiteUniversalContractsView(options: {
             ladderStatus.textContent = `Stage: ${current.stage}. Nonce: ${current.nonce.slice(-8)}. Waiting only. Attempts used: ${current.attemptBudgetUsed} of ${LADDER_BUDGET}. Escalation remains ${current.escalation}.`;
             if (current.stage === "dim-sum") {
                 const choices = document.createElement("div"); choices.className = "mb-contract-actions";
-                ["Har Gow", "Siu Mai", "Cheung Fun", "Egg Tart"].forEach((dish, index) => choices.append(button(dish, () => { if (!ladderMachine.consumeAttempt()) { ladderStatus.textContent = "The rolling ladder budget is exhausted. The clock is the only route."; return; } ladderMachine.answerDish(index === 0); renderLadder(); })));
+                ["Har Gow", "Siu Mai", "Cheung Fun", "Egg Tart"].forEach((dish, index) => choices.append(button(dish, () => { if (!ladderMachine.consumeAttempt()) { ladderStatus.textContent = "The rolling ladder budget is exhausted. The clock is the only route."; return; } ladderMachine.answerDish(index === 0); saveLadder(); renderLadder(); })));
                 ladderBody.append(document.createTextNode("Choose the correct local dish. A correct answer clears waiting only."), choices);
             } else if (current.stage === "sums") {
                 const answer = document.createElement("input"); answer.className = "md-field__input"; answer.type = "number"; answer.setAttribute("aria-label", `Sum ${current.sumIndex + 1} of 10`);
-                ladderBody.append(document.createTextNode(`Ten sums. Current item ${current.sumIndex + 1} of 10.`), inputLabel("Answer", answer), button("Submit sum", () => { if (!ladderMachine.consumeAttempt()) { ladderStatus.textContent = "The rolling ladder budget is exhausted. The clock is the only route."; return; } ladderMachine.answerSum(Number(answer.value)); renderLadder(); }));
+                ladderBody.append(document.createTextNode(`Ten sums. Current item ${current.sumIndex + 1} of 10.`), inputLabel("Answer", answer), button("Submit sum", () => { if (!ladderMachine.consumeAttempt()) { ladderStatus.textContent = "The rolling ladder budget is exhausted. The clock is the only route."; return; } ladderMachine.answerSum(Number(answer.value)); saveLadder(); renderLadder(); }));
             } else if (current.stage === "whack-a-mole") {
                 const moleRow = document.createElement("div"); moleRow.className = "mb-contract-actions";
-                current.visibleMoles.forEach((id) => moleRow.append(button(`Mole ${id + 1}`, () => { ladderMachine.hitMole(id); renderLadder(); })));
-                ladderBody.append(document.createTextNode("Timed round: each visible mole counts once. Submit is refused before the round ends."), button("Start timed mole round", () => { ladderMachine.startMoles(); renderLadder(); }), moleRow, button("Submit timed round", () => { ladderMachine.submitMoles(); renderLadder(); }));
+                current.visibleMoles.forEach((id) => moleRow.append(button(`Mole ${id + 1}`, () => { ladderMachine.hitMole(id); saveLadder(); renderLadder(); })));
+                ladderBody.append(document.createTextNode("Timed round: each visible mole counts once. Submit is refused before the round ends."), button("Start timed mole round", () => { ladderMachine.startMoles(); saveLadder(); renderLadder(); }), moleRow, button("Submit timed round", () => { ladderMachine.submitMoles(); saveLadder(); renderLadder(); }));
             } else if (current.stage === "clock") {
-                ladderBody.append(document.createTextNode("The ladder fell to the clock. No second ladder is offered for this lockout."), button("Check clock", () => { ladderMachine.clearClock(Date.now() + 10_000); renderLadder(); }));
+                ladderBody.append(document.createTextNode("The ladder fell to the clock. No second ladder is offered for this lockout."), button("Check clock", () => { ladderMachine.clearClock(); saveLadder(); renderLadder(); }), button("Open Support Tickets", () => document.getElementById("contract-support")?.scrollIntoView({ behavior: "smooth" }), "md-button md-button--text"));
             } else {
                 ladderBody.append(document.createTextNode("Waiting cleared only. Credentials, cookies, sessions, and attempt escalation were not changed."));
             }
@@ -1214,10 +1251,14 @@ export function createSiteUniversalContractsView(options: {
         state.history.slice(0, 30).forEach((entry) => { const row = document.createElement("article"); row.className = "mb-contract-row"; row.textContent = `${entry.at} · ${entry.action} · ${entry.target} · ${entry.detail}`; historyList.append(row); });
         history.append(button("Export redacted local history", () => safeDownload("worldlens-site-history.json", JSON.stringify({ version: 1, omitted: ["passwords", "TOTP secrets", "QR payloads", "file metadata"], entries: store.snapshot.history }, null, 2))), historyList); root.append(history);
 
-        installUniversalLockWizards(root, () => {
-            document.getElementById("contract-locks")?.scrollIntoView({ behavior: "smooth", block: "start" });
-            const credentialField = document.querySelector<HTMLElement>("#contract-locks input[type=password]");
-            credentialField?.focus();
+        installUniversalLockWizards(root, (origin, name) => {
+            const matching = [...target.options].find((option) => option.value === name);
+            if (matching === undefined) { const option = document.createElement("option"); option.value = name; option.textContent = name; target.append(option); }
+            target.value = name;
+            scope.value = "element";
+            locks.scrollIntoView({ behavior: "smooth", block: "start" });
+            credential.focus();
+            origin.dataset.lockWizardOrigin = name;
         });
 
         if (version !== renderVersion) return;
@@ -1233,7 +1274,7 @@ export function createSiteUniversalContractsView(options: {
     return root;
 }
 
-function installUniversalLockWizards(root: HTMLElement, openWizard: () => void): void {
+function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTMLElement, name: string) => void): void {
     const targets = [root, ...root.querySelectorAll<HTMLElement>("*")];
     for (const target of targets) {
         if (target.dataset.contractLockWizard === "true") continue;
@@ -1245,13 +1286,20 @@ function installUniversalLockWizards(root: HTMLElement, openWizard: () => void):
             menu.className = "mb-contract-lock-menu";
             menu.setAttribute("role", "menu");
             menu.tabIndex = -1;
-            const action = button(`Lock this element: ${name}`, () => { menu.remove(); openWizard(); });
+            const filter = document.createElement("input");
+            filter.type = "search";
+            filter.className = "md-field__input";
+            filter.placeholder = "Filter lock actions";
+            filter.setAttribute("aria-label", "Filter lock actions");
+            const action = button(`Lock this element: ${name}`, () => { menu.remove(); openWizard(target, name); });
             action.setAttribute("role", "menuitem");
-            menu.append(action);
+            filter.addEventListener("input", () => { action.hidden = !matchesContractQuery(action.textContent ?? "", filter.value, filter.dataset.regexPattern ?? "", filter.dataset.regexFlags ?? "i"); });
+            regexBuilder(menu, filter, "lock actions");
+            menu.append(filter, action);
             document.body.append(menu);
             if (event instanceof MouseEvent) { menu.style.left = `${Math.min(event.clientX, window.innerWidth - 300)}px`; menu.style.top = `${Math.min(event.clientY, window.innerHeight - 80)}px`; }
             action.focus();
-            const dismiss = (next: Event): void => { if (!menu.contains(next.target as Node)) { menu.remove(); document.removeEventListener("pointerdown", dismiss); } };
+            const dismiss = (next: Event): void => { if (!menu.contains(next.target as Node)) { menu.remove(); document.removeEventListener("pointerdown", dismiss); target.focus(); } };
             document.addEventListener("pointerdown", dismiss);
         };
         target.addEventListener("contextmenu", open);

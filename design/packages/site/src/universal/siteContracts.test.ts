@@ -86,8 +86,8 @@ describe("site universal contracts", () => {
     it("generates a real bundled local QR SVG", () => {
         const svg = createLocalQrSvg("otpauth://totp/Example:alice?secret=JBSWY3DPEHPK3PXP&issuer=Example");
         expect(svg.localName).toBe("svg");
-        expect(svg.dataset.payload).toContain("otpauth://totp/");
         expect(svg.querySelectorAll("path,rect").length).toBeGreaterThan(0);
+        expect(svg.outerHTML).not.toContain("JBSWY3DPEHPK3PXP");
     });
 
     it("walks every unlock ladder rung and refuses an early mole submission", () => {
