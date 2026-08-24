@@ -32,8 +32,8 @@ export interface ConverterOperationResult {
 
 const PDF = Buffer.from("%PDF-");
 const MAX_PDF_INPUTS = 32;
-const MAX_PDF_INPUT_BYTES = 256 * 1024 * 1024;
-const MAX_PDF_AGGREGATE_BYTES = 512 * 1024 * 1024;
+const MAX_PDF_INPUT_BYTES = 128 * 1024 * 1024;
+const MAX_PDF_AGGREGATE_BYTES = 256 * 1024 * 1024;
 const OVERWRITE_CONFIRMATION = "I_UNDERSTAND_OVERWRITE";
 
 function failed(message: string): ConverterOperationResult { return { ok: false, output: null, pages: null, metadata: {}, message }; }
@@ -97,20 +97,23 @@ async function writeValidatedPdf(document: PDFDocument, outputPath: string, requ
 async function readBoundedPdfInputs(inputs: readonly string[], signal?: AbortSignal): Promise<Buffer[]> {
     if (inputs.length === 0) throw new Error("Choose at least one PDF and an output path.");
     if (inputs.length > MAX_PDF_INPUTS) throw new Error(`PDF operations accept at most ${MAX_PDF_INPUTS} input files at once.`);
-    const sizes = await Promise.all(inputs.map(async (input) => {
+    const sizes: number[] = [];
+    for (const input of inputs) {
         if (signal?.aborted) throw new Error("The PDF operation was cancelled.");
         const info = await stat(input);
         if (!info.isFile()) throw new Error(`${input} is not a regular file.`);
         if (info.size > MAX_PDF_INPUT_BYTES) throw new Error(`${input} exceeds the PDF adapter safety limit.`);
-        return info.size;
-    }));
+        sizes.push(info.size);
+    }
     if (sizes.reduce((sum, size) => sum + size, 0) > MAX_PDF_AGGREGATE_BYTES) throw new Error("The selected PDF inputs exceed the aggregate safety limit.");
-    return Promise.all(inputs.map(async (input) => {
+    const buffers: Buffer[] = [];
+    for (const input of inputs) {
         if (signal?.aborted) throw new Error("The PDF operation was cancelled.");
         const data = await readFile(input);
         if (data.byteLength > MAX_PDF_INPUT_BYTES) throw new Error(`${input} changed and now exceeds the PDF adapter safety limit.`);
-        return data;
-    }));
+        buffers.push(data);
+    }
+    return buffers;
 }
 
 /** Bundled PDF operations have bounded preflight, atomic sibling writes, confirmation, and independent reopen validation. */
@@ -120,7 +123,8 @@ export async function runPdfOperation(request: ConverterOperationRequest): Promi
         if (request.output.trim() === "") return failed("Choose an output path.");
         const buffers = await readBoundedPdfInputs(request.inputs, request.signal);
         buffers.forEach((data, index) => assertPdf(data, request.inputs[index]!));
-        const documents = await Promise.all(buffers.map((buffer) => PDFDocument.load(buffer, { updateMetadata: false })));
+        const documents: PDFDocument[] = [];
+        for (const buffer of buffers) documents.push(await PDFDocument.load(buffer, { updateMetadata: false }));
         const first = documents[0]!;
         if (request.operation === "inspect") return { ok: true, output: null, pages: first.getPageCount(), pageOrder: first.getPages().map((_page, index) => index), rotations: rotationsOf(first), metadata: metadataOf(first), message: `Inspected ${first.getPageCount()} page${first.getPageCount() === 1 ? "" : "s"}.` };
         const outputDocument = await PDFDocument.create();

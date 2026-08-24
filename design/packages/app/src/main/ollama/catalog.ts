@@ -25,32 +25,56 @@ export interface OllamaCatalogSnapshot {
 
 export interface OllamaCatalogSource { readonly fetchPage: (cursor: string | null) => Promise<OllamaPage<OllamaCatalogVariant>>; }
 
-/** Official documented tags endpoint. It reports tags available to this Ollama service, not an undocumented library scrape. */
-export const OFFICIAL_OLLAMA_CATALOG_URL = "https://ollama.com/api/tags";
-const MAX_OFFICIAL_PAGE_BYTES = 2 * 1024 * 1024;
-const MAX_OFFICIAL_PAGES = 200;
+/** Official published inventory. This is the rendered inventory users browse, not a local tags response. */
+export const OFFICIAL_OLLAMA_CATALOG_URL = "https://ollama.com/library";
+const MAX_OFFICIAL_PAGE_BYTES = 4 * 1024 * 1024;
+const MAX_OFFICIAL_PAGES = 500;
 const MAX_CATALOG_VARIANTS = 100_000;
 
-interface OfficialPage { readonly models?: readonly { readonly name?: string; readonly size?: number; readonly details?: { readonly family?: string; readonly parameter_size?: string; readonly quantization_level?: string }; }[]; }
+interface OfficialPage { readonly items: readonly OllamaCatalogVariant[]; readonly revision: string | null; }
 
-async function officialPage(url: string, signal?: AbortSignal): Promise<OllamaPage<OllamaCatalogVariant>> {
-    const response = await fetch(url, { redirect: "error", signal: signal ?? AbortSignal.timeout(15_000), headers: { accept: "application/json" } });
-    if (!response.ok) throw new Error(`Official Ollama catalog returned HTTP ${response.status}.`);
-    const bytes = Number(response.headers.get("content-length") ?? 0); if (bytes > MAX_OFFICIAL_PAGE_BYTES) throw new Error("Official Ollama catalog page exceeded the safety limit.");
-    const body = await response.text(); if (body.length > MAX_OFFICIAL_PAGE_BYTES) throw new Error("Official Ollama catalog page exceeded the safety limit.");
-    const page = JSON.parse(body) as OfficialPage;
-    const items: OllamaCatalogVariant[] = [];
-    for (const model of page.models ?? []) {
-        if (typeof model.name !== "string" || model.name.length === 0 || model.name.length > 256) continue;
-        const family = model.details?.family ?? null;
-        items.push({ name: model.name, ...(typeof model.size === "number" ? { size: model.size } : {}), family, capabilities: [], quantization: model.details?.quantization_level ?? null, parameterSize: model.details?.parameter_size ?? null, catalogSource: OFFICIAL_OLLAMA_CATALOG_URL });
-    }
-    return { items, next: null, revision: response.headers.get("etag") };
+async function boundedText(response: Response): Promise<string> {
+    const length = Number(response.headers.get("content-length") ?? 0);
+    if (length > MAX_OFFICIAL_PAGE_BYTES) throw new Error("Official Ollama inventory page exceeded the safety limit.");
+    const reader = response.body?.getReader();
+    if (!reader) { const text = await response.text(); if (new TextEncoder().encode(text).byteLength > MAX_OFFICIAL_PAGE_BYTES) throw new Error("Official Ollama inventory page exceeded the safety limit."); return text; }
+    const decoder = new TextDecoder(); let text = ""; let bytes = 0;
+    for (;;) { const chunk = await reader.read(); if (chunk.done) break; bytes += chunk.value.byteLength; if (bytes > MAX_OFFICIAL_PAGE_BYTES) { await reader.cancel().catch(() => undefined); throw new Error("Official Ollama inventory page exceeded the safety limit."); } text += decoder.decode(chunk.value, { stream: true }); }
+    return text + decoder.decode();
 }
 
+function parseInventoryPage(html: string, source: string, revision: string | null): OfficialPage {
+    const items: OllamaCatalogVariant[] = [];
+    const seen = new Set<string>();
+    const pattern = /href="\/library\/([^"/:]+(?:\/[^"/:]+)*):([^"/]+)"/g;
+    for (const match of html.matchAll(pattern)) {
+        const name = `${match[1]}:${match[2]}`;
+        if (seen.has(name) || name.length > 256) continue;
+        seen.add(name);
+        items.push({ name, family: match[1] ?? null, capabilities: [], quantization: null, parameterSize: null, catalogSource: source });
+    }
+    return { items, revision };
+}
+
+async function officialPage(url: string, signal?: AbortSignal): Promise<OllamaPage<OllamaCatalogVariant>> {
+    const response = await fetch(url, { redirect: "error", signal: signal ?? AbortSignal.timeout(15_000), headers: { accept: "text/html" } });
+    if (!response.ok) throw new Error(`Official Ollama catalog returned HTTP ${response.status}.`);
+    const body = await boundedText(response);
+    const page = parseInventoryPage(body, sourceUrl(url), response.headers.get("etag"));
+    return { items: page.items, next: null, revision: page.revision };
+}
+
+function sourceUrl(url: string): string { return url.startsWith("https://ollama.com/library") ? url : OFFICIAL_OLLAMA_CATALOG_URL; }
+
 export async function refreshOfficialCatalog(dataDir: string, signal?: AbortSignal): Promise<OllamaCatalogSnapshot> {
-    const page = await officialPage(OFFICIAL_OLLAMA_CATALOG_URL, signal);
-    const snapshot: OllamaCatalogSnapshot = { version: 1, variants: page.items, fetchedAt: new Date().toISOString(), pages: 1, complete: false, revision: page.revision, stale: false, source: OFFICIAL_OLLAMA_CATALOG_URL, completenessReason: "The documented /api/tags endpoint reports service-visible tags. Ollama does not document an exhaustive public library pagination endpoint, so this snapshot is never presented as the whole library." };
+    const landingResponse = await fetch(OFFICIAL_OLLAMA_CATALOG_URL, { redirect: "error", signal: signal ?? AbortSignal.timeout(15_000), headers: { accept: "text/html" } });
+    if (!landingResponse.ok) throw new Error(`Official Ollama inventory returned HTTP ${landingResponse.status}.`);
+    const landing = await boundedText(landingResponse);
+    const families = [...new Set([...landing.matchAll(/href="\/library\/([^"/:]+(?:\/[^"/:]+)*)"/g)].map((match) => match[1]).filter((family): family is string => typeof family === "string" && !family.endsWith("/tags") && !family.endsWith("/preview") && !family.endsWith("/assets")))];
+    if (families.length === 0 || families.length > MAX_OFFICIAL_PAGES) throw new Error("Official Ollama inventory did not provide a bounded family list.");
+    const variants: OllamaCatalogVariant[] = []; const revisions: string[] = [];
+    for (const family of families) { if (signal?.aborted) throw new Error("Official Ollama inventory refresh was cancelled."); const page = await officialPage(`${OFFICIAL_OLLAMA_CATALOG_URL}/${family}`, signal); variants.push(...page.items); if (page.revision) revisions.push(page.revision); if (variants.length > MAX_CATALOG_VARIANTS) throw new Error("Official Ollama inventory variant count exceeded the safety limit."); }
+    const snapshot: OllamaCatalogSnapshot = { version: 1, variants: [...new Map(variants.map((item) => [item.name, item])).values()], fetchedAt: new Date().toISOString(), pages: families.length + 1, complete: true, revision: revisions.join(",") || landingResponse.headers.get("etag"), stale: false, source: OFFICIAL_OLLAMA_CATALOG_URL, completenessReason: "Every family page linked by the official published Ollama library inventory was fetched and every published model tag link was recorded." };
     await mkdir(join(dataDir, "ollama"), { recursive: true });
     await atomicWriteTextFile(join(dataDir, "ollama", "catalog.json"), JSON.stringify(snapshot, null, 2));
     return snapshot;

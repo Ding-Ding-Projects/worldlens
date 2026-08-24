@@ -14,6 +14,7 @@ const stringArg = (value: unknown): string | null => typeof value === "string" &
 const MAX_STREAM_BYTES = 64 * 1024 * 1024;
 const MAX_STREAM_LINE_BYTES = 1024 * 1024;
 const MAX_STREAM_LINES = 100_000;
+const MAX_RETURNED_RECORDS = 4_096;
 
 async function readNdjson(response: Response, signal: AbortSignal, onRecord?: (record: Record<string, unknown>) => void): Promise<readonly Record<string, unknown>[]> {
     if (!response.ok) return [{ error: `Ollama returned HTTP ${response.status}.` }];
@@ -29,7 +30,7 @@ async function readNdjson(response: Response, signal: AbortSignal, onRecord?: (r
         if (!trimmed) return;
         if (++lines > MAX_STREAM_LINES) throw new Error("Ollama returned too many streamed records.");
         if (new TextEncoder().encode(trimmed).byteLength > MAX_STREAM_LINE_BYTES) throw new Error("Ollama returned a streamed record above the safety limit.");
-        try { const record = JSON.parse(trimmed) as Record<string, unknown>; result.push(record); onRecord?.(record); } catch { const record = { error: "Ollama returned malformed streamed JSON." }; result.push(record); onRecord?.(record); }
+        try { const record = JSON.parse(trimmed) as Record<string, unknown>; if (result.length < MAX_RETURNED_RECORDS) result.push(record); onRecord?.(record); } catch { const record = { error: "Ollama returned malformed streamed JSON." }; if (result.length < MAX_RETURNED_RECORDS) result.push(record); onRecord?.(record); }
     };
     const drain = (flush: boolean): void => {
         if (flush) buffer += decoder.decode();

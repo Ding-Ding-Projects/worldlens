@@ -88,10 +88,10 @@ async function installRuntime(): Promise<void> {
     } finally { runtimeProvisioning.value = false; }
 }
 
-async function cancelRuntime(): Promise<void> { await globalThis.window?.worldlens?.ollama.runtimeCancel(); runtimeProgress.value = "Runtime acquisition cancelled. The source files remain untouched."; }
-async function stopRuntime(): Promise<void> { const result = await globalThis.window?.worldlens?.ollama.runtimeStop(); runtimeProgress.value = result ? "Managed Ollama runtime stopped." : "No managed Ollama runtime process was running."; await checkRuntime(); }
-async function restartRuntime(): Promise<void> { const result = await globalThis.window?.worldlens?.ollama.runtimeRestart(); runtimeProgress.value = result.ok ? "Managed Ollama runtime restarted and probed." : result.message ?? "Managed Ollama runtime restart did not complete."; await checkRuntime(); }
-async function probeRuntime(): Promise<void> { const result = await globalThis.window?.worldlens?.ollama.runtimeProbe(); runtimeProgress.value = result.ok ? "Managed Ollama readiness probe succeeded." : result.message ?? "Managed Ollama readiness probe did not succeed."; await checkRuntime(); }
+async function cancelRuntime(): Promise<void> { const bridge = globalThis.window?.worldlens?.ollama; if (!bridge) return; await bridge.runtimeCancel(); runtimeProgress.value = "Runtime acquisition cancelled. The source files remain untouched."; }
+async function stopRuntime(): Promise<void> { const bridge = globalThis.window?.worldlens?.ollama; if (!bridge) return; const result = await bridge.runtimeStop(); runtimeProgress.value = result ? "Managed Ollama runtime stopped." : "No managed Ollama runtime process was running."; await checkRuntime(); }
+async function restartRuntime(): Promise<void> { const bridge = globalThis.window?.worldlens?.ollama; if (!bridge) return; const result = await bridge.runtimeRestart(); runtimeProgress.value = result.ok ? "Managed Ollama runtime restarted and probed." : result.message ?? "Managed Ollama runtime restart did not complete."; await checkRuntime(); }
+async function probeRuntime(): Promise<void> { const bridge = globalThis.window?.worldlens?.ollama; if (!bridge) return; const result = await bridge.runtimeProbe(); runtimeProgress.value = result.ok ? "Managed Ollama readiness probe succeeded." : result.message ?? "Managed Ollama readiness probe did not succeed."; await checkRuntime(); }
 
 async function checkRuntime(): Promise<void> {
     checkingRuntime.value = true;

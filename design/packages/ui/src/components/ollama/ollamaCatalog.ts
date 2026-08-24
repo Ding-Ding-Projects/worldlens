@@ -31,7 +31,7 @@
 import type { FetchLike } from "./ollamaApi.js";
 
 /** The official Ollama model library's catalogue API. Overridable for a moved endpoint. */
-export const DEFAULT_CATALOG_URL = "https://ollama.com/api/tags";
+export const DEFAULT_CATALOG_URL = "https://ollama.com/library";
 
 /** Longest number of pages a single refresh will follow before refusing to keep pulling. */
 export const MAX_CATALOG_PAGES = 200;

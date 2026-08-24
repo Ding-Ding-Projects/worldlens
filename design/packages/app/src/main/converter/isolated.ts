@@ -10,7 +10,7 @@ export interface IsolatedResult { readonly ok: boolean; readonly result?: Record
 export async function runIsolatedAdapter(request: Record<string, unknown>, signal?: AbortSignal, timeoutMs = 30 * 60_000): Promise<IsolatedResult> {
     await access(WORKER).catch(() => { throw new Error("The bundled isolated converter worker is missing from this build."); });
     return new Promise((resolve, reject) => {
-        const child = spawn(process.execPath, [WORKER], { windowsHide: true, env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" }, stdio: ["pipe", "pipe", "ignore"] });
+        const child = spawn(process.execPath, [WORKER], { windowsHide: true, env: { ELECTRON_RUN_AS_NODE: "1", PATH: process.env.PATH, SystemRoot: process.env.SystemRoot, TEMP: process.env.TEMP, TMP: process.env.TMP }, stdio: ["pipe", "pipe", "ignore"] });
         let output = "";
         const timer = setTimeout(() => { child.kill(); reject(new Error("The isolated converter adapter exceeded its deadline.")); }, timeoutMs);
         const abort = () => { child.kill(); clearTimeout(timer); reject(new Error("The isolated converter adapter was cancelled.")); };
