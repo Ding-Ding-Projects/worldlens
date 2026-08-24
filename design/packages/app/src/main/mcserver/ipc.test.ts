@@ -210,10 +210,17 @@ describe("registerMcServerHandlers", () => {
             worldFolder: "/data",
         })) as { ok: boolean; value?: { challenge: string; expiresAt: number } };
         expect(challenge.ok).toBe(true);
+        for (const step of [
+            { step: "key-one", value: true },
+            { step: "key-two", value: true },
+            { step: "slider", value: 100 },
+        ]) {
+            const transition = (await invoke(MCSERVER_CHANNELS.backupRestoreStep, "survival", { challenge: challenge.value?.challenge, ...step })) as { ok: boolean };
+            expect(transition.ok).toBe(true);
+        }
         const issued = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
             owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
             challenge: challenge.value?.challenge,
-            proof: { keyOne: true, keyTwo: true, travel: 100 },
         })) as { ok: boolean; value?: { receipt: string; expiresAt: number } };
         expect(issued.ok).toBe(true);
         expect(issued.value?.receipt.length).toBe(64);

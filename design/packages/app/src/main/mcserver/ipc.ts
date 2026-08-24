@@ -128,6 +128,7 @@ export const MCSERVER_CHANNELS = {
     backupList: "mcserver:backup:list",
     backupRestore: "mcserver:backup:restore",
     backupRestoreChallenge: "mcserver:backup:restore:challenge",
+    backupRestoreStep: "mcserver:backup:restore:step",
     backupRestoreIssue: "mcserver:backup:restore:issue",
     awsPlan: "mcserver:aws:plan",
     awsProvision: "mcserver:aws:provision",
@@ -365,7 +366,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
     const openRconTunnel = options.sshRconTunnel ?? openSshRconTunnel;
     const rconTunnels = new Map<string, SshRconTunnel>();
     const restoreReceipts = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
-    const restoreChallenges = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number }>();
+    const restoreChallenges = new Map<string, { readonly digest: string; readonly serverId: string; readonly target: string; readonly owner: string; readonly repo: string; readonly tag: string; readonly expiresAt: number; keyOne: boolean; keyTwo: boolean; travel: number }>();
     const activeBackupControllers = new Map<string, AbortController>();
     const RESTORE_AUTH_LIMIT = 128;
     const sweepRestoreAuth = (): void => {
@@ -1536,8 +1537,29 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             const challenge = randomBytes(32).toString("hex");
             const digest = createHash("sha256").update(challenge).digest("hex");
             const expiresAt = Date.now() + 60_000;
-            restoreChallenges.set(digest, { digest, serverId: id, target, owner: body.owner, repo: body.repo, tag: body.tag, expiresAt });
+            restoreChallenges.set(digest, { digest, serverId: id, target, owner: body.owner, repo: body.repo, tag: body.tag, expiresAt, keyOne: false, keyTwo: false, travel: 0 });
             return ok({ challenge, expiresAt });
+        },
+
+        [MCSERVER_CHANNELS.backupRestoreStep]: async (_event: never, id: unknown, request: unknown) => {
+            sweepRestoreAuth();
+            if (!isRecordId(id) || typeof request !== "object" || request === null) return fail("invalid-request", "A restore transition could not be read.");
+            const body = request as Record<string, unknown>;
+            if (typeof body.challenge !== "string" || (body.step !== "key-one" && body.step !== "key-two" && body.step !== "slider")) return fail("invalid-request", "A restore transition is incomplete.");
+            const digest = createHash("sha256").update(body.challenge).digest("hex");
+            const challenge = restoreChallenges.get(digest);
+            if (challenge === undefined || challenge.serverId !== id || challenge.expiresAt < Date.now()) return fail("denied", "That restore challenge is expired or already used.");
+            if (body.step === "key-one") {
+                if (body.value !== true) return fail("denied", "The first confirmation key must be explicitly turned on.");
+                challenge.keyOne = true;
+            } else if (body.step === "key-two") {
+                if (!challenge.keyOne || body.value !== true) return fail("denied", "The second confirmation key requires the first key transition.");
+                challenge.keyTwo = true;
+            } else {
+                if (!challenge.keyOne || !challenge.keyTwo || body.value !== 100) return fail("denied", "The full slider transition requires both confirmation keys.");
+                challenge.travel = 100;
+            }
+            return ok({ keyOne: challenge.keyOne, keyTwo: challenge.keyTwo, travel: challenge.travel });
         },
 
         [MCSERVER_CHANNELS.backupRestoreIssue]: async (_event: never, id: unknown, request: unknown) => {
@@ -1547,8 +1569,6 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             if (typeof body.challenge !== "string" || typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") {
                 return fail("denied", "This restore needs the main-process challenge and native confirmation evidence.");
             }
-            const proof = typeof body.proof === "object" && body.proof !== null ? body.proof as Record<string, unknown> : {};
-            if (proof.keyOne !== true || proof.keyTwo !== true || proof.travel !== 100) return fail("denied", "The two independent confirmation keys and the full slider travel are required.");
             const opened = await open(id);
             if (!opened.ok) return opened;
             const target = typeof body.worldFolder === "string" ? body.worldFolder : opened.value.record.ref.serverDir;
@@ -1557,7 +1577,7 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             }
             const challengeDigest = createHash("sha256").update(body.challenge).digest("hex");
             const challenge = restoreChallenges.get(challengeDigest);
-            if (challenge === undefined || challenge.expiresAt < Date.now() || challenge.serverId !== id || challenge.target !== target || challenge.owner !== body.owner || challenge.repo !== body.repo || challenge.tag !== body.tag) return fail("denied", "This native confirmation challenge is expired, already used, or scoped to another restore.");
+            if (challenge === undefined || challenge.expiresAt < Date.now() || challenge.serverId !== id || challenge.target !== target || challenge.owner !== body.owner || challenge.repo !== body.repo || challenge.tag !== body.tag || !challenge.keyOne || !challenge.keyTwo || challenge.travel !== 100) return fail("denied", "This native confirmation challenge is incomplete, expired, already used, or scoped to another restore.");
             restoreChallenges.delete(challengeDigest);
             if (restoreReceipts.size >= RESTORE_AUTH_LIMIT) return fail("timeout", "Too many restore receipts are waiting. Complete one or wait for them to expire.");
             const receipt = randomBytes(32).toString("hex");

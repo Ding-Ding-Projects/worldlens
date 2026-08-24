@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VCard, VCardText, VChip, VList, VListItem, VSelect, VSwitch, VTextField } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
-import { backupCancel, backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, type BackupEntry } from "./mcserverBridge.js";
+import { backupCancel, backupCreate, backupIssueRestoreChallenge, backupIssueRestoreReceipt, backupList, backupRestore, backupRestoreStep, type BackupEntry } from "./mcserverBridge.js";
 import { useServerStore } from "./useServers.js";
 
 const props = defineProps<{ serverId: string }>();
@@ -21,7 +21,10 @@ const busy = ref(false);
 const backupConsent = ref(false);
 const restoreConsent = ref(false);
 const restoreChallenge = ref<string | null>(null);
-const restoreProof = ref<{ keyOne: true; keyTwo: true; travel: 100 } | null>(null);
+let transitionQueue = Promise.resolve();
+let sentKeyOne = false;
+let sentKeyTwo = false;
+let sentTravel = false;
 const server = computed(() => store.get(props.serverId));
 const target = computed(() => worldFolder.value.trim() || server.value?.ref.serverDir || "/data");
 const targetValid = computed(() => {
@@ -60,14 +63,14 @@ async function cancel(): Promise<void> {
 async function restore(): Promise<void> {
     if (busy.value) return;
     if (selectedTag.value === "" || owner.value.trim() === "" || repo.value.trim() === "") return;
-    if (restoreChallenge.value === null || restoreProof.value === null) {
+    if (restoreChallenge.value === null || !sentKeyOne || !sentKeyTwo || !sentTravel) {
         message.value = t("mcserver.backup.challengeMissing", "Open the restore confirmation again so the main process can issue a fresh challenge.");
         return;
     }
     busy.value = true;
     const receipt = await backupIssueRestoreReceipt(props.serverId, {
         owner: owner.value.trim(), repo: repo.value.trim(), tag: selectedTag.value, worldFolder: target.value,
-        challenge: restoreChallenge.value, proof: restoreProof.value,
+        challenge: restoreChallenge.value,
     });
     if (!receipt.ok || receipt.value === undefined) {
         busy.value = false;
@@ -83,14 +86,32 @@ async function restore(): Promise<void> {
 }
 async function prepareRestoreChallenge(): Promise<void> {
     restoreChallenge.value = null;
-    restoreProof.value = null;
+    sentKeyOne = false;
+    sentKeyTwo = false;
+    sentTravel = false;
+    transitionQueue = Promise.resolve();
     if (selectedTag.value === "" || owner.value.trim() === "" || repo.value.trim() === "") return;
     const result = await backupIssueRestoreChallenge(props.serverId, { owner: owner.value.trim(), repo: repo.value.trim(), tag: selectedTag.value, worldFolder: target.value });
     if (result.ok && result.value) restoreChallenge.value = result.value.challenge;
     else message.value = result.failure?.message ?? t("mcserver.backup.challengeFailed", "The main process could not prepare this restore confirmation.");
 }
-function captureRestoreAuthorization(value: { keyOne: true; keyTwo: true; travel: 100 }): void {
-    restoreProof.value = value;
+function recordRestoreTransition(value: { keyOne: boolean; keyTwo: boolean; travel: number }): void {
+    if (restoreChallenge.value === null) return;
+    const step = !sentKeyOne && value.keyOne
+        ? { step: "key-one" as const, value: true }
+        : !sentKeyTwo && value.keyTwo
+            ? { step: "key-two" as const, value: true }
+            : !sentTravel && value.travel === 100
+                ? { step: "slider" as const, value: 100 as const }
+                : null;
+    if (step === null) return;
+    if (step.step === "key-one") sentKeyOne = true;
+    if (step.step === "key-two") sentKeyTwo = true;
+    if (step.step === "slider") sentTravel = true;
+    transitionQueue = transitionQueue.then(async () => {
+        const result = await backupRestoreStep(props.serverId, { challenge: restoreChallenge.value!, ...step });
+        if (!result.ok) message.value = result.failure?.message ?? t("mcserver.backup.challengeStepFailed", "The main process rejected a confirmation transition.");
+    });
 }
 onMounted(async () => {
     worldFolder.value = server.value?.ref.serverDir ?? "";
@@ -141,7 +162,7 @@ onMounted(async () => {
                 :confirm-label="t('mcserver.backup.restore', 'Restore')"
                 :disabled="selectedTag === '' || busy || !targetValid || (server?.origin === 'adopted' && !restoreConsent)"
                 @open="prepareRestoreChallenge"
-                @authorized="captureRestoreAuthorization"
+                @progress="recordRestoreTransition"
                 @confirm="restore"
             />
         </VCardText>

@@ -180,6 +180,7 @@ interface RawBridge {
             cancel?(id: string): Promise<unknown>;
             list?(owner: string, repo: string): Promise<unknown>;
             issueRestoreChallenge?(id: string, request: unknown): Promise<unknown>;
+            restoreStep?(id: string, request: unknown): Promise<unknown>;
             issueRestoreReceipt?(id: string, request: unknown): Promise<unknown>;
             restore?(id: string, request: unknown): Promise<unknown>;
         };
@@ -375,6 +376,10 @@ export function backupList(owner: string, repo: string, root: unknown = globalTh
 export function backupIssueRestoreReceipt(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<{ receipt: string; expiresAt: number }>> {
     const b = bridge(root);
     return call(b?.backup?.issueRestoreReceipt ? () => b.backup!.issueRestoreReceipt!(id, request) : undefined);
+}
+export function backupRestoreStep(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<{ keyOne: boolean; keyTwo: boolean; travel: number }>> {
+    const b = bridge(root);
+    return call(b?.backup?.restoreStep ? () => b.backup!.restoreStep!(id, request) : undefined);
 }
 export function backupIssueRestoreChallenge(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<{ challenge: string; expiresAt: number }>> {
     const b = bridge(root);
