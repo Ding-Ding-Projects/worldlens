@@ -47,6 +47,13 @@ export function stopOllamaRuntime(executable?: string): boolean {
     return stopped;
 }
 
+export async function stopOllamaRuntimeAndWait(executable?: string): Promise<boolean> {
+    const children = [...running.entries()].filter(([key]) => executable === undefined || key === executable);
+    const stopped = stopOllamaRuntime(executable);
+    await Promise.all(children.map(([, child]) => new Promise<void>((resolvePromise) => { if (child.exitCode !== null) return resolvePromise(); const timer = setTimeout(resolvePromise, 10_000); child.once("exit", () => { clearTimeout(timer); resolvePromise(); }); })));
+    return stopped;
+}
+
 export function restartOllamaRuntime(executable: string): void { stopOllamaRuntime(executable); superviseOllamaRuntime(executable); }
 
 function sha256(bytes: Buffer): string { return createHash("sha256").update(bytes).digest("hex"); }
@@ -117,13 +124,15 @@ export async function ensureOllamaRuntime(options: OllamaProvisionOptions = {}):
     try {
         await mkdir(tempRoot, { recursive: true });
         report(options, { phase: "download", completedBytes: 0, totalBytes: OLLAMA_SIZE, message: "Downloading the pinned official Ollama runtime." });
-        const response = await fetcher(OLLAMA_URL, { redirect: "error", signal: controller.signal });
+        const response = await fetcher(OLLAMA_URL, { redirect: "follow", signal: controller.signal });
         if (!response.ok) return { ok: false, message: `Official Ollama runtime returned HTTP ${response.status}.` };
+        const finalHost = new URL(response.url || OLLAMA_URL).hostname.toLowerCase();
+        if (!new Set(["github.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"]).has(finalHost)) return { ok: false, message: "The official Ollama runtime redirected to an unapproved host." };
         const reader = response.body?.getReader();
         if (!reader) return { ok: false, message: "Official Ollama runtime did not provide a stream." };
-        const output = createWriteStream(archive, { flags: "wx" }); const digest = createHash("sha256"); let total = 0;
-        const writeChunk = async (chunk: Uint8Array): Promise<void> => { const bytes = Buffer.from(chunk); if (!output.write(bytes)) await new Promise<void>((resolvePromise, reject) => { output.once("drain", resolvePromise); output.once("error", reject); }); digest.update(bytes); };
-        try { while (true) { if (controller.signal.aborted) return { ok: false, message: "Ollama acquisition was cancelled." }; const chunk = await reader.read(); if (chunk.done) break; total += chunk.value.byteLength; if (total > OLLAMA_MAX_BYTES) return { ok: false, message: "The official Ollama runtime exceeded the safety size limit." }; await writeChunk(chunk.value); report(options, { phase: "download", completedBytes: total, totalBytes: OLLAMA_SIZE, message: "Downloading the pinned official Ollama runtime." }); } await new Promise<void>((resolvePromise, reject) => output.end(() => resolvePromise()).once("error", reject)); } catch (error) { output.destroy(); throw error; }
+        const output = createWriteStream(archive, { flags: "wx" }); const digest = createHash("sha256"); let total = 0; let outputFailure: Error | null = null; output.once("error", (error) => { outputFailure = error instanceof Error ? error : new Error(String(error)); });
+        const writeChunk = async (chunk: Uint8Array): Promise<void> => { const bytes = Buffer.from(chunk); if (outputFailure) throw outputFailure; if (!output.write(bytes)) await new Promise<void>((resolvePromise) => output.once("drain", resolvePromise)); if (outputFailure) throw outputFailure; digest.update(bytes); };
+        try { while (true) { if (controller.signal.aborted) return { ok: false, message: "Ollama acquisition was cancelled." }; const chunk = await reader.read(); if (chunk.done) break; total += chunk.value.byteLength; if (total > OLLAMA_MAX_BYTES) return { ok: false, message: "The official Ollama runtime exceeded the safety size limit." }; await writeChunk(chunk.value); report(options, { phase: "download", completedBytes: total, totalBytes: OLLAMA_SIZE, message: "Downloading the pinned official Ollama runtime." }); } await new Promise<void>((resolvePromise) => output.end(() => resolvePromise())); if (outputFailure) throw outputFailure; } catch (error) { output.destroy(); throw error; }
         report(options, { phase: "verify", completedBytes: total, totalBytes: total, message: "Verifying the official Ollama digest." });
         if (digest.digest("hex") !== OLLAMA_SHA256) return { ok: false, message: "The official Ollama digest did not match the pinned release." };
         report(options, { phase: "extract", completedBytes: 0, totalBytes: null, message: "Extracting the verified Ollama runtime." });

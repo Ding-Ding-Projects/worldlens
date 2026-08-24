@@ -367,7 +367,7 @@ export async function pullModel(
         const bridge = localBridge();
         if (bridge === null) return bridgeFailure("The packaged build has no local Ollama bridge.");
         const id = operationId("pull");
-        const unsubscribe = bridge.onStreamProgress((event) => { if (event.operationId === id && event.record && typeof event.record.status === "string") onProgress(event.record as unknown as OllamaPullProgress); });
+        const unsubscribe = bridge.onStreamProgress((event) => { if (event.operationId !== id) return; for (const record of event.records ?? (event.record ? [event.record] : [])) if (typeof record.status === "string") onProgress(record as unknown as OllamaPullProgress); });
         const pending = bridge.pull(name, id);
         if (options.signal) options.signal.addEventListener("abort", () => { void bridge.cancel(id); }, { once: true });
         try {
@@ -530,7 +530,7 @@ export async function streamChat(
         const bridge = localBridge();
         if (bridge === null) return bridgeFailure("The packaged build has no local Ollama bridge.");
         const id = operationId("chat");
-        const unsubscribe = bridge.onStreamProgress((event) => { if (event.operationId !== id || !event.record) return; const raw = event.record.message; const message = typeof raw === "object" && raw !== null && typeof (raw as { role?: unknown }).role === "string" && typeof (raw as { content?: unknown }).content === "string" ? { role: String((raw as { role: string }).role), content: String((raw as { content: string }).content) } : null; onChunk(message === null ? { done: event.record.done === true } : { done: event.record.done === true, message }); });
+        const unsubscribe = bridge.onStreamProgress((event) => { if (event.operationId !== id) return; for (const record of event.records ?? (event.record ? [event.record] : [])) { const raw = record.message; const message = typeof raw === "object" && raw !== null && typeof (raw as { role?: unknown }).role === "string" && typeof (raw as { content?: unknown }).content === "string" ? { role: String((raw as { role: string }).role), content: String((raw as { content: string }).content) } : null; onChunk(message === null ? { done: record.done === true } : { done: record.done === true, message }); } });
         const pending = bridge.chat({ model, messages, options: chatOptions, stream: true }, id);
         if (options.signal) options.signal.addEventListener("abort", () => { void bridge.cancel(id); }, { once: true });
         try { const rows = await pending; const error = rows.find((row) => typeof row.error === "string"); return error ? errResult({ kind: "http", message: String(error.error) }) : okResult(true); }

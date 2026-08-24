@@ -9,6 +9,9 @@ export interface ConverterQueueItem {
     readonly source: string;
     readonly target: string;
     readonly adapterId: string;
+    readonly operation?: string;
+    readonly pdfRequest?: Readonly<Record<string, unknown>>;
+    readonly result?: Readonly<Record<string, unknown>>;
     readonly state: ConverterItemState;
     readonly bytes: number | null;
     readonly progress: number;
@@ -36,7 +39,7 @@ export interface ConverterQueueRecord {
 export interface ConverterQueueOptions {
     readonly stateFile: string;
     readonly concurrency?: number;
-    readonly run: (item: ConverterQueueItem, signal: AbortSignal, report: (progress: number, bytes?: number) => void) => Promise<void>;
+    readonly run: (item: ConverterQueueItem, signal: AbortSignal, report: (progress: number, bytes?: number) => void) => Promise<void | Readonly<Record<string, unknown>>>;
     readonly now?: () => string;
     readonly pageSize?: number;
     readonly storagePreflight?: () => Promise<void>;
@@ -163,9 +166,9 @@ export class ConverterQueue {
         this.controllers.set(item.id, controller);
         this.patch(item.id, { state: "running", message: null });
         try {
-            await this.input.run(this.current(item.id), controller.signal, (progress, bytes) => this.patch(item.id, { progress: clampProgress(progress), ...(bytes === undefined ? {} : { bytes }) }));
+            const result = await this.input.run(this.current(item.id), controller.signal, (progress, bytes) => this.patch(item.id, { progress: clampProgress(progress), ...(bytes === undefined ? {} : { bytes }) }));
             if (controller.signal.aborted) return;
-            this.patch(item.id, { state: "completed", progress: 100 });
+            this.patch(item.id, { state: "completed", progress: 100, ...(result === undefined ? {} : { result }) });
             this.record = { ...this.record, history: [...(this.record.history ?? []), { id: item.id, state: "completed" as const, message: null, finishedAt: this.options.now() }].slice(-1000) };
         } catch (error) {
             if (!controller.signal.aborted) {

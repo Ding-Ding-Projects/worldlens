@@ -73,19 +73,21 @@ export function registerOllamaHandlers(ipcMain: Pick<IpcMain, "handle" | "remove
     ipcMain.handle("ollama:runtimeProbe", async () => { try { await waitForOllamaReadiness(); return { ok: true }; } catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; } });
     ipcMain.handle("ollama:delete", (_event, name: unknown) => { const value = stringArg(name); return value === null ? { error: "Choose a model tag." } : client.delete(value).catch((error) => ({ error: error instanceof Error ? error.message : String(error) })); });
     ipcMain.handle("ollama:copy", (_event, source: unknown, destination: unknown) => { const from = stringArg(source); const to = stringArg(destination); return from === null || to === null ? { error: "Choose both source and destination tags." } : client.copy(from, to).catch((error) => ({ error: error instanceof Error ? error.message : String(error) })); });
-    const runStream = async (operationId: unknown, start: (signal: AbortSignal) => Promise<Response>, onRecord?: (record: Record<string, unknown>) => void): Promise<readonly Record<string, unknown>[]> => {
+    const runStream = async (event: { readonly sender: { send(channel: string, payload: unknown): void } }, operationId: unknown, start: (signal: AbortSignal) => Promise<Response>): Promise<readonly Record<string, unknown>[]> => {
         const id = stringArg(operationId);
         if (id === null) return [{ error: "A bounded operation id is required." }];
         const controller = new AbortController();
         active.set(id, controller);
         const timeout = setTimeout(() => controller.abort(), 30 * 60_000);
-        try { return await readNdjson(await start(controller.signal), controller.signal, onRecord); }
+        let batch: Record<string, unknown>[] = [];
+        const flush = () => { if (batch.length > 0) { event.sender.send("ollama:streamProgress", { operationId: id, records: batch }); batch = []; } };
+        try { return await readNdjson(await start(controller.signal), controller.signal, (record) => { batch.push(record); if (batch.length >= 32) flush(); }); }
         catch (error) { return [{ error: error instanceof Error ? error.message : String(error) }]; }
-        finally { clearTimeout(timeout); active.delete(id); }
+        finally { flush(); clearTimeout(timeout); active.delete(id); }
     };
-    ipcMain.handle("ollama:pull", (event, name: unknown, operationId: unknown) => { const value = stringArg(name); return value === null ? [{ error: "Choose a model tag." }] : runStream(operationId, (signal) => client.pull(value, signal), (record) => event.sender.send("ollama:streamProgress", { operationId, record })); });
-    ipcMain.handle("ollama:generate", (event, request: unknown, operationId: unknown) => typeof request !== "object" || request === null ? [{ error: "Generation request is invalid." }] : runStream(operationId, (signal) => client.generate(request as Record<string, unknown>), (record) => event.sender.send("ollama:streamProgress", { operationId, record })));
-    ipcMain.handle("ollama:chat", (event, request: unknown, operationId: unknown) => typeof request !== "object" || request === null ? [{ error: "Chat request is invalid." }] : runStream(operationId, (signal) => client.chat(request as Record<string, unknown>), (record) => event.sender.send("ollama:streamProgress", { operationId, record })));
+    ipcMain.handle("ollama:pull", (event, name: unknown, operationId: unknown) => { const value = stringArg(name); return value === null ? [{ error: "Choose a model tag." }] : runStream(event, operationId, (signal) => client.pull(value, signal)); });
+    ipcMain.handle("ollama:generate", (event, request: unknown, operationId: unknown) => typeof request !== "object" || request === null ? [{ error: "Generation request is invalid." }] : runStream(event, operationId, (signal) => client.generate(request as Record<string, unknown>)));
+    ipcMain.handle("ollama:chat", (event, request: unknown, operationId: unknown) => typeof request !== "object" || request === null ? [{ error: "Chat request is invalid." }] : runStream(event, operationId, (signal) => client.chat(request as Record<string, unknown>)));
     ipcMain.handle("ollama:cancel", (_event, operationId: unknown) => { const id = stringArg(operationId); if (id === null) return false; const controller = active.get(id); if (!controller) return false; controller.abort(); return true; });
     return { dispose: () => { for (const controller of active.values()) controller.abort(); active.clear(); runtimeController?.abort(); runtimeController = null; for (const channel of OLLAMA_CHANNELS) ipcMain.removeHandler(channel); } };
 }

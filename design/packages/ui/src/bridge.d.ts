@@ -701,8 +701,8 @@ interface ConverterBridge {
 interface ConverterAdapterRecord { readonly id: string; readonly name: string; readonly category: string; readonly sourceExtensions: readonly string[]; readonly targetExtensions: readonly string[]; readonly bundled: boolean; readonly available: boolean; readonly unavailableReason: string | null; readonly lossiness: string; }
 interface ConverterInspection { readonly ok: boolean; readonly path?: string; readonly bytes?: number; readonly adapter?: ConverterAdapterRecord | null; readonly candidates?: readonly ConverterAdapterRecord[]; readonly ambiguous?: boolean; readonly message: string; }
 type ConverterInspectionResult = ConverterInspection;
-interface ConverterQueueDraft { readonly id: string; readonly source: string; readonly target: string; readonly adapterId: string; readonly bytes: number | null; }
-interface ConverterQueueItem extends ConverterQueueDraft { readonly state: string; readonly progress: number; readonly message: string | null; readonly updatedAt: string; }
+interface ConverterQueueDraft { readonly id: string; readonly source: string; readonly target: string; readonly adapterId: string; readonly bytes: number | null; readonly operation?: string; readonly pdfRequest?: Record<string, unknown>; }
+interface ConverterQueueItem extends ConverterQueueDraft { readonly state: string; readonly progress: number; readonly message: string | null; readonly updatedAt: string; readonly result?: Record<string, unknown>; }
 interface ConverterQueueRecord { readonly version: 1; readonly items: readonly ConverterQueueItem[]; readonly paused: boolean; readonly corruption?: string; readonly history?: readonly Record<string, unknown>[]; }
 interface ConverterPdfRequest { readonly operation: string; readonly inputs: readonly string[]; readonly output: string; readonly overwrite: boolean; readonly overwriteConfirmation?: string; readonly pages?: readonly number[]; readonly rotation?: number; readonly outputs?: readonly string[]; }
 interface ConverterOperationResult { readonly ok: boolean; readonly output: string | null; readonly outputs?: readonly string[]; readonly pages: number | null; readonly pageOrder?: readonly number[]; readonly rotations?: readonly number[]; readonly metadata: Readonly<Record<string, string>>; readonly message: string; }
@@ -720,7 +720,7 @@ interface OllamaBridge {
     runtimeStop(): Promise<boolean>;
     runtimeRestart(): Promise<{ readonly ok: boolean; readonly message?: string }>;
     runtimeProbe(): Promise<{ readonly ok: boolean; readonly message?: string }>;
-    onStreamProgress(listener: (progress: { readonly operationId?: string; readonly record?: Record<string, unknown> }) => void): () => void;
+    onStreamProgress(listener: (progress: { readonly operationId?: string; readonly record?: Record<string, unknown>; readonly records?: readonly Record<string, unknown>[] }) => void): () => void;
     onRuntimeProgress(listener: (progress: Record<string, unknown>) => void): () => void;
     delete(name: string): Promise<Record<string, unknown>>;
     copy(source: string, destination: string): Promise<Record<string, unknown>>;

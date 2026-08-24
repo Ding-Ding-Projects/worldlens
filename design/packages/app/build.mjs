@@ -238,6 +238,17 @@ async function main() {
         banner: { js: nodeBuiltinRequireShimBanner },
     });
 
+    await build({
+        entryPoints: ["src/main/ollama/provision.ts"],
+        outfile: "dist/main/ollama/provision.js",
+        bundle: true,
+        platform: "node",
+        format: "esm",
+        target: "node22",
+        sourcemap: true,
+        banner: { js: nodeBuiltinRequireShimBanner },
+    });
+
     /** Preload: sandboxed preloads must be CommonJS. */
     await build({
         entryPoints: ["src/preload/index.ts"],

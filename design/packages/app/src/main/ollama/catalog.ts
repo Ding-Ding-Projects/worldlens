@@ -21,6 +21,7 @@ export interface OllamaCatalogSnapshot {
     readonly stale: boolean;
     readonly source: string;
     readonly completenessReason?: string;
+    readonly receipts?: readonly { readonly family: string; readonly variants: number; readonly revision: string | null }[];
 }
 
 export interface OllamaCatalogSource { readonly fetchPage: (cursor: string | null) => Promise<OllamaPage<OllamaCatalogVariant>>; }
@@ -72,9 +73,9 @@ export async function refreshOfficialCatalog(dataDir: string, signal?: AbortSign
     const landing = await boundedText(landingResponse);
     const families = [...new Set([...landing.matchAll(/href="\/library\/([^"/:]+(?:\/[^"/:]+)*)"/g)].map((match) => match[1]).filter((family): family is string => typeof family === "string" && !family.endsWith("/tags") && !family.endsWith("/preview") && !family.endsWith("/assets")))];
     if (families.length === 0 || families.length > MAX_OFFICIAL_PAGES) throw new Error("Official Ollama inventory did not provide a bounded family list.");
-    const variants: OllamaCatalogVariant[] = []; const revisions: string[] = [];
-    for (const family of families) { if (signal?.aborted) throw new Error("Official Ollama inventory refresh was cancelled."); const page = await officialPage(`${OFFICIAL_OLLAMA_CATALOG_URL}/${family}`, signal); variants.push(...page.items); if (page.revision) revisions.push(page.revision); if (variants.length > MAX_CATALOG_VARIANTS) throw new Error("Official Ollama inventory variant count exceeded the safety limit."); }
-    const snapshot: OllamaCatalogSnapshot = { version: 1, variants: [...new Map(variants.map((item) => [item.name, item])).values()], fetchedAt: new Date().toISOString(), pages: families.length + 1, complete: true, revision: revisions.join(",") || landingResponse.headers.get("etag"), stale: false, source: OFFICIAL_OLLAMA_CATALOG_URL, completenessReason: "Every family page linked by the official published Ollama library inventory was fetched and every published model tag link was recorded." };
+    const variants: OllamaCatalogVariant[] = []; const revisions: string[] = []; const receipts: { family: string; variants: number; revision: string | null }[] = [];
+    for (const family of families) { if (signal?.aborted) throw new Error("Official Ollama inventory refresh was cancelled."); const page = await officialPage(`${OFFICIAL_OLLAMA_CATALOG_URL}/${family}`, signal); if (page.items.length === 0) throw new Error(`Official Ollama inventory family ${family} returned no published tags. Markup drift was refused.`); variants.push(...page.items); receipts.push({ family, variants: page.items.length, revision: page.revision }); if (page.revision) revisions.push(page.revision); if (variants.length > MAX_CATALOG_VARIANTS) throw new Error("Official Ollama inventory variant count exceeded the safety limit."); }
+    const snapshot: OllamaCatalogSnapshot = { version: 1, variants: [...new Map(variants.map((item) => [item.name, item])).values()], fetchedAt: new Date().toISOString(), pages: families.length + 1, complete: true, revision: revisions.join(",") || landingResponse.headers.get("etag"), stale: false, source: OFFICIAL_OLLAMA_CATALOG_URL, completenessReason: "Every family page linked by the official published Ollama library inventory was fetched and every published model tag link was recorded.", receipts };
     await mkdir(join(dataDir, "ollama"), { recursive: true });
     await atomicWriteTextFile(join(dataDir, "ollama", "catalog.json"), JSON.stringify(snapshot, null, 2));
     return snapshot;
@@ -88,7 +89,7 @@ export async function writeCatalogCache(dataDir: string, snapshot: OllamaCatalog
 export async function readCatalogCache(dataDir: string, staleAfterMs = 24 * 60 * 60 * 1000): Promise<OllamaCatalogSnapshot | null> {
     try {
         const snapshot = JSON.parse(await readFile(join(dataDir, "ollama", "catalog.json"), "utf8")) as OllamaCatalogSnapshot;
-        if (snapshot.version !== 1 || !Array.isArray(snapshot.variants) || snapshot.variants.length > MAX_CATALOG_VARIANTS || typeof snapshot.fetchedAt !== "string" || typeof snapshot.pages !== "number" || typeof snapshot.complete !== "boolean" || typeof snapshot.source !== "string") return null;
+        if (snapshot.version !== 1 || !Array.isArray(snapshot.variants) || snapshot.variants.length > MAX_CATALOG_VARIANTS || typeof snapshot.fetchedAt !== "string" || typeof snapshot.pages !== "number" || typeof snapshot.complete !== "boolean" || typeof snapshot.source !== "string" || (snapshot.complete && !Array.isArray(snapshot.receipts))) return null;
         return markCatalogStale(snapshot, staleAfterMs);
     } catch { return null; }
 }

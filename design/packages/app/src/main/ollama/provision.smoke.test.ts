@@ -4,7 +4,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { promisify } from "node:util";
-import { ensureOllamaRuntime, restartOllamaRuntime, stopOllamaRuntime, waitForOllamaReadiness } from "./provision.js";
+import { ensureOllamaRuntime, restartOllamaRuntime, stopOllamaRuntimeAndWait, waitForOllamaReadiness } from "./provision.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -17,10 +17,10 @@ describe("task-owned managed Ollama smoke", () => {
             expect(answer.ok, answer.ok ? "" : answer.message).toBe(true);
             if (!answer.ok) return;
             await expect(execFileAsync(answer.state.executable, ["--version"], { windowsHide: true })).resolves.toBeTruthy();
-            expect(stopOllamaRuntime(answer.state.executable)).toBe(true);
+            expect(await stopOllamaRuntimeAndWait(answer.state.executable)).toBe(true);
             restartOllamaRuntime(answer.state.executable);
             await expect(waitForOllamaReadiness()).resolves.toBeUndefined();
-            expect(stopOllamaRuntime(answer.state.executable)).toBe(true);
-        } finally { stopOllamaRuntime(); await rm(root, { recursive: true, force: true }); }
+            expect(await stopOllamaRuntimeAndWait(answer.state.executable)).toBe(true);
+        } finally { await stopOllamaRuntimeAndWait(); await rm(root, { recursive: true, force: true }); }
     }, 15 * 60_000);
 });

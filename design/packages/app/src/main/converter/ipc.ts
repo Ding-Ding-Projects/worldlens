@@ -18,10 +18,11 @@ export function registerConverterHandlers(ipcMain: Pick<IpcMain, "handle" | "rem
         stateFile: join(options.dataDir, "converter", "queue.json"),
         run: async (item, signal, report) => {
             if (item.adapterId === "pdf-core") {
-                const isolated = await runIsolatedAdapter({ kind: "pdf", request: { operation: "inspect", inputs: [item.source], output: item.target, overwrite: false } }, signal);
+                const request = item.pdfRequest ?? { operation: item.operation ?? "inspect", inputs: [item.source], output: item.target, overwrite: false };
+                const isolated = await runIsolatedAdapter({ kind: "pdf", request }, signal);
                 if (!isolated.ok) throw new Error(isolated.message ?? "The isolated PDF adapter failed.");
                 report(100, item.bytes ?? undefined);
-                return;
+                return isolated.result;
             }
             if (["data-json", "text-markdown", "binary-base64"].includes(item.adapterId)) {
                 if (signal.aborted) return;

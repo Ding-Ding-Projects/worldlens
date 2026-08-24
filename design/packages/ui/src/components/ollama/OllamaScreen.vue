@@ -244,6 +244,19 @@ function fitFor(variant: CatalogVariant): FitVerdict {
 
 const fitFilter = ref<FitVerdict | null>(null);
 const installedFilter = ref<boolean | null>(null);
+const installedFilterSearch = ref("");
+const installedFilterRegex = ref(false);
+const installedFilterFlags = ref("i");
+const fitFilterSearch = ref("");
+const fitFilterRegex = ref(false);
+const fitFilterFlags = ref("i");
+const chatModelSearch = ref("");
+const chatModelRegex = ref(false);
+const chatModelFlags = ref("i");
+const filterItems = (items: readonly { readonly title: string; readonly value: unknown }[], query: string, useRegex: boolean, flags: string) => { if (!query.trim()) return items; try { const matcher = useRegex ? new RegExp(query, flags) : null; return items.filter((item) => matcher ? matcher.test(item.title) : item.title.toLocaleLowerCase().includes(query.toLocaleLowerCase())); } catch { return []; } };
+const installedFilterItems = computed(() => filterItems([{ title: t("config.search.clear", "Clear the search"), value: null }, { title: t("ollama.store.filter.installed", "Installed"), value: true }, { title: t("ollama.model.addToCart", "Add to pull cart"), value: false }], installedFilterSearch.value, installedFilterRegex.value, installedFilterFlags.value));
+const fitFilterItems = computed(() => filterItems([{ title: t("config.search.clear", "Clear the search"), value: null }, { title: t("ollama.fit.runsWell", "Runs well"), value: "Runs well" }, { title: t("ollama.fit.runsWithLimits", "Runs with limits"), value: "Runs with limits" }, { title: t("ollama.fit.unlikely", "Unlikely"), value: "Unlikely" }, { title: t("ollama.fit.unknown", "Unknown"), value: "Unknown" }], fitFilterSearch.value, fitFilterRegex.value, fitFilterFlags.value));
+const chatModelItems = computed(() => filterItems(ollamaStore.installedModels.map((model) => ({ title: model.model, value: model.model })), chatModelSearch.value, chatModelRegex.value, chatModelFlags.value));
 
 const visibleVariants = computed(() =>
     allVariants.value.filter((variant) => {
@@ -580,31 +593,20 @@ onBeforeUnmount(() => {
             </p>
 
             <div class="mb-ollama__filters">
+                <ConfigSearchField v-model="installedFilterSearch" v-model:regex="installedFilterRegex" v-model:flags="installedFilterFlags" label="Search installed filter" sample="Installed\nNot installed\nClear the search" />
                 <VSelect
                     v-model="installedFilter"
                     :label="t('ollama.store.filter.installed', 'Installed')"
-                    :items="[
-                        { title: t('config.search.clear', 'Clear the search'), value: null },
-                        { title: t('ollama.store.filter.installed', 'Installed'), value: true },
-                        { title: t('ollama.model.addToCart', 'Add to pull cart'), value: false },
-                    ]"
+                    :items="installedFilterItems"
                     density="compact"
                     hide-details
                     class="mb-ollama__filter"
                 />
+                <ConfigSearchField v-model="fitFilterSearch" v-model:regex="fitFilterRegex" v-model:flags="fitFilterFlags" label="Search hardware fit filter" sample="Runs well\nRuns with limits\nUnlikely\nUnknown" />
                 <VSelect
                     v-model="fitFilter"
                     :label="t('ollama.store.filter.fit', 'Hardware fit')"
-                    :items="[
-                        { title: t('config.search.clear', 'Clear the search'), value: null },
-                        { title: t('ollama.fit.runsWell', 'Runs well'), value: 'Runs well' },
-                        {
-                            title: t('ollama.fit.runsWithLimits', 'Runs with limits'),
-                            value: 'Runs with limits',
-                        },
-                        { title: t('ollama.fit.unlikely', 'Unlikely'), value: 'Unlikely' },
-                        { title: t('ollama.fit.unknown', 'Unknown'), value: 'Unknown' },
-                    ]"
+                    :items="fitFilterItems"
                     density="compact"
                     hide-details
                     class="mb-ollama__filter"
@@ -817,10 +819,11 @@ onBeforeUnmount(() => {
                         <VSelect
                             v-model="activeSession.model"
                             :label="t('ollama.chat.modelLabel', 'Model')"
-                            :items="ollamaStore.installedModels.map((m) => m.model)"
+                            :items="chatModelItems"
                             density="compact"
                             hide-details
                         />
+                        <ConfigSearchField v-model="chatModelSearch" v-model:regex="chatModelRegex" v-model:flags="chatModelFlags" label="Search chat models" :sample="ollamaStore.installedModels.map((m) => m.model).join('\n')" />
                         <VTextarea
                             v-model="activeSession.systemPrompt"
                             :label="t('ollama.chat.systemPrompt', 'System prompt')"
