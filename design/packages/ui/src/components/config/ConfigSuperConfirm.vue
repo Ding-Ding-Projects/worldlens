@@ -119,12 +119,12 @@ function onTravel(value: number): void {
 function onRelease(): void {
     gate.release();
 }
-function onKeyOne(value: boolean): void {
-    gate.keyOne.value = value;
+function onKeyOne(value: boolean | null): void {
+    gate.keyOne.value = value === true;
     emit("progress", { keyOne: gate.keyOne.value, keyTwo: gate.keyTwo.value, travel: gate.travel.value });
 }
-function onKeyTwo(value: boolean): void {
-    gate.keyTwo.value = value;
+function onKeyTwo(value: boolean | null): void {
+    gate.keyTwo.value = value === true;
     emit("progress", { keyOne: gate.keyOne.value, keyTwo: gate.keyTwo.value, travel: gate.travel.value });
 }
 

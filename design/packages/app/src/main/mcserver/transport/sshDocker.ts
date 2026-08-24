@@ -22,8 +22,8 @@
  */
 
 import { createHash, randomUUID } from "node:crypto";
-import { createReadStream } from "node:fs";
-import { lstat, readdir, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { lstat, open, readdir, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -70,17 +70,25 @@ async function hashFile(full: string, signal?: AbortSignal): Promise<Answer<{ by
     try {
         const before = await lstat(full);
         if (!before.isFile() || before.isSymbolicLink()) return fail("unsupported", "A restore file changed into a link before hashing.");
+        const noFollow = (constants as unknown as { O_NOFOLLOW?: number }).O_NOFOLLOW ?? 0;
+        const handle = await open(full, constants.O_RDONLY | noFollow);
         const digest = createHash("sha256");
         let bytes = 0;
-        for await (const chunk of createReadStream(full)) {
+        const buffer = Buffer.allocUnsafe(1024 * 1024);
+        try {
+            while (true) {
             if (signal?.aborted) return fail("timeout", "The restore was cancelled while hashing a file.");
-            const value = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk as Buffer);
-            bytes += value.byteLength;
-            if (bytes > RESTORE_LIMITS.maxIndividualBytes) return fail("invalid-request", "A restore file exceeds the individual size limit.");
-            digest.update(value);
+                const read = await handle.read(buffer, 0, buffer.byteLength, null);
+                if (read.bytesRead === 0) break;
+                bytes += read.bytesRead;
+                if (bytes > RESTORE_LIMITS.maxIndividualBytes) return fail("invalid-request", "A restore file exceeds the individual size limit.");
+                digest.update(buffer.subarray(0, read.bytesRead));
+            }
+            const after = await handle.stat();
+            if (!after.isFile() || (before.ino !== 0 && after.ino !== before.ino) || (before.dev !== 0 && after.dev !== before.dev)) return fail("stale-document", "A restore file changed identity while it was being hashed.");
+        } finally {
+            await handle.close();
         }
-        const after = await lstat(full);
-        if (!after.isFile() || after.isSymbolicLink() || (before.ino !== 0 && after.ino !== before.ino) || (before.dev !== 0 && after.dev !== before.dev)) return fail("stale-document", "A restore file changed identity while it was being hashed.");
         return ok({ bytes, sha256: digest.digest("hex") });
     } catch (error) {
         return fail("denied", "A staged restore file could not be read.", String(error));
@@ -313,6 +321,10 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
                     if (!copied.ok) {
                         result = fail("command-failed", "The remote world could not be staged for backup.", copied.stderr || copied.stdout);
                     } else {
+                    const stagedLinks = await remoteRunner("find", [remoteHostStage, "-type", "l", "-print"], { timeoutMs: 60_000 });
+                    const stagedHardlinks = await remoteRunner("find", [remoteHostStage, "-type", "f", "-links", "+1", "-print"], { timeoutMs: 60_000 });
+                    const stagedOdd = await remoteRunner("find", [remoteHostStage, "!", "-type", "f", "!", "-type", "d", "-print"], { timeoutMs: 60_000 });
+                    if (!stagedLinks.ok || stagedLinks.stdout.trim() !== "" || !stagedHardlinks.ok || stagedHardlinks.stdout.trim() !== "" || !stagedOdd.ok || stagedOdd.stdout.trim() !== "") result = fail("unsupported", "The stable remote backup tree changed identity after Docker copy.");
                     const stagedListing = await remoteRunner("find", [remoteHostStage, "-type", "f", "-printf", "%s\\t%p\\n"], { timeoutMs: 60_000 });
                     const stagedManifest: { relative: string; bytes: number; sha256: string }[] = [];
                     if (!stagedListing.ok) result = fail("command-failed", "The staged remote backup manifest could not be read.", stagedListing.stderr || stagedListing.stdout);
