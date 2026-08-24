@@ -115,20 +115,52 @@ function run(item, identity = {}) {
 }
 
 function assertCanonicalStageContract(source) {
-    assert.match(source, /^\s*assertExpectedIdentity\(options\);$/m, "identity preflight call disappeared");
+    assert.match(source, /^[ \t]*assertExpectedIdentity\(options\);[ \t]*$/m, "identity preflight call disappeared");
     assert.match(source, /actual\.size !== cli\.size \|\| actual\.sha256 !== cli\.sha256/, "artifact hash comparison disappeared");
 }
 
+function sourceWithLineEnding(source, eol) {
+    return source.replace(/\r\n?/g, "\n").replace(/\n/g, eol);
+}
+
+function removeExactSourceLine(source, expectedLine) {
+    const eol = source.includes("\r\n") ? "\r\n" : "\n";
+    const lines = source.split(/\r?\n/);
+    const index = lines.findIndex((line) => line.trim() === expectedLine);
+    assert.notEqual(index, -1, `mutation anchor is absent: ${expectedLine}`);
+    lines.splice(index, 1);
+    return lines.join(eol);
+}
+
+function replaceSourceFragment(source, fragment, replacement) {
+    const eol = source.includes("\r\n") ? "\r\n" : "\n";
+    const lines = source.split(/\r?\n/);
+    const index = lines.findIndex((line) => line.includes(fragment));
+    assert.notEqual(index, -1, `mutation fragment is absent: ${fragment}`);
+    lines[index] = lines[index].replace(fragment, replacement);
+    return lines.join(eol);
+}
+
 test("the canonical identity preflight mutation turns red", () => {
-    const mutated = SCRIPT_SOURCE.replace("        assertExpectedIdentity(options);\n", "");
-    assert.notEqual(mutated, SCRIPT_SOURCE);
-    assert.throws(() => assertCanonicalStageContract(mutated), /identity preflight/);
+    for (const eol of ["\n", "\r\n"]) {
+        const fixtureSource = sourceWithLineEnding(SCRIPT_SOURCE, eol);
+        const mutated = removeExactSourceLine(fixtureSource, "assertExpectedIdentity(options);");
+        assert.notEqual(mutated, fixtureSource);
+        assert.throws(() => assertCanonicalStageContract(mutated), /identity preflight/);
+    }
 });
 
 test("the canonical hash comparison mutation turns red", () => {
-    const mutated = SCRIPT_SOURCE.replace("actual.size !== cli.size || actual.sha256 !== cli.sha256", "false");
-    assert.notEqual(mutated, SCRIPT_SOURCE);
-    assert.throws(() => assertCanonicalStageContract(mutated), /artifact hash/);
+    for (const eol of ["\n", "\r\n"]) {
+        const fixtureSource = sourceWithLineEnding(SCRIPT_SOURCE, eol);
+        const mutated = replaceSourceFragment(
+            fixtureSource,
+            "actual.size !== cli.size || actual.sha256 !== cli.sha256",
+            "false",
+        );
+        assert.notEqual(mutated, fixtureSource);
+        assert.throws(() => assertCanonicalStageContract(mutated), /artifact hash/);
+    }
 });
 
 test("stages a workflow-shaped CLI artifact and writes the authoritative manifest", async () => {
