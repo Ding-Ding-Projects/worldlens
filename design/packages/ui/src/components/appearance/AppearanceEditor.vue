@@ -42,6 +42,7 @@ import {
     APPEARANCE_STATES,
     resolveStateAppearance,
     type AppearanceStateName,
+    type AppearanceStatePropertyGroup,
 } from "./appearanceRecord.js";
 import {
     exportTheme,
@@ -197,6 +198,48 @@ const selectedTypographyOverrides = computed<Partial<TypographySpec>>(
 const selectedSurfaceOverrides = computed<Partial<SurfaceSpec>>(
     () => selectedRecord.value.surface ?? {},
 );
+const selectedEffect = computed(() => ({
+    shadowColor:
+        ("effect" in selectedRecord.value ? selectedRecord.value.effect?.shadowColor : undefined) ??
+        "",
+    shadowBlur:
+        ("effect" in selectedRecord.value ? selectedRecord.value.effect?.shadowBlur : undefined) ??
+        0,
+    glowColor:
+        ("effect" in selectedRecord.value ? selectedRecord.value.effect?.glowColor : undefined) ??
+        "",
+    glowRadius:
+        ("effect" in selectedRecord.value ? selectedRecord.value.effect?.glowRadius : undefined) ??
+        0,
+}));
+
+function setStateGroupValue(
+    group: AppearanceStatePropertyGroup,
+    property: string,
+    value: unknown,
+): void {
+    if (editingState.value === "base") return;
+    if (
+        target.isPropertyLocked(property, editingState.value) ||
+        target.isPropertyLocked(group, editingState.value)
+    )
+        return;
+    const layer = target.record.value.states[editingState.value] ?? {};
+    target.setState(editingState.value, {
+        ...layer,
+        [group]: { ...((layer[group] ?? {}) as Record<string, unknown>), [property]: value },
+    } as never);
+}
+
+function resetStateGroupValue(group: AppearanceStatePropertyGroup, property: string): void {
+    if (editingState.value === "base") return;
+    if (
+        target.isPropertyLocked(property, editingState.value) ||
+        target.isPropertyLocked(group, editingState.value)
+    )
+        return;
+    target.resetStateProperty(editingState.value, group, property);
+}
 const style = computed(() =>
     appearanceStyle(
         resolved.value,
@@ -339,16 +382,55 @@ function setSurfaceValue<K extends SurfacePropertyId>(id: K, value: unknown): vo
     }
     const stateName = editingState.value;
     const layer = target.record.value.states[stateName] ?? {};
-    if (target.isPropertyLocked(id, stateName)) return;
+    const groups: Partial<Record<SurfacePropertyId, AppearanceStatePropertyGroup>> = {
+        elevation: "effect",
+        opacity: "effect",
+        gap: "spacing",
+        marginInline: "spacing",
+        marginBlock: "spacing",
+        paddingInline: "spacing",
+        paddingBlock: "spacing",
+        icon: "icon",
+        badge: "badge",
+        separator: "separator",
+        shape: "shape",
+    };
+    const group = groups[id] ?? "surface";
+    if (target.isPropertyLocked(id, stateName) || target.isPropertyLocked(group, stateName)) return;
+    if (group === "shape") {
+        target.setState(stateName, { ...layer, shape: value as never });
+        return;
+    }
     target.setState(stateName, {
         ...layer,
-        surface: { ...layer.surface, [id]: value },
-    });
+        [group]: { ...((layer[group] ?? {}) as Record<string, unknown>), [id]: value },
+    } as never);
 }
 
 function resetSurfaceValue(id: SurfacePropertyId): void {
     if (editingState.value === "base") target.resetSurfaceProperty(id);
-    else target.resetStateProperty(editingState.value, "surface", id);
+    else {
+        const groups: Partial<Record<SurfacePropertyId, AppearanceStatePropertyGroup>> = {
+            elevation: "effect",
+            opacity: "effect",
+            gap: "spacing",
+            marginInline: "spacing",
+            marginBlock: "spacing",
+            paddingInline: "spacing",
+            paddingBlock: "spacing",
+            icon: "icon",
+            badge: "badge",
+            separator: "separator",
+            shape: "shape",
+        };
+        const group = groups[id] ?? "surface";
+        if (
+            target.isPropertyLocked(id, editingState.value) ||
+            target.isPropertyLocked(group, editingState.value)
+        )
+            return;
+        target.resetStateProperty(editingState.value, group, id);
+    }
 }
 
 const borderStyles = computed(() =>
@@ -796,6 +878,114 @@ async function onFileChosen(event: Event): Promise<void> {
                         />
                     </div>
                 </div>
+                <section v-if="editingState !== 'base'" class="mb-appearance-editor__state-groups">
+                    <h3 class="mb-appearance-editor__rowLabel">
+                        {{ t("appearance.state.groups", "State effects and spacing") }}
+                    </h3>
+                    <ColorField
+                        :model-value="selectedEffect.shadowColor"
+                        :label="t('appearance.state.shadowColor', 'State shadow colour')"
+                        @update:model-value="
+                            (value: string) => setStateGroupValue('effect', 'shadowColor', value)
+                        "
+                    />
+                    <v-slider
+                        :model-value="selectedEffect.shadowBlur"
+                        min="0"
+                        max="48"
+                        step="1"
+                        thumb-label
+                        density="compact"
+                        hide-details
+                        :aria-label="t('appearance.state.shadowBlur', 'State shadow blur')"
+                        @update:model-value="
+                            (value: number) => setStateGroupValue('effect', 'shadowBlur', value)
+                        "
+                    />
+                    <ColorField
+                        :model-value="selectedEffect.glowColor"
+                        :label="t('appearance.state.glowColor', 'State glow colour')"
+                        @update:model-value="
+                            (value: string) => setStateGroupValue('effect', 'glowColor', value)
+                        "
+                    />
+                    <v-slider
+                        :model-value="selectedEffect.glowRadius"
+                        min="0"
+                        max="48"
+                        step="1"
+                        thumb-label
+                        density="compact"
+                        hide-details
+                        :aria-label="t('appearance.state.glowRadius', 'State glow radius')"
+                        @update:model-value="
+                            (value: number) => setStateGroupValue('effect', 'glowRadius', value)
+                        "
+                    />
+                    <v-btn
+                        size="small"
+                        variant="text"
+                        @click="
+                            resetStateGroupValue('effect', 'shadowColor');
+                            resetStateGroupValue('effect', 'shadowBlur');
+                            resetStateGroupValue('effect', 'glowColor');
+                            resetStateGroupValue('effect', 'glowRadius');
+                        "
+                    >
+                        {{ t("appearance.state.resetEffects", "Reset state effects") }}
+                    </v-btn>
+                    <v-btn
+                        v-if="locks.canList"
+                        :icon="
+                            propertyIsLocked('effect') ? mdiLockOpenVariantOutline : mdiLockOutline
+                        "
+                        size="x-small"
+                        variant="text"
+                        :aria-label="
+                            propertyIsLocked('effect')
+                                ? t(
+                                      'appearance.lock.unlock',
+                                      { property: 'state effects' },
+                                      'Unlock {property}',
+                                  )
+                                : t(
+                                      'appearance.lock.lock',
+                                      { property: 'state effects' },
+                                      'Lock {property}',
+                                  )
+                        "
+                        @click="openPropertyLock('effect', $event.currentTarget)"
+                    />
+                    <div class="mb-appearance-editor__row">
+                        <span class="mb-appearance-editor__rowLabel">
+                            {{ t("appearance.state.spacing", "State spacing") }}
+                        </span>
+                        <v-btn
+                            v-if="locks.canList"
+                            :icon="
+                                propertyIsLocked('spacing')
+                                    ? mdiLockOpenVariantOutline
+                                    : mdiLockOutline
+                            "
+                            size="x-small"
+                            variant="text"
+                            :aria-label="
+                                propertyIsLocked('spacing')
+                                    ? t(
+                                          'appearance.lock.unlock',
+                                          { property: 'state spacing' },
+                                          'Unlock {property}',
+                                      )
+                                    : t(
+                                          'appearance.lock.lock',
+                                          { property: 'state spacing' },
+                                          'Lock {property}',
+                                      )
+                            "
+                            @click="openPropertyLock('spacing', $event.currentTarget)"
+                        />
+                    </div>
+                </section>
             </v-window-item>
 
             <v-window-item value="presets">
@@ -1129,6 +1319,15 @@ async function onFileChosen(event: Event): Promise<void> {
     align-items: center;
     gap: 8px;
     inline-size: 100%;
+}
+
+.mb-appearance-editor__state-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-block-start: 12px;
+    padding-block-start: 8px;
+    border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
 .mb-appearance-editor__row > :not(.mb-appearance-editor__rowLabel) {

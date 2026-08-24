@@ -270,6 +270,7 @@ export function useAppearanceTarget(
             }
             for (const stateName of APPEARANCE_STATES) {
                 const oldState = resolveStateAppearance(oldResolved, stateName);
+                const oldLayer = oldResolved.states[stateName] ?? {};
                 const nextLayer = kept.states[stateName];
                 const nextState = { ...(nextLayer ?? {}) };
                 for (const property of TYPOGRAPHY_PROPERTIES) {
@@ -283,6 +284,53 @@ export function useAppearanceTarget(
                     const value = oldState.surface[property];
                     if (value !== undefined)
                         nextState.surface = { ...nextState.surface, [property]: value };
+                }
+                const groups = [
+                    [
+                        "effect",
+                        {
+                            elevation: oldState.surface.elevation,
+                            opacity: oldState.surface.opacity,
+                            shadowColor: oldLayer.effect?.shadowColor,
+                            shadowBlur: oldLayer.effect?.shadowBlur,
+                            glowColor: oldLayer.effect?.glowColor,
+                            glowRadius: oldLayer.effect?.glowRadius,
+                        },
+                    ],
+                    [
+                        "spacing",
+                        {
+                            gap: oldState.surface.gap,
+                            marginInline: oldState.surface.marginInline,
+                            marginBlock: oldState.surface.marginBlock,
+                            paddingInline: oldState.surface.paddingInline,
+                            paddingBlock: oldState.surface.paddingBlock,
+                        },
+                    ],
+                    ["icon", oldState.surface.icon],
+                    ["badge", oldState.surface.badge],
+                    ["separator", oldState.surface.separator],
+                ] as const;
+                for (const [group, effective] of groups) {
+                    const values = { ...((nextState[group] ?? {}) as Record<string, unknown>) };
+                    for (const property of Object.keys(effective)) {
+                        if (
+                            !lockedForState(elementId, property, stateName) &&
+                            !lockedForState(elementId, group, stateName)
+                        )
+                            continue;
+                        const value = (effective as Record<string, unknown>)[property];
+                        if (value !== undefined) values[property] = value;
+                    }
+                    if (Object.keys(values).length > 0) {
+                        (nextState as Record<string, unknown>)[group] = values;
+                    }
+                }
+                if (
+                    oldState.surface.shape !== undefined &&
+                    lockedForState(elementId, "shape", stateName)
+                ) {
+                    nextState.shape = oldState.surface.shape;
                 }
                 if (Object.keys(nextState).length > 0) kept.states[stateName] = nextState;
             }
@@ -342,7 +390,10 @@ export function useAppearanceTarget(
                 if (values === undefined) continue;
                 const keptValues: Record<string, unknown> = {};
                 for (const property of Object.keys(values)) {
-                    if (lockedFor(elementId, property, stateName)) {
+                    if (
+                        lockedFor(elementId, property, stateName) ||
+                        lockedFor(elementId, group, stateName)
+                    ) {
                         keptValues[property] = (values as Record<string, unknown>)[property];
                     }
                 }
@@ -420,6 +471,9 @@ export function useAppearanceTarget(
             ): T | undefined => {
                 if (incoming === undefined) return undefined;
                 const before = previous[group];
+                if (locked(String(group), stateName)) {
+                    return before as T | undefined;
+                }
                 const guarded = { ...incoming };
                 for (const property of Object.keys(incoming)) {
                     if (locked(property, stateName)) {

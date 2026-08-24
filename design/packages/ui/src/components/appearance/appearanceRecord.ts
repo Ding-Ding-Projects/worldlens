@@ -356,7 +356,8 @@ export function resetSurface(record: AppearanceRecord, id: SurfacePropertyId): A
     return { ...record, surface };
 }
 
-export type AppearanceStatePropertyGroup = "typography" | "surface";
+export type AppearanceStatePropertyGroup =
+    "typography" | "surface" | "effect" | "spacing" | "icon" | "badge" | "separator" | "shape";
 
 /** Removes one opinion from one pseudo-state while retaining every sibling opinion. */
 export function resetAppearanceStateProperty(
@@ -368,10 +369,13 @@ export function resetAppearanceStateProperty(
     const layer = record.states[state];
     if (layer === undefined) return record;
     const nextLayer: AppearanceStateLayer = { ...layer };
-    const values = { ...(layer[group] ?? {}) } as Record<string, unknown>;
-    delete values[id];
-    if (Object.keys(values).length === 0) delete nextLayer[group];
-    else nextLayer[group] = values as never;
+    if (group === "shape") delete nextLayer.shape;
+    else {
+        const values = { ...(layer[group] ?? {}) } as Record<string, unknown>;
+        delete values[id];
+        if (Object.keys(values).length === 0) delete nextLayer[group];
+        else (nextLayer as Record<string, unknown>)[group] = values;
+    }
     const states = { ...record.states, [state]: nextLayer };
     if (Object.keys(nextLayer).length === 0) delete states[state];
     return { ...record, states };
@@ -385,10 +389,25 @@ export function resolveStateAppearance(
     if (state === undefined) return resolved;
     const layer = resolved.states[state];
     if (layer === undefined) return resolved;
+    const surface = {
+        ...resolved.surface,
+        ...(layer.surface ?? {}),
+        ...(layer.icon === undefined ? {} : { icon: { ...resolved.surface.icon, ...layer.icon } }),
+        ...(layer.badge === undefined
+            ? {}
+            : { badge: { ...resolved.surface.badge, ...layer.badge } }),
+        ...(layer.separator === undefined
+            ? {}
+            : { separator: { ...resolved.surface.separator, ...layer.separator } }),
+        ...(layer.shape === undefined ? {} : { shape: layer.shape }),
+        ...(layer.spacing === undefined ? {} : layer.spacing),
+        ...(layer.effect?.elevation === undefined ? {} : { elevation: layer.effect.elevation }),
+        ...(layer.effect?.opacity === undefined ? {} : { opacity: layer.effect.opacity }),
+    };
     return {
         ...resolved,
         typography: mergeTypography(resolved.typography, layer.typography ?? {}),
-        surface: mergeSurface(resolved.surface, layer.surface ?? {}),
+        surface: mergeSurface(resolved.surface, surface),
     };
 }
 
