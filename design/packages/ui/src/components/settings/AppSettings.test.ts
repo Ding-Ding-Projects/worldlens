@@ -31,6 +31,7 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 import AppSettings from "./AppSettings.vue";
+import appSettingsSource from "./AppSettings.vue?raw";
 import ConsentSettingsRow from "../setup/ConsentSettingsRow.vue";
 import SetupLanguagePanel from "../setup/SetupLanguagePanel.vue";
 import { currentPlatform, mapStorageExample, readMapStorageDir } from "../setup/mapStorage.js";
@@ -484,6 +485,16 @@ describe("the storage folder", () => {
 });
 
 describe("the Java runtime", () => {
+    it("binds artifact facts from the report value in the shipped settings template", () => {
+        const source = appSettingsSource;
+        expect(source).toContain(":render-engine-version=");
+        expect(source).toContain("java.report.value?.renderEngine?.version ?? null");
+        expect(source).toContain(
+            ':render-engine-path="java.report.value?.renderEngine?.path ?? null"',
+        );
+        expect(source).not.toContain(':render-engine-version="java.renderEngineVersion.value"');
+    });
+
     it("says this build cannot report it rather than showing an empty readout", async () => {
         open({ anchor: "java-runtime" });
         await settle();

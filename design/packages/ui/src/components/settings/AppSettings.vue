@@ -926,11 +926,15 @@ function onDrawer(value: boolean): void {
                         <EngineChoicePanel
                             :java-available="java.state.value === 'found'"
                             :java-version="java.report.value?.installation?.version.version ?? null"
-                            :render-engine-available="java.renderEngineAvailable.value"
-                            :render-engine-version="java.renderEngineVersion.value"
-                            :render-engine-source="java.renderEngineSource.value"
-                            :render-engine-reason="java.renderEngineReason.value"
-                            :render-engine-path="java.renderEnginePath.value"
+                            :render-engine-available="
+                                java.report.value?.renderEngine?.available ?? null
+                            "
+                            :render-engine-version="
+                                java.report.value?.renderEngine?.version ?? null
+                            "
+                            :render-engine-source="java.report.value?.renderEngine?.source ?? null"
+                            :render-engine-reason="java.report.value?.renderEngine?.reason ?? null"
+                            :render-engine-path="java.report.value?.renderEngine?.path ?? null"
                         />
                     </SettingsSection>
                 </template>
