@@ -1778,7 +1778,33 @@ test.beforeAll(async () => {
         );
     }
 
-    browser = await chromium.connectOverCDP(`http://127.0.0.1:${cdpPort}`);
+    /*
+     * One attempt, deliberately, and the failure message says why a retry is not coming.
+     *
+     * When a spec fails, Playwright discards the worker and re-runs this hook, and that second
+     * connect times out against an application that is provably still running: liveness sampled
+     * every ten seconds across a whole failing run, always answering, no crash event, nothing in
+     * its own log. `/json/list` keeps replying throughout, because that is plain HTTP; it is the
+     * browser-level websocket that never completes its handshake again.
+     *
+     * A retry was tried and measured: both attempts time out, two seconds apart. So the refusal
+     * is permanent for the life of that application, not a race, and no amount of reconnecting
+     * inside one run will recover it. Anything that fixes this has to either stop the first spec
+     * failing or relaunch the application between workers, which this harness deliberately
+     * cannot do: it never launches the app, on purpose, so that a capture command can never put
+     * a window on somebody's visible desktop. See issue #171.
+     */
+    browser = await chromium
+        .connectOverCDP(`http://127.0.0.1:${cdpPort}`)
+        .catch((error: unknown) => {
+            throw new Error(
+                `could not attach to the hidden Worldlens on port ${cdpPort}. If an earlier spec ` +
+                    `failed in this run, its worker was discarded and the debugging endpoint will ` +
+                    `refuse every later connection for the life of that application, however ` +
+                    `healthy it looks. Relaunch it before running again. Original: ` +
+                    `${error instanceof Error ? error.message.slice(0, 120) : String(error)}`,
+            );
+        });
     const contexts = browser.contexts();
     const pages = contexts.flatMap((context) => context.pages());
     expect(
