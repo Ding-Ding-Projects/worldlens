@@ -26,7 +26,8 @@ import { useI18n } from "vue-i18n";
 
 import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import ConfigField from "../config/ConfigField.vue";
-import type { EditableConfigFile, FieldMeta, PlainValue } from "@worldlens/config";
+import type { FieldMeta, PlainValue } from "@worldlens/config";
+import type { EditableConfigFile } from "../config/configModel.js";
 import { NODE_HEIGHT, NODE_WIDTH, type NodeKind, STEP_FOR_NODE } from "./canvasModel.js";
 import type { StepProblem } from "../world/wizardModel.js";
 
@@ -74,6 +75,14 @@ const title = computed(() => t(`canvas.node.${props.kind}`, TITLES[props.kind]))
 const step = computed(() => STEP_FOR_NODE[props.kind]);
 const hasProblems = computed(() => props.problems.length > 0);
 
+/* The model's own words. `fallback` is what a build with no locale shows, so it is the
+ * honest thing to put in a tooltip rather than a key nobody can read. */
+const problemTitle = computed(() =>
+    props.problems.map((problem) => t(problem.key, problem.fallback)).join("\n"),
+);
+const problemCount = computed(() => props.problems.length);
+const optionFieldsToRender = computed(() => props.fields ?? []);
+
 const style = computed(() => ({
     transform: `translate(${props.x}px, ${props.z}px)`,
     width: `${NODE_WIDTH}px`,
@@ -111,9 +120,9 @@ function onPointerDown(event: PointerEvent): void {
                 v-if="hasProblems"
                 class="mb-canvas-node__badge"
                 :data-test="`canvas-node-${kind}-problems`"
-                :title="problems.map((problem) => problem.text).join('\n')"
+                :title="problemTitle"
             >
-                {{ problems.length }}
+                {{ problemCount }}
             </span>
         </header>
 
@@ -123,9 +132,9 @@ function onPointerDown(event: PointerEvent): void {
             <!--
                 Options render through ConfigField, one row per FieldMeta. Never hand-written.
             -->
-            <template v-if="fields.length > 0 && file">
+            <template v-if="optionFieldsToRender.length > 0 && file">
                 <ConfigField
-                    v-for="field in fields"
+                    v-for="field in optionFieldsToRender"
                     :key="field.path"
                     :field="field"
                     :file="file"

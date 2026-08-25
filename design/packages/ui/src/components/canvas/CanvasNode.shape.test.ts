@@ -74,7 +74,11 @@ describe("the canvas node renders settings through the shared control", () => {
      * canvas and the wizard would be able to disagree about whether a step is complete.
      */
     it("reports problems from the shared model rather than computing them", () => {
-        expect(template).toMatch(/problems\.length/);
+        // The badge's count and its tooltip both derive from the `problems` prop, which is the
+        // model's own `problemsFor(step)` output handed straight in.
+        expect(template).toMatch(/\{\{ problemCount \}\}/);
+        expect(template).toMatch(/:title="problemTitle"/);
+        expect(code).toMatch(/props\.problems\.length/);
         /*
          * Comments are stripped first, and that is not fussiness. This file's own documentation
          * explains that the node deliberately does not call `problemsFor`, so an assertion over the
