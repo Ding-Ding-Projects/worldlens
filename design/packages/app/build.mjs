@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -140,6 +141,63 @@ function validateRepository(value, variable) {
     return value;
 }
 
+/** The environment variable a build system uses to state this artifact's provenance directly. */
+export const BUILD_TIMESTAMP_VARIABLE = "WORLDLENS_BUILD_TIMESTAMP";
+
+/**
+ * When the artifact this build produces was made, as an ISO-8601 instant, or `null`.
+ *
+ * The About surface has to state the running version *and that version's* updated-at time.
+ * The one thing that must never happen is inventing it. `new Date()` at run time is the
+ * launch time of a binary that may have been sitting on a disk for a month; a file mtime is
+ * whenever the installer happened to unpack; and either would render as a confident fact
+ * that is simply false. So this resolves from provenance genuinely bound to the artifact,
+ * in order, and returns `null` rather than guessing:
+ *
+ *  - `WORLDLENS_BUILD_TIMESTAMP`, when a build system states it outright.
+ *  - Otherwise the committer date of the exact commit being built, read from git. It is
+ *    deterministic (the same commit always yields the same instant, so two builds of one
+ *    release agree), it is checkable by anybody with `git show`, and it is a real fact
+ *    about the thing in the binary rather than about the machine that compiled it.
+ *  - Otherwise `null`, and the surface says it does not know.
+ *
+ * Note what is deliberately absent: there is no `?? new Date().toISOString()` at the end.
+ * That single line is the whole difference between provenance and decoration, and it is the
+ * line somebody will be tempted to add the first time they see an unavailable state.
+ */
+export function resolveBuildTimestamp(env, runGit = defaultGitCommitterDate) {
+    const declared = env[BUILD_TIMESTAMP_VARIABLE]?.trim();
+    if (declared) {
+        const parsed = new Date(declared);
+        if (Number.isNaN(parsed.getTime())) {
+            throw new Error(
+                `${BUILD_TIMESTAMP_VARIABLE}="${declared}" is not a date this build can parse, and a ` +
+                    "build must not ship a timestamp it could not read. Set a valid ISO-8601 instant or " +
+                    "unset it and let the commit date be used.",
+            );
+        }
+        return parsed.toISOString();
+    }
+    const fromGit = runGit();
+    return fromGit === null ? null : fromGit;
+}
+
+function defaultGitCommitterDate() {
+    try {
+        const output = execFileSync("git", ["log", "-1", "--format=%cI"], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"],
+        }).trim();
+        if (output === "") return null;
+        const parsed = new Date(output);
+        return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+    } catch {
+        // No git, no repository, a tarball export: all legitimate, none of them a reason to
+        // fabricate a time. The surface renders its unavailable state instead.
+        return null;
+    }
+}
+
 export function resolveBuildRepositories(env) {
     const current = env[BUILD_REPOSITORY_VARIABLE]?.trim();
     const legacyCurrentOverride = env[LEGACY_BUILD_REPOSITORY_VARIABLE]?.trim();
@@ -222,6 +280,7 @@ async function main() {
         define: {
             __WORLDLENS_REPOSITORY__: JSON.stringify(repositories.current),
             __WORLDLENS_LEGACY_REPOSITORY__: JSON.stringify(repositories.legacy),
+            __WORLDLENS_BUILT_AT__: JSON.stringify(resolveBuildTimestamp(process.env)),
         },
     });
 

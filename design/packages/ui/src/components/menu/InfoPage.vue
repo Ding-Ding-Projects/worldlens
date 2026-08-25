@@ -117,6 +117,7 @@ const content = computed(() => {
  */
 interface VersionBridge {
     getVersion?: () => Promise<string>;
+    getBuildProvenance?: () => Promise<{ version: string; builtAt: string | null }>;
 }
 
 function versionReader(): (() => Promise<string>) | null {
@@ -139,6 +140,53 @@ function describe(error: unknown): string {
 
 const appVersion = ref<string | null>(null);
 const versionFailure = ref<string | null>(null);
+
+/**
+ * When this build was made, already formatted for display, or `null`.
+ *
+ * Three distinct states meet here and they must not be collapsed into two. The build can
+ * have a recorded time; the build can honestly have none (a source export with no git
+ * history is a legitimate build, not a broken one); or this shell can be too old to have
+ * the channel at all. Only the first prints an instant. The other two say so, and neither
+ * is ever quietly filled in from `Date.now()` - that would render the moment somebody
+ * opened this page as though it were a fact about the build, which is the one failure this
+ * whole line exists to prevent.
+ */
+const builtAt = ref<string | null>(null);
+const builtAtKnown = ref(false);
+
+/**
+ * The instant, in the reader's own timezone, to the second, with the zone named.
+ *
+ * Seconds and the zone are both load-bearing rather than decorative. Two builds of the same
+ * version can be a minute apart, so a display truncated to minutes cannot distinguish them;
+ * and a wall-clock time with no zone is not something a person in another country can act
+ * on. `timeZoneName: "short"` is what puts the label on it.
+ */
+function formatInstant(iso: string): string | null {
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) return null;
+    try {
+        // Individual component options rather than `dateStyle`/`timeStyle`. Those two read
+        // more neatly and are wrong: Intl refuses to combine either of them with
+        // `timeZoneName` and throws `TypeError: Invalid option`. Written that way, the catch
+        // below swallowed the throw on every single call and quietly rendered a raw ISO
+        // string instead of local time, which looks like a deliberate format rather than a
+        // permanently failing branch. Caught only by asserting on the rendered output.
+        return new Intl.DateTimeFormat(undefined, {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            timeZoneName: "short",
+        }).format(parsed);
+    } catch {
+        // A runtime without full ICU still owes the reader the instant rather than nothing.
+        return parsed.toISOString();
+    }
+}
 
 /**
  * Whether the changelog fold is open, which is what decides whether the viewer is built.
@@ -187,6 +235,27 @@ onMounted(() => {
             // would leave the page looking like a browser tab. Say what happened instead.
             versionFailure.value = describe(error);
         });
+
+    // Feature-detected separately from getVersion, one method at a time like every other
+    // bridge call here, so an older shell that has one and not the other still renders the
+    // half it can answer instead of neither.
+    const bridge = (globalThis as { worldlens?: VersionBridge }).worldlens;
+    const readProvenance = bridge?.getBuildProvenance;
+    if (typeof readProvenance !== "function" || bridge === undefined) return;
+    void readProvenance
+        .call(bridge)
+        .then((provenance) => {
+            builtAtKnown.value = true;
+            builtAt.value =
+                typeof provenance.builtAt === "string" ? formatInstant(provenance.builtAt) : null;
+        })
+        .catch(() => {
+            // Deliberately silent, and deliberately not a failure line of its own. The
+            // version above already carries any real fault with this shell; a second red
+            // sentence about the same broken channel is noise, and the unavailable state
+            // below already tells the truth, which is that no build time is being shown.
+            builtAtKnown.value = true;
+        });
 });
 </script>
 
@@ -218,6 +287,20 @@ onMounted(() => {
                 { reason: versionFailure },
                 "This build could not report its version: {reason}",
             )
+        }}
+    </p>
+
+    <!--
+      Rendered only once the shell has actually answered. Before that there is no honest
+      thing to print: absence of an answer is not the same as an answer of "unknown", and
+      showing the unavailable line during the round trip would flash a false negative at
+      every reader on every visit.
+    -->
+    <p v-if="builtAtKnown" class="mb-info-page__version">
+        {{
+            builtAt !== null
+                ? t("info.builtAt", { timestamp: builtAt }, "Built {timestamp}")
+                : t("info.builtAtUnknown", {}, "Build time not recorded")
         }}
     </p>
 

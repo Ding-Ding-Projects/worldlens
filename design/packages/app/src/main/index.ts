@@ -526,6 +526,16 @@ function registerIpc(): void {
         if (typeof text === "string") clipboard.writeText(text);
     });
     ipcMain.handle("app:version", () => app.getVersion());
+    // The version alone does not answer "which build am I looking at" - two builds a week
+    // apart can carry the same version string while a release cadence is paused. `builtAt`
+    // is frozen into this bundle by esbuild at build time from provenance bound to the
+    // artifact, never read from the clock here: a value computed in this handler would be
+    // the moment somebody opened the About page, which is not a fact about the build at all.
+    // `null` travels through unchanged so the surface can say it does not know.
+    ipcMain.handle("app:buildProvenance", () => ({
+        version: app.getVersion(),
+        builtAt: __WORLDLENS_BUILT_AT__,
+    }));
     registerReleaseLedgerHandlers();
 
     // This record sits under the OS-wide app-data root rather than Worldlens's own userData

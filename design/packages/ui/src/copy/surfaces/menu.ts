@@ -46,6 +46,47 @@ export const MENU_VOICED = {
         ],
     },
 
+    /* When this build was made. The instant itself is a fact and is identical at every
+     * level; only the sentence around it moves. It is rendered in the reader's own local
+     * time, to the second, with the zone named, because "14:32" with no zone is not an
+     * answer anybody can act on across a timezone. */
+    "info.builtAt": {
+        en: [
+            "Built {timestamp}",
+            "Built {timestamp}",
+            "This build was made {timestamp}",
+            "This exact build was made {timestamp}, in your own timezone",
+            "This exact build was made {timestamp}, shown in your own timezone so nobody has to do the arithmetic",
+        ],
+        yue: [
+            "整於 {timestamp}",
+            "整於 {timestamp}",
+            "呢個 build 係 {timestamp} 整嘅",
+            "呢個 build 就係 {timestamp} 整嘅，用緊你自己嗰個時區",
+            "呢個 build 就係 {timestamp} 整嘅，直接用你自己個時區顯示，唔使你自己喺度計時差",
+        ],
+    },
+
+    /* No build time recorded. Says so, and never fills the gap with the current clock -
+     * which would be the launch time of a binary that could have been sitting on a disk for
+     * a month, rendered as a confident fact about when it was made. */
+    "info.builtAtUnknown": {
+        en: [
+            "Build time not recorded",
+            "Build time not recorded",
+            "This build did not record when it was made",
+            "This build did not record when it was made, so nothing is shown rather than a guess",
+            "This build did not record when it was made, so this line stays empty rather than quietly showing you the time right now and calling it a build date",
+        ],
+        yue: [
+            "冇記低幾時整",
+            "冇記低幾時整",
+            "呢個 build 冇記低自己幾時整",
+            "呢個 build 冇記低自己幾時整，所以寧願唔顯示，都唔會亂估",
+            "呢個 build 冇記低自己幾時整，所以呢行寧願吉住，都唔會靜靜雞攞而家嘅時間出嚟當係 build 日期",
+        ],
+    },
+
     /* ---------------------------------------------------------------- */
     /* The search bar every menu carries                                 */
     /* ---------------------------------------------------------------- */
@@ -267,6 +308,12 @@ export const MENU_FIXED = {
 export const MENU_FACTS = {
     // The reason, and that it is a version this build failed to produce.
     "info.appVersionFailed": { en: ["{reason}", "version"], yue: ["{reason}", "版本號"] },
+
+    // The instant itself, and that it describes the build rather than anything else.
+    "info.builtAt": { en: ["{timestamp}", "uilt"], yue: ["{timestamp}", "整"] },
+
+    // That there is no recorded time, so no level can imply there is one.
+    "info.builtAtUnknown": { en: ["not record"], yue: ["冇記低"] },
 
     "search.noMatch": { en: ["matches that search"], yue: ["符合嗰個搜尋"] },
 

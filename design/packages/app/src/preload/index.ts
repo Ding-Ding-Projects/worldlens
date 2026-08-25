@@ -2341,6 +2341,13 @@ interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    /**
+     * This build's version together with when it was built, as an ISO-8601 instant, or
+     * `null` when the build genuinely could not establish one. `null` is a real answer -
+     * a source export with no git history has no provenance to read - and the About
+     * surface renders it as "not recorded" rather than substituting the current clock.
+     */
+    getBuildProvenance(): Promise<{ version: string; builtAt: string | null }>;
     releaseLedgerRead(): Promise<ReleaseLedgerReadout>;
     /**
      * The renderer-safe face of the OS application-data School-mode record.  Its snapshot
@@ -3523,6 +3530,7 @@ const bridge: WorldlensBridge = {
     syncProfiles: (profiles) => ipcRenderer.invoke("profiles:sync", profiles),
     writeClipboardText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
     getVersion: () => ipcRenderer.invoke("app:version"),
+    getBuildProvenance: () => ipcRenderer.invoke("app:buildProvenance"),
     releaseLedgerRead: () => ipcRenderer.invoke(RELEASE_LEDGER_CHANNEL),
     schoolMode: {
         read: () => ipcRenderer.invoke("schoolMode:read"),

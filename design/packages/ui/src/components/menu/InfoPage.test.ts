@@ -23,6 +23,9 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
+import { createVuetify } from "vuetify";
+import * as components from "vuetify/components";
+import * as directives from "vuetify/directives";
 import InfoPage from "./InfoPage.vue";
 import { productDisplayName } from "../../stores/productName.js";
 
@@ -50,19 +53,35 @@ function i18n(content: string | null = CONTENT) {
     });
 }
 
+/**
+ * This page renders real Vuetify components (a divider and the docs button), so the plugin
+ * has to be installed for the same reason `MainMenu.test.ts` installs it: without it every
+ * mount throws "[Vuetify] Could not find defaults instance" before a single assertion runs,
+ * and all thirteen tests in this file fail for one reason that has nothing to do with any of
+ * them. They were failing exactly that way before this line existed.
+ */
+const vuetify = createVuetify({ components, directives });
+
 /** Installs a preload, or removes it, exactly as the component feature-detects one. */
-function setBridge(bridge: { getVersion?: () => Promise<string> } | null): void {
+function setBridge(bridge: BridgeStub | null): void {
     const scope = globalThis as { worldlens?: unknown };
     if (bridge === null) delete scope.worldlens;
     else scope.worldlens = bridge;
 }
 
-async function render(
-    bridge: { getVersion?: () => Promise<string> } | null,
-    content?: string | null,
-) {
+/**
+ * What a preload can offer this page. Both methods are optional and independently absent,
+ * because a browser tab has neither and an older shell can have the version without the
+ * build provenance, and the page has to stay honest in all four combinations.
+ */
+type BridgeStub = {
+    getVersion?: () => Promise<string>;
+    getBuildProvenance?: () => Promise<{ version: string; builtAt: string | null }>;
+};
+
+async function render(bridge: BridgeStub | null, content?: string | null) {
     setBridge(bridge);
-    const wrapper = mount(InfoPage, { global: { plugins: [i18n(content)] } });
+    const wrapper = mount(InfoPage, { global: { plugins: [vuetify, i18n(content)] } });
     await flushPromises();
     return wrapper;
 }
@@ -70,6 +89,75 @@ async function render(
 afterEach(() => {
     setBridge(null);
     productDisplayName.value = "Worldlens";
+});
+
+describe("when this build was made", () => {
+    const version = () => Promise.resolve("0.4.2");
+
+    it("states the recorded instant, in local time, to the second, with the zone named", async () => {
+        const wrapper = await render({
+            getVersion: version,
+            getBuildProvenance: () =>
+                Promise.resolve({ version: "0.4.2", builtAt: "2026-08-25T04:53:17.000Z" }),
+        });
+
+        const text = wrapper.text();
+        // Formatted through Intl in whatever timezone this test runs in, so the assertion is
+        // on the parts that must survive that rather than on one machine's rendering: the
+        // year, seconds resolution, and a named zone. A line reading "14:32" with no zone is
+        // not something a reader in another country can act on, which is why the zone is
+        // asserted rather than assumed.
+        expect(text).toContain("2026");
+        expect(text).toMatch(/\d{1,2}:\d{2}:\d{2}/);
+        expect(text).toMatch(/(GMT|UTC|[A-Z]{2,5}T)/);
+        wrapper.unmount();
+    });
+
+    it("says the time was not recorded when the build genuinely has none", async () => {
+        const wrapper = await render({
+            getVersion: version,
+            getBuildProvenance: () => Promise.resolve({ version: "0.4.2", builtAt: null }),
+        });
+
+        expect(wrapper.text()).toContain("not recorded");
+        wrapper.unmount();
+    });
+
+    it("never substitutes the current time for a build that recorded none", async () => {
+        // The assertion this whole feature exists for. `null` is an honest answer, and the
+        // tempting repair - falling back to `new Date()` - would render the moment somebody
+        // opened this page as a fact about when the build was made. It would also look
+        // completely correct on screen, which is what makes it worth a test rather than a
+        // comment.
+        const thisYear = String(new Date().getFullYear());
+        const wrapper = await render({
+            getVersion: version,
+            getBuildProvenance: () => Promise.resolve({ version: "0.4.2", builtAt: null }),
+        });
+
+        const line = wrapper.findAll(".mb-info-page__version").at(-1);
+        expect(line?.text()).not.toContain(thisYear);
+        wrapper.unmount();
+    });
+
+    it("says nothing when the shell is too old to have the method", async () => {
+        // Not the same state as "the build has no recorded time", and it must not render as
+        // it: nobody here has been asked, so there is nothing to report either way.
+        const wrapper = await render({ getVersion: version });
+
+        expect(wrapper.text()).not.toContain("not recorded");
+        wrapper.unmount();
+    });
+
+    it("stays quiet rather than repeating the fault when the channel itself fails", async () => {
+        const wrapper = await render({
+            getVersion: version,
+            getBuildProvenance: () => Promise.reject(new Error("channel is broken")),
+        });
+
+        expect(wrapper.text()).not.toContain("channel is broken");
+        wrapper.unmount();
+    });
 });
 
 describe("the application's own version", () => {

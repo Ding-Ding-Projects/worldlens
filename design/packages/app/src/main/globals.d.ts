@@ -19,3 +19,13 @@
 declare const __WORLDLENS_REPOSITORY__: string;
 /** Previous release repository retained as the bounded bridge feed during the rename. */
 declare const __WORLDLENS_LEGACY_REPOSITORY__: string;
+/**
+ * When this exact artifact was built, as an ISO-8601 instant, or `null` when the build
+ * genuinely could not establish it.
+ *
+ * `null` is a real, expected value and not a defect: a source export with no git history
+ * has no provenance to read, and the About surface renders an honest "not recorded" line
+ * rather than a time somebody made up. See `resolveBuildTimestamp` in `build.mjs` for why
+ * there is deliberately no fallback to the current time.
+ */
+declare const __WORLDLENS_BUILT_AT__: string | null;

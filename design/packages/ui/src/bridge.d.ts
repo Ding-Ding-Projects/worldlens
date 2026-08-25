@@ -690,6 +690,12 @@ interface WorldlensBridge {
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
+    /**
+     * This build's own version and when it was built. `builtAt` is an ISO-8601 instant, or
+     * `null` when the build could not establish one - which is a real answer, not a failure,
+     * and must be rendered as "not recorded" rather than filled in from the current clock.
+     */
+    getBuildProvenance?: () => Promise<{ version: string; builtAt: string | null }>;
     releaseLedgerRead?: () => Promise<unknown>;
     dashboardSnapshot(): Promise<DashboardSnapshot>;
     dashboardRefresh(options?: { readonly concurrency?: number; readonly retries?: number; readonly backoffMs?: number }): Promise<DashboardSnapshot>;
