@@ -211,12 +211,13 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
                 value: {
                     fetchedAt: "2026-01-01T00:00:00Z",
                     stale: false,
+                    failures: [],
                     flavours: [
                         {
                             flavour: "paper",
                             versions: [
-                                { version: "1.21.4", releasedAt: null, javaFeature: 21 },
-                                { version: "1.20.6", releasedAt: null, javaFeature: 21 },
+                                { version: "1.21.4", releasedAt: null, javaFeature: 21, stability: "release", downloadUrl: null, sha256: null },
+                                { version: "1.20.6", releasedAt: null, javaFeature: 21, stability: "release", downloadUrl: null, sha256: null },
                             ],
                         },
                     ],
@@ -224,20 +225,42 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
             }),
             refresh: vi.fn(),
         };
-        const wrapper = await mountWith(CreateServerWizard, { modelValue: true }, host);
+        await mountWith(CreateServerWizard, { modelValue: true }, host);
         await flushPromises();
-        const nextButton = wrapper.findAll("button").find((button) => button.text().includes("Next"));
-        expect(nextButton).toBeDefined();
-        await nextButton!.trigger("click");
+
+        // Two things make reading this dialog different from reading an ordinary component.
+        // Vuetify teleports an open dialog to document.body, so its content is never inside
+        // the wrapper tree - reading `wrapper` here found zero buttons and reported it as a
+        // missing Next control. And teleported content from earlier tests in this file is
+        // still in the document, so a document-wide query picks up somebody else's dialog.
+        // Both are avoided by scoping to this dialog by the heading only it carries.
+        const dialog = (): Element => {
+            const found = [...document.querySelectorAll(".v-overlay")].find((el) =>
+                (el.textContent ?? "").includes("New Minecraft server"),
+            );
+            if (found === undefined) throw new Error("the creation wizard is not in the document");
+            return found;
+        };
+        const shown = (): string => dialog().textContent ?? "";
+        const byText = (needle: string): HTMLButtonElement | undefined =>
+            [...dialog().querySelectorAll("button")].find((b) => (b.textContent ?? "").includes(needle));
+
+        const next = byText("Next");
+        expect(next, "the wizard rendered no Next control").toBeDefined();
+        next!.click();
         await flushPromises();
-        expect(wrapper.find('input[placeholder="Search versions"]').exists()).toBe(true);
-        expect(wrapper.text()).toContain("1.21.4");
-        expect(wrapper.text()).toContain("1.20.6");
-        const field = wrapper.find('input[placeholder="Search versions"]');
-        await field.setValue("1.21.4");
+
+        // ConfigSearchField gives its input a floating label rather than a placeholder.
+        const field = dialog().querySelector<HTMLInputElement>(".mb-config-search input");
+        expect(field, "the version step rendered no search field").not.toBeNull();
+        expect(shown()).toContain("1.21.4");
+        expect(shown()).toContain("1.20.6");
+
+        field!.value = "1.21.4";
+        field!.dispatchEvent(new Event("input", { bubbles: true }));
         await flushPromises();
-        expect(wrapper.text()).toContain("1.21.4");
-        expect(wrapper.text()).not.toContain("1.20.6");
+        expect(shown()).toContain("1.21.4");
+        expect(shown()).not.toContain("1.20.6");
     });
 
     it("filters live console lines and exposes the anchored regex opt-in field", async () => {
@@ -251,7 +274,7 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
         });
         const wrapper = await mountWith(ServerConsole, { serverId: "srv-1" }, host);
         await flushPromises();
-        const field = wrapper.find('input[placeholder="Search log"]');
+        const field = wrapper.find(".mb-config-search input");
         expect(field.exists()).toBe(true);
         expect(wrapper.text()).toContain("Started world");
         expect(wrapper.text()).toContain("Failed to bind port");

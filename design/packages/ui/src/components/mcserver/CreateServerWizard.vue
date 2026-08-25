@@ -565,14 +565,23 @@ function resetWizard(): void {
     createFailure.value = null;
 }
 
-watch(open, (isOpen) => {
-    if (isOpen) {
-        void loadCatalogue();
-        resetWizard();
-        // After the reset, so it is not immediately cleared again.
-        void fillSuggestedFolder();
-    }
-});
+watch(
+    open,
+    (isOpen) => {
+        if (isOpen) {
+            void loadCatalogue();
+            resetWizard();
+            // After the reset, so it is not immediately cleared again.
+            void fillSuggestedFolder();
+        }
+    },
+    // Immediate, because a wizard mounted already open would otherwise never load its
+    // catalogue at all: the watcher fires on a change, and there is no change when the
+    // dialog is open from the first render. Every version list would be empty and the step
+    // would say no versions could be fetched, which is a sentence about the network rather
+    // than about a callback that never ran.
+    { immediate: true },
+);
 
 function next(): void {
     const idx = WIZARD_STEPS.indexOf(step.value);
