@@ -701,6 +701,19 @@ function skip(surface: string, reason: string): void {
  * perfectly. That is precisely the shape of blind spot this whole mechanism exists to close, so
  * closing it in one direction and leaving it open in the other would be no use.
  */
+/**
+ * The longest one surface may take before it is recorded as a gap.
+ *
+ * Deliberately well under `SURFACE_TIMEOUT` (300s), because the whole point is to fail inside the
+ * test's budget rather than be killed by it.
+ *
+ * Sixty rather than two hundred, because the abandoned `run()` keeps working after the race is
+ * lost, and at two hundred seconds two such surfaces accumulated enough in-flight work to drop
+ * the debugging connection outright. A surface that cannot be reached in a minute is not going to
+ * be reached in three, so the longer budget bought nothing and cost the run.
+ */
+const SURFACE_BUDGET = 60_000;
+
 async function attempt(surface: string, run: () => Promise<void>): Promise<void> {
     /*
      * Timed, because "this spec used its whole budget" is not a diagnosis. It was per-surface
@@ -709,7 +722,35 @@ async function attempt(surface: string, run: () => Promise<void>): Promise<void>
      */
     const startedAt = Date.now();
     try {
-        await run();
+        /*
+         * A hard ceiling on the whole surface, not just on the steps inside it.
+         *
+         * This function's entire promise is that one unreachable surface costs one image. That
+         * promise only holds if it gets to catch, and a test killed by `SURFACE_TIMEOUT` never
+         * lets it: the worker is discarded, and this application's debugging endpoint then
+         * refuses every later connection for the rest of its life, so a single slow surface has
+         * repeatedly cost all 117 images. Measured at 305.1s inside one `openJob` call, against a
+         * 300s test budget.
+         *
+         * Bounding the individual waits was not enough, because there is always one more await
+         * with no timeout of its own, and hunting them one run at a time is a losing game. This
+         * bounds the sum instead, so the guarantee stops depending on that hunt.
+         *
+         * The cost, stated plainly: the abandoned `run()` keeps going. That is why this must stay
+         * comfortably under the test budget rather than hugging it, and it is survivable only
+         * because `actionTimeout` bounds every Playwright action at 45s, so whatever is still in
+         * flight gives up on its own shortly after. A surface that trips this is reported as a
+         * gap, which is exactly what it is.
+         */
+        await Promise.race([
+            run(),
+            new Promise<never>((_resolve, reject) =>
+                setTimeout(
+                    () => reject(new Error(`the surface did not finish within ${SURFACE_BUDGET}ms`)),
+                    SURFACE_BUDGET,
+                ).unref?.(),
+            ),
+        ]);
         console.log(`[harness] ${surface}: ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
         appendLedger(LEDGER, { kind: "step", surface });
     } catch (error) {
@@ -734,6 +775,10 @@ async function attempt(surface: string, run: () => Promise<void>): Promise<void>
          * which says nothing at all about which controls were clipped or undersized. Naming the
          * file that holds the whole failure costs one clause and turns a dead end into a lookup.
          */
+        console.log(
+            `[harness] ${surface}: gave up after ${((Date.now() - startedAt) / 1000).toFixed(1)}s` +
+                `, connection ${browser?.isConnected() === true ? "alive" : "GONE"}`,
+        );
         skip(
             surface,
             `the harness could not open it in this run: ${reason ?? "unknown error"} ` +
@@ -1081,7 +1126,27 @@ async function openJobThroughNewTabMenu(name: string): Promise<void> {
  * called - and a harness that reached for it first would leave a strip of duplicates growing
  * across the run and photograph it.
  */
+/**
+ * How long every route to a surface may take in total.
+ *
+ * Bounding each step was not enough. `openJob` tries five routes in sequence, each with its own
+ * bounded waits, and nothing bounded the sum: a measured run spent 305 seconds here before the
+ * test's own 300s budget killed it. That is the difference between losing one image and losing the
+ * whole manifest, because a killed test discards its worker and this application's debugging
+ * endpoint then refuses every later connection for the rest of its life.
+ *
+ * At sixty seconds `attempt` catches the throw with time to spare and records its gap, which is
+ * exactly what it exists to do.
+ */
+const REACH_BUDGET = 60_000;
+
+/** Whether the whole reach has spent its budget, so the remaining routes are not worth trying. */
+function reachExhausted(startedAt: number): boolean {
+    return Date.now() - startedAt >= REACH_BUDGET;
+}
+
 async function openJob(pageId: string, name: RegExp, label: string): Promise<void> {
+    const reachStartedAt = Date.now();
     await selectDestination("work");
     const strip = workTabs();
     const tab = strip.locator(`[data-tutorial-anchor="tab-${pageId}"]`).first();
@@ -1098,6 +1163,8 @@ async function openJob(pageId: string, name: RegExp, label: string): Promise<voi
         await tab.waitFor({ state: "attached", timeout: REACH_TIMEOUT });
     }
 
+    if (reachExhausted(reachStartedAt))
+        throw new Error(`no route to the "${pageId}" job within ${REACH_BUDGET}ms.`);
     if (await tab.isVisible().catch(() => false)) {
         await activateTab(tab);
         return;
@@ -1111,12 +1178,18 @@ async function openJob(pageId: string, name: RegExp, label: string): Promise<voi
         return;
     }
 
+    if (reachExhausted(reachStartedAt))
+        throw new Error(`no route to the "${pageId}" job within ${REACH_BUDGET}ms.`);
     await expandShellTabGroups();
+    if (reachExhausted(reachStartedAt))
+        throw new Error(`no route to the "${pageId}" job within ${REACH_BUDGET}ms.`);
     if (await tab.isVisible().catch(() => false)) {
         await activateTab(tab);
         return;
     }
 
+    if (reachExhausted(reachStartedAt))
+        throw new Error(`no route to the "${pageId}" job within ${REACH_BUDGET}ms.`);
     const overflowButton = strip.locator('[aria-label*="do not fit"]').first();
     const hasOverflow = await overflowButton
         .waitFor({ state: "visible", timeout: 3_000 })
