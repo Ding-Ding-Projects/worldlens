@@ -1919,8 +1919,17 @@ test.beforeAll(async () => {
      * every `beforeAll` would erase everything recorded before the crash on precisely the runs
      * this file exists to keep evidence from - reintroducing the lost-record bug through the door
      * marked "housekeeping".
+     *
+     * `WORLDLENS_LEDGER_KEEP` opts out of the reset entirely, for a run split into chunks.
+     * That is not a convenience: a page reload does NOT restart the renderer PROCESS, so
+     * process-level exhaustion survives every in-run reset and the renderer still crashes part
+     * way through. A fresh application per chunk is the only true reset, and each chunk is its
+     * own `playwright test` invocation whose first worker is also index zero - so without this,
+     * every chunk erases the evidence the chunks before it recorded. The caller truncates the
+     * ledger once before the first chunk, which is the whole run's real starting point.
      */
-    if (test.info().workerIndex === 0) resetLedger(LEDGER);
+    if (test.info().workerIndex === 0 && !process.env.WORLDLENS_LEDGER_KEEP)
+        resetLedger(LEDGER);
     expect(validateCaptureMatrix(CAPTURE_MATRIX), "captureMatrix.ts is incomplete").toEqual([]);
     expect(
         CAPTURE_COMMIT,
