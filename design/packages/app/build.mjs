@@ -273,7 +273,17 @@ export function resolveBuildRepository(env) {
     return resolveBuildRepositories(env).current;
 }
 
+/**
+ * `--hosted-only` builds just the container bundle.
+ *
+ * The hosted image needs one of the three outputs this script produces, and building the
+ * other two costs it real work it then throws away: staged render engines it will never
+ * launch, brand rasters for an icon it never draws, and an Electron main bundle for a
+ * runtime it does not contain. Worse than the waste, each of those steps has its own
+ * prerequisites, so the image was failing on missing inputs for outputs nobody wanted.
+ */
 async function main() {
+    const hostedOnly = process.argv.includes("--hosted-only");
     const repositories = resolveBuildRepositories(process.env);
     if (
         !process.env[BUILD_REPOSITORY_VARIABLE]?.trim() &&
@@ -286,8 +296,9 @@ async function main() {
     console.log(`app build: current update feed repository = ${repositories.current}`);
     console.log(`app build: legacy update bridge repository = ${repositories.legacy ?? "none"}`);
 
-    await stageRenderEngines();
+    if (!hostedOnly) await stageRenderEngines();
 
+    if (!hostedOnly) {
     /** Main process: ESM (Electron ≥28 supports ESM entry points). */
     await build({
         entryPoints: ["src/main/index.ts"],
@@ -311,6 +322,7 @@ async function main() {
 
     copyZstdWasmAsset("dist/main");
 
+    }
     /**
      * The hosted deployment: the same feature modules, served over HTTP instead of IPC.
      *
@@ -326,7 +338,7 @@ async function main() {
      * That is exactly what happened, which is why the assertion below exists instead.
      */
     await build({
-        entryPoints: ["src/hosted/main.ts"],
+        entryPoints: ["src/hosted/cli.ts"],
         outfile: "dist/hosted/index.js",
         bundle: true,
         platform: "node",

@@ -44,6 +44,10 @@ WORKDIR /repo
 
 COPY design/package.json design/pnpm-lock.yaml design/pnpm-workspace.yaml design/tsconfig.base.json ./design/
 COPY design/packages ./design/packages
+# The app's build script verifies its brand assets are current before bundling anything, so
+# the source mark has to be here even though a hosted deployment never draws an icon. Small,
+# and cheaper than teaching that script that one of its three outputs does not need it.
+COPY design/brand ./design/brand
 COPY design/tools ./design/tools
 
 WORKDIR /repo/design
@@ -53,11 +57,29 @@ WORKDIR /repo/design
 # emits `dist/hosted/index.js` alongside the desktop bundles, and that script also asserts the
 # hosted bundle contains no Electron. A value import of `electron` anywhere under `src/main`
 # fails the build here rather than producing an image that throws on its first line.
+# ELECTRON_SKIP_BINARY_DOWNLOAD, because this image never runs Electron and its postinstall
+# otherwise pulls roughly 200 MB of desktop runtime into a build that then discards it. The
+# package is still installed - the app declares it as a devDependency and pnpm needs the entry
+# to exist - it simply arrives without the binary nobody here would launch.
+ENV ELECTRON_SKIP_BINARY_DOWNLOAD=1
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile --filter "@worldlens/app..." --filter "@worldlens/ui..."
 
 RUN pnpm --filter "@worldlens/ui..." run build
-RUN pnpm --filter "@worldlens/app" run build
+# Only the hosted bundle. The full build also stages render engines and rasterises brand
+# assets for the desktop packages, neither of which ends up in this image - and each has
+# prerequisites of its own, so building them here meant failing on inputs for outputs nobody
+# wanted.
+# Dependencies first. esbuild resolves a workspace package through its `main`, which points
+# into `dist/`, so an unbuilt dependency is not a stale import - it is an unresolvable one,
+# and the whole hosted bundle fails to link.
+#
+# Named positively and then narrowed, rather than as one "dependencies of the app"
+# expression: pnpm's `...` selects a package **and its dependents**, so every attempt to
+# write this as a single filter pulled in the app itself, or the CLI and the Kid-mode
+# harness, each of which needs inputs this image deliberately does not carry.
+RUN pnpm -r --filter "@worldlens/server..." --filter "@worldlens/bridge..." --filter "@worldlens/dockhand..." --filter "!@worldlens/app" --filter "!@worldlens/cli" --filter "!@worldlens/kid-check" --filter "!@worldlens/md3-check" run build
+RUN pnpm --filter "@worldlens/app" run build:hosted
 
 # Prove the two things this image is made of actually exist before going any further, so a
 # silently empty build fails here rather than as a blank page much later.
@@ -72,6 +94,12 @@ RUN mkdir -p /app/ui \
     && cp -r packages/ui/dist/. /app/ui/
 
 FROM node:22-slim AS runtime
+
+# Git, because the local version history is a real feature and the capability profile lists
+# it as available. Without it the container answers "git is not installed on this machine",
+# which is honest but means the profile promises something the image cannot do - and a
+# profile that overstates is worse than one that refuses, because it reads as a bug.
+RUN apt-get update && apt-get install --no-install-recommends -y git && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY --from=build --chown=node:node /app ./
