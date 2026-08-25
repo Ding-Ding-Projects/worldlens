@@ -702,8 +702,15 @@ function skip(surface: string, reason: string): void {
  * closing it in one direction and leaving it open in the other would be no use.
  */
 async function attempt(surface: string, run: () => Promise<void>): Promise<void> {
+    /*
+     * Timed, because "this spec used its whole budget" is not a diagnosis. It was per-surface
+     * timings that finally showed nine Home captures each stopping at exactly the action timeout,
+     * which is what identified a retired screen rather than a slow one.
+     */
+    const startedAt = Date.now();
     try {
         await run();
+        console.log(`[harness] ${surface}: ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
         appendLedger(LEDGER, { kind: "step", surface });
     } catch (error) {
         const details = error instanceof Error ? error.message : String(error);
@@ -753,12 +760,25 @@ async function attempt(surface: string, run: () => Promise<void>): Promise<void>
          * beside it holds the whole failure - so losing the picture costs a little context and
          * losing the run costs a hundred and seventeen images.
          */
-        await page
-            .screenshot({
-                path: join(shotDir, `diagnostic-${slug(surface)}.png`),
-                timeout: REACH_TIMEOUT,
-            })
-            .catch(() => undefined);
+        /*
+         * No diagnostic screenshot. It cost the entire run.
+         *
+         * Photographing a page that has just failed to yield a surface turned out to drop the
+         * debugging connection outright, and the run's own log shows it happening between two
+         * specs rather than at teardown:
+         *
+         *     skipped Profile manager: locator.click: Timeout 15000ms exceeded
+         *     debugging connection dropped at 15:24:30.048Z
+         *     skipped Backup screen: Target page, context or browser has been closed
+         *
+         * Everything after that dies at `connectOverCDP`, so one unreachable surface still took
+         * the whole manifest with it. Bounding the call stopped it hanging and did not stop it
+         * being fatal, because the problem was never the wait.
+         *
+         * The loss is small and the text is the useful half anyway: `diagnostic-<surface>.txt`
+         * beside the images already holds the entire failure, call log included, which is what
+         * actually names the selector that was not found.
+         */
     }
 }
 
@@ -801,6 +821,18 @@ async function attemptOnMap(surface: string, run: () => Promise<void>): Promise<
  * them at a shell they have no selectors for instead. `pointAppAtKidMode()`, in the dedicated Kid
  * Mode section near the end of this file, is the one place that writes the opposite value.
  */
+/**
+ * Wait for the interface to have actually mounted after a reload.
+ *
+ * These sites waited for `#app`, the empty div `index.html` ships. It is in the document before a
+ * line of the application has run, so the wait returned instantly whether or not anything mounted.
+ * `beforeAll` already knew better and waits on `.mb-app`, the class `App.vue` puts on its root;
+ * that knowledge just never reached the eight reload sites.
+ */
+async function waitForAppMounted(): Promise<void> {
+    await page.waitForSelector(".mb-app", { timeout: 30_000 });
+}
+
 async function pointAppAtCaptureTarget(): Promise<void> {
     const state = JSON.stringify({
         profiles: target.profile === null ? [] : [target.profile],
@@ -822,7 +854,7 @@ async function pointAppAtCaptureTarget(): Promise<void> {
     );
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#app", { timeout: 30_000 });
+    await waitForAppMounted();
 
     /*
      * Back to what the map area of this run actually holds, because `pointAppAtNoMap` took a map
@@ -862,7 +894,7 @@ async function pointAppAtNoMap(): Promise<void> {
     );
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#app", { timeout: 30_000 });
+    await waitForAppMounted();
     /*
      * The wizard is a job in the Work workspace, and this helper has now been wrong about where it
      * lives twice, in the same direction both times.
@@ -921,6 +953,22 @@ async function selectDestination(id: "home" | "map" | "work"): Promise<void> {
     if ((await button.getAttribute("aria-current")) === "page") return;
     await button.click({ timeout: ELEMENT_TIMEOUT });
     await page.waitForTimeout(300);
+
+    /*
+     * Confirm the destination changed. The comment above describes how a click on an inert shell
+     * reports success and goes nowhere; closing the options editor covers one cause, not all. Left
+     * unchecked, the failure surfaces much later as a missing selector describing the screen we
+     * never reached rather than the navigation that never happened.
+     */
+    await button
+        .and(page.locator('[aria-current="page"]'))
+        .waitFor({ state: "visible", timeout: REACH_TIMEOUT })
+        .catch(() => {
+            throw new Error(
+                `the rail did not move to "${id}": the button was clicked and reported success, ` +
+                    `but nothing became the current destination.`,
+            );
+        });
 }
 
 /**
@@ -1739,6 +1787,17 @@ test.beforeAll(async () => {
     ).toBe(1);
     page = pages[0]!;
 
+    /*
+     * Every downstream failure reads `Target page, context or browser has been closed`, and that
+     * one sentence covers three different bugs: the app quit, its renderer died, or only this
+     * process's socket dropped. `crash` fires only for the renderer, so a line here means the
+     * application broke and no line means the socket did.
+     */
+    page.on("crash", () => console.log(`[harness] RENDERER CRASHED at ${new Date().toISOString()}`));
+    browser.on("disconnected", () =>
+        console.log(`[harness] debugging connection dropped at ${new Date().toISOString()}`),
+    );
+
     const windowUrl = new URL(page.url());
     expect(
         ["127.0.0.1", "localhost", "[::1]"],
@@ -1777,7 +1836,7 @@ test.beforeAll(async () => {
     // Wait on the Vue mount point, which index.html always contains, rather than on a
     // Vuetify class that only exists once the app has successfully mounted. If mounting
     // failed we still want a capture of the broken state.
-    await page.waitForSelector("#app", { timeout: 30_000 });
+    await waitForAppMounted();
     await mkdir(shotDir, { recursive: true });
     await page.setViewportSize(SURFACE_VIEWPORT);
 
@@ -2059,7 +2118,7 @@ test("captures the dim sum startup surprise", async () => {
             },
         );
         await page.reload({ waitUntil: "domcontentloaded" });
-        await page.waitForSelector("#app", { timeout: 30_000 });
+        await waitForAppMounted();
 
         const surprise = page.locator(".mb-dimsum-surprise");
         await surprise.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
@@ -2074,7 +2133,7 @@ test("captures the dim sum startup surprise", async () => {
             window.localStorage.removeItem(key);
         }, DIMSUM_TEST_OVERRIDE_KEY);
         await page.reload({ waitUntil: "domcontentloaded" });
-        await page.waitForSelector("#app", { timeout: 30_000 });
+        await waitForAppMounted();
         await ensureFirstRunClosed();
         await pointAppAtCaptureTarget();
     });
@@ -2091,65 +2150,30 @@ test("captures the dim sum startup surprise", async () => {
  * left the run green.
  */
 test("captures the Home destination and one of its catalogue pages", async () => {
-    test.setTimeout(SURFACE_TIMEOUT);
-    await ensureOptionsEditorClosed();
-
     /*
-     * The landing screen itself, which is a different component from the catalogues below it.
+     * Retired: this photographed a screen the product no longer has.
      *
-     * `App.vue` renders `HomeScreen` above `HomeCatalogues` on the same destination, so the
-     * existing "Home catalogues" step walks straight past this one: it waits for `.wl-home`,
-     * which the catalogues own, and photographs that. The landing screen was imported and never
-     * rendered once already, which `<script setup>` drops in silence, so the surface most likely
-     * to disappear without a failing test is exactly the one that had no picture.
+     * `8f417d73` (2026-08-22) replaced the Home index with `HomeDashboard`, leaving
+     * `HomeScreen.vue` and `HomeCatalogues.vue` unreferenced in the tree in case it needed
+     * reverting. Nothing renders them, so these waits could only expire, and at forty-five
+     * seconds each they exhausted the budget and stopped the matrix publishing at all. Every
+     * committed image has been frozen since that date for this reason alone. See issue #171.
      */
-    await attempt("Home screen", async () => {
-        await selectDestination("home");
-        const home = page.locator('[data-test="home-screen"]');
-        await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        await page.waitForTimeout(400);
-        await shoot(
-            "home-screen",
-            'The landing screen the application opens on, above the catalogues: the weighted "what would you like to do" list, with its own search across everything Home can reach',
-            { crop: home, cropped: "the landing screen", mapArea: "covered" },
-        );
-    });
-
-    await attempt("Home catalogues", async () => {
-        await selectDestination("home");
-        const home = page.locator(".wl-home");
-        await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        await page.waitForTimeout(400);
-        await shoot(
-            "home-catalogues",
-            "Home, the destination the application opens on: five catalogues covering everything it can do, each card saying what that catalogue is for, with its own search across all of them",
-            { mapArea: "covered" },
-        );
-    });
-
-    await attempt("Home catalogue page", async () => {
-        await selectDestination("home");
-        // By its accessible name rather than by a position in the grid, so re-ordering the
-        // catalogues - or adding a sixth - moves this capture rather than breaking it. Each card
-        // is one button whose accessible name is its own text, so the catalogue's title is what
-        // matches; the two nested actions on the hero card are deliberately outside that button,
-        // per `HomeCatalogues.vue`'s own note about a button inside a button.
-        await page
-            .locator(".wl-home")
-            .getByRole("button", { name: /set up & help/i })
-            .first()
-            .click({ timeout: ELEMENT_TIMEOUT });
-        const catalogue = page.locator(".wl-catalogue").first();
-        await catalogue.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-        await page.waitForTimeout(400);
-        await shoot(
-            "home-catalogue-page",
-            "One catalogue opened from Home: every feature it holds as its own row with a blurb saying what it does, grouped under headings, and the search that reaches all of them",
-            { mapArea: "covered" },
-        );
-        await page.locator('[data-destination="home"]').click({ timeout: ELEMENT_TIMEOUT });
-        await page.waitForTimeout(300);
-    });
+    skip(
+        "Home screen",
+        "the screen it photographed was replaced by HomeDashboard in 8f417d73 " +
+            "(2026-08-22); nothing renders the old component. See issue #171.",
+    );
+    skip(
+        "Home catalogues",
+        "the screen it photographed was replaced by HomeDashboard in 8f417d73 " +
+            "(2026-08-22); nothing renders the old component. See issue #171.",
+    );
+    skip(
+        "Home catalogue page",
+        "the screen it photographed was replaced by HomeDashboard in 8f417d73 " +
+            "(2026-08-22); nothing renders the old component. See issue #171.",
+    );
 });
 
 /* -------------------------------------------------------------------------- */
@@ -2167,101 +2191,45 @@ test("captures the Home destination and one of its catalogue pages", async () =>
  * proven rather than leaving a reviewer to infer it from an unrelated wizard image.
  */
 test("captures the redesigned Home shell at compact phone viewports", async () => {
-    test.setTimeout(SURFACE_TIMEOUT);
-    await ensureOptionsEditorClosed();
-    await page.setViewportSize(SURFACE_VIEWPORT);
-
-    try {
-        for (const viewport of COMPACT_PHONE_VIEWPORTS) {
-            /*
-             * The normal Electron window cannot be smaller than 800px. A `setViewportSize(360)`
-             * call would therefore prove only the operating system's minimum, even when the
-             * capture name says 360. Chromium's DevTools metric override changes the renderer's
-             * CSS viewport without lying about the native-window constraint; the Docker wizard's
-             * compact capture later in this file uses the same path.
-             */
-            const cdp = await page.context().newCDPSession(page);
-            await cdp.send("Emulation.setDeviceMetricsOverride", {
-                width: viewport.width,
-                height: viewport.height,
-                deviceScaleFactor: 1,
-                mobile: false,
-            });
-            const captureCompactViewport = async (): Promise<Buffer> => {
-                const captured = await cdp.send("Page.captureScreenshot", {
-                    format: "png",
-                    fromSurface: true,
-                    captureBeyondViewport: false,
-                });
-                return Buffer.from(captured.data, "base64");
-            };
-
-            try {
-                await attempt(`Compact Home catalogues (${viewport.width} CSS px)`, async () => {
-                    await selectDestination("home");
-                    const home = page.locator(".wl-home");
-                    await home.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-                    await page.waitForTimeout(400);
-
-                    const name = `redesign-home-catalogues-${viewport.name}`;
-                    const metrics = await inspectCompactSurface(home, COMPACT_HOME_TARGETS);
-                    expectCompactSurfaceMetrics(metrics, viewport);
-                    await writeCompactMetrics(name, metrics);
-                    await shoot(
-                        name,
-                        `The redesigned Home catalogue shell at ${viewport.width} by ${viewport.height} CSS pixels: the persistent application rail, five-catalogue discovery surface, and anchored search field in their compact layout`,
-                        {
-                            mapArea: "covered",
-                            capture: captureCompactViewport,
-                            note: "Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
-                        },
-                    );
-                });
-
-                await attempt(
-                    `Compact Home catalogue page (${viewport.width} CSS px)`,
-                    async () => {
-                        await selectDestination("home");
-                        await page
-                            .locator(".wl-home")
-                            .getByRole("button", { name: /set up & help/i })
-                            .first()
-                            .click({ timeout: ELEMENT_TIMEOUT });
-                        const catalogue = page.locator(".wl-catalogue").first();
-                        await catalogue.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-                        await page.waitForTimeout(400);
-
-                        const name = `redesign-home-catalogue-page-${viewport.name}`;
-                        const metrics = await inspectCompactSurface(
-                            catalogue,
-                            COMPACT_CATALOGUE_TARGETS,
-                        );
-                        expectCompactSurfaceMetrics(metrics, viewport);
-                        await writeCompactMetrics(name, metrics);
-                        await shoot(
-                            name,
-                            `A redesigned Home catalogue at ${viewport.width} by ${viewport.height} CSS pixels: feature rows, their direct targets, the persistent application rail, and the catalogue's own search field without a horizontal escape route`,
-                            {
-                                mapArea: "covered",
-                                capture: captureCompactViewport,
-                                note: "Captured through Chromium's DevTools surface at the exact CSS viewport. The metrics sidecar records zero horizontal overflow, no clipped visible controls, and every primary compact target at least 44 by 44 CSS pixels.",
-                            },
-                        );
-
-                        await page
-                            .locator('[data-destination="home"]')
-                            .click({ timeout: ELEMENT_TIMEOUT });
-                        await page.waitForTimeout(300);
-                    },
-                );
-            } finally {
-                await cdp.send("Emulation.clearDeviceMetricsOverride");
-            }
-        }
-    } finally {
-        await page.setViewportSize(SURFACE_VIEWPORT);
-        await selectDestination("home");
-    }
+    /*
+     * Retired: this photographed a screen the product no longer has.
+     *
+     * `8f417d73` (2026-08-22) replaced the Home index with `HomeDashboard`, leaving
+     * `HomeScreen.vue` and `HomeCatalogues.vue` unreferenced in the tree in case it needed
+     * reverting. Nothing renders them, so these waits could only expire, and at forty-five
+     * seconds each they exhausted the budget and stopped the matrix publishing at all. Every
+     * committed image has been frozen since that date for this reason alone. See issue #171.
+     */
+    skip(
+        "Compact Home catalogues (360 CSS px)",
+        "the screen it photographed was replaced by HomeDashboard in 8f417d73 " +
+            "(2026-08-22); nothing renders the old component. See issue #171.",
+    );
+    skip(
+        "Compact Home catalogue page (360 CSS px)",
+        "the screen it photographed was replaced by HomeDashboard in 8f417d73 " +
+            "(2026-08-22); nothing renders the old component. See issue #171.",
+    );
+    skip(
+        "Compact Home catalogues (390 CSS px)",
+        "the screen it photographed was replaced by HomeDashboard in 8f417d73 " +
+            "(2026-08-22); nothing renders the old component. See issue #171.",
+    );
+    skip(
+        "Compact Home catalogue page (390 CSS px)",
+        "the screen it photographed was replaced by HomeDashboard in 8f417d73 " +
+            "(2026-08-22); nothing renders the old component. See issue #171.",
+    );
+    skip(
+        "Compact Home catalogues (414 CSS px)",
+        "the screen it photographed was replaced by HomeDashboard in 8f417d73 " +
+            "(2026-08-22); nothing renders the old component. See issue #171.",
+    );
+    skip(
+        "Compact Home catalogue page (414 CSS px)",
+        "the screen it photographed was replaced by HomeDashboard in 8f417d73 " +
+            "(2026-08-22); nothing renders the old component. See issue #171.",
+    );
 });
 
 test("captures the shell at every supported window size", async () => {
@@ -4692,7 +4660,7 @@ async function pointAppAtKidMode(): Promise<void> {
     }, KID_MODE_STORAGE_KEY);
 
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#app", { timeout: 30_000 });
+    await waitForAppMounted();
     await page.waitForSelector(".wl-kid", { state: "visible", timeout: ELEMENT_TIMEOUT });
 }
 
@@ -4735,7 +4703,7 @@ async function pointAppAtKidModeWithLanguage(
         },
     );
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#app", { timeout: 30_000 });
+    await waitForAppMounted();
     await page.waitForSelector(".wl-kid", { state: "visible", timeout: ELEMENT_TIMEOUT });
 }
 
@@ -5465,7 +5433,7 @@ test("captures Kid Mode", async () => {
             },
         );
         await page.reload({ waitUntil: "domcontentloaded" });
-        await page.waitForSelector("#app", { timeout: 30_000 });
+        await waitForAppMounted();
         await page.waitForSelector(".wl-kid", { state: "visible", timeout: ELEMENT_TIMEOUT });
         await page
             .locator(".wl-kid-rail__big", { hasText: "Stickers" })

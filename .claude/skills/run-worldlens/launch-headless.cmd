@@ -2,7 +2,14 @@
 REM Launch Worldlens for the driver. Invoked by Lowlevel MCP `launch_on_headless_desktop`,
 REM so the window lands on an off-screen Win32 desktop and the visible desktop is untouched.
 REM
-REM   launch-headless.cmd [port] [profile-dir] [repo-root]
+REM   launch-headless.cmd [port] [profile-dir] [repo-root] [log-file]
+REM
+REM The optional fourth argument captures the application's own stdout and stderr. Without it
+REM they go nowhere, which matters more than it sounds: the app destroys its own window on an
+REM uncaught exception or a dead renderer (see enterTerminalRecovery in src/main/index.ts), and
+REM a harness attached over the debugging protocol sees only "target closed" with no reason.
+REM A whole day was spent guessing at that with the evidence sitting unread on a discarded
+REM stream. Optional rather than always-on so existing callers are unaffected.
 REM
 REM The packaged app accepts --worldlens-direct-launch as an explicit smoke-only switch.
 REM It requires --user-data-dir and refuses the production application-data directory, so
@@ -39,6 +46,16 @@ set "WORLDLENS_SCREENSHOT_STORAGE=C:\Worldlens-Capture\maps"
 set "WORLDLENS_PACKAGED_EXE=%PACKAGED%"
 set "WORLDLENS_PACKAGED_ASAR=%ASAR%"
 
+set "LOG=%~4"
+if "%LOG%"=="" goto :run_plain
+
+"%PACKAGED%" ^
+  --no-sandbox --disable-gpu --force-prefers-reduced-motion ^
+  --remote-debugging-port=%PORT% "--worldlens-direct-launch" "--user-data-dir=%PROFILE%" ^
+  > "%LOG%" 2>&1
+exit /b %ERRORLEVEL%
+
+:run_plain
 "%PACKAGED%" ^
   --no-sandbox --disable-gpu --force-prefers-reduced-motion ^
   --remote-debugging-port=%PORT% "--worldlens-direct-launch" "--user-data-dir=%PROFILE%"
