@@ -11,9 +11,12 @@ design/packages/*/dist/
 design/tools/*/dist/
 **/*.tsbuildinfo
 .git/
-# The one dist/ the build genuinely needs — un-excluded, since dockerignore
-# patterns are applied in order and a later "!" wins over an earlier match.
-!vendor/BlueMap/common/webapp/dist/
+# The webapp is built inside the image from its own source, so its prebuilt dist/
+# is deliberately NOT un-excluded here any more: shipping a stale locally-built
+# bundle into the context would let a warm machine build a different image from the
+# one a clean checkout builds, which is exactly the difference this file's own
+# reproducibility depends on. The build stage produces dist/ itself.
+vendor/BlueMap/common/webapp/dist/
 
 # The Java oracle harness's own downloaded toolchain and Gradle state
 # (gigabyte-scale; see the matching entries in .gitignore).

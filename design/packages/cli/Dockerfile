@@ -73,10 +73,30 @@ COPY design/package.json design/pnpm-lock.yaml design/pnpm-workspace.yaml design
 COPY design/packages ./design/packages
 COPY design/tools ./design/tools
 
-# Only the CLI's own webapp source is needed, not the rest of the upstream
-# webapp checkout (its own source, tests and 100+MB of its own node_modules) —
-# copy-webapp.mjs only ever reads common/webapp/dist.
-COPY vendor/BlueMap/common/webapp/dist ./vendor/BlueMap/common/webapp/dist
+# The upstream webapp, built here rather than copied in prebuilt.
+#
+# This used to be `COPY vendor/BlueMap/common/webapp/dist`, which quietly required
+# whoever ran `docker build` to have already produced that directory by some other
+# means. It is gitignored inside the upstream submodule — it is a build output, not
+# tracked content — so a clean checkout never has it and this image could only ever
+# be built on a machine that happened to have built it before. That is not a
+# reproducible build, it is a build that works on one laptop, and it is why CI could
+# never build this image at all.
+#
+# So copy the webapp's *source* and build it. `npm ci` needs its lockfile and its
+# package.json; the rest of the directory is the Vite project it compiles. The
+# upstream project's own node_modules is excluded by .dockerignore and would be
+# wrong to reuse anyway, since it was installed for a different platform.
+COPY vendor/BlueMap/common/webapp/package.json vendor/BlueMap/common/webapp/package-lock.json ./vendor/BlueMap/common/webapp/
+RUN --mount=type=cache,target=/root/.npm     cd ./vendor/BlueMap/common/webapp && npm ci --no-audit --no-fund
+
+COPY vendor/BlueMap/common/webapp ./vendor/BlueMap/common/webapp
+RUN cd ./vendor/BlueMap/common/webapp && npm run build
+
+# Prove the build produced a real bundle rather than an empty directory, here, where
+# the failure names its own cause. Without this, a webapp build that silently emitted
+# nothing would surface much later as a container serving 404s for its own viewer.
+RUN test -f ./vendor/BlueMap/common/webapp/dist/index.html     && test -d ./vendor/BlueMap/common/webapp/dist/assets
 
 # --filter "@worldlens/cli..." installs the CLI and everything it
 # actually depends on — never the Electron desktop app, the UI package, or

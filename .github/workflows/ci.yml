@@ -357,8 +357,12 @@ jobs:
       contents: read
       packages: write
     steps:
+      # `submodules: true` because the image builds the upstream webapp from source,
+      # and that source lives in the vendored BlueMap submodule. Its built dist/ is
+      # gitignored upstream, so there is nothing prebuilt to fetch instead.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          submodules: true
           persist-credentials: false
 
       # The image identity is re-derived here from the same resolver and the same run
