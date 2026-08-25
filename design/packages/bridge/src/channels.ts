@@ -212,6 +212,8 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "mcserver:webconsole:status",
     "mcserver:webconsole:stop",
     "mcserver:worlds:list",
+    "mounts:browse",
+    "mounts:list",
     "pages:active",
     "pages:cancel",
     "pages:owners",

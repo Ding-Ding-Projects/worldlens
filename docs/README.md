@@ -41,7 +41,7 @@ application has. The in-app documentation browser groups them the same way, unde
 
 | Document | What it covers |
 | --- | --- |
-| [Hosted mode](./hosted-mode.md) | The same interface, served from a container and opened in a browser: one bridge factory with two transports, the fail-closed channel policy, the folders a deployment may touch, and what the password does and does not protect. |
+| [Hosted mode](./hosted-mode.md) | The same interface, served from a container and opened in a browser: one bridge factory with two transports, the fail-closed channel policy, the folders a deployment may touch, the mount root browser that replaces the native folder picker, and what the password does and does not protect. |
 | [The container image](./container-image.md) | What CI publishes, for both architectures, and the three build-time assertions that stop a broken image being published. Also why the image could not be built from a clean checkout until recently. |
 | [Wharf](./wharf.md) | The second application: deploys a container image to a machine, locally or over SSH. Mostly about one control - choosing the folder - because that is the one that can hand over a machine. |
 

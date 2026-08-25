@@ -150,7 +150,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         syncProfiles: (profiles: unknown) => transport.invoke("profiles:sync", profiles),
         writeClipboardText: (text: unknown) => transport.invoke("clipboard:writeText", text),
         getVersion: () => transport.invoke("app:version"),
-        getBuildProvenance: () => transport.invoke("app:buildProvenance"),
+        getBuildProvenance: () => transport.invoke("app:buildProvenance"),
         /**
          * How this copy is running: on a desktop, or served from a container.
          *
@@ -479,6 +479,21 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         dialog: {
             pickFolder: (options: unknown) => transport.invoke("dialog:pickFolder", options),
             pickFile: (options: unknown) => transport.invoke("dialog:pickFile", options),
+        },
+
+        /**
+         * What a deployment with no desktop offers instead of `dialog`.
+         *
+         * Present in every build rather than only the hosted one, because the factory is
+         * deliberately single: a method that exists in one host and not the other is exactly
+         * the drift this package was written to remove. On a desktop nothing registers these,
+         * so they answer "no handler is registered", and `mountBrowserHost.ts` feature-detects
+         * rather than assuming.
+         */
+        mounts: {
+            list: () => transport.invoke("mounts:list"),
+            browse: (rootId: unknown, path: unknown) =>
+                transport.invoke("mounts:browse", { rootId, path }),
         },
 
         worldRepo: {

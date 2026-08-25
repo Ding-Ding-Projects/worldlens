@@ -4,6 +4,7 @@ import { registerGalleryHandlers } from "../main/gallery/ipc.js";
 import { registerHistoryHandlers } from "../main/history/ipc.js";
 import { registerStructureHandlers } from "../main/structures/discoverIpc.js";
 import { registerWorldHandlers } from "../main/world/index.js";
+import { browseMount } from "./mountBrowse.js";
 import type { HostedContext } from "./serve.js";
 
 /**
@@ -51,7 +52,7 @@ export interface HostedHandlerOptions {
      * application's own records rather than the user's content, and putting them inside a
      * folder somebody mounted read-only would be a silent failure to persist anything.
      */
-    readonly dataDirectory: string;
+    readonly dataDirectory: string;
     /**
      * What to say about this deployment.
      *
@@ -70,8 +71,8 @@ export function registerHostedHandlers(
     const ipcMain = context.ipcMain as unknown as IpcMain;
 
     // Its own version, which the About surface asks for on every load.
-    ipcMain.handle("app:version", () => process.env["WORLDLENS_VERSION"] ?? "0.0.0-hosted");
-
+    ipcMain.handle("app:version", () => process.env["WORLDLENS_VERSION"] ?? "0.0.0-hosted");
+
     // Deliberately carries no path. Which folders exist is the operator's business to state;
     // where they are on their disk is not something a browser tab needs, and a path in an
     // interface ends up in a screenshot in an issue.
@@ -81,6 +82,34 @@ export function registerHostedHandlers(
         capabilities: options.posture.capabilities,
         passwordSet: options.posture.passwordSet,
     }));
+
+    // The folder picker for a deployment with no desktop. `capabilityProfile.ts` refuses
+    // `dialog:*` and `config:pick*` with the words "choose from the folders the operator
+    // mounted"; until these two, that sentence named a replacement that did not exist, which
+    // reads as a feature somebody failed to find rather than as a refusal.
+    //
+    // Deliberately carries the paths that `app:deployment` deliberately withholds. That is
+    // not a contradiction: the posture surface is a summary anybody who opens the tab sees,
+    // and a path there ends up in a screenshot in an issue. These answer a person who is
+    // actively navigating and has to be told where they are to choose correctly.
+    ipcMain.handle("mounts:list", () =>
+        context.mounts.list().map((root) => ({
+            id: root.id,
+            label: root.label,
+            writable: root.writable,
+        })),
+    );
+
+    ipcMain.handle("mounts:browse", async (_event, request: unknown) => {
+        const { rootId, path } = (request ?? {}) as { rootId?: unknown; path?: unknown };
+        if (typeof rootId !== "string")
+            return { ok: false, reason: "No mounted folder was named." };
+        return await browseMount(
+            context.mounts,
+            rootId,
+            typeof path === "string" ? path : null,
+        );
+    });
 
     registerEulaHandlers(ipcMain, { dataDirectory: () => options.dataDirectory });
     registerGalleryHandlers(ipcMain, options.dataDirectory);

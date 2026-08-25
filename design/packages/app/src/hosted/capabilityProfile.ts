@@ -109,6 +109,10 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
     history: available,
     locks: available,
     "map-export": available,
+    // What `dialog:` and `config:pick*` are refused in favour of. Available rather than
+    // opt-in: it reaches nothing the operator has not already mounted, and every path it
+    // returns goes back through the same confinement a typed one would.
+    mounts: available,
     preview: available,
     profiles: available,
     profilesHistory: available,

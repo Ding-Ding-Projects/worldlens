@@ -24,6 +24,7 @@ import { install } from "./install.js";
 import { viewerRemoteMode } from "./viewer-remote-mode.js";
 import { embeddedServer } from "./embedded-server.js";
 import { hostedMode } from "./hosted-mode.js";
+import { mountBrowser } from "./mount-browser.js";
 import { containerImage } from "./container-image.js";
 import { wharf } from "./wharf.js";
 import { electronSecurity } from "./electron-security.js";
@@ -83,6 +84,7 @@ export const articles: readonly Article[] = [
     viewerRemoteMode,
     embeddedServer,
     hostedMode,
+    mountBrowser,
     containerImage,
     wharf,
     electronSecurity,

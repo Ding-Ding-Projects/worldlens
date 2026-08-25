@@ -54,6 +54,74 @@ The `-v` puts a folder inside the container; the declaration says which folders 
 may touch and what to call them. Neither implies the other, and a folder mounted but not
 declared is invisible to the application — which is the safe way round.
 
+## The mount root browser
+
+Three refusals above end with the same sentence, "Choose from the folders the operator
+mounted.": `config:pickDirectory`, `config:pickFile`, and the whole `dialog` prefix that
+`dialog:pickFolder` and `dialog:pickFile` sit under. Until now that sentence pointed at
+nothing: a refusal that names
+a replacement which does not exist reads worse than a plain refusal, because it reads as a
+feature the person failed to find. This is what it now points at, a dialog for choosing a folder
+(or, in file mode, a file) from the deployment's own declared mounts.
+
+**Why a browser, and not a text field asking for a path.** Not mainly for security: a typed path
+that escapes a mount is refused by `MountRoots.resolve` regardless of where it came from, exactly
+as it already is everywhere else. The real reason is that a text box asks a person to already
+know the answer, about a filesystem inside a container they did not lay out, whose paths are
+whatever the operator's `-v` flags happened to say. Typing is guessing, and every wrong guess
+comes back as a refusal that reads as broken software rather than as a wrong path.
+
+**The mounted-folder list is the browsing surface and the boundary at the same time.** The
+interface offers exactly the folders `WORLDLENS_MOUNTS` declared (`MountRoots.list()`), and
+opening one or walking into a subfolder calls the same `MountRoots.resolve` that confines every
+other channel. That is what makes it impossible to be shown a folder and then refused for
+choosing it: what is offered is, by construction, everything that would be permitted.
+
+**Every entry in a listing is resolved, not only the folder being listed.** A directory can hold
+a symlink pointing anywhere on the host, so a listing that confined only its own path would print
+the names of files outside the mount even though nobody could open them. Names are not contents,
+but a listing is exactly how somebody learns what exists, and "you can see it, but you cannot
+have it" is not a boundary worth explaining. `browseMount` resolves the folder once and then
+resolves each entry again before adding it to the listing; an entry whose resolved path lands
+outside the requested root, symlink or not, is dropped rather than listed and then refused. That
+case leads the test file, because it is the one that decides whether this is a boundary or a
+decoration.
+
+**The root id is checked as well as the resolved path.** Asking to browse root `worlds` with a
+path that happens to sit inside root `renders` is refused, naming the mismatch, rather than
+quietly returning `renders`'s contents labelled as `worlds`. Without that check the id on a mount
+would be decorative, and two mounts with different writability could be made to look like one.
+
+**Three states look alike and are not.** An empty folder, a folder that failed to read, and a
+folder whose local search matched nothing all render as "nothing here" unless the interface says
+more. Only the first one means there is genuinely nothing there. A read failure gets its own
+message rather than an empty list; a search with no matches gets "Nothing here matches that
+search" beside a live "Showing X of Y" count from the same regex-capable search bar used
+elsewhere in the application, so a filter that hides everything is visibly a filter and not an
+empty folder.
+
+**A folder with more entries than one listing will hold is capped, and the cap is reported.** The
+ceiling is 2000 entries per folder (`MAX_ENTRIES`), so a folder with a hundred thousand region
+files cannot turn one click into a hundred thousand resolve calls and an unusable dialog.
+Truncation sets a `truncated` flag on the listing rather than silently shortening it, and the
+dialog shows it as a note to search rather than as a shorter, unexplained list. A listing that
+quietly stops reads as "that file is not here" to the one person who came looking for it.
+
+**On the interface side**, `MountRootBrowser.vue` is the dialog: the mounted folders first, then
+a chosen folder's contents with an Up action and a way back to "all mounted folders," and, in
+file-picking mode, a chosen file held selected until confirmed. It talks to the server through
+`mountBrowserHost.ts`, which resolves `window.worldlens.mounts` the same way the existing
+`pathFieldHost.ts` resolves `window.worldlens.dialog`, and follows the same all-or-nothing rule:
+a build exposing only one of `list`/`browse` resolves to no bridge at all, so a caller falls back
+cleanly rather than discovering a half-wired control the moment somebody clicks it.
+
+**This has not shipped end to end yet.** `browseMount` and `MountRootBrowser.vue` exist and are
+tested against each other's contracts, but nothing in this codebase yet registers a hosted
+`mounts:list` / `mounts:browse` channel pair or serves `window.worldlens.mounts` from a running
+deployment. Until that lands, `resolveMountBrowserBridge()` returns `null` in every real hosted
+build, exactly the "no bridge" case the dialog already handles, and there is no capture of this
+dialog open against a real container.
+
 ## Failure modes
 
 **It refuses to start on a network address with no password.** Thrown before anything listens,
@@ -100,6 +168,11 @@ person as far as the server is concerned.
   to allow.
 - The mount confinement was watched fail against the naive prefix comparison it replaces, on
   the symlink case and the traversal case.
+- The mount root browser's tests cover the escaping-symlink drop, a root-id/path mismatch, a
+  missing root, an unreadable folder reported apart from an empty one, folders-before-files
+  ordering and truncation past `MAX_ENTRIES`. These are unit tests against `browseMount` alone:
+  there is no hosted `mounts:list` / `mounts:browse` channel wired to it yet, and the dialog has
+  not been captured against a real container.
 - The container was run: signed in with a password, wrong password refused, real feature modules
   answering through the bridge from inside the image, and a flat refusal to start on a network
   address with none. Running it is also what found that `history:status` reported git missing —

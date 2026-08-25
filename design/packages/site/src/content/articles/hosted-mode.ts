@@ -194,6 +194,10 @@ export const hostedMode: Article = {
 
     suggested: [
         {
+            articleId: "mount-browser",
+            reason: "The folder picker built for this: browsing the mounted folders instead of typing a path.",
+        },
+        {
             articleId: "container-image",
             reason: "Where this image comes from, and what makes it a different artifact from the other one.",
         },
