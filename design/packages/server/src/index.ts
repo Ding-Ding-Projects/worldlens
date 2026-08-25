@@ -34,3 +34,11 @@ export { BridgeInvokeHandler } from "./bridge/BridgeInvokeHandler.js";
 export type { BridgeInvokeOptions, BridgePermission } from "./bridge/BridgeInvokeHandler.js";
 export { BridgeEventHandler } from "./bridge/BridgeEventHandler.js";
 export type { BridgeEventOptions } from "./bridge/BridgeEventHandler.js";
+export {
+    HostedSession,
+    HostedSessionHandler,
+    HostedAuthGate,
+    hashPassword,
+    refuseUnsafeExposure,
+} from "./bridge/HostedSession.js";
+export type { HostedSessionOptions } from "./bridge/HostedSession.js";
