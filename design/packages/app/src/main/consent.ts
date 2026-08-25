@@ -21,8 +21,14 @@ import { app } from "electron";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-/** The document being accepted. Stored so a change of terms is detectable. */
-export const MOJANG_EULA_URL = "https://account.mojang.com/documents/minecraft_eula";
+/**
+ * The document being accepted. Stored so a change of terms is detectable.
+ *
+ * Defined in its own module and re-exported here: this file imports Electron, so anything
+ * importing the constant from here inherited that. See `mojangEula.ts`.
+ */
+export { MOJANG_EULA_URL } from "./mojangEula.js";
+import { MOJANG_EULA_URL } from "./mojangEula.js";
 
 /** Bumped only if what the user is agreeing to materially changes. */
 const CONSENT_TERMS_VERSION = 1;

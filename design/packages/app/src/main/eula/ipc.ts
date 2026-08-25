@@ -18,9 +18,8 @@
  * document somebody reads and the document their acceptance names cannot drift apart.
  */
 
-import { app } from "electron";
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import { MOJANG_EULA_URL } from "../consent.js";
+import { MOJANG_EULA_URL } from "../mojangEula.js";
 import { loadEulaDocument, type EulaLoadResult, type FetchLike } from "./document.js";
 
 /** Every channel this module registers. */
@@ -29,8 +28,17 @@ export const EULA_CHANNELS = ["eula:document"] as const;
 export interface EulaIpcOptions {
     /** Injected so a test drives the whole path without a network. Defaults to global fetch. */
     readonly fetch?: FetchLike;
-    /** Defaults to `app.getPath("userData")`, resolved lazily so tests need no Electron. */
-    readonly dataDirectory?: () => string;
+    /**
+     * Where acceptance is recorded. Required.
+     *
+     * It used to default to `app.getPath("userData")`, which meant this module imported
+     * Electron at run time for a fallback almost nobody used - every caller already passed
+     * one. That single import is enough to pull the whole Electron package into any bundle
+     * that reaches this file, which is how a headless build of these same modules ended up
+     * throwing "Electron failed to install correctly" inside a container. The type-only
+     * `IpcMain` import above erases; a value import does not.
+     */
+    readonly dataDirectory: () => string;
 }
 
 export interface EulaIpc {
@@ -49,8 +57,8 @@ export interface EulaRequest {
  * read as a boolean and everything else about the payload is ignored, because the only
  * thing this channel can be asked to vary is whether it goes to the network.
  */
-export function registerEulaHandlers(ipcMain: IpcMain, options: EulaIpcOptions = {}): EulaIpc {
-    const resolveDirectory = options.dataDirectory ?? ((): string => app.getPath("userData"));
+export function registerEulaHandlers(ipcMain: IpcMain, options: EulaIpcOptions): EulaIpc {
+    const resolveDirectory = options.dataDirectory;
 
     ipcMain.handle(
         "eula:document",

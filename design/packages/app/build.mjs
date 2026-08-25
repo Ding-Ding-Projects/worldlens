@@ -1,6 +1,6 @@
 import { build } from "esbuild";
 import { execFileSync } from "node:child_process";
-import { cpSync, mkdirSync } from "node:fs";
+import { cpSync, mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -76,7 +76,32 @@ export const nodeBuiltinRequireShimBanner =
  * hand-built `node_modules/.pnpm/...` path, so this keeps working across pnpm
  * version bumps and store layout changes.
  */
-export function copyZstdWasmAsset(destDir) {
+export /**
+ * Fails the build when the hosted bundle has pulled Electron in.
+ *
+ * The whole hosted route rests on one measured fact: the feature modules under `src/main`
+ * import `IpcMain` as a *type*, which erases, so they run as plain Node. A single value
+ * import anywhere in that graph quietly undoes it - the bundle grows Electron's loader and
+ * throws on its first line in a container, with a message about a failed installation that
+ * sends whoever reads it looking in entirely the wrong place.
+ *
+ * So this reads the bytes actually written rather than trusting the import graph. It is
+ * cheap, it runs on every build, and it turns a container-only failure into a build failure
+ * that names what to grep for.
+ */
+function assertHostedBundleIsElectronFree(outfile) {
+    const bundle = readFileSync(outfile, "utf8");
+    const markers = ["Electron failed to install correctly", 'require("electron")', 'from"electron"'];
+    const found = markers.filter((marker) => bundle.includes(marker));
+    if (found.length === 0) return;
+    throw new Error(
+        `${outfile} has Electron bundled into it (found ${found.join(", ")}). Something under ` +
+            "src/main now imports electron as a value rather than as a type. Find it with: " +
+            "grep -rn '^import {' src/main --include=*.ts | grep electron",
+    );
+}
+
+function copyZstdWasmAsset(destDir) {
     const require = createRequire(import.meta.url);
     const zstdEntry = require.resolve("@bokuweb/zstd-wasm");
     const zstdWasmSrc = join(dirname(zstdEntry), "zstd.wasm");
@@ -285,6 +310,33 @@ async function main() {
     });
 
     copyZstdWasmAsset("dist/main");
+
+    /**
+     * The hosted deployment: the same feature modules, served over HTTP instead of IPC.
+     *
+     * A third output rather than a separate package, because it shares `src/main` with the
+     * desktop build and a package boundary between them would mean either duplicating those
+     * modules or inventing a fourth package for them to live in.
+     *
+     * It must never reach Electron, and the first version of this comment claimed esbuild
+     * would enforce that by failing on an `import "electron"`. It does not. `electron` is a
+     * real npm package with a real JavaScript entry point, so esbuild bundles it happily and
+     * the failure moves to run time, where it surfaces as "Electron failed to install
+     * correctly" from inside a container - a message about an entirely different problem.
+     * That is exactly what happened, which is why the assertion below exists instead.
+     */
+    await build({
+        entryPoints: ["src/hosted/main.ts"],
+        outfile: "dist/hosted/index.js",
+        bundle: true,
+        platform: "node",
+        format: "esm",
+        target: "node22",
+        banner: { js: nodeBuiltinRequireShimBanner },
+        sourcemap: true,
+    });
+
+    assertHostedBundleIsElectronFree("dist/hosted/index.js");
 
     /** Preload: sandboxed preloads must be CommonJS. */
     await build({

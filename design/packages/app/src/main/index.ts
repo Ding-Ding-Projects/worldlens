@@ -579,7 +579,9 @@ function registerIpc(): void {
 
     // Mojang's licence, fetched and cached so it can be read inside the app rather than
     // taken on trust. A reader only: the acceptance itself stays in `consent.ts`.
-    registerEulaHandlers(ipcMain);
+    // The data directory is now passed rather than defaulted, so that this module carries no
+    // run-time Electron import and can be registered by the headless host as well.
+    registerEulaHandlers(ipcMain, { dataDirectory: () => app.getPath("userData") });
 
     // Window controls for the Material title bar. The window is frameless, so these are
     // the only way it can be moved through its states: without them the app cannot be

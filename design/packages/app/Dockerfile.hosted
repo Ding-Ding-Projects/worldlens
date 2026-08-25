@@ -1,0 +1,99 @@
+# syntax=docker/dockerfile:1
+#
+# WorldLens, hosted: the desktop interface in a browser.
+#
+# This is a different artifact from `packages/cli/Dockerfile`, and the difference is worth
+# being clear about before anybody picks one. The CLI image renders worlds and serves
+# upstream BlueMap's map viewer - a map, and nothing else. This image serves the WorldLens
+# application itself: the same renderer bundle the desktop ships, in front of the same
+# feature modules, reached over HTTP instead of Electron IPC.
+#
+# Build from the repository root, because it needs both the pnpm workspace and the vendored
+# webapp source:
+#
+#     docker build -f design/packages/app/Dockerfile.hosted -t worldlens-hosted .
+#
+# Run it with the folders you want it to see, and a password:
+#
+#     docker run --rm -p 8110:8110 \
+#       -e WORLDLENS_PASSWORD=something-you-choose \
+#       -e WORLDLENS_MOUNTS=worlds:/data/worlds:ro:Worlds,out:/data/renders:Renders \
+#       -v "$PWD/worlds:/data/worlds:ro" \
+#       -v "$PWD/renders:/data/renders" \
+#       -v worldlens-state:/data/state \
+#       worldlens-hosted
+#
+# The mount declaration and the `-v` flags are deliberately written twice, in two similar
+# forms. The `-v` puts the folder inside the container; the declaration tells the application
+# which folders it is allowed to touch and what to call them. Neither implies the other: a
+# folder mounted and not declared is invisible to the application, which is the safe way round.
+#
+# **It will refuse to start on a network address with no password.** That is not a bug to work
+# around with `WORLDLENS_INSECURE_NO_PASSWORD=1` unless the network genuinely is trusted:
+# unlike the CLI image, which serves a public map, this carries the whole application and
+# everything you mounted into it.
+
+# --platform=$BUILDPLATFORM for the same reason the CLI image uses it: everything this stage
+# produces is architecture-independent JavaScript, so building it once natively rather than
+# again under emulation costs nothing in correctness. The runtime stage below deliberately
+# does not carry it, because Node itself is a native binary.
+FROM --platform=$BUILDPLATFORM node:22-slim AS build
+
+RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
+WORKDIR /repo
+
+COPY design/package.json design/pnpm-lock.yaml design/pnpm-workspace.yaml design/tsconfig.base.json ./design/
+COPY design/packages ./design/packages
+COPY design/tools ./design/tools
+
+WORKDIR /repo/design
+
+# The renderer and the hosted server, plus everything they depend on. The Electron app
+# package is the entry point for both, which is why it is filtered in: its `build` script
+# emits `dist/hosted/index.js` alongside the desktop bundles, and that script also asserts the
+# hosted bundle contains no Electron. A value import of `electron` anywhere under `src/main`
+# fails the build here rather than producing an image that throws on its first line.
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --frozen-lockfile --filter "@worldlens/app..." --filter "@worldlens/ui..."
+
+RUN pnpm --filter "@worldlens/ui..." run build
+RUN pnpm --filter "@worldlens/app" run build
+
+# Prove the two things this image is made of actually exist before going any further, so a
+# silently empty build fails here rather than as a blank page much later.
+RUN test -f packages/app/dist/hosted/index.js \
+    && test -f packages/ui/dist/index.html \
+    && test -d packages/ui/dist/assets
+
+# The hosted bundle is self-contained - esbuild inlined everything except Node's own builtins -
+# so the runtime stage needs the bundle and the renderer, and no node_modules at all.
+RUN mkdir -p /app/ui \
+    && cp packages/app/dist/hosted/index.js /app/hosted.js \
+    && cp -r packages/ui/dist/. /app/ui/
+
+FROM node:22-slim AS runtime
+
+WORKDIR /app
+COPY --from=build --chown=node:node /app ./
+
+# `/data/state` is the application's own records - settings, history, the gallery index - and
+# is deliberately separate from whatever the operator mounts. Putting them inside a user's
+# folder would mean a read-only mount silently failed to persist anything.
+RUN mkdir -p /data/state && chown -R node:node /data
+VOLUME ["/data/state"]
+
+USER node
+WORKDIR /data
+ENV WORLDLENS_UI_ROOT=/app/ui \
+    WORLDLENS_DATA=/data/state \
+    WORLDLENS_PORT=8110
+EXPOSE 8110
+
+# The per-architecture assertion, run once per target platform by buildx. It is the only check
+# in this file that the target arch's own Node can actually load what was copied in, and it is
+# what keeps the $BUILDPLATFORM optimisation above honest. A deliberately invalid port makes
+# the entry point validate its configuration and exit non-zero without binding anything, so
+# this exercises the real module without needing a socket during the build.
+RUN WORLDLENS_PORT=not-a-port node /app/hosted.js 2>&1 | grep -q "is not a port number"
+
+ENTRYPOINT ["node", "/app/hosted.js"]
