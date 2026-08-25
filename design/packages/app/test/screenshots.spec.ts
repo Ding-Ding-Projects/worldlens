@@ -714,6 +714,40 @@ function skip(surface: string, reason: string): void {
  */
 const SURFACE_BUDGET = 60_000;
 
+/*
+ * A ceiling on the SPEC, not only on each surface inside it.
+ *
+ * SURFACE_BUDGET promises that one unreachable surface costs one image. It cannot promise
+ * that a spec finishes, and the two numbers were chosen independently: the settings spec holds
+ * six surfaces at 60s each against a 300s test budget, so six honest gaps overran the test by a
+ * minute and it died with every gap correctly recorded. The worst spec in this file holds 34
+ * surfaces, which no test timeout could ever absorb, so raising SURFACE_TIMEOUT is not a fix.
+ *
+ * That mattered far more than one spec: a test killed this way discards its worker, and the
+ * next spec's beforeAll then cannot reattach, so the run stops and the finalizers never
+ * publish. Twelve specs did not run for exactly this reason while 15 passed and 8 recorded
+ * honest gaps. The evidence was complete and none of it reached disk.
+ *
+ * So each surface takes the smaller of its own budget and whatever the spec has left, and a
+ * surface reached with no time left is recorded as a gap immediately instead of spending a
+ * budget the spec cannot afford. Gaps stay honest; the run survives to write them down.
+ */
+const SPEC_RESERVE = 25_000;
+const MIN_SURFACE_BUDGET = 8_000;
+
+let specStartedAt = Date.now();
+
+/*
+ * The start instant only. The budget is read later, at each `attempt`, because specs raise
+ * their own ceiling with `test.setTimeout(SURFACE_TIMEOUT)` INSIDE the test body - which runs
+ * after this hook. Reading `testInfo.timeout` here yields the 120s config default and produced
+ * a deadline of 95s against a real budget of 300s, so surfaces with 105s still available were
+ * recorded as out of time. Honest gaps, wrong arithmetic.
+ */
+test.beforeEach(() => {
+    specStartedAt = Date.now();
+});
+
 async function attempt(surface: string, run: () => Promise<void>): Promise<void> {
     /*
      * Timed, because "this spec used its whole budget" is not a diagnosis. It was per-surface
@@ -742,12 +776,22 @@ async function attempt(surface: string, run: () => Promise<void>): Promise<void>
          * flight gives up on its own shortly after. A surface that trips this is reported as a
          * gap, which is exactly what it is.
          */
+        const specBudget = test.info().timeout || SURFACE_TIMEOUT;
+        const remaining = specStartedAt + specBudget - SPEC_RESERVE - Date.now();
+        if (remaining < MIN_SURFACE_BUDGET) {
+            throw new Error(
+                `the spec ran out of time before this surface was reached, so it was not ` +
+                    `attempted rather than attempted badly. Earlier surfaces in this spec used ` +
+                    `the budget; their own gap reasons say why.`,
+            );
+        }
+        const budget = Math.min(SURFACE_BUDGET, remaining);
         await Promise.race([
             run(),
             new Promise<never>((_resolve, reject) =>
                 setTimeout(
-                    () => reject(new Error(`the surface did not finish within ${SURFACE_BUDGET}ms`)),
-                    SURFACE_BUDGET,
+                    () => reject(new Error(`the surface did not finish within ${budget}ms`)),
+                    budget,
                 ).unref?.(),
             ),
         ]);
@@ -1267,8 +1311,29 @@ async function openConverterStep(targetStep: ConverterStepId): Promise<Locator> 
 }
 
 /** Presses Escape and lets the closing transition finish. */
+/*
+ * Bounded, because `keyboard.press` has no timeout of its own and `actionTimeout` does not
+ * cover it. That is not a theoretical gap: a spec whose surfaces had all finished by ~96s
+ * still burned its full 300s test budget here, and the reported error was this exact call
+ * (`keyboard.press: Target page, context or browser has been closed`, which is the teardown
+ * closing the connection underneath a press that never returned).
+ *
+ * Why it stalls is the documented cost of the surface race: an abandoned `run()` keeps
+ * executing after `attempt` stops waiting for it, so several orphaned surfaces can still be
+ * driving the page when the spec reaches its tail. An unbounded press behind that traffic
+ * never completes, the test times out, its worker is discarded, and every later spec in the
+ * run is lost. Twelve specs did not run for exactly this reason.
+ *
+ * Escape is a courtesy here, not evidence: nothing is asserted about it, so failing to send it
+ * costs nothing, while waiting forever to send it costs the whole run.
+ */
+const DISMISS_BUDGET = 10_000;
+
 async function dismiss(): Promise<void> {
-    await page.keyboard.press("Escape");
+    await Promise.race([
+        page.keyboard.press("Escape"),
+        new Promise<void>((resolve) => setTimeout(resolve, DISMISS_BUDGET).unref?.()),
+    ]).catch(() => {});
     await page.waitForTimeout(400);
 }
 
@@ -2942,12 +3007,34 @@ const APP_SETTINGS = ".mb-settings.mb-docked";
  */
 async function openSettingsSurface(): Promise<void> {
     if (await visible(APP_SETTINGS)) return;
+
+    /*
+     * Close the options editor first, for the reason `selectDestination` spells out above: while
+     * it is open, `App.vue` marks `.mb-shell-body` inert, so a click on a rail button is delivered
+     * to an inert element and does nothing, silently, while the button stays visible and `click()`
+     * reports success. This function had no such guard.
+     *
+     * It matters here more than anywhere, because `DockedSurface` uses `v-show`: the panel is
+     * always in the document and only its visibility changes. So the wait below is not waiting for
+     * markup to appear, it is waiting for `props.open` to become true, and a swallowed click means
+     * a full timeout on an element that is present the whole time. Six settings surfaces failed
+     * behind that one unopened drawer.
+     */
+    await ensureOptionsEditorClosed();
     await page
         .locator(".wl-rail__footer")
         .getByRole("button", { name: "Settings", exact: true })
         .first()
         .click({ timeout: ELEMENT_TIMEOUT });
-    await page.waitForSelector(APP_SETTINGS, { state: "visible", timeout: ELEMENT_TIMEOUT });
+    await page
+        .waitForSelector(APP_SETTINGS, { state: "visible", timeout: REACH_TIMEOUT })
+        .catch(() => {
+            throw new Error(
+                "the settings drawer did not open: its button was clicked and reported success, " +
+                    "but the panel never became visible. It is always in the document under " +
+                    "v-show, so this is an unopened drawer rather than missing markup.",
+            );
+        });
     await page.waitForTimeout(400);
 }
 
