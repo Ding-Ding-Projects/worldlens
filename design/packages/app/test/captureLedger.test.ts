@@ -162,27 +162,6 @@ describe("the coverage verdict", () => {
         expect(verdict.excusedForNoMap).toEqual([]);
     });
 
-    it("still counts a surface that was skipped once and completed once", () => {
-        const verdict = coverageVerdict({
-            ledger: parseLedger(
-                [
-                    JSON.stringify({ kind: "step", surface: "Options editor" }),
-                    JSON.stringify({ kind: "step", surface: "Tab finder" }),
-                    JSON.stringify({ kind: "step", surface: "Changelog viewer" }),
-                    JSON.stringify({
-                        kind: "skip",
-                        surface: "Tab finder",
-                        reason: "it did not open on the second attempt",
-                    }),
-                ].join("\n"),
-            ),
-            required: REQUIRED,
-            hasLoadedMap: true,
-        });
-
-        expect(verdict.missing).toEqual(["Tab finder - it did not open on the second attempt"]);
-    });
-
     /**
      * A single-process run has exactly one attempt at each surface, so a skip and a completed
      * step for the same surface describe one contradictory record rather than two independent
