@@ -978,6 +978,16 @@
     aspect-ratio: 320 / 568;
 }
 
+/*
+ * The hosted deployment at a desktop width, which the capture harness drives at 1280 by 900.
+ * Wider than it is tall, unlike the two phone widths above, because these two show the states
+ * a hosted deployment has and a desktop build does not: the password prompt, and what sits
+ * behind it once the prompt is satisfied.
+ */
+.mb-shot-image[data-ratio="1280 / 900"] {
+    aspect-ratio: 1280 / 900;
+}
+
 /* The deployment application's own window, which is a different size from this one's. */
 .mb-shot-image[data-ratio="1650 / 1140"] {
     aspect-ratio: 1650 / 1140;

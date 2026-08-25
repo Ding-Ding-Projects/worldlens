@@ -102,6 +102,22 @@ interface CaptureRecord {
  */
 const RECORDS: readonly CaptureRecord[] = [
     {
+        file: "hosted-signin.png",
+        aspectRatio: "1280 / 900",
+        title: "What a hosted deployment asks for first",
+        configuration: "1280 by 900 CSS pixels, signed out, served from a deployment the capture harness starts",
+        alt: "A dark card centred on a dark page, headed Sign in, over the line This copy of WorldLens is being served over a network and asks for the password the operator set. Below that a label reading Password, an empty password field carrying a focus ring because focus is placed there on arrival, and a single filled Sign in button running the full width of the card. Nothing else is on the page: no application rail, no destinations and no content behind the card.",
+        featured: false,
+    },
+    {
+        file: "hosted-signed-in.png",
+        aspectRatio: "1280 / 900",
+        title: "The same deployment once the password is accepted",
+        configuration: "1280 by 900 CSS pixels, signed in, served from a deployment the capture harness starts",
+        alt: "The Worldlens Home page in a browser rather than an application window. The application rail runs down the left with Home, Map, Host Server and Work, and the page beside it reads Let us make your first map over New map, Walk me through it and Search everything, with a row of further actions beneath a rule. This is the same address as the previous capture, after the password was given.",
+        featured: false,
+    },
+    {
         file: "hosted-375.png",
         aspectRatio: "375 / 667",
         title: "The interface on a phone-sized screen",
