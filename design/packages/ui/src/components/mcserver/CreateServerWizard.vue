@@ -757,7 +757,7 @@ const canAdvance = computed(() => {
                                 variant="tonal"
                                 color="warning"
                             >
-                                {{ t("mcserver.wizard.noCatalogue", "No live version list yet") }}
+                                {{ t("mcserver.wizard.noCatalogue", "Publishes no downloadable builds") }}
                             </VChip>
                         </VBtn>
                     </div>

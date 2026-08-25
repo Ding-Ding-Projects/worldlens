@@ -79,6 +79,24 @@ const VELOCITY_BUILDS = JSON.stringify([
 const PURPUR_PROJECT = JSON.stringify({ versions: ["1.21.4"] });
 const PURPUR_VERSION = JSON.stringify({ builds: { latest: "2350", all: ["2349", "2350"] } });
 
+// Forge publishes a promotions map rather than a version list: each Minecraft version
+// points at the Forge build promoted for it, and recommended beats latest for the same one.
+const FORGE_PROMOTIONS = JSON.stringify({
+    promos: {
+        "1.21.3-latest": "53.0.10",
+        "1.21.4-latest": "54.1.2",
+        "1.21.4-recommended": "54.1.0",
+    },
+});
+
+// NeoForge publishes Maven metadata, oldest first.
+const NEOFORGE_METADATA = [
+    "<metadata><versioning><versions>",
+    "<version>21.4.10-beta</version>",
+    "<version>21.4.11</version>",
+    "</versions></versioning></metadata>",
+].join("");
+
 const FABRIC_LOADERS = JSON.stringify([
     { version: "0.16.9", stable: true },
     { version: "0.16.10-beta.1", stable: false },
@@ -105,6 +123,8 @@ const ALL_ROUTES: Record<string, string> = {
     "https://api.purpurmc.org/v2/purpur/1.21.4": PURPUR_VERSION,
     "https://api.purpurmc.org/v2/purpur": PURPUR_PROJECT,
     "https://meta.fabricmc.net/v2/versions/loader": FABRIC_LOADERS,
+    "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json": FORGE_PROMOTIONS,
+    "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml": NEOFORGE_METADATA,
 };
 
 describe("refreshCatalogue", () => {
@@ -299,5 +319,57 @@ describe("a cache written by an older build", () => {
         if (!answer.ok) return;
         const vanilla = answer.value.flavours.find((entry) => entry.flavour === "vanilla");
         expect(vanilla?.versions[0]?.releasedAt).toBe("2024-12-03T10:12:57+00:00");
+    });
+});
+
+describe("the mod-loader catalogues", () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await mkdtemp(join(tmpdir(), "mcserver-loaders-"));
+    });
+
+    afterEach(async () => {
+        await rm(dir, { recursive: true, force: true });
+    });
+
+    it("offers one Forge row per Minecraft version, taking the promoted build over the latest", async () => {
+        const result = await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES) });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        const forge = result.value.flavours.find((entry) => entry.flavour === "forge");
+        const versions = (forge?.versions ?? []).map((entry) => entry.version);
+
+        // 1.21.4 published both a latest (54.1.2) and a recommended (54.1.0). Recommended is
+        // the build Forge itself points people at, and offering both would be two rows that
+        // mean one choice.
+        expect(versions).toContain("1.21.4-54.1.0");
+        expect(versions).not.toContain("1.21.4-54.1.2");
+        expect(versions.filter((v) => v.startsWith("1.21.4-"))).toHaveLength(1);
+    });
+
+    it("points Forge at the installer, because no ready-made server jar is published", async () => {
+        const result = await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES) });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        const forge = result.value.flavours.find((entry) => entry.flavour === "forge");
+        const entry = forge?.versions.find((v) => v.version === "1.21.4-54.1.0");
+        expect(entry?.downloadUrl).toContain("forge-1.21.4-54.1.0-installer.jar");
+        // Forge publishes no digest beside it. Null rather than an invented one, which would
+        // fail verification much later and read as a corrupt download.
+        expect(entry?.sha256).toBeNull();
+    });
+
+    it("reads NeoForge newest first and marks a beta as a snapshot", async () => {
+        const result = await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES) });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        const neo = result.value.flavours.find((entry) => entry.flavour === "neoforge");
+
+        // Maven lists oldest first; every other flavour here offers newest first, and a
+        // picker whose top row is the oldest build is one people choose wrongly.
+        expect(neo?.versions[0]?.version).toBe("21.4.11");
+        expect(neo?.versions.find((v) => v.version === "21.4.10-beta")?.stability).toBe("snapshot");
+        expect(neo?.versions.find((v) => v.version === "21.4.11")?.stability).toBe("release");
     });
 });

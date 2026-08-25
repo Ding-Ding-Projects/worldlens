@@ -92,7 +92,7 @@ export const FLAVOUR_CARDS: readonly FlavourCard[] = [
         tagline: "The classic mod loader",
         description:
             "The long-established mod loader with the largest back catalogue of existing mods. Heavier than Fabric to update.",
-        cataloguedId: null,
+        cataloguedId: "forge",
     },
     {
         id: "neoforge",
@@ -100,7 +100,7 @@ export const FLAVOUR_CARDS: readonly FlavourCard[] = [
         tagline: "Forge's modern successor",
         description:
             "A community-maintained continuation of Forge, aimed at newer versions and cleaner internals.",
-        cataloguedId: null,
+        cataloguedId: "neoforge",
     },
     {
         id: "velocity",

@@ -27,9 +27,17 @@ import { dirname, join } from "node:path";
 import { atomicWriteTextFile } from "../../storage/atomicReplace.js";
 import { fail, ok, type Answer } from "../transport/types.js";
 
-export type FlavourId = "vanilla" | "paper" | "velocity" | "purpur" | "fabric";
+export type FlavourId = "vanilla" | "paper" | "velocity" | "purpur" | "fabric" | "forge" | "neoforge";
 
-export const FLAVOUR_IDS: readonly FlavourId[] = ["vanilla", "paper", "velocity", "purpur", "fabric"];
+export const FLAVOUR_IDS: readonly FlavourId[] = [
+    "vanilla",
+    "paper",
+    "velocity",
+    "purpur",
+    "fabric",
+    "forge",
+    "neoforge",
+];
 
 export type VersionStability = "release" | "snapshot";
 
@@ -350,6 +358,8 @@ async function fetchAllFlavours(
         velocity: () => fetchPaperFamilyVersions(fetchText, "velocity", limit),
         purpur: () => fetchPurpurVersions(fetchText, limit),
         fabric: () => fetchFabricLoaderVersions(fetchText, limit),
+        forge: () => fetchForgeVersions(fetchText, limit),
+        neoforge: () => fetchNeoForgeVersions(fetchText, limit),
     };
 
     const flavours: FlavourCatalogue[] = [];
@@ -363,6 +373,102 @@ async function fetchAllFlavours(
         }
     }
     return { flavours, failures };
+}
+
+// ---------------------------------------------------------------------------------------
+// Forge - https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json
+//
+// Forge publishes no version list of its own shape; what it publishes is a promotions file
+// mapping each Minecraft version to the Forge build recommended for it. That is better than
+// a raw list, because the mapping is the part this app needs and the part it must not guess:
+// a Forge build only works against the exact Minecraft version it was promoted for.
+//
+// Only the installer is published, not a ready server jar, so `downloadUrl` points at the
+// installer and the install step runs it. Forge publishes no digest alongside it, so
+// `sha256` stays null rather than carrying an invented one.
+// ---------------------------------------------------------------------------------------
+
+interface ForgePromotions {
+    readonly promos?: Record<string, string | undefined>;
+}
+
+/** `1.21.4-recommended` and `1.21.4-latest` both name the same Minecraft version. */
+function forgeGameVersionOf(key: string): { game: string; channel: "recommended" | "latest" } | null {
+    const match = /^(.+)-(recommended|latest)$/.exec(key);
+    const game = match?.[1];
+    const channel = match?.[2];
+    if (game === undefined || channel === undefined) return null;
+    return { game, channel: channel as "recommended" | "latest" };
+}
+
+async function fetchForgeVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
+    const text = await fetchText("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json");
+    const parsed = JSON.parse(text) as ForgePromotions;
+
+    // Recommended wins over latest for the same game version: a promoted build is the one
+    // Forge itself points people at, and offering both would be two rows meaning one choice.
+    const best = new Map<string, string>();
+    for (const [key, build] of Object.entries(parsed.promos ?? {})) {
+        if (typeof build !== "string") continue;
+        const parsedKey = forgeGameVersionOf(key);
+        if (parsedKey === null) continue;
+        if (parsedKey.channel === "recommended" || !best.has(parsedKey.game)) {
+            best.set(parsedKey.game, build);
+        }
+    }
+
+    // Newest first, matching every other flavour here.
+    const games = [...best.keys()].reverse().slice(0, limit);
+    return games.map((game) => {
+        const build = best.get(game) ?? "";
+        const full = `${game}-${build}`;
+        return {
+            version: full,
+            stability: "release" as const,
+            // Forge does not publish a required Java feature per build. Resolved from the
+            // game version by `javaRequirement.ts` rather than asserted here.
+            javaFeature: 21,
+            downloadUrl: `https://maven.minecraftforge.net/net/minecraftforge/forge/${full}/forge-${full}-installer.jar`,
+            sha256: null,
+            releasedAt: null,
+        };
+    });
+}
+
+// ---------------------------------------------------------------------------------------
+// NeoForge - https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml
+//
+// The Maven metadata is the published list. A NeoForge version encodes the Minecraft
+// version it targets in its own leading components, so the game version is derived from the
+// NeoForge version rather than looked up - and because that is a convention rather than a
+// published mapping, the full NeoForge version is what gets recorded, so nothing downstream
+// has to trust the derivation.
+// ---------------------------------------------------------------------------------------
+
+async function fetchNeoForgeVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
+    const text = await fetchText("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml");
+    const versions: string[] = [];
+    // Deliberately a narrow scan rather than an XML parse: the only thing wanted here is the
+    // version text, and adding an XML dependency to read one repeated element would be a
+    // larger change than the feature.
+    const pattern = /<version>([^<]+)<\/version>/g;
+    let match = pattern.exec(text);
+    while (match !== null) {
+        const value = match[1];
+        if (value !== undefined && value.trim() !== "") versions.push(value.trim());
+        match = pattern.exec(text);
+    }
+
+    // Maven lists oldest first; every other flavour here offers newest first.
+    return versions.reverse().slice(0, limit).map((version) => ({
+        version,
+        // A NeoForge beta carries a `-beta` suffix; everything else is a release.
+        stability: /-(beta|alpha|rc)/i.test(version) ? ("snapshot" as const) : ("release" as const),
+        javaFeature: 21,
+        downloadUrl: `https://maven.neoforged.net/releases/net/neoforged/neoforge/${version}/neoforge-${version}-installer.jar`,
+        sha256: null,
+        releasedAt: null,
+    }));
 }
 
 async function readCache(dataDir: string): Promise<CatalogueSnapshot | null> {
