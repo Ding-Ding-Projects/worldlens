@@ -4,6 +4,7 @@ import {
     resetLogoToShipped,
     selectLogoPreset,
     setCustomLogo,
+    setCreativeOwnedLogo,
     updateLogoBackground,
     updateLogoCrop,
     updateLogoFit,
@@ -57,11 +58,13 @@ export function applyCreativeLogoVariant(document: CreativeAppearanceDocument, v
         backgroundColor: logoStore.backgroundColor,
     };
     const mark: LogoCustomMark = { dataUrl: variant.dataUrl, format: "svg", width: variant.width, height: variant.height };
+    const ownsStore = document.logo.target === "app-logo" && (document.logo.ownership === null ? logoStore.ownership === null : logoStore.ownership?.token === document.logo.ownership.token && logoStore.ownership.revision === document.logo.ownership.revision);
     try {
         const variants = [...document.logo.variants.filter((candidate) => candidate.id !== variant.id), variant].slice(-8);
-        const next = setCreativeLogo(document, { enabled: true, activeVariantId: variant.id, variants, presentation: presentationFromStore() });
-        if (document.logo.target !== "app-logo") return next;
-        setCustomLogo(mark);
+        const ownership = document.logo.target === "app-logo" && ownsStore ? { token: document.logo.ownership?.token ?? `creative-${Date.now().toString(36)}`, revision: (document.logo.ownership?.revision ?? 0) + 1 } : null;
+        const next = setCreativeLogo(document, { enabled: true, activeVariantId: variant.id, variants, ownership, presentation: presentationFromStore() });
+        if (document.logo.target !== "app-logo" || !ownsStore) return next;
+        setCreativeOwnedLogo(mark, ownership!);
         return next;
     } catch (error) {
         try {
@@ -88,7 +91,9 @@ export function resetCreativeLogoPipeline(document: CreativeAppearanceDocument):
 export function syncCreativeLogoStore(document: CreativeAppearanceDocument): void {
     if (document.logo.target !== "app-logo") return;
     if (!document.logo.enabled || document.logo.variants.length === 0 || document.logo.activeVariantId === null) {
+        const priorOwnership = logoStore.ownership;
         resetLogoToShipped();
+        if (priorOwnership !== null) logoStore.ownership = document.logo.ownership ?? priorOwnership;
         return;
     }
     const variant = document.logo.variants.find((candidate) => candidate.id === document.logo.activeVariantId);
@@ -96,12 +101,13 @@ export function syncCreativeLogoStore(document: CreativeAppearanceDocument): voi
     const bytes = svgBytes(variant.dataUrl);
     const validation = validateLogoBytes(bytes);
     if (!validation.ok || validation.image.format !== "svg") throw new Error("The saved logo variant failed the app-logo byte validation during history replay.");
+    if (logoStore.ownership?.token !== document.logo.ownership?.token || logoStore.ownership?.revision !== document.logo.ownership?.revision) return;
     if ((LOGO_PRESET_IDS as readonly string[]).includes(document.logo.presentation.presetId)) selectLogoPreset(document.logo.presentation.presetId as LogoPresetId);
     updateLogoCrop(document.logo.presentation.crop);
     updateLogoFit(document.logo.presentation.fit);
     updateLogoFocalPoint(document.logo.presentation.focalPoint);
     updateLogoBackground(document.logo.presentation.background, document.logo.presentation.backgroundColor);
-    setCustomLogo({ dataUrl: variant.dataUrl, format: "svg", width: variant.width, height: variant.height });
+    setCreativeOwnedLogo({ dataUrl: variant.dataUrl, format: "svg", width: variant.width, height: variant.height }, document.logo.ownership);
 }
 
 export function releaseCreativeLogoOwnership(previousTarget: CreativeAppearanceDocument["logo"]["target"], nextTarget: CreativeAppearanceDocument["logo"]["target"]): void {

@@ -188,6 +188,7 @@ export interface CreativeLogoComposition {
     readonly enabled: boolean;
     readonly target: "app-logo" | "appearance-target";
     readonly activeVariantId: string | null;
+    readonly ownership: { readonly token: string; readonly revision: number } | null;
     readonly presentation: CreativeLogoPresentation;
     readonly safeArea: { readonly inset: number; readonly enabled: boolean };
     readonly variants: readonly { readonly id: string; readonly width: number; readonly height: number; readonly dataUrl: string }[];

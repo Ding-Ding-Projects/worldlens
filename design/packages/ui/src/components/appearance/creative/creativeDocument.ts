@@ -43,6 +43,7 @@ const DEFAULT_LOGO: CreativeLogoComposition = {
     enabled: false,
     target: "appearance-target" as const,
     activeVariantId: null,
+    ownership: null,
     presentation: { presetId: "square", crop: { top: 0, right: 0, bottom: 0, left: 0 }, fit: "contain", focalPoint: { x: 50, y: 50 }, background: "transparent", backgroundColor: "#1e1e1e" },
     safeArea: { inset: 10, enabled: true },
     variants: [],
@@ -372,7 +373,8 @@ export function distributeCreativeLayers(document: CreativeAppearanceDocument, i
 }
 
 export function setCreativeLogo(document: CreativeAppearanceDocument, logo: Partial<CreativeAppearanceDocument["logo"]>): CreativeAppearanceDocument {
-    const next = { ...document, logo: { ...document.logo, ...clone(logo) } };
+    const mergedLogo = { ...document.logo, ...clone(logo) };
+    const next = { ...document, logo: { ...mergedLogo, ownership: mergedLogo.target === "app-logo" ? mergedLogo.ownership : null } };
     const entry = snapshot("adjust logo composition", next.canvas, next.layers, next.selectedLayerIds, next.presets, next.logo);
     const history = [...document.history.slice(0, document.historyCursor + 1), entry].slice(-CREATIVE_LIMITS.maxHistory);
     return { ...next, history, historyCursor: history.length - 1 };
@@ -492,7 +494,7 @@ function selectedIdsValid(layers: unknown, selected: unknown): boolean {
 }
 
 function validLogoComposition(value: unknown): boolean {
-    if (!isObject(value) || typeof value.enabled !== "boolean" || !["app-logo", "appearance-target"].includes(String(value.target)) || (value.activeVariantId !== null && typeof value.activeVariantId !== "string") || !isObject(value.presentation) || typeof value.presentation.presetId !== "string" || !isObject(value.presentation.crop) || !validNumber(value.presentation.crop.top, 0, 40) || !validNumber(value.presentation.crop.right, 0, 40) || !validNumber(value.presentation.crop.bottom, 0, 40) || !validNumber(value.presentation.crop.left, 0, 40) || !["fill", "contain"].includes(String(value.presentation.fit)) || !isObject(value.presentation.focalPoint) || !validNumber(value.presentation.focalPoint.x, 0, 100) || !validNumber(value.presentation.focalPoint.y, 0, 100) || !["transparent", "solid"].includes(String(value.presentation.background)) || !validColor(value.presentation.backgroundColor) || !isObject(value.safeArea) || !validNumber(value.safeArea.inset, 0, 512) || typeof value.safeArea.enabled !== "boolean" || !Array.isArray(value.variants) || value.variants.length > 8) return false;
+    if (!isObject(value) || typeof value.enabled !== "boolean" || !["app-logo", "appearance-target"].includes(String(value.target)) || (value.activeVariantId !== null && typeof value.activeVariantId !== "string") || (value.ownership !== null && (!isObject(value.ownership) || typeof value.ownership.token !== "string" || !Number.isInteger(value.ownership.revision) || value.ownership.revision < 0)) || !isObject(value.presentation) || typeof value.presentation.presetId !== "string" || !isObject(value.presentation.crop) || !validNumber(value.presentation.crop.top, 0, 40) || !validNumber(value.presentation.crop.right, 0, 40) || !validNumber(value.presentation.crop.bottom, 0, 40) || !validNumber(value.presentation.crop.left, 0, 40) || !["fill", "contain"].includes(String(value.presentation.fit)) || !isObject(value.presentation.focalPoint) || !validNumber(value.presentation.focalPoint.x, 0, 100) || !validNumber(value.presentation.focalPoint.y, 0, 100) || !["transparent", "solid"].includes(String(value.presentation.background)) || !validColor(value.presentation.backgroundColor) || !isObject(value.safeArea) || !validNumber(value.safeArea.inset, 0, 512) || typeof value.safeArea.enabled !== "boolean" || !Array.isArray(value.variants) || value.variants.length > 8) return false;
     const variantIds = new Set<string>();
     if (!value.variants.every((variant) => isObject(variant) && typeof variant.id === "string" && !variantIds.has(variant.id) && (variantIds.add(variant.id), validNumber(variant.width, 1, 2048) && validNumber(variant.height, 1, 2048) && validLogoVariantDataUrl(variant.dataUrl)))) return false;
     return value.activeVariantId === null || variantIds.has(value.activeVariantId);
@@ -547,7 +549,7 @@ function migrateLayer(raw: unknown): Record<string, unknown> {
 function migrateLogo(raw: unknown): Record<string, unknown> {
     const value = isObject(raw) ? raw : {};
     const variants = Array.isArray(value.variants) ? value.variants : [];
-    return { ...clone(DEFAULT_LOGO), ...value, presentation: isObject(value.presentation) ? { ...clone(DEFAULT_LOGO.presentation), ...value.presentation } : clone(DEFAULT_LOGO.presentation), safeArea: isObject(value.safeArea) ? value.safeArea : clone(DEFAULT_LOGO.safeArea), variants, activeVariantId: typeof value.activeVariantId === "string" ? value.activeVariantId : (isObject(variants[0]) && typeof variants[0].id === "string" ? variants[0].id : null) };
+    return { ...clone(DEFAULT_LOGO), ...value, ownership: isObject(value.ownership) ? value.ownership : null, presentation: isObject(value.presentation) ? { ...clone(DEFAULT_LOGO.presentation), ...value.presentation } : clone(DEFAULT_LOGO.presentation), safeArea: isObject(value.safeArea) ? value.safeArea : clone(DEFAULT_LOGO.safeArea), variants, activeVariantId: typeof value.activeVariantId === "string" ? value.activeVariantId : (isObject(variants[0]) && typeof variants[0].id === "string" ? variants[0].id : null) };
 }
 
 function valueOrEmpty(value: Record<string, unknown>): Record<string, unknown> {
