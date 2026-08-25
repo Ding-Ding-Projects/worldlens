@@ -2,7 +2,19 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+    <!--
+      `user-scalable=no` used to be here and is deliberately gone.
+      
+      It is the standard incantation for "make this feel like an app", and on a surface a
+      person may open on a phone it takes away the one accommodation somebody with low vision
+      has that needs no cooperation from us at all: pinch to zoom. WCAG 1.4.4 exists for
+      exactly this, and the interface losing a little polish when somebody zooms it is not a
+      trade we get to make on their behalf.
+
+      `viewport-fit=cover` stays, because it is about drawing under a notch rather than about
+      taking anything away.
+    -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#006EDE">
     <link rel="icon" href="./assets/logoCircle64.png">
     <title>Worldlens</title>

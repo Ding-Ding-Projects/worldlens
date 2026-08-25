@@ -1,0 +1,8 @@
+The same interface at 320 CSS pixels, the narrowest width worth supporting.
+
+Everything is still readable and every control is still a real target. The rail takes a
+quarter of the width here, which is the tightest it gets, and the content column still holds
+a full sentence per line rather than breaking words.
+
+Captured the same way as the 375 shot: the real hosted container, a headless browser with
+device metrics emulated, and the single-target isolation proof taken before anything was read.

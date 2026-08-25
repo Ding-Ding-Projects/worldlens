@@ -1,0 +1,10 @@
+The WorldLens interface at 375 CSS pixels, in a browser, served by the hosted container.
+
+Captured from the real deployment rather than a resized desktop window: the container was
+started with a mounted folder, and Edge was driven headlessly with device metrics emulated at
+375x667 and a device pixel ratio of 2. The isolation was proved first - exactly one debugging
+target, of page type, at this deployment's own address.
+
+The rail is 80 CSS pixels, about a fifth of the width, and keeps its labels. Content reflows
+rather than truncating, the buttons are full-size touch targets, and the measured horizontal
+overflow is zero.
