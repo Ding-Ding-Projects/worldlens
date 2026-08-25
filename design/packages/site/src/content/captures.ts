@@ -102,6 +102,31 @@ interface CaptureRecord {
  */
 const RECORDS: readonly CaptureRecord[] = [
     {
+        file: "hosted-375.png",
+        aspectRatio: "375 / 667",
+        title: "The interface on a phone-sized screen",
+        configuration: "375 by 667 CSS pixels, device pixel ratio 2, served from a container",
+        alt: "The Worldlens Home page at 375 CSS pixels wide, in a browser rather than an application window. The application rail keeps its icons and labels down the left at eighty CSS pixels, about a fifth of the width, and the page beside it reads Let us make your first map over New map, Walk me through it and Search everything buttons, each running the full width of the remaining column, with the explanatory paragraph reflowing to five lines rather than truncating.",
+        featured: false,
+    },
+    {
+        file: "hosted-320.png",
+        aspectRatio: "320 / 568",
+        title: "The interface at the narrowest width worth supporting",
+        configuration: "320 by 568 CSS pixels, device pixel ratio 2, served from a container",
+        alt: "The same Home page at 320 CSS pixels wide. The rail takes a quarter of the width here, which is the tightest it gets, and the content column still holds a full phrase per line rather than breaking words. A scroll indicator sits at the right edge, so the content below the fold is reachable rather than clipped.",
+        featured: false,
+    },
+    {
+        file: "wharf-first-run.png",
+        aspectRatio: "1650 / 1140",
+        title: "Wharf on first run",
+        configuration: "1650 by 1140, captured from the built application on an off-screen desktop",
+        alt: "The Wharf window on first run, headed Wharf over the line deploys a container image to a machine. Three cards sit below it: Where, holding a machine selector reading This computer and a Check Docker button under the line Docker has not been checked yet; What, holding an image field whose placeholder shows a digest-pinned reference, a name field and a port field; and The main folder, which holds a Choose a folder button and the line No folder chosen, and no text field at all. A fourth card beneath reads What will happen, with a Show the plan button above a greyed-out Deploy button.",
+        featured: false,
+    },
+
+    {
         file: "shell-1920x1080.png",
         aspectRatio: "16 / 9",
         title: "A full-size window",

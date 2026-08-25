@@ -23,6 +23,9 @@ import { glossary } from "./glossary.js";
 import { install } from "./install.js";
 import { viewerRemoteMode } from "./viewer-remote-mode.js";
 import { embeddedServer } from "./embedded-server.js";
+import { hostedMode } from "./hosted-mode.js";
+import { containerImage } from "./container-image.js";
+import { wharf } from "./wharf.js";
 import { electronSecurity } from "./electron-security.js";
 import { firstRunConsent } from "./first-run-consent.js";
 import { worldlensMigration } from "./worldlens-migration.js";
@@ -79,6 +82,9 @@ export const articles: readonly Article[] = [
     glossary,
     viewerRemoteMode,
     embeddedServer,
+    hostedMode,
+    containerImage,
+    wharf,
     electronSecurity,
     desktopShellChrome,
     startupRecovery,

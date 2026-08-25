@@ -206,6 +206,10 @@ export const embeddedServer: Article = {
 
     suggested: [
         {
+            articleId: "hosted-mode",
+            reason: "The same server, reached over a network instead of only from this machine.",
+        },
+        {
             articleId: "electron-security",
             reason: "The renderer-side half: how the window is locked to this server's origin and given the token.",
         },

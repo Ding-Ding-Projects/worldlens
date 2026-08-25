@@ -966,6 +966,24 @@
 }
 
 /*
+ * Phone-shaped, and taller than they are wide, which no other capture here is. These come
+ * from a browser with device metrics emulated rather than from the desktop harness, so the
+ * ratio is the emulated viewport rather than a window somebody sized.
+ */
+.mb-shot-image[data-ratio="375 / 667"] {
+    aspect-ratio: 375 / 667;
+}
+
+.mb-shot-image[data-ratio="320 / 568"] {
+    aspect-ratio: 320 / 568;
+}
+
+/* The deployment application's own window, which is a different size from this one's. */
+.mb-shot-image[data-ratio="1650 / 1140"] {
+    aspect-ratio: 1650 / 1140;
+}
+
+/*
  * The rest are crops, and a crop is a real shape rather than an odd one: a title bar is
  * genuinely 1280 by 40, the application rail genuinely 80 by 760. Each needs its own rule,
  * because the ratio is applied through an attribute selector and a value with no rule
