@@ -70,4 +70,27 @@ describe("main-boundary Wiki verification", () => {
         const result = await verifyWikiArticle({ dataDir: dir, version: "24w14a", fetch });
         expect(result.state).toBe("offline-unverified");
     });
+
+    it("retries an unverified cached result after its short TTL", async () => {
+        let calls = 0;
+        const fetch: WikiFetch = async () => {
+            calls += 1;
+            return { status: calls === 1 ? 403 : 200 };
+        };
+        const first = await verifyWikiArticle({
+            dataDir: dir,
+            version: "1.20.9",
+            now: () => "2026-08-24T00:00:00Z",
+            fetch,
+        });
+        const second = await verifyWikiArticle({
+            dataDir: dir,
+            version: "1.20.9",
+            now: () => "2026-08-24T00:11:00Z",
+            fetch,
+        });
+        expect(first.state).toBe("offline-unverified");
+        expect(second.state).toBe("verified");
+        expect(calls).toBe(2);
+    });
 });

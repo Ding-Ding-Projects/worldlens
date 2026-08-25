@@ -374,6 +374,37 @@ describe("refreshCatalogue", () => {
         expect(reread.ok).toBe(true);
         if (reread.ok) expect(reread.value.sourceRevision).not.toBe("a".repeat(64));
     });
+
+    it("rejects malformed Mojang Java metadata instead of quietly choosing Java 8", async () => {
+        const manifest = JSON.stringify({
+            versions: [
+                {
+                    id: "1.21.5",
+                    type: "release",
+                    url: "https://example.test/bad-java.json",
+                    releaseTime: "2026-01-01T00:00:00Z",
+                },
+            ],
+        });
+        const result = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                if (url === "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
+                    return manifest;
+                if (url === "https://example.test/bad-java.json")
+                    return JSON.stringify({
+                        downloads: { server: { url: "https://example.test/server.jar" } },
+                        javaVersion: { majorVersion: "21" },
+                    });
+                return fakeFetch(ALL_ROUTES)(url);
+            },
+        });
+        expect(result.ok).toBe(true);
+        if (result.ok)
+            expect(
+                result.value.failures.find((failure) => failure.flavour === "vanilla")?.reason,
+            ).toContain("malformed Java");
+    });
 });
 
 describe("listCatalogue", () => {

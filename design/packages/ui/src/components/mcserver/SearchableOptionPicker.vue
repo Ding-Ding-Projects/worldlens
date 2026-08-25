@@ -90,6 +90,8 @@ function choose(option: SearchablePickerOption): void {
                         :title="option.title"
                         :subtitle="option.subtitle ?? ''"
                         :disabled="option.disabled ?? false"
+                        tag="button"
+                        role="option"
                         :aria-selected="option.value === modelValue"
                         @click="choose(option)"
                     />

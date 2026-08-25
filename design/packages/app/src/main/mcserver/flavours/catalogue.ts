@@ -221,7 +221,9 @@ function validateCachedFlavours(value: unknown): FlavourCatalogue[] | null {
                 rawVersion.javaFeature > 100
             )
                 return null;
-            if (rawVersion.downloadUrl !== null && rawVersion.downloadUrl !== undefined) {
+            if (rawVersion.downloadUrl !== null && typeof rawVersion.downloadUrl !== "string")
+                return null;
+            if (rawVersion.downloadUrl !== null) {
                 try {
                     httpsUrl(
                         rawVersion.downloadUrl,
@@ -250,6 +252,23 @@ function validateCachedFlavours(value: unknown): FlavourCatalogue[] | null {
                 )
             )
                 return null;
+            if (
+                rawVersion.availability !== undefined &&
+                rawVersion.availability !== "available" &&
+                rawVersion.availability !== "missing-server-artifact"
+            )
+                return null;
+            if (
+                rawVersion.availability === "missing-server-artifact" &&
+                (typeof rawVersion.availabilityReason !== "string" ||
+                    rawVersion.availabilityReason.length === 0)
+            )
+                return null;
+            if (
+                rawVersion.availabilityReason !== undefined &&
+                typeof rawVersion.availabilityReason !== "string"
+            )
+                return null;
             versions.push(rawVersion as unknown as VersionEntry);
         }
         if (rawFlavour.stale !== undefined && typeof rawFlavour.stale !== "boolean") return null;
@@ -267,6 +286,7 @@ function validateCachedFlavours(value: unknown): FlavourCatalogue[] | null {
             ...(typeof failure === "string" ? { failure } : {}),
         });
     }
+    if (seenFlavours.size !== FLAVOUR_IDS.length) return null;
     return output;
 }
 
@@ -333,12 +353,34 @@ async function fetchVanillaVersions(
     for (const candidate of candidates) {
         const detailUrl = httpsUrl(candidate.url, `Mojang detail URL for ${candidate.id}`);
         const detailText = await fetchText(detailUrl);
-        const detail = boundedJson(
-            detailText,
-            detailUrl,
-            MAX_VERSION_DETAIL_BYTES,
-        ) as VanillaVersionDetail;
-        const server = detail.downloads?.server;
+        const detailValue = boundedJson(detailText, detailUrl, MAX_VERSION_DETAIL_BYTES);
+        if (!isRecord(detailValue))
+            throw new Error(`Mojang detail for ${candidate.id} was not an object.`);
+        if (detailValue.downloads !== undefined && !isRecord(detailValue.downloads))
+            throw new Error(`Mojang detail for ${candidate.id} had malformed downloads metadata.`);
+        const downloads = detailValue.downloads as Record<string, unknown> | undefined;
+        if (downloads?.server !== undefined && !isRecord(downloads.server))
+            throw new Error(`Mojang detail for ${candidate.id} had malformed server metadata.`);
+        const server = downloads?.server as Record<string, unknown> | undefined;
+        if (server?.url !== undefined && typeof server.url !== "string")
+            throw new Error(`Mojang detail for ${candidate.id} had malformed server URL.`);
+        const javaMetadata = detailValue.javaVersion;
+        if (javaMetadata !== undefined && !isRecord(javaMetadata))
+            throw new Error(`Mojang detail for ${candidate.id} had malformed Java metadata.`);
+        if (
+            isRecord(javaMetadata) &&
+            javaMetadata.majorVersion !== undefined &&
+            (!Number.isInteger(javaMetadata.majorVersion) ||
+                javaMetadata.majorVersion < 1 ||
+                javaMetadata.majorVersion > 100)
+        )
+            throw new Error(
+                `Mojang detail for ${candidate.id} had malformed Java feature metadata.`,
+            );
+        const javaFeature =
+            isRecord(javaMetadata) && typeof javaMetadata.majorVersion === "number"
+                ? javaMetadata.majorVersion
+                : 8;
         const downloadUrl =
             server?.url === undefined
                 ? null
@@ -346,12 +388,21 @@ async function fetchVanillaVersions(
         entries.push({
             version: candidate.id,
             stability: candidate.type === "release" ? "release" : "snapshot",
-            javaFeature: detail.javaVersion?.majorVersion ?? 8,
+            javaFeature,
             downloadUrl,
             // Mojang publishes SHA-1 here, not SHA-256. Recording an invented SHA-256
             // from a SHA-1 digest would be worse than recording none at all.
             sha256: null,
-            releasedAt: candidate.releaseTime ?? null,
+            releasedAt:
+                candidate.releaseTime === undefined
+                    ? null
+                    : isoTimestamp(candidate.releaseTime)
+                      ? candidate.releaseTime
+                      : (() => {
+                            throw new Error(
+                                `Mojang manifest release time for ${candidate.id} was malformed.`,
+                            );
+                        })(),
             ...(downloadUrl === null
                 ? {
                       availability: "missing-server-artifact" as const,
@@ -666,11 +717,9 @@ async function readCache(dataDir: string): Promise<CatalogueSnapshot | null> {
                 typeof entry.reason === "string",
         );
         if (failures.length !== parsed.failures.length) return null;
-        if (
-            parsed.sourceRevision !== null &&
-            parsed.sourceRevision !== undefined &&
-            !isSha256(parsed.sourceRevision)
-        )
+        if (typeof parsed.sourceRevision !== "string" && parsed.sourceRevision !== null)
+            return null;
+        if (typeof parsed.sourceRevision === "string" && !isSha256(parsed.sourceRevision))
             return null;
         return {
             flavours,

@@ -76,4 +76,31 @@ describe("SearchableOptionPicker", () => {
         await flushPromises();
         expect(document.body.textContent).toContain("Default");
     });
+
+    it("uses option roles and a keyboard selection path", async () => {
+        const wrapper = mount(SearchableOptionPicker, {
+            props: {
+                modelValue: "",
+                label: "World type",
+                options: [{ title: "Default", value: "default" }],
+            },
+            global: {
+                plugins: [
+                    createI18n({ legacy: false, locale: "en", messages: { en: {} } }),
+                    createVuetify(),
+                ],
+            },
+            attachTo: document.body,
+        });
+        const activator = wrapper.find("button");
+        await activator.trigger("click");
+        await flushPromises();
+        const option = document.body.querySelector('[role="option"]') as HTMLElement | null;
+        expect(option).not.toBeNull();
+        expect(option?.getAttribute("aria-selected")).toBe("false");
+        option?.focus();
+        option?.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+        await flushPromises();
+        expect(wrapper.emitted("update:modelValue")?.at(-1)).toEqual(["default"]);
+    });
 });

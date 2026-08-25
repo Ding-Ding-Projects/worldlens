@@ -28,6 +28,8 @@ const SHAPE = 1;
 const MAX_CACHE_BYTES = 2 * 1024 * 1024;
 const MAX_BODY_BYTES = 64 * 1024;
 const TIMEOUT_MS = 10_000;
+export const WIKI_VERIFIED_TTL_MS = 24 * 60 * 60 * 1000;
+export const WIKI_UNVERIFIED_TTL_MS = 10 * 60 * 1000;
 
 function cacheFile(dataDir: string): string {
     return join(dataDir, FILE);
@@ -128,7 +130,12 @@ export async function verifyWikiArticle(options: {
     if (url === null) return { url: "", state: "unavailable", checkedAt: now() };
     const records = await readCache(options.dataDir);
     const existing = records.get(url);
-    if (existing !== undefined) return existing;
+    if (existing !== undefined) {
+        const age = Date.parse(now()) - Date.parse(existing.checkedAt);
+        const ttl = existing.state === "verified" ? WIKI_VERIFIED_TTL_MS : WIKI_UNVERIFIED_TTL_MS;
+        if (Number.isFinite(age) && age >= 0 && age < ttl) return existing;
+        records.delete(url);
+    }
     const fetcher = options.fetch ?? defaultFetch;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

@@ -1128,6 +1128,7 @@ const canAdvance = computed(() => {
                     <SearchableOptionPicker
                         v-if="!versionEnteredByHand"
                         v-model="minecraftVersion"
+                        @update:model-value="selectVersion"
                         :options="
                             versionOptions.map((option) => ({
                                 title: option.title,
