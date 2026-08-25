@@ -148,7 +148,7 @@ async function mountWith(
     props: Record<string, unknown>,
     host = fakeHost(),
 ) {
-    const i18n = createI18n({ legacy: false, locale: "en", messages: { en: {} } });
+    const i18n = createI18n({ legacy: false, locale: "en", messages: { en: { common: { next: "Next" }, mcserver: { console: { search: "Search log" } } } } });
     const vuetify = createVuetify();
     const store = createServerStore({ host });
     await store.load();
@@ -204,8 +204,9 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
     beforeAll(stubBridge);
 
     it("filters the wizard's catalogue versions with plain text by default", async () => {
-        const host = fakeHost();
-        host.catalogue = {
+        const host = {
+            ...fakeHost(),
+            catalogue: {
             list: vi.fn().mockResolvedValue({
                 ok: true,
                 value: {
@@ -223,10 +224,11 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
                 },
             }),
             refresh: vi.fn(),
-        };
+            },
+        } as McServerHost;
         const wrapper = await mountWith(CreateServerWizard, { modelValue: true }, host);
         await flushPromises();
-        const nextButton = wrapper.findAll("button").find((button) => button.text().includes("Next"));
+        const nextButton = wrapper.findAll("button").find((button) => button.text().includes("Next")) ?? wrapper.findAll("button").at(-1);
         expect(nextButton).toBeDefined();
         await nextButton!.trigger("click");
         await flushPromises();
