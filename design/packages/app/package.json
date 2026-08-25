@@ -9,6 +9,7 @@
     "scripts": {
         "brand:build": "node scripts/build-brand-assets.mjs",
         "stage:render-engines": "node scripts/stage-render-engines.mjs",
+        "build:hosted": "node build.mjs --hosted-only",
         "build": "node scripts/build-brand-assets.mjs --check && node build.mjs",
         "start": "electron .",
         "test": "vitest run",
@@ -30,6 +31,7 @@
     },
     "dependencies": {
         "@worldlens/bridge": "workspace:*",
+        "@worldlens/dockhand": "workspace:*",
         "@worldlens/config": "workspace:*",
         "@worldlens/engine": "workspace:*",
         "@worldlens/nbt": "workspace:*",

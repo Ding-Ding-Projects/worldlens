@@ -44,6 +44,9 @@ importers:
       '@worldlens/config':
         specifier: workspace:*
         version: link:../config
+      '@worldlens/dockhand':
+        specifier: workspace:*
+        version: link:../dockhand
       '@worldlens/engine':
         specifier: workspace:*
         version: link:../engine
@@ -161,6 +164,8 @@ importers:
       vuetify:
         specifier: ^3.13.0
         version: 3.13.0(typescript@5.9.3)(vue@3.5.40(typescript@5.9.3))
+
+  packages/dockhand: {}
 
   packages/engine:
     dependencies:
