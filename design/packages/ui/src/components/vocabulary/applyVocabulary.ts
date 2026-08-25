@@ -49,7 +49,7 @@ const WORD_EDGE = /[A-Za-z0-9_]/;
  * A pattern for one key, refusing to match inside a longer word.
  *
  * Lookarounds rather than ``, because `` is defined against word characters on BOTH
- * sides and a key like `Gerk Tong Hui` or `--flag` has edges that are not word characters
+ * sides and a key like `working tree` or `--flag` has edges that are not word characters
  * at all - there, `` would refuse matches that should be made.
  */
 function patternFor(key: string): RegExp {

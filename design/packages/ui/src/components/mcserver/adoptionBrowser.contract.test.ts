@@ -22,7 +22,7 @@
  * ## Why this file asserts on two different things
  *
  * Mounting the browser proves it can answer honestly. It cannot prove the shell asks it,
- * and the original poke guy lived in the shell rather than in any component. So the second
+ * and the original bug lived in the shell rather than in any component. So the second
  * half reads `App.vue` itself: the discarded-failure pattern must be gone, and the browser
  * must be mounted at every site the review dialog is, because a shell variant that mounts
  * the review dialog without the browser is a variant whose adopt button opens nothing
@@ -146,7 +146,7 @@ describe("the adoption browser answers for every outcome", () => {
     it("says something when the machine has no containers, rather than closing silently", async () => {
         await mountBrowser({ ok: true, value: [] });
 
-        // Something must be on screen. The original poke guy's whole signature was that
+        // Something must be on screen. The original bug's whole signature was that
         // nothing was.
         expect(shownText()).toContain("Adopt an existing container");
     });
@@ -196,7 +196,7 @@ describe("the shell cannot go back to guessing a candidate", () => {
     it("mounts the browser everywhere it mounts the review dialog", () => {
         // The review dialog is mounted once per shell variant, and every one of them needs
         // the browser too. A variant with the dialog and no browser is a variant whose
-        // adopt button opens nothing, which is the original poke guy surviving in a corner.
+        // adopt button opens nothing, which is the original bug surviving in a corner.
         const dialogs = appSource.match(/<AdoptionReviewDialog\b/g) ?? [];
         const browsers = appSource.match(/<AdoptionBrowser\b/g) ?? [];
         expect(dialogs.length, "the review dialog should still be mounted").toBeGreaterThan(0);

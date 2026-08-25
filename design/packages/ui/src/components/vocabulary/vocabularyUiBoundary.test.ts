@@ -86,9 +86,9 @@ describe("the personal-vocabulary UI text boundary", () => {
         // Word boundaries are applied only where the KEY's edge is a word character. A
         // multi-word key or a flag has non-word edges, and `` there would refuse
         // matches that ought to be made.
-        load({ "Gerk Tong Hui": "workspace", "--force": "--insist" });
+        load({ "working tree": "workspace", "--force": "--insist" });
 
-        expect(applyVocabulary("the Gerk Tong Hui is clean")).toBe("the workspace is clean");
+        expect(applyVocabulary("the working tree is clean")).toBe("the workspace is clean");
         expect(applyVocabulary("pass --force here")).toBe("pass --insist here");
     });
 

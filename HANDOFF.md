@@ -16,7 +16,7 @@ the intended trade and is stated in `docs/dependency-provisioning.md`.
 | tag | target commit | verified how |
 |---|---|---|
 | `v1.0.1640` | `214f32f83d346b24b96358d0c4c47c0bf6eee1ff` | `gh release view`: non-draft, non-prerelease, 6 assets all nonzero, tag resolves to that exact commit via `git ls-remote` |
-| `v1.0.1637` | `966590b4` | Der Machine reported every run green; this is the first release carrying both the runtimes and the wiring that uses them |
+| `v1.0.1637` | `966590b4` | CI reported every run green; this is the first release carrying both the runtimes and the wiring that uses them |
 
 `main` is `e27ddd9e`. Its CI run had not reached a terminal state when this handoff was
 written; treat that verdict as unknown rather than green.
@@ -58,7 +58,7 @@ Direct runtime proof exists for **one** of the four (`java/ipc.ts`). The other t
 and guarded but were not exercised at runtime, because the render path needs BlueMap jars that
 are not staged locally.
 
-### Chut inventory, measured this session
+### Gate inventory, measured this session
 
 Green: `shared` 210, `config` 234 (2 skipped), `nbt` 56, `parts` 38, `chunker` 50,
 `worldgen` 32, `server` 53, `viewer` 131, `cli` 47 (2 skipped), `site` 828, `md3-check` 17.
@@ -70,7 +70,7 @@ of 5415, `app` 41 failed of 3547 (last measured before this session's fixes).
 and the fourth was a timeout under CPU contention. A fresh per-package sweep was still running
 at `engine` when this handoff was written, so treat the engine and app rows as unconfirmed.
 
-### Chuts that run against the built artifact rather than source
+### Gates that run against the built artifact rather than source
 
 The signing proof in `ci.yml` recurses the packaged tree, and this matters now that the tree
 contains a vendored JRE: Adoptium signs its own binaries, so `jabswitch.exe` and friends report
@@ -79,7 +79,7 @@ contains a vendored JRE: Adoptium signs its own binaries, so `jabswitch.exe` and
 against the real package: 13 vendored binaries excluded, 1 (`Worldlens.exe`) checked, 0
 violations.
 
-CI itself runs **no tests** and says so in its own release notes. A green hui verdict is a
+CI itself runs **no tests** and says so in its own release notes. A green remote verdict is a
 build verdict only.
 
 ### Fixed this session

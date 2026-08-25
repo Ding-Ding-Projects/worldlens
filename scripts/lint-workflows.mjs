@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * A local, pre-dew security and correctness check over this repository's own workflow
+ * A local, pre-push security and correctness check over this repository's own workflow
  * files. It is never run by GitHub Actions itself - the standing policy is that GitHub
  * Actions runs no tests and no lint, in any project, and nothing in a workflow gates the
  * release - so this script exists to be run by hand (or by an agent) before pushing.

@@ -93,11 +93,23 @@ describe("web console server", () => {
         const { handle } = await startTestServer();
         const res = await request(handle, "GET", "/");
         expect(res.status).toBe(200);
-        expect(res.body).toContain("Sign in");
-        expect(res.body).toContain("Password");
-        for (const term of ["Gerk Tong Hui", "hui", "jer", "dewed", "poke guy", "Chut", "See Fut"]) {
-            expect(res.body.toLowerCase()).not.toContain(term.toLowerCase());
-        }
+
+        // An allowlist rather than a list of forbidden words, for two reasons. A denylist
+        // only catches jargon somebody already thought of, so the term that actually
+        // reaches a stranger is by definition the one nobody listed. And this page is
+        // read by people who have just been handed an address by a colleague, so every
+        // word on it has to be one they can act on without knowing this project.
+        const visible = res.body
+            .replace(/<script[^]*?<[/]script>/g, " ")
+            .replace(/<[^>]*>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim();
+
+        // The first "Sign in" is the <title>, which is user-visible as the browser tab and
+        // so is held to the same standard as the body rather than skipped as markup.
+        expect(visible).toBe(
+            "Sign in Sign in Enter the password for this server console. Password Sign in",
+        );
     });
 
     it("rejects sign-in with the wrong password", async () => {

@@ -105,7 +105,7 @@ handoff's open list; no unchecked roadmap item was silently removed.
 
 ### 廣東話
 
-一個介面打通三個地方：本機、Yere Dow container、SSH 上面嘅 container。SSH 嗰個唔使另外寫
+一個介面打通三個地方：本機、Docker container、SSH 上面嘅 container。SSH 嗰個唔使另外寫
 過 - 換個 runner 就得。
 
 `scope.ts` 係唯一一個檢查路徑嘅地方，出界即刻拒絕，唔會偷偷幫你改去第二度。特登唔行
@@ -339,7 +339,7 @@ banner count；冇喺缺少 packaged proof 時聲稱 renderer repair 或 runtime
 
 ## Issue #72 static map export — open
 
-- **Jer:** `codex/issue-72-static-map-export` in the task-owned checkout.
+- **Branch:** `codex/issue-72-static-map-export` in the task-owned checkout.
 - **Contract:** self-contained static output with client-side decompression, configurable base
   paths, optional `.nojekyll`, and no external runtime dependency; folder, ZIP, and configurable 7z
   outputs; path safety; portable versioned manifest; checksums, provenance, engine/version and
@@ -624,7 +624,7 @@ lowres、Pages 同 cleanup 跳過。Source 改動只係刪走 SHA 多咗嗰一�
 ## AWS rendering, AWS hosting, and Cloudflare domains
 
 A second cloud render route, a third hosting route, and custom domains for all of them.
-Ticked items are implemented, unit-tested and dewed; the unticked ones are honestly
+Ticked items are implemented, unit-tested and pushed; the unticked ones are honestly
 unticked, and the wiring items are what stands between this and a person being able to use
 it from the interface.
 
