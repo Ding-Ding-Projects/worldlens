@@ -29,6 +29,7 @@
         "sharp": "0.35.3"
     },
     "dependencies": {
+        "@worldlens/bridge": "workspace:*",
         "@worldlens/config": "workspace:*",
         "@worldlens/engine": "workspace:*",
         "@worldlens/nbt": "workspace:*",
