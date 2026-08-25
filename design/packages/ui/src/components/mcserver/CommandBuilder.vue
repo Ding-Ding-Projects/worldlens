@@ -11,6 +11,7 @@ import {
     VCardText,
     VCardTitle,
     VCheckbox,
+    VCombobox,
     VChip,
     VDialog,
     VDivider,

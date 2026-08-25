@@ -2211,7 +2211,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
                         <AdoptionBrowser
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
@@ -2470,7 +2469,6 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
                         />
-                        <CreateServerWizard v-model="mcServerCreateOpen" @created="(id) => (mcServerOpenId = id)" />
                         <AdoptionBrowser
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"

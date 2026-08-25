@@ -47,7 +47,18 @@ export const WORLD_GEN_ENGINES: readonly WorldGenEngine[] = [
         label: "Real Minecraft server + Chunky",
         summary:
             "Runs the downloaded server jar once, then Chunky pre-generates the requested radius with vanilla-accurate terrain.",
-        wired: true,
+        // False, and it must stay false until the route can actually be invoked. The
+        // implementation exists - `main/mcserver/worldgen/localGeneration.ts` launches the
+        // jar and drives Chunky - but nothing imports it: there is no IPC channel and no
+        // preload method reaching it, so the module is inert. `UNWIRED_STEP_KINDS` still
+        // lists every step this engine needs, and the file header above still says the
+        // route is not wired.
+        //
+        // Flipping this to true while the wiring is missing is the worst version of this
+        // feature: the picker would tell somebody the vanilla-accurate engine works, and
+        // choosing it would produce nothing. Flip it in the same change that registers the
+        // channel, not before.
+        wired: false,
     },
 ];
 
