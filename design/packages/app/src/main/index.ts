@@ -155,7 +155,7 @@ import { registerGhCliHandlers } from "./ghcli/ipc.js";
 import type { GhCliIpc } from "./ghcli/ipc.js";
 import { GhCredentialBroker } from "./ghcli/credentialBroker.js";
 import { nodeProcessRunner } from "./cirender/gh.js";
-import { LEGACY_MATERIAL_BLUEMAP_IDENTITY, WORLDLENS_IDENTITY } from "@worldlens/shared";
+import { WORLDLENS_IDENTITY } from "@worldlens/shared";
 import { migrateWorldlensProfile, profileMigrationPlan } from "./migration/index.js";
 import { profileMigrationConsentCopy } from "./migration/copy.js";
 import {

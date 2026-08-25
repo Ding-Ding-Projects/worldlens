@@ -101,7 +101,7 @@ function assertHostedBundleIsElectronFree(outfile) {
     );
 }
 
-function copyZstdWasmAsset(destDir) {
+export function copyZstdWasmAsset(destDir) {
     const require = createRequire(import.meta.url);
     const zstdEntry = require.resolve("@bokuweb/zstd-wasm");
     const zstdWasmSrc = join(dirname(zstdEntry), "zstd.wasm");

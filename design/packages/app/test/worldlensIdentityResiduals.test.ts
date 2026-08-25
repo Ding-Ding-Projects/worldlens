@@ -79,11 +79,6 @@ const LEGACY_ALLOWLIST: Readonly<Record<string, readonly LegacyAllowance[]>> = {
             expectedMatches: 2,
             reason: "legacy product name shown in the migration consent and retained-profile error",
         },
-        {
-            pattern: /LEGACY_MATERIAL_BLUEMAP_IDENTITY/g,
-            expectedMatches: 2,
-            reason: "read-only profile migration identity used at its two exact call sites",
-        },
     ],
     "design/packages/site/index.html": [
         {
