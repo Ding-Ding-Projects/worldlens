@@ -391,13 +391,25 @@ jobs:
 
       - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
 
+      # The one credential in this workflow that deliberately does NOT use the shared
+      # `RELEASE_TOKEN || ORG_TOKEN || GITHUB_TOKEN` chain every other job uses.
+      #
+      # That chain exists so GitHub *API* calls can fall back to a personal or organisation
+      # token when the ephemeral workflow token is refused. A container registry is a
+      # different authority: the first run of this job with the chain resolved to one of
+      # those tokens and was refused with "the token provided does not match expected
+      # scopes", because a token that can publish a release does not automatically carry
+      # write:packages. The workflow token does, granted right here by this job's own
+      # `permissions: packages: write`, scoped to this repository and expiring with the run.
+      # Reaching for a broader long-lived credential to fix a scope error would trade a
+      # correct narrow token for a wrong wide one.
       - name: Log in to the container registry
         if: github.event_name != 'pull_request'
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       # A pull request proves the Dockerfile still builds, on one architecture, without
       # needing registry write access it would not be granted from a fork.
