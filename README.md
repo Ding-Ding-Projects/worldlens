@@ -5,15 +5,24 @@
 </p>
 
 A from-scratch TypeScript port of [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap), the
-Minecraft 3D map renderer and web viewer. It is built to ship as two things from one codebase:
+Minecraft 3D map renderer and web viewer.
 
-- a **Material Design 3 Electron desktop app** that renders local Minecraft worlds offline and
-  connects to remote BlueMap servers — this is what ships today, and there is an installer
-  below; and
-- a **standalone headless server** (`@worldlens/cli`) that renders and serves the map
-  webapp to ordinary browsers — this is Phase E, and the CLI now really renders, serves,
-  ships a Docker image, and its `--watch` flag really watches, wired to a real
-  `MapUpdateService` per map (issue #40, closed 2026-08-06).
+**There are three ways to run it, from one codebase.**
+
+- **Install the desktop application.** Material Design 3, Electron, renders local Minecraft
+  worlds offline and connects to remote BlueMap servers. This is what ships today and there is
+  an installer below.
+- **Run the container.** Two images, doing different things. `worldlens-cli` renders and serves
+  the map webapp to ordinary browsers — a map, and nothing else. The hosted image serves the
+  *application*: the same interface the desktop ships, in a browser tab, in front of the same
+  feature modules. See [hosted mode](docs/hosted-mode.md) and
+  [the container image](docs/container-image.md).
+- **Deploy it with Wharf.** A second desktop application in this repository that puts a
+  container image on a machine, locally or over SSH. See [Wharf](docs/wharf.md).
+
+The CLI really renders, really serves, and its `--watch` flag really watches, wired to a real
+`MapUpdateService` per map (issue #40, closed 2026-08-06). CI publishes the container image for
+`linux/amd64` and `linux/arm64` on every push.
 
 Target world versions: Minecraft **1.12.2 through 26.x**.
 

@@ -37,6 +37,14 @@ application has. The in-app documentation browser groups them the same way, unde
 | [BlueMap server-adapter smoke evidence](./server-adapter-smoke.md) | Issue #83's pinned six-adapter version matrix, release-asset/source provenance, existing packaging-only harness boundary, and the explicit absence of real-server, test, and capture evidence. |
 | [Release-grade smoke and screenshot gallery evidence](./release-smoke-gallery.md) | Issue #144's exact-candidate, packaged-app, complete screenshot replacement, searchable Pages gallery, and explicit records-only evidence boundary. |
 
+## Running it somewhere other than a desktop
+
+| Document | What it covers |
+| --- | --- |
+| [Hosted mode](./hosted-mode.md) | The same interface, served from a container and opened in a browser: one bridge factory with two transports, the fail-closed channel policy, the folders a deployment may touch, and what the password does and does not protect. |
+| [The container image](./container-image.md) | What CI publishes, for both architectures, and the three build-time assertions that stop a broken image being published. Also why the image could not be built from a clean checkout until recently. |
+| [Wharf](./wharf.md) | The second application: deploys a container image to a machine, locally or over SSH. Mostly about one control - choosing the folder - because that is the one that can hand over a machine. |
+
 ## The application
 
 | Document                                                                                | What it covers                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
