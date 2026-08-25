@@ -77,6 +77,12 @@ function setBridge(bridge: BridgeStub | null): void {
 type BridgeStub = {
     getVersion?: () => Promise<string>;
     getBuildProvenance?: () => Promise<{ version: string; builtAt: string | null }>;
+    getDeployment?: () => Promise<{
+        hosted: boolean;
+        mounts?: readonly { id: string; label: string; writable: boolean }[];
+        capabilities?: readonly string[];
+        passwordSet?: boolean;
+    }>;
 };
 
 async function render(bridge: BridgeStub | null, content?: string | null) {
@@ -89,6 +95,96 @@ async function render(bridge: BridgeStub | null, content?: string | null) {
 afterEach(() => {
     setBridge(null);
     productDisplayName.value = "Worldlens";
+});
+
+describe("what a hosted copy says about itself", () => {
+    const version = () => Promise.resolve("0.4.2");
+
+    it("says nothing at all on a desktop, where none of it is news", async () => {
+        const wrapper = await render({
+            getVersion: version,
+            getDeployment: () => Promise.resolve({ hosted: false }),
+        });
+
+        expect(wrapper.find(".mb-info-page__deployment").exists()).toBe(false);
+        wrapper.unmount();
+    });
+
+    it("says it is served from a container when it is", async () => {
+        const wrapper = await render({
+            getVersion: version,
+            getDeployment: () =>
+                Promise.resolve({ hosted: true, mounts: [], capabilities: [], passwordSet: true }),
+        });
+
+        expect(wrapper.text()).toContain("container");
+        wrapper.unmount();
+    });
+
+    it("warns plainly when there is no password", async () => {
+        // The person who most needs this is the one who has just been handed the address by a
+        // colleague and has no way to tell a locked deployment from an open one.
+        const wrapper = await render({
+            getVersion: version,
+            getDeployment: () =>
+                Promise.resolve({ hosted: true, mounts: [], capabilities: [], passwordSet: false }),
+        });
+
+        expect(wrapper.text()).toContain("full access");
+        wrapper.unmount();
+    });
+
+    it("stays quiet about the password when there is one", async () => {
+        const wrapper = await render({
+            getVersion: version,
+            getDeployment: () =>
+                Promise.resolve({ hosted: true, mounts: [], capabilities: [], passwordSet: true }),
+        });
+
+        expect(wrapper.text()).not.toContain("full access");
+        wrapper.unmount();
+    });
+
+    it("names each folder with its real access", async () => {
+        const wrapper = await render({
+            getVersion: version,
+            getDeployment: () =>
+                Promise.resolve({
+                    hosted: true,
+                    passwordSet: true,
+                    capabilities: [],
+                    mounts: [
+                        { id: "worlds", label: "Worlds", writable: false },
+                        { id: "out", label: "Renders", writable: true },
+                    ],
+                }),
+        });
+
+        expect(wrapper.text()).toContain("Worlds (read-only)");
+        expect(wrapper.text()).toContain("Renders (read/write)");
+        wrapper.unmount();
+    });
+
+    it("says when nothing is mounted, because that deployment can do nothing", async () => {
+        const wrapper = await render({
+            getVersion: version,
+            getDeployment: () =>
+                Promise.resolve({ hosted: true, mounts: [], capabilities: [], passwordSet: true }),
+        });
+
+        expect(wrapper.text()).toContain("No folders");
+        wrapper.unmount();
+    });
+
+    it("never claims to be a desktop when it could not ask", async () => {
+        // Absence of an answer is not an answer of "not hosted". A desktop says so outright,
+        // so silence means nobody was asked rather than that the answer was no.
+        const wrapper = await render({ getVersion: version });
+
+        expect(wrapper.find(".mb-info-page__deployment").exists()).toBe(false);
+        expect(wrapper.text()).not.toContain("container");
+        wrapper.unmount();
+    });
 });
 
 describe("when this build was made", () => {

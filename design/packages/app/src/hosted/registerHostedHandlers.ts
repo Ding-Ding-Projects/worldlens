@@ -36,6 +36,13 @@ import type { HostedContext } from "./serve.js";
  * The rest need orchestrators, resolvers and runtime probes that the desktop builds during
  * startup, and each is its own piece of wiring rather than a line in a list.
  */
+/** What this deployment will tell anyone who opens it about itself. */
+export interface HostedPosture {
+    readonly mounts: readonly { readonly id: string; readonly label: string; readonly writable: boolean }[];
+    readonly capabilities: readonly string[];
+    readonly passwordSet: boolean;
+}
+
 export interface HostedHandlerOptions {
     /**
      * Where this deployment keeps its own state.
@@ -44,7 +51,16 @@ export interface HostedHandlerOptions {
      * application's own records rather than the user's content, and putting them inside a
      * folder somebody mounted read-only would be a silent failure to persist anything.
      */
-    readonly dataDirectory: string;
+    readonly dataDirectory: string;
+    /**
+     * What to say about this deployment.
+     *
+     * Shown on the About surface, because these are facts a person looking at a hosted copy
+     * has no other way to learn: which folders it can reach, what the operator granted, and
+     * whether anything is standing between the port and them. Somebody handed a URL by a
+     * colleague can otherwise not tell a locked deployment from an open one.
+     */
+    readonly posture: HostedPosture;
 }
 
 export function registerHostedHandlers(
@@ -54,7 +70,17 @@ export function registerHostedHandlers(
     const ipcMain = context.ipcMain as unknown as IpcMain;
 
     // Its own version, which the About surface asks for on every load.
-    ipcMain.handle("app:version", () => process.env["WORLDLENS_VERSION"] ?? "0.0.0-hosted");
+    ipcMain.handle("app:version", () => process.env["WORLDLENS_VERSION"] ?? "0.0.0-hosted");
+
+    // Deliberately carries no path. Which folders exist is the operator's business to state;
+    // where they are on their disk is not something a browser tab needs, and a path in an
+    // interface ends up in a screenshot in an issue.
+    ipcMain.handle("app:deployment", () => ({
+        hosted: true,
+        mounts: options.posture.mounts,
+        capabilities: options.posture.capabilities,
+        passwordSet: options.posture.passwordSet,
+    }));
 
     registerEulaHandlers(ipcMain, { dataDirectory: () => options.dataDirectory });
     registerGalleryHandlers(ipcMain, options.dataDirectory);

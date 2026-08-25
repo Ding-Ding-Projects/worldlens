@@ -176,7 +176,18 @@ export async function main(env: HostedEnvironment = process.env): Promise<void> 
         const server = await startHostedServer({
             ...configuration,
             register: (context) =>
-                registerHostedHandlers(context, { dataDirectory: configuration.dataDirectory }),
+                registerHostedHandlers(context, {
+                    dataDirectory: configuration.dataDirectory,
+                    posture: {
+                        mounts: configuration.mountRoots.map((root) => ({
+                            id: root.id,
+                            label: root.label,
+                            writable: root.writable,
+                        })),
+                        capabilities: configuration.capabilities,
+                        passwordSet: configuration.passwordHash !== null,
+                    },
+                }),
         });
         process.stdout.write(`${describeDeployment(configuration)}\n`);
         // A container stops by signal, so shutting down cleanly on one is what lets an

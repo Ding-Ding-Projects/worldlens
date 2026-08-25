@@ -30,7 +30,10 @@ function wire(): HostedIpcMain {
     const ipcMain = new HostedIpcMain();
     registerHostedHandlers(
         { ipcMain, mounts: new MountRoots([]) },
-        { dataDirectory },
+        {
+            dataDirectory,
+            posture: { mounts: [], capabilities: [], passwordSet: false },
+        },
     );
     return ipcMain;
 }

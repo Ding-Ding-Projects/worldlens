@@ -2374,7 +2374,17 @@ interface WorldlensBridge {
      * a source export with no git history has no provenance to read - and the About
      * surface renders it as "not recorded" rather than substituting the current clock.
      */
-    getBuildProvenance(): Promise<{ version: string; builtAt: string | null }>;
+    getBuildProvenance(): Promise<{ version: string; builtAt: string | null }>;
+    /**
+     * How this copy is running. `hosted` is false on a desktop; a hosted deployment adds the
+     * facts a person looking at the interface has no other way to learn.
+     */
+    getDeployment(): Promise<{
+        hosted: boolean;
+        mounts?: readonly { id: string; label: string; writable: boolean }[];
+        capabilities?: readonly string[];
+        passwordSet?: boolean;
+    }>;
     releaseLedgerRead(): Promise<ReleaseLedgerReadout>;
     /**
      * The renderer-safe face of the OS application-data School-mode record.  Its snapshot

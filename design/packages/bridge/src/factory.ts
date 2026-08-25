@@ -150,7 +150,16 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         syncProfiles: (profiles: unknown) => transport.invoke("profiles:sync", profiles),
         writeClipboardText: (text: unknown) => transport.invoke("clipboard:writeText", text),
         getVersion: () => transport.invoke("app:version"),
-        getBuildProvenance: () => transport.invoke("app:buildProvenance"),
+        getBuildProvenance: () => transport.invoke("app:buildProvenance"),
+        /**
+         * How this copy is running: on a desktop, or served from a container.
+         *
+         * Asked rather than inferred. A hosted deployment is reachable by whoever can reach
+         * its port, and the folders it can touch are whichever the operator declared - both
+         * facts a person looking at the interface has no other way to learn, and neither of
+         * which the renderer can work out for itself.
+         */
+        getDeployment: () => transport.invoke("app:deployment"),
         releaseLedgerRead: () => transport.invoke(RELEASE_LEDGER_CHANNEL),
         schoolMode: {
             read: () => transport.invoke("schoolMode:read"),

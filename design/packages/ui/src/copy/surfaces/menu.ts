@@ -87,7 +87,83 @@ export const MENU_VOICED = {
         ],
     },
 
-    /* ---------------------------------------------------------------- */
+    /* What a hosted copy says about itself. The facts stay exact at every level: which
+     * folders, what was granted, and whether anything stands between the port and whoever
+     * opened it. A person handed a URL by a colleague cannot otherwise tell a locked
+     * deployment from an open one. */
+    "info.hosted": {
+        en: [
+            "Served from a container",
+            "Served from a container",
+            "This copy is served from a container rather than installed here",
+            "This copy is served from a container rather than installed on this computer",
+            "This copy is not installed on this computer at all: it is served from a container somewhere else, and what it can reach was decided by whoever started it",
+        ],
+        yue: [
+            "由 container 送出嚟",
+            "由 container 送出嚟",
+            "呢個唔係裝喺呢部機，係由 container 送出嚟嘅",
+            "呢個唔係裝喺你部機度，係由某部機嘅 container 送出嚟",
+            "呢個完全唔係裝喺你部機：係喺第度一個 container 送出嚟，佢掂到啲乜，開佢嗰個人早就決定咗",
+        ],
+    },
+
+    /* No password. Said plainly and identically at every level, because a person who has just
+     * been handed the address is exactly the person who needs to know. */
+    "info.hostedOpen": {
+        en: [
+            "No password: anyone who can reach this address has full access.",
+            "No password: anyone who can reach this address has full access.",
+            "There is no password on this deployment, so anyone who can reach this address has full access.",
+            "There is no password on this deployment, so anyone who can reach this address has full access to everything it can reach.",
+            "There is no password on this deployment at all, so anyone who can reach this address has exactly as much access as you do, including every folder listed below.",
+        ],
+        yue: [
+            "冇密碼：任何人到得呢個地址就用得晒。",
+            "冇密碼：任何人到得呢個地址就用得晒。",
+            "呢個 deployment 冇設密碼，即係任何人到得呢個地址就用得晒。",
+            "呢個 deployment 冇設密碼，即係任何人到得呢個地址，就同你一樣乜都用得。",
+            "呢個 deployment 完全冇密碼，任何人到得呢個地址，權限同你一模一樣，包括下面列住嗰啲資料夾。",
+        ],
+    },
+
+    /* The folders it can reach. Empty is a real state and is said, because a deployment with
+     * nothing mounted looks broken rather than unconfigured. */
+    "info.hostedFolders": {
+        en: [
+            "Folders: {folders}",
+            "Folders: {folders}",
+            "It can reach these folders: {folders}",
+            "The folders it can reach, and nothing else: {folders}",
+            "These are the only folders it can reach, because they are the only ones whoever started it declared: {folders}",
+        ],
+        yue: [
+            "資料夾：{folders}",
+            "資料夾：{folders}",
+            "佢掂到呢啲資料夾：{folders}",
+            "佢淨係掂到呢啲資料夾，其他一律唔得：{folders}",
+            "佢淨係掂到呢啲資料夾，因為開佢嗰個人就只係報咗呢啲：{folders}",
+        ],
+    },
+
+    "info.hostedNoFolders": {
+        en: [
+            "No folders are mounted.",
+            "No folders are mounted.",
+            "No folders are mounted, so there is nothing for it to read or render.",
+            "No folders are mounted, so there is nothing for it to read or render yet.",
+            "No folders are mounted at all, so there is nothing for it to read or render, which is a deployment that has not been finished rather than one that is broken.",
+        ],
+        yue: [
+            "冇 mount 任何資料夾。",
+            "冇 mount 任何資料夾。",
+            "冇 mount 任何資料夾，所以佢冇嘢讀得，亦都算唔到圖。",
+            "冇 mount 任何資料夾，所以暫時冇嘢讀得都算唔到圖。",
+            "完全冇 mount 過資料夾，所以佢冇嘢讀亦冇嘢算 —— 呢個係未設定完，唔係壞咗。",
+        ],
+    },
+
+    /* ---------------------------------------------------------------- */
     /* The search bar every menu carries                                 */
     /* ---------------------------------------------------------------- */
 
@@ -314,6 +390,18 @@ export const MENU_FACTS = {
 
     // That there is no recorded time, so no level can imply there is one.
     "info.builtAtUnknown": { en: ["not record"], yue: ["冇記低"] },
+
+    // That it is not installed here, which is the whole point of the line.
+    "info.hosted": { en: ["container"], yue: ["container"] },
+
+    // That there is no password, and what that means for whoever else can reach it.
+    "info.hostedOpen": { en: ["No password", "full access"], yue: ["冇密碼"] },
+
+    // The folder list itself.
+    "info.hostedFolders": { en: ["{folders}"], yue: ["{folders}"] },
+
+    // That there are none, which must not read as a general statement about folders.
+    "info.hostedNoFolders": { en: ["No folders"], yue: ["冇 mount"] },
 
     "search.noMatch": { en: ["matches that search"], yue: ["符合嗰個搜尋"] },
 

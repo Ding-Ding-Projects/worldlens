@@ -32,6 +32,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "addons:safeModeState",
     "addons:setEnabled",
     "app:buildProvenance",
+    "app:deployment",
     "app:version",
     "backup:active",
     "backup:cancel",

@@ -532,6 +532,9 @@ function registerIpc(): void {
     // artifact, never read from the clock here: a value computed in this handler would be
     // the moment somebody opened the About page, which is not a fact about the build at all.
     // `null` travels through unchanged so the surface can say it does not know.
+    // The desktop answers this too, rather than leaving the channel absent, so the About
+    // surface can distinguish "running on this computer" from "the shell is too old to say".
+    ipcMain.handle("app:deployment", () => ({ hosted: false }));
     ipcMain.handle("app:buildProvenance", () => ({
         version: app.getVersion(),
         builtAt: __WORLDLENS_BUILT_AT__,

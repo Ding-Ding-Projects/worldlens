@@ -118,6 +118,12 @@ const content = computed(() => {
 interface VersionBridge {
     getVersion?: () => Promise<string>;
     getBuildProvenance?: () => Promise<{ version: string; builtAt: string | null }>;
+    getDeployment?: () => Promise<{
+        hosted: boolean;
+        mounts?: readonly { id: string; label: string; writable: boolean }[];
+        capabilities?: readonly string[];
+        passwordSet?: boolean;
+    }>;
 }
 
 function versionReader(): (() => Promise<string>) | null {
@@ -152,8 +158,29 @@ const versionFailure = ref<string | null>(null);
  * opened this page as though it were a fact about the build, which is the one failure this
  * whole line exists to prevent.
  */
-const builtAt = ref<string | null>(null);
-const builtAtKnown = ref(false);
+const builtAt = ref<string | null>(null);
+const builtAtKnown = ref(false);
+
+/**
+ * How this copy is running, once the shell has said.
+ *
+ * `null` while nobody has answered and on a shell too old to be asked, which is deliberately
+ * not the same as "not hosted": a desktop answers `hosted: false` outright, so the absence of
+ * an answer means nobody was asked rather than that the answer was no.
+ */
+const deployment = ref<{
+    hosted: boolean;
+    mounts?: readonly { id: string; label: string; writable: boolean }[];
+    capabilities?: readonly string[];
+    passwordSet?: boolean;
+} | null>(null);
+
+/** The mounted folders, written the way a person would say them. */
+const mountedFolders = computed(() =>
+    (deployment.value?.mounts ?? [])
+        .map((mount) => `${mount.label} (${mount.writable ? "read/write" : "read-only"})`)
+        .join(", "),
+);
 
 /**
  * The instant, in the reader's own timezone, to the second, with the zone named.
@@ -240,9 +267,15 @@ onMounted(() => {
     // bridge call here, so an older shell that has one and not the other still renders the
     // half it can answer instead of neither.
     const bridge = (globalThis as { worldlens?: VersionBridge }).worldlens;
-    const readProvenance = bridge?.getBuildProvenance;
-    if (typeof readProvenance !== "function" || bridge === undefined) return;
-    void readProvenance
+    if (bridge === undefined) return;
+
+    // Each of these is asked for independently, and this used to be one early return that
+    // covered both. A shell with the version but not the build time would then never have been
+    // asked about its deployment either, so a hosted copy would have quietly described itself
+    // as a desktop one - the exact confusion the whole block exists to prevent.
+    const readProvenance = bridge.getBuildProvenance;
+    if (typeof readProvenance === "function")
+        void readProvenance
         .call(bridge)
         .then((provenance) => {
             builtAtKnown.value = true;
@@ -255,6 +288,18 @@ onMounted(() => {
             // sentence about the same broken channel is noise, and the unavailable state
             // below already tells the truth, which is that no build time is being shown.
             builtAtKnown.value = true;
+        });
+
+    const readDeployment = bridge.getDeployment;
+    if (typeof readDeployment !== "function") return;
+    void readDeployment
+        .call(bridge)
+        .then((answer) => {
+            deployment.value = answer;
+        })
+        .catch(() => {
+            // Left null. A hosted copy that cannot describe itself must not therefore look
+            // like a desktop one, and saying nothing is the only honest option left.
         });
 });
 </script>
@@ -296,13 +341,38 @@ onMounted(() => {
       showing the unavailable line during the round trip would flash a false negative at
       every reader on every visit.
     -->
-    <p v-if="builtAtKnown" class="mb-info-page__version">
-        {{
-            builtAt !== null
-                ? t("info.builtAt", { timestamp: builtAt }, "Built {timestamp}")
-                : t("info.builtAtUnknown", {}, "Build time not recorded")
-        }}
-    </p>
+    <p v-if="builtAtKnown" class="mb-info-page__version">
+        {{
+            builtAt !== null
+                ? t("info.builtAt", { timestamp: builtAt }, "Built {timestamp}")
+                : t("info.builtAtUnknown", {}, "Build time not recorded")
+        }}
+    </p>
+
+    <!--
+      Shown only for a hosted copy. A desktop answers `hosted: false` and this whole block
+      stays away, because "this is installed on your computer" is not news to somebody sitting
+      at their own computer.
+    -->
+    <section v-if="deployment?.hosted === true" class="mb-info-page__deployment">
+        <p>{{ t("info.hosted", {}, "Served from a container") }}</p>
+        <p v-if="deployment.passwordSet === false" class="mb-info-page__deployment-open">
+            {{
+                t(
+                    "info.hostedOpen",
+                    {},
+                    "No password: anyone who can reach this address has full access.",
+                )
+            }}
+        </p>
+        <p>
+            {{
+                mountedFolders === ""
+                    ? t("info.hostedNoFolders", {}, "No folders are mounted.")
+                    : t("info.hostedFolders", { folders: mountedFolders }, "Folders: {folders}")
+            }}
+        </p>
+    </section>
 
     <!--
         Every released version, with the commit that made each change. Folded rather than
