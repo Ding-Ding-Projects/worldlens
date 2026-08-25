@@ -293,6 +293,14 @@ let mapArea: MapArea = "map";
  */
 const LEDGER = join(shotDir, "capture-ledger.jsonl");
 
+/**
+ * True when this invocation is one chunk of a run split across several fresh application
+ * launches, per `WORLDLENS_LEDGER_KEEP` above. Read once, here, so `coverageVerdict()` itself
+ * stays pure and takes the decision as a plain argument rather than reaching into the
+ * environment - see that function's own doc comment in captureLedger.ts.
+ */
+const CHUNKED_RUN = Boolean(process.env.WORLDLENS_LEDGER_KEEP);
+
 const CAPTURE_BY_NAME = new Map(CAPTURE_MATRIX.map((entry) => [entry.name, entry]));
 const CAPTURE_COMMIT = process.env.WORLDLENS_CAPTURE_COMMIT ?? process.env.GITHUB_SHA ?? "";
 
@@ -1927,6 +1935,11 @@ test.beforeAll(async () => {
      * own `playwright test` invocation whose first worker is also index zero - so without this,
      * every chunk erases the evidence the chunks before it recorded. The caller truncates the
      * ledger once before the first chunk, which is the whole run's real starting point.
+     *
+     * The same flag also tells the closing coverage assertion, through `CHUNKED_RUN` below, that
+     * a surface skipped in one chunk and completed in another is not a contradiction: the
+     * completed step is a real capture written by a later, independent attempt, not a second
+     * reading of the same one. See `coverageVerdict()`'s `chunked` parameter in captureLedger.ts.
      */
     if (test.info().workerIndex === 0 && !process.env.WORLDLENS_LEDGER_KEEP)
         resetLedger(LEDGER);
@@ -6028,6 +6041,7 @@ test("captured every surface that needs nothing but the application", () => {
         ledger: readLedger(LEDGER),
         required: REQUIRED_SURFACES,
         hasLoadedMap: hasLoadedMap(),
+        chunked: CHUNKED_RUN,
     });
 
     // Printed whether this passes or fails. A run that was excused eight surfaces and went green
