@@ -47,3 +47,32 @@ export type { SshTarget } from "./target.js";
 export { COMMAND_TIMEOUT_MS } from "./command.js";
 export { dockerImagePresent, readDockerVersion } from "./docker.js";
 export type { ProbeDockerOptions } from "./docker.js";
+
+export {
+    DockerHostingManager,
+    WORLDLENS_IDENTITY,
+    managerLabels,
+    DOCKER_HOSTING_LABEL,
+    DOCKER_HOSTING_INSTANCE_LABEL,
+    DOCKER_HOSTING_NAME_LABEL,
+    DOCKER_HOSTING_VERSION_LABEL,
+    DOCKER_HOSTING_OWNER_LABEL,
+} from "./manager.js";
+export type {
+    CreateInstanceRequest,
+    DockerHostingManagerOptions,
+    DockerHostingSnapshot,
+    EnvironmentEntry,
+    ManagedInstance,
+    ManagedState,
+    ManagerAnswer,
+    ManagerFailure,
+    ManagerFailureCode,
+    ManagerIdentity,
+    PortBindMode,
+    PortMapping,
+    RestartPolicy,
+} from "./manager.js";
+
+export { REFUSED_ROOTS, detectHostKind, loopbackProbeCommand, stagingPathRefusal } from "./hostKind.js";
+export type { RemoteHostKind } from "./hostKind.js";
