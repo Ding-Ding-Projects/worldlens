@@ -221,7 +221,21 @@ const SCALES = [1, 1.25, 1.5, 2];
 const SURFACE_VIEWPORT = { width: 1280, height: 800 };
 
 /** Opening a surface involves several waits; the default per-test budget is too small. */
-const SURFACE_TIMEOUT = 300_000;
+/*
+ * Sized so the largest spec can actually attempt every surface it owns.
+ *
+ * One spec holds 34 surfaces. At the 20s surface budget that needs 680s of attempts in the worst
+ * case, against the 300s this used to be, so 17 surfaces were recorded as "the spec ran out of
+ * time before this surface was reached" - a gap created by arithmetic rather than by anything
+ * wrong with the application. Another 18 hit the surface budget itself. Between them they were
+ * 35 of the 37 surfaces the coverage verdict reported as unopenable.
+ *
+ * Raising this is only safe because each spec now runs against a freshly launched application,
+ * so renderer exhaustion cannot accumulate across specs and a longer spec cannot poison its
+ * successors. The surface budget deliberately stays at 20s: it is what keeps an abandoned run()
+ * short, and overlapping abandoned runs are what crash the renderer.
+ */
+const SURFACE_TIMEOUT = 900_000;
 
 /** How long to wait for one element. Short enough that a wrong selector is not a hang. */
 const ELEMENT_TIMEOUT = 45_000;
