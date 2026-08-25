@@ -42,7 +42,20 @@
 ###############################################################################
 # Stage 1 — install and build only what @worldlens/cli needs
 ###############################################################################
-FROM node:22-slim AS build
+# `--platform=$BUILDPLATFORM` pins this stage to the builder's own architecture, however
+# many target platforms the caller asked for. That is safe here for one specific, checked
+# reason: nothing in the CLI's dependency graph is a native module. sql.js is WebAssembly,
+# mysql2 and pg are pure JavaScript, and better-sqlite3 belongs to the desktop application
+# and is excluded by the --filter below. So everything this stage produces is plain
+# architecture-independent JavaScript, and building it once natively rather than a second
+# time under emulation costs nothing in correctness and saves most of the wall-clock of a
+# multi-architecture build.
+#
+# The runtime stage below deliberately does NOT carry this, because Node itself is a native
+# binary and each target architecture needs its own. The assertion at the end of that stage
+# is what keeps this optimisation honest: if a platform-conditional native dependency ever
+# enters the graph, that assertion fails the build instead of publishing a broken image.
+FROM --platform=$BUILDPLATFORM node:22-slim AS build
 
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
@@ -139,8 +152,23 @@ USER node
 WORKDIR /data
 EXPOSE 8100
 
+# The one assertion that only the target architecture can make.
+#
+# Every other check in this file runs in the build stage, which is pinned to the builder's
+# architecture — so none of them can tell you whether the *target* image works. buildx runs
+# this line once per requested platform, on that platform's own Node, against the payload
+# actually copied into that image. It is what turns "the arm64 image is broken" from
+# something a person discovers after pulling it into a build failure here.
+#
+# It runs the same interpreter and the same entry script the ENTRYPOINT below names, with
+# the same arguments as the default CMD. RUN does not go through ENTRYPOINT, so this is a
+# deliberate restatement of that command rather than an invocation of it; the two are kept
+# in step by being three lines apart.
+RUN ["node", "/app/dist/index.js", "--help"]
+
 ENTRYPOINT ["node", "/app/dist/index.js"]
 # No arguments by default: matches upstream's own "no actions -> write
 # default configs, print help, exit 1" behaviour (see cli.ts) rather than
 # guessing what the caller wants. A real run always passes at least -c.
 CMD ["--help"]
+

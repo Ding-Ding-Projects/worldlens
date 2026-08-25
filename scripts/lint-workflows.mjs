@@ -180,31 +180,47 @@ const RELEASE_JOB_FINGERPRINT =
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
-    count: 7,
+    count: 5,
   }),
   "actions/setup-node": Object.freeze({
     sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
-    count: 7,
+    count: 4,
   }),
   "actions/setup-java": Object.freeze({
     sha: "cf277c60eb25467037889841efdb72551f06f6c3",
-    count: 2,
+    count: 1,
   }),
   "actions/upload-artifact": Object.freeze({
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
-    count: 6,
+    count: 3,
   }),
   "actions/download-artifact": Object.freeze({
     sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
-    count: 9,
+    count: 6,
   }),
   "pnpm/action-setup": Object.freeze({
     sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
-    count: 7,
+    count: 4,
   }),
-  "astral-sh/setup-uv": Object.freeze({
-    sha: "d0d8abe699bfb85fec6de9f7adb5ae17292296ff",
+  // The container-image job. build-push-action is used twice on purpose: once to build
+  // without pushing on a pull request, once to build and push everywhere else. Two
+  // separate steps rather than one with a conditional `push:` input, so the pull-request
+  // path cannot reach a registry even if the condition were ever mis-edited.
+  "docker/setup-qemu-action": Object.freeze({
+    sha: "96fe6ef7f33517b61c61be40b68a1882f3264fb8",
     count: 1,
+  }),
+  "docker/setup-buildx-action": Object.freeze({
+    sha: "37fe631027851001ddb9b187196cc803df7f5f0e",
+    count: 1,
+  }),
+  "docker/login-action": Object.freeze({
+    sha: "dbcb813823bdd20940b903addbd779551569679f",
+    count: 1,
+  }),
+  "docker/build-push-action": Object.freeze({
+    sha: "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+    count: 2,
   }),
 });
 
@@ -451,34 +467,29 @@ const EXPECTED_CI_CONDITIONS = Object.freeze([
     scope: "jobs.package",
     expression: "always() && needs.jars.result == 'success'",
   }),
+  // The container-image job has no condition of its own - it runs on every event, like
+  // `jars`. What is gated is where its output can go: a pull request builds the image to
+  // prove the Dockerfile still works and stops there, and only a non-pull-request event
+  // may authenticate to a registry or push anything to one.
+  Object.freeze({
+    scope: "jobs.docker-image.steps.Log in to the container registry",
+    expression: "github.event_name != 'pull_request'",
+  }),
+  Object.freeze({
+    scope: "jobs.docker-image.steps.Build the image without pushing",
+    expression: "github.event_name == 'pull_request'",
+  }),
+  Object.freeze({
+    scope: "jobs.docker-image.steps.Build and push the image",
+    expression: "github.event_name != 'pull_request'",
+  }),
+  Object.freeze({
+    scope: "jobs.docker-image.steps.Record the pushed image digest",
+    expression: "github.event_name != 'pull_request'",
+  }),
   Object.freeze({
     scope: "jobs.test-world",
     expression: "always() && needs.jars.result == 'success'",
-  }),
-  // The screenshot-capture job is disabled (`if: false`) - owner decision, 2026-08-15;
-  // see ci.yml's own comment on that job for the full history. This entry exists so
-  // re-enabling it (or any other unreviewed change to its condition) is caught by the
-  // generic condition-inventory check below rather than silently taking effect.
-  Object.freeze({
-    scope: "jobs.screenshots",
-    expression: "false",
-  }),
-  Object.freeze({
-    scope: "jobs.screenshots.steps.uses:actions/upload-artifact#1",
-    expression: "always()",
-  }),
-  Object.freeze({
-    scope: "jobs.screenshots.steps.uses:actions/upload-artifact#2",
-    expression: "failure()",
-  }),
-  Object.freeze({
-    scope: "jobs.lowlevel-ui-e2e",
-    expression:
-      "github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')",
-  }),
-  Object.freeze({
-    scope: "jobs.lowlevel-ui-e2e.steps.uses:actions/upload-artifact#1",
-    expression: "always()",
   }),
   Object.freeze({
     scope: "jobs.release",
@@ -1626,6 +1637,11 @@ export {
   scriptRegions,
   jobFingerprint,
   stepFingerprint,
+  // Exported for the same reason jobFingerprint and stepFingerprint are: when a
+  // workflow legitimately changes, the reviewed constants above have to be
+  // recomputed from the new file rather than guessed at by hand, and that is not
+  // possible from outside this module unless the scanner is reachable.
+  conditionRegions,
 };
 
 if (

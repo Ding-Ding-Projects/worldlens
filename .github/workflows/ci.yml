@@ -331,6 +331,124 @@ jobs:
   jars:
     name: BlueMap jars
     uses: ./.github/workflows/build-jars.yml
+
+  # The container image, built from design/packages/cli/Dockerfile and pushed to GHCR.
+  #
+  # Separate from every other job on purpose: the Dockerfile does its own pnpm install and
+  # its own build inside the image, so this job needs nothing on the runner but a checkout
+  # and buildx. No `needs:`, for the same reason `jars` has none - there is nothing upstream
+  # of it in this graph, and making it wait would only delay an artifact that cannot be
+  # affected by the wait.
+  #
+  # Two arches because the hosts this image is actually deployed to are mixed: one x86_64,
+  # two ARM64. The expensive half of the build - pnpm install and tsc - is pinned to the
+  # runner's own architecture by $BUILDPLATFORM in the Dockerfile, because the CLI's
+  # dependency graph contains no native modules and its build output is therefore plain,
+  # architecture-independent JavaScript. Only the runtime stage is built per-arch, and it
+  # carries one deliberate per-arch assertion so a wrong-architecture image fails here
+  # rather than on somebody's Docker host.
+  #
+  # A pull request builds but never pushes: a fork's token cannot write packages anyway,
+  # and a speculative build must not move a tag other people pull.
+  docker-image:
+    name: Container image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      # The image identity is re-derived here from the same resolver and the same run
+      # number the `package` and `release` jobs each use independently, rather than being
+      # passed between jobs. Same input, same script, same answer - and no coupling that
+      # would make this job wait for another.
+      - name: Resolve the image identity
+        id: identity
+        run: |
+          identity=$(node scripts/release-version.mjs \
+            --package design/packages/app/package.json \
+            --run-number "$GITHUB_RUN_NUMBER" \
+            --format lines)
+          version=$(printf '%s\n' "$identity" | sed -n 1p)
+          tag=$(printf '%s\n' "$identity" | sed -n 2p)
+          if [ -z "$version" ] || [ "$tag" != "v$version" ]; then
+            echo "::error::release version resolver did not return one version and one matching tag"
+            exit 1
+          fi
+          # GHCR refuses an uppercase path element, and this owner has capitals in it.
+          repository=$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${repository}-cli" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4
+
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      - name: Log in to the container registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+
+      # A pull request proves the Dockerfile still builds, on one architecture, without
+      # needing registry write access it would not be granted from a fork.
+      - name: Build the image without pushing
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          file: design/packages/cli/Dockerfile
+          platforms: linux/amd64
+          push: false
+
+      # `latest` moves only on a push to the default branch. A dispatch builds and pushes
+      # its own immutable tags, but must not silently become the floating tag people pull.
+      - name: Build and push the image
+        id: push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          file: design/packages/cli/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.identity.outputs.image }}:${{ steps.identity.outputs.version }}
+            ${{ steps.identity.outputs.image }}:sha-${{ github.sha }}
+            ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && format('{0}:latest', steps.identity.outputs.image) || '' }}
+
+      # The digest, not the tag, is the string anybody can actually use: both this project's
+      # own container manager and its sibling deployment application refuse an image
+      # reference that is not pinned to a sha256 digest, so a floating tag is not a usable
+      # answer to "which image did this run produce".
+      - name: Record the pushed image digest
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE: ${{ steps.identity.outputs.image }}
+          VERSION: ${{ steps.identity.outputs.version }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          if [ -z "$DIGEST" ]; then
+            echo "::error::the push step reported no digest"
+            exit 1
+          fi
+          {
+            echo "## Container image"
+            echo
+            echo "Version \`$VERSION\`, built for \`linux/amd64\` and \`linux/arm64\`."
+            echo
+            echo "Pinned reference, which is the only form the deployment tools accept:"
+            echo
+            echo '```'
+            echo "${IMAGE}@${DIGEST}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
   # packages/config/test/javaRoundTrip.test.ts is the one test that proves the whole
   # point of the HOCON reader/writer: it generates a config set, edits real values
   # through this package's own reader/writer (the same code path the options GUI
