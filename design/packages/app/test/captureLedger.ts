@@ -236,15 +236,32 @@ export interface CoverageVerdict {
  * that resolves that ambiguity in favour of "probably fine" is how the previous version of this
  * came to pass while thirty-four surfaces were missing.
  *
+ * That ambiguity is real only within a single process. `input.chunked` says the ledger was
+ * instead assembled from several `playwright test` invocations, each against a freshly launched
+ * application (see `WORLDLENS_LEDGER_KEEP` in screenshots.spec.ts). Across a chunk boundary a
+ * skip and a completed step for the same surface are not two readings of one attempt - they are
+ * two separate attempts, typically an earlier chunk that crashed or timed out and a later chunk
+ * that ran the same setup from a clean process and succeeded. The later attempt leaves a real
+ * file on disk, which the earlier skip does not unmake, so under `chunked` a completed step wins
+ * over a skip of the same surface instead of being reported as a contradiction or a gap.
+ *
  * Pure, and given the ledger rather than a path, so both of its directions can be exercised
  * directly. The failing direction of a coverage guard is otherwise reachable only by breaking
- * the application on purpose and waiting twenty minutes to watch it go red.
+ * the application on purpose and waiting twenty minutes to watch it go red. `chunked` is passed
+ * in by the caller rather than read from the environment here, so this function stays exercisable
+ * with nothing but its own arguments.
  */
 export function coverageVerdict(input: {
     readonly ledger: Ledger;
     readonly required: readonly RequiredSurface[];
     /** Whether this run had a rendered map to serve, from the capture target's own mode. */
     readonly hasLoadedMap: boolean;
+    /**
+     * True when this ledger was assembled from more than one fresh-application chunk rather than
+     * one continuous process. Defaults to false, which leaves every single-process call site -
+     * and its existing completed/skip contradiction guard - exactly as it behaves today.
+     */
+    readonly chunked?: boolean;
 }): CoverageVerdict {
     const duplicateRequired = input.required
         .map((entry) => entry.surface)
@@ -263,7 +280,7 @@ export function coverageVerdict(input: {
     const skipped = new Set(input.ledger.skipped.map((gap) => gap.surface));
     const completed = new Set(input.ledger.completed.map((step) => step.surface));
     const contradictory = [...skipped].filter((surface) => completed.has(surface));
-    if (contradictory.length > 0) {
+    if (contradictory.length > 0 && input.chunked !== true) {
         missing.push(
             ...contradictory.map(
                 (surface) =>
@@ -274,6 +291,9 @@ export function coverageVerdict(input: {
     }
 
     for (const gap of input.ledger.skipped) {
+        // Chunked: a completed step recorded anywhere in the ledger is a real capture already on
+        // disk, and it settles this surface regardless of what a different chunk's own attempt did.
+        if (input.chunked === true && completed.has(gap.surface)) continue;
         const entry = required.get(gap.surface);
         if (entry === undefined) continue;
         if (entry.needsLoadedMap === true && !input.hasLoadedMap) {

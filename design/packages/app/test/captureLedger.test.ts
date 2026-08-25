@@ -183,6 +183,66 @@ describe("the coverage verdict", () => {
         expect(verdict.missing).toEqual(["Tab finder - it did not open on the second attempt"]);
     });
 
+    /**
+     * A single-process run has exactly one attempt at each surface, so a skip and a completed
+     * step for the same surface describe one contradictory record rather than two independent
+     * attempts. `chunked` defaults to false, so this is the behaviour every existing call site -
+     * and every existing single-process run - gets without having to say anything at all.
+     */
+    it("flags a completed-and-skipped surface as a contradiction in a single-process run", () => {
+        const verdict = coverageVerdict({
+            ledger: parseLedger(
+                [
+                    JSON.stringify({ kind: "step", surface: "Options editor" }),
+                    JSON.stringify({ kind: "step", surface: "Tab finder" }),
+                    JSON.stringify({ kind: "step", surface: "Changelog viewer" }),
+                    JSON.stringify({
+                        kind: "skip",
+                        surface: "Tab finder",
+                        reason: "it did not open on the second attempt",
+                    }),
+                ].join("\n"),
+            ),
+            required: REQUIRED,
+            hasLoadedMap: true,
+        });
+
+        expect(verdict.missing).toContain(
+            "Tab finder - the ledger records both a completed capture step and a skip; the run " +
+                "must resolve that contradiction before it can claim coverage",
+        );
+    });
+
+    /**
+     * A chunked run reaches the identical ledger shape legitimately: one chunk's fresh
+     * application skipped "Tab finder" and a different chunk's fresh application, launched
+     * later, captured it. The PNG that later attempt wrote is a real file on disk; the earlier
+     * skip does not unmake it, so `chunked: true` must let the completed step win rather than
+     * reporting either a contradiction or a gap.
+     */
+    it("lets a completed step win over a skip of the same surface when chunked", () => {
+        const verdict = coverageVerdict({
+            ledger: parseLedger(
+                [
+                    JSON.stringify({ kind: "step", surface: "Options editor" }),
+                    JSON.stringify({ kind: "step", surface: "Changelog viewer" }),
+                    JSON.stringify({
+                        kind: "skip",
+                        surface: "Tab finder",
+                        reason: "the renderer had already crashed by the time this chunk ran",
+                    }),
+                    JSON.stringify({ kind: "step", surface: "Tab finder" }),
+                ].join("\n"),
+            ),
+            required: REQUIRED,
+            hasLoadedMap: true,
+            chunked: true,
+        });
+
+        expect(verdict.missing).toEqual([]);
+        expect(verdict.excusedForNoMap).toEqual([]);
+    });
+
     it("names, rather than hides, the surfaces a run with no map cannot reach", () => {
         const verdict = coverageVerdict({
             ledger: parseLedger(
