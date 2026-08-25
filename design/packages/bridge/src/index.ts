@@ -9,3 +9,11 @@
  */
 export type { BridgeTransport } from "./transport.js";
 export { createWorldlensBridge } from "./factory.js";
+export {
+    BRIDGE_CHANNELS,
+    BRIDGE_EVENT_CHANNELS,
+    BRIDGE_INVOKE_CHANNELS,
+    BRIDGE_SYNC_CHANNELS,
+} from "./channels.js";
+export { createHttpTransport, BridgeCallError } from "./httpTransport.js";
+export type { HttpTransportOptions } from "./httpTransport.js";

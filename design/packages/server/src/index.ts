@@ -29,3 +29,8 @@ export { SandboxedAddonRuntime } from "./addons/runtime.js";
 export { readInstalledAddon, validateAddonManifest } from "./addons/manifest.js";
 export { appendAddonJournal, renameWithRetry } from "./addons/persistence.js";
 export * from "./addons/types.js";
+
+export { BridgeInvokeHandler } from "./bridge/BridgeInvokeHandler.js";
+export type { BridgeInvokeOptions, BridgePermission } from "./bridge/BridgeInvokeHandler.js";
+export { BridgeEventHandler } from "./bridge/BridgeEventHandler.js";
+export type { BridgeEventOptions } from "./bridge/BridgeEventHandler.js";
