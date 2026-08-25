@@ -1,5 +1,92 @@
 # Handoff
 
+## 2026-08-25: the application in a browser, a deployment tool, and one gate that will not go green
+
+### What shipped
+
+Three ways to run this now, not one. The desktop installer as before; the same interface served
+from a container and opened in a browser; and Wharf, a second desktop application that puts a
+container image on a machine, locally or over SSH. The container image is built for both
+architectures on every push.
+
+Released and verified as `v1.0.1713` and `v1.0.1718`: both non-draft, both tagged at exactly the
+commit that was pushed, and in both cases the installer was fetched to confirm it downloads and
+begins with a real executable header rather than merely appearing in the asset list.
+
+### The defect worth reading about
+
+A hosted deployment with a password showed the entire application to anyone who opened it. Every
+destination, every control, every empty state, and a 401 behind all of it.
+
+The server side was already complete, which is exactly why this lasted. The gate refused every
+call, and `/bridge/session` would say whether a password was required, in a handler whose own
+comment said it existed so the interface could show a prompt. Nothing ever asked it. So the
+password protected the data perfectly and told nobody it existed, while the interface rendered
+"Let's make your first map" as though it were ready to work.
+
+No test could have caught it. Any test that could would have had to already know the prompt was
+supposed to exist. It was found by opening a real container in a browser, which is the argument
+for doing that at all.
+
+### The gate that is red, and why it stays red
+
+`cd design && npm run screenshots:check` fails on three groups whose images no longer match the
+interface the tree builds. That is not new: at commit `58d054d8` the recorded digest already did
+not match, which was proved by checking out that commit and computing it.
+
+The cause is now known and recorded in issue #171. The desktop capture matrix publishes its
+images only on a full pass, and one spec, `captures the map and server profile manager`, cannot
+connect to the application. Three explanations were tested and eliminated: tracing (it fails with
+tracing off, only faster), accumulated debugging sessions (it fails on a freshly launched
+application run alone), and a stray second target (there is exactly one, titled Worldlens). With
+tracing off the real error appears: the debugging socket connects and the handshake never
+finishes.
+
+This is why the images are stale rather than merely old. Anyone who changed the interface and
+tried to refresh them met this same wall, so they have drifted with every change since.
+
+**Do not fix it by bumping the recorded digests.** That turns the gate green and makes 117 images
+confidently mislabelled records of an interface that no longer exists, which is the single failure
+the check was written to catch.
+
+A fourth group, `app-playwright-map-dependent`, is blocked differently: it needs a rendered map
+web root, which CI produces in its own render job and which a development machine does not have.
+
+### What was fixed rather than filed
+
+The hosted capture group had no harness at all. Its authority was a sentence describing what
+somebody once did by hand, so its pictures could not be refreshed or checked. `scripts/capture-hosted.mjs`
+now starts its own deployment on a port it has proved free, reads that deployment's startup banner
+back before trusting it, and refuses to proceed unless the browser exposes exactly one page at
+exactly the expected address. It clears cookies first, because otherwise the signed-out capture
+silently becomes a second signed-in one. That group is green.
+
+The local installer build was also refusing artifacts CI had already accepted, because it checked
+every executable in the packaged tree for a signature while CI excluded the vendored Java runtime.
+The runtime is Eclipse Adoptium's and carries Adoptium's signature; that is not this project
+signing anything.
+
+### Open
+
+- #168 internal shorthand in published commit messages, which needs history rewriting to remove
+- #169 container images carry no commit stamp, so a stale image is indistinguishable from a current one
+- #170 the hosted surfaces need their captures registered once #171 is unblocked
+- #171 the capture matrix cannot complete
+
+### 廣東話同步
+
+而家有三種方法行呢個 app:裝喺自己部機、喺 container 度用 browser 開、或者用 Wharf 幫你
+擺個 image 落機。已經出咗 v1.0.1713 同 v1.0.1718,兩個都驗過:tag 對正 commit,個 installer
+真係載得落嚟。
+
+最值得睇嘅係嗰個窿:設咗密碼嘅 hosted 版本,邊個開都見到成個 app,後面全部 401,但係
+由頭到尾冇問過你密碼。server 嗰邊一早做好,得前面冇問,所以冇人為意。要開真嘅
+container 落 browser 睇先捉到,寫幾多 test 都捉唔到。
+
+影相嗰個 gate 依然係紅,而且我入 session 之前已經紅咗。原因查清楚咗,寫喺 issue #171。
+唔好用改 digest 嚟扮綠,咁樣一百幾十張相會變成「講明係新版但其實係舊版」,正正就係
+個 check 想攔嘅嘢。
+
 ## 2026-08-23: runtimes inside the installer, and the GUI defects that exposed them
 
 ### What the project is now, in one paragraph
