@@ -538,6 +538,42 @@ async function create(): Promise<void> {
  * A host that cannot suggest one leaves the field empty rather than receiving a guess, and
  * a suggestion never overwrites a folder the user has already chosen.
  */
+/**
+ * Proposes an id and a display name from the choices already made.
+ *
+ * The review step used to open with both empty, so the wizard could not be finished without
+ * typing - and the app already knew everything needed to propose one: the flavour, the
+ * version, and which ids are taken. Demanding it anyway is exactly the rule this project is
+ * built on, broken at the last step.
+ *
+ * Both stay fully editable. A suggestion is a starting point, not a decision, and it never
+ * overwrites something already typed.
+ */
+function suggestIdentity(): void {
+    const taken = new Set(store.servers.value.map((server) => server.id));
+    // The game version rather than the build: `1.21.4#123` is a build reference, and a
+    // hyphenated hash in an id reads as a mistake.
+    const game = minecraftVersion.value.split("#")[0] ?? "";
+    const stem = `${flavour.value}-${game}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+    const base = stem === "" ? "server" : stem;
+
+    if (serverId.value.trim() === "") {
+        let candidate = base;
+        // A second Vanilla 26.2 is an ordinary thing to want, so the suffix counts up
+        // rather than refusing.
+        for (let n = 2; taken.has(candidate); n += 1) candidate = `${base}-${n}`;
+        serverId.value = candidate;
+    }
+    if (serverName.value.trim() === "") {
+        const label = FLAVOUR_CARDS.find((card) => card.id === flavour.value)?.name ?? flavour.value;
+        serverName.value = game === "" ? label : `${label} ${game}`;
+    }
+}
+
 async function fillSuggestedFolder(): Promise<void> {
     if (serverDir.value.trim() !== "") return;
     const suggested = await store.suggestFolder(serverName.value.trim() || serverId.value.trim());
@@ -585,6 +621,9 @@ watch(
 
 function next(): void {
     const idx = WIZARD_STEPS.indexOf(step.value);
+    // Proposed on arrival at review rather than at open, so it reflects the flavour and
+    // version actually chosen instead of whatever the wizard defaulted to.
+    if (WIZARD_STEPS[idx + 1] === "review") suggestIdentity();
     for (let nextIdx = idx + 1; nextIdx < WIZARD_STEPS.length; nextIdx += 1) {
         const candidate = WIZARD_STEPS[nextIdx]!;
         if (candidate !== "mod-loader" || isModLoader.value) {
