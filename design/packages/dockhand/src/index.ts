@@ -76,3 +76,6 @@ export type {
 
 export { REFUSED_ROOTS, detectHostKind, loopbackProbeCommand, stagingPathRefusal } from "./hostKind.js";
 export type { RemoteHostKind } from "./hostKind.js";
+
+export { bindMountArgs, checkHostFolderMount, describeMount } from "./mounts.js";
+export type { HostFolderMount, MountCheck } from "./mounts.js";

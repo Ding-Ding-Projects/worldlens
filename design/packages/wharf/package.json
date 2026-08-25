@@ -1,0 +1,23 @@
+{
+    "name": "@worldlens/wharf",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "Deploys container images to Docker hosts, locally or over SSH, with a browsed folder picker instead of a free-text path field.",
+    "main": "./dist/main/index.js",
+    "scripts": {
+        "build": "node build.mjs",
+        "start": "electron .",
+        "test": "vitest run",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "prestart": "node ../../scripts/ensure-electron-binary.mjs"
+    },
+    "dependencies": {
+        "@worldlens/design-system": "workspace:*",
+        "@worldlens/dockhand": "workspace:*"
+    },
+    "devDependencies": {
+        "electron": "^37.10.3",
+        "esbuild": "^0.25.12"
+    }
+}

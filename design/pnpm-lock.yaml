@@ -400,6 +400,22 @@ importers:
         specifier: 0.180.0
         version: 0.180.0
 
+  packages/wharf:
+    dependencies:
+      '@worldlens/design-system':
+        specifier: workspace:*
+        version: link:../design-system
+      '@worldlens/dockhand':
+        specifier: workspace:*
+        version: link:../dockhand
+    devDependencies:
+      electron:
+        specifier: ^37.10.3
+        version: 37.10.3
+      esbuild:
+        specifier: ^0.25.12
+        version: 0.25.12
+
   packages/worldgen:
     dependencies:
       '@worldlens/nbt':
