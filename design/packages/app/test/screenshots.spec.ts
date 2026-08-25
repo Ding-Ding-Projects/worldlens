@@ -226,6 +226,26 @@ const SURFACE_TIMEOUT = 300_000;
 /** How long to wait for one element. Short enough that a wrong selector is not a hang. */
 const ELEMENT_TIMEOUT = 45_000;
 
+/**
+ * How long one step of *reaching* a surface may take, as opposed to rendering it.
+ *
+ * Deliberately far shorter than {@link ELEMENT_TIMEOUT}, because a miss here is an ordinary
+ * outcome rather than an error. Ten of the eleven jobs have no tab at all on a throwaway
+ * profile, and a workspace with no maps and no servers genuinely cannot reach some of them.
+ *
+ * The old value cost the whole manifest. `openJob` chains five of these waits, so on an
+ * unreachable surface each spent its full forty-five seconds and the total passed
+ * `SURFACE_TIMEOUT`. Playwright then killed the test before `attempt` could catch anything,
+ * so the gap-recording path that exists precisely to stop one missing screen costing the
+ * other hundred-odd never ran. That is how `captures the map and server profile manager`
+ * came to strand all 117 images, and why they had been stale for so long: anybody who
+ * changed the interface and tried to refresh them met the same wall.
+ *
+ * Five steps at this value is well inside the surface budget, which leaves `attempt` the
+ * room it needs to do its job.
+ */
+const REACH_TIMEOUT = 15_000;
+
 let browser: Browser;
 let page: Page;
 let target: CaptureTarget;
@@ -717,8 +737,27 @@ async function attempt(surface: string, run: () => Promise<void>): Promise<void>
             `${details}\n`,
             "utf8",
         ).catch(() => undefined);
+        /*
+         * Bounded, because this is the line that cost the whole manifest.
+         *
+         * `.catch()` handles a rejection and does nothing at all for a hang, and this config sets
+         * no `actionTimeout`, so Playwright's default here is no limit. A page that cannot be
+         * photographed therefore stopped the run dead: the gap above was recorded in fifteen
+         * seconds and this then sat for the remaining four and a half minutes until the surface
+         * timeout killed the test, which is precisely the failure `attempt` exists to prevent,
+         * arriving through `attempt`'s own error path.
+         *
+         * A page that just refused to yield a surface is exactly the page most likely to refuse a
+         * screenshot too, so this is the common case rather than a corner. The diagnostic is
+         * best-effort by design - `skip` has already recorded what matters, and the text file
+         * beside it holds the whole failure - so losing the picture costs a little context and
+         * losing the run costs a hundred and seventeen images.
+         */
         await page
-            .screenshot({ path: join(shotDir, `diagnostic-${slug(surface)}.png`) })
+            .screenshot({
+                path: join(shotDir, `diagnostic-${slug(surface)}.png`),
+                timeout: REACH_TIMEOUT,
+            })
             .catch(() => undefined);
     }
 }
@@ -938,7 +977,7 @@ async function activateTab(tab: Locator): Promise<void> {
     if ((await tab.getAttribute("aria-selected")) === "true") return;
     const label = tab.locator(".mb-tabs-strip__label");
     const aim = (await label.count()) > 0 ? label.first() : tab;
-    await aim.click({ timeout: ELEMENT_TIMEOUT });
+    await aim.click({ timeout: REACH_TIMEOUT });
     await page.waitForTimeout(300);
 }
 
@@ -960,7 +999,7 @@ async function openJobThroughNewTabMenu(name: string): Promise<void> {
     await workTabs()
         .locator('[aria-label="Open a new tab"]')
         .first()
-        .click({ timeout: ELEMENT_TIMEOUT });
+        .click({ timeout: REACH_TIMEOUT });
     // `hasText` with a plain string, never a regular expression. Playwright normalises whitespace
     // when the matcher is a string and deliberately does not when it is a regex, and a Vuetify
     // list item wraps its label in enough markup to leave newlines either side of it - so an
@@ -970,8 +1009,8 @@ async function openJobThroughNewTabMenu(name: string): Promise<void> {
         .locator(".mb-tabs-strip__sheet:visible .v-list-item")
         .filter({ hasText: name })
         .first();
-    await item.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
-    await item.click({ timeout: ELEMENT_TIMEOUT });
+    await item.waitFor({ state: "visible", timeout: REACH_TIMEOUT });
+    await item.click({ timeout: REACH_TIMEOUT });
     await page.waitForTimeout(400);
 }
 
@@ -1008,7 +1047,7 @@ async function openJob(pageId: string, name: RegExp, label: string): Promise<voi
         // promise it fits: the strip's overflow arithmetic runs on the whole row, so on a narrow
         // window a brand-new tab can arrive already behind the overflow control. Falling through
         // to the reveal below handles that rather than asserting a layout this cannot control.
-        await tab.waitFor({ state: "attached", timeout: ELEMENT_TIMEOUT });
+        await tab.waitFor({ state: "attached", timeout: REACH_TIMEOUT });
     }
 
     if (await tab.isVisible().catch(() => false)) {
@@ -1751,7 +1790,13 @@ test.beforeAll(async () => {
         .catch(() => false);
 
     if (!mounted) {
-        await page.screenshot({ path: join(shotDir, "diagnostic-unmounted.png") });
+        // Bounded for the same reason as the one in `attempt`: an application that never mounted
+        // is the one most likely to refuse a screenshot as well, and an unbounded wait here would
+        // turn a diagnosable startup failure into a run that simply stops with nothing to read.
+        await page.screenshot({
+            path: join(shotDir, "diagnostic-unmounted.png"),
+            timeout: REACH_TIMEOUT,
+        });
         const html = await page.content();
         await writeFile(join(shotDir, "diagnostic-unmounted.html"), html);
         console.log(`[harness] Vuetify root never appeared; captured the broken state instead.`);
