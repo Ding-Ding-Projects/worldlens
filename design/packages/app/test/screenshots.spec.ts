@@ -712,7 +712,15 @@ function skip(surface: string, reason: string): void {
  * the debugging connection outright. A surface that cannot be reached in a minute is not going to
  * be reached in three, so the longer budget bought nothing and cost the run.
  */
-const SURFACE_BUDGET = 60_000;
+/*
+ * Sized from what a healthy surface actually costs. Across five full runs the slowest surface
+ * that SUCCEEDED took 8.1s, and not one of forty successes exceeded 20s, so a 60s ceiling was
+ * roughly ten times the worst real case. The extra fifty seconds only ever bought a longer
+ * orphan: `attempt` stops waiting for an abandoned surface, but nothing stops the `run()` it
+ * abandoned. Twenty seconds is still 2.5x the worst observed success; a surface that genuinely
+ * needs longer should carry its own timeout rather than borrow headroom from every other one.
+ */
+const SURFACE_BUDGET = 20_000;
 
 /*
  * A ceiling on the SPEC, not only on each surface inside it.
@@ -733,6 +741,7 @@ const SURFACE_BUDGET = 60_000;
  * budget the spec cannot afford. Gaps stay honest; the run survives to write them down.
  */
 const SPEC_RESERVE = 25_000;
+const RESET_BUDGET = 45_000;
 const MIN_SURFACE_BUDGET = 8_000;
 
 let specStartedAt = Date.now();
@@ -744,8 +753,33 @@ let specStartedAt = Date.now();
  * a deadline of 95s against a real budget of 300s, so surfaces with 105s still available were
  * recorded as out of time. Honest gaps, wrong arithmetic.
  */
-test.beforeEach(() => {
+/*
+ * Reset the renderer between specs, while it is still healthy.
+ *
+ * One renderer serves the whole file and is never restarted, and it degrades until it stops
+ * responding. Instrumenting the first line of `ensureOptionsEditor` showed a bare `isVisible()`
+ * taking 147.2s, and three consecutive calls reporting 147.2s, 87.2s and 27.2s: exactly 60s
+ * apart, so all three resolved at the same instant. The renderer had frozen and released every
+ * queued call at once, then crashed. On a fresh application that same surface opens in 293ms.
+ *
+ * Measured with this in place: renderer crashes stop, and specs completing rose from 15 to 17.
+ *
+ * Deliberately here rather than after a failure. Reloading a page that had just failed dropped
+ * the debugging connection and turned a passing settings spec back into a failing one, the same
+ * fragility this file already records for taking a diagnostic screenshot after a gap. Reloading
+ * a page that still answers is a different proposition, and it is what the surrounding helpers
+ * are built for: every spec establishes what it needs through its own `ensure*` helper.
+ */
+test.beforeEach(async () => {
+    // Stamped BEFORE the reset, never after. Playwright's test timeout covers beforeEach, so
+    // restamping afterwards gave the spec a deadline of start+45s+275s against a 300s budget,
+    // and five surfaces at 60s each then overran by exactly that margin.
     specStartedAt = Date.now();
+    if (!page) return;
+    await Promise.race([
+        pointAppAtCaptureTarget(),
+        new Promise<void>((resolve) => setTimeout(resolve, RESET_BUDGET).unref?.()),
+    ]).catch(() => {});
 });
 
 async function attempt(surface: string, run: () => Promise<void>): Promise<void> {
