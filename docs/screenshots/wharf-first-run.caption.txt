@@ -1,0 +1,10 @@
+Wharf on first run, captured from the real built application on an off-screen Windows desktop.
+
+Three cards: where to deploy, what to deploy, and the folder the deployment will use. The
+Deploy button is disabled because no plan has been shown yet - the plan is not a preview
+somebody may skip, it is how the button becomes usable.
+
+The folder card is the one worth looking at. There is no text field in it. A host path only
+becomes a mount by being chosen in the platform's own file picker, because a free-text path
+field is how a graphical tool produces a bind mount of the entire filesystem, and the person
+who typed it was filling in a box.

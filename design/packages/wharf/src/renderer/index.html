@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <!--
+          Present even though this is a desktop window, because the window is resizable down to
+          720px and the layout below is the same layout that would be served if this ever ran
+          anywhere else. A viewport that only exists on the surfaces somebody remembered is the
+          reason narrow layouts break.
+        -->
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <!--
+          Same policy the WorldLens static handler bakes in. Written here rather than assumed,
+          because a renderer loaded from `file://` has no server to attach headers for it, and
+          `script-src 'self'` is what stops a pasted image reference or a copied path becoming
+          a way to run something.
+        -->
+        <meta
+            http-equiv="content-security-policy"
+            content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+        />
+        <title>Wharf</title>
+        <link rel="stylesheet" href="./tokens.css" />
+        <link rel="stylesheet" href="./wharf.css" />
+    </head>
+    <body>
+        <header class="wharf-bar">
+            <h1 class="wharf-bar__title">Wharf</h1>
+            <p class="wharf-bar__subtitle">Deploys a container image to a machine.</p>
+        </header>
+
+        <main class="wharf-main">
+            <section class="wharf-card" aria-labelledby="destination-heading">
+                <h2 id="destination-heading">Where</h2>
+                <div class="wharf-field">
+                    <label for="destination">Machine</label>
+                    <select id="destination">
+                        <option value="local">This computer</option>
+                        <option value="ssh">Another machine, over SSH</option>
+                    </select>
+                </div>
+                <div class="wharf-ssh" id="ssh-fields" hidden>
+                    <div class="wharf-field">
+                        <label for="ssh-user">User</label>
+                        <input id="ssh-user" type="text" autocomplete="off" spellcheck="false" />
+                    </div>
+                    <div class="wharf-field">
+                        <label for="ssh-host">Host</label>
+                        <input id="ssh-host" type="text" autocomplete="off" spellcheck="false" />
+                    </div>
+                    <div class="wharf-field">
+                        <label for="ssh-port">Port</label>
+                        <input id="ssh-port" type="number" value="22" min="1" max="65535" />
+                    </div>
+                </div>
+                <p class="wharf-status" id="docker-status" role="status">Docker has not been checked yet.</p>
+                <button type="button" id="check-docker">Check Docker</button>
+            </section>
+
+            <section class="wharf-card" aria-labelledby="image-heading">
+                <h2 id="image-heading">What</h2>
+                <div class="wharf-field">
+                    <label for="image">Image</label>
+                    <input
+                        id="image"
+                        type="text"
+                        autocomplete="off"
+                        spellcheck="false"
+                        placeholder="ghcr.io/owner/name@sha256:…"
+                    />
+                    <!--
+                      Said before it is refused rather than after. A digest is the only form
+                      accepted, and somebody who learns that from an error has already typed
+                      the wrong thing.
+                    -->
+                    <p class="wharf-hint">
+                        Pinned to a digest, because a tag can be moved under you: what you
+                        deployed and what you reviewed would not have to be the same thing.
+                    </p>
+                </div>
+                <div class="wharf-field">
+                    <label for="name">Name</label>
+                    <input id="name" type="text" autocomplete="off" spellcheck="false" />
+                </div>
+                <div class="wharf-field">
+                    <label for="port">Port</label>
+                    <input id="port" type="number" min="1" max="65535" />
+                </div>
+                <div class="wharf-field wharf-field--inline">
+                    <input id="public" type="checkbox" />
+                    <label for="public">Let other machines reach this port</label>
+                </div>
+            </section>
+
+            <section class="wharf-card" aria-labelledby="folder-heading">
+                <h2 id="folder-heading">The main folder</h2>
+                <!--
+                  There is deliberately no text field here. A free-text host path is how a
+                  graphical tool produces `-v /:/host`, and the person who typed it was filling
+                  in a box. A folder only becomes a mount by being chosen in a real file
+                  manager and then confirmed with both sides written out.
+                -->
+                <p class="wharf-hint">
+                    Chosen with the file picker rather than typed, and shown with both sides
+                    before anything happens.
+                </p>
+                <button type="button" id="choose-folder">Choose a folder…</button>
+                <p class="wharf-status" id="folder-status" role="status">No folder chosen.</p>
+                <div class="wharf-field">
+                    <label for="container-path">Where it appears inside the container</label>
+                    <input id="container-path" type="text" value="/data" spellcheck="false" />
+                </div>
+                <div class="wharf-field wharf-field--inline">
+                    <input id="folder-writable" type="checkbox" checked />
+                    <label for="folder-writable">The container may write to it</label>
+                </div>
+            </section>
+
+            <section class="wharf-card" aria-labelledby="plan-heading">
+                <h2 id="plan-heading">What will happen</h2>
+                <button type="button" id="show-plan">Show the plan</button>
+                <div id="plan" class="wharf-plan" role="region" aria-live="polite"></div>
+                <button type="button" id="deploy" disabled>Deploy</button>
+            </section>
+        </main>
+
+        <script type="module" src="./wharf.js"></script>
+    </body>
+</html>
