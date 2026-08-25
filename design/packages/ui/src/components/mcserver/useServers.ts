@@ -118,6 +118,14 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         stop: api["stop"] as McServerHost["stop"],
         files: filesApi as unknown as McServerHost["files"],
         logTail: api["logTail"] as McServerHost["logTail"],
+        // Feature-detected like every optional namespace here. Without this line the main
+        // process channel, the preload method, the store call and the wizard that asks for
+        // a suggested folder were all present and the host object simply did not carry it -
+        // so the folder field stayed empty and the runtime step refused to advance, which
+        // reads as the wizard demanding something it was supposed to fill in for you.
+        ...(isFunction(api["suggestFolder"])
+            ? { suggestFolder: api["suggestFolder"] as NonNullable<McServerHost["suggestFolder"]> }
+            : {}),
         ...(catalogueReady ? { catalogue: catalogueApi as unknown as NonNullable<McServerHost["catalogue"]> } : {}),
         ...(javaReady
             ? {
