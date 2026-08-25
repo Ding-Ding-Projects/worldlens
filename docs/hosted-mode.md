@@ -155,6 +155,17 @@ person as far as the server is concerned.
 
 - **The session is a cookie**, `HttpOnly` and `SameSite=Strict`. A cookie rather than a header
   because `EventSource` cannot set a header at all, and two mechanisms drift.
+- **The interface asks for the password before it mounts.** This was missing for longer than it
+  should have been, and the shape of the gap is worth recording because nothing about it looked
+  broken. The server side was complete: every bridge call was refused with 401, and
+  `/bridge/session` reported `{"required":true,"signedIn":false}` on request. Nothing ever
+  asked it. So an unauthenticated visitor got the entire application shell, every destination
+  and every control, with a 401 behind all of it and no prompt anywhere. The password was
+  protecting the data perfectly and telling nobody it existed, which reads as software that is
+  simply broken rather than software that is locked. The prompt now gates the mount rather than
+  overlaying it, because mounting first would run every screen's own startup fetch against that
+  401 before the person had anywhere to type. A build with no such endpoint, which is every
+  desktop build, carries on exactly as before.
 - **Every path is confined to the declared mounts**, resolved through `realpath` before being
   compared. A symlink inside a mounted folder pointing out of it is inside the root right up
   until the operating system follows it, which a string comparison never catches.

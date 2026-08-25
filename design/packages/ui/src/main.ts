@@ -7,6 +7,7 @@ import type { ReactiveFactory } from "@worldlens/viewer";
 import App from "./App.vue";
 import { vuetify } from "./vuetify.js";
 import { i18nModule, loadLanguage, setLanguage } from "./i18n.js";
+import { awaitHostedSession } from "./hostedSignIn.js";
 // Roboto is what every MD3 typescale here names (Vuetify's md3 blueprint emits
 // `font-family: Roboto, sans-serif` and markers.scss matches it), and Windows ships no
 // Roboto - without these imports the entire chrome silently fell back to Arial. Bundled
@@ -45,6 +46,9 @@ import "./styles/motion.scss";
 // tokens, so `markers.scss` still has the final word on the names it re-declares.
 import "./styles/prototypeSurface.scss";
 import "./styles/markers.scss";
+// The hosted password prompt, which renders before Vuetify exists and therefore carries its
+// own rules. Last, so it can spend the tokens every sheet above it has declared.
+import "./styles/hostedSignIn.scss";
 import { installUiSize } from "./components/settings/index.js";
 import { disposeSchoolMode, ensureSchoolModeReady } from "./components/setup/schoolMode.js";
 
@@ -84,6 +88,22 @@ installUiSize();
  */
 async function mountApplication(): Promise<void> {
     await ensureSchoolModeReady();
+
+    // A deployment served over a network may have a password in front of it. Asked before
+    // anything mounts, because mounting first would run every store and every screen's own
+    // fetch against a bridge that answers 401, filling the notification centre with failures
+    // before the person has been given anywhere to type. On a desktop build there is no such
+    // endpoint and this returns immediately.
+    //
+    // The copy here comes from whichever locale is already bundled, because the language file
+    // is fetched after mount and this runs before it. The strings carry their own English
+    // fallbacks so the prompt is never blank, which matters more at this point than the
+    // person's chosen language: a blank gate is indistinguishable from a broken deployment.
+    await awaitHostedSession({
+        fetch: globalThis.fetch.bind(globalThis),
+        root: document.querySelector<HTMLElement>("#app") ?? document.body,
+        translate: (key, fallback) => i18nModule.global.t(key, fallback),
+    });
 
     const app = createApp(App);
     app.use(vuetify);

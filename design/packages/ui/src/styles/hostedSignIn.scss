@@ -1,0 +1,115 @@
+/**
+ * The hosted password prompt, styled without Vuetify.
+ *
+ * It renders before the application mounts, so no component library is available to it yet.
+ * That is deliberate: mounting first and overlaying a prompt would run every screen's own
+ * fetch against a bridge answering 401 before the person had anywhere to type. The cost is
+ * that this one surface is hand-styled, so it spends the shared design tokens directly rather
+ * than inheriting a component's.
+ *
+ * The tokens are read with fallbacks because this sheet can be parsed before the token sheet
+ * has applied in some load orders, and a prompt with no colour at all is worse than one that
+ * is briefly the wrong shade.
+ */
+
+.wl-signin {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-inline-size: 26rem;
+    /* Centred with margin rather than by making an ancestor a flex container: the ancestor is
+       the application's own mount point, and changing its display would outlive this prompt. */
+    margin: 12vh auto 0;
+    padding: 2rem;
+    border-radius: 1.75rem;
+    background: var(--md-sys-color-surface-container, #1c1b1f);
+    color: var(--md-sys-color-on-surface, #e6e1e5);
+    font-family: Roboto, sans-serif;
+}
+
+.wl-signin__heading {
+    margin: 0;
+    font-size: 1.75rem;
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+.wl-signin__blurb {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.45;
+    color: var(--md-sys-color-on-surface-variant, #cac4d0);
+}
+
+.wl-signin__label {
+    font-size: 0.75rem;
+    color: var(--md-sys-color-on-surface-variant, #cac4d0);
+}
+
+.wl-signin__input {
+    /* 44px, the minimum touch target this project holds everywhere else. */
+    min-block-size: 44px;
+    padding: 0 1rem;
+    border: 1px solid var(--md-sys-color-outline, #938f99);
+    border-radius: 0.75rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+}
+
+.wl-signin__input:focus-visible {
+    /* Visible focus, not merely a colour change: the ring has to survive a high-contrast
+       setting that flattens the border colour. */
+    outline: 2px solid var(--md-sys-color-primary, #d0bcff);
+    outline-offset: 2px;
+}
+
+.wl-signin__problem {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--md-sys-color-error, #f2b8b5);
+}
+
+.wl-signin__submit {
+    min-block-size: 44px;
+    padding: 0 1.5rem;
+    border: none;
+    border-radius: 1.375rem;
+    background: var(--md-sys-color-primary, #d0bcff);
+    color: var(--md-sys-color-on-primary, #381e72);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.wl-signin__submit:focus-visible {
+    outline: 2px solid var(--md-sys-color-primary, #d0bcff);
+    outline-offset: 3px;
+}
+
+.wl-signin__submit:disabled {
+    /* Says "in flight" rather than "broken", and keeps enough contrast to still be read. */
+    opacity: 0.6;
+    cursor: progress;
+}
+
+@media (max-width: 30rem) {
+    .wl-signin {
+        margin-block-start: 6vh;
+        margin-inline: 1rem;
+        padding: 1.5rem;
+    }
+}
+
+/**
+ * The page behind the prompt.
+ *
+ * Vuetify owns the page background and has not mounted yet, so without this the dark card
+ * sits on the browser's default white and the whole thing reads as half-loaded rather than as
+ * a deliberate screen. The class is removed the moment the application takes over.
+ */
+body.wl-signin-active {
+    margin: 0;
+    min-block-size: 100vh;
+    background: var(--md-sys-color-surface, #141218);
+}
