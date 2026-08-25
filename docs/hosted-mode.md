@@ -115,12 +115,17 @@ file-picking mode, a chosen file held selected until confirmed. It talks to the 
 a build exposing only one of `list`/`browse` resolves to no bridge at all, so a caller falls back
 cleanly rather than discovering a half-wired control the moment somebody clicks it.
 
-**This has not shipped end to end yet.** `browseMount` and `MountRootBrowser.vue` exist and are
-tested against each other's contracts, but nothing in this codebase yet registers a hosted
-`mounts:list` / `mounts:browse` channel pair or serves `window.worldlens.mounts` from a running
-deployment. Until that lands, `resolveMountBrowserBridge()` returns `null` in every real hosted
-build, exactly the "no bridge" case the dialog already handles, and there is no capture of this
-dialog open against a real container.
+**What has and has not been proved.** `browseMount`, `MountRootBrowser.vue`, the
+`mounts:list` / `mounts:browse` channels, their handlers and the path field that opens them are
+all in place with tests. What is missing is a capture: nobody has photographed the picker open
+against a real container, so the surface is described here rather than shown.
+
+One thing worth knowing about how the path field decides. The mount methods exist on every
+build, because the bridge is a single factory for both hosts, so detecting them would send
+desktops down the hosted path and swap a working native picker for a browser with nothing to
+list. The deployment is asked instead, over `app:deployment`, and while the answer is unknown
+the field behaves as a desktop. A hosted deployment whose server never registered the two
+channels falls back to the ordinary refusal, which at least says what is wrong.
 
 ## Failure modes
 
@@ -170,9 +175,11 @@ person as far as the server is concerned.
   the symlink case and the traversal case.
 - The mount root browser's tests cover the escaping-symlink drop, a root-id/path mismatch, a
   missing root, an unreadable folder reported apart from an empty one, folders-before-files
-  ordering and truncation past `MAX_ENTRIES`. These are unit tests against `browseMount` alone:
-  there is no hosted `mounts:list` / `mounts:browse` channel wired to it yet, and the dialog has
-  not been captured against a real container.
+  ordering and truncation past `MAX_ENTRIES`. Two of these were watched fail on purpose before
+  being trusted: removing the per-entry confinement lets an escaping symlink into the listing,
+  and deciding the host by whether the mount methods exist sends a desktop down the hosted path.
+  Both turned red, then green when restored. The picker has not been captured against a real
+  container.
 - The container was run: signed in with a password, wrong password refused, real feature modules
   answering through the bridge from inside the image, and a flat refusal to start on a network
   address with none. Running it is also what found that `history:status` reported git missing —

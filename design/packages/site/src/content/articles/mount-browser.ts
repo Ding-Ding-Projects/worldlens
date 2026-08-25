@@ -9,7 +9,7 @@ export const mountBrowser: Article = {
     category: "application",
     status: "ported-unverified",
     statusNote:
-        "The listing logic and the picker component are on the default branch with their own test files, and both were written against the confinement rules the hosted-mode article describes. What has not landed yet is the channel that connects them: nothing registers a mounts.list or mounts.browse handler on the transport or the bridge factory, so in a real build window.worldlens.mounts does not exist and the component's own bridge resolver returns null rather than a working picker. No capture of the rendered surface exists, so this stays ported-unverified rather than shipped.",
+        "The listing logic, the picker component, the two channels that connect them and the path field that opens it are all on the default branch with their own test files, and the confinement is the same one the hosted-mode article describes. Two guards were watched fail on purpose and then pass again: removing the per-entry check lets an escaping symlink into the listing, and deciding the host by whether the mount methods exist sends a desktop down the hosted path. What is missing is a capture: nobody has photographed the rendered picker against a real container, so this stays ported-unverified rather than shipped.",
 
     sections: [
         {
@@ -139,10 +139,9 @@ export const mountBrowser: Article = {
                         " wired up resolves the bridge to ",
                         { code: "null" },
                         " rather than exposing half of it, and the picker says plainly that this build cannot ",
-                        "list mounted folders. That is the state a real build is in today, because the channel ",
-                        "that would answer those two calls has not been registered yet: the picker component ",
-                        "exists, the listing logic it would call exists, and nothing between them has been ",
-                        "wired into the transport.",
+                        "list mounted folders. A hosted deployment against an older server that never ",
+                        "registered those two channels therefore falls back to the ordinary refusal, which ",
+                        "at least says what is wrong, rather than to an empty browser that says nothing.",
                     ],
                 },
             ],

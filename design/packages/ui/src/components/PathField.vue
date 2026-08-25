@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { computed, useId } from "vue";
+import { computed, onMounted, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiFolderOpenOutline, mdiFileOutline } from "@mdi/js";
 import { VBtn, VTextField, VTooltip } from "vuetify/components";
 import { resolvePathFieldBridge, type PathFieldBridge } from "./pathFieldHost.js";
+import MountRootBrowser from "./mounts/MountRootBrowser.vue";
+import { resolveMountBrowserBridge } from "./mounts/mountBrowserHost.js";
+import { isHosted, loadDeployment } from "../stores/deployment.js";
 
 /**
  * A path text box with a trailing native browse button, adoptable by any field that names a
@@ -116,16 +119,68 @@ function startInOrNothing(): { startIn?: string } {
     return trimmed === "" ? {} : { startIn: trimmed };
 }
 
+/**
+ * Browsing without a desktop.
+ *
+ * A container has no native picker, so `dialog:pickFolder` and `dialog:pickFile` are refused
+ * there and the refusal says to choose from the folders the operator mounted. This is that
+ * route, and it is entered only when the deployment has actually said it is hosted: the mount
+ * methods exist on every build, because the bridge is one factory for both hosts, so their
+ * presence proves nothing at all about where this is running.
+ */
+const browserOpen = ref(false);
+const browserMode = ref<"folder" | "file">("folder");
+
+const mountBrowserAvailable = computed(
+    // Checked as well as the deployment: an older server that has not wired the mount
+    // channels should fall back to the honest refusal rather than to an empty browser.
+    () => resolveMountBrowserBridge() !== null,
+);
+
+/**
+ * Deliberately not conditioned on the injected `bridge` prop.
+ *
+ * The prop names which native bridge to use, and in a hosted deployment there is no native
+ * dialog for it to name. Letting an injected bridge suppress this would also make the hosted
+ * path unreachable from a test, which is how a branch ends up shipping unexercised.
+ */
+const usesMountBrowser = computed(() => isHosted() && mountBrowserAvailable.value);
+
+onMounted(() => {
+    void loadDeployment();
+});
+
+function openBrowser(mode: "folder" | "file"): void {
+    browserMode.value = mode;
+    browserOpen.value = true;
+}
+
+function browserChose(chosen: string): void {
+    // Written through the same event as typing, exactly as a native pick is. A path that came
+    // from the browser is not a different kind of value and must not become one.
+    emit("update:modelValue", chosen);
+}
+
 async function browseFolder(): Promise<void> {
+    if (isDisabled.value) return;
+    if (usesMountBrowser.value) {
+        openBrowser("folder");
+        return;
+    }
     const bridge = resolvedBridge.value;
-    if (bridge === null || isDisabled.value) return;
+    if (bridge === null) return;
     const chosen = await bridge.pickFolder({ title: dialogTitle.value, ...startInOrNothing() });
     if (chosen !== null) emit("update:modelValue", chosen);
 }
 
 async function browseFile(): Promise<void> {
+    if (isDisabled.value) return;
+    if (usesMountBrowser.value) {
+        openBrowser("file");
+        return;
+    }
     const bridge = resolvedBridge.value;
-    if (bridge === null || isDisabled.value) return;
+    if (bridge === null) return;
     const chosen = await bridge.pickFile({
         title: dialogTitle.value,
         ...(props.extensions === undefined || props.extensions.length === 0
@@ -202,6 +257,20 @@ async function browseFile(): Promise<void> {
         >
             {{ unavailableText }}
         </div>
+
+        <!--
+            Only mounted in a hosted deployment. Rendering it unconditionally would put a
+            second dialog into all sixteen screens that adopt this field, on a desktop where
+            it can never open and has nothing to list.
+        -->
+        <MountRootBrowser
+            v-if="usesMountBrowser"
+            v-model="browserOpen"
+            :title="dialogTitle"
+            :mode="browserMode"
+            :extensions="extensions ?? []"
+            @choose="browserChose"
+        />
     </div>
 </template>
 
