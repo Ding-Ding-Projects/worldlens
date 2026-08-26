@@ -1,5 +1,26 @@
 # Roadmap
 
+## Project canvas documentation (2026-08-25)
+
+The node-graph canvas (`design/packages/ui/src/components/canvas/`) already shipped as an
+alternative presentation of map-project creation, driving the identical `createMapWizard()`
+model the linear wizard uses. This entry covers writing it up, not building it.
+
+- [x] Documentation site article `project-canvas` added and registered in
+      `design/packages/site/src/content/articles/index.ts`, verified against
+      `design/packages/site/scripts/assert-article-bundle.mjs`.
+- [x] `docs/project-canvas.md` written and linked from `docs/README.md`'s application table.
+- [x] Six node kinds, the shared-model wiring rules, mark-not-hide search, and keyboard node
+      movement documented against the real source and its existing tests
+      (`canvasModel.test.ts`, `CanvasNode.shape.test.ts`), not invented.
+- [ ] No capture or recording exists of the canvas in the built application. Nobody has
+      launched the packaged app and looked at it; every claim in the new documentation is
+      read from source and tests, not observed running.
+- [ ] Wire dragging between ports is not implemented. Every wire the canvas draws is derived
+      from `ALLOWED_EDGES` against the current node positions; there is no gesture that
+      creates or removes one by hand. This is a real gap in the feature, not only in its
+      documentation, and is left open for a future implementation task.
+
 ## Reusable design system package — 2026-08-22
 
 - [x] Publish the shared WorldLens colour roles, Material Design 3 tokens, Vuetify themes,

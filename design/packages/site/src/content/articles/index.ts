@@ -53,6 +53,7 @@ import { notificationCentre } from "./notification-centre.js";
 import { changelogViewer } from "./changelog-viewer.js";
 import { tabbedShell } from "./tabbed-shell.js";
 import { projectEditor } from "./project-editor.js";
+import { projectCanvas } from "./project-canvas.js";
 import { liveRenderSpeed } from "./live-render-speed.js";
 import { appearanceEditor } from "./appearance-editor.js";
 import { destructiveActionGate } from "./destructive-action-gate.js";
@@ -101,6 +102,7 @@ export const articles: readonly Article[] = [
     backups,
     tabbedShell,
     projectEditor,
+    projectCanvas,
     commandPalette,
     notificationCentre,
     renderConsole,
