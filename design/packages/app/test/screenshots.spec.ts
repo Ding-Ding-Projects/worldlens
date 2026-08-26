@@ -240,6 +240,9 @@ const SURFACE_TIMEOUT = 900_000;
 /** How long to wait for one element. Short enough that a wrong selector is not a hang. */
 const ELEMENT_TIMEOUT = 45_000;
 
+/* Opening a surface, as distinct from waiting for one to render. A healthy open is sub-second. */
+const OPEN_TIMEOUT = 12_000;
+
 /**
  * How long one step of *reaching* a surface may take, as opposed to rendering it.
  *
@@ -3030,6 +3033,51 @@ test("captures the map and server profile manager", async () => {
             "The maps and servers manager on its own tab in the Work destination, listing the maps rendered on this computer and the remote BlueMap servers the application knows about, with the fields for adding another",
             { mapArea: "covered" },
         );
+    });
+});
+
+/*
+ * The node-graph creation mode.
+ *
+ * Reached through the wizard screen rather than through its own tab, because that is where a
+ * person meets it: the toggle sits above the wizard and swaps which presentation is shown. Both
+ * drive one shared model, so the canvas is photographed against the same half-built project the
+ * wizard would have shown.
+ */
+test("captures the project canvas and its nodes", async () => {
+    test.setTimeout(SURFACE_TIMEOUT);
+
+    await attempt("Project canvas", async () => {
+        await openJob("world", /make a map/i, "Make a map");
+        await page
+            .locator('[data-test="creation-mode-canvas"]')
+            .first()
+            .click({ timeout: OPEN_TIMEOUT });
+        await page.waitForSelector('[data-test="project-canvas"]', {
+            state: "visible",
+            timeout: OPEN_TIMEOUT,
+        });
+        await page.waitForTimeout(600);
+        await shoot(
+            "project-canvas",
+            "The project canvas: one world feeding a dimension, identity, and the options and " +
+                "storage that fork off it, ending at the render node.",
+            { mapArea: "covered" },
+        );
+    });
+
+    await attempt("Project canvas node search", async () => {
+        const search = page.locator('[data-test="canvas-search"] input').first();
+        await search.waitFor({ state: "visible", timeout: OPEN_TIMEOUT });
+        await search.fill("storage");
+        await page.waitForTimeout(500);
+        await shoot(
+            "project-canvas-search",
+            "Searching the canvas marks the matching node rather than hiding the others, so the " +
+                "project keeps its shape while a person looks for one box.",
+            { mapArea: "covered" },
+        );
+        await search.fill("");
     });
 });
 
