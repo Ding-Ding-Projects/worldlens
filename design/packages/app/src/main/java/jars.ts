@@ -43,11 +43,13 @@ export function isBlueMapImplementation(value: string): value is BlueMapImplemen
 /**
  * Where a jar was found.
  *
- * - `bundled` - shipped inside the packaged app's resources.
- * - `staged`  - copied by `tools/build-jars.mjs` into the repository-local staging dir.
- * - `gradle`  - straight out of a `vendor/BlueMap` build directory.
+ * - `bundled`    - shipped inside the packaged app's resources.
+ * - `downloaded` - installed by the app itself under `userData`, for a build that arrived
+ *                  without a bundled jar. See `installCliJar`.
+ * - `staged`     - copied by `tools/build-jars.mjs` into the repository-local staging dir.
+ * - `gradle`     - straight out of a `vendor/BlueMap` build directory.
  */
-export type JarSource = "bundled" | "staged" | "gradle";
+export type JarSource = "bundled" | "downloaded" | "staged" | "gradle";
 
 export interface BlueMapJar {
     readonly implementation: BlueMapImplementation;
@@ -145,6 +147,11 @@ export function bundledJarDirectory(resourcesPath: string): string {
 export interface JarLookupOptions {
     /** Electron's `process.resourcesPath` in a packaged app; omit in development. */
     readonly resourcesPath?: string | null;
+    /**
+     * Electron's `userData`. Searched for a jar this app installed itself when a build arrived
+     * without one; see `installCliJar`. Omit where self-installation does not apply.
+     */
+    readonly dataDir?: string | null;
     /** Overrides root discovery. Handy in tests and for a non-standard checkout. */
     readonly repoRoot?: string | null;
     /** Where root discovery starts. Defaults to this module's own directory. */
@@ -170,6 +177,18 @@ function searchLocations(
     const resourcesPath = options.resourcesPath;
     if (typeof resourcesPath === "string" && resourcesPath.length > 0) {
         locations.push({ directory: bundledJarDirectory(resourcesPath), source: "bundled" });
+    }
+
+    /*
+     * A jar this app installed for itself, after `bundled` and before any checkout.
+     *
+     * Second on purpose. What ships inside the installer is the engine that was released with
+     * this build and stays the preferred answer; a self-installed copy exists only for a build
+     * that arrived without one, and must not quietly take over from a bundle that is present.
+     */
+    const dataDir = options.dataDir;
+    if (typeof dataDir === "string" && dataDir.length > 0) {
+        locations.push({ directory: join(dataDir, "engines", "jars"), source: "downloaded" });
     }
 
     const repoRoot =

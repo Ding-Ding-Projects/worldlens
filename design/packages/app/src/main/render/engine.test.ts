@@ -31,6 +31,9 @@ vi.mock("../java/index.js", () => ({
     NoUsableJavaError: class NoUsableJavaError extends Error {},
 }));
 
+const installModule = vi.hoisted(() => ({ installCliJar: vi.fn() }));
+vi.mock("../java/installCliJar.js", () => ({ installCliJar: installModule.installCliJar }));
+
 import { upstreamJavaEngine } from "./engine.js";
 
 const JAR: BlueMapJar = {
@@ -122,6 +125,50 @@ describe("upstreamJavaEngine", () => {
         expect(resolved.engine).toBe("upstream-java");
         expect(resolved.enginePath).toBe(JAR.path);
         expect(resolved.engineVersion).toBe(JAR.version);
+    });
+
+    /*
+     * The owner's other requirement: a build that arrived without an engine installs one rather
+     * than telling the person it is not installed. `ensureJava` already does this for the runtime.
+     *
+     * The second `resolveCliJar` call is what proves the install was actually consulted: the first
+     * throws exactly as it does on a machine with no jar anywhere, and the resolver only succeeds
+     * because it looked again after installing.
+     */
+    it("installs the engine when no jar is found anywhere, instead of giving up", async () => {
+        installModule.installCliJar.mockReset();
+        javaModule.resolveCliJar
+            .mockImplementationOnce(() => {
+                throw new Error("no BlueMap cli jar found; looked in: /nowhere");
+            })
+            .mockReturnValueOnce(JAR);
+        installModule.installCliJar.mockResolvedValue("/data/engines/jars/bluemap-5.23-cli.jar");
+        javaModule.ensureJava.mockResolvedValue(JAVA);
+
+        const resolved = await upstreamJavaEngine({ dataDir: "/data" })();
+
+        expect(installModule.installCliJar).toHaveBeenCalledTimes(1);
+        expect(installModule.installCliJar.mock.calls[0]?.[0]).toMatchObject({ dataDir: "/data" });
+        expect(resolved.engine).toBe("upstream-java");
+    });
+
+    /*
+     * A failed install must not bury the real problem. "Could not reach github.com" on its own
+     * reads as a network blip; the state that matters is that this build has no engine, and the
+     * download attempt is context for that rather than a replacement for it.
+     */
+    it("reports the missing engine, not just the download error, when installing fails", async () => {
+        installModule.installCliJar.mockReset();
+        javaModule.resolveCliJar.mockImplementation(() => {
+            throw new Error("no BlueMap cli jar found; looked in: /nowhere");
+        });
+        installModule.installCliJar.mockRejectedValue(new Error("could not reach the release host"));
+
+        await expect(upstreamJavaEngine({ dataDir: "/data" })()).rejects.toThrow(
+            /no BlueMap cli jar found[\s\S]*Installing one automatically also failed[\s\S]*could not reach the release host/,
+        );
+
+        javaModule.resolveCliJar.mockReset();
     });
 
     /*

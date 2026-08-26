@@ -18,6 +18,7 @@
  */
 
 import { ensureJava, NoUsableJavaError, resolveCliJar } from "../java/index.js";
+import { installCliJar } from "../java/installCliJar.js";
 import type { JarLookupOptions } from "../java/index.js";
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve, basename } from "node:path";
@@ -38,6 +39,8 @@ export interface UpstreamEngineOptions {
      */
     readonly allowProvisioning?: boolean;
     readonly jarLookup?: JarLookupOptions;
+    /** Progress for a self-installed engine, so a download is visible rather than a silent pause. */
+    readonly onEngineProgress?: (message: string) => void;
 }
 
 export interface TypeScriptEngineOptions {
@@ -68,11 +71,41 @@ export function upstreamJavaEngine(
         // The jar first: it is a directory listing, where finding a JVM can mean
         // launching a process or downloading two hundred megabytes. Reporting "the
         // engine is not installed" without having spent that is the better order.
+        const lookup = options.jarLookup ?? lookupFrom(options);
         let jar;
         try {
-            jar = resolveCliJar(options.jarLookup ?? lookupFrom(options));
-        } catch (error) {
-            throw new EngineUnavailableError("jar", describe(error));
+            jar = resolveCliJar(lookup);
+        } catch (firstAttempt) {
+            /*
+             * No jar anywhere, so install one rather than telling the person to go and find it.
+             *
+             * Every supported build bundles the engine and never reaches this. It is here for the
+             * build that did not: a packaging step that dropped the jar, an install copied by
+             * hand, a checkout with nothing staged. The owner's direction is that a missing
+             * dependency installs itself so nobody feels it, which is what `ensureJava` already
+             * does for the runtime; this is the same for the jar.
+             *
+             * One attempt, then the original error. A download that fails must not replace "the
+             * engine is missing" with a network message that hides it, so the failure reported is
+             * still the one that describes the real state, with the install attempt named beside
+             * it.
+             */
+            try {
+                await installCliJar({
+                    dataDir: options.dataDir,
+                    version: await versionToInstall(options.resourcesPath),
+                    ...(options.onEngineProgress === undefined
+                        ? {}
+                        : { onProgress: options.onEngineProgress }),
+                });
+                jar = resolveCliJar(lookup);
+            } catch (installFailed) {
+                throw new EngineUnavailableError(
+                    "jar",
+                    `${describe(firstAttempt)} Installing one automatically also failed: ` +
+                        `${describe(installFailed)}`,
+                );
+            }
         }
         if (options.resourcesPath !== undefined && options.resourcesPath !== null) {
             /*
@@ -378,9 +411,35 @@ async function exists(path: string): Promise<boolean> {
 }
 
 function lookupFrom(options: UpstreamEngineOptions): JarLookupOptions {
-    return options.resourcesPath === undefined
-        ? {}
-        : { resourcesPath: options.resourcesPath };
+    // `dataDir` is always passed: it is where a self-installed jar lives, and leaving it out
+    // would make `installCliJar` write somewhere nothing ever looks.
+    return {
+        dataDir: options.dataDir,
+        ...(options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath }),
+    };
+}
+
+/**
+ * The BlueMap version to install when a build arrived without a jar.
+ *
+ * Read from the packaged manifest where it says anything useful, so an installation follows the
+ * engine that build was meant to have. The constant is the floor for the case this whole path
+ * exists for - a build whose manifest is missing or, as shipped in 1.0.1745, reports `null` - and
+ * is deliberately a version known to have a CLI asset published upstream.
+ */
+const FALLBACK_BLUEMAP_VERSION = "5.23";
+
+async function versionToInstall(resourcesPath: string | null | undefined): Promise<string> {
+    if (resourcesPath === undefined || resourcesPath === null) return FALLBACK_BLUEMAP_VERSION;
+    try {
+        const parsed = JSON.parse(
+            await readFile(join(resourcesPath, "render-engines", "manifest.json"), "utf8"),
+        ) as { engines?: { "upstream-java"?: { version?: unknown } } };
+        const version = parsed.engines?.["upstream-java"]?.version;
+        return typeof version === "string" && version.length > 0 ? version : FALLBACK_BLUEMAP_VERSION;
+    } catch {
+        return FALLBACK_BLUEMAP_VERSION;
+    }
 }
 
 function describe(error: unknown): string {
