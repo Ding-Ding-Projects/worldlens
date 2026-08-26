@@ -179,6 +179,33 @@ jobs:
           Copy-Item -LiteralPath $jar.FullName -Destination tools/oracle/out/jars/
           Get-ChildItem -LiteralPath tools/oracle/out/jars
 
+      # Rewrite the render-engine manifest now that the jar is actually on disk.
+      #
+      # `pnpm build` above runs `build.mjs`, which calls `stageRenderEngines()` - and it does so
+      # eighty-one seconds before the step above downloads the jar. So the manifest was written
+      # while `tools/oracle/out/jars` was empty, correctly reported `available: false,
+      # version: null, jar: null`, and was then packaged beside a perfectly good jar. Every
+      # release shipped that way, and the app believed the manifest: "The BlueMap engine is not
+      # installed", with the engine sitting next to it.
+      #
+      # A local `npm run package` never reproduced it, because on a developer machine the jar is
+      # already staged before the build runs.
+      #
+      # This regenerates the manifest against the real directory. It is the same script the build
+      # already calls, run again at the only moment it can tell the truth.
+      - name: Describe the render engines now that the jar is staged
+        working-directory: design/packages/app
+        shell: pwsh
+        run: |
+          node scripts/stage-render-engines.mjs
+          $manifest = Get-Content -LiteralPath dist/render-engines/manifest.json -Raw | ConvertFrom-Json
+          $java = $manifest.engines.'upstream-java'
+          Write-Host ("upstream-java available={0} version={1} jar={2}" -f $java.available, $java.version, $java.jar.fileName)
+          if (-not $java.available) {
+            Write-Host '::error::the render-engine manifest still denies the staged jar'
+            exit 1
+          }
+
       # Every build must carry a version Squirrel can order, or installing a newer
       # release over an older one silently does nothing: same version, nothing to do,
       # no error and no upgrade. `<major>.<minor>.<run number>` is monotonic, is valid
