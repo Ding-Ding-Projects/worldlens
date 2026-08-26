@@ -578,7 +578,28 @@ function registerIpc(): void {
     });
     app.on("will-quit", () => mcServerIpc?.dispose());
 
-    registerVocabularyHandlers(ipcMain, { applicationDataDirectory });
+    /*
+     * The personal vocabulary is deliberately machine-wide: one file under `appData`, shared by
+     * every app the person runs, so a term they chose applies everywhere at once. That is the
+     * contract and it is not what changes here.
+     *
+     * What changes is capture mode. A screenshot run isolates `userData` above but kept reading
+     * that shared file, so the application it photographs is rendering the operator's own private
+     * replacements - and those pictures are committed to a public repository. It is invisible in
+     * review, because the words look like ordinary product copy to anyone who does not know the
+     * machine; it was found only by a capture failing to match "GitHub account" against a settings
+     * row that said something else entirely.
+     *
+     * So in smoke and capture mode the store is pointed at the throwaway profile instead. Nothing
+     * has ever written a vocabulary file there, so the app renders its own shipped wording, which
+     * is the only thing a published picture may show. The upload control itself still works, and
+     * still writes to wherever it is pointed, so the feature's own captures and tests are
+     * unaffected - they supply their file explicitly rather than inheriting the operator's.
+     */
+    registerVocabularyHandlers(ipcMain, {
+        applicationDataDirectory:
+            smokeMode && screenshotUserData !== "" ? screenshotUserData : applicationDataDirectory,
+    });
 
     // Mojang's licence, fetched and cached so it can be read inside the app rather than
     // taken on trust. A reader only: the acceptance itself stays in `consent.ts`.
