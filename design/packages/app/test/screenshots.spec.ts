@@ -1575,13 +1575,54 @@ async function openMenuPage(label: string, waits: string): Promise<void> {
  * is what keeps a capture from being reported as an unopenable surface when the real
  * problem was a screen left open by something else.
  */
+/**
+ * Close the options editor, and prove it closed.
+ *
+ * The old version pressed Escape once, swallowed every failure, waited a flat 700ms and returned
+ * unconditionally without ever re-checking. That made it the single most expensive line in this
+ * file, because Escape does not always close the editor: `requestConfigClose` in `App.vue` opens a
+ * confirmation instead when the workspace has unsaved changes, and that dialog is Vuetify
+ * `persistent`, which ignores Escape and backdrop clicks by design. So a second Escape cannot
+ * dismiss it either, and the editor stays open with `.mb-shell-body` inert behind it.
+ *
+ * Everything downstream then fails identically, because `selectDestination` and
+ * `openSettingsSurface` both call this first: clicks land on an inert element, report success, and
+ * do nothing. The measured signature is unmistakable - 31 consecutive surfaces each giving up at
+ * 20.00 to 20.02 seconds, for over ten minutes, with no variance at all. Cumulative slowdown would
+ * have produced rising times; a flat line that starts at the very first surface is one operation
+ * blocked the same way every time.
+ *
+ * So this now answers the confirmation when it appears, and verifies the editor is actually gone
+ * rather than assuming a keypress was enough. A helper that cannot fail cannot report, and this one
+ * silently cost 32 captures a run.
+ */
 async function ensureOptionsEditorClosed(): Promise<void> {
     if (!(await visible(".mb-config-screen"))) return;
+
     await page
         .locator('[role="region"][aria-label="Server configuration"]')
         .press("Escape")
         .catch(() => undefined);
-    await page.waitForTimeout(700);
+    await page.waitForTimeout(400);
+
+    // The unsaved-changes confirmation, if Escape raised one. Discarding is right here: the
+    // harness's throwaway profile has nothing worth keeping, and leaving it open blocks the run.
+    const discard = page.getByRole("button", { name: /discard and close/i }).first();
+    if (await discard.isVisible().catch(() => false)) {
+        await discard.click({ timeout: ELEMENT_TIMEOUT }).catch(() => undefined);
+        await page.waitForTimeout(400);
+    }
+
+    await page
+        .waitForSelector(".mb-config-screen", { state: "hidden", timeout: ELEMENT_TIMEOUT })
+        .catch(() => {
+            throw new Error(
+                "the options editor would not close, so the shell behind it is inert and every " +
+                    "later click will be swallowed silently. Escape was pressed and any " +
+                    "unsaved-changes confirmation was answered, and `.mb-config-screen` is still " +
+                    "visible.",
+            );
+        });
 }
 
 /**

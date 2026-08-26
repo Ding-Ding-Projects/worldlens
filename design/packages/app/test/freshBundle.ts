@@ -149,6 +149,43 @@ export default async function assertBuiltFromCurrentSource(): Promise<void> {
         }
     }
 
+    /*
+     * The packaged artifact, which is the one the captures are actually of.
+     *
+     * Everything above compares a source tree against the intermediate build it produces. That is
+     * necessary and it is not sufficient, because the harness does not photograph `dist`: it
+     * launches `release/win-unpacked/Worldlens.exe`, which serves the renderer out of its own
+     * bundled `app.asar`. Rebuilding `packages/ui` therefore satisfies every check above while the
+     * application on screen is still whatever was last packaged.
+     *
+     * That is not hypothetical. A capture run went green against an `app.asar` nineteen hours old,
+     * photographing an interface that predated the entire feature being added, and the only symptom
+     * was a surface that "could not open" because it genuinely did not exist in the build being
+     * driven. A green packaging log proves a file was copied, never that the thing under test is
+     * the thing that was built.
+     */
+    const asar = join(packages, "app", "release", "win-unpacked", "resources", "app.asar");
+    const packaged = await newestUnder(dirname(asar), (name) => name === "app.asar");
+    if (packaged === null) {
+        complaints.push(
+            "the packaged application has never been built, and it is what the captures are of.\n" +
+                `    expected: ${asar}\n` +
+                "    build it with:      cd design/packages/app && npm run package",
+        );
+    } else {
+        const newestBuilt = (
+            await Promise.all(BUILT.map(async (target) => newestUnder(target.output, () => true)))
+        ).reduce<number>((best, entry) => (entry && entry.at > best ? entry.at : best), 0);
+        if (newestBuilt > packaged.at) {
+            complaints.push(
+                `the packaged application was built ${ago(newestBuilt - packaged.at)} before the ` +
+                    "code it bundles.\n" +
+                    `    packaged: ${packaged.file}\n` +
+                    "    repackage with:     cd design/packages/app && npm run package",
+            );
+        }
+    }
+
     if (complaints.length === 0) return;
 
     throw new Error(
