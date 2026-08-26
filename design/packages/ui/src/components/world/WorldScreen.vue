@@ -668,11 +668,18 @@ async function resume(renderId: string): Promise<void> {
                     </v-btn-toggle>
                 </div>
 
+                <!--
+                    No `data-test` here on purpose. Vue falls a parent-supplied attribute through
+                    onto the child's root element, where it REPLACES the child's own, so adding one
+                    silently renamed the canvas's stable identifier to this host's name and left
+                    every selector that targets the component itself matching nothing. Its own
+                    `data-test="project-canvas"` is the one that should survive; a wrapper class is
+                    enough to position it from out here.
+                -->
                 <ProjectCanvas
                     v-if="creationMode === 'canvas' && sharedWizard"
                     :wizard="sharedWizard"
                     class="mb-world-screen__canvas"
-                    data-test="world-screen-canvas"
                 />
 
                 <WorldWizard
