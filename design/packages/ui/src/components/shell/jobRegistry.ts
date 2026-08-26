@@ -24,6 +24,7 @@
 
 import {
     mdiCloudDownloadOutline,
+    mdiGraphOutline,
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
     mdiCubeOutline,
@@ -52,6 +53,7 @@ export type CoreJobId =
     | "cirender"
     | "structures"
     | "chunker"
+    | "projectCanvas"
     | "authenticator"
     | "locks"
     | "support"
@@ -91,6 +93,7 @@ export type JobId = CoreJobId | OptionalJobId;
  */
 export const JOB_IDS_BY_SEMANTIC_NAME = {
     wizard: "world",
+    canvas: "projectCanvas",
     projects: "projects",
     runners: "cirender",
     structures: "structures",
@@ -205,6 +208,22 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         icon: mdiMapPlus,
         seedGroup: null,
         pinnedOnFreshWorkspace: true,
+    },
+    /*
+     * The same creation flow drawn as a graph. It sits beside the wizard rather than replacing
+     * it, and both drive one shared model, so a half-built project can move between them.
+     *
+     * Not pinned on a fresh workspace: somebody meeting the product for the first time is better
+     * served by the linear route, and this one is a deliberate choice rather than a default.
+     */
+    {
+        id: "projectCanvas",
+        semanticName: "canvas",
+        labelKey: "tabs.page.projectCanvas",
+        labelFallback: "Project canvas",
+        icon: mdiGraphOutline,
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
     },
     {
         id: "projects",
