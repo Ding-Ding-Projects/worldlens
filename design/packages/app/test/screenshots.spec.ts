@@ -1165,7 +1165,9 @@ async function selectDestination(id: "home" | "map" | "work"): Promise<void> {
     const button = page.locator(`[data-destination="${id}"]`);
     await button.waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
     if ((await button.getAttribute("aria-current")) === "page") return;
-    await button.click({ timeout: ELEMENT_TIMEOUT });
+    // `noWaitAfter`: see `activateTab`. The check below is what proves the rail actually moved,
+    // and it is a better test than a navigation event this application never fires.
+    await button.click({ timeout: ELEMENT_TIMEOUT, noWaitAfter: true });
     await page.waitForTimeout(300);
 
     /*
@@ -1239,7 +1241,11 @@ async function activateTab(tab: Locator): Promise<void> {
     if ((await tab.getAttribute("aria-selected")) === "true") return;
     const label = tab.locator(".mb-tabs-strip__label");
     const aim = (await label.count()) > 0 ? label.first() : tab;
-    await aim.click({ timeout: REACH_TIMEOUT });
+    // `noWaitAfter` for the same reason as the sheet click in `openJobThroughNewTabMenu`: this
+    // shell is one document, so a view switch is never a page load, but Playwright believes one is
+    // scheduled and waits for it forever. Every caller checks the outcome it actually wanted
+    // immediately afterwards, so nothing is lost by not waiting for a navigation that cannot come.
+    await aim.click({ timeout: REACH_TIMEOUT, noWaitAfter: true });
     await page.waitForTimeout(300);
 }
 
@@ -1272,7 +1278,24 @@ async function openJobThroughNewTabMenu(name: string): Promise<void> {
         .filter({ hasText: name })
         .first();
     await item.waitFor({ state: "visible", timeout: REACH_TIMEOUT });
-    await item.click({ timeout: REACH_TIMEOUT });
+    /*
+     * `noWaitAfter`, because the wait after is what hangs - not the click.
+     *
+     * Opening a job from this sheet leaves Playwright believing a navigation is scheduled, and it
+     * then waits for one that never arrives. The call log says so exactly: "performing click
+     * action", "click action done", "waiting for scheduled navigations to finish", and then
+     * nothing until the timeout. The click had already landed; the tab panel was already open.
+     *
+     * It cost far more than one capture. This is the first surface in its chunk, so every later
+     * one inherited a half-opened sheet: the profile manager, the backup screen, all four settings
+     * surfaces, all four options-editor surfaces and the world repository were recorded as
+     * unreachable in the same run, and each of them opens perfectly when run on its own. That
+     * pattern - passes alone, fails in company - reads as renderer exhaustion and is not.
+     *
+     * Measured on the real packaged application: plain click, 8.0s and still waiting; the same
+     * click with this option, 0.0s with the tab panel visible immediately afterwards.
+     */
+    await item.click({ timeout: REACH_TIMEOUT, noWaitAfter: true });
     await page.waitForTimeout(400);
 }
 
@@ -1316,7 +1339,18 @@ function reachExhausted(startedAt: number): boolean {
 
 async function openJob(pageId: string, name: RegExp, label: string): Promise<void> {
     const reachStartedAt = Date.now();
+    /*
+     * Stage timings, because "the surface did not finish" names no stage.
+     *
+     * This helper has four routes to a job and three separate click sites, and when it stalls the
+     * only evidence was a twenty-second gap with the surface's name on it. That is indistinguishable
+     * between a rail that never moved, a tab that never appeared, and a click that landed and was
+     * waited on forever - and guessing between them cost two wrong fixes.
+     */
+    const stage = (what: string): void =>
+        console.log(`[harness]   openJob ${pageId}: ${what} at ${((Date.now() - reachStartedAt) / 1000).toFixed(1)}s`);
     await selectDestination("work");
+    stage("destination selected");
     const strip = workTabs();
     const tab = strip.locator(`[data-tutorial-anchor="tab-${pageId}"]`).first();
 
@@ -1324,18 +1358,35 @@ async function openJob(pageId: string, name: RegExp, label: string): Promise<voi
     // difference between "this job has no tab" and "its tab does not currently fit" is exactly
     // the difference between opening one and going to find it.
     if ((await tab.count()) === 0) {
+        stage("no tab; opening through the new-tab menu");
         await openJobThroughNewTabMenu(label);
-        // `attached`, not `visible`. Opening a job makes its tab the active one but does not
-        // promise it fits: the strip's overflow arithmetic runs on the whole row, so on a narrow
-        // window a brand-new tab can arrive already behind the overflow control. Falling through
-        // to the reveal below handles that rather than asserting a layout this cannot control.
-        await tab.waitFor({ state: "attached", timeout: REACH_TIMEOUT });
+        stage("new-tab menu done");
+        /*
+         * `attached`, not `visible`. Opening a job makes its tab the active one but does not
+         * promise it fits: the strip's overflow arithmetic runs on the whole row, so on a narrow
+         * window a brand-new tab can arrive already behind the overflow control. Falling through
+         * to the reveal below handles that rather than asserting a layout this cannot control.
+         *
+         * And it must actually fall through, which is what the `catch` is for. `waitFor` throws,
+         * so this did the exact opposite of what the paragraph above describes: a tab that landed
+         * anywhere other than the visible row ended the attempt here, fifteen seconds later, with
+         * the reveal routes written directly below it never reached. A job whose seed group is
+         * collapsed - `servers` is one - can never satisfy this wait, because a collapsed group
+         * does not render its tabs at all.
+         *
+         * Not being attached is information, not a failure: it says "take the longer route", and
+         * the longer route is the next twenty lines. If none of them work, `describeShellStrip()`
+         * reports what the strip actually held, which is a far better error than this timeout.
+         */
+        await tab.waitFor({ state: "attached", timeout: REACH_TIMEOUT }).catch(() => undefined);
     }
 
     if (reachExhausted(reachStartedAt))
         throw new Error(`no route to the "${pageId}" job within ${REACH_BUDGET}ms.`);
     if (await tab.isVisible().catch(() => false)) {
+        stage("tab visible; activating");
         await activateTab(tab);
+        stage("activated");
         return;
     }
 
@@ -1343,7 +1394,9 @@ async function openJob(pageId: string, name: RegExp, label: string): Promise<voi
     // collapsed group, or - once opening a group has made the strip taller - behind the overflow
     // control. Both are the strip working correctly, and both have a route a person would use.
     if (await revealTabInGroups(name)) {
+        stage("revealed in a group; activating");
         await activateTab(tab);
+        stage("activated (via group reveal)");
         return;
     }
 
@@ -1353,7 +1406,9 @@ async function openJob(pageId: string, name: RegExp, label: string): Promise<voi
     if (reachExhausted(reachStartedAt))
         throw new Error(`no route to the "${pageId}" job within ${REACH_BUDGET}ms.`);
     if (await tab.isVisible().catch(() => false)) {
+        stage("tab visible after expanding groups; activating");
         await activateTab(tab);
+        stage("activated (after expanding groups)");
         return;
     }
 
@@ -3126,12 +3181,20 @@ test("captures the map and server profile manager", async () => {
             state: "visible",
             timeout: ELEMENT_TIMEOUT,
         });
-        // `attached`, not `visible`: the listbox is always rendered, but with no maps and no
-        // servers yet it has no rows, so it has no height, and Playwright calls a
-        // zero-height element invisible. Waiting for it to be seen is waiting for somebody
-        // to add a server first.
-        await page.waitForSelector(".mb-profiles__list", {
-            state: "attached",
+        // `.mb-dashboard`, not `.mb-profiles__list`.
+        //
+        // The "Maps and servers" job stopped rendering `ProfileManager.vue` and started rendering
+        // `DashboardScreen.vue`; App.vue's `#servers` slot names the latter, and the former is now
+        // imported and never used, orphaned in the tree exactly like `HomeScreen.vue`. So this
+        // waited twenty seconds for a listbox that no longer mounts anywhere, on every run.
+        //
+        // The tab itself was fine throughout - `openJob` reaches it in 1.3s and the panel is
+        // visible - which is what made this look like a slow application rather than a capture
+        // pointed at a retired component. Two `attached` waits on a dead selector are
+        // indistinguishable from a hang, and the surface's own name is the only thing the gap
+        // record carries.
+        await page.waitForSelector(".mb-dashboard", {
+            state: "visible",
             timeout: ELEMENT_TIMEOUT,
         });
         await page.waitForTimeout(500);
