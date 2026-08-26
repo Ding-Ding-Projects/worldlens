@@ -666,6 +666,16 @@ async function shoot(name: string, surface: string, options: ShotOptions = {}): 
     // perfectly good capture of them.
     expect(buffer.length, `capture ${name} produced no bytes`).toBeGreaterThan(200);
     await writeFile(join(shotDir, `${name}.png`), buffer);
+    /*
+     * Progress, for `attempt`'s idle watchdog - stamped here, on a file that exists, rather than
+     * on entry to this function.
+     *
+     * Stamping at entry would have counted "started taking a picture" as progress, so an attempt
+     * that reached this function and then hung inside it would be reported as having captured
+     * something when it had not, and the watchdog's own message would say so. A byte on disk is
+     * the only claim worth making.
+     */
+    lastProgressAt = Date.now();
 
     const where =
         options.cropped === undefined
@@ -746,6 +756,26 @@ function skip(surface: string, reason: string): void {
  * needs longer should carry its own timeout rather than borrow headroom from every other one.
  */
 const SURFACE_BUDGET = 20_000;
+
+/*
+ * The budget above is an IDLE budget, not a total one, and the difference is the whole reason
+ * this variable exists.
+ *
+ * Read as a total it starves every attempt that takes more than one picture. "Settings sections"
+ * walks nineteen sections and captures each; "Options editor tabs" walks its tabs the same way.
+ * Twenty seconds cannot cover nineteen searches, clicks and screenshots however healthy the
+ * application is, so those attempts were recorded as unreachable surfaces while the application
+ * was answering perfectly - which is precisely the false report `attempt` exists to avoid. It
+ * cost the settings sections, both settings rows and the options editor tabs in one run, and it
+ * was self-inflicted: this number was 60_000 until 076bedb6 lowered it this morning.
+ *
+ * What the bound is actually for is a surface that is not coming: a click into an inert shell, a
+ * selector that will never match. Those produce no pictures at all, so measuring from the last
+ * picture rather than from the start of the attempt keeps that guarantee exactly while letting a
+ * working multi-capture attempt run to the end. The spec's own remaining time is still the hard
+ * ceiling, so this cannot reintroduce a spec that overruns and discards its worker.
+ */
+let lastProgressAt = Date.now();
 
 /*
  * A ceiling on the SPEC, not only on each surface inside it.
@@ -845,15 +875,51 @@ async function attempt(surface: string, run: () => Promise<void>): Promise<void>
             );
         }
         const budget = Math.min(SURFACE_BUDGET, remaining);
-        await Promise.race([
-            run(),
-            new Promise<never>((_resolve, reject) =>
-                setTimeout(
-                    () => reject(new Error(`the surface did not finish within ${budget}ms`)),
-                    budget,
-                ).unref?.(),
-            ),
-        ]);
+
+        /*
+         * Two deadlines, and they answer different questions.
+         *
+         * `hardDeadline` is the spec's: whatever happens, this attempt stops in time for the spec
+         * to record its gaps and finish, because a spec killed by the test timeout discards its
+         * worker and takes every later spec with it.
+         *
+         * The idle deadline is the surface's, and it is measured from the last picture rather
+         * than from the start. An attempt that has just captured something is demonstrably not
+         * hung; an attempt that has captured nothing for `budget` is. Polling at a second is
+         * plenty for a bound measured in tens of seconds, and it keeps this to one timer that
+         * clears on every exit path instead of a chain of them.
+         */
+        const hardDeadline = Date.now() + remaining;
+        lastProgressAt = Date.now();
+        let watchdog: ReturnType<typeof setInterval> | undefined;
+        try {
+            await Promise.race([
+                run(),
+                new Promise<never>((_resolve, reject) => {
+                    watchdog = setInterval(() => {
+                        const idleFor = Date.now() - lastProgressAt;
+                        if (idleFor >= budget) {
+                            reject(
+                                new Error(
+                                    `the surface did not finish within ${budget}ms, and captured ` +
+                                        `nothing in that time`,
+                                ),
+                            );
+                        } else if (Date.now() >= hardDeadline) {
+                            reject(
+                                new Error(
+                                    `the spec's own budget ran out while this surface was still ` +
+                                        `working; it was making progress ${idleFor}ms ago`,
+                                ),
+                            );
+                        }
+                    }, 1_000);
+                    watchdog.unref?.();
+                }),
+            ]);
+        } finally {
+            if (watchdog !== undefined) clearInterval(watchdog);
+        }
         console.log(`[harness] ${surface}: ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
         appendLedger(LEDGER, { kind: "step", surface });
     } catch (error) {
@@ -3299,12 +3365,22 @@ test("captures the settings surface and every section in it", async () => {
         const searchInput = page.locator(`${APP_SETTINGS} .mb-settings__search input`).first();
 
         for (const { anchor, title } of anchors) {
+            /*
+             * Named per iteration, because this attempt is nineteen captures wearing one surface
+             * name. When it failed, "Settings sections did not finish" was every bit of evidence
+             * there was: no way to tell a first-anchor failure from an eighteenth, and no way to
+             * tell a missing section from a slow one. One line makes the next failure name itself.
+             */
+            const at = Date.now();
             await searchInput.fill("");
             await searchInput.fill(anchor);
             const result = page.locator(`${APP_SETTINGS} .mb-settings__result`, { hasText: title });
             await result.first().waitFor({ state: "visible", timeout: ELEMENT_TIMEOUT });
             await result.first().click();
             await page.waitForTimeout(500);
+            console.log(
+                `[harness]   section ${anchor}: reached in ${((Date.now() - at) / 1000).toFixed(1)}s`,
+            );
             await shoot(
                 `settings-section-${slug(anchor)}`,
                 `The "${title}" settings section, on its own browser-style tab inside the settings panel`,
@@ -3344,7 +3420,16 @@ test("captures the settings surface and every section in it", async () => {
             { crop: page.locator(".mb-config-regex"), cropped: "the regex builder" },
         );
         await page.locator(".mb-config-regex__pattern textarea").first().fill("(");
-        await page.locator('.mb-config-regex [role="alert"]').waitFor({
+        /*
+         * `.v-alert`, not `[role="alert"]`. Vuetify puts `role="alert"` on its own
+         * `v-input__details` message container as well, so the broad attribute selector matched
+         * two elements the moment the pattern field grew a message and failed strict mode - which
+         * `attempt` recorded as an unreachable surface, when the builder was in fact showing
+         * exactly the error this capture wants. The component declares one `v-alert`, guarded by
+         * `v-if="evaluation.error"`, so this names the error itself rather than anything that
+         * happens to announce politely.
+         */
+        await page.locator(".mb-config-regex .v-alert").waitFor({
             state: "visible",
             timeout: ELEMENT_TIMEOUT,
         });
