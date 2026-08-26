@@ -70,6 +70,7 @@ import {
     mdiFolderSearchOutline,
     mdiFormatListBulleted,
     mdiGithub,
+    mdiGraphOutline,
     mdiHistory,
     mdiHumanGreeting,
     mdiImageOutline,
@@ -218,6 +219,16 @@ const MAKE_FEATURES: readonly CatalogueFeatureDefinition[] = [
             "The five-question version of the same thing for a first map, writing a project that is then edited in the project editor like any other.",
         target: { kind: "job", jobId: "world", reveal: "step-1" },
         metaResolver: "wizard.stepCount",
+    }),
+    feature("findingAWorld", {
+        key: "make.finding-a-world.the-project-canvas",
+        icon: mdiGraphOutline,
+        nameKey: "catalogue.make.projectCanvas.name",
+        nameFallback: "The project canvas",
+        blurbKey: "catalogue.make.projectCanvas.blurb",
+        blurbFallback:
+            "Sees the whole project as one shape instead of one screen at a time - a world feeding its dimensions, options attaching to the map rather than the world - while editing the exact same project the wizard does.",
+        target: { kind: "job", jobId: "projectCanvas" },
     }),
     feature("findingAWorld", {
         key: "make.finding-a-world.project-world-discovery",

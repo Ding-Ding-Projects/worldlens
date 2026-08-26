@@ -51,6 +51,7 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "http-postman",
     "automatic-updater",
     "spoken-narrator",
+    "node-graph-project-canvas",
 ] as const;
 
 export type PagesFeatureId = (typeof REQUIRED_PAGES_FEATURE_IDS)[number];
@@ -469,5 +470,11 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
         title: "Optional spoken event narrator",
         status: "optional-not-enabled",
         reason: "The shared narrator requirement is explicitly optional. This site does not start speech, preserving quiet browser behaviour and assistive-technology ownership; every event remains exposed as text and through appropriate live regions.",
+    },
+    {
+        id: "node-graph-project-canvas",
+        title: "Node-graph project canvas for map-project creation",
+        status: "not-applicable",
+        reason: "The node-graph project canvas (design/packages/ui/src/components/canvas/canvasModel.ts, CanvasNode.vue, and ProjectCanvas.vue) is an alternative presentation of map-project creation that drives the installed application's createMapWizard model through draggable nodes and connections. It ships only inside the installed Windows desktop application and has no interactive counterpart, embed, or reimplementation on this static documentation site, which may only document and capture the desktop workflow in prose rather than host the actual canvas or wizard.",
     },
 ];

@@ -38,7 +38,7 @@ const WORK_ACTIONS = ["tab-finder", "dock-editor"];
  * left red, since a permanently failing count is a count nobody reads.
  */
 const APPROVED_COUNTS: Record<string, number> = {
-    make: 28,
+    make: 29,
     maps: 6,
     share: 7,
     copy: 7,
@@ -58,7 +58,7 @@ describe("the catalogues", () => {
     });
 
     it("totals every feature the six catalogues declare", () => {
-        expect(ALL_CATALOGUE_FEATURES.length).toBe(87);
+        expect(ALL_CATALOGUE_FEATURES.length).toBe(88);
     });
 
     it("derives its counts from the arrays rather than from a literal", () => {
