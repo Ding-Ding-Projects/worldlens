@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import LockWizard from "../locks/LockWizard.vue";
+import UnlockPrompt from "../locks/UnlockPrompt.vue";
+import { useLockStore } from "../locks/useLocks.js";
 import {
     mdiArrowLeftBold,
     mdiArrowRightBold,
@@ -9,6 +12,8 @@ import {
     mdiClose,
     mdiDotsHorizontal,
     mdiMagnify,
+    mdiLockOpenVariantOutline,
+    mdiLockOutline,
     mdiPalette,
     mdiPin,
     mdiPinOffOutline,
@@ -550,6 +555,41 @@ function onDrop(target: TabRecord): void {
 
 const tabMenuOpen = ref(false);
 const tabMenuTab = ref<TabRecord | null>(null);
+
+/*
+ * Locks for tabs.
+ *
+ * Every rendered element is meant to offer "Lock this element...", and a tab did not: the strip
+ * registers each tab in the appearance registry by hand rather than mounting an `AppearanceTarget`
+ * per row, so it inherited that component's editor entry through its own menu item and none of its
+ * lock ones.
+ *
+ * The store, the surface name and the two dialogs are the same ones `AppearanceTarget` uses, so a
+ * tab lock is an element lock like any other - it appears in the lock list, it is counted, and it
+ * is cleared by the same reset. Reimplementing the wizard here would have produced a second kind
+ * of lock that only tabs have.
+ */
+const locks = useLockStore();
+const LOCK_SURFACE = "element";
+const lockWizardOpen = ref(false);
+const unlockOpen = ref(false);
+const changingLockId = ref<string | null>(null);
+
+const menuTabLockPath = computed(() =>
+    tabMenuTab.value === null ? null : tabAppearanceId(tabMenuTab.value.id),
+);
+const menuTabLock = computed(() =>
+    menuTabLockPath.value === null ? undefined : locks.at(LOCK_SURFACE, menuTabLockPath.value),
+);
+const menuTabLocked = computed(() =>
+    menuTabLockPath.value === null ? false : locks.isLocked(LOCK_SURFACE, menuTabLockPath.value),
+);
+
+function closeTabLockPopups(): void {
+    lockWizardOpen.value = false;
+    unlockOpen.value = false;
+    changingLockId.value = null;
+}
 const tabMenuTarget = ref<HTMLElement | [number, number] | undefined>(undefined);
 /** Non-null while the menu is showing a bulk-close preview instead of its rows. */
 const tabMenuPlan = ref<"others" | "toStart" | "toEnd" | null>(null);
@@ -768,6 +808,39 @@ const tabMenuItems = computed<readonly TabMenuItem[]>(() => {
         },
     ];
 
+    /*
+     * Offered only where locks can be kept, matching `AppearanceTarget`: a menu item that opens a
+     * wizard which then says this build cannot keep locks costs two clicks to learn nothing.
+     */
+    if (locks.canList) {
+        if (menuTabLock.value === undefined) {
+            items.push({
+                id: "lock",
+                label: t("locks.menu.lock", "Lock this element..."),
+                icon: mdiLockOutline,
+                shortcut: null,
+                danger: false,
+            });
+        } else {
+            items.push({
+                id: menuTabLocked.value ? "unlock" : "relock",
+                label: menuTabLocked.value
+                    ? t("locks.menu.unlock", "Unlock this element...")
+                    : t("locks.menu.relock", "Lock it again now"),
+                icon: menuTabLocked.value ? mdiLockOutline : mdiLockOpenVariantOutline,
+                shortcut: null,
+                danger: false,
+            });
+            items.push({
+                id: "change-lock",
+                label: t("locks.menu.change", "Change this lock's password or authenticator..."),
+                icon: mdiLockOutline,
+                shortcut: null,
+                danger: false,
+            });
+        }
+    }
+
     if (tabIsCustomised(tabMenuTab.value?.id ?? "")) {
         items.push({
             id: "reset-appearance",
@@ -802,6 +875,26 @@ function onTabMenuChoose(id: string): void {
         // These stay inside the menu and become a preview with its own gate,
         // rather than closing several tabs the instant they are clicked.
         tabMenuPlan.value = id;
+        return;
+    }
+
+    if (id === "lock" || id === "change-lock") {
+        // The change route keeps the lock and replaces its credential, which is why it carries the
+        // existing id; the create route must not, or the wizard would edit instead of create.
+        changingLockId.value = id === "change-lock" ? (menuTabLock.value?.id ?? null) : null;
+        closeTabMenu();
+        lockWizardOpen.value = true;
+        return;
+    }
+    if (id === "unlock") {
+        closeTabMenu();
+        unlockOpen.value = true;
+        return;
+    }
+    if (id === "relock") {
+        const current = menuTabLock.value;
+        if (current !== undefined) locks.relock(current.id);
+        closeTabMenu();
         return;
     }
 
@@ -1666,6 +1759,49 @@ const tabCountLabel = computed(() =>
                     @choose="onTabMenuChoose"
                 />
             </div>
+        </v-menu>
+
+        <!--
+            The lock wizard and unlock prompt for a tab, anchored to the same element the context
+            menu came from. Deliberately the very same components `AppearanceTarget` mounts, with
+            the same `element` surface, so a tab lock is an ordinary element lock: it shows up in
+            the lock list, it is counted, and one reset clears it with all the others.
+        -->
+        <v-menu
+            v-model="lockWizardOpen"
+            :target="tabMenuTarget"
+            :open-on-click="false"
+            :close-on-content-click="false"
+            location="bottom start"
+            offset="4"
+            @update:model-value="(value: boolean) => !value && closeTabLockPopups()"
+        >
+            <LockWizard
+                v-if="tabMenuTab !== null && menuTabLockPath !== null"
+                :target="{ surface: LOCK_SURFACE, path: menuTabLockPath, label: tabMenuTab.label }"
+                :changing="changingLockId ?? undefined"
+                @created="closeTabLockPopups"
+                @cancel="closeTabLockPopups"
+            />
+        </v-menu>
+
+        <v-menu
+            v-model="unlockOpen"
+            :target="tabMenuTarget"
+            :open-on-click="false"
+            :close-on-content-click="false"
+            location="bottom start"
+            offset="4"
+            @update:model-value="(value: boolean) => !value && closeTabLockPopups()"
+        >
+            <UnlockPrompt
+                v-if="menuTabLock !== undefined"
+                :lock="menuTabLock"
+                :data-folder="locks.dataFolder"
+                @unlocked="closeTabLockPopups"
+                @cancel="closeTabLockPopups"
+                @support="closeTabLockPopups"
+            />
         </v-menu>
 
         <!--

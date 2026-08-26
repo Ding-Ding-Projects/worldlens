@@ -16,6 +16,7 @@ import {
     mdiRobotOutline,
     mdiShieldKeyOutline,
     mdiFolderMultipleOutline,
+    mdiGraphOutline,
     mdiMapPlus,
     mdiProgressClock,
     mdiServerNetwork,
@@ -391,6 +392,8 @@ watch(theme.name, (name) => {
 const PAGE_HOME = "home";
 const PAGE_MAP = "map";
 const PAGE_WORLD = "world";
+/** The node-graph presentation of the same creation flow. See `WorldScreen`'s `initialCreationMode`. */
+const PAGE_PROJECT_CANVAS = "projectCanvas";
 const PAGE_PROJECTS = "projects";
 const PAGE_CIRENDER = "cirender";
 const PAGE_RENDERS = "renders";
@@ -521,6 +524,11 @@ const pages = computed<TabPage[]>(() => [
     // somebody opens and closes. `tabWorkspaceMigration.ts` removes their tabs from a workspace
     // that predates this, and removes only those two.
     { id: PAGE_WORLD, label: t("tabs.page.world", "Make a map"), icon: mdiMapPlus },
+    {
+        id: PAGE_PROJECT_CANVAS,
+        label: t("tabs.page.projectCanvas", "Project canvas"),
+        icon: mdiGraphOutline,
+    },
     // Declared next to the guide because they are the two ends of one job: the guide asks
     // five questions and writes a project, and this is where every other setting that
     // project can carry actually lives. On a fresh install it is seeded into the "Rendering"
@@ -2095,6 +2103,29 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     </div>
                 </template>
 
+                <template #projectCanvas>
+                    <div class="mb-world-host mb-interactive">
+                        <!--
+                            The same screen the "Make a map" tab renders, opened on its canvas.
+                            Not a second creation surface: two mounts would mean two
+                            `createMapWizard()` models and two answers to what the project is,
+                            which is the one thing the canvas exists not to do.
+                        -->
+                        <WorldScreen
+                            initial-creation-mode="canvas"
+                            :settings-epoch="settingsEpoch"
+                            :initial-world-path="droppedWorldPath"
+                            :can-open-ci="true"
+                            :focus-render-id="worldFocusRenderId"
+                            @consent="openSettings('mojang-download-consent')"
+                            @settings="revealSetting"
+                            @open-map="onLocalRenderOpened"
+                            @open-project="onWorldProjectOpened"
+                            @open-ci-render="openCiRender()"
+                        />
+                    </div>
+                </template>
+
                 <template #projects>
                     <div class="mb-world-host mb-interactive">
                         <ProjectsScreen
@@ -2555,6 +2586,30 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #world>
                                 <div class="mb-world-host mb-interactive">
                                     <WorldScreen
+                                        :settings-epoch="settingsEpoch"
+                                        :initial-world-path="droppedWorldPath"
+                                        :can-open-ci="true"
+                                        :focus-render-id="worldFocusRenderId"
+                                        @consent="openSettings('mojang-download-consent')"
+                                        @settings="revealSetting"
+                                        @open-map="onLocalRenderOpened"
+                                        @open-project="onWorldProjectOpened"
+                                        @open-ci-render="openCiRender()"
+                                    />
+                                </div>
+                            </template>
+
+                            <template #projectCanvas>
+                                <div class="mb-world-host mb-interactive">
+                                    <!--
+                                        The same screen the "Make a map" tab renders, opened on
+                                        its canvas. Not a second creation surface: two mounts
+                                        would mean two `createMapWizard()` models and two answers
+                                        to what the project is, which is the one thing the canvas
+                                        exists not to do.
+                                    -->
+                                    <WorldScreen
+                                        initial-creation-mode="canvas"
                                         :settings-epoch="settingsEpoch"
                                         :initial-world-path="droppedWorldPath"
                                         :can-open-ci="true"

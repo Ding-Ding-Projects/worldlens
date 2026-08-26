@@ -117,8 +117,20 @@ const props = withDefaults(
         focusRenderId?: string | null;
         /** A shell-level world drop to prefill the create-a-map wizard. */
         initialWorldPath?: string | null;
+        /**
+         * Which presentation this screen opens in.
+         *
+         * The canvas is a mode of this screen rather than a separate one, so the shell's own
+         * "Project canvas" tab points here with this set instead of mounting a second copy of the
+         * creation flow. Two mounts would mean two `createMapWizard()` models and two answers to
+         * "what is this project", which is the one thing the canvas was built not to do.
+         *
+         * The toggle above the wizard still moves freely afterwards; this only chooses where the
+         * screen starts.
+         */
+        initialCreationMode?: "wizard" | "canvas";
     }>(),
-    { settingsEpoch: 0, canOpenCi: false },
+    { settingsEpoch: 0, canOpenCi: false, initialCreationMode: "wizard" },
 );
 
 const emit = defineEmits<{
@@ -323,7 +335,7 @@ const wizardOpen = computed(() => run.state.value === "idle");
  * The wizard is the default because it is the better first meeting with the product; the canvas is
  * a deliberate choice for somebody who wants to see the project's shape.
  */
-const creationMode = ref<"wizard" | "canvas">("wizard");
+const creationMode = ref<"wizard" | "canvas">(props.initialCreationMode);
 
 const wizardComponent = ref<InstanceType<typeof WorldWizard> | null>(null);
 
