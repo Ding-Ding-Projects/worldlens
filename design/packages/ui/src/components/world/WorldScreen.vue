@@ -7,6 +7,7 @@ import ContainerOffers from "./ContainerOffers.vue";
 import InterruptedRenders from "./InterruptedRenders.vue";
 import RenderRunPanel from "./RenderRunPanel.vue";
 import WorldWizard from "./WorldWizard.vue";
+import ProjectCanvas from "../canvas/ProjectCanvas.vue";
 import { consentIsAccepted, refreshConsent } from "./consentState.js";
 import { createContainerOffers, resolveContainerOffersBridge, type ContainerOffersBridge } from "./containerOffers.js";
 import { createRenderRun } from "./renderRun.js";
@@ -315,6 +316,26 @@ async function writeProject(request: RenderRequest, configText: string, storageD
 }
 
 const wizardOpen = computed(() => run.state.value === "idle");
+
+/**
+ * Which presentation of the creation flow is on screen.
+ *
+ * The wizard is the default because it is the better first meeting with the product; the canvas is
+ * a deliberate choice for somebody who wants to see the project's shape.
+ */
+const creationMode = ref<"wizard" | "canvas">("wizard");
+
+const wizardComponent = ref<InstanceType<typeof WorldWizard> | null>(null);
+
+/**
+ * The one model both presentations drive.
+ *
+ * `WorldWizard` already builds it and exposes it, so the canvas is handed that exact object rather
+ * than being given a second one to keep in step. Combined with the wizard staying mounted under
+ * `v-show`, this is what makes switching mid-project lossless: there is nothing to migrate because
+ * there is only ever one set of answers.
+ */
+const sharedWizard = computed(() => wizardComponent.value?.wizard ?? null);
 const canInspect = computed(() => canInspectWorlds(optional));
 /**
  * The separator generated paths are written with.
@@ -631,7 +652,32 @@ async function resume(renderId: string): Promise<void> {
                     </p>
                 </header>
 
+                <!--
+                    Two presentations of one project. The toggle swaps which is shown; it never
+                    creates a second model, and the wizard below stays mounted rather than being
+                    torn down, so switching half way through keeps every answer already given.
+                -->
+                <div class="mb-world-screen__modes" role="group" :aria-label="t('world.screen.modeLabel', 'Creation view')">
+                    <v-btn-toggle v-model="creationMode" mandatory density="compact" variant="outlined">
+                        <v-btn value="wizard" size="small" data-test="creation-mode-wizard">
+                            {{ t("world.screen.modeWizard", "Steps") }}
+                        </v-btn>
+                        <v-btn value="canvas" size="small" data-test="creation-mode-canvas">
+                            {{ t("world.screen.modeCanvas", "Canvas") }}
+                        </v-btn>
+                    </v-btn-toggle>
+                </div>
+
+                <ProjectCanvas
+                    v-if="creationMode === 'canvas' && sharedWizard"
+                    :wizard="sharedWizard"
+                    class="mb-world-screen__canvas"
+                    data-test="world-screen-canvas"
+                />
+
                 <WorldWizard
+                    v-show="creationMode === 'wizard'"
+                    ref="wizardComponent"
                     :consent-accepted="consentAccepted"
                     :can-render="bridge !== null"
                     :can-inspect="canInspect"
