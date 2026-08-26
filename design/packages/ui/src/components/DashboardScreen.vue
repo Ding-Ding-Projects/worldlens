@@ -112,24 +112,80 @@ function exportSelected(): void {
     URL.revokeObjectURL(url);
 }
 
+/**
+ * How long a dashboard request may take before this surface stops believing in it.
+ *
+ * Generous, because a real refresh probes every saved server and a slow or distant one is not a
+ * fault. What it is not is unbounded: a request that is only settled by a reply hangs forever when
+ * the reply never comes, and neither `catch` nor `finally` runs for a promise that stays pending.
+ * The symptom is a dialog stuck on "Refreshing all rows..." with a Cancel button that does nothing,
+ * which is exactly what was reported.
+ */
+const REQUEST_DEADLINE_MS = 60_000;
+
+/** Rejects rather than resolving, so the existing error path runs instead of showing empty truth. */
+async function withDeadline<T>(work: Promise<T>, label: string): Promise<T> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        return await Promise.race([
+            work,
+            new Promise<never>((_resolve, reject) => {
+                timer = setTimeout(
+                    () => reject(new Error(t("dashboard.timedOut", { label, seconds: String(Math.round(REQUEST_DEADLINE_MS / 1000)) }, "{label} did not answer within {seconds} seconds. Nothing was changed; the rows below are the last ones this screen was given."))),
+                    REQUEST_DEADLINE_MS,
+                );
+            }),
+        ]);
+    } finally {
+        // Cleared on every path, or each request leaks a timer.
+        if (timer !== undefined) clearTimeout(timer);
+    }
+}
+
+/**
+ * Tracks which request is current, so a superseded one cannot write over a newer answer.
+ *
+ * Cancel clears the busy state immediately rather than waiting for a request that may never
+ * settle. Without this, the one control offered for a stuck refresh was the one control that could
+ * not end it.
+ */
+let requestToken = 0;
+
 async function load(initial = false): Promise<void> {
     if (bridge === undefined) return;
+    const token = ++requestToken;
     loading.value = true;
     try {
         errorMessage.value = "";
-        const snapshot = initial ? await bridge.dashboardSnapshot() : await bridge.dashboardRefresh({ concurrency: 3, retries: 2, backoffMs: 250 });
+        const snapshot = initial
+            ? await withDeadline(bridge.dashboardSnapshot(), t("dashboard.requestSnapshot", "The dashboard"))
+            : await withDeadline(bridge.dashboardRefresh({ concurrency: 3, retries: 2, backoffMs: 250 }), t("dashboard.requestRefresh", "The refresh"));
+        // A stale answer must not overwrite a newer one, nor revive a cancelled request's spinner.
+        if (token !== requestToken) return;
         entries.value = snapshot.entries;
         const generatedAt = Date.parse(snapshot.generatedAt);
         lastRefresh.value = Number.isFinite(generatedAt) ? generatedAt : null;
     } catch (error) {
+        if (token !== requestToken) return;
         errorMessage.value = error instanceof Error ? error.message : String(error);
     } finally {
-        loading.value = false;
+        if (token === requestToken) loading.value = false;
     }
 }
 
 function refresh(): Promise<void> { refreshScope.value = selected.value.length > 0 ? "selected" : "all"; return load(false); }
-function cancelRefresh(): void { void bridge?.dashboardCancel().catch((error) => { errorMessage.value = error instanceof Error ? error.message : String(error); }); }
+/**
+ * Ends the wait here as well as asking the main process to stop.
+ *
+ * The old version only sent the cancel and left `loading` alone, so it relied on the very request
+ * that was stuck to settle and clear the spinner. Bumping the token first orphans that request:
+ * whatever it eventually does, it can no longer write rows or touch the busy state.
+ */
+function cancelRefresh(): void {
+    requestToken += 1;
+    loading.value = false;
+    void bridge?.dashboardCancel().catch((error) => { errorMessage.value = error instanceof Error ? error.message : String(error); });
+}
 onMounted(() => void load(true));
 onUnmounted(() => { void bridge?.dashboardCancel().catch(() => undefined); });
 </script>
