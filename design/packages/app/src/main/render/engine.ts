@@ -17,7 +17,6 @@
  * `resolveEngine`, not a change to the orchestrator - see `engine.test.ts` for the pin.
  */
 
-import { createHash } from "node:crypto";
 import { ensureJava, NoUsableJavaError, resolveCliJar } from "../java/index.js";
 import type { JarLookupOptions } from "../java/index.js";
 import { readFile, stat } from "node:fs/promises";
@@ -76,11 +75,17 @@ export function upstreamJavaEngine(
             throw new EngineUnavailableError("jar", describe(error));
         }
         if (options.resourcesPath !== undefined && options.resourcesPath !== null) {
-            try {
-                await verifyStagedJavaArtifact(options.resourcesPath, jar.path, jar.version);
-            } catch (error) {
-                throw new EngineUnavailableError("jar", describe(error));
-            }
+            /*
+             * Reported, never fatal. A jar was found above; a manifest that disagrees about it is
+             * a stale document, and refusing to render because of one is how a shipped release
+             * told everybody the engine was not installed while carrying a working copy of it.
+             */
+            const discrepancy = await describeStagedJavaArtifact(
+                options.resourcesPath,
+                jar.path,
+                jar.version,
+            ).catch(() => null);
+            if (discrepancy !== null) console.warn(`[render-engine] ${discrepancy}`);
         }
 
         let java;
@@ -187,24 +192,63 @@ interface StagedJavaArtifact {
     readonly sha256: string;
 }
 
-async function verifyStagedJavaArtifact(resourcesPath: string, jarPath: string, jarVersion: string): Promise<void> {
-    const raw = await readFile(join(resourcesPath, "render-engines", "manifest.json"), "utf8");
-    const parsed = JSON.parse(raw) as {
+/**
+ * Report on the packaged manifest without letting it veto a jar that is really there.
+ *
+ * This used to throw four different ways, and every one of them ended the render with "The
+ * BlueMap engine is not installed." That sentence was false in the case that actually shipped:
+ * release 1.0.1745 carried `resources/jars/bluemap-5.23-cli.jar`, 6,646,010 bytes, whose digest
+ * matched the index that same release published - a correct, working engine - beside a manifest
+ * reading `available: false, version: null, jar: null`. The jar was fine. The description of it
+ * was wrong, and the description was what got a vote.
+ *
+ * Two reasons it is now a report rather than a gate.
+ *
+ * The manifest is a description, not the artefact. `resolveCliJar` has already found a real file
+ * on disk; a document disagreeing about it is a reason to fix the document, not to refuse to run
+ * the program. The generator that wrote it has been fixed too, but a build made before that fix
+ * is installed on people's machines right now and must start working on its next launch, without
+ * anybody downloading anything.
+ *
+ * And the size and digest checks are gone deliberately, at the owner's direction. This jar
+ * travels inside the same installer as the application, so anyone able to alter it could equally
+ * alter the code that checks it: the check bought approximately nothing and could veto a working
+ * engine over a byte of drift. What remains is the question that actually matters - is the file
+ * there and readable - which `resolveCliJar` and the JVM itself answer.
+ *
+ * Returns a human-readable discrepancy when the manifest disagrees, for logging. Never throws for
+ * a disagreement; only a jar that cannot be read at all is a real failure, and that surfaces from
+ * the launch attempt rather than from here.
+ */
+async function describeStagedJavaArtifact(
+    resourcesPath: string,
+    jarPath: string,
+    jarVersion: string,
+): Promise<string | null> {
+    let parsed: {
         manifestVersion?: unknown;
         engines?: { "upstream-java"?: { available?: unknown; version?: unknown; jar?: StagedJavaArtifact | null } };
     };
+    try {
+        parsed = JSON.parse(await readFile(join(resourcesPath, "render-engines", "manifest.json"), "utf8"));
+    } catch {
+        return `no readable render-engine manifest beside ${jarPath}; using the jar that is on disk`;
+    }
     const java = parsed.engines?.["upstream-java"];
     if (parsed.manifestVersion !== 1 || java?.available !== true || java.jar === null || java.jar === undefined) {
-        throw new Error("the packaged render-engine manifest does not advertise a usable upstream-java artifact");
+        return (
+            `the packaged render-engine manifest does not advertise an upstream-java artifact, but ` +
+            `${basename(jarPath)} is staged and will be used. The manifest is stale; the jar is not.`
+        );
     }
     if (java.version !== jarVersion || java.jar.fileName !== basename(jarPath)) {
-        throw new Error("the packaged render-engine manifest does not match the staged upstream-java jar");
+        return (
+            `the packaged render-engine manifest names ${String(java.jar.fileName)} at version ` +
+            `${String(java.version)}, and ${basename(jarPath)} at version ${jarVersion} is what is staged. ` +
+            `Using the staged jar.`
+        );
     }
-    const bytes = await readFile(jarPath);
-    const digest = createHash("sha256").update(bytes).digest("hex");
-    if (java.jar.size !== bytes.byteLength || java.jar.sha256.toLowerCase() !== digest) {
-        throw new Error("the staged upstream-java jar failed the packaged manifest size or SHA-256 check");
-    }
+    return null;
 }
 
 async function developmentTypeScriptVersion(base: string): Promise<string> {

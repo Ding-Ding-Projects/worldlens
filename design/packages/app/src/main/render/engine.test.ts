@@ -12,6 +12,10 @@
  * *returns* without needing a real JDK or a built jar on the machine running it.
  */
 
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { describe, expect, it, vi } from "vitest";
 import type { BlueMapJar } from "../java/jars.js";
 import type { EnsureJavaResult } from "../java/index.js";
@@ -68,5 +72,71 @@ describe("upstreamJavaEngine", () => {
             javaExecutable: "/jdk/bin/java",
             javaVersion: "25.0.3",
         });
+    });
+
+    /*
+     * The exact condition that shipped in release 1.0.1745.
+     *
+     * That installer carried `resources/jars/bluemap-5.23-cli.jar` - 6,646,010 bytes, digest
+     * matching the index the same release published, a correct and working engine - beside a
+     * render-engine manifest reading `available: false, version: null, jar: null`. The resolver
+     * consulted the manifest, believed it over the file, and every render ended with "The BlueMap
+     * engine is not installed."
+     *
+     * The manifest is a description. `resolveCliJar` has already found the artefact. A document
+     * that disagrees is a document to fix, and it does not get a vote on whether the program runs.
+     *
+     * Watched failing before being trusted: restoring the throw in `describeStagedJavaArtifact`'s
+     * place turns this red with exactly the message users were shown.
+     */
+    it("renders with the staged jar even when the packaged manifest denies it exists", async () => {
+        javaModule.resolveCliJar.mockReturnValue(JAR);
+        javaModule.ensureJava.mockResolvedValue(JAVA);
+
+        const manifestDirectory = await mkdtemp(join(tmpdir(), "worldlens-engine-manifest-"));
+        await mkdir(join(manifestDirectory, "render-engines"), { recursive: true });
+        await writeFile(
+            join(manifestDirectory, "render-engines", "manifest.json"),
+            JSON.stringify({
+                manifestVersion: 1,
+                engines: {
+                    "upstream-java": {
+                        id: "upstream-java",
+                        label: "BlueMap engine (Java)",
+                        version: null,
+                        available: false,
+                        requiresJvm: true,
+                        jar: null,
+                    },
+                },
+            }),
+            "utf8",
+        );
+
+        const resolveEngine = upstreamJavaEngine({
+            dataDir: "/data",
+            resourcesPath: manifestDirectory,
+        });
+
+        const resolved = await resolveEngine();
+        expect(resolved.engine).toBe("upstream-java");
+        expect(resolved.enginePath).toBe(JAR.path);
+        expect(resolved.engineVersion).toBe(JAR.version);
+    });
+
+    /*
+     * A missing manifest is the same answer. A build that never staged one, or a file that was
+     * removed or truncated, is not a reason to refuse a jar that is sitting on disk.
+     */
+    it("renders with the staged jar when there is no manifest at all", async () => {
+        javaModule.resolveCliJar.mockReturnValue(JAR);
+        javaModule.ensureJava.mockResolvedValue(JAVA);
+
+        const empty = await mkdtemp(join(tmpdir(), "worldlens-engine-nomanifest-"));
+        const resolveEngine = upstreamJavaEngine({ dataDir: "/data", resourcesPath: empty });
+
+        const resolved = await resolveEngine();
+        expect(resolved.engine).toBe("upstream-java");
+        expect(resolved.enginePath).toBe(JAR.path);
     });
 });

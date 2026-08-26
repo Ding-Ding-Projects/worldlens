@@ -206,12 +206,18 @@ export async function stageRenderEngines(outputDirectory = join(appRoot, "dist",
             const info = await stat(candidate);
             if (!info.isFile()) throw new Error(`staged CLI jar is not a file: ${candidate}`);
             const actual = await artifactMetadata(candidate);
-            if (typeof cli.size === "number" && cli.size !== actual.size) {
-                throw new Error(`staged CLI jar size differs from manifest: ${candidate}`);
-            }
-            if (typeof cli.sha256 === "string" && cli.sha256.toLowerCase() !== actual.sha256) {
-                throw new Error(`staged CLI jar digest differs from manifest: ${candidate}`);
-            }
+            /*
+             * The jar's own measured size and digest are recorded, and neither is a gate.
+             *
+             * A mismatch against the index used to throw, which dropped into the silent `catch`
+             * below and left the engine advertised as unavailable - so an index that had drifted
+             * by a byte could veto a jar that runs perfectly. That check protected against very
+             * little in the first place: this jar travels inside the same installer as the
+             * application, so anyone able to alter it could alter the code that verifies it.
+             *
+             * What is written to the manifest is what was actually measured on disk, never what
+             * the index claimed, so the manifest describes the file that is really there.
+             */
             javaArtifact = { fileName: cli.fileName, ...actual };
             javaVersion = typeof cli.version === "string" ? cli.version : null;
         }
@@ -219,10 +225,34 @@ export async function stageRenderEngines(outputDirectory = join(appRoot, "dist",
         // A stale or malformed manifest is not evidence that a jar is usable.
     }
     try {
-        if (javaArtifact === null && !stagedManifestFound) {
+        /*
+         * Scan whenever there is still no artefact - NOT only when the index was absent.
+         *
+         * The `!stagedManifestFound` gate meant a jar index that was present but unhelpful (a
+         * different shape, a name that did not match, a size or digest check that threw into the
+         * silent `catch` above) switched this scan off entirely, and the real jar sitting in the
+         * same directory was never looked at. A stale index is not evidence that a jar is usable,
+         * which is what that comment says and is right; it is equally not evidence that a jar is
+         * unusable, which is what the gate made it mean.
+         *
+         * The pattern accepts both names this project actually produces. A local Gradle build
+         * stages `cli-5.23-shadow.jar`; CI downloads and stages upstream's `bluemap-5.23-cli.jar`.
+         * The old regex knew only the first, so even ungated it would have missed every CI build.
+         *
+         * Together those two lines are why every released installer shipped a manifest reading
+         * `available: false, version: null, jar: null` while carrying a correct, digest-verified
+         * `bluemap-5.23-cli.jar` beside it - and why the application told people the engine was
+         * not installed and refused to render. A local package never reproduced it, because the
+         * Gradle name is the one name the scan recognised.
+         */
+        if (javaArtifact === null) {
+            const naming = [
+                { pattern: /^cli-(.+)-shadow\.jar$/, label: "gradle shadow build" },
+                { pattern: /^bluemap-(.+)-cli\.jar$/, label: "upstream release asset" },
+            ];
             const entries = await readdir(jarDirectory, { withFileTypes: true });
             const candidates = entries
-                .filter((entry) => entry.isFile() && /^cli-(.+)-shadow\.jar$/.test(entry.name))
+                .filter((entry) => entry.isFile() && naming.some(({ pattern }) => pattern.test(entry.name)))
                 .map(async (entry) => ({
                     name: entry.name,
                     mtimeMs: (await stat(join(jarDirectory, entry.name))).mtimeMs,
@@ -231,7 +261,9 @@ export async function stageRenderEngines(outputDirectory = join(appRoot, "dist",
             const javaJar = ordered[0]?.name ?? null;
             if (javaJar !== null) {
                 javaArtifact = { fileName: javaJar, ...(await artifactMetadata(join(jarDirectory, javaJar))) };
-                javaVersion = /^cli-(.+)-shadow\.jar$/.exec(javaJar)?.[1] ?? null;
+                javaVersion =
+                    naming.map(({ pattern }) => pattern.exec(javaJar)?.[1]).find((found) => found !== undefined) ??
+                    null;
             }
         }
     } catch {
