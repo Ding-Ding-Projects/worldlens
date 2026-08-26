@@ -149,7 +149,18 @@ function describe(path: string, failure: { kind: string } & Record<string, unkno
 }
 
 export type ChooseMapResult =
-    | { readonly ok: true; readonly map: ProjectMap }
+    | {
+          readonly ok: true;
+          readonly map: ProjectMap;
+          /**
+           * Set when the requested id was not a map id and this resolved it to one anyway.
+           *
+           * Present so a caller can say which map it is actually rendering. Switching maps
+           * silently would be worse than the refusal it replaces: somebody would wait out a
+           * cloud render and get a different world back with nothing having said so.
+           */
+          readonly resolvedFrom?: string;
+      }
     | { readonly ok: false; readonly failure: CiPlanRefusal };
 
 /**
@@ -178,8 +189,43 @@ export function chooseProjectMap(
         };
     }
 
-    const chosen: ProjectMap | undefined =
-        mapId === undefined ? maps[0] : maps.find((map) => map.id === mapId);
+    const exact = mapId === undefined ? maps[0] : maps.find((map) => map.id === mapId);
+
+    /*
+     * The requested id is not a map id. Before refusing, try to work out what was meant.
+     *
+     * This refused a real render with "Underground-BUNKER has no enabled map called overworld.
+     * It has: world." Nothing was wrong with that project: `overworld` is a DIMENSION, and the
+     * cloud defaults hand it over as a map id (`CLOUD_CONFIG_DEFAULT_MAP_ID`). So a project whose
+     * map is named anything other than the dimension it renders could not start a cloud render at
+     * all, and the message correctly described a mismatch while naming neither cause nor cure.
+     *
+     * Resolved in order of how sure we can be, and never by guessing between equals:
+     *
+     *   1. the same id in a different case, which is a spelling difference and nothing more;
+     *   2. exactly one enabled map that renders the requested dimension - `overworld` finding the
+     *      map whose dimension is `minecraft:overworld` is precisely the reported case;
+     *   3. exactly one enabled map in the whole project, so there is no other thing it could mean.
+     *
+     * Each requires the answer to be unique. Two maps of the same dimension is a real ambiguity
+     * and still refuses, because picking one of them is the silent-wrong-world failure above.
+     */
+    const only = <T>(found: readonly T[]): T | undefined => (found.length === 1 ? found[0] : undefined);
+    const wanted = mapId === undefined ? "" : mapId.trim().toLowerCase();
+    const resolved =
+        exact ??
+        (mapId === undefined
+            ? undefined
+            : (only(maps.filter((map) => map.id.toLowerCase() === wanted)) ??
+              only(
+                  maps.filter((map) => {
+                      const dimension = map.dimension.toLowerCase();
+                      return dimension === wanted || dimension.split(":").at(-1) === wanted;
+                  }),
+              ) ??
+              only(maps)));
+
+    const chosen: ProjectMap | undefined = resolved;
     if (chosen === undefined) {
         return {
             ok: false,
@@ -205,7 +251,9 @@ export function chooseProjectMap(
         };
     }
 
-    return { ok: true, map: chosen };
+    return exact === undefined && mapId !== undefined
+        ? { ok: true, map: chosen, resolvedFrom: mapId }
+        : { ok: true, map: chosen };
 }
 
 export interface PlanInput {

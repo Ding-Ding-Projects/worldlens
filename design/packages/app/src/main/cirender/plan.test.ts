@@ -140,10 +140,71 @@ describe("choosing the map", () => {
         expect(!chosen.ok && chosen.failure.code).toBe("no-maps");
     });
 
+    /*
+     * Two enabled maps and neither is what was asked for, so there is genuinely nothing to
+     * resolve to. That is the case this refusal is for.
+     *
+     * It used to use a single-map project, which now resolves instead: with exactly one enabled
+     * map there is no other thing the request could have meant. The refusal has not been
+     * weakened, its fixture has been made ambiguous, which is what it was always describing.
+     */
     it("names what the project does have when the map asked for is not there", () => {
-        const chosen = chooseProjectMap(project([map({ id: "overworld" })]), "nether");
+        const chosen = chooseProjectMap(
+            project([map({ id: "overworld" }), map({ id: "second", dimension: "minecraft:the_end" })]),
+            "nether",
+        );
         expect(chosen.ok).toBe(false);
         expect(!chosen.ok && chosen.failure.message).toContain("overworld");
+    });
+
+    /*
+     * The reported failure, exactly: "Underground-BUNKER has no enabled map called overworld. It
+     * has: world." Nothing was wrong with that project. `overworld` is a dimension, the cloud
+     * defaults pass it as a map id, and so every project whose map is named anything but its
+     * dimension could not start a cloud render.
+     */
+    it("resolves a dimension name handed over as a map id", () => {
+        const chosen = chooseProjectMap(
+            project([map({ id: "world", dimension: "minecraft:overworld" })]),
+            "overworld",
+        );
+        expect(chosen.ok).toBe(true);
+        expect(chosen.ok && chosen.map.id).toBe("world");
+        // Reported, never silent: a caller must be able to say which map it really rendered.
+        expect(chosen.ok && chosen.resolvedFrom).toBe("overworld");
+    });
+
+    it("resolves to the only enabled map when the id matches nothing else", () => {
+        const chosen = chooseProjectMap(project([map({ id: "world" })]), "some-old-name");
+        expect(chosen.ok).toBe(true);
+        expect(chosen.ok && chosen.map.id).toBe("world");
+        expect(chosen.ok && chosen.resolvedFrom).toBe("some-old-name");
+    });
+
+    /*
+     * Ambiguity refuses rather than picking. Two maps of the requested dimension means guessing,
+     * and guessing here hands somebody a different world after a cloud render they waited for.
+     */
+    it("refuses rather than choosing between two maps of the requested dimension", () => {
+        const chosen = chooseProjectMap(
+            project([
+                map({ id: "a", dimension: "minecraft:overworld" }),
+                map({ id: "b", dimension: "minecraft:overworld" }),
+            ]),
+            "overworld",
+        );
+        expect(chosen.ok).toBe(false);
+    });
+
+    /** An exact id still wins, and still carries no `resolvedFrom`, because nothing was resolved. */
+    it("prefers an exact map id over any resolution", () => {
+        const chosen = chooseProjectMap(
+            project([map({ id: "overworld", dimension: "minecraft:the_end" }), map({ id: "world" })]),
+            "overworld",
+        );
+        expect(chosen.ok).toBe(true);
+        expect(chosen.ok && chosen.map.id).toBe("overworld");
+        expect(chosen.ok && chosen.resolvedFrom).toBeUndefined();
     });
 
     it("refuses a dimension the workflow's choice input does not offer", () => {
