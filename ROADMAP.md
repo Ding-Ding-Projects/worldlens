@@ -13,9 +13,16 @@ model the linear wizard uses. This entry covers writing it up, not building it.
 - [x] Six node kinds, the shared-model wiring rules, mark-not-hide search, and keyboard node
       movement documented against the real source and its existing tests
       (`canvasModel.test.ts`, `CanvasNode.shape.test.ts`), not invented.
-- [ ] No capture or recording exists of the canvas in the built application. Nobody has
-      launched the packaged app and looked at it; every claim in the new documentation is
-      read from source and tests, not observed running.
+- [x] The canvas has been driven in the packaged application on a hidden desktop and captured:
+      the tab renders its nodes with no "no content for this page" placeholder, and
+      `project-canvas.png` / `project-canvas-search.png` were produced by the real matrix.
+      Two defects were found only by doing this, and both are fixed: a parent `data-test`
+      falling through and replacing the component's own (`18d95ef6`), and the job being
+      registered with no page slot in `App.vue` at all (`472ea8e5`).
+- [ ] Those captures are **not published**. `docs/screenshots/` still holds the previous set
+      and no digest has been refreshed, because the harness's required-surfaces list still
+      demands nine screens that `8f417d73` retired, so no run can honestly be called complete.
+      Correcting that list is the blocking work. See issue #171.
 - [ ] Wire dragging between ports is not implemented. Every wire the canvas draws is derived
       from `ALLOWED_EDGES` against the current node positions; there is no gesture that
       creates or removes one by hand. This is a real gap in the feature, not only in its

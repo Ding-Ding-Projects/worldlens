@@ -1,5 +1,172 @@
 # Handoff
 
+## 2026-08-26: the engine was never missing, and four other things that photographed or described the wrong thing
+
+Eleven commits, all released through `v1.0.1760`. One theme runs through most of them: the app or
+its harness trusting a *description* over the *thing itself*, and measuring the real artifact is
+what found each one.
+
+### The shipped defect: "The BlueMap engine is not installed"
+
+Release `v1.0.1745` carried `resources/jars/bluemap-5.23-cli.jar`, 6,646,010 bytes, whose SHA-256
+matches the jar index that same release published. A correct, working engine. Beside it sat
+`render-engines/manifest.json` reading `available: false, version: null, jar: null`, and the
+resolver believed the manifest over the file, so every render ended at the engine being missing.
+
+The cause is ordering, and the installer job's own timestamps say it:
+
+```
+Build workspace            03:11:37   writes the manifest, no jar exists yet
+Download the CLI jar       03:12:58   the jar arrives, 81 seconds later
+Stage the CLI jar          03:13:01
+Build Squirrel installer   03:13:02   packages the jar and the stale manifest
+```
+
+`pnpm build` runs `build.mjs`, which calls `stageRenderEngines()` against an empty
+`tools/oracle/out/jars`. It reported unavailable entirely correctly. A local `npm run package`
+never reproduced it, because on a developer machine the jar is already staged before the build
+runs, which is why this survived so long.
+
+Three commits, and it is worth separating what each does:
+
+- `102e1ad1` makes the runtime report a manifest discrepancy instead of refusing. **This is what
+  makes builds already installed on people's machines work on their next launch**, with nothing
+  downloaded.
+- `d64700db` regenerates the manifest after the jar is staged, so it stops being stale at source.
+  The step reads the manifest back and fails the job if it still denies the jar. Verified in the
+  CI build: `upstream-java available=True version=5.23 jar=bluemap-5.23-cli.jar`.
+- `33e055ee` installs the engine automatically when a build genuinely arrived without one, since
+  `ensureJava` already does this for the runtime. Measured against the real upstream release:
+  6,646,012 bytes in 2.1 seconds, resolved immediately as `source: "downloaded"`, and a second call
+  returns instantly with no network.
+
+A correction that should not get lost: `102e1ad1`'s message says two lines in the manifest
+generator caused this. That is true for a local package and **wrong for CI**, where the ordering
+above is the cause. The generator fix cannot help there, because when it runs there is nothing to
+find. The commit could not be amended without a force-push, so the correction lives in `d64700db`.
+
+Size and digest gates on the jar were removed at the owner's direction. That jar travels inside the
+same installer as the application, so anyone able to alter it could alter the code that checks it;
+the gate bought little and could veto a working engine over a byte of drift. The automatic install
+carries no digest gate either, for a stated reason: there is no published digest for an arbitrary
+BlueMap release, and a hand-maintained table would mean a new upstream version silently refusing to
+install. It checks that the transfer completed, the file is a plausible size, and it begins with a
+zip local-file header, so a proxy page, a 404 body and a truncated transfer are all refused. **It
+does not defend against a compromised upstream release and must not be described as if it did.**
+
+### The capture harness could not finish a run, and was photographing the wrong machine
+
+The matrix stopped at spec 15 of 30. It now completes all 29 body specs. Five separate defects:
+
+| Commit | Defect |
+| --- | --- |
+| `75eca0c9` | The freshness guard compared `packages/ui/dist` against its sources, but the harness launches `release/win-unpacked/Worldlens.exe`, which serves the renderer from its own `app.asar`. A day of captures went green against an `app.asar` 19 hours old. |
+| `75eca0c9` | `ensureOptionsEditorClosed()` pressed Escape once and returned. With unsaved changes that raises a Vuetify `persistent` confirmation, which ignores Escape by design, so the shell stayed inert and every later click was swallowed. Signature: 31 consecutive surfaces giving up at 20.00 to 20.02 seconds. |
+| `3f4e8879` | The surface budget was a total, lowered from 60s to 20s that morning, which starved every attempt taking more than one picture. It is now an idle budget measured from the last written file. |
+| `28cf52a1` | Three navigation clicks hung on `waiting for scheduled navigations to finish`. This shell is one document, so a view switch is never a page load. Measured: plain click 8.0s and still waiting, the same click with `noWaitAfter` 0.0s. |
+| `28cf52a1` | The maps-and-servers capture waited for `.mb-profiles__list`, but the `#servers` slot renders `DashboardScreen`; `ProfileManager.vue` is imported and never used. |
+
+**`4a04f9a9` is the one to read.** The personal-vocabulary feature is deliberately machine-wide: one
+file under `appData`, shared by every app. Capture mode isolated `userData` but kept reading that
+shared file, so the application being photographed rendered the operator's own replacements, and
+these pictures are committed to a public repository. Nothing about it is visible in review, because
+the replaced words read as ordinary product copy to anyone who does not know the machine. It
+surfaced only sideways, through a capture that searched settings for `github-account` and hung
+because the row on screen said something else.
+
+The committed captures are clean. The shared file was created `2026-08-23 23:24:55` and the
+manifest's images were taken `2026-08-15T18:46`, so this closed a leak that had not happened yet.
+It would have happened on the very next publish.
+
+### Two surfaces that opened onto nothing
+
+`472ea8e5`. The `projectCanvas` job was registered so it appeared in the new-tab menu, and
+`App.vue` had no page slot for it, so opening it rendered the shell's honest "no content for this
+page" fallback. It now mounts the same `WorldScreen` the "Make a map" tab does, with a new
+`initialCreationMode` prop, rather than a second creation surface: two mounts would mean two
+`createMapWizard()` models and two answers to what the project is.
+
+The same commit gives tabs their lock. Tabs register in the appearance registry by hand rather than
+mounting an `AppearanceTarget`, so they inherited that component's editor entry and none of its lock
+ones. The strip now uses the same store, the same `element` surface and the very same `LockWizard`
+and `UnlockPrompt`, so a tab lock is an ordinary element lock: it appears in the lock list, it is
+counted, and one reset clears it with everything else.
+
+### The frozen dashboard, and a Cancel that could not cancel
+
+`e715a1ab`. Reported stuck on "Refreshing all rows with bounded concurrency", no rows, Cancel doing
+nothing. The renderer clears its busy flag in a `finally`, which is why it looks impossible: `finally`
+never runs for a promise that stays pending. Worse, `cancelRefresh` sent `dashboardCancel` and left
+`loading` alone, so ending the wait depended on the request that was stuck.
+
+Cancel now bumps a request token and clears the busy state immediately, orphaning whatever is in
+flight. Each request carries a 60-second deadline that rejects.
+
+**This fixes the freeze, not the stall.** The stall was not reproduced: driven against the real
+bridge on the packaged app, both `dashboardSnapshot` and `dashboardRefresh` return an empty snapshot
+instantly, and `refreshDashboard` over zero rows resolves at once because `Math.min(3, 0)` workers is
+an empty `Promise.all`. The reported window had a render running, which is the obvious suspect for a
+busy main process, but that is unproven. The next occurrence will say so on screen.
+
+### A dimension handed over as a map id
+
+`8d52fe2d`. "Underground-BUNKER has no enabled map called overworld. It has: world." Nothing was
+wrong with that project: `overworld` is a dimension, and the cloud defaults pass it as a map id
+(`CLOUD_CONFIG_DEFAULT_MAP_ID`), so any project whose map is named anything other than its dimension
+could not start a cloud render. A requested id matching no map is now resolved by case, then by
+unique dimension match, then by being the only enabled map, and each step demands a unique answer.
+Two maps of the requested dimension still refuses, because guessing hands somebody a different world
+back after a render they waited hours for. A resolution carries `resolvedFrom` so a caller can say
+which map it really used.
+
+### Verification state, stated exactly
+
+- `packages/app/src/main/java` and `.../render`: **374 passed**, 5 skipped (opt-in real-network and
+  real-JVM proofs).
+- `packages/app/src/main/cirender`: **243 passed, 5 failed**. All five failures pre-date this work,
+  proved by stashing the change and re-running; see issue #162.
+- `packages/ui` tabs, locks and canvas: **383 passed, 3 failed**. The three are stale source-text
+  assertions in `lockShellWiring.test.ts` and pre-date this work, proved the same way. The packaged
+  app demonstrably offers the lock, so the feature works and the assertions have drifted.
+- Every new guard was watched failing before being trusted: the engine ones with the old throw
+  restored, the dashboard ones with the old Cancel and no deadline, the map ones by fixture.
+- The capture matrix completes all 29 body specs. Its coverage finalizer is still red with 22
+  surfaces missing, of which **9 can never be captured**: `Home screen`, `Home catalogues`,
+  `Home catalogue page` and six compact variants were replaced by `HomeDashboard` in `8f417d73`,
+  and nothing renders the old component. The required list asks for surfaces that no longer exist.
+  See issue #171.
+
+### What is not done
+
+**No screenshot evidence was published, and no digest was refreshed.** `npm run screenshots:check`
+is still red on all four groups: `app-playwright-manifest` (117), `app-playwright-map-dependent`
+(15), `lowlevel-ui-e2e` (18) and `hosted-deployment` (4). The last of those went stale as a
+consequence of this session's UI changes and is refreshable with `node scripts/capture-hosted.mjs`.
+
+The local capture directory holds 106 images from a clean single-provenance run, but they were
+deliberately not synced: the required-surfaces list still demands nine retired screens, so the run
+cannot be honestly described as complete, and `lowlevel-ui-e2e` can only ever be refreshed to 14 of
+its 18 targets on this machine. Correcting that required list is the next piece of work.
+
+A rendered map for the map-dependent group is present and unexpired at
+`%TEMP%/rendered-map/web`, with provenance recording commit `8832e459` and run `32900223088`.
+
+### 廣東話總結
+
+今次十一個 commit，全部已經隨 `v1.0.1760` 出街。最重要嗰單：`v1.0.1745` 個 installer 入面隻
+BlueMap 引擎一直都喺度，連 digest 都同佢自己 publish 嗰個對得上，但隔籬張 manifest 就寫住「冇呢
+隻嘢」，個 app 信張紙唔信隻檔案，於是次次 render 都話引擎未裝。真正原因係次序：張 manifest 喺隻
+jar 落嚟之前八十一秒就寫好咗，所以佢寫「冇」係完全正確。本機 package 次次都啱，因為隻 jar 早就
+喺度，所以一直重現唔到。已經裝咗舊版嘅人，下次開就得，唔使載嘢。
+
+另一單要留意嘅係影相：影相模式一路都讀住成部機共用嘅個人詞彙檔，即係影出嚟嘅介面講緊機主自己嘅
+私人用語，而啲相係要 commit 上公開 repo 嘅。舊嘅相係 8 月 15 影嘅，個檔案 8 月 23 先出現，所以
+未漏出去，今次係堵窿唔係執手尾。
+
+未完成嘅嘢要講清楚：今次冇 publish 過任何 screenshot，亦冇改過任何 digest。四組 evidence 全部
+仍然係紅色。個 capture matrix 而家二十九個 spec 跑得晒，但係張「必須影到」嘅清單仲要求緊九個已經
+唔存在嘅畫面（`8f417d73` 已經換走咗），所以呢次 run 唔可以老實咁叫做完整。下一步就係修正嗰張清單。
+
 ## 2026-08-22 — documentation inventory refresh
 
 The documentation index now lists the five root feature records that had existed on disk but were
