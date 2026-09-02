@@ -22,6 +22,7 @@ import {
     useAppearanceTarget,
     useRegisteredTarget,
 } from "./useAppearance.js";
+import type { AppearanceStateName } from "./appearanceRecord.js";
 
 /**
  * Wraps any element and gives it the whole appearance feature.
@@ -63,13 +64,32 @@ const props = withDefaults(
         label: string;
         /** The tag the wrapper renders as, so it can be inline where the host is inline. */
         as?: string;
+        /** An explicit host state wins over the pointer and focus pseudo-state detector. */
+        state?: AppearanceStateName | undefined;
     }>(),
-    { as: "span" },
+    { as: "span", state: undefined },
 );
 
 const { t } = useI18n();
 
-const target = useAppearanceTarget(() => props.id);
+const pointerInside = ref(false);
+const focusWithin = ref(false);
+const pressed = ref(false);
+const activeState = computed(
+    () =>
+        props.state ??
+        (pressed.value
+            ? "pressed"
+            : focusWithin.value
+              ? "focus"
+              : pointerInside.value
+                ? "hover"
+                : undefined),
+);
+const target = useAppearanceTarget(
+    () => props.id,
+    () => activeState.value,
+);
 
 useRegisteredTarget({
     id: props.id,
@@ -123,6 +143,11 @@ const editorOpen = ref(false);
  */
 const menuContent = ref<HTMLElement | null>(null);
 const editorContent = ref<HTMLElement | null>(null);
+
+function onFocusOut(event: FocusEvent): void {
+    const next = event.relatedTarget;
+    if (!(next instanceof Node) || !root.value?.contains(next)) focusWithin.value = false;
+}
 
 const FOCUSABLE_SELECTOR =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -516,12 +541,22 @@ function onKeydown(event: KeyboardEvent): void {
         :aria-keyshortcuts="`Shift+F10 ${EDITOR_SHORTCUT}`"
         :aria-disabled="locked ? 'true' : undefined"
         :data-locked="locked ? 'true' : undefined"
+        :data-appearance-rainbow="
+            target.style.value.style['--appearance-rainbow'] === 'true' ? 'true' : undefined
+        "
+        :data-appearance-state="activeState ?? undefined"
         :aria-haspopup="haspopup"
         :aria-expanded="menuOpen || editorOpen ? 'true' : 'false'"
         :aria-controls="menuOpen ? menuId : editorOpen ? editorId : undefined"
         :aria-owns="menuOpen ? menuId : editorOpen ? editorId : undefined"
         @contextmenu="onContextMenu"
         @keydown="onKeydown"
+        @mouseenter="pointerInside = true"
+        @mouseleave="pointerInside = false"
+        @focusin="focusWithin = true"
+        @focusout="onFocusOut"
+        @mousedown="pressed = true"
+        @mouseup="pressed = false"
     >
         <!--
             The slot, made genuinely unusable while the lock is closed.
@@ -698,6 +733,27 @@ function onKeydown(event: KeyboardEvent): void {
  */
 .mb-appearance-target {
     display: contents;
+}
+
+@keyframes worldlens-appearance-target-rainbow {
+    from {
+        filter: hue-rotate(0deg);
+    }
+    to {
+        filter: hue-rotate(360deg);
+    }
+}
+
+.mb-appearance-target[data-appearance-rainbow="true"] {
+    animation: worldlens-appearance-target-rainbow var(--appearance-rainbow-duration, 16s) linear
+        infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-appearance-target[data-appearance-rainbow="true"] {
+        animation: none;
+        filter: hue-rotate(210deg);
+    }
 }
 
 /*

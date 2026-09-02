@@ -525,6 +525,7 @@ async function main() {
         const adapterContract = await readAdapterContract(options.vendor, implementation);
         described.push({
             implementation,
+            version,
             fileName,
             stagedFrom: source.fileName,
             title: platform.title,
@@ -540,6 +541,7 @@ async function main() {
                 repository: options.upstreamRepository,
                 commit: options.upstreamCommit,
                 path: adapterContract?.sourcePath ?? null,
+                version,
             },
             entryCount: inspection.entryCount,
             mainClass: inspection.mainClass,
@@ -567,6 +569,19 @@ async function main() {
     };
 
     const markdown = composeMarkdown(described, upstream, requiredJava);
+    const generatedAt = new Date().toISOString();
+    const packagerSource = {
+        repository: upstream.repository,
+        commit: upstream.commit,
+        path: upstream.submodulePath,
+        version: upstream.version,
+    };
+    const workflow = process.env.GITHUB_RUN_ID
+        ? {
+              runId: process.env.GITHUB_RUN_ID,
+              runAttempt: process.env.GITHUB_RUN_ATTEMPT ?? "1",
+          }
+        : null;
     await writeFile(join(options.out, "bluemap-jars.md"), markdown, "utf8");
     await writeFile(
         join(options.out, "bluemap-jars.sha256.txt"),
@@ -575,7 +590,33 @@ async function main() {
     );
     await writeFile(
         join(options.out, "bluemap-jars.json"),
-        `${JSON.stringify({ generatedAt: new Date().toISOString(), upstream, requiredJavaFeature: requiredJava, jars: described }, null, 4)}\n`,
+        `${JSON.stringify({ generatedAt, upstream, requiredJavaFeature: requiredJava, jars: described }, null, 4)}\n`,
+        "utf8",
+    );
+    // This is the packager contract, not a second hand-written CI index. Keep the
+    // exact source revision, release filename, byte count, and digest beside the
+    // artifact so a later job can stage it without reconstructing provenance.
+    await writeFile(
+        join(options.out, "manifest.json"),
+        `${JSON.stringify(
+            {
+                schemaVersion: 1,
+                generatedAt,
+                source: packagerSource,
+                workflow,
+                requiredJavaFeature: requiredJava,
+                jars: described.map((jar) => ({
+                    implementation: jar.implementation,
+                    version: jar.version,
+                    fileName: jar.fileName,
+                    size: jar.size,
+                    sha256: jar.sha256,
+                    source: packagerSource,
+                })),
+            },
+            null,
+            4,
+        )}\n`,
         "utf8",
     );
 

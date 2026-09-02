@@ -296,7 +296,10 @@ async function main() {
     console.log(`app build: current update feed repository = ${repositories.current}`);
     console.log(`app build: legacy update bridge repository = ${repositories.legacy ?? "none"}`);
 
-    if (!hostedOnly) await stageRenderEngines();
+    // The ordinary build must produce the TypeScript bundle before any Java jar
+    // may be staged. Packaging performs the fail-closed Java check in beforePack
+    // after bootstrap or CI has supplied the artifact.
+    if (!hostedOnly) await stageRenderEngines(undefined, { requireJava: false });
 
     if (!hostedOnly) {
     /** Main process: ESM (Electron ≥28 supports ESM entry points). */

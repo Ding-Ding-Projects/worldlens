@@ -60,6 +60,8 @@ export interface DownloadOptions {
     readonly target: string;
     /** From the release metadata, used for progress reporting only. */
     readonly expectedSize?: number;
+    /** Hard ceiling checked against headers and every chunk before it is written. */
+    readonly maxSize?: number;
     readonly fetchBinary?: FetchBinary;
     readonly onProgress?: (progress: DownloadProgress) => void;
     readonly signal?: AbortSignal;
@@ -80,7 +82,11 @@ interface PartMetadata {
 }
 
 const defaultFetchBinary: FetchBinary = (url, init) =>
-    globalThis.fetch(url, { headers: init.headers, redirect: "follow", ...(init.signal === undefined ? {} : { signal: init.signal }) });
+    globalThis.fetch(url, {
+        headers: init.headers,
+        redirect: "follow",
+        ...(init.signal === undefined ? {} : { signal: init.signal }),
+    });
 
 /** SHA-256 of a file on disk, streamed so a 200 MB archive is not held in memory. */
 export async function sha256File(path: string): Promise<string> {
@@ -134,6 +140,7 @@ function describeStatus(response: HttpBinaryResponse): string {
 export async function downloadVerified(options: DownloadOptions): Promise<DownloadResult> {
     const { url, target } = options;
     const expected = options.sha256.toLowerCase();
+    const maxSize = options.maxSize ?? 512 * 1024 * 1024;
     const fetchBinary = options.fetchBinary ?? defaultFetchBinary;
     const partFile = `${target}.part`;
     const metaFile = `${target}.part.json`;
@@ -151,7 +158,9 @@ export async function downloadVerified(options: DownloadOptions): Promise<Downlo
         // not match the signed metadata makes a stale/truncated managed binary
         // visible even when a caller accidentally supplied the wrong digest.
         const sizeMatches =
-            options.expectedSize === undefined || options.expectedSize <= 0 || existing === options.expectedSize;
+            options.expectedSize === undefined ||
+            options.expectedSize <= 0 ||
+            existing === options.expectedSize;
         if (sizeMatches && (await sha256File(target)) === expected) {
             return { path: target, bytes: existing, reused: true, resumedFrom: 0 };
         }
@@ -172,7 +181,8 @@ export async function downloadVerified(options: DownloadOptions): Promise<Downlo
     const headers: Record<string, string> = { accept: "application/octet-stream" };
     if (resumeFrom > 0) headers["range"] = `bytes=${String(resumeFrom)}-`;
 
-    const requestInit = options.signal === undefined ? { headers } : { headers, signal: options.signal };
+    const requestInit =
+        options.signal === undefined ? { headers } : { headers, signal: options.signal };
     let response = await fetchBinary(url, requestInit);
 
     // 416 means the part file is at or past the artefact's length, which happens when
@@ -205,6 +215,11 @@ export async function downloadVerified(options: DownloadOptions): Promise<Downlo
     }
 
     const contentLength = Number.parseInt(response.headers.get("content-length") ?? "", 10);
+    if (Number.isFinite(contentLength) && contentLength > maxSize) {
+        throw new Error(
+            `Download exceeds the hard size ceiling of ${String(maxSize)} bytes for ${url}`,
+        );
+    }
     const total = Number.isFinite(contentLength)
         ? resumeFrom + contentLength
         : options.expectedSize !== undefined && options.expectedSize > 0
@@ -219,6 +234,11 @@ export async function downloadVerified(options: DownloadOptions): Promise<Downlo
     try {
         for await (const chunk of response.body) {
             options.signal?.throwIfAborted();
+            if (received + chunk.byteLength > maxSize) {
+                throw new Error(
+                    `Download exceeded the hard size ceiling of ${String(maxSize)} bytes for ${url}`,
+                );
+            }
             received += chunk.byteLength;
             if (!sink.write(chunk)) {
                 // Both listeners are removed on whichever fires. Leaving the error

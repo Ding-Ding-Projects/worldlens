@@ -1,22 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiRestore } from "@mdi/js";
-import {
-    VBtn,
-    VCheckbox,
-    VChip,
-    VMenu,
-    VSelect,
-    VSlider,
-    VTextField,
-    VTooltip,
-} from "vuetify/components";
+import { mdiLockOpenVariantOutline, mdiLockOutline, mdiRestore } from "@mdi/js";
+import { VBtn, VCheckbox, VChip, VMenu, VSlider, VTextField, VTooltip } from "vuetify/components";
 
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import ColorField from "./ColorField.vue";
-import { fontFamilyStack, searchFonts, type FontFamily } from "./fontCatalog.js";
+import AppearanceChoiceField from "./AppearanceChoiceField.vue";
+import {
+    fontFamilyStack,
+    fontIdentityStatus,
+    searchFonts,
+    type FontFamily,
+} from "./fontCatalog.js";
 import {
     ASSUMED_SUPPORT_LABEL_KEY,
     TYPOGRAPHY_PROPERTIES,
@@ -59,11 +56,13 @@ const props = defineProps<{
     fonts: readonly FontFamily[];
     /** Compromises the engine forced, reported beneath the rows that caused them. */
     notes: readonly TypographyNote[];
+    locked?: (property: TypographyPropertyId) => boolean;
 }>();
 
 const emit = defineEmits<{
     set: [id: TypographyPropertyId, value: unknown];
     reset: [id: TypographyPropertyId];
+    lock: [id: TypographyPropertyId, anchor: HTMLElement];
 }>();
 
 const { t } = useI18n();
@@ -81,6 +80,7 @@ const { t } = useI18n();
  */
 const LABELS: Readonly<Record<TypographyPropertyId, string>> = {
     fontFamily: "Font",
+    fontIdentity: "Font identity",
     fontSize: "Size",
     fontSizeUnit: "Size unit",
     fontWeight: "Weight",
@@ -145,6 +145,12 @@ const searchCorpus = computed(() =>
 /* -------------------------------------------------------------------------- */
 
 const fontOpen = ref(false);
+const fontActive = ref(0);
+const fontButton = ref<HTMLElement | null>(null);
+const fontPanel = ref<HTMLElement | null>(null);
+const fontUid = useId();
+const fontListId = `${fontUid}-listbox`;
+const fontSearchInputId = `${fontUid}-search`;
 const fontSearch = ref("");
 const fontRegex = ref(false);
 const fontFlags = ref("i");
@@ -153,11 +159,44 @@ const visibleFonts = computed(() => {
     const matcher = createSettingMatcher(fontSearch.value, fontRegex.value, fontFlags.value);
     return searchFonts(props.fonts, (text) => matcher.test(text));
 });
+const activeFontOption = computed(() => visibleFonts.value[fontActive.value]);
 
 const fontCorpus = computed(() => props.fonts.map((font) => font.family).join("\n"));
 
+watch(visibleFonts, (fonts) => {
+    fontActive.value = Math.min(Math.max(fonts.length - 1, 0), fontActive.value);
+});
+
+watch(fontOpen, async (open) => {
+    await nextTick();
+    if (open) fontPanel.value?.querySelector<HTMLInputElement>("input")?.focus();
+    else fontButton.value?.focus();
+});
+
+function onFontKeydown(event: KeyboardEvent): void {
+    if (event.key === "ArrowDown") {
+        event.preventDefault();
+        fontActive.value = Math.min(
+            Math.max(visibleFonts.value.length - 1, 0),
+            fontActive.value + 1,
+        );
+    } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        fontActive.value = Math.max(0, fontActive.value - 1);
+    } else if (event.key === "Enter") {
+        event.preventDefault();
+        const font = visibleFonts.value[fontActive.value];
+        if (font !== undefined) chooseFont(font.family);
+    } else if (event.key === "Escape") {
+        event.preventDefault();
+        fontOpen.value = false;
+    }
+}
+
 function chooseFont(family: string): void {
     emit("set", "fontFamily", family);
+    const selected = props.fonts.find((font) => font.family === family);
+    if (selected?.stableId !== undefined) emit("set", "fontIdentity", selected.stableId);
     fontOpen.value = false;
 }
 
@@ -181,6 +220,60 @@ const REGISTERED_AXES: readonly { tag: string; label: string; min: number; max: 
     { tag: "opsz", label: "Optical size (opsz)", min: 6, max: 144 },
 ];
 
+const selectedFont = computed(() =>
+    props.fonts.find((font) => font.family.toLowerCase() === props.spec.fontFamily.toLowerCase()),
+);
+const identityStatus = computed(() =>
+    fontIdentityStatus(props.spec.fontFamily, props.spec.fontIdentity, props.fonts),
+);
+
+const identityStatusMessage = computed(() => {
+    const status = identityStatus.value;
+    switch (status.kind) {
+        case "active-installed":
+            return t(
+                "appearance.type.fontIdentity.activeInstalled",
+                { family: status.resolvedFamily ?? status.family, identity: status.stableId || status.family },
+                "Installed font active: {family} ({identity}).",
+            );
+        case "active-bundled":
+            return t(
+                "appearance.type.fontIdentity.activeBundled",
+                { family: status.resolvedFamily ?? status.family },
+                "Bundled font active: {family}.",
+            );
+        case "identity-missing":
+            return t(
+                "appearance.type.fontIdentity.missing",
+                { identity: status.stableId, family: status.family },
+                "Saved font identity {identity} is not installed. Keeping it saved and using {family} as the current family fallback.",
+            );
+        case "identity-incompatible":
+            return t(
+                "appearance.type.fontIdentity.incompatible",
+                { identity: status.stableId, family: status.family, resolved: status.resolvedFamily ?? "" },
+                "Saved font identity {identity} belongs to {resolved}, not the selected family {family}. The selected family remains visible and the identity stays saved.",
+            );
+        case "family-missing":
+            return t(
+                "appearance.type.fontIdentity.familyMissing",
+                { family: status.family },
+                "Family {family} is not available here. The saved family and identity remain unchanged; the generic and CJK fallback stack is rendering.",
+            );
+    }
+});
+const selectedAxes = computed(
+    () =>
+        selectedFont.value?.axes?.map((axis) => ({
+            tag: axis.tag,
+            label: `${axis.tag} axis`,
+            min: axis.min,
+            max: axis.max,
+            defaultValue: axis.defaultValue,
+        })) ?? REGISTERED_AXES.map((axis) => ({ ...axis, defaultValue: axis.min })),
+);
+const axesKnown = computed(() => selectedFont.value?.axes !== undefined);
+
 const customAxisTag = ref("");
 const customAxisValue = ref(0);
 
@@ -200,7 +293,7 @@ function addCustomAxis(): void {
 
 const customAxes = computed(() =>
     Object.entries(props.spec.variableAxes).filter(
-        ([tag]) => !REGISTERED_AXES.some((axis) => axis.tag === tag),
+        ([tag]) => !selectedAxes.value.some((axis) => axis.tag === tag),
     ),
 );
 
@@ -220,7 +313,10 @@ function setGlow(part: "radius" | "color", value: number | string): void {
 /* Choice lists                                                               */
 /* -------------------------------------------------------------------------- */
 
-function choices(id: TypographyPropertyId, entries: readonly [string, string][]): { title: string; value: string }[] {
+function choices(
+    id: TypographyPropertyId,
+    entries: readonly [string, string][],
+): { title: string; value: string }[] {
     return entries.map(([value, fallback]) => ({
         title: t(`appearance.type.${id}.${value}`, fallback),
         value,
@@ -310,7 +406,13 @@ function number(value: string, fallback: number): number {
             v-model:flags="searchFlags"
             :label="t('appearance.type.search', 'Search the typography settings')"
             :sample="searchCorpus"
-            :summary="t('appearance.type.searchSummary', { shown: rows.length, total: TYPOGRAPHY_PROPERTIES.length }, 'Showing {shown} of {total} settings.')"
+            :summary="
+                t(
+                    'appearance.type.searchSummary',
+                    { shown: rows.length, total: TYPOGRAPHY_PROPERTIES.length },
+                    'Showing {shown} of {total} settings.',
+                )
+            "
         />
 
         <p v-if="rows.length === 0" class="mb-type-editor__hint">
@@ -328,15 +430,38 @@ function number(value: string, fallback: number): number {
                     :icon="mdiRestore"
                     size="x-small"
                     variant="text"
-                    :aria-label="t('appearance.type.reset', { property: row.label }, 'Reset {property}')"
+                    :aria-label="
+                        t('appearance.type.reset', { property: row.label }, 'Reset {property}')
+                    "
                     @click="emit('reset', row.id)"
                 >
                     <v-tooltip
                         activator="parent"
                         location="top"
-                        :text="t('appearance.type.resetHint', 'Remove this override so the element follows whatever is above it.')"
+                        :text="
+                            t(
+                                'appearance.type.resetHint',
+                                'Remove this override so the element follows whatever is above it.',
+                            )
+                        "
                     />
                 </v-btn>
+                <v-btn
+                    v-if="props.locked !== undefined"
+                    :icon="props.locked(row.id) ? mdiLockOpenVariantOutline : mdiLockOutline"
+                    size="x-small"
+                    variant="text"
+                    :aria-label="
+                        props.locked(row.id)
+                            ? t(
+                                  'appearance.lock.unlock',
+                                  { property: row.label },
+                                  'Unlock {property}',
+                              )
+                            : t('appearance.lock.lock', { property: row.label }, 'Lock {property}')
+                    "
+                    @click="emit('lock', row.id, $event.currentTarget as HTMLElement)"
+                />
             </div>
 
             <!--
@@ -350,12 +475,20 @@ function number(value: string, fallback: number): number {
             <div class="mb-type-row__control">
                 <template v-if="row.id === 'fontFamily'">
                     <v-btn
+                        ref="fontButton"
                         variant="outlined"
                         size="small"
                         class="mb-type-editor__fontButton"
-                        :style="{ fontFamily: fontFamilyStack(spec.fontFamily, fonts) }"
-                        :aria-label="t('appearance.type.fontOpen', { family: spec.fontFamily }, 'Choose a font. Currently {family}.')"
+                        :style="{ fontFamily: fontFamilyStack(spec.fontFamily, fonts, spec.fontIdentity) }"
+                        :aria-label="
+                            t(
+                                'appearance.type.fontOpen',
+                                { family: spec.fontFamily },
+                                'Choose a font. Currently {family}.',
+                            )
+                        "
                         :aria-expanded="fontOpen ? 'true' : 'false'"
+                        :aria-controls="fontOpen ? fontListId : undefined"
                     >
                         {{ spec.fontFamily }}
                         <v-menu
@@ -365,40 +498,114 @@ function number(value: string, fallback: number): number {
                             location="bottom start"
                             offset="8"
                         >
-                            <div class="mb-type-editor__fontPanel">
+                            <div
+                                ref="fontPanel"
+                                class="mb-type-editor__fontPanel"
+                                @keydown="onFontKeydown"
+                            >
                                 <ConfigSearchField
                                     v-model="fontSearch"
                                     v-model:regex="fontRegex"
                                     v-model:flags="fontFlags"
+                                    :input-id="fontSearchInputId"
+                                    :input-aria-activedescendant="
+                                        activeFontOption
+                                            ? `${fontUid}-option-${activeFontOption.stableId ?? activeFontOption.family}`
+                                            : undefined
+                                    "
+                                    :input-aria-controls="fontListId"
                                     :label="t('appearance.type.fontSearch', 'Search fonts')"
                                     :sample="fontCorpus"
-                                    :summary="t('appearance.type.fontSummary', { shown: visibleFonts.length, total: fonts.length }, 'Showing {shown} of {total} fonts.')"
+                                    :summary="
+                                        t(
+                                            'appearance.type.fontSummary',
+                                            { shown: visibleFonts.length, total: fonts.length },
+                                            'Showing {shown} of {total} fonts.',
+                                        )
+                                    "
                                 />
-                                <ul class="mb-type-editor__fontList">
-                                    <li v-for="font in visibleFonts" :key="font.family">
+                                <ul
+                                    :id="fontListId"
+                                    class="mb-type-editor__fontList"
+                                    role="listbox"
+                                    :aria-label="t('appearance.type.fontSearch', 'Search fonts')"
+                                    :aria-activedescendant="
+                                        activeFontOption
+                                            ? `${fontUid}-option-${activeFontOption.stableId ?? activeFontOption.family}`
+                                            : undefined
+                                    "
+                                >
+                                    <li
+                                        v-for="font in visibleFonts"
+                                        :id="`${fontUid}-option-${font.stableId ?? font.family}`"
+                                        :key="font.stableId ?? font.family"
+                                        role="option"
+                                        :aria-selected="
+                                            font.family === spec.fontFamily ? 'true' : 'false'
+                                        "
+                                    >
                                         <button
                                             type="button"
                                             class="mb-type-editor__fontItem"
-                                            :class="{ 'mb-type-editor__fontItem--current': font.family === spec.fontFamily }"
-                                            :style="{ fontFamily: fontFamilyStack(font.family, fonts) }"
-                                            :aria-current="font.family === spec.fontFamily ? 'true' : undefined"
+                                            :class="{
+                                                'mb-type-editor__fontItem--current':
+                                                    font.family === spec.fontFamily,
+                                            }"
+                                            :style="{
+                                                fontFamily: fontFamilyStack(font.family, fonts, font.stableId),
+                                            }"
+                                            :aria-current="
+                                                font.family === spec.fontFamily ? 'true' : undefined
+                                            "
                                             @click="chooseFont(font.family)"
                                         >
-                                            <span class="mb-type-editor__fontName">{{ font.family }}</span>
-                                            <span class="mb-type-editor__fontSample">{{ font.sample }}</span>
-                                            <v-chip v-if="font.source === 'installed'" size="x-small" variant="tonal">
-                                                {{ t("appearance.type.fontInstalled", "Installed") }}
+                                            <span class="mb-type-editor__fontName">{{
+                                                font.family
+                                            }}</span>
+                                            <span class="mb-type-editor__fontSample">{{
+                                                font.sample
+                                            }}</span>
+                                            <v-chip
+                                                v-if="font.source === 'installed'"
+                                                size="x-small"
+                                                variant="tonal"
+                                            >
+                                                {{
+                                                    t("appearance.type.fontInstalled", "Installed")
+                                                }}
                                             </v-chip>
                                         </button>
                                     </li>
                                 </ul>
                                 <p v-if="visibleFonts.length === 0" class="mb-type-editor__hint">
-                                    {{ t("appearance.type.noFont", "No font matches that search.") }}
+                                    {{
+                                        t("appearance.type.noFont", "No font matches that search.")
+                                    }}
                                 </p>
                             </div>
                         </v-menu>
                     </v-btn>
+                    <p
+                        class="mb-type-editor__fontIdentityStatus"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        {{ identityStatusMessage }}
+                    </p>
                 </template>
+
+                <v-text-field
+                    v-else-if="row.id === 'fontIdentity'"
+                    :model-value="
+                        spec.fontIdentity ||
+                        t('appearance.type.fontIdentityAutomatic', 'Automatic by family')
+                    "
+                    readonly
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    :label="row.label"
+                />
 
                 <template v-else-if="row.id === 'fontSize'">
                     <v-text-field
@@ -411,7 +618,9 @@ function number(value: string, fallback: number): number {
                         variant="outlined"
                         hide-details
                         :label="t('appearance.type.fontSizeEntry', 'Any size')"
-                        @update:model-value="(value: string) => emit('set', 'fontSize', number(value, spec.fontSize))"
+                        @update:model-value="
+                            (value: string) => emit('set', 'fontSize', number(value, spec.fontSize))
+                        "
                     />
                     <v-slider
                         :model-value="spec.fontSize"
@@ -425,13 +634,10 @@ function number(value: string, fallback: number): number {
                     />
                 </template>
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'fontSizeUnit'"
                     :model-value="spec.fontSizeUnit"
                     :items="sizeUnits"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'fontSizeUnit', value)"
                 />
@@ -454,17 +660,21 @@ function number(value: string, fallback: number): number {
                     :model-value="spec.bold"
                     density="compact"
                     hide-details
-                    :label="t('appearance.type.boldHint', 'Bold, which raises the weight to at least 700')"
-                    @update:model-value="(value: boolean | null) => emit('set', 'bold', value === true)"
+                    :label="
+                        t(
+                            'appearance.type.boldHint',
+                            'Bold, which raises the weight to at least 700',
+                        )
+                    "
+                    @update:model-value="
+                        (value: boolean | null) => emit('set', 'bold', value === true)
+                    "
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'italic'"
                     :model-value="spec.italic"
                     :items="italicChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'italic', value)"
                 />
@@ -486,16 +696,21 @@ function number(value: string, fallback: number): number {
                 <template v-else-if="row.id === 'variableAxes'">
                     <p class="mb-type-editor__hint">
                         {{
-                            t(
-                                "appearance.type.axesHint",
-                                "The platform does not tell this app which axes a font has, so the registered ones are always offered. A face without an axis simply ignores it.",
-                            )
+                            axesKnown
+                                ? t(
+                                      "appearance.type.axesKnown",
+                                      "Axis ranges come from this font's metadata.",
+                                  )
+                                : t(
+                                      "appearance.type.axesUnknown",
+                                      "This font has no readable axis metadata. The common axis controls remain visible, but unsupported axes are preserved and do not change the face.",
+                                  )
                         }}
                     </p>
-                    <div v-for="axis in REGISTERED_AXES" :key="axis.tag" class="mb-type-editor__axis">
+                    <div v-for="axis in selectedAxes" :key="axis.tag" class="mb-type-editor__axis">
                         <span class="mb-type-editor__axisTag">{{ axis.label }}</span>
                         <v-slider
-                            :model-value="spec.variableAxes[axis.tag] ?? axis.min"
+                            :model-value="spec.variableAxes[axis.tag] ?? axis.defaultValue"
                             :min="axis.min"
                             :max="axis.max"
                             :step="1"
@@ -510,7 +725,13 @@ function number(value: string, fallback: number): number {
                             :icon="mdiRestore"
                             size="x-small"
                             variant="text"
-                            :aria-label="t('appearance.type.axisClear', { axis: axis.tag }, 'Stop setting the {axis} axis')"
+                            :aria-label="
+                                t(
+                                    'appearance.type.axisClear',
+                                    { axis: axis.tag },
+                                    'Stop setting the {axis} axis',
+                                )
+                            "
                             @click="setAxis(axis.tag, null)"
                         />
                     </div>
@@ -523,13 +744,21 @@ function number(value: string, fallback: number): number {
                             variant="outlined"
                             hide-details
                             :label="tag"
-                            @update:model-value="(next: string) => setAxis(tag, number(next, value))"
+                            @update:model-value="
+                                (next: string) => setAxis(tag, number(next, value))
+                            "
                         />
                         <v-btn
                             :icon="mdiRestore"
                             size="x-small"
                             variant="text"
-                            :aria-label="t('appearance.type.axisClear', { axis: tag }, 'Stop setting the {axis} axis')"
+                            :aria-label="
+                                t(
+                                    'appearance.type.axisClear',
+                                    { axis: tag },
+                                    'Stop setting the {axis} axis',
+                                )
+                            "
                             @click="setAxis(tag, null)"
                         />
                     </div>
@@ -556,13 +785,10 @@ function number(value: string, fallback: number): number {
                     </div>
                 </template>
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'underline'"
                     :model-value="spec.underline"
                     :items="underlineChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'underline', value)"
                 />
@@ -574,13 +800,10 @@ function number(value: string, fallback: number): number {
                     @update:model-value="(value: string) => emit('set', 'underlineColor', value)"
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'strikethrough'"
                     :model-value="spec.strikethrough"
                     :items="strikethroughChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'strikethrough', value)"
                 />
@@ -591,16 +814,15 @@ function number(value: string, fallback: number): number {
                     density="compact"
                     hide-details
                     :label="row.label"
-                    @update:model-value="(value: boolean | null) => emit('set', 'overline', value === true)"
+                    @update:model-value="
+                        (value: boolean | null) => emit('set', 'overline', value === true)
+                    "
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'capitalization'"
                     :model-value="spec.capitalization"
                     :items="capitalizationChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'capitalization', value)"
                 />
@@ -611,16 +833,15 @@ function number(value: string, fallback: number): number {
                     density="compact"
                     hide-details
                     :label="row.label"
-                    @update:model-value="(value: boolean | null) => emit('set', 'smallCaps', value === true)"
+                    @update:model-value="
+                        (value: boolean | null) => emit('set', 'smallCaps', value === true)
+                    "
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'baselineShift'"
                     :model-value="spec.baselineShift"
                     :items="baselineChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'baselineShift', value)"
                 />
@@ -683,7 +904,10 @@ function number(value: string, fallback: number): number {
                         variant="outlined"
                         hide-details
                         :label="t('appearance.type.shadowX', 'Sideways')"
-                        @update:model-value="(value: string) => setShadow('offsetX', number(value, spec.shadow.offsetX))"
+                        @update:model-value="
+                            (value: string) =>
+                                setShadow('offsetX', number(value, spec.shadow.offsetX))
+                        "
                     />
                     <v-text-field
                         :model-value="spec.shadow.offsetY"
@@ -693,7 +917,10 @@ function number(value: string, fallback: number): number {
                         variant="outlined"
                         hide-details
                         :label="t('appearance.type.shadowY', 'Down')"
-                        @update:model-value="(value: string) => setShadow('offsetY', number(value, spec.shadow.offsetY))"
+                        @update:model-value="
+                            (value: string) =>
+                                setShadow('offsetY', number(value, spec.shadow.offsetY))
+                        "
                     />
                     <v-text-field
                         :model-value="spec.shadow.blur"
@@ -704,7 +931,9 @@ function number(value: string, fallback: number): number {
                         variant="outlined"
                         hide-details
                         :label="t('appearance.type.shadowBlur', 'Blur')"
-                        @update:model-value="(value: string) => setShadow('blur', number(value, spec.shadow.blur))"
+                        @update:model-value="
+                            (value: string) => setShadow('blur', number(value, spec.shadow.blur))
+                        "
                     />
                     <ColorField
                         :model-value="spec.shadow.color"
@@ -771,24 +1000,18 @@ function number(value: string, fallback: number): number {
                     @update:model-value="(value: number) => emit('set', 'lineHeight', value)"
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'textDirection'"
                     :model-value="spec.textDirection"
                     :items="directionChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'textDirection', value)"
                 />
 
-                <v-select
+                <AppearanceChoiceField
                     v-else-if="row.id === 'textAlign'"
                     :model-value="spec.textAlign"
                     :items="alignChoices"
-                    density="compact"
-                    variant="outlined"
-                    hide-details
                     :label="row.label"
                     @update:model-value="(value: string) => emit('set', 'textAlign', value)"
                 />
@@ -800,7 +1023,12 @@ function number(value: string, fallback: number): number {
         </div>
 
         <p class="mb-type-editor__hint">
-            {{ t(ASSUMED_SUPPORT_LABEL_KEY, "Where this app cannot ask the engine what it supports, it assumes everything is supported rather than hiding a control that would have worked.") }}
+            {{
+                t(
+                    ASSUMED_SUPPORT_LABEL_KEY,
+                    "Where this app cannot ask the engine what it supports, it assumes everything is supported rather than hiding a control that would have worked.",
+                )
+            }}
         </p>
     </div>
 </template>
@@ -865,6 +1093,14 @@ function number(value: string, fallback: number): number {
 .mb-type-editor__fontButton {
     justify-content: flex-start;
     text-transform: none;
+}
+
+.mb-type-editor__fontIdentityStatus {
+    flex: 1 1 100%;
+    margin: 0;
+    font-size: 0.72rem;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    overflow-wrap: anywhere;
 }
 
 /*

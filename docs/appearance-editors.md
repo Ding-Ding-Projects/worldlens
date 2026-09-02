@@ -11,7 +11,7 @@ The code is `design/packages/ui/src/components/appearance/`. A host writes
 
 ### A record of opinions, not of values
 
-An appearance record is deliberately a record of *opinions*. A key that is absent means "I have no
+An appearance record is deliberately a record of _opinions_. A key that is absent means "I have no
 view on this, follow whatever is above me"; a key that is present means "this one, regardless".
 Keeping those distinguishable is what makes per-property reset work at all: resetting a tab's
 weight has to remove the opinion so the tab goes back to following the theme, rather than write
@@ -27,9 +27,9 @@ Two halves are kept apart rather than folded into one flat bag, because they are
 different tabs, reset independently and, for a group header or a strip, inherited from different
 places:
 
-| Half | Properties |
-|---|---|
-| Surface | `backgroundColor`, `borderColor`, `borderWidth`, `borderStyle`, `borderRadius`, `paddingInline`, `paddingBlock`, `elevation`, `opacity` |
+| Half       | Properties                                                                                                                                                                                                                                                                                                                               |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Surface    | `backgroundColor`, `borderColor`, `borderWidth`, `borderStyle`, `borderRadius`, `paddingInline`, `paddingBlock`, `elevation`, `opacity`                                                                                                                                                                                                  |
 | Typography | Family, size and unit, weight, bold, italic or oblique with an angle, variable-font axes, underline style and colour, single or double strikethrough, overline, capitalisation, small caps, baseline shift and offset, text colour, highlight, outline, shadow, glow, letter spacing, word spacing, line height, direction and alignment |
 
 An element with no overrides renders Material Design 3 `body-medium`: Roboto at 14px with a 400
@@ -98,7 +98,7 @@ way**, so turning the control back on, or opening the same profile on a machine 
 engine, brings it back untouched.
 
 The second honesty problem has no capability flag to hang off. CSS draws underline, strikethrough
-and overline through one `text-decoration-line` declaration with *one* style and *one* colour
+and overline through one `text-decoration-line` declaration with _one_ style and _one_ colour
 between them, so a wavy underline beside a double strikethrough is not a thing CSS can express.
 Picking one silently would leave somebody staring at a control whose value the preview ignores, so
 the module picks a documented winner and returns a note naming the property that lost, for the
@@ -109,6 +109,11 @@ and can ask Chromium for the rest through `queryLocalFonts()`, which the user ma
 stack it builds ends in a generic, and CJK-capable faces are appended, because the moment text
 contains a Chinese, Japanese or Korean character a Latin-only face has nothing to draw with and
 the browser falls back to whatever it likes.
+
+When the platform reports a stable font identity, the record stores it beside the display family
+and uses it to resolve the actual rendered face. If that identity is missing on a later machine,
+resolution falls back to the saved display family and then the documented generic and CJK fallback
+stack.
 
 ### The editor edits itself
 
@@ -139,15 +144,15 @@ report, rather than deleted.
 
 ## Configuration
 
-| Setting | Value |
-|---|---|
-| Storage key | `worldlens-appearance` in `localStorage`; the legacy key is copied once when current state is absent |
-| Export format marker | `worldlens-appearance`; legacy `material-bluemap-appearance` imports remain accepted |
-| Export version | `APPEARANCE_VERSION`, currently 1 |
-| Global layer id | `GLOBAL_TARGET`, the reserved element id `global` |
-| Context menu | **Edit appearance...** under the host's own menu items |
-| Straight to the editor | Shift and right-click, or `Ctrl+Shift+F10` |
-| Open the context menu by keyboard | `Shift+F10` or the Menu key |
+| Setting                           | Value                                                                                                |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Storage key                       | `worldlens-appearance` in `localStorage`; the legacy key is copied once when current state is absent |
+| Export format marker              | `worldlens-appearance`; legacy `material-bluemap-appearance` imports remain accepted                 |
+| Export version                    | `APPEARANCE_VERSION`, currently 2                                                                    |
+| Global layer id                   | `GLOBAL_TARGET`, the reserved element id `global`                                                    |
+| Context menu                      | **Edit appearance...** under the host's own menu items                                               |
+| Straight to the editor            | Shift and right-click, or `Ctrl+Shift+F10`                                                           |
+| Open the context menu by keyboard | `Shift+F10` or the Menu key                                                                          |
 
 The keyboard path is not a courtesy: `Shift+F10` and the Menu key are what a Windows user presses
 to open a context menu, so they open this one. `Ctrl+Shift+F10` mirrors Shift and right-click, the
@@ -216,19 +221,77 @@ relevant foreground or background, so a colour choice can be checked rather than
 property that the engine cannot support stays visible with an explanation instead of disappearing,
 which keeps the control set stable for somebody navigating it by keyboard.
 
+## Chrome properties, state layers, and locks
+
+The surface record also carries chrome metadata that ordinary text CSS cannot describe on its
+own: icon name, colour, size and opacity; badge text, colour, background and shape; separator
+visibility, colour, thickness and line style; shape variant; density; motion preference; gap; and
+inline and block margins. A host consumes these values through the `--appearance-*` custom
+properties while keeping its own Material primitives responsible for the actual icon and badge
+rendering. Unknown metadata is preserved on import and export.
+
+Every record can carry independent state layers for `hover`, `focus`, `selected`, `expanded`,
+`collapsed`, `disabled`, `pressed`, and `active`. A state layer may override typography, surface,
+effects, icon, badge, separator, shape, elevation, or spacing. Resolving a state never mutates the
+base record, and a missing state means that the base appearance remains in effect.
+
+The editor's **Editing state** picker authorises a state before any typography or surface control
+is changed. New state values are written through the same setters as base values, and reset removes
+only that state property's opinion. The host wrapper passes pointer, focus, and explicit host states
+through the same resolver, so a saved hover or focus appearance is applied to the real target and
+not only shown in a preview.
+
+Each base property and each declared state property has an independent appearance lock target.
+The target path is stable and contains only the element and property identity. Credentials are
+owned by the lock store and are never written into appearance records, presets, exports, or
+history. Unlocking one property therefore cannot unlock a different property.
+
+The editor exposes a lock or unlock action beside each base and state property. The action opens
+the real lock wizard, uses the stable property path, and routes a locked edit through the real
+unlock prompt. Setters enforce the same lock, so keyboard events, palette actions, imported state,
+and direct component calls cannot change a locked property behind the editor's back. Active-preset
+changes, preset removal, an element's inherited-preset change, theme import, and every reset route
+reconcile against the current lock list. A locked effective value is materialized into the element
+record before the old source disappears, so a preset cannot silently change a locked property.
+
+The editor's own chrome registers dynamically while mounted, so it appears in the target list only
+when it exists and its own **Edit appearance...** route can return focus to the originating
+control. Every choice picker, including typography choices, surface choices, preset choices, and
+colour notation, opens its own plain-text-first search with an adjacent anchored regex builder,
+keyboard listbox navigation, an honest no-match state, and focus return.
+
+## Rainbow sentinel and unsupported chrome operations
+
+The animated rainbow is stored as the sentinel `__worldlens_rainbow__`, never as a changing colour
+string and never as a recent swatch. One persisted global speed level maps to one CSS duration for
+every target, and the hue wheel is animated in CSS. Reduced motion disables the animation and
+settles on one deliberate hue. Appearance targets mark themselves with the rainbow state, so the
+actual host surface animates rather than only the picker swatch.
+
+Crop, masks, document layers, and blend modes are not applicable to ordinary chrome appearance
+targets. They belong to document or render content rather than a tab, toolbar, badge, or dialog
+chrome. This editor therefore does not expose fake controls for them. A future content editor must
+document and implement those operations in its own record instead of adding them to this chrome
+schema.
+
 ## Verification
 
-| Test | What it holds |
-|---|---|
-| `appearanceRecord.test.ts` | Absent means inherit and present means override, per-property reset removes the opinion rather than freezing a value, and an unparseable colour is reported rather than painted. |
-| `appearanceStore.test.ts` | Layer resolution including the global target, persistence guarded in both directions, a repaired blob rather than a trusted one, unknown keys and wrong-typed values preserved and reported, and presets applied, saved and removed. |
-| `colorSpaces.test.ts` | The conversions, both directions, with the D50 and D65 white points the specification names, and out-of-gamut values carried rather than clamped. |
-| `colorParse.test.ts` | Every notation the translator accepts, alpha preserved, and each parse failure distinguished by reason. |
-| `colorFormat.test.ts` | Every notation it writes, the clip report, and the contrast report. |
-| `typographySpec.test.ts` | Capability detection per property, values kept when a capability is absent, and the documented decoration winner with a note naming the property that lost. |
-| `fontCatalog.test.ts` | Stacks that always end in a generic, CJK fallbacks appended, and enumeration that neither throws nor requires a browser at import time. |
-| `InfiniteColorPicker.test.ts` | Mounted: the continuous field, typing in each notation, copying a representation, and the gamut warning. |
-| `AppearanceTarget.test.ts` | Mounted: the context menu with the host's own items above the appearance ones, both keyboard paths, the editor anchored and returning focus, and the wrapper becoming a box only when a box declaration is present. |
+| Test                             | What it holds                                                                                                                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `appearanceRecord.test.ts`       | Absent means inherit and present means override, per-property reset removes the opinion rather than freezing a value, and an unparseable colour is reported rather than painted.                                                     |
+| `appearanceStore.test.ts`        | Layer resolution including the global target, persistence guarded in both directions, a repaired blob rather than a trusted one, unknown keys and wrong-typed values preserved and reported, and presets applied, saved and removed. |
+| `colorSpaces.test.ts`            | The conversions, both directions, with the D50 and D65 white points the specification names, and out-of-gamut values carried rather than clamped.                                                                                    |
+| `colorParse.test.ts`             | Every notation the translator accepts, alpha preserved, and each parse failure distinguished by reason.                                                                                                                              |
+| `colorFormat.test.ts`            | Every notation it writes, the clip report, and the contrast report.                                                                                                                                                                  |
+| `typographySpec.test.ts`         | Capability detection per property, values kept when a capability is absent, and the documented decoration winner with a note naming the property that lost.                                                                          |
+| `fontCatalog.test.ts`            | Stacks that always end in a generic, CJK fallbacks appended, and enumeration that neither throws nor requires a browser at import time.                                                                                              |
+| `InfiniteColorPicker.test.ts`    | Mounted: the continuous field, typing in each notation, copying a representation, and the gamut warning.                                                                                                                             |
+| `AppearanceChoiceField.vue`      | Every dropdown has its own anchored search, regex mode, keyboard listbox path, focus return, and no-match state.                                                                                                                     |
+| `appearanceLocks.test.ts`        | Every base and declared state property has an independent stable lock target, with no credential material in the appearance data.                                                                                                    |
+| `rainbow.test.ts`                | The sentinel, global speed mapping, CSS hue rotation, and reduced-motion fixed hue.                                                                                                                                                  |
+| `appearanceCompleteness.test.ts` | Hand-written chrome, spacing, state, lock, rainbow, self-registration, and picker inventory, including a deliberate red then green negative regression.                                                                              |
+| `useAppearance.lock.test.ts`     | Mounted real lock-store wiring: a locked property setter is refused while the independent target identity remains available.                                                                                                         |
+| `AppearanceTarget.test.ts`       | Mounted: the context menu with the host's own items above the appearance ones, both keyboard paths, the editor anchored and returning focus, and the wrapper becoming a box only when a box declaration is present.                  |
 
 Run them with `npx vitest run packages/ui/src/components/appearance` from `design/`.
 
@@ -302,7 +365,7 @@ CIELAB 同 LCH 用 D50 白點，OKLab 同 OKLCH 用 D65，因為 CSS Color 4 就
 
 ### 設定 (Configuration)
 
-儲存 key 係 `localStorage` 入面嘅 `worldlens-appearance`；當冇當前狀態嗰陣，舊嘅 key 會被複製一次過嚟。匯出格式標記係 `worldlens-appearance`，而舊嗰個帶前朝產品名嘅 appearance 格式標記匯入仍然接受。匯出版本係 `APPEARANCE_VERSION`，而家係 1。全域層 id 係 `GLOBAL_TARGET`，即係保留嘅 element id `global`。右鍵選單入面 **Edit appearance...** 排喺宿主自己啲選單項目下面。想直接開編輯器可以 Shift 加右鍵，或者撳 `Ctrl+Shift+F10`。用鍵盤開右鍵選單就撳 `Shift+F10` 或者 Menu 掣。
+儲存 key 係 `localStorage` 入面嘅 `worldlens-appearance`；當冇當前狀態嗰陣，舊嘅 key 會被複製一次過嚟。匯出格式標記係 `worldlens-appearance`，而舊嗰個帶前朝產品名嘅 appearance 格式標記匯入仍然接受。匯出版本係 `APPEARANCE_VERSION`，而家係 2。全域層 id 係 `GLOBAL_TARGET`，即係保留嘅 element id `global`。右鍵選單入面 **Edit appearance...** 排喺宿主自己啲選單項目下面。想直接開編輯器可以 Shift 加右鍵，或者撳 `Ctrl+Shift+F10`。用鍵盤開右鍵選單就撳 `Shift+F10` 或者 Menu 掣。
 
 鍵盤路徑唔係客氣嘢：`Shift+F10` 同 Menu 掣就係 Windows 用戶開右鍵選單會撳嘅嘢，所以佢哋就要開得到呢個。`Ctrl+Shift+F10` 對應 Shift 加右鍵；個選單項目會喺 label 隔籬顯示嗰個快捷鍵，而且係由同一個綁定佢嘅 handler 出嘅；wrapper 亦都透過 `aria-keyshortcuts` 宣告兩者，輔助科技就係靠呢樣去知道一啲佢睇唔見嘅綁定。
 

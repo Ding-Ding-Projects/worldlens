@@ -81,14 +81,18 @@ const props = withDefaults(
         storage?: TargetStorage | null | undefined;
         /** True when the shell can open the GitHub-runners surface. */
         canOpenCi?: boolean | undefined;
+        /** Generation of the render-affecting project context in the owning screen. */
+        contextGeneration?: number | undefined;
     }>(),
-    { canRenderLocally: true, location: "local", canOpenCi: false },
+    { canRenderLocally: true, location: "local", canOpenCi: false, contextGeneration: 0 },
 );
 
 const emit = defineEmits<{
     "update:location": [value: RunLocation];
     /** The machine a remote render would use, or null. The shell hands this to the router. */
     "update:target": [value: RemoteTarget | null];
+    /** Whether the currently selected remote target passed every required check. */
+    "update:preflight": [value: boolean];
     /** Take the person to the surface that renders on GitHub's runners. */
     openCi: [];
 }>();
@@ -173,6 +177,7 @@ function replaceTargets(next: readonly RemoteTarget[]): void {
 const report = ref<PreflightReport | null>(null);
 const checking = ref(false);
 const trustMessage = ref<string | null>(null);
+let preflightGeneration = 0;
 
 const decision = computed<HostKeyDecision>(() =>
     hostKeyDecision(report.value, remote?.canTrustHostKey === true, t),
@@ -181,13 +186,29 @@ const decision = computed<HostKeyDecision>(() =>
 async function check(): Promise<void> {
     const target = selected.value;
     if (remote === null || target === null || checking.value) return;
+    const preflightGenerationAtStart = ++preflightGeneration;
+    const contextGenerationAtStart = props.contextGeneration ?? 0;
+    const targetId = target.id;
     checking.value = true;
     trustMessage.value = null;
     try {
-        report.value = await remote.remotePreflight(target);
+        const next = await remote.remotePreflight(target);
+        if (
+            preflightGenerationAtStart !== preflightGeneration ||
+            contextGenerationAtStart !== (props.contextGeneration ?? 0) ||
+            selected.value?.id !== targetId
+        )
+            return;
+        report.value = next;
     } catch (error) {
         // The channel is documented never to reject. This is the belt, so a row never
         // receives a stack trace where a sentence belongs.
+        if (
+            preflightGenerationAtStart !== preflightGeneration ||
+            contextGenerationAtStart !== (props.contextGeneration ?? 0) ||
+            selected.value?.id !== targetId
+        )
+            return;
         report.value = {
             ok: false,
             target: target.host,
@@ -210,7 +231,12 @@ async function check(): Promise<void> {
             workDir: null,
         };
     } finally {
-        checking.value = false;
+        if (
+            preflightGenerationAtStart === preflightGeneration &&
+            contextGenerationAtStart === (props.contextGeneration ?? 0)
+        ) {
+            checking.value = false;
+        }
     }
 }
 
@@ -225,7 +251,28 @@ async function check(): Promise<void> {
 async function trust(fingerprint: string): Promise<void> {
     const target = selected.value;
     if (remote === null || target === null) return;
-    const answer = await remote.trustRemoteHostKey(target, fingerprint);
+    const preflightGenerationAtStart = ++preflightGeneration;
+    const contextGenerationAtStart = props.contextGeneration ?? 0;
+    const targetId = target.id;
+    let answer: Awaited<ReturnType<RemoteBridge["trustRemoteHostKey"]>>;
+    try {
+        answer = await remote.trustRemoteHostKey(target, fingerprint);
+    } catch (error) {
+        if (
+            preflightGenerationAtStart === preflightGeneration &&
+            contextGenerationAtStart === (props.contextGeneration ?? 0) &&
+            selected.value?.id === targetId
+        ) {
+            trustMessage.value = error instanceof Error ? error.message : String(error);
+        }
+        return;
+    }
+    if (
+        preflightGenerationAtStart !== preflightGeneration ||
+        contextGenerationAtStart !== (props.contextGeneration ?? 0) ||
+        selected.value?.id !== targetId
+    )
+        return;
     trustMessage.value = answer.message;
     // Re-checked rather than assumed: recording a key proves nothing about Docker or disk,
     // and a screen that jumped to "ready" here would be claiming three checks that never ran.
@@ -276,8 +323,11 @@ onMounted(() => {
 // passed preflight across a selection change would be the single most dangerous piece of
 // state on this screen: it would let a render start against a host nobody had looked at.
 watch(selectedId, (id) => {
+    preflightGeneration += 1;
+    checking.value = false;
     report.value = null;
     trustMessage.value = null;
+    emit("update:preflight", false);
     emit("update:target", selected.value);
     // Chosen, not merely loaded: this fires on every real pick a person makes (including
     // picking the same machine again), which is exactly when "last used" should move.
@@ -286,9 +336,26 @@ watch(selectedId, (id) => {
 
 // The selected machine can also be edited or forgotten underneath the selection.
 watch(targets, () => {
+    preflightGeneration += 1;
+    checking.value = false;
     if (selectedId.value !== null && selected.value === null) selectedId.value = null;
     else emit("update:target", selected.value);
 });
+
+// A project edit changes the render that the preflight would authorize. Invalidate the
+// report before a late response can repaint it, even when the selected machine is unchanged.
+watch(
+    () => props.contextGeneration,
+    () => {
+        preflightGeneration += 1;
+        checking.value = false;
+        report.value = null;
+        trustMessage.value = null;
+        emit("update:preflight", false);
+    },
+);
+
+watch(report, (value) => emit("update:preflight", value?.ok === true));
 
 defineExpose({
     places,

@@ -7,7 +7,6 @@ import {
     mdiChevronRight,
     mdiContentSaveOutline,
     mdiFolderOpenOutline,
-    mdiPlay,
     mdiUndoVariant,
 } from "@mdi/js";
 import {
@@ -46,6 +45,21 @@ import ProjectMapsPanel from "./ProjectMapsPanel.vue";
 import ProjectRenderOption from "./ProjectRenderOption.vue";
 import ProjectStoragesPanel from "./ProjectStoragesPanel.vue";
 import EngineChoicePanel from "../settings/EngineChoicePanel.vue";
+import RunLocationCard from "../remote/RunLocationCard.vue";
+import type { RemoteBridge, RemoteTarget, RuntimeBridge } from "../remote/remoteBridge.js";
+import type { RunLocation } from "../remote/runtimeChoice.js";
+import RenderDestinationMenu, {
+    type RenderDestinationId,
+} from "./RenderDestinationMenu.vue";
+
+export type ProjectPagesState = "off" | "pending" | "published" | "failed";
+export interface ProjectPagesStateRecord {
+    readonly key: string;
+    readonly state: ProjectPagesState;
+    readonly renderId: string;
+    readonly projectSnapshot: string;
+    readonly generation: number;
+}
 import { resolveProjectHistoryHost } from "./projectHost.js";
 import { readNavigatorCollapsed, writeNavigatorCollapsed } from "./navigatorCollapse.js";
 import { editorSettingCount, savePlanFacts } from "./projectFacts.js";
@@ -59,6 +73,7 @@ import {
     openStorageFile,
     orderedMaps,
     projectRenderRoute,
+    projectHostingRoute,
     renderProblems,
     withName,
     withRender,
@@ -132,6 +147,9 @@ const props = withDefaults(
         /** Live Java capability discovered by the desktop bridge; null means this build cannot probe it. */
         javaAvailable?: boolean | null;
         javaVersion?: string | null;
+        renderEngineAvailable?: boolean | null;
+        renderEngineReason?: string | null;
+        renderEnginePath?: string | null;
         separator?: string;
         /** Where the app writes renders, used as the root of a new file storage. */
         defaultRoot?: string;
@@ -142,6 +160,23 @@ const props = withDefaults(
          * default wants - and what a host with no storage at all gets, without throwing.
          */
         navigatorStorage?: Storage | null;
+        /** The live execution place for the next project render. */
+        renderLocation?: RunLocation;
+        renderTarget?: RemoteTarget | null;
+        remoteBridge?: RemoteBridge | null;
+        runtimeBridge?: RuntimeBridge | null;
+        canRenderInDocker?: boolean;
+        canRenderRemotely?: boolean;
+        remotePreflightPassed?: boolean;
+        /** Generation of the render-affecting project context, owned by ProjectsScreen. */
+        renderContextGeneration?: number;
+        canOpenCi?: boolean;
+        canImportProject?: boolean;
+        canPublishExisting?: boolean;
+        importReason?: string;
+        publishReason?: string;
+        pagesState?: ProjectPagesState | undefined;
+        pagesFailure?: string | null;
     }>(),
     {
         dirty: false,
@@ -152,8 +187,26 @@ const props = withDefaults(
         consentAccepted: false,
         javaAvailable: null,
         javaVersion: null,
+        renderEngineAvailable: null,
+        renderEngineReason: null,
+        renderEnginePath: null,
         separator: "/",
         defaultRoot: "",
+        renderLocation: "local",
+        renderTarget: null,
+        remoteBridge: null,
+        runtimeBridge: null,
+        canRenderInDocker: false,
+        canRenderRemotely: false,
+        remotePreflightPassed: false,
+        renderContextGeneration: 0,
+        canOpenCi: false,
+        canImportProject: false,
+        canPublishExisting: false,
+        importReason: "Importing a project needs a desktop file picker and a verified project host.",
+        publishReason: "No verified finished render is available to publish yet.",
+        pagesState: "off",
+        pagesFailure: null,
     },
 );
 
@@ -166,6 +219,11 @@ const emit = defineEmits<{
     render: [];
     consent: [];
     notify: [message: string];
+    destination: [value: RenderDestinationId];
+    "update:render-location": [value: RunLocation];
+    "update:render-target": [value: RemoteTarget | null];
+    "update:render-preflight": [value: boolean];
+    "pages-toggle": [enabled: boolean];
 }>();
 
 const { t } = useI18n();
@@ -182,6 +240,11 @@ const consentAcceptedValue = computed(() => props.consentAccepted === true);
 const selectedRenderRoute = computed(() => projectRenderRoute(props.project));
 const separatorValue = computed(() => props.separator ?? "/");
 const defaultRootValue = computed(() => props.defaultRoot ?? "");
+const renderLocationValue = computed(() => props.renderLocation ?? "local");
+const pagesEnabled = computed(() => projectHostingRoute(props.project) === "github-pages");
+const effectivePagesState = computed<ProjectPagesState>(() =>
+    props.pagesState === "off" && pagesEnabled.value ? "published" : props.pagesState,
+);
 
 const TAB_MAPS = "maps";
 const TAB_STORAGES = "storages";
@@ -1004,6 +1067,12 @@ function setOutputFolder(value: string): void {
     );
 }
 
+function setPagesEnabled(value: boolean | null): void {
+    const enabled = value === true;
+    emit("update:project", withRender(props.project, { hosting: enabled ? "github-pages" : "local" }));
+    emit("pages-toggle", enabled);
+}
+
 const renderRouteItems = computed(() => [
     {
         title: t("project.render.routeLocal", "This computer"),
@@ -1018,7 +1087,7 @@ const renderRouteItems = computed(() => [
     },
 ]);
 
-function setRenderRoute(value: "local" | "github-actions" | null): void {
+function setRenderRoute(value: "local" | "github-actions" | "aws-batch" | null): void {
     if (value === null) return;
     emit("update:project", withRender(props.project, { route: value }));
 }
@@ -1223,16 +1292,40 @@ const renderButtonLabel = computed(() =>
                     {{ t("project.editor.revert", "Discard these changes") }}
                 </v-btn>
                 <v-spacer />
-                <v-btn
-                    :prepend-icon="mdiPlay"
-                    :disabled="!canStart"
-                    color="primary"
-                    variant="tonal"
-                    @click="emit('render')"
-                >
-                    {{ renderButtonLabel }}
-                </v-btn>
+                <RenderDestinationMenu
+                    :label="renderButtonLabel"
+                    :location="renderLocationValue"
+                    :main-disabled="!canStart"
+                    :disabled="isRendering"
+                    :rendering="isRendering"
+                    :can-render-locally="renderable"
+                    :can-render-in-docker="props.canRenderInDocker"
+                    :can-render-remotely="props.canRenderRemotely"
+                    :has-remote-target="props.renderTarget !== null"
+                    :remote-preflight-passed="props.remotePreflightPassed"
+                    :can-open-ci="props.canOpenCi"
+                    :can-import-project="props.canImportProject"
+                    :can-publish-existing="props.canPublishExisting"
+                    :import-reason="props.importReason"
+                    :publish-reason="props.publishReason"
+                    @render="emit('render')"
+                    @choose="emit('destination', $event)"
+                />
             </div>
+
+            <RunLocationCard
+                v-if="renderLocationValue !== 'local'"
+                :remote-bridge="props.remoteBridge"
+                :runtime-bridge="props.runtimeBridge"
+                :can-render-locally="renderable"
+                :location="renderLocationValue"
+                :can-open-ci="props.canOpenCi"
+                :context-generation="props.renderContextGeneration"
+                @update:location="emit('update:render-location', $event)"
+                @update:target="emit('update:render-target', $event)"
+                @update:preflight="emit('update:render-preflight', $event)"
+                @open-ci="emit('destination', 'github-actions')"
+            />
 
             <p v-if="!renderable" class="mb-footnote mb-project-editor__engineNote">
                 {{
@@ -1309,10 +1402,7 @@ const renderButtonLabel = computed(() =>
                     <p v-show="!navigatorCollapsed" class="mb-project-editor__eyebrow">
                         {{ t("project.workspace.heading", "Project structure") }}
                     </p>
-                    <p
-                        v-show="!navigatorCollapsed"
-                        class="mb-project-editor__navigator-note"
-                    >
+                    <p v-show="!navigatorCollapsed" class="mb-project-editor__navigator-note">
                         {{
                             t(
                                 "project.workspace.note",
@@ -1458,9 +1548,41 @@ const renderButtonLabel = computed(() =>
                                     :project-name="project.name"
                                     :java-available="props.javaAvailable"
                                     :java-version="props.javaVersion"
+                                    :render-engine-available="props.renderEngineAvailable"
+                                    :render-engine-reason="props.renderEngineReason"
+                                    :render-engine-path="props.renderEnginePath"
                                     :project-engine="project.render.engine"
                                     @update:project-engine="setRenderEngine"
                                 />
+
+                                <section class="mb-project-editor__pages-toggle" aria-live="polite">
+                                    <v-switch
+                                        :model-value="effectivePagesState !== 'off'"
+                                        :label="t('project.render.pages', 'Publish this project to GitHub Pages')"
+                                        :hint="
+                                            t(
+                                                'project.render.pagesHint',
+                                                'When enabled, the existing Pages flow keeps a verified render selected and continues setup. Turning it off stops automatic publication but does not delete an existing site.',
+                                            )
+                                        "
+                                        persistent-hint
+                                        color="primary"
+                                        density="compact"
+                                        inset
+                                        @update:model-value="setPagesEnabled"
+                                    />
+                                    <p class="mb-project-editor__pagesState" role="status">
+                                        <template v-if="effectivePagesState === 'pending'">
+                                            {{ t('project.render.pagesPending', 'Pages setup is pending. The project will not claim enabled until the existing guided publication flow accepts it.') }}
+                                        </template>
+                                        <template v-else-if="effectivePagesState === 'failed'">
+                                            {{ props.pagesFailure ?? t('project.render.pagesFailed', 'Pages setup failed. Automatic publication remains off until it succeeds.') }}
+                                        </template>
+                                        <template v-else-if="effectivePagesState === 'published'">
+                                            {{ t('project.render.pagesPublished', 'Pages publication is enabled for this project.') }}
+                                        </template>
+                                    </p>
+                                </section>
 
                                 <ProjectRenderOption
                                     v-if="showsRun('route')"
@@ -1475,7 +1597,9 @@ const renderButtonLabel = computed(() =>
                                     <v-select
                                         :model-value="selectedRenderRoute"
                                         :items="renderRouteItems"
-                                        :label="t('project.render.route', 'Where this project renders')"
+                                        :label="
+                                            t('project.render.route', 'Where this project renders')
+                                        "
                                         :hint="
                                             t(
                                                 'project.render.routeHint',
@@ -1562,7 +1686,9 @@ const renderButtonLabel = computed(() =>
                                 >
                                     <v-switch
                                         :model-value="project.render.fixEdges"
-                                        :label="t('project.render.fixEdges', 'Redraw the edges too')"
+                                        :label="
+                                            t('project.render.fixEdges', 'Redraw the edges too')
+                                        "
                                         :hint="
                                             t(
                                                 'project.render.fixEdgesHint',
@@ -1577,7 +1703,9 @@ const renderButtonLabel = computed(() =>
                                             (value: boolean | null) =>
                                                 emit(
                                                     'update:project',
-                                                    withRender(project, { fixEdges: value === true }),
+                                                    withRender(project, {
+                                                        fixEdges: value === true,
+                                                    }),
                                                 )
                                         "
                                     />
@@ -1615,7 +1743,9 @@ const renderButtonLabel = computed(() =>
                                             (value: boolean | null) =>
                                                 emit(
                                                     'update:project',
-                                                    withRender(project, { metrics: value === true }),
+                                                    withRender(project, {
+                                                        metrics: value === true,
+                                                    }),
                                                 )
                                         "
                                     />
@@ -1626,7 +1756,12 @@ const renderButtonLabel = computed(() =>
                                     path="render.outputFolder"
                                     :cost="costOf('outputFolder')"
                                     :cost-badge="costBadge"
-                                    :state="fieldDefaultText('outputFolder', project.render.outputFolder)"
+                                    :state="
+                                        fieldDefaultText(
+                                            'outputFolder',
+                                            project.render.outputFolder,
+                                        )
+                                    "
                                     :at-default="isRenderFieldDefault(project, 'outputFolder')"
                                     :revert-label="revertLabel('outputFolder')"
                                     @revert="resetRenderField('outputFolder')"
@@ -1790,7 +1925,6 @@ const renderButtonLabel = computed(() =>
                 </section>
             </aside>
         </div>
-
     </div>
 </template>
 
@@ -1858,6 +1992,13 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor__where {
     margin-block-start: 8px;
     overflow-wrap: anywhere;
+}
+
+.mb-project-editor__pagesState {
+    margin-block: 0 8px;
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: 0.8125rem;
+    line-height: 1.5;
 }
 
 .mb-project-editor__engineNote {

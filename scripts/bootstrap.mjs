@@ -132,8 +132,10 @@ function step(name, fn) {
 /* -------------------------------------------------------------------------- */
 
 function nodeDependencies() {
+  const lockfile = join(designRoot, "pnpm-lock.yaml");
+  const lockBefore = existsSync(lockfile) ? readFileSync(lockfile) : null;
   if (!checkOnly) {
-    const install = runPinnedPnpm(["install"], {
+    const install = runPinnedPnpm(["install", "--frozen-lockfile"], {
       cwd: designRoot,
       env: { ...process.env, CI: process.env.CI ?? "true" },
     });
@@ -141,6 +143,13 @@ function nodeDependencies() {
       return {
         ok: false,
         detail: "pinned pnpm install failed; see the output above",
+      };
+    }
+    const lockAfter = existsSync(lockfile) ? readFileSync(lockfile) : null;
+    if (lockBefore === null || lockAfter === null || !lockBefore.equals(lockAfter)) {
+      return {
+        ok: false,
+        detail: "pnpm install changed or failed to preserve design/pnpm-lock.yaml",
       };
     }
   }
@@ -159,48 +168,28 @@ function pinnedPnpmVersion() {
     throw new Error(
       "design/package.json must pin packageManager as pnpm@<version>",
     );
+  const toolchainManifest = JSON.parse(
+    readFileSync(join(repoRoot, "scripts", "toolchain-manifest.json"), "utf8"),
+  );
+  if (match[1] !== toolchainManifest.pnpm.version) {
+    throw new Error(
+      `design/package.json pins pnpm@${match[1]}, but the committed pnpm manifest pins ${toolchainManifest.pnpm.version}`,
+    );
+  }
   return match[1];
 }
 
 function runPinnedPnpm(pnpmArgs, options = {}) {
-  const npmCli = [
-    join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js"),
-    join(
-      dirname(process.execPath),
-      "..",
-      "lib",
-      "node_modules",
-      "npm",
-      "bin",
-      "npm-cli.js",
-    ),
-    join(
-      dirname(process.execPath),
-      "..",
-      "share",
-      "node_modules",
-      "npm",
-      "bin",
-      "npm-cli.js",
-    ),
-  ].find((candidate) => existsSync(candidate));
-  if (npmCli === undefined) {
+  const pnpmCli = process.env.WORLDLENS_PNPM_CLI;
+  if (typeof pnpmCli !== "string" || pnpmCli.length === 0 || !existsSync(pnpmCli)) {
     throw new Error(
-      "npm CLI is missing beside the active Node runtime; install the Node distribution that provides npm",
+      "WORLDLENS_PNPM_CLI is missing or does not point to the committed verified pnpm package",
     );
   }
   const { quiet = false, ...spawnOptions } = options;
   return spawnSync(
     process.execPath,
-    [
-      npmCli,
-      "exec",
-      "--yes",
-      `--package=pnpm@${pinnedPnpmVersion()}`,
-      "--",
-      "pnpm",
-      ...pnpmArgs,
-    ],
+    [pnpmCli, ...pnpmArgs],
     {
       stdio: quiet ? "pipe" : "inherit",
       encoding: "utf8",

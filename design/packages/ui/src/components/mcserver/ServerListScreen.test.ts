@@ -33,7 +33,14 @@ beforeAll(() => {
     })) as unknown as typeof globalThis.matchMedia;
 });
 
-const i18n = createI18n({ legacy: false, missingWarn: false, fallbackWarn: false, locale: "none", fallbackLocale: "none", messages: {} });
+const i18n = createI18n({
+    legacy: false,
+    missingWarn: false,
+    fallbackWarn: false,
+    locale: "none",
+    fallbackLocale: "none",
+    messages: {},
+});
 const vuetify = createVuetify();
 
 function ok<T>(value: T): Answer<T> {
@@ -63,8 +70,22 @@ function fakeHost(records: readonly ServerRecord[]): McServerHost {
         get: async () => ok(records[0]!),
         save: async () => ok(records[0]!),
         forget: async () => ok(undefined),
-        probe: async () => ok({ reachable: true, runtimeVersion: null, message: "", checkedAt: "now", capabilities: null }),
-        status: async () => ok({ state: "running" as const, running: true, startedAt: null, exitCode: null, checkedAt: "now" }),
+        probe: async () =>
+            ok({
+                reachable: true,
+                runtimeVersion: null,
+                message: "",
+                checkedAt: "now",
+                capabilities: null,
+            }),
+        status: async () =>
+            ok({
+                state: "running" as const,
+                running: true,
+                startedAt: null,
+                exitCode: null,
+                checkedAt: "now",
+            }),
         start: async () => ok(undefined),
         stop: async () => ok(undefined),
         files: {
@@ -76,9 +97,15 @@ function fakeHost(records: readonly ServerRecord[]): McServerHost {
     };
 }
 
-function mountScreen(host: McServerHost | null) {
+function mountScreen(host: McServerHost | null, attach = false) {
     const store = createServerStore({ host });
-    return { store, wrapper: mount(ServerListScreen, { global: { plugins: [i18n, vuetify], provide: { [SERVER_STORE as symbol]: store } } }) };
+    return {
+        store,
+        wrapper: mount(ServerListScreen, {
+            global: { plugins: [i18n, vuetify], provide: { [SERVER_STORE as symbol]: store } },
+            ...(attach ? { attachTo: document.body } : {}),
+        }),
+    };
 }
 
 describe("ServerListScreen", () => {
@@ -88,14 +115,18 @@ describe("ServerListScreen", () => {
     });
 
     it("lists real servers from the host, once loaded", async () => {
-        const { wrapper } = mountScreen(fakeHost([record("survival", "Survival"), record("creative", "Creative")]));
+        const { wrapper } = mountScreen(
+            fakeHost([record("survival", "Survival"), record("creative", "Creative")]),
+        );
         await flushAll();
         expect(wrapper.text()).toContain("Survival");
         expect(wrapper.text()).toContain("Creative");
     });
 
     it("narrows the list with the search field", async () => {
-        const { wrapper } = mountScreen(fakeHost([record("survival", "Survival"), record("creative", "Creative")]));
+        const { wrapper } = mountScreen(
+            fakeHost([record("survival", "Survival"), record("creative", "Creative")]),
+        );
         await flushAll();
         const search = wrapper.find("input[type='text']");
         await search.setValue("Survival");
@@ -108,6 +139,39 @@ describe("ServerListScreen", () => {
         const { wrapper } = mountScreen(fakeHost([]));
         await flushAll();
         expect(wrapper.text()).toContain("No servers yet");
+    });
+
+    it("restores focus to the returned server control after detail Back", async () => {
+        const { wrapper } = mountScreen(fakeHost([record("survival", "Survival")]), true);
+        await flushAll();
+        await wrapper.setProps({ returnServerId: "survival" });
+        await flushAll();
+
+        expect(document.activeElement?.getAttribute("data-server-control")).toBe("survival");
+        wrapper.unmount();
+    });
+
+    it("returns focus to search when the originating server is filtered or deleted", async () => {
+        const { wrapper } = mountScreen(
+            fakeHost([record("survival", "Survival"), record("creative", "Creative")]),
+            true,
+        );
+        await flushAll();
+        await wrapper.setProps({ returnServerId: "removed-server" });
+        await flushAll();
+
+        const search = wrapper.find(".wl-mcserver-list__search input").element;
+        expect(document.activeElement).toBe(search);
+        wrapper.unmount();
+    });
+
+    it("returns focus to the list heading when no search control exists", async () => {
+        const { wrapper } = mountScreen(null, true);
+        await wrapper.setProps({ returnServerId: "removed-server" });
+        await flushAll();
+
+        expect(document.activeElement?.getAttribute("data-test")).toBe("mcserver-list-heading");
+        wrapper.unmount();
     });
 });
 

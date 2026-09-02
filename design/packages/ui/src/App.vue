@@ -37,6 +37,7 @@ import { MarkerMenu, StudioMarkerLayerHost } from "./components/markers/index.js
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import {
     AppRail,
+    ALL_CATALOGUE_FEATURES,
     CataloguePage,
     WorkPane,
     NotificationPanel,
@@ -76,6 +77,8 @@ import {
 import { EulaSurface } from "./components/eula/index.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
+import type { ProjectPagesStateRecord } from "./components/project/ProjectEditor.vue";
+import { acceptsPagesState } from "./components/project/pagesState.js";
 import { CiRenderScreen } from "./components/cirender/index.js";
 import { createCiRenders } from "./components/cirender/ciRenders.js";
 import { resolveCiRenderBridge } from "./components/cirender/ciRenderBridge.js";
@@ -88,7 +91,12 @@ import { createActiveRenders } from "./components/renders/activeRenders.js";
 import type { ConsoleTarget } from "./components/renders/activeRenders.js";
 import { promoteFinishedLocalRenders } from "./components/renders/finishedRenderPromotion.js";
 import { CommandPalette, usePaletteShortcut } from "./components/palette/index.js";
-import type { PaletteConfigTarget, PaletteSettingsTarget } from "./components/palette/index.js";
+import type {
+    PaletteConfigTarget,
+    PaletteDirectoryEntry,
+    PaletteSettingsTarget,
+} from "./components/palette/index.js";
+import { omitEmptyLiveGroups } from "./components/palette/paletteDiscovery.js";
 import { AppearanceTarget } from "./components/appearance/index.js";
 import type { TabPage } from "./components/tabs/index.js";
 import { BackupScreen } from "./components/backup/index.js";
@@ -96,6 +104,7 @@ import PagesScreen from "./components/pages/PagesScreen.vue";
 import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
 import PreviewScreen from "./components/preview/PreviewScreen.vue";
 import { DocsPage } from "./components/docs/index.js";
+import { DOCS_ARTICLES } from "./components/docs/docsContent.js";
 import { UpdateBanner, createUpdates } from "./components/update/index.js";
 import type { SettingsTarget } from "./components/world/index.js";
 import DropRenderZone from "./components/dropRender/DropRenderZone.vue";
@@ -208,6 +217,7 @@ const mcServerAdoptOpen = ref(false);
 const mcServerAdoptBrowseOpen = ref(false);
 const mcServerAdoptRecord = ref<ServerRecord | null>(null);
 const mcServerAdoptContainerId = ref<string | null>(null);
+const mcServerReturnId = ref<string | null>(null);
 
 function adoptionRecord(candidate: AdoptionCandidate): ServerRecord {
     const now = new Date().toISOString();
@@ -257,11 +267,42 @@ function reviewMcServerCandidate(candidate: AdoptionCandidate): void {
 function completeMcServerAdoption(record: ServerRecord): void {
     mcServerAdoptRecord.value = record;
     mcServerOpenId.value = record.id;
+    mcServerReturnId.value = null;
     mcServerAdoptOpen.value = false;
 }
 const mcServerOpenTab = ref<"console" | "config" | "plugins" | "players" | "web" | "aws">(
     "console",
 );
+
+type McServerOwner = "kid" | "host" | "work" | "none";
+
+/** Exactly one shell surface owns the server list/detail pair at a time. */
+const mcServerOwner = computed<McServerOwner>(() => {
+    if (kid.enabled.value) return "kid";
+    if (destination.value === "host") return "host";
+    if (destination.value === "work") return "work";
+    return "none";
+});
+
+function openMcServerPanel(
+    id: string,
+    tab: "console" | "config" | "plugins" | "players" | "web" | "aws" = "console",
+): void {
+    mcServerOpenTab.value = tab;
+    mcServerOpenId.value = id;
+    mcServerReturnId.value = null;
+}
+
+/** Return to the one active list owner without forgetting or resetting the record. */
+function closeMcServerPanel(): void {
+    if (mcServerOpenId.value !== null) mcServerReturnId.value = mcServerOpenId.value;
+    mcServerOpenId.value = null;
+}
+
+function forgetMcServerPanel(): void {
+    mcServerOpenId.value = null;
+    mcServerReturnId.value = null;
+}
 
 // Read the saved locks once the shell is up. A locked element renders unlocked for the
 // instant before this resolves, which is the honest ordering: the store says `loaded` is
@@ -465,6 +506,15 @@ onMounted(() => {
     const bridge = (
         globalThis as {
             worldlens?: {
+                finishedRenderPromotions?: () => Promise<
+                    readonly {
+                        promotionId: string;
+                        outcome?: "finished";
+                        dataRoot: string;
+                        mapIds: readonly string[];
+                    }[]
+                >;
+                claimPromotionNotification?: (promotionId: string) => Promise<boolean>;
                 listRenders?: () => Promise<
                     readonly {
                         outcome: "running" | "finished" | "failed" | "cancelled";
@@ -475,12 +525,62 @@ onMounted(() => {
             };
         }
     ).worldlens;
-    if (typeof bridge?.listRenders !== "function") return;
-    void bridge.listRenders().then((summaries) => {
-        promoteFinishedLocalRenders(summaries, (dataRoot, mapIds) => {
-            openRenderedMap(dataRoot, mapIds);
-        });
-    });
+    const promote = (
+        summaries: readonly {
+            readonly promotionId?: string;
+            readonly outcome?: "running" | "finished" | "failed" | "cancelled";
+            readonly dataRoot: string | null;
+            readonly mapIds?: readonly string[];
+            readonly maps?: readonly { readonly id: string }[];
+        }[],
+    ) => {
+        promoteFinishedLocalRenders(
+            summaries.map((summary) => ({
+                ...(summary.promotionId === undefined ? {} : { promotionId: summary.promotionId }),
+                outcome: summary.outcome ?? "finished",
+                dataRoot: summary.dataRoot,
+                maps: summary.mapIds ? summary.mapIds.map((id) => ({ id })) : (summary.maps ?? []),
+            })),
+            (dataRoot, mapIds, promotionId) => {
+                const alreadyCatalogued = profilesStore.profiles.some(
+                    (profile) => profile.dataRoot === dataRoot,
+                );
+                if (!alreadyCatalogued) openRenderedMap(dataRoot, mapIds);
+                else
+                    addLocalMap(
+                        dataRoot,
+                        mapIds.length > 0 ? mapIds.join(", ") : t("world.rendered", "Rendered map"),
+                    );
+                if (promotionId === undefined) return;
+                const claim = bridge?.claimPromotionNotification;
+                if (typeof claim !== "function") return;
+                void claim(promotionId)
+                    .then((claimed) => {
+                        if (!claimed) return;
+                        raiseNotice(
+                            "success",
+                            t(
+                                "world.renderPromotion.recovered",
+                                "Finished render recovered and added to Your maps.",
+                            ),
+                            { category: "render-promotion", cooldownMs: 1_000 },
+                        );
+                    })
+                    .catch(() => undefined);
+            },
+        );
+    };
+    if (typeof bridge?.finishedRenderPromotions === "function") {
+        void bridge
+            .finishedRenderPromotions()
+            .then(promote)
+            .catch(() => undefined);
+    } else if (typeof bridge?.listRenders === "function") {
+        void bridge
+            .listRenders()
+            .then(promote)
+            .catch(() => undefined);
+    }
 });
 onUnmounted(() => {
     renderIndicator.dispose();
@@ -1043,6 +1143,117 @@ async function onActivateFeature(feature: CatalogueFeatureDefinition): Promise<v
     await shell.activateFeature(feature);
 }
 
+interface LivePaletteTabEntry {
+    readonly id: string;
+    readonly title: string;
+    readonly group: string;
+    readonly location: readonly string[];
+    readonly pageId?: string;
+    readonly pageIds?: readonly string[];
+    readonly groupId?: string | null;
+}
+
+/**
+ * The runtime registries behind the searchable feature directory.
+ *
+ * Pages are already passed through the typed `pages` prop. This second projection adds the live
+ * tab/group workspace, every bundled article, the canonical Home catalogue, and the two recovery
+ * surfaces. Each route uses the same shell activation function or the same docs request used by
+ * its existing UI, so the directory cannot invent a parallel navigation path.
+ */
+const paletteDirectoryEntries = computed<readonly PaletteDirectoryEntry[]>(() => {
+    const live = omitEmptyLiveGroups(
+        (tabs.value?.discoveryEntries ?? []) as readonly LivePaletteTabEntry[],
+    );
+    const entries: PaletteDirectoryEntry[] = [];
+
+    for (const entry of live) {
+        if (entry.pageId !== undefined) {
+            entries.push({
+                id: entry.id,
+                resultClass: "tab",
+                group: entry.group,
+                title: entry.title,
+                description: t("palette.directory.tab", "An open tab in the live workspace."),
+                keywords: [entry.pageId, entry.title],
+                location: entry.location,
+                where: t("palette.where.tab", { tab: entry.title }, "Focuses the {tab} tab."),
+                go: () => revealPage(entry.pageId as string),
+            });
+        } else {
+            entries.push({
+                id: entry.id,
+                resultClass: "group",
+                group: entry.group,
+                title: entry.title,
+                description: t("palette.directory.tabGroup", "A live tab group in the workspace."),
+                keywords: [entry.title, ...(entry.pageIds ?? [])],
+                location: entry.location,
+                where: t("palette.where.tabGroup", "Focuses the first available tab in this group."),
+                go: () => {
+                    const first = entry.pageIds?.[0];
+                    if (first !== undefined) revealPage(first);
+                },
+            });
+        }
+    }
+
+    for (const article of DOCS_ARTICLES) {
+        entries.push({
+            id: `article.${article.id}`,
+            resultClass: "article",
+            group: t("palette.group.documentation", "Documentation"),
+            title: article.title,
+            description: t("palette.directory.article", "A bundled offline documentation article."),
+            keywords: [article.id, article.file, article.category],
+            location: [t("palette.group.documentation", "Documentation"), article.category, article.title],
+            where: t("palette.where.article", { article: article.title }, "Opens the {article} article."),
+            go: () => requestDocsArticle(article.id),
+        });
+    }
+
+    for (const feature of ALL_CATALOGUE_FEATURES) {
+        entries.push({
+            id: `feature.${feature.key}`,
+            resultClass: feature.target.kind === "docs" ? "article" : "destination",
+            group: feature.groupFallback,
+            title: t(feature.nameKey, feature.nameFallback),
+            description: t(feature.blurbKey, feature.blurbFallback),
+            keywords: [feature.key, feature.groupFallback],
+            location: [feature.groupFallback, t(feature.nameKey, feature.nameFallback)],
+            where: t("palette.where.catalogueFeature", "Opens this feature through its existing catalogue route."),
+            go: () => {
+                void shell.activateFeature(feature);
+            },
+        });
+    }
+
+    entries.push({
+        id: "appearance.controls",
+        resultClass: "appearance",
+        group: t("palette.group.appearance", "Appearance"),
+        title: t("palette.directory.appearance", "Appearance controls"),
+        description: t("palette.directory.appearanceDescription", "Adjust the appearance of the live interface."),
+        keywords: ["appearance", "font", "colour", "color", "theme"],
+        location: [t("palette.group.appearance", "Appearance"), t("palette.directory.appearance", "Appearance controls")],
+        where: t("palette.where.appearance", "Opens the appearance settings surface."),
+        go: () => openSettings(),
+    });
+    entries.push({
+        id: "recovery.support",
+        resultClass: "recovery",
+        group: t("palette.group.recovery", "Recovery"),
+        title: t("palette.directory.recovery", "Recovery actions"),
+        description: t("palette.directory.recoveryDescription", "Find retry, support, and recovery routes."),
+        keywords: ["recovery", "retry", "support", "restore"],
+        location: [t("palette.group.recovery", "Recovery"), t("palette.directory.recovery", "Recovery actions")],
+        where: t("palette.where.recovery", "Opens the Support Tickets recovery surface."),
+        go: () => revealPage(PAGE_SUPPORT),
+    });
+
+    return entries;
+});
+
 /**
  * Navigating from outside the strip.
  *
@@ -1324,6 +1535,13 @@ function openCiRenderedMap(where: { renderId: string; dataRoot: string; mapId: s
  */
 const projectToOpen = ref<string | null>(null);
 const ciWorldToOpen = ref<string | null>(null);
+const pagesRenderIdToOpen = ref<string | null>(null);
+const pagesStateByKey = ref<Record<string, ProjectPagesStateRecord>>({});
+const activePagesKey = ref<string | null>(null);
+const pagesProjectState = computed<ProjectPagesStateRecord | null>(() => {
+    const key = activePagesKey.value;
+    return key === null ? null : pagesStateByKey.value[key] ?? null;
+});
 const droppedWorldPath = ref<string | null>(null);
 
 function revealDroppedWorld(path: string): void {
@@ -1349,46 +1567,101 @@ function openProject(world: string): void {
 async function onWorldDrop(event: DragEvent): Promise<void> {
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length === 0) {
-        raiseNotice("warning", t("world.drop.empty", "Nothing was dropped. Choose a world folder or a world archive."));
+        raiseNotice(
+            "warning",
+            t("world.drop.empty", "Nothing was dropped. Choose a world folder or a world archive."),
+        );
         return;
     }
     if (runningRenderCount.value > 0) {
-        raiseNotice("warning", t("world.drop.busy", "A render is already running, so this world was not opened."));
+        raiseNotice(
+            "warning",
+            t("world.drop.busy", "A render is already running, so this world was not opened."),
+        );
         return;
     }
     const file = files[0];
     if (file === undefined) return;
     if (files.length > 1) {
-        raiseNotice("info", t("world.drop.multiple", { count: files.length }, "Several items were dropped; checking the first one."));
+        raiseNotice(
+            "info",
+            t(
+                "world.drop.multiple",
+                { count: files.length },
+                "Several items were dropped; checking the first one.",
+            ),
+        );
     }
-    const pathForFile = (globalThis as { worldlens?: { pathForDroppedFile?: (file: File) => string | null } }).worldlens?.pathForDroppedFile;
+    const pathForFile = (
+        globalThis as { worldlens?: { pathForDroppedFile?: (file: File) => string | null } }
+    ).worldlens?.pathForDroppedFile;
     const path = typeof pathForFile === "function" ? pathForFile(file) : null;
     if (path === null) {
-        raiseNotice("warning", t("world.drop.noPath", "This drop has no local file path. Use the world folder field or Browse instead."));
+        raiseNotice(
+            "warning",
+            t(
+                "world.drop.noPath",
+                "This drop has no local file path. Use the world folder field or Browse instead.",
+            ),
+        );
         return;
     }
     if (isWorldArchive(file.name)) {
-        const extract = (globalThis as { worldlens?: { extractDroppedWorld?: (archive: string) => Promise<string | null> } }).worldlens?.extractDroppedWorld;
+        const extract = (
+            globalThis as {
+                worldlens?: { extractDroppedWorld?: (archive: string) => Promise<string | null> };
+            }
+        ).worldlens?.extractDroppedWorld;
         if (typeof extract !== "function") {
-            raiseNotice("warning", t("world.drop.archiveUnavailable", "That world archive was recognised, but this build cannot unpack dropped archives yet."));
+            raiseNotice(
+                "warning",
+                t(
+                    "world.drop.archiveUnavailable",
+                    "That world archive was recognised, but this build cannot unpack dropped archives yet.",
+                ),
+            );
             return;
         }
         const extracted = await extract(path).catch(() => null);
         if (extracted === null) {
-            raiseNotice("error", t("world.drop.archiveFailed", "The world archive could not be unpacked."));
+            raiseNotice(
+                "error",
+                t("world.drop.archiveFailed", "The world archive could not be unpacked."),
+            );
             return;
         }
         revealDroppedWorld(extracted);
         return;
     }
-    const inspect = (globalThis as { worldlens?: { inspectWorldFolder?: (folder: string) => Promise<{ entries: readonly { path: string }[] }> } }).worldlens?.inspectWorldFolder;
+    const inspect = (
+        globalThis as {
+            worldlens?: {
+                inspectWorldFolder?: (
+                    folder: string,
+                ) => Promise<{ entries: readonly { path: string }[] }>;
+            };
+        }
+    ).worldlens?.inspectWorldFolder;
     if (typeof inspect !== "function") {
-        raiseNotice("warning", t("world.drop.unavailable", "This build cannot inspect dropped folders. Use the world field or Browse instead."));
+        raiseNotice(
+            "warning",
+            t(
+                "world.drop.unavailable",
+                "This build cannot inspect dropped folders. Use the world field or Browse instead.",
+            ),
+        );
         return;
     }
     const listing = await inspect(path).catch(() => null);
     if (listing === null || !looksLikeMinecraftWorld(listing.entries.map((entry) => entry.path))) {
-        raiseNotice("warning", t("world.drop.notWorld", { name: file.name }, '"{name}" does not look like a Minecraft world (no level.dat and world data were found).'));
+        raiseNotice(
+            "warning",
+            t(
+                "world.drop.notWorld",
+                { name: file.name },
+                '"{name}" does not look like a Minecraft world (no level.dat and world data were found).',
+            ),
+        );
         return;
     }
     revealDroppedWorld(path);
@@ -1413,6 +1686,34 @@ function onWorldProjectOpened(world: string): void {
 function openCiRender(world: string | null = null): void {
     ciWorldToOpen.value = world;
     revealPage(PAGE_CIRENDER);
+}
+
+/** Opens the existing Pages flow with a typed render id when the project surface knows one. */
+function openPagesForWorld(record: ProjectPagesStateRecord): void {
+    activePagesKey.value = record.key;
+    pagesStateByKey.value = { ...pagesStateByKey.value, [record.key]: record };
+    pagesRenderIdToOpen.value = record.renderId;
+    revealPage(PAGE_PAGES);
+}
+
+function onPagesState(record: ProjectPagesStateRecord): void {
+    if (pagesProjectState.value?.key !== record.key) return;
+    const current = pagesStateByKey.value[record.key];
+    if (!acceptsPagesState(activePagesKey.value, current, record)) return;
+    pagesStateByKey.value = {
+        ...pagesStateByKey.value,
+        [record.key]: record,
+    };
+    if (record.renderId !== "") pagesRenderIdToOpen.value = record.renderId;
+}
+
+function onPagesInvalidated(key: string, generation: number): void {
+    const current = pagesStateByKey.value[key];
+    if (current === undefined || generation < current.generation) return;
+    const next = { ...pagesStateByKey.value };
+    delete next[key];
+    pagesStateByKey.value = next;
+    if (activePagesKey.value === key) activePagesKey.value = null;
 }
 
 /**
@@ -2131,10 +2432,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <ProjectsScreen
                             :settings-epoch="settingsEpoch"
                             :open-world="projectToOpen"
+                            :can-open-ci="true"
+                            :pages-state="pagesProjectState"
                             @consent="openSettings('mojang-download-consent')"
                             @settings="revealSetting"
                             @open-map="onLocalRenderOpened"
                             @cloud-render="openCiRender"
+                            @publish-existing="openPagesForWorld"
+                            @pages-invalidated="onPagesInvalidated"
                             @dirty-change="unsavedProjectChanges = $event"
                         />
                     </div>
@@ -2224,21 +2529,18 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 </template>
 
                 <template #mcservers>
-                    <div class="mb-world-host mb-interactive">
+                    <div v-if="mcServerOwner === 'kid'" class="mb-world-host mb-interactive">
                         <WebConsolePanel
                             v-if="mcServerOpenId"
                             :server-id="mcServerOpenId"
                             :initial-tab="mcServerOpenTab"
-                            @forgotten="mcServerOpenId = null"
+                            @back="closeMcServerPanel"
+                            @forgotten="forgetMcServerPanel"
                         />
                         <ServerListScreen
                             v-else
-                            @open="
-                                (id) => {
-                                    mcServerOpenTab = 'console';
-                                    mcServerOpenId = id;
-                                }
-                            "
+                            :return-server-id="mcServerReturnId"
+                            @open="openMcServerPanel"
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
                         />
@@ -2254,18 +2556,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         />
                         <CreateServerWizard
                             v-model="mcServerCreateOpen"
-                            @created="
-                                (id) => {
-                                    mcServerOpenTab = 'console';
-                                    mcServerOpenId = id;
-                                }
-                            "
-                            @open-aws="
-                                (id) => {
-                                    mcServerOpenTab = 'aws';
-                                    mcServerOpenId = id;
-                                }
-                            "
+                            @created="openMcServerPanel"
+                            @open-aws="(id) => openMcServerPanel(id, 'aws')"
                         />
                     </div>
                 </template>
@@ -2287,7 +2579,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #pages>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
-                            <PagesScreen @open="onPagesOpened" />
+                            <PagesScreen :initial-render-id="pagesRenderIdToOpen" :publication-record="pagesProjectState" @open="onPagesOpened" @state="onPagesState" />
                         </div>
                     </div>
                 </template>
@@ -2480,6 +2772,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         of its own is not blank: it is the map, wearing the wrong label.
                     -->
                     <div
+                        v-if="mcServerOwner === 'host'"
                         v-show="destination === 'host'"
                         class="mb-shell-layer mb-shell-layer--home mb-interactive"
                     >
@@ -2487,16 +2780,13 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             v-if="mcServerOpenId"
                             :server-id="mcServerOpenId"
                             :initial-tab="mcServerOpenTab"
-                            @forgotten="mcServerOpenId = null"
+                            @back="closeMcServerPanel"
+                            @forgotten="forgetMcServerPanel"
                         />
                         <ServerListScreen
                             v-else
-                            @open="
-                                (id) => {
-                                    mcServerOpenTab = 'console';
-                                    mcServerOpenId = id;
-                                }
-                            "
+                            :return-server-id="mcServerReturnId"
+                            @open="openMcServerPanel"
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
                         />
@@ -2512,18 +2802,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         />
                         <CreateServerWizard
                             v-model="mcServerCreateOpen"
-                            @created="
-                                (id) => {
-                                    mcServerOpenTab = 'console';
-                                    mcServerOpenId = id;
-                                }
-                            "
-                            @open-aws="
-                                (id) => {
-                                    mcServerOpenTab = 'aws';
-                                    mcServerOpenId = id;
-                                }
-                            "
+                            @created="openMcServerPanel"
+                            @open-aws="(id) => openMcServerPanel(id, 'aws')"
                         />
                     </div>
 
@@ -2634,10 +2914,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                     <ProjectsScreen
                                         :settings-epoch="settingsEpoch"
                                         :open-world="projectToOpen"
+                                        :can-open-ci="true"
+                                        :pages-state="pagesProjectState"
                                         @consent="openSettings('mojang-download-consent')"
                                         @settings="revealSetting"
                                         @open-map="onLocalRenderOpened"
                                         @cloud-render="openCiRender"
+                                        @publish-existing="openPagesForWorld"
+                                        @pages-invalidated="onPagesInvalidated"
                                         @dirty-change="unsavedProjectChanges = $event"
                                     />
                                 </div>
@@ -2786,44 +3070,31 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             </template>
 
                             <template #mcservers>
-                                <div class="mb-world-host mb-interactive">
+                                <div v-if="mcServerOwner === 'work'" class="mb-world-host mb-interactive">
                                     <WebConsolePanel
                                         v-if="mcServerOpenId"
                                         :server-id="mcServerOpenId"
                                         :initial-tab="mcServerOpenTab"
-                                        @forgotten="mcServerOpenId = null"
+                                        @back="closeMcServerPanel"
+                                        @forgotten="forgetMcServerPanel"
                                     />
                                     <ServerListScreen
                                         v-else
-                                        @open="
-                                            (id) => {
-                                                mcServerOpenTab = 'console';
-                                                mcServerOpenId = id;
-                                            }
-                                        "
+                                        :return-server-id="mcServerReturnId"
+                                        @open="openMcServerPanel"
                                         @create="mcServerCreateOpen = true"
                                         @adopt="openMcServerAdoption"
                                     />
                                     <CreateServerWizard
                                         v-model="mcServerCreateOpen"
-                                        @created="
-                                            (id) => {
-                                                mcServerOpenTab = 'console';
-                                                mcServerOpenId = id;
-                                            }
-                                        "
-                                        @open-aws="
-                                            (id) => {
-                                                mcServerOpenTab = 'aws';
-                                                mcServerOpenId = id;
-                                            }
-                                        "
+                                        @created="openMcServerPanel"
+                                        @open-aws="(id) => openMcServerPanel(id, 'aws')"
                                     />
                                     <AdoptionBrowser
                                         v-model="mcServerAdoptBrowseOpen"
                                         @picked="reviewMcServerCandidate"
                                     />
-                        <AdoptionReviewDialog
+                                    <AdoptionReviewDialog
                                         v-model="mcServerAdoptOpen"
                                         :record="mcServerAdoptRecord"
                                         :container-id="mcServerAdoptContainerId"
@@ -2856,7 +3127,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #pages>
                                 <div class="mb-world-host mb-interactive">
                                     <div class="mb-shell-centre">
-                                        <PagesScreen @open="onPagesOpened" />
+                                        <PagesScreen :initial-render-id="pagesRenderIdToOpen" :publication-record="pagesProjectState" @open="onPagesOpened" @state="onPagesState" />
                                     </div>
                                 </div>
                             </template>
@@ -3109,6 +3380,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             <CommandPalette
                 :open="paletteOpen"
                 :pages="pages"
+                :directory-entries="paletteDirectoryEntries"
                 :can-route-config-screens="true"
                 @update:open="paletteOpen = $event"
                 @reveal-setting="revealPaletteSetting"

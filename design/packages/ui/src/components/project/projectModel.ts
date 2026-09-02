@@ -212,9 +212,7 @@ export const EMPTY_RENDER: ProjectRender = {
  * The execution route a project asks for. Project format version 1 predates the field, so
  * absence deliberately means the original local behaviour rather than forcing a migration.
  */
-export function projectRenderRoute(
-    project: ProjectFile,
-): "local" | "github-actions" | "aws-batch" {
+export function projectRenderRoute(project: ProjectFile): "local" | "github-actions" | "aws-batch" {
     const route = project.render.route;
     if (route === "github-actions" || route === "aws-batch") {
         return route;
@@ -876,6 +874,18 @@ export function withRender(project: ProjectFile, render: Partial<ProjectRender>)
     return { ...project, render: { ...project.render, ...render } };
 }
 
+/**
+ * The settings that make an existing render reusable.
+ *
+ * Hosting intent is deliberately excluded: switching Pages on or off must not invalidate
+ * the verified render that Pages is about to publish. Every map, storage and render setting
+ * that can change the produced files remains in the canonical serialized snapshot.
+ */
+export function renderAffectingProjectSnapshot(project: ProjectFile): string {
+    const { hosting: _hosting, ...render } = project.render;
+    return JSON.stringify({ ...project, render });
+}
+
 /** Every render option {@link isRenderFieldDefault} and {@link withRenderFieldDefault} know how to reset. */
 export type RenderFieldKey = keyof ProjectRender;
 
@@ -1268,6 +1278,7 @@ export function projectToRenderRequest(project: ProjectFile, world: string): Ren
 
     return {
         maps,
+        projectId: project.id,
         engine: project.render.engine,
         force: project.render.force,
         fixEdges: project.render.fixEdges,

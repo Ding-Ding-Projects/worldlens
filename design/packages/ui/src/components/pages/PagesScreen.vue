@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiContentCopy,
@@ -46,6 +46,7 @@ import type { PagesRow } from "./pagesHosting.js";
 import { resolvePagesBridge } from "./pagesBridge.js";
 import type { PagesBridge, PagesCandidate, PagesPreflight, PagesRecord } from "./pagesBridge.js";
 import StaticExportCard from "./StaticExportCard.vue";
+import type { ProjectPagesStateRecord } from "../project/ProjectEditor.vue";
 
 /**
  * Putting a map this computer rendered on the internet, at an address somebody else can open.
@@ -88,6 +89,9 @@ const props = withDefaults(
         bridge?: PagesBridge | null | undefined;
         accountsBridge?: GhCliBridge | null | undefined;
         repoBridge?: BackupBridge | null | undefined;
+        /** A verified render chosen by another surface, such as the project editor. */
+        initialRenderId?: string | null;
+        publicationRecord?: ProjectPagesStateRecord | null;
     }>(),
     {},
 );
@@ -97,6 +101,7 @@ const emit = defineEmits<{
     open: [url: string];
     /** Open the in-app gh CLI account recovery surface. */
     openSettings: [anchor: "github-account"];
+    state: [record: ProjectPagesStateRecord];
 }>();
 
 const { t } = useI18n();
@@ -289,6 +294,8 @@ async function check(): Promise<void> {
 }
 
 async function publish(): Promise<void> {
+    const publication = props.publicationRecord;
+    const publicationIdentity = publicationRecordIdentity(publication);
     const result = await pages.publish({
         ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
         renderId: renderId.value.trim(),
@@ -299,9 +306,18 @@ async function publish(): Promise<void> {
         acknowledgePublish: acknowledge.value,
     });
     if (result === null) return;
+    // The project editor can invalidate the publication and hand us a new record while
+    // this upload is in flight. A late answer from record A must not repaint record B.
+    if (publicationIdentity !== publicationRecordIdentity(props.publicationRecord)) return;
     if (!result.ok) {
+        if (publication !== null && publication !== undefined) {
+            emit("state", { ...publication, state: "failed" });
+        }
         raiseNotice("error", result.failure.message);
         return;
+    }
+    if (publication !== null && publication !== undefined) {
+        emit("state", { ...publication, state: result.report.verified ? "published" : "pending" });
     }
     // Two different sentences on purpose. "Published" and "published and answering" are not
     // the same claim, and the one people act on is the second.
@@ -367,8 +383,22 @@ function rowTitle(row: PagesRow): string {
     return row.target.length > 0 ? row.target : row.renderId;
 }
 
+function publicationRecordIdentity(record: ProjectPagesStateRecord | null | undefined): string | null {
+    if (record === null || record === undefined) return null;
+    return `${record.key}\0${record.generation}\0${record.renderId}`;
+}
+
+function selectInitialRender(): void {
+    const requested = props.initialRenderId?.trim() ?? "";
+    if (requested !== "" && pages.candidates.value.some((row) => row.renderId === requested)) {
+        renderId.value = requested;
+    }
+}
+
 onMounted(() => {
-    void pages.loadCandidates();
+    void pages.loadCandidates().then(() => {
+        selectInitialRender();
+    });
     void pages.loadPublished();
     if (accountsList.canList) {
         void accountsList.load().then(() => {
@@ -380,6 +410,8 @@ onMounted(() => {
         void loadAccountScope();
     }
 });
+
+watch(() => props.initialRenderId, selectInitialRender);
 
 onBeforeUnmount(() => {
     pages.dispose();

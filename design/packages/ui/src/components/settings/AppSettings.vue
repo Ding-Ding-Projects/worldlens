@@ -446,7 +446,15 @@ const sections = computed<SettingsSectionText[]>(() => {
             anchor: "addons",
             title: text.addons.title,
             description: text.addons.description,
-            values: ["JavaScript", "ESM", "manifest", "capabilities", "enable", "disable", "import"],
+            values: [
+                "JavaScript",
+                "ESM",
+                "manifest",
+                "capabilities",
+                "enable",
+                "disable",
+                "import",
+            ],
         },
         // The commit, version and release tag this section is currently showing, so somebody
         // who can see a hash on screen can search for it. Facts rather than the sentences
@@ -567,15 +575,12 @@ const searchSummary = computed(() => {
 const settingsPages = computed<TabPage[]>(() =>
     SETTINGS_SECTIONS.filter(
         (anchor) =>
-            !schoolModeEnabled() ||
-            (anchor !== "vocabulary" && anchor !== "language-and-tone"),
-    ).map(
-        (anchor) => ({
-            id: anchor,
-            label: copy.value[anchor].title,
-            icon: null,
-        }),
-    ),
+            !schoolModeEnabled() || (anchor !== "vocabulary" && anchor !== "language-and-tone"),
+    ).map((anchor) => ({
+        id: anchor,
+        label: copy.value[anchor].title,
+        icon: null,
+    })),
 );
 const hiddenSettingsPages = computed<readonly string[]>(() =>
     schoolModeEnabled() ? ["vocabulary"] : [],
@@ -921,6 +926,15 @@ function onDrawer(value: boolean): void {
                         <EngineChoicePanel
                             :java-available="java.state.value === 'found'"
                             :java-version="java.report.value?.installation?.version.version ?? null"
+                            :render-engine-available="
+                                java.report.value?.renderEngine?.available ?? null
+                            "
+                            :render-engine-version="
+                                java.report.value?.renderEngine?.version ?? null
+                            "
+                            :render-engine-source="java.report.value?.renderEngine?.source ?? null"
+                            :render-engine-reason="java.report.value?.renderEngine?.reason ?? null"
+                            :render-engine-path="java.report.value?.renderEngine?.path ?? null"
                         />
                     </SettingsSection>
                 </template>

@@ -17,14 +17,15 @@
  * `resolveEngine`, not a change to the orchestrator - see `engine.test.ts` for the pin.
  */
 
-import { ensureJava, NoUsableJavaError, resolveCliJar } from "../java/index.js";
-import { installCliJar } from "../java/installCliJar.js";
+import { ensureJava, execFileRunner, NoUsableJavaError, resolveCliJar } from "../java/index.js";
+import type { FetchBinary } from "../java/index.js";
 import type { JarLookupOptions } from "../java/index.js";
 import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, join, resolve, basename } from "node:path";
 import { EngineUnavailableError } from "./orchestrator.js";
 import type { ResolvedEngine } from "./orchestrator.js";
 import type { RenderEngineId } from "./provenance.js";
+import { ensureManagedUpstreamJava, type EngineProvisionProgress } from "./engineProvisioning.js";
 
 export interface UpstreamEngineOptions {
     /** Electron's `userData`. Where a provisioned JDK is looked for and installed. */
@@ -39,8 +40,13 @@ export interface UpstreamEngineOptions {
      */
     readonly allowProvisioning?: boolean;
     readonly jarLookup?: JarLookupOptions;
-    /** Progress for a self-installed engine, so a download is visible rather than a silent pause. */
-    readonly onEngineProgress?: (message: string) => void;
+    readonly fetchBinary?: FetchBinary;
+    readonly onEngineProvisionProgress?: (progress: EngineProvisionProgress) => void;
+    readonly signal?: AbortSignal;
+    readonly probeEngine?: (
+        javaExecutable: string,
+        jarPath: string,
+    ) => Promise<{ readonly ok: boolean; readonly detail?: string }>;
 }
 
 export interface TypeScriptEngineOptions {
@@ -59,8 +65,16 @@ export interface TypeScriptEngineOptions {
  */
 export function upstreamJavaEngine(
     options: UpstreamEngineOptions,
-): (engine?: RenderEngineId) => Promise<ResolvedEngine> {
-    return async (engine: RenderEngineId = "upstream-java"): Promise<ResolvedEngine> => {
+): (
+    engine?: RenderEngineId,
+    signal?: AbortSignal,
+    onProgress?: (progress: EngineProvisionProgress) => void,
+) => Promise<ResolvedEngine> {
+    return async (
+        engine: RenderEngineId = "upstream-java",
+        signal = options.signal,
+        onProgress = options.onEngineProvisionProgress,
+    ): Promise<ResolvedEngine> => {
         if (engine !== "upstream-java") {
             throw new EngineUnavailableError(
                 "engine",
@@ -72,47 +86,70 @@ export function upstreamJavaEngine(
         // launching a process or downloading two hundred megabytes. Reporting "the
         // engine is not installed" without having spent that is the better order.
         const lookup = options.jarLookup ?? lookupFrom(options);
+        let managedRepair = null;
         let jar;
         try {
-            jar = resolveCliJar(lookup);
+            jar = resolveCliJar({ ...lookup, dataDir: options.dataDir });
         } catch (firstAttempt) {
-            /*
-             * No jar anywhere, so install one rather than telling the person to go and find it.
-             *
-             * Every supported build bundles the engine and never reaches this. It is here for the
-             * build that did not: a packaging step that dropped the jar, an install copied by
-             * hand, a checkout with nothing staged. The owner's direction is that a missing
-             * dependency installs itself so nobody feels it, which is what `ensureJava` already
-             * does for the runtime; this is the same for the jar.
-             *
-             * One attempt, then the original error. A download that fails must not replace "the
-             * engine is missing" with a network message that hides it, so the failure reported is
-             * still the one that describes the real state, with the install attempt named beside
-             * it.
-             */
             try {
-                await installCliJar({
+                managedRepair = await ensureManagedUpstreamJava({
                     dataDir: options.dataDir,
-                    version: await versionToInstall(options.resourcesPath),
-                    ...(options.onEngineProgress === undefined
+                    ...(options.resourcesPath === undefined
                         ? {}
-                        : { onProgress: options.onEngineProgress }),
+                        : { resourcesPath: options.resourcesPath }),
+                    ...(options.fetchBinary === undefined
+                        ? {}
+                        : { fetchBinary: options.fetchBinary }),
+                    ...(onProgress === undefined ? {} : { onProgress }),
+                    ...(signal === undefined ? {} : { signal }),
                 });
-                jar = resolveCliJar(lookup);
-            } catch (installFailed) {
+                if (managedRepair?.source !== "managed" || managedRepair.jarPath === null) {
+                    throw new Error("managed engine repair did not produce a usable jar path");
+                }
+                jar = {
+                    implementation: "cli" as const,
+                    path: managedRepair.jarPath,
+                    version: managedRepair.version,
+                    source: "managed" as const,
+                };
+            } catch (repairFailed) {
                 throw new EngineUnavailableError(
                     "jar",
-                    `${describe(firstAttempt)} Installing one automatically also failed: ` +
-                        `${describe(installFailed)}`,
+                    `${describe(firstAttempt)} Managed repair also failed: ${describe(repairFailed)}`,
                 );
             }
         }
-        if (options.resourcesPath !== undefined && options.resourcesPath !== null) {
-            /*
-             * Reported, never fatal. A jar was found above; a manifest that disagrees about it is
-             * a stale document, and refusing to render because of one is how a shipped release
-             * told everybody the engine was not installed while carrying a working copy of it.
-             */
+        if (jar.source === "managed" && managedRepair === null) {
+            try {
+                managedRepair = await ensureManagedUpstreamJava({
+                    dataDir: options.dataDir,
+                    ...(options.resourcesPath === undefined
+                        ? {}
+                        : { resourcesPath: options.resourcesPath }),
+                    ...(options.fetchBinary === undefined
+                        ? {}
+                        : { fetchBinary: options.fetchBinary }),
+                    ...(onProgress === undefined ? {} : { onProgress }),
+                    ...(signal === undefined ? {} : { signal }),
+                });
+                if (managedRepair?.source !== "managed" || managedRepair.jarPath === null) {
+                    throw new Error("managed engine verification did not return a usable jar path");
+                }
+                jar = {
+                    implementation: "cli" as const,
+                    path: managedRepair.jarPath,
+                    version: managedRepair.version,
+                    source: "managed" as const,
+                };
+            } catch (error) {
+                throw new EngineUnavailableError("jar", describe(error));
+            }
+        }
+        if (
+            options.resourcesPath !== undefined &&
+            options.resourcesPath !== null &&
+            jar.source === "bundled"
+        ) {
             const discrepancy = await describeStagedJavaArtifact(
                 options.resourcesPath,
                 jar.path,
@@ -134,9 +171,19 @@ export function upstreamJavaEngine(
                 ...(options.resourcesPath === undefined
                     ? {}
                     : { resourcesPath: options.resourcesPath }),
-                ...(options.allowProvisioning === undefined
+                allowProvisioning: options.allowProvisioning ?? true,
+                ...(onProgress === undefined
                     ? {}
-                    : { allowProvisioning: options.allowProvisioning }),
+                    : {
+                          onEvent: (event) =>
+                              onProgress({
+                                  stage: event.stage === "downloading" ? "downloading" : "checking",
+                                  message: event.message,
+                                  received: event.received,
+                                  total: event.total,
+                              }),
+                      }),
+                ...(signal === undefined ? {} : { signal }),
             });
         } catch (error) {
             if (error instanceof NoUsableJavaError) {
@@ -145,14 +192,47 @@ export function upstreamJavaEngine(
             throw new EngineUnavailableError("java", describe(error));
         }
 
+        if (managedRepair?.source === "managed") {
+            const probe =
+                options.probeEngine === undefined
+                    ? await probeManagedJar(java.installation.executable, jar.path)
+                    : await options.probeEngine(java.installation.executable, jar.path);
+            if (!probe.ok) {
+                throw new EngineUnavailableError(
+                    "jar",
+                    probe.detail ?? "the repaired BlueMap CLI jar did not answer its startup probe",
+                );
+            }
+        }
+
         return {
             engine: "upstream-java",
             engineVersion: jar.version,
+            engineSource: managedRepair?.source ?? jar.source,
             launch: "java-cli",
             enginePath: jar.path,
             javaExecutable: java.installation.executable,
             javaVersion: java.installation.version.version,
         };
+    };
+}
+
+async function probeManagedJar(
+    javaExecutable: string,
+    jarPath: string,
+): Promise<{ readonly ok: boolean; readonly detail?: string }> {
+    const result = await execFileRunner(javaExecutable, ["-jar", jarPath, "-h"]);
+    if (result.ok) return { ok: true };
+    const detail = `${result.stderr}\n${result.stdout}`
+        .trim()
+        .split(/\r?\n/u)
+        .find((line) => line.trim().length > 0);
+    return {
+        ok: false,
+        detail:
+            detail === undefined
+                ? "the repaired BlueMap CLI jar exited before its help probe completed"
+                : `the repaired BlueMap CLI jar failed its help probe: ${detail}`,
     };
 }
 
@@ -173,7 +253,14 @@ export function typescriptEngine(
                 : join(options.resourcesPath, "render-engines"),
             options.repositoryRoot === undefined || options.repositoryRoot === null
                 ? null
-                : join(options.repositoryRoot, "design", "packages", "app", "dist", "render-engines"),
+                : join(
+                      options.repositoryRoot,
+                      "design",
+                      "packages",
+                      "app",
+                      "dist",
+                      "render-engines",
+                  ),
         ].filter((root): root is string => root !== null);
         for (const root of roots) {
             const enginePath = join(root, "typescript", "dist", "index.js");
@@ -226,32 +313,12 @@ interface StagedJavaArtifact {
 }
 
 /**
- * Report on the packaged manifest without letting it veto a jar that is really there.
+ * Report on packaged metadata without letting stale metadata veto a jar that is on disk.
  *
- * This used to throw four different ways, and every one of them ended the render with "The
- * BlueMap engine is not installed." That sentence was false in the case that actually shipped:
- * release 1.0.1745 carried `resources/jars/bluemap-5.23-cli.jar`, 6,646,010 bytes, whose digest
- * matched the index that same release published - a correct, working engine - beside a manifest
- * reading `available: false, version: null, jar: null`. The jar was fine. The description of it
- * was wrong, and the description was what got a vote.
- *
- * Two reasons it is now a report rather than a gate.
- *
- * The manifest is a description, not the artefact. `resolveCliJar` has already found a real file
- * on disk; a document disagreeing about it is a reason to fix the document, not to refuse to run
- * the program. The generator that wrote it has been fixed too, but a build made before that fix
- * is installed on people's machines right now and must start working on its next launch, without
- * anybody downloading anything.
- *
- * And the size and digest checks are gone deliberately, at the owner's direction. This jar
- * travels inside the same installer as the application, so anyone able to alter it could equally
- * alter the code that checks it: the check bought approximately nothing and could veto a working
- * engine over a byte of drift. What remains is the question that actually matters - is the file
- * there and readable - which `resolveCliJar` and the JVM itself answer.
- *
- * Returns a human-readable discrepancy when the manifest disagrees, for logging. Never throws for
- * a disagreement; only a jar that cannot be read at all is a real failure, and that surfaces from
- * the launch attempt rather than from here.
+ * New installers fail closed in electron-builder's beforePack hook. This runtime path also
+ * serves already-installed historical releases, including one that carried a usable jar beside
+ * a manifest that said the jar was unavailable. The JVM remains the final executable check for
+ * those existing installations, while a discrepancy is kept visible in the diagnostic log.
  */
 async function describeStagedJavaArtifact(
     resourcesPath: string,
@@ -260,15 +327,28 @@ async function describeStagedJavaArtifact(
 ): Promise<string | null> {
     let parsed: {
         manifestVersion?: unknown;
-        engines?: { "upstream-java"?: { available?: unknown; version?: unknown; jar?: StagedJavaArtifact | null } };
+        engines?: {
+            "upstream-java"?: {
+                available?: unknown;
+                version?: unknown;
+                jar?: StagedJavaArtifact | null;
+            };
+        };
     };
     try {
-        parsed = JSON.parse(await readFile(join(resourcesPath, "render-engines", "manifest.json"), "utf8"));
+        parsed = JSON.parse(
+            await readFile(join(resourcesPath, "render-engines", "manifest.json"), "utf8"),
+        );
     } catch {
         return `no readable render-engine manifest beside ${jarPath}; using the jar that is on disk`;
     }
     const java = parsed.engines?.["upstream-java"];
-    if (parsed.manifestVersion !== 1 || java?.available !== true || java.jar === null || java.jar === undefined) {
+    if (
+        parsed.manifestVersion !== 1 ||
+        java?.available !== true ||
+        java.jar === null ||
+        java.jar === undefined
+    ) {
         return (
             `the packaged render-engine manifest does not advertise an upstream-java artifact, but ` +
             `${basename(jarPath)} is staged and will be used. The manifest is stale; the jar is not.`
@@ -278,7 +358,7 @@ async function describeStagedJavaArtifact(
         return (
             `the packaged render-engine manifest names ${String(java.jar.fileName)} at version ` +
             `${String(java.version)}, and ${basename(jarPath)} at version ${jarVersion} is what is staged. ` +
-            `Using the staged jar.`
+            "Using the staged jar."
         );
     }
     return null;
@@ -286,7 +366,9 @@ async function describeStagedJavaArtifact(
 
 async function developmentTypeScriptVersion(base: string): Promise<string> {
     try {
-        const packageJson = JSON.parse(await readFile(join(base, "design", "packages", "engine", "package.json"), "utf8"));
+        const packageJson = JSON.parse(
+            await readFile(join(base, "design", "packages", "engine", "package.json"), "utf8"),
+        );
         return typeof packageJson.version === "string" && packageJson.version.length > 0
             ? packageJson.version
             : "unknown";
@@ -310,8 +392,14 @@ async function stagedTypeScriptVersion(root: string): Promise<string | null> {
                 };
             };
         };
-        if (manifest.manifestVersion !== 1 || manifest.engines?.typescript?.available !== true) return null;
-        if (!(await hasStagedTypeScriptPackageBoundary(root, manifest.engines.typescript.packageResolution))) {
+        if (manifest.manifestVersion !== 1 || manifest.engines?.typescript?.available !== true)
+            return null;
+        if (
+            !(await hasStagedTypeScriptPackageBoundary(
+                root,
+                manifest.engines.typescript.packageResolution,
+            ))
+        ) {
             return null;
         }
         return typeof manifest.engines?.typescript?.version === "string"
@@ -322,7 +410,11 @@ async function stagedTypeScriptVersion(root: string): Promise<string | null> {
     }
 }
 
-const STAGED_TYPESCRIPT_PACKAGES = ["@worldlens/config", "@worldlens/nbt", "@worldlens/shared"] as const;
+const STAGED_TYPESCRIPT_PACKAGES = [
+    "@worldlens/config",
+    "@worldlens/nbt",
+    "@worldlens/shared",
+] as const;
 const STAGED_TYPESCRIPT_PACKAGE_ROOT = "typescript/node_modules/@worldlens";
 
 interface StagedTypeScriptPackageRecord {
@@ -346,7 +438,8 @@ async function hasStagedTypeScriptPackageBoundary(
     root: string,
     resolution: StagedTypeScriptPackageResolution | undefined,
 ): Promise<boolean> {
-    if (resolution?.root !== STAGED_TYPESCRIPT_PACKAGE_ROOT || !Array.isArray(resolution.packages)) return false;
+    if (resolution?.root !== STAGED_TYPESCRIPT_PACKAGE_ROOT || !Array.isArray(resolution.packages))
+        return false;
     const records = resolution.packages as StagedTypeScriptPackageRecord[];
     if (records.length < STAGED_TYPESCRIPT_PACKAGES.length) return false;
 
@@ -411,35 +504,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 function lookupFrom(options: UpstreamEngineOptions): JarLookupOptions {
-    // `dataDir` is always passed: it is where a self-installed jar lives, and leaving it out
-    // would make `installCliJar` write somewhere nothing ever looks.
-    return {
-        dataDir: options.dataDir,
-        ...(options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath }),
-    };
-}
-
-/**
- * The BlueMap version to install when a build arrived without a jar.
- *
- * Read from the packaged manifest where it says anything useful, so an installation follows the
- * engine that build was meant to have. The constant is the floor for the case this whole path
- * exists for - a build whose manifest is missing or, as shipped in 1.0.1745, reports `null` - and
- * is deliberately a version known to have a CLI asset published upstream.
- */
-const FALLBACK_BLUEMAP_VERSION = "5.23";
-
-async function versionToInstall(resourcesPath: string | null | undefined): Promise<string> {
-    if (resourcesPath === undefined || resourcesPath === null) return FALLBACK_BLUEMAP_VERSION;
-    try {
-        const parsed = JSON.parse(
-            await readFile(join(resourcesPath, "render-engines", "manifest.json"), "utf8"),
-        ) as { engines?: { "upstream-java"?: { version?: unknown } } };
-        const version = parsed.engines?.["upstream-java"]?.version;
-        return typeof version === "string" && version.length > 0 ? version : FALLBACK_BLUEMAP_VERSION;
-    } catch {
-        return FALLBACK_BLUEMAP_VERSION;
-    }
+    return options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath };
 }
 
 function describe(error: unknown): string {

@@ -1,5 +1,12 @@
 # Roadmap
 
+## Discoverability and rich command results — 2026-08-24
+
+- [x] Extend the existing `Ctrl+Shift+F` palette with local favourites, bounded recent
+      destinations, breadcrumbs, related-action metadata, disabled-state recovery copy, and an
+      explicit feature-directory inventory. Focused model and inventory tests pass; packaged UI
+      build passes. Host-level `App.vue` routing remains owned by the integration lane.
+
 ## Documentation refresh — 2026-08-22
 
 - [x] Indexed the five root feature records previously absent from `docs/README.md`; issue ledgers,

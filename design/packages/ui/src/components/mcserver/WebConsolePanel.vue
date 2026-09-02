@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiLan, mdiLock, mdiPlay, mdiStop } from "@mdi/js";
+import { mdiArrowLeft, mdiLan, mdiLock, mdiPlay, mdiStop } from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -41,7 +41,7 @@ const props = defineProps<{
     serverId: string;
     initialTab?: "console" | "config" | "plugins" | "players" | "web" | "aws";
 }>();
-const emit = defineEmits<{ forgotten: [] }>();
+const emit = defineEmits<{ forgotten: []; back: [] }>();
 
 const { t } = useI18n();
 const store = useServerStore();
@@ -160,6 +160,14 @@ async function setPassword(): Promise<void> {
 <template>
     <div v-if="server" class="wl-mcserver-panel">
         <div class="wl-mcserver-panel__header">
+            <VBtn
+                data-test="back-to-minecraft-servers"
+                :prepend-icon="mdiArrowLeft"
+                variant="text"
+                @click="emit('back')"
+            >
+                {{ t("mcserver.panel.backToServers", "Back to Minecraft servers") }}
+            </VBtn>
             <div>
                 <div class="text-h6">{{ server.name }}</div>
                 <div class="text-caption text-medium-emphasis">

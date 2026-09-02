@@ -52,6 +52,13 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "automatic-updater",
     "spoken-narrator",
     "node-graph-project-canvas",
+    "site-universal-contracts",
+    "site-universal-appearance",
+    "site-universal-locks",
+    "site-universal-authenticator",
+    "site-universal-support-tickets",
+    "site-universal-unlock-ladder",
+    "site-universal-evidence",
 ] as const;
 
 export type PagesFeatureId = (typeof REQUIRED_PAGES_FEATURE_IDS)[number];
@@ -477,4 +484,46 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
         status: "not-applicable",
         reason: "The node-graph project canvas (design/packages/ui/src/components/canvas/canvasModel.ts, CanvasNode.vue, and ProjectCanvas.vue) is an alternative presentation of map-project creation that drives the installed application's createMapWizard model through draggable nodes and connections. It ships only inside the installed Windows desktop application and has no interactive counterpart, embed, or reimplementation on this static documentation site, which may only document and capture the desktop workflow in prose rather than host the actual canvas or wizard.",
     },
+    implemented(
+        "site-universal-contracts",
+        "Dedicated site universal contract surface",
+        ["design/packages/site/src/main.ts", "design/packages/site/src/universal/siteContracts.ts"],
+        ["design/packages/site/src/universal/siteContracts.mount.test.ts"],
+    ),
+    implemented(
+        "site-universal-appearance",
+        "Site self-theme, presets, and full appearance editor route",
+        ["design/packages/site/src/universal/siteContracts.ts", "design/packages/site/src/appearance/editor/appearanceEditor.ts"],
+        ["design/packages/site/src/universal/siteContracts.test.ts"],
+    ),
+    implemented(
+        "site-universal-locks",
+        "Exact-origin independent lock wizards",
+        ["design/packages/site/src/universal/siteContracts.ts"],
+        ["design/packages/site/src/universal/siteContracts.mount.test.ts", "design/packages/site/src/settings/destructiveActionPolicy.test.ts"],
+    ),
+    implemented(
+        "site-universal-authenticator",
+        "Local QR and RFC authenticator",
+        ["design/packages/site/src/universal/siteContracts.ts", "design/packages/site/package.json"],
+        ["design/packages/site/src/universal/siteContracts.test.ts"],
+    ),
+    implemented(
+        "site-universal-support-tickets",
+        "Local searchable bulk Support Tickets recovery",
+        ["design/packages/site/src/universal/siteContracts.ts"],
+        ["design/packages/site/src/universal/siteContracts.mount.test.ts"],
+    ),
+    implemented(
+        "site-universal-unlock-ladder",
+        "All-rung waiting-only unlock ladder",
+        ["design/packages/site/src/universal/siteContracts.ts"],
+        ["design/packages/site/src/universal/siteContracts.test.ts"],
+    ),
+    implemented(
+        "site-universal-evidence",
+        "Evidence inventory and red-green regressions",
+        ["design/packages/site/src/policy/siteUniversalInventory.ts"],
+        ["design/packages/site/src/policy/siteUniversalInventory.test.ts"],
+    ),
 ];

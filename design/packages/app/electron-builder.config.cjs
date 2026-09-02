@@ -21,18 +21,26 @@
 // Worldlens releases are permanently unsigned. Clear every electron-builder signing input
 // before configuration is evaluated so a developer shell or runner secret cannot silently
 // turn one build into a differently trusted artifact.
-for (const key of [
-    "CSC_LINK",
-    "CSC_KEY_PASSWORD",
-    "WIN_CSC_LINK",
-    "WIN_CSC_KEY_PASSWORD",
-]) {
+for (const key of ["CSC_LINK", "CSC_KEY_PASSWORD", "WIN_CSC_LINK", "WIN_CSC_KEY_PASSWORD"]) {
     delete process.env[key];
 }
 // Deleting this variable restores electron-builder's default, which allows automatic
 // certificate discovery. Set the opt-out explicitly so a runner certificate cannot be
 // discovered after the other inputs above have been cleared.
 process.env.CSC_IDENTITY_AUTO_DISCOVERY = "false";
+
+const { resolve } = require("node:path");
+
+/**
+ * electron-builder warns and continues when an extraResources source is absent.
+ * That behaviour is unsafe for the Java render engine, so the packager checks the
+ * generated manifest and the exact jar before it starts copying resources.
+ */
+async function assertStagedJavaEngine() {
+    const staging = resolve(__dirname, "../../../tools/oracle/out/jars");
+    const { validateStagedJavaEngine } = await import("./scripts/staged-java-engine.mjs");
+    await validateStagedJavaEngine(staging);
+}
 
 /**
  * Apply the tracked icon and Windows version resources without asking electron-builder's
@@ -98,11 +106,8 @@ module.exports = {
     // and the CI package job populates it with the CLI jar before this config runs.
     // `bundledJarDirectory()` in jars.ts reads it back from `resourcesPath/jars` in a
     // packaged build, so this is the one place that makes local rendering possible in
-    // a shipped installer at all. Without a staged jar this copies nothing - it is not
-    // required to exist, unlike `../ui/dist` above, because a developer running
-    // `pnpm run make` without first running `tools/build-jars.mjs` should still get an
-    // installer, just one whose local render fails the same honest way a checkout's
-    // does until the jar is built.
+    // a shipped installer at all. `beforePack` rejects a missing or stale staged jar
+    // before electron-builder can turn the missing resource into a broken installer.
     extraResources: [
         {
             from: "../../../docs/release-ledger.json",
@@ -188,6 +193,7 @@ module.exports = {
         },
     ],
     asar: true,
+    beforePack: assertStagedJavaEngine,
     afterPack: brandWindowsExecutable,
     // Permanent product policy: Worldlens artifacts are intentionally unsigned. Integrity is
     // supplied by HTTPS, the immutable Squirrel feed metadata, and package hashes.

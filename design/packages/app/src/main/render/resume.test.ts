@@ -198,7 +198,9 @@ describe("detecting an interrupted render", () => {
 
         const relaunched = new RenderSessionStore({ storageDir, instanceId: "instance-b" });
         expect(await findInterruptedRenders(relaunched)).toEqual([]);
-        expect(await findInterruptedRenders(relaunched, { includeDismissed: true })).toHaveLength(1);
+        expect(await findInterruptedRenders(relaunched, { includeDismissed: true })).toHaveLength(
+            1,
+        );
     });
 
     it("does not reconcile a session that already ended", () => {
@@ -324,6 +326,7 @@ describe("planResume", () => {
                 world: worldDir,
                 name: "Overworld",
                 dimension: "minecraft:overworld",
+                sorting: 0,
             },
         ]);
     });
@@ -384,8 +387,20 @@ describe("planResume", () => {
             status: "interrupted",
             reason: "process-gone",
             maps: [
-                { id: "overworld", world: worldDir, name: "Overworld", dimension: "minecraft:overworld" },
-                { id: "nether", world: worldDir, name: "Nether", dimension: "minecraft:the_nether" },
+                {
+                    id: "overworld",
+                    world: worldDir,
+                    name: "Overworld",
+                    dimension: "minecraft:overworld",
+                    sorting: 0,
+                },
+                {
+                    id: "nether",
+                    world: worldDir,
+                    name: "Nether",
+                    dimension: "minecraft:the_nether",
+                    sorting: 1,
+                },
             ],
         });
         expect(resumeRequestFor(many).maps).toHaveLength(2);
@@ -398,7 +413,7 @@ describe("planResume", () => {
      * one way and half the other with nothing anywhere to say so.
      */
     describe("the config body", () => {
-        const BODY = ['ambient-light: 0.12', 'sky-color: "#7dabff"', ""].join("\n");
+        const BODY = ["ambient-light: 0.12", 'sky-color: "#7dabff"', ""].join("\n");
 
         function startedWith(config: string): RenderSession {
             return {
@@ -427,7 +442,7 @@ describe("planResume", () => {
                         world: worldDir,
                         name: "Overworld",
                         // One setting moved. Nothing the request's own fields can see.
-                        config: ['ambient-light: 0.9', 'sky-color: "#7dabff"', ""].join("\n"),
+                        config: ["ambient-light: 0.9", 'sky-color: "#7dabff"', ""].join("\n"),
                     },
                 ],
             });

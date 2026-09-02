@@ -48,6 +48,7 @@ function refusing(...refused: readonly string[]): CssSupport {
  */
 const FULL: TypographySpec = {
     fontFamily: "Segoe UI",
+    fontIdentity: "SegoeUI-Regular",
     fontSize: 16,
     fontSizeUnit: "px",
     fontWeight: 500,
@@ -115,7 +116,11 @@ describe("the defaults", () => {
     });
 
     it("render as a stack, a size, a weight and a paragraph and nothing else", () => {
-        const { style, unsupported, notes } = typographyCss(DEFAULT_TYPOGRAPHY, ALL_SUPPORTED, "Roboto, sans-serif");
+        const { style, unsupported, notes } = typographyCss(
+            DEFAULT_TYPOGRAPHY,
+            ALL_SUPPORTED,
+            "Roboto, sans-serif",
+        );
         expect(style).toEqual({
             "font-family": "Roboto, sans-serif",
             "font-size": "14px",
@@ -130,7 +135,11 @@ describe("the defaults", () => {
 });
 
 describe("turning a full spec into CSS", () => {
-    const { style, unsupported, notes } = typographyCss(FULL, ALL_SUPPORTED, '"Segoe UI", Roboto, sans-serif');
+    const { style, unsupported, notes } = typographyCss(
+        FULL,
+        ALL_SUPPORTED,
+        '"Segoe UI", Roboto, sans-serif',
+    );
 
     it("uses the stack it was handed rather than the bare family name", () => {
         expect(style["font-family"]).toBe('"Segoe UI", Roboto, sans-serif');
@@ -188,7 +197,11 @@ describe("turning a full spec into CSS", () => {
     });
 
     it("emits only the shadow when there is no glow, and only the glow when there is no shadow", () => {
-        const shadowOnly = typographyCss({ ...FULL, glow: { radius: 0, color: "" } }, ALL_SUPPORTED, "x");
+        const shadowOnly = typographyCss(
+            { ...FULL, glow: { radius: 0, color: "" } },
+            ALL_SUPPORTED,
+            "x",
+        );
         expect(shadowOnly.style["text-shadow"]).toBe("2px 3px 4px #333333");
 
         const glowOnly = typographyCss(
@@ -232,14 +245,22 @@ describe("turning a full spec into CSS", () => {
 
 describe("the baseline", () => {
     it("raises a superscript and shrinks it, because a full-size raised run looks broken", () => {
-        const { style } = typographyCss({ ...FULL, baselineShift: "superscript" }, ALL_SUPPORTED, "x");
+        const { style } = typographyCss(
+            { ...FULL, baselineShift: "superscript" },
+            ALL_SUPPORTED,
+            "x",
+        );
         expect(style["vertical-align"]).toBe("super");
         expect(style["font-size"]).toBe(`${16 * BASELINE_SHIFT_FONT_SCALE}px`);
         expect(style["font-size"]).toBe("12px");
     });
 
     it("lowers a subscript the same way", () => {
-        const { style } = typographyCss({ ...FULL, baselineShift: "subscript" }, ALL_SUPPORTED, "x");
+        const { style } = typographyCss(
+            { ...FULL, baselineShift: "subscript" },
+            ALL_SUPPORTED,
+            "x",
+        );
         expect(style["vertical-align"]).toBe("sub");
     });
 
@@ -317,7 +338,13 @@ describe("the one style CSS has for three decoration lines", () => {
 
     it("says nothing when every line wanted the same style anyway", () => {
         const { notes } = typographyCss(
-            { ...FULL, underline: "solid", strikethrough: "single", overline: true, underlineColor: "" },
+            {
+                ...FULL,
+                underline: "solid",
+                strikethrough: "single",
+                overline: true,
+                underlineColor: "",
+            },
             ALL_SUPPORTED,
             "x",
         );
@@ -325,7 +352,11 @@ describe("the one style CSS has for three decoration lines", () => {
     });
 
     it("warns that one decoration colour paints all the lines, but only when there are several", () => {
-        const shared = typographyCss({ ...FULL, strikethrough: "none", overline: false }, ALL_SUPPORTED, "x");
+        const shared = typographyCss(
+            { ...FULL, strikethrough: "none", overline: false },
+            ALL_SUPPORTED,
+            "x",
+        );
         expect(shared.style["text-decoration-color"]).toBe("#ff0000");
         expect(shared.notes).toEqual([]);
 
@@ -349,7 +380,9 @@ describe("capability detection", () => {
     });
 
     it("marks exactly the controls a refused declaration backs, and nothing else", () => {
-        const capabilities = detectTypographyCapabilities(refusing('font-variation-settings: "wght" 700'));
+        const capabilities = detectTypographyCapabilities(
+            refusing('font-variation-settings: "wght" 700'),
+        );
         const refused = TYPOGRAPHY_PROPERTIES.filter((id) => !capabilities[id].supported);
         expect(refused).toEqual(["variableAxes"]);
     });
@@ -371,7 +404,10 @@ describe("capability detection", () => {
         ]);
 
         const shadow = detectTypographyCapabilities(refusing("text-shadow: 0 0 2px #000000"));
-        expect(TYPOGRAPHY_PROPERTIES.filter((id) => !shadow[id].supported)).toEqual(["shadow", "glow"]);
+        expect(TYPOGRAPHY_PROPERTIES.filter((id) => !shadow[id].supported)).toEqual([
+            "shadow",
+            "glow",
+        ]);
     });
 
     it("assumes support rather than inventing a failure when supports() itself throws", () => {
@@ -385,7 +421,9 @@ describe("capability detection", () => {
 });
 
 describe("a property the engine refuses", () => {
-    const capabilities = detectTypographyCapabilities(refusing('font-variation-settings: "wght" 700'));
+    const capabilities = detectTypographyCapabilities(
+        refusing('font-variation-settings: "wght" 700'),
+    );
     const { style, unsupported } = typographyCss(FULL, capabilities, "x");
 
     it("emits no declaration for it", () => {
@@ -432,7 +470,11 @@ describe("layering overrides", () => {
     });
 
     it("never lets an absent key overwrite an inherited value", () => {
-        const merged = mergeTypography(DEFAULT_TYPOGRAPHY, { fontSize: 18, bold: true }, { fontWeight: 300 });
+        const merged = mergeTypography(
+            DEFAULT_TYPOGRAPHY,
+            { fontSize: 18, bold: true },
+            { fontWeight: 300 },
+        );
         expect(merged.fontSize).toBe(18);
         expect(merged.bold).toBe(true);
         expect(merged.fontWeight).toBe(300);
@@ -529,8 +571,9 @@ describe("resetting one property", () => {
     it("lets the base show through again once the override is gone", () => {
         const overrides: Partial<TypographySpec> = { fontSize: 20 };
         const cleared: TypographyPropertyId = "fontSize";
-        expect(mergeTypography(DEFAULT_TYPOGRAPHY, resetTypographyProperty(overrides, cleared)).fontSize).toBe(
-            DEFAULT_TYPOGRAPHY.fontSize,
-        );
+        expect(
+            mergeTypography(DEFAULT_TYPOGRAPHY, resetTypographyProperty(overrides, cleared))
+                .fontSize,
+        ).toBe(DEFAULT_TYPOGRAPHY.fontSize);
     });
 });

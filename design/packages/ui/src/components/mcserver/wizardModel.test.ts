@@ -5,6 +5,7 @@ import {
     clampMemoryToMachine,
     filterVersions,
     flavourCard,
+    groupVersionFamilies,
     groupVersions,
     memorySliderMax,
     isModLoaderFlavour,
@@ -70,11 +71,46 @@ describe("groupVersions", () => {
     });
 });
 
+describe("groupVersionFamilies", () => {
+    it("keeps every exact patch version inside its release family", () => {
+        const families = groupVersionFamilies([
+            entry("1.21.1"),
+            entry("1.21.4"),
+            entry("1.20.6"),
+            entry("25w01a", "snapshot"),
+        ]);
+
+        expect(families.map((family) => family.label)).toEqual([
+            "1.21.x",
+            "1.20.x",
+            "Snapshots 25w01a",
+        ]);
+        expect(families[0]?.versions.map((version) => version.version)).toEqual([
+            "1.21.1",
+            "1.21.4",
+        ]);
+        expect(families[0]?.versions).toHaveLength(2);
+    });
+
+    it("does not truncate provider versions when a family grows", () => {
+        const versions = Array.from({ length: 40 }, (_, index) => entry(`1.21.${index}`));
+        const families = groupVersionFamilies(versions);
+        expect(families[0]?.versions).toHaveLength(40);
+    });
+});
+
 describe("filterVersions", () => {
     const versions = [entry("1.21.1"), entry("1.20.4"), entry("25w01a", "snapshot")];
 
     it("plain text is a case-insensitive substring match", () => {
         expect(filterVersions(versions, "1.21", false).map((v) => v.version)).toEqual(["1.21.1"]);
+    });
+
+    it("searches the exact version metadata as well as the visible version", () => {
+        const versions = [entry("1.21.1"), { ...entry("1.20.4"), javaFeature: 17 }];
+        expect(filterVersions(versions, "java 17", false).map((v) => v.version)).toEqual([
+            "1.20.4",
+        ]);
     });
 
     it("regex mode uses the pattern", () => {

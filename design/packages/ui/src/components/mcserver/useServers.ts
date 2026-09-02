@@ -106,6 +106,12 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         isFunction(webConsoleApi["setPassword"]) &&
         isFunction(webConsoleApi["bind"]);
 
+    const createCapabilities = api["createCapabilities"] as Record<string, unknown> | undefined;
+    const createCapabilitiesReady =
+        typeof createCapabilities === "object" &&
+        createCapabilities !== null &&
+        typeof createCapabilities["localDocker"] === "boolean";
+
     return {
         name: "Electron shell",
         list: api["list"] as McServerHost["list"],
@@ -141,6 +147,13 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
               }
             : {}),
         ...(isFunction(api["create"]) ? { create: api["create"] as NonNullable<McServerHost["create"]> } : {}),
+        ...(createCapabilitiesReady
+            ? {
+                  createCapabilities: {
+                      localDocker: createCapabilities["localDocker"] as boolean,
+                  },
+              }
+            : {}),
         ...(pluginsReady ? { plugins: pluginsApi as unknown as NonNullable<McServerHost["plugins"]> } : {}),
         ...(playersReady ? { players: playersApi as unknown as NonNullable<McServerHost["players"]> } : {}),
         ...(adoptReady ? { adopt: adoptApi as unknown as NonNullable<McServerHost["adopt"]> } : {}),

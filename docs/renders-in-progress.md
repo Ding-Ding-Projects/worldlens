@@ -24,6 +24,14 @@ and a third state for a search that matches neither. A tab-strip label carries a
 everything in progress for the whole life of the application, not only while this page happens
 to be open, and the same destination is offered from the Home tab.
 
+Finished local renders are recovered here too. The main process validates `render.json`, a
+completed `session.json`, the generated `web/settings.json`, every map's `settings.json`, and
+engine provenance before writing `finished-render-promotions.json`. The receipt is keyed by the
+render id and measured output identity, so duplicate terminal events and an app restart produce
+one catalogue row. **Open console** remains available for a finished row, while Map and Home
+receive the same verified local profile. Missing output, malformed receipts, incomplete sessions,
+provenance mismatches, and catalogue write failures are refused rather than promoted as success.
+
 ## Configuration
 
 The search bar is wired to the shared regex builder; plain text matching is the default. Rows
@@ -43,6 +51,8 @@ context menu and Shift+right-click.
   stays an offer rather than silently disappearing.
 - Cancelling a render that has already ended between the click and the request reaching the
   main process is reported as nothing having changed, never as a false success.
+- A finished record whose output cannot be verified is kept out of the map catalogue and is
+  reported as an unverified promotion rather than a success.
 
 ## Security considerations
 
@@ -52,6 +62,9 @@ operations into one list. No credential, token or secret crosses this surface.
 
 ## Verification
 
+`promotion.test.ts` covers normal completion, duplicate terminal events, restart recovery,
+malformed and incomplete receipts, missing output, session mismatch, catalogue-write rollback,
+and the committed `royalty-update-5387b773f8c7` evidence fixture when it is present.
 `activeRenders.test.ts` covers the aggregation model directly: a fresh instance discovering a
 render already in flight (the regression test for the reported defect), a container offer
 promoted to a tracked row on reattach, a GitHub render's real polled status, cancellation
@@ -83,6 +96,8 @@ bulk **Stop** button never cancels anything on its own - only the super-confirma
 
 呢一頁分得開「仲檢查緊」三條路同「真係乜都冇行緊」,仲有第三個狀態畀一個乜都 match 唔到嘅搜尋。tab-strip 上面嘅 label 喺 app 成個生命週期都帶住一個 live 嘅進行中總數,唔係淨係呢頁開住先有;Home tab 都有同一個入口。
 
+已經完成嘅本地 render 都會喺呢度搵得返。主進程會驗證 `render.json`、完成咗嘅 `session.json`、生成嘅 `web/settings.json`、每個 map 嘅 `settings.json`，同埋 engine provenance，之後先寫入 `finished-render-promotions.json`。張 receipt 用 render id 加實際 output identity 做 key，所以重複 terminal event 或者重開 app 都只會有一行 catalogue。**Open console** 照樣可以由完成行入返去，Map 同 Home 亦會收到同一個已驗證嘅本地 profile。output 唔見、receipt 爛、session 未完成、provenance 對唔上、或者 catalogue 寫唔到，都會拒絕 promotion，唔會扮成完成咗嘅 map。
+
 ### 設定 (Configuration)
 
 搜尋欄駁咗共用嘅 regex builder;預設係 plain text match。啲行可以 multi-select 然後一次過停;因為停一個 render 對仲飛緊嘅工作係破壞性(但永遠唔會傷已經畫咗嘅 tiles),bulk cancellation 閘喺 super-confirmation slider 後面。單一行自己嘅 **Stop** 掣就冇閘,同 render console 自己嘅慣例一致,因為已經 render 咗嘅 tiles 永遠保留,一個停咗嘅 render 遲啲可以繼續。每一行都經 context menu 同 Shift+右掣帶住共用嘅 per-element appearance editor。
@@ -92,6 +107,7 @@ bulk **Stop** button never cancels anything on its own - only the super-confirma
 - 一條呢個 build 掂唔到嘅路(冇 Electron bridge、冇 container-reattach channel、冇 CI bridge)只係唔納入 aggregation,而唔係顯示成 error;掂到嘅路呢頁照誠實報告。
 - 一個 reattach 失敗嘅 container 邀請,會喺自己嗰行報真實嘅拒絕 message,並且保持係一個邀請,唔會靜靜雞消失。
 - 一個喺撳掣同 request 到達主進程之間已經完結咗嘅 render,取消佢會報「乜都冇改變」,永遠唔會報一個假成功。
+- 一張完成 receipt 如果驗證唔到 output,會留喺 catalogue 外面，報 unverified promotion，唔會報成功。
 
 ### 安全考量
 
@@ -99,7 +115,7 @@ bulk **Stop** button never cancels anything on its own - only the super-confirma
 
 ### 驗證
 
-`activeRenders.test.ts` 直接覆蓋 aggregation model:一個新 instance 發現一個已經飛緊嘅 render(報告咗嗰個 defect 嘅 regression test)、一個 container 邀請喺 reattach 時升級做 tracked row、一個 GitHub render 嘅真實 polled status、取消 dispatch 去正確嘅路、失敗時嘅誠實 error 文字。`RendersScreen.test.ts` 覆蓋 mount 咗嘅頁面:兩個空狀態、一個 render 捱得過 unmount-再-remount 而 live 進度不變、**Open console** 嘅導航目標,同埋 bulk **Stop** 掣淨撳一下永遠唔會自己取消任何嘢 — 只有 super-confirmation 閘先可以。
+`promotion.test.ts` 覆蓋正常完成、重複 terminal event、restart recovery、爛同未完成 receipt、output 唔見、session 對唔上、catalogue write rollback，同埋有提供時嘅 `royalty-update-5387b773f8c7` evidence fixture。`activeRenders.test.ts` 直接覆蓋 aggregation model:一個新 instance 發現一個已經飛緊嘅 render(報告咗嗰個 defect 嘅 regression test)、一個 container 邀請喺 reattach 時升級做 tracked row、一個 GitHub render 嘅真實 polled status、取消 dispatch 去正確嘅路、失敗時嘅誠實 error 文字。`RendersScreen.test.ts` 覆蓋 mount 咗嘅頁面:兩個空狀態、一個 render 捱得過 unmount-再-remount 而 live 進度不變、**Open console** 嘅導航目標,同埋 bulk **Stop** 掣淨撳一下永遠唔會自己取消任何嘢 — 只有 super-confirmation 閘先可以。
 
 ### 建議文章
 

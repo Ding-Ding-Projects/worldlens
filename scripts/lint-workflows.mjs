@@ -239,7 +239,7 @@ const BUILD_JARS_PINNED_ACTIONS = Object.freeze({
   }),
   "actions/upload-artifact": Object.freeze({
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
-    count: 8,
+    count: 9,
   }),
   "gradle/actions/setup-gradle": Object.freeze({
     sha: "0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d",
@@ -488,6 +488,18 @@ const EXPECTED_CI_CONDITIONS = Object.freeze([
     expression: "github.event_name != 'pull_request'",
   }),
   Object.freeze({
+    scope: "jobs.package.steps.uses:actions/upload-artifact#1",
+    expression: "always()",
+  }),
+  Object.freeze({
+    scope: "jobs.package.steps.Collect Windows package evidence",
+    expression: "always()",
+  }),
+  Object.freeze({
+    scope: "jobs.package.steps.Upload Windows package evidence",
+    expression: "always()",
+  }),
+  Object.freeze({
     scope: "jobs.test-world",
     expression: "always() && needs.jars.result == 'success'",
   }),
@@ -543,8 +555,9 @@ const REQUIRED_STEP_LINES = Object.freeze({
     '"tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append',
   ]),
   "Stage the CLI jar to bundle": Object.freeze([
-    "$actual = (Get-FileHash -LiteralPath $jar.FullName -Algorithm SHA256).Hash.ToLowerInvariant()",
-    "if ($actual -ne $record[0].sha256) {",
+    "node scripts/stage-packaged-jars.mjs `",
+    "--manifest jar-index/manifest.json `",
+    "--expected-run-attempt \"$env:GITHUB_RUN_ATTEMPT\"",
   ]),
   "Verify installer and test-world artifact provenance": Object.freeze([
     "(cd installer-out && sha256sum -c installer-out.sha256.txt)",

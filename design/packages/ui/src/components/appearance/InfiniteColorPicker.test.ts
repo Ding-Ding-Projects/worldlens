@@ -153,6 +153,26 @@ describe("the continuous field", () => {
     });
 });
 
+describe("the rainbow sentinel", () => {
+    it("renders the opt-in control and keeps the sentinel out of recent swatches", async () => {
+        const view = mountPicker("#ff0000");
+        const control = view
+            .findAll("button")
+            .find((button) => button.text().includes("Animated rainbow"));
+        expect(control).toBeDefined();
+        await control?.trigger("click");
+        expect(lastEmitted(view)).toBe("__worldlens_rainbow__");
+        expect(view.findAll(".mb-color-picker__recent")).toHaveLength(0);
+        expect(view.attributes("data-appearance-rainbow")).toBe("true");
+    });
+
+    it("reopens the sentinel with a bounded speed control", () => {
+        const view = mountPicker("__worldlens_rainbow__");
+        expect(view.find(".mb-color-picker__rainbow-speed input").attributes("type")).toBe("range");
+        expect(view.attributes("data-appearance-rainbow")).toBe("true");
+    });
+});
+
 describe("typing a colour", () => {
     it("accepts any notation and writes it back", async () => {
         const view = mountPicker("#ff0000");

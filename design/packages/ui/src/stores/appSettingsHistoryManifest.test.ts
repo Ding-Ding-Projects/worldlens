@@ -15,7 +15,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { APP_SETTINGS_HISTORY_KEYS, EXCLUDED_APP_SETTINGS } from "./appSettingsHistorySync.js";
@@ -27,6 +27,25 @@ function ownerSource(owner: string): string {
     // path before it names a real file.
     const filePath = owner.split(" (")[0] ?? owner;
     return readFileSync(path.join(SRC_ROOT, filePath), "utf8");
+}
+
+function productionSources(root: string): readonly string[] {
+    const files = readdirSync(root, { recursive: true, withFileTypes: true }) as Array<{
+        name: string;
+        parentPath?: string;
+        path?: string;
+        isFile: () => boolean;
+    }>;
+    return files
+        .filter(
+            (entry) =>
+                entry.isFile() &&
+                /\.(ts|vue)$/.test(entry.name) &&
+                !/\.test\.(ts|vue)$/.test(entry.name) &&
+                entry.name !== "appSettingsHistorySync.ts" &&
+                entry.name !== "changelogData.generated.ts",
+        )
+        .map((entry) => path.join(entry.parentPath ?? entry.path ?? root, entry.name));
 }
 
 describe("the wired-key manifest matches the real source", () => {
@@ -52,6 +71,21 @@ describe("the wired-key manifest matches the real source", () => {
         const wired = new Set(APP_SETTINGS_HISTORY_KEYS.map((entry) => entry.key));
         const excluded = new Set(EXCLUDED_APP_SETTINGS.map((entry) => entry.key));
         for (const key of excluded) expect(wired.has(key)).toBe(false);
+    });
+
+    it("fails closed when production source adds a new literal recordAppSetting key", () => {
+        const wired = new Set(APP_SETTINGS_HISTORY_KEYS.map((entry) => entry.key));
+        const excluded = new Set(EXCLUDED_APP_SETTINGS.map((entry) => entry.key));
+        const literalKeys = new Set<string>();
+        for (const file of productionSources(SRC_ROOT)) {
+            const source = readFileSync(file, "utf8");
+            for (const match of source.matchAll(/recordAppSetting\(\s*"([^"\\]+)"/g)) {
+                const key = match[1];
+                if (key !== undefined) literalKeys.add(key);
+            }
+        }
+        const unlisted = [...literalKeys].filter((key) => !wired.has(key) && !excluded.has(key));
+        expect(unlisted).toEqual([]);
     });
 });
 

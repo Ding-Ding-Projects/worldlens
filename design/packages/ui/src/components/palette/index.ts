@@ -42,6 +42,7 @@ export type {
 } from "./paletteItems.js";
 
 export { buildPaletteCatalog } from "./paletteCatalog.js";
+export type { PaletteDirectoryEntry } from "./paletteItems.js";
 export type {
     PaletteCatalogInput,
     PaletteConfigTarget,

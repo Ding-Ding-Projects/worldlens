@@ -90,6 +90,11 @@ export function renderIdForWorld(worldPath: string): string {
     return leaf.length > 0 ? `${leaf}-${digest}` : digest;
 }
 
+/** Render ids become directory names and URL segments, so reject traversal and ambiguity. */
+export function isValidRenderId(value: string): boolean {
+    return value.length > 0 && value.length <= 128 && /^[a-z0-9][a-z0-9_-]*$/.test(value);
+}
+
 function slug(value: string): string {
     return value
         .toLowerCase()

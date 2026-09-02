@@ -16,7 +16,7 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BlueMapJar } from "../java/jars.js";
 import type { EnsureJavaResult } from "../java/index.js";
 
@@ -24,15 +24,18 @@ const javaModule = vi.hoisted(() => ({
     resolveCliJar: vi.fn(),
     ensureJava: vi.fn(),
 }));
+const provisioningModule = vi.hoisted(() => ({
+    ensureManagedUpstreamJava: vi.fn(),
+}));
 
 vi.mock("../java/index.js", () => ({
     resolveCliJar: javaModule.resolveCliJar,
     ensureJava: javaModule.ensureJava,
     NoUsableJavaError: class NoUsableJavaError extends Error {},
 }));
-
-const installModule = vi.hoisted(() => ({ installCliJar: vi.fn() }));
-vi.mock("../java/installCliJar.js", () => ({ installCliJar: installModule.installCliJar }));
+vi.mock("./engineProvisioning.js", () => ({
+    ensureManagedUpstreamJava: provisioningModule.ensureManagedUpstreamJava,
+}));
 
 import { upstreamJavaEngine } from "./engine.js";
 
@@ -48,7 +51,11 @@ const JAVA: EnsureJavaResult = {
         source: "PATH",
         executable: "/jdk/bin/java",
         home: "/jdk",
-        version: { feature: 25, version: "25.0.3", runtime: "OpenJDK Runtime Environment Temurin-25.0.3+9" },
+        version: {
+            feature: 25,
+            version: "25.0.3",
+            runtime: "OpenJDK Runtime Environment Temurin-25.0.3+9",
+        },
     },
     provisioned: false,
     record: null,
@@ -56,7 +63,37 @@ const JAVA: EnsureJavaResult = {
 };
 
 describe("upstreamJavaEngine", () => {
+    beforeEach(() => {
+        javaModule.resolveCliJar.mockReset();
+        javaModule.ensureJava.mockReset();
+        provisioningModule.ensureManagedUpstreamJava.mockReset();
+    });
+
+    it("uses the exact managed path after a repair instead of reselecting a bundled jar", async () => {
+        javaModule.resolveCliJar.mockImplementation(() => {
+            throw new Error("no BlueMap cli jar found; looked in: /nowhere");
+        });
+        javaModule.ensureJava.mockResolvedValue(JAVA);
+        provisioningModule.ensureManagedUpstreamJava.mockResolvedValue({
+            jarPath: "/data/render-engines/upstream-java/bluemap-5.23-cli.jar",
+            source: "managed",
+            version: "5.23",
+            reused: false,
+        });
+
+        const resolved = await upstreamJavaEngine({
+            dataDir: "/data",
+            resourcesPath: "/resources",
+            probeEngine: async () => ({ ok: true }),
+        })();
+
+        expect(resolved.enginePath).toBe("/data/render-engines/upstream-java/bluemap-5.23-cli.jar");
+        expect(resolved.engineSource).toBe("managed");
+        expect(provisioningModule.ensureManagedUpstreamJava).toHaveBeenCalledOnce();
+    });
+
     it("resolves to the Java engine, pinning it as the standing default (D17, amended 2026-08-05)", async () => {
+        provisioningModule.ensureManagedUpstreamJava.mockResolvedValue(null);
         javaModule.resolveCliJar.mockReturnValue(JAR);
         javaModule.ensureJava.mockResolvedValue(JAVA);
 
@@ -74,6 +111,7 @@ describe("upstreamJavaEngine", () => {
             enginePath: "/jars/cli-5.22-27-shadow.jar",
             javaExecutable: "/jdk/bin/java",
             javaVersion: "25.0.3",
+            engineSource: "bundled",
         });
     });
 
@@ -131,24 +169,31 @@ describe("upstreamJavaEngine", () => {
      * The owner's other requirement: a build that arrived without an engine installs one rather
      * than telling the person it is not installed. `ensureJava` already does this for the runtime.
      *
-     * The second `resolveCliJar` call is what proves the install was actually consulted: the first
-     * throws exactly as it does on a machine with no jar anywhere, and the resolver only succeeds
-     * because it looked again after installing.
+     * The managed repair result carries the exact verified path. The first lookup throws exactly
+     * as it does on a machine with no jar anywhere, and the resolver only succeeds because it uses
+     * that repair result directly rather than repeating the failed lookup.
      */
-    it("installs the engine when no jar is found anywhere, instead of giving up", async () => {
-        installModule.installCliJar.mockReset();
-        javaModule.resolveCliJar
-            .mockImplementationOnce(() => {
-                throw new Error("no BlueMap cli jar found; looked in: /nowhere");
-            })
-            .mockReturnValueOnce(JAR);
-        installModule.installCliJar.mockResolvedValue("/data/engines/jars/bluemap-5.23-cli.jar");
+    it("repairs the engine when no jar is found anywhere, instead of giving up", async () => {
+        javaModule.resolveCliJar.mockImplementation(() => {
+            throw new Error("no BlueMap cli jar found; looked in: /nowhere");
+        });
+        provisioningModule.ensureManagedUpstreamJava.mockResolvedValue({
+            jarPath: "/data/render-engines/upstream-java/bluemap-5.23-cli.jar",
+            source: "managed",
+            version: "5.23",
+            reused: false,
+        });
         javaModule.ensureJava.mockResolvedValue(JAVA);
 
-        const resolved = await upstreamJavaEngine({ dataDir: "/data" })();
+        const resolved = await upstreamJavaEngine({
+            dataDir: "/data",
+            probeEngine: async () => ({ ok: true }),
+        })();
 
-        expect(installModule.installCliJar).toHaveBeenCalledTimes(1);
-        expect(installModule.installCliJar.mock.calls[0]?.[0]).toMatchObject({ dataDir: "/data" });
+        expect(provisioningModule.ensureManagedUpstreamJava).toHaveBeenCalledOnce();
+        expect(provisioningModule.ensureManagedUpstreamJava.mock.calls[0]?.[0]).toMatchObject({
+            dataDir: "/data",
+        });
         expect(resolved.engine).toBe("upstream-java");
     });
 
@@ -158,17 +203,16 @@ describe("upstreamJavaEngine", () => {
      * download attempt is context for that rather than a replacement for it.
      */
     it("reports the missing engine, not just the download error, when installing fails", async () => {
-        installModule.installCliJar.mockReset();
         javaModule.resolveCliJar.mockImplementation(() => {
             throw new Error("no BlueMap cli jar found; looked in: /nowhere");
         });
-        installModule.installCliJar.mockRejectedValue(new Error("could not reach the release host"));
-
-        await expect(upstreamJavaEngine({ dataDir: "/data" })()).rejects.toThrow(
-            /no BlueMap cli jar found[\s\S]*Installing one automatically also failed[\s\S]*could not reach the release host/,
+        provisioningModule.ensureManagedUpstreamJava.mockRejectedValue(
+            new Error("could not reach the release host"),
         );
 
-        javaModule.resolveCliJar.mockReset();
+        await expect(upstreamJavaEngine({ dataDir: "/data" })()).rejects.toThrow(
+            /no BlueMap cli jar found[\s\S]*Managed repair also failed[\s\S]*could not reach the release host/,
+        );
     });
 
     /*

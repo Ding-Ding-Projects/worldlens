@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCubeOutline, mdiPlay, mdiPlus, mdiRefresh, mdiServerNetwork, mdiStop, mdiTrashCanOutline } from "@mdi/js";
+import {
+    mdiCubeOutline,
+    mdiPlay,
+    mdiPlus,
+    mdiRefresh,
+    mdiServerNetwork,
+    mdiStop,
+    mdiTrashCanOutline,
+} from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -34,6 +42,7 @@ import {
  * with no host says so plainly rather than showing an empty list that reads as "you have
  * no servers".
  */
+const props = defineProps<{ returnServerId?: string | null }>();
 const emit = defineEmits<{ open: [id: string]; create: []; adopt: [] }>();
 
 const { t } = useI18n();
@@ -45,6 +54,53 @@ const flags = ref("i");
 const sort = ref<ServerSort>("name");
 const selected = ref<readonly string[]>([]);
 const bulkBusy = ref(false);
+const serverControlRefs = new Map<string, HTMLElement>();
+
+function setServerControlRef(element: unknown, id: string): void {
+    if (element instanceof HTMLElement) {
+        serverControlRefs.set(id, element);
+        return;
+    }
+    if (
+        typeof element === "object" &&
+        element !== null &&
+        "$el" in element &&
+        (element as { $el?: unknown }).$el instanceof HTMLElement
+    ) {
+        serverControlRefs.set(id, (element as { $el: HTMLElement }).$el);
+        return;
+    }
+    serverControlRefs.delete(id);
+}
+
+async function focusReturnedServer(id: string | null | undefined): Promise<void> {
+    if (id === null || id === undefined) return;
+    await nextTick();
+    const element =
+        serverControlRefs.get(id) ??
+        [...document.querySelectorAll<HTMLElement>("[data-server-control]")].find(
+            (candidate) => candidate.dataset.serverControl === id,
+        );
+    if (element !== undefined) {
+        element.focus();
+        return;
+    }
+
+    // The originating control can disappear while the detail panel is open because a
+    // search filter changed, the record was removed, or another shell took ownership.
+    // Return to a stable list entry instead of leaving keyboard focus on a detached node.
+    const search = document.querySelector<HTMLElement>(".wl-mcserver-list__search input");
+    if (search !== null) {
+        search.focus();
+        return;
+    }
+    const heading = document.querySelector<HTMLElement>('[data-test="mcserver-list-heading"]');
+    if (heading !== null) {
+        heading.focus();
+        return;
+    }
+    document.querySelector<HTMLElement>("[data-server-control]")?.focus();
+}
 
 onMounted(() => {
     void refreshAll();
@@ -65,16 +121,30 @@ const filtered = computed(() =>
     ),
 );
 
+watch(
+    [() => props.returnServerId, () => store.loaded.value, filtered],
+    ([returnServerId]) => {
+        if (returnServerId !== null && returnServerId !== undefined) {
+            void focusReturnedServer(returnServerId);
+        }
+    },
+    { immediate: true },
+);
+
 const sampleText = computed(() => store.servers.value.map((s) => s.name).join("\n"));
 
-const allSelected = computed(() => filtered.value.length > 0 && filtered.value.every((s) => selected.value.includes(s.id)));
+const allSelected = computed(
+    () => filtered.value.length > 0 && filtered.value.every((s) => selected.value.includes(s.id)),
+);
 const someSelected = computed(() => selected.value.length > 0 && !allSelected.value);
 
 function toggleSelectAll(): void {
     selected.value = allSelected.value ? [] : filtered.value.map((s) => s.id);
 }
 function toggleOne(id: string): void {
-    selected.value = selected.value.includes(id) ? selected.value.filter((x) => x !== id) : [...selected.value, id];
+    selected.value = selected.value.includes(id)
+        ? selected.value.filter((x) => x !== id)
+        : [...selected.value, id];
 }
 
 const selectedRecords = computed<readonly ServerRecord[]>(() =>
@@ -84,7 +154,14 @@ const selectedRecords = computed<readonly ServerRecord[]>(() =>
 async function bulkStart(): Promise<void> {
     bulkBusy.value = true;
     for (const record of selectedRecords.value) {
-        if (lifecycleBlockReason(record, store.capabilitiesFor(record.id), "start", store.statuses[record.id]?.state ?? null) === null) {
+        if (
+            lifecycleBlockReason(
+                record,
+                store.capabilitiesFor(record.id),
+                "start",
+                store.statuses[record.id]?.state ?? null,
+            ) === null
+        ) {
             await store.start(record.id);
         }
     }
@@ -95,7 +172,14 @@ async function bulkStart(): Promise<void> {
 async function bulkStop(): Promise<void> {
     bulkBusy.value = true;
     for (const record of selectedRecords.value) {
-        if (lifecycleBlockReason(record, store.capabilitiesFor(record.id), "stop", store.statuses[record.id]?.state ?? null) === null) {
+        if (
+            lifecycleBlockReason(
+                record,
+                store.capabilitiesFor(record.id),
+                "stop",
+                store.statuses[record.id]?.state ?? null,
+            ) === null
+        ) {
             await store.stop(record.id, { graceful: true });
         }
     }
@@ -120,19 +204,27 @@ async function stopOne(id: string): Promise<void> {
     await store.stop(id, { graceful: true });
     await store.refreshStatus(id);
 }
-
 </script>
 
 <template>
     <div class="wl-mcserver-list">
         <div class="wl-mcserver-list__header">
-            <div class="text-h6">{{ t("mcserver.list.title", "Minecraft servers") }}</div>
+            <div class="text-h6" data-test="mcserver-list-heading" tabindex="-1">
+                {{ t("mcserver.list.title", "Minecraft servers") }}
+            </div>
             <div class="wl-mcserver-list__actions">
                 <VBtn
                     :prepend-icon="mdiRefresh"
                     variant="text"
                     :disabled="!store.canList"
-                    :title="!store.canList ? t('mcserver.noHost', 'This build cannot reach a Minecraft server host.') : undefined"
+                    :title="
+                        !store.canList
+                            ? t(
+                                  'mcserver.noHost',
+                                  'This build cannot reach a Minecraft server host.',
+                              )
+                            : undefined
+                    "
                     @click="refreshAll"
                 >
                     {{ t("mcserver.list.refresh", "Refresh") }}
@@ -150,7 +242,14 @@ async function stopOne(id: string): Promise<void> {
                     color="primary"
                     variant="tonal"
                     :disabled="!store.canList"
-                    :title="!store.canList ? t('mcserver.noHost', 'This build cannot reach a Minecraft server host.') : undefined"
+                    :title="
+                        !store.canList
+                            ? t(
+                                  'mcserver.noHost',
+                                  'This build cannot reach a Minecraft server host.',
+                              )
+                            : undefined
+                    "
                     @click="emit('create')"
                 >
                     {{ t("mcserver.list.create", "New server") }}
@@ -159,7 +258,12 @@ async function stopOne(id: string): Promise<void> {
         </div>
 
         <VAlert v-if="!store.canList" type="info" variant="tonal" class="mb-4">
-            {{ t("mcserver.noHost", "This build cannot reach a Minecraft server host. The desktop application is what runs them.") }}
+            {{
+                t(
+                    "mcserver.noHost",
+                    "This build cannot reach a Minecraft server host. The desktop application is what runs them.",
+                )
+            }}
         </VAlert>
 
         <VAlert v-else-if="store.failure.value" type="warning" variant="tonal" class="mb-4">
@@ -187,7 +291,10 @@ async function stopOne(id: string): Promise<void> {
                     v-model="sort"
                     :items="[
                         { title: t('mcserver.list.sort.name', 'Name'), value: 'name' },
-                        { title: t('mcserver.list.sort.recent', 'Recently changed'), value: 'recent' },
+                        {
+                            title: t('mcserver.list.sort.recent', 'Recently changed'),
+                            value: 'recent',
+                        },
                         { title: t('mcserver.list.sort.state', 'Running first'), value: 'state' },
                     ]"
                     :label="t('mcserver.list.sortLabel', 'Sort by')"
@@ -203,15 +310,31 @@ async function stopOne(id: string): Promise<void> {
                     :indeterminate="someSelected"
                     density="compact"
                     hide-details
-                    :label="t('mcserver.list.selectAll', { n: filtered.length }, 'Select all ({n})')"
+                    :label="
+                        t('mcserver.list.selectAll', { n: filtered.length }, 'Select all ({n})')
+                    "
                     @update:model-value="toggleSelectAll"
                 />
                 <template v-if="selected.length > 0">
-                    <span class="text-caption text-medium-emphasis">{{ t("mcserver.list.selectedCount", { n: selected.length }, "{n} selected") }}</span>
-                    <VBtn size="small" variant="text" :prepend-icon="mdiPlay" :loading="bulkBusy" @click="bulkStart">
+                    <span class="text-caption text-medium-emphasis">{{
+                        t("mcserver.list.selectedCount", { n: selected.length }, "{n} selected")
+                    }}</span>
+                    <VBtn
+                        size="small"
+                        variant="text"
+                        :prepend-icon="mdiPlay"
+                        :loading="bulkBusy"
+                        @click="bulkStart"
+                    >
                         {{ t("mcserver.list.bulkStart", "Start") }}
                     </VBtn>
-                    <VBtn size="small" variant="text" :prepend-icon="mdiStop" :loading="bulkBusy" @click="bulkStop">
+                    <VBtn
+                        size="small"
+                        variant="text"
+                        :prepend-icon="mdiStop"
+                        :loading="bulkBusy"
+                        @click="bulkStop"
+                    >
                         {{ t("mcserver.list.bulkStop", "Stop") }}
                     </VBtn>
                     <ConfigSuperConfirm
@@ -229,7 +352,13 @@ async function stopOne(id: string): Promise<void> {
                         @confirm="bulkForget"
                     >
                         <template #activator="{ props: activatorProps }">
-                            <VBtn v-bind="activatorProps" size="small" variant="text" color="error" :prepend-icon="mdiTrashCanOutline">
+                            <VBtn
+                                v-bind="activatorProps"
+                                size="small"
+                                variant="text"
+                                color="error"
+                                :prepend-icon="mdiTrashCanOutline"
+                            >
                                 {{ t("mcserver.list.bulkForget", "Forget") }}
                             </VBtn>
                         </template>
@@ -259,30 +388,50 @@ async function stopOne(id: string): Promise<void> {
                                 :model-value="selected.includes(server.id)"
                                 density="compact"
                                 hide-details
-                                :aria-label="t('mcserver.list.selectOne', { name: server.name }, 'Select {name}')"
+                                :aria-label="
+                                    t(
+                                        'mcserver.list.selectOne',
+                                        { name: server.name },
+                                        'Select {name}',
+                                    )
+                                "
                                 @update:model-value="toggleOne(server.id)"
                                 @click.stop
                             />
                             <VIcon :icon="mdiServerNetwork" />
                             <VBtn
                                 class="wl-mcserver-card__title"
+                                :ref="(element) => setServerControlRef(element, server.id)"
+                                :data-server-control="server.id"
                                 variant="text"
                                 :ripple="false"
                                 @click="emit('open', server.id)"
                             >
                                 {{ server.name }}
                             </VBtn>
-                            <VChip size="small" :color="stateLabel(store.statuses[server.id]?.state ?? null).color" variant="flat">
+                            <VChip
+                                size="small"
+                                :color="stateLabel(store.statuses[server.id]?.state ?? null).color"
+                                variant="flat"
+                            >
                                 {{ stateLabel(store.statuses[server.id]?.state ?? null).text }}
                             </VChip>
                         </div>
                         <div class="text-caption text-medium-emphasis">
                             {{ flavourName(server.flavour) }}
-                            <span v-if="server.minecraftVersion"> &middot; {{ server.minecraftVersion }}</span>
+                            <span v-if="server.minecraftVersion">
+                                &middot; {{ server.minecraftVersion }}</span
+                            >
                             &middot; {{ transportSummary(server) }}
-                            <span v-if="server.rconPort"> &middot; {{ t("mcserver.list.port", { p: server.rconPort }, "port {p}") }}</span>
+                            <span v-if="server.rconPort">
+                                &middot;
+                                {{
+                                    t("mcserver.list.port", { p: server.rconPort }, "port {p}")
+                                }}</span
+                            >
                             <span v-if="server.origin === 'adopted'">
-                                &middot; {{ t("mcserver.list.adopted", "adopted, not created here") }}
+                                &middot;
+                                {{ t("mcserver.list.adopted", "adopted, not created here") }}
                             </span>
                         </div>
                         <div class="wl-mcserver-card__actions">
@@ -290,8 +439,22 @@ async function stopOne(id: string): Promise<void> {
                                 size="small"
                                 variant="tonal"
                                 :prepend-icon="mdiPlay"
-                                :disabled="lifecycleBlockReason(server, store.capabilitiesFor(server.id), 'start', store.statuses[server.id]?.state ?? null) !== null"
-                                :title="lifecycleBlockReason(server, store.capabilitiesFor(server.id), 'start', store.statuses[server.id]?.state ?? null) ?? undefined"
+                                :disabled="
+                                    lifecycleBlockReason(
+                                        server,
+                                        store.capabilitiesFor(server.id),
+                                        'start',
+                                        store.statuses[server.id]?.state ?? null,
+                                    ) !== null
+                                "
+                                :title="
+                                    lifecycleBlockReason(
+                                        server,
+                                        store.capabilitiesFor(server.id),
+                                        'start',
+                                        store.statuses[server.id]?.state ?? null,
+                                    ) ?? undefined
+                                "
                                 @click="startOne(server.id)"
                             >
                                 {{ t("mcserver.list.start", "Start") }}
@@ -300,13 +463,33 @@ async function stopOne(id: string): Promise<void> {
                                 size="small"
                                 variant="tonal"
                                 :prepend-icon="mdiStop"
-                                :disabled="lifecycleBlockReason(server, store.capabilitiesFor(server.id), 'stop', store.statuses[server.id]?.state ?? null) !== null"
-                                :title="lifecycleBlockReason(server, store.capabilitiesFor(server.id), 'stop', store.statuses[server.id]?.state ?? null) ?? undefined"
+                                :disabled="
+                                    lifecycleBlockReason(
+                                        server,
+                                        store.capabilitiesFor(server.id),
+                                        'stop',
+                                        store.statuses[server.id]?.state ?? null,
+                                    ) !== null
+                                "
+                                :title="
+                                    lifecycleBlockReason(
+                                        server,
+                                        store.capabilitiesFor(server.id),
+                                        'stop',
+                                        store.statuses[server.id]?.state ?? null,
+                                    ) ?? undefined
+                                "
                                 @click="stopOne(server.id)"
                             >
                                 {{ t("mcserver.list.stop", "Stop") }}
                             </VBtn>
-                            <VBtn size="small" variant="text" @click="emit('open', server.id)">
+                            <VBtn
+                                size="small"
+                                variant="text"
+                                :ref="(element) => setServerControlRef(element, server.id)"
+                                :data-server-control="server.id"
+                                @click="emit('open', server.id)"
+                            >
                                 {{ t("mcserver.list.manage", "Manage") }}
                             </VBtn>
                         </div>

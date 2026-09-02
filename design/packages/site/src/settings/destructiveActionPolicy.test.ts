@@ -148,6 +148,20 @@ interface DestructiveFile {
  * Ordered by path so the diff of adding one reads as an addition rather than a reshuffle.
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
+    "universal/siteContracts.ts": {
+        count: 7,
+        destroys:
+            "an independent site lock, authenticator metadata and in-memory secret, or every " +
+            "visitor-local contract record and its browser storage",
+        standing: "gated",
+        gatedIn: "settings/confirm.ts",
+        note:
+            "The lock removal, authenticator removal and full site-storage reset each require " +
+            "the site's two-key and full-range confirmDestructive gate before the store mutates. " +
+            "The source file contains declaration and caller hits for preset removal, lock removal, " +
+            "and both single and bulk authenticator removal. All callers are gated, which is why " +
+            "the scanner count is seven.",
+    },
     "platform/layoutRescue.ts": {
         count: 1,
         destroys:

@@ -30,7 +30,12 @@
  */
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
-import type { DiscoverJavaOptions, JavaDiscovery, JavaInstallation, JavaSource } from "./discovery.js";
+import type {
+    DiscoverJavaOptions,
+    JavaDiscovery,
+    JavaInstallation,
+    JavaSource,
+} from "./discovery.js";
 import { discoverJava } from "./discovery.js";
 import { acceptJavaDownloadConsent, readJavaDownloadConsent } from "./consent.js";
 import type { ProvisionEvent } from "./provision.js";
@@ -73,6 +78,15 @@ export interface JavaRuntimeSummary {
     readonly installation: JavaInstallationSummary | null;
     readonly rejected: readonly JavaRejectionSummary[];
     readonly required: number;
+    readonly renderEngine?: RenderEngineRuntimeSummary;
+}
+
+export interface RenderEngineRuntimeSummary {
+    readonly available: boolean;
+    readonly version: string | null;
+    readonly source: "bundled" | "staged" | "gradle" | "managed" | null;
+    readonly reason: string | null;
+    readonly path: string | null;
 }
 
 /**
@@ -122,10 +136,7 @@ const PATH_FRAGMENT = /[^\s"'<>|;,]*\\[^\s"'<>|;,]*/g;
 const ESCAPED_PLACEHOLDER = PATH_PLACEHOLDER.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 
 /** A space-containing path becomes several placeholders; one says the same thing. */
-const REPEATED_PLACEHOLDER = new RegExp(
-    `${ESCAPED_PLACEHOLDER}(?: ${ESCAPED_PLACEHOLDER})+`,
-    "g",
-);
+const REPEATED_PLACEHOLDER = new RegExp(`${ESCAPED_PLACEHOLDER}(?: ${ESCAPED_PLACEHOLDER})+`, "g");
 
 /**
  * One line, no paths, bounded length.
@@ -146,7 +157,10 @@ export function summariseReason(reason: string): string {
         .replace(REPEATED_PLACEHOLDER, PATH_PLACEHOLDER);
     const points = [...oneLine];
     if (points.length <= MAX_REASON_LENGTH) return oneLine;
-    return `${points.slice(0, MAX_REASON_LENGTH - 1).join("").trimEnd()}…`;
+    return `${points
+        .slice(0, MAX_REASON_LENGTH - 1)
+        .join("")
+        .trimEnd()}…`;
 }
 
 /** Builds the plain, serialisable answer. See the rules at the top of this file. */
@@ -231,6 +245,7 @@ export interface JavaIpcOptions {
     readonly ensure?: (options: JavaEnsureCallOptions) => Promise<JavaEnsureCallResult>;
     /** Where `java:provision` progress goes. Supplied by the caller; defaults to nowhere. */
     readonly broadcast?: (event: ProvisionEvent) => void;
+    readonly renderEngine?: () => Promise<RenderEngineRuntimeSummary>;
 }
 
 export interface JavaIpc {
@@ -259,18 +274,25 @@ export function registerJavaHandlers(ipcMain: IpcMain, options: JavaIpcOptions):
 
     async function run(): Promise<JavaRuntimeSummary> {
         try {
-            return summariseDiscovery(
+            const runtime = summariseDiscovery(
                 await discover({
                     dataDir: options.dataDir,
-                    ...(options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath }),
+                    ...(options.resourcesPath === undefined
+                        ? {}
+                        : { resourcesPath: options.resourcesPath }),
                 }),
             );
+            return options.renderEngine === undefined
+                ? runtime
+                : { ...runtime, renderEngine: await options.renderEngine() };
         } catch (error) {
             // Rethrown rather than swallowed - the row has a `failed` state and showing
             // it is more use than an empty one - but the message is put through the same
             // cleaning as a rejection. A thrown filesystem error carries the path it
             // failed on, and that path is not necessarily a JDK's.
-            throw new Error(summariseReason(error instanceof Error ? error.message : String(error)));
+            throw new Error(
+                summariseReason(error instanceof Error ? error.message : String(error)),
+            );
         }
     }
 

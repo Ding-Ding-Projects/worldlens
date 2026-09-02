@@ -43,13 +43,12 @@ export function isBlueMapImplementation(value: string): value is BlueMapImplemen
 /**
  * Where a jar was found.
  *
- * - `bundled`    - shipped inside the packaged app's resources.
- * - `downloaded` - installed by the app itself under `userData`, for a build that arrived
- *                  without a bundled jar. See `installCliJar`.
- * - `staged`     - copied by `tools/build-jars.mjs` into the repository-local staging dir.
- * - `gradle`     - straight out of a `vendor/BlueMap` build directory.
+ * - `bundled` - shipped inside the packaged app's resources.
+ * - `staged`  - copied by `tools/build-jars.mjs` into the repository-local staging dir.
+ * - `gradle`  - straight out of a `vendor/BlueMap` build directory.
+ * - `managed` - verified official release asset repaired into application data.
  */
-export type JarSource = "bundled" | "downloaded" | "staged" | "gradle";
+export type JarSource = "bundled" | "staged" | "gradle" | "managed";
 
 export interface BlueMapJar {
     readonly implementation: BlueMapImplementation;
@@ -97,7 +96,10 @@ const nodeJarFs: JarFs = {
  * the shadow jar and contains none of its dependencies, so running it fails with a
  * `NoClassDefFoundError` that looks like a broken install rather than the wrong file.
  */
-export function parseJarVersion(fileName: string, implementation: BlueMapImplementation): string | null {
+export function parseJarVersion(
+    fileName: string,
+    implementation: BlueMapImplementation,
+): string | null {
     const shadow = new RegExp(`^${implementation}-(.+)-shadow\\.jar$`).exec(fileName);
     if (shadow?.[1] !== undefined) return shadow[1];
 
@@ -117,7 +119,10 @@ export function parseJarVersion(fileName: string, implementation: BlueMapImpleme
  * deliberately the only requirement. The vendored-source marker remains a fallback
  * for exported source trees that have no Git metadata.
  */
-export function findRepoRoot(startDir: string, exists: (path: string) => boolean = existsSync): string | null {
+export function findRepoRoot(
+    startDir: string,
+    exists: (path: string) => boolean = existsSync,
+): string | null {
     let current = resolve(startDir);
     for (;;) {
         const gitMarker = join(current, ".git");
@@ -135,7 +140,10 @@ export function stagingJarDirectory(repoRoot: string): string {
 }
 
 /** `<repo>/vendor/BlueMap/implementations/<name>/build/libs` - what Gradle writes. */
-export function gradleJarDirectory(repoRoot: string, implementation: BlueMapImplementation): string {
+export function gradleJarDirectory(
+    repoRoot: string,
+    implementation: BlueMapImplementation,
+): string {
     return join(repoRoot, "vendor", "BlueMap", "implementations", implementation, "build", "libs");
 }
 
@@ -144,13 +152,15 @@ export function bundledJarDirectory(resourcesPath: string): string {
     return join(resourcesPath, "jars");
 }
 
+/** `<userData>/render-engines/upstream-java` - the repaired packaged-engine copy. */
+export function managedJarDirectory(dataDir: string): string {
+    return join(dataDir, "render-engines", "upstream-java");
+}
+
 export interface JarLookupOptions {
     /** Electron's `process.resourcesPath` in a packaged app; omit in development. */
     readonly resourcesPath?: string | null;
-    /**
-     * Electron's `userData`. Searched for a jar this app installed itself when a build arrived
-     * without one; see `installCliJar`. Omit where self-installation does not apply.
-     */
+    /** Electron's `userData`, where a repaired packaged jar is kept. */
     readonly dataDir?: string | null;
     /** Overrides root discovery. Handy in tests and for a non-standard checkout. */
     readonly repoRoot?: string | null;
@@ -179,16 +189,9 @@ function searchLocations(
         locations.push({ directory: bundledJarDirectory(resourcesPath), source: "bundled" });
     }
 
-    /*
-     * A jar this app installed for itself, after `bundled` and before any checkout.
-     *
-     * Second on purpose. What ships inside the installer is the engine that was released with
-     * this build and stays the preferred answer; a self-installed copy exists only for a build
-     * that arrived without one, and must not quietly take over from a bundle that is present.
-     */
     const dataDir = options.dataDir;
     if (typeof dataDir === "string" && dataDir.length > 0) {
-        locations.push({ directory: join(dataDir, "engines", "jars"), source: "downloaded" });
+        locations.push({ directory: managedJarDirectory(dataDir), source: "managed" });
     }
 
     const repoRoot =
@@ -197,7 +200,10 @@ function searchLocations(
         // Staged before Gradle: staging is the deliberate output of `build-jars.mjs`,
         // whereas `build/libs` can hold several versions from earlier builds.
         locations.push({ directory: stagingJarDirectory(repoRoot), source: "staged" });
-        locations.push({ directory: gradleJarDirectory(repoRoot, implementation), source: "gradle" });
+        locations.push({
+            directory: gradleJarDirectory(repoRoot, implementation),
+            source: "gradle",
+        });
     }
 
     return locations;
@@ -227,9 +233,9 @@ export function listBlueMapJars(
     options: JarLookupOptions = {},
 ): BlueMapJar[] {
     const fs = options.fs ?? nodeJarFs;
-    const found: { jar: BlueMapJar; mtimeMs: number }[] = [];
+    const found: { jar: BlueMapJar; mtimeMs: number; priority: number }[] = [];
 
-    for (const location of searchLocations(implementation, options, fs)) {
+    for (const [priority, location] of searchLocations(implementation, options, fs).entries()) {
         if (!fs.exists(location.directory)) continue;
         for (const entry of fs.readdir(location.directory)) {
             const version = parseJarVersion(entry, implementation);
@@ -238,11 +244,12 @@ export function listBlueMapJars(
             found.push({
                 jar: { implementation, path, version, source: location.source },
                 mtimeMs: fs.mtimeMs(path),
+                priority,
             });
         }
     }
 
-    found.sort((left, right) => right.mtimeMs - left.mtimeMs);
+    found.sort((left, right) => left.priority - right.priority || right.mtimeMs - left.mtimeMs);
     return found.map((entry) => entry.jar);
 }
 
@@ -262,7 +269,9 @@ export function resolveBlueMapJar(
     if (best !== undefined) return best;
 
     const fs = options.fs ?? nodeJarFs;
-    const searched = searchLocations(implementation, options, fs).map((location) => location.directory);
+    const searched = searchLocations(implementation, options, fs).map(
+        (location) => location.directory,
+    );
     const where =
         searched.length === 0
             ? "no candidate directories exist (no packaged resources and no repository checkout found)"

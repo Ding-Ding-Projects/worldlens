@@ -13,23 +13,7 @@ rem  scripts/release-version.mjs. It is mandatory: guessing from one machine's
 rem  installed folders produced older Squirrel packages that could not update.
 rem
 rem  This script builds but never publishes, tags, pushes or signs. Every emitted
-rem  executable this build GENERATES must have Authenticode status NotSigned.
-rem
-rem  The packaged tree also carries a vendored Temurin JRE under resources\bundled,
-rem  so the installer contains the runtime rather than asking a stranger to go and
-rem  download one. Those binaries are Eclipse Adoptium's and arrive carrying
-rem  Adoptium's own signature: jabswitch.exe is the one that first tripped this,
-rem  but java.exe and javaw.exe are signed too. That is not this project signing
-rem  anything. The prohibition is on obtaining a certificate and presenting our own
-rem  output as authenticated; a third-party runtime's vendor signature is the
-rem  opposite of that concern, and stripping it would leave users with a runtime
-rem  whose provenance cannot be checked at all.
-rem
-rem  CI has excluded that one exact directory since the runtime started shipping
-rem  and this script had not, so a local release build refused artifacts CI had
-rem  already accepted. The exclusion names one exact directory rather than a
-rem  pattern, and it also asserts the vendored tree is present, so an executable of
-rem  our own cannot escape the check by being placed somewhere new.
+rem  executable must have Authenticode status NotSigned.
 rem ===========================================================================
 
 set "SILENT_MODE=0"
@@ -66,6 +50,11 @@ shift /1
 goto :parse_arguments
 
 :arguments_ready
+call :validate_silent
+if errorlevel 1 (
+    echo ERROR: SILENT must be unset, 0 or 1. 1>&2
+    exit /b 2
+)
 if defined SILENT if not "%SILENT%"=="0" set "SILENT_MODE=1"
 if not defined RELEASE_CANDIDATE goto :candidate_missing
 set "WORLDLENS_RELEASE_CANDIDATE=%RELEASE_CANDIDATE%"
@@ -78,7 +67,6 @@ set "APPDIR=%DESIGN%\packages\app"
 set "PACKAGE_MANIFEST=%APPDIR%\package.json"
 set "VERSION_BACKUP=%APPDIR%\.version-backup"
 set "OUTPUT=%ROOT%installer"
-set "PNPM_VERSION=10.33.0"
 set "NPM_CONFIG_REGISTRY=https://registry.npmjs.org/"
 set "STARTED=%TIME%"
 set "RUN_KEY=%RANDOM%-%RANDOM%"
@@ -111,28 +99,19 @@ echo.
 
 rem --- Fresh-checkout bootstrap and workspace build --------------------------
 echo [1/9] Bootstrap dependencies and build the workspace
+set "WORLDLENS_DEPS_HANDOFF_FILE=%TEMP%\worldlens-deps-handoff-%RANDOM%-%RANDOM%.json"
+call "%ROOT%download-dependencies.bat" --silent
+if errorlevel 1 goto :workspace_failed
 call "%ROOT%build.bat" /s
 if errorlevel 1 goto :workspace_failed
 
-rem build.bat keeps its toolchain changes local. Rediscover the two user-scoped
-rem Node locations it may have populated so this parent wrapper can run the same
-rem committed release helpers after a genuinely cold start.
-if exist "%ProgramFiles%\nodejs\node.exe" set "PATH=%ProgramFiles%\nodejs;%PATH%"
-if exist "%LOCALAPPDATA%\Programs\nodejs\node.exe" set "PATH=%LOCALAPPDATA%\Programs\nodejs;%PATH%"
-if exist "%ProgramFiles%\Git\cmd\git.exe" set "PATH=%ProgramFiles%\Git\cmd;%PATH%"
-if exist "%LOCALAPPDATA%\Programs\Git\cmd\git.exe" set "PATH=%LOCALAPPDATA%\Programs\Git\cmd;%PATH%"
-if exist "%ProgramFiles%\GitHub CLI\gh.exe" set "PATH=%ProgramFiles%\GitHub CLI;%PATH%"
-if exist "%LOCALAPPDATA%\Programs\GitHub CLI\gh.exe" set "PATH=%LOCALAPPDATA%\Programs\GitHub CLI;%PATH%"
-if exist "%LOCALAPPDATA%\Microsoft\WinGet\Links\gh.exe" set "PATH=%LOCALAPPDATA%\Microsoft\WinGet\Links;%PATH%"
-if exist "%LOCALAPPDATA%\worldlens-toolchain\node\node.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\node;%PATH%"
-if exist "%LOCALAPPDATA%\worldlens-toolchain\git\cmd\git.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\git\cmd;%PATH%"
-if exist "%LOCALAPPDATA%\worldlens-toolchain\gh\bin\gh.exe" set "PATH=%LOCALAPPDATA%\worldlens-toolchain\gh\bin;%PATH%"
-if exist "%LOCALAPPDATA%\worldlens-toolchain\java\temurin-25\bin\java.exe" set "JAVA_HOME=%LOCALAPPDATA%\worldlens-toolchain\java\temurin-25"
-if defined JAVA_HOME set "PATH=%JAVA_HOME%\bin;%PATH%"
+rem The canonical fetcher above owns all PATH refresh and user-scoped discovery.
+rem This wrapper no longer maintains a second list of guessed install folders.
+set "POWERSHELL_EXE=pwsh"
 where pwsh >nul 2>&1
-if errorlevel 1 call winget install --id Microsoft.PowerShell --exact --source winget --scope user --silent --disable-interactivity --accept-package-agreements --accept-source-agreements
+if errorlevel 1 set "POWERSHELL_EXE=powershell.exe"
 if exist "%LOCALAPPDATA%\Microsoft\WinGet\Links\pwsh.exe" set "PATH=%LOCALAPPDATA%\Microsoft\WinGet\Links;%PATH%"
-where pwsh >nul 2>&1
+where %POWERSHELL_EXE% >nul 2>&1
 if errorlevel 1 goto :runtime_handoff_failed
 where node >nul 2>&1
 if errorlevel 1 goto :runtime_handoff_failed
@@ -149,9 +128,7 @@ if errorlevel 1 goto :runtime_handoff_failed
 java -version >nul 2>&1
 if errorlevel 1 goto :runtime_handoff_failed
 
-set "NPM_CLI="
-for /f "tokens=* usebackq" %%p in (`node -e "const fs=require('node:fs'),path=require('node:path'),d=path.dirname(process.execPath);const p=[path.join(d,'node_modules','npm','bin','npm-cli.js'),path.join(d,'..','lib','node_modules','npm','bin','npm-cli.js'),path.join(d,'..','share','node_modules','npm','bin','npm-cli.js')].find(fs.existsSync);if(p)process.stdout.write(p)" 2^>nul`) do set "NPM_CLI=%%p"
-if not defined NPM_CLI goto :runtime_handoff_failed
+if not defined WORLDLENS_PNPM_CLI goto :runtime_handoff_failed
 
 rem --- Exact source identity -------------------------------------------------
 echo.
@@ -216,7 +193,7 @@ if errorlevel 1 goto :live_inventory_failed
 set "WORLDLENS_RELEASES_FILE=%LIVE_RELEASES_FILE%"
 set "WORLDLENS_RUNS_FILE=%LIVE_RUNS_FILE%"
 set "WORLDLENS_TAGS_FILE=%LIVE_TAGS_FILE%"
-powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $candidate=[version]$env:WORLDLENS_PACKAGE_VERSION; $ordinal=[long]$env:WORLDLENS_RELEASE_CANDIDATE; $known=[Collections.Generic.List[version]]::new(); function Add-Tag([string]$tag){if($tag -match '^v(?<v>\d+\.\d+\.\d+)$'){[void]$known.Add([version]$Matches.v)}elseif($tag -match '^v(?<base>\d+\.\d+)\.0-build\.(?<n>\d+)$'){[void]$known.Add([version]($Matches.base+'.'+$Matches.n))}}; foreach($line in Get-Content -LiteralPath $env:WORLDLENS_TAGS_FILE){if($line -match 'refs/tags/(?<tag>[^\s]+)$'){Add-Tag $Matches.tag}}; $releases=@(Get-Content -Raw -LiteralPath $env:WORLDLENS_RELEASES_FILE | ConvertFrom-Json); foreach($release in $releases){Add-Tag ([string]$release.tagName)}; $runs=@(Get-Content -Raw -LiteralPath $env:WORLDLENS_RUNS_FILE | ConvertFrom-Json); $runNumbers=@($runs | ForEach-Object {foreach($run in $_){[long]$run.number}}); if($runNumbers.Count -eq 0){throw 'live CI workflow inventory returned no run numbers'}; $maxRun=($runNumbers | Measure-Object -Maximum).Maximum; if($ordinal -le $maxRun){throw ('candidate ordinal '+$ordinal+' is not newer than live CI run '+$maxRun)}; $localAppData=$env:LOCALAPPDATA; if($null -eq $localAppData){$localAppData=''}; $installed=Join-Path $localAppData 'Worldlens'; if(Test-Path -LiteralPath $installed){foreach($directory in Get-ChildItem -LiteralPath $installed -Directory){if($directory.Name -match '^app-(?<v>\d+\.\d+\.\d+)$'){[void]$known.Add([version]$Matches.v)}}}; $blocking=@($known | Where-Object {$_ -ge $candidate}); if($blocking.Count -gt 0){$highest=($blocking | Sort-Object -Descending | Select-Object -First 1); throw ('candidate '+$candidate+' is not newer than live/local release '+$highest)}; Write-Host ('      '+$candidate+' is newer than '+$known.Count+' live/local version(s) and CI run '+$maxRun)"
+%POWERSHELL_EXE% -NoProfile -Command "$ErrorActionPreference='Stop'; $candidate=[version]$env:WORLDLENS_PACKAGE_VERSION; $ordinal=[long]$env:WORLDLENS_RELEASE_CANDIDATE; $known=[Collections.Generic.List[version]]::new(); function Add-Tag([string]$tag){if($tag -match '^v(?<v>\d+\.\d+\.\d+)$'){[void]$known.Add([version]$Matches.v)}elseif($tag -match '^v(?<base>\d+\.\d+)\.0-build\.(?<n>\d+)$'){[void]$known.Add([version]($Matches.base+'.'+$Matches.n))}}; foreach($line in Get-Content -LiteralPath $env:WORLDLENS_TAGS_FILE){if($line -match 'refs/tags/(?<tag>[^\s]+)$'){Add-Tag $Matches.tag}}; $releases=@(Get-Content -Raw -LiteralPath $env:WORLDLENS_RELEASES_FILE | ConvertFrom-Json); foreach($release in $releases){Add-Tag ([string]$release.tagName)}; $runs=@(Get-Content -Raw -LiteralPath $env:WORLDLENS_RUNS_FILE | ConvertFrom-Json); $runNumbers=@($runs | ForEach-Object {foreach($run in $_){[long]$run.number}}); if($runNumbers.Count -eq 0){throw 'live CI workflow inventory returned no run numbers'}; $maxRun=($runNumbers | Measure-Object -Maximum).Maximum; if($ordinal -le $maxRun){throw ('candidate ordinal '+$ordinal+' is not newer than live CI run '+$maxRun)}; $localAppData=$env:LOCALAPPDATA; if($null -eq $localAppData){$localAppData=''}; $installed=Join-Path $localAppData 'Worldlens'; if(Test-Path -LiteralPath $installed){foreach($directory in Get-ChildItem -LiteralPath $installed -Directory){if($directory.Name -match '^app-(?<v>\d+\.\d+\.\d+)$'){[void]$known.Add([version]$Matches.v)}}}; $blocking=@($known | Where-Object {$_ -ge $candidate}); if($blocking.Count -gt 0){$highest=($blocking | Sort-Object -Descending | Select-Object -First 1); throw ('candidate '+$candidate+' is not newer than live/local release '+$highest)}; Write-Host ('      '+$candidate+' is newer than '+$known.Count+' live/local version(s) and CI run '+$maxRun)"
 if errorlevel 1 goto :candidate_not_monotonic
 echo       package %PACKAGE_VERSION%
 echo       release %RELEASE_TAG%
@@ -240,7 +217,7 @@ set "STAMP_RESULT=%ERRORLEVEL%"
 if not "%STAMP_RESULT%"=="0" goto :stamp_failed_restore
 
 pushd "%APPDIR%" >nul || goto :package_directory_failed_restore
-node "%NPM_CLI%" exec --yes --registry=https://registry.npmjs.org/ --package=pnpm@%PNPM_VERSION% -- pnpm run make
+node "%WORLDLENS_PNPM_CLI%" run make
 set "MAKE_RESULT=%ERRORLEVEL%"
 popd >nul
 
@@ -261,7 +238,7 @@ echo [8/9] Verify unsigned executable and release contracts
 set "WORLDLENS_INSTALLER_OUTPUT=%OUTPUT%"
 set "WORLDLENS_APP_PACKAGE=%APPDIR%"
 set "WORLDLENS_VERIFY_REPORT=%VERIFY_REPORT%"
-pwsh -NoProfile -Command "$ErrorActionPreference='Stop'; $version=$env:WORLDLENS_PACKAGE_VERSION; $output=$env:WORLDLENS_INSTALLER_OUTPUT; $app=$env:WORLDLENS_APP_PACKAGE; $setup=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -match 'Setup\.exe$'}); $full=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -match '-full\.nupkg$'}); $releases=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -ceq 'RELEASES'}); if($setup.Count -ne 1 -or $full.Count -ne 1 -or $releases.Count -ne 1){throw ('expected one Setup/full nupkg/RELEASES set, found '+$setup.Count+'/'+$full.Count+'/'+$releases.Count)}; foreach($file in @($setup[0],$full[0])){if($file.Name -notmatch [regex]::Escape($version)){throw ($file.Name+' does not match '+$version)}}; $appDirs=@(@('release/win-unpacked','dist/win-unpacked') | ForEach-Object {Join-Path $app $_} | Where-Object {Test-Path -LiteralPath $_ -PathType Container}); if($appDirs.Count -ne 1){throw ('expected one packaged application directory, found '+$appDirs.Count)}; $packaged=@(Get-ChildItem -LiteralPath $appDirs[0] -File -Filter '*.exe' -Recurse); $vendoredRoot=[System.IO.Path]::GetFullPath((Join-Path $appDirs[0] 'resources\bundled')); $vendored=@($packaged | Where-Object {$_.FullName.StartsWith($vendoredRoot,[System.StringComparison]::OrdinalIgnoreCase)}); if($vendored.Count -lt 1){throw 'no vendored runtime executables found; the bundled JRE is missing from the packaged app'}; $generated=@($packaged | Where-Object {-not $_.FullName.StartsWith($vendoredRoot,[System.StringComparison]::OrdinalIgnoreCase)}); $releaseExe=@(Get-ChildItem -LiteralPath $output -File -Filter '*.exe'); $executables=@($generated+$releaseExe | Sort-Object FullName -Unique); if($executables.Count -lt 2){throw 'packaged application and setup executables were not both found'}; foreach($exe in $executables){$signature=Get-AuthenticodeSignature -LiteralPath $exe.FullName; if($signature.Status -ne 'NotSigned'){throw ($exe.Name+' has Authenticode status '+$signature.Status+'; signing is prohibited')}}; $worldlens=@($packaged | Where-Object {$_.Name -ceq 'Worldlens.exe'}); if($worldlens.Count -ne 1){throw ('expected one packaged Worldlens.exe, found '+$worldlens.Count)}; $info=$worldlens[0].VersionInfo; if($info.ProductName -ne 'Worldlens' -or $info.FileDescription -ne 'Worldlens' -or -not $info.ProductVersion.StartsWith($version)){throw 'packaged executable branding or version does not match the release identity'}; $digest=(Get-FileHash -LiteralPath $setup[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant(); @($setup[0].FullName,[string]$setup[0].Length,$digest) | Set-Content -LiteralPath $env:WORLDLENS_VERIFY_REPORT -Encoding ascii; Write-Host ('      verified '+$executables.Count+' executable(s): branded and NotSigned')"
+%POWERSHELL_EXE% -NoProfile -Command "$ErrorActionPreference='Stop'; $version=$env:WORLDLENS_PACKAGE_VERSION; $output=$env:WORLDLENS_INSTALLER_OUTPUT; $app=$env:WORLDLENS_APP_PACKAGE; $setup=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -match 'Setup\.exe$'}); $full=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -match '-full\.nupkg$'}); $releases=@(Get-ChildItem -LiteralPath $output -File | Where-Object {$_.Name -ceq 'RELEASES'}); if($setup.Count -ne 1 -or $full.Count -ne 1 -or $releases.Count -ne 1){throw ('expected one Setup/full nupkg/RELEASES set, found '+$setup.Count+'/'+$full.Count+'/'+$releases.Count)}; foreach($file in @($setup[0],$full[0])){if($file.Name -notmatch [regex]::Escape($version)){throw ($file.Name+' does not match '+$version)}}; $appDirs=@(@('release/win-unpacked','dist/win-unpacked') | ForEach-Object {Join-Path $app $_} | Where-Object {Test-Path -LiteralPath $_ -PathType Container}); if($appDirs.Count -ne 1){throw ('expected one packaged application directory, found '+$appDirs.Count)}; $packaged=@(Get-ChildItem -LiteralPath $appDirs[0] -File -Filter '*.exe' -Recurse); $vendoredRoot=[System.IO.Path]::GetFullPath((Join-Path $appDirs[0] 'resources\bundled')); $vendored=@($packaged | Where-Object {$_.FullName.StartsWith($vendoredRoot,[System.StringComparison]::OrdinalIgnoreCase)}); if($vendored.Count -lt 1){throw 'no vendored runtime executables found; the bundled JRE is missing from the packaged app'}; $generated=@($packaged | Where-Object {-not $_.FullName.StartsWith($vendoredRoot,[System.StringComparison]::OrdinalIgnoreCase)}); $releaseExe=@(Get-ChildItem -LiteralPath $output -File -Filter '*.exe'); $executables=@($generated+$releaseExe | Sort-Object FullName -Unique); if($executables.Count -lt 2){throw 'packaged application and setup executables were not both found'}; foreach($exe in $executables){$signature=Get-AuthenticodeSignature -LiteralPath $exe.FullName; if($signature.Status -ne 'NotSigned'){throw ($exe.Name+' has Authenticode status '+$signature.Status+'; signing is prohibited')}}; $worldlens=@($packaged | Where-Object {$_.Name -ceq 'Worldlens.exe'}); if($worldlens.Count -ne 1){throw ('expected one packaged Worldlens.exe, found '+$worldlens.Count)}; $info=$worldlens[0].VersionInfo; if($info.ProductName -ne 'Worldlens' -or $info.FileDescription -ne 'Worldlens' -or -not $info.ProductVersion.StartsWith($version)){throw 'packaged executable branding or version does not match the release identity'}; $digest=(Get-FileHash -LiteralPath $setup[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant(); @($setup[0].FullName,[string]$setup[0].Length,$digest) | Set-Content -LiteralPath $env:WORLDLENS_VERIFY_REPORT -Encoding ascii; Write-Host ('      verified '+$executables.Count+' executable(s): branded and NotSigned')"
 if errorlevel 1 goto :verification_failed
 
 rem --- Re-prove exact source provenance after every build-side mutation -------
@@ -322,6 +299,12 @@ if errorlevel 1 exit /b 2
 for /f "usebackq delims=" %%s in ("%STATUS_FILE%") do exit /b 1
 exit /b 0
 
+:validate_silent
+if not defined SILENT exit /b 0
+if "%SILENT%"=="0" exit /b 0
+if "%SILENT%"=="1" exit /b 0
+exit /b 1
+
 :restore_manifest
 if not "%VERSION_STAMPED%"=="1" exit /b 0
 if not exist "%VERSION_BACKUP%" exit /b 1
@@ -336,6 +319,7 @@ echo       restored package.json byte for byte
 exit /b 0
 
 :cleanup_temporary
+if exist "%WORLDLENS_DEPS_HANDOFF_FILE%" del /q "%WORLDLENS_DEPS_HANDOFF_FILE%" >nul 2>&1
 if exist "%STATE_FILE%" del /q "%STATE_FILE%" >nul 2>&1
 if exist "%IDENTITY_FILE%" del /q "%IDENTITY_FILE%" >nul 2>&1
 if exist "%VERIFY_REPORT%" del /q "%VERIFY_REPORT%" >nul 2>&1

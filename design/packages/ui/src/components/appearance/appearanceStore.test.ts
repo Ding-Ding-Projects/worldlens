@@ -98,6 +98,15 @@ describe("per-element records", () => {
         withRecord(before, "app.tab", record({ typography: { bold: true } }));
         expect(before.elements).toEqual({});
     });
+
+    it("retains a state-only record instead of dropping it as empty", () => {
+        const state = withRecord(
+            emptyState(),
+            "app.tab",
+            record({ states: { hover: { surface: { gap: 8 } } } }),
+        );
+        expect(state.elements["app.tab"]?.states.hover?.surface?.gap).toBe(8);
+    });
 });
 
 describe("inheritance", () => {
@@ -113,7 +122,11 @@ describe("inheritance", () => {
     });
 
     it("lets an element override the global record", () => {
-        let state = withRecord(emptyState(), GLOBAL_TARGET, record({ typography: { fontSize: 16 } }));
+        let state = withRecord(
+            emptyState(),
+            GLOBAL_TARGET,
+            record({ typography: { fontSize: 16 } }),
+        );
         state = withRecord(state, "app.tab", record({ typography: { fontSize: 24 } }));
 
         expect(resolveTarget(state, "app.tab").typography.fontSize).toBe(24);
@@ -121,11 +134,7 @@ describe("inheritance", () => {
     });
 
     it("lets one element follow a preset without changing anything else", () => {
-        const state = withRecord(
-            emptyState(),
-            "app.tab",
-            record({ inherit: "builtin.largeText" }),
-        );
+        const state = withRecord(emptyState(), "app.tab", record({ inherit: "builtin.largeText" }));
 
         expect(resolveTarget(state, "app.tab").typography.fontSize).toBe(18);
         expect(resolveTarget(state, "app.other").typography.fontSize).toBe(
@@ -152,7 +161,12 @@ describe("inheritance", () => {
 
 describe("presets", () => {
     it("saves and removes a user preset", () => {
-        let state = withPreset(emptyState(), "mine", "Mine", record({ typography: { bold: true } }));
+        let state = withPreset(
+            emptyState(),
+            "mine",
+            "Mine",
+            record({ typography: { bold: true } }),
+        );
         expect(state.presets.find((entry) => entry.id === "mine")?.builtIn).toBe(false);
 
         state = withoutPreset(state, "mine");
@@ -171,14 +185,24 @@ describe("presets", () => {
     });
 
     it("stops following a preset it has just deleted", () => {
-        let state = withPreset(emptyState(), "mine", "Mine", record({ typography: { bold: true } }));
+        let state = withPreset(
+            emptyState(),
+            "mine",
+            "Mine",
+            record({ typography: { bold: true } }),
+        );
         state = { ...state, activePreset: "mine" };
         expect(withoutPreset(state, "mine").activePreset).toBe("");
     });
 
     it("keeps user presets through a global reset", () => {
         // A reset means "put the interface back", not "throw away the themes I built".
-        let state = withPreset(emptyState(), "mine", "Mine", record({ typography: { bold: true } }));
+        let state = withPreset(
+            emptyState(),
+            "mine",
+            "Mine",
+            record({ typography: { bold: true } }),
+        );
         state = withRecord(state, "app.tab", record({ typography: { fontSize: 20 } }));
 
         const reset = withGlobalReset(state);
@@ -188,6 +212,41 @@ describe("presets", () => {
 });
 
 describe("export and import", () => {
+    it("deeply preserves rejected nested state values with their paths", () => {
+        const result = importTheme(
+            JSON.stringify({
+                format: APPEARANCE_FORMAT,
+                version: 2,
+                elements: {
+                    "app.tab": {
+                        states: {
+                            hover: {
+                                surface: {
+                                    gap: "wide",
+                                    icon: { size: "huge", futureIconFlag: true },
+                                },
+                                futureLayer: { glow: true },
+                            },
+                        },
+                    },
+                },
+                presets: [],
+            }),
+        );
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        const layer = result.state.elements["app.tab"]?.states.hover;
+        expect(layer?.surface).toEqual({ icon: {} });
+        expect(layer?.preserved).toEqual({
+            "surface.gap": "wide",
+            "surface.icon.size": "huge",
+            "surface.icon.futureIconFlag": true,
+            futureLayer: { glow: true },
+        });
+        expect(result.report.preservedKeys).toContain("app.tab.states.hover.surface.gap");
+        expect(result.report.preservedKeys).toContain("app.tab.states.hover.surface.icon.size");
+    });
+
     it("round-trips elements, user presets and the active choice", () => {
         let state = withRecord(emptyState(), "app.tab", record({ typography: { fontSize: 20 } }));
         state = withPreset(state, "mine", "Mine", record({ surface: { borderRadius: 12 } }));
@@ -230,7 +289,7 @@ describe("export and import", () => {
         });
     });
 
-    it("keeps a section from a newer build instead of deleting it", () => {
+    it("rejects a newer format without partially applying it", () => {
         const fromTheFuture = JSON.stringify({
             format: APPEARANCE_FORMAT,
             version: 99,
@@ -243,15 +302,7 @@ describe("export and import", () => {
         });
 
         const result = importTheme(fromTheFuture);
-        expect(result.ok).toBe(true);
-        if (!result.ok) return;
-
-        expect(result.state.elements["app.tab"]?.typography.fontSize).toBe(20);
-        expect(result.state.elements["app.tab"]?.preserved).toEqual({ animation: { bounce: true } });
-        expect(result.report.preservedKeys).toEqual(["app.tab.animation"]);
-
-        // And it comes back out again, so a round trip through this build loses nothing.
-        expect(exportTheme(result.state)).toContain("bounce");
+        expect(result).toEqual({ ok: false, error: "unsupported-version" });
     });
 
     it("keeps a value of the wrong type rather than dropping it, and names it", () => {
@@ -290,9 +341,9 @@ describe("export and import", () => {
         const result = importTheme(hostile);
         expect(result.ok).toBe(true);
         if (!result.ok) return;
-        expect(result.state.presets.filter((entry) => entry.id === "builtin.largeText")).toHaveLength(
-            1,
-        );
+        expect(
+            result.state.presets.filter((entry) => entry.id === "builtin.largeText"),
+        ).toHaveLength(1);
         expect(result.state.presets.find((entry) => entry.id === "builtin.largeText")?.name).toBe(
             "Large text",
         );

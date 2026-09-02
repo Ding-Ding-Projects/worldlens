@@ -2250,6 +2250,11 @@ export const WORLD_FIXED = {
         en: "Choose a Minecraft folder, or the saves folder inside one",
         yue: "揀一個 Minecraft 資料夾，或者入面嘅 saves 資料夾",
     },
+    "world.list.browseWorld": { en: "Browse for a world folder", yue: "瀏覽揀世界資料夾" },
+    "world.list.browseWorldPrompt": {
+        en: "Choose the world folder, the one that contains level.dat",
+        yue: "揀個世界資料夾，即係入面有 level.dat 嗰個",
+    },
     "world.list.section": { en: "Worlds already on this computer", yue: "呢部電腦已經有嘅世界" },
     "world.list.title": { en: "Your Minecraft worlds", yue: "你嘅 Minecraft 世界" },
     "world.list.rescan": { en: "Look again", yue: "再搵一次" },

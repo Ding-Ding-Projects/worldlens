@@ -8,6 +8,7 @@ import {
     gradleJarDirectory,
     isBlueMapImplementation,
     listBlueMapJars,
+    managedJarDirectory,
     parseJarVersion,
     resolveBlueMapJar,
     resolveCliJar,
@@ -180,6 +181,22 @@ describe("listBlueMapJars", () => {
             },
         );
         expect(listBlueMapJars("cli", { repoRoot: REPO, fs })[0]?.source).toBe("staged");
+    });
+
+    it("prefers a repaired managed jar over checkout fallbacks", () => {
+        const dataDir = join(REPO, "user-data");
+        const managed = managedJarDirectory(dataDir);
+        const fs = fakeFs(
+            {
+                [managed]: ["bluemap-5.23-cli.jar"],
+                [stagingJarDirectory(REPO)]: ["cli-5.22-27-shadow.jar"],
+            },
+            {
+                [join(managed, "bluemap-5.23-cli.jar")]: 1,
+                [join(stagingJarDirectory(REPO), "cli-5.22-27-shadow.jar")]: 2,
+            },
+        );
+        expect(listBlueMapJars("cli", { dataDir, repoRoot: REPO, fs })[0]?.source).toBe("managed");
     });
 
     it("returns nothing when nothing has been built", () => {

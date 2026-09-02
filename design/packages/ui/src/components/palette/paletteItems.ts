@@ -104,6 +104,19 @@ interface PaletteItemBase {
      * that is not currently selected, a term somebody would type instead of the title.
      */
     readonly keywords: readonly string[];
+    /** Where the result lives, shown as a breadcrumb so a deep link is never a mystery jump. */
+    readonly location?: readonly string[];
+    /** Natural next steps, kept as ids so they can be verified against the same catalogue. */
+    readonly related?: readonly string[];
+    /** Human-readable labels for related ids, populated by the catalogue after validation. */
+    readonly relatedLabels?: readonly string[];
+    /** Why a result cannot currently act, plus the recovery route when one exists. */
+    readonly disabled?: {
+        readonly reason: string;
+        readonly recovery?: string;
+    };
+    /** Optional source registry class, useful to distinguish an article from a tab. */
+    readonly resultClass?: DiscoveryResultClass;
 }
 
 export interface PaletteCommand extends PaletteItemBase {
@@ -123,6 +136,11 @@ export interface PaletteDestination extends PaletteItemBase {
     readonly go: () => void;
 }
 
+/** A non-settings entry supplied by a tab, docs, appearance, or recovery registry. */
+export interface PaletteDirectoryEntry extends Omit<PaletteDestination, "kind"> {
+    readonly resultClass: DiscoveryResultClass;
+}
+
 export type PaletteItem = PaletteCommand | PaletteSetting | PaletteDestination;
 
 /**
@@ -138,7 +156,9 @@ export function controlText(control: PaletteControl): string {
         case "toggle":
             return "";
         case "number":
-            return control.unit.length > 0 ? `${control.value} ${control.unit}` : String(control.value);
+            return control.unit.length > 0
+                ? `${control.value} ${control.unit}`
+                : String(control.value);
         case "choice":
             return control.options.map((option) => option.label).join(" ");
     }
@@ -146,9 +166,16 @@ export function controlText(control: PaletteControl): string {
 
 /** Everything one row can be found by, as a single string. */
 export function itemHaystack(item: PaletteItem): string {
-    const parts = [item.title, item.group, item.description, ...item.keywords];
+    const parts = [
+        item.title,
+        item.group,
+        item.description,
+        ...(item.location ?? []),
+        ...item.keywords,
+    ];
     if (item.kind === "setting") parts.push(controlText(item.control));
     if (item.kind === "destination") parts.push(item.where);
+    if (item.disabled !== undefined) parts.push(item.disabled.reason, item.disabled.recovery ?? "");
     return parts.filter((part) => part.trim().length > 0).join("\n");
 }
 
@@ -160,10 +187,7 @@ export function itemHaystack(item: PaletteItem): string {
  * than quietly falling back to the last pattern that compiled, which would leave results on
  * screen for a search nobody can see any more.
  */
-export function filterItems(
-    items: readonly PaletteItem[],
-    matcher: SettingMatcher,
-): PaletteItem[] {
+export function filterItems(items: readonly PaletteItem[], matcher: SettingMatcher): PaletteItem[] {
     if (!matcher.active) return [...items];
     if (matcher.error !== null) return [];
     return items.filter((item) => matcher.test(itemHaystack(item)));
@@ -177,9 +201,7 @@ export function filterItems(
  * row stays one candidate line.
  */
 export function paletteSample(items: readonly PaletteItem[]): string {
-    return items
-        .map((item) => itemHaystack(item).replace(/\s+/g, " ").trim())
-        .join("\n");
+    return items.map((item) => itemHaystack(item).replace(/\s+/g, " ").trim()).join("\n");
 }
 
 export interface PaletteGroup {
@@ -228,3 +250,77 @@ export function countByKind(items: readonly PaletteItem[]): {
     }
     return { commands, settings, destinations };
 }
+
+/**
+ * Adds the minimum location context to every catalogue row without changing its behaviour.
+ * Builders may provide a more precise breadcrumb, but a newly registered feature is still
+ * discoverable immediately instead of silently becoming a row with no location.
+ */
+export function withDiscoveryMetadata(items: readonly PaletteItem[]): PaletteItem[] {
+    const ids = new Set(items.map((item) => item.id));
+    const byGroup = new Map<string, PaletteItem[]>();
+    for (const item of items) byGroup.set(item.group, [...(byGroup.get(item.group) ?? []), item]);
+    return items.map((item) => {
+        const related = (item.related ?? []).filter((id) => ids.has(id));
+        const neighbours = (byGroup.get(item.group) ?? [])
+            .filter((candidate) => candidate.id !== item.id)
+            .slice(0, 2);
+        const relatedIds =
+            related.length > 0 ? related : neighbours.map((candidate) => candidate.id);
+        return {
+            ...item,
+            resultClass:
+                item.resultClass ??
+                (item.kind === "command"
+                    ? "command"
+                    : item.kind === "setting"
+                      ? "setting"
+                      : "destination"),
+            location: item.location?.length ? item.location : [item.group, item.title],
+            related: relatedIds,
+            relatedLabels: relatedIds.map(
+                (id) => items.find((candidate) => candidate.id === id)?.title ?? id,
+            ),
+        };
+    });
+}
+
+export function assertUniquePaletteIds(items: readonly PaletteItem[]): void {
+    const seen = new Map<string, PaletteItem>();
+    for (const item of items) {
+        const previous = seen.get(item.id);
+        if (previous !== undefined) {
+            const previousClass = previous.resultClass ?? previous.kind;
+            const currentClass = item.resultClass ?? item.kind;
+            throw new Error(
+                `Duplicate palette result id "${item.id}" from ${previousClass} and ${currentClass}`,
+            );
+        }
+        seen.set(item.id, item);
+    }
+}
+
+/** Measured bound for the non-virtualized palette card. Exceeding it fails closed before render. */
+export const MAX_PALETTE_ITEMS = 512;
+
+export function assertPaletteRegistryBound(items: readonly PaletteItem[]): void {
+    if (items.length > MAX_PALETTE_ITEMS) {
+        throw new Error(
+            `Palette registry has ${items.length} results, above the measured bound of ${MAX_PALETTE_ITEMS}; virtualize or defer controls before adding more.`,
+        );
+    }
+}
+
+/** A hand-written inventory of result classes the directory must keep visible. */
+export const DISCOVERY_RESULT_CLASSES = [
+    "command",
+    "destination",
+    "setting",
+    "tab",
+    "group",
+    "article",
+    "recovery",
+    "appearance",
+] as const;
+
+export type DiscoveryResultClass = (typeof DISCOVERY_RESULT_CLASSES)[number];

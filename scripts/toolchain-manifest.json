@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "pnpm": {
+    "version": "10.33.0",
+    "tarball": "https://registry.npmjs.org/pnpm/-/pnpm-10.33.0.tgz",
+    "sha256": "bfcc1bcbad279b13a516c446a75b3c58b6904b45d57a1951411015e50b751a80",
+    "shasum": "46a0bef28aad690765997ab6da6d5475bdd4148e",
+    "integrity": "sha512-EFaLtKavtYyes2MNqQzJUWQXq+vT+rvmc58K55VyjaFJHp21pUTHatjrdXD1xLs9bGN7LLQb/c20f6gjyGSTGQ==",
+    "size": 4533784
+  },
+  "winget": {
+    "provenance": "exact-version-and-executable-probe",
+    "digestAvailable": false,
+    "portablePreferredWhenDigestRequired": true,
+    "node": { "id": "OpenJS.NodeJS.LTS", "version": "24.19.0" },
+    "git": { "id": "Git.Git", "version": "2.55.0.3" },
+    "gh": { "id": "GitHub.cli", "version": "2.98.0" }
+  },
+  "portable": {
+    "node": {
+      "version": "22.20.0",
+      "assetX64": "node-v22.20.0-win-x64.zip",
+      "assetArm64": "node-v22.20.0-win-arm64.zip",
+      "sha256": {
+        "x64": "bb819d6eb8f5bfda294bbc83a7e4ec6539da67c4233d54b0d655b9248b15e29d",
+        "arm64": "b12919e609b4fa1176ba8a155b49f761419a0c7cc97b42e6be09874a3f760ab6"
+      }
+    },
+    "git": {
+      "version": "2.55.0.3",
+      "assetX64": "MinGit-2.55.0.3-64-bit.zip",
+      "assetArm64": "MinGit-2.55.0.3-arm64.zip",
+      "sha256": {
+        "x64": "f48e2d2dc74a24454adc6d8fd0ac25bf9c2386f19cfb06202b9465aaad4f9f05",
+        "arm64": "f7748965d5068e81ad93ca1923650db6742d6e22332b1ae7567a841c59f6bde5"
+      }
+    },
+    "gh": {
+      "version": "2.97.0",
+      "assetX64": "gh_2.97.0_windows_amd64.zip",
+      "assetArm64": "gh_2.97.0_windows_arm64.zip",
+      "sha256": {
+        "x64": "35d7fe05c4dd1411ffda1e73dfc7c6f44b75c936ca51fa6595c657fdc0350cec",
+        "arm64": "3e2d4a166da4ee5020c592737b65eec0e724946d5d5b962f5fe59d99116dc4bf"
+      }
+    }
+  },
+  "java": {
+    "feature": 25,
+    "release": "jdk-25.0.4+7",
+    "version": "25.0.4+7",
+    "asset": "OpenJDK25U-jdk_x64_windows_hotspot_25.0.4_7.zip",
+    "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4%2B7/OpenJDK25U-jdk_x64_windows_hotspot_25.0.4_7.zip",
+    "sha256": "7caab7db43bf4b94a2e6252c699e70d90084f9aa7c943cd3414761fd540937ae",
+    "architecture": "x64"
+  },
+  "electron": {
+    "version": "37.10.3",
+    "executableRelativePath": "node_modules/.pnpm/electron@37.10.3/node_modules/electron/dist/electron.exe",
+    "executableSha256": "8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac",
+    "executableSize": 204521984
+  }
+}

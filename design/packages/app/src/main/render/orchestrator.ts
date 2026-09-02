@@ -80,6 +80,9 @@ import type { RenderMapRequest } from "./config.js";
 import * as failures from "./failure.js";
 import type { RenderFailure } from "./failure.js";
 import { LocalMapHandler } from "./LocalMapHandler.js";
+import type { PromotionResult } from "./promotion.js";
+import { buildCompletedOutputManifest } from "./outputManifest.js";
+import { renderConfigFingerprint } from "./session.js";
 import type { RenderPhase, RenderSignal, RenderTaskProgress, CliLogLevel } from "./progress.js";
 import {
     RENDER_ENGINE_LABELS,
@@ -93,7 +96,7 @@ import { unsupportedEngineRoute } from "./engineChoice.js";
 import { CliRun, TypeScriptRun } from "./runner.js";
 import type { SpawnCli } from "./runner.js";
 import type { RenderSessionStore } from "./session.js";
-import { renderIdForWorld, renderWorkspace } from "./workspace.js";
+import { isValidRenderId, renderIdForWorld, renderWorkspace } from "./workspace.js";
 import type { RenderWorkspace } from "./workspace.js";
 import { collectEvidence } from "../repair/evidence.js";
 import type { RepairEvidence } from "../repair/evidence.js";
@@ -114,6 +117,8 @@ export interface ResolvedEngine {
     /** Absolute path to the `java` executable, or null for a no-JVM engine. */
     readonly javaExecutable: string | null;
     readonly javaVersion: string | null;
+    /** Provenance of a Java jar, explicit so managed repairs are distinguishable. */
+    readonly engineSource?: "bundled" | "staged" | "gradle" | "managed";
 }
 
 /**
@@ -128,6 +133,7 @@ export const RENDER_RUNTIME_MODES: readonly RuntimeMode[] = ["local", "docker"];
 
 export interface RenderRequest {
     readonly maps: readonly RenderMapRequest[];
+    readonly projectId?: string;
     /** Concrete project choice. Absent is the legacy Java request shape. */
     readonly engine?: RenderEngineId;
     /**
@@ -346,6 +352,16 @@ export interface RenderCancelledEvent {
     readonly at: string;
 }
 
+export interface RenderEngineProvisionEvent {
+    readonly type: "engine-provisioning";
+    readonly renderId: string;
+    readonly stage: string;
+    readonly message: string;
+    readonly received: number | null;
+    readonly total: number | null;
+    readonly at: string;
+}
+
 /**
  * Cancellation is its own event rather than a failure with a code.
  *
@@ -361,7 +377,8 @@ export type RenderEvent =
     | RenderLogEvent
     | RenderFinishedEvent
     | RenderFailedEvent
-    | RenderCancelledEvent;
+    | RenderCancelledEvent
+    | RenderEngineProvisionEvent;
 
 export interface RenderSuccess {
     readonly ok: true;
@@ -401,7 +418,16 @@ export interface RenderOrchestratorOptions {
      */
     readonly hasConsent: () => boolean;
     /** Resolves exactly the requested engine; it must not substitute another one. */
-    readonly resolveEngine: (engine: RenderEngineId) => Promise<ResolvedEngine>;
+    readonly resolveEngine: (
+        engine: RenderEngineId,
+        signal?: AbortSignal,
+        onProgress?: (progress: {
+            readonly stage: string;
+            readonly message: string;
+            readonly received: number | null;
+            readonly total: number | null;
+        }) => void,
+    ) => Promise<ResolvedEngine>;
     /** Where a finished render is mounted for the viewer. */
     readonly mounts?: LocalMapHandler;
     /**
@@ -442,6 +468,11 @@ export interface RenderOrchestratorOptions {
      * settings-wide default rather than being silently replaced by it.
      */
     readonly jvmArgs?: readonly string[] | (() => readonly string[]);
+    /** Persist and verify a finished output before its terminal event is broadcast. */
+    readonly promoteFinished?: (
+        renderId: string,
+        projectId: string | null,
+    ) => Promise<PromotionResult>;
 
     /* ---- The container half. Every one of these is optional and local ignores them. ---- */
 
@@ -528,6 +559,10 @@ export class EngineUnavailableError extends Error {
 export class RenderOrchestrator {
     private readonly options: RenderOrchestratorOptions;
     private readonly running = new Map<string, RunningRender>();
+    private readonly pending = new Map<
+        string,
+        { readonly controller: AbortController; readonly token: symbol; visible: boolean }
+    >();
 
     constructor(options: RenderOrchestratorOptions) {
         this.options = options;
@@ -541,7 +576,14 @@ export class RenderOrchestrator {
 
     /** Renders are keyed by id; this is what is in flight right now. */
     activeRenderIds(): string[] {
-        return [...this.running.keys()];
+        return [
+            ...new Set([
+                ...this.running.keys(),
+                ...[...this.pending.entries()]
+                    .filter(([, pending]) => pending.visible)
+                    .map(([id]) => id),
+            ]),
+        ];
     }
 
     /**
@@ -553,7 +595,12 @@ export class RenderOrchestrator {
      */
     cancel(renderId: string): boolean {
         const running = this.running.get(renderId);
-        if (running === undefined) return false;
+        if (running === undefined) {
+            const pending = this.pending.get(renderId);
+            if (pending === undefined) return false;
+            pending.controller.abort();
+            return true;
+        }
         running.run.cancel();
         return true;
     }
@@ -603,7 +650,8 @@ export class RenderOrchestrator {
             };
         }
 
-        if (running.mode === "docker") return await this.adjustDockerSpeed(running, renderId, level);
+        if (running.mode === "docker")
+            return await this.adjustDockerSpeed(running, renderId, level);
         return this.adjustLocalSpeed(running, renderId, level);
     }
 
@@ -661,8 +709,7 @@ export class RenderOrchestrator {
                 appliedNow: true,
                 needsRestart: true,
                 reason: "priority-refused",
-                message:
-                    `Windows would not raise this render to '${result.requested.label}' without administrator rights, which this application never asks for. It kept ${landedWords} instead. The thread count and thread priority baked into this render's launch still only change on the next render.`,
+                message: `Windows would not raise this render to '${result.requested.label}' without administrator rights, which this application never asks for. It kept ${landedWords} instead. The thread count and thread priority baked into this render's launch still only change on the next render.`,
                 detail: null,
             };
         }
@@ -699,7 +746,8 @@ export class RenderOrchestrator {
                 appliedNow: false,
                 needsRestart: true,
                 reason: "not-running",
-                message: "This render has no container name recorded, so there is nothing to adjust.",
+                message:
+                    "This render has no container name recorded, so there is nothing to adjust.",
                 detail: null,
             };
         }
@@ -772,13 +820,24 @@ export class RenderOrchestrator {
      * that already names `jvmArgs` - none does today - is left exactly as it is.
      */
     async render(request: RenderRequest): Promise<RenderResult> {
+        const token = Symbol("render-lifecycle");
+        try {
+            return await this.renderInternal(request, token);
+        } finally {
+            for (const [renderId, pending] of this.pending)
+                if (pending.token === token) this.pending.delete(renderId);
+        }
+    }
+
+    private async renderInternal(request: RenderRequest, token: symbol): Promise<RenderResult> {
         if (request.jvmArgs === undefined) {
             const configured = this.options.jvmArgs;
-            const defaults = configured === undefined
-                ? []
-                : typeof configured === "function"
-                  ? configured()
-                  : configured;
+            const defaults =
+                configured === undefined
+                    ? []
+                    : typeof configured === "function"
+                      ? configured()
+                      : configured;
             if (defaults.length > 0) request = { ...request, jvmArgs: defaults };
         }
 
@@ -796,9 +855,30 @@ export class RenderOrchestrator {
             // Unreachable: `validateMaps` rejects an empty list. Written out anyway
             // because `noUncheckedIndexedAccess` is telling the truth about the type,
             // and a non-null assertion here would be a lie that outlives the check.
-            return this.fail(renderId, failures.invalidRequest("A render needs at least one map."), null);
+            return this.fail(
+                renderId,
+                failures.invalidRequest("A render needs at least one map."),
+                null,
+            );
         }
         renderId = request.renderId ?? renderIdForWorld(firstMap.world);
+        if (!isValidRenderId(renderId)) {
+            return this.fail(
+                renderId,
+                failures.invalidRequest("The render id is not a safe identifier."),
+                null,
+            );
+        }
+        if (
+            request.projectId !== undefined &&
+            (request.projectId.length === 0 || request.projectId.length > 256)
+        ) {
+            return this.fail(
+                renderId,
+                failures.invalidRequest("The project id is not valid."),
+                null,
+            );
+        }
 
         // Consent, before anything else happens. Nothing has been created, nothing has
         // been probed, and nothing will be spawned.
@@ -807,6 +887,9 @@ export class RenderOrchestrator {
         }
 
         if (this.running.has(renderId)) {
+            return this.fail(renderId, failures.alreadyRunning(renderId), null);
+        }
+        if (this.pending.has(renderId)) {
             return this.fail(renderId, failures.alreadyRunning(renderId), null);
         }
 
@@ -852,10 +935,32 @@ export class RenderOrchestrator {
             }
         }
 
+        const provisionAbort = new AbortController();
+        const pendingRender = { controller: provisionAbort, token, visible: false };
+        this.pending.set(renderId, pendingRender);
         let engine: ResolvedEngine;
         try {
-            engine = await this.options.resolveEngine(requestedEngine);
+            engine = await this.options.resolveEngine(
+                requestedEngine,
+                provisionAbort.signal,
+                (progress) => {
+                    pendingRender.visible = true;
+                    this.emit({
+                        type: "engine-provisioning",
+                        renderId,
+                        stage: progress.stage,
+                        message: progress.message,
+                        received: progress.received,
+                        total: progress.total,
+                        at: this.timestamp(),
+                    });
+                },
+            );
         } catch (error) {
+            this.pending.delete(renderId);
+            if (provisionAbort.signal.aborted) {
+                return this.cancelledBeforeRun(renderId);
+            }
             const failure =
                 error instanceof EngineUnavailableError && error.reason === "jar"
                     ? failures.cliJarMissing(error.detail)
@@ -863,6 +968,10 @@ export class RenderOrchestrator {
                       ? failures.invalidRequest(error.detail)
                       : failures.javaUnavailable(describe(error));
             return this.fail(renderId, failure, null);
+        }
+        if (provisionAbort.signal.aborted) {
+            this.pending.delete(renderId);
+            return this.cancelledBeforeRun(renderId);
         }
 
         if (engine.engine !== requestedEngine) {
@@ -880,8 +989,12 @@ export class RenderOrchestrator {
         // legacy orchestrator a launch adapter yet. Refuse that shape before creating
         // workspaces or records; never run Java because the selected engine was absent.
         if (
-            (engine.launch === "java-cli" && (engine.enginePath === null || engine.javaExecutable === null)) ||
-            (engine.launch === "typescript" && (engine.enginePath === null || engine.driverPath === null || engine.driverPath === undefined))
+            (engine.launch === "java-cli" &&
+                (engine.enginePath === null || engine.javaExecutable === null)) ||
+            (engine.launch === "typescript" &&
+                (engine.enginePath === null ||
+                    engine.driverPath === null ||
+                    engine.driverPath === undefined))
         ) {
             return this.fail(
                 renderId,
@@ -932,7 +1045,11 @@ export class RenderOrchestrator {
                 await this.writeContainerConfig(workspace, request);
             }
         } catch (error) {
-            return this.fail(renderId, failures.workspaceUnwritable(workspace.root, describe(error)), null);
+            return this.fail(
+                renderId,
+                failures.workspaceUnwritable(workspace.root, describe(error)),
+                null,
+            );
         }
 
         const description = describeEngineFor(engine, mode);
@@ -1020,50 +1137,62 @@ export class RenderOrchestrator {
                       mapName: firstMap.name ?? firstMap.id,
                       dimension: firstMap.dimension ?? "minecraft:overworld",
                       storageRoot: workspace.storageRoot,
-                      clientJar: await findRenderDataFile(workspace.dataDir, /^minecraft-client-.*\.jar$/i),
-                      resourceExtensions: await findRenderDataFile(workspace.dataDir, /^resourceExtensions\.zip$/i),
+                      clientJar: await findRenderDataFile(
+                          workspace.dataDir,
+                          /^minecraft-client-.*\.jar$/i,
+                      ),
+                      resourceExtensions: await findRenderDataFile(
+                          workspace.dataDir,
+                          /^resourceExtensions\.zip$/i,
+                      ),
                       cwd: workspace.root,
                       ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
                       onSignal,
                   })
                 : launch === null
                   ? new CliRun({
-                      javaExecutable: engine.javaExecutable as string,
-                      jarPath: engine.enginePath as string,
-                      configDir: workspace.configDir,
-                      // Deliberate, and the whole reason this directory exists: the CLI resolves
-                      // relative paths against its working directory, so anything that somehow
-                      // escaped being made absolute lands inside the render's own folder rather
-                      // than wherever the app was started from.
-                      cwd: workspace.root,
-                      ...(request.force === undefined ? {} : { force: request.force }),
-                      ...(request.fixEdges === undefined ? {} : { fixEdges: request.fixEdges }),
-                      ...(request.jvmArgs === undefined ? {} : { jvmArgs: request.jvmArgs }),
-                      ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
-                      onSignal,
+                        javaExecutable: engine.javaExecutable as string,
+                        jarPath: engine.enginePath as string,
+                        configDir: workspace.configDir,
+                        // Deliberate, and the whole reason this directory exists: the CLI resolves
+                        // relative paths against its working directory, so anything that somehow
+                        // escaped being made absolute lands inside the render's own folder rather
+                        // than wherever the app was started from.
+                        cwd: workspace.root,
+                        ...(request.force === undefined ? {} : { force: request.force }),
+                        ...(request.fixEdges === undefined ? {} : { fixEdges: request.fixEdges }),
+                        ...(request.jvmArgs === undefined ? {} : { jvmArgs: request.jvmArgs }),
+                        ...(this.options.spawn === undefined ? {} : { spawn: this.options.spawn }),
+                        onSignal,
                     })
                   : new EngineProcess({
-                      launch,
-                      onSignal,
-                      ...(this.options.spawnEngine === undefined
-                          ? {}
-                          : { spawn: this.options.spawnEngine }),
-                      ...(this.options.stopContainer === undefined
-                          ? {}
-                          : { stopContainer: this.options.stopContainer }),
-                  });
+                        launch,
+                        onSignal,
+                        ...(this.options.spawnEngine === undefined
+                            ? {}
+                            : { spawn: this.options.spawnEngine }),
+                        ...(this.options.stopContainer === undefined
+                            ? {}
+                            : { stopContainer: this.options.stopContainer }),
+                    });
 
+        if (provisionAbort.signal.aborted) {
+            this.pending.delete(renderId);
+            return this.cancelledBeforeRun(renderId);
+        }
         this.running.set(renderId, {
             run,
             mode,
             containerName: launch?.containerName ?? null,
             dockerCommand: launch?.command ?? this.options.docker ?? "docker",
         });
+        this.pending.delete(renderId);
         // The note goes down **before** `docker run`, not after it. The app can be killed
         // in the gap, and a container started with no record beside it is a render nobody
         // can find again: it keeps writing tiles into a bind-mounted folder with nothing
         // watching it, and the next launch has no name to ask the daemon about.
-        if (launch !== null) await this.startHandoff(launch, renderId, request, workspace, description);
+        if (launch !== null)
+            await this.startHandoff(launch, renderId, request, workspace, description);
 
         let result: RenderRunOutcome;
         try {
@@ -1105,8 +1234,45 @@ export class RenderOrchestrator {
         }
 
         record = { ...record, outcome: "finished", finishedAt, durationMs: result.durationMs };
+        let outputManifest: Awaited<ReturnType<typeof buildCompletedOutputManifest>> | undefined;
+        if (this.options.promoteFinished !== undefined) {
+            try {
+                outputManifest = await buildCompletedOutputManifest(
+                    workspace.webRoot,
+                    request.maps.map((map) => map.id),
+                );
+            } catch {
+                outputManifest = null;
+            }
+        }
+        if (this.options.promoteFinished !== undefined && outputManifest === null) {
+            const detail = "The completed output manifest could not be verified.";
+            const failedRecord = {
+                ...record,
+                outcome: "failed" as const,
+                failureCode: "promotion-unverified",
+            };
+            await this.saveRecord(workspace, failedRecord);
+            await this.options.sessions?.interrupt(renderId, "failed", detail);
+            return this.fail(renderId, failures.promotionUnverified(detail), failedRecord);
+        }
+        if (outputManifest !== undefined && outputManifest !== null)
+            record = { ...record, outputManifest };
         await this.saveRecord(workspace, record);
         await this.options.sessions?.complete(renderId);
+        const promotion = await this.options.promoteFinished?.(renderId, request.projectId ?? null);
+        if (promotion?.failure !== null && promotion?.failure !== undefined) {
+            const detail = `${promotion.failure.reason}: ${promotion.failure.detail}`;
+            const failedRecord = {
+                ...record,
+                outcome: "failed" as const,
+                failureCode: "promotion-unverified",
+            };
+            this.options.mounts?.removeMount(renderId);
+            await this.saveRecord(workspace, failedRecord);
+            await this.options.sessions?.interrupt(renderId, "failed", detail);
+            return this.fail(renderId, failures.promotionUnverified(detail), failedRecord);
+        }
         this.mount(workspace, record);
 
         const dataRoot = LocalMapHandler.dataRoot(renderId);
@@ -1294,6 +1460,7 @@ export class RenderOrchestrator {
             engine: engine.engine,
             engineVersion: engine.engineVersion,
             enginePath: engine.enginePath,
+            ...(engine.engineSource === undefined ? {} : { engineSource: engine.engineSource }),
             javaVersion: description.javaVersion,
             // Recorded beside the engine and the JVM because it is the same kind of fact:
             // how somebody can tell, months later, what actually produced these tiles.
@@ -1310,6 +1477,7 @@ export class RenderOrchestrator {
             failureCode: null,
             durationMs: null,
             appVersion: this.options.appVersion ?? null,
+            configHash: renderConfigFingerprint(request.maps),
         };
     }
 
@@ -1360,7 +1528,8 @@ export class RenderOrchestrator {
                 mode,
                 engineId: engine.engine,
                 command: launch?.command ?? engine.javaExecutable ?? "",
-                args: launch?.args ?? (engine.enginePath === null ? [] : ["-jar", engine.enginePath]),
+                args:
+                    launch?.args ?? (engine.enginePath === null ? [] : ["-jar", engine.enginePath]),
                 result: {
                     exitCode: result.exitCode,
                     signal: result.signal,
@@ -1396,6 +1565,12 @@ export class RenderOrchestrator {
     ): RenderFailureResult {
         this.emit({ type: "failed", renderId, failure, at: this.timestamp() });
         return { ok: false, renderId, failure, record };
+    }
+
+    private cancelledBeforeRun(renderId: string): RenderFailureResult {
+        const failure = failures.cancelled();
+        this.emit({ type: "cancelled", renderId, at: this.timestamp() });
+        return { ok: false, renderId, failure, record: null };
     }
 
     private emit(event: RenderEvent): void {
@@ -1505,7 +1680,9 @@ async function isDirectory(path: string): Promise<boolean> {
 
 /** Finds an already-cached render resource without downloading or guessing one. */
 async function findRenderDataFile(root: string, pattern: RegExp): Promise<string | null> {
-    const queue: Array<{ readonly path: string; readonly depth: number }> = [{ path: root, depth: 0 }];
+    const queue: Array<{ readonly path: string; readonly depth: number }> = [
+        { path: root, depth: 0 },
+    ];
     while (queue.length > 0) {
         const current = queue.shift();
         if (current === undefined) break;
@@ -1518,7 +1695,8 @@ async function findRenderDataFile(root: string, pattern: RegExp): Promise<string
         for (const entry of entries) {
             const path = join(current.path, entry.name);
             if (entry.isFile() && pattern.test(entry.name)) return path;
-            if (entry.isDirectory() && current.depth < 3) queue.push({ path, depth: current.depth + 1 });
+            if (entry.isDirectory() && current.depth < 3)
+                queue.push({ path, depth: current.depth + 1 });
         }
     }
     return null;

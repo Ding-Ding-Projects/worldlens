@@ -2,11 +2,21 @@
 import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArrowCollapse, mdiArrowExpand, mdiClose } from "@mdi/js";
-import { VBtn, VCard, VDialog, VDivider, VIcon, VToolbar, VToolbarTitle, VTooltip } from "vuetify/components";
+import {
+    VBtn,
+    VCard,
+    VDialog,
+    VDivider,
+    VIcon,
+    VToolbar,
+    VToolbarTitle,
+    VTooltip,
+} from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { blueMapApp } from "../../stores/bluemap.js";
 import PaletteRow from "./PaletteRow.vue";
+import { paletteEnterIntent } from "./paletteActivation.js";
 import {
     buildPaletteCatalog,
     type PaletteConfigTarget,
@@ -14,7 +24,24 @@ import {
     type PaletteSettingsTarget,
     type PaletteShellActions,
 } from "./paletteCatalog.js";
-import { countByKind, filterItems, groupItems, paletteSample, type PaletteItem } from "./paletteItems.js";
+import {
+    countByKind,
+    filterItems,
+    groupItems,
+    paletteSample,
+    type PaletteDirectoryEntry,
+    type PaletteItem,
+} from "./paletteItems.js";
+import {
+    orderPaletteItems,
+    prunePaletteDiscovery,
+    prunePaletteDiscoveryAtGeneration,
+    readPaletteDiscovery,
+    recordPaletteDestination,
+    togglePaletteFavourite,
+    writePaletteDiscovery,
+    type PaletteDiscoveryState,
+} from "./paletteDiscovery.js";
 import { readPaletteSize, writePaletteSize, type PaletteSize } from "./palettePrefs.js";
 import { useKidMode } from "../../kid/kidMode.js";
 
@@ -65,8 +92,10 @@ const props = withDefaults(
         canRouteConfigScreens?: boolean;
         /** The shell's tab strip, passed through so every page is searchable here too. */
         pages?: readonly PalettePageRef[];
+        /** Live tab/group/article/appearance/recovery registries owned by the shell. */
+        directoryEntries?: readonly PaletteDirectoryEntry[];
     }>(),
-    { canRouteConfigScreens: false, pages: () => [] },
+    { canRouteConfigScreens: false, pages: () => [], directoryEntries: () => [] },
 );
 
 const emit = defineEmits<{
@@ -107,6 +136,7 @@ const titleId = useId();
 /* -------------------------------------------------------------------------- */
 
 const size = ref<PaletteSize>(readPaletteSize());
+const discovery = ref<PaletteDiscoveryState>(readPaletteDiscovery());
 
 watch(size, (value) => {
     writePaletteSize(value);
@@ -162,6 +192,7 @@ const items = computed<PaletteItem[]>(() =>
         locale: locale.value,
         actions,
         pages: props.pages,
+        directoryEntries: props.directoryEntries,
         canRouteConfigScreens: props.canRouteConfigScreens,
         size: size.value,
         setSize: (value) => {
@@ -176,6 +207,7 @@ const items = computed<PaletteItem[]>(() =>
 /* -------------------------------------------------------------------------- */
 
 const query = ref("");
+const actionNotice = ref("");
 const regexMode = ref(false);
 // `i` because nobody means case-sensitively when they type the name of a setting, and `m`
 // because a row's searchable text is several lines - title, explanation, current value - so
@@ -186,7 +218,38 @@ const matcher = computed(() => createSettingMatcher(query.value, regexMode.value
 
 const visible = computed(() => filterItems(items.value, matcher.value));
 
-const groups = computed(() => groupItems(visible.value));
+const usableDiscovery = computed(() =>
+    prunePaletteDiscovery(
+        discovery.value,
+        new Set(items.value.map((item) => item.id)),
+    ),
+);
+
+let registryGeneration = 0;
+watch(
+    items,
+    (currentItems) => {
+        const generation = ++registryGeneration;
+        const snapshot = discovery.value;
+        const next = prunePaletteDiscoveryAtGeneration(
+            snapshot,
+            new Set(currentItems.map((item) => item.id)),
+            generation,
+            registryGeneration,
+        );
+        if (next === null) return;
+        queueMicrotask(() => {
+            // A newer registry or a user click wins. This queued repair must never overwrite it.
+            if (registryGeneration !== generation || discovery.value !== snapshot) return;
+            discovery.value = next;
+        });
+    },
+    { immediate: true },
+);
+
+const orderedVisible = computed(() => orderPaletteItems(visible.value, usableDiscovery.value));
+
+const groups = computed(() => groupItems(orderedVisible.value));
 
 const sample = computed(() => paletteSample(items.value));
 
@@ -199,16 +262,28 @@ const summary = computed(() => {
     if (!matcher.value.active) {
         return t(
             "palette.search.total",
-            { commands: counted.commands, settings: counted.settings, places: counted.destinations },
+            {
+                commands: counted.commands,
+                settings: counted.settings,
+                places: counted.destinations,
+            },
             "{commands} commands, {settings} settings and {places} places.",
         );
     }
     return t(
         "palette.search.found",
-        { shown: visible.value.length, total: items.value.length },
+        { shown: orderedVisible.value.length, total: items.value.length },
         "{shown} of {total} rows match.",
     );
 });
+
+watch(
+    discovery,
+    (value) => {
+        writePaletteDiscovery(value);
+    },
+    { deep: true },
+);
 
 /* -------------------------------------------------------------------------- */
 /* Focus, and moving through the list with the keyboard                       */
@@ -222,7 +297,8 @@ let cameFrom: HTMLElement | null = null;
 
 function focusableOrigin(value: Element | null): HTMLElement | null {
     if (!(value instanceof HTMLElement) || value === globalThis.document?.body) return null;
-    if (value.hasAttribute("disabled") || value.getAttribute("aria-disabled") === "true") return null;
+    if (value.hasAttribute("disabled") || value.getAttribute("aria-disabled") === "true")
+        return null;
     const tabIndex = value.getAttribute("tabindex");
     if (tabIndex !== null && Number(tabIndex) < 0) return null;
     return value;
@@ -249,12 +325,19 @@ function focusSearch(): void {
 function focusTargets(): HTMLElement[] {
     const root = listRef.value;
     if (root === null) return [];
-    return [...root.querySelectorAll<HTMLElement>("[data-palette-row]")].map(
-        (row) =>
-            row.querySelector<HTMLElement>(
-                'button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
-            ) ?? row,
-    );
+    const targets: HTMLElement[] = [];
+    for (const row of root.querySelectorAll<HTMLElement>("[data-palette-row]")) {
+        // The star is deliberately excluded. Arrow navigation enters the action or the live
+        // setting, never the bookkeeping affordance beside it. Disabled rows contribute no
+        // fallback target at all, so ArrowDown cannot land on a row that cannot act.
+        const target = row.querySelector<HTMLElement>(
+            '.mb-palette-row__go:not(:disabled), .mb-palette-row__control button:not(:disabled), .mb-palette-row__control input:not(:disabled), .mb-palette-row__control select:not(:disabled), .mb-palette-row__control textarea:not(:disabled), .mb-palette-row__control [tabindex]:not([tabindex="-1"]):not([aria-disabled="true"])',
+        );
+        if (target === null || target.getAttribute("aria-disabled") === "true") continue;
+        if (target.hasAttribute("disabled")) continue;
+        targets.push(target);
+    }
+    return targets;
 }
 
 function move(delta: number): void {
@@ -267,7 +350,12 @@ function move(delta: number): void {
     );
     // From the search box (which is not in the list) down goes to the first row and up goes
     // to the last, so both arrows are useful on the first keystroke after opening.
-    const next = current === -1 ? (delta > 0 ? 0 : targets.length - 1) : (current + delta + targets.length) % targets.length;
+    const next =
+        current === -1
+            ? delta > 0
+                ? 0
+                : targets.length - 1
+            : (current + delta + targets.length) % targets.length;
     targets[next]?.focus();
 }
 
@@ -314,15 +402,27 @@ function onKeydown(event: KeyboardEvent): void {
  * the control and the user says what they want it to be.
  */
 function onSearchEnter(): void {
-    const first = visible.value[0];
+    const first = orderedVisible.value[0];
     if (first === undefined) return;
-    if (first.kind === "setting") {
+    const intent = paletteEnterIntent(first);
+    if (intent.kind === "blocked") {
+        actionNotice.value = [intent.reason, intent.recovery ?? ""]
+            .filter((value) => value.length > 0)
+            .join(" ");
+        return;
+    }
+    if (intent.kind === "focus-control") {
         move(1);
         return;
     }
-    if (first.kind === "command") first.run();
-    else first.go();
+    if (intent.item.kind === "command") intent.item.run();
+    else if (intent.item.kind === "destination") intent.item.go();
+    else return;
     close();
+}
+
+function toggleFavourite(item: PaletteItem): void {
+    discovery.value = togglePaletteFavourite(usableDiscovery.value, item.id);
 }
 
 function close(): void {
@@ -342,6 +442,7 @@ watch(
             // A query left over from last time would hide most of the list from somebody who
             // has just pressed the shortcut and expects to see everything.
             query.value = "";
+            actionNotice.value = "";
             void nextTick(focusSearch);
             return;
         }
@@ -359,7 +460,8 @@ watch(
 );
 
 /** A row was run or a destination chosen: the palette has done its job and steps out. */
-function onActivate(): void {
+function onActivate(item: PaletteItem): void {
+    discovery.value = recordPaletteDestination(usableDiscovery.value, item);
     close();
 }
 
@@ -425,12 +527,17 @@ function onActivate(): void {
                     v-model:regex="regexMode"
                     v-model:flags="flags"
                     :label="t('palette.search.label', 'Search everything')"
-                    :placeholder="t('palette.search.hint', 'a command, a setting, or where you want to go')"
+                    :placeholder="
+                        t('palette.search.hint', 'a command, a setting, or where you want to go')
+                    "
                     :sample="sample"
                     :summary="summary"
                     density="comfortable"
                     @keydown.enter.prevent="onSearchEnter"
                 />
+                <p v-if="actionNotice" class="mb-palette__action-notice" role="status" aria-live="polite">
+                    {{ actionNotice }}
+                </p>
             </div>
 
             <v-divider />
@@ -443,7 +550,9 @@ function onActivate(): void {
                             v-for="item in group.items"
                             :key="item.id"
                             :item="item"
+                            :favourite="usableDiscovery.favourites.includes(item.id)"
                             @activate="onActivate"
+                            @toggle-favourite="toggleFavourite"
                         />
                     </ul>
                 </template>
@@ -451,8 +560,14 @@ function onActivate(): void {
                 <p v-if="visible.length === 0" class="mb-palette__empty" role="status">
                     {{
                         matcher.error !== null
-                            ? t("palette.search.badPattern", "The pattern is not valid, so nothing is listed.")
-                            : t("palette.search.noMatches", "Nothing in this app matches that.")
+                            ? t(
+                                  "palette.search.badPattern",
+                                  "The pattern is not valid, so nothing is listed.",
+                              )
+                            : t(
+                                  "palette.search.noMatches",
+                                  "Nothing in this app matches that. Try a feature name, a page, a setting, or a location breadcrumb; use the adjacent regex builder only when you need a pattern.",
+                              )
                     }}
                 </p>
 
@@ -541,6 +656,13 @@ function onActivate(): void {
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
+}
+
+.mb-palette__action-notice {
+    margin: 8px 0 0;
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-palette__hint {

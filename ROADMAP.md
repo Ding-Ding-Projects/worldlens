@@ -27,6 +27,21 @@ model the linear wizard uses. This entry covers writing it up, not building it.
       from `ALLOWED_EDGES` against the current node positions; there is no gesture that
       creates or removes one by hand. This is a real gap in the feature, not only in its
       documentation, and is left open for a future implementation task.
+## BlueMap CI installer manifest seam (2026-08-24)
+
+- [x] Emit one versioned manifest from the reusable BlueMap build with source provenance,
+      exact filename, byte count, and SHA-256, then upload it with the jar index.
+- [x] Stage the downloaded CLI through `scripts/stage-packaged-jars.mjs`, sharing the same
+      staging directory and strict JAR verifier used by local packaging.
+- [x] Refuse missing, stale, tampered, path-traversal, wrong-version, wrong-digest, and
+      physically absent CLI artifacts before electron-builder starts.
+- [x] Preserve safe build and package evidence with `always()` uploads that cannot mask the
+      original build or package result.
+- [x] Add workflow-shaped cold-fixture negatives and focused package wiring coverage.
+- [x] Validate version, source commit, workflow run ID, and run attempt before touching the
+      artifact, then perform bounded streaming digest verification after JAR safety checks.
+- [x] Keep mutation coverage red when the canonical identity preflight or digest comparison
+      is removed.
 
 ## Reusable design system package — 2026-08-22
 

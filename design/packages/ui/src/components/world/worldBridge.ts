@@ -50,6 +50,7 @@ export interface RenderMapRequest {
 
 export interface RenderRequest {
     readonly maps: readonly RenderMapRequest[];
+    readonly projectId?: string;
     /** Concrete project engine choice; absent preserves legacy callers. */
     readonly engine?: "upstream-java" | "typescript";
     /** Where to run the engine. Absent means on this computer. */
@@ -122,7 +123,16 @@ export type RenderEvent =
           at: string;
       }
     | { type: "failed"; renderId: string; failure: RenderFailure; at: string }
-    | { type: "cancelled"; renderId: string; at: string };
+    | { type: "cancelled"; renderId: string; at: string }
+    | {
+          type: "engine-provisioning";
+          renderId: string;
+          stage: string;
+          message: string;
+          received: number | null;
+          total: number | null;
+          at: string;
+      };
 
 export type RenderResult =
     | {
@@ -193,8 +203,7 @@ export interface ResumeRefused {
 }
 
 export type ResumeResult =
-    | { started: true; result: RenderResult }
-    | { started: false; refusal: ResumeRefused };
+    { started: true; result: RenderResult } | { started: false; refusal: ResumeRefused };
 
 export interface RenderSummary {
     readonly renderId: string;
@@ -343,11 +352,14 @@ export function resolveWorldBridge(): WorldBridge | null {
         // An empty list rather than a rejection, because "nothing is running" and "this
         // build cannot tell you what is running" lead to the same screen: no in-flight
         // renders named. What must not happen is a build inventing one.
-        activeRenders: () => (isFunction(host.activeRenders) ? complete.activeRenders() : Promise.resolve([])),
+        activeRenders: () =>
+            isFunction(host.activeRenders) ? complete.activeRenders() : Promise.resolve([]),
         interruptedRenders: () => complete.interruptedRenders(),
         resumeRender: (renderId, maps) => complete.resumeRender(renderId, maps),
         dismissResume: (renderId) =>
-            isFunction(host.dismissResume) ? complete.dismissResume(renderId) : Promise.resolve(false),
+            isFunction(host.dismissResume)
+                ? complete.dismissResume(renderId)
+                : Promise.resolve(false),
         onRenderEvent: (listener) => complete.onRenderEvent(listener),
         readConsent: () => complete.readConsent(),
     };
@@ -409,7 +421,8 @@ export async function writeStorageDirectory(
     bridge: OptionalWorldBridge | null,
     value: string,
 ): Promise<{ ok: true; directory: string } | { ok: false; message: string }> {
-    if (isFunction(bridge?.setMapStorageDirectory)) return await bridge.setMapStorageDirectory(value);
+    if (isFunction(bridge?.setMapStorageDirectory))
+        return await bridge.setMapStorageDirectory(value);
     if (isFunction(bridge?.setStorageDirectory)) return await bridge.setStorageDirectory(value);
     return {
         ok: false,

@@ -1,13 +1,22 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiContentSave, mdiDelete, mdiDownload, mdiRestore, mdiUpload } from "@mdi/js";
+import {
+    mdiContentSave,
+    mdiDelete,
+    mdiDownload,
+    mdiLockOpenVariantOutline,
+    mdiLockOutline,
+    mdiRestore,
+    mdiUpload,
+} from "@mdi/js";
 import {
     VAlert,
     VBtn,
+    VCheckbox,
     VDivider,
-    VSelect,
     VSlider,
+    VMenu,
     VTab,
     VTabs,
     VTextField,
@@ -17,11 +26,24 @@ import {
 } from "vuetify/components";
 
 import ColorField from "./ColorField.vue";
+import AppearanceChoiceField from "./AppearanceChoiceField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import TypographyEditor from "./TypographyEditor.vue";
-import { SURFACE_PROPERTIES, type SurfacePropertyId } from "./appearanceRecord.js";
+import {
+    appearanceStyle,
+    SURFACE_PROPERTIES,
+    type BorderStyle,
+    type SurfaceSpec,
+    type SurfacePropertyId,
+} from "./appearanceRecord.js";
+import {
+    APPEARANCE_STATES,
+    resolveStateAppearance,
+    type AppearanceStateName,
+    type AppearanceStatePropertyGroup,
+} from "./appearanceRecord.js";
 import {
     exportTheme,
     importErrorKey,
@@ -35,9 +57,14 @@ import {
     commitAppearance,
     fontCatalog,
     typographyCapabilities,
+    useRegisteredTarget,
     useAppearanceTarget,
 } from "./useAppearance.js";
 import { resolveTarget } from "./appearanceStore.js";
+import { appearancePropertyLockTarget } from "./appearanceLocks.js";
+import { useLockStore } from "../locks/useLocks.js";
+import LockWizard from "../locks/LockWizard.vue";
+import UnlockPrompt from "../locks/UnlockPrompt.vue";
 import type { TypographyPropertyId, TypographySpec } from "./typographySpec.js";
 
 /**
@@ -107,8 +134,28 @@ const target = useAppearanceTarget(() => props.targetId);
 
 /** The editor's own appearance, which is what makes it a target like any other. */
 const self = useAppearanceTarget("appearance.editor");
+const locks = useLockStore();
+
+// The editor is a real rendered target, so it registers for as long as this instance exists.
+// This keeps the palette and target list honest when an anchored editor is mounted and closed.
+useRegisteredTarget({
+    id: "appearance.editor",
+    labelKey: "appearance.target.editor",
+    fallback: "The appearance editor itself",
+});
 
 const tab = ref<"typography" | "surface" | "presets">("typography");
+const editingState = ref<AppearanceStateName | "base">("base");
+const propertyLockTarget = ref<ReturnType<typeof appearancePropertyLockTarget> | null>(null);
+const propertyLockOpen = ref(false);
+const propertyUnlockOpen = ref(false);
+const propertyLockAnchor = ref<HTMLElement | null>(null);
+const propertyMenuContent = ref<HTMLElement | null>(null);
+const propertyLock = computed(() =>
+    propertyLockTarget.value === null
+        ? undefined
+        : locks.at(propertyLockTarget.value.surface, propertyLockTarget.value.path),
+);
 
 /*
  * A search per tab, not one search over the editor.
@@ -133,8 +180,114 @@ const importMessage = ref("");
 const importError = ref("");
 const fileInput = ref<HTMLInputElement | null>(null);
 
-const resolved = computed(() => resolveTarget(state.value, props.targetId));
-const style = computed(() => target.style.value);
+const baseResolved = computed(() => resolveTarget(state.value, props.targetId));
+const resolved = computed(() =>
+    resolveStateAppearance(
+        baseResolved.value,
+        editingState.value === "base" ? undefined : editingState.value,
+    ),
+);
+const selectedRecord = computed(() =>
+    editingState.value === "base"
+        ? target.record.value
+        : (target.record.value.states[editingState.value] ?? {}),
+);
+const selectedTypographyOverrides = computed<Partial<TypographySpec>>(
+    () => selectedRecord.value.typography ?? {},
+);
+const selectedSurfaceOverrides = computed<Partial<SurfaceSpec>>(
+    () => selectedRecord.value.surface ?? {},
+);
+const selectedEffect = computed(() => ({
+    shadowColor:
+        ("effect" in selectedRecord.value ? selectedRecord.value.effect?.shadowColor : undefined) ??
+        "",
+    shadowBlur:
+        ("effect" in selectedRecord.value ? selectedRecord.value.effect?.shadowBlur : undefined) ??
+        0,
+    glowColor:
+        ("effect" in selectedRecord.value ? selectedRecord.value.effect?.glowColor : undefined) ??
+        "",
+    glowRadius:
+        ("effect" in selectedRecord.value ? selectedRecord.value.effect?.glowRadius : undefined) ??
+        0,
+}));
+
+function setStateGroupValue(
+    group: AppearanceStatePropertyGroup,
+    property: string,
+    value: unknown,
+): void {
+    if (editingState.value === "base") return;
+    if (
+        target.isPropertyLocked(property, editingState.value) ||
+        target.isPropertyLocked(group, editingState.value)
+    )
+        return;
+    const layer = target.record.value.states[editingState.value] ?? {};
+    target.setState(editingState.value, {
+        ...layer,
+        [group]: { ...((layer[group] ?? {}) as Record<string, unknown>), [property]: value },
+    } as never);
+}
+
+function resetStateGroupValue(group: AppearanceStatePropertyGroup, property: string): void {
+    if (editingState.value === "base") return;
+    if (
+        target.isPropertyLocked(property, editingState.value) ||
+        target.isPropertyLocked(group, editingState.value)
+    )
+        return;
+    target.resetStateProperty(editingState.value, group, property);
+}
+const style = computed(() =>
+    appearanceStyle(
+        resolved.value,
+        typographyCapabilities,
+        fonts.value,
+        undefined,
+        state.value.rainbowSpeed,
+    ),
+);
+
+watch([propertyLockOpen, propertyUnlockOpen], async ([lockOpen, unlockOpen]) => {
+    await nextTick();
+    if (lockOpen || unlockOpen) propertyMenuContent.value?.focus();
+    else propertyLockAnchor.value?.focus();
+});
+
+const stateChoices = computed(() => [
+    { title: t("appearance.state.base", "Base appearance"), value: "base" },
+    ...APPEARANCE_STATES.map((stateName) => ({
+        title: t(
+            `appearance.state.${stateName}`,
+            stateName.slice(0, 1).toUpperCase() + stateName.slice(1),
+        ),
+        value: stateName,
+    })),
+]);
+
+function openPropertyLock(property: string, anchor?: EventTarget | null): void {
+    const stateName = editingState.value === "base" ? undefined : editingState.value;
+    propertyLockTarget.value = appearancePropertyLockTarget(props.targetId, property, stateName);
+    propertyLockAnchor.value = anchor instanceof HTMLElement ? anchor : null;
+    if (locks.at(propertyLockTarget.value.surface, propertyLockTarget.value.path) === undefined) {
+        propertyLockOpen.value = true;
+    } else {
+        propertyUnlockOpen.value = true;
+    }
+}
+
+function closePropertyPopup(): void {
+    propertyLockOpen.value = false;
+    propertyUnlockOpen.value = false;
+    void nextTick(() => propertyLockAnchor.value?.focus());
+}
+
+function propertyIsLocked(property: string): boolean {
+    const stateName = editingState.value === "base" ? undefined : editingState.value;
+    return target.isPropertyLocked(property, stateName);
+}
 
 const userPresets = computed(() => state.value.presets.filter((entry) => !entry.builtIn));
 
@@ -180,7 +333,17 @@ function setTypography(id: TypographyPropertyId, value: unknown): void {
     // The editor emits a value for a property it named, and the binding is generic over the
     // property. Narrowing that pair without a per-property switch is not expressible, so the
     // assertion is confined to this one line rather than spread through the editor.
-    target.setTypography(id, value as TypographySpec[typeof id]);
+    if (editingState.value === "base") {
+        target.setTypography(id, value as TypographySpec[typeof id]);
+        return;
+    }
+    const stateName = editingState.value;
+    const layer = target.record.value.states[stateName] ?? {};
+    if (target.isPropertyLocked(id, stateName)) return;
+    target.setState(stateName, {
+        ...layer,
+        typography: { ...layer.typography, [id]: value },
+    });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -197,10 +360,83 @@ const SURFACE_LABELS: Readonly<Record<SurfacePropertyId, string>> = {
     paddingBlock: "Space above and below",
     elevation: "Elevation",
     opacity: "Opacity",
+    icon: "Icon",
+    badge: "Badge",
+    separator: "Separator",
+    shape: "Shape",
+    density: "Density",
+    motion: "Motion",
+    gap: "Gap",
+    marginInline: "Margin at the sides",
+    marginBlock: "Margin above and below",
 };
 
 function surfaceLabel(id: SurfacePropertyId): string {
     return t(`appearance.surface.${id}`, SURFACE_LABELS[id]);
+}
+
+function setSurfaceValue<K extends SurfacePropertyId>(id: K, value: unknown): void {
+    if (editingState.value === "base") {
+        target.setSurface(id, value as never);
+        return;
+    }
+    const stateName = editingState.value;
+    const layer = target.record.value.states[stateName] ?? {};
+    const groups: Partial<Record<SurfacePropertyId, AppearanceStatePropertyGroup>> = {
+        elevation: "effect",
+        opacity: "effect",
+        gap: "spacing",
+        marginInline: "spacing",
+        marginBlock: "spacing",
+        paddingInline: "spacing",
+        paddingBlock: "spacing",
+        icon: "icon",
+        badge: "badge",
+        separator: "separator",
+        shape: "shape",
+    };
+    const group = groups[id] ?? "surface";
+    if (target.isPropertyLocked(id, stateName) || target.isPropertyLocked(group, stateName)) return;
+    if (group === "shape") {
+        target.setState(stateName, { ...layer, shape: value as never });
+        return;
+    }
+    if (group === "icon" || group === "badge" || group === "separator") {
+        target.setState(stateName, { ...layer, [group]: value } as never);
+        return;
+    }
+    target.setState(stateName, {
+        ...layer,
+        [group]: { ...((layer[group] ?? {}) as Record<string, unknown>), [id]: value },
+    } as never);
+}
+
+function resetSurfaceValue(id: SurfacePropertyId): void {
+    if (editingState.value === "base") target.resetSurfaceProperty(id);
+    else {
+        const groups: Partial<Record<SurfacePropertyId, AppearanceStatePropertyGroup>> = {
+            elevation: "effect",
+            opacity: "effect",
+            gap: "spacing",
+            marginInline: "spacing",
+            marginBlock: "spacing",
+            paddingInline: "spacing",
+            paddingBlock: "spacing",
+            icon: "icon",
+            badge: "badge",
+            separator: "separator",
+            shape: "shape",
+        };
+        const group = groups[id] ?? "surface";
+        if (
+            target.isPropertyLocked(id, editingState.value) ||
+            target.isPropertyLocked(group, editingState.value)
+        )
+            return;
+        const property =
+            group === "icon" || group === "badge" || group === "separator" ? "__group__" : id;
+        target.resetStateProperty(editingState.value, group, property);
+    }
 }
 
 const borderStyles = computed(() =>
@@ -218,6 +454,33 @@ const borderStyles = computed(() =>
     })),
 );
 
+function setBorderStyle(value: string): void {
+    const allowed: readonly BorderStyle[] = ["none", "solid", "dashed", "dotted", "double"];
+    if (allowed.includes(value as BorderStyle)) {
+        setSurfaceValue("borderStyle", value as BorderStyle);
+    }
+}
+
+const shapeChoices = computed(() => [
+    { title: "Square", value: "square" },
+    { title: "Rounded", value: "rounded" },
+    { title: "Pill", value: "pill" },
+    { title: "Cut", value: "cut" },
+    { title: "Soft", value: "soft" },
+]);
+const densityChoices = computed(() => [
+    { title: "Comfortable", value: "comfortable" },
+    { title: "Compact", value: "compact" },
+    { title: "Spacious", value: "spacious" },
+    { title: "Custom", value: "custom" },
+]);
+const motionChoices = computed(() => [
+    { title: "System", value: "system" },
+    { title: "Standard", value: "standard" },
+    { title: "Reduced", value: "reduced" },
+    { title: "None", value: "none" },
+]);
+
 /* -------------------------------------------------------------------------- */
 /* Presets, export and import                                                 */
 /* -------------------------------------------------------------------------- */
@@ -231,11 +494,11 @@ function savePreset(): void {
 }
 
 function deletePreset(id: string): void {
-    commitAppearance(withoutPreset(state.value, id));
+    target.commitState(withoutPreset(state.value, id));
 }
 
 function setActivePreset(id: string): void {
-    commitAppearance({ ...state.value, activePreset: id });
+    target.commitState({ ...state.value, activePreset: id });
 }
 
 /**
@@ -271,7 +534,7 @@ async function onFileChosen(event: Event): Promise<void> {
         return;
     }
 
-    commitAppearance(result.state);
+    target.commitState(result.state);
     importError.value = "";
     importMessage.value =
         result.report.preservedKeys.length === 0
@@ -319,6 +582,15 @@ async function onFileChosen(event: Event): Promise<void> {
             >
                 {{ t("appearance.editor.resetElement", "Reset this element") }}
             </v-btn>
+            <AppearanceChoiceField
+                class="mb-appearance-editor__state-choice"
+                :model-value="editingState"
+                :items="stateChoices"
+                :label="t('appearance.editor.state', 'Editing state')"
+                @update:model-value="
+                    (value: string) => (editingState = value as AppearanceStateName | 'base')
+                "
+            />
         </header>
 
         <v-alert
@@ -351,12 +623,22 @@ async function onFileChosen(event: Event): Promise<void> {
             <v-window-item value="typography">
                 <TypographyEditor
                     :spec="resolved.typography"
-                    :overrides="target.record.value.typography"
+                    :overrides="selectedTypographyOverrides"
                     :capabilities="typographyCapabilities"
                     :fonts="fonts"
                     :notes="style.notes"
+                    :locked="propertyIsLocked"
                     @set="setTypography"
-                    @reset="(id: TypographyPropertyId) => target.resetTypographyProperty(id)"
+                    @reset="
+                        (id: TypographyPropertyId) =>
+                            editingState === 'base'
+                                ? target.resetTypographyProperty(id)
+                                : target.resetStateProperty(editingState, 'typography', id)
+                    "
+                    @lock="
+                        (id: TypographyPropertyId, anchor: HTMLElement) =>
+                            openPropertyLock(id, anchor)
+                    "
                 />
             </v-window-item>
 
@@ -388,7 +670,7 @@ async function onFileChosen(event: Event): Promise<void> {
                             :label="surfaceLabel(id)"
                             :contrast-foreground="resolved.typography.textColor"
                             @update:model-value="
-                                (value: string) => target.setSurface('backgroundColor', value)
+                                (value: string) => setSurfaceValue('backgroundColor', value)
                             "
                         />
                         <ColorField
@@ -396,20 +678,155 @@ async function onFileChosen(event: Event): Promise<void> {
                             :model-value="resolved.surface.borderColor"
                             :label="surfaceLabel(id)"
                             @update:model-value="
-                                (value: string) => target.setSurface('borderColor', value)
+                                (value: string) => setSurfaceValue('borderColor', value)
                             "
                         />
-                        <v-select
+                        <AppearanceChoiceField
                             v-else-if="id === 'borderStyle'"
                             :model-value="resolved.surface.borderStyle"
                             :items="borderStyles"
                             :label="surfaceLabel(id)"
-                            density="compact"
-                            variant="outlined"
-                            hide-details
+                            @update:model-value="setBorderStyle"
+                        />
+                        <div v-else-if="id === 'icon'" class="mb-appearance-editor__nested">
+                            <v-text-field
+                                :model-value="resolved.surface.icon.name"
+                                :label="t('appearance.surface.iconName', 'Icon name')"
+                                density="compact"
+                                variant="outlined"
+                                hide-details
+                                @update:model-value="
+                                    (value: string) =>
+                                        setSurfaceValue('icon', {
+                                            ...resolved.surface.icon,
+                                            name: value,
+                                        })
+                                "
+                            />
+                            <ColorField
+                                :model-value="resolved.surface.icon.color"
+                                :label="t('appearance.surface.iconColor', 'Icon colour')"
+                                @update:model-value="
+                                    (value: string) =>
+                                        setSurfaceValue('icon', {
+                                            ...resolved.surface.icon,
+                                            color: value,
+                                        })
+                                "
+                            />
+                            <v-slider
+                                :model-value="resolved.surface.icon.size"
+                                min="1"
+                                max="96"
+                                step="1"
+                                thumb-label
+                                density="compact"
+                                hide-details
+                                :aria-label="t('appearance.surface.iconSize', 'Icon size')"
+                                @update:model-value="
+                                    (value: number) =>
+                                        setSurfaceValue('icon', {
+                                            ...resolved.surface.icon,
+                                            size: value,
+                                        })
+                                "
+                            />
+                        </div>
+                        <div v-else-if="id === 'badge'" class="mb-appearance-editor__nested">
+                            <v-text-field
+                                :model-value="resolved.surface.badge.text"
+                                :label="t('appearance.surface.badgeText', 'Badge text')"
+                                density="compact"
+                                variant="outlined"
+                                hide-details
+                                @update:model-value="
+                                    (value: string) =>
+                                        setSurfaceValue('badge', {
+                                            ...resolved.surface.badge,
+                                            text: value,
+                                        })
+                                "
+                            />
+                            <AppearanceChoiceField
+                                :model-value="resolved.surface.badge.shape"
+                                :items="[
+                                    { title: 'Rounded', value: 'rounded' },
+                                    { title: 'Pill', value: 'pill' },
+                                    { title: 'Square', value: 'square' },
+                                ]"
+                                :label="t('appearance.surface.badgeShape', 'Badge shape')"
+                                @update:model-value="
+                                    (value: string) =>
+                                        setSurfaceValue('badge', {
+                                            ...resolved.surface.badge,
+                                            shape: value as 'rounded' | 'pill' | 'square',
+                                        })
+                                "
+                            />
+                        </div>
+                        <div v-else-if="id === 'separator'" class="mb-appearance-editor__nested">
+                            <v-checkbox
+                                :model-value="resolved.surface.separator.visible"
+                                :label="t('appearance.surface.separatorVisible', 'Show separator')"
+                                density="compact"
+                                hide-details
+                                @update:model-value="
+                                    (value: boolean | null) =>
+                                        setSurfaceValue('separator', {
+                                            ...resolved.surface.separator,
+                                            visible: value === true,
+                                        })
+                                "
+                            />
+                            <ColorField
+                                :model-value="resolved.surface.separator.color"
+                                :label="t('appearance.surface.separatorColor', 'Separator colour')"
+                                @update:model-value="
+                                    (value: string) =>
+                                        setSurfaceValue('separator', {
+                                            ...resolved.surface.separator,
+                                            color: value,
+                                        })
+                                "
+                            />
+                        </div>
+                        <AppearanceChoiceField
+                            v-else-if="id === 'shape'"
+                            :model-value="resolved.surface.shape"
+                            :items="shapeChoices"
+                            :label="surfaceLabel(id)"
                             @update:model-value="
-                                (value: 'none' | 'solid' | 'dashed' | 'dotted' | 'double') =>
-                                    target.setSurface('borderStyle', value)
+                                (value: string) =>
+                                    setSurfaceValue(
+                                        'shape',
+                                        value as 'square' | 'rounded' | 'pill' | 'cut' | 'soft',
+                                    )
+                            "
+                        />
+                        <AppearanceChoiceField
+                            v-else-if="id === 'density'"
+                            :model-value="resolved.surface.density"
+                            :items="densityChoices"
+                            :label="surfaceLabel(id)"
+                            @update:model-value="
+                                (value: string) =>
+                                    setSurfaceValue(
+                                        'density',
+                                        value as 'comfortable' | 'compact' | 'spacious' | 'custom',
+                                    )
+                            "
+                        />
+                        <AppearanceChoiceField
+                            v-else-if="id === 'motion'"
+                            :model-value="resolved.surface.motion"
+                            :items="motionChoices"
+                            :label="surfaceLabel(id)"
+                            @update:model-value="
+                                (value: string) =>
+                                    setSurfaceValue(
+                                        'motion',
+                                        value as 'system' | 'standard' | 'reduced' | 'none',
+                                    )
                             "
                         />
                         <template v-else>
@@ -425,14 +842,12 @@ async function onFileChosen(event: Event): Promise<void> {
                                 density="compact"
                                 hide-details
                                 :aria-label="surfaceLabel(id)"
-                                @update:model-value="
-                                    (value: number) => target.setSurface(id, value)
-                                "
+                                @update:model-value="(value: number) => setSurfaceValue(id, value)"
                             />
                         </template>
 
                         <v-btn
-                            v-if="id in target.record.value.surface"
+                            v-if="id in selectedSurfaceOverrides"
                             :icon="mdiRestore"
                             size="x-small"
                             variant="text"
@@ -443,31 +858,155 @@ async function onFileChosen(event: Event): Promise<void> {
                                     'Reset {property}',
                                 )
                             "
-                            @click="target.resetSurfaceProperty(id)"
+                            @click="resetSurfaceValue(id)"
+                        />
+                        <v-btn
+                            v-if="locks.canList"
+                            :icon="
+                                propertyIsLocked(id) ? mdiLockOpenVariantOutline : mdiLockOutline
+                            "
+                            size="x-small"
+                            variant="text"
+                            :aria-label="
+                                propertyIsLocked(id)
+                                    ? t(
+                                          'appearance.lock.unlock',
+                                          { property: surfaceLabel(id) },
+                                          'Unlock {property}',
+                                      )
+                                    : t(
+                                          'appearance.lock.lock',
+                                          { property: surfaceLabel(id) },
+                                          'Lock {property}',
+                                      )
+                            "
+                            @click="openPropertyLock(id, $event.currentTarget)"
                         />
                     </div>
                 </div>
+                <section v-if="editingState !== 'base'" class="mb-appearance-editor__state-groups">
+                    <h3 class="mb-appearance-editor__rowLabel">
+                        {{ t("appearance.state.groups", "State effects and spacing") }}
+                    </h3>
+                    <ColorField
+                        :model-value="selectedEffect.shadowColor"
+                        :label="t('appearance.state.shadowColor', 'State shadow colour')"
+                        @update:model-value="
+                            (value: string) => setStateGroupValue('effect', 'shadowColor', value)
+                        "
+                    />
+                    <v-slider
+                        :model-value="selectedEffect.shadowBlur"
+                        min="0"
+                        max="48"
+                        step="1"
+                        thumb-label
+                        density="compact"
+                        hide-details
+                        :aria-label="t('appearance.state.shadowBlur', 'State shadow blur')"
+                        @update:model-value="
+                            (value: number) => setStateGroupValue('effect', 'shadowBlur', value)
+                        "
+                    />
+                    <ColorField
+                        :model-value="selectedEffect.glowColor"
+                        :label="t('appearance.state.glowColor', 'State glow colour')"
+                        @update:model-value="
+                            (value: string) => setStateGroupValue('effect', 'glowColor', value)
+                        "
+                    />
+                    <v-slider
+                        :model-value="selectedEffect.glowRadius"
+                        min="0"
+                        max="48"
+                        step="1"
+                        thumb-label
+                        density="compact"
+                        hide-details
+                        :aria-label="t('appearance.state.glowRadius', 'State glow radius')"
+                        @update:model-value="
+                            (value: number) => setStateGroupValue('effect', 'glowRadius', value)
+                        "
+                    />
+                    <v-btn
+                        size="small"
+                        variant="text"
+                        @click="
+                            resetStateGroupValue('effect', 'shadowColor');
+                            resetStateGroupValue('effect', 'shadowBlur');
+                            resetStateGroupValue('effect', 'glowColor');
+                            resetStateGroupValue('effect', 'glowRadius');
+                        "
+                    >
+                        {{ t("appearance.state.resetEffects", "Reset state effects") }}
+                    </v-btn>
+                    <v-btn
+                        v-if="locks.canList"
+                        :icon="
+                            propertyIsLocked('effect') ? mdiLockOpenVariantOutline : mdiLockOutline
+                        "
+                        size="x-small"
+                        variant="text"
+                        :aria-label="
+                            propertyIsLocked('effect')
+                                ? t(
+                                      'appearance.lock.unlock',
+                                      { property: 'state effects' },
+                                      'Unlock {property}',
+                                  )
+                                : t(
+                                      'appearance.lock.lock',
+                                      { property: 'state effects' },
+                                      'Lock {property}',
+                                  )
+                        "
+                        @click="openPropertyLock('effect', $event.currentTarget)"
+                    />
+                    <div class="mb-appearance-editor__row">
+                        <span class="mb-appearance-editor__rowLabel">
+                            {{ t("appearance.state.spacing", "State spacing") }}
+                        </span>
+                        <v-btn
+                            v-if="locks.canList"
+                            :icon="
+                                propertyIsLocked('spacing')
+                                    ? mdiLockOpenVariantOutline
+                                    : mdiLockOutline
+                            "
+                            size="x-small"
+                            variant="text"
+                            :aria-label="
+                                propertyIsLocked('spacing')
+                                    ? t(
+                                          'appearance.lock.unlock',
+                                          { property: 'state spacing' },
+                                          'Unlock {property}',
+                                      )
+                                    : t(
+                                          'appearance.lock.lock',
+                                          { property: 'state spacing' },
+                                          'Lock {property}',
+                                      )
+                            "
+                            @click="openPropertyLock('spacing', $event.currentTarget)"
+                        />
+                    </div>
+                </section>
             </v-window-item>
 
             <v-window-item value="presets">
                 <div class="mb-appearance-editor__presets">
-                    <v-select
+                    <AppearanceChoiceField
                         :model-value="target.record.value.inherit"
                         :items="presetChoices"
                         :label="t('appearance.preset.forElement', 'This element follows')"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
                         @update:model-value="(value: string) => target.setInherit(value)"
                     />
 
-                    <v-select
+                    <AppearanceChoiceField
                         :model-value="state.activePreset"
                         :items="presetChoices"
                         :label="t('appearance.preset.forEverything', 'Everything follows')"
-                        density="compact"
-                        variant="outlined"
-                        hide-details
                         @update:model-value="setActivePreset"
                     />
 
@@ -662,6 +1201,49 @@ async function onFileChosen(event: Event): Promise<void> {
                 </div>
             </v-window-item>
         </v-window>
+
+        <v-menu
+            v-model="propertyLockOpen"
+            :target="propertyLockAnchor ?? undefined"
+            :close-on-content-click="false"
+            location="bottom start"
+            @update:model-value="(value: boolean) => !value && closePropertyPopup()"
+        >
+            <div
+                ref="propertyMenuContent"
+                tabindex="-1"
+                class="mb-appearance-editor__property-menu"
+            >
+                <LockWizard
+                    v-if="propertyLockTarget !== null"
+                    :target="propertyLockTarget"
+                    @created="closePropertyPopup"
+                    @cancel="closePropertyPopup"
+                />
+            </div>
+        </v-menu>
+        <v-menu
+            v-model="propertyUnlockOpen"
+            :target="propertyLockAnchor ?? undefined"
+            :close-on-content-click="false"
+            location="bottom start"
+            @update:model-value="(value: boolean) => !value && closePropertyPopup()"
+        >
+            <div
+                ref="propertyMenuContent"
+                tabindex="-1"
+                class="mb-appearance-editor__property-menu"
+            >
+                <UnlockPrompt
+                    v-if="propertyLockTarget !== null && propertyLock !== undefined"
+                    :lock="propertyLock"
+                    :data-folder="locks.dataFolder"
+                    @unlocked="closePropertyPopup"
+                    @cancel="closePropertyPopup"
+                    @support="closePropertyPopup"
+                />
+            </div>
+        </v-menu>
     </section>
 </template>
 
@@ -735,6 +1317,23 @@ async function onFileChosen(event: Event): Promise<void> {
     align-items: center;
     gap: 8px;
     min-inline-size: 0;
+}
+
+.mb-appearance-editor__nested {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    inline-size: 100%;
+}
+
+.mb-appearance-editor__state-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-block-start: 12px;
+    padding-block-start: 8px;
+    border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
 .mb-appearance-editor__row > :not(.mb-appearance-editor__rowLabel) {

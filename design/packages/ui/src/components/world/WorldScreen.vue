@@ -9,7 +9,11 @@ import RenderRunPanel from "./RenderRunPanel.vue";
 import WorldWizard from "./WorldWizard.vue";
 import ProjectCanvas from "../canvas/ProjectCanvas.vue";
 import { consentIsAccepted, refreshConsent } from "./consentState.js";
-import { createContainerOffers, resolveContainerOffersBridge, type ContainerOffersBridge } from "./containerOffers.js";
+import {
+    createContainerOffers,
+    resolveContainerOffersBridge,
+    type ContainerOffersBridge,
+} from "./containerOffers.js";
 import { createRenderRun } from "./renderRun.js";
 import { createResumeOffers } from "./resumeOffers.js";
 import {
@@ -25,7 +29,11 @@ import {
     type SettingsTarget,
     type WorldBridge,
 } from "./worldBridge.js";
-import { createBridgeConfigHost, provideConfigHost, type ConfigHost } from "../config/configHost.js";
+import {
+    createBridgeConfigHost,
+    provideConfigHost,
+    type ConfigHost,
+} from "../config/configHost.js";
 import { provideSettingsOpener } from "../downloads/index.js";
 import { resolveProjectHost, type ProjectHost } from "../project/projectHost.js";
 import { projectFromWizard } from "../project/projectModel.js";
@@ -162,9 +170,14 @@ const javaAvailable = computed<boolean | null>(() => {
     if (java.state.value === "missing") return false;
     return null;
 });
+const renderEngineAvailable = computed<boolean | null>(() => {
+    if (!java.supported) return null;
+    return java.renderEngineAvailable.value;
+});
 
 const bridge = props.bridge === undefined ? resolveWorldBridge() : props.bridge;
-const optional = props.optionalBridge === undefined ? resolveOptionalWorldBridge() : props.optionalBridge;
+const optional =
+    props.optionalBridge === undefined ? resolveOptionalWorldBridge() : props.optionalBridge;
 const host = props.host === undefined ? createBridgeConfigHost() : props.host;
 const projects = props.projectHost === undefined ? resolveProjectHost() : props.projectHost;
 provideConfigHost(host);
@@ -218,7 +231,9 @@ const offers = createResumeOffers(bridge);
  * running this way was invisible until somebody went looking with `docker ps`.
  */
 const containerOffers = createContainerOffers(
-    props.containerOffersBridge === undefined ? resolveContainerOffersBridge() : props.containerOffersBridge,
+    props.containerOffersBridge === undefined
+        ? resolveContainerOffersBridge()
+        : props.containerOffersBridge,
 );
 
 /**
@@ -277,7 +292,9 @@ async function lookForProject(folder: string): Promise<void> {
         // The field can have moved on while this was in flight. Answering for a folder the
         // person is no longer looking at is how a stale offer ends up on screen.
         if (probedWorld !== folder) return;
-        existingProject.value = answer.ok ? { name: answer.project.name, maps: answer.project.maps.length } : null;
+        existingProject.value = answer.ok
+            ? { name: answer.project.name, maps: answer.project.maps.length }
+            : null;
     } catch {
         if (probedWorld === folder) existingProject.value = null;
     }
@@ -295,7 +312,11 @@ async function lookForProject(folder: string): Promise<void> {
  * already under way; not being able to write a settings file beside it is worth saying and
  * is not worth stopping for.
  */
-async function writeProject(request: RenderRequest, configText: string, storageDirectory: string): Promise<void> {
+async function writeProject(
+    request: RenderRequest,
+    configText: string,
+    storageDirectory: string,
+): Promise<void> {
     const map = request.maps[0];
     if (projects === null || map === undefined || map.world.trim() === "") return;
 
@@ -311,7 +332,11 @@ async function writeProject(request: RenderRequest, configText: string, storageD
         fixEdges: request.fixEdges ?? false,
         metrics: request.metrics ?? false,
         threads: request.renderThreads ?? null,
-        engine: resolveRenderEngine(globalRenderEngineDefault(), javaAvailable.value === true),
+        engine: resolveRenderEngine(
+            globalRenderEngineDefault(),
+            javaAvailable.value === true,
+            renderEngineAvailable.value === true,
+        ),
     });
 
     try {
@@ -477,7 +502,11 @@ function withConfig(request: RenderRequest, configText: string): RenderRequest {
     return { ...request, maps: [{ ...only, config: configText }] };
 }
 
-async function start(request: RenderRequest, configText: string, storageDirectory: string): Promise<void> {
+async function start(
+    request: RenderRequest,
+    configText: string,
+    storageDirectory: string,
+): Promise<void> {
     lastConfig.value = configText;
     lastMaps.value = request.maps;
     startFailure.value = null;
@@ -490,7 +519,10 @@ async function start(request: RenderRequest, configText: string, storageDirector
     // settings the interface only claimed to apply.
     const result = await run.start(withConfig(request, configText));
     if (result === null && run.failure.value === null) {
-        startFailure.value = t("world.screen.noBridge", "This build cannot start a render. Local rendering needs the desktop app.");
+        startFailure.value = t(
+            "world.screen.noBridge",
+            "This build cannot start a render. Local rendering needs the desktop app.",
+        );
     }
     // A render that ended one way or another changes what can be carried on, so
     // the offers are re-read rather than left showing a render that just finished.
@@ -548,14 +580,24 @@ async function resume(renderId: string): Promise<void> {
                 }}
             </p>
             <ul class="mb-world-screen__running-list">
-                <li v-for="renderId in runningElsewhere" :key="renderId" class="mb-world-screen__running-row">
+                <li
+                    v-for="renderId in runningElsewhere"
+                    :key="renderId"
+                    class="mb-world-screen__running-row"
+                >
                     <span class="mb-world-screen__running-id">{{ renderId }}</span>
                     <!-- The accessible name opens with the visible label and then names
                          the render, so several identical buttons are told apart without
                          the announced name diverging from the one on screen. -->
                     <v-btn
                         :disabled="run.active.value"
-                        :aria-label="t('world.screen.watchOne', { render: renderId }, 'Follow this render, {render}')"
+                        :aria-label="
+                            t(
+                                'world.screen.watchOne',
+                                { render: renderId },
+                                'Follow this render, {render}',
+                            )
+                        "
                         variant="text"
                         size="small"
                         @click="watchRender(renderId)"
@@ -585,13 +627,25 @@ async function resume(renderId: string): Promise<void> {
             below the run panel rather than beside the location card above.
         -->
         <RemoteHostingPanel
-            v-if="run.state.value === 'finished' && runTarget !== null && run.renderId.value !== null && lastMaps.length > 0"
+            v-if="
+                run.state.value === 'finished' &&
+                runTarget !== null &&
+                run.renderId.value !== null &&
+                lastMaps.length > 0
+            "
             :target="runTarget"
             :render-id="run.renderId.value"
             :maps="lastMaps"
         />
 
-        <v-alert v-if="startFailure" type="error" density="compact" variant="tonal" class="mb-3" role="alert">
+        <v-alert
+            v-if="startFailure"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="mb-3"
+            role="alert"
+        >
             {{ startFailure }}
         </v-alert>
 
@@ -620,7 +674,13 @@ async function resume(renderId: string): Promise<void> {
             </template>
         </v-alert>
 
-        <v-alert v-if="projectFailure" type="warning" density="compact" variant="tonal" class="mb-3">
+        <v-alert
+            v-if="projectFailure"
+            type="warning"
+            density="compact"
+            variant="tonal"
+            class="mb-3"
+        >
             {{
                 t(
                     "world.screen.projectFailed",
@@ -650,7 +710,10 @@ async function resume(renderId: string): Promise<void> {
 
         <v-card v-if="wizardOpen" class="mb-world-screen__card">
             <v-card-text>
-                <header class="mb-world-screen__intro" data-tutorial-anchor="world-render-explainer">
+                <header
+                    class="mb-world-screen__intro"
+                    data-tutorial-anchor="world-render-explainer"
+                >
                     <h2 class="mb-world-screen__title">
                         {{ t("world.screen.title", "Make a map, the quick way") }}
                     </h2>

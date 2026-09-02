@@ -31,6 +31,7 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
 import AppSettings from "./AppSettings.vue";
+import appSettingsSource from "./AppSettings.vue?raw";
 import ConsentSettingsRow from "../setup/ConsentSettingsRow.vue";
 import SetupLanguagePanel from "../setup/SetupLanguagePanel.vue";
 import { currentPlatform, mapStorageExample, readMapStorageDir } from "../setup/mapStorage.js";
@@ -484,6 +485,16 @@ describe("the storage folder", () => {
 });
 
 describe("the Java runtime", () => {
+    it("binds artifact facts from the report value in the shipped settings template", () => {
+        const source = appSettingsSource;
+        expect(source).toContain(":render-engine-version=");
+        expect(source).toContain("java.report.value?.renderEngine?.version ?? null");
+        expect(source).toContain(
+            ':render-engine-path="java.report.value?.renderEngine?.path ?? null"',
+        );
+        expect(source).not.toContain(':render-engine-version="java.renderEngineVersion.value"');
+    });
+
     it("says this build cannot report it rather than showing an empty readout", async () => {
         open({ anchor: "java-runtime" });
         await settle();
@@ -500,6 +511,37 @@ describe("the Java runtime", () => {
         const text = requireSection("java-runtime").textContent ?? "";
         expect(text).toContain("BlueMap engine (Java) 5.22-27 on Java 25.0.3");
         expect(text).toContain("not a reading of this machine now");
+    });
+
+    it("renders the real verified engine artifact facts through the AppSettings bridge", async () => {
+        const bridge = fakeBridge();
+        bridge.javaRuntime = () =>
+            Promise.resolve({
+                installation: {
+                    source: "provisioned",
+                    executable: "C:/Worldlens/java/bin/java.exe",
+                    home: "C:/Worldlens/java",
+                    version: { feature: 25, version: "25.0.4.1", runtime: "Temurin" },
+                },
+                rejected: [],
+                required: 25,
+                renderEngine: {
+                    available: true,
+                    version: "5.23",
+                    source: "bundled",
+                    path: "C:/Worldlens/resources/jars/cli-5.23-shadow.jar",
+                    reason: null,
+                },
+            });
+        (globalThis as { worldlens?: unknown }).worldlens = bridge;
+        open({ anchor: "render-engine-choice" });
+        await settle();
+
+        const text = requireSection("render-engine-choice").textContent ?? "";
+        expect(text).toContain("5.23");
+        expect(text).toContain("bundled");
+        expect(text).toContain("C:/Worldlens/resources/jars/cli-5.23-shadow.jar");
+        expect(text).toContain("Java 25.0.4.1");
     });
 });
 
