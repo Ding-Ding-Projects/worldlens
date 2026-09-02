@@ -87,24 +87,36 @@ and compared before every write. Perhaps 10 lines.
 **Severity**: medium - a wrong account list on screen, in the surface that decides which
 credential publishes somebody's world.
 
-### 4. Six tests were already failing on `main` before this branch
+### 4. Tests were already failing on `main` before this branch
 
-Confirmed by stashing this branch's changes and re-running: the same six fail either way.
+Established by checking the previous commit's version of the same files out and re-running
+the affected suites: **9 failures, none of them caused by this branch** (this branch has 8,
+because one of the nine is a flake - see below - and 15 tests were added).
 
-- `cirender/cloudConfig.test.ts` - "persists the upstream Java engine explicitly for the
-  GitHub Actions route"
 - `cirender/sync.test.ts` - "refuses a world with no project file, and says where one comes
-  from" (asserts the message contains "wizard"; the message now says "Create a cloud render
-  configuration")
+  from". Asserts the message contains "wizard"; the message now says "Create a cloud render
+  configuration". A test that was not updated when its message was rewritten - the clearest
+  of the set, and a one-line fix.
 - `cirender/sync.test.ts` - four cases under "a red run whose first later failure is
-  Pages-only"
+  Pages-only".
+- `cirender/cloudConfig.test.ts` - "persists the upstream Java engine explicitly for the
+  GitHub Actions route".
+- `ghcli/accounts.test.ts` - "signs out one exact host/login and proves the account
+  disappeared".
+- `ui/.../GhCliAccountsList.test.ts` - "puts per-account sign-out behind the destructive
+  confirmation".
+- `backup/runner.pause.test.ts` - "resuming after a pause during the upload phase skips
+  assets already uploaded". **Flaky**: it failed on the baseline run and passed on the
+  branch run, from identical code paths. A time-dependent test is worth fixing on its own
+  terms, because an intermittent red is worse for trust than a steady one.
 
-The second one is plainly a test that was not updated when its message was rewritten. The
-others need reading before anyone can say which side is wrong.
+Beyond these areas the picture is worse: a full `packages/app packages/ui` run finishes
+with **101 failing tests across 32 files** (8990 passing), plus one worker timing out on
+`snapshotSaved`. None of that was investigated here.
 
-**Severity**: high - not because the failures are necessarily real bugs, but because a
-suite that is red by default stops being a signal, and that is what let the retry gap sit
-unnoticed.
+**Severity**: high - not because each failure is necessarily a real bug, but because a
+suite this red stops being a signal, and a suite that is not a signal is how the retry gap
+sat unnoticed until it cost somebody a render.
 
 ## Fixed on this branch, recorded here for completeness
 
