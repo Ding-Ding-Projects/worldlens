@@ -7,6 +7,7 @@ import {
     flavourCard,
     groupVersionFamilies,
     groupVersions,
+    versionFamily,
     memorySliderMax,
     isModLoaderFlavour,
     recommendedMemoryMb,
@@ -16,8 +17,18 @@ import {
 } from "./wizardModel.js";
 import type { CatalogueVersionEntry } from "./serverStore.js";
 
-function entry(version: string, stability: "release" | "snapshot" = "release"): CatalogueVersionEntry {
-    return { version, stability, javaFeature: 21, downloadUrl: null, sha256: null };
+function entry(
+    version: string,
+    stability: "release" | "snapshot" = "release",
+): CatalogueVersionEntry {
+    return {
+        version,
+        stability,
+        javaFeature: 21,
+        downloadUrl: null,
+        sha256: null,
+        releasedAt: null,
+    };
 }
 
 describe("FLAVOUR_CARDS", () => {
@@ -69,6 +80,31 @@ describe("groupVersions", () => {
         const groups = groupVersions([entry("1.21.1")]);
         expect(groups).toHaveLength(1);
     });
+
+    it("groups exact releases into numbered families and keeps counts and recommendations", () => {
+        const groups = groupVersions([
+            entry("1.21.4"),
+            entry("1.21.3"),
+            entry("1.20.6"),
+            entry("24w45a", "snapshot"),
+        ]);
+        expect(groups[0]?.families.map((family) => [family.family, family.count])).toEqual([
+            ["1.21.x", 2],
+            ["1.20.x", 1],
+        ]);
+        expect(groups[0]?.families[0]?.recommended).toBe(true);
+        expect(groups[0]?.families[0]?.latestVersion).toBe("1.21.4");
+        expect(groups[1]?.families[0]?.family).toBe("24 snapshots");
+    });
+
+    it("uses a bounded fallback family for unusual exact identifiers", () => {
+        expect(versionFamily("old-alpha-build")).toBe("Other versions");
+    });
+
+    it("keeps modern named snapshots with their numbered snapshot family", () => {
+        expect(versionFamily("26.3-snapshot-9")).toBe("26.3 snapshots");
+        expect(versionFamily("26w05a")).toBe("26 snapshots");
+    });
 });
 
 describe("groupVersionFamilies", () => {
@@ -83,7 +119,7 @@ describe("groupVersionFamilies", () => {
         expect(families.map((family) => family.label)).toEqual([
             "1.21.x",
             "1.20.x",
-            "Snapshots 25w01a",
+            "25 snapshots",
         ]);
         expect(families[0]?.versions.map((version) => version.version)).toEqual([
             "1.21.1",
@@ -114,10 +150,11 @@ describe("filterVersions", () => {
     });
 
     it("regex mode uses the pattern", () => {
-        expect(filterVersions(versions, "^1\\.2[01]", true).map((v) => v.version).sort()).toEqual([
-            "1.20.4",
-            "1.21.1",
-        ]);
+        expect(
+            filterVersions(versions, "^1\\.2[01]", true)
+                .map((v) => v.version)
+                .sort(),
+        ).toEqual(["1.20.4", "1.21.1"]);
     });
 
     it("an invalid pattern matches nothing rather than throwing", () => {

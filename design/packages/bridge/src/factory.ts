@@ -41,10 +41,7 @@
  */
 import type { BridgeTransport } from "./transport.js";
 import { toBridgeCoordinates, toBridgeDiscoveryResult } from "./worldSourceBridge.js";
-import type {
-    WorldSourceDiscoverAnswer,
-    WorldSourceReferenceAnswer,
-} from "./worldSourceBridge.js";
+import type { WorldSourceDiscoverAnswer, WorldSourceReferenceAnswer } from "./worldSourceBridge.js";
 
 /**
  * Channel names the main process registers. Written out here rather than imported,
@@ -101,7 +98,6 @@ type ProjectSaveAnswer =
 const SCHOOL_MODE_CHANGED_CHANNEL = "schoolMode:changed";
 const RELEASE_LEDGER_CHANNEL = "release-ledger:read";
 
-
 /**
  * The addon record as it crosses the bridge. Deliberately opaque: its real shape is
  * declared by the feature module that owns it, on the far side of a dependency this
@@ -127,7 +123,6 @@ interface AddonsBridge {
     safeModeState(): Promise<boolean>;
     diagnostics(): Promise<Array<{ addonId: string; phase: string; message: string }>>;
 }
-
 
 export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBridge {
     /**
@@ -169,8 +164,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             disable: (credential: unknown) => transport.invoke("schoolMode:disable", credential),
             reset: () => transport.invoke("schoolMode:reset"),
             onChanged: (listener: BridgeListener) => {
-                const handler = (_event: unknown, result: unknown): void =>
-                    listener(result);
+                const handler = (_event: unknown, result: unknown): void => listener(result);
                 transport.on(SCHOOL_MODE_CHANGED_CHANNEL, handler);
                 return () => transport.off(SCHOOL_MODE_CHANGED_CHANNEL, handler);
             },
@@ -199,43 +193,56 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             start: (id: unknown) => transport.invoke("mcserver:start", id),
             stop: (id: unknown, options: unknown) => transport.invoke("mcserver:stop", id, options),
             config: {
-                describe: (id: unknown, path: unknown) => transport.invoke("mcserver:config:describe", id, path),
-                apply: (id: unknown, path: unknown, body: unknown) => transport.invoke("mcserver:config:apply", id, path, body),
+                describe: (id: unknown, path: unknown) =>
+                    transport.invoke("mcserver:config:describe", id, path),
+                apply: (id: unknown, path: unknown, body: unknown) =>
+                    transport.invoke("mcserver:config:apply", id, path, body),
             },
             files: {
-                list: (id: unknown, dir: unknown) => transport.invoke("mcserver:file:list", id, dir),
-                read: (id: unknown, path: unknown) => transport.invoke("mcserver:file:read", id, path),
-                write: (id: unknown, path: unknown, body: unknown) => transport.invoke("mcserver:file:write", id, path, body),
+                list: (id: unknown, dir: unknown) =>
+                    transport.invoke("mcserver:file:list", id, dir),
+                read: (id: unknown, path: unknown) =>
+                    transport.invoke("mcserver:file:read", id, path),
+                write: (id: unknown, path: unknown, body: unknown) =>
+                    transport.invoke("mcserver:file:write", id, path, body),
             },
-            logTail: (id: unknown, lines: unknown) => transport.invoke("mcserver:log:tail", id, lines),
+            logTail: (id: unknown, lines: unknown) =>
+                transport.invoke("mcserver:log:tail", id, lines),
             adopt: {
                 discover: () => transport.invoke("mcserver:adopt:discover"),
                 confirm: (request: unknown) => transport.invoke("mcserver:adopt", request),
-                release: (id: unknown, options: unknown) => transport.invoke("mcserver:adopt:release", id, options),
+                release: (id: unknown, options: unknown) =>
+                    transport.invoke("mcserver:adopt:release", id, options),
             },
             worlds: {
                 list: (id: unknown) => transport.invoke("mcserver:worlds:list", id),
             },
             backup: {
-                create: (id: unknown, request: unknown) => transport.invoke("mcserver:backup:create", id, request),
-                list: (owner: unknown, repo: unknown) => transport.invoke("mcserver:backup:list", owner, repo),
-                restore: (id: unknown, request: unknown) => transport.invoke("mcserver:backup:restore", id, request),
+                create: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:backup:create", id, request),
+                list: (owner: unknown, repo: unknown) =>
+                    transport.invoke("mcserver:backup:list", owner, repo),
+                restore: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:backup:restore", id, request),
             },
             webConsole: {
                 status: () => transport.invoke("mcserver:webconsole:status"),
                 start: (options: unknown) => transport.invoke("mcserver:webconsole:start", options),
                 stop: () => transport.invoke("mcserver:webconsole:stop"),
-                setPassword: (password: unknown) => transport.invoke("mcserver:webconsole:setPassword", password),
+                setPassword: (password: unknown) =>
+                    transport.invoke("mcserver:webconsole:setPassword", password),
                 bind: () => transport.invoke("mcserver:webconsole:bind"),
             },
             // The RCON password itself never crosses this bridge in either direction: the
             // main process holds it, uses it, and only ever hands back an Answer<T> saying
             // whether a call worked.
             rconTest: (id: unknown) => transport.invoke("mcserver:rcon:test", id),
-            consoleOpen: (id: unknown, tail: unknown) => transport.invoke("mcserver:console:open", id, tail),
+            consoleOpen: (id: unknown, tail: unknown) =>
+                transport.invoke("mcserver:console:open", id, tail),
             consoleSend: (id: unknown, sessionId: unknown, command: unknown) =>
                 transport.invoke("mcserver:console:send", id, sessionId, command),
-            consoleClose: (id: unknown, sessionId: unknown) => transport.invoke("mcserver:console:close", id, sessionId),
+            consoleClose: (id: unknown, sessionId: unknown) =>
+                transport.invoke("mcserver:console:close", id, sessionId),
             onConsoleLine: (listener: BridgeListener) => {
                 const forward = (_event: unknown, sessionId: string, event: unknown): void =>
                     listener(sessionId, event);
@@ -246,20 +253,29 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
             players: {
                 list: (id: unknown) => transport.invoke("mcserver:players:list", id),
-                action: (id: unknown, request: unknown) => transport.invoke("mcserver:players:action", id, request),
+                action: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:players:action", id, request),
             },
             plugins: {
                 search: (request: unknown) => transport.invoke("mcserver:plugins:search", request),
-                versions: (request: unknown) => transport.invoke("mcserver:plugins:versions", request),
-                install: (id: unknown, request: unknown) => transport.invoke("mcserver:plugins:install", id, request),
-                list: (id: unknown, request: unknown) => transport.invoke("mcserver:plugins:list", id, request),
-                toggle: (id: unknown, request: unknown) => transport.invoke("mcserver:plugins:toggle", id, request),
-                remove: (id: unknown, path: unknown) => transport.invoke("mcserver:plugins:remove", id, path),
-                updates: (request: unknown) => transport.invoke("mcserver:plugins:updates", request),
+                versions: (request: unknown) =>
+                    transport.invoke("mcserver:plugins:versions", request),
+                install: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:plugins:install", id, request),
+                list: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:plugins:list", id, request),
+                toggle: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:plugins:toggle", id, request),
+                remove: (id: unknown, path: unknown) =>
+                    transport.invoke("mcserver:plugins:remove", id, path),
+                updates: (request: unknown) =>
+                    transport.invoke("mcserver:plugins:updates", request),
             },
             catalogue: {
                 list: () => transport.invoke("mcserver:catalogue:list"),
                 refresh: () => transport.invoke("mcserver:catalogue:refresh"),
+                verifyWiki: (version: unknown) =>
+                    transport.invoke("mcserver:catalogue:wikiVerify", version),
             },
             java: {
                 resolve: (version: unknown) => transport.invoke("mcserver:java:resolve", version),
@@ -276,14 +292,16 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             create: (request: unknown) => transport.invoke("mcserver:create", request),
             aws: {
                 plan: (request: unknown) => transport.invoke("mcserver:aws:plan", request),
-                provision: (request: unknown) => transport.invoke("mcserver:aws:provision", request),
+                provision: (request: unknown) =>
+                    transport.invoke("mcserver:aws:provision", request),
                 teardown: (request: unknown) => transport.invoke("mcserver:aws:teardown", request),
                 regions: () => transport.invoke("mcserver:aws:regions"),
                 instanceTypes: () => transport.invoke("mcserver:aws:instanceTypes"),
             },
             awsAccounts: {
                 list: () => transport.invoke("mcserver:aws:accounts"),
-                setAlias: (request: unknown) => transport.invoke("mcserver:aws:accountAlias", request),
+                setAlias: (request: unknown) =>
+                    transport.invoke("mcserver:aws:accountAlias", request),
                 credits: (request: unknown) => transport.invoke("mcserver:aws:credits", request),
             },
         },
@@ -301,9 +319,12 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         addons: {
             list: () => transport.invoke("addons:list"),
             importPackage: () => transport.invoke("addons:import"),
-            setEnabled: (id: unknown, enabled: unknown) => transport.invoke("addons:setEnabled", id, enabled),
-            grant: (id: unknown, capabilities: unknown) => transport.invoke("addons:grant", id, capabilities),
-            revoke: (id: unknown, capability: unknown) => transport.invoke("addons:revoke", id, capability),
+            setEnabled: (id: unknown, enabled: unknown) =>
+                transport.invoke("addons:setEnabled", id, enabled),
+            grant: (id: unknown, capabilities: unknown) =>
+                transport.invoke("addons:grant", id, capabilities),
+            revoke: (id: unknown, capability: unknown) =>
+                transport.invoke("addons:revoke", id, capability),
             remove: (id: unknown) => transport.invoke("addons:remove", id),
             setSafeMode: (enabled: unknown) => transport.invoke("addons:safeMode", enabled),
             safeModeState: () => transport.invoke("addons:safeModeState"),
@@ -345,7 +366,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         listMinecraftFolders: () => transport.invoke("world:folders"),
         mountMinecraftFolder: (folder: unknown) => transport.invoke("world:mount", folder),
         unmountMinecraftFolder: (id: unknown) => transport.invoke("world:unmount", id),
-        labelMinecraftFolder: (id: unknown, label: unknown) => transport.invoke("world:label", id, label),
+        labelMinecraftFolder: (id: unknown, label: unknown) =>
+            transport.invoke("world:label", id, label),
         scanMinecraftFolder: (id: unknown) => transport.invoke("world:scan", id),
 
         pathForDroppedFile: (file: File) => {
@@ -368,19 +390,20 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         activeRenders: () => transport.invoke("render:active"),
         listRenders: () => transport.invoke("render:list"),
         interruptedRenders: () => transport.invoke("render:interrupted"),
-        resumeRender: (renderId: unknown, maps: unknown) => transport.invoke("render:resume", renderId, maps),
+        resumeRender: (renderId: unknown, maps: unknown) =>
+            transport.invoke("render:resume", renderId, maps),
         dismissResume: (renderId: unknown) => transport.invoke("render:dismissResume", renderId),
         renderEngine: (renderId: unknown) => transport.invoke("render:engine", renderId),
         mapStorageDirectory: () => transport.invoke("render:storageDirectory"),
-        setMapStorageDirectory: (value: unknown) => transport.invoke("render:setStorageDirectory", value),
+        setMapStorageDirectory: (value: unknown) =>
+            transport.invoke("render:setStorageDirectory", value),
 
         javaRuntime: () => transport.invoke("java:runtime"),
         javaDownloadConsent: () => transport.invoke("java:downloadConsent"),
         acceptJavaDownloadConsent: () => transport.invoke("java:acceptDownloadConsent"),
         provisionJavaRuntime: () => transport.invoke("java:provision"),
         onJavaProvisionEvent: (listener: BridgeListener) => {
-            const forward = (_event: unknown, payload: unknown): void =>
-                listener(payload);
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("java:provisionEvent", forward);
             return () => {
                 transport.off("java:provisionEvent", forward);
@@ -391,8 +414,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         installSysdeps: (ids: unknown) => transport.invoke("sysdeps:install", ids),
         cancelSysdepInstall: () => transport.invoke("sysdeps:cancel"),
         onSysdepInstallEvent: (listener: BridgeListener) => {
-            const forward = (_event: unknown, payload: unknown): void =>
-                listener(payload);
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("sysdeps:installEvent", forward);
             return () => {
                 transport.off("sysdeps:installEvent", forward);
@@ -430,8 +452,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         listDownloads: () => transport.invoke("download:list"),
 
         onDownloadEvent: (listener: BridgeListener) => {
-            const forward = (_event: unknown, payload: unknown): void =>
-                listener(payload);
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("download:event", forward);
             return () => {
                 transport.off("download:event", forward);
@@ -439,8 +460,10 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         },
 
         ghCliListAccounts: () => transport.invoke("ghCli:listAccounts"),
-        ghCliSwitchAccount: (host: unknown, login: unknown) => transport.invoke("ghCli:switchAccount", { host, login }),
-        ghCliLogoutAccount: (host: unknown, login: unknown) => transport.invoke("ghCli:logoutAccount", { host, login }),
+        ghCliSwitchAccount: (host: unknown, login: unknown) =>
+            transport.invoke("ghCli:switchAccount", { host, login }),
+        ghCliLogoutAccount: (host: unknown, login: unknown) =>
+            transport.invoke("ghCli:logoutAccount", { host, login }),
         ghCliStartLogin: (expectedLogin: unknown) =>
             transport.invoke(
                 "ghCli:startLogin",
@@ -450,8 +473,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         ghCliLegacyCredentialStatus: () => transport.invoke("ghCli:legacyCredentialStatus"),
         ghCliRemoveLegacyCredentials: () => transport.invoke("ghCli:removeLegacyCredentials"),
         onGhCliLoginState: (listener: BridgeListener) => {
-            const forward = (_event: unknown, payload: unknown): void =>
-                listener(payload);
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("ghCli:loginState", forward);
             return () => {
                 transport.off("ghCli:loginState", forward);
@@ -460,11 +482,14 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
 
         config: {
             readFolder: (folder: unknown) => transport.invoke("config:readFolder", folder),
-            writeFiles: (folder: unknown, files: unknown) => transport.invoke("config:writeFiles", folder, files),
-            deleteFiles: (folder: unknown, paths: unknown) => transport.invoke("config:deleteFiles", folder, paths),
+            writeFiles: (folder: unknown, files: unknown) =>
+                transport.invoke("config:writeFiles", folder, files),
+            deleteFiles: (folder: unknown, paths: unknown) =>
+                transport.invoke("config:deleteFiles", folder, paths),
             pickDirectory: (options: unknown) => transport.invoke("config:pickDirectory", options),
             pickFile: (options: unknown) => transport.invoke("config:pickFile", options),
-            testSqlConnection: (request: unknown) => transport.invoke("config:testSqlConnection", request),
+            testSqlConnection: (request: unknown) =>
+                transport.invoke("config:testSqlConnection", request),
             suggestConfigFolder: () => transport.invoke("config:suggestFolder"),
 
             // The separator of whatever is *answering*, which the transport knows and this
@@ -506,11 +531,11 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             records: () => transport.invoke("worldrepo:records"),
             resume: (target: unknown) => transport.invoke("worldrepo:resume", target),
             remoteTip: (request: unknown) => transport.invoke("worldrepo:remoteTip", request),
-            adoptionProbe: (request: unknown) => transport.invoke("worldrepo:adoptionProbe", request),
+            adoptionProbe: (request: unknown) =>
+                transport.invoke("worldrepo:adoptionProbe", request),
             adoptionPlan: (request: unknown) => transport.invoke("worldrepo:adoptionPlan", request),
             onWorldRepoEvent: (listener: BridgeListener) => {
-                const forward = (_event: unknown, payload: unknown): void =>
-                    listener(payload);
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
                 transport.on("worldrepo:event", forward);
                 return () => {
                     transport.off("worldrepo:event", forward);
@@ -523,16 +548,17 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             detect: (target: unknown) => transport.invoke("worldsource:ssh:detect", target),
             trustHostKey: (target: unknown, fingerprint: unknown) =>
                 transport.invoke("worldsource:ssh:trustHostKey", target, fingerprint),
-            checkPath: (path: unknown, kind: unknown) => transport.invoke("worldsource:ssh:checkPath", path, kind),
+            checkPath: (path: unknown, kind: unknown) =>
+                transport.invoke("worldsource:ssh:checkPath", path, kind),
             survey: (target: unknown, path: unknown, kind: unknown) =>
                 transport.invoke("worldsource:ssh:survey", target, path, kind),
-            diff: (previous: unknown, current: unknown) => transport.invoke("worldsource:ssh:diff", previous, current),
+            diff: (previous: unknown, current: unknown) =>
+                transport.invoke("worldsource:ssh:diff", previous, current),
             fetch: (request: unknown) => transport.invoke("worldsource:ssh:fetch", request),
             cancel: (id: unknown) => transport.invoke("worldsource:ssh:cancel", id),
             active: () => transport.invoke("worldsource:ssh:active"),
             onSshWorldSourceEvent: (listener: BridgeListener) => {
-                const forward = (_event: unknown, payload: unknown): void =>
-                    listener(payload);
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
                 transport.on("worldsource:ssh:event", forward);
                 return () => {
                     transport.off("worldsource:ssh:event", forward);
@@ -548,10 +574,10 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             cancel: (fetchId: unknown) => transport.invoke("dockerworld:cancel", fetchId),
             active: () => transport.invoke("dockerworld:active"),
             fingerprint: (source: unknown) => transport.invoke("dockerworld:fingerprint", source),
-            fingerprintsEqual: (a: unknown, b: unknown) => transport.invoke("dockerworld:fingerprintsEqual", a, b),
+            fingerprintsEqual: (a: unknown, b: unknown) =>
+                transport.invoke("dockerworld:fingerprintsEqual", a, b),
             onDockerWorldEvent: (listener: BridgeListener) => {
-                const forward = (_event: unknown, payload: unknown): void =>
-                    listener(payload);
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
                 transport.on("dockerworld:event", forward);
                 return () => {
                     transport.off("dockerworld:event", forward);
@@ -563,7 +589,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             create: (request: unknown) => transport.invoke("dockerhosting:create", request),
             inspect: () => transport.invoke("dockerhosting:inspect"),
             authorize: (request: unknown) => transport.invoke("dockerhosting:authorize", request),
-            removeToken: (containerId: unknown) => transport.invoke("dockerhosting:removeToken", containerId),
+            removeToken: (containerId: unknown) =>
+                transport.invoke("dockerhosting:removeToken", containerId),
             mutate: (request: unknown) => transport.invoke("dockerhosting:mutate", request),
             logs: (containerId: unknown, tail = 200) =>
                 transport.invoke("dockerhosting:logs", { id: containerId, tail }),
@@ -580,8 +607,10 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         runtimeModes: () => transport.invoke("runtime:modes"),
         containerOffers: () => transport.invoke("runtime:containers"),
         reattachContainer: (renderId: unknown) => transport.invoke("runtime:reattach", renderId),
-        cancelContainer: (renderId: unknown) => transport.invoke("runtime:cancelContainer", renderId),
-        dismissContainer: (renderId: unknown) => transport.invoke("runtime:dismissContainer", renderId),
+        cancelContainer: (renderId: unknown) =>
+            transport.invoke("runtime:cancelContainer", renderId),
+        dismissContainer: (renderId: unknown) =>
+            transport.invoke("runtime:dismissContainer", renderId),
 
         parseWorldSource: async (text: unknown) => {
             const reference = (await transport.invoke(
@@ -601,7 +630,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         startRemoteHosting: (request: unknown) => transport.invoke("hosting:start", request),
         remoteHostingRecords: () => transport.invoke("hosting:records"),
         remoteHostingRecord: (hostingId: unknown) => transport.invoke("hosting:record", hostingId),
-        refreshRemoteHosting: (hostingId: unknown) => transport.invoke("hosting:refresh", hostingId),
+        refreshRemoteHosting: (hostingId: unknown) =>
+            transport.invoke("hosting:refresh", hostingId),
         stopRemoteHosting: (hostingId: unknown) => transport.invoke("hosting:stop", hostingId),
         dashboardSnapshot: (): Promise<unknown> => transport.invoke("dashboard:snapshot"),
         dashboardRefresh: (options?: unknown): Promise<unknown> =>
@@ -609,15 +639,13 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         dashboardCancel: (): Promise<{ readonly cancelled: boolean }> =>
             transport.invoke("dashboard:cancel") as Promise<{ readonly cancelled: boolean }>,
         onRemoteHostingEvent: (listener: BridgeListener) => {
-            const forward = (_event: unknown, payload: unknown): void =>
-                listener(payload);
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("hosting:event", forward);
             return () => {
                 transport.off("hosting:event", forward);
             };
         },
-        dockerHostingInspect: (): Promise<unknown> =>
-            transport.invoke("dockerhosting:inspect"),
+        dockerHostingInspect: (): Promise<unknown> => transport.invoke("dockerhosting:inspect"),
         dockerHostingCreate: (request: unknown): Promise<unknown> =>
             transport.invoke("dockerhosting:create", request),
         dockerHostingMutate: (request: unknown): Promise<unknown> =>
@@ -633,7 +661,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             transport.on("dockerhosting:event", forward);
             return () => transport.off("dockerhosting:event", forward);
         },
-        browseRemoteDirectory: (target: unknown, path: unknown) => transport.invoke("remote:browse", target, path),
+        browseRemoteDirectory: (target: unknown, path: unknown) =>
+            transport.invoke("remote:browse", target, path),
 
         ciRenderPreflight: (request: unknown) => transport.invoke("cirender:preflight", request),
         startCiRender: (request: unknown) => transport.invoke("cirender:start", request),
@@ -650,30 +679,43 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                 transport.off("cirender:event", forward);
             };
         },
-        createCiCloudConfig: (request: unknown) => transport.invoke("cirender:createCloudConfig", request),
+        createCiCloudConfig: (request: unknown) =>
+            transport.invoke("cirender:createCloudConfig", request),
         cancelCiCloudConfig: (operationId: unknown) =>
             transport.invoke("cirender:cancelCloudConfig", operationId),
 
         ciRenderOwners: (accountId: unknown) =>
-            transport.invoke("cirender:owners", accountId === undefined ? undefined : { accountId }),
+            transport.invoke(
+                "cirender:owners",
+                accountId === undefined ? undefined : { accountId },
+            ),
         ciRenderRepositories: (accountId: unknown) =>
             transport.invoke(
                 "cirender:repositories",
                 accountId === undefined ? undefined : { accountId },
             ),
-        suggestCiRepoName: (sourceName: unknown) => transport.invoke("cirender:suggestRepoName", sourceName),
+        suggestCiRepoName: (sourceName: unknown) =>
+            transport.invoke("cirender:suggestRepoName", sourceName),
         checkCiRepoName: (request: unknown) => transport.invoke("cirender:checkRepoName", request),
-        createCiRepository: (request: unknown) => transport.invoke("cirender:createRepository", request),
+        createCiRepository: (request: unknown) =>
+            transport.invoke("cirender:createRepository", request),
         ciRenderScheduleRead: (owner: unknown, repo: unknown, accountId: unknown) =>
             transport.invoke("cirender:scheduleRead", { owner, repo, accountId }),
-        ciRenderScheduleWrite: (syncId: unknown, enabled: unknown, cadence: unknown, accountId: unknown) =>
-            transport.invoke("cirender:scheduleWrite", { syncId, enabled, cadence, accountId }),
+        ciRenderScheduleWrite: (
+            syncId: unknown,
+            enabled: unknown,
+            cadence: unknown,
+            accountId: unknown,
+        ) => transport.invoke("cirender:scheduleWrite", { syncId, enabled, cadence, accountId }),
 
-        bootstrapCiRepository: (owner: unknown, repo: unknown, accountId: unknown, publishToPages: unknown) =>
-            transport.invoke("cirender:bootstrap", { owner, repo, accountId, publishToPages }),
+        bootstrapCiRepository: (
+            owner: unknown,
+            repo: unknown,
+            accountId: unknown,
+            publishToPages: unknown,
+        ) => transport.invoke("cirender:bootstrap", { owner, repo, accountId, publishToPages }),
         onCiBootstrapEvent: (listener: BridgeListener) => {
-            const forward = (_event: unknown, payload: unknown): void =>
-                listener(payload);
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("cirender:bootstrapEvent", forward);
             return () => {
                 transport.off("cirender:bootstrapEvent", forward);
@@ -699,21 +741,23 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         },
 
         exportStaticMap: (request: unknown) => transport.invoke("map-export:start", request),
-        cancelStaticMapExport: (exportId: unknown) => transport.invoke("map-export:cancel", exportId),
+        cancelStaticMapExport: (exportId: unknown) =>
+            transport.invoke("map-export:cancel", exportId),
         activeStaticMapExports: () => transport.invoke("map-export:active"),
         issueStaticMapOverwriteToken: () => transport.invoke("map-export:overwrite-token"),
-        resumeStaticMapExport: (exportId: unknown) => transport.invoke("map-export:resume", exportId),
+        resumeStaticMapExport: (exportId: unknown) =>
+            transport.invoke("map-export:resume", exportId),
         staticMapExportLedger: () => transport.invoke("map-export:ledger"),
         onStaticMapExportEvent: (listener: BridgeListener) => {
-            const forward = (_event: unknown, payload: unknown): void =>
-                listener(payload);
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("map-export:event", forward);
             return () => {
                 transport.off("map-export:event", forward);
             };
         },
 
-        previewAvailability: (renderId: unknown) => transport.invoke("preview:availability", renderId),
+        previewAvailability: (renderId: unknown) =>
+            transport.invoke("preview:availability", renderId),
         startPreview: (request: unknown) => transport.invoke("preview:start", request),
         stopPreview: () => transport.invoke("preview:stop"),
         previewStatus: () => transport.invoke("preview:status"),
@@ -722,8 +766,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         setPreviewNetworkDefault: (allowNetwork: boolean) =>
             transport.invoke("preview:setNetworkDefault", allowNetwork),
         onPreviewEvent: (listener: BridgeListener) => {
-            const forward = (_event: unknown, payload: unknown): void =>
-                listener(payload);
+            const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("preview:event", forward);
             return () => {
                 transport.off("preview:event", forward);
@@ -759,18 +802,22 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             // namespace once and a build that exposed only half of it would report itself as
             // able to do both. Discovery and rendering arrived from separate lanes and keep
             // separate channels behind this.
-            discover: (worldFolder: unknown) => transport.invoke("structures:discover", worldFolder),
+            discover: (worldFolder: unknown) =>
+                transport.invoke("structures:discover", worldFolder),
             render: (filePath: unknown) => transport.invoke("structures:render", filePath),
         },
 
         project: {
             read: (worldFolder: unknown) => transport.invoke("project:read", worldFolder),
             discover: (worldFolder: unknown) => transport.invoke("project:discover", worldFolder),
-            discoverMany: (worldFolders: unknown) => transport.invoke("project:discoverMany", worldFolders),
+            discoverMany: (worldFolders: unknown) =>
+                transport.invoke("project:discoverMany", worldFolders),
             save: (worldFolder: unknown, project: unknown, replaceUnreadable: unknown) =>
                 transport.invoke("project:save", worldFolder, project, replaceUnreadable === true),
-            history: (worldFolder: unknown, limit: unknown) => transport.invoke("project:history", worldFolder, limit),
-            restore: (worldFolder: unknown, id: unknown) => transport.invoke("project:restore", worldFolder, id),
+            history: (worldFolder: unknown, limit: unknown) =>
+                transport.invoke("project:history", worldFolder, limit),
+            restore: (worldFolder: unknown, id: unknown) =>
+                transport.invoke("project:restore", worldFolder, id),
             discardOlderRevisions: (worldFolder: unknown, keep: unknown) =>
                 transport.invoke("project:discardOlder", worldFolder, keep),
             notifyAutosaveChange: (worldFolder: unknown, project: unknown) =>
@@ -778,8 +825,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             flushAutosave: (worldFolder: unknown, reason: unknown) =>
                 transport.invoke("project:autosaveFlush", worldFolder, reason),
             onAutosaveEvent: (listener: BridgeListener) => {
-                const forward = (_event: unknown, payload: unknown): void =>
-                    listener(payload);
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
                 transport.on("project:autosaveEvent", forward);
                 return () => {
                     transport.off("project:autosaveEvent", forward);
@@ -797,7 +843,10 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                         // the screen with it, so a folder that cannot be read reports its own
                         // message and the rest still list.
                         const result = (await transport.invoke("world:scan", folder.id)) as
-                            | { ok: true; scan: { worlds: { path: string; name: string | null }[] } }
+                            | {
+                                  ok: true;
+                                  scan: { worlds: { path: string; name: string | null }[] };
+                              }
                             | { ok: false; folderId: string; message: string };
                         if (!result.ok) {
                             problems.push({ world: folder.id, message: result.message });
@@ -840,7 +889,10 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                 };
             },
             readProject: async (world: unknown) => {
-                const outcome = (await transport.invoke("project:read", world)) as ProjectReadAnswer;
+                const outcome = (await transport.invoke(
+                    "project:read",
+                    world,
+                )) as ProjectReadAnswer;
                 return outcome.ok
                     ? { ok: true as const, project: outcome.project, file: outcome.path }
                     : { ok: false as const, failure: outcome.failure };
@@ -871,15 +923,20 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
 
         history: {
             status: () => transport.invoke("history:status"),
-            list: (folder: unknown, limit: unknown) => transport.invoke("history:list", folder, limit),
+            list: (folder: unknown, limit: unknown) =>
+                transport.invoke("history:list", folder, limit),
             snapshot: (folder: unknown) => transport.invoke("history:snapshot", folder),
-            revisionFiles: (folder: unknown, id: unknown) => transport.invoke("history:revisionFiles", folder, id),
+            revisionFiles: (folder: unknown, id: unknown) =>
+                transport.invoke("history:revisionFiles", folder, id),
             diff: (folder: unknown, id: unknown) => transport.invoke("history:diff", folder, id),
-            restore: (folder: unknown, id: unknown) => transport.invoke("history:restore", folder, id),
-            label: (folder: unknown, id: unknown, label: unknown) => transport.invoke("history:label", folder, id, label),
+            restore: (folder: unknown, id: unknown) =>
+                transport.invoke("history:restore", folder, id),
+            label: (folder: unknown, id: unknown, label: unknown) =>
+                transport.invoke("history:label", folder, id, label),
             discardOlderRevisions: (folder: unknown, keep: unknown) =>
                 transport.invoke("history:discardOlder", folder, keep),
-            compare: (folder: unknown, from: unknown, to: unknown) => transport.invoke("history:compare", folder, from, to),
+            compare: (folder: unknown, from: unknown, to: unknown) =>
+                transport.invoke("history:compare", folder, from, to),
             restoreFiles: (folder: unknown, id: unknown, paths: unknown) =>
                 transport.invoke("history:restoreFiles", folder, id, paths),
             restoreSettings: (folder: unknown, id: unknown, files: unknown, keys: unknown) =>
@@ -891,7 +948,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             save: (state: unknown) => transport.invoke("profilesHistory:save", state),
             list: (limit: unknown) => transport.invoke("profilesHistory:list", limit),
             restore: (id: unknown) => transport.invoke("profilesHistory:restore", id),
-            discardOlderRevisions: (keep: unknown) => transport.invoke("profilesHistory:discardOlder", keep),
+            discardOlderRevisions: (keep: unknown) =>
+                transport.invoke("profilesHistory:discardOlder", keep),
         },
 
         appSettingsHistory: {
@@ -899,7 +957,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             save: (state: unknown) => transport.invoke("settingsHistory:save", state),
             list: (limit: unknown) => transport.invoke("settingsHistory:list", limit),
             restore: (id: unknown) => transport.invoke("settingsHistory:restore", id),
-            discardOlderRevisions: (keep: unknown) => transport.invoke("settingsHistory:discardOlder", keep),
+            discardOlderRevisions: (keep: unknown) =>
+                transport.invoke("settingsHistory:discardOlder", keep),
         },
 
         gallery: {
@@ -907,7 +966,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             readAsset: (id: unknown) => transport.invoke("gallery:readAsset", id),
             add: (draft: unknown) => transport.invoke("gallery:add", draft),
             importRecords: (drafts: unknown) => transport.invoke("gallery:import", drafts),
-            update: (id: unknown, changes: unknown) => transport.invoke("gallery:update", id, changes),
+            update: (id: unknown, changes: unknown) =>
+                transport.invoke("gallery:update", id, changes),
             delete: (ids: unknown) => transport.invoke("gallery:delete", ids),
             export: (format: unknown) => transport.invoke("gallery:export", format),
         },
@@ -926,8 +986,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             cancel: (conversionId: unknown) => transport.invoke("bedrock:cancel", conversionId),
             record: (world: unknown) => transport.invoke("bedrock:record", world),
             onBedrockEvent: (listener: BridgeListener) => {
-                const forward = (_event: unknown, payload: unknown): void =>
-                    listener(payload);
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
                 transport.on("bedrock:event", forward);
                 return () => {
                     transport.off("bedrock:event", forward);
@@ -942,7 +1001,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             run: (id: unknown) => transport.invoke("repair:run", id),
             issueReport: {
                 availability: () => transport.invoke("repair:reportAvailability"),
-                draft: (id: unknown, selection: unknown) => transport.invoke("repair:reportDraft", id, selection),
+                draft: (id: unknown, selection: unknown) =>
+                    transport.invoke("repair:reportDraft", id, selection),
                 export: (content: unknown, format: unknown) =>
                     transport.invoke("repair:reportExport", { content, format }),
                 submit: (title: unknown, markdown: unknown) =>
@@ -951,10 +1011,14 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         },
 
         listBackupOwners: (accountId: unknown) => transport.invoke("backup:owners", { accountId }),
-        listBackupRepositories: (accountId: unknown) => transport.invoke("backup:repositories", { accountId }),
-        createBackupRepository: (request: unknown) => transport.invoke("backup:createRepository", request),
-        inspectBackupRepository: (request: unknown) => transport.invoke("backup:inspectRepository", request),
-        inspectBackupSource: (request: unknown) => transport.invoke("backup:inspectSource", request),
+        listBackupRepositories: (accountId: unknown) =>
+            transport.invoke("backup:repositories", { accountId }),
+        createBackupRepository: (request: unknown) =>
+            transport.invoke("backup:createRepository", request),
+        inspectBackupRepository: (request: unknown) =>
+            transport.invoke("backup:inspectRepository", request),
+        inspectBackupSource: (request: unknown) =>
+            transport.invoke("backup:inspectSource", request),
         listBackups: (request: unknown) => transport.invoke("backup:list", request),
         startBackup: (request: unknown) => transport.invoke("backup:start", request),
         cancelBackup: (backupId: unknown) => transport.invoke("backup:cancel", backupId),

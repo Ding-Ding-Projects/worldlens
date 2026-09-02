@@ -86,6 +86,7 @@ container 落 browser 睇先捉到,寫幾多 test 都捉唔到。
 影相嗰個 gate 依然係紅,而且我入 session 之前已經紅咗。原因查清楚咗,寫喺 issue #171。
 唔好用改 digest 嚟扮綠,咁樣一百幾十張相會變成「講明係新版但其實係舊版」,正正就係
 個 check 想攔嘅嘢。
+
 ## 2026-08-24: BlueMap CI installer manifest seam
 
 The Windows installer path now consumes one authoritative BlueMap CLI manifest from the
@@ -108,6 +109,44 @@ validation, diff checks, and the public vocabulary scan remain the verification 
 repository workflow linter reports exactly 18 reviewed-inventory findings outside this lane, so
 its remaining verdict is not green proof.
 
+## 2026-08-24: catalogue hardening continuation
+
+The catalogue lane now ingests the complete Mojang manifest without a fixed version cap and
+records the raw manifest digest as `sourceRevision`. Main-boundary response reads are bounded
+before decoding, redirects are rejected, all upstream response shapes and HTTPS URLs are checked,
+and cache reads validate nested records, timestamps, duplicate ids, digests, and URLs. A partial
+refresh keeps a failed flavour's prior rows but marks that flavour stale with its last fetched
+timestamp and failure reason. Missing Mojang server artifacts remain visible disabled rows.
+
+The selected exact row can ask the main process to verify its Wiki article through a bounded
+HEAD or fallback GET and a local verification cache. HTTP 403, 408, and 429 stay
+`offline-unverified`; 404 and 410 are unavailable. The wizard now pages 500 filtered rows at a
+time, groups `26.3-snapshot-9` under `26.3 snapshots`, and uses a searchable picker with its own
+regex builder for version, loader, and world-type dropdowns. New catalogue labels are in the
+English and Cantonese five-level copy catalogue.
+
+Focused evidence for this continuation: 42 relevant tests passed, including the 5001-entry
+manifest, stale partial refresh, deep cache rejection, Wiki verification cache, modern snapshot
+families, searchable picker, and mounted wizard. The IPC suite remains unrun because workspace
+package declarations for `@worldlens/parts` are not built in this checkout. The copy suite
+still reports pre-existing unrelated catalogue and em-dash failures.
+
+## 2026-08-24: complete Java version catalogue lane
+
+The version-catalogue lane now keeps the complete Mojang release and snapshot manifest instead
+of the previous newest-25 slice. The main boundary bounds HTTPS responses and timeouts, validates
+manifest/detail schemas and URLs, records a cache source revision and timestamp, and serves an
+expired cache honestly when offline. The wizard groups exact versions into persistent family rows,
+keeps plain search and the adjacent regex builder, bounds mounted rows to 500, and gives every
+exact row a Wiki action with an explicit verified, unavailable, or offline-unverified state.
+
+Focused evidence on this lane: the catalogue and UI model suites report 37 passing tests across
+large manifests, malformed and oversized responses, cache fallback, family counts and ordering,
+plain and regex search, and Wiki URL state mapping. The app and UI typecheck commands still report
+the repository's existing missing built workspace package declarations and unrelated errors. No
+packaged-artifact capture was run in this lane. The exact commit and any integration evidence are
+recorded by the parent session after review.
+
 ## 2026-08-23: runtimes inside the installer, and the GUI defects that exposed them
 
 ### What the project is now, in one paragraph
@@ -121,10 +160,10 @@ the intended trade and is stated in `docs/dependency-provisioning.md`.
 
 ### Published baseline
 
-| tag | target commit | verified how |
-|---|---|---|
+| tag         | target commit                              | verified how                                                                                                              |
+| ----------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `v1.0.1640` | `214f32f83d346b24b96358d0c4c47c0bf6eee1ff` | `gh release view`: non-draft, non-prerelease, 6 assets all nonzero, tag resolves to that exact commit via `git ls-remote` |
-| `v1.0.1637` | `966590b4` | CI reported every run green; this is the first release carrying both the runtimes and the wiring that uses them |
+| `v1.0.1637` | `966590b4`                                 | CI reported every run green; this is the first release carrying both the runtimes and the wiring that uses them           |
 
 `main` is `e27ddd9e`. Its CI run had not reached a terminal state when this handoff was
 written; treat that verdict as unknown rather than green.
@@ -156,7 +195,7 @@ runtime:    OpenJDK Runtime Environment Temurin-25.0.4.1+1 (build 25.0.4.1+1-LTS
 
 Before the wiring the same call returned `installation: null`.
 
-**The trap to know about.** Shipping the runtime and *using* it are separate. Four call sites
+**The trap to know about.** Shipping the runtime and _using_ it are separate. Four call sites
 resolve a JVM and all four originally passed only `dataDir`: `render/engine.ts`,
 `mcserver/ipc.ts` (twice), `java/ipc.ts`, and `index.ts`. With any JDK installed, every one of
 them works anyway because `JAVA_HOME` or `PATH` answers, so the omission is invisible on a
@@ -239,7 +278,6 @@ GUI 方面：flavour 卡啲字疊晒，係因為 `flex-direction: column` 落錯
 Node >= 26，但呢部機行 24。CI 釘死 22 而且根本唔行測試，所以一直冇人發現。
 
 ---
-
 
 ## 2026-08-22 — Reusable WorldLens design system package
 

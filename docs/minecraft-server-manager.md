@@ -26,15 +26,18 @@ folder chosen through a native browse button, a memory slider bounded to what a 
 server can actually use, and a port stepper bounded to 1–65535.
 
 The version step is a picker over a live catalogue rather than a text field: Vanilla reads
-Mojang's own version manifest, Purpur and Fabric read their own project APIs, and Paper and
+Mojang's own complete release and snapshot manifest, Purpur and Fabric read their own project APIs, and Paper and
 Velocity read PaperMC's v3 API - which replaced the v2 API this used to read after v2 was
 retired and started answering `410` to every request, silently leaving Paper and Velocity
-with no versions to show. Every catalogued entry carries a release date shown beside it and
-a verifiable SHA-256 of its own download. A link beside the chosen version opens its page on
-the Minecraft Wiki - constructed from the version's own name rather than looked up, so it is
-reliable for a version that has been out a while and may not resolve for one published minutes
-ago. Typing a version by hand is possible only behind an explicit switch, for a version newer
-than the catalogue that was fetched.
+with no versions to show. Vanilla entries are grouped into collapsible families with exact
+counts, search keeps matching families visible, and the UI bounds how many controls it mounts
+without truncating the cached catalogue. Every catalogued entry carries a release date shown
+beside it and a verifiable SHA-256 of its own download where its upstream publishes one. Every
+exact row also carries a Wiki action whose state distinguishes a verified article, an unavailable
+article, and a link that has not been checked while offline. Typing a version by hand is possible
+only behind an explicit switch, for a version newer than the catalogue that was fetched. See
+[`docs/minecraft-version-catalogue.md`](./minecraft-version-catalogue.md) for the cache,
+validation, grouping, and offline evidence contract.
 
 Opening a server shows a tabbed panel with four real screens:
 

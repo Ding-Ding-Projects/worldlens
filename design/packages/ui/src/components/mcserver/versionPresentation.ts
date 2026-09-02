@@ -11,6 +11,7 @@
 
 /** The official Minecraft wiki. */
 const WIKI_ORIGIN = "https://minecraft.wiki";
+export type WikiArticleState = "verified" | "unavailable" | "offline-unverified";
 
 /**
  * A version string as the catalogue records it, which for some flavours carries a build
@@ -44,6 +45,27 @@ export function wikiUrlFor(version: string): string | null {
     // Only characters that appear in real version names reach the address.
     if (!/^[A-Za-z0-9._-]+$/.test(title.replace(/^Java_Edition_/, ""))) return null;
     return `${WIKI_ORIGIN}/w/${encodeURIComponent(title)}`;
+}
+
+/**
+ * Returns the state that can be proved without pretending a cached link was checked online.
+ * The main process may replace the offline state with a real result after a bounded check.
+ */
+export function wikiArticleStateFor(
+    version: string,
+    checked: boolean | null = null,
+): WikiArticleState {
+    const url = wikiUrlFor(version);
+    if (url === null) return "unavailable";
+    if (checked === true) return "verified";
+    if (checked === false) return "unavailable";
+    return "offline-unverified";
+}
+
+export function wikiArticleStateLabel(state: WikiArticleState): string {
+    if (state === "verified") return "Wiki article verified";
+    if (state === "unavailable") return "Wiki article unavailable";
+    return "Wiki link not checked offline";
 }
 
 /**

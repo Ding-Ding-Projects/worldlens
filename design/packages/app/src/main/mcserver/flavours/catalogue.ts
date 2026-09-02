@@ -21,13 +21,15 @@
  * as fresh as a live fetch.
  */
 
+import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 import { atomicWriteTextFile } from "../../storage/atomicReplace.js";
 import { fail, ok, type Answer } from "../transport/types.js";
 
-export type FlavourId = "vanilla" | "paper" | "velocity" | "purpur" | "fabric" | "forge" | "neoforge";
+export type FlavourId =
+    "vanilla" | "paper" | "velocity" | "purpur" | "fabric" | "forge" | "neoforge";
 
 export const FLAVOUR_IDS: readonly FlavourId[] = [
     "vanilla",
@@ -40,6 +42,7 @@ export const FLAVOUR_IDS: readonly FlavourId[] = [
 ];
 
 export type VersionStability = "release" | "snapshot";
+export type WikiArticleState = "verified" | "unavailable" | "offline-unverified";
 
 export interface VersionEntry {
     readonly version: string;
@@ -55,11 +58,19 @@ export interface VersionEntry {
      * somebody repeats to another person as fact.
      */
     readonly releasedAt: string | null;
+    /** The UI can show a safe action even when the article has not been checked online. */
+    readonly wikiState?: WikiArticleState;
+    readonly availability?: "available" | "missing-server-artifact";
+    readonly availabilityReason?: string;
 }
 
 export interface FlavourCatalogue {
     readonly flavour: FlavourId;
     readonly versions: readonly VersionEntry[];
+    /** Present when this flavour was reused after its own refresh failed. */
+    readonly stale?: boolean;
+    readonly lastFetchedAt?: string;
+    readonly failure?: string;
 }
 
 export interface CatalogueSnapshot {
@@ -70,6 +81,8 @@ export interface CatalogueSnapshot {
     readonly stale: boolean;
     /** Flavours that could not be fetched this time, with why. Empty on a clean fetch. */
     readonly failures: readonly { readonly flavour: FlavourId; readonly reason: string }[];
+    /** SHA-256 of Mojang's canonical manifest, or null when the refresh had no manifest. */
+    readonly sourceRevision?: string | null;
 }
 
 export type FetchText = (url: string) => Promise<string>;
@@ -87,10 +100,12 @@ export type FetchText = (url: string) => Promise<string>;
 export const CATALOGUE_FILE = "mcserver-catalogue.v1.json";
 
 /** Raised when a version entry gains or loses a field. */
-export const CATALOGUE_CACHE_SHAPE = 2;
+export const CATALOGUE_CACHE_SHAPE = 3;
 /** A week: long enough to skip needless refetching, short enough that "stale" means it. */
 export const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const MAX_CACHE_BYTES = 8 * 1024 * 1024;
+const MAX_CACHE_BYTES = 16 * 1024 * 1024;
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+const MAX_VERSION_DETAIL_BYTES = 512 * 1024;
 const REQUEST_TIMEOUT_MS = 15_000;
 
 function cacheFile(dataDir: string): string {
@@ -103,17 +118,180 @@ const defaultFetchText: FetchText = async (url) => {
     try {
         const response = await globalThis.fetch(url, {
             headers: { accept: "application/json" },
-            redirect: "follow",
+            redirect: "error",
             signal: controller.signal,
         });
         if (!response.ok) {
             throw new Error(`HTTP ${String(response.status)} fetching ${url}`);
         }
-        return await response.text();
+        const advertisedLength = Number(response.headers.get("content-length"));
+        if (Number.isFinite(advertisedLength) && advertisedLength > MAX_RESPONSE_BYTES) {
+            throw new Error(
+                `Response from ${url} is larger than the ${MAX_RESPONSE_BYTES} byte limit.`,
+            );
+        }
+        if (response.body === null) return await response.text();
+        const reader = response.body.getReader();
+        const chunks: Uint8Array[] = [];
+        let total = 0;
+        while (true) {
+            const next = await reader.read();
+            if (next.done) break;
+            total += next.value.byteLength;
+            if (total > MAX_RESPONSE_BYTES) {
+                await reader.cancel();
+                throw new Error(
+                    `Response from ${url} is larger than the ${MAX_RESPONSE_BYTES} byte limit.`,
+                );
+            }
+            chunks.push(next.value);
+        }
+        return Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))).toString("utf8");
     } finally {
         clearTimeout(timer);
     }
 };
+
+function boundedJson(text: string, url: string, limit = MAX_RESPONSE_BYTES): unknown {
+    if (Buffer.byteLength(text, "utf8") > limit) {
+        throw new Error(`Response from ${url} is larger than the ${limit} byte limit.`);
+    }
+    try {
+        return JSON.parse(text) as unknown;
+    } catch (error) {
+        throw new Error(
+            `Response from ${url} was not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
+        );
+    }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function httpsUrl(value: unknown, label: string): string {
+    if (typeof value !== "string" || value.length === 0 || value.length > 2048) {
+        throw new Error(`${label} is missing or too long.`);
+    }
+    let parsed: URL;
+    try {
+        parsed = new URL(value);
+    } catch {
+        throw new Error(`${label} is not a valid URL.`);
+    }
+    if (parsed.protocol !== "https:") throw new Error(`${label} must use HTTPS.`);
+    return parsed.toString();
+}
+
+function isoTimestamp(value: unknown): value is string {
+    return typeof value === "string" && Number.isFinite(Date.parse(value));
+}
+
+function validateCachedFlavours(value: unknown): FlavourCatalogue[] | null {
+    if (!Array.isArray(value)) return null;
+    const seenFlavours = new Set<string>();
+    const output: FlavourCatalogue[] = [];
+    for (const rawFlavour of value) {
+        if (!isRecord(rawFlavour) || typeof rawFlavour.flavour !== "string") return null;
+        if (!(FLAVOUR_IDS as readonly string[]).includes(rawFlavour.flavour)) return null;
+        if (seenFlavours.has(rawFlavour.flavour)) return null;
+        seenFlavours.add(rawFlavour.flavour);
+        if (!Array.isArray(rawFlavour.versions)) return null;
+        const seenVersions = new Set<string>();
+        const versions: VersionEntry[] = [];
+        for (const rawVersion of rawFlavour.versions) {
+            if (!isRecord(rawVersion)) return null;
+            if (
+                !("downloadUrl" in rawVersion) ||
+                !("sha256" in rawVersion) ||
+                !("releasedAt" in rawVersion)
+            )
+                return null;
+            if (
+                typeof rawVersion.version !== "string" ||
+                rawVersion.version.length === 0 ||
+                rawVersion.version.length > 128
+            )
+                return null;
+            if (seenVersions.has(rawVersion.version)) return null;
+            seenVersions.add(rawVersion.version);
+            if (rawVersion.stability !== "release" && rawVersion.stability !== "snapshot")
+                return null;
+            if (
+                typeof rawVersion.javaFeature !== "number" ||
+                !Number.isInteger(rawVersion.javaFeature) ||
+                rawVersion.javaFeature < 1 ||
+                rawVersion.javaFeature > 100
+            )
+                return null;
+            if (rawVersion.downloadUrl !== null && typeof rawVersion.downloadUrl !== "string")
+                return null;
+            if (rawVersion.downloadUrl !== null) {
+                try {
+                    httpsUrl(
+                        rawVersion.downloadUrl,
+                        `Cached download URL for ${rawVersion.version}`,
+                    );
+                } catch {
+                    return null;
+                }
+            }
+            if (
+                rawVersion.sha256 !== null &&
+                rawVersion.sha256 !== undefined &&
+                !isSha256(rawVersion.sha256)
+            )
+                return null;
+            if (
+                rawVersion.releasedAt !== null &&
+                rawVersion.releasedAt !== undefined &&
+                !isoTimestamp(rawVersion.releasedAt)
+            )
+                return null;
+            if (
+                rawVersion.wikiState !== undefined &&
+                !["verified", "unavailable", "offline-unverified"].includes(
+                    String(rawVersion.wikiState),
+                )
+            )
+                return null;
+            if (
+                rawVersion.availability !== undefined &&
+                rawVersion.availability !== "available" &&
+                rawVersion.availability !== "missing-server-artifact"
+            )
+                return null;
+            if (
+                rawVersion.availability === "missing-server-artifact" &&
+                (typeof rawVersion.availabilityReason !== "string" ||
+                    rawVersion.availabilityReason.length === 0)
+            )
+                return null;
+            if (
+                rawVersion.availabilityReason !== undefined &&
+                typeof rawVersion.availabilityReason !== "string"
+            )
+                return null;
+            versions.push(rawVersion as unknown as VersionEntry);
+        }
+        if (rawFlavour.stale !== undefined && typeof rawFlavour.stale !== "boolean") return null;
+        if (rawFlavour.lastFetchedAt !== undefined && !isoTimestamp(rawFlavour.lastFetchedAt))
+            return null;
+        if (rawFlavour.failure !== undefined && typeof rawFlavour.failure !== "string") return null;
+        const stale = rawFlavour.stale;
+        const lastFetchedAt = rawFlavour.lastFetchedAt;
+        const failure = rawFlavour.failure;
+        output.push({
+            flavour: rawFlavour.flavour as FlavourId,
+            versions,
+            ...(typeof stale === "boolean" ? { stale } : {}),
+            ...(typeof lastFetchedAt === "string" ? { lastFetchedAt } : {}),
+            ...(typeof failure === "string" ? { failure } : {}),
+        });
+    }
+    if (seenFlavours.size !== FLAVOUR_IDS.length) return null;
+    return output;
+}
 
 function isSha256(value: unknown): value is string {
     return typeof value === "string" && /^[0-9a-f]{64}$/i.test(value);
@@ -142,36 +320,103 @@ interface VanillaVersionDetail {
     readonly javaVersion?: { readonly majorVersion?: number };
 }
 
+interface FetchFlavourResult {
+    readonly versions: readonly VersionEntry[];
+    readonly sourceRevision?: string;
+}
+
 /**
  * The manifest lists every version Mojang has ever shipped, and this app only cares about
  * the ones that actually have a server jar - a release or snapshot - so `old_alpha` and
  * `old_beta` entries are skipped before a single per-version fetch is made.
  */
-async function fetchVanillaVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
-    const manifestText = await fetchText("https://launchermeta.mojang.com/mc/game/version_manifest_v2.json");
-    const manifest = JSON.parse(manifestText) as VanillaManifest;
-    const candidates = manifest.versions
-        .filter((entry) => entry.type === "release" || entry.type === "snapshot")
-        .slice(0, limit);
+async function fetchVanillaVersions(
+    fetchText: FetchText,
+    limit: number,
+): Promise<FetchFlavourResult> {
+    void limit;
+    const manifestUrl = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
+    const manifestText = await fetchText(manifestUrl);
+    const rawManifest = boundedJson(manifestText, manifestUrl);
+    if (!isRecord(rawManifest) || !Array.isArray(rawManifest.versions)) {
+        throw new Error("Mojang's version manifest did not contain a versions array.");
+    }
+    const manifest = rawManifest as unknown as VanillaManifest;
+    const candidates = manifest.versions.filter((entry) => {
+        if (!isRecord(entry)) return false;
+        return (
+            (entry.type === "release" || entry.type === "snapshot") &&
+            typeof entry.id === "string" &&
+            entry.id.length > 0 &&
+            entry.id.length <= 64
+        );
+    });
 
     const entries: VersionEntry[] = [];
     for (const candidate of candidates) {
-        const detailText = await fetchText(candidate.url);
-        const detail = JSON.parse(detailText) as VanillaVersionDetail;
-        const server = detail.downloads?.server;
-        if (server?.url === undefined) continue; // No server jar was ever published for this one.
+        const detailUrl = httpsUrl(candidate.url, `Mojang detail URL for ${candidate.id}`);
+        const detailText = await fetchText(detailUrl);
+        const detailValue = boundedJson(detailText, detailUrl, MAX_VERSION_DETAIL_BYTES);
+        if (!isRecord(detailValue))
+            throw new Error(`Mojang detail for ${candidate.id} was not an object.`);
+        if (detailValue.downloads !== undefined && !isRecord(detailValue.downloads))
+            throw new Error(`Mojang detail for ${candidate.id} had malformed downloads metadata.`);
+        const downloads = detailValue.downloads as Record<string, unknown> | undefined;
+        if (downloads?.server !== undefined && !isRecord(downloads.server))
+            throw new Error(`Mojang detail for ${candidate.id} had malformed server metadata.`);
+        const server = downloads?.server as Record<string, unknown> | undefined;
+        if (server?.url !== undefined && typeof server.url !== "string")
+            throw new Error(`Mojang detail for ${candidate.id} had malformed server URL.`);
+        const javaMetadata = detailValue.javaVersion;
+        if (javaMetadata !== undefined && !isRecord(javaMetadata))
+            throw new Error(`Mojang detail for ${candidate.id} had malformed Java metadata.`);
+        const majorVersion = isRecord(javaMetadata) ? javaMetadata.majorVersion : undefined;
+        if (
+            majorVersion !== undefined &&
+            (typeof majorVersion !== "number" ||
+                !Number.isInteger(majorVersion) ||
+                majorVersion < 1 ||
+                majorVersion > 100)
+        )
+            throw new Error(
+                `Mojang detail for ${candidate.id} had malformed Java feature metadata.`,
+            );
+        const javaFeature = typeof majorVersion === "number" ? majorVersion : 8;
+        const downloadUrl =
+            server?.url === undefined
+                ? null
+                : httpsUrl(server.url, `Server download URL for ${candidate.id}`);
         entries.push({
             version: candidate.id,
             stability: candidate.type === "release" ? "release" : "snapshot",
-            javaFeature: detail.javaVersion?.majorVersion ?? 8,
-            downloadUrl: server.url,
+            javaFeature,
+            downloadUrl,
             // Mojang publishes SHA-1 here, not SHA-256. Recording an invented SHA-256
             // from a SHA-1 digest would be worse than recording none at all.
             sha256: null,
-            releasedAt: candidate.releaseTime ?? null,
+            releasedAt:
+                candidate.releaseTime === undefined
+                    ? null
+                    : isoTimestamp(candidate.releaseTime)
+                      ? candidate.releaseTime
+                      : (() => {
+                            throw new Error(
+                                `Mojang manifest release time for ${candidate.id} was malformed.`,
+                            );
+                        })(),
+            ...(downloadUrl === null
+                ? {
+                      availability: "missing-server-artifact" as const,
+                      availabilityReason:
+                          "Mojang published no server download for this exact version.",
+                  }
+                : {}),
         });
     }
-    return entries;
+    return {
+        versions: entries,
+        sourceRevision: createHash("sha256").update(manifestText, "utf8").digest("hex"),
+    };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -198,11 +443,15 @@ interface PaperBuildV3 {
     readonly time?: string;
     /** `STABLE`, or a pre-release channel such as `ALPHA` or `BETA`. */
     readonly channel?: string;
-    readonly downloads?: Record<string, {
-        readonly name?: string;
-        readonly url?: string;
-        readonly checksums?: { readonly sha256?: string };
-    } | undefined>;
+    readonly downloads?: Record<
+        string,
+        | {
+              readonly name?: string;
+              readonly url?: string;
+              readonly checksums?: { readonly sha256?: string };
+          }
+        | undefined
+    >;
 }
 
 /**
@@ -224,16 +473,33 @@ async function fetchPaperFamilyVersions(
     project: "paper" | "velocity",
     limit: number,
 ): Promise<VersionEntry[]> {
-    const projectText = await fetchText(`https://fill.papermc.io/v3/projects/${project}`);
-    const projectInfo = JSON.parse(projectText) as PaperProjectV3;
+    const projectUrl = `https://fill.papermc.io/v3/projects/${project}`;
+    const projectText = await fetchText(projectUrl);
+    const rawProject = boundedJson(projectText, projectUrl);
+    if (!isRecord(rawProject) || !isRecord(rawProject.versions)) {
+        throw new Error(`PaperMC ${project} response did not contain a versions object.`);
+    }
+    const projectInfo = rawProject as unknown as PaperProjectV3;
     const gameVersions = paperVersionsNewestFirst(projectInfo).slice(0, limit);
 
     const entries: VersionEntry[] = [];
     for (const version of gameVersions) {
-        const buildsText = await fetchText(
-            `https://fill.papermc.io/v3/projects/${project}/versions/${encodeURIComponent(version)}/builds`,
-        );
-        const builds = JSON.parse(buildsText) as readonly PaperBuildV3[];
+        const buildsUrl = `https://fill.papermc.io/v3/projects/${project}/versions/${encodeURIComponent(version)}/builds`;
+        const buildsText = await fetchText(buildsUrl);
+        const rawBuilds = boundedJson(buildsText, buildsUrl);
+        if (!Array.isArray(rawBuilds))
+            throw new Error(`PaperMC ${project} builds response was not an array.`);
+        if (
+            rawBuilds.some(
+                (build) =>
+                    !isRecord(build) || typeof build.id !== "number" || !Number.isInteger(build.id),
+            )
+        ) {
+            throw new Error(
+                `PaperMC ${project} builds response contained an invalid build record.`,
+            );
+        }
+        const builds = rawBuilds as readonly PaperBuildV3[];
         // v3 returns builds newest first, the opposite of v2. Reading the last entry here
         // would quietly offer the oldest build of every version.
         const latest = Array.isArray(builds) ? builds[0] : undefined;
@@ -242,14 +508,20 @@ async function fetchPaperFamilyVersions(
         // The server jar is published under this key; anything else is a different artifact.
         const download = latest.downloads?.["server:default"];
         if (download?.url === undefined) continue;
+        const downloadUrl = httpsUrl(
+            download.url,
+            `PaperMC ${project} download URL for ${version}`,
+        );
 
         entries.push({
             version: `${version}#${String(latest.id)}`,
             // Upstream says STABLE for a finished build and names a channel otherwise.
             stability: (latest.channel ?? "").toUpperCase() === "STABLE" ? "release" : "snapshot",
             javaFeature: 21,
-            downloadUrl: download.url,
-            sha256: isSha256(download.checksums?.sha256) ? download.checksums.sha256.toLowerCase() : null,
+            downloadUrl,
+            sha256: isSha256(download.checksums?.sha256)
+                ? download.checksums.sha256.toLowerCase()
+                : null,
             releasedAt: latest.time ?? null,
         });
     }
@@ -269,21 +541,41 @@ interface PurpurVersionBuilds {
 }
 
 async function fetchPurpurVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
-    const projectText = await fetchText("https://api.purpurmc.org/v2/purpur");
-    const project = JSON.parse(projectText) as PurpurProject;
+    const projectUrl = "https://api.purpurmc.org/v2/purpur";
+    const projectText = await fetchText(projectUrl);
+    const rawProject = boundedJson(projectText, projectUrl);
+    if (
+        !isRecord(rawProject) ||
+        !Array.isArray(rawProject.versions) ||
+        rawProject.versions.some((version) => typeof version !== "string")
+    ) {
+        throw new Error("Purpur response did not contain a versions array of strings.");
+    }
+    const project = rawProject as unknown as PurpurProject;
     const gameVersions = project.versions.slice(-limit).reverse();
 
     const entries: VersionEntry[] = [];
     for (const version of gameVersions) {
-        const versionText = await fetchText(`https://api.purpurmc.org/v2/purpur/${version}`);
-        const versionInfo = JSON.parse(versionText) as PurpurVersionBuilds;
+        const versionUrl = `https://api.purpurmc.org/v2/purpur/${encodeURIComponent(version)}`;
+        const versionText = await fetchText(versionUrl);
+        const rawVersion = boundedJson(versionText, versionUrl);
+        if (
+            !isRecord(rawVersion) ||
+            !isRecord(rawVersion.builds) ||
+            (rawVersion.builds.latest !== undefined && typeof rawVersion.builds.latest !== "string")
+        )
+            throw new Error(`Purpur response for ${version} did not contain builds.`);
+        const versionInfo = rawVersion as unknown as PurpurVersionBuilds;
         const latest = versionInfo.builds.latest;
         if (latest === undefined) continue;
         entries.push({
             version: `${version}#${latest}`,
             stability: "release",
             javaFeature: 21,
-            downloadUrl: `https://api.purpurmc.org/v2/purpur/${version}/${latest}/download`,
+            downloadUrl: httpsUrl(
+                `https://api.purpurmc.org/v2/purpur/${encodeURIComponent(version)}/${encodeURIComponent(latest)}/download`,
+                `Purpur download URL for ${version}`,
+            ),
             // Purpur's build API does not publish a digest for this endpoint.
             sha256: null,
             // This API publishes no release date, and a guessed one would be repeated as fact.
@@ -314,9 +606,25 @@ interface FabricLoaderEntry {
  * resolves the real jar URL once it also knows which Minecraft version was chosen, via
  * `fabricServerJarUrl` below.
  */
-async function fetchFabricLoaderVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
-    const text = await fetchText("https://meta.fabricmc.net/v2/versions/loader");
-    const loaders = JSON.parse(text) as readonly FabricLoaderEntry[];
+async function fetchFabricLoaderVersions(
+    fetchText: FetchText,
+    limit: number,
+): Promise<VersionEntry[]> {
+    const url = "https://meta.fabricmc.net/v2/versions/loader";
+    const text = await fetchText(url);
+    const rawLoaders = boundedJson(text, url);
+    if (
+        !Array.isArray(rawLoaders) ||
+        rawLoaders.some(
+            (loader) =>
+                !isRecord(loader) ||
+                typeof loader.version !== "string" ||
+                typeof loader.stable !== "boolean",
+        )
+    ) {
+        throw new Error("Fabric response was not an array of loader records.");
+    }
+    const loaders = rawLoaders as readonly FabricLoaderEntry[];
     return loaders.slice(0, limit).map((loader) => ({
         version: loader.version,
         stability: loader.stable ? "release" : "snapshot",
@@ -332,7 +640,11 @@ async function fetchFabricLoaderVersions(fetchText: FetchText, limit: number): P
 }
 
 /** The exact Fabric server jar download, once a game version, loader and installer are all chosen. */
-export function fabricServerJarUrl(gameVersion: string, loaderVersion: string, installerVersion: string): string {
+export function fabricServerJarUrl(
+    gameVersion: string,
+    loaderVersion: string,
+    installerVersion: string,
+): string {
     return `https://meta.fabricmc.net/v2/versions/loader/${encodeURIComponent(gameVersion)}/${encodeURIComponent(loaderVersion)}/${encodeURIComponent(installerVersion)}/server/jar`;
 }
 
@@ -351,28 +663,41 @@ export interface CatalogueOptions {
 async function fetchAllFlavours(
     fetchText: FetchText,
     limit: number,
-): Promise<{ flavours: FlavourCatalogue[]; failures: { flavour: FlavourId; reason: string }[] }> {
-    const fetchers: Record<FlavourId, () => Promise<VersionEntry[]>> = {
+): Promise<{
+    flavours: FlavourCatalogue[];
+    failures: { flavour: FlavourId; reason: string }[];
+    sourceRevision: string | null;
+}> {
+    const fetchers: Record<FlavourId, () => Promise<FetchFlavourResult>> = {
         vanilla: () => fetchVanillaVersions(fetchText, limit),
-        paper: () => fetchPaperFamilyVersions(fetchText, "paper", limit),
-        velocity: () => fetchPaperFamilyVersions(fetchText, "velocity", limit),
-        purpur: () => fetchPurpurVersions(fetchText, limit),
-        fabric: () => fetchFabricLoaderVersions(fetchText, limit),
-        forge: () => fetchForgeVersions(fetchText, limit),
-        neoforge: () => fetchNeoForgeVersions(fetchText, limit),
+        paper: async () => ({
+            versions: await fetchPaperFamilyVersions(fetchText, "paper", limit),
+        }),
+        velocity: async () => ({
+            versions: await fetchPaperFamilyVersions(fetchText, "velocity", limit),
+        }),
+        purpur: async () => ({ versions: await fetchPurpurVersions(fetchText, limit) }),
+        fabric: async () => ({ versions: await fetchFabricLoaderVersions(fetchText, limit) }),
+        forge: async () => ({ versions: await fetchForgeVersions(fetchText, limit) }),
+        neoforge: async () => ({ versions: await fetchNeoForgeVersions(fetchText, limit) }),
     };
 
     const flavours: FlavourCatalogue[] = [];
     const failures: { flavour: FlavourId; reason: string }[] = [];
+    let sourceRevision: string | null = null;
     for (const flavour of FLAVOUR_IDS) {
         try {
-            const versions = await fetchers[flavour]();
-            flavours.push({ flavour, versions });
+            const result = await fetchers[flavour]();
+            flavours.push({ flavour, versions: result.versions });
+            if (flavour === "vanilla") sourceRevision = result.sourceRevision ?? null;
         } catch (error) {
-            failures.push({ flavour, reason: error instanceof Error ? error.message : String(error) });
+            failures.push({
+                flavour,
+                reason: error instanceof Error ? error.message : String(error),
+            });
         }
     }
-    return { flavours, failures };
+    return { flavours, failures, sourceRevision };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -393,7 +718,9 @@ interface ForgePromotions {
 }
 
 /** `1.21.4-recommended` and `1.21.4-latest` both name the same Minecraft version. */
-function forgeGameVersionOf(key: string): { game: string; channel: "recommended" | "latest" } | null {
+function forgeGameVersionOf(
+    key: string,
+): { game: string; channel: "recommended" | "latest" } | null {
     const match = /^(.+)-(recommended|latest)$/.exec(key);
     const game = match?.[1];
     const channel = match?.[2];
@@ -402,7 +729,9 @@ function forgeGameVersionOf(key: string): { game: string; channel: "recommended"
 }
 
 async function fetchForgeVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
-    const text = await fetchText("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json");
+    const text = await fetchText(
+        "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json",
+    );
     const parsed = JSON.parse(text) as ForgePromotions;
 
     // Recommended wins over latest for the same game version: a promoted build is the one
@@ -446,7 +775,9 @@ async function fetchForgeVersions(fetchText: FetchText, limit: number): Promise<
 // ---------------------------------------------------------------------------------------
 
 async function fetchNeoForgeVersions(fetchText: FetchText, limit: number): Promise<VersionEntry[]> {
-    const text = await fetchText("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml");
+    const text = await fetchText(
+        "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml",
+    );
     const versions: string[] = [];
     // Deliberately a narrow scan rather than an XML parse: the only thing wanted here is the
     // version text, and adding an XML dependency to read one repeated element would be a
@@ -460,31 +791,53 @@ async function fetchNeoForgeVersions(fetchText: FetchText, limit: number): Promi
     }
 
     // Maven lists oldest first; every other flavour here offers newest first.
-    return versions.reverse().slice(0, limit).map((version) => ({
-        version,
-        // A NeoForge beta carries a `-beta` suffix; everything else is a release.
-        stability: /-(beta|alpha|rc)/i.test(version) ? ("snapshot" as const) : ("release" as const),
-        javaFeature: 21,
-        downloadUrl: `https://maven.neoforged.net/releases/net/neoforged/neoforge/${version}/neoforge-${version}-installer.jar`,
-        sha256: null,
-        releasedAt: null,
-    }));
+    return versions
+        .reverse()
+        .slice(0, limit)
+        .map((version) => ({
+            version,
+            // A NeoForge beta carries a `-beta` suffix; everything else is a release.
+            stability: /-(beta|alpha|rc)/i.test(version)
+                ? ("snapshot" as const)
+                : ("release" as const),
+            javaFeature: 21,
+            downloadUrl: `https://maven.neoforged.net/releases/net/neoforged/neoforge/${version}/neoforge-${version}-installer.jar`,
+            sha256: null,
+            releasedAt: null,
+        }));
 }
 
 async function readCache(dataDir: string): Promise<CatalogueSnapshot | null> {
     try {
         const bytes = await readFile(cacheFile(dataDir));
         if (bytes.byteLength > MAX_CACHE_BYTES) return null;
-        const parsed = JSON.parse(bytes.toString("utf8")) as Partial<CatalogueSnapshot>;
-        if (!Array.isArray(parsed.flavours) || typeof parsed.fetchedAt !== "string") return null;
+        const parsed = JSON.parse(bytes.toString("utf8")) as unknown;
+        if (!isRecord(parsed) || !isoTimestamp(parsed.fetchedAt)) return null;
         // An older shape is refused rather than upgraded in place: guessing what a missing
         // field should have been is how a wrong release date would get invented.
-        if ((parsed as { shape?: unknown }).shape !== CATALOGUE_CACHE_SHAPE) return null;
+        if (parsed.shape !== CATALOGUE_CACHE_SHAPE) return null;
+        const flavours = validateCachedFlavours(parsed.flavours);
+        if (flavours === null) return null;
+        if (!Array.isArray(parsed.failures)) return null;
+        const failures = parsed.failures.filter(
+            (entry): entry is { flavour: FlavourId; reason: string } =>
+                isRecord(entry) &&
+                typeof entry.flavour === "string" &&
+                (FLAVOUR_IDS as readonly string[]).includes(entry.flavour) &&
+                typeof entry.reason === "string",
+        );
+        if (failures.length !== parsed.failures.length) return null;
+        if (typeof parsed.sourceRevision !== "string" && parsed.sourceRevision !== null)
+            return null;
+        if (typeof parsed.sourceRevision === "string" && !isSha256(parsed.sourceRevision))
+            return null;
         return {
-            flavours: parsed.flavours,
+            flavours,
             fetchedAt: parsed.fetchedAt,
             stale: false, // recomputed by the caller against the current clock
-            failures: Array.isArray(parsed.failures) ? parsed.failures : [],
+            failures,
+            sourceRevision:
+                typeof parsed.sourceRevision === "string" ? parsed.sourceRevision : null,
         };
     } catch {
         return null;
@@ -514,12 +867,23 @@ function withStaleness(snapshot: CatalogueSnapshot, now: () => string): Catalogu
  * so a transient PaperMC outage does not make Paper disappear from a list that was fine a
  * minute ago.
  */
-export async function refreshCatalogue(options: CatalogueOptions): Promise<Answer<CatalogueSnapshot>> {
-    const fetchText = options.fetchText ?? defaultFetchText;
+export async function refreshCatalogue(
+    options: CatalogueOptions,
+): Promise<Answer<CatalogueSnapshot>> {
+    const sourceFetchText = options.fetchText ?? defaultFetchText;
+    const fetchText: FetchText = async (url) => {
+        const text = await sourceFetchText(url);
+        if (Buffer.byteLength(text, "utf8") > MAX_RESPONSE_BYTES) {
+            throw new Error(
+                `Response from ${url} is larger than the ${MAX_RESPONSE_BYTES} byte limit.`,
+            );
+        }
+        return text;
+    };
     const now = options.now ?? (() => new Date().toISOString());
     const limit = options.limitPerFlavour ?? 25;
 
-    const { flavours, failures } = await fetchAllFlavours(fetchText, limit);
+    const { flavours, failures, sourceRevision } = await fetchAllFlavours(fetchText, limit);
     if (flavours.length === 0) {
         return fail(
             "unreachable",
@@ -533,10 +897,31 @@ export async function refreshCatalogue(options: CatalogueOptions): Promise<Answe
     const merged = FLAVOUR_IDS.map((id) => {
         const fetched = flavours.find((entry) => entry.flavour === id);
         if (fetched !== undefined) return fetched;
-        return previousById.get(id) ?? { flavour: id, versions: [] };
+        const previousEntry = previousById.get(id);
+        const failure = failures.find((entry) => entry.flavour === id)?.reason;
+        if (previousEntry !== undefined) {
+            return {
+                ...previousEntry,
+                stale: true,
+                ...(previous?.fetchedAt === undefined ? {} : { lastFetchedAt: previous.fetchedAt }),
+                ...(failure === undefined ? {} : { failure }),
+            };
+        }
+        return {
+            flavour: id,
+            versions: [],
+            stale: true,
+            ...(failure === undefined ? {} : { failure }),
+        };
     });
 
-    const snapshot: CatalogueSnapshot = { flavours: merged, fetchedAt: now(), stale: false, failures };
+    const snapshot: CatalogueSnapshot = {
+        flavours: merged,
+        fetchedAt: now(),
+        stale: false,
+        failures,
+        sourceRevision,
+    };
     await writeCache(options.dataDir, snapshot);
     return ok(snapshot);
 }

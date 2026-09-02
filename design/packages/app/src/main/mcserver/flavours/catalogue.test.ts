@@ -15,19 +15,33 @@ import {
 
 const VANILLA_MANIFEST = JSON.stringify({
     versions: [
-        { id: "1.21.4", type: "release", url: "https://example.test/1.21.4.json", releaseTime: "2024-12-03T10:12:57+00:00" },
-        { id: "24w45a", type: "snapshot", url: "https://example.test/24w45a.json", releaseTime: "2024-11-06T09:00:00+00:00" },
+        {
+            id: "1.21.4",
+            type: "release",
+            url: "https://example.test/1.21.4.json",
+            releaseTime: "2024-12-03T10:12:57+00:00",
+        },
+        {
+            id: "24w45a",
+            type: "snapshot",
+            url: "https://example.test/24w45a.json",
+            releaseTime: "2024-11-06T09:00:00+00:00",
+        },
         { id: "b1.7.3", type: "old_beta", url: "https://example.test/b1.7.3.json" },
     ],
 });
 
 const VANILLA_DETAIL = JSON.stringify({
-    downloads: { server: { url: "https://example.test/server-1.21.4.jar", sha1: "deadbeef", size: 123 } },
+    downloads: {
+        server: { url: "https://example.test/server-1.21.4.jar", sha1: "deadbeef", size: 123 },
+    },
     javaVersion: { majorVersion: 21 },
 });
 
 const VANILLA_SNAPSHOT_DETAIL = JSON.stringify({
-    downloads: { server: { url: "https://example.test/server-24w45a.jar", sha1: "cafef00d", size: 456 } },
+    downloads: {
+        server: { url: "https://example.test/server-24w45a.jar", sha1: "cafef00d", size: 456 },
+    },
     javaVersion: { majorVersion: 21 },
 });
 
@@ -148,14 +162,29 @@ describe("refreshCatalogue", () => {
         if (!result.ok) return;
 
         expect(result.value.fetchedAt).toBe("2026-08-21T00:00:00.000Z");
+        expect(result.value.sourceRevision).toMatch(/^[0-9a-f]{64}$/);
         expect(result.value.stale).toBe(false);
         expect(result.value.failures).toEqual([]);
         expect(result.value.flavours.map((f) => f.flavour)).toEqual(FLAVOUR_IDS);
 
         const vanilla = result.value.flavours.find((f) => f.flavour === "vanilla");
         expect(vanilla?.versions).toEqual([
-            { version: "1.21.4", stability: "release", javaFeature: 21, downloadUrl: "https://example.test/server-1.21.4.jar", sha256: null, releasedAt: "2024-12-03T10:12:57+00:00" },
-            { version: "24w45a", stability: "snapshot", javaFeature: 21, downloadUrl: "https://example.test/server-24w45a.jar", sha256: null, releasedAt: "2024-11-06T09:00:00+00:00" },
+            {
+                version: "1.21.4",
+                stability: "release",
+                javaFeature: 21,
+                downloadUrl: "https://example.test/server-1.21.4.jar",
+                sha256: null,
+                releasedAt: "2024-12-03T10:12:57+00:00",
+            },
+            {
+                version: "24w45a",
+                stability: "snapshot",
+                javaFeature: 21,
+                downloadUrl: "https://example.test/server-24w45a.jar",
+                sha256: null,
+                releasedAt: "2024-11-06T09:00:00+00:00",
+            },
         ]);
 
         const paper = result.value.flavours.find((f) => f.flavour === "paper");
@@ -164,8 +193,22 @@ describe("refreshCatalogue", () => {
 
         const fabric = result.value.flavours.find((f) => f.flavour === "fabric");
         expect(fabric?.versions).toEqual([
-            { version: "0.16.9", stability: "release", javaFeature: 8, downloadUrl: null, sha256: null, releasedAt: null },
-            { version: "0.16.10-beta.1", stability: "snapshot", javaFeature: 8, downloadUrl: null, sha256: null, releasedAt: null },
+            {
+                version: "0.16.9",
+                stability: "release",
+                javaFeature: 8,
+                downloadUrl: null,
+                sha256: null,
+                releasedAt: null,
+            },
+            {
+                version: "0.16.10-beta.1",
+                stability: "snapshot",
+                javaFeature: 8,
+                downloadUrl: null,
+                sha256: null,
+                releasedAt: null,
+            },
         ]);
     });
 
@@ -178,24 +221,37 @@ describe("refreshCatalogue", () => {
     });
 
     it("keeps a flavour's previous cached entries when that flavour's fetch fails", async () => {
-        await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES), now: () => "2026-08-14T00:00:00.000Z" });
+        await refreshCatalogue({
+            dataDir: dir,
+            fetchText: fakeFetch(ALL_ROUTES),
+            now: () => "2026-08-14T00:00:00.000Z",
+        });
 
         const brokenRoutes = { ...ALL_ROUTES };
         delete brokenRoutes["https://fill.papermc.io/v3/projects/paper"];
         const secondFetch: FetchText = async (url) => {
-            if (url.startsWith("https://fill.papermc.io/v3/projects/paper") && !url.includes("velocity")) {
+            if (
+                url.startsWith("https://fill.papermc.io/v3/projects/paper") &&
+                !url.includes("velocity")
+            ) {
                 throw new Error("PaperMC is down");
             }
             return fakeFetch(ALL_ROUTES)(url);
         };
 
-        const result = await refreshCatalogue({ dataDir: dir, fetchText: secondFetch, now: () => "2026-08-21T00:00:00.000Z" });
+        const result = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: secondFetch,
+            now: () => "2026-08-21T00:00:00.000Z",
+        });
         expect(result.ok).toBe(true);
         if (!result.ok) return;
         expect(result.value.failures.some((f) => f.flavour === "paper")).toBe(true);
         const paper = result.value.flavours.find((f) => f.flavour === "paper");
         // The previous run's Paper entries survive rather than being wiped to nothing.
         expect(paper?.versions.length).toBeGreaterThan(0);
+        expect(paper?.stale).toBe(true);
+        expect(paper?.failure).toContain("PaperMC is down");
     });
 
     it("fails when every flavour is unreachable", async () => {
@@ -208,6 +264,166 @@ describe("refreshCatalogue", () => {
         expect(result.ok).toBe(false);
         if (result.ok) return;
         expect(result.failure.code).toBe("unreachable");
+    });
+
+    it("keeps a large Mojang release and snapshot manifest complete", async () => {
+        const versions = Array.from({ length: 40 }, (_, index) => ({
+            id:
+                index % 2 === 0
+                    ? `1.${30 - Math.floor(index / 2)}.${index % 10}`
+                    : `30w${String(index).padStart(2, "0")}a`,
+            type: index % 2 === 0 ? "release" : "snapshot",
+            url: `https://example.test/large-${index}.json`,
+            releaseTime: "2026-01-01T00:00:00Z",
+        }));
+        const largeManifest = JSON.stringify({ versions });
+        const result = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                if (url === "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
+                    return largeManifest;
+                if (url.startsWith("https://example.test/large-")) return VANILLA_DETAIL;
+                return fakeFetch(ALL_ROUTES)(url);
+            },
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(
+            result.value.flavours.find((entry) => entry.flavour === "vanilla")?.versions,
+        ).toHaveLength(40);
+    });
+
+    it("refuses a malformed or oversized Mojang manifest instead of guessing", async () => {
+        const malformed = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                if (url === "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
+                    return JSON.stringify({ versions: "not-an-array" });
+                throw new Error("offline");
+            },
+        });
+        expect(malformed.ok).toBe(false);
+        if (!malformed.ok) expect(malformed.failure.detail ?? "").toContain("versions array");
+
+        const oversized = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                if (url === "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
+                    return "{" + "x".repeat(16 * 1024 * 1024) + "}";
+                throw new Error("offline");
+            },
+        });
+        expect(oversized.ok).toBe(false);
+        if (!oversized.ok) expect(oversized.failure.detail ?? "").toContain("byte limit");
+    });
+
+    it("does not silently truncate a manifest with more than five thousand exact entries", async () => {
+        const versions = Array.from({ length: 5001 }, (_, index) => ({
+            id: `1.${Math.floor(index / 10)}.${index % 10}`,
+            type: "release",
+            url: `https://example.test/large-${index}.json`,
+            releaseTime: "2026-01-01T00:00:00Z",
+        }));
+        const result = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                if (url === "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
+                    return JSON.stringify({ versions });
+                if (url.startsWith("https://example.test/large-")) return VANILLA_DETAIL;
+                return fakeFetch(ALL_ROUTES)(url);
+            },
+        });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(
+            result.value.flavours.find((entry) => entry.flavour === "vanilla")?.versions,
+        ).toHaveLength(5001);
+    });
+
+    it("rejects duplicate versions, invalid timestamps, and non-HTTPS cached URLs", async () => {
+        const invalid = {
+            shape: 3,
+            fetchedAt: "not-a-time",
+            sourceRevision: "not-a-digest",
+            failures: [],
+            flavours: [{ flavour: "vanilla", versions: [] }],
+        };
+        await writeFile(join(dir, CATALOGUE_FILE), JSON.stringify(invalid), "utf8");
+        let fetches = 0;
+        const answer = await listCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                fetches += 1;
+                return fakeFetch(ALL_ROUTES)(url);
+            },
+        });
+        expect(fetches).toBeGreaterThan(0);
+        expect(answer.ok).toBe(true);
+
+        const duplicate = {
+            shape: 3,
+            fetchedAt: "2026-08-21T00:00:00Z",
+            sourceRevision: "a".repeat(64),
+            failures: [],
+            flavours: [
+                {
+                    flavour: "vanilla",
+                    versions: [
+                        {
+                            version: "1.21.4",
+                            stability: "release",
+                            javaFeature: 21,
+                            downloadUrl: "http://bad",
+                            sha256: null,
+                            releasedAt: null,
+                        },
+                        {
+                            version: "1.21.4",
+                            stability: "release",
+                            javaFeature: 21,
+                            downloadUrl: null,
+                            sha256: null,
+                            releasedAt: null,
+                        },
+                    ],
+                },
+            ],
+        };
+        await writeFile(join(dir, CATALOGUE_FILE), JSON.stringify(duplicate), "utf8");
+        const reread = await listCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES) });
+        expect(reread.ok).toBe(true);
+        if (reread.ok) expect(reread.value.sourceRevision).not.toBe("a".repeat(64));
+    });
+
+    it("rejects malformed Mojang Java metadata instead of quietly choosing Java 8", async () => {
+        const manifest = JSON.stringify({
+            versions: [
+                {
+                    id: "1.21.5",
+                    type: "release",
+                    url: "https://example.test/bad-java.json",
+                    releaseTime: "2026-01-01T00:00:00Z",
+                },
+            ],
+        });
+        const result = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                if (url === "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
+                    return manifest;
+                if (url === "https://example.test/bad-java.json")
+                    return JSON.stringify({
+                        downloads: { server: { url: "https://example.test/server.jar" } },
+                        javaVersion: { majorVersion: "21" },
+                    });
+                return fakeFetch(ALL_ROUTES)(url);
+            },
+        });
+        expect(result.ok).toBe(true);
+        if (result.ok)
+            expect(
+                result.value.failures.find((failure) => failure.flavour === "vanilla")?.reason,
+            ).toContain("malformed Java");
     });
 });
 
@@ -228,7 +444,11 @@ describe("listCatalogue", () => {
     });
 
     it("serves the cache without touching the network when it is fresh", async () => {
-        await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES), now: () => "2026-08-21T00:00:00.000Z" });
+        await refreshCatalogue({
+            dataDir: dir,
+            fetchText: fakeFetch(ALL_ROUTES),
+            now: () => "2026-08-21T00:00:00.000Z",
+        });
         const result = await listCatalogue({
             dataDir: dir,
             now: () => "2026-08-21T01:00:00.000Z",
@@ -247,7 +467,11 @@ describe("listCatalogue", () => {
      * error to a caller who simply wants to see whatever was last known.
      */
     it("serves a stale cache marked as stale when offline and the cache has expired", async () => {
-        await refreshCatalogue({ dataDir: dir, fetchText: fakeFetch(ALL_ROUTES), now: () => "2026-01-01T00:00:00.000Z" });
+        await refreshCatalogue({
+            dataDir: dir,
+            fetchText: fakeFetch(ALL_ROUTES),
+            now: () => "2026-01-01T00:00:00.000Z",
+        });
         const result = await listCatalogue({
             dataDir: dir,
             now: () => "2026-08-21T00:00:00.000Z", // far more than a week later
@@ -291,7 +515,13 @@ describe("a cache written by an older build", () => {
                 {
                     flavour: "vanilla",
                     versions: [
-                        { version: "1.21.4", stability: "release", javaFeature: 21, downloadUrl: null, sha256: null },
+                        {
+                            version: "1.21.4",
+                            stability: "release",
+                            javaFeature: 21,
+                            downloadUrl: null,
+                            sha256: null,
+                        },
                     ],
                 },
             ],

@@ -94,7 +94,10 @@ describe("the object the factory builds", () => {
         // A misspelt channel is the exact defect the compiler cannot see, because it is a
         // string literal. These pairs are the check for it.
         const calls: [() => Promise<unknown>, string][] = [
-            [() => (bridge as never as { getVersion(): Promise<unknown> }).getVersion(), "app:version"],
+            [
+                () => (bridge as never as { getVersion(): Promise<unknown> }).getVersion(),
+                "app:version",
+            ],
             [
                 () =>
                     (
@@ -104,13 +107,28 @@ describe("the object the factory builds", () => {
             ],
             [
                 () =>
-                    (bridge as never as { schoolMode: { read(): Promise<unknown> } }).schoolMode.read(),
+                    (
+                        bridge as never as { schoolMode: { read(): Promise<unknown> } }
+                    ).schoolMode.read(),
                 "schoolMode:read",
             ],
             [
                 () =>
-                    (bridge as never as { history: { status(): Promise<unknown> } }).history.status(),
+                    (
+                        bridge as never as { history: { status(): Promise<unknown> } }
+                    ).history.status(),
                 "history:status",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as {
+                            mcserver: {
+                                catalogue: { verifyWiki(version: string): Promise<unknown> };
+                            };
+                        }
+                    ).mcserver.catalogue.verifyWiki("1.21.4"),
+                "mcserver:catalogue:wikiVerify",
             ],
         ];
         for (const [call, expected] of calls) {
@@ -124,9 +142,11 @@ describe("the object the factory builds", () => {
         const { transport, log } = recordingTransport();
         const bridge = createWorldlensBridge<Record<string, never>>(transport);
 
-        const subscribe = (bridge as never as {
-            onRenderEvent(listener: () => void): () => void;
-        }).onRenderEvent;
+        const subscribe = (
+            bridge as never as {
+                onRenderEvent(listener: () => void): () => void;
+            }
+        ).onRenderEvent;
         const stop = subscribe(() => undefined);
 
         expect(log.listening).toEqual(["render:event"]);

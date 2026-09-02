@@ -34,16 +34,33 @@ import { createServerBackup, listServerBackups, restoreServerBackup } from "./ad
 import { createTransport, type FactoryDeps } from "./transport/factory.js";
 import { createLocalServer, type CreateLocalServerOptions } from "./create.js";
 import type { FetchBinary } from "./install.js";
-import { listCatalogue, refreshCatalogue, FLAVOUR_IDS, type FetchText, type FlavourId } from "./flavours/catalogue.js";
+import {
+    listCatalogue,
+    refreshCatalogue,
+    FLAVOUR_IDS,
+    type FetchText,
+    type FlavourId,
+} from "./flavours/catalogue.js";
+import { verifyWikiArticle } from "./flavours/wiki.js";
 import { requiredJavaFeature } from "./flavours/javaRequirement.js";
 import { createServerRegistry, type ServerRecord, type ServerRegistry } from "./registry.js";
 import { checkCompatibility } from "./plugins/compatibility.js";
 import { installPluginVersion } from "./plugins/install.js";
-import { checkForUpdate, listInstalledPlugins, removePlugin, togglePlugin } from "./plugins/manage.js";
+import {
+    checkForUpdate,
+    listInstalledPlugins,
+    removePlugin,
+    togglePlugin,
+} from "./plugins/manage.js";
 import { createHangarSource } from "./plugins/sources/hangar.js";
 import { createModrinthSource } from "./plugins/sources/modrinth.js";
 import { createSpigotSource } from "./plugins/sources/spigot.js";
-import type { PluginFetchLike, PluginLoader, PluginSource, PluginSourceId } from "./plugins/types.js";
+import type {
+    PluginFetchLike,
+    PluginLoader,
+    PluginSource,
+    PluginSourceId,
+} from "./plugins/types.js";
 import { ConsoleSupervisor } from "./console/session.js";
 import { buildPlayerCommand, parsePlayerList, type PlayerAction } from "./players/model.js";
 import { runOneCommand, testConnection, type SocketFactory } from "./rcon/client.js";
@@ -52,7 +69,13 @@ import { realRconSocketFactory } from "./rcon/nodeSocket.js";
 // shape. Two lanes arrived at the same good name independently, which is a collision rather
 // than a disagreement - importing both unaliased would simply not compile.
 import { RconSecretStore } from "./rcon/secret.js";
-import { fail, ok, type Answer, type ServerTransport, type TransportRef } from "./transport/types.js";
+import {
+    fail,
+    ok,
+    type Answer,
+    type ServerTransport,
+    type TransportRef,
+} from "./transport/types.js";
 import { buildWebConsolePasswordRecord, type SafeStorageLike } from "./webconsole/password.js";
 import { WebConsolePasswordStore } from "./webconsole/passwordStore.js";
 import { startWebConsoleServer, type WebConsoleServerHandle } from "./webconsole/server.js";
@@ -97,6 +120,7 @@ export const MCSERVER_CHANNELS = {
     pluginsUpdates: "mcserver:plugins:updates",
     catalogueList: "mcserver:catalogue:list",
     catalogueRefresh: "mcserver:catalogue:refresh",
+    catalogueWikiVerify: "mcserver:catalogue:wikiVerify",
     javaResolve: "mcserver:java:resolve",
     javaProvision: "mcserver:java:provision",
     configDescribe: "mcserver:config:describe",
@@ -219,7 +243,12 @@ function isRecordId(value: unknown): value is string {
 function isPath(value: unknown): value is string {
     // Length and control characters only. Whether the path is *allowed* is decided by
     // `transport/scope.ts`, which is the one place that question is answered.
-    return typeof value === "string" && value.length > 0 && value.length <= 4_096 && !/[\0\r\n]/.test(value);
+    return (
+        typeof value === "string" &&
+        value.length > 0 &&
+        value.length <= 4_096 &&
+        !/[\0\r\n]/.test(value)
+    );
 }
 
 function isPluginLoader(value: unknown): value is PluginLoader {
@@ -253,13 +282,20 @@ function readAwsServerSpec(request: unknown): AwsServerSpec | null {
     if (!isRecordId(body.serverId)) return null;
     if (typeof body.region !== "string" || body.region.length === 0) return null;
     if (typeof body.instanceType !== "string" || body.instanceType.length === 0) return null;
-    if (typeof body.diskGiB !== "number" || !Number.isFinite(body.diskGiB) || body.diskGiB <= 0 || body.diskGiB > 16_384) return null;
+    if (
+        typeof body.diskGiB !== "number" ||
+        !Number.isFinite(body.diskGiB) ||
+        body.diskGiB <= 0 ||
+        body.diskGiB > 16_384
+    )
+        return null;
     if (typeof body.staticAddress !== "boolean") return null;
     if (typeof body.amiId !== "string" || body.amiId.length === 0) return null;
     if (typeof body.keyPairName !== "string" || body.keyPairName.length === 0) return null;
     if (!Array.isArray(body.rules)) return null;
     const rules = body.rules.map((entry) => {
-        const r = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {};
+        const r =
+            typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {};
         return {
             port: typeof r.port === "number" ? r.port : -1,
             protocol: r.protocol === "udp" ? ("udp" as const) : ("tcp" as const),
@@ -286,7 +322,8 @@ function readAwsTeardownTarget(request: unknown): AwsTeardownTarget | null {
     const body = request as Record<string, unknown>;
     if (!isRecordId(body.serverId)) return null;
     if (typeof body.region !== "string" || body.region.length === 0) return null;
-    const optionalString = (value: unknown): string | null => (typeof value === "string" && value.length > 0 ? value : null);
+    const optionalString = (value: unknown): string | null =>
+        typeof value === "string" && value.length > 0 ? value : null;
     return {
         serverId: body.serverId,
         region: body.region,
@@ -296,9 +333,22 @@ function readAwsTeardownTarget(request: unknown): AwsTeardownTarget | null {
     };
 }
 
-export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServerIpcOptions): McServerIpc {
-    const registry = options.registry ?? createServerRegistry({ dataFolder: options.dataFolder, ...(options.now === undefined ? {} : { now: options.now }) });
-    const adoptions = options.adoptions ?? createAdoptionStore({ dataFolder: options.dataFolder, ...(options.now === undefined ? {} : { now: options.now }) });
+export function registerMcServerHandlers(
+    ipcMain: IpcMainLike,
+    options: McServerIpcOptions,
+): McServerIpc {
+    const registry =
+        options.registry ??
+        createServerRegistry({
+            dataFolder: options.dataFolder,
+            ...(options.now === undefined ? {} : { now: options.now }),
+        });
+    const adoptions =
+        options.adoptions ??
+        createAdoptionStore({
+            dataFolder: options.dataFolder,
+            ...(options.now === undefined ? {} : { now: options.now }),
+        });
     const now = options.now ?? (() => new Date().toISOString());
     const docker = options.docker ?? "docker";
 
@@ -316,28 +366,36 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         };
     }
 
-    const rconSecrets = new RconSecretStore({ dataFolder: options.dataFolder, safeStorage: options.safeStorage });
+    const rconSecrets = new RconSecretStore({
+        dataFolder: options.dataFolder,
+        safeStorage: options.safeStorage,
+    });
     const rconSocketFactory = options.rconSocketFactory ?? realRconSocketFactory;
     const rconHostFor = options.rconHostFor ?? defaultRconHostFor;
     /** Live console supervisors, keyed by the stable session id `console:open` handed out. */
-    const consoleSessions = new Map<string, { readonly serverId: string; readonly supervisor: ConsoleSupervisor; unsubscribe(): void }>();
+    const consoleSessions = new Map<
+        string,
+        { readonly serverId: string; readonly supervisor: ConsoleSupervisor; unsubscribe(): void }
+    >();
 
     const webConsolePasswordStore = new WebConsolePasswordStore(options.dataFolder);
     let webConsoleHandle: WebConsoleServerHandle | null = null;
     const serversRoot = options.serversRoot ?? join(options.dataFolder, "servers");
 
-    const pluginFetch: PluginFetchLike = options.pluginFetch ?? ((url, init) => globalThis.fetch(url, init));
-    const pluginSources: readonly PluginSource[] =
-        options.pluginSources ?? [
-            createModrinthSource({ fetch: pluginFetch }),
-            createHangarSource({ fetch: pluginFetch }),
-            createSpigotSource({ fetch: pluginFetch }),
-        ];
+    const pluginFetch: PluginFetchLike =
+        options.pluginFetch ?? ((url, init) => globalThis.fetch(url, init));
+    const pluginSources: readonly PluginSource[] = options.pluginSources ?? [
+        createModrinthSource({ fetch: pluginFetch }),
+        createHangarSource({ fetch: pluginFetch }),
+        createSpigotSource({ fetch: pluginFetch }),
+    ];
 
     function findSource(sourceId: unknown): Answer<PluginSource> {
-        if (!isSourceId(sourceId)) return fail("invalid-request", "That plugin source is not recognised.");
+        if (!isSourceId(sourceId))
+            return fail("invalid-request", "That plugin source is not recognised.");
         const source = pluginSources.find((candidate) => candidate.id === sourceId);
-        if (source === undefined) return fail("invalid-request", "That plugin source is not available.");
+        if (source === undefined)
+            return fail("invalid-request", "That plugin source is not available.");
         return { ok: true, value: source };
     }
 
@@ -349,8 +407,15 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
      * would hand the renderer a path check that had quietly forgotten what the user
      * consented to on an adopted container.
      */
-    async function open(id: unknown): Promise<Answer<{ record: ServerRecord; transport: ServerTransport; adoption: AdoptionRecord | null }>> {
-        if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
+    async function open(id: unknown): Promise<
+        Answer<{
+            record: ServerRecord;
+            transport: ServerTransport;
+            adoption: AdoptionRecord | null;
+        }>
+    > {
+        if (!isRecordId(id))
+            return fail("invalid-request", "That is not a server name this app can use.");
         const found = await registry.get(id);
         if (!found.ok) return found;
 
@@ -374,10 +439,18 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             writeScope: found.value.writeScope,
             ...(adoptionRecord === null
                 ? {}
-                : { capabilities: { ...options.factory?.capabilities, ...capabilitiesForConsent(adoptionRecord.consent) } }),
+                : {
+                      capabilities: {
+                          ...options.factory?.capabilities,
+                          ...capabilitiesForConsent(adoptionRecord.consent),
+                      },
+                  }),
         });
         if (!built.ok) return built;
-        return { ok: true, value: { record: found.value, transport: built.value, adoption: adoptionRecord } };
+        return {
+            ok: true,
+            value: { record: found.value, transport: built.value, adoption: adoptionRecord },
+        };
     }
 
     /**
@@ -387,17 +460,26 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
      * `RconClientOptions` a caller passes on to `rcon/client.ts` - it is never returned,
      * logged, or placed in a failure message.
      */
-    async function openRcon(
-        id: unknown,
-    ): Promise<Answer<{ readonly host: string; readonly port: number; readonly password: string; readonly socketFactory: SocketFactory }>> {
-        if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
+    async function openRcon(id: unknown): Promise<
+        Answer<{
+            readonly host: string;
+            readonly port: number;
+            readonly password: string;
+            readonly socketFactory: SocketFactory;
+        }>
+    > {
+        if (!isRecordId(id))
+            return fail("invalid-request", "That is not a server name this app can use.");
         const found = await registry.get(id);
         if (!found.ok) return found;
         if (found.value.rconPort === null) {
             return fail("invalid-request", "This server has no RCON port configured yet.");
         }
         if (!found.value.hasRconSecret) {
-            return fail("invalid-request", "No RCON password has been generated for this server yet.");
+            return fail(
+                "invalid-request",
+                "No RCON password has been generated for this server yet.",
+            );
         }
         const password = await rconSecrets.get(found.value.id);
         if (password === null) {
@@ -418,19 +500,24 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         [MCSERVER_CHANNELS.list]: async () => registry.list(),
 
         [MCSERVER_CHANNELS.get]: async (_event: never, id: unknown) => {
-            if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
+            if (!isRecordId(id))
+                return fail("invalid-request", "That is not a server name this app can use.");
             return registry.get(id);
         },
 
         [MCSERVER_CHANNELS.save]: async (_event: never, value: unknown) => {
             if (typeof value !== "object" || value === null) {
-                return fail("invalid-request", "That server could not be saved because its details were not readable.");
+                return fail(
+                    "invalid-request",
+                    "That server could not be saved because its details were not readable.",
+                );
             }
             return registry.put(value as ServerRecord);
         },
 
         [MCSERVER_CHANNELS.forget]: async (_event: never, id: unknown) => {
-            if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
+            if (!isRecordId(id))
+                return fail("invalid-request", "That is not a server name this app can use.");
             // Forgetting, never deleting. The container or folder is untouched.
             return registry.remove(id);
         },
@@ -453,13 +540,18 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         [MCSERVER_CHANNELS.stop]: async (_event: never, id: unknown, request: unknown) => {
             const opened = await open(id);
             if (!opened.ok) return opened;
-            const options_ = typeof request === "object" && request !== null ? (request as Record<string, unknown>) : {};
+            const options_ =
+                typeof request === "object" && request !== null
+                    ? (request as Record<string, unknown>)
+                    : {};
             // Graceful unless the renderer explicitly said otherwise. A missing or
             // malformed flag must never be read as "kill it": that costs whatever the
             // server has not saved.
             const graceful = options_.graceful !== false;
             const timeoutMs =
-                typeof options_.timeoutMs === "number" && options_.timeoutMs > 0 && options_.timeoutMs <= 600_000
+                typeof options_.timeoutMs === "number" &&
+                options_.timeoutMs > 0 &&
+                options_.timeoutMs <= 600_000
                     ? options_.timeoutMs
                     : 60_000;
             return opened.value.transport.stop({ graceful, timeoutMs });
@@ -505,10 +597,17 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         [MCSERVER_CHANNELS.consoleOpen]: async (event: unknown, id: unknown, tail?: unknown) => {
             const opened = await open(id);
             if (!opened.ok) return opened;
-            const tailLines = typeof tail === "number" && tail > 0 && tail <= 5_000 ? Math.floor(tail) : 200;
+            const tailLines =
+                typeof tail === "number" && tail > 0 && tail <= 5_000 ? Math.floor(tail) : 200;
 
-            const supervisor = new ConsoleSupervisor({ transport: opened.value.transport, tail: tailLines });
-            const sender = (event as { sender?: { send(channel: string, ...args: unknown[]): void } } | undefined)?.sender;
+            const supervisor = new ConsoleSupervisor({
+                transport: opened.value.transport,
+                tail: tailLines,
+            });
+            const sender = (
+                event as
+                    { sender?: { send(channel: string, ...args: unknown[]): void } } | undefined
+            )?.sender;
             const unsubscribe = supervisor.onUpdate((update) => {
                 try {
                     sender?.send(MCSERVER_CONSOLE_LINE_EVENT, supervisor.id, update);
@@ -516,14 +615,29 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                     /* The renderer window is gone; the session is torn down by consoleClose or dispose(). */
                 }
             });
-            consoleSessions.set(supervisor.id, { serverId: opened.value.record.id, supervisor, unsubscribe });
+            consoleSessions.set(supervisor.id, {
+                serverId: opened.value.record.id,
+                supervisor,
+                unsubscribe,
+            });
             supervisor.start();
             return { ok: true, value: { sessionId: supervisor.id } };
         },
 
-        [MCSERVER_CHANNELS.consoleSend]: async (_event: never, id: unknown, sessionId: unknown, command: unknown) => {
-            if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
-            if (typeof sessionId !== "string" || typeof command !== "string" || command.length === 0 || command.length > 2_000) {
+        [MCSERVER_CHANNELS.consoleSend]: async (
+            _event: never,
+            id: unknown,
+            sessionId: unknown,
+            command: unknown,
+        ) => {
+            if (!isRecordId(id))
+                return fail("invalid-request", "That is not a server name this app can use.");
+            if (
+                typeof sessionId !== "string" ||
+                typeof command !== "string" ||
+                command.length === 0 ||
+                command.length > 2_000
+            ) {
                 return fail("invalid-request", "That console command could not be read.");
             }
             const entry = consoleSessions.get(sessionId);
@@ -533,9 +647,15 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             return entry.supervisor.send(command);
         },
 
-        [MCSERVER_CHANNELS.consoleClose]: async (_event: never, id: unknown, sessionId: unknown) => {
-            if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
-            if (typeof sessionId !== "string") return fail("invalid-request", "That is not a real console session.");
+        [MCSERVER_CHANNELS.consoleClose]: async (
+            _event: never,
+            id: unknown,
+            sessionId: unknown,
+        ) => {
+            if (!isRecordId(id))
+                return fail("invalid-request", "That is not a server name this app can use.");
+            if (typeof sessionId !== "string")
+                return fail("invalid-request", "That is not a real console session.");
             const entry = consoleSessions.get(sessionId);
             if (entry === undefined || entry.serverId !== id) return { ok: true, value: undefined };
             entry.unsubscribe();
@@ -570,7 +690,10 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 "ban",
                 "pardon",
             ];
-            if (typeof body.action !== "string" || !validActions.includes(body.action as PlayerAction)) {
+            if (
+                typeof body.action !== "string" ||
+                !validActions.includes(body.action as PlayerAction)
+            ) {
                 return fail("invalid-request", "That is not a recognised player action.");
             }
             if (typeof body.name !== "string") {
@@ -588,7 +711,12 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             return runOneCommand(rconOptions.value, built.value);
         },
 
-        [MCSERVER_CHANNELS.fileWrite]: async (_event: never, id: unknown, path: unknown, request: unknown) => {
+        [MCSERVER_CHANNELS.fileWrite]: async (
+            _event: never,
+            id: unknown,
+            path: unknown,
+            request: unknown,
+        ) => {
             if (!isPath(path)) return fail("invalid-request", "That file name cannot be used.");
             if (typeof request !== "object" || request === null) {
                 return fail("invalid-request", "That change could not be read.");
@@ -598,19 +726,26 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return fail("invalid-request", "That change could not be read.");
             }
             const expectedHash =
-                typeof body.expectedHash === "string" && body.expectedHash.length <= 128 ? body.expectedHash : null;
+                typeof body.expectedHash === "string" && body.expectedHash.length <= 128
+                    ? body.expectedHash
+                    : null;
             const opened = await open(id);
             if (!opened.ok) return opened;
-            return opened.value.transport.fileWrite(path, new Uint8Array(Buffer.from(body.text, "utf8")), {
-                expectedHash,
-                backup: body.backup !== false,
-            });
+            return opened.value.transport.fileWrite(
+                path,
+                new Uint8Array(Buffer.from(body.text, "utf8")),
+                {
+                    expectedHash,
+                    backup: body.backup !== false,
+                },
+            );
         },
 
         [MCSERVER_CHANNELS.logTail]: async (_event: never, id: unknown, lines: unknown) => {
             const opened = await open(id);
             if (!opened.ok) return opened;
-            const tail = typeof lines === "number" && lines > 0 && lines <= 5_000 ? Math.floor(lines) : 500;
+            const tail =
+                typeof lines === "number" && lines > 0 && lines <= 5_000 ? Math.floor(lines) : 500;
             const attached = await opened.value.transport.attach({ tail });
             if (!attached.ok) return attached;
             const collected: { stream: string; text: string; at: string }[] = [];
@@ -683,7 +818,11 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             };
         },
 
-        [MCSERVER_CHANNELS.pluginsInstall]: async (_event: never, id: unknown, request: unknown) => {
+        [MCSERVER_CHANNELS.pluginsInstall]: async (
+            _event: never,
+            id: unknown,
+            request: unknown,
+        ) => {
             const opened = await open(id);
             if (!opened.ok) return opened;
             if (typeof request !== "object" || request === null) {
@@ -705,7 +844,10 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         [MCSERVER_CHANNELS.pluginsList]: async (_event: never, id: unknown, request: unknown) => {
             const opened = await open(id);
             if (!opened.ok) return opened;
-            const body = typeof request === "object" && request !== null ? (request as Record<string, unknown>) : {};
+            const body =
+                typeof request === "object" && request !== null
+                    ? (request as Record<string, unknown>)
+                    : {};
             return listInstalledPlugins({
                 transport: opened.value.transport,
                 ...(typeof body.pluginsDir === "string" ? { pluginsDir: body.pluginsDir } : {}),
@@ -720,8 +862,13 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return fail("invalid-request", "That request could not be read.");
             }
             const body = request as Record<string, unknown>;
-            if (!isPath(body.path)) return fail("invalid-request", "That file name cannot be used.");
-            return togglePlugin({ transport: opened.value.transport, path: body.path, enable: body.enable === true });
+            if (!isPath(body.path))
+                return fail("invalid-request", "That file name cannot be used.");
+            return togglePlugin({
+                transport: opened.value.transport,
+                path: body.path,
+                enable: body.enable === true,
+            });
         },
 
         [MCSERVER_CHANNELS.pluginsRemove]: async (_event: never, id: unknown, path: unknown) => {
@@ -763,15 +910,30 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 ...(options.fetchText === undefined ? {} : { fetchText: options.fetchText }),
             }),
 
+        [MCSERVER_CHANNELS.catalogueWikiVerify]: async (_event: never, version: unknown) => {
+            if (typeof version !== "string" || version.length === 0 || version.length > 128) {
+                return fail(
+                    "invalid-request",
+                    "That version cannot be checked for a Wiki article.",
+                );
+            }
+            return ok(await verifyWikiArticle({ dataDir: options.dataFolder, version }));
+        },
+
         [MCSERVER_CHANNELS.javaResolve]: async (_event: never, version: unknown) => {
             if (typeof version !== "string" || version.length === 0 || version.length > 64) {
-                return fail("invalid-request", "That is not a version this app can resolve a Java requirement for.");
+                return fail(
+                    "invalid-request",
+                    "That is not a version this app can resolve a Java requirement for.",
+                );
             }
             const requirement = requiredJavaFeature(version);
             const feature = requirement.known ? requirement.feature : REQUIRED_JAVA_FEATURE;
             const discovery = await discoverJava({
                 dataDir: options.dataFolder,
-                ...(options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath }),
+                ...(options.resourcesPath === undefined
+                    ? {}
+                    : { resourcesPath: options.resourcesPath }),
                 required: feature,
                 ...(options.javaRunner === undefined ? {} : { runner: options.javaRunner }),
                 ...(options.javaExists === undefined ? {} : { exists: options.javaExists }),
@@ -798,7 +960,8 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
          * every following Start still failed for the same reason.
          */
         [MCSERVER_CHANNELS.javaProvision]: async (event: unknown, id: unknown) => {
-            if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
+            if (!isRecordId(id))
+                return fail("invalid-request", "That is not a server name this app can use.");
             const found = await registry.get(id);
             if (!found.ok) return found;
 
@@ -809,7 +972,9 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             // hundred megabytes somebody already has.
             const discovery = await discoverJava({
                 dataDir: options.dataFolder,
-                ...(options.resourcesPath === undefined ? {} : { resourcesPath: options.resourcesPath }),
+                ...(options.resourcesPath === undefined
+                    ? {}
+                    : { resourcesPath: options.resourcesPath }),
                 required: feature,
                 ...(options.javaRunner === undefined ? {} : { runner: options.javaRunner }),
                 ...(options.javaExists === undefined ? {} : { exists: options.javaExists }),
@@ -819,8 +984,11 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return ok({ outcome: "already-installed", java: discovery.installation, feature });
             }
 
-            const sender = (event as { sender?: { send?: (channel: string, ...args: unknown[]) => void } } | null)
-                ?.sender;
+            const sender = (
+                event as {
+                    sender?: { send?: (channel: string, ...args: unknown[]) => void };
+                } | null
+            )?.sender;
             try {
                 const record = await provisionJava({
                     dataDir: options.dataFolder,
@@ -868,7 +1036,12 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             });
         },
 
-        [MCSERVER_CHANNELS.configApply]: async (_event: never, id: unknown, path: unknown, request: unknown) => {
+        [MCSERVER_CHANNELS.configApply]: async (
+            _event: never,
+            id: unknown,
+            path: unknown,
+            request: unknown,
+        ) => {
             if (!isPath(path)) return fail("invalid-request", "That file name cannot be used.");
             if (typeof request !== "object" || request === null) {
                 return fail("invalid-request", "That change could not be read.");
@@ -878,15 +1051,23 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 // Without the hash there is nothing to check the file against, and an
                 // unconditional write here would silently discard whatever the server or a
                 // plugin wrote since it was opened.
-                return fail("invalid-request", "That change did not say which version of the file it was made against.");
+                return fail(
+                    "invalid-request",
+                    "That change did not say which version of the file it was made against.",
+                );
             }
             if (!Array.isArray(body.changes) || body.changes.length === 0) {
                 return fail("invalid-request", "That change listed nothing to change.");
             }
             const changes = body.changes.map((entry) => {
-                const record = typeof entry === "object" && entry !== null ? (entry as Record<string, unknown>) : {};
+                const record =
+                    typeof entry === "object" && entry !== null
+                        ? (entry as Record<string, unknown>)
+                        : {};
                 const path_ = Array.isArray(record.path)
-                    ? record.path.filter((segment): segment is string => typeof segment === "string")
+                    ? record.path.filter(
+                          (segment): segment is string => typeof segment === "string",
+                      )
                     : [];
                 return { path: path_, value: record.value };
             });
@@ -906,7 +1087,10 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
 
         [MCSERVER_CHANNELS.create]: async (_event: never, request: unknown) => {
             if (typeof request !== "object" || request === null) {
-                return fail("invalid-request", "That server could not be created because its details were not readable.");
+                return fail(
+                    "invalid-request",
+                    "That server could not be created because its details were not readable.",
+                );
             }
             const body = request as Record<string, unknown>;
             if (!isRecordId(body.id) || typeof body.name !== "string" || body.name.trim() === "") {
@@ -974,11 +1158,26 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return ok({ host: webConsoleHandle.host, port: webConsoleHandle.port });
             }
             if (options.safeStorage === undefined) {
-                return fail("unsupported", "This build cannot offer the web console because it has no credential vault.");
+                return fail(
+                    "unsupported",
+                    "This build cannot offer the web console because it has no credential vault.",
+                );
             }
-            const req = typeof request === "object" && request !== null ? (request as Record<string, unknown>) : {};
-            const host = typeof req.host === "string" && req.host.length > 0 && req.host.length <= 253 ? req.host : undefined;
-            const port = typeof req.port === "number" && Number.isInteger(req.port) && req.port >= 0 && req.port <= 65_535 ? req.port : undefined;
+            const req =
+                typeof request === "object" && request !== null
+                    ? (request as Record<string, unknown>)
+                    : {};
+            const host =
+                typeof req.host === "string" && req.host.length > 0 && req.host.length <= 253
+                    ? req.host
+                    : undefined;
+            const port =
+                typeof req.port === "number" &&
+                Number.isInteger(req.port) &&
+                req.port >= 0 &&
+                req.port <= 65_535
+                    ? req.port
+                    : undefined;
             const tlsTerminated = req.tlsTerminated === true;
             try {
                 const handle = await startWebConsoleServer({
@@ -1007,7 +1206,10 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
 
         [MCSERVER_CHANNELS.webConsoleSetPassword]: async (_event: never, password: unknown) => {
             if (options.safeStorage === undefined) {
-                return fail("unsupported", "This build cannot offer the web console because it has no credential vault.");
+                return fail(
+                    "unsupported",
+                    "This build cannot offer the web console because it has no credential vault.",
+                );
             }
             if (typeof password !== "string" || password.length === 0) {
                 return fail("invalid-request", "A password is required.");
@@ -1033,22 +1235,41 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         [MCSERVER_CHANNELS.adoptDiscover]: async () => {
             const runner = options.factory?.runner;
             if (runner === undefined) {
-                return fail("unsupported", "Discovering existing containers needs a way to run docker commands, which this build did not provide.");
+                return fail(
+                    "unsupported",
+                    "Discovering existing containers needs a way to run docker commands, which this build did not provide.",
+                );
             }
-            return discoverAdoptionCandidates({ runner, docker, ...(options.dockerOwnerValue === undefined ? {} : { ownerValue: options.dockerOwnerValue }) });
+            return discoverAdoptionCandidates({
+                runner,
+                docker,
+                ...(options.dockerOwnerValue === undefined
+                    ? {}
+                    : { ownerValue: options.dockerOwnerValue }),
+            });
         },
 
         [MCSERVER_CHANNELS.adopt]: async (_event: never, request: unknown) => {
             const runner = options.factory?.runner;
             if (runner === undefined) {
-                return fail("unsupported", "Adopting a container needs a way to run docker commands, which this build did not provide.");
+                return fail(
+                    "unsupported",
+                    "Adopting a container needs a way to run docker commands, which this build did not provide.",
+                );
             }
             if (typeof request !== "object" || request === null) {
                 return fail("invalid-request", "That adoption request could not be read.");
             }
             const body = request as Record<string, unknown>;
-            if (!isRecordId(body.id) || typeof body.containerId !== "string" || body.containerId === "") {
-                return fail("invalid-request", "That adoption request is missing a server name or a container to adopt.");
+            if (
+                !isRecordId(body.id) ||
+                typeof body.containerId !== "string" ||
+                body.containerId === ""
+            ) {
+                return fail(
+                    "invalid-request",
+                    "That adoption request is missing a server name or a container to adopt.",
+                );
             }
 
             // Adopting is always one-at-a-time. This handler only ever names one
@@ -1060,10 +1281,14 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             const discovered = await discoverAdoptionCandidates({
                 runner,
                 docker,
-                ...(options.dockerOwnerValue === undefined ? {} : { ownerValue: options.dockerOwnerValue }),
+                ...(options.dockerOwnerValue === undefined
+                    ? {}
+                    : { ownerValue: options.dockerOwnerValue }),
             });
             if (!discovered.ok) return discovered;
-            const candidate = discovered.value.find((entry) => entry.containerId === body.containerId);
+            const candidate = discovered.value.find(
+                (entry) => entry.containerId === body.containerId,
+            );
             if (candidate === undefined) {
                 return fail("not-found", "That container could not be found any more.");
             }
@@ -1083,7 +1308,10 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             });
             const serverDir = candidate.detected.serverDir ?? candidate.mounts[0]?.source ?? "";
             if (serverDir === "") {
-                return fail("invalid-request", "This container has no server folder WorldLens could identify.");
+                return fail(
+                    "invalid-request",
+                    "This container has no server folder WorldLens could identify.",
+                );
             }
 
             const consent = readConsent(body.consent);
@@ -1098,7 +1326,10 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 // without recreating it - see this module's own file header - so every
                 // adoption starts, and stays, record-only.
                 mode: "record-only",
-                detected: { flavour: candidate.detected.flavour, minecraftVersion: candidate.detected.minecraftVersion },
+                detected: {
+                    flavour: candidate.detected.flavour,
+                    minecraftVersion: candidate.detected.minecraftVersion,
+                },
                 serverDir,
                 writeScope: [],
                 consent,
@@ -1128,16 +1359,26 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         },
 
         [MCSERVER_CHANNELS.adoptRelease]: async (_event: never, id: unknown, request: unknown) => {
-            if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
-            const body = typeof request === "object" && request !== null ? (request as Record<string, unknown>) : {};
-            return releaseAdoption(adoptions, registry, id, { restoreSnapshot: body.restoreSnapshot === true });
+            if (!isRecordId(id))
+                return fail("invalid-request", "That is not a server name this app can use.");
+            const body =
+                typeof request === "object" && request !== null
+                    ? (request as Record<string, unknown>)
+                    : {};
+            return releaseAdoption(adoptions, registry, id, {
+                restoreSnapshot: body.restoreSnapshot === true,
+            });
         },
 
         [MCSERVER_CHANNELS.worldsList]: async (_event: never, id: unknown) => {
             const opened = await open(id);
             if (!opened.ok) return opened;
             const activeWorldName = null; // server.properties is read by listWorlds's caller when needed; unknown here is honest, not a guess.
-            return listWorlds(opened.value.transport, opened.value.record.ref.serverDir, activeWorldName);
+            return listWorlds(
+                opened.value.transport,
+                opened.value.record.ref.serverDir,
+                activeWorldName,
+            );
         },
 
         [MCSERVER_CHANNELS.backupCreate]: async (_event: never, id: unknown, request: unknown) => {
@@ -1150,8 +1391,15 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return fail("invalid-request", "That backup request could not be read.");
             }
             const body = request as Record<string, unknown>;
-            if (typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.worldFolder !== "string") {
-                return fail("invalid-request", "A backup needs a world folder and a repository to back up to.");
+            if (
+                typeof body.owner !== "string" ||
+                typeof body.repo !== "string" ||
+                typeof body.worldFolder !== "string"
+            ) {
+                return fail(
+                    "invalid-request",
+                    "A backup needs a world folder and a repository to back up to.",
+                );
             }
             return createServerBackup(options.backup.runnerOptions, {
                 ref: opened.value.record.ref,
@@ -1170,7 +1418,10 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return fail("unsupported", "Backups are not set up in this build.");
             }
             if (typeof owner !== "string" || typeof repo !== "string") {
-                return fail("invalid-request", "A repository owner and name are needed to list backups.");
+                return fail(
+                    "invalid-request",
+                    "A repository owner and name are needed to list backups.",
+                );
             }
             return listServerBackups(owner, repo, options.backup.githubCallOptions);
         },
@@ -1185,8 +1436,15 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return fail("invalid-request", "That restore request could not be read.");
             }
             const body = request as Record<string, unknown>;
-            if (typeof body.owner !== "string" || typeof body.repo !== "string" || typeof body.tag !== "string") {
-                return fail("invalid-request", "A restore needs a repository owner, name and release tag.");
+            if (
+                typeof body.owner !== "string" ||
+                typeof body.repo !== "string" ||
+                typeof body.tag !== "string"
+            ) {
+                return fail(
+                    "invalid-request",
+                    "A restore needs a repository owner, name and release tag.",
+                );
             }
             return restoreServerBackup(options.backup.restoreRunnerOptions, {
                 ref: opened.value.record.ref,
@@ -1205,22 +1463,34 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
          */
         [MCSERVER_CHANNELS.awsPlan]: async (_event: never, request: unknown) => {
             const spec = readAwsServerSpec(request);
-            if (spec === null) return fail("invalid-request", "That AWS server description could not be read.");
+            if (spec === null)
+                return fail("invalid-request", "That AWS server description could not be read.");
             return { ok: true, value: planAwsServer(spec) };
         },
 
         [MCSERVER_CHANNELS.awsProvision]: async (_event: never, request: unknown) => {
             const spec = readAwsServerSpec(request);
-            if (spec === null) return fail("invalid-request", "That AWS server description could not be read.");
+            if (spec === null)
+                return fail("invalid-request", "That AWS server description could not be read.");
             const runner = options.awsRunner ?? execFileCommandRunner;
-            return provisionAwsServer(planAwsServer(spec), { runner, ...(options.aws === undefined ? {} : { aws: options.aws }) });
+            return provisionAwsServer(planAwsServer(spec), {
+                runner,
+                ...(options.aws === undefined ? {} : { aws: options.aws }),
+            });
         },
 
         [MCSERVER_CHANNELS.awsTeardown]: async (_event: never, request: unknown) => {
             const target = readAwsTeardownTarget(request);
-            if (target === null) return fail("invalid-request", "That AWS server could not be identified for teardown.");
+            if (target === null)
+                return fail(
+                    "invalid-request",
+                    "That AWS server could not be identified for teardown.",
+                );
             const runner = options.awsRunner ?? execFileCommandRunner;
-            return teardownAwsServer(target, { runner, ...(options.aws === undefined ? {} : { aws: options.aws }) });
+            return teardownAwsServer(target, {
+                runner,
+                ...(options.aws === undefined ? {} : { aws: options.aws }),
+            });
         },
 
         // Where a new server should live, so the folder field arrives filled in.
@@ -1233,7 +1503,10 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
             // Only a plain folder-name fragment is ever appended, so a crafted name cannot
             // climb out of the servers directory.
             const raw = typeof name === "string" ? name.trim() : "";
-            const safe = raw.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^[-.]+|[-.]+$/g, "").slice(0, 64);
+            const safe = raw
+                .replace(/[^A-Za-z0-9._-]+/g, "-")
+                .replace(/^[-.]+|[-.]+$/g, "")
+                .slice(0, 64);
             return { ok: true, value: safe === "" ? serversRoot : join(serversRoot, safe) };
         },
 
@@ -1244,13 +1517,21 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
         /** Every AWS account this machine can reach, read fresh from the CLI's own profiles. */
         [MCSERVER_CHANNELS.awsAccounts]: async () => {
             const runner = options.awsRunner ?? execFileCommandRunner;
-            return listAccounts({ runner, ...(options.aws === undefined ? {} : { aws: options.aws }) });
+            return listAccounts({
+                runner,
+                ...(options.aws === undefined ? {} : { aws: options.aws }),
+            });
         },
 
         /** Names an account. Refused before the call when the alias itself could not be valid. */
         [MCSERVER_CHANNELS.awsAccountAlias]: async (_event: never, request: unknown) => {
             const body = request as { profile?: unknown; alias?: unknown } | null;
-            if (body === null || typeof body !== "object" || typeof body.profile !== "string" || typeof body.alias !== "string") {
+            if (
+                body === null ||
+                typeof body !== "object" ||
+                typeof body.profile !== "string" ||
+                typeof body.alias !== "string"
+            ) {
                 return fail("invalid-request", "That account naming request could not be read.");
             }
             const runner = options.awsRunner ?? execFileCommandRunner;
@@ -1267,14 +1548,22 @@ export function registerMcServerHandlers(ipcMain: IpcMainLike, options: McServer
                 return fail("invalid-request", "That credits request could not be read.");
             }
             let period: CreditsPeriod | undefined;
-            if (body.period !== undefined && body.period !== null && typeof body.period === "object") {
+            if (
+                body.period !== undefined &&
+                body.period !== null &&
+                typeof body.period === "object"
+            ) {
                 const p = body.period as { start?: unknown; end?: unknown };
                 if (typeof p.start === "string" && typeof p.end === "string") {
                     period = { start: p.start, end: p.end };
                 }
             }
             const runner = options.awsRunner ?? execFileCommandRunner;
-            return readCredits(body.profile, { runner, ...(options.aws === undefined ? {} : { aws: options.aws }) }, period);
+            return readCredits(
+                body.profile,
+                { runner, ...(options.aws === undefined ? {} : { aws: options.aws }) },
+                period,
+            );
         },
     };
 

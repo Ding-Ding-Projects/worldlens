@@ -175,6 +175,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "mcserver:backup:restore",
     "mcserver:catalogue:list",
     "mcserver:catalogue:refresh",
+    "mcserver:catalogue:wikiVerify",
     "mcserver:config:apply",
     "mcserver:config:describe",
     "mcserver:console:close",
@@ -375,9 +376,7 @@ export const BRIDGE_EVENT_CHANNELS = Object.freeze([
  * The single synchronous channel. It is read once, before anything renders, and it is
  * allowed to fail: a shell too old to answer simply leaves the lock folder unnamed.
  */
-export const BRIDGE_SYNC_CHANNELS = Object.freeze([
-    "locks:dataFolder",
-] as const);
+export const BRIDGE_SYNC_CHANNELS = Object.freeze(["locks:dataFolder"] as const);
 
 /** Every channel the bridge can reach, in one list. */
 export const BRIDGE_CHANNELS: readonly string[] = Object.freeze([

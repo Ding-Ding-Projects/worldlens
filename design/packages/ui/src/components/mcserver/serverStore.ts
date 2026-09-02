@@ -81,6 +81,7 @@ export type CatalogueFlavourId =
     "vanilla" | "paper" | "velocity" | "purpur" | "fabric" | "forge" | "neoforge";
 
 export type VersionStability = "release" | "snapshot";
+export type WikiArticleState = "verified" | "unavailable" | "offline-unverified";
 
 export interface CatalogueVersionEntry {
     readonly version: string;
@@ -90,11 +91,18 @@ export interface CatalogueVersionEntry {
     readonly sha256: string | null;
     /** When it was published, ISO-8601, or null where the upstream API does not say. */
     readonly releasedAt: string | null;
+    /** The main boundary's latest article check, or an honest offline-unverified state. */
+    readonly wikiState?: WikiArticleState;
+    readonly availability?: "available" | "missing-server-artifact";
+    readonly availabilityReason?: string;
 }
 
 export interface CatalogueFlavour {
     readonly flavour: CatalogueFlavourId;
     readonly versions: readonly CatalogueVersionEntry[];
+    readonly stale?: boolean;
+    readonly lastFetchedAt?: string;
+    readonly failure?: string;
     /** Optional mod-loader metadata supplied by catalogues that publish it. */
     readonly loaderVersions?: readonly string[];
     readonly commonApiLibraries?: readonly string[];
@@ -105,6 +113,7 @@ export interface CatalogueSnapshot {
     readonly fetchedAt: string;
     readonly stale: boolean;
     readonly failures: readonly { readonly flavour: CatalogueFlavourId; readonly reason: string }[];
+    readonly sourceRevision?: string | null;
 }
 
 export interface JavaResolution {
@@ -256,6 +265,13 @@ export interface McServerHost {
     readonly catalogue?: {
         list(): Promise<Answer<CatalogueSnapshot>>;
         refresh(): Promise<Answer<CatalogueSnapshot>>;
+        verifyWiki(version: string): Promise<
+            Answer<{
+                readonly url: string;
+                readonly state: WikiArticleState;
+                readonly checkedAt: string;
+            }>
+        >;
     };
     readonly java?: {
         resolve(version: string): Promise<Answer<JavaResolution>>;
@@ -371,6 +387,13 @@ export interface ServerStore {
 
     catalogueList(): Promise<Answer<CatalogueSnapshot>>;
     catalogueRefresh(): Promise<Answer<CatalogueSnapshot>>;
+    catalogueVerifyWiki(version: string): Promise<
+        Answer<{
+            readonly url: string;
+            readonly state: WikiArticleState;
+            readonly checkedAt: string;
+        }>
+    >;
     javaResolve(version: string): Promise<Answer<JavaResolution>>;
     javaProvision(version: string): Promise<Answer<JavaResolution>>;
     onJavaProgress(listener: (progress: JavaProvisionProgress) => void): () => void;
@@ -549,6 +572,10 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             if (host === null) return noHost();
             if (host.catalogue === undefined) return notWired("the server catalogue");
             return host.catalogue.refresh();
+        },
+        async catalogueVerifyWiki(version: string) {
+            if (host?.catalogue === undefined) return notWired("the server catalogue Wiki checker");
+            return host.catalogue.verifyWiki(version);
         },
         async javaResolve(version): Promise<Answer<JavaResolution>> {
             if (host === null) return noHost();

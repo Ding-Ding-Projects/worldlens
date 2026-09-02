@@ -2374,7 +2374,8 @@ interface WorldlensBridge {
      * a source export with no git history has no provenance to read - and the About
      * surface renders it as "not recorded" rather than substituting the current clock.
      */
-    getBuildProvenance(): Promise<{ version: string; builtAt: string | null }>;
+    getBuildProvenance(): Promise<{ version: string; builtAt: string | null }>;
+
     /**
      * How this copy is running. `hosted` is false on a desktop; a hosted deployment adds the
      * facts a person looking at the interface has no other way to learn.
@@ -2456,7 +2457,10 @@ interface WorldlensBridge {
             apply(
                 id: string,
                 path: string,
-                body: { expectedHash: string; changes: readonly { path: readonly string[]; value: unknown }[] },
+                body: {
+                    expectedHash: string;
+                    changes: readonly { path: readonly string[]; value: unknown }[];
+                },
             ): Promise<unknown>;
         };
         files: {
@@ -2474,7 +2478,12 @@ interface WorldlensBridge {
             confirm(request: {
                 id: string;
                 containerId: string;
-                consent?: { configWrite?: boolean; lifecycle?: boolean; pluginInstall?: boolean; consoleWrite?: boolean };
+                consent?: {
+                    configWrite?: boolean;
+                    lifecycle?: boolean;
+                    pluginInstall?: boolean;
+                    consoleWrite?: boolean;
+                };
             }): Promise<unknown>;
             /** Forgets the adoption. Never stops, removes or deletes the container or its files. */
             release(id: string, options?: { restoreSnapshot?: boolean }): Promise<unknown>;
@@ -2485,10 +2494,20 @@ interface WorldlensBridge {
         backup: {
             create(
                 id: string,
-                request: { owner: string; repo: string; worldFolder: string; accountId?: string; acknowledgePublic?: boolean; resumeTag?: string },
+                request: {
+                    owner: string;
+                    repo: string;
+                    worldFolder: string;
+                    accountId?: string;
+                    acknowledgePublic?: boolean;
+                    resumeTag?: string;
+                },
             ): Promise<unknown>;
             list(owner: string, repo: string): Promise<unknown>;
-            restore(id: string, request: { owner: string; repo: string; tag: string; accountId?: string }): Promise<unknown>;
+            restore(
+                id: string,
+                request: { owner: string; repo: string; tag: string; accountId?: string },
+            ): Promise<unknown>;
         };
         /** Proves the stored RCON password and port work. Never returns the password. */
         rconTest(id: string): Promise<unknown>;
@@ -2518,7 +2537,11 @@ interface WorldlensBridge {
          */
         webConsole: {
             status(): Promise<unknown>;
-            start(options?: { host?: string; port?: number; tlsTerminated?: boolean }): Promise<unknown>;
+            start(options?: {
+                host?: string;
+                port?: number;
+                tlsTerminated?: boolean;
+            }): Promise<unknown>;
             stop(): Promise<unknown>;
             setPassword(password: string): Promise<unknown>;
             bind(): Promise<unknown>;
@@ -2545,15 +2568,23 @@ interface WorldlensBridge {
                 /** When given, each returned version also carries its compatibility verdict. */
                 serverId?: string;
             }): Promise<unknown>;
-            install(id: string, request: { version: unknown; pluginsDir?: string; modsDir?: string }): Promise<unknown>;
+            install(
+                id: string,
+                request: { version: unknown; pluginsDir?: string; modsDir?: string },
+            ): Promise<unknown>;
             list(id: string, request?: { pluginsDir?: string; modsDir?: string }): Promise<unknown>;
             toggle(id: string, request: { path: string; enable: boolean }): Promise<unknown>;
             remove(id: string, path: string): Promise<unknown>;
-            updates(request: { sourceId: "modrinth" | "hangar" | "spigot"; projectId: string; installed: unknown }): Promise<unknown>;
+            updates(request: {
+                sourceId: "modrinth" | "hangar" | "spigot";
+                projectId: string;
+                installed: unknown;
+            }): Promise<unknown>;
         };
         catalogue: {
             list(): Promise<unknown>;
             refresh(): Promise<unknown>;
+            verifyWiki(version: string): Promise<unknown>;
         };
         java: {
             resolve(version: string): Promise<unknown>;
@@ -2594,7 +2625,10 @@ interface WorldlensBridge {
         awsAccounts: {
             list(): Promise<unknown>;
             setAlias(request: { profile: string; alias: string }): Promise<unknown>;
-            credits(request: { profile: string; period?: { start: string; end: string } }): Promise<unknown>;
+            credits(request: {
+                profile: string;
+                period?: { start: string; end: string };
+            }): Promise<unknown>;
         };
     };
     vocabulary: {

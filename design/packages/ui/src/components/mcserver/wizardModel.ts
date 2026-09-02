@@ -118,6 +118,9 @@ export function flavourCard(id: ServerFlavour): FlavourCard | undefined {
 
 export interface VersionGroup {
     readonly stability: "release" | "snapshot";
+    /** Family rows preserve the exact version entries while keeping large catalogues bounded. */
+    readonly families: readonly VersionFamily[];
+    /** Compatibility view for callers that only need a flat list. */
     readonly versions: readonly CatalogueVersionEntry[];
 }
 
@@ -125,40 +128,26 @@ export interface VersionFamily {
     readonly key: string;
     readonly label: string;
     readonly stability: "release" | "snapshot";
+    readonly family: string;
     readonly versions: readonly CatalogueVersionEntry[];
+    readonly count: number;
+    readonly latestVersion: string;
+    readonly recommended: boolean;
 }
 
-/**
- * Groups exact provider versions into a family without dropping any build row.
- * Release families use `major.minor.x`; snapshots stay separate so a dated snapshot
- * never looks like a stable release. Entries retain provider order within each family.
- */
-export function groupVersionFamilies(
-    versions: readonly CatalogueVersionEntry[],
-): readonly VersionFamily[] {
-    const families: VersionFamily[] = [];
-    const byKey = new Map<string, VersionFamily>();
-    for (const entry of versions) {
-        const match = /^(\d+)\.(\d+)/.exec(entry.version);
-        const base = match === null ? entry.version : `${match[1]}.${match[2]}.x`;
-        const key = `${entry.stability}:${base}`;
-        const existing = byKey.get(key);
-        if (existing !== undefined) {
-            const replacement = { ...existing, versions: [...existing.versions, entry] };
-            byKey.set(key, replacement);
-            families[families.indexOf(existing)] = replacement;
-            continue;
-        }
-        const family: VersionFamily = {
-            key,
-            label: entry.stability === "snapshot" ? `Snapshots ${base}` : base,
-            stability: entry.stability,
-            versions: [entry],
-        };
-        byKey.set(key, family);
-        families.push(family);
-    }
-    return families;
+function familyForVersion(version: string): string {
+    const gameVersion = version.split("#", 1)[0] ?? version;
+    const modernSnapshot = /^(\d+\.\d+)-snapshot(?:-|$)/i.exec(gameVersion);
+    if (modernSnapshot?.[1] !== undefined) return `${modernSnapshot[1]} snapshots`;
+    const numbered = /^(\d+\.\d+)(?:\.\d+)?(?:-(?:pre|rc|snapshot).*)?$/.exec(gameVersion);
+    if (numbered?.[1] !== undefined) return `${numbered[1]}.x`;
+    const snapshot = /^(\d{2})w\d{2}[a-z](?:-.*)?$/i.exec(gameVersion);
+    if (snapshot?.[1] !== undefined) return `${snapshot[1]} snapshots`;
+    return "Other versions";
+}
+
+export function versionFamily(version: string): string {
+    return familyForVersion(version);
 }
 
 /** Newest first within each group, releases before snapshots. */
@@ -166,9 +155,40 @@ export function groupVersions(versions: readonly CatalogueVersionEntry[]): reado
     const releases = versions.filter((v) => v.stability === "release");
     const snapshots = versions.filter((v) => v.stability === "snapshot");
     const groups: VersionGroup[] = [];
-    if (releases.length > 0) groups.push({ stability: "release", versions: releases });
-    if (snapshots.length > 0) groups.push({ stability: "snapshot", versions: snapshots });
+    for (const [stability, entries] of [
+        ["release", releases],
+        ["snapshot", snapshots],
+    ] as const) {
+        if (entries.length === 0) continue;
+        const grouped = new Map<string, CatalogueVersionEntry[]>();
+        for (const entry of entries) {
+            const family = familyForVersion(entry.version);
+            const current = grouped.get(family);
+            if (current === undefined) grouped.set(family, [entry]);
+            else current.push(entry);
+        }
+        const families = [...grouped.entries()].map(
+            ([family, familyVersions], index): VersionFamily => ({
+                key: `${stability}:${family}`,
+                label: family,
+                stability,
+                family,
+                versions: familyVersions,
+                count: familyVersions.length,
+                latestVersion: familyVersions[0]?.version ?? family,
+                recommended: stability === "release" && index === 0,
+            }),
+        );
+        groups.push({ stability, families, versions: entries });
+    }
     return groups;
+}
+
+/** Compatibility view for callers that need one flat family list. */
+export function groupVersionFamilies(
+    versions: readonly CatalogueVersionEntry[],
+): readonly VersionFamily[] {
+    return groupVersions(versions).flatMap((group) => group.families);
 }
 
 export function matchesVersionSearch(entry: CatalogueVersionEntry, query: string): boolean {

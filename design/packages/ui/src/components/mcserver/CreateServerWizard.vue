@@ -25,7 +25,13 @@ import {
 import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
 import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
-import { releaseDateLabel, wikiUrlFor } from "./versionPresentation.js";
+import SearchableOptionPicker from "./SearchableOptionPicker.vue";
+import {
+    releaseDateLabel,
+    wikiArticleStateFor,
+    wikiArticleStateLabel,
+    wikiUrlFor,
+} from "./versionPresentation.js";
 import { useServerStore } from "./useServers.js";
 import {
     validateMemoryMb,
@@ -40,13 +46,14 @@ import type {
     CatalogueVersionEntry,
     JavaProvisionProgress,
     JavaResolution,
+    WikiArticleState,
 } from "./serverStore.js";
 import {
     FLAVOUR_CARDS,
     RUNTIME_OPTIONS,
     WIZARD_STEPS,
     filterVersions,
-    groupVersionFamilies,
+    groupVersions,
     memorySliderMax,
     DEFAULT_MODS_DIRECTORY,
     isModLoaderFlavour,
@@ -105,6 +112,86 @@ const versionQuery = ref("");
 const versionUseRegex = ref(false);
 const versionFlags = ref("i");
 const minecraftVersion = ref("");
+const wikiStates = ref<Record<string, WikiArticleState>>({});
+const expandedFamilies = ref<Record<string, boolean>>({});
+const MAX_RENDERED_VERSION_ROWS = 500;
+const versionPage = ref(0);
+
+function familyStorageKey(): string {
+    return `worldlens.mcserver.version-families.v1:${flavour.value}`;
+}
+
+function loadFamilyExpansion(): void {
+    try {
+        const raw = localStorage.getItem(familyStorageKey());
+        const parsed = raw === null ? null : (JSON.parse(raw) as unknown);
+        expandedFamilies.value =
+            typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)
+                ? Object.fromEntries(
+                      Object.entries(parsed).filter(
+                          (entry): entry is [string, boolean] => typeof entry[1] === "boolean",
+                      ),
+                  )
+                : {};
+    } catch {
+        expandedFamilies.value = {};
+    }
+}
+
+function persistFamilyExpansion(): void {
+    try {
+        localStorage.setItem(familyStorageKey(), JSON.stringify(expandedFamilies.value));
+    } catch {
+        // Private preference storage can be unavailable in a restricted profile.
+    }
+}
+
+function familyKey(stability: string, family: string): string {
+    return `${stability}:${family}`;
+}
+
+function familyIsExpanded(stability: string, family: string): boolean {
+    if (versionQuery.value.trim() !== "") return true;
+    const stored = expandedFamilies.value[familyKey(stability, family)];
+    if (stored !== undefined) return stored;
+    const first = versionGroups.value[0]?.families[0];
+    return first?.stability === stability && first.family === family;
+}
+
+function toggleFamily(stability: string, family: string): void {
+    const key = familyKey(stability, family);
+    expandedFamilies.value = {
+        ...expandedFamilies.value,
+        [key]: !familyIsExpanded(stability, family),
+    };
+}
+
+async function selectVersion(version: string): Promise<void> {
+    minecraftVersion.value = version;
+    if (!store.hasCatalogue) return;
+    const result = await store.catalogueVerifyWiki(version);
+    if (result.ok && result.value)
+        wikiStates.value = { ...wikiStates.value, [version]: result.value.state };
+}
+
+const renderedVersionGroups = computed(() => {
+    const first = versionPage.value * MAX_RENDERED_VERSION_ROWS;
+    let seen = 0;
+    return versionGroups.value.map((group) => ({
+        ...group,
+        families: group.families.map((family) => {
+            const versions = family.versions.filter((_entry, index) => {
+                const globalIndex = seen + index;
+                return globalIndex >= first && globalIndex < first + MAX_RENDERED_VERSION_ROWS;
+            });
+            seen += family.versions.length;
+            return { ...family, versions };
+        }),
+    }));
+});
+
+watch(flavour, loadFamilyExpansion, { immediate: true });
+watch(expandedFamilies, persistFamilyExpansion, { deep: true });
 
 async function loadCatalogue(): Promise<void> {
     if (!store.hasCatalogue) return;
@@ -142,16 +229,16 @@ const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
     const entry = catalogue.value?.flavours.find((f) => f.flavour === card.cataloguedId);
     return entry?.versions ?? [];
 });
-const selectedCatalogueId = computed(
-    () => FLAVOUR_CARDS.find((card) => card.id === flavour.value)?.cataloguedId ?? null,
-);
-const selectedCatalogueFailures = computed(() =>
-    catalogue.value === null || selectedCatalogueId.value === null
+const selectedFlavourCatalogue = computed(() => {
+    const card = FLAVOUR_CARDS.find((candidate) => candidate.id === flavour.value);
+    return catalogue.value?.flavours.find((entry) => entry.flavour === card?.cataloguedId) ?? null;
+});
+const selectedCatalogueFailures = computed(() => {
+    const selectedId = selectedFlavourCatalogue.value?.flavour;
+    return selectedId === undefined || catalogue.value === null
         ? []
-        : catalogue.value.failures.filter(
-              (failure) => failure.flavour === selectedCatalogueId.value,
-          ),
-);
+        : catalogue.value.failures.filter((failure) => failure.flavour === selectedId);
+});
 
 /**
  * Whether the user has deliberately asked to type a version the catalogue does not list.
@@ -183,6 +270,21 @@ const versionEnteredByHand = computed(
 const selectedWikiUrl = computed(() =>
     minecraftVersion.value.trim() === "" ? null : wikiUrlFor(minecraftVersion.value),
 );
+const selectedWikiState = computed(
+    () => wikiStates.value[minecraftVersion.value] ?? wikiArticleStateFor(minecraftVersion.value),
+);
+
+const versionOptions = computed(() =>
+    filteredVersions.value.map((entry) => {
+        const released = releaseDateLabel(entry.releasedAt);
+        const java = t("mcserver.wizard.needsJava", { n: entry.javaFeature }, "Needs Java {n}");
+        return {
+            value: entry.version,
+            title: entry.version,
+            subtitle: released === null ? java : `${java} · ${released}`,
+        };
+    }),
+);
 
 const filteredVersions = computed(() =>
     filterVersions(
@@ -192,25 +294,14 @@ const filteredVersions = computed(() =>
         versionFlags.value,
     ),
 );
-const versionFamilies = computed(() => groupVersionFamilies(filteredVersions.value));
-const expandedVersionFamilies = ref<Record<string, boolean>>({});
-const versionSample = computed(() =>
-    flavourVersions.value
-        .map((v) => `${v.version} ${v.stability} Java ${v.javaFeature} ${v.releasedAt ?? ""}`)
-        .join("\n"),
+const versionGroups = computed(() => groupVersions(filteredVersions.value));
+const versionPageCount = computed(() =>
+    Math.max(1, Math.ceil(filteredVersions.value.length / MAX_RENDERED_VERSION_ROWS)),
 );
-
-function familyExpanded(key: string, index: number): boolean {
-    if (versionQuery.value.trim() !== "") return true;
-    return expandedVersionFamilies.value[key] ?? index === 0;
-}
-
-function toggleFamily(key: string, index: number): void {
-    expandedVersionFamilies.value = {
-        ...expandedVersionFamilies.value,
-        [key]: !familyExpanded(key, index),
-    };
-}
+watch([versionQuery, versionUseRegex, versionFlags, flavour], () => {
+    versionPage.value = 0;
+});
+const versionSample = computed(() => flavourVersions.value.map((v) => v.version).join("\n"));
 
 const selectedVersionEntry = computed<CatalogueVersionEntry | undefined>(() =>
     flavourVersions.value.find((v) => v.version === minecraftVersion.value),
@@ -248,7 +339,6 @@ watch(flavour, () => {
     modLoaderVersion.value = "";
     preinstallApiLibraries.value = [];
     memoryMb.value = recommendedMemoryMb(flavour.value);
-    expandedVersionFamilies.value = {};
 });
 
 /* -------------------------------------------------------------------------- */
@@ -698,7 +788,8 @@ function suggestIdentity(): void {
         serverId.value = candidate;
     }
     if (serverName.value.trim() === "") {
-        const label = FLAVOUR_CARDS.find((card) => card.id === flavour.value)?.name ?? flavour.value;
+        const label =
+            FLAVOUR_CARDS.find((card) => card.id === flavour.value)?.name ?? flavour.value;
         serverName.value = game === "" ? label : `${label} ${game}`;
     }
 }
@@ -996,7 +1087,12 @@ const canAdvance = computed(() => {
                                 variant="tonal"
                                 color="warning"
                             >
-                                {{ t("mcserver.wizard.noCatalogue", "Publishes no downloadable builds") }}
+                                {{
+                                    t(
+                                        "mcserver.wizard.noCatalogue",
+                                        "Publishes no downloadable builds",
+                                    )
+                                }}
                             </VChip>
                         </VBtn>
                     </div>
@@ -1060,6 +1156,30 @@ const canAdvance = computed(() => {
                                 </VBtn>
                             </template>
                         </VAlert>
+                        <VAlert
+                            v-if="selectedFlavourCatalogue?.stale"
+                            type="warning"
+                            variant="tonal"
+                            density="compact"
+                        >
+                            {{
+                                t(
+                                    "mcserver.wizard.flavourCatalogueStale",
+                                    {
+                                        flavour,
+                                        at: selectedFlavourCatalogue.lastFetchedAt ?? "unknown",
+                                        reason:
+                                            selectedFlavourCatalogue.failure ?? "unknown reason",
+                                    },
+                                    "The {flavour} list is from {at} and could not be refreshed: {reason}",
+                                )
+                            }}
+                            <template #append>
+                                <span class="text-caption">{{
+                                    selectedFlavourCatalogue.failure
+                                }}</span>
+                            </template>
+                        </VAlert>
                         <ConfigSearchField
                             v-model="versionQuery"
                             v-model:regex="versionUseRegex"
@@ -1100,90 +1220,196 @@ const canAdvance = computed(() => {
                                 )
                             }}
                         </p>
-                        <section
-                            v-for="(family, familyIndex) in versionFamilies"
-                            :key="family.key"
-                            class="wl-mcserver-wizard__version-family"
-                            data-test="version-family"
+                        <div
+                            :id="`mcserver-version-families-${group.stability}`"
+                            v-for="group in renderedVersionGroups"
+                            :key="group.stability"
+                            class="wl-mcserver-wizard__version-group"
                         >
-                            <button
-                                type="button"
-                                class="wl-mcserver-wizard__version-family-toggle"
-                                :aria-expanded="
-                                    familyExpanded(family.key, familyIndex) ? 'true' : 'false'
-                                "
-                                :aria-controls="`mcserver-version-family-${family.key.replace(/[^a-z0-9]+/gi, '-')}`"
-                                @click="toggleFamily(family.key, familyIndex)"
-                            >
-                                <span>
-                                    {{ family.label }}
-                                    <span class="text-caption text-medium-emphasis">
-                                        ·
-                                        {{
-                                            family.stability === "release"
-                                                ? t("mcserver.wizard.releases", "release")
-                                                : t("mcserver.wizard.snapshots", "snapshot")
-                                        }}
-                                    </span>
-                                </span>
-                                <span class="text-caption text-medium-emphasis">
-                                    {{
-                                        t(
-                                            "mcserver.wizard.buildCount",
-                                            { n: family.versions.length },
-                                            "{n} builds",
-                                        )
-                                    }}
-                                </span>
-                            </button>
-                            <div
-                                v-if="familyExpanded(family.key, familyIndex)"
-                                :id="`mcserver-version-family-${family.key.replace(/[^a-z0-9]+/gi, '-')}`"
-                                class="wl-mcserver-wizard__version-family-entries"
-                            >
-                                <div
-                                    v-for="entry in family.versions"
-                                    :key="entry.version"
-                                    class="wl-mcserver-wizard__version-row"
-                                    data-test="version-entry"
-                                    :class="{
-                                        'wl-mcserver-wizard__version-row--selected':
-                                            minecraftVersion === entry.version,
-                                    }"
-                                >
-                                    <VBtn
-                                        variant="text"
-                                        class="wl-mcserver-wizard__version-choice"
-                                        :aria-label="`${entry.version}, ${family.stability}, Java ${entry.javaFeature}`"
-                                        @click="minecraftVersion = entry.version"
-                                    >
-                                        <span>{{ entry.version }}</span>
-                                        <span class="text-caption text-medium-emphasis">
-                                            {{
-                                                t(
-                                                    "mcserver.wizard.needsJava",
-                                                    { n: entry.javaFeature },
-                                                    "Needs Java {n}",
-                                                )
-                                            }}
-                                            <template v-if="releaseDateLabel(entry.releasedAt)">
-                                                &#183; {{ releaseDateLabel(entry.releasedAt) }}
-                                            </template>
-                                        </span>
-                                    </VBtn>
-                                    <a
-                                        class="wl-mcserver-wizard__version-wiki"
-                                        :href="wikiUrlFor(entry.version) ?? undefined"
-                                        target="_blank"
-                                        rel="noopener"
-                                        :aria-label="`Minecraft Wiki for ${entry.version}`"
-                                    >
-                                        {{ t("mcserver.wizard.openWiki", "Minecraft Wiki") }}
-                                    </a>
-                                </div>
+                            <div class="text-caption text-medium-emphasis text-uppercase">
+                                {{
+                                    group.stability === "release"
+                                        ? t("mcserver.wizard.releases", "Releases")
+                                        : t("mcserver.wizard.snapshots", "Snapshots")
+                                }}
                             </div>
-                        </section>
+                            <section
+                                v-for="family in group.families"
+                                :key="family.family"
+                                class="wl-mcserver-wizard__family"
+                                data-test="version-family"
+                            >
+                                <VBtn
+                                    variant="text"
+                                    block
+                                    class="wl-mcserver-wizard__family-row"
+                                    :aria-expanded="
+                                        familyIsExpanded(group.stability, family.family)
+                                    "
+                                    :aria-controls="`mcserver-version-family-${family.key.replace(/[^a-z0-9]+/gi, '-')}`"
+                                    :aria-label="
+                                        t(
+                                            'mcserver.wizard.toggleFamily',
+                                            { family: family.family, n: family.count },
+                                            '{family}, {n} exact versions',
+                                        )
+                                    "
+                                    @click="toggleFamily(group.stability, family.family)"
+                                >
+                                    <span>{{ family.family }}</span>
+                                    <VChip size="small" variant="tonal">{{ family.count }}</VChip>
+                                    <VChip
+                                        v-if="family.recommended"
+                                        size="small"
+                                        color="primary"
+                                        variant="tonal"
+                                    >
+                                        {{ t("mcserver.wizard.recommended", "Recommended") }}
+                                    </VChip>
+                                    <span class="text-caption text-medium-emphasis ml-auto">
+                                        {{ family.latestVersion }}
+                                    </span>
+                                </VBtn>
+                                <div
+                                    v-if="familyIsExpanded(group.stability, family.family)"
+                                    :id="`mcserver-version-family-${family.key.replace(/[^a-z0-9]+/gi, '-')}`"
+                                    class="wl-mcserver-wizard__family-versions"
+                                >
+                                    <div
+                                        v-for="entry in family.versions"
+                                        :key="entry.version"
+                                        class="wl-mcserver-wizard__version-row-wrap"
+                                        data-test="version-entry"
+                                    >
+                                        <VBtn
+                                            variant="text"
+                                            class="wl-mcserver-wizard__version-row"
+                                            :disabled="
+                                                entry.availability === 'missing-server-artifact'
+                                            "
+                                            :title="entry.availabilityReason ?? undefined"
+                                            :class="{
+                                                'wl-mcserver-wizard__version-row--selected':
+                                                    minecraftVersion === entry.version,
+                                            }"
+                                            :aria-label="entry.version"
+                                            @click="selectVersion(entry.version)"
+                                        >
+                                            <span>{{ entry.version }}</span>
+                                            <span class="text-caption text-medium-emphasis">
+                                                {{
+                                                    t(
+                                                        "mcserver.wizard.needsJava",
+                                                        { n: entry.javaFeature },
+                                                        "Needs Java {n}",
+                                                    )
+                                                }}
+                                                <template v-if="releaseDateLabel(entry.releasedAt)">
+                                                    &#183; {{ releaseDateLabel(entry.releasedAt) }}
+                                                </template>
+                                            </span>
+                                            <span
+                                                v-if="
+                                                    entry.availability === 'missing-server-artifact'
+                                                "
+                                                class="text-caption text-error"
+                                            >
+                                                {{
+                                                    t(
+                                                        "mcserver.wizard.missingServerArtifact",
+                                                        "Server download unavailable",
+                                                    )
+                                                }}
+                                            </span>
+                                        </VBtn>
+                                        <a
+                                            v-if="wikiUrlFor(entry.version)"
+                                            :href="wikiUrlFor(entry.version) ?? undefined"
+                                            target="_blank"
+                                            rel="noreferrer noopener"
+                                            class="wl-mcserver-wizard__wiki-action"
+                                            :aria-label="`${entry.version}: ${wikiArticleStateLabel(wikiStates[entry.version] ?? entry.wikiState ?? wikiArticleStateFor(entry.version))}`"
+                                        >
+                                            <VIcon :icon="mdiOpenInNew" size="x-small" />
+                                            <span>{{ t("mcserver.wizard.wiki", "Wiki") }}</span>
+                                            <span class="text-caption">{{
+                                                wikiArticleStateLabel(
+                                                    wikiStates[entry.version] ??
+                                                        entry.wikiState ??
+                                                        wikiArticleStateFor(entry.version),
+                                                )
+                                            }}</span>
+                                        </a>
+                                        <span v-else class="text-caption text-medium-emphasis">
+                                            {{ wikiArticleStateLabel("unavailable") }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </section>
+                        </div>
+                        <div
+                            v-if="filteredVersions.length > MAX_RENDERED_VERSION_ROWS"
+                            class="wl-mcserver-wizard__version-pages"
+                        >
+                            <span class="text-caption text-medium-emphasis">
+                                {{
+                                    t(
+                                        "mcserver.wizard.versionRenderLimit",
+                                        {
+                                            shown: Math.min(
+                                                MAX_RENDERED_VERSION_ROWS,
+                                                filteredVersions.length -
+                                                    versionPage * MAX_RENDERED_VERSION_ROWS,
+                                            ),
+                                            total: filteredVersions.length,
+                                        },
+                                        "Showing {shown} of {total} matching versions.",
+                                    )
+                                }}
+                            </span>
+                            <VBtn
+                                size="small"
+                                variant="text"
+                                :disabled="versionPage === 0"
+                                aria-controls="mcserver-version-families-release mcserver-version-families-snapshot"
+                                @click="versionPage -= 1"
+                            >
+                                {{ t("common.previous", "Previous") }}
+                            </VBtn>
+                            <span class="text-caption" aria-live="polite">
+                                {{ versionPage + 1 }} / {{ versionPageCount }}
+                            </span>
+                            <VBtn
+                                size="small"
+                                variant="text"
+                                :disabled="versionPage + 1 >= versionPageCount"
+                                aria-controls="mcserver-version-families-release mcserver-version-families-snapshot"
+                                @click="versionPage += 1"
+                            >
+                                {{ t("common.next", "Next") }}
+                            </VBtn>
+                        </div>
                     </template>
+                    <SearchableOptionPicker
+                        v-if="!versionEnteredByHand"
+                        v-model="minecraftVersion"
+                        @update:model-value="selectVersion"
+                        :options="
+                            versionOptions.map((option) => ({
+                                title: option.title,
+                                value: option.value,
+                                subtitle: option.subtitle,
+                            }))
+                        "
+                        :label="t('mcserver.wizard.version', 'Minecraft version')"
+                        :sample="versionSample"
+                        :no-match-text="
+                            t(
+                                'mcserver.wizard.noVersions',
+                                'No versions were fetched for this flavour.',
+                            )
+                        "
+                    />
                     <VTextField
                         v-if="versionEnteredByHand"
                         v-model="minecraftVersion"
@@ -1216,7 +1442,16 @@ const canAdvance = computed(() => {
                                 "Read about {v} on the Minecraft Wiki",
                             )
                         }}
+                        <span class="text-caption ml-1">{{
+                            wikiArticleStateLabel(selectedWikiState)
+                        }}</span>
                     </a>
+                    <div
+                        v-else-if="minecraftVersion.trim() !== ''"
+                        class="text-caption text-medium-emphasis"
+                    >
+                        {{ wikiArticleStateLabel("unavailable") }}
+                    </div>
                     <VSwitch
                         v-if="flavourVersions.length > 0"
                         v-model="typeVersionByHand"
@@ -1247,10 +1482,10 @@ const canAdvance = computed(() => {
                             )
                         }}
                     </VAlert>
-                    <VSelect
+                    <SearchableOptionPicker
                         v-if="modLoaderVersions.length > 0"
                         v-model="modLoaderVersion"
-                        :items="modLoaderVersions"
+                        :options="modLoaderVersions.map((value) => ({ title: value, value }))"
                         :label="t('mcserver.wizard.loaderVersion', 'Mod-loader version')"
                         :hint="
                             t(
@@ -1259,6 +1494,10 @@ const canAdvance = computed(() => {
                             )
                         "
                         persistent-hint
+                        :sample="modLoaderVersions.join('\n')"
+                        :no-match-text="
+                            t('mcserver.wizard.noLoaderVersions', 'No matching loader versions.')
+                        "
                     />
                     <VTextField
                         v-else
@@ -1292,7 +1531,7 @@ const canAdvance = computed(() => {
                             t('mcserver.wizard.preinstallApi', { library }, 'Pre-install {library}')
                         "
                         @update:model-value="
-                            (enabled) => setApiLibraryEnabled(library, Boolean(enabled))
+                            (enabled) => setApiLibraryEnabled(library, enabled === true)
                         "
                     />
                 </div>
@@ -1633,10 +1872,14 @@ const canAdvance = computed(() => {
                                 )
                             "
                         />
-                        <VSelect
+                        <SearchableOptionPicker
                             v-model="levelType"
-                            :items="LEVEL_TYPES"
+                            :options="LEVEL_TYPES"
                             :label="t('mcserver.wizard.levelType', 'World type')"
+                            :sample="LEVEL_TYPES.map((option) => option.title).join('\n')"
+                            :no-match-text="
+                                t('mcserver.wizard.noWorldTypes', 'No matching world types.')
+                            "
                         />
                         <VSwitch
                             v-model="generateStructures"
@@ -1842,40 +2085,44 @@ const canAdvance = computed(() => {
     flex-direction: column;
     gap: 2px;
 }
-.wl-mcserver-wizard__version-family {
-    border: 1px solid rgba(var(--v-border-color), 0.6);
-    border-radius: 8px;
-    overflow: hidden;
-}
-.wl-mcserver-wizard__version-family-toggle {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    inline-size: 100%;
-    min-block-size: 44px;
-    padding: 8px 12px;
-    border: 0;
-    background: rgba(var(--v-theme-surface-variant), 0.32);
-    color: inherit;
-    cursor: pointer;
-    text-align: left;
-}
-.wl-mcserver-wizard__version-family-toggle:focus-visible {
-    outline: 2px solid rgb(var(--v-theme-primary));
-    outline-offset: -2px;
-}
-.wl-mcserver-wizard__version-family-entries {
+.wl-mcserver-wizard__family {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding: 4px;
+}
+.wl-mcserver-wizard__family-row {
+    min-height: 48px;
+    justify-content: flex-start;
+    gap: 8px;
+    text-align: left;
+}
+.wl-mcserver-wizard__family-versions {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-inline-start: 12px;
+}
+.wl-mcserver-wizard__version-row-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 48px;
+}
+.wl-mcserver-wizard__version-pages {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 48px;
 }
 .wl-mcserver-wizard__version-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 8px;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 48px;
     padding: 6px 8px;
     border-radius: 6px;
     background: transparent;
@@ -1883,23 +2130,19 @@ const canAdvance = computed(() => {
     cursor: pointer;
     text-align: left;
 }
-.wl-mcserver-wizard__version-choice {
-    flex: 1 1 auto;
-    min-inline-size: 0;
-    justify-content: space-between;
-    text-align: left;
-}
-.wl-mcserver-wizard__version-choice :deep(.v-btn__content) {
-    justify-content: space-between;
-    gap: 8px;
-    inline-size: 100%;
-    white-space: normal;
-}
-.wl-mcserver-wizard__version-wiki {
-    flex: 0 0 auto;
-    padding: 6px 8px;
+.wl-mcserver-wizard__wiki-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 48px;
+    min-width: 48px;
+    padding-inline: 8px;
     color: rgb(var(--v-theme-primary));
-    font-size: 0.75rem;
+    text-decoration: none;
+}
+.wl-mcserver-wizard__wiki-action:hover,
+.wl-mcserver-wizard__wiki-action:focus-visible {
+    text-decoration: underline;
 }
 .wl-mcserver-wizard__version-row--selected {
     border-color: rgb(var(--v-theme-primary));
