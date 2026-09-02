@@ -96,7 +96,7 @@ describe("shared Minecraft modal ownership", () => {
     it("keeps three shell mount sites but activates only the owner for the current shell tree", () => {
         expect((APP_CODE.match(/<CreateServerWizard/g) ?? []).length).toBe(3);
         expect((APP_CODE.match(/mcServerModalOwner === 'kid'/g) ?? []).length).toBeGreaterThan(0);
-        expect((APP_CODE.match(/mcServerModalOwner === 'adult-host'/g) ?? []).length).toBeGreaterThan(0);
+        expect((APP_CODE.match(/mcServerModalOwner === 'host'/g) ?? []).length).toBeGreaterThan(0);
         expect((APP_CODE.match(/mcServerModalOwner === 'work'/g) ?? []).length).toBeGreaterThan(0);
         expect(APP_CODE).toContain("const mcServerModalOwner = computed");
     });
