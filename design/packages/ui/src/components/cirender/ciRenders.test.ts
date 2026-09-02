@@ -230,6 +230,110 @@ describe("the line that decides whether somebody starts an upload", () => {
 });
 
 describe("rows follow the events", () => {
+    it("reattaches to a run whose watch was interrupted, instead of showing it as failed", async () => {
+        /*
+         * The render that produced "Reading run 33666847877 failed: GitHub answered 502"
+         * had four successful waves behind it and a run that was still going. The main
+         * process now keeps that state `dispatched` and says `watch-interrupted`; this row
+         * must not contradict it by painting the render red and stopping.
+         */
+        const resumed: string[] = [];
+        const { bridge: host, emit } = bridge({
+            resumeCiRender: (syncId: string) => {
+                resumed.push(syncId);
+                return Promise.resolve({
+                    ok: true,
+                    syncId,
+                    outcome: "running",
+                    run: null,
+                    state: null as never,
+                } as CiSyncResult);
+            },
+        });
+        const renders = createCiRenders(host);
+
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        emit({ type: "run", syncId: "s", run: run(), at: "2026-08-04T10:01:00Z" });
+        emit({
+            type: "failed",
+            syncId: "s",
+            failure: {
+                code: "watch-interrupted",
+                message: "Worldlens lost contact with GitHub while watching run 7.",
+                detail: "7",
+                status: 502,
+                needsSignIn: false,
+                needsEula: false,
+                route: "gh",
+                run: null,
+                failingJob: null,
+                logExcerpt: null,
+            },
+            at: "2026-08-04T10:30:00Z",
+        });
+
+        const row = renders.rows.value[0];
+        expect(row?.state).toBe("running");
+        expect(row?.failure).toBeNull();
+        // The interruption is still visible - as a log line, which is what it is - rather
+        // than as an outcome the render did not actually have.
+        expect(row?.log.some((line) => line.message.includes("lost contact"))).toBe(true);
+        expect(resumed).toEqual(["s"]);
+
+        // A second interruption must not start a second watch of the same run.
+        emit({
+            type: "failed",
+            syncId: "s",
+            failure: {
+                code: "watch-interrupted",
+                message: "Worldlens lost contact with GitHub while watching run 7.",
+                detail: "7",
+                status: 502,
+                needsSignIn: false,
+                needsEula: false,
+                route: "gh",
+                run: null,
+                failingJob: null,
+                logExcerpt: null,
+            },
+            at: "2026-08-04T10:31:00Z",
+        });
+        expect(resumed).toEqual(["s"]);
+        await Promise.resolve();
+        renders.dispose();
+    });
+
+    it("does not let a late run report drag a finished row back to running", () => {
+        const { bridge: host, emit } = bridge();
+        const renders = createCiRenders(host);
+
+        emit({
+            type: "started",
+            syncId: "s",
+            repository: "o/r",
+            mapId: "world",
+            worldFolder: "/w",
+            at: "2026-08-04T10:00:00Z",
+        });
+        emit({
+            type: "cancelled",
+            syncId: "s",
+            at: "2026-08-04T10:05:00Z",
+        });
+        emit({ type: "run", syncId: "s", run: run(), at: "2026-08-04T10:06:00Z" });
+
+        // A poll answered after the cancel is news about the run, not about this row.
+        expect(renders.rows.value[0]?.state).toBe("cancelled");
+        renders.dispose();
+    });
+
     it("keeps a failed run's report on screen, because the job and the log are what to act on", () => {
         const { bridge: host, emit } = bridge();
         const renders = createCiRenders(host);

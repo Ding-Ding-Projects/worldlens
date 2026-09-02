@@ -51,7 +51,8 @@ type Translate = (key: string, named: Record<string, unknown>, fallback?: string
 /** `t(key, fallback)` and `t(key, named, fallback)` both, as vue-i18n offers them. */
 type T = ((key: string, fallback: string) => string) & Translate;
 
-export type CiRowState = "running" | "restored" | "uploaded" | "idle" | "rendered" | "failed" | "cancelled";
+export type CiRowState =
+    "running" | "restored" | "uploaded" | "idle" | "rendered" | "failed" | "cancelled";
 
 export interface CiLogLine {
     readonly id: number;
@@ -181,7 +182,10 @@ export function phaseLabel(phase: CiSyncPhase | null, t: T): string {
 export function runLabel(run: CiRunReport | null, t: T): string {
     if (run === null) return t("cirender.run.none", "No run yet");
     if (run.status === "unknown") {
-        return t("cirender.run.restored", "Persisted run restored; live status has not arrived yet.");
+        return t(
+            "cirender.run.restored",
+            "Persisted run restored; live status has not arrived yet.",
+        );
     }
     if (run.status !== "completed") {
         return t("cirender.run.going", { status: run.status.replace("_", " ") }, "Run is {status}");
@@ -480,7 +484,7 @@ function persistedRow(state: CiSyncState): CiRow {
             : state.stage === "failed"
               ? "failed"
               : state.stage === "cancelled"
-              ? "cancelled"
+                ? "cancelled"
                 : state.stage === "dispatched"
                   ? "restored"
                   : state.stage === "uploaded"
@@ -670,7 +674,22 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 });
                 break;
             case "run":
-                put({ ...row, run: event.run, state: "running", transfer: null, live: true });
+                put({
+                    ...row,
+                    run: event.run,
+                    // A poll answered late must not drag a row that has already finished or
+                    // been cancelled back to "running" - those two outcomes are settled, and
+                    // a run report arriving after them is news about the run, not about this
+                    // row. `failed` is deliberately not in that list: a run event on a failed
+                    // row means something reattached to the run, which is exactly the state
+                    // change a resume needs to be able to make.
+                    state:
+                        row.state === "rendered" || row.state === "cancelled"
+                            ? row.state
+                            : "running",
+                    transfer: null,
+                    live: true,
+                });
                 break;
             case "finished":
                 put({
@@ -690,6 +709,31 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 });
                 break;
             case "failed":
+                // A watch that lost contact is not a render that stopped. The main process
+                // deliberately left the state `dispatched` with its run id, because the run
+                // is still going on GitHub - so reattach at once rather than making somebody
+                // notice a red row and press a button. This is the same call `loadKnown()`
+                // makes for a dispatched state found at startup, guarded by the same set so
+                // a repeated failure cannot start a second watch of the same run.
+                if (event.failure.code === "watch-interrupted") {
+                    if (bridge?.resumeCiRender !== undefined && !resuming.has(event.syncId)) {
+                        resuming.add(event.syncId);
+                        void bridge.resumeCiRender(event.syncId).finally(() => {
+                            resuming.delete(event.syncId);
+                        });
+                    }
+                    put({
+                        ...row,
+                        // Still running, because it is. Showing this as failed would be the
+                        // original defect wearing a different sentence.
+                        state: "running",
+                        log: append(row, "warning", event.failure.message, event.at),
+                        run: event.failure.run ?? row.run,
+                        stopping: false,
+                        live: true,
+                    });
+                    break;
+                }
                 if (event.failure.code === "already-running" && row.state === "running") {
                     put({
                         ...row,
@@ -714,6 +758,9 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                     // A failure that carries the run keeps it on screen: "which job, and
                     // what did its log say" is the whole of what a person needs next.
                     run: event.failure.run ?? row.run,
+                    // A half-finished upload's bar left beside a failure reads as progress
+                    // that is still being made. Nothing is being transferred any more.
+                    transfer: null,
                     finishedAt: event.at,
                     stopping: false,
                     live: true,

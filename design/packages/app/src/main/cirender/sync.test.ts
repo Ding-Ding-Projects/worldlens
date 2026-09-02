@@ -181,17 +181,23 @@ function request(extra: Partial<CiSyncRequest> = {}): CiSyncRequest {
 }
 
 /** Reads the durable dispatch marker from a fresh process, not Vitest's memory. */
-function readStateInFreshProcess(path: string): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function readStateInFreshProcess(
+    path: string,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
     const script = `
         const { readCiSyncState } = await import("./packages/app/src/main/cirender/state.ts");
         const state = await readCiSyncState(process.argv[1]);
         console.log(JSON.stringify({ stage: state?.stage ?? null, runId: state?.runId ?? null, dispatchedAt: state?.dispatchedAt ?? null }));
     `;
     return new Promise((resolve, reject) => {
-        const child = spawn(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", script, "--", path], {
-            cwd: fileURLToPath(new URL("../../../../../", import.meta.url)),
-            stdio: ["ignore", "pipe", "pipe"],
-        });
+        const child = spawn(
+            process.execPath,
+            ["--experimental-strip-types", "--input-type=module", "-e", script, "--", path],
+            {
+                cwd: fileURLToPath(new URL("../../../../../", import.meta.url)),
+                stdio: ["ignore", "pipe", "pipe"],
+            },
+        );
         let stdout = "";
         let stderr = "";
         child.stdout.on("data", (chunk: Buffer) => (stdout += chunk.toString()));
@@ -1230,17 +1236,15 @@ describe("a red run whose first later failure is Pages-only", () => {
                     status: 200,
                     json: {
                         total_count: 101,
-                        jobs: Array.from({ length: 100 }, (_, index) =>
-                            ({
-                                ...(jobJson({
-                                    id: index + 1,
-                                    name: `Unused wave ${String(index + 1)}`,
-                                    status: "completed",
-                                    conclusion: "skipped",
-                                }) as object),
-                                steps: [],
-                            }),
-                        ),
+                        jobs: Array.from({ length: 100 }, (_, index) => ({
+                            ...(jobJson({
+                                id: index + 1,
+                                name: `Unused wave ${String(index + 1)}`,
+                                status: "completed",
+                                conclusion: "skipped",
+                            }) as object),
+                            steps: [],
+                        })),
                     },
                 },
                 { status: 200, json: { total_count: 101, jobs: [mergeJobJson()] } },
@@ -1618,6 +1622,110 @@ describe("a red run whose first later failure is Pages-only", () => {
     });
 });
 
+describe("a bad answer from GitHub is not a failed render", () => {
+    /*
+     * The defect these three pin down, in the words of the render that hit it:
+     *
+     *   Reading run 33666847877 failed: GitHub answered 502.
+     *
+     * Four waves had already succeeded. The Actions run was still going. What stopped was
+     * Worldlens' willingness to keep watching it - and because artifacts are collected only
+     * at the end of the watch, one unlucky poll discarded hours of finished render work.
+     */
+    it("rides out a transient 502 mid-watch and still collects the finished render", async () => {
+        const site = join(workDir, "flaky-site");
+        await mkdir(join(site, "maps", MAP_ID, "tiles"), { recursive: true });
+        await writeFile(join(site, "settings.json"), '{"maps":["world"]}', "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "settings.json"), "{}", "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "tiles", "0.prbm"), "tile", "utf8");
+        const archive = join(workDir, "flaky-rendered-map.zip");
+        const packed = await packFolder(site, archive);
+        const bytes = new Uint8Array(await readFile(archive));
+
+        const github = baseRoutes(new RecordingGitHub())
+            // Two refusals, then the truth. The third reply repeats for ever, which is what
+            // makes the rest of the collection path reachable at all.
+            .on(
+                "GET",
+                /\/actions\/runs\/7$/,
+                { status: 502, json: { message: "GitHub CLI refused the request." } },
+                { status: 502, json: { message: "GitHub CLI refused the request." } },
+                {
+                    status: 200,
+                    json: runJson({ id: 7, status: "completed", conclusion: "success" }),
+                },
+            )
+            .on("GET", "/actions/runs/7/jobs", { status: 200, json: { jobs: [] } })
+            .on("GET", "/actions/runs/7/artifacts", {
+                status: 200,
+                json: {
+                    artifacts: [
+                        artifactJson({
+                            id: 9,
+                            name: "rendered-map",
+                            bytes: bytes.byteLength,
+                            digest: `sha256:${packed.sha256}`,
+                        }),
+                    ],
+                },
+            })
+            .on("GET", "/artifacts/9/zip", { status: 200, bytes });
+
+        const syncId = await seedUploadedState({ runId: 7 });
+        const events: CiSyncEvent[] = [];
+        const mounts = new LocalMapHandler();
+        const result = await makeSync({ github, mounts, events }).resume(syncId);
+
+        expect(result.ok && result.outcome === "rendered").toBe(true);
+        expect(events.some((event) => event.type === "failed")).toBe(false);
+        expect(mounts.getMounts()).toHaveLength(1);
+        // Three reads for one poll: the two that were refused and the one that answered.
+        expect(github.countOf(/\/actions\/runs\/7$/, "GET")).toBe(3);
+        // And the wait explained itself rather than looking like a hang.
+        const retryLines = events.filter(
+            (event) => event.type === "log" && event.message.includes("retrying in"),
+        );
+        expect(retryLines).toHaveLength(2);
+    });
+
+    it("keeps the run resumable, not failed, when the retry budget runs out", async () => {
+        const github = baseRoutes(new RecordingGitHub()).on("GET", /\/actions\/runs\/7$/, {
+            status: 502,
+            json: { message: "GitHub CLI refused the request." },
+        });
+        const syncId = await seedUploadedState({ runId: 7 });
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const result = await makeSync({ github }).resume(syncId);
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("watch-interrupted");
+        expect(result.failure.message).toContain("still going on GitHub");
+        // The whole point: the recorded dispatch survives, so a resume can finish the job
+        // and collect the artifacts that are sitting there intact.
+        const after = await readCiSyncState(workspace.stateFile);
+        expect(after?.stage).toBe("dispatched");
+        expect(after?.runId).toBe(7);
+    });
+
+    it("still reports a signed-out credential at once, without retrying it", async () => {
+        const github = baseRoutes(new RecordingGitHub()).on("GET", /\/actions\/runs\/7$/, {
+            status: 401,
+            json: { message: "Bad credentials" },
+        });
+        const syncId = await seedUploadedState({ runId: 7 });
+        const result = await makeSync({ github }).resume(syncId);
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("signed-out");
+        expect(result.failure.needsSignIn).toBe(true);
+        // One attempt. Hammering a credential that is not accepted just delays the sentence
+        // that tells somebody to sign in again.
+        expect(github.countOf(/\/actions\/runs\/7$/, "GET")).toBe(1);
+    });
+});
+
 describe("a successful run comes back as a map in the list", () => {
     it("adopts a durable pre-dispatch marker after a process crash without dispatching twice", async () => {
         const syncId = await seedUploadedState();
@@ -1651,12 +1759,24 @@ describe("a successful run comes back as a map in the list", () => {
             .on("GET", "/actions/workflows/render-world.yml/runs", {
                 status: 200,
                 json: {
-                    workflow_runs: [runJson({ id: 17, status: "completed", conclusion: "failure", createdAt: dispatchedAt })],
+                    workflow_runs: [
+                        runJson({
+                            id: 17,
+                            status: "completed",
+                            conclusion: "failure",
+                            createdAt: dispatchedAt,
+                        }),
+                    ],
                 },
             })
             .on("GET", /\/actions\/runs\/17$/, {
                 status: 200,
-                json: runJson({ id: 17, status: "completed", conclusion: "failure", createdAt: dispatchedAt }),
+                json: runJson({
+                    id: 17,
+                    status: "completed",
+                    conclusion: "failure",
+                    createdAt: dispatchedAt,
+                }),
             })
             .on("GET", "/actions/runs/17/jobs", { status: 200, json: { jobs: [] } });
         const sync = makeSync({ github });

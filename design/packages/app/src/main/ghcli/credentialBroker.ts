@@ -19,12 +19,22 @@ import {
     type GhCliSwitchResult,
 } from "./accounts.js";
 import { resolveGhExecutable, type ResolveGhExecutableOptions } from "./executable.js";
+import { classifyGhCliFailure } from "../backup/transferFailure.js";
 
 function credentialHelperFor(executable: string): string {
     const normalized = executable.replaceAll("\\", "/");
     const quoted = `'${normalized.replaceAll("'", `'"'"'`)}'`;
     return `credential.helper=!${quoted} auth git-credential`;
 }
+
+/**
+ * The status this broker reports when `gh` itself could not be spawned.
+ *
+ * Deliberately outside the range any real GitHub answer occupies, because it is not one:
+ * nothing was sent and nothing answered. Retry loops exclude it by name - a missing or
+ * broken executable is not a condition that a second attempt improves.
+ */
+export const GH_CLI_UNAVAILABLE_STATUS = 599;
 
 export type GhCredentialAccess = "read" | "write";
 
@@ -562,8 +572,7 @@ export class GhCredentialBroker {
             executable,
             account,
             options.signal,
-            async () =>
-                await this.#boundRunner(executable, account).run(executable, args, options),
+            async () => await this.#boundRunner(executable, account).run(executable, args, options),
         );
     }
 
@@ -626,9 +635,21 @@ export class GhCredentialBroker {
             ...(init.signal === undefined || init.signal === null ? {} : { signal: init.signal }),
             ...(input === undefined ? {} : { input }),
         });
-        if (!result.started) return jsonResponse(503, "GitHub CLI could not be started.");
+        if (!result.started) {
+            // Not 503. A `gh` binary that will not spawn is not a busy server, and a status
+            // that reads as "try again shortly" would send the render loop into a retry that
+            // could never succeed. This one status is excluded from retry by name.
+            return jsonResponse(
+                GH_CLI_UNAVAILABLE_STATUS,
+                "GitHub CLI could not be started on this computer. Install or repair it from Dependencies.",
+            );
+        }
         if (result.code !== 0) {
-            return jsonResponse(httpStatus(result.stderr), "GitHub CLI refused the request.");
+            const classification = classifyGhCliFailure(result);
+            return jsonResponse(
+                classification.status === 0 ? 502 : classification.status,
+                refusalBody(classification.status, result.stderr),
+            );
         }
         if (method === "DELETE" && result.stdout.trim() === "")
             return new Response(null, { status: 204 });
@@ -712,11 +733,31 @@ function apiEndpoint(rawUrl: string, host: string): string {
     return `${pathname.replace(/^\/+/, "")}${parsed.search}`;
 }
 
-function httpStatus(stderr: string): number {
-    const matched = /(?:\(HTTP |HTTP )(\d{3})/.exec(stderr)?.[1];
-    if (matched === undefined) return 502;
-    const parsed = Number.parseInt(matched, 10);
-    return parsed >= 400 && parsed <= 599 ? parsed : 502;
+/**
+ * What `gh` actually said, rather than one fixed sentence for every way it can fail.
+ *
+ * This used to be `"GitHub CLI refused the request."` for all of them, with `result.stderr`
+ * dropped on the floor one line later. Paired with a status that defaults to 502 when none
+ * could be read, that turned a dropped connection, a DNS failure or a killed child process
+ * into "GitHub answered 502" - a sentence that names the wrong party and gives the reader
+ * nothing to act on. The last two non-empty stderr lines are kept for the same reason the
+ * release-upload path at `cirender/transport.ts` keeps them: they are the only evidence
+ * there is, and they are short.
+ */
+function refusalBody(status: number, stderr: string): string {
+    const detail = stderr
+        .trim()
+        .split(/\r?\n/u)
+        .map((line) => line.trim())
+        .filter((line) => line !== "")
+        .slice(-2)
+        .join(" | ");
+    const opening =
+        status === 0
+            ? "GitHub CLI failed before any HTTP status came back, so this was a local or network" +
+              " problem rather than an answer from GitHub."
+            : "GitHub CLI refused the request.";
+    return detail === "" ? opening : `${opening} It said: ${detail}`;
 }
 
 function jsonResponse(status: number, message: string): Response {

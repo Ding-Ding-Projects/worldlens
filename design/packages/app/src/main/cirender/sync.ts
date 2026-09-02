@@ -50,6 +50,7 @@ import type { LocalMapHandler } from "../render/LocalMapHandler.js";
 import { ActionsCallError, RENDER_WORKFLOW_FILE } from "./actions.js";
 import type { RunStatus, WorkflowJob, WorkflowRun } from "./actions.js";
 import { resolveTransport } from "./transport.js";
+import { isRetryableRunReadError, withRunReadRetry } from "./runRetry.js";
 import type { CiRepositoryFacts, CiRoute, CiTransport, RouteReport } from "./transport.js";
 import type {
     GhCredentialAccess,
@@ -107,7 +108,6 @@ const ZIP_ENTRY_OVERHEAD_BYTES = 256;
  * whole world, and the resume path skips every part already on the release by name and size.
  */
 export const CI_UPLOAD_PART_SIZE_BYTES = 1_500_000_000;
-
 
 /** The stable name owned by the generated workflow template. */
 export const VERIFIED_MAP_UPLOAD_STEP = "Publish the verified map artifact";
@@ -1040,13 +1040,30 @@ export class CiRenderSync {
             `Carrying on with run ${String(runId)}, which this world was already sent to.`,
         );
         this.#phase(syncId, "rendering", route);
-        let report = await this.#readRunReport(transport, owner, repo, runId);
-        this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
-        while (report.status !== "completed") {
-            signal.throwIfAborted();
-            await this.#sleep(this.#options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, signal);
-            report = await this.#readRunReport(transport, owner, repo, runId);
+        let report: CiRunReport;
+        try {
+            report = await this.#readRunReport(transport, owner, repo, runId, { syncId, signal });
             this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
+            while (report.status !== "completed") {
+                signal.throwIfAborted();
+                await this.#sleep(this.#options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, signal);
+                report = await this.#readRunReport(transport, owner, repo, runId, {
+                    syncId,
+                    signal,
+                });
+                this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
+            }
+        } catch (error) {
+            const interrupted = await this.#watchInterrupted(error, {
+                syncId,
+                signal,
+                state,
+                stateFile: workspace.stateFile,
+                runId,
+                route,
+            });
+            if (interrupted !== null) return interrupted;
+            throw error;
         }
 
         if (report.conclusion !== "success") {
@@ -1613,7 +1630,13 @@ export class CiRenderSync {
                 };
                 await this.#save(workspace.stateFile, state);
                 try {
-                    await transport.dispatchWorkflow(owner, repo, workflowFile, ref, planned.plan.inputs);
+                    await transport.dispatchWorkflow(
+                        owner,
+                        repo,
+                        workflowFile,
+                        ref,
+                        planned.plan.inputs,
+                    );
                 } catch (error) {
                     // A refused request never created a run. Remove the pre-dispatch
                     // marker before surfacing the refusal so a later retry may safely
@@ -1681,19 +1704,36 @@ export class CiRenderSync {
         /* -- follow it, honestly -------------------------------------------- */
 
         this.#phase(syncId, "rendering", route);
-        let report = await this.#readRunReport(transport, owner, repo, runId);
-        this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
-
-        while (report.status !== "completed") {
-            if (context.request.follow === false) {
-                state = { ...state, stage: "dispatched", updatedAt: this.#timestamp() };
-                await this.#save(workspace.stateFile, state);
-                return { ok: true, syncId, outcome: "running", run: report, state };
-            }
-            signal.throwIfAborted();
-            await this.#sleep(this.#options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, signal);
-            report = await this.#readRunReport(transport, owner, repo, runId);
+        let report: CiRunReport;
+        try {
+            report = await this.#readRunReport(transport, owner, repo, runId, { syncId, signal });
             this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
+
+            while (report.status !== "completed") {
+                if (context.request.follow === false) {
+                    state = { ...state, stage: "dispatched", updatedAt: this.#timestamp() };
+                    await this.#save(workspace.stateFile, state);
+                    return { ok: true, syncId, outcome: "running", run: report, state };
+                }
+                signal.throwIfAborted();
+                await this.#sleep(this.#options.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS, signal);
+                report = await this.#readRunReport(transport, owner, repo, runId, {
+                    syncId,
+                    signal,
+                });
+                this.emit({ type: "run", syncId, run: report, at: this.#timestamp() });
+            }
+        } catch (error) {
+            const interrupted = await this.#watchInterrupted(error, {
+                syncId,
+                signal,
+                state,
+                stateFile: workspace.stateFile,
+                runId,
+                route,
+            });
+            if (interrupted !== null) return interrupted;
+            throw error;
         }
 
         let postRenderWarning: CiPostRenderWarning | null = null;
@@ -1873,14 +1913,98 @@ export class CiRenderSync {
         return null;
     }
 
+    /**
+     * One reading of a run and its jobs, riding out the answers that mean nothing.
+     *
+     * `watch` is what separates a poll inside a long follow loop from a one-shot check.
+     * A follow loop is the case that matters: it runs for hours, so it will eventually meet
+     * a dropped connection or a 5xx, and before this it let exactly one of those end the
+     * whole render. A caller with no signal to cancel with passes no `watch` and keeps the
+     * old single-attempt behaviour, because retrying something nobody can interrupt is its
+     * own defect.
+     */
+    /**
+     * The run outlives the watch.
+     *
+     * When the retry budget in `runRetry.ts` is spent, the render on GitHub is still
+     * running - Worldlens has simply lost the thread of it. Recording that as `failed`
+     * was the second half of the original defect: it threw away a recoverable situation,
+     * because `resume()` reattaches to exactly this recorded `runId` and finishes the job,
+     * including collecting the artifacts. So the state stays `dispatched` and the failure
+     * says so, which is what turns the Resume button on in the render list.
+     *
+     * Returns null for anything that is not this case - a cancel, a 401, a 404 - so the
+     * caller re-throws and the existing handling is untouched.
+     */
+    async #watchInterrupted(
+        error: unknown,
+        context: {
+            readonly syncId: string;
+            readonly signal: AbortSignal;
+            readonly state: CiSyncState;
+            readonly stateFile: string;
+            readonly runId: number;
+            readonly route: CiRoute;
+        },
+    ): Promise<{ ok: false; syncId: string; failure: CiSyncFailure } | null> {
+        if (context.signal.aborted) return null;
+        if (!isRetryableRunReadError(error)) return null;
+
+        const kept: CiSyncState = {
+            ...context.state,
+            stage: "dispatched",
+            runId: context.runId,
+            updatedAt: this.#timestamp(),
+        };
+        await this.#save(context.stateFile, kept);
+
+        const said = error instanceof Error ? error.message : String(error);
+        this.#log(
+            context.syncId,
+            "warning",
+            `Lost contact with GitHub while watching run ${String(context.runId)}. ${said}`,
+        );
+        return this.#failed(
+            context.syncId,
+            failure(
+                "watch-interrupted",
+                `Worldlens lost contact with GitHub while watching run ${String(context.runId)}, and` +
+                    " retried until its retry budget ran out. The render itself was not cancelled -" +
+                    " it is still going on GitHub, and this render can be picked up again with" +
+                    ` Resume. GitHub said: ${said}`,
+                {
+                    status: error instanceof ActionsCallError ? error.status : null,
+                    route: context.route,
+                    detail: String(context.runId),
+                },
+            ),
+        );
+    }
+
     async #readRunReport(
         transport: CiTransport,
         owner: string,
         repo: string,
         runId: number,
+        watch?: { readonly syncId: string; readonly signal: AbortSignal },
     ): Promise<CiRunReport> {
-        const run = await transport.readRun(owner, repo, runId);
-        const jobs = await transport.readRunJobs(owner, repo, runId);
+        const read = async (): Promise<{
+            run: WorkflowRun;
+            jobs: readonly WorkflowJob[];
+        }> => ({
+            run: await transport.readRun(owner, repo, runId),
+            jobs: await transport.readRunJobs(owner, repo, runId),
+        });
+        const { run, jobs } =
+            watch === undefined
+                ? await read()
+                : await withRunReadRetry(`reading run ${String(runId)}`, read, {
+                      signal: watch.signal,
+                      onRetry: (message) => {
+                          this.#log(watch.syncId, "warning", message);
+                      },
+                      sleep: (delayMs, signal) => this.#sleep(delayMs, signal),
+                  });
         return {
             runId: run.id,
             runNumber: run.runNumber,
