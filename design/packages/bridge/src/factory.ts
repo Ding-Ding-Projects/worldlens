@@ -217,13 +217,40 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             worlds: {
                 list: (id: unknown) => transport.invoke("mcserver:worlds:list", id),
             },
+            hostProfiles: {
+                list: () => transport.invoke("mcserver:hostProfiles:list"),
+                get: (hostId: unknown) => transport.invoke("mcserver:hostProfiles:get", hostId),
+                save: (request: unknown) => transport.invoke("mcserver:hostProfiles:save", request),
+                forget: (hostId: unknown) =>
+                    transport.invoke("mcserver:hostProfiles:forget", hostId),
+                scan: (hostId: unknown) => transport.invoke("mcserver:hostProfiles:scan", hostId),
+                trust: (hostId: unknown, fingerprint: unknown) =>
+                    transport.invoke("mcserver:hostProfiles:trust", hostId, fingerprint),
+            },
             backup: {
                 create: (id: unknown, request: unknown) =>
                     transport.invoke("mcserver:backup:create", id, request),
+                cancel: (id: unknown) => transport.invoke("mcserver:backup:cancel", id),
                 list: (owner: unknown, repo: unknown) =>
                     transport.invoke("mcserver:backup:list", owner, repo),
+                issueRestoreChallenge: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:backup:restore:challenge", id, request),
+                restoreStep: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:backup:restore:step", id, request),
+                authorizeRestore: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:backup:restore:authorize", id, request),
+                issueRestoreReceipt: (id: unknown, request: unknown) =>
+                    transport.invoke("mcserver:backup:restore:issue", id, request),
                 restore: (id: unknown, request: unknown) =>
                     transport.invoke("mcserver:backup:restore", id, request),
+                onProgress: (listener: BridgeListener) => {
+                    const forward = (_event: unknown, serverId: string, progress: unknown): void =>
+                        listener(serverId, progress);
+                    transport.on("mcserver:backup:progress", forward);
+                    return () => {
+                        transport.off("mcserver:backup:progress", forward);
+                    };
+                },
             },
             webConsole: {
                 status: () => transport.invoke("mcserver:webconsole:status"),

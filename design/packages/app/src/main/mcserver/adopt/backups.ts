@@ -17,12 +17,14 @@
  * would silently back up nothing or the wrong thing.
  */
 
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { BackupRestoreRunner, type BackupRestoreRunnerOptions, type RestoreRequest, type RestoreResult } from "../../backup/restore.js";
 import { BackupRunner, type BackupRequest, type BackupResult, type BackupRunnerOptions } from "../../backup/runner.js";
 import { listBackups, type BackupListing } from "../../backup/catalog.js";
 import type { GitHubCallOptions } from "../../backup/github.js";
 import { inspectBackupSource } from "../../backup/source.js";
-import { fail, ok, type Answer, type TransportRef } from "../transport/types.js";
+import { fail, ok, type Answer, type BackupProgress, type ServerTransport, type TransportRef } from "../transport/types.js";
 
 /** Whether a server's `TransportRef` names a folder this machine's filesystem can pack
  *  directly. `local-process` always does; `local-docker` does whenever its `serverDir` is
@@ -47,6 +49,40 @@ export interface ServerBackupRequest {
      *  the caller's own destructive-action and consent checks decide whether to call this
      *  at all. */
     readonly adopted: boolean;
+    /** Required for ssh-docker: the transport is the only byte-safe route to remote files. */
+    readonly transport?: ServerTransport;
+    readonly signal?: AbortSignal;
+    readonly onProgress?: (progress: BackupProgress) => void;
+    readonly quiesce?: boolean;
+}
+
+export async function materializeRemoteFolder(transport: ServerTransport, remoteRoot: string, localRoot: string, signal?: AbortSignal): Promise<Answer<void>> {
+    const walk = async (remote: string, local: string): Promise<Answer<void>> => {
+        if (signal?.aborted) return fail("timeout", "The remote backup was cancelled before all bytes arrived.");
+        const listing = await transport.fileList(remote);
+        if (!listing.ok) return listing;
+        await mkdir(local, { recursive: true });
+        for (const entry of listing.value) {
+            if (entry.name === "." || entry.name === ".." || /[\\/\0\r\n]/.test(entry.name)) return fail("invalid-request", "The remote backup contained an invalid file name.");
+            const remotePath = `${remote.replace(/[\\/]$/, "")}/${entry.name}`;
+            const localPath = join(local, entry.name);
+            if (entry.kind === "symlink") return fail("unsupported", "The remote backup contains a symbolic link, so it was not copied.");
+            if (entry.kind === "directory") {
+                const nested = await walk(remotePath, localPath);
+                if (!nested.ok) return nested;
+                continue;
+            }
+            const read = await transport.fileRead(remotePath, {
+                maxBytes: 16 * 1024 * 1024,
+                ...(signal === undefined ? {} : { signal }),
+            });
+            if (!read.ok) return read;
+            if (read.value.truncated) return fail("unsupported", `The remote backup file ${entry.name} is larger than the safe in-memory limit.`);
+            await writeFile(localPath, read.value.bytes);
+        }
+        return ok(undefined);
+    };
+    return walk(remoteRoot, localRoot);
 }
 
 /**
@@ -59,31 +95,63 @@ export async function createServerBackup(
     runnerOptions: BackupRunnerOptions,
     request: ServerBackupRequest,
 ): Promise<Answer<BackupResult>> {
-    if (!hasLocallyPackableWorld(request.ref)) {
-        return fail(
-            "unsupported",
-            "This server's world lives on a machine this app cannot back up directly.",
-            `Transport kind: ${request.ref.kind}`,
-        );
+    let restartAfter = false;
+    let outcome: Answer<BackupResult> = fail("command-failed", "The backup did not produce an outcome.");
+    try {
+        if (request.quiesce === true) {
+            if (request.transport === undefined) return fail("unsupported", "Quiescing a backup needs a server transport.");
+            const status = await request.transport.status();
+            if (!status.ok) return fail("command-failed", "The server status could not be verified before quiescing.", status.failure.detail);
+            if (status.value.running) {
+                const stopped = await request.transport.stop({ graceful: true, timeoutMs: 60_000 });
+                if (!stopped.ok) return fail("command-failed", "The server could not be quiesced before backup.", stopped.failure.detail);
+                restartAfter = true;
+            }
+        }
+        if (request.ref.kind === "ssh-docker") {
+            if (request.transport === undefined) return fail("unsupported", "A remote backup needs its scoped SSH Docker transport.");
+            const stagingParent = runnerOptions.storageDir();
+            await mkdir(stagingParent, { recursive: true });
+            const staging = await mkdtemp(join(stagingParent, "remote-server-backup-"));
+            try {
+                const materialized = request.transport.copyDirectoryToLocal === undefined
+                    ? await materializeRemoteFolder(request.transport, request.worldFolder, staging, request.signal)
+                    : await request.transport.copyDirectoryToLocal(request.worldFolder, staging, {
+                        ...(request.signal === undefined ? {} : { signal: request.signal }),
+                        ...(request.onProgress === undefined ? {} : { onProgress: request.onProgress }),
+                    });
+                if (!materialized.ok) outcome = materialized;
+                else {
+                    const { transport: _remoteTransport, ...localRequest } = request;
+                    outcome = await createServerBackup(runnerOptions, { ...localRequest, ref: { kind: "local-process", serverDir: staging }, worldFolder: staging, quiesce: false });
+                }
+            } finally {
+                await rm(staging, { recursive: true, force: true });
+            }
+        } else if (!hasLocallyPackableWorld(request.ref)) {
+            outcome = fail("unsupported", "This server's world lives on a machine this app cannot back up directly.", `Transport kind: ${request.ref.kind}`);
+        } else {
+            const inspected = await inspectBackupSource("world", request.worldFolder);
+            if (!inspected.ok) outcome = fail("not-found", inspected.failure.message, inspected.failure.code);
+            else {
+                const runner = new BackupRunner(runnerOptions);
+                const backupRequest: BackupRequest = { kind: "world", folder: inspected.source.folder, owner: request.owner, repo: request.repo, ...(request.accountId === undefined ? {} : { accountId: request.accountId }), ...(request.acknowledgePublic === undefined ? {} : { acknowledgePublic: request.acknowledgePublic }), ...(request.resumeTag === undefined ? {} : { resumeTag: request.resumeTag }) };
+                outcome = ok(await runner.backup(backupRequest));
+            }
+        }
+    } catch (error) {
+        outcome = fail("command-failed", "The backup operation stopped unexpectedly.", String(error));
+    } finally {
+        if (restartAfter && request.transport !== undefined) {
+            try {
+                const restarted = await request.transport.start();
+                if (!restarted.ok) request.onProgress?.({ phase: "warning", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "The backup finished, but the server may remain stopped." });
+            } catch {
+                request.onProgress?.({ phase: "warning", bytesDone: 0, bytesTotal: null, rateBytesPerSecond: null, message: "The backup finished, but the server may remain stopped." });
+            }
+        }
     }
-
-    const inspected = await inspectBackupSource("world", request.worldFolder);
-    if (!inspected.ok) {
-        return fail("not-found", inspected.failure.message, inspected.failure.code);
-    }
-
-    const runner = new BackupRunner(runnerOptions);
-    const backupRequest: BackupRequest = {
-        kind: "world",
-        folder: inspected.source.folder,
-        owner: request.owner,
-        repo: request.repo,
-        ...(request.accountId === undefined ? {} : { accountId: request.accountId }),
-        ...(request.acknowledgePublic === undefined ? {} : { acknowledgePublic: request.acknowledgePublic }),
-        ...(request.resumeTag === undefined ? {} : { resumeTag: request.resumeTag }),
-    };
-    const result = await runner.backup(backupRequest);
-    return ok(result);
+    return outcome;
 }
 
 /** Lists the finished backups on a repository. A straight pass-through to
@@ -109,6 +177,8 @@ export interface ServerRestoreRequest extends RestoreRequest {
      *  two-key confirmation gate and `consent.configWrite` check must already have
      *  happened before this is called. */
     readonly adopted: boolean;
+    readonly targetFolder?: string;
+    readonly transport?: ServerTransport;
 }
 
 /**
@@ -118,6 +188,31 @@ export async function restoreServerBackup(
     runnerOptions: BackupRestoreRunnerOptions,
     request: ServerRestoreRequest,
 ): Promise<Answer<RestoreResult>> {
+    if (request.ref.kind === "ssh-docker") {
+        if (request.transport?.atomicRestoreDirectory === undefined || request.targetFolder === undefined) {
+            return fail("unsupported", "This remote server has no atomic restore primitive available.");
+        }
+        const runner = new BackupRestoreRunner(runnerOptions);
+        const downloaded = await runner.restore(request);
+        if (!downloaded.ok) return ok(downloaded);
+        const swapped = await request.transport.atomicRestoreDirectory(downloaded.summary.contentFolder, request.targetFolder);
+        if (!swapped.ok) {
+            return ok({
+                ok: false,
+                restoreId: downloaded.restoreId,
+                failure: {
+                    code: swapped.failure.code,
+                    message: swapped.failure.message,
+                    detail: swapped.failure.detail,
+                    needsSignIn: false,
+                    accountId: null,
+                    accountLogin: null,
+                    accountHost: null,
+                },
+            });
+        }
+        return ok(downloaded);
+    }
     if (!hasLocallyPackableWorld(request.ref)) {
         return fail(
             "unsupported",

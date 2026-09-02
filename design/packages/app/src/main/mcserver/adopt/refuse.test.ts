@@ -11,7 +11,7 @@ function candidate(overrides: Partial<AdoptionCandidate> = {}): AdoptionCandidat
         imageDigest: null,
         createdAt: "2026-01-01T00:00:00Z",
         state: "running",
-        ports: [25565],
+        ports: [{ container: 25565, host: 25565 }],
         mounts: [{ source: "/host/mc/survival", destination: "/data" }],
         detected: { flavour: "paper", minecraftVersion: "1.21.4", serverDir: "/host/mc/survival", confidence: "high" },
         evidence: ["mount layout matches a known server-data mount point", "log line matches something"],

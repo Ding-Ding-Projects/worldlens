@@ -151,9 +151,10 @@ describe("CreateServerWizard", () => {
             releasedAt: "2025-01-01T00:00:00Z",
         });
         const snapshot: CatalogueSnapshot = {
-            flavours: [{ flavour: "paper", versions }],
+            flavours: [{ flavour: "paper", versions, complete: true }],
             fetchedAt: "2026-08-23T00:00:00Z",
             stale: false,
+            completeness: failures.length === 0 ? "complete" : "partial",
             failures,
         };
         const host = fakeHost();
@@ -162,6 +163,12 @@ describe("CreateServerWizard", () => {
             catalogue: {
                 list: async () => ok(snapshot),
                 refresh: async () => ok(snapshot),
+                verifyWiki: async (version) =>
+                    ok({
+                        url: `https://minecraft.wiki/w/Java_Edition_${version}`,
+                        state: "verified",
+                        checkedAt: "2026-08-23T00:00:00Z",
+                    }),
             },
         };
     }

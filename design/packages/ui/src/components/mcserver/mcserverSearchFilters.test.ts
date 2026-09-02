@@ -111,23 +111,19 @@ function fakeHost(): McServerHost {
         stop: vi.fn().mockResolvedValue({ ok: true }),
         files: {
             list: vi.fn().mockResolvedValue({ ok: true, value: [] }),
-            read: vi
-                .fn()
-                .mockResolvedValue({
-                    ok: false,
-                    failure: { code: "not-found", message: "not found", detail: null },
-                }),
-            write: vi
-                .fn()
-                .mockResolvedValue({
-                    ok: true,
-                    value: {
-                        hash: "h",
-                        size: 0,
-                        writtenAt: "2026-01-01T00:00:00Z",
-                        backupPath: null,
-                    },
-                }),
+            read: vi.fn().mockResolvedValue({
+                ok: false,
+                failure: { code: "not-found", message: "not found", detail: null },
+            }),
+            write: vi.fn().mockResolvedValue({
+                ok: true,
+                value: {
+                    hash: "h",
+                    size: 0,
+                    writtenAt: "2026-01-01T00:00:00Z",
+                    backupPath: null,
+                },
+            }),
         },
         logTail: vi.fn().mockResolvedValue({ ok: true, value: [] }),
     };
@@ -206,7 +202,16 @@ function stubBridge(): void {
 }
 
 async function mountWith(component: unknown, props: Record<string, unknown>, host = fakeHost()) {
-    const i18n = createI18n({ legacy: false, locale: "en", messages: { en: {} } });
+    const i18n = createI18n({
+        legacy: false,
+        locale: "en",
+        messages: {
+            en: {
+                common: { next: "Next" },
+                mcserver: { console: { search: "Search log" } },
+            },
+        },
+    });
     const vuetify = createVuetify();
     const store = createServerStore({ host });
     await store.load();
@@ -262,26 +267,50 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
     beforeAll(stubBridge);
 
     it("filters the wizard's catalogue versions with plain text by default", async () => {
-        const host: McServerHost = fakeHost();
-        host.catalogue = {
-            list: vi.fn().mockResolvedValue({
-                ok: true,
-                value: {
-                    fetchedAt: "2026-01-01T00:00:00Z",
-                    stale: false,
-                    failures: [],
-                    flavours: [
-                        {
-                            flavour: "paper",
-                            versions: [
-                                { version: "1.21.4", releasedAt: null, javaFeature: 21, stability: "release", downloadUrl: null, sha256: null },
-                                { version: "1.20.6", releasedAt: null, javaFeature: 21, stability: "release", downloadUrl: null, sha256: null },
-                            ],
-                        },
-                    ],
-                },
+        const host: McServerHost = {
+            ...fakeHost(),
+            catalogue: {
+                list: vi.fn().mockResolvedValue({
+                    ok: true,
+                    value: {
+                        fetchedAt: "2026-01-01T00:00:00Z",
+                        stale: false,
+                        failures: [],
+                        flavours: [
+                            {
+                                flavour: "paper",
+                                versions: [
+                                    {
+                                        version: "1.21.4",
+                                        releasedAt: null,
+                                        javaFeature: 21,
+                                        stability: "release",
+                                        downloadUrl: null,
+                                        sha256: null,
+                                    },
+                                    {
+                                        version: "1.20.6",
+                                        releasedAt: null,
+                                        javaFeature: 21,
+                                        stability: "release",
+                                        downloadUrl: null,
+                                        sha256: null,
+                                    },
+                                ],
+                            },
+                        ],
+                    },
             }),
             refresh: vi.fn(),
+            verifyWiki: vi.fn().mockResolvedValue({
+                ok: true,
+                value: {
+                    url: "https://minecraft.wiki/w/Java_Edition_1.21.4",
+                    state: "verified",
+                    checkedAt: "2026-01-01T00:00:00Z",
+                },
+            }),
+            },
         };
         await mountWith(CreateServerWizard, { modelValue: true }, host);
         await flushPromises();
@@ -301,7 +330,9 @@ describe("CreateServerWizard and ServerConsole search coverage", () => {
         };
         const shown = (): string => dialog().textContent ?? "";
         const byText = (needle: string): HTMLButtonElement | undefined =>
-            [...dialog().querySelectorAll("button")].find((b) => (b.textContent ?? "").includes(needle));
+            [...dialog().querySelectorAll("button")].find((b) =>
+                (b.textContent ?? "").includes(needle),
+            );
 
         const next = byText("Next");
         expect(next, "the wizard rendered no Next control").toBeDefined();
@@ -361,7 +392,7 @@ describe("AdoptionReviewDialog evidence/mounts/ports filter", () => {
         ],
         ports: [
             { container: 25565, host: 25565 },
-            { container: 25575, host: null },
+            { container: 25575, host: 25576 },
         ],
         blockers: [],
         containerId: "container-1",
@@ -374,6 +405,12 @@ describe("AdoptionReviewDialog evidence/mounts/ports filter", () => {
         expect(body).toContain("server.properties");
         expect(body).toContain("/host/plugins");
         expect(body).toContain("25575");
+    });
+
+    it("uses the published host port for RCON and shows the container mapping", async () => {
+        await mountWith(AdoptionReviewDialog, dialogProps);
+        await flushPromises();
+        expect(document.body.textContent ?? "").toContain("25576 -> 25575");
     });
 
     it("narrows all three lists together and hides non-matching rows", async () => {

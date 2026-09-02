@@ -188,8 +188,10 @@ describe("refreshCatalogue", () => {
         ]);
 
         const paper = result.value.flavours.find((f) => f.flavour === "paper");
-        expect(paper?.versions).toHaveLength(2);
+        // Every published build is retained, not only the newest build per game version.
+        expect(paper?.versions).toHaveLength(4);
         expect(paper?.versions[0]?.sha256).toBe("b".repeat(64));
+        expect(paper?.versions.some((entry) => entry.version === "1.21.4#10")).toBe(true);
 
         const fabric = result.value.flavours.find((f) => f.flavour === "fabric");
         expect(fabric?.versions).toEqual([
@@ -210,6 +212,27 @@ describe("refreshCatalogue", () => {
                 releasedAt: null,
             },
         ]);
+    });
+
+    it("follows a paginated Paper build response instead of silently dropping later builds", async () => {
+        const firstPage = JSON.stringify({
+            builds: [JSON.parse(PAPER_BUILDS)[0]],
+            next: "https://example.test/paper-builds-page-2",
+        });
+        const secondPage = JSON.stringify({ builds: [JSON.parse(PAPER_BUILDS)[1]] });
+        const base = fakeFetch(ALL_ROUTES);
+        const paginated: FetchText = async (url) => {
+            if (url.endsWith("/paper/versions/1.21.4/builds")) return firstPage;
+            if (url === "https://example.test/paper-builds-page-2") return secondPage;
+            return base(url);
+        };
+        const result = await refreshCatalogue({ dataDir: dir, fetchText: paginated });
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        const paper = result.value.flavours.find((entry) => entry.flavour === "paper");
+        expect(paper?.versions.some((entry) => entry.version === "1.21.4#10")).toBe(true);
+        expect(paper?.complete).toBe(true);
+        expect(result.value.completeness).toBe("complete");
     });
 
     it("writes the cache file to disk", async () => {

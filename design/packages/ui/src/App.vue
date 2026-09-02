@@ -121,6 +121,7 @@ import ServerListScreen from "./components/mcserver/ServerListScreen.vue";
 import CreateServerWizard from "./components/mcserver/CreateServerWizard.vue";
 import AdoptionReviewDialog from "./components/mcserver/AdoptionReviewDialog.vue";
 import AdoptionBrowser from "./components/mcserver/AdoptionBrowser.vue";
+import HostProfileWizard from "./components/mcserver/HostProfileWizard.vue";
 import type { AdoptionCandidate } from "./components/mcserver/serverStore.js";
 import type { ServerRecord } from "./components/mcserver/serverModel.js";
 import WebConsolePanel from "./components/mcserver/WebConsolePanel.vue";
@@ -212,21 +213,38 @@ provideLockStore(lockStore);
 const mcServerStore = createServerStore({ host: resolveServerHost() });
 provideServerStore(mcServerStore);
 const mcServerCreateOpen = ref(false);
+const mcServerHostProfileOpen = ref(false);
 const mcServerOpenId = ref<string | null>(null);
 const mcServerAdoptOpen = ref(false);
 const mcServerAdoptBrowseOpen = ref(false);
 const mcServerAdoptRecord = ref<ServerRecord | null>(null);
 const mcServerAdoptContainerId = ref<string | null>(null);
 const mcServerReturnId = ref<string | null>(null);
+const mcServerAdoptHostId = ref<string | null>(null);
+const mcServerAdoptEvidence = ref<readonly string[]>([]);
+const mcServerAdoptConfidence = ref<"high" | "medium" | "low" | null>(null);
+const mcServerAdoptMounts = ref<readonly { source: string; target: string }[]>([]);
+const mcServerAdoptPorts = ref<readonly { container: number; host: number | null }[]>([]);
+const mcServerAdoptBlockers = ref<readonly string[]>([]);
 
-function adoptionRecord(candidate: AdoptionCandidate): ServerRecord {
+function adoptionRecord(candidate: AdoptionCandidate, hostId: string | null): ServerRecord {
     const now = new Date().toISOString();
+    const serverDir =
+        candidate.mounts?.find((mount) => {
+            const target = mount.destination.toLowerCase();
+            return target === "/data" || target === "/server" || target.includes("minecraft");
+        })?.destination ??
+        candidate.mounts?.[0]?.destination ??
+        "/data";
     return {
         id: `adopt-${candidate.containerId}`,
         name: candidate.containerName,
         flavour: (candidate.guessedFlavour ?? "unknown") as ServerRecord["flavour"],
         minecraftVersion: candidate.guessedVersion,
-        ref: { kind: "local-docker", containerRef: candidate.containerId, serverDir: "" },
+        ref:
+            hostId !== null
+                ? { kind: "ssh-docker", hostId, containerRef: candidate.containerId, serverDir }
+                : { kind: "local-docker", containerRef: candidate.containerId, serverDir },
         origin: "adopted",
         createdAt: now,
         updatedAt: now,
@@ -254,14 +272,29 @@ function adoptionRecord(candidate: AdoptionCandidate): ServerRecord {
  * is why it no longer needs to be async.
  */
 function openMcServerAdoption(): void {
+    mcServerAdoptHostId.value = null;
     mcServerAdoptBrowseOpen.value = true;
 }
 
 /** Step two: the chosen candidate goes to the review dialog that was always there. */
-function reviewMcServerCandidate(candidate: AdoptionCandidate): void {
-    mcServerAdoptRecord.value = adoptionRecord(candidate);
+function reviewMcServerCandidate(candidate: AdoptionCandidate, hostId: string | null = null): void {
+    mcServerAdoptRecord.value = adoptionRecord(candidate, hostId);
     mcServerAdoptContainerId.value = candidate.containerId;
+    mcServerAdoptHostId.value = hostId;
+    mcServerAdoptEvidence.value = candidate.evidence ?? [];
+    mcServerAdoptConfidence.value = candidate.confidence ?? null;
+    mcServerAdoptMounts.value = (candidate.mounts ?? []).map((mount) => ({
+        source: mount.source,
+        target: mount.destination,
+    }));
+    mcServerAdoptPorts.value = candidate.ports ?? [];
+    mcServerAdoptBlockers.value = candidate.blockers ?? [];
     mcServerAdoptOpen.value = true;
+}
+
+function openRemoteAdoption(hostId: string): void {
+    mcServerAdoptHostId.value = hostId;
+    mcServerAdoptBrowseOpen.value = true;
 }
 
 function completeMcServerAdoption(record: ServerRecord): void {
@@ -969,6 +1002,8 @@ const shell = createShellNavigation({
 });
 
 const destination = shell.destination;
+/** Exactly one shell tree owns the shared Minecraft modal state at a time. */
+const mcServerModalOwner = computed<McServerOwner>(() => mcServerOwner.value);
 
 /**
  * Targets this build could not route, and the panel that shows them.
@@ -1189,7 +1224,10 @@ const paletteDirectoryEntries = computed<readonly PaletteDirectoryEntry[]>(() =>
                 description: t("palette.directory.tabGroup", "A live tab group in the workspace."),
                 keywords: [entry.title, ...(entry.pageIds ?? [])],
                 location: entry.location,
-                where: t("palette.where.tabGroup", "Focuses the first available tab in this group."),
+                where: t(
+                    "palette.where.tabGroup",
+                    "Focuses the first available tab in this group.",
+                ),
                 go: () => {
                     const first = entry.pageIds?.[0];
                     if (first !== undefined) revealPage(first);
@@ -1206,8 +1244,16 @@ const paletteDirectoryEntries = computed<readonly PaletteDirectoryEntry[]>(() =>
             title: article.title,
             description: t("palette.directory.article", "A bundled offline documentation article."),
             keywords: [article.id, article.file, article.category],
-            location: [t("palette.group.documentation", "Documentation"), article.category, article.title],
-            where: t("palette.where.article", { article: article.title }, "Opens the {article} article."),
+            location: [
+                t("palette.group.documentation", "Documentation"),
+                article.category,
+                article.title,
+            ],
+            where: t(
+                "palette.where.article",
+                { article: article.title },
+                "Opens the {article} article.",
+            ),
             go: () => requestDocsArticle(article.id),
         });
     }
@@ -1221,7 +1267,10 @@ const paletteDirectoryEntries = computed<readonly PaletteDirectoryEntry[]>(() =>
             description: t(feature.blurbKey, feature.blurbFallback),
             keywords: [feature.key, feature.groupFallback],
             location: [feature.groupFallback, t(feature.nameKey, feature.nameFallback)],
-            where: t("palette.where.catalogueFeature", "Opens this feature through its existing catalogue route."),
+            where: t(
+                "palette.where.catalogueFeature",
+                "Opens this feature through its existing catalogue route.",
+            ),
             go: () => {
                 void shell.activateFeature(feature);
             },
@@ -1233,9 +1282,15 @@ const paletteDirectoryEntries = computed<readonly PaletteDirectoryEntry[]>(() =>
         resultClass: "appearance",
         group: t("palette.group.appearance", "Appearance"),
         title: t("palette.directory.appearance", "Appearance controls"),
-        description: t("palette.directory.appearanceDescription", "Adjust the appearance of the live interface."),
+        description: t(
+            "palette.directory.appearanceDescription",
+            "Adjust the appearance of the live interface.",
+        ),
         keywords: ["appearance", "font", "colour", "color", "theme"],
-        location: [t("palette.group.appearance", "Appearance"), t("palette.directory.appearance", "Appearance controls")],
+        location: [
+            t("palette.group.appearance", "Appearance"),
+            t("palette.directory.appearance", "Appearance controls"),
+        ],
         where: t("palette.where.appearance", "Opens the appearance settings surface."),
         go: () => openSettings(),
     });
@@ -1244,9 +1299,15 @@ const paletteDirectoryEntries = computed<readonly PaletteDirectoryEntry[]>(() =>
         resultClass: "recovery",
         group: t("palette.group.recovery", "Recovery"),
         title: t("palette.directory.recovery", "Recovery actions"),
-        description: t("palette.directory.recoveryDescription", "Find retry, support, and recovery routes."),
+        description: t(
+            "palette.directory.recoveryDescription",
+            "Find retry, support, and recovery routes.",
+        ),
         keywords: ["recovery", "retry", "support", "restore"],
-        location: [t("palette.group.recovery", "Recovery"), t("palette.directory.recovery", "Recovery actions")],
+        location: [
+            t("palette.group.recovery", "Recovery"),
+            t("palette.directory.recovery", "Recovery actions"),
+        ],
         where: t("palette.where.recovery", "Opens the Support Tickets recovery surface."),
         go: () => revealPage(PAGE_SUPPORT),
     });
@@ -1540,7 +1601,7 @@ const pagesStateByKey = ref<Record<string, ProjectPagesStateRecord>>({});
 const activePagesKey = ref<string | null>(null);
 const pagesProjectState = computed<ProjectPagesStateRecord | null>(() => {
     const key = activePagesKey.value;
-    return key === null ? null : pagesStateByKey.value[key] ?? null;
+    return key === null ? null : (pagesStateByKey.value[key] ?? null);
 });
 const droppedWorldPath = ref<string | null>(null);
 
@@ -2543,19 +2604,36 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @open="openMcServerPanel"
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
+                            @host-profile="mcServerHostProfileOpen = true"
+                        />
+                        <HostProfileWizard
+                            v-if="mcServerModalOwner === 'kid' && mcServerHostProfileOpen"
+                            @close="mcServerHostProfileOpen = false"
+                            @saved="mcServerHostProfileOpen = false"
                         />
                         <AdoptionBrowser
+                            v-if="mcServerModalOwner === 'kid'"
+                            :host-id="mcServerAdoptHostId"
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
                         />
                         <AdoptionReviewDialog
+                            v-if="mcServerModalOwner === 'kid'"
+                            :host-id="mcServerAdoptHostId"
                             v-model="mcServerAdoptOpen"
                             :record="mcServerAdoptRecord"
                             :container-id="mcServerAdoptContainerId"
+                            :evidence="mcServerAdoptEvidence"
+                            :confidence="mcServerAdoptConfidence"
+                            :mounts="mcServerAdoptMounts"
+                            :ports="mcServerAdoptPorts"
+                            :blockers="mcServerAdoptBlockers"
                             @confirmed="completeMcServerAdoption"
                         />
                         <CreateServerWizard
+                            v-if="mcServerModalOwner === 'kid'"
                             v-model="mcServerCreateOpen"
+                            @open-remote-adoption="openRemoteAdoption"
                             @created="openMcServerPanel"
                             @open-aws="(id) => openMcServerPanel(id, 'aws')"
                         />
@@ -2579,7 +2657,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #pages>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
-                            <PagesScreen :initial-render-id="pagesRenderIdToOpen" :publication-record="pagesProjectState" @open="onPagesOpened" @state="onPagesState" />
+                            <PagesScreen
+                                :initial-render-id="pagesRenderIdToOpen"
+                                :publication-record="pagesProjectState"
+                                @open="onPagesOpened"
+                                @state="onPagesState"
+                            />
                         </div>
                     </div>
                 </template>
@@ -2789,19 +2872,36 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             @open="openMcServerPanel"
                             @create="mcServerCreateOpen = true"
                             @adopt="openMcServerAdoption"
+                            @host-profile="mcServerHostProfileOpen = true"
+                        />
+                        <HostProfileWizard
+                            v-if="mcServerModalOwner === 'host' && mcServerHostProfileOpen"
+                            @close="mcServerHostProfileOpen = false"
+                            @saved="mcServerHostProfileOpen = false"
                         />
                         <AdoptionBrowser
+                            v-if="mcServerModalOwner === 'host'"
+                            :host-id="mcServerAdoptHostId"
                             v-model="mcServerAdoptBrowseOpen"
                             @picked="reviewMcServerCandidate"
                         />
                         <AdoptionReviewDialog
+                            v-if="mcServerModalOwner === 'host'"
+                            :host-id="mcServerAdoptHostId"
                             v-model="mcServerAdoptOpen"
                             :record="mcServerAdoptRecord"
                             :container-id="mcServerAdoptContainerId"
+                            :evidence="mcServerAdoptEvidence"
+                            :confidence="mcServerAdoptConfidence"
+                            :mounts="mcServerAdoptMounts"
+                            :ports="mcServerAdoptPorts"
+                            :blockers="mcServerAdoptBlockers"
                             @confirmed="completeMcServerAdoption"
                         />
                         <CreateServerWizard
+                            v-if="mcServerModalOwner === 'host'"
                             v-model="mcServerCreateOpen"
+                            @open-remote-adoption="openRemoteAdoption"
                             @created="openMcServerPanel"
                             @open-aws="(id) => openMcServerPanel(id, 'aws')"
                         />
@@ -3070,7 +3170,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             </template>
 
                             <template #mcservers>
-                                <div v-if="mcServerOwner === 'work'" class="mb-world-host mb-interactive">
+                                <div
+                                    v-if="mcServerOwner === 'work'"
+                                    class="mb-world-host mb-interactive"
+                                >
                                     <WebConsolePanel
                                         v-if="mcServerOpenId"
                                         :server-id="mcServerOpenId"
@@ -3084,20 +3187,39 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         @open="openMcServerPanel"
                                         @create="mcServerCreateOpen = true"
                                         @adopt="openMcServerAdoption"
+                                        @host-profile="mcServerHostProfileOpen = true"
+                                    />
+                                    <HostProfileWizard
+                                        v-if="
+                                            mcServerModalOwner === 'work' && mcServerHostProfileOpen
+                                        "
+                                        @close="mcServerHostProfileOpen = false"
+                                        @saved="mcServerHostProfileOpen = false"
                                     />
                                     <CreateServerWizard
+                                        v-if="mcServerModalOwner === 'work'"
+                                        @open-remote-adoption="openRemoteAdoption"
                                         v-model="mcServerCreateOpen"
                                         @created="openMcServerPanel"
                                         @open-aws="(id) => openMcServerPanel(id, 'aws')"
                                     />
                                     <AdoptionBrowser
+                                        v-if="mcServerModalOwner === 'work'"
+                                        :host-id="mcServerAdoptHostId"
                                         v-model="mcServerAdoptBrowseOpen"
                                         @picked="reviewMcServerCandidate"
                                     />
                                     <AdoptionReviewDialog
+                                        v-if="mcServerModalOwner === 'work'"
+                                        :host-id="mcServerAdoptHostId"
                                         v-model="mcServerAdoptOpen"
                                         :record="mcServerAdoptRecord"
                                         :container-id="mcServerAdoptContainerId"
+                                        :evidence="mcServerAdoptEvidence"
+                                        :confidence="mcServerAdoptConfidence"
+                                        :mounts="mcServerAdoptMounts"
+                                        :ports="mcServerAdoptPorts"
+                                        :blockers="mcServerAdoptBlockers"
                                         @confirmed="completeMcServerAdoption"
                                     />
                                 </div>
@@ -3127,7 +3249,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #pages>
                                 <div class="mb-world-host mb-interactive">
                                     <div class="mb-shell-centre">
-                                        <PagesScreen :initial-render-id="pagesRenderIdToOpen" :publication-record="pagesProjectState" @open="onPagesOpened" @state="onPagesState" />
+                                        <PagesScreen
+                                            :initial-render-id="pagesRenderIdToOpen"
+                                            :publication-record="pagesProjectState"
+                                            @open="onPagesOpened"
+                                            @state="onPagesState"
+                                        />
                                     </div>
                                 </div>
                             </template>

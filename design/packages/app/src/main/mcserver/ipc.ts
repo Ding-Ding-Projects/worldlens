@@ -11,7 +11,9 @@
  * crash. It is a plausible-looking argument reaching `docker` or the filesystem.
  */
 
+import { homedir } from "node:os";
 import { join } from "node:path";
+import { createHash, randomBytes } from "node:crypto";
 
 import type { IpcMain } from "electron";
 
@@ -32,7 +34,11 @@ import { releaseAdoption } from "./adopt/release.js";
 import { listWorlds } from "./adopt/worlds.js";
 import { createServerBackup, listServerBackups, restoreServerBackup } from "./adopt/backups.js";
 import { createTransport, type FactoryDeps } from "./transport/factory.js";
-import { createLocalServer, type CreateLocalServerOptions } from "./create.js";
+import {
+    createLocalDockerServer,
+    createLocalServer,
+    type CreateLocalServerOptions,
+} from "./create.js";
 import type { FetchBinary } from "./install.js";
 import {
     listCatalogue,
@@ -92,6 +98,15 @@ import { AWS_INSTANCE_TYPES, AWS_REGIONS } from "./aws/regions.js";
 import type { AwsServerSpec } from "./aws/types.js";
 import { listAccounts, setAccountAlias } from "./aws/accounts.js";
 import { readCredits, type CreditsPeriod } from "./aws/credits.js";
+import {
+    createHostProfileStore,
+    type HostProfileDraft,
+    type HostProfileStore,
+} from "./hostProfiles.js";
+import { recordedFor, scanHostKeys, trustHostKey } from "../remote/hostkey.js";
+import { openSshRconTunnel, type SshRconTunnel } from "./rcon/sshTunnel.js";
+import { sshCommandRunner } from "../remote/ssh.js";
+import type { BackupProgress } from "./transport/types.js";
 
 export const MCSERVER_CHANNELS = {
     list: "mcserver:list",
@@ -127,6 +142,7 @@ export const MCSERVER_CHANNELS = {
     configApply: "mcserver:config:apply",
     create: "mcserver:create",
     rconTest: "mcserver:rcon:test",
+    rconConfigure: "mcserver:rcon:configure",
     consoleOpen: "mcserver:console:open",
     consoleSend: "mcserver:console:send",
     consoleClose: "mcserver:console:close",
@@ -137,8 +153,13 @@ export const MCSERVER_CHANNELS = {
     adoptRelease: "mcserver:adopt:release",
     worldsList: "mcserver:worlds:list",
     backupCreate: "mcserver:backup:create",
+    backupCancel: "mcserver:backup:cancel",
     backupList: "mcserver:backup:list",
     backupRestore: "mcserver:backup:restore",
+    backupRestoreChallenge: "mcserver:backup:restore:challenge",
+    backupRestoreStep: "mcserver:backup:restore:step",
+    backupRestoreAuthorize: "mcserver:backup:restore:authorize",
+    backupRestoreIssue: "mcserver:backup:restore:issue",
     awsPlan: "mcserver:aws:plan",
     awsProvision: "mcserver:aws:provision",
     awsTeardown: "mcserver:aws:teardown",
@@ -148,10 +169,17 @@ export const MCSERVER_CHANNELS = {
     awsAccounts: "mcserver:aws:accounts",
     awsAccountAlias: "mcserver:aws:accountAlias",
     awsCredits: "mcserver:aws:credits",
+    hostProfilesList: "mcserver:hostProfiles:list",
+    hostProfileGet: "mcserver:hostProfiles:get",
+    hostProfileSave: "mcserver:hostProfiles:save",
+    hostProfileForget: "mcserver:hostProfiles:forget",
+    hostProfileScan: "mcserver:hostProfiles:scan",
+    hostProfileTrust: "mcserver:hostProfiles:trust",
 } as const;
 
 /** The console line shape pushed to the renderer as the session lives. Never the RCON password. */
 export const MCSERVER_CONSOLE_LINE_EVENT = "mcserver:console:line";
+export const MCSERVER_BACKUP_PROGRESS_EVENT = "mcserver:backup:progress";
 
 export type McServerChannel = (typeof MCSERVER_CHANNELS)[keyof typeof MCSERVER_CHANNELS];
 
@@ -197,7 +225,18 @@ export interface McServerIpcOptions {
      */
     readonly rconHostFor?: (ref: TransportRef) => string;
     readonly registry?: ServerRegistry;
+    /** Injectable profile store for tests; production uses the app-owned JSON store. */
+    readonly hostProfiles?: HostProfileStore;
     readonly now?: () => string;
+    /** Main-process native confirmation session, never renderer-supplied proof. */
+    readonly nativeRestoreConfirm?: (request: {
+        serverId: string;
+        target: string;
+        owner: string;
+        repo: string;
+        tag: string;
+    }) => Promise<boolean>;
+    readonly onBackupProgress?: (serverId: string, progress: BackupProgress) => void;
     readonly adoptions?: AdoptionStore;
     /**
      * This installation's own Docker ownership value - see `adopt/discover.ts`'s note on
@@ -225,6 +264,9 @@ export interface McServerIpcOptions {
     readonly javaRunner?: JavaRunner;
     readonly javaExists?: (path: string) => boolean;
     readonly javaEnv?: NodeJS.ProcessEnv;
+    /** Local ssh binary and tunnel opener are injectable so tests never spawn a process. */
+    readonly ssh?: string;
+    readonly sshRconTunnel?: typeof openSshRconTunnel;
     /** The `CommandRunner` the AWS provisioning/teardown channels run the `aws` CLI through. */
     readonly awsRunner?: CommandRunner;
     readonly aws?: string;
@@ -234,6 +276,7 @@ export interface McServerIpc {
     dispose(): void;
     readonly registry: ServerRegistry;
     readonly adoptions: AdoptionStore;
+    readonly hostProfiles: HostProfileStore;
 }
 
 function isRecordId(value: unknown): value is string {
@@ -249,6 +292,26 @@ function isPath(value: unknown): value is string {
         value.length <= 4_096 &&
         !/[\0\r\n]/.test(value)
     );
+}
+
+export function safeContainerServerDir(value: string): boolean {
+    const normalized = value.replace(/\/+$/, "") || "/";
+    const recognized =
+        normalized === "/data" ||
+        normalized === "/server" ||
+        normalized.startsWith("/data/") ||
+        normalized.startsWith("/server/");
+    return (
+        recognized &&
+        normalized.length <= 512 &&
+        !/[\0\r\n]/.test(normalized) &&
+        !normalized.split("/").some((part) => part === "." || part === "..")
+    );
+}
+
+function recognizedContainerMount(destination: string): boolean {
+    const lower = destination.toLowerCase();
+    return lower === "/data" || lower === "/server";
 }
 
 function isPluginLoader(value: unknown): value is PluginLoader {
@@ -349,6 +412,14 @@ export function registerMcServerHandlers(
             dataFolder: options.dataFolder,
             ...(options.now === undefined ? {} : { now: options.now }),
         });
+    const hostProfiles =
+        options.hostProfiles ??
+        createHostProfileStore({
+            dataFolder: options.dataFolder,
+            knownHostsFile: join(options.dataFolder, "known_hosts"),
+            userKnownHostsFile: join(homedir(), ".ssh", "known_hosts"),
+            ...(options.now === undefined ? {} : { now: options.now }),
+        });
     const now = options.now ?? (() => new Date().toISOString());
     const docker = options.docker ?? "docker";
 
@@ -372,6 +443,68 @@ export function registerMcServerHandlers(
     });
     const rconSocketFactory = options.rconSocketFactory ?? realRconSocketFactory;
     const rconHostFor = options.rconHostFor ?? defaultRconHostFor;
+    const openRconTunnel = options.sshRconTunnel ?? openSshRconTunnel;
+    const rconTunnels = new Map<string, SshRconTunnel>();
+    const restoreReceipts = new Map<
+        string,
+        {
+            readonly digest: string;
+            readonly serverId: string;
+            readonly target: string;
+            readonly owner: string;
+            readonly repo: string;
+            readonly tag: string;
+            readonly expiresAt: number;
+        }
+    >();
+    const restoreChallenges = new Map<
+        string,
+        {
+            readonly digest: string;
+            readonly serverId: string;
+            readonly target: string;
+            readonly owner: string;
+            readonly repo: string;
+            readonly tag: string;
+            readonly expiresAt: number;
+            keyOne: boolean;
+            keyTwo: boolean;
+            travel: number;
+        }
+    >();
+    const activeBackupControllers = new Map<string, AbortController>();
+    const restoreAuthorizations = new Map<
+        string,
+        {
+            readonly challengeDigest: string;
+            readonly serverId: string;
+            readonly target: string;
+            readonly owner: string;
+            readonly repo: string;
+            readonly tag: string;
+            readonly expiresAt: number;
+        }
+    >();
+    const authorizingChallenges = new Set<string>();
+    const RESTORE_AUTH_LIMIT = 128;
+    const sweepRestoreAuth = (): void => {
+        const current = Date.now();
+        for (const [digest, value] of restoreReceipts)
+            if (value.expiresAt <= current) restoreReceipts.delete(digest);
+        for (const [digest, value] of restoreChallenges)
+            if (value.expiresAt <= current) restoreChallenges.delete(digest);
+        for (const [digest, value] of restoreAuthorizations)
+            if (value.expiresAt <= current) restoreAuthorizations.delete(digest);
+    };
+
+    async function closeRconTunnelIfUnused(serverId: string): Promise<void> {
+        const active = [...consoleSessions.values()].some((entry) => entry.serverId === serverId);
+        if (active) return;
+        const tunnel = rconTunnels.get(serverId);
+        if (tunnel === undefined) return;
+        rconTunnels.delete(serverId);
+        await tunnel.close();
+    }
     /** Live console supervisors, keyed by the stable session id `console:open` handed out. */
     const consoleSessions = new Map<
         string,
@@ -426,6 +559,13 @@ export function registerMcServerHandlers(
         const adopted = found.value.origin === "adopted" ? await adoptions.get(id) : null;
         const adoptionRecord = adopted !== null && adopted.ok ? adopted.value : null;
 
+        let sshHost = options.factory?.sshHost;
+        if (sshHost === undefined && found.value.ref.kind === "ssh-docker") {
+            // Load first so the store's synchronous factory lookup has a warm, validated
+            // cache. A missing profile remains a typed not-found answer from the factory.
+            await hostProfiles.get(found.value.ref.hostId);
+            sshHost = (hostId) => hostProfiles.sshHost(hostId);
+        }
         const built = createTransport(found.value.ref, {
             // The same `known_hosts` the remote-render side writes, so a host key trusted
             // once is trusted everywhere in this app - and never the user's own file, which
@@ -436,6 +576,7 @@ export function registerMcServerHandlers(
             // first use with a message about a parameter rather than about the machine.
             awsKnownHostsFile: join(options.dataFolder, "known_hosts"),
             ...options.factory,
+            ...(sshHost === undefined ? {} : { sshHost }),
             writeScope: found.value.writeScope,
             ...(adoptionRecord === null
                 ? {}
@@ -488,16 +629,167 @@ export function registerMcServerHandlers(
                 "The RCON password for this server could not be unlocked from this machine's credential vault.",
             );
         }
+        let host = rconHostFor(found.value.ref);
+        let port = found.value.rconPort;
+        if (found.value.ref.kind === "ssh-docker") {
+            const profile = await hostProfiles.get(found.value.ref.hostId);
+            if (!profile.ok) return profile;
+            const ssh = hostProfiles.sshHost(found.value.ref.hostId);
+            if (ssh === null)
+                return fail("not-found", "The SSH host profile for this server is not available.");
+            let tunnel = rconTunnels.get(found.value.id);
+            if (tunnel === undefined) {
+                const opened = await openRconTunnel({
+                    ssh,
+                    remotePort: found.value.rconPort,
+                    ...(options.ssh === undefined ? {} : { sshBinary: options.ssh }),
+                });
+                if (!opened.ok) return opened;
+                tunnel = opened.value;
+                rconTunnels.set(found.value.id, tunnel);
+            }
+            host = "127.0.0.1";
+            port = tunnel.localPort;
+        }
         return ok({
-            host: rconHostFor(found.value.ref),
-            port: found.value.rconPort,
+            host,
+            port,
             password,
             socketFactory: rconSocketFactory,
         });
     }
 
+    async function adoptionRunner(
+        hostId: unknown,
+    ): Promise<Answer<{ runner: CommandRunner; hostId: string | null }>> {
+        if (hostId === undefined || hostId === null || hostId === "") {
+            const runner = options.factory?.runner;
+            return runner === undefined
+                ? fail("unsupported", "Adoption needs a Docker command runner in this build.")
+                : ok({ runner, hostId: null });
+        }
+        if (!isRecordId(hostId))
+            return fail("invalid-request", "That SSH host profile id is not valid.");
+        const profile = await hostProfiles.get(hostId);
+        if (!profile.ok) return profile;
+        const ssh = hostProfiles.sshHost(hostId);
+        if (ssh === null) return fail("not-found", "That SSH host profile is not available.");
+        return ok({
+            runner: sshCommandRunner({
+                ...ssh,
+                ...(options.factory?.runner === undefined
+                    ? {}
+                    : { runner: options.factory.runner }),
+            }),
+            hostId,
+        });
+    }
+
+    function rconConsoleTransport(id: string, transport: ServerTransport): ServerTransport {
+        if (transport.ref.kind !== "ssh-docker" || transport.capabilities.console === "none")
+            return transport;
+        return {
+            ...transport,
+            capabilities: { ...transport.capabilities, console: "rcon" },
+            async attach(attachOptions) {
+                const attached = await transport.attach(attachOptions);
+                if (!attached.ok) return attached;
+                return ok({
+                    ...attached.value,
+                    async send(command: string) {
+                        const rcon = await openRcon(id);
+                        if (!rcon.ok) return rcon;
+                        const reply = await runOneCommand(rcon.value, command);
+                        return reply.ok ? ok(undefined) : reply;
+                    },
+                });
+            },
+        };
+    }
+
     const handlers: Record<string, (...args: never[]) => Promise<unknown>> = {
         [MCSERVER_CHANNELS.list]: async () => registry.list(),
+
+        [MCSERVER_CHANNELS.hostProfilesList]: async () => hostProfiles.list(),
+
+        [MCSERVER_CHANNELS.hostProfileGet]: async (_event: never, hostId: unknown) => {
+            if (!isRecordId(hostId))
+                return fail("invalid-request", "That SSH host profile id is not valid.");
+            return hostProfiles.get(hostId);
+        },
+
+        [MCSERVER_CHANNELS.hostProfileSave]: async (_event: never, request: unknown) => {
+            if (typeof request !== "object" || request === null)
+                return fail("invalid-request", "That SSH host profile could not be read.");
+            const body = request as Record<string, unknown>;
+            if (
+                !isRecordId(body.hostId) ||
+                typeof body.target !== "object" ||
+                body.target === null
+            ) {
+                return fail(
+                    "invalid-request",
+                    "A host profile needs an id and connection details.",
+                );
+            }
+            return hostProfiles.save({
+                hostId: body.hostId,
+                target: body.target as HostProfileDraft["target"],
+            });
+        },
+
+        [MCSERVER_CHANNELS.hostProfileForget]: async (_event: never, hostId: unknown) => {
+            if (!isRecordId(hostId))
+                return fail("invalid-request", "That SSH host profile id is not valid.");
+            return hostProfiles.forget(hostId);
+        },
+
+        [MCSERVER_CHANNELS.hostProfileScan]: async (_event: never, hostId: unknown) => {
+            if (!isRecordId(hostId))
+                return fail("invalid-request", "That SSH host profile id is not valid.");
+            const profile = await hostProfiles.get(hostId);
+            if (!profile.ok) return profile;
+            const ssh = hostProfiles.sshHost(hostId);
+            if (ssh === null) return fail("not-found", "That SSH host profile is not available.");
+            const scanned = await scanHostKeys(profile.value.target, {
+                knownHostsFile: ssh.knownHostsFile,
+                ...(ssh.userKnownHostsFile === undefined
+                    ? {}
+                    : { userKnownHostsFile: ssh.userKnownHostsFile }),
+                ...(options.factory?.runner === undefined
+                    ? {}
+                    : { runner: options.factory.runner }),
+            });
+            return ok({
+                profile: profile.value,
+                recorded: await recordedFor(profile.value.target, ssh.knownHostsFile),
+                offers: scanned.offers,
+                detail: scanned.detail,
+            });
+        },
+
+        [MCSERVER_CHANNELS.hostProfileTrust]: async (
+            _event: never,
+            hostId: unknown,
+            fingerprint: unknown,
+        ) => {
+            if (!isRecordId(hostId) || typeof fingerprint !== "string")
+                return fail("invalid-request", "A host profile and fingerprint are required.");
+            const profile = await hostProfiles.get(hostId);
+            if (!profile.ok) return profile;
+            const ssh = hostProfiles.sshHost(hostId);
+            if (ssh === null) return fail("not-found", "That SSH host profile is not available.");
+            const trusted = await trustHostKey(profile.value.target, fingerprint, {
+                knownHostsFile: ssh.knownHostsFile,
+                ...(ssh.userKnownHostsFile === undefined
+                    ? {}
+                    : { userKnownHostsFile: ssh.userKnownHostsFile }),
+                ...(options.factory?.runner === undefined
+                    ? {}
+                    : { runner: options.factory.runner }),
+            });
+            return trusted.ok ? ok(trusted) : fail("denied", trusted.message);
+        },
 
         [MCSERVER_CHANNELS.get]: async (_event: never, id: unknown) => {
             if (!isRecordId(id))
@@ -591,6 +883,50 @@ export function registerMcServerHandlers(
             return testConnection(rconOptions.value);
         },
 
+        [MCSERVER_CHANNELS.rconConfigure]: async (_event: never, id: unknown, request: unknown) => {
+            if (!isRecordId(id) || typeof request !== "object" || request === null) {
+                return fail(
+                    "invalid-request",
+                    "RCON configuration needs a server id, port and password.",
+                );
+            }
+            const body = request as Record<string, unknown>;
+            if (
+                typeof body.port !== "number" ||
+                !Number.isInteger(body.port) ||
+                body.port < 1 ||
+                body.port > 65_535 ||
+                typeof body.password !== "string" ||
+                body.password.length === 0 ||
+                body.password.length > 512
+            ) {
+                return fail(
+                    "invalid-request",
+                    "RCON configuration needs a valid port and password.",
+                );
+            }
+            if (!rconSecrets.vaultAvailable())
+                return fail(
+                    "unsupported",
+                    "This build cannot store an RCON password in its credential vault.",
+                );
+            const found = await registry.get(id);
+            if (!found.ok) return found;
+            const stored = await rconSecrets.put(id, body.password);
+            if (!stored)
+                return fail(
+                    "denied",
+                    "The RCON password could not be stored in the credential vault.",
+                );
+            const saved = await registry.put({
+                ...found.value,
+                hasRconSecret: true,
+                rconPort: body.port,
+                updatedAt: now(),
+            });
+            return saved.ok ? ok({ configured: true, port: body.port }) : saved;
+        },
+
         // Starts (or reuses, per-call - each open() gets its own supervisor and id) a
         // stable console session and pushes further lines to whichever renderer opened
         // it, over MCSERVER_CONSOLE_LINE_EVENT, for as long as that session stays open.
@@ -601,7 +937,7 @@ export function registerMcServerHandlers(
                 typeof tail === "number" && tail > 0 && tail <= 5_000 ? Math.floor(tail) : 200;
 
             const supervisor = new ConsoleSupervisor({
-                transport: opened.value.transport,
+                transport: rconConsoleTransport(opened.value.record.id, opened.value.transport),
                 tail: tailLines,
             });
             const sender = (
@@ -661,6 +997,7 @@ export function registerMcServerHandlers(
             entry.unsubscribe();
             entry.supervisor.close();
             consoleSessions.delete(sessionId);
+            await closeRconTunnelIfUnused(id);
             return { ok: true, value: undefined };
         },
 
@@ -669,6 +1006,14 @@ export function registerMcServerHandlers(
         // requests and holding a second authenticated socket open for them would only be
         // one more thing that can go stale.
         [MCSERVER_CHANNELS.playersList]: async (_event: never, id: unknown) => {
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            if (opened.value.transport.capabilities.console === "none") {
+                return fail(
+                    "unsupported",
+                    "This server has not been granted console-write consent for player actions.",
+                );
+            }
             const rconOptions = await openRcon(id);
             if (!rconOptions.ok) return rconOptions;
             const reply = await runOneCommand(rconOptions.value, "list");
@@ -706,6 +1051,14 @@ export function registerMcServerHandlers(
             });
             if (!built.ok) return built;
 
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            if (opened.value.transport.capabilities.console === "none") {
+                return fail(
+                    "unsupported",
+                    "This server has not been granted console-write consent for player actions.",
+                );
+            }
             const rconOptions = await openRcon(id);
             if (!rconOptions.ok) return rconOptions;
             return runOneCommand(rconOptions.value, built.value);
@@ -737,6 +1090,7 @@ export function registerMcServerHandlers(
                 {
                     expectedHash,
                     backup: body.backup !== false,
+                    kind: "config",
                 },
             );
         },
@@ -963,9 +1317,12 @@ export function registerMcServerHandlers(
             if (!isRecordId(id))
                 return fail("invalid-request", "That is not a server name this app can use.");
             const found = await registry.get(id);
-            if (!found.ok) return found;
-
-            const requirement = requiredJavaFeature(found.value.minecraftVersion ?? "");
+            if (!found.ok && found.failure.code !== "not-found") return found;
+            // The create wizard asks for a runtime before a server record exists. A saved
+            // server id still works, while a version or Java feature string is accepted as
+            // the pre-creation form. No fake registry record is created for this probe.
+            const version = found.ok ? (found.value.minecraftVersion ?? "") : id;
+            const requirement = requiredJavaFeature(version);
             const feature = requirement.known ? requirement.feature : REQUIRED_JAVA_FEATURE;
 
             // Already there is a real answer, and a far better one than downloading two
@@ -981,7 +1338,12 @@ export function registerMcServerHandlers(
                 ...(options.javaEnv === undefined ? {} : { env: options.javaEnv }),
             });
             if (discovery.installation !== null) {
-                return ok({ outcome: "already-installed", java: discovery.installation, feature });
+                return ok({
+                    outcome: "already-installed",
+                    java: discovery.installation,
+                    feature,
+                    version,
+                });
             }
 
             const sender = (
@@ -997,14 +1359,30 @@ export function registerMcServerHandlers(
                     // it is doing instead of showing a spinner that never changes.
                     onEvent: (progress) => {
                         try {
-                            sender?.send?.("mcserver:java:progress", id, progress);
+                            const phase =
+                                progress.stage === "downloading"
+                                    ? "downloading"
+                                    : progress.stage === "extracting" ||
+                                        progress.stage === "installing"
+                                      ? "extracting"
+                                      : progress.stage === "done"
+                                        ? "done"
+                                        : progress.stage === "verifying"
+                                          ? "verifying"
+                                          : "failed";
+                            sender?.send?.("mcserver:java:progress", id, {
+                                phase,
+                                receivedBytes: progress.received ?? 0,
+                                totalBytes: progress.total,
+                                message: progress.message,
+                            });
                         } catch {
                             // A renderer that has gone away is not a reason to abandon a
                             // download that is otherwise working.
                         }
                     },
                 });
-                return ok({ outcome: "installed", java: record, feature });
+                return ok({ outcome: "installed", java: record, feature, version });
             } catch (error) {
                 // `provisionJava` throws; every other handler here answers. Translated rather
                 // than propagated, so the renderer keeps one shape to render.
@@ -1105,6 +1483,68 @@ export function registerMcServerHandlers(
             if (typeof body.memoryMb !== "number") {
                 return fail("invalid-request", "A server needs a memory limit to be created.");
             }
+            const runtime = body.runtime ?? body.transport ?? "local-process";
+            if (runtime === "local-docker") {
+                if (typeof body.dockerPlan !== "object" || body.dockerPlan === null)
+                    return fail(
+                        "invalid-request",
+                        "A local Docker server needs its verified Docker plan.",
+                    );
+                const plan = body.dockerPlan as Record<string, unknown>;
+                if (
+                    typeof plan.image !== "string" ||
+                    typeof plan.containerRef !== "string" ||
+                    typeof plan.serverDir !== "string" ||
+                    !Array.isArray(plan.ports)
+                ) {
+                    return fail("invalid-request", "The local Docker plan is incomplete.");
+                }
+                const ports = plan.ports.map((port) =>
+                    typeof port === "object" &&
+                    port !== null &&
+                    typeof (port as Record<string, unknown>).host === "number" &&
+                    typeof (port as Record<string, unknown>).container === "number"
+                        ? {
+                              host: (port as Record<string, unknown>).host as number,
+                              container: (port as Record<string, unknown>).container as number,
+                          }
+                        : null,
+                );
+                if (ports.some((port) => port === null))
+                    return fail(
+                        "invalid-request",
+                        "The local Docker plan contains an invalid port entry.",
+                    );
+                return createLocalDockerServer({
+                    id: body.id,
+                    name: body.name,
+                    flavour: body.flavour,
+                    version: body.version,
+                    memoryMb: body.memoryMb,
+                    acceptedEula: body.acceptedEula === true,
+                    serversRoot,
+                    registry,
+                    dockerPlan: {
+                        image: plan.image,
+                        imageVerified: plan.imageVerified === true,
+                        containerRef: plan.containerRef,
+                        serverDir: plan.serverDir,
+                        ports: ports.filter(
+                            (port): port is { host: number; container: number } => port !== null,
+                        ),
+                        ...(options.factory?.runner === undefined
+                            ? {}
+                            : { runner: options.factory.runner }),
+                        ...(options.docker === undefined ? {} : { docker: options.docker }),
+                    },
+                    ...(options.now === undefined ? {} : { now: options.now }),
+                });
+            }
+            if (runtime !== "local-process")
+                return fail(
+                    "invalid-request",
+                    "That server runtime is not supported by this build.",
+                );
             const createOptions: CreateLocalServerOptions = {
                 id: body.id,
                 name: body.name,
@@ -1180,11 +1620,22 @@ export function registerMcServerHandlers(
                     : undefined;
             const tlsTerminated = req.tlsTerminated === true;
             try {
+                const loadedProfiles = await hostProfiles.list();
+                if (!loadedProfiles.ok) return loadedProfiles;
+                const factory =
+                    options.factory === undefined
+                        ? { sshHost: (hostId: string) => hostProfiles.sshHost(hostId) }
+                        : options.factory.sshHost === undefined
+                          ? {
+                                ...options.factory,
+                                sshHost: (hostId: string) => hostProfiles.sshHost(hostId),
+                            }
+                          : options.factory;
                 const handle = await startWebConsoleServer({
                     registry,
                     safeStorage: options.safeStorage,
                     dataFolder: options.dataFolder,
-                    ...(options.factory === undefined ? {} : { factory: options.factory }),
+                    factory,
                     ...(host === undefined ? {} : { host }),
                     ...(port === undefined ? {} : { port }),
                     tlsTerminated,
@@ -1232,16 +1683,15 @@ export function registerMcServerHandlers(
             });
         },
 
-        [MCSERVER_CHANNELS.adoptDiscover]: async () => {
-            const runner = options.factory?.runner;
-            if (runner === undefined) {
-                return fail(
-                    "unsupported",
-                    "Discovering existing containers needs a way to run docker commands, which this build did not provide.",
-                );
-            }
+        [MCSERVER_CHANNELS.adoptDiscover]: async (_event: never, request?: unknown) => {
+            const body =
+                typeof request === "object" && request !== null
+                    ? (request as Record<string, unknown>)
+                    : {};
+            const selected = await adoptionRunner(body.hostId);
+            if (!selected.ok) return selected;
             return discoverAdoptionCandidates({
-                runner,
+                runner: selected.value.runner,
                 docker,
                 ...(options.dockerOwnerValue === undefined
                     ? {}
@@ -1250,13 +1700,6 @@ export function registerMcServerHandlers(
         },
 
         [MCSERVER_CHANNELS.adopt]: async (_event: never, request: unknown) => {
-            const runner = options.factory?.runner;
-            if (runner === undefined) {
-                return fail(
-                    "unsupported",
-                    "Adopting a container needs a way to run docker commands, which this build did not provide.",
-                );
-            }
             if (typeof request !== "object" || request === null) {
                 return fail("invalid-request", "That adoption request could not be read.");
             }
@@ -1271,6 +1714,48 @@ export function registerMcServerHandlers(
                     "That adoption request is missing a server name or a container to adopt.",
                 );
             }
+            const rconRaw =
+                typeof body.rcon === "object" && body.rcon !== null
+                    ? (body.rcon as Record<string, unknown>)
+                    : null;
+            const rconPort = rconRaw === null ? null : rconRaw.port;
+            const rconPassword = rconRaw === null ? null : rconRaw.password;
+            if (
+                rconRaw !== null &&
+                (typeof rconPort !== "number" ||
+                    !Number.isInteger(rconPort) ||
+                    rconPort < 1 ||
+                    rconPort > 65_535 ||
+                    typeof rconPassword !== "string" ||
+                    rconPassword.length === 0 ||
+                    rconPassword.length > 512)
+            ) {
+                return fail(
+                    "invalid-request",
+                    "Remote RCON needs a valid port and password, or no RCON configuration.",
+                );
+            }
+            if (
+                rconRaw !== null &&
+                body.consent !== undefined &&
+                (typeof body.consent !== "object" ||
+                    body.consent === null ||
+                    (body.consent as Record<string, unknown>).consoleWrite !== true)
+            ) {
+                return fail(
+                    "denied",
+                    "Remote RCON configuration requires the console-write consent switch.",
+                );
+            }
+            if (rconRaw !== null && !rconSecrets.vaultAvailable()) {
+                return fail(
+                    "unsupported",
+                    "This build cannot store the remote RCON password in its credential vault.",
+                );
+            }
+            const selected = await adoptionRunner(body.hostId);
+            if (!selected.ok) return selected;
+            const runner = selected.value.runner;
 
             // Adopting is always one-at-a-time. This handler only ever names one
             // container, and `refuseBulkAdoption` is asserted here as a standing
@@ -1306,7 +1791,23 @@ export function registerMcServerHandlers(
                 imageDigest: candidate.imageDigest,
                 mountSources,
             });
-            const serverDir = candidate.detected.serverDir ?? candidate.mounts[0]?.source ?? "";
+            // The mount source belongs to the Docker host. Transport paths are inside the
+            // container, so persist the matching destination instead of a host filesystem
+            // path that would make every later read target the wrong machine namespace.
+            const explicitServerDir = typeof body.serverDir === "string" ? body.serverDir : null;
+            const recognizedMount =
+                candidate.mounts.find((mount) => recognizedContainerMount(mount.destination))
+                    ?.destination ?? null;
+            const serverDir = explicitServerDir ?? recognizedMount ?? "";
+            if (
+                !safeContainerServerDir(serverDir) ||
+                !candidate.mounts.some((mount) => mount.destination === serverDir)
+            ) {
+                return fail(
+                    "invalid-request",
+                    "This container has no safe recognized server mount. Choose an exact mounted /data or /server path.",
+                );
+            }
             if (serverDir === "") {
                 return fail(
                     "invalid-request",
@@ -1314,10 +1815,30 @@ export function registerMcServerHandlers(
                 );
             }
 
+            const existingAdoption = await adoptions.get(body.id);
+            if (existingAdoption.ok)
+                return fail("denied", "That server id is already used by an adoption record.");
+            if (!existingAdoption.ok && existingAdoption.failure.code !== "not-found")
+                return existingAdoption;
+            const existingServer = await registry.get(body.id);
+            if (existingServer.ok)
+                return fail("denied", "That server id is already used by a server record.");
+            if (!existingServer.ok && existingServer.failure.code !== "not-found")
+                return existingServer;
+
             const consent = readConsent(body.consent);
+            const remote = selected.value.hostId !== null;
+            const writeScope = candidate.detected.serverDir === null ? [] : ["."];
             const record: AdoptionRecord = {
                 id: body.id,
-                transport: { kind: "local-docker", containerRef: candidate.containerId, serverDir },
+                transport: remote
+                    ? {
+                          kind: "ssh-docker",
+                          hostId: selected.value.hostId!,
+                          containerRef: candidate.containerId,
+                          serverDir,
+                      }
+                    : { kind: "local-docker", containerRef: candidate.containerId, serverDir },
                 containerId: candidate.containerId,
                 containerName: candidate.containerName,
                 fingerprint,
@@ -1331,13 +1852,30 @@ export function registerMcServerHandlers(
                     minecraftVersion: candidate.detected.minecraftVersion,
                 },
                 serverDir,
-                writeScope: [],
+                writeScope,
                 consent,
                 preAdoptionBackup: null,
                 releasedAt: null,
             };
             const saved = await adoptions.put(record);
             if (!saved.ok) return saved;
+
+            const adoptionIdentity = {
+                id: record.id,
+                containerId: record.containerId,
+                fingerprint: record.fingerprint,
+                adoptedAt: record.adoptedAt,
+            };
+            const removeAdoptionIfOwned = async (): Promise<void> => {
+                const current = await adoptions.get(adoptionIdentity.id);
+                if (
+                    current.ok &&
+                    current.value.containerId === adoptionIdentity.containerId &&
+                    current.value.fingerprint === adoptionIdentity.fingerprint &&
+                    current.value.adoptedAt === adoptionIdentity.adoptedAt
+                )
+                    await adoptions.remove(adoptionIdentity.id);
+            };
 
             const serverRecord: ServerRecord = {
                 id: body.id,
@@ -1348,12 +1886,40 @@ export function registerMcServerHandlers(
                 origin: "adopted",
                 createdAt: now(),
                 updatedAt: now(),
-                hasRconSecret: false,
-                rconPort: null,
-                writeScope: [],
+                hasRconSecret: rconRaw !== null,
+                rconPort: rconRaw === null ? null : (rconPort as number),
+                writeScope,
             };
+            const removeServerIfOwned = async (): Promise<void> => {
+                const current = await registry.get(serverRecord.id);
+                if (
+                    current.ok &&
+                    current.value.origin === "adopted" &&
+                    current.value.createdAt === serverRecord.createdAt &&
+                    current.value.ref.kind === serverRecord.ref.kind &&
+                    current.value.ref.serverDir === serverRecord.ref.serverDir
+                )
+                    await registry.remove(serverRecord.id);
+            };
+            if (rconRaw !== null) {
+                const stored = await rconSecrets.put(body.id, rconPassword as string);
+                if (!stored) {
+                    await rconSecrets.remove(body.id);
+                    await removeServerIfOwned();
+                    await removeAdoptionIfOwned();
+                    return fail(
+                        "denied",
+                        "The remote RCON password could not be stored in the credential vault.",
+                    );
+                }
+            }
             const savedServer = await registry.put(serverRecord);
-            if (!savedServer.ok) return savedServer;
+            if (!savedServer.ok) {
+                if (rconRaw !== null) await rconSecrets.remove(body.id);
+                await removeServerIfOwned();
+                await removeAdoptionIfOwned();
+                return savedServer;
+            }
 
             return { ok: true, value: { adoption: saved.value, server: savedServer.value } };
         },
@@ -1385,6 +1951,8 @@ export function registerMcServerHandlers(
             if (options.backup === undefined) {
                 return fail("unsupported", "Backups are not set up in this build.");
             }
+            if (!isRecordId(id))
+                return fail("invalid-request", "That backup server id could not be read.");
             const opened = await open(id);
             if (!opened.ok) return opened;
             if (typeof request !== "object" || request === null) {
@@ -1401,16 +1969,50 @@ export function registerMcServerHandlers(
                     "A backup needs a world folder and a repository to back up to.",
                 );
             }
-            return createServerBackup(options.backup.runnerOptions, {
-                ref: opened.value.record.ref,
-                worldFolder: body.worldFolder,
-                owner: body.owner,
-                repo: body.repo,
-                adopted: opened.value.record.origin === "adopted",
-                ...(typeof body.accountId === "string" ? { accountId: body.accountId } : {}),
-                ...(body.acknowledgePublic === true ? { acknowledgePublic: true } : {}),
-                ...(typeof body.resumeTag === "string" ? { resumeTag: body.resumeTag } : {}),
-            });
+            if (opened.value.record.origin === "adopted" && body.backupConsent !== true) {
+                return fail(
+                    "denied",
+                    "Backing up an adopted server needs explicit backup consent.",
+                );
+            }
+            if (
+                body.quiesce === true &&
+                opened.value.record.origin === "adopted" &&
+                opened.value.adoption?.consent.lifecycle !== true
+            )
+                return fail("denied", "Quiescing an adopted server needs lifecycle consent.");
+            if (activeBackupControllers.has(id))
+                return fail("denied", "A backup is already active for this server.");
+            const controller = new AbortController();
+            activeBackupControllers.set(id, controller);
+            try {
+                return await createServerBackup(options.backup.runnerOptions, {
+                    ref: opened.value.record.ref,
+                    transport: opened.value.transport,
+                    worldFolder: body.worldFolder,
+                    owner: body.owner,
+                    repo: body.repo,
+                    adopted: opened.value.record.origin === "adopted",
+                    signal: controller.signal,
+                    quiesce: body.quiesce === true,
+                    onProgress: (progress) => options.onBackupProgress?.(id, progress),
+                    ...(typeof body.accountId === "string" ? { accountId: body.accountId } : {}),
+                    ...(body.acknowledgePublic === true ? { acknowledgePublic: true } : {}),
+                    ...(typeof body.resumeTag === "string" ? { resumeTag: body.resumeTag } : {}),
+                });
+            } finally {
+                activeBackupControllers.delete(id);
+            }
+        },
+
+        [MCSERVER_CHANNELS.backupCancel]: async (_event: never, id: unknown) => {
+            if (!isRecordId(id))
+                return fail("invalid-request", "That backup id could not be read.");
+            const controller = activeBackupControllers.get(id);
+            if (controller === undefined)
+                return fail("not-found", "That backup is not active in this process.");
+            controller.abort();
+            return ok({ cancelled: true });
         },
 
         [MCSERVER_CHANNELS.backupList]: async (_event: never, owner: unknown, repo: unknown) => {
@@ -1424,6 +2026,280 @@ export function registerMcServerHandlers(
                 );
             }
             return listServerBackups(owner, repo, options.backup.githubCallOptions);
+        },
+
+        [MCSERVER_CHANNELS.backupRestoreChallenge]: async (
+            _event: never,
+            id: unknown,
+            request: unknown,
+        ) => {
+            sweepRestoreAuth();
+            if (!isRecordId(id) || typeof request !== "object" || request === null)
+                return fail(
+                    "invalid-request",
+                    "A restore challenge needs a server and backup identity.",
+                );
+            const body = request as Record<string, unknown>;
+            if (
+                typeof body.owner !== "string" ||
+                typeof body.repo !== "string" ||
+                typeof body.tag !== "string"
+            )
+                return fail(
+                    "invalid-request",
+                    "A restore challenge needs a repository owner, name and release tag.",
+                );
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            const target =
+                typeof body.worldFolder === "string"
+                    ? body.worldFolder
+                    : opened.value.record.ref.serverDir;
+            if (
+                !safeContainerServerDir(target) ||
+                !(
+                    target === opened.value.record.ref.serverDir ||
+                    target.startsWith(`${opened.value.record.ref.serverDir.replace(/\/$/, "")}/`)
+                )
+            )
+                return fail(
+                    "invalid-request",
+                    "The restore target is outside this server's recognized folder.",
+                );
+            if (
+                restoreChallenges.size + restoreAuthorizations.size + restoreReceipts.size >=
+                RESTORE_AUTH_LIMIT
+            )
+                return fail(
+                    "timeout",
+                    "Too many restore confirmations are waiting. Complete one or wait for them to expire.",
+                );
+            const challenge = randomBytes(32).toString("hex");
+            const digest = createHash("sha256").update(challenge).digest("hex");
+            const expiresAt = Date.now() + 60_000;
+            restoreChallenges.set(digest, {
+                digest,
+                serverId: id,
+                target,
+                owner: body.owner,
+                repo: body.repo,
+                tag: body.tag,
+                expiresAt,
+                keyOne: false,
+                keyTwo: false,
+                travel: 0,
+            });
+            return ok({ challenge, expiresAt });
+        },
+
+        [MCSERVER_CHANNELS.backupRestoreStep]: async (
+            _event: never,
+            id: unknown,
+            request: unknown,
+        ) => {
+            sweepRestoreAuth();
+            if (!isRecordId(id) || typeof request !== "object" || request === null)
+                return fail("invalid-request", "A restore transition could not be read.");
+            const body = request as Record<string, unknown>;
+            if (
+                typeof body.challenge !== "string" ||
+                (body.step !== "key-one" && body.step !== "key-two" && body.step !== "slider")
+            )
+                return fail("invalid-request", "A restore transition is incomplete.");
+            const digest = createHash("sha256").update(body.challenge).digest("hex");
+            const challenge = restoreChallenges.get(digest);
+            if (
+                challenge === undefined ||
+                challenge.serverId !== id ||
+                challenge.expiresAt < Date.now()
+            )
+                return fail("denied", "That restore challenge is expired or already used.");
+            if (body.step === "key-one") {
+                if (body.value !== true)
+                    return fail(
+                        "denied",
+                        "The first confirmation key must be explicitly turned on.",
+                    );
+                challenge.keyOne = true;
+            } else if (body.step === "key-two") {
+                if (!challenge.keyOne || body.value !== true)
+                    return fail(
+                        "denied",
+                        "The second confirmation key requires the first key transition.",
+                    );
+                challenge.keyTwo = true;
+            } else {
+                if (!challenge.keyOne || !challenge.keyTwo || body.value !== 100)
+                    return fail(
+                        "denied",
+                        "The full slider transition requires both confirmation keys.",
+                    );
+                challenge.travel = 100;
+            }
+            return ok({
+                keyOne: challenge.keyOne,
+                keyTwo: challenge.keyTwo,
+                travel: challenge.travel,
+            });
+        },
+
+        [MCSERVER_CHANNELS.backupRestoreAuthorize]: async (
+            _event: never,
+            id: unknown,
+            request: unknown,
+        ) => {
+            sweepRestoreAuth();
+            if (!isRecordId(id) || typeof request !== "object" || request === null)
+                return fail("invalid-request", "A native restore authorization could not be read.");
+            const body = request as Record<string, unknown>;
+            if (typeof body.challenge !== "string")
+                return fail("denied", "A main-process restore challenge is required.");
+            const challengeDigest = createHash("sha256").update(body.challenge).digest("hex");
+            const challenge = restoreChallenges.get(challengeDigest);
+            if (
+                challenge === undefined ||
+                challenge.serverId !== id ||
+                challenge.expiresAt < Date.now() ||
+                !challenge.keyOne ||
+                !challenge.keyTwo ||
+                challenge.travel !== 100
+            )
+                return fail(
+                    "denied",
+                    "The main-process confirmation session is incomplete or expired.",
+                );
+            if (authorizingChallenges.has(challengeDigest))
+                return fail("denied", "That restore confirmation is already being authorized.");
+            if (options.nativeRestoreConfirm === undefined)
+                return fail(
+                    "unsupported",
+                    "This build has no main-process native restore confirmation provider.",
+                );
+            authorizingChallenges.add(challengeDigest);
+            let confirmed = false;
+            try {
+                confirmed = await options.nativeRestoreConfirm({
+                    serverId: id,
+                    target: challenge.target,
+                    owner: challenge.owner,
+                    repo: challenge.repo,
+                    tag: challenge.tag,
+                });
+            } finally {
+                authorizingChallenges.delete(challengeDigest);
+            }
+            if (!confirmed) {
+                restoreChallenges.delete(challengeDigest);
+                return fail(
+                    "denied",
+                    "The main-process native restore confirmation was not completed.",
+                );
+            }
+            const authorization = randomBytes(32).toString("hex");
+            const authorizationDigest = createHash("sha256").update(authorization).digest("hex");
+            restoreAuthorizations.set(authorizationDigest, {
+                challengeDigest,
+                serverId: id,
+                target: challenge.target,
+                owner: challenge.owner,
+                repo: challenge.repo,
+                tag: challenge.tag,
+                expiresAt: challenge.expiresAt,
+            });
+            restoreChallenges.delete(challengeDigest);
+            return ok({ authorization, expiresAt: challenge.expiresAt });
+        },
+
+        [MCSERVER_CHANNELS.backupRestoreIssue]: async (
+            _event: never,
+            id: unknown,
+            request: unknown,
+        ) => {
+            sweepRestoreAuth();
+            if (!isRecordId(id) || typeof request !== "object" || request === null)
+                return fail(
+                    "invalid-request",
+                    "A restore confirmation needs a server and backup identity.",
+                );
+            const body = request as Record<string, unknown>;
+            if (
+                typeof body.challenge !== "string" ||
+                typeof body.authorization !== "string" ||
+                typeof body.owner !== "string" ||
+                typeof body.repo !== "string" ||
+                typeof body.tag !== "string"
+            ) {
+                return fail(
+                    "denied",
+                    "This restore needs the main-process challenge and native confirmation evidence.",
+                );
+            }
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            const target =
+                typeof body.worldFolder === "string"
+                    ? body.worldFolder
+                    : opened.value.record.ref.serverDir;
+            if (
+                !safeContainerServerDir(target) ||
+                !(
+                    target === opened.value.record.ref.serverDir ||
+                    target.startsWith(`${opened.value.record.ref.serverDir.replace(/\/$/, "")}/`)
+                )
+            ) {
+                return fail(
+                    "invalid-request",
+                    "The restore target is outside this server's scoped folder.",
+                );
+            }
+            const challengeDigest = createHash("sha256").update(body.challenge).digest("hex");
+            const authorizationDigest = createHash("sha256")
+                .update(body.authorization)
+                .digest("hex");
+            const authorization = restoreAuthorizations.get(authorizationDigest);
+            const challenge = restoreChallenges.get(challengeDigest);
+            if (
+                authorization === undefined ||
+                authorization.serverId !== id ||
+                authorization.expiresAt < Date.now() ||
+                authorization.challengeDigest !== challengeDigest ||
+                challenge !== undefined ||
+                authorization.target !== target ||
+                authorization.owner !== body.owner ||
+                authorization.repo !== body.repo ||
+                authorization.tag !== body.tag
+            )
+                return fail(
+                    "denied",
+                    "This native confirmation authorization is incomplete, expired, already used, or scoped to another restore.",
+                );
+            const challengeSnapshot = {
+                serverId: authorization.serverId,
+                target: authorization.target,
+                owner: authorization.owner,
+                repo: authorization.repo,
+                tag: authorization.tag,
+                expiresAt: authorization.expiresAt,
+            };
+            restoreAuthorizations.delete(authorizationDigest);
+            if (restoreReceipts.size >= RESTORE_AUTH_LIMIT)
+                return fail(
+                    "timeout",
+                    "Too many restore receipts are waiting. Complete one or wait for them to expire.",
+                );
+            const receipt = randomBytes(32).toString("hex");
+            const digest = createHash("sha256").update(receipt).digest("hex");
+            const expiresAt = challengeSnapshot.expiresAt;
+            restoreReceipts.set(digest, {
+                digest,
+                serverId: id,
+                target: challengeSnapshot.target,
+                owner: challengeSnapshot.owner,
+                repo: challengeSnapshot.repo,
+                tag: challengeSnapshot.tag,
+                expiresAt,
+            });
+            return ok({ receipt, expiresAt });
         },
 
         [MCSERVER_CHANNELS.backupRestore]: async (_event: never, id: unknown, request: unknown) => {
@@ -1446,12 +2322,62 @@ export function registerMcServerHandlers(
                     "A restore needs a repository owner, name and release tag.",
                 );
             }
+            if (typeof body.restoreReceipt !== "string" || body.restoreReceipt.length < 16) {
+                return fail(
+                    "denied",
+                    "This restore needs a fresh main-process destructive confirmation receipt.",
+                );
+            }
+            const receiptDigest = createHash("sha256").update(body.restoreReceipt).digest("hex");
+            const issued = restoreReceipts.get(receiptDigest);
+            const requestedTarget =
+                typeof body.worldFolder === "string"
+                    ? body.worldFolder
+                    : opened.value.record.ref.serverDir;
+            if (
+                issued === undefined ||
+                issued.expiresAt < Date.now() ||
+                issued.serverId !== id ||
+                issued.owner !== body.owner ||
+                issued.repo !== body.repo ||
+                issued.tag !== body.tag ||
+                issued.target !== requestedTarget
+            ) {
+                return fail(
+                    "denied",
+                    "This restore receipt is expired, already used, or scoped to another server or backup.",
+                );
+            }
+            if (opened.value.record.origin === "adopted" && body.restoreConsent !== true) {
+                return fail(
+                    "denied",
+                    "Restoring an adopted server needs dedicated restore consent.",
+                );
+            }
+            restoreReceipts.delete(receiptDigest);
+            const restoreTransport =
+                opened.value.record.origin === "adopted"
+                    ? {
+                          ...opened.value.transport,
+                          // Dedicated restore consent and the destructive receipt are per-call,
+                          // separate from the four persistent adoption switches.
+                          capabilities: {
+                              ...opened.value.transport.capabilities,
+                              canBackupRestore: true,
+                          },
+                      }
+                    : opened.value.transport;
             return restoreServerBackup(options.backup.restoreRunnerOptions, {
                 ref: opened.value.record.ref,
                 owner: body.owner,
                 repo: body.repo,
                 tag: body.tag,
                 adopted: opened.value.record.origin === "adopted",
+                transport: restoreTransport,
+                targetFolder:
+                    typeof body.worldFolder === "string"
+                        ? body.worldFolder
+                        : opened.value.record.ref.serverDir,
                 ...(typeof body.accountId === "string" ? { accountId: body.accountId } : {}),
             });
         },
@@ -1580,6 +2506,14 @@ export function registerMcServerHandlers(
                 entry.supervisor.close();
             }
             consoleSessions.clear();
+            for (const tunnel of rconTunnels.values()) void tunnel.close();
+            rconTunnels.clear();
+            restoreChallenges.clear();
+            restoreAuthorizations.clear();
+            authorizingChallenges.clear();
+            restoreReceipts.clear();
+            for (const controller of activeBackupControllers.values()) controller.abort();
+            activeBackupControllers.clear();
             for (const channel of Object.keys(handlers)) {
                 ipcMain.removeHandler(channel);
             }
@@ -1588,5 +2522,6 @@ export function registerMcServerHandlers(
                 webConsoleHandle = null;
             }
         },
+        hostProfiles,
     };
 }

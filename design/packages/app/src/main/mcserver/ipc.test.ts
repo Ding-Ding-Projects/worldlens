@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { MCSERVER_CHANNELS, registerMcServerHandlers, type IpcMainLike, type McServerIpc } from "./ipc.js";
+import { MCSERVER_CHANNELS, registerMcServerHandlers, safeContainerServerDir, type IpcMainLike, type McServerIpc } from "./ipc.js";
 import type { ServerRecord } from "./registry.js";
 import type { SafeStorageLike } from "./rcon/secret.js";
 import type { CommandOutput, CommandRunner } from "../runtime/command.js";
@@ -78,7 +78,7 @@ describe("registerMcServerHandlers", () => {
             }
             return dockerOutput();
         };
-        registered = registerMcServerHandlers(ipc, { dataFolder: dir, factory: { runner }, safeStorage: fakeSafeStorage() });
+        registered = registerMcServerHandlers(ipc, { dataFolder: dir, factory: { runner }, safeStorage: fakeSafeStorage(), nativeRestoreConfirm: async () => true });
         await registered.registry.put(RECORD);
     });
 
@@ -173,6 +173,86 @@ describe("registerMcServerHandlers", () => {
         expect(answer.failure.code).toBe("invalid-request");
     });
 
+    it("refuses root and host-sensitive container destinations even when the host source is safe", () => {
+        for (const path of ["/", "/root", "/home", "/etc", "/usr", "/var", "/opt/tmp", "/custom/server"]) {
+            expect(safeContainerServerDir(path)).toBe(false);
+        }
+        expect(safeContainerServerDir("/data")).toBe(true);
+        expect(safeContainerServerDir("/server/world")).toBe(true);
+    });
+
+    it("configures RCON through the vault without returning the password", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.rconConfigure, "survival", { port: 25_575, password: "fixture-password" })) as {
+            ok: boolean;
+            value?: { configured: boolean; port: number };
+        };
+        expect(answer).toEqual({ ok: true, value: { configured: true, port: 25_575 } });
+        const saved = await registered.registry.get("survival");
+        expect(saved.ok && saved.value.hasRconSecret).toBe(true);
+        expect(saved.ok && saved.value.rconPort).toBe(25_575);
+        expect(JSON.stringify(answer)).not.toContain("fixture-password");
+    });
+
+    it("issues a scoped one-time restore receipt only after a main challenge and native evidence", async () => {
+        const refused = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "fixture-owner",
+            repo: "fixture-backups",
+            tag: "fixture-tag",
+            challenge: "not-issued",
+            proof: { keyOne: true, keyTwo: true, travel: 100 },
+        })) as { ok: boolean; failure: { code: string } };
+        expect(refused.ok).toBe(false);
+        expect(refused.failure.code).toBe("denied");
+        const challenge = (await invoke(MCSERVER_CHANNELS.backupRestoreChallenge, "survival", {
+            owner: "fixture-owner",
+            repo: "fixture-backups",
+            tag: "fixture-tag",
+            worldFolder: "/data",
+        })) as { ok: boolean; value?: { challenge: string; expiresAt: number } };
+        expect(challenge.ok).toBe(true);
+        for (const step of [
+            { step: "key-one", value: true },
+            { step: "key-two", value: true },
+            { step: "slider", value: 100 },
+        ]) {
+            const transition = (await invoke(MCSERVER_CHANNELS.backupRestoreStep, "survival", { challenge: challenge.value?.challenge, ...step })) as { ok: boolean };
+            expect(transition.ok).toBe(true);
+        }
+        const authorized = (await invoke(MCSERVER_CHANNELS.backupRestoreAuthorize, "survival", { challenge: challenge.value?.challenge })) as { ok: boolean; value?: { authorization: string } };
+        expect(authorized.ok).toBe(true);
+        const issued = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+            challenge: challenge.value?.challenge, authorization: authorized.value?.authorization,
+        })) as { ok: boolean; value?: { receipt: string; expiresAt: number } };
+        expect(issued.ok).toBe(true);
+        expect(issued.value?.receipt.length).toBe(64);
+        expect(issued.value?.expiresAt).toBeGreaterThan(Date.now());
+        const replay = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+            challenge: challenge.value?.challenge, proof: { keyOne: true, keyTwo: true, travel: 100 },
+        })) as { ok: boolean; failure: { code: string } };
+        expect(replay.ok).toBe(false);
+        expect(replay.failure.code).toBe("denied");
+    });
+
+    it("refuses fabricated confirmation booleans and wrong restore scopes", async () => {
+        const challenge = (await invoke(MCSERVER_CHANNELS.backupRestoreChallenge, "survival", {
+            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+        })) as { ok: boolean; value?: { challenge: string } };
+        expect(challenge.ok).toBe(true);
+        const wrongProof = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+            challenge: challenge.value?.challenge, authorization: "fabricated-authorization", superConfirmed: true,
+            proof: { keyOne: true, keyTwo: false, travel: 100 },
+        })) as { ok: boolean; failure: { code: string } };
+        expect(wrongProof.ok).toBe(false);
+        const wrongOwner = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
+            owner: "other-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+            challenge: challenge.value?.challenge, proof: { keyOne: true, keyTwo: true, travel: 100 },
+        })) as { ok: boolean; failure: { code: string } };
+        expect(wrongOwner.ok).toBe(false);
+    });
+
     it("carries the record's write scope into the transport", async () => {
         await registered.registry.put({ ...RECORD, writeScope: ["plugins"] });
         const answer = (await invoke(MCSERVER_CHANNELS.fileWrite, "survival", "server.properties", {
@@ -184,6 +264,31 @@ describe("registerMcServerHandlers", () => {
         // would silently ignore what the user consented to on an adopted container.
         expect(answer.ok).toBe(false);
         expect(answer.failure.code).toBe("out-of-scope");
+    });
+
+    it("uses the typed local Docker create route without invoking local-process creation", async () => {
+        calls.length = 0;
+        const answer = (await invoke(MCSERVER_CHANNELS.create, {
+            id: "fixture-docker",
+            name: "Fixture Docker",
+            flavour: "paper",
+            version: "1.21.4",
+            memoryMb: 1024,
+            acceptedEula: true,
+            runtime: "local-docker",
+            dockerPlan: {
+                image: "example/minecraft@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                imageVerified: true,
+                containerRef: "fixture-container",
+                serverDir: "/data",
+                ports: [{ host: 25565, container: 25565 }],
+            },
+        })) as { ok: boolean; value?: ServerRecord };
+        expect(answer.ok).toBe(true);
+        expect(calls.some((call) => call.command === "docker" && call.args.includes("--label"))).toBe(true);
+        expect(calls.some((call) => call.args.includes("127.0.0.1:25565:25565"))).toBe(true);
+        expect(calls.some((call) => call.args.includes("java"))).toBe(false);
+        expect(answer.value?.ref).toEqual({ kind: "local-docker", containerRef: "fixture-container", serverDir: "/data" });
     });
 
     it("forgetting a server never asks Docker to remove anything", async () => {

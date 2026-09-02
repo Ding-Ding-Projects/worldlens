@@ -103,6 +103,7 @@ export interface CatalogueFlavour {
     readonly stale?: boolean;
     readonly lastFetchedAt?: string;
     readonly failure?: string;
+    readonly complete?: boolean;
     /** Optional mod-loader metadata supplied by catalogues that publish it. */
     readonly loaderVersions?: readonly string[];
     readonly commonApiLibraries?: readonly string[];
@@ -112,6 +113,7 @@ export interface CatalogueSnapshot {
     readonly flavours: readonly CatalogueFlavour[];
     readonly fetchedAt: string;
     readonly stale: boolean;
+    readonly completeness?: "complete" | "partial";
     readonly failures: readonly { readonly flavour: CatalogueFlavourId; readonly reason: string }[];
     readonly sourceRevision?: string | null;
 }
@@ -146,6 +148,14 @@ export interface CreateServerRequest {
     readonly loaderVersion?: string;
     readonly modsDirectory?: string;
     readonly preinstallApiLibraries?: readonly string[];
+    readonly runtime?: "local-process" | "local-docker";
+    readonly dockerPlan?: {
+        readonly image: string;
+        readonly imageVerified: boolean;
+        readonly containerRef: string;
+        readonly serverDir: string;
+        readonly ports: readonly { readonly host: number; readonly container: number }[];
+    };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -202,11 +212,20 @@ export interface AdoptionCandidate {
     readonly image: string;
     readonly guessedFlavour: string | null;
     readonly guessedVersion: string | null;
+    readonly confidence?: "high" | "medium" | "low";
+    readonly evidence?: readonly string[];
+    readonly mounts?: readonly { readonly source: string; readonly destination: string }[];
+    readonly ports?: readonly { readonly container: number; readonly host: number | null }[];
+    readonly blockers?: readonly string[];
+    readonly serverDir?: string | null;
+    readonly detected?: { readonly serverDir?: string | null };
 }
 
 export interface AdoptConfirmRequest {
     readonly id: string;
     readonly containerId: string;
+    readonly hostId?: string | null;
+    readonly rcon?: { readonly port: number; readonly password: string };
     readonly consent?: {
         readonly configWrite?: boolean;
         readonly lifecycle?: boolean;
@@ -236,6 +255,37 @@ export interface WebConsoleStatus {
     readonly host: string | null;
     readonly port: number | null;
     readonly hasPassword: boolean;
+}
+
+export interface HostProfileRecord {
+    readonly hostId: string;
+    readonly target: {
+        readonly id: string;
+        readonly label: string;
+        readonly host: string;
+        readonly port: number;
+        readonly user: string;
+        readonly identityFile: string | null;
+        readonly workDir: string;
+        readonly image: string;
+        readonly docker: string;
+        readonly keepRemoteFiles: boolean;
+    };
+    readonly createdAt: string;
+    readonly updatedAt: string;
+}
+
+export interface HostKeyOffer {
+    readonly type: string;
+    readonly fingerprint: string;
+    readonly line: string;
+}
+
+export interface HostProfileScan {
+    readonly profile: HostProfileRecord;
+    readonly recorded: readonly HostKeyOffer[];
+    readonly offers: readonly HostKeyOffer[];
+    readonly detail: string | null;
 }
 
 /** What the Electron bridge's `mcserver` namespace looks like, from the renderer's side. */
@@ -315,7 +365,9 @@ export interface McServerHost {
         ): Promise<Answer<void>>;
     };
     readonly adopt?: {
-        discover(): Promise<Answer<readonly AdoptionCandidate[]>>;
+        discover(request?: {
+            readonly hostId?: string | null;
+        }): Promise<Answer<readonly AdoptionCandidate[]>>;
         confirm(request: AdoptConfirmRequest): Promise<Answer<ServerRecord>>;
         release(id: string, options?: { restoreSnapshot?: boolean }): Promise<Answer<void>>;
     };
@@ -332,13 +384,52 @@ export interface McServerHost {
                 accountId?: string;
                 acknowledgePublic?: boolean;
                 resumeTag?: string;
+                backupConsent?: boolean;
+                quiesce?: boolean;
             },
         ): Promise<Answer<BackupEntry>>;
+        cancel(id: string): Promise<Answer<{ cancelled: boolean }>>;
         list(owner: string, repo: string): Promise<Answer<readonly BackupEntry[]>>;
+        issueRestoreChallenge(
+            id: string,
+            request: { owner: string; repo: string; tag: string; worldFolder?: string },
+        ): Promise<Answer<{ challenge: string; expiresAt: number }>>;
+        restoreStep(
+            id: string,
+            request: {
+                challenge: string;
+                step: "key-one" | "key-two" | "slider";
+                value: boolean | 100;
+            },
+        ): Promise<Answer<{ keyOne: boolean; keyTwo: boolean; travel: number }>>;
+        authorizeRestore(
+            id: string,
+            request: { challenge: string },
+        ): Promise<Answer<{ authorization: string; expiresAt: number }>>;
+        issueRestoreReceipt(
+            id: string,
+            request: {
+                owner: string;
+                repo: string;
+                tag: string;
+                worldFolder?: string;
+                challenge: string;
+                authorization: string;
+            },
+        ): Promise<Answer<{ receipt: string; expiresAt: number }>>;
         restore(
             id: string,
-            request: { owner: string; repo: string; tag: string; accountId?: string },
+            request: {
+                owner: string;
+                repo: string;
+                tag: string;
+                accountId?: string;
+                worldFolder?: string;
+                restoreConsent?: boolean;
+                restoreReceipt?: string;
+            },
         ): Promise<Answer<void>>;
+        onProgress(listener: (serverId: string, progress: unknown) => void): () => void;
     };
     readonly webConsole?: {
         status(): Promise<Answer<WebConsoleStatus>>;
@@ -350,6 +441,20 @@ export interface McServerHost {
         stop(): Promise<Answer<void>>;
         setPassword(password: string): Promise<Answer<void>>;
         bind(): Promise<Answer<void>>;
+    };
+    readonly hostProfiles?: {
+        list(): Promise<Answer<readonly HostProfileRecord[]>>;
+        get(hostId: string): Promise<Answer<HostProfileRecord>>;
+        save(request: {
+            hostId: string;
+            target: Record<string, unknown>;
+        }): Promise<Answer<HostProfileRecord>>;
+        forget(hostId: string): Promise<Answer<void>>;
+        scan(hostId: string): Promise<Answer<HostProfileScan>>;
+        trust(
+            hostId: string,
+            fingerprint: string,
+        ): Promise<Answer<{ ok: boolean; message: string }>>;
     };
 }
 
@@ -384,6 +489,22 @@ export interface ServerStore {
     readonly hasCreate: boolean;
     readonly canCreateLocalDocker: boolean;
     readonly hasAdopt: boolean;
+    readonly hasHostProfiles: boolean;
+
+    readonly hostProfiles: {
+        list(): Promise<Answer<readonly HostProfileRecord[]>>;
+        get(hostId: string): Promise<Answer<HostProfileRecord>>;
+        save(request: {
+            hostId: string;
+            target: Record<string, unknown>;
+        }): Promise<Answer<HostProfileRecord>>;
+        forget(hostId: string): Promise<Answer<void>>;
+        scan(hostId: string): Promise<Answer<HostProfileScan>>;
+        trust(
+            hostId: string,
+            fingerprint: string,
+        ): Promise<Answer<{ ok: boolean; message: string }>>;
+    };
 
     catalogueList(): Promise<Answer<CatalogueSnapshot>>;
     catalogueRefresh(): Promise<Answer<CatalogueSnapshot>>;
@@ -399,7 +520,7 @@ export interface ServerStore {
     onJavaProgress(listener: (progress: JavaProvisionProgress) => void): () => void;
     createServer(request: CreateServerRequest): Promise<Answer<ServerRecord>>;
 
-    adoptDiscover(): Promise<Answer<readonly AdoptionCandidate[]>>;
+    adoptDiscover(hostId?: string | null): Promise<Answer<readonly AdoptionCandidate[]>>;
     adoptConfirm(request: AdoptConfirmRequest): Promise<Answer<ServerRecord>>;
     adoptRelease(id: string, options?: { restoreSnapshot?: boolean }): Promise<Answer<void>>;
 
@@ -455,6 +576,34 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         hasCreate: host?.create !== undefined,
         canCreateLocalDocker: host?.createCapabilities?.localDocker === true,
         hasAdopt: host?.adopt !== undefined,
+        hasHostProfiles: host?.hostProfiles !== undefined,
+
+        hostProfiles: {
+            async list() {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.list();
+            },
+            async get(hostId) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.get(hostId);
+            },
+            async save(request) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.save(request);
+            },
+            async forget(hostId) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.forget(hostId);
+            },
+            async scan(hostId) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.scan(hostId);
+            },
+            async trust(hostId, fingerprint) {
+                if (host?.hostProfiles === undefined) return notWired("SSH host profiles");
+                return host.hostProfiles.trust(hostId, fingerprint);
+            },
+        },
 
         async load(): Promise<void> {
             if (host === null) {
@@ -587,7 +736,28 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             if (host.java?.provision === undefined) {
                 return notWired("installing Java automatically");
             }
-            return host.java.provision(version);
+            const result = await host.java.provision(version);
+            if (!result.ok || result.value === undefined) return result;
+            const raw = result.value as unknown as {
+                outcome?: string;
+                feature?: number;
+                java?: { executable?: string; version?: { version?: string } };
+            };
+            if (raw.java?.executable === undefined) return result as Answer<JavaResolution>;
+            return {
+                ok: true,
+                value: {
+                    found: true,
+                    executable: raw.java.executable,
+                    source: "provisioned",
+                    version: raw.java.version?.version ?? null,
+                    requiredFeature: raw.feature ?? (Number(version) || 0),
+                    message:
+                        raw.outcome === "already-installed"
+                            ? "Java is already available."
+                            : "Java was provisioned and verified.",
+                },
+            };
         },
         onJavaProgress(listener): () => void {
             if (host?.java?.onProgress === undefined) return () => {};
@@ -603,10 +773,10 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             return result;
         },
 
-        async adoptDiscover(): Promise<Answer<readonly AdoptionCandidate[]>> {
+        async adoptDiscover(hostId?: string | null): Promise<Answer<readonly AdoptionCandidate[]>> {
             if (host === null) return noHost();
             if (host.adopt === undefined) return notWired("adopting existing containers");
-            return host.adopt.discover();
+            return host.adopt.discover(hostId === undefined ? undefined : { hostId });
         },
         async adoptConfirm(request): Promise<Answer<ServerRecord>> {
             if (host === null) return noHost();

@@ -31,6 +31,8 @@ import { requiredJavaFeature } from "./flavours/javaRequirement.js";
 import { installServerJar, type FetchBinary } from "./install.js";
 import type { ServerRecord, ServerRegistry } from "./registry.js";
 import { createLocalProcessTransport } from "./transport/localProcess.js";
+import { createLocalDockerTransport } from "./transport/localDocker.js";
+import type { CommandRunner } from "../runtime/command.js";
 import { fail, ok, type Answer } from "./transport/types.js";
 import type { DiscoverJavaOptions, JavaDiscovery } from "../java/discovery.js";
 import { describeDiscoveryFailure, discoverJava } from "../java/discovery.js";
@@ -80,6 +82,85 @@ export interface CreateLocalServerOptions {
     readonly onDownloadProgress?: (received: number, total: number | null) => void;
     readonly now?: () => string;
     readonly signal?: AbortSignal;
+}
+
+export interface CreateLocalDockerServerOptions {
+    readonly id: string;
+    readonly name: string;
+    readonly flavour: FlavourId;
+    readonly version: string;
+    readonly memoryMb: number;
+    readonly acceptedEula: boolean;
+    readonly serversRoot: string;
+    readonly registry: ServerRegistry;
+    readonly dockerPlan: {
+        readonly image: string;
+        readonly imageVerified: boolean;
+        readonly containerRef: string;
+        readonly serverDir: string;
+        readonly ports: readonly { readonly host: number; readonly container: number }[];
+        readonly runner?: CommandRunner;
+        readonly docker?: string;
+    };
+    readonly now?: () => string;
+}
+
+/** Creates a new app-owned local Docker server without routing through local-process Java. */
+export async function createLocalDockerServer(options: CreateLocalDockerServerOptions): Promise<Answer<ServerRecord>> {
+    if (!ID.test(options.id) || !Number.isFinite(options.memoryMb) || options.memoryMb < 256) {
+        return fail("invalid-request", "A Docker server needs a valid id and memory limit.");
+    }
+    const plan = options.dockerPlan;
+    if (!plan.imageVerified || !/@sha256:[a-f0-9]{64}$/.test(plan.image) || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(plan.containerRef)) {
+        return fail("invalid-request", "A Docker server needs a verified digest-pinned image and safe container name.");
+    }
+    if (plan.serverDir !== "/data" || plan.ports.length === 0 || plan.ports.some((port) => !Number.isInteger(port.host) || !Number.isInteger(port.container) || port.host < 1 || port.host > 65_535 || port.container < 1 || port.container > 65_535)) {
+        return fail("invalid-request", "The Docker plan must use the scoped /data mount and valid ports.");
+    }
+    const serverDir = join(options.serversRoot, options.id);
+    try {
+        await mkdir(serverDir, { recursive: true });
+    } catch (error) {
+        return fail("denied", "The Docker server folder could not be created.", String(error));
+    }
+    const transport = createLocalDockerTransport({
+        containerRef: plan.containerRef,
+        serverDir: plan.serverDir,
+        ...(plan.runner === undefined ? {} : { runner: plan.runner }),
+        ...(plan.docker === undefined ? {} : { docker: plan.docker }),
+    });
+    const instance = await transport.create({
+        id: options.id,
+        name: options.name,
+        image: plan.image,
+        memoryMb: options.memoryMb,
+        ports: plan.ports,
+        env: { TYPE: options.flavour, VERSION: options.version, EULA: options.acceptedEula ? "TRUE" : "FALSE" },
+        volumes: [{ host: serverDir, container: plan.serverDir }],
+        labels: {
+            "com.worldlens.docker-hosting": "true",
+            "com.worldlens.docker-instance": options.id,
+            "com.worldlens.docker-name": options.name,
+            "com.worldlens.docker-version": "1",
+        },
+    });
+    if (!instance.ok) return instance;
+    const record: ServerRecord = {
+        id: options.id,
+        name: options.name,
+        flavour: options.flavour,
+        minecraftVersion: options.version,
+        ref: { kind: "local-docker", containerRef: plan.containerRef, serverDir: plan.serverDir },
+        origin: "created",
+        createdAt: options.now?.() ?? new Date().toISOString(),
+        updatedAt: options.now?.() ?? new Date().toISOString(),
+        hasRconSecret: false,
+        rconPort: null,
+        writeScope: [],
+    };
+    const saved = await options.registry.put(record);
+    if (!saved.ok) return saved;
+    return saved;
 }
 
 function resolveVersionEntry(

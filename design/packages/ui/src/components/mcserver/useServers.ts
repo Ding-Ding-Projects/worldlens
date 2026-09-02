@@ -106,8 +106,14 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         typeof backupApi === "object" &&
         backupApi !== null &&
         isFunction(backupApi["create"]) &&
+        isFunction(backupApi["cancel"]) &&
         isFunction(backupApi["list"]) &&
-        isFunction(backupApi["restore"]);
+        isFunction(backupApi["issueRestoreChallenge"]) &&
+        isFunction(backupApi["restoreStep"]) &&
+        isFunction(backupApi["authorizeRestore"]) &&
+        isFunction(backupApi["issueRestoreReceipt"]) &&
+        isFunction(backupApi["restore"]) &&
+        isFunction(backupApi["onProgress"]);
 
     const webConsoleApi = api["webConsole"] as Record<string, unknown> | undefined;
     const webConsoleReady =
@@ -124,6 +130,16 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         typeof createCapabilities === "object" &&
         createCapabilities !== null &&
         typeof createCapabilities["localDocker"] === "boolean";
+    const hostProfilesApi = api["hostProfiles"] as Record<string, unknown> | undefined;
+    const hostProfilesReady =
+        typeof hostProfilesApi === "object" &&
+        hostProfilesApi !== null &&
+        isFunction(hostProfilesApi["list"]) &&
+        isFunction(hostProfilesApi["get"]) &&
+        isFunction(hostProfilesApi["save"]) &&
+        isFunction(hostProfilesApi["forget"]) &&
+        isFunction(hostProfilesApi["scan"]) &&
+        isFunction(hostProfilesApi["trust"]);
 
     return {
         name: "Electron shell",
@@ -194,6 +210,13 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
             : {}),
         ...(webConsoleReady
             ? { webConsole: webConsoleApi as unknown as NonNullable<McServerHost["webConsole"]> }
+            : {}),
+        ...(hostProfilesReady
+            ? {
+                  hostProfiles: hostProfilesApi as unknown as NonNullable<
+                      McServerHost["hostProfiles"]
+                  >,
+              }
             : {}),
     } as McServerHost;
 }

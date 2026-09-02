@@ -7,6 +7,11 @@ computer, a container on the local Docker daemon, or a container on a Docker dae
 over SSH. It is a destination in the left rail, **Minecraft servers**, which opens the
 `mcservers` workspace job.
 
+Remote Docker servers use the guided SSH host-profile flow described in
+[`docs/mcserver-host-profiles.md`](./mcserver-host-profiles.md). The profile keeps only
+validated metadata and an identity-file path, enrolls unknown host keys by an explicit
+fingerprint decision, refuses changed keys, and uses a loopback-only SSH RCON forward.
+
 The rule that shapes the whole feature: **nothing in it is configured by typing.** Every
 setting a server has — every key in `server.properties`, every nested key in
 `paper-global.yml`, every plugin's own `config.yml` — is a real typed control, not a text

@@ -45,13 +45,21 @@ const props = withDefaults(
     { affected: () => [], disabled: false },
 );
 
-const emit = defineEmits<{ confirm: [] }>();
+const emit = defineEmits<{
+    confirm: [];
+    open: [];
+    progress: [{ keyOne: boolean; keyTwo: boolean; travel: number }];
+    authorized: [{ keyOne: true; keyTwo: true; travel: 100 }];
+}>();
 
 const { t } = useI18n();
 
 const open = ref(false);
 const activator = ref<HTMLElement | null>(null);
-const gate = createSuperConfirmGate(() => emit("confirm"));
+const gate = createSuperConfirmGate(() => {
+    emit("authorized", { keyOne: true, keyTwo: true, travel: 100 });
+    emit("confirm");
+});
 
 /**
  * Vuetify's props and `exactOptionalPropertyTypes` disagree about `undefined`,
@@ -94,7 +102,9 @@ watch(open, (value) => {
 });
 
 function onTravel(value: number): void {
-    if (!gate.travelTo(value)) return;
+    gate.travelTo(value);
+    emit("progress", { keyOne: gate.keyOne.value, keyTwo: gate.keyTwo.value, travel: gate.travel.value });
+    if (!gate.authorized.value) return;
 
     // Authorized. Hold the completion state long enough to be seen, then close, which is
     // what puts focus back on the control the user was standing on.
@@ -108,6 +118,14 @@ function onTravel(value: number): void {
 /** A slider let go before the end springs back, so a slip cannot destroy anything. */
 function onRelease(): void {
     gate.release();
+}
+function onKeyOne(value: boolean | null): void {
+    gate.keyOne.value = value === true;
+    emit("progress", { keyOne: gate.keyOne.value, keyTwo: gate.keyTwo.value, travel: gate.travel.value });
+}
+function onKeyTwo(value: boolean | null): void {
+    gate.keyTwo.value = value === true;
+    emit("progress", { keyOne: gate.keyOne.value, keyTwo: gate.keyTwo.value, travel: gate.travel.value });
 }
 
 /**
@@ -126,7 +144,7 @@ function cancel(): void {
 
 <template>
     <span ref="activator" class="mb-config-confirm__anchor">
-        <slot name="activator" :props="{ onClick: () => (open = true), disabled: isDisabled }" />
+        <slot name="activator" :props="{ onClick: () => { open = true; emit('open'); }, disabled: isDisabled }" />
 
         <!--
             `target` anchors the gate to the control without also binding a click
@@ -161,7 +179,7 @@ function cancel(): void {
 
                     <div class="mb-config-confirm__keys">
                         <v-switch
-                            v-model="gate.keyOne.value"
+                            :model-value="gate.keyOne.value"
                             class="mb-config-confirm__key mb-config-confirm__key--one"
                             :label="t('config.confirm.keyOne', 'Key 1')"
                             :prepend-icon="mdiKeyOutline"
@@ -169,9 +187,10 @@ function cancel(): void {
                             density="compact"
                             hide-details
                             inset
+                            @update:model-value="onKeyOne"
                         />
                         <v-switch
-                            v-model="gate.keyTwo.value"
+                            :model-value="gate.keyTwo.value"
                             class="mb-config-confirm__key mb-config-confirm__key--two"
                             :label="t('config.confirm.keyTwo', 'Key 2')"
                             :prepend-icon="mdiKeyOutline"
@@ -179,6 +198,7 @@ function cancel(): void {
                             density="compact"
                             hide-details
                             inset
+                            @update:model-value="onKeyTwo"
                         />
                     </div>
 

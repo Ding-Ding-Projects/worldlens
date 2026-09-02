@@ -12,11 +12,12 @@ import {
     VChip,
     VDialog,
     VProgressCircular,
+    VSelect,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { useServerStore } from "./useServers.js";
-import type { AdoptionCandidate } from "./serverStore.js";
+import type { AdoptionCandidate, HostProfileRecord } from "./serverStore.js";
 
 /**
  * The candidate browser that "Adopt an existing container" was missing.
@@ -36,10 +37,10 @@ import type { AdoptionCandidate } from "./serverStore.js";
  * is never auto-picked: picking is the user's, which is the whole point of adopting
  * something this app did not create.
  */
-const props = defineProps<{ modelValue: boolean }>();
+const props = defineProps<{ modelValue: boolean; hostId?: string | null }>();
 const emit = defineEmits<{
     "update:modelValue": [value: boolean];
-    picked: [candidate: AdoptionCandidate];
+    picked: [candidate: AdoptionCandidate, hostId: string | null];
 }>();
 
 const { t } = useI18n();
@@ -60,11 +61,33 @@ const candidates = ref<readonly AdoptionCandidate[]>([]);
 const failure = ref<{ readonly message: string; readonly detail: string | null } | null>(null);
 /** Distinguishes "zero candidates" from "we have not looked yet", which read identically otherwise. */
 const attempted = ref(false);
+const selectedHostId = ref<string | null>(props.hostId ?? null);
+const profiles = ref<readonly HostProfileRecord[]>([]);
+const profileQuery = ref("");
+const profileRegex = ref(false);
+const profileFlags = ref("i");
+const profileFailure = ref<string | null>(null);
+const profileLoading = ref(false);
+const profileMatcher = computed(() => createSettingMatcher(profileQuery.value, profileRegex.value, profileFlags.value));
+const profileItems = computed(() => profiles.value.filter((profile) => profileMatcher.value.test(`${profile.hostId} ${profile.target.label} ${profile.target.user}@${profile.target.host}`)));
+
+async function loadProfiles(): Promise<void> {
+    if (props.hostId !== undefined && props.hostId !== null) {
+        selectedHostId.value = props.hostId;
+        return;
+    }
+    profileLoading.value = true;
+    profileFailure.value = null;
+    const result = await store.hostProfiles.list();
+    if (result.ok) profiles.value = result.value ?? [];
+    else profileFailure.value = result.failure?.message ?? t("mcserver.adoptBrowser.profileFailure", "SSH host profiles could not be loaded.");
+    profileLoading.value = false;
+}
 
 async function discover(): Promise<void> {
     discovering.value = true;
     failure.value = null;
-    const result = await store.adoptDiscover();
+    const result = await store.adoptDiscover(selectedHostId.value);
     if (result.ok) {
         candidates.value = result.value ?? [];
     } else {
@@ -85,7 +108,10 @@ async function discover(): Promise<void> {
 watch(
     () => props.modelValue,
     (isOpen) => {
-        if (isOpen) void discover();
+        if (isOpen) {
+            void loadProfiles();
+            void discover();
+        }
     },
     { immediate: true },
 );
@@ -131,7 +157,7 @@ function guessLabel(candidate: AdoptionCandidate): string | null {
 }
 
 function choose(candidate: AdoptionCandidate): void {
-    emit("picked", candidate);
+    emit("picked", candidate, selectedHostId.value);
     open.value = false;
 }
 </script>
@@ -149,6 +175,44 @@ function choose(candidate: AdoptionCandidate): void {
                         )
                     }}
                 </div>
+
+                <template v-if="props.hostId === undefined || props.hostId === null">
+                    <ConfigSearchField
+                        v-if="profiles.length > 0"
+                        v-model="profileQuery"
+                        v-model:regex="profileRegex"
+                        v-model:flags="profileFlags"
+                        :label="t('mcserver.adoptBrowser.profileSearch', 'Search SSH host profiles')"
+                        :sample="profiles.map((profile) => `${profile.hostId} ${profile.target.label} ${profile.target.host}`).join(String.fromCharCode(10))"
+                        class="mb-2"
+                    />
+                    <VSelect
+                        v-model="selectedHostId"
+                        :items="[{ title: t('mcserver.adoptBrowser.localHost', 'This computer'), value: null }, ...profileItems.map((profile) => ({ title: `${profile.target.label} · ${profile.target.user}@${profile.target.host}`, value: profile.hostId }))]"
+                        item-title="title"
+                        item-value="value"
+                        :label="t('mcserver.adoptBrowser.target', 'Discovery target')"
+                        :loading="profileLoading"
+                        clearable
+                        class="mb-2"
+                    >
+                        <template #prepend-item>
+                            <div class="pa-2" @click.stop>
+                                <ConfigSearchField
+                                    v-model="profileQuery"
+                                    v-model:regex="profileRegex"
+                                    v-model:flags="profileFlags"
+                                    :label="t('mcserver.adoptBrowser.dropdownSearch', 'Search this host list')"
+                                    :sample="profiles.map((profile) => `${profile.hostId} ${profile.target.label} ${profile.target.host}`).join(String.fromCharCode(10))"
+                                />
+                            </div>
+                        </template>
+                    </VSelect>
+                    <VAlert v-if="profileFailure" type="warning" variant="tonal" class="mb-2">{{ profileFailure }}</VAlert>
+                    <VAlert v-else-if="!profileLoading && profiles.length === 0" type="info" variant="tonal" class="mb-2">
+                        {{ t("mcserver.adoptBrowser.noProfiles", "No saved SSH host profiles yet. Local container discovery remains available; add a profile from the server list to inspect a remote host.") }}
+                    </VAlert>
+                </template>
 
                 <div v-if="discovering" class="wl-adoptbrowser__loading" role="status" aria-live="polite">
                     <VProgressCircular indeterminate size="24" />

@@ -90,6 +90,31 @@ export interface WebConsoleStatus {
     readonly hasPassword: boolean;
 }
 
+export interface BackupEntry {
+    readonly tag: string;
+    readonly createdAt: string;
+    readonly sizeBytes: number | null;
+}
+
+export interface HostProfileTargetInput {
+    readonly label?: string;
+    readonly host: string;
+    readonly port?: number;
+    readonly user: string;
+    readonly identityFile?: string | null;
+    readonly workDir?: string;
+    readonly image?: string;
+    readonly docker?: string;
+    readonly keepRemoteFiles?: boolean;
+}
+
+export interface HostProfileScanResult {
+    readonly profile: unknown;
+    readonly recorded: readonly { type: string; fingerprint: string; line: string }[];
+    readonly offers: readonly { type: string; fingerprint: string; line: string }[];
+    readonly detail: string | null;
+}
+
 function ok<T>(value: T): Answer<T> {
     return { ok: true, value };
 }
@@ -112,6 +137,14 @@ async function call<T>(fn: (() => Promise<unknown>) | undefined): Promise<Answer
 
 interface RawBridge {
     readonly mcserver?: {
+        hostProfiles?: {
+            list?(): Promise<unknown>;
+            get?(hostId: string): Promise<unknown>;
+            save?(request: { hostId: string; target: HostProfileTargetInput }): Promise<unknown>;
+            forget?(hostId: string): Promise<unknown>;
+            scan?(hostId: string): Promise<unknown>;
+            trust?(hostId: string, fingerprint: string): Promise<unknown>;
+        };
         rconTest?(id: string): Promise<unknown>;
         consoleOpen?(id: string, tail?: number): Promise<unknown>;
         consoleSend?(id: string, sessionId: string, command: string): Promise<unknown>;
@@ -131,7 +164,7 @@ interface RawBridge {
             updates?(request: unknown): Promise<unknown>;
         };
         adopt?: {
-            discover?(): Promise<unknown>;
+            discover?(request?: { hostId?: string | null }): Promise<unknown>;
             confirm?(request: unknown): Promise<unknown>;
             release?(id: string, options?: unknown): Promise<unknown>;
         };
@@ -142,6 +175,17 @@ interface RawBridge {
             setPassword?(password: string): Promise<unknown>;
             bind?(): Promise<unknown>;
         };
+        backup?: {
+            create?(id: string, request: unknown): Promise<unknown>;
+            cancel?(id: string): Promise<unknown>;
+            list?(owner: string, repo: string): Promise<unknown>;
+            issueRestoreChallenge?(id: string, request: unknown): Promise<unknown>;
+            restoreStep?(id: string, request: unknown): Promise<unknown>;
+            authorizeRestore?(id: string, request: unknown): Promise<unknown>;
+            issueRestoreReceipt?(id: string, request: unknown): Promise<unknown>;
+            restore?(id: string, request: unknown): Promise<unknown>;
+            onProgress?(listener: (serverId: string, progress: unknown) => void): () => void;
+        };
         aws?: {
             plan?(request: unknown): Promise<unknown>;
             provision?(request: unknown): Promise<unknown>;
@@ -150,6 +194,26 @@ interface RawBridge {
             instanceTypes?(): Promise<unknown>;
         };
     };
+}
+
+export function hostProfilesList(root: unknown = globalThis): Promise<Answer<readonly unknown[]>> {
+    const b = bridge(root);
+    return call(b?.hostProfiles?.list ? () => b.hostProfiles!.list!() : undefined);
+}
+export function hostProfileSave(
+    request: { hostId: string; target: HostProfileTargetInput },
+    root: unknown = globalThis,
+): Promise<Answer<unknown>> {
+    const b = bridge(root);
+    return call(b?.hostProfiles?.save ? () => b.hostProfiles!.save!(request) : undefined);
+}
+export function hostProfileScan(hostId: string, root: unknown = globalThis): Promise<Answer<HostProfileScanResult>> {
+    const b = bridge(root);
+    return call(b?.hostProfiles?.scan ? () => b.hostProfiles!.scan!(hostId) : undefined);
+}
+export function hostProfileTrust(hostId: string, fingerprint: string, root: unknown = globalThis): Promise<Answer<{ ok: boolean; message: string }>> {
+    const b = bridge(root);
+    return call(b?.hostProfiles?.trust ? () => b.hostProfiles!.trust!(hostId, fingerprint) : undefined);
 }
 
 function bridge(root: unknown = globalThis): RawBridge["mcserver"] | undefined {
@@ -245,14 +309,20 @@ export function pluginsUpdates(
     return call(b?.plugins?.updates ? () => b.plugins!.updates!(request) : undefined);
 }
 
-export function adoptDiscover(root: unknown = globalThis): Promise<Answer<readonly AdoptionCandidate[]>> {
-    const b = bridge(root);
-    return call(b?.adopt?.discover ? () => b.adopt!.discover!() : undefined);
+export function adoptDiscover(hostIdOrRoot?: string | null | unknown, root: unknown = globalThis): Promise<Answer<readonly AdoptionCandidate[]>> {
+    const hostId = typeof hostIdOrRoot === "string" || hostIdOrRoot === null ? hostIdOrRoot : undefined;
+    const actualRoot = hostId === undefined && hostIdOrRoot !== undefined ? hostIdOrRoot : root;
+    const b = bridge(actualRoot);
+    return call(b?.adopt?.discover
+        ? () => hostId === undefined ? b.adopt!.discover!() : b.adopt!.discover!({ hostId })
+        : undefined);
 }
 export function adoptConfirm(
     request: {
         id: string;
         containerId: string;
+        hostId?: string | null;
+        rcon?: { port: number; password: string };
         consent?: { configWrite?: boolean; lifecycle?: boolean; pluginInstall?: boolean; consoleWrite?: boolean };
     },
     root: unknown = globalThis,
@@ -291,6 +361,43 @@ export function webConsoleSetPassword(password: string, root: unknown = globalTh
 export function webConsoleBind(root: unknown = globalThis): Promise<Answer<WebConsoleStatus>> {
     const b = bridge(root);
     return call(b?.webConsole?.bind ? () => b.webConsole!.bind!() : undefined);
+}
+
+export function backupCreate(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<BackupEntry>> {
+    const b = bridge(root);
+    return call(b?.backup?.create ? () => b.backup!.create!(id, request) : undefined);
+}
+export function backupCancel(id: string, root: unknown = globalThis): Promise<Answer<{ cancelled: boolean }>> {
+    const b = bridge(root);
+    return call(b?.backup?.cancel ? () => b.backup!.cancel!(id) : undefined);
+}
+export function backupList(owner: string, repo: string, root: unknown = globalThis): Promise<Answer<readonly BackupEntry[]>> {
+    const b = bridge(root);
+    return call(b?.backup?.list ? () => b.backup!.list!(owner, repo) : undefined);
+}
+export function backupIssueRestoreReceipt(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<{ receipt: string; expiresAt: number }>> {
+    const b = bridge(root);
+    return call(b?.backup?.issueRestoreReceipt ? () => b.backup!.issueRestoreReceipt!(id, request) : undefined);
+}
+export function backupRestoreStep(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<{ keyOne: boolean; keyTwo: boolean; travel: number }>> {
+    const b = bridge(root);
+    return call(b?.backup?.restoreStep ? () => b.backup!.restoreStep!(id, request) : undefined);
+}
+export function backupAuthorizeRestore(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<{ authorization: string; expiresAt: number }>> {
+    const b = bridge(root);
+    return call(b?.backup?.authorizeRestore ? () => b.backup!.authorizeRestore!(id, request) : undefined);
+}
+export function backupIssueRestoreChallenge(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<{ challenge: string; expiresAt: number }>> {
+    const b = bridge(root);
+    return call(b?.backup?.issueRestoreChallenge ? () => b.backup!.issueRestoreChallenge!(id, request) : undefined);
+}
+export function backupRestore(id: string, request: unknown, root: unknown = globalThis): Promise<Answer<void>> {
+    const b = bridge(root);
+    return call(b?.backup?.restore ? () => b.backup!.restore!(id, request) : undefined);
+}
+export function onBackupProgress(listener: (serverId: string, progress: unknown) => void, root: unknown = globalThis): () => void {
+    const b = bridge(root);
+    return typeof b?.backup?.onProgress === "function" ? b.backup.onProgress(listener) : () => {};
 }
 
 export function awsPlan(request: AwsServerSpec, root: unknown = globalThis): Promise<Answer<AwsProvisionPlan>> {

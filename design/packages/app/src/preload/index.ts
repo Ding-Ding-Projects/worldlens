@@ -2491,6 +2491,14 @@ interface WorldlensBridge {
         worlds: {
             list(id: string): Promise<unknown>;
         };
+        hostProfiles: {
+            list(): Promise<unknown>;
+            get(hostId: string): Promise<unknown>;
+            save(request: unknown): Promise<unknown>;
+            forget(hostId: string): Promise<unknown>;
+            scan(hostId: string): Promise<unknown>;
+            trust(hostId: string, fingerprint: string): Promise<unknown>;
+        };
         backup: {
             create(
                 id: string,
@@ -2501,13 +2509,48 @@ interface WorldlensBridge {
                     accountId?: string;
                     acknowledgePublic?: boolean;
                     resumeTag?: string;
+                    quiesce?: boolean;
+                    backupConsent?: boolean;
                 },
             ): Promise<unknown>;
+            cancel(id: string): Promise<unknown>;
             list(owner: string, repo: string): Promise<unknown>;
+            issueRestoreChallenge(
+                id: string,
+                request: { owner: string; repo: string; tag: string; worldFolder?: string },
+            ): Promise<unknown>;
+            restoreStep(
+                id: string,
+                request: {
+                    challenge: string;
+                    step: "key-one" | "key-two" | "slider";
+                    value: boolean | 100;
+                },
+            ): Promise<unknown>;
+            authorizeRestore(id: string, request: { challenge: string }): Promise<unknown>;
+            issueRestoreReceipt(
+                id: string,
+                request: {
+                    owner: string;
+                    repo: string;
+                    tag: string;
+                    worldFolder?: string;
+                    challenge: string;
+                },
+            ): Promise<unknown>;
             restore(
                 id: string,
-                request: { owner: string; repo: string; tag: string; accountId?: string },
+                request: {
+                    owner: string;
+                    repo: string;
+                    tag: string;
+                    accountId?: string;
+                    worldFolder?: string;
+                    restoreConsent?: boolean;
+                    restoreReceipt?: string;
+                },
             ): Promise<unknown>;
+            onProgress(listener: (serverId: string, progress: unknown) => void): () => void;
         };
         /** Proves the stored RCON password and port work. Never returns the password. */
         rconTest(id: string): Promise<unknown>;

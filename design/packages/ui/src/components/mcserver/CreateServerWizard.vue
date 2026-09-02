@@ -26,6 +26,7 @@ import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } fro
 import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import SearchableOptionPicker from "./SearchableOptionPicker.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     releaseDateLabel,
     wikiArticleStateFor,
@@ -47,6 +48,7 @@ import type {
     JavaProvisionProgress,
     JavaResolution,
     WikiArticleState,
+    HostProfileRecord,
 } from "./serverStore.js";
 import {
     FLAVOUR_CARDS,
@@ -77,6 +79,7 @@ const emit = defineEmits<{
     "update:modelValue": [value: boolean];
     created: [id: string];
     "open-aws": [id: string];
+    "open-remote-adoption": [hostId: string];
 }>();
 
 const { t } = useI18n();
@@ -349,6 +352,34 @@ const whereItRuns = ref<WhereItRuns>("local-process");
 const serverDir = ref("");
 const sshHost = ref("");
 const dockerContainerRef = ref("");
+const hostProfiles = ref<readonly HostProfileRecord[]>([]);
+const hostProfileQuery = ref("");
+const hostProfileRegex = ref(false);
+const hostProfileFlags = ref("i");
+const hostProfileFailure = ref<string | null>(null);
+const hostProfileLoading = ref(false);
+const hostProfileMatcher = computed(() =>
+    createSettingMatcher(hostProfileQuery.value, hostProfileRegex.value, hostProfileFlags.value),
+);
+const filteredHostProfiles = computed(() =>
+    hostProfiles.value.filter((profile) =>
+        hostProfileMatcher.value.test(
+            `${profile.hostId} ${profile.target.label} ${profile.target.host}`,
+        ),
+    ),
+);
+
+async function loadHostProfiles(): Promise<void> {
+    hostProfileLoading.value = true;
+    hostProfileFailure.value = null;
+    const result = await store.hostProfiles.list();
+    if (result.ok) hostProfiles.value = result.value ?? [];
+    else
+        hostProfileFailure.value =
+            result.failure?.message ??
+            t("mcserver.wizard.hostProfilesFailed", "SSH host profiles could not be loaded.");
+    hostProfileLoading.value = false;
+}
 
 const awsAvailable = computed(() => {
     const bridge = (globalThis as { worldlens?: { mcserver?: { aws?: unknown } } }).worldlens;
@@ -412,6 +443,9 @@ async function startDocker(): Promise<void> {
 watch(whereItRuns, (value) => {
     if (value === "local-docker" && dockerAvailability.available === null) {
         void probeDocker();
+    }
+    if (value === "ssh-docker" && hostProfiles.value.length === 0) {
+        void loadHostProfiles();
     }
 });
 
@@ -665,7 +699,8 @@ const canCreate = computed(
         folderError.value === null &&
         dockerContainerError.value === null &&
         eulaAccepted.value &&
-        minecraftVersion.value.trim() !== "",
+        minecraftVersion.value.trim() !== "" &&
+        (whereItRuns.value !== "ssh-docker" || sshHost.value.trim() !== ""),
 );
 
 function transportRef(): TransportRef {
@@ -705,6 +740,14 @@ async function create(): Promise<void> {
     if (!canCreate.value || !canAdvanceFromRuntime.value || !canAdvanceFromJava.value) return;
     creating.value = true;
     createFailure.value = null;
+
+    if (whereItRuns.value === "ssh-docker") {
+        emit("open-remote-adoption", sshHost.value.trim());
+        creating.value = false;
+        open.value = false;
+        resetWizard();
+        return;
+    }
 
     if (!store.hasCreate) {
         creating.value = false;
@@ -1637,23 +1680,82 @@ const canAdvance = computed(() => {
                     </template>
 
                     <template v-else-if="whereItRuns === 'ssh-docker'">
-                        <VTextField
+                        <ConfigSearchField
+                            v-if="hostProfiles.length > 0"
+                            v-model="hostProfileQuery"
+                            v-model:regex="hostProfileRegex"
+                            v-model:flags="hostProfileFlags"
+                            :label="
+                                t('mcserver.wizard.hostProfileSearch', 'Search SSH host profiles')
+                            "
+                            :sample="
+                                hostProfiles
+                                    .map(
+                                        (profile) =>
+                                            `${profile.hostId} ${profile.target.label} ${profile.target.host}`,
+                                    )
+                                    .join(String.fromCharCode(10))
+                            "
+                        />
+                        <VSelect
                             v-model="sshHost"
-                            :label="t('mcserver.wizard.sshHost', 'SSH host id')"
+                            :items="
+                                filteredHostProfiles.map((profile) => ({
+                                    title: `${profile.target.label} · ${profile.target.user}@${profile.target.host}`,
+                                    value: profile.hostId,
+                                }))
+                            "
+                            item-title="title"
+                            item-value="value"
+                            :label="t('mcserver.wizard.sshHost', 'SSH host profile')"
+                            :loading="hostProfileLoading"
                             :hint="
                                 t(
                                     'mcserver.wizard.sshHostHint',
-                                    'The remote host this container will run on.',
+                                    'Choose a saved profile, then review an existing remote container. This route does not create or mutate a container before consent.',
                                 )
                             "
                             persistent-hint
-                        />
-                        <PathField
-                            v-model="serverDir"
-                            field="server folder"
-                            :label="t('mcserver.wizard.folder', 'Server folder on the remote host')"
-                            semantic="folder"
-                        />
+                        >
+                            <template #prepend-item>
+                                <div class="pa-2" @click.stop>
+                                    <ConfigSearchField
+                                        v-model="hostProfileQuery"
+                                        v-model:regex="hostProfileRegex"
+                                        v-model:flags="hostProfileFlags"
+                                        :label="
+                                            t(
+                                                'mcserver.wizard.hostProfileDropdownSearch',
+                                                'Search this host list',
+                                            )
+                                        "
+                                        :sample="
+                                            hostProfiles
+                                                .map(
+                                                    (profile) =>
+                                                        `${profile.hostId} ${profile.target.label} ${profile.target.host}`,
+                                                )
+                                                .join(String.fromCharCode(10))
+                                        "
+                                    />
+                                </div>
+                            </template>
+                        </VSelect>
+                        <VAlert v-if="hostProfileFailure" type="warning" variant="tonal">{{
+                            hostProfileFailure
+                        }}</VAlert>
+                        <VAlert
+                            v-else-if="!hostProfileLoading && hostProfiles.length === 0"
+                            type="info"
+                            variant="tonal"
+                        >
+                            {{
+                                t(
+                                    "mcserver.wizard.noHostProfiles",
+                                    "No SSH host profiles are saved yet. Close this wizard and add one from the server list first.",
+                                )
+                            }}
+                        </VAlert>
                     </template>
                     <VAlert v-else type="info" variant="tonal">
                         {{

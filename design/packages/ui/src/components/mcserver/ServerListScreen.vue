@@ -43,7 +43,12 @@ import {
  * no servers".
  */
 const props = defineProps<{ returnServerId?: string | null }>();
-const emit = defineEmits<{ open: [id: string]; create: []; adopt: [] }>();
+const emit = defineEmits<{
+    open: [id: string];
+    create: [];
+    adopt: [];
+    hostProfile: [];
+}>();
 
 const { t } = useI18n();
 const store = useServerStore();
@@ -236,6 +241,14 @@ async function stopOne(id: string): Promise<void> {
                     @click="emit('adopt')"
                 >
                     {{ t("mcserver.list.adopt", "Adopt an existing container") }}
+                </VBtn>
+                <VBtn
+                    v-if="store.hasHostProfiles"
+                    :prepend-icon="mdiServerNetwork"
+                    variant="text"
+                    @click="emit('hostProfile')"
+                >
+                    {{ t("mcserver.list.hostProfile", "Add SSH host") }}
                 </VBtn>
                 <VBtn
                     :prepend-icon="mdiPlus"

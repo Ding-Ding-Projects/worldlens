@@ -22,6 +22,7 @@ import PluginManager from "./PluginManager.vue";
 import PlayerManager from "./PlayerManager.vue";
 import WebConsolePanel from "./WebConsolePanel.vue";
 import AdoptionReviewDialog from "./AdoptionReviewDialog.vue";
+import ServerBackupsPanel from "./ServerBackupsPanel.vue";
 import { SERVER_STORE } from "./useServers.js";
 import { createServerStore, type McServerHost } from "./serverStore.js";
 import type { ServerRecord } from "./serverModel.js";
@@ -66,15 +67,47 @@ function fakeHost(): McServerHost {
         forget: vi.fn().mockResolvedValue({ ok: true }),
         probe: vi.fn().mockResolvedValue({
             ok: true,
-            value: { reachable: true, runtimeVersion: "1.21", message: "", checkedAt: "2026-01-01T00:00:00Z", capabilities: { canCreate: true, canLifecycle: true, canWriteFiles: true, canDestroy: true, console: "stdin" } },
+            value: {
+                reachable: true,
+                runtimeVersion: "1.21",
+                message: "",
+                checkedAt: "2026-01-01T00:00:00Z",
+                capabilities: {
+                    canCreate: true,
+                    canLifecycle: true,
+                    canWriteFiles: true,
+                    canDestroy: true,
+                    console: "stdin",
+                },
+            },
         }),
-        status: vi.fn().mockResolvedValue({ ok: true, value: { state: "running", running: true, startedAt: null, exitCode: null, checkedAt: "2026-01-01T00:00:00Z" } }),
+        status: vi.fn().mockResolvedValue({
+            ok: true,
+            value: {
+                state: "running",
+                running: true,
+                startedAt: null,
+                exitCode: null,
+                checkedAt: "2026-01-01T00:00:00Z",
+            },
+        }),
         start: vi.fn().mockResolvedValue({ ok: true }),
         stop: vi.fn().mockResolvedValue({ ok: true }),
         files: {
             list: vi.fn().mockResolvedValue({ ok: true, value: [] }),
-            read: vi.fn().mockResolvedValue({ ok: false, failure: { code: "not-found", message: "not found", detail: null } }),
-            write: vi.fn().mockResolvedValue({ ok: true, value: { hash: "h", size: 0, writtenAt: "2026-01-01T00:00:00Z", backupPath: null } }),
+            read: vi.fn().mockResolvedValue({
+                ok: false,
+                failure: { code: "not-found", message: "not found", detail: null },
+            }),
+            write: vi.fn().mockResolvedValue({
+                ok: true,
+                value: {
+                    hash: "h",
+                    size: 0,
+                    writtenAt: "2026-01-01T00:00:00Z",
+                    backupPath: null,
+                },
+            }),
         },
         logTail: vi.fn().mockResolvedValue({ ok: true, value: [] }),
     };
@@ -88,7 +121,10 @@ function stubBridge(): void {
             consoleSend: vi.fn().mockResolvedValue({ ok: true }),
             consoleClose: vi.fn().mockResolvedValue({ ok: true }),
             onConsoleLine: vi.fn().mockReturnValue(() => {}),
-            players: { list: vi.fn().mockResolvedValue({ ok: true, value: [] }), action: vi.fn().mockResolvedValue({ ok: true }) },
+            players: {
+                list: vi.fn().mockResolvedValue({ ok: true, value: [] }),
+                action: vi.fn().mockResolvedValue({ ok: true }),
+            },
             plugins: {
                 search: vi.fn().mockResolvedValue({ ok: true, value: [] }),
                 versions: vi.fn().mockResolvedValue({ ok: true, value: [] }),
@@ -96,11 +132,26 @@ function stubBridge(): void {
                 list: vi.fn().mockResolvedValue({ ok: true, value: [] }),
                 toggle: vi.fn().mockResolvedValue({ ok: true }),
                 remove: vi.fn().mockResolvedValue({ ok: true }),
-                updates: vi.fn().mockResolvedValue({ ok: true, value: { hasUpdate: false, latest: null } }),
+                updates: vi
+                    .fn()
+                    .mockResolvedValue({ ok: true, value: { hasUpdate: false, latest: null } }),
             },
-            adopt: { discover: vi.fn().mockResolvedValue({ ok: true, value: [] }), confirm: vi.fn().mockResolvedValue({ ok: true }), release: vi.fn().mockResolvedValue({ ok: true }) },
+            adopt: {
+                discover: vi.fn().mockResolvedValue({ ok: true, value: [] }),
+                confirm: vi.fn().mockResolvedValue({ ok: true }),
+                release: vi.fn().mockResolvedValue({ ok: true }),
+            },
             webConsole: {
-                status: vi.fn().mockResolvedValue({ ok: true, value: { running: false, host: "127.0.0.1", port: null, loopbackOnly: true, hasPassword: false } }),
+                status: vi.fn().mockResolvedValue({
+                    ok: true,
+                    value: {
+                        running: false,
+                        host: "127.0.0.1",
+                        port: null,
+                        loopbackOnly: true,
+                        hasPassword: false,
+                    },
+                }),
                 start: vi.fn().mockResolvedValue({ ok: true }),
                 stop: vi.fn().mockResolvedValue({ ok: true }),
                 setPassword: vi.fn().mockResolvedValue({ ok: true }),
@@ -168,6 +219,14 @@ describe("mcserver panels mount against a real store and bridge", () => {
 
         expect(wrapper.emitted("back")).toEqual([[]]);
         expect(wrapper.emitted("forgotten")).toBeUndefined();
+    });
+
+    it("ServerBackupsPanel mounts with mounted-world targeting and progress controls", async () => {
+        const wrapper = await mountWith(ServerBackupsPanel, { serverId: "srv-1" });
+        await flushPromises();
+        expect(wrapper.text()).toContain("Backups and restore");
+        expect(wrapper.findComponent({ name: "VSelect" }).exists()).toBe(true);
+        expect(wrapper.text()).toContain("No verified backups are listed yet");
     });
 
     it("AdoptionReviewDialog mounts closed without throwing", async () => {

@@ -75,6 +75,8 @@ describe("the object the factory builds", () => {
             "getBuildProvenance",
             "schoolMode.read",
             "mcserver.list",
+            "mcserver.hostProfiles.list",
+            "mcserver.backup.issueRestoreChallenge",
             "dockerHosting.create",
             "history.status",
             "project.readProject",
@@ -129,6 +131,35 @@ describe("the object the factory builds", () => {
                         }
                     ).mcserver.catalogue.verifyWiki("1.21.4"),
                 "mcserver:catalogue:wikiVerify",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as {
+                            mcserver: { hostProfiles: { get(id: string): Promise<unknown> } };
+                        }
+                    ).mcserver.hostProfiles.get("host-1"),
+                "mcserver:hostProfiles:get",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as {
+                            mcserver: {
+                                backup: {
+                                    issueRestoreChallenge(
+                                        id: string,
+                                        request: unknown,
+                                    ): Promise<unknown>;
+                                };
+                            };
+                        }
+                    ).mcserver.backup.issueRestoreChallenge("server-1", {
+                        owner: "owner",
+                        repo: "repo",
+                        tag: "v1",
+                    }),
+                "mcserver:backup:restore:challenge",
             ],
         ];
         for (const [call, expected] of calls) {

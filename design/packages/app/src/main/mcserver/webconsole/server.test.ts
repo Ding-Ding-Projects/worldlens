@@ -38,7 +38,12 @@ function request(
                 method,
                 path,
                 headers: {
-                    ...(payload === undefined ? {} : { "content-type": "application/json", "content-length": Buffer.byteLength(payload) }),
+                    ...(payload === undefined
+                        ? {}
+                        : {
+                              "content-type": "application/json",
+                              "content-length": Buffer.byteLength(payload),
+                          }),
                     ...(options.cookie === undefined ? {} : { cookie: options.cookie }),
                 },
             },
@@ -46,7 +51,11 @@ function request(
                 const chunks: Buffer[] = [];
                 res.on("data", (c) => chunks.push(c as Buffer));
                 res.on("end", () => {
-                    resolve({ status: res.statusCode ?? 0, headers: res.headers, body: Buffer.concat(chunks).toString("utf8") });
+                    resolve({
+                        status: res.statusCode ?? 0,
+                        headers: res.headers,
+                        body: Buffer.concat(chunks).toString("utf8"),
+                    });
                 });
             },
         );
@@ -65,9 +74,13 @@ function extractCookie(headers: http.IncomingHttpHeaders): string | null {
 
 let activeHandles: WebConsoleServerHandle[] = [];
 
-async function startTestServer(overrides: Partial<Parameters<typeof startWebConsoleServer>[0]> = {}) {
+async function startTestServer(
+    overrides: Partial<Parameters<typeof startWebConsoleServer>[0]> = {},
+) {
     const dataFolder = process.env["TEMP"] ?? process.env["TMPDIR"] ?? "/tmp";
-    const registry: ServerRegistry = overrides.registry ?? createServerRegistry({ dataFolder: `${dataFolder}/wl-test-${Math.random()}` });
+    const registry: ServerRegistry =
+        overrides.registry ??
+        createServerRegistry({ dataFolder: `${dataFolder}/wl-test-${Math.random()}` });
     const vault = (overrides.safeStorage as SafeStorageLike | undefined) ?? fakeVault();
     const handle = await startWebConsoleServer({
         registry,
@@ -118,7 +131,9 @@ describe("web console server", () => {
         void dataFolder;
         void vault;
         void h;
-        const res = await request(handle, "POST", "/api/auth/signin", { body: { password: "wrong" } });
+        const res = await request(handle, "POST", "/api/auth/signin", {
+            body: { password: "wrong" },
+        });
         expect(res.status).toBe(401);
         expect(extractCookie(res.headers)).toBeNull();
     });
@@ -126,15 +141,28 @@ describe("web console server", () => {
     it("accepts sign-in with the correct password and sets a session cookie", async () => {
         const dataFolder = `${process.env["TEMP"] ?? "/tmp"}/wl-test-${Math.random()}`;
         const vault = fakeVault();
-        const record = await buildWebConsolePasswordRecord(vault, "correct-password", { N: 1024, r: 4, p: 1, keylen: 32 });
+        const record = await buildWebConsolePasswordRecord(vault, "correct-password", {
+            N: 1024,
+            r: 4,
+            p: 1,
+            keylen: 32,
+        });
         const registry = createServerRegistry({ dataFolder });
-        const handle = await startWebConsoleServer({ registry, safeStorage: vault, dataFolder, host: "127.0.0.1", port: 0 });
+        const handle = await startWebConsoleServer({
+            registry,
+            safeStorage: vault,
+            dataFolder,
+            host: "127.0.0.1",
+            port: 0,
+        });
         activeHandles.push(handle);
         // Seed the password store the same way the IPC handler would.
         const { WebConsolePasswordStore } = await import("./passwordStore.js");
         await new WebConsolePasswordStore(dataFolder).put(record as Buffer);
 
-        const res = await request(handle, "POST", "/api/auth/signin", { body: { password: "correct-password" } });
+        const res = await request(handle, "POST", "/api/auth/signin", {
+            body: { password: "correct-password" },
+        });
         expect(res.status).toBe(200);
         const cookie = extractCookie(res.headers);
         expect(cookie).not.toBeNull();
@@ -143,16 +171,29 @@ describe("web console server", () => {
         expect(full).toContain("HttpOnly");
         expect(full).toContain("SameSite=Strict");
 
-        const status = await request(handle, "GET", "/api/auth/status", { cookie: cookie as string });
+        const status = await request(handle, "GET", "/api/auth/status", {
+            cookie: cookie as string,
+        });
         expect(JSON.parse(status.body).authenticated).toBe(true);
     });
 
     it("does not mark Secure on a loopback (non-TLS) bind", async () => {
         const dataFolder = `${process.env["TEMP"] ?? "/tmp"}/wl-test-${Math.random()}`;
         const vault = fakeVault();
-        const record = await buildWebConsolePasswordRecord(vault, "pw", { N: 1024, r: 4, p: 1, keylen: 32 });
+        const record = await buildWebConsolePasswordRecord(vault, "pw", {
+            N: 1024,
+            r: 4,
+            p: 1,
+            keylen: 32,
+        });
         const registry = createServerRegistry({ dataFolder });
-        const handle = await startWebConsoleServer({ registry, safeStorage: vault, dataFolder, host: "127.0.0.1", port: 0 });
+        const handle = await startWebConsoleServer({
+            registry,
+            safeStorage: vault,
+            dataFolder,
+            host: "127.0.0.1",
+            port: 0,
+        });
         activeHandles.push(handle);
         const { WebConsolePasswordStore } = await import("./passwordStore.js");
         await new WebConsolePasswordStore(dataFolder).put(record as Buffer);
@@ -169,7 +210,12 @@ describe("web console server", () => {
     it("marks Secure when the caller declares TLS termination", async () => {
         const dataFolder = `${process.env["TEMP"] ?? "/tmp"}/wl-test-${Math.random()}`;
         const vault = fakeVault();
-        const record = await buildWebConsolePasswordRecord(vault, "pw", { N: 1024, r: 4, p: 1, keylen: 32 });
+        const record = await buildWebConsolePasswordRecord(vault, "pw", {
+            N: 1024,
+            r: 4,
+            p: 1,
+            keylen: 32,
+        });
         const registry = createServerRegistry({ dataFolder });
         const handle = await startWebConsoleServer({
             registry,
@@ -193,7 +239,13 @@ describe("web console server", () => {
         const vault = fakeVault();
         const registry = createServerRegistry({ dataFolder });
         await expect(
-            startWebConsoleServer({ registry, safeStorage: vault, dataFolder, host: "0.0.0.0", port: 0 }),
+            startWebConsoleServer({
+                registry,
+                safeStorage: vault,
+                dataFolder,
+                host: "0.0.0.0",
+                port: 0,
+            }),
         ).rejects.toThrow(/loopback/i);
     });
 
@@ -206,13 +258,26 @@ describe("web console server", () => {
     it("sign-out clears the cookie and the session no longer authenticates", async () => {
         const dataFolder = `${process.env["TEMP"] ?? "/tmp"}/wl-test-${Math.random()}`;
         const vault = fakeVault();
-        const record = await buildWebConsolePasswordRecord(vault, "pw", { N: 1024, r: 4, p: 1, keylen: 32 });
+        const record = await buildWebConsolePasswordRecord(vault, "pw", {
+            N: 1024,
+            r: 4,
+            p: 1,
+            keylen: 32,
+        });
         const registry = createServerRegistry({ dataFolder });
-        const handle = await startWebConsoleServer({ registry, safeStorage: vault, dataFolder, host: "127.0.0.1", port: 0 });
+        const handle = await startWebConsoleServer({
+            registry,
+            safeStorage: vault,
+            dataFolder,
+            host: "127.0.0.1",
+            port: 0,
+        });
         activeHandles.push(handle);
         const { WebConsolePasswordStore } = await import("./passwordStore.js");
         await new WebConsolePasswordStore(dataFolder).put(record as Buffer);
-        const signin = await request(handle, "POST", "/api/auth/signin", { body: { password: "pw" } });
+        const signin = await request(handle, "POST", "/api/auth/signin", {
+            body: { password: "pw" },
+        });
         const cookie = extractCookie(signin.headers) as string;
         await request(handle, "POST", "/api/auth/signout", { cookie });
         const status = await request(handle, "GET", "/api/auth/status", { cookie });
@@ -224,7 +289,9 @@ describe("web console server", () => {
         for (let i = 0; i < 5; i += 1) {
             await request(handle, "POST", "/api/auth/signin", { body: { password: "nope" } });
         }
-        const res = await request(handle, "POST", "/api/auth/signin", { body: { password: "nope" } });
+        const res = await request(handle, "POST", "/api/auth/signin", {
+            body: { password: "nope" },
+        });
         expect(res.status).toBe(429);
         const parsed = JSON.parse(res.body);
         expect(parsed.retryAfterMs).toBeGreaterThan(0);
