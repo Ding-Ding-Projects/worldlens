@@ -33,6 +33,7 @@ describe("the project configuration carried inside a world archive", () => {
             source: "project",
             config,
             reason: `Loaded the complete maps/night.conf body from ${PROJECT_FILE_NAME}.`,
+            engine: "upstream-java",
         });
     });
 
@@ -48,6 +49,7 @@ describe("the project configuration carried inside a world archive", () => {
             source: "project",
             config,
             reason: `Loaded the complete maps/night.conf body from ${LEGACY_PROJECT_FILE_NAME}.`,
+            engine: "upstream-java",
         });
     });
 
@@ -60,7 +62,9 @@ describe("the project configuration carried inside a world archive", () => {
 
     it.each([
         ["malformed JSON", "not json", /not valid JSON/i],
-        ["a future format", JSON.stringify({ version: 3, maps: [] }), /format 3/i],
+        // Version 3 is the current format, carrying the optional engine selection; it is
+        // no longer "future". A genuinely unsupported format is one past that.
+        ["a future format", JSON.stringify({ version: 4, maps: [] }), /format 4/i],
         ["no maps list", JSON.stringify({ version: 1 }), /no maps list/i],
         [
             "no selected map",

@@ -512,7 +512,7 @@ function persistedRow(state: CiSyncState): CiRow {
         mapId: state.mapId,
         worldFolder: state.worldFolder,
         state: rowState,
-        postRenderWarning: state.postRenderWarning,
+        postRenderWarning: state.postRenderWarning ?? null,
         route: state.accountId === null ? null : "gh",
         run:
             state.runId === null

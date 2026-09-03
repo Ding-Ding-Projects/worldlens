@@ -1218,7 +1218,9 @@ describe("a red run whose first later failure is Pages-only", () => {
             expect(state?.stage).toBe("rendered");
             expect(state?.runId).toBe(7);
             expect(state?.recoveryAttemptedRunId).toBe(7);
-            expect(state?.postRenderWarning).toBe(attempt.result.summary.postRenderWarning);
+            // The state was read back from disk, so it is a fresh object; only its
+            // content, not its identity, can match what the in-memory summary carries.
+            expect(state?.postRenderWarning).toEqual(attempt.result.summary.postRenderWarning);
         },
     );
 
@@ -1550,7 +1552,9 @@ describe("a red run whose first later failure is Pages-only", () => {
         expect(retried.state.archiveSha256).toBe("a".repeat(64));
         expect(retried.state.renderId).toBe(recoveredState?.renderId);
         expect(retried.state.artifactSha256).toBe(recoveredState?.artifactSha256);
-        expect(retried.state.postRenderWarning).toBe(recoveredState?.postRenderWarning);
+        // `recoveredState` was read back from disk, so it is a fresh object; only its
+        // content, not its identity, can match what the retried sync carries in memory.
+        expect(retried.state.postRenderWarning).toEqual(recoveredState?.postRenderWarning);
         expect(github.countOf("/dispatches", "POST")).toBe(1);
         expect(nothingUploaded(github)).toBe(true);
     });
@@ -2016,7 +2020,9 @@ describe("refusals are values, and none of them is a stack", () => {
         expect(result.ok).toBe(false);
         if (result.ok) return;
         expect(result.failure.code).toBe("no-project");
-        expect(result.failure.message).toContain("wizard");
+        // A missing project is not a paragraph pointing at a wizard on another screen; it
+        // names the direct remedy this failure code lets the surface offer instead.
+        expect(result.failure.message).toContain("Create a cloud render configuration");
     });
 
     it("does not follow a second run for the same world and map at once", async () => {

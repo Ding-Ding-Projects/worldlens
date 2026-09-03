@@ -1208,6 +1208,30 @@ export class CiRenderSync {
             context.request.output === "artifact-and-pages" &&
             context.request.forceUpload !== true;
 
+        /*
+         * A failed run is ordinarily dispatched again on retry (see "a failed run
+         * registers nothing"). A run whose one verified artifact recovery was already
+         * attempted, and found nothing usable, is different: dispatching again would
+         * spend a whole render just to repeat a collection this computer already knows
+         * fails. That earlier result is retained instead, without touching GitHub again.
+         */
+        if (
+            state.stage === "failed" &&
+            state.recoveryAttemptedRunId !== null &&
+            state.runId === state.recoveryAttemptedRunId
+        ) {
+            return this.#failed(
+                syncId,
+                failure(
+                    "artifact-recovery-already-attempted",
+                    `Run ${String(state.runId)} still has a recoverable artifact, but this ` +
+                        "computer already attempted its one verified recovery. The earlier " +
+                        "collection result is retained and nothing was downloaded again.",
+                    { route },
+                ),
+            );
+        }
+
         /* -- what leaves this computer, said before it does ----------------- */
 
         this.#phase(syncId, "checking", route);

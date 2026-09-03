@@ -240,47 +240,43 @@ describe("shard completion markers", () => {
     // alongside the full suite, passes clean and fast run alone). Per this file's own
     // documented convention, a test that genuinely needs longer keeps its own explicit
     // timeout rather than the shared budget being raised for everyone.
-    it(
-        "finds and counts a hyphenated map id's real, sanitized output directory",
-        async () => {
-            const storageRoot = join(root, "bluemap-out", "maps");
-            const rawMapId = "test-issue44-staging";
+    it("finds and counts a hyphenated map id's real, sanitized output directory", async () => {
+        const storageRoot = join(root, "bluemap-out", "maps");
+        const rawMapId = "test-issue44-staging";
 
-            // BlueMap's own behaviour: it wrote tiles under the underscored directory, not
-            // the literal hyphenated id a naive `join(storageRoot, rawMapId)` would look for.
-            expect(sanitizeMapId(rawMapId)).toBe("test_issue44_staging");
-            await shardOutput(storageRoot, sanitizeMapId(rawMapId), 6400);
-            await writeShardMarker(
-                shardMarkerPath(storageRoot, 0),
-                newShardMarker({
-                    shardId: 0,
-                    mapId: rawMapId,
-                    dimension: "minecraft:overworld",
-                    planFingerprint: "abc123",
-                    hiresTileCount: 6400,
-                }),
-            );
-
-            // resume-check, given the raw hyphenated id exactly as a workflow would pass it.
-            const report = await inspectShard({
-                storageRoot,
-                mapId: rawMapId,
+        // BlueMap's own behaviour: it wrote tiles under the underscored directory, not
+        // the literal hyphenated id a naive `join(storageRoot, rawMapId)` would look for.
+        expect(sanitizeMapId(rawMapId)).toBe("test_issue44_staging");
+        await shardOutput(storageRoot, sanitizeMapId(rawMapId), 6400);
+        await writeShardMarker(
+            shardMarkerPath(storageRoot, 0),
+            newShardMarker({
                 shardId: 0,
+                mapId: rawMapId,
+                dimension: "minecraft:overworld",
                 planFingerprint: "abc123",
-            });
+                hiresTileCount: 6400,
+            }),
+        );
 
-            expect(report.trusted).toBe(true);
-            expect(report.hiresTileCount).toBe(6400);
-            expect(report.reason).toContain("6400 hires tiles, all present");
-            expect(report.reason).not.toContain("No completion marker");
+        // resume-check, given the raw hyphenated id exactly as a workflow would pass it.
+        const report = await inspectShard({
+            storageRoot,
+            mapId: rawMapId,
+            shardId: 0,
+            planFingerprint: "abc123",
+        });
 
-            // shard-complete's own count (cli.ts's commandShardComplete calls countHiresTiles
-            // on the same sanitized join) agrees, rather than reading 0 for a render that
-            // worked.
-            expect(await countHiresTiles(join(storageRoot, sanitizeMapId(rawMapId)))).toBe(6400);
-        },
-        60_000,
-    );
+        expect(report.trusted).toBe(true);
+        expect(report.hiresTileCount).toBe(6400);
+        expect(report.reason).toContain("6400 hires tiles, all present");
+        expect(report.reason).not.toContain("No completion marker");
+
+        // shard-complete's own count (cli.ts's commandShardComplete calls countHiresTiles
+        // on the same sanitized join) agrees, rather than reading 0 for a render that
+        // worked.
+        expect(await countHiresTiles(join(storageRoot, sanitizeMapId(rawMapId)))).toBe(6400);
+    }, 60_000);
 
     it("reports an empty shard with no marker as unfinished rather than as done", async () => {
         // The dangerous case: a job killed before it wrote its first tile. Nothing on disk
@@ -465,10 +461,16 @@ describe("the workflow's wave jobs stay in sync with RENDER_WAVE_SLOTS", () => {
 
     it("evaluates Pages publication after deliberately skipped wave jobs", () => {
         const publish = /  publish:\r?\n([\s\S]*?)\r?\n    runs-on:/u.exec(workflow)?.[1] ?? "";
-        expect(publish).toContain("needs: [plan, merge]");
+        // `receipt` verifies the hosted-runner receipt and is only relevant when the plan
+        // needed more than one wave; its own result is folded into the same `always()`
+        // condition rather than left out of `needs`, or GitHub would never even schedule it.
+        expect(publish).toContain("needs: [plan, merge, receipt]");
         expect(publish).toContain("${{ always()");
         expect(publish).toContain("needs.plan.result == 'success'");
         expect(publish).toContain("needs.merge.result == 'success'");
+        expect(publish).toContain(
+            "(needs.receipt.result == 'success' || fromJSON(needs.plan.outputs.wave-count) < 2)",
+        );
         expect(publish).toContain("inputs.output == 'artifact-and-pages'");
         expect(publish).toContain("needs.plan.outputs.single-group == 'true'");
     });
