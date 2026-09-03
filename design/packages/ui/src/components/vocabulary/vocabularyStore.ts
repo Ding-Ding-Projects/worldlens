@@ -44,8 +44,8 @@ export type VocabularyStatus =
 interface VocabularyState {
     status: VocabularyStatus;
     entries: Readonly<Record<string, string>>;
-    metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string };
-    persistenceError?: string;
+    metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string } | undefined;
+    persistenceError?: string | undefined;
 }
 
 function readCache(): VocabularyState {

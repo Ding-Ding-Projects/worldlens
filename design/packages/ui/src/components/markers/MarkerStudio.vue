@@ -178,7 +178,7 @@ function save(): void {
     const result =
         creating
             ? addMarker(props.mapId, draft.value)
-            : updateMarker(editing.value, draft.value);
+            : updateMarker(editing.value!, draft.value);
     if (result.ok) {
         formOpen.value = false;
         problems.value = [];

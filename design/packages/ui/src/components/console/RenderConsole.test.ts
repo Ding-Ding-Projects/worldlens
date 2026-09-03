@@ -182,9 +182,9 @@ describe("advice beside the engine's line", () => {
         // vue-i18n compiles the English fallback as a message format, so this is the one
         // path where an interpolated value silently disappears while the sentence still
         // reads like a sentence.
-        const wrapper = render([engineLine("WebServer bound to /0.0.0.0:8100")]);
+        const wrapper = render([engineLine("Start updating 0 maps ...")]);
 
-        expect(wrapper.text()).toContain("The web server is up on /0.0.0.0:8100.");
+        expect(wrapper.text()).toContain("Zero maps means nothing will be drawn");
         expect(wrapper.text()).not.toContain("{address}");
         wrapper.unmount();
     });
@@ -265,9 +265,9 @@ describe("narrowing what is shown", () => {
 describe("selection-aware structured export", () => {
     it("selects a visible line and exports it as JSON with provenance fields", async () => {
         const wrapper = render([engineLine("first"), engineLine("second")]);
-        const checkboxes = wrapper.findAll(".mb-console__select");
+        const checkboxes = wrapper.findAll(".mb-console__select input[type=checkbox]");
         await checkboxes[1]?.setValue(true);
-        const createObjectURL = vi.fn(() => "blob:console");
+        const createObjectURL = vi.fn<(object: Blob | MediaSource) => string>(() => "blob:console");
         const revokeObjectURL = vi.fn();
         Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
         Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });

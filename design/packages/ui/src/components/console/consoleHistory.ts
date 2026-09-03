@@ -59,7 +59,7 @@ export function redactConsoleText(value: string): string {
         // Absolute filesystem paths are useful in the live console but are user-local
         // data in a retained record or export. Keep the fact that a path was printed,
         // without retaining the account name, checkout, or world location.
-        .replace(/(?:[A-Za-z]:[\\/]|\\\\)[^\s"'<>]+/g, "[path]")
+        .replace(/(?<![A-Za-z])(?:[A-Za-z]:[\\/]|\\\\)[^\s"'<>]+/g, "[path]")
         .replace(/(?:\/(?:Users|home|tmp|var|private)\/)[^\s"'<>]+/g, "[path]");
 }
 
@@ -254,15 +254,15 @@ function parseIndex(raw: string | null): HistoryIndex | null {
                 typeof item.renderId === "string" &&
                 item.renderId.length > 0 &&
                 item.renderId.length <= MAX_RENDER_ID_CHARS &&
-                Number.isSafeInteger(item.segmentStart) &&
+                typeof item.segmentStart === "number" && Number.isSafeInteger(item.segmentStart) &&
                 item.segmentStart >= 0 &&
-                Number.isSafeInteger(item.segmentCount) &&
+                typeof item.segmentCount === "number" && Number.isSafeInteger(item.segmentCount) &&
                 item.segmentCount >= 0 &&
                 item.segmentCount <= MAX_SEGMENTS_PER_RENDER &&
                 Array.isArray(item.segmentRevisions) &&
                 item.segmentRevisions.length === item.segmentCount &&
                 item.segmentRevisions.every((revision) => Number.isSafeInteger(revision) && revision >= 0) &&
-                Number.isSafeInteger(item.lineCount) &&
+                typeof item.lineCount === "number" && Number.isSafeInteger(item.lineCount) &&
                 item.lineCount >= 0 &&
                 item.lineCount <= CONSOLE_HISTORY_MAX_LINES &&
                 typeof item.dropped === "number" &&
@@ -270,9 +270,9 @@ function parseIndex(raw: string | null): HistoryIndex | null {
                 item.dropped >= 0 &&
                 typeof item.updatedAt === "string" &&
                 typeof item.complete === "boolean" &&
-                Number.isSafeInteger(item.evictedLines) &&
+                typeof item.evictedLines === "number" && Number.isSafeInteger(item.evictedLines) &&
                 item.evictedLines >= 0 &&
-                Number.isSafeInteger(item.evictedRenders) &&
+                typeof item.evictedRenders === "number" && Number.isSafeInteger(item.evictedRenders) &&
                 item.evictedRenders >= 0 &&
                 (item.storageWarning === null || item.storageWarning === "retention-limit" || item.storageWarning === "storage-limit") &&
                 typeof item.bytes === "number" &&
@@ -417,8 +417,9 @@ function fitIndexToBudget(index: HistoryIndex, drafts: readonly SegmentDraft[]):
     }
     if (entries.length === 0) return { index: { ...index, entries }, drafts: keptDrafts };
 
-    let first = entries[0];
-    if (first === undefined) return { index: { ...index, entries }, drafts: keptDrafts };
+    const firstEntry = entries[0];
+    if (firstEntry === undefined) return { index: { ...index, entries }, drafts: keptDrafts };
+    let first: HistoryIndexEntry = firstEntry;
     let firstDrafts = keptDrafts.filter((draft) => draft.renderId === first.renderId).sort((left, right) => left.segment - right.segment);
     while (firstDrafts.length > 0 && totalBytes({ ...index, entries }) > CONSOLE_HISTORY_MAX_BYTES) {
         const removed = firstDrafts.shift();
@@ -652,6 +653,7 @@ function persistV2(record: ConsoleHistoryInput, target: Storage): boolean {
         first = {
             ...first,
             segmentStart: first.segmentStart + 1,
+            segmentRevisions: first.segmentRevisions.slice(1),
             segmentCount: first.segmentCount - 1,
             lineCount: Math.max(0, first.lineCount - segment.lines.length),
             evictedLines: first.evictedLines + segment.lines.length,

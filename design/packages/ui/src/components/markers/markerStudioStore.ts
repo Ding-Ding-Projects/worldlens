@@ -232,8 +232,8 @@ export function restoreMarkers(markers: readonly StudioMarker[]): boolean {
         ...markers.map((marker) => ({
             ...marker,
             position: { ...marker.position },
-            points: marker.points?.map((point) => ({ ...point })),
-            extra: marker.extra ? { ...marker.extra } : undefined,
+            ...(marker.points !== undefined ? { points: marker.points.map((point) => ({ ...point })) } : {}),
+            ...(marker.extra !== undefined ? { extra: { ...marker.extra } } : {}),
         })),
     );
     recordMarkerMutation("restored", markerStudioStore.markers);

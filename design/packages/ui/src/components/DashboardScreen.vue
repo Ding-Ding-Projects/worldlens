@@ -38,7 +38,7 @@ const rows = computed<DashboardRow[]>(() => {
     const rank = new Map(order.value.map((id, index) => [id, index]));
     return [...entries.value].sort((a, b) => {
         const pin = Number(pinned.value.includes(b.id)) - Number(pinned.value.includes(a.id));
-        const group = (groups[a.id] ?? "").localeCompare(groups[b.id] ?? "");
+        const group = (groups.value[a.id] ?? "").localeCompare(groups.value[b.id] ?? "");
         return pin || group || (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER) || a.label.localeCompare(b.label);
     });
 });
@@ -97,7 +97,11 @@ function move(id: string, delta: number): void {
     const index = ids.indexOf(id);
     const target = index + delta;
     if (index < 0 || target < 0 || target >= ids.length) return;
-    [ids[index], ids[target]] = [ids[target], ids[index]];
+    const left = ids[index];
+    const right = ids[target];
+    if (left === undefined || right === undefined) return;
+    ids[index] = right;
+    ids[target] = left;
     order.value = ids;
 }
 function setGroup(id: string, group: string): void { groups.value = { ...groups.value, [id]: group }; }

@@ -112,7 +112,16 @@ export function validateStudioDocument(value: unknown): MarkerStudioDocument | n
         const known = new Set(["id", "mapId", "kind", "label", "detail", "position", "colour", "visible", "createdAt", "updatedAt", "points", "extra", "sorting"]);
         const topLevelExtra = Object.fromEntries(Object.entries(item).filter(([key]) => !known.has(key)));
         const extra = safeExtra({ ...(safeExtra(item.extra) ?? {}), ...topLevelExtra });
-        const made = createMarker(value.mapId, { label: item.label, detail: item.detail, position: item.position, colour: item.colour, kind: item.kind as StudioMarkerKind | undefined, points: item.points as MarkerPosition[] | undefined, extra }, { id: item.id, now: item.createdAt });
+        const draft: MarkerDraft = {
+            label: item.label,
+            detail: item.detail,
+            position: item.position,
+            colour: item.colour,
+            ...(item.kind !== undefined ? { kind: item.kind as StudioMarkerKind } : {}),
+            ...(item.points !== undefined ? { points: item.points as MarkerPosition[] } : {}),
+            ...(extra !== undefined ? { extra } : {}),
+        };
+        const made = createMarker(value.mapId, draft, { id: item.id, now: item.createdAt });
         if (!made.ok) return null; markers.push({ ...made.marker, visible: item.visible, updatedAt: item.updatedAt, ...(typeof item.sorting === "number" && Number.isFinite(item.sorting) ? { sorting: item.sorting } : {}) });
     }
     return { marker: STUDIO_EXPORT_MARKER, version: STUDIO_STORAGE_VERSION, mapId: value.mapId, markers };
