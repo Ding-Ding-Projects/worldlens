@@ -2574,7 +2574,12 @@ interface WorldlensBridge {
     mcserver: {
         list(): Promise<unknown>;
         get(id: string): Promise<unknown>;
-        save(record: unknown): Promise<unknown>;
+        save(record: {
+            id: string;
+            name: string;
+            flavour: string;
+            minecraftVersion: string | null;
+        }): Promise<unknown>;
         /** Removes it from this app's list. Never deletes the container or the folder. */
         forget(id: string): Promise<unknown>;
         /** Where a new server should live, so a path never has to be typed. */

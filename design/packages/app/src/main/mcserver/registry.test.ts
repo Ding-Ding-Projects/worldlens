@@ -40,12 +40,17 @@ describe("parseRecord", () => {
     });
 
     it("drops a docker record with no container", () => {
-        expect(parseRecord({ ...record(), ref: { kind: "local-docker", serverDir: "/data" } })).toBeNull();
+        expect(
+            parseRecord({ ...record(), ref: { kind: "local-docker", serverDir: "/data" } }),
+        ).toBeNull();
     });
 
     it("drops an ssh record with no host", () => {
         expect(
-            parseRecord({ ...record(), ref: { kind: "ssh-docker", serverDir: "/data", containerRef: "mc" } }),
+            parseRecord({
+                ...record(),
+                ref: { kind: "ssh-docker", serverDir: "/data", containerRef: "mc" },
+            }),
         ).toBeNull();
     });
 
@@ -60,21 +65,34 @@ describe("parseRecord", () => {
     });
 
     it("keeps an unknown version as null rather than guessing one", () => {
-        expect(parseRecord({ ...record(), minecraftVersion: 1.21 })?.minecraftVersion).toBeNull();
+        expect(parseRecord({ ...record(), minecraftVersion: 1.21 })).toBeNull();
     });
 
     it("refuses a nonsense rcon port", () => {
-        expect(parseRecord({ ...record(), rconPort: 0 })?.rconPort).toBeNull();
-        expect(parseRecord({ ...record(), rconPort: 99_999 })?.rconPort).toBeNull();
+        expect(parseRecord({ ...record(), rconPort: 0 })).toBeNull();
+        expect(parseRecord({ ...record(), rconPort: 99_999 })).toBeNull();
         expect(parseRecord({ ...record(), rconPort: 25_575 })?.rconPort).toBe(25_575);
     });
 
-    it("treats origin as adopted only when it says so", () => {
+    it("requires an explicit supported origin instead of upgrading unknown input", () => {
         expect(parseRecord({ ...record(), origin: "adopted" })?.origin).toBe("adopted");
-        expect(parseRecord({ ...record(), origin: undefined })?.origin).toBe("created");
-        // Anything unrecognised must not become "adopted" by accident, because adopted is
-        // the value that unlocks the gentler destructive paths.
-        expect(parseRecord({ ...record(), origin: "borrowed" })?.origin).toBe("created");
+        expect(parseRecord({ ...record(), origin: undefined })).toBeNull();
+        expect(parseRecord({ ...record(), origin: "borrowed" })).toBeNull();
+    });
+
+    it("rejects unknown record and transport fields", () => {
+        expect(parseRecord({ ...record(), capabilities: ["destroy"] })).toBeNull();
+        expect(
+            parseRecord({
+                ...record(),
+                ref: {
+                    kind: "local-docker",
+                    containerRef: "mc-survival",
+                    serverDir: "/data",
+                    origin: "renderer",
+                },
+            }),
+        ).toBeNull();
     });
 });
 
@@ -109,7 +127,9 @@ describe("createServerRegistry", () => {
 
     it("keeps the original creation time when a record is edited", async () => {
         await registry.put(record({ createdAt: "2020-01-01T00:00:00.000Z" }));
-        const updated = await registry.put(record({ name: "Renamed", createdAt: "2099-01-01T00:00:00.000Z" }));
+        const updated = await registry.put(
+            record({ name: "Renamed", createdAt: "2099-01-01T00:00:00.000Z" }),
+        );
         expect(updated.ok).toBe(true);
         if (!updated.ok) return;
         // An edit must not rewrite history.
@@ -130,6 +150,62 @@ describe("createServerRegistry", () => {
         expect(answer.ok).toBe(false);
         if (answer.ok) return;
         expect(answer.failure.code).toBe("invalid-request");
+    });
+
+    it("refuses malformed records instead of persisting a convenient subset", async () => {
+        const answer = await registry.put({
+            ...record(),
+            origin: "borrowed",
+        } as unknown as ServerRecord);
+        expect(answer.ok).toBe(false);
+        const listed = await registry.list();
+        expect(listed.ok && listed.value).toEqual([]);
+    });
+
+    it("keeps transport identity and origin immutable on an existing record", async () => {
+        await registry.put(record({ origin: "adopted" }));
+        const refChanged = await registry.put(
+            record({
+                origin: "adopted",
+                ref: { kind: "local-docker", containerRef: "somebody-else", serverDir: "/data" },
+            }),
+        );
+        const originChanged = await registry.put(record({ origin: "created" }));
+        expect(refChanged.ok).toBe(false);
+        expect(originChanged.ok).toBe(false);
+        const stored = await registry.get("survival");
+        expect(stored.ok && stored.value.origin).toBe("adopted");
+        expect(stored.ok && stored.value.ref).toEqual(record().ref);
+    });
+
+    it("updates only editable metadata on an existing record", async () => {
+        await registry.put(record({ origin: "adopted", writeScope: ["plugins"] }));
+        const updated = await registry.updateMetadata({
+            id: "survival",
+            name: "Renamed",
+            flavour: "purpur",
+            minecraftVersion: "1.21.5",
+        });
+        expect(updated.ok).toBe(true);
+        if (!updated.ok) return;
+        expect(updated.value.name).toBe("Renamed");
+        expect(updated.value.flavour).toBe("purpur");
+        expect(updated.value.minecraftVersion).toBe("1.21.5");
+        expect(updated.value.origin).toBe("adopted");
+        expect(updated.value.ref).toEqual(record().ref);
+        expect(updated.value.writeScope).toEqual(["plugins"]);
+    });
+
+    it("rejects privileged fields from the metadata edit route", async () => {
+        await registry.put(record());
+        const answer = await registry.updateMetadata({
+            id: "survival",
+            name: "Renamed",
+            flavour: "paper",
+            minecraftVersion: "1.21.4",
+            origin: "adopted",
+        });
+        expect(answer.ok).toBe(false);
     });
 
     it("reports a missing server rather than returning an empty one", async () => {
@@ -158,7 +234,10 @@ describe("createServerRegistry", () => {
         // about, and starting or deleting it on a guess is the thing to avoid.
         await writeFile(
             join(dir, REGISTRY_FILE),
-            JSON.stringify({ version: 1, servers: [record(), { id: "broken" }, record({ id: "second" })] }),
+            JSON.stringify({
+                version: 1,
+                servers: [record(), { id: "broken" }, record({ id: "second" })],
+            }),
         );
         const listed = await registry.list();
         expect(listed.ok).toBe(true);

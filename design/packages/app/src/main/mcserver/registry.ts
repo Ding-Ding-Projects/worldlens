@@ -31,6 +31,7 @@ export const REGISTRY_VERSION = 1;
 export const REGISTRY_MAX_BYTES = 1024 * 1024;
 export const REGISTRY_MAX_RECORDS = 500;
 const MAX_STRING = 512;
+const CONTAINER_REFERENCE = /^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$/;
 
 /** Server ids appear in file names and command lines, so they stay boring on purpose. */
 const ID = /^[a-z][a-z0-9-]{0,62}$/;
@@ -98,6 +99,14 @@ export interface ServerRecord {
     readonly writeScope: readonly string[];
 }
 
+/** The renderer may edit labels and version metadata, never transport identity or authority. */
+export interface ServerMetadataUpdate {
+    readonly id: string;
+    readonly name: string;
+    readonly flavour: ServerFlavour;
+    readonly minecraftVersion: string | null;
+}
+
 interface StoredFile {
     readonly version: number;
     readonly servers: readonly ServerRecord[];
@@ -107,25 +116,54 @@ function isString(value: unknown, max = MAX_STRING): value is string {
     return typeof value === "string" && value.length <= max && !/[\0]/.test(value);
 }
 
+function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+    const allowed = new Set(keys);
+    return (
+        Object.keys(value).every((key) => allowed.has(key)) &&
+        keys.every((key) => Object.prototype.hasOwnProperty.call(value, key))
+    );
+}
+
 function validRef(value: unknown): value is TransportRef {
     if (typeof value !== "object" || value === null) return false;
     const ref = value as Record<string, unknown>;
     if (!isString(ref.serverDir)) return false;
     switch (ref.kind) {
         case "local-process":
-            return true;
+            return hasExactKeys(ref, ["kind", "serverDir"]);
         case "local-docker":
-            return isString(ref.containerRef, 128);
+            return (
+                hasExactKeys(ref, ["kind", "containerRef", "serverDir"]) &&
+                isString(ref.containerRef, 128) &&
+                CONTAINER_REFERENCE.test(ref.containerRef)
+            );
         case "ssh-docker":
-            return isString(ref.containerRef, 128) && isString(ref.hostId, 128);
+            return (
+                hasExactKeys(ref, ["kind", "hostId", "containerRef", "serverDir"]) &&
+                isString(ref.containerRef, 128) &&
+                CONTAINER_REFERENCE.test(ref.containerRef) &&
+                isString(ref.hostId, 128) &&
+                ID.test(ref.hostId)
+            );
         case "aws":
             return (
+                hasExactKeys(ref, [
+                    "kind",
+                    "region",
+                    "instanceId",
+                    "publicIp",
+                    "sshUser",
+                    "identityFile",
+                    "containerRef",
+                    "serverDir",
+                ]) &&
                 isString(ref.region, 128) &&
                 isString(ref.instanceId, 128) &&
                 isString(ref.publicIp, 128) &&
                 isString(ref.sshUser, 128) &&
                 (ref.identityFile === null || isString(ref.identityFile, 1024)) &&
-                isString(ref.containerRef, 128)
+                isString(ref.containerRef, 128) &&
+                CONTAINER_REFERENCE.test(ref.containerRef)
             );
         default:
             return false;
@@ -143,31 +181,53 @@ function validRef(value: unknown): value is TransportRef {
 export function parseRecord(value: unknown): ServerRecord | null {
     if (typeof value !== "object" || value === null) return null;
     const raw = value as Record<string, unknown>;
+    if (
+        !hasExactKeys(raw, [
+            "id",
+            "name",
+            "flavour",
+            "minecraftVersion",
+            "ref",
+            "origin",
+            "createdAt",
+            "updatedAt",
+            "hasRconSecret",
+            "rconPort",
+            "writeScope",
+        ])
+    )
+        return null;
     if (!isString(raw.id, 64) || !ID.test(raw.id)) return null;
     if (!isString(raw.name) || raw.name.trim() === "") return null;
     if (!validRef(raw.ref)) return null;
     if (!isString(raw.createdAt, 64) || !isString(raw.updatedAt, 64)) return null;
+    if (raw.origin !== "created" && raw.origin !== "adopted") return null;
+    if (typeof raw.hasRconSecret !== "boolean") return null;
+    if (!(raw.minecraftVersion === null || isString(raw.minecraftVersion, 64))) return null;
 
     const flavour = SERVER_FLAVOURS.includes(raw.flavour as ServerFlavour)
         ? (raw.flavour as ServerFlavour)
         : "unknown";
-    const origin: ServerOrigin = raw.origin === "adopted" ? "adopted" : "created";
+    const origin: ServerOrigin = raw.origin;
     const rconPort =
-        typeof raw.rconPort === "number" &&
-        Number.isInteger(raw.rconPort) &&
-        raw.rconPort > 0 &&
-        raw.rconPort < 65_536
-            ? raw.rconPort
-            : null;
-    const writeScope = Array.isArray(raw.writeScope)
-        ? raw.writeScope.filter((entry): entry is string => isString(entry, 256))
-        : [];
+        raw.rconPort === null
+            ? null
+            : typeof raw.rconPort === "number" &&
+                Number.isInteger(raw.rconPort) &&
+                raw.rconPort > 0 &&
+                raw.rconPort < 65_536
+              ? raw.rconPort
+              : undefined;
+    if (rconPort === undefined) return null;
+    if (!Array.isArray(raw.writeScope) || !raw.writeScope.every((entry) => isString(entry, 256)))
+        return null;
+    const writeScope = raw.writeScope as string[];
 
     return {
         id: raw.id,
         name: raw.name,
         flavour,
-        minecraftVersion: isString(raw.minecraftVersion, 64) ? raw.minecraftVersion : null,
+        minecraftVersion: raw.minecraftVersion,
         ref: raw.ref,
         origin,
         createdAt: raw.createdAt,
@@ -175,6 +235,22 @@ export function parseRecord(value: unknown): ServerRecord | null {
         hasRconSecret: raw.hasRconSecret === true,
         rconPort,
         writeScope,
+    };
+}
+
+function parseMetadataUpdate(value: unknown): ServerMetadataUpdate | null {
+    if (typeof value !== "object" || value === null) return null;
+    const raw = value as Record<string, unknown>;
+    if (!hasExactKeys(raw, ["id", "name", "flavour", "minecraftVersion"])) return null;
+    if (!isString(raw.id, 64) || !ID.test(raw.id)) return null;
+    if (!isString(raw.name) || raw.name.trim() === "") return null;
+    if (!SERVER_FLAVOURS.includes(raw.flavour as ServerFlavour)) return null;
+    if (!(raw.minecraftVersion === null || isString(raw.minecraftVersion, 64))) return null;
+    return {
+        id: raw.id,
+        name: raw.name,
+        flavour: raw.flavour as ServerFlavour,
+        minecraftVersion: raw.minecraftVersion,
     };
 }
 
@@ -187,6 +263,7 @@ export interface ServerRegistry {
     list(): Promise<Answer<readonly ServerRecord[]>>;
     get(id: string): Promise<Answer<ServerRecord>>;
     put(record: ServerRecord): Promise<Answer<ServerRecord>>;
+    updateMetadata(value: unknown): Promise<Answer<ServerRecord>>;
     remove(id: string): Promise<Answer<void>>;
 }
 
@@ -262,36 +339,75 @@ export function createServerRegistry(options: RegistryOptions): ServerRegistry {
         },
 
         async put(record: ServerRecord): Promise<Answer<ServerRecord>> {
-            if (!ID.test(record.id)) {
+            const canonical = parseRecord(record);
+            if (canonical === null) {
                 return fail(
                     "invalid-request",
-                    "A server name may use lower-case letters, numbers and hyphens.",
+                    "That server record does not match the complete supported schema.",
                 );
             }
             const loaded = await load();
             if (!loaded.ok) return loaded;
 
-            const existing = loaded.value.find((entry) => entry.id === record.id);
+            const existing = loaded.value.find((entry) => entry.id === canonical.id);
             if (existing === undefined && loaded.value.length >= REGISTRY_MAX_RECORDS) {
                 return fail(
                     "invalid-request",
                     `This app keeps at most ${REGISTRY_MAX_RECORDS} servers.`,
                 );
             }
+            if (
+                existing !== undefined &&
+                (existing.origin !== canonical.origin ||
+                    JSON.stringify(existing.ref) !== JSON.stringify(canonical.ref))
+            ) {
+                return fail(
+                    "denied",
+                    "A saved server's transport identity and origin cannot be changed through an edit.",
+                );
+            }
 
             const updated: ServerRecord = {
-                ...record,
+                ...canonical,
                 // A record's creation time belongs to the record, not to whoever saved it
                 // last - otherwise every edit rewrites history.
-                createdAt: existing?.createdAt ?? record.createdAt ?? now(),
+                createdAt: existing?.createdAt ?? canonical.createdAt,
                 updatedAt: now(),
             };
             const next =
                 existing === undefined
                     ? [...loaded.value, updated]
-                    : loaded.value.map((entry) => (entry.id === record.id ? updated : entry));
+                    : loaded.value.map((entry) => (entry.id === canonical.id ? updated : entry));
 
             const saved = await save(next);
+            if (!saved.ok) return saved;
+            return ok(updated);
+        },
+
+        async updateMetadata(value: unknown): Promise<Answer<ServerRecord>> {
+            const update = parseMetadataUpdate(value);
+            if (update === null) {
+                return fail(
+                    "invalid-request",
+                    "Only an existing server's name, flavour and version may be edited here.",
+                );
+            }
+            const loaded = await load();
+            if (!loaded.ok) return loaded;
+            const existing = loaded.value.find((entry) => entry.id === update.id);
+            if (existing === undefined)
+                return fail("not-found", "There is no server with that name here.");
+
+            const updated: ServerRecord = {
+                ...existing,
+                name: update.name,
+                flavour: update.flavour,
+                minecraftVersion: update.minecraftVersion,
+                updatedAt: now(),
+            };
+            const saved = await save(
+                loaded.value.map((entry) => (entry.id === update.id ? updated : entry)),
+            );
             if (!saved.ok) return saved;
             return ok(updated);
         },

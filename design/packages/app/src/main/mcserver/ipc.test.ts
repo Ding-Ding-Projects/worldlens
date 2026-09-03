@@ -4,7 +4,13 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { MCSERVER_CHANNELS, registerMcServerHandlers, safeContainerServerDir, type IpcMainLike, type McServerIpc } from "./ipc.js";
+import {
+    MCSERVER_CHANNELS,
+    registerMcServerHandlers,
+    safeContainerServerDir,
+    type IpcMainLike,
+    type McServerIpc,
+} from "./ipc.js";
 import type { ServerRecord } from "./registry.js";
 import type { SafeStorageLike } from "./rcon/secret.js";
 import type { CommandOutput, CommandRunner } from "../runtime/command.js";
@@ -74,11 +80,18 @@ describe("registerMcServerHandlers", () => {
         const runner: CommandRunner = async (command, args) => {
             calls.push({ command, args });
             if (args[0] === "inspect") {
-                return dockerOutput({ stdout: JSON.stringify({ Status: "running", Running: true, ExitCode: 0 }) });
+                return dockerOutput({
+                    stdout: JSON.stringify({ Status: "running", Running: true, ExitCode: 0 }),
+                });
             }
             return dockerOutput();
         };
-        registered = registerMcServerHandlers(ipc, { dataFolder: dir, factory: { runner }, safeStorage: fakeSafeStorage(), nativeRestoreConfirm: async () => true });
+        registered = registerMcServerHandlers(ipc, {
+            dataFolder: dir,
+            factory: { runner },
+            safeStorage: fakeSafeStorage(),
+            nativeRestoreConfirm: async () => true,
+        });
         await registered.registry.put(RECORD);
     });
 
@@ -101,9 +114,50 @@ describe("registerMcServerHandlers", () => {
     });
 
     it("lists saved servers", async () => {
-        const answer = (await invoke(MCSERVER_CHANNELS.list)) as { ok: boolean; value: ServerRecord[] };
+        const answer = (await invoke(MCSERVER_CHANNELS.list)) as {
+            ok: boolean;
+            value: ServerRecord[];
+        };
         expect(answer.ok).toBe(true);
         expect(answer.value).toHaveLength(1);
+    });
+
+    it("edits only metadata on an existing server", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.save, {
+            id: "survival",
+            name: "Renamed",
+            flavour: "purpur",
+            minecraftVersion: "1.21.5",
+        })) as { ok: boolean; value?: ServerRecord };
+        expect(answer.ok).toBe(true);
+        expect(answer.value?.name).toBe("Renamed");
+        expect(answer.value?.origin).toBe("created");
+        expect(answer.value?.ref).toEqual(RECORD.ref);
+    });
+
+    it("refuses a renderer-forged container record and origin", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.save, {
+            ...RECORD,
+            id: "victim",
+            ref: { kind: "local-docker", containerRef: "victim-container", serverDir: "/" },
+            origin: "created",
+        })) as { ok: boolean; failure?: { code: string } };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure?.code).toBe("invalid-request");
+        const missing = await registered.registry.get("victim");
+        expect(missing.ok).toBe(false);
+    });
+
+    it("refuses to reclassify an adopted record through the renderer edit route", async () => {
+        const adopted = { ...RECORD, id: "adopted", origin: "adopted" as const };
+        await registered.registry.put(adopted);
+        const answer = (await invoke(MCSERVER_CHANNELS.save, {
+            ...adopted,
+            origin: "created",
+        })) as { ok: boolean; failure?: { code: string } };
+        expect(answer.ok).toBe(false);
+        const stored = await registered.registry.get("adopted");
+        expect(stored.ok && stored.value.origin).toBe("adopted");
     });
 
     it("reports status through the transport", async () => {
@@ -127,7 +181,10 @@ describe("registerMcServerHandlers", () => {
 
     it("refuses a malformed server name before doing anything", async () => {
         for (const bad of [undefined, null, 42, "", "x".repeat(500)]) {
-            const answer = (await invoke(MCSERVER_CHANNELS.status, bad)) as { ok: boolean; failure: { code: string } };
+            const answer = (await invoke(MCSERVER_CHANNELS.status, bad)) as {
+                ok: boolean;
+                failure: { code: string };
+            };
             expect(answer.ok).toBe(false);
             expect(answer.failure.code).toBe("invalid-request");
         }
@@ -174,7 +231,16 @@ describe("registerMcServerHandlers", () => {
     });
 
     it("refuses root and host-sensitive container destinations even when the host source is safe", () => {
-        for (const path of ["/", "/root", "/home", "/etc", "/usr", "/var", "/opt/tmp", "/custom/server"]) {
+        for (const path of [
+            "/",
+            "/root",
+            "/home",
+            "/etc",
+            "/usr",
+            "/var",
+            "/opt/tmp",
+            "/custom/server",
+        ]) {
             expect(safeContainerServerDir(path)).toBe(false);
         }
         expect(safeContainerServerDir("/data")).toBe(true);
@@ -182,7 +248,10 @@ describe("registerMcServerHandlers", () => {
     });
 
     it("configures RCON through the vault without returning the password", async () => {
-        const answer = (await invoke(MCSERVER_CHANNELS.rconConfigure, "survival", { port: 25_575, password: "fixture-password" })) as {
+        const answer = (await invoke(MCSERVER_CHANNELS.rconConfigure, "survival", {
+            port: 25_575,
+            password: "fixture-password",
+        })) as {
             ok: boolean;
             value?: { configured: boolean; port: number };
         };
@@ -215,21 +284,34 @@ describe("registerMcServerHandlers", () => {
             { step: "key-two", value: true },
             { step: "slider", value: 100 },
         ]) {
-            const transition = (await invoke(MCSERVER_CHANNELS.backupRestoreStep, "survival", { challenge: challenge.value?.challenge, ...step })) as { ok: boolean };
+            const transition = (await invoke(MCSERVER_CHANNELS.backupRestoreStep, "survival", {
+                challenge: challenge.value?.challenge,
+                ...step,
+            })) as { ok: boolean };
             expect(transition.ok).toBe(true);
         }
-        const authorized = (await invoke(MCSERVER_CHANNELS.backupRestoreAuthorize, "survival", { challenge: challenge.value?.challenge })) as { ok: boolean; value?: { authorization: string } };
+        const authorized = (await invoke(MCSERVER_CHANNELS.backupRestoreAuthorize, "survival", {
+            challenge: challenge.value?.challenge,
+        })) as { ok: boolean; value?: { authorization: string } };
         expect(authorized.ok).toBe(true);
         const issued = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
-            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
-            challenge: challenge.value?.challenge, authorization: authorized.value?.authorization,
+            owner: "fixture-owner",
+            repo: "fixture-backups",
+            tag: "fixture-tag",
+            worldFolder: "/data",
+            challenge: challenge.value?.challenge,
+            authorization: authorized.value?.authorization,
         })) as { ok: boolean; value?: { receipt: string; expiresAt: number } };
         expect(issued.ok).toBe(true);
         expect(issued.value?.receipt.length).toBe(64);
         expect(issued.value?.expiresAt).toBeGreaterThan(Date.now());
         const replay = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
-            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
-            challenge: challenge.value?.challenge, proof: { keyOne: true, keyTwo: true, travel: 100 },
+            owner: "fixture-owner",
+            repo: "fixture-backups",
+            tag: "fixture-tag",
+            worldFolder: "/data",
+            challenge: challenge.value?.challenge,
+            proof: { keyOne: true, keyTwo: true, travel: 100 },
         })) as { ok: boolean; failure: { code: string } };
         expect(replay.ok).toBe(false);
         expect(replay.failure.code).toBe("denied");
@@ -237,18 +319,30 @@ describe("registerMcServerHandlers", () => {
 
     it("refuses fabricated confirmation booleans and wrong restore scopes", async () => {
         const challenge = (await invoke(MCSERVER_CHANNELS.backupRestoreChallenge, "survival", {
-            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
+            owner: "fixture-owner",
+            repo: "fixture-backups",
+            tag: "fixture-tag",
+            worldFolder: "/data",
         })) as { ok: boolean; value?: { challenge: string } };
         expect(challenge.ok).toBe(true);
         const wrongProof = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
-            owner: "fixture-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
-            challenge: challenge.value?.challenge, authorization: "fabricated-authorization", superConfirmed: true,
+            owner: "fixture-owner",
+            repo: "fixture-backups",
+            tag: "fixture-tag",
+            worldFolder: "/data",
+            challenge: challenge.value?.challenge,
+            authorization: "fabricated-authorization",
+            superConfirmed: true,
             proof: { keyOne: true, keyTwo: false, travel: 100 },
         })) as { ok: boolean; failure: { code: string } };
         expect(wrongProof.ok).toBe(false);
         const wrongOwner = (await invoke(MCSERVER_CHANNELS.backupRestoreIssue, "survival", {
-            owner: "other-owner", repo: "fixture-backups", tag: "fixture-tag", worldFolder: "/data",
-            challenge: challenge.value?.challenge, proof: { keyOne: true, keyTwo: true, travel: 100 },
+            owner: "other-owner",
+            repo: "fixture-backups",
+            tag: "fixture-tag",
+            worldFolder: "/data",
+            challenge: challenge.value?.challenge,
+            proof: { keyOne: true, keyTwo: true, travel: 100 },
         })) as { ok: boolean; failure: { code: string } };
         expect(wrongOwner.ok).toBe(false);
     });
@@ -285,10 +379,16 @@ describe("registerMcServerHandlers", () => {
             },
         })) as { ok: boolean; value?: ServerRecord };
         expect(answer.ok).toBe(true);
-        expect(calls.some((call) => call.command === "docker" && call.args.includes("--label"))).toBe(true);
+        expect(
+            calls.some((call) => call.command === "docker" && call.args.includes("--label")),
+        ).toBe(true);
         expect(calls.some((call) => call.args.includes("127.0.0.1:25565:25565"))).toBe(true);
         expect(calls.some((call) => call.args.includes("java"))).toBe(false);
-        expect(answer.value?.ref).toEqual({ kind: "local-docker", containerRef: "fixture-container", serverDir: "/data" });
+        expect(answer.value?.ref).toEqual({
+            kind: "local-docker",
+            containerRef: "fixture-container",
+            serverDir: "/data",
+        });
     });
 
     it("forgetting a server never asks Docker to remove anything", async () => {
@@ -296,7 +396,10 @@ describe("registerMcServerHandlers", () => {
         expect(answer.ok).toBe(true);
         // Forgetting is not deleting. This is what makes releasing an adopted container safe.
         expect(calls.some((call) => call.args.includes("rm"))).toBe(false);
-        const listed = (await invoke(MCSERVER_CHANNELS.list)) as { ok: boolean; value: ServerRecord[] };
+        const listed = (await invoke(MCSERVER_CHANNELS.list)) as {
+            ok: boolean;
+            value: ServerRecord[];
+        };
         expect(listed.value).toHaveLength(0);
     });
 });
@@ -315,7 +418,9 @@ describe("registerMcServerHandlers - catalogue, java and create channels", () =>
         versions: [{ id: "1.21.4", type: "release", url: "https://example.test/1.21.4.json" }],
     });
     const VANILLA_DETAIL = JSON.stringify({
-        downloads: { server: { url: "https://example.test/server-1.21.4.jar", sha1: "x", size: 10 } },
+        downloads: {
+            server: { url: "https://example.test/server-1.21.4.jar", sha1: "x", size: 10 },
+        },
         javaVersion: { majorVersion: 21 },
     });
     const EMPTY_LIST = JSON.stringify({ versions: [] });
@@ -382,7 +487,10 @@ describe("registerMcServerHandlers - catalogue, java and create channels", () =>
     });
 
     it("refuses to resolve a Java requirement for a malformed version argument", async () => {
-        const answer = (await invoke(MCSERVER_CHANNELS.javaResolve, 42)) as { ok: boolean; failure: { code: string } };
+        const answer = (await invoke(MCSERVER_CHANNELS.javaResolve, 42)) as {
+            ok: boolean;
+            failure: { code: string };
+        };
         expect(answer.ok).toBe(false);
         expect(answer.failure.code).toBe("invalid-request");
     });

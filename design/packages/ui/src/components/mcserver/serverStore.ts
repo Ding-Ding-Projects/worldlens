@@ -28,6 +28,8 @@ import type {
     TransportRef,
 } from "./serverModel.js";
 
+type ServerMetadataUpdate = Pick<ServerRecord, "id" | "name" | "flavour" | "minecraftVersion">;
+
 export interface Answer<T> {
     readonly ok: boolean;
     readonly value?: T;
@@ -293,7 +295,7 @@ export interface McServerHost {
     readonly name: string;
     list(): Promise<Answer<readonly ServerRecord[]>>;
     get(id: string): Promise<Answer<ServerRecord>>;
-    save(record: ServerRecord): Promise<Answer<ServerRecord>>;
+    save(record: ServerMetadataUpdate): Promise<Answer<ServerRecord>>;
     forget(id: string): Promise<Answer<void>>;
     /** Where a new server should live. Optional: an older host simply has no suggestion. */
     suggestFolder?(name?: string): Promise<Answer<string>>;
@@ -632,7 +634,12 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
 
         async save(record): Promise<Answer<ServerRecord>> {
             if (host === null) return noHost();
-            const result = await host.save(record);
+            const result = await host.save({
+                id: record.id,
+                name: record.name,
+                flavour: record.flavour,
+                minecraftVersion: record.minecraftVersion,
+            });
             if (result.ok && result.value) {
                 const next = servers.value.some((server) => server.id === record.id)
                     ? servers.value.map((server) =>

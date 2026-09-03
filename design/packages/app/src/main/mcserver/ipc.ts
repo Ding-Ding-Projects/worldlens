@@ -798,13 +798,7 @@ export function registerMcServerHandlers(
         },
 
         [MCSERVER_CHANNELS.save]: async (_event: never, value: unknown) => {
-            if (typeof value !== "object" || value === null) {
-                return fail(
-                    "invalid-request",
-                    "That server could not be saved because its details were not readable.",
-                );
-            }
-            return registry.put(value as ServerRecord);
+            return registry.updateMetadata(value);
         },
 
         [MCSERVER_CHANNELS.forget]: async (_event: never, id: unknown) => {

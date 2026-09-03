@@ -46,13 +46,25 @@ function fakeHost(overrides: Partial<McServerHost> = {}): McServerHost {
                 },
             }),
         ),
-        status: vi.fn(async () => ok({ state: "running" as const, running: true, startedAt: "now", exitCode: null, checkedAt: "now" })),
+        status: vi.fn(async () =>
+            ok({
+                state: "running" as const,
+                running: true,
+                startedAt: "now",
+                exitCode: null,
+                checkedAt: "now",
+            }),
+        ),
         start: vi.fn(async () => ok(undefined)),
         stop: vi.fn(async () => ok(undefined)),
         files: {
             list: vi.fn(async () => ok([])),
-            read: vi.fn(async () => ok({ bytes: new Uint8Array(), hash: "h", size: 0, truncated: false })),
-            write: vi.fn(async () => ok({ hash: "h", size: 0, writtenAt: "now", backupPath: null })),
+            read: vi.fn(async () =>
+                ok({ bytes: new Uint8Array(), hash: "h", size: 0, truncated: false }),
+            ),
+            write: vi.fn(async () =>
+                ok({ hash: "h", size: 0, writtenAt: "now", backupPath: null }),
+            ),
         },
         logTail: vi.fn(async () => ok([])),
         ...overrides,
@@ -86,7 +98,12 @@ describe("createServerStore with a host", () => {
     });
 
     it("keeps the last failure message on a failed load rather than emptying the list", async () => {
-        const host = fakeHost({ list: vi.fn(async () => ({ ok: false, failure: { code: "unreachable", message: "no daemon", detail: null } })) });
+        const host = fakeHost({
+            list: vi.fn(async () => ({
+                ok: false,
+                failure: { code: "unreachable", message: "no daemon", detail: null },
+            })),
+        });
         const store = createServerStore({ host });
         await store.load();
         expect(store.failure.value).toBe("no daemon");
@@ -100,6 +117,12 @@ describe("createServerStore with a host", () => {
         const renamed = { ...record(), name: "Renamed" };
         host.save = vi.fn(async () => ok(renamed));
         await store.save(renamed);
+        expect(host.save).toHaveBeenCalledWith({
+            id: "survival",
+            name: "Renamed",
+            flavour: "paper",
+            minecraftVersion: "1.21",
+        });
         expect(store.get("survival")?.name).toBe("Renamed");
     });
 
