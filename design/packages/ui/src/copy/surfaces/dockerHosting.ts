@@ -122,6 +122,28 @@ export const DOCKERHOSTING_FIXED = {
         en: "Docker accepted the container creation, but refreshing the verified snapshot failed; review the error above before managing it.",
         yue: "Docker 接受咗建立 container，但重新整理已驗證 snapshot 失敗；管理之前請先查看上面嘅錯誤。",
     },
+    /* Catalogue-coverage sweep: no answer on this side, so every language and every
+       funny level showed the English written at the call site. */
+    "dockerHosting.cancel": { en: "Cancel", yue: "取消" },
+    "dockerHosting.cancelled": { en: "Operation cancelled; no further Docker action was started.", yue: "已經取消；冇再開多任何 Docker 動作。" },
+    "dockerHosting.clearSelection": { en: "Clear", yue: "清除" },
+    "dockerHosting.empty": { en: "No app-owned BlueMap server containers are available.", yue: "冇呢個程式管住嘅 BlueMap 伺服器 container。" },
+    "dockerHosting.export": { en: "Export", yue: "匯出" },
+    "dockerHosting.logs": { en: "Operation log", yue: "操作記錄" },
+    "dockerHosting.noPorts": { en: "No published ports", yue: "冇對外開過 port" },
+    "dockerHosting.ready": { en: "Docker ready", yue: "Docker 準備好" },
+    "dockerHosting.refresh": { en: "Refresh", yue: "重新讀取" },
+    "dockerHosting.remove": { en: "Remove", yue: "移除" },
+    "dockerHosting.restart": { en: "Restart", yue: "重新開" },
+    "dockerHosting.running": { en: "Running", yue: "行緊" },
+    "dockerHosting.selected": { en: "{count} selected", yue: "揀咗 {count} 個" },
+    "dockerHosting.server": { en: "Daemon {version}", yue: "Daemon {version}" },
+    "dockerHosting.start": { en: "Start", yue: "開" },
+    "dockerHosting.stop": { en: "Stop", yue: "停" },
+    "dockerHosting.stopped": { en: "Stopped", yue: "停咗" },
+    "dockerHosting.title": { en: "Docker hosting manager", yue: "Docker 寄存管理" },
+    "dockerHosting.unavailable": { en: "This build cannot manage Docker. The desktop bridge is not available.", yue: "呢個版本管唔到 Docker，因為冇桌面版嗰條橋。" },
+    "dockerHosting.update": { en: "Update", yue: "更新" },
 } as const satisfies Record<string, FixedString>;
 
 export const DOCKERHOSTING_FACTS = {} as const satisfies Record<
