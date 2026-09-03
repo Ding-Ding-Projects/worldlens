@@ -692,6 +692,12 @@ export const APPEARANCE_FIXED = {
     "appearance.editor.typographyTab": { en: "Text", yue: "文字" },
     "appearance.editor.surfaceTab": { en: "Surface", yue: "表面" },
     "appearance.editor.presetsTab": { en: "Presets", yue: "預設" },
+    "appearance.editor.creativeTab": { en: "Creative studio", yue: "創作工作室" },
+    "appearance.creative.eyebrow": { en: "Creative appearance studio", yue: "創作外觀工作室" },
+    "appearance.creative.subhead": {
+        en: "Compose layers, typography, masks and effects locally. The package identity never changes.",
+        yue: "喺本機砌圖層、文字、遮罩同效果，程式身份永遠唔會改。",
+    },
     "appearance.surface.reset": { en: "Reset {property}", yue: "重設 {property}" },
 
     /* Presets: the two "follows" selects, saving, and deleting. */

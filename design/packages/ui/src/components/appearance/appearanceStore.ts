@@ -182,6 +182,19 @@ export function recordFor(state: AppearanceState, id: string): AppearanceRecord 
     return state.elements[id] ?? emptyRecord();
 }
 
+/**
+ * Brings a record created before per-state appearance layers onto the current shape.
+ *
+ * Persisted files already pass through `sanitiseRecord()`, which starts from
+ * `emptyRecord()`. This seam also accepts records already held in memory, including a
+ * creative document that migrates itself before the next storage reload. Keeping the
+ * canonical shape here means later render, lock, reset, and merge paths never inherit an
+ * absent `states` bag.
+ */
+function normaliseLegacyRecord(record: AppearanceRecord): AppearanceRecord {
+    return record.states === undefined ? { ...record, states: {} } : record;
+}
+
 function presetRecord(state: AppearanceState, id: string): AppearanceRecord {
     return state.presets.find((entry) => entry.id === id)?.record ?? emptyRecord();
 }
@@ -235,9 +248,10 @@ export function withRecord(
     id: string,
     record: AppearanceRecord,
 ): AppearanceState {
+    const normalised = normaliseLegacyRecord(record);
     const elements: Record<string, AppearanceRecord> = { ...state.elements };
-    if (isRecordEmpty(record)) delete elements[id];
-    else elements[id] = record;
+    if (isRecordEmpty(normalised)) delete elements[id];
+    else elements[id] = normalised;
 
     return { ...state, elements };
 }

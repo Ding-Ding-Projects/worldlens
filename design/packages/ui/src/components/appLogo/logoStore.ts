@@ -60,6 +60,11 @@ export interface LogoCustomMark {
     readonly height: number | null;
 }
 
+export interface LogoCreativeOwnership {
+    readonly token: string;
+    readonly revision: number;
+}
+
 export const DEFAULT_CROP: LogoCrop = { top: 0, right: 0, bottom: 0, left: 0 };
 export const DEFAULT_FOCAL_POINT: LogoFocalPoint = { x: 50, y: 50 };
 export const DEFAULT_FIT: LogoFit = "contain";
@@ -75,6 +80,7 @@ interface LogoState {
     focalPoint: LogoFocalPoint;
     background: LogoBackground;
     backgroundColor: string;
+    ownership: LogoCreativeOwnership | null;
     /** Non-null when the stored presentation could not be read. Never confused with "unset". */
     failure: string | null;
 }
@@ -88,6 +94,7 @@ function defaultState(): LogoState {
         focalPoint: DEFAULT_FOCAL_POINT,
         background: DEFAULT_BACKGROUND,
         backgroundColor: DEFAULT_BACKGROUND_COLOR,
+        ownership: null,
         failure: null,
     };
 }
@@ -134,6 +141,14 @@ function readCustom(value: unknown): LogoCustomMark | null | undefined {
     return { dataUrl: record.dataUrl, format: record.format, width, height };
 }
 
+function readOwnership(value: unknown): LogoCreativeOwnership | null {
+    if (typeof value !== "object" || value === null) return null;
+    const record = value as Record<string, unknown>;
+    return typeof record.token === "string" && Number.isInteger(record.revision) && (record.revision as number) >= 0
+        ? { token: record.token, revision: record.revision as number }
+        : null;
+}
+
 function load(): LogoState {
     try {
         const raw = localStorage.getItem(LOGO_STORAGE_KEY);
@@ -151,6 +166,7 @@ function load(): LogoState {
         const backgroundColor =
             typeof parsed.backgroundColor === "string" ? parsed.backgroundColor : DEFAULT_BACKGROUND_COLOR;
         const custom = readCustom(parsed.custom);
+        const ownership = readOwnership(parsed.ownership);
         if (custom === undefined) {
             return {
                 ...defaultState(),
@@ -158,7 +174,7 @@ function load(): LogoState {
             };
         }
 
-        return { custom, presetId, crop, fit, focalPoint, background, backgroundColor, failure: null };
+        return { custom, presetId, crop, fit, focalPoint, background, backgroundColor, ownership, failure: null };
     } catch (error) {
         return { ...defaultState(), failure: error instanceof Error ? error.message : String(error) };
     }
@@ -183,6 +199,7 @@ export function reloadLogoStore(): void {
     logoStore.focalPoint = fresh.focalPoint;
     logoStore.background = fresh.background;
     logoStore.backgroundColor = fresh.backgroundColor;
+    logoStore.ownership = fresh.ownership;
     logoStore.failure = fresh.failure;
 }
 
@@ -195,6 +212,7 @@ watch(
         focalPoint: logoStore.focalPoint,
         background: logoStore.background,
         backgroundColor: logoStore.backgroundColor,
+        ownership: logoStore.ownership,
     }),
     (snapshot) => {
         // A store that failed to read must not write over what it could not read: that
@@ -215,28 +233,43 @@ watch(
 export function selectLogoPreset(id: LogoPresetId): void {
     logoStore.presetId = id;
     logoStore.custom = null;
+    logoStore.ownership = null;
 }
 
 /** Commits a validated, already-converted custom mark as the active logo. */
 export function setCustomLogo(mark: LogoCustomMark): void {
     logoStore.custom = mark;
+    logoStore.ownership = null;
+}
+
+export function setCreativeOwnedLogo(mark: LogoCustomMark, ownership: LogoCreativeOwnership): void {
+    logoStore.custom = mark;
+    logoStore.ownership = ownership;
+}
+
+export function clearCreativeLogoOwnership(): void {
+    logoStore.ownership = null;
 }
 
 export function updateLogoCrop(crop: LogoCrop): void {
     logoStore.crop = crop;
+    logoStore.ownership = null;
 }
 
 export function updateLogoFit(fit: LogoFit): void {
     logoStore.fit = fit;
+    logoStore.ownership = null;
 }
 
 export function updateLogoFocalPoint(focalPoint: LogoFocalPoint): void {
     logoStore.focalPoint = focalPoint;
+    logoStore.ownership = null;
 }
 
 export function updateLogoBackground(background: LogoBackground, color: string): void {
     logoStore.background = background;
     logoStore.backgroundColor = color;
+    logoStore.ownership = null;
 }
 
 /**
@@ -254,6 +287,7 @@ export function resetLogoToShipped(): void {
     logoStore.focalPoint = DEFAULT_FOCAL_POINT;
     logoStore.background = DEFAULT_BACKGROUND;
     logoStore.backgroundColor = DEFAULT_BACKGROUND_COLOR;
+    logoStore.ownership = null;
     if (!persisting) return;
     try {
         localStorage.removeItem(LOGO_STORAGE_KEY);

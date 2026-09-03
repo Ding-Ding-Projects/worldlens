@@ -29,6 +29,7 @@ import { mdiRestore, mdiUpload } from "@mdi/js";
 import { VAlert, VBtn, VColorPicker, VLabel, VTextField } from "vuetify/components";
 import { LOGO_PRESETS, logoPresetById, logoPresetLabel, type LogoPresetId } from "./logoPresets.js";
 import { validateLogoBytes, type LogoImageFormat, type LogoRejectionReason } from "./logoValidation.js";
+import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import {
     logoStore,
     resetLogoToShipped,
@@ -325,6 +326,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
 </script>
 
 <template>
+    <AppearanceTarget id="app.logo" label="Application logo" as="div">
     <div class="mb-applogo-row">
         <VAlert
             :type="statusSeverity"
@@ -546,6 +548,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
             </div>
         </div>
     </div>
+    </AppearanceTarget>
 </template>
 
 <style>

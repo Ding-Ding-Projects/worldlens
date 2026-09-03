@@ -44,6 +44,9 @@ import {
     type AppearanceStateName,
     type AppearanceStatePropertyGroup,
 } from "./appearanceRecord.js";
+import CreativeStudio from "./creative/CreativeStudio.vue";
+import { applyCreativeDocument, creativeDocumentFor } from "./creative/creativeAdapter.js";
+import { createCreativeDocument } from "./creative/creativeDocument.js";
 import {
     exportTheme,
     importErrorKey,
@@ -144,7 +147,7 @@ useRegisteredTarget({
     fallback: "The appearance editor itself",
 });
 
-const tab = ref<"typography" | "surface" | "presets">("typography");
+const tab = ref<"typography" | "surface" | "presets" | "creative">("typography");
 const editingState = ref<AppearanceStateName | "base">("base");
 const propertyLockTarget = ref<ReturnType<typeof appearancePropertyLockTarget> | null>(null);
 const propertyLockOpen = ref(false);
@@ -287,6 +290,14 @@ function closePropertyPopup(): void {
 function propertyIsLocked(property: string): boolean {
     const stateName = editingState.value === "base" ? undefined : editingState.value;
     return target.isPropertyLocked(property, stateName);
+}
+
+const creativeDocument = computed(
+    () => creativeDocumentFor(state.value, props.targetId) ?? createCreativeDocument(),
+);
+
+function applyCreative(next: Parameters<typeof applyCreativeDocument>[1]): void {
+    applyCreativeDocument(props.targetId, next);
 }
 
 const userPresets = computed(() => state.value.presets.filter((entry) => !entry.builtIn));
@@ -617,6 +628,9 @@ async function onFileChosen(event: Event): Promise<void> {
             <v-tab value="typography">{{ t("appearance.editor.typographyTab", "Text") }}</v-tab>
             <v-tab value="surface">{{ t("appearance.editor.surfaceTab", "Surface") }}</v-tab>
             <v-tab value="presets">{{ t("appearance.editor.presetsTab", "Presets") }}</v-tab>
+            <v-tab value="creative">{{
+                t("appearance.editor.creativeTab", "Creative studio")
+            }}</v-tab>
         </v-tabs>
 
         <v-window v-model="tab" class="mb-appearance-editor__body">
@@ -1199,6 +1213,14 @@ async function onFileChosen(event: Event): Promise<void> {
                         </template>
                     </ConfigSuperConfirm>
                 </div>
+            </v-window-item>
+
+            <v-window-item value="creative">
+                <CreativeStudio
+                    :model-value="creativeDocument"
+                    :target-label="targetLabel"
+                    @update:model-value="applyCreative"
+                />
             </v-window-item>
         </v-window>
 
