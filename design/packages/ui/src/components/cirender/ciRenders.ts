@@ -409,6 +409,14 @@ export interface CiRenders {
     start(request: CiSyncRequest): Promise<CiSyncResult | null>;
     /** Starts a fresh Pages run from the already-uploaded source of a recovered map. */
     retry(syncId: string): Promise<CiSyncResult | null>;
+    /**
+     * Starts the same render again, this time saying the world may be uploaded.
+     *
+     * A render refused for want of that consent used to leave a red row stating the size of
+     * the upload and offering nothing but "Remove from list". The consent is a decision, so
+     * the decision belongs on the row that is asking for it.
+     */
+    confirmUpload(syncId: string): Promise<CiSyncResult | null>;
     poll(syncId: string): Promise<CiSyncResult | null>;
     stop(syncId: string): Promise<boolean>;
     /** Removes a finished row from local history without touching GitHub. */
@@ -963,6 +971,34 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 acknowledgePublic: true,
                 forceUpload: false,
                 output: "artifact-and-pages",
+            });
+        },
+
+        async confirmUpload(syncId: string): Promise<CiSyncResult | null> {
+            const row = rowFor(syncId);
+            if (row.failure?.code !== "upload-not-acknowledged") return null;
+            const state = known.value.find((candidate) => candidate.syncId === syncId) ?? null;
+            const [rowOwner, rowRepo] = row.repository.split("/");
+            const worldFolder = state?.worldFolder ?? row.worldFolder ?? null;
+            const owner = state?.owner ?? rowOwner ?? null;
+            const repo = state?.repo ?? rowRepo ?? null;
+            if (worldFolder === null || owner === null || repo === null) {
+                knownFailure.value =
+                    "This render no longer records the world folder and repository it was for, so it" +
+                    " cannot be started again from here. Start it from the world instead.";
+                return null;
+            }
+            return await startRender({
+                worldFolder,
+                owner,
+                repo,
+                mapId: state?.mapId ?? row.mapId,
+                ...(state?.accountId === undefined || state.accountId === null
+                    ? {}
+                    : { accountId: state.accountId }),
+                acknowledgeUpload: true,
+                acknowledgePublic: true,
+                forceUpload: false,
             });
         },
 

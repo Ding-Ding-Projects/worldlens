@@ -1297,6 +1297,10 @@ export const CIRENDER_FIXED = {
     "cirender.openRun": { en: "Open the run on GitHub", yue: "喺 GitHub 開個 run" },
     "cirender.stop": { en: "Stop watching", yue: "唔再睇住" },
     "cirender.remove": { en: "Remove from list", yue: "由清單移除" },
+    "cirender.confirmUpload": {
+        en: "Upload the world and start the render",
+        yue: "上載成個世界，然後開始算圖",
+    },
     "cirender.remove.title": { en: "Remove this render from the list", yue: "由清單移除呢次算圖" },
     "cirender.remove.action": {
         en: "This deletes only the local history row. The GitHub run, release and rendered files on GitHub are not deleted.",

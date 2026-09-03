@@ -43,6 +43,13 @@ describe("AwsProvisionPanel is reachable from a server's detail surface", () => 
     });
 
     it("the tab model includes \"aws\" as a real state, not just a stray string", () => {
-        expect(PANEL_CODE).toMatch(/const tab = ref<"console" \| "config" \| "plugins" \| "players" \| "web" \| "aws">\("console"\);/);
+        // The union grows as the panel grows a tab, so this asserts the shape and this
+        // member rather than one frozen spelling of every member. Pinning the whole union
+        // meant adding an unrelated tab turned the test red while nothing was broken.
+        const declaration = /const tab = ref<((?:"[a-z]+"(?: \| )?)+)>\("console"\);/.exec(
+            PANEL_CODE,
+        );
+        expect(declaration).not.toBeNull();
+        expect(declaration?.[1]?.split(" | ")).toContain('"aws"');
     });
 });

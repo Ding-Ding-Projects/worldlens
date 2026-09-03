@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import {
     mdiCalendarSyncOutline,
     mdiCloudSyncOutline,
+    mdiCloudUploadOutline,
     mdiFileDocumentPlusOutline,
     mdiFolderSearchOutline,
     mdiOpenInNew,
@@ -1107,6 +1108,23 @@ async function start(): Promise<void> {
         }
     } finally {
         startRequestInFlight.value = false;
+    }
+}
+
+/**
+ * Says yes to the upload the render stopped to ask about, and starts it again.
+ *
+ * The same consent the start form takes as a checkbox, offered on the row that is asking,
+ * because that is where somebody reading the question actually is.
+ */
+async function confirmUpload(row: CiRow): Promise<void> {
+    const result = await renders.confirmUpload(row.syncId);
+    if (result?.ok === true && result.outcome === "rendered") {
+        emit("rendered", {
+            renderId: result.summary.renderId,
+            dataRoot: result.summary.dataRoot,
+            mapId: result.summary.mapId,
+        });
     }
 }
 
@@ -2463,6 +2481,27 @@ onBeforeUnmount(() => {
                             class="ci-log"
                             data-test="log-excerpt"
                             >{{ row.failure.logExcerpt }}</pre>
+                        <!--
+                            The consent this render stopped for is a decision, so it is
+                            offered here rather than described here. Without it the row
+                            stated the size of the upload and left "Remove from list" as the
+                            only thing anybody could press.
+                        -->
+                        <VBtn
+                            v-if="row.failure.code === 'upload-not-acknowledged'"
+                            size="small"
+                            variant="tonal"
+                            color="primary"
+                            class="mt-2"
+                            :loading="renders.starting.value"
+                            :prepend-icon="mdiCloudUploadOutline"
+                            data-test="confirm-upload"
+                            @click="confirmUpload(row)"
+                        >
+                            {{
+                                t("cirender.confirmUpload", "Upload the world and start the render")
+                            }}
+                        </VBtn>
                     </VAlert>
 
                     <VAlert
