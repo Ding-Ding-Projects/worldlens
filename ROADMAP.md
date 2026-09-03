@@ -1,5 +1,45 @@
 # Roadmap
 
+## The language contract, and the two pre-publication guards (2026-09-03)
+
+- [x] Every key the interface asks the copy catalogue for has an answer in both languages.
+      239 had none and rendered their English call-site fallback in Cantonese and bilingual
+      mode; `catalogueCoverage.test.ts` reports zero.
+- [x] `awsAccounts.ts` created. That settings section had no catalogue module at all.
+- [x] The orphan-key scanner excludes `src/copy/`. Widened, it scanned the catalogue itself,
+      where every key is its own quoted literal, so every key became its own call site and
+      the guard passed while guarding nothing.
+- [x] `world.ts`'s call-site scan covers `App.vue`, which owns nine `world.*` keys it had
+      never looked at.
+- [x] The home dashboard sends the profile URL as data rather than as a translation
+      fallback, so a catalogue entry cannot replace the address with a fixed phrase.
+- [x] `pnpm workflows:check` runs `scripts/lint-workflows.mjs` and its test (issue #167).
+- [x] `pnpm published-text:check` runs `scripts/check-published-text.mjs` and its test
+      (issue #168). Terms come from outside the repository; absent, it skips with a printed
+      reason and exit 0.
+- [ ] `packages/server/test/map-update-service.test.ts` fails on the first watcher created
+      in a process while later ones pass in ~250 ms. A real arming race behind chokidar's
+      `ready`, not contention: `fs.watch` fires fine on the same host. Deliberately not
+      patched with a sleep or a sentinel write into a user's world folder; it needs a real
+      readiness signal.
+- [ ] The two files generated from commit history still carry 67 occurrences of internal
+      shorthand. Issue #168 records why that is left: editing the generated file is not a
+      fix, and fixing history means a force-push.
+
+### 廣東話 / Cantonese
+
+- [x] 介面向 copy catalogue 攞嘅每一個 key 都有兩種語言嘅答案。之前有 239 個冇，喺廣東話
+      同雙語模式下渲染緊 call site 嘅英文後備字串。
+- [x] 新增 `awsAccounts.ts` —— 嗰個設定區之前連 catalogue 模組都冇。
+- [x] 孤兒 key 掃描器排除 `src/copy/`。之前掃埋 catalogue 自己，令每個 key 都變成自己嘅
+      call site，個守衛照樣全綠但乜都冇守到。
+- [x] `world.ts` 嘅 call site 掃描而家包埋 `App.vue`，嗰度有九個佢從來冇望過嘅 `world.*` key。
+- [x] 首頁儀表板將 profile 網址當資料送，唔再當翻譯後備字串。
+- [x] `pnpm workflows:check`（issue #167）同 `pnpm published-text:check`（issue #168）。
+- [ ] `map-update-service.test.ts` 係真嘅 watcher 上線競態；故意唔用 sleep 或者寫哨兵檔案
+      落用戶世界資料夾去掩飾，佢需要一個真嘅就緒訊號。
+- [ ] 由歷史生成嗰兩個檔案仲有 67 處內部術語，#168 記低咗點解要咁樣留低。
+
 ## Project canvas documentation (2026-08-25)
 
 The node-graph canvas (`design/packages/ui/src/components/canvas/`) already shipped as an

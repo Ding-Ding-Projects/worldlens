@@ -97,6 +97,98 @@ Four of the five app fixes below came out of working through them.
 修正入面有四個係喺度執出嚟嘅，包括「登出最後一個戶口會話你登唔到」同「唔指明 engine 就
 render 唔到」。
 
+## 2026-09-03 (continued): the language contract, and twelve red files that were all real
+
+### The catalogue answered 239 keys with nothing
+
+Every one of them rendered its English call-site fallback in Cantonese and bilingual mode,
+at both funny-level extremes. Nothing failed and nothing warned; those surfaces simply
+spoke one language. The AWS accounts settings section had no catalogue module at all.
+
+239 to 0. The priority throughout was sentences that carry *reasoning* over ones that carry
+a label: why Automatic chose one render engine, what a blocked render is waiting for, what
+a saved font identity means on a machine without that family. A label in the wrong language
+is an inconvenience; a sentence explaining a decision in the wrong language is the app
+declining to say why it did something.
+
+Two things fell out of it worth knowing:
+
+- **The orphan-key scanner went vacuous and passed.** Widening it to accept quoted dotted
+  keys made it scan `src/copy/`, where every key is its own quoted literal, so every key
+  became its own call site. The run went green. Only renaming a catalogue key so nothing
+  called it showed the green meant nothing.
+- **`App.vue` owns nine `world.*` keys** and the module's scan only looked at
+  `components/world`, so all nine read as orphans while every one had a real call site.
+- **The home dashboard passed a profile URL as a translation fallback.** A catalogue entry
+  for that key would have replaced the address with a fixed phrase.
+
+### The suite: 12 failing files, none of them flaky
+
+Every one was a real finding. Two were security defects:
+
+- **A changed SSH host key was accepted.** `hostkey.ts`'s header documents the `changed`
+  state as "REFUSED, with no button anywhere" and it was never implemented -- `trustHostKey`
+  never read the file it was about to append to.
+- **A missing path was reported as `unsafe-path`**, which reads as a security refusal when
+  the truth is nothing is at it.
+
+The rest: `mcserver:rcon:configure` permitted and handled and unreachable; three
+hand-written inventories drifted from what they inventory; the home screen with no real
+headings at all, only `div`s wearing typography classes; a bespoke regex builder beside the
+shared one, previewing against pasted sample text while the list beside it filtered by
+something else; and three tests asserting a contract the code had outgrown -- including one
+named "proceeds and warns when the risk is explicitly accepted" that passed no
+acknowledgement, so what it proved was that the refusal fires.
+
+### Two guards built, both proven red then green
+
+- **`pnpm workflows:check`** (#167). The linter had drifted for two weeks because the commit
+  that broke it deleted the job that ran it. 12 problems, its own test 6, every one reviewed
+  rather than cleared. Its condition inventory compared as an ordered sequence, so swapping
+  two jobs raised "condition inventory must match" -- it raised false alarms, and a guard
+  that does that is a guard nobody reads.
+- **`pnpm published-text:check`** (#168). Reads its terms from outside the repository,
+  because holding them is the leak; skips with a printed reason and exit 0 when absent,
+  because a check whose normal state is red is one everyone scrolls past. Found a real leak
+  on its first run, in a file the earlier manual sweep had already been over.
+
+### Still open, and honest about why
+
+`packages/server/test/map-update-service.test.ts` fails on the **first** watcher created in
+a process while later ones pass in ~250 ms, and the failing set varies between runs.
+`fs.watch` fires fine on this host, so it is a real arming race behind chokidar's `ready`
+event rather than contention. Not fixed: a sleep in production is a workaround, and arming
+by writing a sentinel file would write into a user's world folder. It needs a real
+readiness signal, which is its own piece of work.
+
+The changelog trailer fix restored body text the old strip loop had been silently eating,
+which is why the apostrophe convention only started failing now.
+
+### 廣東話同步
+
+**Catalogue 有 239 個 key 完全冇答案。** 每一個喺廣東話同雙語模式、兩個搞笑程度極端下，
+都係渲染緊 call site 嘅英文後備字串。冇嘢失敗、冇嘢警告，嗰啲介面淨係識講一種語言。AWS
+戶口嗰個設定區更加連 catalogue 模組都冇。239 減到 0，而且優先譯講道理嘅句子，唔係淨係
+譯個名：一個名譯錯語言係唔方便，一句解釋緊個決定嘅說話出錯語言，就等於個 app 唔肯講點解。
+
+其中三件事值得記住：孤兒 key 掃描器一度變成空掃而照樣全綠，只有刻意改名令某個 key 冇人
+叫，先睇得出嗰個綠冇意思；`App.vue` owns 九個 `world.*` key，但個模組淨係掃
+`components/world`，於是九個全部報成孤兒；首頁儀表板將 profile 網址當咗做翻譯後備字串，
+加咗 catalogue 之後個地址就會俾一句固定說話取代。
+
+**12 個失敗檔案，冇一個係唔穩，全部都係真嘢。** 兩個係保安缺陷：一條改咗嘅 SSH host key
+一直過到骨（個檔頭寫明要拒絕，但從來冇實作）；一條唔存在嘅路徑俾人報成保安拒絕。其餘包括
+一條獲准、有 handler、但冇人叫得到嘅 channel；三張同現實脫節嘅人手清單；一個完全冇真標題、
+淨係得一堆扮標題 `div` 嘅首頁；一個喺共用 builder 隔籬自己整嘅 regex builder；同三個驗緊
+舊契約嘅測試。
+
+**起咗兩個守衛，兩個都整爛咗睇住佢紅、還原睇住佢綠。** `pnpm workflows:check` 同
+`pnpm published-text:check`。前者壞咗兩個禮拜，因為整爛佢嗰個 commit 連跑佢嗰個 job 都刪埋；
+後者第一次行就搵到一個真漏，而嗰個檔案人手掃已經睇過。
+
+**一個老實留低**：`map-update-service.test.ts` 係真嘅 watcher 上線競態，唔係機器繁忙。兩個
+顯而易見嘅修法都係錯嘅，所以留返俾一件正經工去做。
+
 ## 2026-08-25: the application in a browser, a deployment tool, and one gate that will not go green
 
 ### What shipped

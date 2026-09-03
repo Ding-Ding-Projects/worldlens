@@ -168,6 +168,7 @@ export const RENDERING_ORDER: readonly string[] = [
     "render-in-actions.md",
     "cloud-runners.md",
     "release-workflow-security.md",
+    "published-text-check.md",
     "ci-repository-setup.md",
     "scheduled-render.md",
     "pages-hosting.md",
