@@ -68,7 +68,10 @@ function neverSettles<T>(): Promise<T> {
 
 let wrapper: VueWrapper | null = null;
 
-function mountWithStalledBridge(): VueWrapper {
+// The generic matters: a bare VueWrapper loses the defineExpose shape, so vm.loading,
+// vm.cancelRefresh and vm.errorMessage -- all three of which DashboardScreen.vue exposes
+// deliberately for this test -- come back as "does not exist on type".
+function mountWithStalledBridge(): VueWrapper<InstanceType<typeof DashboardScreen>> {
     const cancel = vi.fn(async () => ({ cancelled: true }));
     // Attached to jsdom's own window rather than replacing it: overwriting `window` takes
     // `document` with it, and Vuetify's mount needs both.
@@ -78,7 +81,7 @@ function mountWithStalledBridge(): VueWrapper {
         dashboardCancel: cancel,
     };
     wrapper = mount(DashboardScreen, { global: { plugins: [vuetify, i18n] } });
-    return wrapper;
+    return wrapper as VueWrapper<InstanceType<typeof DashboardScreen>>;
 }
 
 afterEach(() => {

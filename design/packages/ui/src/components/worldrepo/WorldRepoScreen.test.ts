@@ -234,6 +234,9 @@ function fakeRepoBridge(overrides: Partial<BackupBridge> = {}): { bridge: Backup
         canListRepositories: true,
         canListBackups: true,
         canSeeActive: true,
+        // Required on BackupBridge; production derives it from the host having pauseBackup
+        // and resumeBackup.
+        canPause: true,
         canCreateRepository: true,
         ...overrides,
     };

@@ -965,7 +965,15 @@ describe("a recovered map whose optional Pages publication failed", () => {
             renderId: "ci-s",
             artifactSha256: "b".repeat(64),
             recoveryAttemptedRunId: 7,
-            postRenderWarning: "The Pages build step failed after the verified artifact upload.",
+            // The structured shape CiPostRenderWarning became: it names the run, the job and
+            // the step that failed, rather than a prose sentence that says a build step failed
+            // without saying which.
+            postRenderWarning: {
+                code: "pages-not-published",
+                runId: 7,
+                failingJob: "deploy",
+                failingStep: "Publish to Pages",
+            },
             failureCode: null,
             failureMessage: null,
             updatedAt: "2026-08-19T01:35:46Z",
@@ -2959,14 +2967,20 @@ describe("a world nobody has set up yet", () => {
 
     it("cancels an in-flight cloud-config operation with the same operation id", async () => {
         let operationId: string | null = null;
-        let resolveCreate: ((result: { ok: false; failure: { code: string; message: string } }) => void) | null = null;
+        // A holder: the assignment is inside a promise executor TypeScript cannot see
+        // from here, so it narrowed the variable to exactly null.
+        const creating: {
+            resolveCreate:
+                | ((result: { ok: false; failure: { code: string; message: string } }) => void)
+                | null;
+        } = { resolveCreate: null };
         const cancelled: string[] = [];
         const wrapper = mountScreen(
             fakeBridge(noProject(), [], {
                 createCiCloudConfig: async (request) => {
                     operationId = request.operationId;
                     return await new Promise((resolve) => {
-                        resolveCreate = resolve;
+                        creating.resolveCreate = resolve;
                     });
                 },
                 cancelCiCloudConfig: async (id) => {
@@ -2992,7 +3006,7 @@ describe("a world nobody has set up yet", () => {
         const cancel = wizard.findAll("button").find((button) => button.text() === "Cancel");
         await cancel!.trigger("click");
         expect(cancelled).toEqual([operationId]);
-        resolveCreate?.({ ok: false, failure: { code: "cancelled", message: "cancelled" } });
+        creating.resolveCreate?.({ ok: false, failure: { code: "cancelled", message: "cancelled" } });
         await flushPromises();
     });
 

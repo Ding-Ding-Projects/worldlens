@@ -134,7 +134,11 @@ describe("the shared preload adapter", () => {
     });
 
     it("reconciles live shared changes and detaches the old subscription when adapters change", async () => {
-        let listener: ((result: SchoolModeResult) => void) | null = null;
+        // A holder rather than a bare `let`, for the same reason javaSeam.test.ts uses one:
+        // the assignment happens inside the adapter callback, which TypeScript cannot see
+        // from here, so it narrowed the variable to exactly `null` and reported the call
+        // below as not callable. A property access keeps the declared union.
+        const captured: { listener: ((result: SchoolModeResult) => void) | null } = { listener: null };
         const adapter: SchoolModeRecordAdapter = {
             source: "shared",
             read: async () => ({ ok: true, state: disabled }),
@@ -144,14 +148,14 @@ describe("the shared preload adapter", () => {
             disable: async () => ({ ok: true, state: disabled }),
             reset: async () => ({ ok: true, state: disabled }),
             subscribe: (next) => {
-                listener = next;
+                captured.listener = next;
                 return () => {
-                    listener = null;
+                    captured.listener = null;
                 };
             },
         };
         await setSchoolModeRecordAdapter(adapter);
-        const live = listener;
+        const live = captured.listener;
         if (live === null) throw new Error("The shared change listener was not attached.");
         live({
             ok: true,
@@ -161,11 +165,15 @@ describe("the shared preload adapter", () => {
         expect(schoolModeName("School mode")).toBe("Live room");
 
         await setSchoolModeRecordAdapter(createSetupStorageSchoolModeAdapter(memoryStorage()));
-        expect(listener).toBeNull();
+        expect(captured.listener).toBeNull();
     });
 
     it("keeps the unavailable policy fail-closed for the whole retry", async () => {
-        let resolveRetry: ((result: SchoolModeResult) => void) | null = null;
+        // A holder, same reason as above: the assignment is inside a promise executor that
+        // TypeScript cannot see from here.
+        const pending: { resolveRetry: ((result: SchoolModeResult) => void) | null } = {
+            resolveRetry: null,
+        };
         let reads = 0;
         const adapter: SchoolModeRecordAdapter = {
             source: "shared",
@@ -180,7 +188,7 @@ describe("the shared preload adapter", () => {
                     });
                 }
                 return new Promise<SchoolModeResult>((resolve) => {
-                    resolveRetry = resolve;
+                    pending.resolveRetry = resolve;
                 });
             },
             enable: async () => ({ ok: true, state: disabled }),
@@ -197,7 +205,7 @@ describe("the shared preload adapter", () => {
         const retry = reloadSchoolMode();
         expect(useSchoolMode().source.value).toBe("unavailable");
         expect(schoolModeEnabled()).toBe(true);
-        const finish = resolveRetry;
+        const finish = pending.resolveRetry;
         if (finish === null) throw new Error("The retry read did not start.");
         finish({ ok: true, state: disabled });
         await retry;
