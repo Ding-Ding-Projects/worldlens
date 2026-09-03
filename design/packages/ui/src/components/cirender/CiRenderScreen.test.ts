@@ -1255,10 +1255,20 @@ describe("the repository owner: chosen from the signed-in account, or typed", ()
         const select = wrapper
             .findAllComponents(VSelect)
             .find((component) => component.props("label") === "Choose an owner");
+        // Each row now says in words what it is, rather than bracketing the kind onto the
+        // end of the login - see the comment on ownerItems in CiRenderScreen.vue.
         expect(select?.props("items")).toEqual([
-            { title: "octocat (you)", value: "octocat", searchText: "octocat user" },
             {
-                title: "octo-org (organization)",
+                title: "octocat",
+                subtitle: "Your own account",
+                props: { subtitle: "Your own account" },
+                value: "octocat",
+                searchText: "octocat user",
+            },
+            {
+                title: "octo-org",
+                subtitle: "Organization",
+                props: { subtitle: "Organization" },
                 value: "octo-org",
                 searchText: "octo-org organization",
             },
@@ -1304,10 +1314,11 @@ describe("render as: which stored GitHub account this render authenticates as", 
             .find((component) => component.props("label") === "Render as");
         expect(select?.props("items")).toEqual([
             {
-                title: "octocat — github.com (active)",
+                title: "octocat",
+                subtitle: "github.com - active",
                 value: "a1",
                 searchText: "octocat github.com",
-                props: { disabled: false },
+                props: { disabled: false, subtitle: "github.com - active" },
             },
         ]);
         expect(select?.props("disabled")).toBe(true);
@@ -1340,7 +1351,8 @@ describe("render as: which stored GitHub account this render authenticates as", 
             (item) => item["value"] === "a2",
         );
         expect(unavailable).toMatchObject({
-            title: "needs-help — github.com — reauthentication required",
+            title: "needs-help",
+            subtitle: "github.com - reauthentication required",
             props: { disabled: true },
         });
         expect(String(unavailable?.["searchText"])).toContain("reauthentication required");
@@ -1366,16 +1378,18 @@ describe("render as: which stored GitHub account this render authenticates as", 
             .find((component) => component.props("label") === "Render as");
         expect(select?.props("items")).toEqual([
             {
-                title: "monalisa — github.com",
+                title: "monalisa",
+                subtitle: "github.com",
                 value: "a2",
                 searchText: "monalisa github.com",
-                props: { disabled: false },
+                props: { disabled: false, subtitle: "github.com" },
             },
             {
-                title: "octocat — github.com (active)",
+                title: "octocat",
+                subtitle: "github.com - active",
                 value: "a1",
                 searchText: "octocat github.com",
-                props: { disabled: false },
+                props: { disabled: false, subtitle: "github.com - active" },
             },
         ]);
         expect(select?.props("modelValue")).toBe("a1");
@@ -1556,8 +1570,13 @@ describe("render as: which stored GitHub account this render authenticates as", 
         expect(select?.props("modelValue")).toBe("github.com:alice");
         expect(select?.props("items")).toEqual(
             expect.arrayContaining([
-                expect.objectContaining({ title: "alice — enterprise.example (active)" }),
-                expect.objectContaining({ title: "alice — github.com (active)" }),
+                // One login on two hosts: the host is what tells the rows apart, and it now
+                // lives on the second line rather than inside the title.
+                expect.objectContaining({
+                    title: "alice",
+                    subtitle: "enterprise.example - active",
+                }),
+                expect.objectContaining({ title: "alice", subtitle: "github.com - active" }),
             ]),
         );
         expect(ownerCalls).toEqual(["github.com:alice"]);
@@ -1613,9 +1632,11 @@ describe("an existing repository, offered because this flow never creates one", 
             .find((component) => component.props("label") === "One of your repositories");
         expect(select?.props("items")).toEqual([
             {
-                title: "octocat/maps (private)",
+                title: "maps",
+                subtitle: "octocat - private",
                 value: "octocat/maps",
-                searchText: "octocat/maps octocat maps",
+                searchText: "octocat/maps octocat maps private",
+                props: { subtitle: "octocat - private" },
             },
         ]);
 
@@ -2825,6 +2846,9 @@ describe("a world nobody has set up yet", () => {
             fakeBridge(noProject(), [], {
                 createCiCloudConfig: async () => ({
                     ok: true,
+                    // The written file, one level down. The screen reads its path to say what
+                    // it wrote, so a double without it sends that path read into the catch.
+                    saved: { saved: { path: "C:/worlds/overworld.worldlens.json" } },
                     preflight: null,
                     preflightFailure: null,
                 }),
@@ -2858,7 +2882,12 @@ describe("a world nobody has set up yet", () => {
         const bridge = fakeBridge(noProject(), [], {
             createCiCloudConfig: async (request) => {
                 requests.push(request);
-                return { ok: true, preflight: null, preflightFailure: null };
+                return {
+                    ok: true,
+                    saved: { saved: { path: "C:/worlds/overworld.worldlens.json" } },
+                    preflight: null,
+                    preflightFailure: null,
+                };
             },
         });
         const wrapper = mountScreen(bridge);
