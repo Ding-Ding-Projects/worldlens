@@ -79,6 +79,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "runtime-settings-and-accommodations.md",
     "tabbed-navigation.md",
     "project-editor.md",
+    "project-canvas.md",
     "appearance-editors.md",
     "design-system.md",
     "structures.md",
@@ -97,6 +98,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "project-world-discovery.md",
     "dimension-detection.md",
     "path-field.md",
+    "file-converter.md",
     "regex-builder.md",
     "config-history.md",
     "render-mask-drawing.md",
@@ -114,6 +116,11 @@ export const APPLICATION_ORDER: readonly string[] = [
     "scheduled-settings-and-external-sources.md",
     "panel-geometry.md",
     "server-hosted-material-ui.md",
+    // "Running it somewhere other than a desktop" in docs/README.md. Ways of running this
+    // application rather than a fourth kind of thing, so they share its heading here.
+    "hosted-mode.md",
+    "container-image.md",
+    "wharf.md",
     // These two were indexed in docs/README.md without ever being named here, so the in-app
     // browser filed them under "uncategorized" while looking perfectly correct on the site.
     "ollama.md",
@@ -125,8 +132,10 @@ export const APPLICATION_ORDER: readonly string[] = [
     "multi-server-dashboard.md",
     "screenshot-gallery.md",
     "mcserver-transport.md",
+    "mcserver-host-profiles.md",
     "mcserver-config.md",
     "minecraft-server-manager.md",
+    "minecraft-version-catalogue.md",
     "mcserver-plugins.md",
     "mcserver-web-console.md",
     "mcserver-aws.md",
