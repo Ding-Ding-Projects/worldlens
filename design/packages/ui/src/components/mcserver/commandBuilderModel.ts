@@ -1,23 +1,14 @@
 import {
-    ATTRIBUTE_IDS,
-    BLOCK_IDS,
     CLONE_MASK_MODES,
     CLONE_MODES,
     DATA_TARGET_KINDS,
     DIFFICULTIES,
-    EFFECT_IDS,
-    ENCHANTMENT_IDS,
-    ENTITY_TYPE_IDS,
     EXECUTE_CLAUSE_KINDS,
     FILL_MODES,
     GAMEMODES,
-    GAMERULE_IDS,
-    ITEM_IDS,
     LOCATE_KINDS,
-    PARTICLE_IDS,
     SCOREBOARD_CRITERIA,
     SELECTOR_SORTS,
-    SOUND_IDS,
     TITLE_SLOTS,
     WEATHER_TYPES,
 } from "./commandBuilderData.js";
@@ -142,27 +133,6 @@ export function makeTargetSelector(kind: SelectorKind = "p"): TargetSelector {
 }
 
 /** True when the selector's own arguments are non-empty and worth rendering `[...]`. */
-function hasSelectorArgs(args: SelectorArgs): boolean {
-    return (
-        !!args.type ||
-        !!args.distance ||
-        args.limit != null ||
-        !!args.sort ||
-        !!args.gamemode ||
-        !!args.team ||
-        (args.tags?.length ?? 0) > 0 ||
-        (args.scores?.length ?? 0) > 0 ||
-        !!args.nbt ||
-        !!args.name ||
-        args.x != null ||
-        args.y != null ||
-        args.z != null ||
-        args.dx != null ||
-        args.dy != null ||
-        args.dz != null
-    );
-}
-
 /** Renders one target as command text - a player name, or a selector with `[key=value,...]`. */
 export function selectorToken(sel: TargetSelector): string {
     if (sel.kind === "name") return (sel.playerName ?? "").trim();

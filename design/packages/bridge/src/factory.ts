@@ -98,32 +98,6 @@ type ProjectSaveAnswer =
 const SCHOOL_MODE_CHANGED_CHANNEL = "schoolMode:changed";
 const RELEASE_LEDGER_CHANNEL = "release-ledger:read";
 
-/**
- * The addon record as it crosses the bridge. Deliberately opaque: its real shape is
- * declared by the feature module that owns it, on the far side of a dependency this
- * package must not have, and nothing here reads a field of it - these methods forward.
- */
-type AddonRecordShape = unknown;
-
-interface AddonMutationResult<T> {
-    ok: boolean;
-    value?: T;
-    code?: string;
-    message?: string;
-}
-
-interface AddonsBridge {
-    list(): Promise<AddonMutationResult<AddonRecordShape[]>>;
-    importPackage(): Promise<AddonMutationResult<AddonRecordShape>>;
-    setEnabled(id: string, enabled: boolean): Promise<AddonMutationResult<AddonRecordShape>>;
-    grant(id: string, capabilities: string[]): Promise<AddonMutationResult<AddonRecordShape>>;
-    revoke(id: string, capability: string): Promise<AddonMutationResult<AddonRecordShape>>;
-    remove(id: string): Promise<AddonMutationResult<boolean>>;
-    setSafeMode(enabled: boolean): Promise<AddonMutationResult<boolean>>;
-    safeModeState(): Promise<boolean>;
-    diagnostics(): Promise<Array<{ addonId: string; phase: string; message: string }>>;
-}
-
 export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBridge {
     /**
      * The lock data folder, or null on a shell too old to answer.

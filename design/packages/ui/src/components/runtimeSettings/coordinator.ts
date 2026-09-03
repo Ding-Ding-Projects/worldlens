@@ -15,7 +15,7 @@ export interface RuntimeCoordinatorBridge {
 
 export function createRuntimeSettingsCoordinator(options: {
     readState: () => RuntimeSettingsState;
-    applyTemporary: (values: Readonly<Record<string, any>>) => void;
+    applyTemporary: (values: Readonly<Record<string, unknown>>) => void;
     clearTemporary?: () => void;
     bridge: RuntimeCoordinatorBridge | null;
     intervalMs?: number;

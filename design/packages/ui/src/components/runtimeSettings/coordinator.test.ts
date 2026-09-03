@@ -43,7 +43,10 @@ describe("runtime coordinator", () => {
                 },
             ],
         };
-        const applied: Record<string, string | number>[] = [];
+        // Record<string, unknown>, because that is what applyTemporaryExternalValues takes:
+        // an external source can send anything and the validator decides. A narrower type here
+        // described the test rather than the contract.
+        const applied: Record<string, unknown>[] = [];
         const coordinator = createRuntimeSettingsCoordinator({
             readState: () => state,
             applyTemporary: (values) => applied.push({ ...values }),

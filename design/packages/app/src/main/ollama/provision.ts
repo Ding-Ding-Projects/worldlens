@@ -61,7 +61,6 @@ export async function rollbackOllamaRuntime(dataDir: string): Promise<void> {
 
 export function restartOllamaRuntime(executable: string): void { stopOllamaRuntime(executable); superviseOllamaRuntime(executable); }
 
-function sha256(bytes: Buffer): string { return createHash("sha256").update(bytes).digest("hex"); }
 async function sha256File(path: string): Promise<string> { const digest = createHash("sha256"); for await (const chunk of createReadStream(path)) digest.update(chunk); return digest.digest("hex"); }
 async function exists(path: string): Promise<boolean> { return access(path).then(() => true).catch(() => false); }
 function report(options: OllamaProvisionOptions, progress: OllamaProvisionProgress): void { options.onProgress?.(progress); }

@@ -179,7 +179,8 @@ async function rconRequest(endpoint: RconEndpoint, command: string): Promise<str
         let buffer = Buffer.alloc(0);
         let stage: "auth" | "command" = "auth";
         const timer = setTimeout(() => { socket.destroy(); reject(new Error("RCON request timed out")); }, timeout);
-        const finish = (error?: Error, value?: string) => { clearTimeout(timer); socket.destroy(); error ? reject(error) : resolve(value ?? ""); };
+        const finish = (error?: Error, value?: string) => { clearTimeout(timer); socket.destroy(); if (error) reject(error);
+            else resolve(value ?? ""); };
         const take = (): RconPacket | null => {
             if (buffer.length < 4) return null;
             const length = buffer.readInt32LE(0);

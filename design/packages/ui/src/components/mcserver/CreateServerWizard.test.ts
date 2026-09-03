@@ -249,7 +249,7 @@ describe("CreateServerWizard", () => {
     });
 
     it("says plainly that this build has no live catalogue on the version step", async () => {
-        const wrapper = mountWizard();
+        mountWizard();
         await flushAll();
         const next = [...document.querySelectorAll("button")].find(
             (b) => b.textContent?.trim() === "Next",

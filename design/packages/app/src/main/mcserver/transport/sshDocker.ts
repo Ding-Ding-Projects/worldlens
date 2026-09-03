@@ -23,7 +23,7 @@
 
 import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { lstat, open, readdir, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { lstat, open, readdir, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -267,7 +267,7 @@ export function createSshDockerTransport(options: SshDockerOptions): ServerTrans
             let cleanupRequired = true;
             let cleanupWarning: string | undefined;
             let result: Answer<{ cleanupWarning?: string }> = ok({});
-            let sourceManifest: { relative: string; bytes: number; sha256: string }[] = [];
+            const sourceManifest: { relative: string; bytes: number; sha256: string }[] = [];
             let stagedTotal = 0;
             try {
                 const remoteLinks = await remoteRunner(docker, ["exec", options.containerRef, "find", sourceFolder, "-type", "l", "-print"], { timeoutMs: 60_000 });
