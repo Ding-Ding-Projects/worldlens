@@ -103,6 +103,7 @@ function fakeBridge(
             };
         },
         canCancel: true,
+        canPause: false,
         canListRepositories: true,
         canListBackups: true,
         canSeeActive: true,
@@ -465,6 +466,8 @@ describe("what a row says", () => {
         durationMs: 1,
         live: true,
         stopping: false,
+        pausing: false,
+        liveResumable: false,
         log: [],
     };
 

@@ -185,6 +185,7 @@ function fakeBridge(overrides: Partial<BackupBridge> = {}): BackupBridge {
         activeBackups: () => Promise.resolve([]),
         onBackupEvent: (_listener: (event: BackupEvent) => void) => () => undefined,
         canCancel: true,
+        canPause: false,
         canListRepositories: true,
         canListBackups: true,
         canSeeActive: true,

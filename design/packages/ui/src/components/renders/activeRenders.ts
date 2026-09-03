@@ -457,7 +457,15 @@ export function createActiveRenders(options: ActiveRendersOptions = {}): ActiveR
     function ciToRow(row: CiRow): ActiveRenderRow {
         const facts = ciRowToFacts(row);
         const state: RowState =
-            row.state === "rendered" ? "finished" : row.state === "running" ? "running" : row.state;
+            row.state === "rendered"
+                ? "finished"
+                : row.state === "running"
+                  ? "running"
+                  : row.state === "failed"
+                    ? "failed"
+                    : row.state === "cancelled"
+                      ? "cancelled"
+                      : "offer";
         const failure = row.failure;
         return {
             key: `ci:${row.syncId}`,

@@ -68,7 +68,7 @@ const props = withDefaults(
          */
         existingProject?: { readonly name: string; readonly maps: number } | null;
         /** A shell-level world drop to prefill when this wizard becomes visible. */
-        initialWorldPath?: string | null;
+        initialWorldPath?: string | null | undefined;
     }>(),
     {
         consentAccepted: false,

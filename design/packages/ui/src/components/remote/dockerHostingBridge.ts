@@ -130,7 +130,7 @@ export function resolveDockerHostingBridge(): DockerHostingBridge | null {
         },
         mutate: async (request) => normalize(await candidate.mutate!(request)) as DockerHostingMutationResult,
         logs: async (containerId, tail = 200) => {
-            const answer = await candidate.logs!({ id: containerId, tail });
+            const answer = await candidate.logs!(containerId, tail);
             if (typeof answer === "object" && answer !== null && "ok" in answer && (answer as { ok?: unknown }).ok === true && "value" in answer) return { ok: true as const, logs: (answer as { value: string }).value };
             return answer as { readonly ok: false; readonly failure: DockerHostingFailure };
         },

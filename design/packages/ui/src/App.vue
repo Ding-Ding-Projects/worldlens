@@ -1281,6 +1281,15 @@ function onRailSelect(next: RailDestination): void {
     shell.select(next);
 }
 
+/** The kid shell intentionally has no host destination; hosting stays in the adult shell. */
+const kidDestination = computed<"home" | "map" | "work">(() =>
+    destination.value === "host" ? "work" : destination.value,
+);
+
+function rememberDashboardHosting(id: string): void {
+    globalThis.localStorage?.setItem("worldlens.dashboard.hostingId", id);
+}
+
 async function onActivateFeature(feature: CatalogueFeatureDefinition): Promise<void> {
     await shell.activateFeature(feature);
 }
@@ -2492,7 +2501,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 ref="kidShellRef"
                 class="mb-kid-shell-host"
                 :content-inert="configOpen"
-                :destination="destination"
+                :destination="kidDestination"
                 :catalogues="kidCatalogues"
                 :open-jobs="openJobIds"
                 :problems="problems"
@@ -2692,7 +2701,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 "
                                 @open-hosting="
                                     (id) => {
-                                        localStorage.setItem('worldlens.dashboard.hostingId', id);
+                                        rememberDashboardHosting(id);
                                         revealPage(PAGE_REMOTE_HOSTING);
                                     }
                                 "
@@ -3274,10 +3283,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                             "
                                             @open-hosting="
                                                 (id) => {
-                                                    localStorage.setItem(
-                                                        'worldlens.dashboard.hostingId',
-                                                        id,
-                                                    );
+                                                    rememberDashboardHosting(id);
                                                     revealPage(PAGE_REMOTE_HOSTING);
                                                 }
                                             "

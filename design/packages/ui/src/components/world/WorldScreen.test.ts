@@ -316,7 +316,7 @@ describe("a world that already has a project", () => {
                 },
             ],
             storages: [],
-            render: { threads: null, force: false, fixEdges: false, metrics: false, outputFolder: null },
+            render: { engine: "typescript", threads: null, force: false, fixEdges: false, metrics: false, outputFolder: null },
             core: null,
             webapp: null,
             webserver: null,

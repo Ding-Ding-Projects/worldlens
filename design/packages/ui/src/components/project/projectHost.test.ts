@@ -64,7 +64,7 @@ function reactiveProject(): ProjectWithPassthrough {
             label: "keep me",
             nested: { enabled: true },
         },
-    }) as ProjectWithPassthrough;
+    }) as unknown as ProjectWithPassthrough;
 }
 
 describe("projectHostFromBridge", () => {

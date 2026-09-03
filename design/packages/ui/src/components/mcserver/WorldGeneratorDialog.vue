@@ -176,7 +176,8 @@ const open = computed<boolean>({
     set: (value) => emit("update:modelValue", value),
 });
 
-const settings = reactive<WorldGenSettings>(defaultWorldGenSettings());
+type MutableDeep<T> = { -readonly [K in keyof T]: MutableDeep<T[K]> };
+const settings = reactive(defaultWorldGenSettings() as MutableDeep<WorldGenSettings>);
 const runnerKind = ref<"local" | "github-actions">("local");
 // The engine that actually writes the world. Defaults to the one that works today
 // rather than the one that honours every setting, so the dialog's default state is
@@ -200,24 +201,24 @@ const layerBlockDraft = ref("minecraft:stone");
 const layerDepthDraft = ref(1);
 
 function onAddLayer(): void {
-    settings.superflatLayers = addSuperflatLayer(settings.superflatLayers, {
+    settings.superflatLayers = [...addSuperflatLayer(settings.superflatLayers, {
         block: layerBlockDraft.value.trim(),
         depth: Math.max(1, Math.round(layerDepthDraft.value)),
-    });
+    })];
 }
 function onRemoveLayer(index: number): void {
-    settings.superflatLayers = removeSuperflatLayer(settings.superflatLayers, index);
+    settings.superflatLayers = [...removeSuperflatLayer(settings.superflatLayers, index)];
 }
 function onMoveLayer(index: number, delta: number): void {
-    settings.superflatLayers = moveSuperflatLayer(settings.superflatLayers, index, index + delta);
+    settings.superflatLayers = [...moveSuperflatLayer(settings.superflatLayers, index, index + delta)];
 }
 function onLayerBlockChange(index: number, value: string): void {
-    settings.superflatLayers = updateSuperflatLayer(settings.superflatLayers, index, { block: value });
+    settings.superflatLayers = [...updateSuperflatLayer(settings.superflatLayers, index, { block: value })];
 }
 function onLayerDepthChange(index: number, value: number): void {
-    settings.superflatLayers = updateSuperflatLayer(settings.superflatLayers, index, {
+    settings.superflatLayers = [...updateSuperflatLayer(settings.superflatLayers, index, {
         depth: Math.max(1, Math.round(value)),
-    });
+    })];
 }
 const layerTotalDepth = computed(() => totalSuperflatDepth(settings.superflatLayers));
 
@@ -264,7 +265,7 @@ function onClose(): void {
         <VCard>
             <VCardTitle class="d-flex align-center justify-space-between">
                 <span>{{ t("title") }}</span>
-                <VBtn icon variant="text" :icon="mdiClose" :aria-label="t('cancel')" @click="onClose" />
+                <VBtn variant="text" :icon="mdiClose" :aria-label="t('cancel')" @click="onClose" />
             </VCardTitle>
             <VCardText>
                 <VAlert type="info" variant="tonal" density="compact" class="mb-4">
@@ -349,12 +350,12 @@ function onClose(): void {
                                     style="max-width: 100px"
                                     @update:model-value="(v) => onLayerDepthChange(index, Number(v))"
                                 />
-                                <VBtn icon variant="text" :icon="mdiArrowUp" size="small" :disabled="index === 0"
+                                    <VBtn variant="text" :icon="mdiArrowUp" size="small" :disabled="index === 0"
                                     :aria-label="`Move ${layer.block} up`" @click="onMoveLayer(index, -1)" />
-                                <VBtn icon variant="text" :icon="mdiArrowDown" size="small"
+                                 <VBtn variant="text" :icon="mdiArrowDown" size="small"
                                     :disabled="index === settings.superflatLayers.length - 1"
                                     :aria-label="`Move ${layer.block} down`" @click="onMoveLayer(index, 1)" />
-                                <VBtn icon variant="text" :icon="mdiDelete" size="small"
+                                 <VBtn variant="text" :icon="mdiDelete" size="small"
                                     :aria-label="`Remove ${layer.block}`" @click="onRemoveLayer(index)" />
                             </div>
                         </VListItem>
@@ -450,7 +451,7 @@ function onClose(): void {
                     :field="t('destination')"
                     :label="t('destination')"
                     :semantic="settings.outputMode === 'folder' ? 'folder' : 'file'"
-                    :extensions="settings.outputMode === 'zip' ? ['zip'] : undefined"
+                    :extensions="settings.outputMode === 'zip' ? ['zip'] : []"
                     :error="validation.errors.outputDestination ?? null"
                 />
 

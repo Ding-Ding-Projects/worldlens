@@ -58,11 +58,11 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 type Step = "map" | "storage" | "render" | "review";
-const steps: readonly { id: Step; label: string; number: number }[] = [
-    { id: "map", label: "Map", number: 1 },
-    { id: "storage", label: "Storage", number: 2 },
-    { id: "render", label: "Cloud render", number: 3 },
-    { id: "review", label: "Review", number: 4 },
+const steps: readonly { id: Step; label: string; labelKey: string; number: number }[] = [
+    { id: "map", label: "Map", labelKey: "cirender.cloudConfig.step.map", number: 1 },
+    { id: "storage", label: "Storage", labelKey: "cirender.cloudConfig.step.storage", number: 2 },
+    { id: "render", label: "Cloud render", labelKey: "cirender.cloudConfig.step.render", number: 3 },
+    { id: "review", label: "Review", labelKey: "cirender.cloudConfig.step.review", number: 4 },
 ];
 
 const step = ref<Step>("map");
@@ -205,11 +205,10 @@ const filteredSteps = computed(() => {
         visible:
             query.value.trim() === "" ||
             item.id === "review" ||
-            t(`cirender.cloudConfig.step.${item.id}`, item.label)
+            t(item.labelKey, item.label)
                 .toLocaleLowerCase()
                 .includes(query.value.trim().toLocaleLowerCase()) ||
-            activeFields.value.some(([label]) => labels[item.id].includes(label)) ||
-            item.id === "review",
+            activeFields.value.some(([label]) => labels[item.id].includes(label)),
     }));
 });
 

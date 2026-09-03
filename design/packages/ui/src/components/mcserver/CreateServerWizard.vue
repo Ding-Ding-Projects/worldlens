@@ -462,7 +462,33 @@ let unsubscribeJavaProgress: (() => void) | null = null;
 type JavaOperation = {
     kind: "check" | "provision";
     generation: number;
+    /** Settles only after the operation has released the Java lock. */
+    readonly settled: Promise<void>;
 };
+
+let releaseJavaOperation: (() => void) | null = null;
+
+function takeJavaLock(kind: JavaOperation["kind"], generation: number): JavaOperation {
+    let release = (): void => {};
+    const settled = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    releaseJavaOperation = release;
+    const operation: JavaOperation = { kind, generation, settled };
+    javaOperation = operation;
+    return operation;
+}
+
+function freeJavaLock(): void {
+    javaOperation = null;
+    const release = releaseJavaOperation;
+    releaseJavaOperation = null;
+    release?.();
+}
+
+function currentJavaOperation(): JavaOperation | null {
+    return javaOperation;
+}
 
 let javaGeneration = 0;
 let javaOperation: JavaOperation | null = null;
@@ -480,7 +506,7 @@ async function checkJava(): Promise<void> {
     }
     const generation = javaGeneration;
     queuedJavaGeneration = null;
-    javaOperation = { kind: "check", generation };
+    takeJavaLock("check", generation);
     javaChecking.value = true;
     javaFailure.value = null;
     try {
@@ -500,8 +526,9 @@ async function checkJava(): Promise<void> {
         javaResolution.value = null;
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
-        if (javaOperation?.generation === generation && javaOperation.kind === "check") {
-            javaOperation = null;
+        const activeOperation = currentJavaOperation();
+        if (activeOperation !== null && activeOperation.generation === generation && activeOperation.kind === "check") {
+            freeJavaLock();
             javaChecking.value = false;
         }
         if (
@@ -519,12 +546,29 @@ async function checkJava(): Promise<void> {
 async function provisionJava(): Promise<void> {
     if (!store.hasJava || javaNotRequired.value || javaDisposed) return;
     if (javaOperation !== null) {
-        if (step.value === "java") queuedJavaGeneration = javaGeneration;
-        return;
+        if (javaOperation.kind === "provision") {
+            await javaOperation.settled;
+            return;
+        }
+        javaProvisioning.value = true;
+        try {
+            await javaOperation.settled;
+        } finally {
+            javaProvisioning.value = false;
+        }
+        if (javaDisposed || javaNotRequired.value || javaOperation !== null) {
+            if (javaOperation !== null) {
+                javaFailure.value = t(
+                    "mcserver.wizard.javaBusy",
+                    "Java is still being checked. Wait for that check to finish.",
+                );
+            }
+            return;
+        }
     }
     const generation = javaGeneration;
     queuedJavaGeneration = null;
-    javaOperation = { kind: "provision", generation };
+    takeJavaLock("provision", generation);
     javaProvisioning.value = true;
     javaProgress.value = null;
     javaFailure.value = null;
@@ -545,8 +589,9 @@ async function provisionJava(): Promise<void> {
         javaResolution.value = null;
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
-        if (javaOperation?.generation === generation && javaOperation.kind === "provision") {
-            javaOperation = null;
+        const activeOperation = currentJavaOperation();
+        if (activeOperation !== null && activeOperation.generation === generation && activeOperation.kind === "provision") {
+            freeJavaLock();
             javaProvisioning.value = false;
         }
         if (

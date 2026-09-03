@@ -6,7 +6,7 @@ import { VBtn, VChip, VIcon, VProgressCircular } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { resolveReleaseLedgerBridge, type ReleaseLedgerEntry, type ReleaseLedgerReadout, type ReleaseLedgerVerification } from "./releaseLedgerBridge.js";
 
-const props = withDefaults(defineProps<{ bridge?: ReturnType<typeof resolveReleaseLedgerBridge> }>(), { bridge: undefined });
+const props = defineProps<{ bridge?: ReturnType<typeof resolveReleaseLedgerBridge> }>();
 const { t } = useI18n();
 const bridge = computed(() => props.bridge ?? resolveReleaseLedgerBridge());
 const readout = ref<ReleaseLedgerReadout | null>(null);
