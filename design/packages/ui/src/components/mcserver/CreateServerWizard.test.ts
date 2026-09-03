@@ -449,6 +449,39 @@ describe("CreateServerWizard", () => {
         wrapper.unmount();
     });
 
+    /*
+     * A click that lands while the step-entry check is still running used to return from
+     * `provisionJava` without a word: no request, no progress, no message. On screen that
+     * is a button that does nothing, which is the one thing a button must never be.
+     */
+    it("installs Java when the button is pressed during the opening check", async () => {
+        // The opening check is held open; every later check answers at once, so the
+        // confirming re-check after the install does not stall the test.
+        let openingCheck: ((answer: Answer<JavaResolution>) => void) | null = null;
+        const resolve = vi.fn(() =>
+            openingCheck === null
+                ? new Promise<Answer<JavaResolution>>((done) => {
+                      openingCheck = done;
+                  })
+                : Promise.resolve(ok(foundJava())),
+        );
+        const provision = vi.fn(async () => ok(foundJava()));
+        const { vm } = await javaVm(javaHost({ resolve, provision }));
+
+        expect(resolve).toHaveBeenCalledTimes(1);
+        const clicked = vm.provisionJava();
+        await flushAll();
+        // Still waiting on the check rather than silently giving up on the click.
+        expect(provision).not.toHaveBeenCalled();
+
+        (openingCheck as unknown as (answer: Answer<JavaResolution>) => void)(ok(missingJava()));
+        await clicked;
+        await flushAll();
+
+        expect(provision).toHaveBeenCalledTimes(1);
+        expect(document.querySelector('[data-test="java-found"]')).not.toBeNull();
+    });
+
     it("shows real provisioning progress, failure, retry, and post-install re-resolution", async () => {
         let progressListener: ((progress: JavaProvisionProgress) => void) | null = null;
         const resolve = vi

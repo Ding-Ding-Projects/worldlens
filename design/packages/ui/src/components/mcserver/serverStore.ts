@@ -328,7 +328,13 @@ export interface McServerHost {
     readonly java?: {
         resolve(version: string): Promise<Answer<JavaResolution>>;
         provision?(version: string): Promise<Answer<JavaResolution>>;
-        onProgress?(listener: (progress: JavaProvisionProgress) => void): () => void;
+        /**
+         * The bridge hands the listener the server id first and the event second
+         * (`mcserver:java:progress` is sent with both), so the declared shape says so.
+         * It used to claim one progress argument, which is how a string reached a reader
+         * expecting an object with no complaint from anywhere.
+         */
+        onProgress?(listener: (serverId: string, progress: unknown) => void): () => void;
     };
     create?(request: CreateServerRequest): Promise<Answer<ServerRecord>>;
     /** Transport creation capabilities exposed by a typed host. Missing means unavailable. */
@@ -744,6 +750,7 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             // machine with a perfectly good runtime was told, in an empty banner, that it had
             // none. Translate it here, next to the provision translation that already exists.
             const raw = result.value as unknown as {
+                found?: unknown;
                 requirement?: { feature?: number };
                 installation?: {
                     source?: JavaResolution["source"];
@@ -752,6 +759,9 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
                 } | null;
                 rejected?: readonly { source?: string; reason?: string }[];
             };
+            // A host that already speaks this shape - a typed host, or a future bridge that
+            // maps in the main process - is left exactly as it is.
+            if (typeof raw.found === "boolean") return result as Answer<JavaResolution>;
             const requiredFeature = raw.requirement?.feature ?? (Number(version) || 0);
             const installation = raw.installation ?? null;
             if (installation?.executable !== undefined) {
@@ -772,7 +782,10 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
                 rejected.length === 0
                     ? `No Java ${requiredFeature} runtime was found on this computer.`
                     : `No usable Java ${requiredFeature} runtime was found. ${rejected
-                          .map((entry) => `${entry.source ?? "A runtime"}: ${entry.reason ?? "was rejected"}`)
+                          .map(
+                              (entry) =>
+                                  `${entry.source ?? "A runtime"}: ${entry.reason ?? "was rejected"}`,
+                          )
                           .join("; ")}.`;
             return {
                 ok: true,

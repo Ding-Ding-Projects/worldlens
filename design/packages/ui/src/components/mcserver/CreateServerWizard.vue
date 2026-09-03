@@ -554,10 +554,7 @@ async function provisionJava(): Promise<void> {
         }
         if (javaDisposed || javaNotRequired.value) return;
         if (javaOperation !== null) {
-            javaFailure.value = t(
-                "mcserver.wizard.javaBusy",
-                "Wait for the Java check to finish.",
-            );
+            javaFailure.value = t("mcserver.wizard.javaBusy", "Wait for the Java check to finish.");
             return;
         }
     }
