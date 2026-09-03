@@ -65,6 +65,19 @@ const steps: readonly { id: Step; label: string; number: number }[] = [
     { id: "review", label: "Review", number: 4 },
 ];
 
+function stepLabel(id: Step, fallback: string): string {
+    switch (id) {
+        case "map":
+            return t("cirender.cloudConfig.step.map", fallback);
+        case "storage":
+            return t("cirender.cloudConfig.step.storage", fallback);
+        case "render":
+            return t("cirender.cloudConfig.step.render", fallback);
+        case "review":
+            return t("cirender.cloudConfig.step.review", fallback);
+    }
+}
+
 const step = ref<Step>("map");
 const query = ref("");
 const regexMode = ref(false);
@@ -205,11 +218,10 @@ const filteredSteps = computed(() => {
         visible:
             query.value.trim() === "" ||
             item.id === "review" ||
-            t(`cirender.cloudConfig.step.${item.id}`, item.label)
+            stepLabel(item.id, item.label)
                 .toLocaleLowerCase()
                 .includes(query.value.trim().toLocaleLowerCase()) ||
-            activeFields.value.some(([label]) => labels[item.id].includes(label)) ||
-            item.id === "review",
+            activeFields.value.some(([label]) => labels[item.id].includes(label)),
     }));
 });
 
@@ -321,7 +333,7 @@ watch(selectedDimension, (value) => {
                     @click="step = item.id"
                 >
                     <span class="cloud-config-wizard__step-number">{{ item.number }}</span>
-                    {{ t(`cirender.cloudConfig.step.${item.id}`, item.label) }}
+                    {{ stepLabel(item.id, item.label) }}
                 </VBtn>
             </nav>
 

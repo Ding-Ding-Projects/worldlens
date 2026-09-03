@@ -189,7 +189,12 @@ function fakeBridge(overrides: Partial<BackupBridge> = {}): BackupBridge {
         canListBackups: true,
         canSeeActive: true,
         canCreateRepository: true,
-        ...overrides,
+        // See backups.test.ts's fakeBridge: a spread of Partial<BackupBridge> types its
+        // optional keys as `T | undefined` rather than genuinely absent, which
+        // `exactOptionalPropertyTypes` refuses. Drop anything explicitly undefined first.
+        ...(Object.fromEntries(
+            Object.entries(overrides).filter(([, value]) => value !== undefined),
+        ) as Partial<BackupBridge>),
     };
 }
 

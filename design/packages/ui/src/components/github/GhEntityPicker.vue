@@ -43,16 +43,27 @@ const regex = ref(false);
 const flags = ref("i");
 const matcher = computed(() => createSettingMatcher(query.value, regex.value, flags.value));
 
+function haystack(item: GhEntityPickerItem): string {
+    return [item.title, item.subtitle ?? "", item.value, item.searchText ?? ""].join(" ");
+}
+
 const shown = computed(() =>
-    props.items.filter((item) =>
-        matcher.value.test([item.title, item.value, item.searchText ?? ""].join(" ")),
-    ),
-);
-const sample = computed(() =>
     props.items
-        .map((item) => [item.title, item.value, item.searchText ?? ""].join(" "))
-        .join("\n"),
+        .filter((item) => matcher.value.test(haystack(item)))
+        // Vuetify reads the row's second line and its disabled state out of `props`, so the
+        // subtitle is folded in here rather than asked of every caller.
+        .map((item) => ({
+            ...item,
+            props: {
+                ...(item.props ?? {}),
+                ...(item.subtitle === undefined || item.subtitle === ""
+                    ? {}
+                    : { subtitle: item.subtitle }),
+            },
+        })),
 );
+const sample = computed(() => props.items.map(haystack).join("\n"));
+
 const summary = computed(() =>
     t(
         "settings.github.picker.summary",

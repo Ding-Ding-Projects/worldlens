@@ -1297,6 +1297,11 @@ export const CIRENDER_FIXED = {
     "cirender.openRun": { en: "Open the run on GitHub", yue: "喺 GitHub 開個 run" },
     "cirender.stop": { en: "Stop watching", yue: "唔再睇住" },
     "cirender.remove": { en: "Remove from list", yue: "由清單移除" },
+    "cirender.owner.kindOrg": { en: "Organization", yue: "組織" },
+    "cirender.owner.kindYou": { en: "Your own account", yue: "你自己個戶口" },
+    "cirender.repo.rowPrivate": { en: "{owner} - private", yue: "{owner} - 私人" },
+    "cirender.repo.rowPublic": { en: "{owner} - PUBLIC", yue: "{owner} - 公開" },
+    "cirender.account.stateActive": { en: "active", yue: "使用緊" },
     "cirender.confirmUpload": {
         en: "Upload the world and start the render",
         yue: "上載成個世界，然後開始算圖",
@@ -1389,20 +1394,14 @@ export const CIRENDER_FIXED = {
         en: "Only one GitHub account is signed in, so this is fixed to it.",
         yue: "淨係得一個 GitHub 帳戶登入咗，所以固定用嗰個。",
     },
-    /** Which one every other legacy channel already resolves to, named on the item itself. */
-    "cirender.account.itemActive": { en: "{login} (active)", yue: "{login}（用緊）" },
     "cirender.gh.openAccounts": { en: "Open GitHub accounts", yue: "開啟 GitHub 帳戶" },
 
     /* The owner picker: its two item shapes, and the two ways it can come up short. */
     "cirender.owner.pick": { en: "Choose an owner", yue: "揀個擁有者" },
-    "cirender.owner.asYou": { en: "{login} (you)", yue: "{login}（你）" },
-    "cirender.owner.asOrg": { en: "{login} (organization)", yue: "{login}（機構）" },
     "cirender.owner.retry": { en: "Try again", yue: "再試一次" },
 
     /* The repository picker, and the availability check's own transient state. */
     "cirender.repo.pick": { en: "One of your repositories", yue: "你其中一個倉庫" },
-    "cirender.repo.itemPrivate": { en: "{name} (private)", yue: "{name}（私人）" },
-    "cirender.repo.itemPublic": { en: "{name} (PUBLIC)", yue: "{name}（公開）" },
     "cirender.repo.checking": {
         en: "Checking whether that name is free...",
         yue: "檢查緊呢個名係咪得閒...",

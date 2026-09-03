@@ -277,7 +277,7 @@ function set(next: PlainValue): void {
             <ConfigRecordTableField
                 v-else-if="field.control.kind === 'record-table'"
                 :control="field.control"
-                :model-value="controlValue"
+                :model-value="Array.isArray(controlValue) ? controlValue : []"
                 :label="field.label"
                 :disabled="isDisabled"
                 @update:model-value="set"

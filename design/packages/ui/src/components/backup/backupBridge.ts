@@ -115,6 +115,16 @@ export interface RepositoryReport {
 
 export type BackupPhase = "inspecting" | "packing" | "splitting" | "publishing" | "uploading" | "finished";
 
+/** One backup left paused when the app last closed, as reported by `pausedBackups()`. */
+export interface PausedBackupInfo {
+    readonly backupId: string;
+    readonly phase: BackupPhase;
+    readonly tag: string;
+    readonly repository: string;
+    readonly kind: BackupSourceKind;
+    readonly label: string;
+}
+
 export interface BackupTaskProgress {
     readonly phase: BackupPhase;
     readonly description: string;

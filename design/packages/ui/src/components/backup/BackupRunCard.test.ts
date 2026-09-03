@@ -83,6 +83,8 @@ const row: BackupRow = {
     durationMs: 300_000,
     live: true,
     stopping: false,
+    pausing: false,
+    liveResumable: false,
     log: [
         { id: 1, level: "info", message: "Packed the world folder", at: "2026-08-04T10:16:00.000Z" },
         { id: 2, level: "info", message: "Uploaded part 1 of 1", at: "2026-08-04T10:19:00.000Z" },

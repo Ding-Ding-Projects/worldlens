@@ -317,13 +317,17 @@ const accountReauthenticationLabel = computed(() =>
 );
 const accountItems = computed(() =>
     accountOrdered.value.map((account) => {
-        const accountLabel = `${account.login} — ${account.host}`;
-        const title = account.active
-            ? t("cirender.account.itemActive", { login: accountLabel }, "{login} (active)")
-            : accountLabel;
         const recovery = account.healthy ? null : accountReauthenticationLabel.value;
+        // Login on the first line; the host, whether it is the active account and any
+        // recovery it needs on the second, rather than three facts run together with dashes.
+        const state = [
+            account.host,
+            ...(account.active ? [t("cirender.account.stateActive", "active")] : []),
+            ...(recovery === null ? [] : [recovery]),
+        ].join(" - ");
         return {
-            title: recovery === null ? title : `${title} — ${recovery}`,
+            title: account.login,
+            subtitle: state,
             value: account.id,
             searchText: [
                 account.login,
@@ -384,14 +388,26 @@ function chooseAccount(value: unknown): void {
 /* The repository owner: the signed-in account and its organisations          */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * Your own account first, then the organizations, each row saying in words what it is.
+ *
+ * The list used to be one column of logins with the kind bracketed onto the end of each
+ * title, so telling your own account from an organization meant reading punctuation. The
+ * subtitle is searched too, so typing "organization" narrows the list.
+ */
 const ownerItems = computed(() => {
     const answer = renders.owners.value;
     if (answer === null || !answer.ok) return [];
-    return answer.owners.map((choice) => ({
-        title:
+    const ordered = [...answer.owners].sort((a, b) => {
+        if (a.kind !== b.kind) return a.kind === "user" ? -1 : 1;
+        return a.login.localeCompare(b.login);
+    });
+    return ordered.map((choice) => ({
+        title: choice.login,
+        subtitle:
             choice.kind === "organization"
-                ? t("cirender.owner.asOrg", { login: choice.login }, "{login} (organization)")
-                : t("cirender.owner.asYou", { login: choice.login }, "{login} (you)"),
+                ? t("cirender.owner.kindOrg", "Organization")
+                : t("cirender.owner.kindYou", "Your own account"),
         value: choice.login,
         searchText: `${choice.login} ${choice.kind}`,
     }));
@@ -427,13 +443,24 @@ const ownerFailureMessage = computed(() => {
 /* The repository name: an existing repository picked, or a name checked live */
 /* -------------------------------------------------------------------------- */
 
+/*
+ * The repository's own name on the first line, and who owns it plus whether it is public on
+ * the second. PUBLIC stays shouted, because it is the one property here that decides
+ * whether a world becomes downloadable by anybody.
+ */
 const repositoryItems = computed(() =>
     renders.repositories.value.map((repository) => ({
-        title: repository.private
-            ? t("cirender.repo.itemPrivate", { name: repository.fullName }, "{name} (private)")
-            : t("cirender.repo.itemPublic", { name: repository.fullName }, "{name} (PUBLIC)"),
+        title: repository.name,
+        subtitle: repository.private
+            ? t("cirender.repo.rowPrivate", { owner: repository.owner }, "{owner} - private")
+            : t("cirender.repo.rowPublic", { owner: repository.owner }, "{owner} - PUBLIC"),
         value: repository.fullName,
-        searchText: [repository.fullName, repository.owner, repository.name].join(" "),
+        searchText: [
+            repository.fullName,
+            repository.owner,
+            repository.name,
+            repository.private ? "private" : "public",
+        ].join(" "),
     })),
 );
 

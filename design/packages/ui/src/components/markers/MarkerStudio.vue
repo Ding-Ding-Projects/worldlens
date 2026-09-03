@@ -168,7 +168,7 @@ function cancel(): void {
 }
 
 function save(): void {
-    const creating = editing.value === null;
+    const editingId = editing.value;
     try {
         draft.value.points = pointsText.value.trim() === "" ? undefined : JSON.parse(pointsText.value);
     } catch {
@@ -176,14 +176,14 @@ function save(): void {
         return;
     }
     const result =
-        creating
+        editingId === null
             ? addMarker(props.mapId, draft.value)
-            : updateMarker(editing.value, draft.value);
+            : updateMarker(editingId, draft.value);
     if (result.ok) {
         formOpen.value = false;
         problems.value = [];
         setMarkerPreview(null);
-        if (creating) emit("markerCreated", result.marker.id);
+        if (editingId === null) emit("markerCreated", result.marker.id);
         return;
     }
     problems.value = result.problems;

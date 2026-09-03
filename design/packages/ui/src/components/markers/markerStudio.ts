@@ -15,7 +15,7 @@ export const MAX_MARKER_NOTE = 4000;
 export interface StudioMarker {
     readonly id: string;
     readonly mapId: string;
-    readonly kind?: StudioMarkerKind;
+    readonly kind?: StudioMarkerKind | undefined;
     label: string;
     detail: string;
     position: MarkerPosition;
@@ -24,14 +24,14 @@ export interface StudioMarker {
     readonly createdAt: string;
     updatedAt: string;
     /** BlueMap's stable ordering value, retained across edits and export/import. */
-    sorting?: number;
-    points?: MarkerPosition[];
+    sorting?: number | undefined;
+    points?: MarkerPosition[] | undefined;
     /** Unknown BlueMap fields survive a round trip. */
-    extra?: Record<string, unknown>;
+    extra?: Record<string, unknown> | undefined;
 }
 export interface MarkerDraft {
     label: string; detail: string; position: MarkerPosition; colour: string;
-    kind?: StudioMarkerKind; points?: MarkerPosition[]; extra?: Record<string, unknown>;
+    kind?: StudioMarkerKind | undefined; points?: MarkerPosition[] | undefined; extra?: Record<string, unknown> | undefined;
 }
 export type MarkerProblem =
     | { readonly field: "label"; readonly message: string }

@@ -113,6 +113,8 @@ function report(overrides: Partial<PagesPublishReport> = {}): PagesPublishReport
             fileCount: 1_234,
             oversizedFiles: [],
             overSoftLimit: false,
+            missingAssets: [],
+            rootAbsoluteAssets: [],
             notes: [],
         },
         notes: [],

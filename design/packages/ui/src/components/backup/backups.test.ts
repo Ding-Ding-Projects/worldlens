@@ -107,7 +107,13 @@ function fakeBridge(
         canListBackups: true,
         canSeeActive: true,
         canCreateRepository: true,
-        ...overrides,
+        // `Partial<BackupBridge>` spreads its optional keys in as `T | undefined` rather
+        // than as genuinely absent, which `exactOptionalPropertyTypes` then refuses to
+        // assign to BackupBridge's own optional properties. Drop anything explicitly
+        // undefined so an override that never set a key behaves like it was never given.
+        ...(Object.fromEntries(
+            Object.entries(overrides).filter(([, value]) => value !== undefined),
+        ) as Partial<BackupBridge>),
         emit(event: BackupEvent): void {
             listener?.(event);
         },
@@ -465,6 +471,8 @@ describe("what a row says", () => {
         durationMs: 1,
         live: true,
         stopping: false,
+        pausing: false,
+        liveResumable: false,
         log: [],
     };
 

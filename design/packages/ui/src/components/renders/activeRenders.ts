@@ -456,8 +456,15 @@ export function createActiveRenders(options: ActiveRendersOptions = {}): ActiveR
 
     function ciToRow(row: CiRow): ActiveRenderRow {
         const facts = ciRowToFacts(row);
+        // "restored"/"uploaded"/"idle" are all CI-pipeline states between a dispatch and
+        // its finish - none of them are literally "running" this second, but every one
+        // still belongs among the active renders rather than a terminal state.
         const state: RowState =
-            row.state === "rendered" ? "finished" : row.state === "running" ? "running" : row.state;
+            row.state === "rendered"
+                ? "finished"
+                : row.state === "failed" || row.state === "cancelled"
+                  ? row.state
+                  : "running";
         const failure = row.failure;
         return {
             key: `ci:${row.syncId}`,

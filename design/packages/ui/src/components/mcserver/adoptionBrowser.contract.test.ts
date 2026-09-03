@@ -108,7 +108,7 @@ async function mountBrowser(answer: Answer<readonly AdoptionCandidate[]>): Promi
     (globalThis as { worldlens?: unknown }).worldlens = { mcserver: host };
     const store = createServerStore({ host: host as never });
     await store.load();
-    mount(AdoptionBrowser as never, {
+    mount(AdoptionBrowser, {
         props: { modelValue: true },
         global: {
             plugins: [

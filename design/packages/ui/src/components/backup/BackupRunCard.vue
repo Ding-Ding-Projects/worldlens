@@ -422,8 +422,8 @@ const cardLabel = computed(() =>
                         row.failure.accountLogin
                             ? t(
                                   "backup.row.signInAs",
-                                  "Sign in again as {login}",
                                   { login: row.failure.accountLogin },
+                                  "Sign in again as {login}",
                               )
                             : t("backup.row.signIn", "Sign in to GitHub again")
                     }}

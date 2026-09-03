@@ -226,7 +226,7 @@ function fakeRepoBridge(overrides: Partial<BackupBridge> = {}): { bridge: Backup
         inspectBackupRepository: () => Promise.resolve({ ok: false, message: "unused" }),
         inspectBackupSource: () => Promise.resolve({ ok: false, message: "unused" }),
         listBackups: () => Promise.resolve({ ok: true, value: [] }),
-        startBackup: () => Promise.resolve({ ok: false, backupId: "x", failure: { code: "x", message: "unused", detail: null, status: null, needsSignIn: false } }),
+        startBackup: () => Promise.resolve({ ok: false, backupId: "x", failure: { code: "x", message: "unused", detail: null, status: null, needsSignIn: false, accountId: null, accountLogin: null, accountHost: null } }),
         cancelBackup: () => Promise.resolve(false),
         activeBackups: () => Promise.resolve([]),
         onBackupEvent: () => () => {},

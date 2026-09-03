@@ -1109,6 +1109,11 @@ const shell = createShellNavigation({
 });
 
 const destination = shell.destination;
+/** KidShell only ever knows about the three destinations a child can reach; "host" (the
+ * Docker/remote hosting screen) is an adult-only rail entry, so it maps to "home" there. */
+const kidDestination = computed<"home" | "map" | "work">(() =>
+    destination.value === "map" || destination.value === "work" ? destination.value : "home",
+);
 /** Exactly one shell tree owns the shared Minecraft modal state at a time. */
 const mcServerModalOwner = computed<McServerOwner>(() => mcServerOwner.value);
 
@@ -2492,7 +2497,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 ref="kidShellRef"
                 class="mb-kid-shell-host"
                 :content-inert="configOpen"
-                :destination="destination"
+                :destination="kidDestination"
                 :catalogues="kidCatalogues"
                 :open-jobs="openJobIds"
                 :problems="problems"
@@ -2692,7 +2697,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 "
                                 @open-hosting="
                                     (id) => {
-                                        localStorage.setItem('worldlens.dashboard.hostingId', id);
+                                        globalThis.localStorage?.setItem('worldlens.dashboard.hostingId', id);
                                         revealPage(PAGE_REMOTE_HOSTING);
                                     }
                                 "
@@ -3274,7 +3279,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                             "
                                             @open-hosting="
                                                 (id) => {
-                                                    localStorage.setItem(
+                                                    globalThis.localStorage?.setItem(
                                                         'worldlens.dashboard.hostingId',
                                                         id,
                                                     );

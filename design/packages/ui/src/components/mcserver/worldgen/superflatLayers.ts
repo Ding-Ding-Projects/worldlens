@@ -40,7 +40,7 @@ export function decodeSuperflatLayers(preset: string): DecodeSuperflatResult {
         if (!Number.isInteger(depth) || depth < 1) {
             return { ok: false, layers: [], error: `"${part}" has an invalid depth.` };
         }
-        layers.push({ block: match[2], depth });
+        layers.push({ block: match[2]!, depth });
     }
     return { ok: true, layers, error: null };
 }

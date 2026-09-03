@@ -254,15 +254,15 @@ function parseIndex(raw: string | null): HistoryIndex | null {
                 typeof item.renderId === "string" &&
                 item.renderId.length > 0 &&
                 item.renderId.length <= MAX_RENDER_ID_CHARS &&
-                Number.isSafeInteger(item.segmentStart) &&
+                typeof item.segmentStart === "number" && Number.isSafeInteger(item.segmentStart) &&
                 item.segmentStart >= 0 &&
-                Number.isSafeInteger(item.segmentCount) &&
+                typeof item.segmentCount === "number" && Number.isSafeInteger(item.segmentCount) &&
                 item.segmentCount >= 0 &&
                 item.segmentCount <= MAX_SEGMENTS_PER_RENDER &&
                 Array.isArray(item.segmentRevisions) &&
                 item.segmentRevisions.length === item.segmentCount &&
                 item.segmentRevisions.every((revision) => Number.isSafeInteger(revision) && revision >= 0) &&
-                Number.isSafeInteger(item.lineCount) &&
+                typeof item.lineCount === "number" && Number.isSafeInteger(item.lineCount) &&
                 item.lineCount >= 0 &&
                 item.lineCount <= CONSOLE_HISTORY_MAX_LINES &&
                 typeof item.dropped === "number" &&
@@ -270,9 +270,9 @@ function parseIndex(raw: string | null): HistoryIndex | null {
                 item.dropped >= 0 &&
                 typeof item.updatedAt === "string" &&
                 typeof item.complete === "boolean" &&
-                Number.isSafeInteger(item.evictedLines) &&
+                typeof item.evictedLines === "number" && Number.isSafeInteger(item.evictedLines) &&
                 item.evictedLines >= 0 &&
-                Number.isSafeInteger(item.evictedRenders) &&
+                typeof item.evictedRenders === "number" && Number.isSafeInteger(item.evictedRenders) &&
                 item.evictedRenders >= 0 &&
                 (item.storageWarning === null || item.storageWarning === "retention-limit" || item.storageWarning === "storage-limit") &&
                 typeof item.bytes === "number" &&
@@ -419,7 +419,8 @@ function fitIndexToBudget(index: HistoryIndex, drafts: readonly SegmentDraft[]):
 
     let first = entries[0];
     if (first === undefined) return { index: { ...index, entries }, drafts: keptDrafts };
-    let firstDrafts = keptDrafts.filter((draft) => draft.renderId === first.renderId).sort((left, right) => left.segment - right.segment);
+    const firstRenderId = first.renderId;
+    let firstDrafts = keptDrafts.filter((draft) => draft.renderId === firstRenderId).sort((left, right) => left.segment - right.segment);
     while (firstDrafts.length > 0 && totalBytes({ ...index, entries }) > CONSOLE_HISTORY_MAX_BYTES) {
         const removed = firstDrafts.shift();
         if (removed === undefined) break;
@@ -435,7 +436,7 @@ function fitIndexToBudget(index: HistoryIndex, drafts: readonly SegmentDraft[]):
             bytes: Math.max(0, first.bytes - removed.bytes),
         };
         entries = [first, ...entries.slice(1)];
-        keptDrafts = [...firstDrafts, ...keptDrafts.filter((draft) => draft.renderId !== first.renderId)];
+        keptDrafts = [...firstDrafts, ...keptDrafts.filter((draft) => draft.renderId !== firstRenderId)];
     }
     if (evictedRenders > 0) {
         first = { ...first, complete: false, evictedRenders: first.evictedRenders + evictedRenders, storageWarning: first.storageWarning ?? "retention-limit" };

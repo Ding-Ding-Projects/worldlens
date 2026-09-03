@@ -170,7 +170,7 @@ export interface RepairBridge {
     failures(): Promise<readonly FailureSummary[]>;
     diagnose(id: string): Promise<DiagnoseAnswer>;
     run(id: string): Promise<RepairAnswer>;
-    readonly issueReport?: IssueReportBridge;
+    readonly issueReport?: IssueReportBridge | undefined;
 }
 
 function isFunction(value: unknown): value is (...args: never[]) => unknown {

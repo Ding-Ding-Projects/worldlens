@@ -267,7 +267,7 @@ describe("selection-aware structured export", () => {
         const wrapper = render([engineLine("first"), engineLine("second")]);
         const checkboxes = wrapper.findAll(".mb-console__select");
         await checkboxes[1]?.setValue(true);
-        const createObjectURL = vi.fn(() => "blob:console");
+        const createObjectURL = vi.fn((_blob: Blob) => "blob:console");
         const revokeObjectURL = vi.fn();
         Object.defineProperty(URL, "createObjectURL", { configurable: true, value: createObjectURL });
         Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revokeObjectURL });

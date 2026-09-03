@@ -214,16 +214,22 @@ function callSitePlaceholders(): Map<string, Set<string>> {
      * is "delete them", which would have deleted the Cantonese for every job tab and every group
      * heading in the application.
      *
-     * So a `<something>Key: "dotted.key"` property counts as a call site. It is narrower than it
-     * looks: the name must end in `Key`, which is the naming this codebase uses precisely to mark
-     * "this string is a catalogue key that something else will translate".
+     * So a `<something>Key: "dotted.key"` property counts as a call site, and so does a plain
+     * `identifier: "dotted.key"` property inside a local lookup object -- the shape
+     * `IssueReportPanel.vue`'s `fieldLabel()` and `localizedBridgeMessage()` use, mapping a field
+     * or bridge-status identifier to a catalogue key that is then indexed dynamically and handed
+     * to `t()`. Matching any plain-identifier property, not only ones ending in `Key`, is safe
+     * because the value still has to equal a real catalogue key; a value that is not a dotted
+     * catalogue key never matches `catalogue.has(key)` below regardless of what the property is
+     * named.
      *
-     * Placeholders are deliberately not collected from these. The fallback sits in a sibling
-     * property rather than in the call, and a registry-declared label takes no placeholders in the
-     * first place - the one that does (`tabs.page.rendersCounted`) is written out longhand at its
-     * call site for exactly that reason.
+     * Placeholders are deliberately not collected from these. The fallback sits elsewhere (a
+     * sibling property, or the map's `?? fallback` default) rather than in the call, and a
+     * registry-declared label takes no placeholders in the first place - the one that does
+     * (`tabs.page.rendersCounted`) is written out longhand at its call site for exactly that
+     * reason.
      */
-    const registryKey = /\b[A-Za-z][A-Za-z0-9]*Key\s*:\s*(["'])([A-Za-z0-9_.\-]+)\1/g;
+    const registryKey = /\b[A-Za-z_$][A-Za-z0-9_$]*\s*:\s*(["'])([A-Za-z0-9_.\-]+)\1/g;
 
     for (const file of sourceFiles(sourceRoot)) {
         if (file.endsWith(".test.ts")) continue;

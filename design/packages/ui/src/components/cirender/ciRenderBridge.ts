@@ -380,7 +380,15 @@ export interface CiCloudRenderConfigInput {
 }
 
 export type CiCloudRenderConfigResult =
-    | { readonly ok: true; readonly preflight: CiPreflight | null; readonly preflightFailure: CiSyncFailure | null }
+    | {
+          readonly ok: true;
+          /** The written project file's own save outcome, one level down - see the
+           * main process's `CloudRenderConfigSaveResult` for the full shape; only the
+           * path is read on this side. */
+          readonly saved: { readonly saved: { readonly path: string } };
+          readonly preflight: CiPreflight | null;
+          readonly preflightFailure: CiSyncFailure | null;
+      }
     | { readonly ok: false; readonly failure: { readonly code: string; readonly message: string } };
 
 export type CiSyncEvent =

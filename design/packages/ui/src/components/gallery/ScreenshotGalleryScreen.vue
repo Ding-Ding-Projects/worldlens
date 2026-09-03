@@ -34,8 +34,9 @@ const assetUrls = ref(new Map<string, string>());
 function revokeAssets(): void { for (const url of assetUrls.value.values()) URL.revokeObjectURL(url); assetUrls.value.clear(); }
 async function hydrateAssets(items: readonly GalleryRecord[]): Promise<void> {
     revokeAssets();
-    if (galleryHost?.readAsset === undefined) return;
-    await Promise.all(items.map(async (record) => { try { const asset = await galleryHost.readAsset(record.id); assetUrls.value.set(record.id, URL.createObjectURL(new Blob([asset.bytes], { type: asset.mime }))); } catch { status.value = "One or more gallery images could not be read; metadata remains available."; } }));
+    const readAsset = galleryHost?.readAsset;
+    if (readAsset === undefined) return;
+    await Promise.all(items.map(async (record) => { try { const asset = await readAsset(record.id); assetUrls.value.set(record.id, URL.createObjectURL(new Blob([asset.bytes as unknown as BlobPart], { type: asset.mime }))); } catch { status.value = "One or more gallery images could not be read; metadata remains available."; } }));
 }
 function bridgeRecord(record: GalleryRecord): GalleryRecord {
     const value = record as unknown as { id: string; name: string; asset: string; tags: string[]; notes: string; metadata: { timestamp: string; mapId: string; projectId: string; version: string; coordinates: Record<string, number>; camera: Record<string, number> } };
@@ -80,13 +81,14 @@ function removeSelected(): void {
     if (!selected.value.size || galleryHost?.delete === undefined) { status.value = "Deletion is unavailable until the gallery bridge and shared confirmation surface are present."; return; }
     void galleryHost.delete([...selected.value]).then(async () => { records.value = records.value.filter((record) => !selected.value.has(record.id)); selected.value = new Set(); await hydrateAssets(records.value); status.value = "Selected records removed and history recorded."; }).catch(() => { status.value = "The gallery bridge refused deletion; no records changed."; });
 }
-function saveEdit(): void { if (editing.value !== null && galleryHost?.update !== undefined) { const record = editing.value; void galleryHost.update(record.id, { name: record.title, tags: record.tags, notes: record.notes }).then(() => { editing.value = null; status.value = "Metadata saved to local history."; }); } }
+function saveEdit(): void { const update = galleryHost?.update; if (editing.value !== null && update !== undefined) { const record = editing.value; void update(record.id, { title: record.title, tags: record.tags, notes: record.notes }).then(() => { editing.value = null; status.value = "Metadata saved to local history."; }); } }
 function importFiles(event: Event): void {
     const files = [...((event.target as HTMLInputElement).files ?? [])];
     for (const file of files) {
         if (!file.type.startsWith("image/") || file.size > 25 * 1024 * 1024) continue;
-        if (galleryHost?.add === undefined) { status.value = "The gallery bridge is unavailable; this file was not stored."; continue; }
-            void Promise.all([file.arrayBuffer(), createImageBitmap(file)]).then(([buffer, bitmap]) => { const metadata = { mapId: "Not recorded", projectId: "Not recorded", coordinates: { x: 0, y: 0 }, camera: { x: 0, y: 0 }, timestamp: new Date().toISOString(), dimensions: { width: bitmap.width, height: bitmap.height }, version: "User import", provenance: { kind: "user-import" as const, captureId: file.name, commit: "local import", appVersion: "Worldlens", capturedAt: new Date().toISOString() } }; bitmap.close(); return galleryHost.add({ name: file.name, assetName: file.name, bytes: new Uint8Array(buffer), tags: ["imported"], notes: "Imported locally; no upload is performed.", metadata }); }).then(async (record) => { records.value.push(bridgeRecord(record)); await hydrateAssets(records.value); status.value = `Imported ${file.name} locally.`; }).catch(() => { status.value = "The gallery bridge rejected the import; no record was added."; });
+        const add = galleryHost?.add;
+        if (add === undefined) { status.value = "The gallery bridge is unavailable; this file was not stored."; continue; }
+            void Promise.all([file.arrayBuffer(), createImageBitmap(file)]).then(([buffer, bitmap]) => { const metadata = { mapId: "Not recorded", projectId: "Not recorded", coordinates: { x: 0, y: 0 }, camera: { x: 0, y: 0 }, timestamp: new Date().toISOString(), dimensions: { width: bitmap.width, height: bitmap.height }, version: "User import", provenance: { kind: "user-import" as const, captureId: file.name, commit: "local import", appVersion: "Worldlens", capturedAt: new Date().toISOString() } }; bitmap.close(); return add({ name: file.name, assetName: file.name, bytes: new Uint8Array(buffer), tags: ["imported"], notes: "Imported locally; no upload is performed.", metadata }); }).then(async (record) => { records.value.push(bridgeRecord(record)); await hydrateAssets(records.value); status.value = `Imported ${file.name} locally.`; }).catch(() => { status.value = "The gallery bridge rejected the import; no record was added."; });
     }
     (event.target as HTMLInputElement).value = "";
 }

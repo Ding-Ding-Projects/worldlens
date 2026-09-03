@@ -47,7 +47,7 @@ const props = withDefaults(
         /** Injected in tests; production resolves the real bridge. */
         bridge?: MountBrowserBridge | null;
     }>(),
-    { mode: "folder", extensions: () => [], writableOnly: false, bridge: undefined },
+    { mode: "folder", extensions: () => [], writableOnly: false },
 );
 
 const emit = defineEmits<{

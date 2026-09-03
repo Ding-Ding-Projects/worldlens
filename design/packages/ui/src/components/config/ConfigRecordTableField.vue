@@ -36,12 +36,12 @@ function remove(index: number): void { emit("update:modelValue", rows.value.filt
             <tbody>
                 <tr v-for="(row, index) in rows" :key="index">
                     <td v-for="column in control.columns" :key="column.key">
-                        <ConfigControl :control="column.control" :model-value="row[column.key]" :label="`${column.label} ${index + 1}`" :disabled="disabled" @update:model-value="(value) => update(index, column.key, value)" />
+                        <ConfigControl :control="column.control" :model-value="row[column.key] ?? null" :label="`${column.label} ${index + 1}`" :disabled="disabled" @update:model-value="(value) => update(index, column.key, value)" />
                     </td>
-                    <td><VBtn size="small" variant="text" :disabled="disabled" @click="remove(index)">Remove</VBtn></td>
+                    <td><VBtn size="small" variant="text" :disabled="disabled === true" @click="remove(index)">Remove</VBtn></td>
                 </tr>
             </tbody>
         </VTable>
-        <VBtn size="small" variant="tonal" :disabled="disabled" @click="add">Add record</VBtn>
+        <VBtn size="small" variant="tonal" :disabled="disabled === true" @click="add">Add record</VBtn>
     </div>
 </template>

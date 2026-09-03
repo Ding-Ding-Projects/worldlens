@@ -561,7 +561,7 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
 
                     <div v-if="currentSet.id === 'bm-players'" class="mb-marker-menu__player-bulk" role="toolbar" :aria-label="t('players.bulkLabel', 'Live player actions')">
                         <v-checkbox :model-value="allPlayersSelected" :indeterminate="selectedPlayerIds.length > 0 && !allPlayersSelected" :aria-label="t('players.selectAll', 'Select all visible players')" :label="t('players.selectAll', 'Select all visible players')" hide-details density="compact" @update:model-value="toggleAllPlayers" />
-                        <span class="mb-marker-menu__player-count" role="status">{{ t('players.selected', { count: selectedPlayerIds.length }, '{count} selected') }}</span>
+                        <span class="mb-marker-menu__player-count" role="status">{{ tx('players.selected', '{count} selected', { count: selectedPlayerIds.length }) }}</span>
                         <v-btn size="small" variant="tonal" :prepend-icon="mdiEyeOff" :disabled="selectedPlayers.length === 0" @click="hideSelectedPlayers">{{ t('players.hideSelected', 'Hide selected') }}</v-btn>
                         <v-btn size="small" variant="text" :prepend-icon="mdiDownload" :disabled="playerRows.length === 0" @click="exportPlayers">{{ t('players.export', 'Export players') }}</v-btn>
                     </div>
