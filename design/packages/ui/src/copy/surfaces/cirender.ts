@@ -1572,6 +1572,18 @@ export const CIRENDER_FIXED = {
         en: "Step {step} of {total}",
         yue: "第 {step} 步，共 {total} 步",
     },
+    /* Catalogue-coverage sweep: no answer here, so every language and both funny-level
+       extremes showed the English written at the call site. */
+    "cirender.account.unhealthy": { en: "{login} on {host} needs reauthentication before it can render.", yue: "{login}（{host}）要重新登入先 render 得。" },
+    "cirender.cloudConfig.dataRequired": { en: "Choose a data folder, or keep the generated data default.", yue: "揀個資料資料夾，或者用返自動生成嗰個。" },
+    "cirender.cloudConfig.mapIdTaken": { en: "The map id {id} is reserved by another generated dimension.", yue: "地圖 id {id} 已經畀另一個生成嘅維度佔咗。" },
+    "cirender.cloudConfig.mapNameRequired": { en: "Give the primary map a name before continuing.", yue: "繼續之前，畀主地圖改個名先。" },
+    "cirender.cloudConfig.mapRequired": { en: "Keep at least one map enabled for the cloud render.", yue: "雲端 render 至少要開住一張地圖。" },
+    "cirender.cloudConfig.open": { en: "Create cloud render configuration", yue: "整份雲端 render 設定" },
+    "cirender.cloudConfig.outputPick": { en: "Choose the cloud render output folder", yue: "揀雲端 render output 資料夾" },
+    "cirender.cloudConfig.projectNameRequired": { en: "Name this project before continuing.", yue: "繼續之前，先幫呢個專案改個名。" },
+    "cirender.cloudConfig.sortingInvalid": { en: "Sort order must be a whole number.", yue: "排序次序要係整數。" },
+    "cirender.cloudConfig.webRequired": { en: "Choose a web root, or keep the generated web default.", yue: "揀個 web root，或者用返自動生成嗰個。" },
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {

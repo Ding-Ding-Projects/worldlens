@@ -808,6 +808,18 @@ export const APPEARANCE_FIXED = {
     "appearance.type.shadowColor": { en: "Shadow colour", yue: "陰影顏色" },
     "appearance.type.glowRadius": { en: "Glow radius", yue: "光暈半徑" },
     "appearance.type.glowColor": { en: "Glow colour", yue: "光暈顏色" },
+    /* Catalogue-coverage sweep: these had no answer, so every language and both
+       funny-level extremes rendered the English from the call site. */
+    "appearance.choice.noMatch": { en: "No choice matches that search.", yue: "冇任何選項對得上呢個搜尋。" },
+    "appearance.color.rainbow": { en: "Animated rainbow", yue: "彩虹動畫" },
+    "appearance.color.rainbowSpeed": { en: "Rainbow speed", yue: "彩虹速度" },
+    "appearance.state.base": { en: "Base appearance", yue: "基本外觀" },
+    "appearance.state.groups": { en: "State effects and spacing", yue: "狀態效果同間距" },
+    "appearance.state.resetEffects": { en: "Reset state effects", yue: "還原狀態效果" },
+    "appearance.state.spacing": { en: "State spacing", yue: "狀態間距" },
+    "appearance.type.axesKnown": { en: "Axis ranges come from this font's metadata.", yue: "軸嘅範圍係讀返呢隻字體自己嘅資料。" },
+    "appearance.type.fontIdentity.activeBundled": { en: "Bundled font active: {family}.", yue: "用緊隨機附帶嘅字體：{family}。" },
+    "appearance.type.fontIdentity.activeInstalled": { en: "Installed font active: {family} ({identity}).", yue: "用緊已安裝嘅字體：{family}（{identity}）。" },
 } as const satisfies Record<string, FixedString>;
 
 export const APPEARANCE_FACTS = {
