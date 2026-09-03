@@ -56,7 +56,7 @@ const LOCALIZED_ACCOUNT_FLOW_COPY = [
             "settings.github.picker.noneSelected",
             "settings.github.picker.selected",
             "settings.github.ghCli.logoutTitle",
-            "settings.github.ghCli.logoutAction",
+            "settings.github.ghCli.logoutActionDetailed",
             "settings.github.ghCli.logoutConfirm",
             "settings.github.ghCli.logout",
         ],

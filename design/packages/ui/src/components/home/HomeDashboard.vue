@@ -135,7 +135,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                     {{
                         returning
                             ? t("shell.home.dashboard.titleReturning", "Welcome back")
-                            : t("shell.home.dashboard.titleFresh", "Let’s make your first map")
+                            : t("shell.home.dashboard.titleFresh", "Let's make your first map")
                     }}
                 </h1>
             </header>

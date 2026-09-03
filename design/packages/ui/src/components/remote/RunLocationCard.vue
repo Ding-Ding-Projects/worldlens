@@ -508,9 +508,9 @@ defineExpose({
                 a workflow: a repository, two consents that are never pre-ticked, an upload,
                 and a run with per-job states. Named here so all four places are in one list.
             -->
-            <section class="mb-run-location__section" :aria-label="t('remote.ciSection', 'On GitHub’s runners')">
+            <section class="mb-run-location__section" :aria-label="t('remote.ciSection', 'On GitHub\'s runners')">
                 <h4 class="mb-run-location__sectionTitle">
-                    {{ t("remote.ciSection", "On GitHub’s runners") }}
+                    {{ t("remote.ciSection", "On GitHub's runners") }}
                 </h4>
                 <p class="mb-run-location__blurb">
                     {{
