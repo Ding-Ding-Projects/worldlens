@@ -5,8 +5,8 @@
 The single verified release baseline for this handoff is `v1.0.1718`, the non-draft Windows
 release whose installer was downloaded and checked against its published tag. The documentation
 and feature lanes being reconciled here are not a release. The integration candidate is the
-`codex/integration-docs-repair` jer at `265e7d441d92edc3d31f0a0bce24cdbb6ed324ad` before the
-parent integration merges the feature jers, and it remains unreleased pending packaged proof.
+`codex/integration-docs-repair` branch at `265e7d441d92edc3d31f0a0bce24cdbb6ed324ad` before the
+parent integration merges the feature branches, and it remains unreleased pending packaged proof.
 
 Source-complete documentation now records the 88 catalogue rows split `29/6/7/7/2/37`, the
 converter and local model tooling contracts, runtime settings, SSH host profiles, the complete
@@ -16,7 +16,7 @@ substitute for a packaged Windows run, a real remote host, a live local model se
 capture evidence. Those proof boundaries remain open for the parent integration and release pass.
 
 廣東話同步：今次 handoff 唯一 verified release baseline 係 `v1.0.1718`，installer 已經由 published
-tag 下載返嚟核對。呢條 documentation 同 feature reconciliation jer 唔係 release；parent merge
+tag 下載返嚟核對。呢條 documentation 同 feature reconciliation branch 唔係 release；parent merge
 之前嘅 integration candidate 係 `codex/integration-docs-repair` 嘅
 `265e7d441d92edc3d31f0a0bce24cdbb6ed324ad`，仲未出街，等 packaged proof 先可以講 release。
 

@@ -494,7 +494,7 @@ freshly built Electron process and driven by clicking its rail and its tab strip
 that produced every capture in the Screenshots section further down this file, run most recently on
 2026-08-15. Not mockups, and not the prototype.
 
-**Home** — six catalogue cards behind an 80 px rail, dark by default. The hero spans both columns
+**Home**, six catalogue cards behind an 80 px rail, dark by default. The hero spans both columns
 and carries the Make a map catalogue's own group headings as chips; the count in the lede is the
 live number of features this build actually exposes, not a number typed into a sentence.
 

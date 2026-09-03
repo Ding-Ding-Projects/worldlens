@@ -11,7 +11,7 @@
       proof as separate from packaged evidence.
 - [x] Correct the stale Minecraft server adoption article so source wiring is described as present,
       while packaged interaction and isolated-host proof remain explicitly pending.
-- [ ] Merge the source-complete feature jers into `main` and produce one integrated Windows package.
+- [ ] Merge the source-complete feature branches into `main` and produce one integrated Windows package.
 - [ ] Run the full packaged smoke matrix and refresh only captures proven against that package and
       commit. The current screenshot evidence check remains red until that work is complete.
 - [ ] Publish a new release only after package provenance, installer contents and remote checks are
