@@ -84,8 +84,11 @@ export function registerHostedHandlers(
     // reached dist/hosted/index.js as free identifiers and thrown on first read.
     ipcMain.handle("app:buildProvenance", () => ({
         version: process.env["WORLDLENS_VERSION"] ?? "0.0.0-hosted",
-        builtAt: __WORLDLENS_BUILT_AT__,
-        sourceCommit: __WORLDLENS_SOURCE_COMMIT__,
+        // typeof, not a bare read: a module the runner treats as external is never
+        // transformed, and then the identifier throws rather than being null.
+        builtAt: typeof __WORLDLENS_BUILT_AT__ === "string" ? __WORLDLENS_BUILT_AT__ : null,
+        sourceCommit:
+            typeof __WORLDLENS_SOURCE_COMMIT__ === "string" ? __WORLDLENS_SOURCE_COMMIT__ : null,
     }));
 
     // Deliberately carries no path. Which folders exist is the operator's business to state;

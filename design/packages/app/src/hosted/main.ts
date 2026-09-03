@@ -140,6 +140,27 @@ export function readConfiguration(env: HostedEnvironment): {
 }
 
 /** What the container prints on startup, so an operator can see what they actually deployed. */
+/**
+ * The build constants, read without assuming the bundler replaced them.
+ *
+ * esbuild's `define` substitutes these at build time, so in a packaged build they are literals
+ * and a bare read is fine. Nothing else is guaranteed: a module that a test runner treats as
+ * external is never transformed, and then the bare identifier throws
+ * "__WORLDLENS_SOURCE_COMMIT__ is not defined" on the first read -- which is exactly what
+ * happened, in the full suite only, while the same file passed alone and at package scope.
+ *
+ * `typeof` on an undeclared identifier is the one read that cannot throw. Null when it is
+ * absent, which is the same value a build that could not establish provenance produces, so the
+ * unavailable state is reached honestly rather than by crashing into it.
+ */
+function buildCommit(): string | null {
+    return typeof __WORLDLENS_SOURCE_COMMIT__ === "string" ? __WORLDLENS_SOURCE_COMMIT__ : null;
+}
+
+function buildTimestamp(): string | null {
+    return typeof __WORLDLENS_BUILT_AT__ === "string" ? __WORLDLENS_BUILT_AT__ : null;
+}
+
 export function describeDeployment(configuration: HostedConfiguration): string {
     const lines = [
         `WorldLens is listening on http://${configuration.host}:${String(configuration.port)}`,
@@ -149,8 +170,8 @@ export function describeDeployment(configuration: HostedConfiguration): string {
         // Issue #169: an operator looking at a running container has to be able to tell
         // which build it is without pulling the image and reading its labels. Null when
         // the build could not establish a commit, said plainly rather than left blank.
-        `  Built:    ${__WORLDLENS_SOURCE_COMMIT__ ?? "commit unknown"}` +
-            (__WORLDLENS_BUILT_AT__ === null ? "" : ` at ${__WORLDLENS_BUILT_AT__}`),
+        `  Built:    ${buildCommit() ?? "commit unknown"}` +
+            (buildTimestamp() === null ? "" : ` at ${String(buildTimestamp())}`),
     ];
     if (configuration.mountRoots.length === 0) {
         lines.push("  Folders:  none mounted, so there is nothing to read or render.");

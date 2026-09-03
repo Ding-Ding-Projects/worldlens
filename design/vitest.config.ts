@@ -91,11 +91,18 @@ export default defineConfig({
     /**
      * The build-time constants esbuild injects into the app bundles.
      *
-     * The tests do not go through esbuild, so without these every module that reads one
-     * throws "__WORLDLENS_SOURCE_COMMIT__ is not defined" the moment it is imported. Null is
-     * the honest value here: a test run has no build provenance, and null is exactly what a
+     * Null is the honest value: a test run has no build provenance, and null is exactly what a
      * build that could not establish one produces, so the surfaces are exercised in their
      * unavailable state rather than against an invented commit.
+     *
+     * This is not load-bearing, and the distinction matters to whoever reads it next. Every
+     * site that reads one of these guards it with `typeof`, because a module the runner treats
+     * as external is never transformed and a bare read throws there -- which happened in the
+     * full 995-file run only, while the same file passed alone and at package scope. Removing
+     * this block leaves those tests green.
+     *
+     * It is kept because it makes the tests exercise the same shape a packaged build has, with
+     * the constants substituted as literals, rather than only ever the undefined path.
      */
     define: {
         __WORLDLENS_BUILT_AT__: "null",
