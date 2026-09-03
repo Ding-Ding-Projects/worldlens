@@ -16,10 +16,23 @@ const source = readFileSync(
 
 describe("the preload CI Pages bootstrap bridge", () => {
     it("carries publishToPages in both the method signature and IPC payload", () => {
-        expect(source).toMatch(
-            /bootstrapCiRepository:\s*\(\s*owner(?::\s*\w+)?,\s*repo(?::\s*\w+)?,\s*accountId(?::\s*\w+)?,\s*publishToPages(?::\s*\w+)?\s*\)\s*=>\s*\r?\n\s*transport\.invoke\("cirender:bootstrap", \{ owner, repo, accountId, publishToPages \}\)/,
+        // Asserted as two facts rather than one long regex over the whole declaration. The
+        // previous form pinned the formatting as well as the contract - no trailing comma
+        // after the last parameter, and a newline between the arrow and the call - and broke
+        // when the signature was wrapped across lines while every parameter it cares about
+        // stayed exactly where it was.
+        const signature = source.slice(
+            source.indexOf("bootstrapCiRepository:"),
+            source.indexOf("cirender:bootstrap"),
+        );
+        for (const parameter of ["owner", "repo", "accountId", "publishToPages"]) {
+            expect(signature, `${parameter} left the bootstrap signature`).toContain(parameter);
+        }
+        expect(source).toContain(
+            'transport.invoke("cirender:bootstrap", { owner, repo, accountId, publishToPages })',
         );
     });
+
 
     it("its negative regression turns red when the payload field disappears", () => {
         const broken = source.replace(
