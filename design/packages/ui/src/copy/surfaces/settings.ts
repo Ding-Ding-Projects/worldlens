@@ -1262,6 +1262,15 @@ export const SETTINGS_FIXED = {
     "settings.engineChoice.provenance": { en: "Provenance", yue: "來源" },
     "settings.engineChoice.resetProject": { en: "Use global default", yue: "用全域預設" },
     "settings.engineChoice.resolved": { en: "Resolved engine", yue: "實際用嘅引擎" },
+    "settings.engineChoice.searchBad": { en: "The pattern is not valid, so no engines are listed.", yue: "個 pattern 唔啱，所以一個引擎都列唔到。" },
+    "settings.engineChoice.searchFound": { en: "{shown} of {total} engines match.", yue: "{total} 個引擎入面有 {shown} 個對得上。" },
+    "settings.engineChoice.searchTotal": { en: "{total} engines are available to compare.", yue: "有 {total} 個引擎可以比較。" },
+    "settings.engineChoice.source": { en: "Verified source", yue: "已驗證嘅來源" },
+    "settings.engineChoice.title": { en: "Choose the render engine", yue: "揀 render 引擎" },
+    "settings.engineChoice.unsupported": { en: "Unsupported or conditional", yue: "唔支援或者有條件" },
+    "settings.engineChoice.version": { en: "Version", yue: "版本" },
+    "settings.engineChoice.worldlens": { en: "Worldlens app engine", yue: "Worldlens 自己嘅引擎" },
+    "settings.runtime.title": { en: "Runtime settings and accommodations", yue: "執行時設定同輔助選項" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {
