@@ -462,7 +462,30 @@ let unsubscribeJavaProgress: (() => void) | null = null;
 type JavaOperation = {
     kind: "check" | "provision";
     generation: number;
+    /** Settles when this operation has finished and released the lock. */
+    readonly settled: Promise<void>;
 };
+
+/** Releases {@link javaOperation}'s promise. Set beside every operation that takes the lock. */
+let releaseJavaOperation: (() => void) | null = null;
+
+function takeJavaLock(kind: "check" | "provision", generation: number): JavaOperation {
+    let release = (): void => {};
+    const settled = new Promise<void>((resolve) => {
+        release = resolve;
+    });
+    releaseJavaOperation = release;
+    const operation: JavaOperation = { kind, generation, settled };
+    javaOperation = operation;
+    return operation;
+}
+
+function freeJavaLock(): void {
+    const release = releaseJavaOperation;
+    javaOperation = null;
+    releaseJavaOperation = null;
+    release?.();
+}
 
 let javaGeneration = 0;
 let javaOperation: JavaOperation | null = null;
@@ -480,7 +503,7 @@ async function checkJava(): Promise<void> {
     }
     const generation = javaGeneration;
     queuedJavaGeneration = null;
-    javaOperation = { kind: "check", generation };
+    takeJavaLock("check", generation);
     javaChecking.value = true;
     javaFailure.value = null;
     try {
@@ -501,7 +524,7 @@ async function checkJava(): Promise<void> {
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
         if (javaOperation?.generation === generation && javaOperation.kind === "check") {
-            javaOperation = null;
+            freeJavaLock();
             javaChecking.value = false;
         }
         if (
@@ -518,13 +541,29 @@ async function checkJava(): Promise<void> {
 
 async function provisionJava(): Promise<void> {
     if (!store.hasJava || javaNotRequired.value || javaDisposed) return;
+    // A person pressed a button, so this never returns silently. The lock is held by the
+    // Java check that runs when the step opens, and simply returning here meant a click
+    // landing during that check did nothing at all, said nothing at all, and looked exactly
+    // like a broken button. Wait for the check instead, then take the lock.
     if (javaOperation !== null) {
-        if (step.value === "java") queuedJavaGeneration = javaGeneration;
-        return;
+        javaProvisioning.value = true;
+        try {
+            await javaOperation.settled;
+        } finally {
+            javaProvisioning.value = false;
+        }
+        if (javaDisposed || javaNotRequired.value) return;
+        if (javaOperation !== null) {
+            javaFailure.value = t(
+                "mcserver.wizard.javaBusy",
+                "Wait for the Java check to finish.",
+            );
+            return;
+        }
     }
     const generation = javaGeneration;
     queuedJavaGeneration = null;
-    javaOperation = { kind: "provision", generation };
+    takeJavaLock("provision", generation);
     javaProvisioning.value = true;
     javaProgress.value = null;
     javaFailure.value = null;
@@ -546,7 +585,7 @@ async function provisionJava(): Promise<void> {
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
         if (javaOperation?.generation === generation && javaOperation.kind === "provision") {
-            javaOperation = null;
+            freeJavaLock();
             javaProvisioning.value = false;
         }
         if (

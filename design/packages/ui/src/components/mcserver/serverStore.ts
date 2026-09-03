@@ -736,7 +736,55 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         async javaResolve(version): Promise<Answer<JavaResolution>> {
             if (host === null) return noHost();
             if (host.java === undefined) return notWired("Java discovery");
-            return host.java.resolve(version);
+            const result = await host.java.resolve(version);
+            if (!result.ok || result.value === undefined) return result as Answer<JavaResolution>;
+            // The main process answers with its discovery report, which is a different shape
+            // from the one every reader here expects. Passing it straight through produced a
+            // resolution whose `found` was undefined and whose `message` was empty, so a
+            // machine with a perfectly good runtime was told, in an empty banner, that it had
+            // none. Translate it here, next to the provision translation that already exists.
+            const raw = result.value as unknown as {
+                requirement?: { feature?: number };
+                installation?: {
+                    source?: JavaResolution["source"];
+                    executable?: string;
+                    version?: { version?: string | null };
+                } | null;
+                rejected?: readonly { source?: string; reason?: string }[];
+            };
+            const requiredFeature = raw.requirement?.feature ?? (Number(version) || 0);
+            const installation = raw.installation ?? null;
+            if (installation?.executable !== undefined) {
+                return {
+                    ok: true,
+                    value: {
+                        found: true,
+                        executable: installation.executable,
+                        source: installation.source ?? null,
+                        version: installation.version?.version ?? null,
+                        requiredFeature,
+                        message: "A suitable Java runtime is available.",
+                    },
+                };
+            }
+            const rejected = raw.rejected ?? [];
+            const why =
+                rejected.length === 0
+                    ? `No Java ${requiredFeature} runtime was found on this computer.`
+                    : `No usable Java ${requiredFeature} runtime was found. ${rejected
+                          .map((entry) => `${entry.source ?? "A runtime"}: ${entry.reason ?? "was rejected"}`)
+                          .join("; ")}.`;
+            return {
+                ok: true,
+                value: {
+                    found: false,
+                    executable: null,
+                    source: null,
+                    version: null,
+                    requiredFeature,
+                    message: why,
+                },
+            };
         },
         async javaProvision(version): Promise<Answer<JavaResolution>> {
             if (host === null) return noHost();
@@ -768,7 +816,16 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         },
         onJavaProgress(listener): () => void {
             if (host?.java?.onProgress === undefined) return () => {};
-            return host.java.onProgress(listener);
+            // The bridge hands the listener the server id first and the event second, so
+            // forwarding the listener unchanged delivered a string where a progress object was
+            // expected: the phase was never read, the byte counts became NaN, and a failed
+            // download never said so.
+            return host.java.onProgress((_id: string, event: unknown) => {
+                if (typeof event !== "object" || event === null) return;
+                const progress = event as JavaProvisionProgress;
+                if (typeof progress.phase !== "string") return;
+                listener(progress);
+            });
         },
         async createServer(request): Promise<Answer<ServerRecord>> {
             if (host === null) return noHost();
