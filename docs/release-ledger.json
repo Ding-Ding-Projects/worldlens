@@ -9,7 +9,7 @@
       "releaseId": "366510298",
       "releaseDisposition": "shipped-nonconforming",
       "verificationState": "failed",
-      "verificationNote": "Published release evidence is complete, but this phase is failed under the current link-only dim-sum policy: the release attached a copied catalog photo asset. Historical release notes also identify the run as material-bluemap rather than this Oak Kay.",
+      "verificationNote": "Published release evidence is complete, but this phase is failed under the current link-only dim-sum policy: the release attached a copied catalog photo asset. Historical release notes also identify the run as material-bluemap rather than this repository.",
       "timing": {
         "started": "2026-08-07T03:41:20Z",
         "completed": "2026-08-07T03:57:46Z",

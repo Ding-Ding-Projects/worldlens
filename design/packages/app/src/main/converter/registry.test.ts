@@ -1,5 +1,8 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { assertConverterCompleteness, buildAdapterRegistry, CONVERTER_CATEGORIES, detectAdapter, detectAdapters, KNOWN_ADAPTERS, validateAdapterRegistry, type ConverterAdapter } from "./registry.js";
+import { assertConverterCompleteness, buildAdapterRegistry, CONVERTER_CATEGORIES, detectAdapter, detectAdapters, inspectInput, KNOWN_ADAPTERS, validateAdapterRegistry, type ConverterAdapter } from "./registry.js";
 
 describe("converter registry", () => {
     it("detects byte signatures rather than trusting a filename", async () => {
@@ -20,6 +23,18 @@ describe("converter registry", () => {
         const registry = KNOWN_ADAPTERS.map((item) => ({ ...item, bundled: false, available: false, unavailableReason: "missing" })) as ConverterAdapter[];
         registry[0] = { ...registry[0]!, available: true, unavailableReason: null };
         expect(() => validateAdapterRegistry(registry)).toThrow(/bundled proof/);
+    });
+    it("reports the inspected input byte length through a neutral field", async () => {
+        const directory = await mkdtemp(join(tmpdir(), "worldlens-converter-"));
+        const source = join(directory, "sample.bin");
+        try {
+            await writeFile(source, Buffer.from([0, 1, 2, 3]));
+            const inspected = await inspectInput(source);
+            expect(inspected.byteLength).toBe(4);
+            expect(inspected.bytes.byteLength).toBe(4);
+        } finally {
+            await rm(directory, { recursive: true, force: true });
+        }
     });
     it("negative completeness regression turns red when an item disappears", () => {
         expect(() => assertConverterCompleteness(["byte-signature-detection"])).toThrow(/categorized-adapter-catalog/);

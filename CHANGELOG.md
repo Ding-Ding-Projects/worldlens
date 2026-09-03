@@ -20,8 +20,43 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+_No changes have been committed since `v1.0.1775`._
+
+## 1.0.1775 - 2026-09-02
+
+Tagged at [`df12151614`](https://github.com/Ding-Ding-Projects/worldlens/commit/df12151614623dc7260a2b8288390cd8f6d57dd0).
+
 ### Interface
 
+- Make the Java step tell the truth and the install button do something - [`df12151614`](https://github.com/Ding-Ding-Projects/worldlens/commit/df12151614623dc7260a2b8288390cd8f6d57dd0)
+
+## 1.0.1771 - 2026-09-02
+
+Tagged at [`7774dd7843`](https://github.com/Ding-Ding-Projects/worldlens/commit/7774dd78434844f1b7d57ceadf25b15fcbe1ec52).
+
+### Interface
+
+- Preserve incomplete Java bridge repair for reconciliation - [`41d106a476`](https://github.com/Ding-Ding-Projects/worldlens/commit/41d106a476cb9943271be4a7c3e8a5d388cc2584)
+
+### Build, release and tooling
+
+- Publish a map preview to Pages, keep the full map in the download - [`7774dd7843`](https://github.com/Ding-Ding-Projects/worldlens/commit/7774dd78434844f1b7d57ceadf25b15fcbe1ec52)
+
+## 1.0.1770 - 2026-09-02
+
+Tagged at [`10aecea86c`](https://github.com/Ding-Ding-Projects/worldlens/commit/10aecea86c8cd06dd0282de5cbae58fe673809a1).
+
+### Rendering and world data
+
+- Let a world with empty space in the middle be planned - [`10aecea86c`](https://github.com/Ding-Ding-Projects/worldlens/commit/10aecea86c8cd06dd0282de5cbae58fe673809a1)
+
+## 1.0.1769 - 2026-09-02
+
+Tagged at [`394e5233e9`](https://github.com/Ding-Ding-Projects/worldlens/commit/394e5233e9436d7b305247652c1d5030f2898670).
+
+### Interface
+
+- Preserve in-flight copy, console and changelog work - [`394e5233e9`](https://github.com/Ding-Ding-Projects/worldlens/commit/394e5233e9436d7b305247652c1d5030f2898670)
 - Merge the creative appearance studio - [`fa85dd3d93`](https://github.com/Ding-Ding-Projects/worldlens/commit/fa85dd3d939323749f5ab5dec812d26a652c52c7) _(summary of 8 commits, also listed here)_
 - Preserve the in-flight creative appearance studio work - [`e8cffaeeb7`](https://github.com/Ding-Ding-Projects/worldlens/commit/e8cffaeeb74f145aabd45464e941cba7ff9c0fb7)
 - Finish transactional creative ownership - [`eaed1883d2`](https://github.com/Ding-Ding-Projects/worldlens/commit/eaed1883d2985785ad6812e348ba9281874a33a8)
@@ -43,13 +78,13 @@ full message for the in-app changelog viewer.
 - Harden runtime settings integration - [`3f94074846`](https://github.com/Ding-Ding-Projects/worldlens/commit/3f94074846350250ed0577e90dadd6cd4dc90c0f)
 - Add runtime settings and accommodations panel - [`f2693d51d4`](https://github.com/Ding-Ding-Projects/worldlens/commit/f2693d51d45c3bc8ed0ef0e8e109d9f5d1f65ad6)
 - Merge remaining remote profile history - [`c987c4d3ec`](https://github.com/Ding-Ding-Projects/worldlens/commit/c987c4d3ec82b7c10eb62dd6d64520a56f7aa94b) _(summary of 2 commits, also listed here)_
-- Complete remote server adoption and tunnel readiness - [`aa65e18cbd`](https://github.com/Ding-Ding-Projects/worldlens/commit/aa65e18cbdb1e0f9c199dc1cdd20a22b7f923005)
+- Internal maintenance message omitted from the public changelog - [`aa65e18cbd`](https://github.com/Ding-Ding-Projects/worldlens/commit/aa65e18cbdb1e0f9c199dc1cdd20a22b7f923005)
 - Preserve an in-flight search-filter test change - [`260ec9f0a0`](https://github.com/Ding-Ding-Projects/worldlens/commit/260ec9f0a08ae807bf717f2a0ab92b12e18467e4)
 - Harden staged backup identity and confirmation input - [`ec6ab0542e`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec6ab0542e4771629a82775a13a92ba4754c1d1c)
-- Replace source contract with mounted panel proof - [`c379b29c5a`](https://github.com/Ding-Ding-Projects/worldlens/commit/c379b29c5ae51a07d490375bcc1dc29a86b1096c)
-- Finish stable backup verification progress - [`aaf748c9af`](https://github.com/Ding-Ding-Projects/worldlens/commit/aaf748c9af8c3a711151775c15c6579a33d3b75d)
-- Move restore proof into native main session - [`71f7d54c19`](https://github.com/Ding-Ding-Projects/worldlens/commit/71f7d54c19833732a76229f90bbad28404ba0cee)
-- Require main-owned restore transitions - [`747517b448`](https://github.com/Ding-Ding-Projects/worldlens/commit/747517b4482489ed4fdf98b39d4864f30442afc8)
+- Internal maintenance message omitted from the public changelog - [`c379b29c5a`](https://github.com/Ding-Ding-Projects/worldlens/commit/c379b29c5ae51a07d490375bcc1dc29a86b1096c)
+- Internal maintenance message omitted from the public changelog - [`aaf748c9af`](https://github.com/Ding-Ding-Projects/worldlens/commit/aaf748c9af8c3a711151775c15c6579a33d3b75d)
+- Internal maintenance message omitted from the public changelog - [`71f7d54c19`](https://github.com/Ding-Ding-Projects/worldlens/commit/71f7d54c19833732a76229f90bbad28404ba0cee)
+- Internal maintenance message omitted from the public changelog - [`747517b448`](https://github.com/Ding-Ding-Projects/worldlens/commit/747517b4482489ed4fdf98b39d4864f30442afc8)
 - Add cancellable backup progress and mounted world choice - [`347e68436c`](https://github.com/Ding-Ding-Projects/worldlens/commit/347e68436c450698cdc80dd425bd3593eab881a2)
 - Repair remote container paths and port evidence - [`96ae9af71e`](https://github.com/Ding-Ding-Projects/worldlens/commit/96ae9af71edf6798899f8f450c4a5cc209b45ef7)
 - Merge complete version catalogue history - [`f0a039ad8c`](https://github.com/Ding-Ding-Projects/worldlens/commit/f0a039ad8c6aeb5cbd5b2a10432ca7113bb1b2e7) _(summary of 10 commits, also listed here)_
@@ -70,7 +105,7 @@ full message for the in-app changelog viewer.
 - Keep SSH cancellation pending until confirmed - [`e496825c01`](https://github.com/Ding-Ding-Projects/worldlens/commit/e496825c015bb857bf52575311e5d5694db67061)
 - Reject stale render and publication responses - [`13349c88e9`](https://github.com/Ding-Ding-Projects/worldlens/commit/13349c88e923cd6f005af1ca870ce298aaf7c11f)
 - Make publication and preflight state transactional - [`16ea9bb0a4`](https://github.com/Ding-Ding-Projects/worldlens/commit/16ea9bb0a42d80562ae60a79d6d1cd533a78ee2d)
-- Harden render identity and recovery races - [`bc567dfac1`](https://github.com/Ding-Ding-Projects/worldlens/commit/bc567dfac1a8027e04040677078d5fc2b1dd1eac)
+- Internal maintenance message omitted from the public changelog - [`bc567dfac1`](https://github.com/Ding-Ding-Projects/worldlens/commit/bc567dfac1a8027e04040677078d5fc2b1dd1eac)
 - Harden project destination state handoffs - [`04ffd35b31`](https://github.com/Ding-Ding-Projects/worldlens/commit/04ffd35b31bed96ae32b5a927e66ec0fa1c20aa1)
 - Complete remote project import handoff - [`c74894eb5b`](https://github.com/Ding-Ding-Projects/worldlens/commit/c74894eb5be5fb59b277689d889daf97b182bb37)
 - Add project render destination chooser - [`db34c7c3ad`](https://github.com/Ding-Ding-Projects/worldlens/commit/db34c7c3ad6dc8277a1fc40098a39a3b55dd11ed)
@@ -78,8 +113,8 @@ full message for the in-app changelog viewer.
 - Invalidate stale wizard sessions - [`1bb697b834`](https://github.com/Ding-Ding-Projects/worldlens/commit/1bb697b83440756e9050c9780c6211bc7751d016)
 - Harden server creation and return focus - [`9999d12708`](https://github.com/Ding-Ding-Projects/worldlens/commit/9999d1270821cfa4758feac8ce6cf6c19b309c67)
 - Stabilize Minecraft search fixture teardown - [`dcd8729a69`](https://github.com/Ding-Ding-Projects/worldlens/commit/dcd8729a69f38aa3407bec13ea935b7fd5faca5c)
-- Harden server transport and stale Java flows - [`b221c805cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/b221c805cd614bbb8cc1bd750e6baa1e20049b04)
-- Repair server detail ownership and Java readiness - [`5a116c8e21`](https://github.com/Ding-Ding-Projects/worldlens/commit/5a116c8e2183c34bcf725cd109ee4cf4ac417821)
+- Internal maintenance message omitted from the public changelog - [`b221c805cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/b221c805cd614bbb8cc1bd750e6baa1e20049b04)
+- Internal maintenance message omitted from the public changelog - [`5a116c8e21`](https://github.com/Ding-Ding-Projects/worldlens/commit/5a116c8e2183c34bcf725cd109ee4cf4ac417821)
 - Repair server navigation and version catalog UI - [`c9a2ca4b55`](https://github.com/Ding-Ding-Projects/worldlens/commit/c9a2ca4b552b05d1f097547e0fc5d65da1ddc328)
 - Expose verified BlueMap provenance in Settings - [`131f0a8db6`](https://github.com/Ding-Ding-Projects/worldlens/commit/131f0a8db65391eb682552348af7c80b3c034641) _(summary of 3 commits, also listed here)_
 - Bind verified engine facts from the settings report - [`ae0567539c`](https://github.com/Ding-Ding-Projects/worldlens/commit/ae0567539c730a41a8f28ea659229a19bad68109)
@@ -92,6 +127,7 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Restrict server edits to non-privileged metadata - [`265e7d441d`](https://github.com/Ding-Ding-Projects/worldlens/commit/265e7d441d92edc3d31f0a0bce24cdbb6ed324ad)
 - Merge file conversion and local model tooling - [`2991df58a3`](https://github.com/Ding-Ding-Projects/worldlens/commit/2991df58a3e8a428c5de7a36c5833834eff3fb87) _(summary of 8 commits, also listed here)_
 - Verify managed runtime rollback smoke - [`9e23288a07`](https://github.com/Ding-Ding-Projects/worldlens/commit/9e23288a07c777780f221717277a8f9ca0e3f8cd)
 - Close converter and Ollama review blockers - [`ff00909dee`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff00909dee27d558bf895786244d3815f7c3219b)
@@ -100,10 +136,10 @@ full message for the in-app changelog viewer.
 - Repair bounded converter and Ollama runtime flows - [`76c4d0cb71`](https://github.com/Ding-Ding-Projects/worldlens/commit/76c4d0cb712ec385528f84820191a78223e2c61c)
 - Repair packaged converter and local model delivery - [`3bd97e300b`](https://github.com/Ding-Ding-Projects/worldlens/commit/3bd97e300b70f631227d4d00b6de9e267ec2bc21)
 - Add bundled-first file conversion and local model tools - [`43fbc6d5fe`](https://github.com/Ding-Ding-Projects/worldlens/commit/43fbc6d5fe8d0b2e9bb33b0bd02bba3228a8bc2d)
-- Merge remote host profiles and backup recovery - [`05d73d6402`](https://github.com/Ding-Ding-Projects/worldlens/commit/05d73d64023dba6fc41455d1b1d6cad0e678f73a) _(summary of 19 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`05d73d6402`](https://github.com/Ding-Ding-Projects/worldlens/commit/05d73d64023dba6fc41455d1b1d6cad0e678f73a) _(summary of 19 commits, also listed here)_
 - Enforce backup quiesce and restart recovery - [`7347049eb6`](https://github.com/Ding-Ding-Projects/worldlens/commit/7347049eb60b734c382f399ca7b527281acbd37d)
 - Quiesce servers and harden source identity - [`5b246bbe7d`](https://github.com/Ding-Ding-Projects/worldlens/commit/5b246bbe7d332c53d98d62df0d8077db1c8f5cf2)
-- Close backup authorization and hash the source boundary - [`c6cc1d2445`](https://github.com/Ding-Ding-Projects/worldlens/commit/c6cc1d2445007a71978189f09a414ac6183ba808)
+- Internal maintenance message omitted from the public changelog - [`c6cc1d2445`](https://github.com/Ding-Ding-Projects/worldlens/commit/c6cc1d2445007a71978189f09a414ac6183ba808)
 - Stream typed remote backup progress - [`8604cf745b`](https://github.com/Ding-Ding-Projects/worldlens/commit/8604cf745b6c715226a53e278a2cddf43fb61196)
 - Verify stable remote backup manifests - [`b1bafbd2f2`](https://github.com/Ding-Ding-Projects/worldlens/commit/b1bafbd2f2166c954e1a9825bd3bdb1375d2f954)
 - Wire native restore confirmation in the app shell - [`10447e96ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/10447e96ba33c6df77154a5a899570d373b8ab97)
@@ -120,8 +156,8 @@ full message for the in-app changelog viewer.
 - Integrate verified BlueMap engine provisioning - [`b41f55ad21`](https://github.com/Ding-Ding-Projects/worldlens/commit/b41f55ad21e9f386c316a399ca4478c4c998023e) _(summary of 9 commits, also listed here)_
 - Require canonical roots for archive verification - [`ad7281c47e`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad7281c47ef26fc2bda7fa7ef07b0ec2f88a9d42)
 - Make render ownership and archive races idempotent - [`5c6e794c4f`](https://github.com/Ding-Ding-Projects/worldlens/commit/5c6e794c4f720a6fb23ac71919e70a7108c6e585)
-- Finalize engine lifecycle and stable archive verification - [`285990e1e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/285990e1e2b261c899e3803283cd1ed9db07c240)
-- Close residual engine safety gaps - [`1e1b99aba1`](https://github.com/Ding-Ding-Projects/worldlens/commit/1e1b99aba103fe7c7a6d51aa989cb2f7d2fd4370)
+- Internal maintenance message omitted from the public changelog - [`285990e1e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/285990e1e2b261c899e3803283cd1ed9db07c240)
+- Internal maintenance message omitted from the public changelog - [`1e1b99aba1`](https://github.com/Ding-Ding-Projects/worldlens/commit/1e1b99aba103fe7c7a6d51aa989cb2f7d2fd4370)
 - Harden engine staging and transfer safety - [`c7b4e3306d`](https://github.com/Ding-Ding-Projects/worldlens/commit/c7b4e3306d284f5a93765c625fe35fbfbcab054e)
 - Keep bundled engine provenance and repair cancellation truthful - [`9e96875587`](https://github.com/Ding-Ding-Projects/worldlens/commit/9e96875587380de629f365e26eb2c3a4936b85d9)
 - Repair and validate the packaged BlueMap engine - [`bc8692b6d1`](https://github.com/Ding-Ding-Projects/worldlens/commit/bc8692b6d13b618542bcf7d3f4fa612c6e0399c8)
@@ -140,7 +176,7 @@ full message for the in-app changelog viewer.
 ### Build, release and tooling
 
 - Merge fail-closed UI smoke planning - [`22eb8844ce`](https://github.com/Ding-Ding-Projects/worldlens/commit/22eb8844ce475b2cff5abd52d2381de356c1a4a0) _(summary of 3 commits, also listed here)_
-- Execute hidden desktop smoke captures - [`d48c8110fc`](https://github.com/Ding-Ding-Projects/worldlens/commit/d48c8110fc59fa539b17bb601f53ccef90f9d120)
+- Internal maintenance message omitted from the public changelog - [`d48c8110fc`](https://github.com/Ding-Ding-Projects/worldlens/commit/d48c8110fc59fa539b17bb601f53ccef90f9d120)
 - Add built-app smoke matrix - [`422c8eb3be`](https://github.com/Ding-Ding-Projects/worldlens/commit/422c8eb3be69911fc6b1af97b51b40275b372df2)
 - Integrate one-command fresh Windows bootstrap - [`fc06a62f43`](https://github.com/Ding-Ding-Projects/worldlens/commit/fc06a62f438474bbcd76d54a430f617faf595c4e) _(summary of 8 commits, also listed here)_
 - Honor digest preference before tool probes - [`221432c90f`](https://github.com/Ding-Ding-Projects/worldlens/commit/221432c90f1553cee58450ed70bc685b9ae7d249)
@@ -152,8 +188,8 @@ full message for the in-app changelog viewer.
 - Emit BlueMap JAR versions from the producer - [`316a6c5b21`](https://github.com/Ding-Ding-Projects/worldlens/commit/316a6c5b21f698b0fbcc3359be5125a761bbff9e)
 - Align BlueMap package manifest version fields - [`173f04a403`](https://github.com/Ding-Ding-Projects/worldlens/commit/173f04a403e15ddab11ab2084f91b525eb6a1742) _(summary of 2 commits, also listed here)_
 - Align BlueMap manifest version fields - [`52bd38744e`](https://github.com/Ding-Ding-Projects/worldlens/commit/52bd38744eca11b291a361c44285bff5ee8bdf9d)
-- Make staging mutation guards newline safe - [`ccc9ed5a58`](https://github.com/Ding-Ding-Projects/worldlens/commit/ccc9ed5a5876e5e58222a68cf7a4a8cb337dc2ef) _(summary of 2 commits, also listed here)_
-- Make staging mutation guards newline safe - [`500bd3b3ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/500bd3b3ba8d06beae93e4941fe2c90efd91d906)
+- Internal maintenance message omitted from the public changelog - [`ccc9ed5a58`](https://github.com/Ding-Ding-Projects/worldlens/commit/ccc9ed5a5876e5e58222a68cf7a4a8cb337dc2ef) _(summary of 2 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`500bd3b3ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/500bd3b3ba8d06beae93e4941fe2c90efd91d906)
 - Integrate authoritative BlueMap package manifest - [`8f71fd086e`](https://github.com/Ding-Ding-Projects/worldlens/commit/8f71fd086e928ee61509ad646889029260065342) _(summary of 5 commits, also listed here)_
 - Harden BlueMap staging identity and workflow contracts - [`e2a74db73e`](https://github.com/Ding-Ding-Projects/worldlens/commit/e2a74db73e31a6b3ed52dfe2f5ab3d02f244ef5d)
 - Require verified BlueMap CLI manifest before packaging - [`fc1c606770`](https://github.com/Ding-Ding-Projects/worldlens/commit/fc1c60677081a0e31cd4c7be3ae990941afaba3b)
@@ -461,7 +497,7 @@ Tagged at [`ff7ddb32ee`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Documentation
 
-- Write an honest handoff for the bundled-runtime session - [`ff7ddb32ee`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de)
+- Internal maintenance message omitted from the public changelog - [`ff7ddb32ee`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de)
 
 ## 1.0.1644 - 2026-08-22
 
@@ -493,7 +529,7 @@ Tagged at [`ec7b80addf`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Interface
 
-- Scope the no-signing proof to what this build generates, and stop the copy claiming Java is fetched - [`68b7d8066e`](https://github.com/Ding-Ding-Projects/worldlens/commit/68b7d8066eaa94909edd2690867015911bdfefa9)
+- Internal maintenance message omitted from the public changelog - [`68b7d8066e`](https://github.com/Ding-Ding-Projects/worldlens/commit/68b7d8066eaa94909edd2690867015911bdfefa9)
 
 ### Desktop shell
 
@@ -510,7 +546,7 @@ Tagged at [`0c464f7003`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Interface
 
-- Merge the adoption candidate browser lane - [`0c464f7003`](https://github.com/Ding-Ding-Projects/worldlens/commit/0c464f70035401440e53a572b6bf421fcedd3ce3) _(summary of 2 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`0c464f7003`](https://github.com/Ding-Ding-Projects/worldlens/commit/0c464f70035401440e53a572b6bf421fcedd3ce3) _(summary of 2 commits, also listed here)_
 - Give adoption the candidate browser its button always implied - [`2c2769ccda`](https://github.com/Ding-Ding-Projects/worldlens/commit/2c2769ccda9a6ad07f9e7c8e1ccdbf405b99c6be)
 
 ### Landing page and documentation site
@@ -572,7 +608,7 @@ Tagged at [`c36d43df88`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Merge remote-tracking branch 'origin/lane/issue155-modloader-profiles' - [`4d5a10d588`](https://github.com/Ding-Ding-Projects/worldlens/commit/4d5a10d588fc96ef7e92b1394bb91e2369b236d2) _(summary of 2 commits, also listed here)_
 - Add interactive mod-loader profiles - [`b429d5de82`](https://github.com/Ding-Ding-Projects/worldlens/commit/b429d5de82d6ba76877461b52536b9e42b8ca6a4)
 - test: cover remaining Minecraft server searches - [`58e87518c2`](https://github.com/Ding-Ding-Projects/worldlens/commit/58e87518c2a2c1521e2688874d42f73d549bc63f)
-- Repair what the parallel merges left broken - [`83bc94050e`](https://github.com/Ding-Ding-Projects/worldlens/commit/83bc94050e872289b04c5ced1d65a0af5bfff77d)
+- Internal maintenance message omitted from the public changelog - [`83bc94050e`](https://github.com/Ding-Ding-Projects/worldlens/commit/83bc94050e872289b04c5ced1d65a0af5bfff77d)
 - Merge remote-tracking branch 'origin/lane/issue152-aws-interface' - [`c61a156ae5`](https://github.com/Ding-Ding-Projects/worldlens/commit/c61a156ae5b04d4c801c86510229a068ca2172de) _(summary of 2 commits, also listed here)_
 - Expose AWS EC2 hosting in the server wizard - [`6edd68e984`](https://github.com/Ding-Ding-Projects/worldlens/commit/6edd68e98464cad8c07039e97ac699283d5e70bb)
 
@@ -677,7 +713,7 @@ Tagged at [`b4163b3f3e`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Interface
 
-- Dedupe the documentation index after two lanes fixed it at once - [`b4163b3f3e`](https://github.com/Ding-Ding-Projects/worldlens/commit/b4163b3f3eff1c0de3caa756cd8e13a485e10d53)
+- Internal maintenance message omitted from the public changelog - [`b4163b3f3e`](https://github.com/Ding-Ding-Projects/worldlens/commit/b4163b3f3eff1c0de3caa756cd8e13a485e10d53)
 
 ### Documentation
 
@@ -962,7 +998,7 @@ Tagged at [`ef851c6af4`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Make the server layer reachable, and prove it is actually plugged in - [`2962022fb0`](https://github.com/Ding-Ding-Projects/worldlens/commit/2962022fb0ef8d5b2cb4e5a9b8cf06159544f175)
 - Reach a container's server, whether the daemon is here or in another country - [`8c718cd3df`](https://github.com/Ding-Ding-Projects/worldlens/commit/8c718cd3df50f555ba195185c38c650e356d0a9b)
 - Run a server as a local process, and teach scope.ts that Windows exists - [`950d940f24`](https://github.com/Ding-Ding-Projects/worldlens/commit/950d940f245fc00e449a951484671305d21bf375)
-- Lay the one seam every Minecraft server feature will stand on - [`f6524ab4fe`](https://github.com/Ding-Ding-Projects/worldlens/commit/f6524ab4fe05bf3b9343dcbd05ba7d9212bb62d1)
+- Internal maintenance message omitted from the public changelog - [`f6524ab4fe`](https://github.com/Ding-Ding-Projects/worldlens/commit/f6524ab4fe05bf3b9343dcbd05ba7d9212bb62d1)
 
 ### Documentation
 
@@ -1053,7 +1089,7 @@ Tagged at [`9d0c0944d5`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Build, release and tooling
 
-- Merge current main into issue acceptance jer - [`0eb136de7e`](https://github.com/Ding-Ding-Projects/worldlens/commit/0eb136de7e65afa5acac775eafc965a603091a3f) _(summary of 2 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`0eb136de7e`](https://github.com/Ding-Ding-Projects/worldlens/commit/0eb136de7e65afa5acac775eafc965a603091a3f) _(summary of 2 commits, also listed here)_
 
 ### Documentation
 
@@ -1063,10 +1099,10 @@ Tagged at [`9d0c0944d5`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Correct render-engine documentation with the open wiring audit - [`9b4f825797`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b4f825797b921a4755636b8e89a5ccff7c70cdb)
 - Document public update-feed continuity - [`ea13d441ac`](https://github.com/Ding-Ding-Projects/worldlens/commit/ea13d441ac2ebc4558b44a56ca1c45701f93b22c)
 - Document public update-feed continuity - [`38a3f92664`](https://github.com/Ding-Ding-Projects/worldlens/commit/38a3f9266461598cd2c07d25b5ed46d911478e9d)
-- Merge the issue 62 cleanup ledger - [`209f9624a3`](https://github.com/Ding-Ding-Projects/worldlens/commit/209f9624a3302c9f0c138dfdf47d1fff98d01d81) _(summary of 2 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`209f9624a3`](https://github.com/Ding-Ding-Projects/worldlens/commit/209f9624a3302c9f0c138dfdf47d1fff98d01d81) _(summary of 2 commits, also listed here)_
 - Record the issue 62 cleanup evidence boundary - [`0d16a2ed08`](https://github.com/Ding-Ding-Projects/worldlens/commit/0d16a2ed080195c9cd976107cf0011aec3e3ebce)
 - Merge the save-render workflow and evidence lane - [`2bd480f0d9`](https://github.com/Ding-Ding-Projects/worldlens/commit/2bd480f0d91cb7d6d59083b7f3dc602b1d55e36f) _(summary of 4 commits, also listed here)_
-- Add the issue 139 save-clone error capture - [`75f2197df3`](https://github.com/Ding-Ding-Projects/worldlens/commit/75f2197df3bc888e5df9e4a05fd6b0ca9dccb316)
+- Internal maintenance message omitted from the public changelog - [`75f2197df3`](https://github.com/Ding-Ding-Projects/worldlens/commit/75f2197df3bc888e5df9e4a05fd6b0ca9dccb316)
 
 ### Elsewhere in the repository
 
@@ -1434,7 +1470,7 @@ Tagged at [`86190b9f42`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Documentation
 
-- Add exact server-adapter smoke contract - [`1950350193`](https://github.com/Ding-Ding-Projects/worldlens/commit/1950350193a08bc6bd58c2a6a77e4c07f9bff4f9)
+- Internal maintenance message omitted from the public changelog - [`1950350193`](https://github.com/Ding-Ding-Projects/worldlens/commit/1950350193a08bc6bd58c2a6a77e4c07f9bff4f9)
 
 ## 1.0.1250 - 2026-08-19
 
@@ -1482,7 +1518,7 @@ Tagged at [`ac46de28ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Build, release and tooling
 
-- Fix Lowlevel consent and settings navigation - [`ac46de28ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac46de28bab162ab58e045e5e46af23620f07f54) _(summary of 2 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`ac46de28ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac46de28bab162ab58e045e5e46af23620f07f54) _(summary of 2 commits, also listed here)_
 - Make Lowlevel E2E decline consent and use overflow - [`ba265790b9`](https://github.com/Ding-Ding-Projects/worldlens/commit/ba265790b97869e12e0a371ef069c696177fd6d2)
 
 ## 1.0.1230 - 2026-08-19
@@ -1543,7 +1579,7 @@ Tagged at [`8bded64312`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Rendering and world data
 
-- Retry SQLite persistence and prove sentinel assets - [`e11537c462`](https://github.com/Ding-Ding-Projects/worldlens/commit/e11537c462ab4788485bddb3ed30e4551b6938a8)
+- Internal maintenance message omitted from the public changelog - [`e11537c462`](https://github.com/Ding-Ding-Projects/worldlens/commit/e11537c462ab4788485bddb3ed30e4551b6938a8)
 - Make SQL oracle negatives and cleanup exact - [`f3b916c4b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/f3b916c4b1003c057d79105b2dd460abaafbc69f)
 
 ### Landing page and documentation site
@@ -1569,7 +1605,7 @@ Tagged at [`8bded64312`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Merge current main into SQL compatibility proof - [`22488af6a6`](https://github.com/Ding-Ding-Projects/worldlens/commit/22488af6a63bc3d7cd6072eaf7c17514f177d925) _(summary of 20 commits, also listed here)_
 - Record verified SQL cross-engine matrix - [`6a39709f8f`](https://github.com/Ding-Ding-Projects/worldlens/commit/6a39709f8fff18c7a2a8743e91df0883c4ab8717)
 - Add SQLite and PostgreSQL compatibility oracle - [`2db3574c3a`](https://github.com/Ding-Ding-Projects/worldlens/commit/2db3574c3a24e66ce40e49f1fbfb80634d58f910)
-- Merge remote-tracking branch 'origin/main' into codex/issue-60-public-compatibility-contract - [`5a78cb5e7d`](https://github.com/Ding-Ding-Projects/worldlens/commit/5a78cb5e7d304a1e6881527b9724bdeb3b7a443a) _(summary of 25 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`5a78cb5e7d`](https://github.com/Ding-Ding-Projects/worldlens/commit/5a78cb5e7d304a1e6881527b9724bdeb3b7a443a) _(summary of 25 commits, also listed here)_
 
 ## 1.0.1214 - 2026-08-19
 
@@ -1638,7 +1674,7 @@ Tagged at [`0eae8eda0d`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Build, release and tooling
 
-- Merge current main before compatibility delivery - [`e8bb0cb431`](https://github.com/Ding-Ding-Projects/worldlens/commit/e8bb0cb431363f6b68ac311c474bbd8347cc8d91) _(summary of 2 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`e8bb0cb431`](https://github.com/Ding-Ding-Projects/worldlens/commit/e8bb0cb431363f6b68ac311c474bbd8347cc8d91) _(summary of 2 commits, also listed here)_
 - Complete the two-phase public render dispatch - [`8972a84f70`](https://github.com/Ding-Ding-Projects/worldlens/commit/8972a84f70d0fd7e8f02ff6b7eb90f243149e250)
 - Target the mandatory public disclosure directly - [`7abbf94fd7`](https://github.com/Ding-Ding-Projects/worldlens/commit/7abbf94fd77652535a4b2d62b7e941f4ab136c16)
 - Handle unchanged-world retries in the public Pages journey - [`db43392a60`](https://github.com/Ding-Ding-Projects/worldlens/commit/db43392a607a8e08d4ea313905346bc747ac7071)
@@ -1646,7 +1682,7 @@ Tagged at [`0eae8eda0d`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 ### Documentation
 
 - Merge current main before failed-run retry delivery - [`3354ec6fcb`](https://github.com/Ding-Ding-Projects/worldlens/commit/3354ec6fcbb324315e6a1702eb5d61551bab2800) _(summary of 9 commits, also listed here)_
-- Remove private vocabulary from compatibility handoff - [`e86b0b60b3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e86b0b60b3a551384a7fa8c9dff924e5e2967b59)
+- Internal maintenance message omitted from the public changelog - [`e86b0b60b3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e86b0b60b3a551384a7fa8c9dff924e5e2967b59)
 - Merge issue #60 Windows compatibility contract - [`b002286bf1`](https://github.com/Ding-Ding-Projects/worldlens/commit/b002286bf1e345b708ac2ce6f1540f253e2577aa) _(summary of 4 commits, also listed here)_
 - Reconcile compatibility handoff status - [`e4a54b89c9`](https://github.com/Ding-Ding-Projects/worldlens/commit/e4a54b89c9cf3ef329c2a8f4ebb6cee27fc48acd)
 - Document Windows 1.0 compatibility contract - [`ec7e80011d`](https://github.com/Ding-Ding-Projects/worldlens/commit/ec7e80011da149398731398f8baf372edfbc0926)
@@ -1674,7 +1710,7 @@ Tagged at [`39c920626a`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 ### Build, release and tooling
 
 - Add Lowlevel public Pages retry journey - [`39c920626a`](https://github.com/Ding-Ding-Projects/worldlens/commit/39c920626a9f900a299ee577d0e0f38e7ed8b31f)
-- Merge current main before runtime proof delivery - [`6b5c39ec12`](https://github.com/Ding-Ding-Projects/worldlens/commit/6b5c39ec120795acc2e58ad3786eb09ffef22863) _(summary of 2 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`6b5c39ec12`](https://github.com/Ding-Ding-Projects/worldlens/commit/6b5c39ec120795acc2e58ad3786eb09ffef22863) _(summary of 2 commits, also listed here)_
 - Capture private Pages refusal before render fallback - [`55f8aada78`](https://github.com/Ding-Ding-Projects/worldlens/commit/55f8aada785ad0aac6ee6b7d1752d5e5663b9097)
 
 ### Documentation
@@ -1765,9 +1801,9 @@ Tagged at [`9b9c16608e`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Documentation
 
-- Merge current main before the headless runner repair - [`f429b5a0da`](https://github.com/Ding-Ding-Projects/worldlens/commit/f429b5a0da5bae78467e4f9eb04d162b50e44d0f) _(summary of 12 commits, also listed here)_
-- Merge latest main before issue delivery - [`a7455e787e`](https://github.com/Ding-Ding-Projects/worldlens/commit/a7455e787e674a3b247fe96332099dea0fdf15d4) _(summary of 2 commits, also listed here)_
-- Add hidden-desktop UI verification and recover failed cloud renders - [`f0150dfbca`](https://github.com/Ding-Ding-Projects/worldlens/commit/f0150dfbca02b355feea32f3dbc7c6290cb5f3a0)
+- Internal maintenance message omitted from the public changelog - [`f429b5a0da`](https://github.com/Ding-Ding-Projects/worldlens/commit/f429b5a0da5bae78467e4f9eb04d162b50e44d0f) _(summary of 12 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`a7455e787e`](https://github.com/Ding-Ding-Projects/worldlens/commit/a7455e787e674a3b247fe96332099dea0fdf15d4) _(summary of 2 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`f0150dfbca`](https://github.com/Ding-Ding-Projects/worldlens/commit/f0150dfbca02b355feea32f3dbc7c6290cb5f3a0)
 - Merge issue #89 typed banner data - [`025d68f017`](https://github.com/Ding-Ding-Projects/worldlens/commit/025d68f017c5426b8ec02098f8f6213bd818bb7b) _(summary of 2 commits, also listed here)_
 - Type banner pattern and color data across Minecraft eras - [`47c3f8a523`](https://github.com/Ding-Ding-Projects/worldlens/commit/47c3f8a5237f9f5f68c3aea63e92bc6cf13c4c1b)
 - Merge issue #88 LinearRegion timestamp semantics - [`ff2d72f1b6`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff2d72f1b635aac7efe0831315919a03461b49b7) _(summary of 3 commits, also listed here)_
@@ -1921,7 +1957,7 @@ Tagged at [`4e2496e44e`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Build, release and tooling
 
-- Take lint out of CI and switch the screenshot job off - [`c2b7a020cc`](https://github.com/Ding-Ding-Projects/worldlens/commit/c2b7a020cc0d9c40400479d833abda213fd7877d)
+- Internal maintenance message omitted from the public changelog - [`c2b7a020cc`](https://github.com/Ding-Ding-Projects/worldlens/commit/c2b7a020cc0d9c40400479d833abda213fd7877d)
 
 ### Documentation
 
@@ -2004,7 +2040,7 @@ Tagged at [`729c84b8b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 - Recapture for the sign-in panel's new scope disclosure - [`2f02d65447`](https://github.com/Ding-Ding-Projects/worldlens/commit/2f02d6544769add2ee048c9cc5e394bdae98b127)
 - Refresh the capture gallery against the pulled tree - [`194add465c`](https://github.com/Ding-Ding-Projects/worldlens/commit/194add465c00ba6cab0e4e8c6359e3c6c0705914)
-- Integrate upstream hardening into redesign handoff - [`bcf1f3b3b0`](https://github.com/Ding-Ding-Projects/worldlens/commit/bcf1f3b3b041948cf2ffc199de01ce67f87528b1) _(summary of 3 commits, also listed here)_
+- Internal maintenance message omitted from the public changelog - [`bcf1f3b3b0`](https://github.com/Ding-Ding-Projects/worldlens/commit/bcf1f3b3b041948cf2ffc199de01ce67f87528b1) _(summary of 3 commits, also listed here)_
 - Make the GitHub CLI a required dependency the bootstrap checks and installs - [`4e38c7460d`](https://github.com/Ding-Ding-Projects/worldlens/commit/4e38c7460db1c9bd359ac3ef852752dd11130ef7)
 - Refresh configuration inventory docs - [`e53cd94b35`](https://github.com/Ding-Ding-Projects/worldlens/commit/e53cd94b352c58f0db27c9fbc479499681c5de22)
 - Internal maintenance message omitted from the public changelog - [`3e35525aaf`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e35525aaf372ea674a18f4cbfb870511d58d8dd) _(summary of 4 commits, also listed here)_
