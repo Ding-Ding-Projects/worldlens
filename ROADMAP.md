@@ -1,5 +1,40 @@
 # Roadmap
 
+## Container provenance (2026-09-03)
+
+- [x] The build captures the source commit, not only a committer date. Two builds of
+      different commits can share a date, so the time says when and only the commit says
+      which.
+- [x] The hosted esbuild bundle has a `define` block. It had none, so every `__WORLDLENS_*`
+      constant reached `dist/hosted/index.js` as a free identifier.
+- [x] The hosted route registers `app:buildProvenance`. The channel was permitted and the
+      desktop answered it; hosted returned "no handler is registered".
+- [x] Both Dockerfiles carry `org.opencontainers.image.revision`, and CI passes `github.sha`
+      as the build argument. An image built without it reads back empty rather than
+      claiming a revision it does not have.
+- [x] The container prints the revision on startup, because an operator cannot pull the
+      image and read its labels.
+- [x] Verified from the registry rather than the build: the published
+      `worldlens-cli:1.0.1865` reads back `0e360474`, the commit that added the stamp.
+- [ ] `Dockerfile.hosted` has no CI job at all -- nothing in `.github/workflows` references
+      it. So the hosted image can be stamped and is not being built by CI to stamp.
+
+### 廣東話 / Cantonese
+
+- [x] Build 會攞源碼 commit，唔淨係攞 committer date。兩個唔同 commit 嘅 build 可以共用
+      同一個日期，所以時間講「幾時」，只有 commit 講到「邊份」。
+- [x] Hosted 個 esbuild bundle 有咗 `define` 區塊。之前完全冇，所以每個 `__WORLDLENS_*`
+      常數去到 `dist/hosted/index.js` 都係自由識別符。
+- [x] Hosted 路線註冊咗 `app:buildProvenance`。條 channel 一直獲准、desktop 亦答到，
+      但 hosted 返嘅係「冇註冊 handler」。
+- [x] 兩個 Dockerfile 都帶 `org.opencontainers.image.revision`，CI 傳 `github.sha`。
+      冇傳參數建出嚟嘅 image 讀返係空白，唔會聲稱一個佢冇嘅版本。
+- [x] 容器啟動時會印出版本，因為操作員唔可能 pull 個 image 再讀 label。
+- [x] 由 registry 驗而唔係由 build 驗：已發佈嘅 `worldlens-cli:1.0.1865` 讀返
+      `0e360474`，即係加咗個蓋章嗰個 commit。
+- [ ] `Dockerfile.hosted` 完全冇 CI job —— `.github/workflows` 入面冇任何嘢引用佢。
+      所以 hosted image 識蓋章，但 CI 根本冇建緊佢去蓋。
+
 ## The language contract, and the two pre-publication guards (2026-09-03)
 
 - [x] Every key the interface asks the copy catalogue for has an answer in both languages.
