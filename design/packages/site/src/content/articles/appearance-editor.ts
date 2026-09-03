@@ -241,6 +241,10 @@ export const appearanceEditor: Article = {
             articleId: "desktop-shell-chrome",
             reason: "The title bar, which is the first element this was wrapped around.",
         },
+        {
+            articleId: "creative-studio",
+            reason: "The deeper local composition surface for the app mark and other appearance targets.",
+        },
     ],
 
     sources: [

@@ -309,6 +309,14 @@ export const releaseDownloads: Article = {
             articleId: "java-render-path",
             reason: "What happens to the world once it has been unpacked.",
         },
+        {
+            articleId: "file-converter",
+            reason: "The local conversion surface for downloaded and user-owned files.",
+        },
+        {
+            articleId: "local-model-tooling",
+            reason: "The local model pull and package boundary for another offline-first tool surface.",
+        },
     ],
 
     sources: [

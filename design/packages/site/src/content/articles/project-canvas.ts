@@ -7,7 +7,7 @@ export const projectCanvas: Article = {
     summary:
         "A second presentation of the same map-creation model as the linear wizard: six boxes drawn as a graph rather than five steps shown one at a time, reading and writing the identical answers so switching views mid-project loses nothing.",
     category: "application",
-    status: "shipped",
+    status: "ported-unverified",
     statusNote:
         "The layout, wiring rules, search, keyboard movement and options rendering are built and covered by tests. Two things are not done yet: no capture exists from the built artifact, and a wire cannot be dragged between two nodes by hand - every wire on screen is drawn from the model's own allowed-edge list rather than from a gesture.",
 

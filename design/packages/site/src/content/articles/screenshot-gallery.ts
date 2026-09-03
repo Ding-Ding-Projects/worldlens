@@ -267,6 +267,10 @@ export const screenshotGallery: Article = {
             articleId: "contract-appearance-editors",
             reason: "What the captured shell is missing, and what the gallery will need to show once it lands.",
         },
+        {
+            articleId: "ui-smoke-planning",
+            reason: "The hand-written route matrix that decides which built-app states receive immediate captures.",
+        },
     ],
 
     sources: [
