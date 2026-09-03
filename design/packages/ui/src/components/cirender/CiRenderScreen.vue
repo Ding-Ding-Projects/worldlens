@@ -334,8 +334,8 @@ const accountItems = computed(() =>
         };
     }),
 );
-const unhealthyAccount = computed(() =>
-    accountOrdered.value.find((account) => !account.healthy) ?? null,
+const unhealthyAccount = computed(
+    () => accountOrdered.value.find((account) => !account.healthy) ?? null,
 );
 
 /**
@@ -996,7 +996,8 @@ async function saveCloudConfig(config: CiCloudRenderConfigInput): Promise<void> 
         }
         defaultProjectMessage.value = t(
             "cirender.cloudConfig.written",
-            "Wrote the cloud project through local history. Returning to the same cloud preflight now; your world, account and repository choices stay filled in.",
+            { file: result.saved.saved.path },
+            "Wrote {file} through local history. Returning to the same cloud preflight now; your world, account and repository choices stay filled in.",
         );
         cloudConfigOpen.value = false;
         await check();
@@ -1573,20 +1574,20 @@ onBeforeUnmount(() => {
                         class="mt-4 mb-2"
                         data-test="owner-load-failed"
                         role="alert"
+                    >
+                        {{ ownerFailureMessage }}
+                        <VBtn
+                            v-if="ownerNeedsReauthentication && props.canOpenSettings"
+                            size="small"
+                            variant="tonal"
+                            class="mt-1"
+                            data-test="owner-reauthenticate"
+                            @click="emit('signIn')"
                         >
-                            {{ ownerFailureMessage }}
-                            <VBtn
-                                v-if="ownerNeedsReauthentication && props.canOpenSettings"
-                                size="small"
-                                variant="tonal"
-                                class="mt-1"
-                                data-test="owner-reauthenticate"
-                                @click="emit('signIn')"
-                            >
-                                {{ t("cirender.gh.openAccounts", "Open GitHub accounts") }}
-                            </VBtn>
-                            <VBtn
-                                size="small"
+                            {{ t("cirender.gh.openAccounts", "Open GitHub accounts") }}
+                        </VBtn>
+                        <VBtn
+                            size="small"
                             variant="text"
                             class="mt-1"
                             @click="renders.loadOwners(effectiveAccountId)"
@@ -2158,10 +2159,7 @@ onBeforeUnmount(() => {
                             @click="openCloudConfig"
                         >
                             {{
-                                t(
-                                    "cirender.cloudConfig.open",
-                                    "Create cloud render configuration",
-                                )
+                                t("cirender.cloudConfig.open", "Create cloud render configuration")
                             }}
                         </VBtn>
                         <p class="text-caption text-medium-emphasis mt-2">
@@ -2315,7 +2313,9 @@ onBeforeUnmount(() => {
                                 role="status"
                                 aria-live="polite"
                             >
-                                <span data-test="transfer-description">{{ row.transfer.description }}</span>
+                                <span data-test="transfer-description">{{
+                                    row.transfer.description
+                                }}</span>
                                 <span
                                     v-if="row.transfer.asset"
                                     class="ci-transfer__asset"
@@ -2324,12 +2324,19 @@ onBeforeUnmount(() => {
                                     {{ row.transfer.asset }}
                                 </span>
                             </p>
-                            <p class="ci-transfer__bytes text-medium-emphasis" data-test="transfer-bytes">
-                                <span class="ci-transfer__label">{{ t("cirender.transfer.bytesLabel", "Transferred") }}</span>
+                            <p
+                                class="ci-transfer__bytes text-medium-emphasis"
+                                data-test="transfer-bytes"
+                            >
+                                <span class="ci-transfer__label">{{
+                                    t("cirender.transfer.bytesLabel", "Transferred")
+                                }}</span>
                                 <span class="ci-transfer__value" data-test="transfer-bytes-done">
                                     {{ formatBytes(row.transfer.bytesDone, t) }}
                                 </span>
-                                <span class="ci-transfer__label">{{ t("cirender.transfer.totalLabel", "Total") }}</span>
+                                <span class="ci-transfer__label">{{
+                                    t("cirender.transfer.totalLabel", "Total")
+                                }}</span>
                                 <span class="ci-transfer__value" data-test="transfer-bytes-total">
                                     {{
                                         row.transfer.bytesTotal > 0
@@ -2562,7 +2569,7 @@ onBeforeUnmount(() => {
                                 variant="text"
                                 data-test="forget"
                             >
-                                {{ t('cirender.remove', 'Remove from list') }}
+                                {{ t("cirender.remove", "Remove from list") }}
                             </VBtn>
                         </template>
                     </ConfigSuperConfirm>

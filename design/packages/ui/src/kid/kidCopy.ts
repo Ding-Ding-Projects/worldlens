@@ -33,7 +33,13 @@ export const KID_VOICED = {
             "Let's make a new map!",
             "Let's make an awesome new map!",
         ],
-        yue: ["整個新地圖", "整個新地圖", "整個新地圖啦！", "嚟整個新地圖啦！", "嚟整個勁正嘅新地圖啦！"],
+        yue: [
+            "整個新地圖",
+            "整個新地圖",
+            "整個新地圖啦！",
+            "嚟整個新地圖啦！",
+            "嚟整個勁正嘅新地圖啦！",
+        ],
     },
     "kid.home.heroBlurb": {
         en: [
@@ -173,8 +179,20 @@ export const KID_VOICED = {
         ],
     },
     "kid.celebrate.levelUp.title": {
-        en: ["Level {n}", "Level {n}", "Level {n}!", "Level {n}! Nice one!", "Level {n}!! You are on fire!"],
-        yue: ["第 {n} 級", "第 {n} 級", "第 {n} 級喇！", "第 {n} 級喇！好嘢！", "第 {n} 級喇！勁到爆！"],
+        en: [
+            "Level {n}",
+            "Level {n}",
+            "Level {n}!",
+            "Level {n}! Nice one!",
+            "Level {n}!! You are on fire!",
+        ],
+        yue: [
+            "第 {n} 級",
+            "第 {n} 級",
+            "第 {n} 級喇！",
+            "第 {n} 級喇！好嘢！",
+            "第 {n} 級喇！勁到爆！",
+        ],
     },
     "kid.celebrate.sticker.title": {
         en: [
@@ -184,7 +202,13 @@ export const KID_VOICED = {
             "New sticker unlocked: {sticker}!",
             "Ta-da! New sticker unlocked: {sticker}!",
         ],
-        yue: ["新貼紙：{sticker}", "新貼紙：{sticker}", "新貼紙：{sticker}！", "解鎖新貼紙：{sticker}！", "叮！解鎖新貼紙：{sticker}！"],
+        yue: [
+            "新貼紙：{sticker}",
+            "新貼紙：{sticker}",
+            "新貼紙：{sticker}！",
+            "解鎖新貼紙：{sticker}！",
+            "叮！解鎖新貼紙：{sticker}！",
+        ],
     },
     "settings.kidMode.blurb": {
         en: [
@@ -232,13 +256,22 @@ export const KID_FIXED = {
     "kid.home.mapMeta.local": { en: "This computer", yue: "呢部電腦" },
 
     "kid.search": { en: "Look for something…", yue: "搵下啲嘢…" },
-    "kid.search.summary": { en: "{shown} of {total} features match", yue: "{total} 樣功能入面有 {shown} 樣符合" },
-    "kid.search.none": { en: "Nothing in this catalogue matches “{query}”.", yue: "呢個分類入面冇嘢符合「{query}」。" },
+    "kid.search.summary": {
+        en: "{shown} of {total} features match",
+        yue: "{total} 樣功能入面有 {shown} 樣符合",
+    },
+    "kid.search.none": {
+        en: "Nothing in this catalogue matches “{query}”.",
+        yue: "呢個分類入面冇嘢符合「{query}」。",
+    },
 
     "kid.stickers.title": { en: "Sticker book", yue: "貼紙簿" },
     "kid.stickers.won": { en: "Won!", yue: "攞到喇！" },
     "kid.stickers.notYet": { en: "Not yet", yue: "未攞到" },
-    "kid.stickers.progress": { en: "{won} of {total} stickers won", yue: "攞咗 {total} 個入面嘅 {won} 個貼紙" },
+    "kid.stickers.progress": {
+        en: "{won} of {total} stickers won",
+        yue: "攞咗 {total} 個入面嘅 {won} 個貼紙",
+    },
 
     "kid.gate.heading": { en: "Grown-ups only", yue: "淨係大人先入得" },
     "kid.gate.sharedModeName": { en: "School mode", yue: "校園模式" },
@@ -247,24 +280,56 @@ export const KID_FIXED = {
     "kid.gate.credential": { en: "Shared code", yue: "共用密碼" },
     "kid.gate.unlock": { en: "Switch to Adult Mode", yue: "轉去大人模式" },
     "kid.gate.retry": { en: "Try the shared record again", yue: "再試共用記錄" },
-    "kid.gate.failure.credentialInvalid": { en: "That code did not match. {name} and Kid Mode are unchanged.", yue: "個密碼唔啱。{name} 同 Kid Mode 都冇改。" },
-    "kid.gate.failure.credentialRequired": { en: "Enter the shared PIN or password before trying again.", yue: "再試之前，請輸入共用 PIN 或密碼。" },
-    "kid.gate.failure.credentialTooLong": { en: "That entry is longer than the shared credential limit.", yue: "嗰段輸入長過共用憑證上限。" },
-    "kid.gate.failure.recordInvalid": { en: "{name} could not be checked safely. Kid Mode stays on; use the reset recovery in Settings.", yue: "安全核對唔到 {name}。Kid Mode 繼續開住；請喺設定用重設復原。" },
-    "kid.gate.failure.unavailable": { en: "{name} could not be reached. Kid Mode stays on; retry after the shared record is available.", yue: "連接唔到 {name}。Kid Mode 繼續開住；共用記錄可用之後再試。" },
-    "kid.gate.failed": { en: "That code did not match. Kid Mode stays on.", yue: "個密碼唔啱，Kid Mode 繼續開住。" },
+    "kid.gate.failure.credentialInvalid": {
+        en: "That code did not match. {name} and Kid Mode are unchanged.",
+        yue: "個密碼唔啱。{name} 同 Kid Mode 都冇改。",
+    },
+    "kid.gate.failure.credentialRequired": {
+        en: "Enter the shared PIN or password before trying again.",
+        yue: "再試之前，請輸入共用 PIN 或密碼。",
+    },
+    "kid.gate.failure.credentialTooLong": {
+        en: "That entry is longer than the shared credential limit.",
+        yue: "嗰段輸入長過共用憑證上限。",
+    },
+    "kid.gate.failure.recordInvalid": {
+        en: "{name} could not be checked safely. Kid Mode stays on; use the reset recovery in Settings.",
+        yue: "安全核對唔到 {name}。Kid Mode 繼續開住；請喺設定用重設復原。",
+    },
+    "kid.gate.failure.unavailable": {
+        en: "{name} could not be reached. Kid Mode stays on; retry after the shared record is available.",
+        yue: "連接唔到 {name}。Kid Mode 繼續開住；共用記錄可用之後再試。",
+    },
 
-    "kid.celebrate.levelUp.body": { en: "You earned enough XP to level up.", yue: "你攞夠經驗值升咗級。" },
-    "kid.celebrate.sticker.body": { en: "Open the sticker book to see it.", yue: "打開貼紙簿睇下佢。" },
+    "kid.celebrate.levelUp.body": {
+        en: "You earned enough XP to level up.",
+        yue: "你攞夠經驗值升咗級。",
+    },
+    "kid.celebrate.sticker.body": {
+        en: "Open the sticker book to see it.",
+        yue: "打開貼紙簿睇下佢。",
+    },
     "kid.celebrate.close": { en: "Yay!", yue: "嘩！" },
 
     "kid.status.level": { en: "Level {n}", yue: "第 {n} 級" },
-    "kid.status.openLevel": { en: "Open sticker book, level {n}", yue: "打開貼紙簿，而家係第 {n} 級" },
+    "kid.status.openLevel": {
+        en: "Open sticker book, level {n}",
+        yue: "打開貼紙簿，而家係第 {n} 級",
+    },
     "kid.status.xpLabel": { en: "XP until the next level", yue: "升下一級之前嘅經驗值" },
     "kid.status.xpValue": { en: "{current} of {total} XP", yue: "{total} 經驗值入面有 {current}" },
-    "kid.status.renderStarting": { en: "Open renders in progress; progress is starting", yue: "打開進行中算圖；進度啱啱開始" },
-    "kid.status.renderPercent": { en: "Open renders in progress; {percent} percent complete", yue: "打開進行中算圖；完成咗百分之 {percent}" },
-    "kid.status.problems": { en: "{count} problems; open the grown-up gate, then show the problems panel", yue: "有 {count} 個問題；先打開大人關卡，再顯示問題面板" },
+    "kid.status.renderStarting": {
+        en: "Open renders in progress; progress is starting",
+        yue: "打開進行中算圖；進度啱啱開始",
+    },
+    "kid.status.renderPercent": {
+        en: "Open renders in progress; {percent} percent complete",
+        yue: "打開進行中算圖；完成咗百分之 {percent}",
+    },
+    "kid.status.problems": {
+        en: "{count} problems; open the grown-up gate, then show the problems panel",
+        yue: "有 {count} 個問題；先打開大人關卡，再顯示問題面板",
+    },
 
     "settings.kidMode.title": { en: "Kid Mode and Adult Mode", yue: "Kid Mode 同大人模式" },
     "settings.kidMode.modeLabel": { en: "Which mode should open?", yue: "打開邊個模式？" },
@@ -282,8 +347,14 @@ export const KID_FIXED = {
     "settings.kidMode.celebrations": { en: "Celebrate finished jobs", yue: "完成工作要慶祝" },
     "settings.kidMode.sound": { en: "Play a sound with a celebration", yue: "慶祝嗰陣播個聲" },
     "settings.kidMode.labelStyle": { en: "Labels", yue: "標籤" },
-    "settings.kidMode.kidFirst": { en: "Kid words first, real name underneath", yue: "細路用字行先，真名喺底下" },
-    "settings.kidMode.nameFirst": { en: "Real name first, kid words underneath", yue: "真名行先，細路用字喺底下" },
+    "settings.kidMode.kidFirst": {
+        en: "Kid words first, real name underneath",
+        yue: "細路用字行先，真名喺底下",
+    },
+    "settings.kidMode.nameFirst": {
+        en: "Real name first, kid words underneath",
+        yue: "真名行先，細路用字喺底下",
+    },
     "settings.kidMode.nameOnly": { en: "Real names only", yue: "淨係真名" },
     "settings.kidMode.accessibleNote": {
         en: "The accessible name of every control keeps the real feature name at all three settings, so a screen reader and every screenshot still identify it.",
@@ -301,10 +372,16 @@ export const KID_FACTS = {
     "kid.home.noRenders": { en: ["GO", "renders"], yue: ["GO", "地圖"] },
     "kid.home.nowUnnamed": { en: ["name"], yue: ["名"] },
     "kid.stickers.blurb": { en: ["real"], yue: ["真係"] },
-    "kid.gate.noLock.blurb": { en: ["No grown-up code is set", "Adult Mode"], yue: ["未設定大人密碼", "大人模式"] },
+    "kid.gate.noLock.blurb": {
+        en: ["No grown-up code is set", "Adult Mode"],
+        yue: ["未設定大人密碼", "大人模式"],
+    },
     "kid.gate.locked.blurb": { en: ["{name}", "Adult Mode"], yue: ["{name}", "大人模式"] },
     "kid.gate.honesty": { en: ["not a security lock", "{name}"], yue: ["唔係保安鎖", "{name}"] },
     "kid.celebrate.levelUp.title": { en: ["Level", "{n}"], yue: ["{n}", "級"] },
     "kid.celebrate.sticker.title": { en: ["{sticker}"], yue: ["{sticker}"] },
     "settings.kidMode.blurb": { en: ["stays exactly where it is"], yue: ["喺原本位置"] },
-} as const satisfies Record<keyof typeof KID_VOICED, { en: readonly string[]; yue: readonly string[] }>;
+} as const satisfies Record<
+    keyof typeof KID_VOICED,
+    { en: readonly string[]; yue: readonly string[] }
+>;

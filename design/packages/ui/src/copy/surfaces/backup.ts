@@ -794,10 +794,10 @@ export const BACKUP_VOICED = {
             "Paused, and this window shut and came back in the meantime, so the exact instant it paused at is gone with it. Carrying on re-checks what is already packed, split and uploaded rather than resuming that instant; most of it is skipped rather than redone, but it is a check first, never a straight continuation.",
         ],
         yue: [
-            "已經暫停咗——不過呢個視窗已經閂咗再開返。而家繼續嘅話會重新check返已經打包、切開同上傳咗嘅嘢，唔係由暫停嗰一刻接返，所以大部分嘢會跳過而唔係補做。",
-            "已經暫停咗——不過呢個視窗已經閂咗再開返。而家繼續嘅話會重新check返已經打包、切開同上傳咗嘅嘢，唔係由暫停嗰一刻接返，所以大部分嘢會跳過而唔係補做。",
+            "已經暫停咗，不過呢個視窗已經閂咗再開返。而家繼續嘅話會重新check返已經打包、切開同上傳咗嘅嘢，唔係由暫停嗰一刻接返，所以大部分嘢會跳過而唔係補做。",
+            "已經暫停咗，不過呢個視窗已經閂咗再開返。而家繼續嘅話會重新check返已經打包、切開同上傳咗嘅嘢，唔係由暫停嗰一刻接返，所以大部分嘢會跳過而唔係補做。",
             "暫停咗，不過呢個視窗中途閂咗又再開返。繼續嘅話會重新check返已經打包、切開同上傳嘅嘢，唔係接返暫停嗰一刻，所以大部分會跳過唔使補做，不過始終要check多次先接住做。",
-            "暫停咗——呢個視窗中途閂咗再開返，暫停嗰一刻已經冇埋。繼續會重新check返已經打包、切開同上傳嘅嘢，唔係接返嗰一刻；大部分會跳過唔使補做，不過始終要check先，唔係即刻接落去。",
+            "暫停咗，不過呢個視窗中途閂咗再開返，暫停嗰一刻已經冇埋。繼續會重新check返已經打包、切開同上傳嘅嘢，唔係接返嗰一刻；大部分會跳過唔使補做，不過始終要check先，唔係即刻接落去。",
             "暫停咗，仲要係呢個視窗中途閂咗再開返，連暫停嗰一刻都冇埋。繼續會重新check返已經打包、切開同上傳嘅嘢，唔係接返嗰一刻；大部分會跳過唔使補做，不過永遠都要check先，唔係即刻接落去。",
         ],
     },
@@ -1296,18 +1296,18 @@ export const BACKUP_FACTS = {
     // Stopping stays safe even where pausing is unavailable - the fact this sentence
     // exists to keep from being confused with "cannot stop safely".
     "backup.row.cannotPause": {
-        en: ["cannot pause", "Stopping is still safe", "is kept"],
-        yue: ["暫停唔到", "停低就仍然安全", "會保留"],
+        en: ["cannot pause", "safe", "packed", "uploaded", "kept"],
+        yue: ["暫停唔到", "安全", "打包", "上傳", "保留"],
     },
     // A live pause costs literally nothing - every level says "no redo" in some form.
     "backup.row.pausedLiveDetail": {
         en: ["Paused", "no redo"],
-        yue: ["已經暫停咗", "唔使補做"],
+        yue: ["暫停咗", "唔使補做"],
     },
     // A restarted pause re-checks rather than blindly continuing - every level says both.
     "backup.row.pausedRestartDetail": {
         en: ["Paused", "re-check", "skipped", "redone"],
-        yue: ["已經暫停咗", "重新check", "跳過", "補做"],
+        yue: ["暫停咗", "重新check", "跳過", "補做"],
     },
     // What makes this a backup rather than a pile of uploads is that a restore can check it.
     "backup.row.finishedDetail": {

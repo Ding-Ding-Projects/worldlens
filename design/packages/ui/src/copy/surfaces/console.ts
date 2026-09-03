@@ -215,22 +215,6 @@ export const CONSOLE_VOICED = {
             "呢個版本喺呢度寫唔到檔案，所以乜都冇匯出到。複製就仲用得，貼出嚟嘅字係一模一樣。",
         ],
     },
-    "world.console.exported": {
-        en: [
-            "Exported {shown} lines as plain text, with a header saying which ones.",
-            "Exported {shown} lines as plain text, with a header saying which ones.",
-            "Exported {shown} lines as plain text, with a header at the top saying which ones.",
-            "Exported {shown} lines as plain text, with a header saying which ones, ready to attach to a bug report.",
-            "Exported {shown} lines as plain text, with a header saying which ones, ready to attach to a bug report without anybody having to ask what is missing.",
-        ],
-        yue: [
-            "已經將 {shown} 行匯出做純文字，前面有個標頭講明係邊啲。",
-            "已經將 {shown} 行匯出做純文字，前面有個標頭講明係邊啲。",
-            "已經將 {shown} 行匯出做純文字，最前面有個標頭講明係邊啲。",
-            "已經將 {shown} 行匯出做純文字，前面有個標頭講明係邊啲，可以直接擺入 bug report。",
-            "已經將 {shown} 行匯出做純文字，前面有個標頭講明係邊啲，可以直接擺入 bug report，唔使人問返你少咗啲乜。",
-        ],
-    },
     "world.console.exportedFormat": {
         en: [
             "Exported {shown} lines as {format}.",
@@ -395,13 +379,31 @@ export const CONSOLE_FIXED = {
     "world.console.title": { en: "Render console", yue: "算圖主控台" },
     "world.console.search": { en: "Search the console", yue: "搜尋主控台" },
     "world.console.filter": { en: "Show only these levels", yue: "只顯示呢啲等級" },
-    "world.console.copy": { en: "Copy selected or retained matches", yue: "複製選取或者保留紀錄入面配對嘅行" },
-    "world.console.export": { en: "Export selected or retained matches", yue: "匯出選取或者保留紀錄入面配對嘅行" },
+    "world.console.copy": {
+        en: "Copy selected or retained matches",
+        yue: "複製選取或者保留紀錄入面配對嘅行",
+    },
+    "world.console.export": {
+        en: "Export selected or retained matches",
+        yue: "匯出選取或者保留紀錄入面配對嘅行",
+    },
     "world.console.exportFormat": { en: "Export format", yue: "匯出格式" },
-    "world.console.exportSelection": { en: "{shown} selected lines from {kept} retained lines.", yue: "由留住嘅 {kept} 行入面選取咗 {shown} 行。" },
-    "world.console.exportFilterMetadata": { en: "Filter: query={query}; mode={mode}; flags={flags}; levels={levels}.", yue: "篩選：查詢={query}；模式={mode}；旗標={flags}；等級={levels}。" },
-    "world.console.exportIdentityMetadata": { en: "Render id={renderId}; provenance={provenance}.", yue: "算圖 ID={renderId}；來源={provenance}。" },
-    "world.console.showingRecent": { en: "Showing the newest {shown} of {retained} retained lines. Search and filters use the complete history.", yue: "顯示緊保留紀錄入面最新嘅 {shown} 行（總共 {retained} 行）。搜尋同篩選會用完整紀錄。" },
+    "world.console.exportSelection": {
+        en: "{shown} selected lines from {kept} retained lines.",
+        yue: "由留住嘅 {kept} 行入面選取咗 {shown} 行。",
+    },
+    "world.console.exportFilterMetadata": {
+        en: "Filter: query={query}; mode={mode}; flags={flags}; levels={levels}.",
+        yue: "篩選：查詢={query}；模式={mode}；旗標={flags}；等級={levels}。",
+    },
+    "world.console.exportIdentityMetadata": {
+        en: "Render id={renderId}; provenance={provenance}.",
+        yue: "算圖 ID={renderId}；來源={provenance}。",
+    },
+    "world.console.showingRecent": {
+        en: "Showing the newest {shown} of {retained} retained lines. Search and filters use the complete history.",
+        yue: "顯示緊保留紀錄入面最新嘅 {shown} 行（總共 {retained} 行）。搜尋同篩選會用完整紀錄。",
+    },
     "world.console.historyComplete": {
         en: "Complete history: {retained} retained lines.",
         yue: "完整紀錄：保留咗 {retained} 行。",
@@ -439,22 +441,55 @@ export const CONSOLE_FIXED = {
         yue: "紀錄狀態={completion}；保留行數={retained}；已移除行數={evictedLines}；已移除算圖紀錄={evictedRenders}；儲存警告={storageWarning}。",
     },
     "world.console.selectRetained": { en: "Select all retained lines", yue: "揀晒全部保留紀錄" },
-    "world.console.selectMatches": { en: "Select all retained matches", yue: "揀晒保留紀錄入面配對嘅行" },
+    "world.console.selectMatches": {
+        en: "Select all retained matches",
+        yue: "揀晒保留紀錄入面配對嘅行",
+    },
     "world.console.clearSelection": { en: "Clear selection", yue: "清除選取" },
     "world.console.selectLine": { en: "Select line {id}", yue: "選取第 {id} 行" },
-    "world.console.affectedMore": { en: "and {count} more retained lines", yue: "同埋另外 {count} 行保留紀錄" },
-    "world.console.deleteTitle": { en: "Delete retained console history", yue: "刪除保留嘅主控台紀錄" },
-    "world.console.deleteAction": { en: "Delete the selected retained console lines. This cannot be undone.", yue: "刪除選取嘅主控台紀錄，呢個動作冇得還原。" },
+    "world.console.affectedMore": {
+        en: "and {count} more retained lines",
+        yue: "同埋另外 {count} 行保留紀錄",
+    },
+    "world.console.deleteTitle": {
+        en: "Delete retained console history",
+        yue: "刪除保留嘅主控台紀錄",
+    },
+    "world.console.deleteAction": {
+        en: "Delete the selected retained console lines. This cannot be undone.",
+        yue: "刪除選取嘅主控台紀錄，呢個動作冇得還原。",
+    },
     "world.console.deleteConfirm": { en: "Confirm deletion", yue: "確認刪除" },
     "world.console.deleteSelected": { en: "Delete selected", yue: "刪除選取項目" },
-    "world.console.pruneTitle": { en: "Prune retained console history", yue: "修剪保留嘅主控台紀錄" },
-    "world.console.pruneAction": { en: "Delete every retained console line for this render. The running render, if any, continues and new lines can still arrive. This cannot be undone.", yue: "刪除今次算圖全部保留嘅主控台紀錄。算圖如果仲行緊會繼續，新行亦可以繼續入嚟。呢個動作冇得還原。" },
-    "world.console.pruneConfirm": { en: "Confirm retained-history pruning", yue: "確認修剪保留紀錄" },
+    "world.console.pruneTitle": {
+        en: "Prune retained console history",
+        yue: "修剪保留嘅主控台紀錄",
+    },
+    "world.console.pruneAction": {
+        en: "Delete every retained console line for this render. The running render, if any, continues and new lines can still arrive. This cannot be undone.",
+        yue: "刪除今次算圖全部保留嘅主控台紀錄。算圖如果仲行緊會繼續，新行亦可以繼續入嚟。呢個動作冇得還原。",
+    },
+    "world.console.pruneConfirm": {
+        en: "Confirm retained-history pruning",
+        yue: "確認修剪保留紀錄",
+    },
     "world.console.prune": { en: "Prune retained history", yue: "修剪保留紀錄" },
-    "world.console.pruneCount": { en: "All {count} retained lines for this render", yue: "今次算圖全部 {count} 行保留紀錄" },
-    "world.console.storageUnavailable": { en: "Console history could not be saved; the live render is unchanged.", yue: "主控台紀錄儲存唔到；即時算圖冇受影響。" },
-    "world.console.retentionWarning": { en: "Console history reached a retention or storage limit; older lines remain unavailable.", yue: "主控台紀錄去到保留或儲存上限；較早嘅行仍然搵唔返。" },
-    "world.console.capRetained": { en: "The live view keeps the newest {shown} lines. Search, copy, selection, and export use all {retained} retained lines.", yue: "即時畫面保留最新 {shown} 行；搜尋、複製、選取同匯出會用齊全部 {retained} 行保留紀錄。" },
+    "world.console.pruneCount": {
+        en: "All {count} retained lines for this render",
+        yue: "今次算圖全部 {count} 行保留紀錄",
+    },
+    "world.console.storageUnavailable": {
+        en: "Console history could not be saved; the live render is unchanged.",
+        yue: "主控台紀錄儲存唔到；即時算圖冇受影響。",
+    },
+    "world.console.retentionWarning": {
+        en: "Console history reached a retention or storage limit; older lines remain unavailable.",
+        yue: "主控台紀錄去到保留或儲存上限；較早嘅行仍然搵唔返。",
+    },
+    "world.console.capRetained": {
+        en: "The live view keeps the newest {shown} lines. Search, copy, selection, and export use all {retained} retained lines.",
+        yue: "即時畫面保留最新 {shown} 行；搜尋、複製、選取同匯出會用齊全部 {retained} 行保留紀錄。",
+    },
     "world.console.output": { en: "The engine's output", yue: "引擎嘅輸出" },
     /*
      * Who is speaking when a line carries this app's advice. It is the product's name, so
@@ -500,13 +535,9 @@ export const CONSOLE_FACTS = {
     "world.console.copied": { en: ["{shown}", "header"], yue: ["{shown}", "標頭"] },
     "world.console.copyFailed": { en: ["clipboard"], yue: ["剪貼簿"] },
     "world.console.exportUnavailable": { en: ["cannot write a file"], yue: ["寫唔到檔案"] },
-    "world.console.exported": {
-        en: ["{shown}", "plain text", "header"],
-        yue: ["{shown}", "純文字", "標頭"],
-    },
     "world.console.exportedFormat": {
-        en: ["{shown}", "{format}", "schema", "provenance"],
-        yue: ["{shown}", "{format}", "schema", "來源"],
+        en: ["{shown}", "{format}"],
+        yue: ["{shown}", "{format}"],
     },
 
     // The advice is searchable too, which is the half of the hint a shorter level drops.

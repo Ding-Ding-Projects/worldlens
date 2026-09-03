@@ -159,11 +159,12 @@ export const MENU_VOICED = {
             "冇 mount 任何資料夾。",
             "冇 mount 任何資料夾，所以佢冇嘢讀得，亦都算唔到圖。",
             "冇 mount 任何資料夾，所以暫時冇嘢讀得都算唔到圖。",
-            "完全冇 mount 過資料夾，所以佢冇嘢讀亦冇嘢算 —— 呢個係未設定完，唔係壞咗。",
+            "完全冇 mount 過資料夾，所以佢冇嘢讀亦冇嘢算。呢個係未設定完，唔係壞咗。",
         ],
     },
 
-    /* ---------------------------------------------------------------- */
+    /* ---------------------------------------------------------------- */
+
     /* The search bar every menu carries                                 */
     /* ---------------------------------------------------------------- */
 
@@ -386,7 +387,7 @@ export const MENU_FACTS = {
     "info.appVersionFailed": { en: ["{reason}", "version"], yue: ["{reason}", "版本號"] },
 
     // The instant itself, and that it describes the build rather than anything else.
-    "info.builtAt": { en: ["{timestamp}", "uilt"], yue: ["{timestamp}", "整"] },
+    "info.builtAt": { en: ["{timestamp}", "built || build"], yue: ["{timestamp}", "整"] },
 
     // That there is no recorded time, so no level can imply there is one.
     "info.builtAtUnknown": { en: ["not record"], yue: ["冇記低"] },
@@ -395,7 +396,10 @@ export const MENU_FACTS = {
     "info.hosted": { en: ["container"], yue: ["container"] },
 
     // That there is no password, and what that means for whoever else can reach it.
-    "info.hostedOpen": { en: ["No password", "full access"], yue: ["冇密碼"] },
+    "info.hostedOpen": {
+        en: ["no password", "full access || as much access as you do"],
+        yue: ["密碼"],
+    },
 
     // The folder list itself.
     "info.hostedFolders": { en: ["{folders}"], yue: ["{folders}"] },

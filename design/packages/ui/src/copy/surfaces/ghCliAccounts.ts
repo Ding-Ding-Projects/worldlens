@@ -395,10 +395,6 @@ export const GHCLIACCOUNTS_FIXED = {
         en: "Sign out this GitHub CLI account",
         yue: "登出呢個 GitHub CLI 帳戶",
     },
-    "settings.github.ghCli.logoutAction": {
-        en: "Remove {login} on {host} from GitHub CLI's credential store on this computer. Other applications that use gh will lose this sign-in too.",
-        yue: "喺呢部電腦嘅 GitHub CLI credential store 移除 {login}（{host}）。其他使用 gh 嘅程式都會失去呢個登入。",
-    },
     "settings.github.ghCli.logoutActionDetailed": {
         en: "On {host}, remove the {login} credential from gh's local store. If this host supports it, gh may also attempt to revoke the GitHub grant; this app reports refusal separately and never claims revocation succeeded. Other terminals and applications using gh lose this sign-in, and active or in-flight work using it may fail and must be retried.",
         yue: "喺 {host} 移除 {login} 嘅 gh 本機 credential。呢個 host 如果支援，gh 可能會嘗試 revoke GitHub grant；呢個程式會分開講清楚拒絕，唔會扮成功。其他 terminal 同用緊 gh 嘅程式會失去呢次登入，進行緊嘅工作可能失敗，要再試。",

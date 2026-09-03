@@ -155,14 +155,18 @@ const exportFormats: readonly ExportFormat[] = ["txt", "md", "json", "jsonl", "c
 
 /** What each line reads as, with this app's own status lines translated. */
 function lineText(line: ConsoleLine): string {
-    return line.text === null ? line.message : t(line.text.key, line.text.values, line.text.fallback);
+    return line.text === null
+        ? line.message
+        : t(line.text.key, line.text.values, line.text.fallback);
 }
 
 function adviceText(annotation: ConsoleAnnotation): string {
     return t(annotation.text.key, annotation.text.values, annotation.text.fallback);
 }
 
-const rows = computed<ConsoleRow[]>(() => props.lines.map((line) => ({ line, text: lineText(line) })));
+const rows = computed<ConsoleRow[]>(() =>
+    props.lines.map((line) => ({ line, text: lineText(line) })),
+);
 const historyRows = computed<ConsoleRow[]>(() =>
     (props.history ?? props.lines).map((line) => ({ line, text: lineText(line) })),
 );
@@ -171,15 +175,23 @@ const matcher = computed(() => createSettingMatcher(query.value, regex.value, fl
 
 const levelSet = computed(() => new Set(chosenLevels.value));
 
-const matchingHistory = computed(() => selectRows(historyRows.value, levelSet.value, matcher.value.test, adviceText));
-const visibleRing = computed(() => selectRows(rows.value, levelSet.value, matcher.value.test, adviceText));
+const matchingHistory = computed(() =>
+    selectRows(historyRows.value, levelSet.value, matcher.value.test, adviceText),
+);
+const visibleRing = computed(() =>
+    selectRows(rows.value, levelSet.value, matcher.value.test, adviceText),
+);
 const searchActive = computed(() => query.value.trim().length > 0);
 const filtersActive = computed(() => searchActive.value || chosenLevels.value.length > 0);
 /** A search reads the complete retained stream; the unfiltered live view stays bounded. */
 const visible = computed(() => (filtersActive.value ? matchingHistory.value : visibleRing.value));
-const selected = computed(() => matchingHistory.value.filter((row) => selectedIds.value.has(row.line.id)));
+const selected = computed(() =>
+    matchingHistory.value.filter((row) => selectedIds.value.has(row.line.id)),
+);
 /** Export the complete retained history by default; an explicit selection narrows it. */
-const exportRows = computed(() => (selected.value.length > 0 ? selected.value : matchingHistory.value));
+const exportRows = computed(() =>
+    selected.value.length > 0 ? selected.value : matchingHistory.value,
+);
 
 const counts = computed(() => countByLevel(props.history ?? props.lines));
 
@@ -201,12 +213,12 @@ const summary = computed(() =>
               "Showing the newest {shown} of {retained} retained lines. Search and filters use the complete history.",
           )
         : slice.value.filtered
-        ? t(
-              "world.console.showingSome",
-              { shown: slice.value.shown, kept: slice.value.kept },
-              "Showing {shown} of {kept} lines.",
-          )
-        : t("world.console.showingAll", { kept: slice.value.kept }, "Showing all {kept} lines."),
+          ? t(
+                "world.console.showingSome",
+                { shown: slice.value.shown, kept: slice.value.kept },
+                "Showing {shown} of {kept} lines.",
+            )
+          : t("world.console.showingAll", { kept: slice.value.kept }, "Showing all {kept} lines."),
 );
 
 /** What the console is holding, and what it has already let go of. */
@@ -218,12 +230,16 @@ const capLine = computed(() =>
               "The live view keeps the newest {shown} lines. Search, copy, selection, and export use all {retained} retained lines.",
           )
         : props.dropped > 0
-        ? t(
-              "world.console.capDropped",
-              { cap: props.cap, dropped: props.dropped },
-              "Keeping the most recent {cap} lines. {dropped} earlier lines from this render have been dropped.",
-          )
-        : t("world.console.capIntact", { cap: props.cap }, "Every line is here. The console keeps up to {cap}."),
+          ? t(
+                "world.console.capDropped",
+                { cap: props.cap, dropped: props.dropped },
+                "Keeping the most recent {cap} lines. {dropped} earlier lines from this render have been dropped.",
+            )
+          : t(
+                "world.console.capIntact",
+                { cap: props.cap },
+                "Every line is here. The console keeps up to {cap}.",
+            ),
 );
 
 const historyStatus = computed(() => props.historyWarning ?? "");
@@ -299,10 +315,18 @@ const selectionLabel = computed(() =>
           : t("world.console.selectRetained", "Select all retained lines"),
 );
 const selectedAffected = computed(() => {
-    const preview = selected.value.slice(0, 8).map((row) => `${row.line.id}: ${redactConsoleText(row.text)}`);
+    const preview = selected.value
+        .slice(0, 8)
+        .map((row) => `${row.line.id}: ${redactConsoleText(row.text)}`);
     const remaining = selected.value.length - preview.length;
     if (remaining > 0) {
-        preview.push(t("world.console.affectedMore", { count: remaining }, "and {count} more retained lines"));
+        preview.push(
+            t(
+                "world.console.affectedMore",
+                { count: remaining },
+                "and {count} more retained lines",
+            ),
+        );
     }
     return preview;
 });
@@ -393,7 +417,11 @@ function exportHeader(): string {
               { shown: slice.value.shown, kept: slice.value.kept },
               "{shown} of the {kept} lines held, matching the level filter and search that were on screen.",
           )
-        : t("world.console.exportAll", { kept: slice.value.kept }, "All {kept} lines the console was holding.");
+        : t(
+              "world.console.exportAll",
+              { kept: slice.value.kept },
+              "All {kept} lines the console was holding.",
+          );
     const cut =
         props.dropped > 0 && historyRows.value.length <= props.lines.length
             ? t(
@@ -445,7 +473,10 @@ async function copyAll(): Promise<void> {
  */
 function csvEscape(value: string, separator: "," | "\t"): string {
     const escaped = value.replaceAll('"', '""');
-    return escaped.includes(separator) || escaped.includes("\n") || escaped.includes("\r") || escaped.includes('"')
+    return escaped.includes(separator) ||
+        escaped.includes("\n") ||
+        escaped.includes("\r") ||
+        escaped.includes('"')
         ? `"${escaped}"`
         : escaped;
 }
@@ -476,41 +507,129 @@ function structuredRecord(row: ConsoleRow): Record<string, unknown> {
 
 function exportPayload(): { body: string; extension: string; mime: string } {
     const rowsToWrite = exportRows.value;
-    if (exportFormat.value === "txt") return { body: currentText(rowsToWrite), extension: "txt", mime: "text/plain" };
+    if (exportFormat.value === "txt")
+        return { body: currentText(rowsToWrite), extension: "txt", mime: "text/plain" };
     if (exportFormat.value === "md") {
         return {
-            body: `${exportHeader()}\n\n${rowsToWrite.map((row) => {
-                const annotations = annotationMessages(row).map((message) => `  - Worldlens: ${message}`).join("\n");
-                return `- **${LEVEL_TAGS[row.line.level]}** \`${row.line.at}\` ${redactConsoleText(row.text)}${annotations === "" ? "" : `\n${annotations}`}`;
-            }).join("\n")}`,
+            body: `${exportHeader()}\n\n${rowsToWrite
+                .map((row) => {
+                    const annotations = annotationMessages(row)
+                        .map((message) => `  - Worldlens: ${message}`)
+                        .join("\n");
+                    return `- **${LEVEL_TAGS[row.line.level]}** \`${row.line.at}\` ${redactConsoleText(row.text)}${annotations === "" ? "" : `\n${annotations}`}`;
+                })
+                .join("\n")}`,
             extension: "md",
             mime: "text/markdown",
         };
     }
-    if (exportFormat.value === "json") return { body: JSON.stringify({ schemaVersion: 1, renderId: props.renderId, provenance: props.provenance, persistedHistory: { ...historyMetadata.value }, filter: filterMetadata(), rows: rowsToWrite.map(structuredRecord) }, null, 2), extension: "json", mime: "application/json" };
-    if (exportFormat.value === "jsonl") return { body: rowsToWrite.map((row) => JSON.stringify(structuredRecord(row))).join("\n"), extension: "jsonl", mime: "application/x-ndjson" };
+    if (exportFormat.value === "json")
+        return {
+            body: JSON.stringify(
+                {
+                    schemaVersion: 1,
+                    renderId: props.renderId,
+                    provenance: props.provenance,
+                    persistedHistory: { ...historyMetadata.value },
+                    filter: filterMetadata(),
+                    rows: rowsToWrite.map(structuredRecord),
+                },
+                null,
+                2,
+            ),
+            extension: "json",
+            mime: "application/json",
+        };
+    if (exportFormat.value === "jsonl")
+        return {
+            body: rowsToWrite.map((row) => JSON.stringify(structuredRecord(row))).join("\n"),
+            extension: "jsonl",
+            mime: "application/x-ndjson",
+        };
     if (exportFormat.value === "html") {
-        const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-        return { body: `<!doctype html><meta charset="utf-8"><title>Worldlens render console</title><header><pre>${escape(exportHeader())}</pre></header><ol>${rowsToWrite.map((row) => {
-            const annotations = annotationMessages(row).map((message) => `<li>${escape(message)}</li>`).join("");
-            return `<li data-level="${escape(row.line.level)}"><time>${escape(row.line.at)}</time> <strong>${escape(LEVEL_TAGS[row.line.level])}</strong> ${escape(redactConsoleText(row.text))}${annotations === "" ? "" : `<ul aria-label="Worldlens annotations">${annotations}</ul>`}</li>`;
-        }).join("")}</ol>`, extension: "html", mime: "text/html" };
+        const escape = (value: string) =>
+            value
+                .replaceAll("&", "&amp;")
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")
+                .replaceAll('"', "&quot;");
+        return {
+            body: `<!doctype html><meta charset="utf-8"><title>Worldlens render console</title><header><pre>${escape(exportHeader())}</pre></header><ol>${rowsToWrite
+                .map((row) => {
+                    const annotations = annotationMessages(row)
+                        .map((message) => `<li>${escape(message)}</li>`)
+                        .join("");
+                    return `<li data-level="${escape(row.line.level)}"><time>${escape(row.line.at)}</time> <strong>${escape(LEVEL_TAGS[row.line.level])}</strong> ${escape(redactConsoleText(row.text))}${annotations === "" ? "" : `<ul aria-label="Worldlens annotations">${annotations}</ul>`}</li>`;
+                })
+                .join("")}</ol>`,
+            extension: "html",
+            mime: "text/html",
+        };
     }
     const separator = exportFormat.value === "csv" ? "," : "\t";
-    const header = ["schemaVersion", "renderId", "provenance", "historyComplete", "historyUpdatedAt", "evictedLines", "evictedRenders", "storageWarning", "id", "timestamp", "level", "origin", "message", "annotations", "query", "mode", "flags", "levels", "selected"].join(separator);
+    const header = [
+        "schemaVersion",
+        "renderId",
+        "provenance",
+        "historyComplete",
+        "historyUpdatedAt",
+        "evictedLines",
+        "evictedRenders",
+        "storageWarning",
+        "id",
+        "timestamp",
+        "level",
+        "origin",
+        "message",
+        "annotations",
+        "query",
+        "mode",
+        "flags",
+        "levels",
+        "selected",
+    ].join(separator);
     const body = rowsToWrite.map((row) => {
         const record = structuredRecord(row);
         const filter = filterMetadata();
-        return [record.schemaVersion, record.renderId, record.provenance, historyMetadata.value.complete, historyMetadata.value.updatedAt, historyMetadata.value.evictedLines, historyMetadata.value.evictedRenders, historyMetadata.value.storageWarning, record.id, record.timestamp, record.level, record.origin, record.message, JSON.stringify(annotationMessages(row)), filter.query, filter.mode, filter.flags, JSON.stringify(filter.levels), filter.selected].map((value) => csvEscape(String(value ?? ""), separator)).join(separator);
+        return [
+            record.schemaVersion,
+            record.renderId,
+            record.provenance,
+            historyMetadata.value.complete,
+            historyMetadata.value.updatedAt,
+            historyMetadata.value.evictedLines,
+            historyMetadata.value.evictedRenders,
+            historyMetadata.value.storageWarning,
+            record.id,
+            record.timestamp,
+            record.level,
+            record.origin,
+            record.message,
+            JSON.stringify(annotationMessages(row)),
+            filter.query,
+            filter.mode,
+            filter.flags,
+            JSON.stringify(filter.levels),
+            filter.selected,
+        ]
+            .map((value) => csvEscape(String(value ?? ""), separator))
+            .join(separator);
     });
-    return { body: [header, ...body].join("\n"), extension: exportFormat.value, mime: exportFormat.value === "csv" ? "text/csv" : "text/tab-separated-values" };
+    return {
+        body: [header, ...body].join("\n"),
+        extension: exportFormat.value,
+        mime: exportFormat.value === "csv" ? "text/csv" : "text/tab-separated-values",
+    };
 }
 
 function exportAll(): void {
     const url = globalThis.URL;
     const doc = globalThis.document;
     if (url?.createObjectURL === undefined || doc === undefined) {
-        copyState.value = t("world.console.exportUnavailable", "This build cannot write a file from here.");
+        copyState.value = t(
+            "world.console.exportUnavailable",
+            "This build cannot write a file from here.",
+        );
         return;
     }
     const payload = exportPayload();
@@ -572,7 +691,9 @@ function openSetting(target: SettingsTarget): void {
                 v-model:regex="regex"
                 v-model:flags="flags"
                 :label="t('world.console.search', 'Search the console')"
-                :placeholder="t('world.console.searchHint', 'Any word in a line, or in the advice beside it')"
+                :placeholder="
+                    t('world.console.searchHint', 'Any word in a line, or in the advice beside it')
+                "
                 :sample="sample"
                 :summary="summary"
                 density="compact"
@@ -595,7 +716,10 @@ function openSetting(target: SettingsTarget): void {
                         filter
                         variant="outlined"
                     >
-                        <span :class="`mb-console__swatch mb-console__swatch--${level}`" aria-hidden="true" />
+                        <span
+                            :class="`mb-console__swatch mb-console__swatch--${level}`"
+                            aria-hidden="true"
+                        />
                         {{ LEVEL_TAGS[level] }}
                         <span class="mb-console__count">{{ counts[level] }}</span>
                     </v-chip>
@@ -625,44 +749,84 @@ function openSetting(target: SettingsTarget): void {
                         "
                     />
                 </v-checkbox>
-                <v-btn :prepend-icon="mdiContentCopy" size="small" variant="text" density="comfortable" @click="copyAll">
+                <v-btn
+                    :prepend-icon="mdiContentCopy"
+                    size="small"
+                    variant="text"
+                    density="comfortable"
+                    @click="copyAll"
+                >
                     {{ t("world.console.copy", "Copy selected or retained matches") }}
                 </v-btn>
-                <v-btn size="small" variant="text" density="comfortable" @click="selected.length > 0 ? clearSelection() : selectRetainedMatches()">
+                <v-btn
+                    size="small"
+                    variant="text"
+                    density="comfortable"
+                    @click="selected.length > 0 ? clearSelection() : selectRetainedMatches()"
+                >
                     {{ selectionLabel }}
                 </v-btn>
                 <ConfigSuperConfirm
                     :title="t('world.console.deleteTitle', 'Delete retained console history')"
-                    :action="t('world.console.deleteAction', 'Delete the selected retained console lines. This cannot be undone.')"
+                    :action="
+                        t(
+                            'world.console.deleteAction',
+                            'Delete the selected retained console lines. This cannot be undone.',
+                        )
+                    "
                     :affected="selectedAffected"
                     :confirm-label="t('world.console.deleteConfirm', 'Confirm deletion')"
                     :disabled="selected.length === 0"
                     @confirm="deleteSelected"
                 >
                     <template #activator="{ props: activatorProps }">
-                        <v-btn v-bind="activatorProps" size="small" variant="text" density="comfortable">
+                        <v-btn
+                            v-bind="activatorProps"
+                            size="small"
+                            variant="text"
+                            density="comfortable"
+                        >
                             {{ t("world.console.deleteSelected", "Delete selected") }}
                         </v-btn>
                     </template>
                 </ConfigSuperConfirm>
                 <ConfigSuperConfirm
                     :title="t('world.console.pruneTitle', 'Prune retained console history')"
-                    :action="t('world.console.pruneAction', 'Delete every retained console line for this render. The running render, if any, continues and new lines can still arrive. This cannot be undone.')"
+                    :action="
+                        t(
+                            'world.console.pruneAction',
+                            'Delete every retained console line for this render. The running render, if any, continues and new lines can still arrive. This cannot be undone.',
+                        )
+                    "
                     :affected="pruneAffected"
-                    :confirm-label="t('world.console.pruneConfirm', 'Confirm retained-history pruning')"
+                    :confirm-label="
+                        t('world.console.pruneConfirm', 'Confirm retained-history pruning')
+                    "
                     :disabled="historyRows.length === 0"
                     @confirm="pruneHistory"
                 >
                     <template #activator="{ props: activatorProps }">
-                        <v-btn v-bind="activatorProps" size="small" variant="text" density="comfortable">
+                        <v-btn
+                            v-bind="activatorProps"
+                            size="small"
+                            variant="text"
+                            density="comfortable"
+                        >
                             {{ t("world.console.prune", "Prune retained history") }}
                         </v-btn>
                     </template>
                 </ConfigSuperConfirm>
-                <span class="mb-console__format-label" :id="`console-format-label-${props.renderId}`">
+                <span
+                    class="mb-console__format-label"
+                    :id="`console-format-label-${props.renderId}`"
+                >
                     {{ t("world.console.exportFormat", "Export format") }}
                 </span>
-                <div class="mb-console__formats" role="group" :aria-labelledby="`console-format-label-${props.renderId}`">
+                <div
+                    class="mb-console__formats"
+                    role="group"
+                    :aria-labelledby="`console-format-label-${props.renderId}`"
+                >
                     <v-btn
                         v-for="format in exportFormats"
                         :key="format"
@@ -686,7 +850,12 @@ function openSetting(target: SettingsTarget): void {
                 </v-btn>
             </div>
             <p class="mb-console__meta" role="status" aria-live="polite">{{ copyState }}</p>
-            <p v-if="historyStatus" class="mb-console__meta mb-console__meta--warning" role="status" aria-live="polite">
+            <p
+                v-if="historyStatus"
+                class="mb-console__meta mb-console__meta--warning"
+                role="status"
+                aria-live="polite"
+            >
                 {{ historyStatus }}
             </p>
             <section
@@ -724,11 +893,17 @@ function openSetting(target: SettingsTarget): void {
                 :aria-label="t('world.console.output', 'The engine\'s output')"
                 @scroll="autoScroll.onScroll"
             >
-                <li v-for="row in visible" :key="row.line.id" :class="`mb-console__line mb-console__line--${row.line.level}`">
+                <li
+                    v-for="row in visible"
+                    :key="row.line.id"
+                    :class="`mb-console__line mb-console__line--${row.line.level}`"
+                >
                     <v-checkbox
                         class="mb-console__select"
                         :model-value="selectedIds.has(row.line.id)"
-                        :aria-label="t('world.console.selectLine', { id: row.line.id }, `Select line ${row.line.id}`)"
+                        :aria-label="
+                            t('world.console.selectLine', { id: row.line.id }, 'Select line {id}')
+                        "
                         density="compact"
                         hide-details
                         @update:model-value="toggleSelection(row.line.id)"
@@ -751,11 +926,15 @@ function openSetting(target: SettingsTarget): void {
                         :class="`mb-console__advice mb-console__advice--${annotation.tone}`"
                     >
                         <v-icon
-                            :icon="annotation.tone === 'tip' ? mdiLightbulbOnOutline : mdiAlertOutline"
+                            :icon="
+                                annotation.tone === 'tip' ? mdiLightbulbOnOutline : mdiAlertOutline
+                            "
                             size="14"
                             aria-hidden="true"
                         />
-                        <span class="mb-console__speaker">{{ t("world.console.speaker", "Worldlens") }}</span>
+                        <span class="mb-console__speaker">{{
+                            t("world.console.speaker", "Worldlens")
+                        }}</span>
                         <span class="mb-console__adviceText">{{ adviceText(annotation) }}</span>
                         <v-btn
                             v-if="annotation.settings"
@@ -772,7 +951,10 @@ function openSetting(target: SettingsTarget): void {
                 <li v-if="visible.length === 0" class="mb-console__empty">
                     {{
                         historyRows.length === 0
-                            ? t("world.console.emptyLog", "The engine has not printed anything yet.")
+                            ? t(
+                                  "world.console.emptyLog",
+                                  "The engine has not printed anything yet.",
+                              )
                             : t(
                                   "world.console.emptyMatch",
                                   { kept: historyRows.length },
@@ -802,7 +984,12 @@ function openSetting(target: SettingsTarget): void {
                 <v-tooltip
                     activator="parent"
                     location="top"
-                    :text="t('world.console.toBottomHint', 'The console stopped following because you scrolled up. This goes back to the newest line and starts following again.')"
+                    :text="
+                        t(
+                            'world.console.toBottomHint',
+                            'The console stopped following because you scrolled up. This goes back to the newest line and starts following again.',
+                        )
+                    "
                 />
             </v-btn>
         </div>

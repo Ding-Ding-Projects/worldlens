@@ -462,15 +462,18 @@ export const CIRENDERROUTE_FACTS = {
     "ciRenderRoute.reason.aws-cli-missing": { en: ["AWS CLI"], yue: ["AWS CLI"] },
     "ciRenderRoute.reason.aws-signed-out": { en: ["AWS"], yue: ["AWS"] },
     "ciRenderRoute.reason.aws-no-profile": { en: ["AWS profile"], yue: ["AWS profile"] },
-    "ciRenderRoute.reason.aws-no-region": { en: ["AWS profile", "region"], yue: ["AWS profile", "region"] },
+    "ciRenderRoute.reason.aws-no-region": {
+        en: ["AWS profile", "region"],
+        yue: ["AWS profile", "region"],
+    },
     "ciRenderRoute.reason.aws-not-provisioned": { en: ["AWS"], yue: ["AWS"] },
     "ciHostingRoute.title": { en: ["map"], yue: ["地圖"] },
     "ciHostingRoute.summary.github-pages": {
         en: ["repository", "no bill"],
-        yue: ["repository", "唔使錢"],
+        yue: ["repository", "唔使錢 || 唔會收你錢"],
     },
     "ciHostingRoute.summary.aws-cloudfront": {
-        en: ["S3", "You pay", "storage and traffic"],
+        en: ["S3", "pay", "storage", "traffic"],
         yue: ["S3", "俾錢"],
     },
     "ciHostingRoute.summary.local": {

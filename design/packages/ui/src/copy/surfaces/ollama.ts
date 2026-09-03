@@ -24,10 +24,6 @@ export const OLLAMA_FIXED = {
     "ollama.runtime.ready": { en: "Ollama is ready", yue: "Ollama 準備好喇" },
     "ollama.runtime.checking": { en: "Checking for Ollama…", yue: "檢查緊 Ollama…" },
     "ollama.runtime.recheck": { en: "Check again", yue: "再檢查一次" },
-    "ollama.runtime.openDownload": {
-        en: "Open the official Ollama download page",
-        yue: "開返 Ollama 官方下載頁",
-    },
     "ollama.store.title": { en: "Model Store", yue: "模型商店" },
     "ollama.store.search": { en: "Search models and tags", yue: "搜尋模型同標籤" },
     "ollama.store.refresh": { en: "Refresh catalogue", yue: "更新目錄" },

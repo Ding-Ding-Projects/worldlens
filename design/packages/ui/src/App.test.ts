@@ -25,8 +25,8 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import App from "./App.vue";
 import { KidShell } from "./kid/index.js";
-import { HomeCatalogues } from "./components/shell/index.js";
-import ProfileManager from "./components/ProfileManager.vue";
+import { HomeDashboard } from "./components/home/index.js";
+import DashboardScreen from "./components/DashboardScreen.vue";
 import { BackupScreen } from "./components/backup/index.js";
 import PagesScreen from "./components/pages/PagesScreen.vue";
 import WorldRepoScreen from "./components/worldrepo/WorldRepoScreen.vue";
@@ -36,6 +36,8 @@ import { RunLocationCard } from "./components/remote/index.js";
 import { ConfigScreen } from "./components/config/index.js";
 import { dismissAll, markReviewed } from "./components/config/notifications.js";
 import { CommandPalette } from "./components/palette/index.js";
+import { capabilityAvailable } from "./components/shell/capabilities.js";
+import { JOB_DEFINITIONS } from "./components/shell/jobRegistry.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
 import { AppSettings } from "./components/settings/index.js";
@@ -217,18 +219,9 @@ const originalBridge = (globalThis as { worldlens?: unknown }).worldlens;
  * call the catalogue makes. The cases that genuinely test *discovery* - that Home offers five
  * catalogues, that a row opens its job - drive the real path and are marked as doing so.
  */
-const WORK_JOB_IDS = [
-    "world",
-    "projects",
-    "cirender",
-    "renders",
-    "servers",
-    "pages",
-    "preview",
-    "backups",
-    "worldrepo",
-    "docs",
-] as const;
+const WORK_JOB_IDS = JOB_DEFINITIONS.filter((job) => capabilityAvailable(job.availability)).map(
+    (job) => job.id,
+);
 
 function shell(): VueWrapper {
     wrapper = mount(App, { global: { plugins: [vuetify, i18n()] }, attachTo: document.body });
@@ -303,10 +296,20 @@ function configHost(): HTMLElement | null {
     );
 }
 
+/** Confirms the explicit discard route after Escape meets an unsaved configuration. */
+async function discardConfigChanges(): Promise<void> {
+    const discard = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+        (button) => button.textContent?.trim() === "Discard and close",
+    );
+    expect(discard, "the unsaved-configuration confirmation has no discard action").toBeDefined();
+    discard?.click();
+    await settle();
+}
+
 /** The rail owns the one notification route in the redesigned shell. */
 function notificationBell(): HTMLButtonElement {
-    const bell = [...document.querySelectorAll<HTMLButtonElement>(".wl-rail-action")].find((button) =>
-        button.getAttribute("aria-label")?.startsWith("Notifications"),
+    const bell = [...document.querySelectorAll<HTMLButtonElement>(".wl-rail-action")].find(
+        (button) => button.getAttribute("aria-label")?.startsWith("Notifications"),
     );
     if (bell === undefined) throw new Error("the shell renders no notification bell");
     return bell;
@@ -349,9 +352,7 @@ function tabButton(label: string): HTMLElement {
 
 /** The seeded groups' own headers, in strip order. */
 function shellGroupHeads(): HTMLElement[] {
-    return [
-        ...document.querySelectorAll<HTMLElement>(".wl-work .mb-tabs-strip__group-head"),
-    ];
+    return [...document.querySelectorAll<HTMLElement>(".wl-work .mb-tabs-strip__group-head")];
 }
 
 /**
@@ -468,7 +469,7 @@ describe("the tab strip", () => {
 
         // The rewrite in one assertion. Work holds the jobs somebody actually started, and on a
         // fresh install that is exactly one: the guide, pinned so it cannot be swept up by a bulk
-        // close. The other ten destinations did not disappear - they moved to Home's catalogues,
+        // close. The other destinations did not disappear - they moved to Home's catalogues,
         // which is what makes it safe for this strip to be short.
         expect(tabLabels()).toEqual(["Make a map, pinned"]);
     });
@@ -488,36 +489,26 @@ describe("the tab strip", () => {
 
         expect(shellGroupHeads().map((head) => head.getAttribute("aria-label"))).toEqual([
             "Rendering, 3 tabs",
-            "Finished maps, 3 tabs",
+            "Finished maps, 6 tabs",
             "Keeping a copy, 2 tabs",
         ]);
     });
 
-    it("still separates the shell into ten jobs, every one of them reachable", async () => {
+    it("keeps every available registered job reachable from the shell", async () => {
         shell();
         await expandShellGroups();
 
-        // Ten, not twelve. Home and Map left the strip entirely - they are rail destinations now,
-        // and a Home tab beside a Home rail item would be two navigation models arguing.
-        //
-        // Sorted, because what this case is about is that all ten are reachable rather than which
-        // order a test helper happened to open them in. A sequence assertion here would go red
-        // every time the job registry is reordered, for no defect at all.
-        expect([...tabLabels()].sort()).toEqual([
-            "Backups",
-            "Docs",
-            "GitHub runners",
-            "Make a map, pinned",
-            "Maps and servers",
-            "Projects",
-            "Publish to Pages",
-            // No count in the label: nothing in this shell's fake bridges reports a render in
-            // flight, so the always-mounted indicator behind this label reads zero, exactly as it
-            // should for a shell with nothing running.
-            "Renders",
-            "Watch it live",
-            "World repository",
-        ]);
+        // Home and Map are rail destinations. Work contains every available registered job,
+        // and this expectation follows the same availability source as production so a new
+        // registered job cannot silently remain outside the shell test.
+        const expectedLabels = JOB_DEFINITIONS.filter((job) =>
+            capabilityAvailable(job.availability),
+        )
+            .map((job) =>
+                job.pinnedOnFreshWorkspace ? `${job.labelFallback}, pinned` : job.labelFallback,
+            )
+            .sort();
+        expect([...tabLabels()].sort()).toEqual(expectedLabels);
     });
 
     it("reaches Home from the rail, where no bulk close can ever touch it", async () => {
@@ -525,8 +516,7 @@ describe("the tab strip", () => {
 
         await goTo("Home");
 
-
-        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+        expect(app.findComponent(HomeDashboard).exists()).toBe(true);
     });
 
     it("reaches the docs browser through its own job", async () => {
@@ -548,7 +538,7 @@ describe("the tab strip", () => {
         const app = shell();
 
         expect(currentDestination()).toBe("Home");
-        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+        expect(app.findComponent(HomeDashboard).exists()).toBe(true);
         // The map layer is mounted at all times on purpose: unmounting it would throw away the
         // WebGL scene every time somebody looked at Home. Not showing means inert.
         expect(document.querySelector(".mb-shell-layer--map")?.hasAttribute("inert")).toBe(true);
@@ -564,13 +554,13 @@ describe("the tab strip", () => {
         // "Finish setup" success (proven to fire only on that success by
         // `FirstRunSetup.test.ts`), rather than a workspace pre-seeded in isolation.
         const app = shell();
-        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+        expect(app.findComponent(HomeDashboard).exists()).toBe(true);
 
         await app.findComponent(FirstRunSetup).vm.$emit("finished");
         await settle();
 
         expect(currentDestination()).toBe("Home");
-        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+        expect(app.findComponent(HomeDashboard).exists()).toBe(true);
         // The map layer is mounted at all times on purpose: unmounting it would throw away the
         // WebGL scene every time somebody looked at Home. Not showing means inert.
         expect(document.querySelector(".mb-shell-layer--map")?.hasAttribute("inert")).toBe(true);
@@ -579,7 +569,9 @@ describe("the tab strip", () => {
         expect(currentDestination()).toBe("Home");
         expect(
             [...document.querySelectorAll<HTMLElement>(".wl-rail-item")]
-                .find((node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === "Home")
+                .find(
+                    (node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === "Home",
+                )
                 ?.getAttribute("aria-current"),
         ).toBe("page");
     });
@@ -668,7 +660,7 @@ describe("the tab strip", () => {
         tabButton("Maps and servers").click();
         await settle();
 
-        expect(app.findComponent(ProfileManager).exists()).toBe(true);
+        expect(app.findComponent(DashboardScreen).exists()).toBe(true);
     });
 
     it("reaches the projects surface through its tab, rather than only existing in the bundle", async () => {
@@ -688,28 +680,38 @@ describe("the tab strip", () => {
     it("keeps a project editor's nested tab panel interactive while the shell panel passes map clicks through", async () => {
         const world = "C:/saves/Survival";
         const project = withMapAdded(
-            createProject("Survival", { now: "2026-08-06T12:00:00Z", id: "project-1", appVersion: null }),
+            createProject("Survival", {
+                now: "2026-08-06T12:00:00Z",
+                id: "project-1",
+                appVersion: null,
+            }),
             { id: "overworld", name: "Overworld", dimension: "minecraft:overworld", world },
         );
         (globalThis as { worldlens?: unknown }).worldlens = {
             project: {
                 listProjects: async () => ({
-                    projects: [{
-                        world,
-                        file: `${world}/worldlens.project.json`,
-                        id: project.id,
-                        name: project.name,
-                        maps: project.maps.length,
-                        createdAt: project.createdAt,
-                        updatedAt: project.updatedAt,
-                        fromWizard: project.fromWizard,
-                        worldName: "Survival",
-                        problem: null,
-                    }],
+                    projects: [
+                        {
+                            world,
+                            file: `${world}/worldlens.project.json`,
+                            id: project.id,
+                            name: project.name,
+                            maps: project.maps.length,
+                            createdAt: project.createdAt,
+                            updatedAt: project.updatedAt,
+                            fromWizard: project.fromWizard,
+                            worldName: "Survival",
+                            problem: null,
+                        },
+                    ],
                     scanned: 1,
                     problems: [],
                 }),
-                readProject: async () => ({ ok: true, project, file: `${world}/worldlens.project.json` }),
+                readProject: async () => ({
+                    ok: true,
+                    project,
+                    file: `${world}/worldlens.project.json`,
+                }),
                 writeProject: async () => ({ ok: true, file: `${world}/worldlens.project.json` }),
             },
         };
@@ -735,18 +737,21 @@ describe("the tab strip", () => {
         expect(nestedPanel).not.toBeNull();
         expect(getComputedStyle(nestedPanel!).pointerEvents).not.toBe("none");
 
-        const core = [...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]')]
-            .find((tab) => (tab.textContent ?? "").includes("Core"));
+        const core = [
+            ...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]'),
+        ].find((tab) => (tab.textContent ?? "").includes("Core"));
         core?.click();
         await settle();
         expect(core?.getAttribute("aria-selected")).toBe("true");
 
-        const maps = [...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]')]
-            .find((tab) => (tab.textContent ?? "").includes("Maps"));
+        const maps = [
+            ...document.querySelectorAll<HTMLElement>('.mb-project-editor__tabs [role="tab"]'),
+        ].find((tab) => (tab.textContent ?? "").includes("Maps"));
         maps?.click();
         await settle();
-        const addMap = [...document.querySelectorAll<HTMLButtonElement>(".mb-project-editor button")]
-            .find((button) => (button.textContent ?? "").includes("Add a map"));
+        const addMap = [
+            ...document.querySelectorAll<HTMLButtonElement>(".mb-project-editor button"),
+        ].find((button) => (button.textContent ?? "").includes("Add a map"));
         expect(addMap).toBeDefined();
         addMap?.click();
         await settle();
@@ -846,7 +851,9 @@ describe("the tab strip", () => {
         app.findComponent(WorldRepoScreen).vm.$emit("adopted", "/worlds/andyville");
         await settle();
 
-        expect(tabLabels().some((label) => label !== null && label.startsWith("Projects"))).toBe(true);
+        expect(tabLabels().some((label) => label !== null && label.startsWith("Projects"))).toBe(
+            true,
+        );
         const projects = app.findComponent(ProjectsScreen);
         expect(projects.exists()).toBe(true);
         expect(projects.props("openWorld")).toBe("/worlds/andyville");
@@ -915,7 +922,7 @@ describe("the tab strip", () => {
         app.findComponent(CommandPalette).vm.$emit("open-profiles");
         await settle();
 
-        expect(app.findComponent(ProfileManager).exists()).toBe(true);
+        expect(app.findComponent(DashboardScreen).exists()).toBe(true);
     });
 
     it("takes the user to the map when a map is chosen from another page", async () => {
@@ -925,7 +932,7 @@ describe("the tab strip", () => {
         await expandShellGroups();
         tabButton("Maps and servers").click();
         await settle();
-        expect(app.findComponent(ProfileManager).exists()).toBe(true);
+        expect(app.findComponent(DashboardScreen).exists()).toBe(true);
 
         profilesStore.activeId = addLocalMap("/renders/overworld", "overworld").id;
         await settle();
@@ -936,7 +943,7 @@ describe("the tab strip", () => {
         // would throw away whatever somebody had part-filled on it - so "you left it" is a
         // destination change rather than a component disappearing.
         expect(currentDestination()).toBe("Map");
-        expect(app.findComponent(ProfileManager).exists()).toBe(true);
+        expect(app.findComponent(DashboardScreen).exists()).toBe(true);
     });
 });
 
@@ -998,7 +1005,7 @@ describe("the licence viewer", () => {
     });
 });
 
-describe("\"what is this?\"", () => {
+describe('"what is this?"', () => {
     it("reaches the docked welcome panel through the command palette, and stays reachable after first run", async () => {
         // Same "built, tested, unreachable" regression the EULA test above guards against,
         // for `WelcomeSurface`'s own claim to be a standalone route rather than only
@@ -1024,7 +1031,7 @@ describe("\"what is this?\"", () => {
         expect(panel?.textContent).toContain("BlueMap turns a Minecraft world into a 3D map");
     });
 
-    it("switches to \"Make a map\" and closes itself when \"Start here\" is pressed", async () => {
+    it('switches to "Make a map" and closes itself when "Start here" is pressed', async () => {
         const app = shell();
         app.findComponent(CommandPalette).vm.$emit("open-welcome");
         await settle();
@@ -1041,7 +1048,7 @@ describe("\"what is this?\"", () => {
         expect(app.findComponent(WelcomeSurface).props("open")).toBe(false);
     });
 
-    it("lands on Home - not straight on \"Make a map\" - the moment first-run setup genuinely completes", async () => {
+    it('lands on Home - not straight on "Make a map" - the moment first-run setup genuinely completes', async () => {
         // Deliberately a different destination from the test right above. Pressing "Start
         // here" inside the panel is an explicit, in-the-moment choice by someone already
         // reading the panel's own description of the wizard, and `onWelcomeStart` still
@@ -1059,10 +1066,12 @@ describe("\"what is this?\"", () => {
 
         expect(
             [...document.querySelectorAll<HTMLElement>(".wl-rail-item")]
-                .find((node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === "Home")
+                .find(
+                    (node) => node.querySelector(".wl-rail-label")?.textContent?.trim() === "Home",
+                )
                 ?.getAttribute("aria-current"),
         ).toBe("page");
-        expect(app.findComponent(HomeCatalogues).exists()).toBe(true);
+        expect(app.findComponent(HomeDashboard).exists()).toBe(true);
     });
 });
 
@@ -1158,6 +1167,8 @@ describe("the options editor", () => {
             key: "Escape",
         });
         await settle();
+        expect(document.body.textContent).toContain("Discard unsaved configuration changes?");
+        await discardConfigChanges();
         expect(app.find(".mb-update-banner__restart").attributes("disabled")).toBeUndefined();
     });
 
@@ -1244,7 +1255,7 @@ describe("the options editor", () => {
         }
     });
 
-    it("closes on Escape and hands the focus back to itself", async () => {
+    it("asks before Escape discards unsaved configuration, then closes explicitly", async () => {
         const app = shell();
 
         await openOptionsEditor();
@@ -1257,6 +1268,8 @@ describe("the options editor", () => {
         });
         await settle();
 
+        expect(document.body.textContent).toContain("Discard unsaved configuration changes?");
+        await discardConfigChanges();
         expect(configHost()).toBeNull();
     });
 });
@@ -1373,15 +1386,24 @@ describe("Minecraft server detail navigation", () => {
                 logTail: async () => answer([]),
                 files: {
                     list: async () => answer([]),
-                    read: async () => answer({ bytes: new Uint8Array(), hash: "", size: 0, truncated: false }),
-                    write: async () => answer({ hash: "", size: 0, writtenAt: "now", backupPath: null }),
+                    read: async () =>
+                        answer({ bytes: new Uint8Array(), hash: "", size: 0, truncated: false }),
+                    write: async () =>
+                        answer({ hash: "", size: 0, writtenAt: "now", backupPath: null }),
                 },
                 consoleOpen: async () => ({ sessionId: "s" }),
                 consoleSend: async () => answer(undefined),
                 consoleClose: async () => answer(undefined),
                 onConsoleLine: () => () => undefined,
                 webConsole: {
-                    status: async () => answer({ running: false, host: "127.0.0.1", port: null, loopbackOnly: true, hasPassword: false }),
+                    status: async () =>
+                        answer({
+                            running: false,
+                            host: "127.0.0.1",
+                            port: null,
+                            loopbackOnly: true,
+                            hasPassword: false,
+                        }),
                     start: async () => answer(undefined),
                     stop: async () => answer(undefined),
                     setPassword: async () => answer(undefined),
@@ -1404,7 +1426,9 @@ describe("Minecraft server detail navigation", () => {
         await settle();
 
         expect(app.findComponent({ name: "ServerListScreen" }).text()).toContain("Focus Server");
-        const controls = [...document.querySelectorAll<HTMLElement>('[data-server-control="srv-focus"]')];
+        const controls = [
+            ...document.querySelectorAll<HTMLElement>('[data-server-control="srv-focus"]'),
+        ];
         expect(controls.length).toBeGreaterThanOrEqual(2);
         const origin = controls[controls.length - 1]!;
         origin.focus();
@@ -1413,7 +1437,9 @@ describe("Minecraft server detail navigation", () => {
 
         const panel = app.findComponent({ name: "WebConsolePanel" });
         expect(panel.exists()).toBe(true);
-        const webTab = panel.findAll('[role="tab"]').find((tab) => tab.text().includes("Web console"));
+        const webTab = panel
+            .findAll('[role="tab"]')
+            .find((tab) => tab.text().includes("Web console"));
         expect(webTab).toBeDefined();
         await webTab?.trigger("click");
         await settle();

@@ -307,7 +307,31 @@ describe("the catalogue answers the call sites it claims to answer", () => {
 /* Facts: the ones that are words rather than values                          */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A fact may name bounded approved phrasings with ` || ` between them.
+ *
+ * Funny levels are allowed to say the same thing differently. The alternatives stay explicit
+ * in the hand-written fact inventory, while Unicode, whitespace, and case normalization avoid
+ * treating typography as meaning. Numbers, paths, placeholders, and punctuation remain intact.
+ */
+function factIsPresent(text: string, requirement: string): boolean {
+    const normalized = text.normalize("NFC").replace(/\s+/g, " ").toLocaleLowerCase();
+    return requirement
+        .split(" || ")
+        .some((alternative) =>
+            normalized.includes(
+                alternative.normalize("NFC").replace(/\s+/g, " ").toLocaleLowerCase(),
+            ),
+        );
+}
+
 describe("no level stops saying what the message is for", () => {
+    it("accepts only explicitly listed equivalent phrasings", () => {
+        expect(factIsPresent("There is no bill.", "no bill || free")).toBe(true);
+        expect(factIsPresent("This route is free.", "no bill || free")).toBe(true);
+        expect(factIsPresent("Payment terms are unknown.", "no bill || free")).toBe(false);
+    });
+
     it("keeps every required literal at every level, in both languages", () => {
         const missing: string[] = [];
         for (const key of appVoicedKeys()) {
@@ -315,7 +339,7 @@ describe("no level stops saying what the message is for", () => {
             for (const language of LANGUAGES) {
                 APP_VOICED[key][language].forEach((text, index) => {
                     for (const fact of required[language]) {
-                        if (!text.includes(fact)) {
+                        if (!factIsPresent(text, fact)) {
                             missing.push(`${key} ${language} L${index + 1} lost "${fact}"`);
                         }
                     }

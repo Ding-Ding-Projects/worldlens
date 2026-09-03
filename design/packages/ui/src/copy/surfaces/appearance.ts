@@ -564,22 +564,6 @@ export const APPEARANCE_VOICED = {
      * without an axis ignores the setting. Both halves survive every level, because a level
      * that only keeps the first half reads as an apology for a bug.
      */
-    "appearance.type.axesHint": {
-        en: [
-            "The platform does not tell this app which axes a font has, so the registered ones are always offered. A face without an axis simply ignores it.",
-            "The platform does not tell this app which axes a font has, so the registered ones are always offered. A face without an axis simply ignores it.",
-            "The platform does not tell this app which axes a font has, so the registered ones are always offered. A face without that axis simply ignores it.",
-            "The platform does not tell this app which axes a font has, so the registered ones are always offered. A face without that axis simply ignores the setting.",
-            "The platform never tells this app which axes a font has, so the registered ones are always offered, every one of them, every time. A face without that axis simply ignores the setting and gets on with its day.",
-        ],
-        yue: [
-            "平台唔會話俾呢個程式知一隻字體有邊啲軸，所以已註冊嘅軸永遠都會列出嚟。冇嗰條軸嘅字體會直接無視佢。",
-            "平台唔會話俾呢個程式知一隻字體有邊啲軸，所以已註冊嘅軸永遠都會列出嚟。冇嗰條軸嘅字體會直接無視佢。",
-            "平台唔會話俾呢個程式知一隻字體有邊啲軸，所以已註冊嘅軸永遠都會列出嚟。冇嗰條軸嘅字體會直接無視個設定。",
-            "平台從來都唔會話俾呢個程式知一隻字體有邊啲軸，所以已註冊嘅軸永遠都會列出嚟，一條都唔會少。冇嗰條軸嘅字體會直接無視個設定。",
-            "平台由頭到尾都唔會話俾呢個程式知一隻字體有邊啲軸，所以已註冊嘅軸永遠都會列出嚟，一條都唔會少。冇嗰條軸嘅字體會直接無視個設定，繼續做返自己。",
-        ],
-    },
 
     /* ---------------------------------------------------------------- */
     /* Presets, and the two resets                                       */
@@ -948,10 +932,6 @@ export const APPEARANCE_FACTS = {
     },
     "appearance.type.boldHint": { en: ["Bold", "at least 700"], yue: ["粗體", "最少 700"] },
     // Both halves: why the list is long, and what a face without the axis does with it.
-    "appearance.type.axesHint": {
-        en: ["which axes a font has", "always offered", "ignores"],
-        yue: ["有邊啲軸", "永遠都會列出", "無視"],
-    },
 
     "appearance.preset.none.saved": {
         en: ["No presets saved yet", "three built-in"],

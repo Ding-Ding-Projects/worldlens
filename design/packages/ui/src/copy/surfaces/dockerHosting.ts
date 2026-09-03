@@ -122,10 +122,6 @@ export const DOCKERHOSTING_FIXED = {
         en: "Docker accepted the container creation, but refreshing the verified snapshot failed; review the error above before managing it.",
         yue: "Docker 接受咗建立 container，但重新整理已驗證 snapshot 失敗；管理之前請先查看上面嘅錯誤。",
     },
-    "dockerHosting.create.failed": {
-        en: "Docker could not create this app-owned container.",
-        yue: "Docker 未能建立呢個由程式擁有嘅 container。",
-    },
 } as const satisfies Record<string, FixedString>;
 
 export const DOCKERHOSTING_FACTS = {} as const satisfies Record<

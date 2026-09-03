@@ -244,22 +244,6 @@ export const CIRENDER_VOICED = {
             "呢部電腦未接受過 Mojang 嘅授權條款。算圖真係要佢，望實粒掣望到出汗都唔會變。",
         ],
     },
-    "cirender.blocked.large": {
-        en: [
-            "This world packs to about {size}, past what one GitHub release asset can hold.",
-            "This world packs to about {size}, past what one GitHub release asset can hold.",
-            "This world packs to about {size}, which is past what one GitHub release asset can hold.",
-            "This world packs to about {size}. That is past what one GitHub release asset can hold, so it cannot go up as one.",
-            "This world packs to about {size}, which sails clean past what one GitHub release asset can hold. It will not fit through that door in one piece.",
-        ],
-        yue: [
-            "呢個世界壓縮之後大約 {size}，超出咗一個 GitHub release asset 載得起嘅上限。",
-            "呢個世界壓縮之後大約 {size}，超出咗一個 GitHub release asset 載得起嘅上限。",
-            "呢個世界壓縮之後大約 {size}，已經超出咗一個 GitHub release asset 載得起嘅上限。",
-            "呢個世界壓縮之後大約 {size}。呢個數超出咗一個 GitHub release asset 載得起嘅上限，所以塞唔落一件。",
-            "呢個世界壓縮之後大約 {size}，一飛就飛過咗一個 GitHub release asset 載得起嘅上限。想成嚿塞入去，道門真係唔夠闊。",
-        ],
-    },
     /*
      * "Neither" is the load-bearing word: somebody who reads this as "sign in to GitHub"
      * will sign in to the one they already have and be blocked again. The remedy names
@@ -572,11 +556,11 @@ export const CIRENDER_VOICED = {
             'Run {run} got the verified map safely over the finish line, then "{step}" tripped over the Pages carpet. GitHub Pages was not published, and the original failed run remains linked as evidence.',
         ],
         yue: [
-            'Run {run} 已經整好並驗證咗張地圖，但「{step}」失敗，所以 GitHub Pages 冇發佈到。原本失敗嘅 run 連結會保留做證據。',
-            'Run {run} 已經整好並驗證咗張地圖，但「{step}」失敗，所以 GitHub Pages 冇發佈到。原本失敗嘅 run 連結會保留做證據。',
-            'Run {run} 已經整好並驗證咗張地圖，但「{step}」失敗，所以 GitHub Pages 冇發佈到。原本失敗嘅 run 連結會留低，證據唔會自己走失。',
-            'Run {run} 喺「{step}」失敗之前已經安全交付並驗證咗張地圖，所以 GitHub Pages 冇發佈到。原本紅咗嘅 run 連結會保留做證據。',
-            'Run {run} 已經將驗證好嘅地圖安全送到終點，跟住「{step}」先至俾 Pages 張地氈跣親。GitHub Pages 冇發佈到，原本失敗嘅 run 連結會保留做證據。',
+            "Run {run} 已經整好並驗證咗張地圖，但「{step}」失敗，所以 GitHub Pages 冇發佈到。原本失敗嘅 run 連結會保留做證據。",
+            "Run {run} 已經整好並驗證咗張地圖，但「{step}」失敗，所以 GitHub Pages 冇發佈到。原本失敗嘅 run 連結會保留做證據。",
+            "Run {run} 已經整好並驗證咗張地圖，但「{step}」失敗，所以 GitHub Pages 冇發佈到。原本失敗嘅 run 連結會留低，證據唔會自己走失。",
+            "Run {run} 喺「{step}」失敗之前已經安全交付並驗證咗張地圖，所以 GitHub Pages 冇發佈到。原本紅咗嘅 run 連結會保留做證據。",
+            "Run {run} 已經將驗證好嘅地圖安全送到終點，跟住「{step}」先至俾 Pages 張地氈跣親。GitHub Pages 冇發佈到，原本失敗嘅 run 連結會保留做證據。",
         ],
     },
 
@@ -1015,38 +999,6 @@ export const CIRENDER_VOICED = {
      * three dimensions by name, because "set it up" without saying what gets written is
      * exactly the sentence somebody clicks and then wonders what it did to their world.
      */
-    "cirender.defaultProject.create": {
-        en: [
-            "Set this world up with the defaults",
-            "Set this world up with the defaults",
-            "Set this world up with the defaults",
-            "Set this world up with the defaults, right here",
-            "Set this world up with the defaults, right here, and stop being sent somewhere else to do it",
-        ],
-        yue: [
-            "用預設值幫呢個世界設定好",
-            "用預設值幫呢個世界設定好",
-            "用預設值幫呢個世界設定好",
-            "就喺呢度用預設值幫呢個世界設定好",
-            "就喺呢度用預設值幫呢個世界設定好，唔使再走去第二版搞",
-        ],
-    },
-    "cirender.defaultProject.explain": {
-        en: [
-            "Writes a project file into the world with BlueMap's generated settings and an overworld, nether and end map.",
-            "Writes a project file into the world with BlueMap's generated settings and an overworld, nether and end map. Nothing else in the world is touched.",
-            "Writes a project file into the world holding BlueMap's own generated settings and an overworld, nether and end map. Nothing else in the world is touched, and everything in it stays editable from the Projects screen.",
-            "Writes a project file into the world holding BlueMap's own generated settings and an overworld, nether and end map. Nothing else in the world is touched, and everything in it stays editable from the Projects screen afterwards.",
-            "Writes a project file into the world holding BlueMap's own generated settings and an overworld, nether and end map. Nothing else in the world is touched - one small file appears, and everything in it stays editable from the Projects screen afterwards.",
-        ],
-        yue: [
-            "會喺個世界入面寫一個 project 檔，用 BlueMap 產生嘅設定，加 overworld、nether 同 end 三張地圖。",
-            "會喺個世界入面寫一個 project 檔，用 BlueMap 產生嘅設定，加 overworld、nether 同 end 三張地圖。個世界其他嘢一律唔郁。",
-            "會喺個世界入面寫一個 project 檔，入面係 BlueMap 自己產生嘅設定，加 overworld、nether 同 end 三張地圖。個世界其他嘢一律唔郁，之後喺 Projects 版度樣樣都改得。",
-            "會喺個世界入面寫一個 project 檔，入面係 BlueMap 自己產生嘅設定，加 overworld、nether 同 end 三張地圖。個世界其他嘢一律唔郁，寫完之後喺 Projects 版度樣樣都改得。",
-            "會喺個世界入面寫一個 project 檔，入面係 BlueMap 自己產生嘅設定，加 overworld、nether 同 end 三張地圖。個世界其他嘢一律唔郁，淨係多咗一個細細個檔案，寫完之後喺 Projects 版度樣樣都改得。",
-        ],
-    },
     "cirender.defaultProject.unavailable": {
         en: [
             "This build cannot write a project file. Set the world up from the Projects screen or the map wizard.",
@@ -1061,22 +1013,6 @@ export const CIRENDER_VOICED = {
             "呢個 build 寫唔到 project 檔，所以個世界要喺 Projects 版或者 map wizard 度設定。",
             "呢個 build 根本寫唔到 project 檔，所以個世界要改為喺 Projects 版或者 map wizard 度設定。",
             "呢個 build 根本寫唔到 project 檔，唔係扭計，係真係冇路可行，所以個世界要改為喺 Projects 版或者 map wizard 度設定。",
-        ],
-    },
-    "cirender.defaultProject.written": {
-        en: [
-            "Wrote {file}: an overworld, nether and end map from BlueMap's generated defaults.",
-            "Wrote {file} with BlueMap's generated defaults: an overworld, nether and end map.",
-            "Wrote {file} with BlueMap's generated defaults: an overworld, nether and end map. Open it from Projects to change anything.",
-            "Wrote {file} with BlueMap's generated defaults: an overworld, nether and end map. Open it from Projects if you want to change anything in it.",
-            "Wrote {file} with BlueMap's generated defaults: an overworld, nether and end map. That is the whole world set up; open it from Projects if you want to change anything in it.",
-        ],
-        yue: [
-            "寫咗 {file}：overworld、nether 同 end 三張地圖，用 BlueMap 產生嘅預設值。",
-            "寫咗 {file}，用 BlueMap 產生嘅預設值：overworld、nether 同 end 三張地圖。",
-            "寫咗 {file}，用 BlueMap 產生嘅預設值：overworld、nether 同 end 三張地圖。想改嘢就喺 Projects 度打開佢。",
-            "寫咗 {file}，用 BlueMap 產生嘅預設值：overworld、nether 同 end 三張地圖。想改入面任何嘢，就喺 Projects 度打開佢。",
-            "寫咗 {file}，用 BlueMap 產生嘅預設值：overworld、nether 同 end 三張地圖。成個世界就係咁設定好；想改入面任何嘢，就喺 Projects 度打開佢。",
         ],
     },
     "cirender.cloudConfig.intro": {
@@ -1369,7 +1305,6 @@ export const CIRENDER_FIXED = {
     "cirender.remove.confirm": { en: "Remove from the list", yue: "由清單移除" },
 
     /* The live run: transfer counter, job search, and the job that went wrong. */
-    "cirender.transfer.bytes": { en: "{done} of {total}", yue: "{total} 入面嘅 {done}" },
     "cirender.transfer.bytesLabel": { en: "Transferred", yue: "已傳送" },
     "cirender.transfer.totalLabel": { en: "Total", yue: "總數" },
     "cirender.transfer.unknownTotal": { en: "Unknown", yue: "未知" },
@@ -1558,34 +1493,64 @@ export const CIRENDER_FIXED = {
         en: "Managed workflow conflict: no repository files were changed.",
         yue: "受管理 workflow 有衝突，倉庫入面一個檔案都冇改過。",
     },
-    "cirender.cloudConfig.title": { en: "Create cloud render configuration", yue: "建立 cloud render 設定" },
-    "cirender.cloudConfig.noLocalRender": { en: "Cloud-first · no local render", yue: "Cloud-first · 唔做本機 render" },
+    "cirender.cloudConfig.title": {
+        en: "Create cloud render configuration",
+        yue: "建立 cloud render 設定",
+    },
+    "cirender.cloudConfig.noLocalRender": {
+        en: "Cloud-first · no local render",
+        yue: "Cloud-first · 唔做本機 render",
+    },
     "cirender.cloudConfig.search": { en: "Search configuration fields", yue: "搜尋設定欄位" },
-    "cirender.cloudConfig.searchHint": { en: "map, storage, threads, output...", yue: "地圖、儲存、threads、輸出⋯⋯" },
+    "cirender.cloudConfig.searchHint": {
+        en: "map, storage, threads, output...",
+        yue: "地圖、儲存、threads、輸出⋯⋯",
+    },
     "cirender.cloudConfig.steps": { en: "Cloud configuration steps", yue: "Cloud 設定步驟" },
     "cirender.cloudConfig.step.map": { en: "Map", yue: "地圖" },
     "cirender.cloudConfig.step.storage": { en: "Storage", yue: "儲存" },
     "cirender.cloudConfig.step.render": { en: "Cloud render", yue: "Cloud render" },
     "cirender.cloudConfig.step.review": { en: "Review", yue: "檢查" },
-    "cirender.cloudConfig.mapTitle": { en: "Choose the maps and primary map", yue: "揀地圖同主要地圖" },
+    "cirender.cloudConfig.mapTitle": {
+        en: "Choose the maps and primary map",
+        yue: "揀地圖同主要地圖",
+    },
     "cirender.cloudConfig.projectName": { en: "Project name", yue: "Project 名稱" },
     "cirender.cloudConfig.primaryDimension": { en: "Primary dimension", yue: "主要 dimension" },
     "cirender.cloudConfig.mapName": { en: "Primary map name", yue: "主要地圖名稱" },
     "cirender.cloudConfig.mapId": { en: "Primary map id", yue: "主要地圖 id" },
     "cirender.cloudConfig.sorting": { en: "Sort order", yue: "排序" },
-    "cirender.cloudConfig.mapListTitle": { en: "Maps included in the cloud render", yue: "Cloud render 包含嘅地圖" },
+    "cirender.cloudConfig.mapListTitle": {
+        en: "Maps included in the cloud render",
+        yue: "Cloud render 包含嘅地圖",
+    },
     "cirender.cloudConfig.storageTitle": { en: "Choose storage paths", yue: "揀儲存路徑" },
     "cirender.cloudConfig.dataFolder": { en: "Runtime data folder", yue: "Runtime data 資料夾" },
     "cirender.cloudConfig.webroot": { en: "Web root", yue: "Web 根目錄" },
-    "cirender.cloudConfig.outputFolder": { en: "Cloud output folder (optional)", yue: "Cloud 輸出資料夾（可選）" },
+    "cirender.cloudConfig.outputFolder": {
+        en: "Cloud output folder (optional)",
+        yue: "Cloud 輸出資料夾（可選）",
+    },
     "cirender.cloudConfig.browse": { en: "Browse", yue: "瀏覽" },
-    "cirender.cloudConfig.renderTitle": { en: "Choose cloud render behaviour", yue: "揀 cloud render 行為" },
+    "cirender.cloudConfig.renderTitle": {
+        en: "Choose cloud render behaviour",
+        yue: "揀 cloud render 行為",
+    },
     "cirender.cloudConfig.threads": { en: "Render threads", yue: "Render threads" },
     "cirender.cloudConfig.automatic": { en: "Automatic", yue: "自動" },
     "cirender.cloudConfig.route": { en: "Render route", yue: "Render route" },
-    "cirender.cloudConfig.force": { en: "Render all chunks even when they look unchanged", yue: "就算睇落冇變都 render 晒所有 chunk" },
-    "cirender.cloudConfig.fixEdges": { en: "Repair map edges while rendering", yue: "Render 嗰陣修復地圖邊界" },
-    "cirender.cloudConfig.metrics": { en: "Allow the upstream anonymous metrics option", yue: "容許 upstream 匿名 metrics 選項" },
+    "cirender.cloudConfig.force": {
+        en: "Render all chunks even when they look unchanged",
+        yue: "就算睇落冇變都 render 晒所有 chunk",
+    },
+    "cirender.cloudConfig.fixEdges": {
+        en: "Repair map edges while rendering",
+        yue: "Render 嗰陣修復地圖邊界",
+    },
+    "cirender.cloudConfig.metrics": {
+        en: "Allow the upstream anonymous metrics option",
+        yue: "容許 upstream 匿名 metrics 選項",
+    },
     "cirender.cloudConfig.reviewTitle": { en: "Review before writing", yue: "寫入之前檢查" },
     "cirender.cloudConfig.reviewCloudOnly": { en: "Cloud-first", yue: "Cloud-first" },
     "cirender.cloudConfig.summaryWorld": { en: "World", yue: "世界" },
@@ -1596,8 +1561,14 @@ export const CIRENDER_FIXED = {
     "cirender.cloudConfig.cancel": { en: "Cancel", yue: "取消" },
     "cirender.cloudConfig.back": { en: "Back", yue: "上一頁" },
     "cirender.cloudConfig.next": { en: "Next", yue: "下一頁" },
-    "cirender.cloudConfig.save": { en: "Write and return to cloud preflight", yue: "寫入並返返 cloud preflight" },
-    "cirender.cloudConfig.status": { en: "Step {step} of {total}", yue: "第 {step} 步，共 {total} 步" },
+    "cirender.cloudConfig.save": {
+        en: "Write and return to cloud preflight",
+        yue: "寫入並返返 cloud preflight",
+    },
+    "cirender.cloudConfig.status": {
+        en: "Step {step} of {total}",
+        yue: "第 {step} 步，共 {total} 步",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {
@@ -1643,10 +1614,6 @@ export const CIRENDER_FACTS = {
     "cirender.blocked.eula": {
         en: ["Mojang's licence", "not been accepted"],
         yue: ["Mojang", "未接受過"],
-    },
-    "cirender.blocked.large": {
-        en: ["{size}", "GitHub release asset"],
-        yue: ["{size}", "GitHub release asset"],
     },
     // Both remedies, because fixing the sign-in they already have will not unblock it.
     "cirender.blocked.uploadRoute": {
@@ -1736,7 +1703,7 @@ export const CIRENDER_FACTS = {
         yue: ["{map}", "地圖清單", "GitHub"],
     },
     "cirender.postRenderWarning.detail": {
-        en: ["{run}", "{step}", "verified map", "GitHub Pages", "failed run"],
+        en: ["{run}", "{step}", "verified map", "GitHub Pages", "failed"],
         yue: ["{run}", "{step}", "驗證", "GitHub Pages", "失敗"],
     },
     // "recorded" and "verified" are different claims, and the distinction is the message.
@@ -1839,24 +1806,32 @@ export const CIRENDER_FACTS = {
         yue: ["上次 check 搵唔到已配置嘅個世界"],
     },
     // What the button does has to survive every level: it writes into the world.
-    "cirender.defaultProject.create": {
-        en: ["Set this world up with the defaults"],
-        yue: ["用預設值幫呢個世界設定好"],
-    },
     // The three dimensions and "project file" are the facts; the rest is voice.
-    "cirender.defaultProject.explain": {
-        en: ["project file", "overworld, nether and end"],
-        yue: ["project 檔", "overworld、nether 同 end"],
-    },
     // Where to go instead, which is the only actionable half of a refusal.
     "cirender.defaultProject.unavailable": {
         en: ["cannot write a project file", "Projects screen or the map wizard"],
         yue: ["寫唔到 project 檔", "Projects 版或者 map wizard"],
     },
     // The path written, and what went into it.
-    "cirender.defaultProject.written": {
-        en: ["{file}", "overworld, nether and end"],
-        yue: ["{file}", "overworld、nether 同 end"],
+    "cirender.cloudConfig.intro": {
+        en: ["project", "cloud preflight", "Java"],
+        yue: ["project", "cloud preflight", "Java"],
+    },
+    "cirender.cloudConfig.mapHint": {
+        en: ["BlueMap", "maps/*.conf"],
+        yue: ["BlueMap", "maps/*.conf"],
+    },
+    "cirender.cloudConfig.storageHint": {
+        en: ["project contract", "cloud workflow"],
+        yue: ["project contract", "cloud workflow"],
+    },
+    "cirender.cloudConfig.renderHint": {
+        en: ["GitHub Actions", "Java"],
+        yue: ["GitHub Actions", "Java"],
+    },
+    "cirender.cloudConfig.reviewCloudOnlyBody": {
+        en: ["Java", "history", "CI preflight"],
+        yue: ["Java", "history", "CI preflight"],
     },
     "cirender.cloudConfig.noBridge": {
         en: ["desktop bridge", "nothing was written"],
