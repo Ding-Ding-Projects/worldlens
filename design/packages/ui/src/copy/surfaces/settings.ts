@@ -1232,6 +1232,36 @@ export const SETTINGS_FIXED = {
      * already translates.
      */
     "settings.display.themePickerLabel": { en: "Colour theme", yue: "色彩主題" },
+    /* Catalogue-coverage sweep: these had no answer here, so every language mode and
+       both funny-level extremes rendered the English written at the call site. */
+    "settings.addons.changeFailed": { en: "The add-on state could not be changed.", yue: "改唔到呢個 add-on 嘅狀態。" },
+    "settings.addons.consentFailed": { en: "Capability consent could not be saved.", yue: "儲唔到權限授權。" },
+    "settings.addons.empty": { en: "No add-ons have been imported yet.", yue: "仲未匯入過任何 add-on。" },
+    "settings.addons.import": { en: "Import add-on package", yue: "匯入 add-on 套件" },
+    "settings.addons.importFailed": { en: "The add-on could not be imported.", yue: "匯入唔到呢個 add-on。" },
+    "settings.addons.listFailed": { en: "The add-on list could not be read.", yue: "讀唔到 add-on 清單。" },
+    "settings.addons.removeFailed": { en: "The add-on could not be removed.", yue: "移除唔到呢個 add-on。" },
+    "settings.addons.safeModeFailed": { en: "Safe mode could not be changed.", yue: "改唔到安全模式。" },
+    "settings.addons.title": { en: "Design add-ons", yue: "設計 add-on" },
+    "settings.addons.unavailable": { en: "Add-on import is unavailable in this build.", yue: "呢個版本冇得匯入 add-on。" },
+    "settings.awsAccounts.title": { en: "AWS accounts", yue: "AWS 戶口" },
+    "settings.engineChoice.active": { en: "Selected", yue: "已揀" },
+    "settings.engineChoice.artifactPath": { en: "Verified artifact path", yue: "已驗證嘅檔案路徑" },
+    "settings.engineChoice.artifactVersion": { en: "Verified artifact version", yue: "已驗證嘅版本" },
+    "settings.engineChoice.automatic": { en: "Automatic", yue: "自動" },
+    "settings.engineChoice.bluemap": { en: "BlueMap original", yue: "BlueMap 原裝" },
+    "settings.engineChoice.capabilities": { en: "Capabilities", yue: "功能" },
+    "settings.engineChoice.copied": { en: "Copied", yue: "已複製" },
+    "settings.engineChoice.copy": { en: "Copy JSON", yue: "複製 JSON" },
+    "settings.engineChoice.export": { en: "Export choices", yue: "匯出選擇" },
+    "settings.engineChoice.globalEyebrow": { en: "New-project default", yue: "新專案預設" },
+    "settings.engineChoice.import": { en: "Import choices", yue: "匯入選擇" },
+    "settings.engineChoice.importInvalid": { en: "That file is not a supported engine-choice export.", yue: "呢個檔案唔係支援嘅引擎選擇匯出檔。" },
+    "settings.engineChoice.imported": { en: "Engine choices imported.", yue: "已匯入引擎選擇。" },
+    "settings.engineChoice.projectEyebrow": { en: "Project render engine", yue: "專案 render 引擎" },
+    "settings.engineChoice.provenance": { en: "Provenance", yue: "來源" },
+    "settings.engineChoice.resetProject": { en: "Use global default", yue: "用全域預設" },
+    "settings.engineChoice.resolved": { en: "Resolved engine", yue: "實際用嘅引擎" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {
