@@ -804,7 +804,7 @@ function clearSearch(): void {
         <AppearanceTarget id="home.page" :label="t('home.title', 'Home')" as="div">
             <div class="mb-home__inner">
                 <header class="mb-home__header">
-                    <div id="mb-home-title" class="mb-home__title text-h2">{{ t("home.title", "Home") }}</div>
+                    <h2 id="mb-home-title" class="mb-home__title text-h2">{{ t("home.title", "Home") }}</h2>
 
                     <AppearanceTarget
                         id="home.intro"
@@ -934,9 +934,9 @@ function clearSearch(): void {
                     <section v-if="hasContinue" class="mb-home__section" aria-labelledby="mb-home-continue">
                         <AppearanceTarget id="home.continue" :label="t('home.section.continue', 'Continue')" as="div">
                             <div>
-                                <div id="mb-home-continue" class="mb-home__section-title text-h3">
+                                <h3 id="mb-home-continue" class="mb-home__section-title text-h3">
                                     {{ t("home.section.continue", "Continue") }}
-                                </div>
+                                </h3>
                                 <div class="mb-home__continue-row">
                                     <VBtn
                                         v-for="profile in continueProfiles"
@@ -954,9 +954,9 @@ function clearSearch(): void {
                     </section>
 
                     <section class="mb-home__section" aria-labelledby="mb-home-started">
-                        <div id="mb-home-started" class="mb-home__section-title text-h3">
+                        <h3 id="mb-home-started" class="mb-home__section-title text-h3">
                             {{ t("home.section.getStarted", "Get started") }}
-                        </div>
+                        </h3>
 
                         <!--
                             The hero. One capability, full width, on primary-container, with the
@@ -1042,9 +1042,9 @@ function clearSearch(): void {
                     >
                         <section class="mb-home__section" aria-labelledby="mb-home-more">
                             <div class="mb-home__more-head">
-                                <div id="mb-home-more" class="mb-home__section-title text-h3">
+                                <h3 id="mb-home-more" class="mb-home__section-title text-h3">
                                     {{ t("home.section.everythingElse", "Everything else") }}
-                                </div>
+                                </h3>
                                 <VBtn
                                     class="mb-interactive"
                                     variant="text"
@@ -1076,7 +1076,16 @@ function clearSearch(): void {
                                     class="mb-home__disclosure"
                                     :data-section="section.id"
                                 >
-                                    <div class="mb-home__disclosure-heading text-h4">
+                                    <!--
+                                        A real h4, not a div wearing text-h4. Vuetify's
+                                        typography class is visual only, so as a div this
+                                        looked like a heading and was not one: the page
+                                        had an h2 and three h3 regions and then nothing,
+                                        and a screen reader got no outline for the
+                                        sections beneath them -- the wall this disclosure
+                                        exists to avoid.
+                                    -->
+                                    <h4 class="mb-home__disclosure-heading text-h4">
                                         <VBtn
                                             class="mb-home__disclosure-button mb-interactive"
                                             variant="text"
@@ -1099,7 +1108,7 @@ function clearSearch(): void {
                                                 }}
                                             </span>
                                         </VBtn>
-                                    </div>
+                                    </h4>
 
                                     <div
                                         v-show="sectionExpanded(section.id)"

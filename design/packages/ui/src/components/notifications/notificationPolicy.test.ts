@@ -102,6 +102,20 @@ const BLOCKING_SURFACES: Record<string, BlockingSurface> = {
         count: 1,
         decision: "Name and create a storage, which the user must complete or cancel.",
     },
+    "components/mounts/MountRootBrowser.vue": {
+        count: 1,
+        decision:
+            "Pick a root for the mount, or cancel. Nothing is mounted until one is chosen, " +
+            "and the browse is a choice the flow cannot proceed without.",
+    },
+    "components/project/ProjectImportDialog.vue": {
+        count: 1,
+        decision:
+            "Choose which source a project is imported from - a local folder, an SSH " +
+            "machine, or the archive route - and complete or cancel. Each route reads a " +
+            "different thing from a different place, so it is a decision rather than a " +
+            "notification.",
+    },
     "components/menu/MenuSuperConfirm.vue": {
         count: 1,
         decision: "The destructive-action gate: two keys and a slider before anything irreversible happens.",
