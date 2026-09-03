@@ -146,6 +146,11 @@ export function describeDeployment(configuration: HostedConfiguration): string {
         configuration.passwordHash === null
             ? "  Password: none. Anyone who can reach this address has full access."
             : "  Password: set.",
+        // Issue #169: an operator looking at a running container has to be able to tell
+        // which build it is without pulling the image and reading its labels. Null when
+        // the build could not establish a commit, said plainly rather than left blank.
+        `  Built:    ${__WORLDLENS_SOURCE_COMMIT__ ?? "commit unknown"}` +
+            (__WORLDLENS_BUILT_AT__ === null ? "" : ` at ${__WORLDLENS_BUILT_AT__}`),
     ];
     if (configuration.mountRoots.length === 0) {
         lines.push("  Folders:  none mounted, so there is nothing to read or render.");

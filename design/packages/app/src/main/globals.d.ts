@@ -29,3 +29,5 @@ declare const __WORLDLENS_LEGACY_REPOSITORY__: string;
  * there is deliberately no fallback to the current time.
  */
 declare const __WORLDLENS_BUILT_AT__: string | null;
+/** The commit this build came from, or null when the build could not establish one. */
+declare const __WORLDLENS_SOURCE_COMMIT__: string | null;

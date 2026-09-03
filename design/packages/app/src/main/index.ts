@@ -567,6 +567,9 @@ function registerIpc(): void {
     ipcMain.handle("app:buildProvenance", () => ({
         version: app.getVersion(),
         builtAt: __WORLDLENS_BUILT_AT__,
+        // A time says when this was built; only the commit says which source it came
+        // from, and two builds of different commits can share a committer date.
+        sourceCommit: __WORLDLENS_SOURCE_COMMIT__,
     }));
     registerReleaseLedgerHandlers();
 

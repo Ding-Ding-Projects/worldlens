@@ -88,6 +88,20 @@ export default defineConfig({
             allow: [workspaceRoot, committedScreenshots, committedDocs],
         },
     },
+    /**
+     * The build-time constants esbuild injects into the app bundles.
+     *
+     * The tests do not go through esbuild, so without these every module that reads one
+     * throws "__WORLDLENS_SOURCE_COMMIT__ is not defined" the moment it is imported. Null is
+     * the honest value here: a test run has no build provenance, and null is exactly what a
+     * build that could not establish one produces, so the surfaces are exercised in their
+     * unavailable state rather than against an invented commit.
+     */
+    define: {
+        __WORLDLENS_BUILT_AT__: "null",
+        __WORLDLENS_SOURCE_COMMIT__: "null",
+    },
+
     test: {
         include: ["packages/*/src/**/*.test.ts", "packages/*/test/**/*.test.ts"],
 
