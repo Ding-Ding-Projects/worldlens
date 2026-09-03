@@ -237,6 +237,13 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             // The RCON password itself never crosses this bridge in either direction: the
             // main process holds it, uses it, and only ever hands back an Answer<T> saying
             // whether a call worked.
+            // Its handler in main/mcserver/ipc.ts has existed since before
+            // mcserver:rcon:configure entered BRIDGE_CHANNELS, and until now the factory
+            // still had no method for it -- so the channel was permitted, the handler was
+            // registered, and nothing could reach it. Wired at one end and consumed at
+            // neither, which is the shape this repository keeps being bitten by.
+            rconConfigure: (id: unknown, request: unknown) =>
+                transport.invoke("mcserver:rcon:configure", id, request),
             rconTest: (id: unknown) => transport.invoke("mcserver:rcon:test", id),
             consoleOpen: (id: unknown, tail: unknown) =>
                 transport.invoke("mcserver:console:open", id, tail),

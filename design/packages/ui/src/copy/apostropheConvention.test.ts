@@ -18,6 +18,7 @@ import { describe, expect, it } from "vitest";
 const TYPOGRAPHIC_APOSTROPHE = "’";
 
 const SELF = "apostropheConvention.test.ts";
+const GENERATED_CHANGELOG = "changelogData.generated.ts";
 
 function directoryOfThisFile(): string {
     const path = new URL("../", import.meta.url).pathname;
@@ -35,6 +36,19 @@ async function sourceFiles(directory: string): Promise<readonly string[]> {
         } else if (entry.name === SELF) {
             // This file has to contain the glyph in order to search for it, the same way a
             // guard asserting the absence of a word cannot avoid naming it.
+            continue;
+        } else if (entry.name === GENERATED_CHANGELOG) {
+            // Not source: every string in it is a commit subject or body copied verbatim
+            // from git history. The convention this test enforces is that a catalogue entry
+            // and the call site's own English fallback spell the same sentence the same way,
+            // and a historical commit body is neither. One of those bodies is the commit that
+            // fixed the original mismatch, and it quotes the glyph in order to describe it --
+            // so enforcing the convention here would forbid the changelog from recording the
+            // very defect this test exists to prevent.
+            //
+            // Excluded by exact filename rather than by a "generated" pattern, so a second
+            // generated file has to be considered on its own merits rather than inheriting
+            // this exemption silently.
             continue;
         } else if (
             entry.name.endsWith(".ts") ||
