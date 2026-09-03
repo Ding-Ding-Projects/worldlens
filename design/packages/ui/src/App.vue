@@ -142,6 +142,12 @@ import { routeKidProfile } from "./kid/profileRoute.js";
 import { resolveCatalogues, type ResolvedCatalogue } from "./components/shell/catalogueSearch.js";
 import { useTheme } from "vuetify";
 import { isWorldArchive, looksLikeMinecraftWorld } from "./components/world/worldDropModel.js";
+import {
+    createRuntimeSettingsCoordinator,
+    createNarratorController,
+    loadRuntimeSettings,
+    resolveScheduledValues,
+} from "./components/runtimeSettings/index.js";
 
 const { t } = useI18n();
 const schoolMode = useSchoolMode();
@@ -190,6 +196,100 @@ watch(
  * Vuetify MD3 theme. Both belong to the shell, so they are installed once, here.
  */
 const currentApp = computed(() => blueMapApp.value);
+
+function applyRootRuntimeValues(values: Readonly<Record<string, unknown>>): void {
+    if (typeof document === "undefined") return;
+    if (typeof values.accent === "string") {
+        const hex = values.accent.replace("#", "");
+        const parse = (offset: number): number =>
+            Number.parseInt(hex.slice(offset, offset + 2), 16) || 0;
+        document.documentElement.style.setProperty(
+            "--v-theme-primary",
+            `${parse(0)}, ${parse(2)}, ${parse(4)}`,
+        );
+    }
+    if (typeof values.fontFamily === "string") document.body.style.fontFamily = values.fontFamily;
+    if (typeof values.fontSize === "number") document.body.style.fontSize = `${values.fontSize}em`;
+    if (typeof values.displayName === "string") document.title = values.displayName;
+    if (typeof values.theme === "string")
+        document.documentElement.dataset.runtimeTheme = values.theme;
+    if (typeof values.density === "string")
+        document.documentElement.dataset.runtimeDensity = values.density;
+    if (typeof values.motion === "string")
+        document.documentElement.dataset.runtimeMotion = values.motion;
+    if (typeof values.accommodations === "object" && values.accommodations !== null) {
+        const accommodations = values.accommodations as Record<string, unknown>;
+        document.documentElement.dataset.runtimeLowStimulation =
+            accommodations.lowStimulation === true ? "true" : "false";
+        document.documentElement.dataset.runtimeFocus =
+            accommodations.focus === true ? "true" : "false";
+        document.documentElement.dataset.runtimeTimeAwareness =
+            accommodations.timeAwareness === true ? "true" : "false";
+        document.documentElement.dataset.runtimeOneThing =
+            accommodations.oneThingAtATime === true ? "true" : "false";
+        document.documentElement.dataset.runtimeMomentum =
+            accommodations.momentum === true ? "true" : "false";
+    }
+}
+applyRootRuntimeValues(
+    loadRuntimeSettings().values as unknown as Readonly<Record<string, unknown>>,
+);
+let rootRuntimeChannel: BroadcastChannel | null = null;
+const rootRuntimeCoordinator = createRuntimeSettingsCoordinator({
+    readState: () => loadRuntimeSettings(),
+    applyTemporary: applyRootRuntimeValues,
+    clearTemporary: () => {
+        const state = loadRuntimeSettings();
+        applyRootRuntimeValues(
+            resolveScheduledValues(state.values, state.schedules) as unknown as Readonly<
+                Record<string, unknown>
+            >,
+        );
+    },
+    bridge:
+        typeof window === "undefined" || window.worldlens?.runtimeSettings === undefined
+            ? null
+            : window.worldlens.runtimeSettings,
+});
+const rootNarrator = createNarratorController();
+const onRuntimeNotice = (event: Event): void => {
+    const detail = (
+        event as CustomEvent<{ level?: string; message?: string; title?: string; detail?: string }>
+    ).detail;
+    const values = loadRuntimeSettings().values;
+    const screenReaderActive =
+        document.documentElement.dataset.screenReaderActive === "true" ||
+        document.body.dataset.screenReaderActive === "true";
+    rootNarrator.speak(
+        values.narrator,
+        {
+            en: `${detail.title ?? ""} ${detail.message ?? ""} ${detail.detail ?? ""}`.trim(),
+            yue: `${detail.title ?? ""} ${detail.message ?? ""} ${detail.detail ?? ""}`.trim(),
+        },
+        `notice:${detail.level ?? "info"}`,
+        { screenReaderActive, reducedSound: values.narrator.quietHours },
+    );
+};
+onMounted(() => {
+    document.documentElement.dataset.runtimeCoordinator = "active";
+    if (typeof BroadcastChannel !== "undefined") {
+        rootRuntimeChannel = new BroadcastChannel("worldlens-runtime-settings");
+        rootRuntimeChannel.onmessage = () =>
+            applyRootRuntimeValues(
+                loadRuntimeSettings().values as unknown as Readonly<Record<string, unknown>>,
+            );
+    }
+    rootRuntimeCoordinator.start();
+    window.addEventListener("worldlens:notice", onRuntimeNotice);
+});
+onUnmounted(() => {
+    rootRuntimeCoordinator.stop();
+    rootRuntimeChannel?.close();
+    rootRuntimeChannel = null;
+    window.removeEventListener("worldlens:notice", onRuntimeNotice);
+    rootNarrator.dispose();
+    delete document.documentElement.dataset.runtimeCoordinator;
+});
 provideBlueMap(currentApp);
 useBlueMapTheme(currentApp);
 

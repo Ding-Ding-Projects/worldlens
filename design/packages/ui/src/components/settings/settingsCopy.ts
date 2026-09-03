@@ -194,6 +194,13 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
                 "Pick a shipped mark or your own local image for this app's own logo, with its crop, fit and background. This changes the picture only, never the app's package identity.",
             ),
         },
+        "runtime-settings": {
+            title: t("settings.runtime.title", "Runtime settings and accommodations"),
+            description: t(
+                "settings.runtime.description",
+                "A local Status Hub, an off-by-default narrator, scheduled language and appearance values, and independent attention accommodations. External values are bounded, validated and temporary.",
+            ),
+        },
         "history": {
             title: t("settings.history.title", "Version history"),
             description: t(

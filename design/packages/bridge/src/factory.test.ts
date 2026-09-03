@@ -83,6 +83,7 @@ describe("the object the factory builds", () => {
             "gallery.list",
             "converter.catalog",
             "ollama.runtimeEnsure",
+            "runtimeSettings.status",
             "dialog.pickFolder",
             "locks.vault.put",
             "repair.issueReport.draft",
@@ -212,6 +213,42 @@ describe("the object the factory builds", () => {
                         }
                     ).ollama.cancel("operation-1"),
                 "ollama:cancel",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as { runtimeSettings: { status(): Promise<unknown> } }
+                    ).runtimeSettings.status(),
+                "runtimeSettings:status",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as {
+                            runtimeSettings: {
+                                saveHomeAssistant(input: unknown): Promise<unknown>;
+                            };
+                        }
+                    ).runtimeSettings.saveHomeAssistant({ id: "home" }),
+                "runtimeSettings:saveHomeAssistant",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as {
+                            runtimeSettings: { statusHubRegister(): Promise<unknown> };
+                        }
+                    ).runtimeSettings.statusHubRegister(),
+                "runtimeSettings:statusHubRegister",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as {
+                            runtimeSettings: { historyRestore(id: string): Promise<unknown> };
+                        }
+                    ).runtimeSettings.historyRestore("revision-1"),
+                "runtimeSettings:historyRestore",
             ],
         ];
         for (const [call, expected] of calls) {

@@ -74,6 +74,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     updates: "Updates",
     vocabulary: "Personal vocabulary",
     "app-logo": "App logo",
+    "runtime-settings": "Runtime settings and accommodations",
     history: "Version history",
     diagnostics: "Diagnostics",
 };
@@ -676,15 +677,11 @@ describe("the language and tone setting", () => {
         open({ anchor: "language-and-tone" });
         await settle();
 
-        const element = requireSection("language-and-tone");
+        expect(section("language-and-tone")).toBeNull();
         expect(
             tabButtons().some((button) => button.textContent?.includes("Quiet study") === true),
-        ).toBe(true);
-        expect(element.textContent).toContain("Quiet study");
-        expect(element.textContent).not.toContain("School mode");
-        expect(element.textContent).not.toContain("Language and tone");
-        expect(element.querySelector(".mb-setup-language")).toBeNull();
-        expect(wrapper?.findComponent(ProductDisplayNameRow).exists()).toBe(true);
+        ).toBe(false);
+        expect(wrapper?.findComponent(ProductDisplayNameRow).exists()).toBe(false);
         expect(
             tabButtons().some(
                 (button) => button.textContent?.includes(SECTION_TITLE.vocabulary) === true,
@@ -698,7 +695,7 @@ describe("the language and tone setting", () => {
 
         await field?.setValue("Quiet study");
         await settle();
-        expect(resultTitles()).toContain("Quiet study");
+        expect(resultTitles()).not.toContain("Quiet study");
         await field?.setValue("Personal vocabulary");
         await settle();
         expect(resultTitles()).not.toContain(SECTION_TITLE.vocabulary);

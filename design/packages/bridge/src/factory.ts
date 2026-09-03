@@ -1086,6 +1086,39 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
 
+        runtimeSettings: {
+            refreshExternal: (request: unknown) =>
+                transport.invoke("runtimeSettings:refreshExternal", request),
+            status: () => transport.invoke("runtimeSettings:status"),
+            sources: () => transport.invoke("runtimeSettings:sources"),
+            saveHomeAssistant: (input: unknown) =>
+                transport.invoke("runtimeSettings:saveHomeAssistant", input),
+            removeSource: (id: unknown) => transport.invoke("runtimeSettings:removeSource", id),
+            statusHubRegister: () => transport.invoke("runtimeSettings:statusHubRegister"),
+            statusHubSubmitEvidence: (evidence: unknown) =>
+                transport.invoke("runtimeSettings:statusHubSubmitEvidence", evidence),
+            statusHubPollReplies: (cursor: unknown) =>
+                transport.invoke("runtimeSettings:statusHubPollReplies", cursor),
+            statusHubConfirmReply: (replyId: unknown) =>
+                transport.invoke("runtimeSettings:statusHubConfirmReply", replyId),
+            statusHubCredentialPresence: () =>
+                transport.invoke("runtimeSettings:statusHubCredentialPresence"),
+            statusHubSaveCredential: (value: unknown) =>
+                transport.invoke("runtimeSettings:statusHubSaveCredential", value),
+            historyPresence: () => transport.invoke("runtimeSettings:historyPresence"),
+            historySetCredential: (password: unknown) =>
+                transport.invoke("runtimeSettings:historySetCredential", password),
+            historyVerify: (password: unknown) =>
+                transport.invoke("runtimeSettings:historyVerify", password),
+            historyList: (input: unknown) => transport.invoke("runtimeSettings:historyList", input),
+            historyAppend: (input: unknown) =>
+                transport.invoke("runtimeSettings:historyAppend", input),
+            historyExport: (format: unknown) =>
+                transport.invoke("runtimeSettings:historyExport", format),
+            historyDiff: (id: unknown) => transport.invoke("runtimeSettings:historyDiff", id),
+            historyRestore: (id: unknown) => transport.invoke("runtimeSettings:historyRestore", id),
+        },
+
         listBackupOwners: (accountId: unknown) => transport.invoke("backup:owners", { accountId }),
         listBackupRepositories: (accountId: unknown) =>
             transport.invoke("backup:repositories", { accountId }),

@@ -847,6 +847,108 @@ interface OllamaBridge {
     cancel(operationId: string): Promise<boolean>;
 }
 
+interface RuntimeSettingsBridge {
+    refreshExternal(request: {
+        readonly id: string;
+        readonly source: "https" | "homeAssistant";
+        readonly url?: string;
+        readonly entityId?: string;
+    }): Promise<{
+        readonly ok: boolean;
+        readonly message: string;
+        readonly values?: Readonly<Record<string, string | number>>;
+        readonly authRequired?: boolean;
+    }>;
+    status(): Promise<{
+        readonly registered: boolean;
+        readonly deliveryAvailable: boolean;
+        readonly source: "local-main-process";
+        readonly message: string;
+        readonly registration: "unrun" | "confirmed" | "failed";
+        readonly evidence: "unrun" | "confirmed" | "failed";
+        readonly replies: "unrun" | "confirmed" | "failed";
+        readonly confirmation: "unrun" | "confirmed" | "failed";
+    }>;
+    sources(): Promise<
+        readonly {
+            readonly id: string;
+            readonly source: "homeAssistant";
+            readonly url: string;
+            readonly entityId: string;
+            readonly credentialRef: string;
+        }[]
+    >;
+    saveHomeAssistant(input: {
+        readonly id: string;
+        readonly url: string;
+        readonly entityId: string;
+        readonly credential: string;
+    }): Promise<{
+        readonly ok: boolean;
+        readonly message: string;
+        readonly source?: {
+            readonly id: string;
+            readonly source: "homeAssistant";
+            readonly url: string;
+            readonly entityId: string;
+            readonly credentialRef: string;
+        };
+    }>;
+    removeSource(id: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+    statusHubRegister(): Promise<RuntimeStatusHubResult>;
+    statusHubSubmitEvidence(evidence: unknown): Promise<RuntimeStatusHubResult>;
+    statusHubPollReplies(cursor?: string): Promise<RuntimeStatusHubResult>;
+    statusHubConfirmReply(replyId: string): Promise<RuntimeStatusHubResult>;
+    statusHubCredentialPresence(): Promise<boolean>;
+    statusHubSaveCredential(
+        value: string,
+    ): Promise<{ readonly ok: boolean; readonly message: string }>;
+    historyPresence(): Promise<{ readonly configured: boolean; readonly unlocked: boolean }>;
+    historySetCredential(
+        password: string,
+    ): Promise<{ readonly ok: boolean; readonly message: string }>;
+    historyVerify(password: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+    historyList(input?: {
+        readonly query?: string;
+        readonly action?: string;
+        readonly from?: string;
+        readonly to?: string;
+    }): Promise<
+        readonly {
+            readonly id: string;
+            readonly at: string;
+            readonly action: string;
+            readonly fields: readonly string[];
+            readonly digest: string;
+        }[]
+    >;
+    historyAppend(input: {
+        readonly action: string;
+        readonly fields: readonly string[];
+        readonly before?: unknown;
+        readonly after?: unknown;
+    }): Promise<unknown>;
+    historyExport(format: "json" | "markdown"): Promise<string>;
+    historyDiff(id: string): Promise<unknown>;
+    historyRestore(id: string): Promise<unknown>;
+}
+
+interface RuntimeStatusHubResult {
+    readonly ok: boolean;
+    readonly message: string;
+    readonly projectId?: string;
+    readonly sessionId?: string;
+    readonly cursor?: string;
+    readonly replies?: readonly {
+        readonly id: string;
+        readonly at: string;
+        readonly kind: string;
+        readonly text: string;
+    }[];
+    readonly evidenceId?: string;
+    readonly authRequired?: boolean;
+}
+
 interface WorldlensBridge {
     dialog: {
         pickFile(options: {
@@ -889,6 +991,7 @@ interface WorldlensBridge {
     dockerHosting?: DockerHostingBridge;
     dockerHostingCreate(request: CreateInstanceRequest): Promise<CreateInstanceAnswer>;
     schoolMode?: SharedSchoolModeBridge;
+    runtimeSettings?: RuntimeSettingsBridge;
     vocabulary?: {
         read(): Promise<{
             readonly status: "no-file" | "loaded" | "cache-unreadable";

@@ -148,6 +148,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["square", "Using the shipped mark"],
     },
     {
+        anchor: "runtime-settings",
+        title: "Runtime settings and accommodations",
+        description: "Status Hub, narrator, schedules and attention modes.",
+        values: ["Status Hub", "Focus", "Momentum"],
+    },
+    {
         anchor: "history",
         title: "Version history",
         description: "Every saved version of your server profiles and your application settings.",
@@ -232,6 +238,7 @@ describe("every section the surface renders", () => {
             "updates",
             "vocabulary",
             "app-logo",
+            "runtime-settings",
             "history",
             "diagnostics",
         ]);
