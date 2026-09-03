@@ -177,6 +177,40 @@ repeats them: a sleep in the product, and a scripted watch service for the queue
 The changelog trailer fix restored body text the old strip loop had been silently eating,
 which is why the apostrophe convention only started failing now.
 
+### Where the gates actually stand
+
+Measured on a quiet machine, because two earlier runs were not trustworthy: one carried a
+regression of my own, and one died mid-run with `ERR_IPC_CHANNEL_CLOSED` while a Docker build
+over SSH and CI polling competed for the same host. A suite whose worker crashed is not a
+verdict, and a contended one is a verdict about the machine.
+
+| Gate | Result |
+| --- | --- |
+| `pnpm test` | **13,028 of 13,046 tests**, 988 of 995 files, 6 skipped, zero worker crashes |
+| `pnpm typecheck` | exit 0 -- it had never passed |
+| `pnpm lint` | clean |
+| `pnpm build` | 20 of 20 packages |
+| `pnpm workflows:check` | clean |
+| `pnpm published-text:check` | no actionable hit |
+
+The one failing file is `map-update-service.test.ts`, and it now says why rather than timing
+out silently:
+
+```
+nothing reacted to 20 write(s) to ...egion.3.-2.mca within 10000ms
+```
+
+That is issue #176, and it is a product defect rather than a test one.
+
+**One regression of mine, caught by the full suite and fixed.** `hosted/main.test.ts` passed
+alone and at package scope -- 3,717 tests green -- and threw
+`__WORLDLENS_SOURCE_COMMIT__ is not defined` five times in the 995-file run. esbuild's
+`define` substitutes those at build time, so a bare read is correct in a packaged build and
+guaranteed nowhere else: a module the runner treats as external is never transformed, and
+there the identifier throws instead of being null. `typeof` on an undeclared identifier is the
+one read that cannot throw, applied at all three sites. Verified in the exact broken condition:
+the guard returns null where the bare read raises.
+
 ### 廣東話同步
 
 **Catalogue 有 239 個 key 完全冇答案。** 每一個喺廣東話同雙語模式、兩個搞笑程度極端下，
