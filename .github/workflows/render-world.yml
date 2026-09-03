@@ -137,7 +137,7 @@ env:
   # a change to design/packages/render-actions or design/packages/site lands on this
   # project's own main branch, update this value to that commit in the same change - a
   # toolchain that silently changed between runs is a render nobody could reproduce.
-  WORLDLENS_TOOLCHAIN_COMMIT: 9f52322cdfe284553499486bb1a8ffd2916331e3
+  WORLDLENS_TOOLCHAIN_COMMIT: 10aecea86c8cd06dd0282de5cbae58fe673809a1
 
 jobs:
   # ---------------------------------------------------------------------------------
@@ -1134,7 +1134,17 @@ jobs:
             --web-root site \
             --summary "$GITHUB_STEP_SUMMARY"
 
-      - name: Combine the site and the map
+      # Pages takes the preview, not the whole map.
+      #
+      # GitHub refuses a Pages artifact over 1 GB, and a rendered world is routinely far
+      # more than that - one real run uploaded 13,663,125,137 bytes and the deployment
+      # failed after every render job had succeeded, which is the worst possible place to
+      # discover a hard limit. So the hires tiles (`tiles/0`, the overwhelming bulk of a
+      # map) stay in the release download, and Pages gets the webapp plus the lowres
+      # pyramid: the map opens, pans and zooms out, and zooming all the way in is the one
+      # thing it cannot do. The size is measured before the upload and the run fails here,
+      # with the real number, rather than uploading and hoping.
+      - name: Combine the site and the map preview
         if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'
         run: |
           set -euo pipefail
@@ -1146,8 +1156,34 @@ jobs:
           fi
           mkdir -p pages-root/map
           cp -r site/. pages-root/map/
+
+          hires_bytes=0
+          for hires in pages-root/map/maps/*/tiles/0; do
+            [ -d "$hires" ] || continue
+            hires_bytes=$((hires_bytes + $(du -sb "$hires" | cut -f1)))
+            rm -rf "$hires"
+          done
+
+          preview_bytes=$(du -sb pages-root | cut -f1)
+          limit_bytes=$((900 * 1000 * 1000))
           echo "documentation site: $(find pages-root -maxdepth 1 -type f | wc -l) root files"
-          echo "rendered map:       $(find pages-root/map -type f | wc -l) files under /map/"
+          echo "map preview:        $(find pages-root/map -type f | wc -l) files under /map/"
+          echo "hires tiles held back for the download: ${hires_bytes} bytes"
+          echo "preview size: ${preview_bytes} bytes (limit ${limit_bytes})"
+
+          {
+            echo "## Published to Pages"
+            echo ""
+            echo "Pages carries the **map preview**: the web app and the lowres tile pyramid,"
+            echo "${preview_bytes} bytes. The full-resolution tiles are ${hires_bytes} bytes and"
+            echo "travel with the **rendered-map** download instead, because GitHub refuses a"
+            echo "Pages artifact over 1 GB."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$preview_bytes" -gt "$limit_bytes" ]; then
+            echo "::error::the map preview is ${preview_bytes} bytes, past the ${limit_bytes} this publishes; GitHub Pages refuses anything over 1 GB. Nothing was uploaded."
+            exit 1
+          fi
 
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'

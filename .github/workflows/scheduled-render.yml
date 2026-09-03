@@ -73,7 +73,7 @@ env:
   #
   # Duplicated from render-world.yml's copy of the same value, the same way
   # render-shard-wave.yml's copy is: keep all three equal, and advance them together.
-  WORLDLENS_TOOLCHAIN_COMMIT: 9f52322cdfe284553499486bb1a8ffd2916331e3
+  WORLDLENS_TOOLCHAIN_COMMIT: 10aecea86c8cd06dd0282de5cbae58fe673809a1
 
 jobs:
   check:
