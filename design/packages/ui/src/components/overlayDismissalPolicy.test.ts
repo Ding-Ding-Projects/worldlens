@@ -546,6 +546,112 @@ const REGISTRY: readonly OverlayEntry[] = [
         wrapsAppearanceTarget: false,
         status: "clean",
     },
+    /*
+     * Twelve surfaces that shipped after this registry was written and never joined it. Both
+     * checks named them in as many words, and each is recorded with what it actually is
+     * rather than a filename alone: the point of the list is that a later reader can tell
+     * whether an entry still describes the surface behind it.
+     *
+     * Every one is marked clean because the live sweep finds none of them colliding, and that
+     * claim is checked both ways - a clean entry the sweep finds broken fails, and a pending
+     * entry it finds working fails too.
+     */
+    {
+        file: "components/appearance/AppearanceChoiceField.vue",
+        surface:
+            "The appearance editor's own choice field: a searchable list in a menu that stays open while its content is clicked.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/appearance/AppearanceEditor.vue",
+        surface:
+            "The per-property lock menu and its sibling, both anchored to a property row rather than to a fixed activator.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/mcserver/CommandBuilder.vue",
+        surface:
+            "The command builder's per-argument picker, opened from the row it fills in.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/mcserver/PlayerManager.vue",
+        surface:
+            "The per-player actions menu on each row of the player list.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/mcserver/SearchableOptionPicker.vue",
+        surface:
+            "The shared searchable option picker every server dropdown reuses; its search field lives inside the menu, so it must not close on a content click.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/mcserver/ServerConsole.vue",
+        surface:
+            "The console's own command menu, beside its search field.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/palette/PaletteChoiceField.vue",
+        surface:
+            "The command palette's choice field, opened from a button and holding a list that survives a click inside it.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/project/RenderDestinationMenu.vue",
+        surface:
+            "Where a finished render is sent. Eager, because its content is measured before it is first shown.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/appLogo/AppLogoRow.vue",
+        surface:
+            "The application-logo row, wrapped so its mark carries the per-element appearance editor like every other rendered element.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/canvas/CanvasNode.vue",
+        surface:
+            "One node on the project canvas. Every node is its own appearance target, which is what makes a canvas full of them the densest instance of this wrapper.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/remote/DockerHostingScreen.vue",
+        surface:
+            "The Docker-host publication surface, wrapped for per-element appearance editing.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
+    {
+        file: "components/settings/EngineChoicePanel.vue",
+        surface:
+            "The render-engine choice panel in settings, wrapped the same way.",
+        ownVMenu: false,
+        wrapsAppearanceTarget: true,
+        status: "clean",
+    },
 ] as const;
 
 const registryByFile = new Map(REGISTRY.map((entry) => [entry.file, entry]));

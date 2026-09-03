@@ -309,6 +309,59 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         status: "no-menu",
         reason: "No right-click context menu exists on the map canvas (only ControlBar's whole-bar menu, listed separately, responds to right-click).",
     },
+    /*
+     * Eight menus that shipped after this registry was written. The four built on
+     * AppearanceTarget inherit its search; the four with their own v-menu each carry one,
+     * two through the shared MenuSearchList and two through their own field.
+     */
+    {
+        file: "appearance/AppearanceChoiceField.vue",
+        builtVia: "v-menu",
+        menu: "The appearance editor's choice field: its own ConfigSearchField sits inside the menu.",
+        status: "has-search",
+    },
+    {
+        file: "appearance/AppearanceEditor.vue",
+        builtVia: "v-menu",
+        menu: "The per-property lock menu, anchored to the property row it locks.",
+        status: "has-search",
+    },
+    {
+        file: "palette/PaletteChoiceField.vue",
+        builtVia: "v-menu",
+        menu: "The command palette's choice field, built on the shared MenuSearchList.",
+        status: "has-search",
+    },
+    {
+        file: "project/RenderDestinationMenu.vue",
+        builtVia: "v-menu",
+        menu: "Where a finished render is sent, built on the shared MenuSearchList.",
+        status: "has-search",
+    },
+    {
+        file: "appLogo/AppLogoRow.vue",
+        builtVia: "AppearanceTarget",
+        menu: "Context menu of the application-logo row.",
+        status: "has-search",
+    },
+    {
+        file: "canvas/CanvasNode.vue",
+        builtVia: "AppearanceTarget",
+        menu: "Context menu of one node on the project canvas.",
+        status: "has-search",
+    },
+    {
+        file: "remote/DockerHostingScreen.vue",
+        builtVia: "AppearanceTarget",
+        menu: "Context menu of the Docker-host publication surface.",
+        status: "has-search",
+    },
+    {
+        file: "settings/EngineChoicePanel.vue",
+        builtVia: "AppearanceTarget",
+        menu: "Context menu of the render-engine choice panel in settings.",
+        status: "has-search",
+    },
 ] as const;
 
 /* -------------------------------------------------------------------------- */
