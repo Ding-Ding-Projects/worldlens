@@ -45,6 +45,46 @@ function denseWorld(size: number, chunksPerRegion = 1024, bytesPerChunk = 4104):
     };
 }
 
+/**
+ * A world in two clusters with empty space between them, which is what a survival world
+ * looks like once somebody has walked a few million blocks and built something out there.
+ */
+function sparseWorld(clusterSize: number, gapRegions: number): WorldMeasurement {
+    const chunksPerRegion = 1024;
+    const bytesPerChunk = 4104;
+    const regions: RegionMeasurement[] = [];
+    const far = clusterSize + gapRegions;
+    for (const originZ of [0, far])
+        for (let z = 0; z < clusterSize; z++)
+            for (let x = 0; x < clusterSize; x++)
+                regions.push({
+                    fileName: "r." + x + "." + (originZ + z) + ".mca",
+                    x,
+                    z: originZ + z,
+                    chunkCount: chunksPerRegion,
+                    bytes: chunksPerRegion * bytesPerChunk,
+                });
+
+    const chunkCount = regions.reduce((sum, region) => sum + region.chunkCount, 0);
+    return {
+        regionDirectory: "/world/region",
+        dimension: "minecraft:overworld",
+        regions,
+        regionBounds: {
+            x: { min: 0, max: clusterSize - 1 },
+            z: { min: 0, max: far + clusterSize - 1 },
+        },
+        blockBounds: {
+            x: { min: 0, max: clusterSize * REGION_BLOCKS - 1 },
+            z: { min: 0, max: (far + clusterSize) * REGION_BLOCKS - 1 },
+        },
+        chunkCount,
+        bytes: regions.reduce((sum, region) => sum + region.bytes, 0),
+        bytesPerChunk,
+        regionGridFillRatio: regions.length / (clusterSize * (far + clusterSize)),
+    };
+}
+
 const layout = { lowresTileSize: 500, lodFactor: 5, lodCount: 3 };
 
 describe("splitting an axis", () => {
@@ -329,5 +369,46 @@ describe("the plan's disk estimate", () => {
         const decision = plan.decision.join(" ");
         expect(decision).toContain("free disk");
         expect(decision).toContain("world is fetched");
+    });
+});
+
+/*
+ * The bug this covers refused a whole class of worlds. `planShards` drops shard rectangles
+ * that hold no region files, so a world with a gap leaves holes in the surviving shard set;
+ * the alignment check read every hole as a gap in the cuts and returned a problem, and the
+ * CLI exited 1 before a single chunk was rendered. Compact worlds drop nothing and sailed
+ * through, which is why it looked like "some maps work and some maps do not".
+ */
+describe("planning a world with empty space in the middle", () => {
+    const world = sparseWorld(6, 40);
+    const plan = planShards(world, { mapId: "world", budgetSeconds: 12 * 60, ...layout });
+
+    it("drops the empty shards", () => {
+        expect(plan.decision.join(" ")).toContain("covered no region files");
+    });
+
+    it("is accepted, because the cuts still partition the plane", () => {
+        expect(validatePlanAlignment(plan)).toEqual([]);
+    });
+
+    it("records every cut that was made, not only the ones that kept a shard", () => {
+        expect(plan.cuts?.z.length).toBeGreaterThan(plan.shards.length);
+        for (const range of [...(plan.cuts?.x ?? []), ...(plan.cuts?.z ?? [])]) {
+            if (range.min !== null) expect(isHiresTileBoundary(range.min)).toBe(true);
+            if (range.max !== null) expect(isHiresTileBoundary(range.max + 1)).toBe(true);
+        }
+    });
+
+    it("still catches a genuinely misaligned cut", () => {
+        const broken = {
+            ...plan,
+            cuts: {
+                x: plan.cuts?.x ?? [],
+                z: (plan.cuts?.z ?? []).map((range, index) =>
+                    index === 1 && range.min !== null ? { ...range, min: range.min + 3 } : range,
+                ),
+            },
+        };
+        expect(validatePlanAlignment(broken).length).toBeGreaterThan(0);
     });
 });

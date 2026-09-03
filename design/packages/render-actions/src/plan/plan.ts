@@ -56,6 +56,15 @@ export interface ShardPlan {
     requestedShards: number;
     /** the shard grid that was actually laid out */
     grid: { x: number; z: number };
+    /**
+     * Every cut the grid made, on each axis, before empty shards were dropped.
+     *
+     * The shards themselves are not a record of the cuts: a shard rectangle holding no
+     * region files is dropped, so a sparse world leaves holes in the surviving set. The
+     * alignment check needs the cuts as they were made, or it reads a deliberately dropped
+     * strip as a gap and refuses a plan that is perfectly sound.
+     */
+    cuts?: { x: BlockRange[]; z: BlockRange[] };
     shards: Shard[];
     /** the layout constants the shard configs and the merge both depend on */
     layout: {
@@ -427,6 +436,7 @@ export function planShards(measurement: WorldMeasurement, options: PlanOptions):
         budgetSeconds,
         requestedShards,
         grid,
+        cuts: { x: boundsX, z: boundsZ },
         shards,
         layout: {
             hiresTileSize: HIRES_TILE_SIZE,
@@ -452,7 +462,7 @@ export function validatePlanAlignment(plan: ShardPlan): string[] {
 
     for (const shard of plan.shards) {
         for (const axis of ["x", "z"] as const) {
-            const range = shard.bounds[axis];
+            const range: BlockRange = shard.bounds[axis];
             if (range.min !== null && !onHiresBoundary(range.min))
                 problems.push(
                     "Shard " +
@@ -477,8 +487,24 @@ export function validatePlanAlignment(plan: ShardPlan): string[] {
     }
 
     for (const axis of ["x", "z"] as const) {
+        /*
+         * The cuts, not the surviving shards.
+         *
+         * `planShards` drops any shard rectangle with no region files in it, which is right
+         * - starting a job to render nothing helps nobody - but it means a sparse world's
+         * shards no longer touch. Checking contiguity over what survived therefore reported
+         * a gap for every dropped strip and refused the plan outright, so a world with a
+         * far-flung outlier cluster could never be rendered at all while a compact one went
+         * through. The cuts still partition the plane; only the empty pieces are missing.
+         */
         const edges = new Map<string, BlockRange>();
-        for (const shard of plan.shards) edges.set(rangeKey(shard.bounds[axis]), shard.bounds[axis]);
+        // A plan read back from an older JSON file has no `cuts`; fall back to its shards
+        // rather than throwing, and say so by name instead of an optional chain on a
+        // field the type says is always there.
+        const recorded = plan.cuts;
+        const source: readonly BlockRange[] =
+            recorded === undefined ? plan.shards.map((shard) => shard.bounds[axis]) : recorded[axis];
+        for (const range of source) edges.set(rangeKey(range), range);
 
         const ordered = [...edges.values()].sort((a, b) => (a.min ?? -Infinity) - (b.min ?? -Infinity));
         for (let index = 1; index < ordered.length; index++) {
