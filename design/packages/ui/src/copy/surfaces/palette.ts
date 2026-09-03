@@ -1405,7 +1405,9 @@ export const PALETTE_FACTS = {
     },
     "palette.row.removeFavourite": { en: ["{title}", "favourites"], yue: ["{title}", "最愛"] },
     "palette.choice.menuLabel": {
-        en: ["{title}", "options || Choices"],
+        // Level 5 says "The many little choices for {title}" - the word is there, in lower
+        // case. The comparison is case-sensitive on purpose, so the alternative is spelled out.
+        en: ["{title}", "options || Choices || choices"],
         yue: ["{title}", "選項 || 選擇"],
     },
     "palette.choice.searchLabel": {
