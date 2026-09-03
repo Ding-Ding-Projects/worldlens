@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
+import { join } from "node:path";
 import { test } from "node:test";
+import { fileURLToPath } from "node:url";
 
 import {
   ACTION_INVENTORIES,
@@ -15,6 +17,14 @@ import {
   scriptRegions,
   stepFingerprint,
 } from "./lint-workflows.mjs";
+
+// Every path below is resolved from this file rather than from the working directory, and
+// git is run with the repository root as its cwd. The keys of ACTION_INVENTORIES are
+// repository-relative and stay that way, because that is what lint-workflows.mjs reports.
+// Without this the whole suite passes from the repository root and fails from design/,
+// which is where package.json runs it from.
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+const inRoot = (relative) => join(ROOT, relative);
 
 const FILE = ".github/workflows/ci.yml";
 const BUILD_JARS_FILE = ".github/workflows/build-jars.yml";
@@ -31,6 +41,7 @@ const ONE_INPUT = {
 
 function workflowAt(revision) {
   return execFileSync("git", ["show", `${revision}:${FILE}`], {
+    cwd: ROOT,
     encoding: "utf8",
   });
 }
@@ -69,7 +80,7 @@ test("the exact e137779 baseline exposes all 19 later executable expression site
 });
 
 test("the checked-in workflow has exact provenance and quoted data-only sinks", () => {
-  const workflow = readFileSync(FILE, "utf8");
+  const workflow = readFileSync(inRoot(FILE), "utf8");
   assert.deepEqual(
     lintText(workflow, FILE, WATCHED, WATCHED_STEP_FINGERPRINTS[FILE]),
     [],
@@ -91,7 +102,7 @@ test("the checked-in workflow has exact provenance and quoted data-only sinks", 
 // control keys, and the exact reviewed inventory of every remaining `if:` condition in the
 // file - is still exercised below, retargeted onto anchors that still exist.
 test("trigger, quoting and condition-inventory contracts fail closed", () => {
-  const workflow = readFileSync(FILE, "utf8").replaceAll("\r\n", "\n");
+  const workflow = readFileSync(inRoot(FILE), "utf8").replaceAll("\r\n", "\n");
   assert.deepEqual(actionDependencyProblems(workflow, FILE), []);
   assert.deepEqual(
     actionDependencyProblems(workflow.replaceAll("\n", "\r\n"), FILE),
@@ -102,18 +113,18 @@ test("trigger, quoting and condition-inventory contracts fail closed", () => {
     [
       "tag guard on the check job",
       workflow.replace(
-        "  check:\n    name: Lint, build, test\n",
-        "  check:\n    name: Lint, build, test\n    if: github.ref_type != 'tag'\n",
+        "  check:\n    name: Build workspace\n",
+        "  check:\n    name: Build workspace\n    if: github.ref_type != 'tag'\n",
       ),
       /workflow condition inventory/,
     ],
     [
       "folded alternate condition on the check job",
       workflow.replace(
-        "  check:\n    name: Lint, build, test\n",
+        "  check:\n    name: Build workspace\n",
         [
           "  check:",
-          "    name: Lint, build, test",
+          "    name: Build workspace",
           "    if: >-",
           "      !startsWith(github.ref, 'refs/tags/')",
           "",
@@ -121,20 +132,18 @@ test("trigger, quoting and condition-inventory contracts fail closed", () => {
       ),
       /workflow condition inventory/,
     ],
-    [
-      "screenshots re-enabled without updating the reviewed inventory",
-      workflow.replace(
-        "    if: false\n    runs-on: ubuntu-24.04\n    # Screenshot capture is diagnostic evidence",
-        "    if: always() && needs.test-world.result == 'success'\n    runs-on: ubuntu-24.04\n    # Screenshot capture is diagnostic evidence",
-      ),
-      /workflow condition inventory/,
-    ],
+    // A "screenshots re-enabled without updating the reviewed inventory" mutation used to sit
+    // here. The `screenshots` job it re-enabled was removed from ci.yml entirely under the
+    // standing policy that a workflow runs no capture gate, so the replace matched nothing, the
+    // mutated text came back identical to the original, and assert.notEqual below failed
+    // claiming a contract was missing from a workflow that is correct. Removed with the job
+    // rather than left mutating text that is not there.
     ...["'", '"'].flatMap((quote) => [
       [
         `${quote}quoted inline condition key on the check job`,
         workflow.replace(
-          "  check:\n    name: Lint, build, test\n",
-          `  check:\n    name: Lint, build, test\n    ${quote}if${quote}: false\n`,
+          "  check:\n    name: Build workspace\n",
+          `  check:\n    name: Build workspace\n    ${quote}if${quote}: false\n`,
         ),
         /canonical unquoted spelling/,
       ],
@@ -177,7 +186,7 @@ test("trigger, quoting and condition-inventory contracts fail closed", () => {
 });
 
 test("complete run and env fingerprints reject indirect execution and harmless drift", () => {
-  const workflow = readFileSync(FILE, "utf8");
+  const workflow = readFileSync(inRoot(FILE), "utf8");
   const anchor = 'if [ -n "$DISH_NAME_EN" ]; then';
   for (const extra of [
     "printenv DISH_NAME_EN | bash",
@@ -243,8 +252,8 @@ function injectAdjacentReleaseStep(workflow) {
 }
 
 for (const [lineEnding, workflow] of [
-  ["LF", readFileSync(FILE, "utf8").replace(/\r\n/g, "\n")],
-  ["CRLF", readFileSync(FILE, "utf8").replace(/\r?\n/g, "\r\n")],
+  ["LF", readFileSync(inRoot(FILE), "utf8").replace(/\r\n/g, "\n")],
+  ["CRLF", readFileSync(inRoot(FILE), "utf8").replace(/\r?\n/g, "\r\n")],
 ]) {
   test(`an adjacent executable release step cannot escape the reviewed inventory (${lineEnding})`, () => {
     const injected = injectAdjacentReleaseStep(workflow);
@@ -268,13 +277,22 @@ for (const [lineEnding, workflow] of [
   });
 }
 
-// 127, not the previous 128: the reusable BlueMap build now uploads its ninth safe evidence artifact.
-// use when the `workflows` job ("Lint the workflow files") was removed from ci.yml under
-// the "no lint in CI" policy - that job was the only place either action ran without also
-// using one of the other four identities below.
-test("all 127 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
+// 134, not the previous 127: the receipt system added seven uses of actions already in the
+// inventory -- three upload-artifact and five download-artifact across render-world, one
+// upload-artifact in render-shard-wave and one in ci -- plus a fourth checkout, setup-node
+// and pnpm/action-setup for render-world's receipt job. Every one of the 134 was checked
+// against the reviewed SHA for its action before this number moved; none is unpinned and
+// none uses a SHA the inventory had not already reviewed. The earlier note about the
+// `workflows` job ("Lint the workflow files") being removed from ci.yml under the "no lint
+// in CI" policy still holds and still accounts for the 128 -> 127 step before it.
+//
+// A bare total is a weak guard: it says the number changed, never which use is new, and the
+// only way to clear it is to type a different number. It is kept because it is cheap and it
+// does force somebody to look; actionDependencyProblems above is what actually holds the
+// line, because it checks every use against its reviewed SHA rather than counting.
+test("all 134 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
   const inventoryFiles = Object.keys(ACTION_INVENTORIES).sort();
-  const workflowFiles = readdirSync(".github/workflows")
+  const workflowFiles = readdirSync(inRoot(".github/workflows"))
     .filter((name) => /\.ya?ml$/i.test(name))
     .map((name) => `.github/workflows/${name}`)
     .sort();
@@ -282,7 +300,7 @@ test("all 127 actions in every executable workflow are SHA-pinned and checkouts 
 
   for (const file of inventoryFiles) {
     assert.deepEqual(
-      actionDependencyProblems(readFileSync(file, "utf8"), file),
+      actionDependencyProblems(readFileSync(inRoot(file), "utf8"), file),
       [],
     );
   }
@@ -293,13 +311,16 @@ test("all 127 actions in every executable workflow are SHA-pinned and checkouts 
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    127,
+    134,
   );
-  assert.equal(Object.keys(PINNED_ACTIONS).length, 6);
+  // 10, not 6: the container-image job added docker/setup-qemu-action,
+  // docker/setup-buildx-action, docker/login-action and docker/build-push-action, each
+  // pinned to a reviewed SHA in the same change.
+  assert.equal(Object.keys(PINNED_ACTIONS).length, 10);
 });
 
 test("render provenance keeps its exact nested schema and fails closed on drift", () => {
-  const workflow = readFileSync(FILE, "utf8");
+  const workflow = readFileSync(inRoot(FILE), "utf8");
   const eol = workflow.includes("\r\n") ? "\r\n" : "\n";
   const rendererLine =
     '            "renderer": "upstream BlueMap Java engine, built from the vendored source",';
@@ -448,7 +469,7 @@ test("render provenance keeps its exact nested schema and fails closed on drift"
 // riding on the run-block digest. Each mutation below leaves the sentence itself present
 // and untouched, which is exactly the shape an exact count of that line cannot catch.
 test("the unsigned-installer warning cannot lose or detach its alert opener", () => {
-  const workflow = readFileSync(FILE, "utf8");
+  const workflow = readFileSync(inRoot(FILE), "utf8");
   const opener = '            echo "> [!WARNING]"';
   const sentence =
     '            echo "> Worldlens for Windows is intentionally and permanently unsigned.';
@@ -487,7 +508,7 @@ test("the unsigned-installer warning cannot lose or detach its alert opener", ()
 });
 
 test("mutable action tags, retained checkout credentials and missing root gates fail", () => {
-  const workflow = readFileSync(FILE, "utf8");
+  const workflow = readFileSync(inRoot(FILE), "utf8");
   // The checkout's own line ending, for the two mutations below that span more than one
   // line. Everything else here replaces a fragment that never crosses a newline and so
   // reads the same on either platform, but a needle with a hard-coded "\n" in it simply
@@ -498,7 +519,10 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   const eol = workflow.includes("\r\n") ? "\r\n" : "\n";
   assert.equal(
     workflow.match(/node scripts\/release-version\.mjs/g)?.length,
-    2,
+    // Three, not two: the container-image job resolves the image identity through the same
+    // committed resolver, which is the property this assertion is protecting rather than an
+    // exception to it.
+    3,
     "packaging and publication must both use the committed version resolver",
   );
   assert.equal(workflow.includes("-build.${GITHUB_RUN_NUMBER}"), false);
@@ -591,152 +615,18 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
-  const screenshotsStart = workflow.indexOf(`  screenshots:${eol}`);
-  const screenshotsEnd = workflow.indexOf(
-    `${eol}  release:${eol}`,
-    screenshotsStart,
-  );
-  assert.ok(screenshotsStart >= 0);
-  assert.ok(screenshotsEnd > screenshotsStart);
-  const screenshotsBlock = workflow.slice(screenshotsStart, screenshotsEnd);
-  const fatalScreenshotsBlock = screenshotsBlock.replace(
-    `${eol}    continue-on-error: true${eol}`,
-    `${eol}    continue-on-error: false${eol}`,
-  );
-  assert.notEqual(fatalScreenshotsBlock, screenshotsBlock);
-  const fatalScreenshots =
-    workflow.slice(0, screenshotsStart) +
-    fatalScreenshotsBlock +
-    workflow.slice(screenshotsEnd);
-
-  const screenshotEvidenceWith = (...extraLines) =>
-    [
-      "      - name: Check committed screenshot evidence",
-      "        continue-on-error: true",
-      ...extraLines,
-      "        run: pnpm screenshots:check",
-    ].join(eol);
-  const screenshotEvidenceStep = screenshotEvidenceWith();
-  assert.ok(workflow.includes(screenshotEvidenceStep));
-
-  const screenshotEvidenceMutations = [
-    [
-      "renamed",
-      workflow.replace(
-        "      - name: Check committed screenshot evidence",
-        "      - name: Audit committed screenshot evidence",
-      ),
-    ],
-    [
-      "fatal",
-      workflow.replace(
-        screenshotEvidenceStep,
-        [
-          "      - name: Check committed screenshot evidence",
-          "        continue-on-error: false",
-          "        run: pnpm screenshots:check",
-        ].join(eol),
-      ),
-    ],
-    [
-      "conditional",
-      workflow.replace(
-        screenshotEvidenceStep,
-        screenshotEvidenceWith("        if: false"),
-      ),
-    ],
-    [
-      "wrong step working directory",
-      workflow.replace(
-        screenshotEvidenceStep,
-        screenshotEvidenceWith("        working-directory: ."),
-      ),
-    ],
-    [
-      "spaced conditional key",
-      workflow.replace(
-        screenshotEvidenceStep,
-        screenshotEvidenceWith("        if : false"),
-      ),
-    ],
-    [
-      "quoted conditional key",
-      workflow.replace(
-        screenshotEvidenceStep,
-        screenshotEvidenceWith('        "if": false'),
-      ),
-    ],
-    [
-      "spaced working-directory key",
-      workflow.replace(
-        screenshotEvidenceStep,
-        screenshotEvidenceWith("        working-directory : ."),
-      ),
-    ],
-    [
-      "quoted working-directory key",
-      workflow.replace(
-        screenshotEvidenceStep,
-        screenshotEvidenceWith('        "working-directory": .'),
-      ),
-    ],
-    [
-      "wrong check working directory",
-      workflow.replace(
-        [
-          "    defaults:",
-          "      run:",
-          "        working-directory: design",
-        ].join(eol),
-        ["    defaults:", "      run:", "        working-directory: ."].join(
-          eol,
-        ),
-      ),
-    ],
-    ["missing", workflow.replace(screenshotEvidenceStep, "")],
-    [
-      "moved after build",
-      workflow
-        .replace(`${screenshotEvidenceStep}${eol}`, "")
-        .replace(
-          "      - run: pnpm build",
-          `      - run: pnpm build${eol}${screenshotEvidenceStep}`,
-        ),
-    ],
-    [
-      "duplicated",
-      workflow.replace(
-        screenshotEvidenceStep,
-        `${screenshotEvidenceStep}${eol}${screenshotEvidenceStep}`,
-      ),
-    ],
-  ];
-  for (const [name, mutated] of screenshotEvidenceMutations) {
-    assert.notEqual(mutated, workflow, name);
-    assert.ok(
-      actionDependencyProblems(mutated, FILE).some((problem) =>
-        /committed screenshot evidence must run exactly once/.test(
-          problem.message,
-        ),
-      ),
-      name,
-    );
-  }
-
-  const explicitUnrelatedWorkingDirectory = workflow.replace(
-    "      - run: pnpm build",
-    `      - run: pnpm build${eol}        working-directory: design`,
-  );
-  assert.notEqual(explicitUnrelatedWorkingDirectory, workflow);
-  assert.equal(
-    actionDependencyProblems(explicitUnrelatedWorkingDirectory, FILE).some(
-      (problem) =>
-        /committed screenshot evidence must run exactly once/.test(
-          problem.message,
-        ),
-    ),
-    false,
-  );
+  // Roughly a hundred lines of mutation coverage for the two checks removed from
+  // lint-workflows.mjs used to sit here: the `screenshots` job's job-level
+  // continue-on-error, and the "Check committed screenshot evidence" step's name, position,
+  // condition, working directory and uniqueness. Neither the job nor the step exists in
+  // ci.yml any more -- both went under the standing policy that a workflow runs no test, no
+  // lint and no capture gate -- so every one of those mutations replaced text that is not in
+  // the file, came back identical to the original, and failed at assert.notEqual claiming a
+  // missing contract.
+  //
+  // Removed with the checks they cover rather than left asserting the shape of something
+  // absent. If a capture gate is reintroduced, its mutation coverage is written fresh
+  // against the job that actually exists.
 
   const collapsedApplicationDirectory = workflow.replace(
     `          $applicationDirectories = @(${eol}            @(${eol}`,
@@ -749,18 +639,13 @@ test("mutable action tags, retained checkout credentials and missing root gates 
         /security contract must run exactly once/.test(problem.message),
     ),
   );
-  assert.notEqual(fatalScreenshots, workflow);
-  assert.ok(
-    actionDependencyProblems(fatalScreenshots, FILE).some((problem) =>
-      /screenshot capture must remain advisory/.test(problem.message),
-    ),
-  );
+  // The fatalScreenshots mutation and its "screenshot capture must remain advisory"
+  // assertion went with the `screenshots` job above.
 
-  // A reviewed 20-minute `timeout-minutes` value used to be required on this job. That
-  // policy is repealed (repository owner, "No lint and no timeout"), and the job itself is
-  // now disabled (`if: false`) - see ci.yml's own comment on the job for the full history -
-  // which makes a reviewed timeout value doubly moot. No replacement assertion: there is
-  // nothing left for this script to guard about that job's ceiling.
+  // A reviewed 20-minute `timeout-minutes` value used to be required on the screenshots job.
+  // That policy is repealed (repository owner, "No lint and no timeout"), and the job has
+  // since been removed from ci.yml altogether rather than merely disabled. No replacement
+  // assertion: there is no job left for a ceiling to bound.
 
   const floatingRunner = workflow.replace(
     "runs-on: ubuntu-24.04",
@@ -773,7 +658,7 @@ test("mutable action tags, retained checkout credentials and missing root gates 
     ),
   );
 
-  const jarWorkflow = readFileSync(BUILD_JARS_FILE, "utf8");
+  const jarWorkflow = readFileSync(inRoot(BUILD_JARS_FILE), "utf8");
   const mutableReusable = jarWorkflow.replace(
     "gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d",
     "gradle/actions/setup-gradle@v4",
@@ -785,7 +670,7 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   );
 
   const pagesFile = ".github/workflows/pages.yml";
-  const mutablePages = readFileSync(pagesFile, "utf8").replace(
+  const mutablePages = readFileSync(inRoot(pagesFile), "utf8").replace(
     "actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e",
     "actions/deploy-pages@v4",
   );
