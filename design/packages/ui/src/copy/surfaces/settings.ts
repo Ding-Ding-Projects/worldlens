@@ -1271,6 +1271,12 @@ export const SETTINGS_FIXED = {
     "settings.engineChoice.version": { en: "Version", yue: "版本" },
     "settings.engineChoice.worldlens": { en: "Worldlens app engine", yue: "Worldlens 自己嘅引擎" },
     "settings.runtime.title": { en: "Runtime settings and accommodations", yue: "執行時設定同輔助選項" },
+    "settings.addons.description": { en: "Import local JavaScript or ESM add-on manifests, review their requested capabilities, and enable or disable them without granting app or credential access.", yue: "匯入本機嘅 JavaScript 或者 ESM add-on manifest，睇清楚佢想要咩權限，再決定開定閂，唔會順手畀埋程式或者憑證嘅存取權。" },
+    "settings.awsAccounts.description": { en: "Every AWS account this machine's own CLI profiles can reach: its identity, whether it is reachable, and what it has spent. Naming an unnamed account, and checking spending, both happen here.", yue: "呢部機自己啲 CLI profile 駁得到嘅 AWS 戶口全部喺呢度：身分、駁唔駁得到、同使咗幾多。改名同睇使費都喺呢度做。" },
+    "settings.engineChoice.description": { en: "Choose the engine for each project, or set the default for new projects. Automatic keeps the original engine when a suitable JVM exists and uses the app engine when it does not; exact versions, provenance, capabilities and unsupported settings are shown before rendering.", yue: "逐個專案揀引擎，或者設定新專案嘅預設。自動嗰個係：有合適嘅 JVM 就用返原裝引擎，冇就用程式自己嗰個；開始 render 之前，版本、來源、功能同唔支援嘅設定都會列清楚。" },
+    "settings.engineChoice.globalSummary": { en: "This versioned setting is used for new projects. Existing projects keep their explicit choice or their recorded legacy behavior.", yue: "呢個有版本嘅設定係畀新專案用。舊專案會保留佢哋自己揀過嘅，或者記低咗嘅舊行為。" },
+    "settings.engineChoice.projectSummary": { en: "This choice is stored with the project key. Automatic keeps Java when it is available and uses the app engine when no suitable JVM exists.", yue: "呢個選擇係同專案一齊儲低。自動嗰個係：有 Java 就用 Java，冇合適嘅 JVM 就用程式自己嗰個引擎。" },
+    "settings.runtime.description": { en: "A local Status Hub, an off-by-default narrator, scheduled language and appearance values, and independent attention accommodations. External values are bounded, validated and temporary.", yue: "本機 Status Hub、預設閂咗嘅旁白、按時間表變嘅語言同外觀設定，同埋各自獨立嘅專注輔助。外部嚟嘅值有上限、會驗證，而且係臨時嘅。" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {
