@@ -1,5 +1,102 @@
 # Handoff
 
+## 2026-09-03: the cloud render actually runs, and the tip finally has a verdict
+
+### The two large-world failures, both fixed before this session and neither ever run
+
+Two dispatched **Render world** runs had failed while every scheduled render kept
+succeeding, which reads as "big worlds do not work". They were two unrelated causes and the
+fixes for both were already on `main` - landed minutes after those runs, and never once
+exercised. Running them was the whole job.
+
+`builders-home/bunker-royalty-update-render` had died at **Measure and plan** with
+`The z shard edges leave a gap or an overlap between 2497537 and 7499778`. Re-dispatched
+against the same 853 MB world, same 75 region files, same geometry:
+
+```
+Dropped 2 shards that covered no region files, leaving 2 jobs.
+{"shardIds":[0,1],"shardCount":2,"waveCount":1,"groupCount":1}
+```
+
+Those two dropped strips are exactly what the old check called a five-million-block gap.
+`10aecea8` holds on the real fixture.
+
+`builders-home/andyville-render` had died at **Publish to Pages** with 13,663,125,137 bytes
+against a 1 GB limit. Re-dispatched:
+
+```
+map preview:        1794 files under /map/
+hires tiles held back for the download: 18615059595 bytes
+preview size: 199649861 bytes (limit 900000000)
+```
+
+199.6 MB to Pages, 18.6 GB held back. Worth noting the hires total went **up** against the
+13.66 GB the failed run tried to send whole - the map got bigger and the upload got smaller,
+which is what proves `7774dd78` is splitting rather than shrinking.
+
+Both maps are live: <https://builders-home.github.io/bunker-royalty-update-render/> and
+<https://builders-home.github.io/andyville-render/>, both `HTTP 200`.
+
+### The defect worth reading about
+
+The first of those runs then lost forty minutes of finished rendering at the very last step,
+to `Failed to create deployment (status: 404) ... Ensure GitHub Pages has been enabled`. Not
+a size problem, not the world: that repository simply had no Pages site. One API call reads
+it, and nothing read it until after the render had been paid for.
+
+`7dacba51` checks it as the plan job's second step, enables a workflow-backed site when the
+token is allowed to, and otherwise stops in two minutes naming the settings page and the
+`artifact` alternative. Managed template version is now **3**, so prepared repositories pick
+it up.
+
+### The tip had never been verified, and now has a number
+
+`e09430ee` said of itself that nothing in it was verified. The whole workspace at that tree:
+**96 failed, 12,930 passed** across 993 files - 38 files against 96 tests, so genuine
+assertion failures rather than the shared-import-error shape this repository has been misled
+by before. Recorded on issue #162.
+
+Four of the five app fixes below came out of working through them.
+
+### Fixed
+
+| Commit | What it was |
+|---|---|
+| `9b2bbef7` | Pointing a render at an empty repository refused with "create one starter commit", while the same transport carried `writeFile`, documented as handling "the very first commit of a repository that has none yet" |
+| `7dacba51` | Pages checked in the two-minute plan job rather than after the render |
+| `68d2dd14` | Three `setMapCoordinatePreview` calls reached through an app that may not carry it, beside a comment already explaining that exact hazard for `materialShell`. ~20 failures across four suites |
+| `46e1ee00` | Inline `t()` fallbacks rendered different sentences from their catalogue entries - one typographic apostrophe. The glyph was avoiding an escape, not a typo; each site now carries the escape |
+| `9a46a028` | Signing out the **last** GitHub CLI account reported "could not verify removal". gh answers `no-accounts` with nothing left to list, which is a successful read; the check demanded `ready` |
+| `97558468` | A remote render naming no engine was refused as "the resolver returned a different engine than the project selected". The project had selected nothing. 16 failures from one line |
+
+### Open
+
+- #167 workflow linter drift and #168 the pre-publication text guard - **untouched this
+  session**, deliberately: neither was read from source.
+- #171 the desktop capture matrix. Worth a fresh look: the harness connects **once** in
+  `beforeAll` with `workers: 1, retries: 0`, and its own comment records that a failed spec
+  discards the worker and the replacement's `connectOverCDP` then times out permanently. The
+  reported timeout may be the consequence of spec 14 failing rather than its cause, and the
+  issue's matrix never ran spec 14 alone on a fresh app with tracing off.
+- Four leftover repositories in `builders-home` (`wl-readme-probe-a`, `wl-empty-probe-b`,
+  `worldlens-uitest-render-1`, `worldlens-uitest-render-2`) could not be removed: the signed-in
+  token has no `delete_repo` scope.
+- The handoff above claims the container image builds for both architectures on every push.
+  That is true of the **CLI** image only; `Dockerfile.hosted` has no CI job at all.
+
+### 廣東話同步
+
+兩單「大世界行唔到」，查落係兩件唔同嘅事，而兩個修正一早喺 `main` 度，只係從來冇行過。
+一個係 shard 對齊：空嘅 shard 被丟走之後畀人當咗係窿；另一個係 13.66 GB 掟落只收 1 GB
+嘅 Pages。兩個都用返原本冧嗰個世界重行，過晒，兩張地圖都上到去。
+
+最值得睇嘅係：第一個 run 行足四十分鐘，最後一步先中 404 - 唔關世界大細事，係嗰個 repo
+根本冇開過 Pages，一個 API 就查到，但一直冇人查。而家 plan job 第二步就查。
+
+另外 `e09430ee` 自己講明未驗證過，而家有數：96 個 test 死、12,930 個過。下面五個 app
+修正入面有四個係喺度執出嚟嘅，包括「登出最後一個戶口會話你登唔到」同「唔指明 engine 就
+render 唔到」。
+
 ## 2026-08-25: the application in a browser, a deployment tool, and one gate that will not go green
 
 ### What shipped
