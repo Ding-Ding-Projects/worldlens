@@ -69,10 +69,12 @@ function mountWizard(value: McServerHost) {
 describe("HostProfileWizard", () => {
     it("exposes a keyboard-reachable identity browse control and cancel route", async () => {
         const wrapper = mountWizard(host());
-        expect(wrapper.find('input[type="file"]').exists()).toBe(true);
-        const browse = wrapper.find('button[aria-label="Browse for identity file"]');
+        // The shared PathField, not a hidden <input type="file">. That input reached the path
+        // through Electron's File.path, which Electron removed in v32 and this workspace is
+        // well past, so it had been handing back a bare filename for a field that needs a full
+        // path. PathField calls the application's own native picker instead.
+        const browse = wrapper.find('button[aria-label="Browse for the SSH identity file"]');
         expect(browse.exists()).toBe(true);
-        expect(browse.attributes("aria-label")).toBe("Browse for identity file");
         await wrapper.findAll("button").find((button) => button.text() === "Cancel")?.trigger("click");
         expect(wrapper.emitted("close")).toBeTruthy();
     });
@@ -101,7 +103,9 @@ describe("HostProfileWizard", () => {
         const value = host();
         delete (value as unknown as Record<string, unknown>).hostProfiles;
         const wrapper = mountWizard(value);
-        expect(wrapper.find('button[aria-label="Browse for identity file"]').exists()).toBe(true);
+        expect(
+            wrapper.find('button[aria-label="Browse for the SSH identity file"]').exists(),
+        ).toBe(true);
         const save = wrapper.findAll("button").find((button) => button.text().includes("Save and check"));
         expect(save?.attributes("disabled")).toBeDefined();
     });

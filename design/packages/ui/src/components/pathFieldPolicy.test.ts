@@ -136,6 +136,16 @@ const WIRED_PATH_FIELDS: readonly WiredField[] = [
         needle: "remote.targets.field.identity",
     },
     {
+        file: "components/mcserver/HostProfileWizard.vue",
+        describes: "The SSH identity file for a Minecraft server host profile (mcserver.hostProfile.identity)",
+        needle: "the SSH identity file",
+    },
+    {
+        file: "components/pages/StaticExportCard.vue",
+        describes: "Destination folder or archive for a static map export (either semantic)",
+        needle: "the export destination",
+    },
+    {
         file: "components/backup/BackupScreen.vue",
         describes: "Folder (backup.folder), the world or render folder being backed up",
         needle: "backup.folder",
@@ -253,7 +263,71 @@ interface Exemption {
 }
 
 /** Keyed `${file}::${the field's own t() key}`, so two fields in one file cannot share cover. */
+/**
+ * How a path-shaped field is named in an exemption key.
+ *
+ * A field whose label is a plain string rather than `t(...)` has no translation key, so it is
+ * identified by the head of its own tag. Both halves of this file have to agree about that:
+ * the half that reports a gap used `key ?? tag.slice(0, 60)` while the half that validated an
+ * exemption compared `field.key` alone, so a field with no `t()` label could be reported as a
+ * gap and then refused as "no longer matches a path-shaped field" the moment it was exempted.
+ * `ConverterScreen.vue`'s "PDF inputs, one path per line" textarea is exactly that field.
+ */
+function fieldIdentity(field: { readonly key: string | null; readonly tag: string }): string {
+    return field.key ?? field.tag.slice(0, 60);
+}
 const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
+    "components/cirender/CloudRenderConfigWizard.vue::cirender.cloudConfig.projectName": {
+        reason: "not-a-location",
+        note:
+            "The project's own name, typed while creating it. A label being chosen, not a place " +
+            "on any disk to find.",
+    },
+    "components/cirender/CloudRenderConfigWizard.vue::cirender.cloudConfig.mapId": {
+        reason: "not-a-location",
+        note:
+            "The primary map's storage id. An identifier that ends up inside output paths rather " +
+            "than a path itself.",
+    },
+    "components/cirender/CloudRenderConfigWizard.vue::cirender.cloudConfig.dataFolder": {
+        reason: "remote-machine",
+        note:
+            "The runtime data folder as it exists on the GitHub runner the render will happen on. " +
+            "There is no such folder on this computer to browse to, and a local picker would " +
+            "produce a path the workflow cannot use.",
+    },
+    "components/cirender/CloudRenderConfigWizard.vue::cirender.cloudConfig.outputFolder": {
+        reason: "remote-machine",
+        note:
+            "Where the runner writes its output, on the runner. Same reason as the data folder " +
+            "beside it: this machine has nothing at that path.",
+    },
+    "components/mcserver/HostProfileWizard.vue::mcserver.hostProfile.workDir": {
+        reason: "remote-machine",
+        note:
+            "The working directory on the remote host this profile describes, reached over SSH. " +
+            "Browsing it means browsing that machine, which this field cannot do from here.",
+    },
+    "components/converter/ConverterScreen.vue::<VTextarea v-model=\"source\" class=\"mt-2\" label=\"PDF inputs, ": {
+        reason: "own-browse",
+        note:
+            "An \"Add PDF input\" button sits beside it and calls the host's own pickFile() " +
+            "directly, appending the chosen path as a line. The field takes one path per line, " +
+            "which is a list rather than a single location, so PathField - which edits exactly " +
+            "one - is the wrong control for it.",
+    },
+    "components/converter/ConverterScreen.vue::<VTextField v-model=\"pdfOutput\" label=\"Output PDF path\" hint": {
+        reason: "own-browse",
+        note:
+            "A Browse button labelled \"Browse PDF output folder\" sits beside it, and the field's " +
+            "own hint tells you to use it.",
+    },
+    "components/pages/StaticExportCard.vue::<VTextField v-model=\"basePath\" label=\"Viewer base path\" hint": {
+        reason: "not-a-location",
+        note:
+            "A URL prefix the exported viewer is served under, and its own hint gives ./ and " +
+            "/atlas/ as the examples. Nothing on a filesystem answers to it.",
+    },
     "components/config/ConfigFileForm.vue::config.form.raw": {
         reason: "not-a-location",
         note:
@@ -374,7 +448,7 @@ describe("every path-shaped text field either carries the affordance or names wh
             const hasPathField = pathFieldBlocks(source).length > 0;
             for (const { key, tag } of pathLikeFields(source)) {
                 if (hasPathField) continue;
-                const exemptKey = `${file}::${key ?? tag.slice(0, 60)}`;
+                const exemptKey = `${file}::${fieldIdentity({ key, tag })}`;
                 if (exemptKey in PATH_FIELD_EXEMPTIONS) continue;
                 undeclared.push(exemptKey);
             }
@@ -396,7 +470,9 @@ describe("every path-shaped text field either carries the affordance or names wh
             const key = exemptKey.slice(separator + 2);
             const source = read(file);
             // A stale exemption is how this guard starts covering less than it says.
-            const stillThere = pathLikeFields(source).some((field) => field.key === key);
+            const stillThere = pathLikeFields(source).some(
+                (field) => fieldIdentity(field) === key,
+            );
             expect(stillThere, `${exemptKey} no longer matches a path-shaped field`).toBe(true);
             expect(
                 note.length,
