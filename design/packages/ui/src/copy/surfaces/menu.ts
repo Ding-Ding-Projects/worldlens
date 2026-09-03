@@ -380,6 +380,9 @@ export const MENU_FIXED = {
         en: "{percent} percent of the way across",
         yue: "已經行咗全程嘅 {percent} 個百分比",
     },
+    /* Catalogue-coverage sweep: these answered nothing, so every language and every
+       funny level rendered the English fallback. */
+    "info.releaseLedger": { en: "Phase release evidence", yue: "階段發佈憑證" },
 } as const satisfies Record<string, FixedString>;
 
 export const MENU_FACTS = {

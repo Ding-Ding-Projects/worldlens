@@ -422,6 +422,12 @@ export const CHROME_FIXED = {
      */
     "notices.centre.filters": { en: "Filters", yue: "篩選" },
     "notices.centre.clearFilters": { en: "Clear every filter", yue: "清走所有篩選" },
+    /* Catalogue-coverage sweep: these answered nothing, so every language and every
+       funny level rendered the English fallback. */
+    "tabs.page.dockerHosting": { en: "Docker hosting", yue: "Docker 寄存" },
+    "tabs.page.mcservers": { en: "Minecraft servers", yue: "Minecraft 伺服器" },
+    "tabs.page.projectCanvas": { en: "Project canvas", yue: "專案畫布" },
+    "tabs.page.screenshots": { en: "Screenshots", yue: "截圖" },
 } as const satisfies Record<string, FixedString>;
 
 export const CHROME_FACTS = {

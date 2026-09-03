@@ -2472,6 +2472,21 @@ export const WORLD_FIXED = {
     "bedrock.fetchChunker": { en: "Download Chunker", yue: "落載 Chunker" },
     /* What `bedrock.chunkerMissing` interpolates when the release's own size was not read. */
     "bedrock.chunkerSizeUnknown": { en: "an unknown size", yue: "唔知幾大" },
+    /* Added with the catalogue-coverage sweep: these rendered their English fallback in
+       every language and at every funny level, because nothing answered on this side. */
+    "world.drop.archiveFailed": { en: "The world archive could not be unpacked.", yue: "呢個世界壓縮檔解唔到。" },
+    "world.drop.archiveUnavailable": { en: "That world archive was recognised, but this build cannot unpack dropped archives yet.", yue: "認得呢個世界壓縮檔，但呢個版本仲未識解拖入嚟嘅壓縮檔。" },
+    "world.drop.busy": { en: "A render is already running, so this world was not opened.", yue: "已經有個 render 行緊，所以冇開呢個世界。" },
+    "world.drop.empty": { en: "Nothing was dropped. Choose a world folder or a world archive.", yue: "咩都冇拖到入嚟。揀個世界資料夾或者世界壓縮檔啦。" },
+    "world.drop.multiple": { en: "Several items were dropped; checking the first one.", yue: "一次過拖咗幾樣入嚟，而家睇緊第一樣。" },
+    "world.drop.noPath": { en: "This drop has no local file path. Use the world folder field or Browse instead.", yue: "呢次拖入嚟嘅嘢冇本機路徑。改用世界資料夾嗰欄，或者撳瀏覽。" },
+    "world.drop.unavailable": { en: "This build cannot inspect dropped folders. Use the world field or Browse instead.", yue: "呢個版本睇唔到拖入嚟嘅資料夾。改用世界嗰欄，或者撳瀏覽。" },
+    "world.renderPromotion.recovered": { en: "Finished render recovered and added to Your maps.", yue: "救返個行完嘅 render，已經加入你嘅地圖。" },
+    "world.run.engineProvisioning": { en: "Preparing the render engine", yue: "準備緊 render 引擎" },
+    "world.screen.modeCanvas": { en: "Canvas", yue: "畫布" },
+    "world.screen.modeWizard": { en: "Steps", yue: "步驟" },
+    "world.ssh.cancelFailed": { en: "Cancellation could not reach the transfer: {message}", yue: "取消傳唔到去個傳輸度：{message}" },
+    "world.ssh.cancelling": { en: "Waiting for cancellation", yue: "等緊取消" },
 } as const satisfies Record<string, FixedString>;
 
 /* -------------------------------------------------------------------------- */

@@ -579,6 +579,11 @@ export const WORLDREPO_FIXED = {
     "worldrepo.status.notChecked": { en: "Not checked", yue: "未檢查" },
     "worldrepo.status.unknown": { en: "Could not tell", yue: "睇唔出" },
     "worldrepo.size": { en: "{size} across {files} files would be pushed.", yue: "會推送 {size}，共 {files} 個檔案。" },
+    /* Catalogue-coverage sweep: these answered nothing, so every language and every
+       funny level rendered the English fallback. */
+    "worldrepo.repo.failed": { en: "Your repositories could not be read: {detail}", yue: "讀唔到你嘅 repository：{detail}" },
+    "worldrepo.repo.refresh": { en: "Refresh owners and repositories", yue: "重新讀取擁有者同 repository" },
+    "worldrepo.repo.refreshing": { en: "Reading them again...", yue: "再讀多次…" },
 } as const satisfies Record<string, FixedString>;
 
 export const WORLDREPO_FACTS = {
