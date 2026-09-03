@@ -26,7 +26,6 @@ import {
 import type { MenuPage } from "@worldlens/viewer";
 import MapView from "./components/MapView.vue";
 import { HomeDashboard } from "./components/home/index.js";
-import ProfileManager from "./components/ProfileManager.vue";
 import DashboardScreen from "./components/DashboardScreen.vue";
 import ZoomButtons from "./components/controls/ZoomButtons.vue";
 import FreeFlightMobileControls from "./components/controls/FreeFlightMobileControls.vue";
