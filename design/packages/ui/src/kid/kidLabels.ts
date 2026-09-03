@@ -46,6 +46,7 @@ export const KID_FEATURE_LABELS: Readonly<Record<string, FixedString>> = {
     "Docker hosting manager": { en: "Servers in boxes", yue: "箱仔入面嘅伺服器" },
     /* Make a map (28) */
     "The project editor": { en: "Build room", yue: "砌嘢房" },
+    "The project canvas": { en: "Build room map", yue: "砌嘢房地圖" },
     "The guide": { en: "Five questions", yue: "五條問題" },
     "Project world discovery": { en: "Find my worlds", yue: "揾返我啲世界" },
     "Dimension detection": { en: "Which part of the world?", yue: "邊忽世界" },
@@ -147,6 +148,8 @@ export const KID_JOB_LABELS: Readonly<Record<string, FixedString>> = {
     "Minecraft servers": { en: "Your own servers", yue: "你自己嘅伺服器" },
     "Make a map": { en: "Five questions", yue: "五條問題" },
     Projects: { en: "Build room", yue: "砌嘢房" },
+    "Project canvas": { en: "Build room map", yue: "砌嘢房地圖" },
+    "File converter": { en: "Shape changer", yue: "轉形狀機" },
     "GitHub runners": { en: "Robot helpers", yue: "機械人幫手" },
     Structures: { en: "Things already built", yue: "已經整好嘅嘢" },
     Convert: { en: "Change a world's shape", yue: "轉世界形狀" },
@@ -169,11 +172,19 @@ export const KID_JOB_LABELS: Readonly<Record<string, FixedString>> = {
     "Memory console": { en: "Shared memory desk", yue: "共用記憶檯" },
 };
 
-/** Settings section anchor → kid label. All nineteen sections. */
+/**
+ * Settings section anchor → kid label, for every section `settingsSections.ts` declares.
+ *
+ * This used to say "all nineteen sections" and had been wrong for a while: a count in a
+ * comment rots the first time somebody adds a section and does not think to come here. The
+ * number that matters is asserted in kidMode.contract.test.ts, which fails naming the exact
+ * anchor that has no label rather than a total nobody can act on.
+ */
 export const KID_SETTINGS_LABELS: Readonly<Record<string, FixedString>> = {
     "render-engine-choice": { en: "Which drawing helper", yue: "用邊個畫圖幫手" },
     "aws-accounts": { en: "Big computer accounts", yue: "大電腦帳戶" },
     addons: { en: "Extra bits", yue: "額外嘅嘢" },
+    "runtime-settings": { en: "How it talks and helps", yue: "佢點講嘢同點幫你" },
     "mojang-download-consent": { en: "Say yes to Mojang", yue: "同 Mojang 講好" },
     "java-runtime": { en: "The engine's Java", yue: "引擎嘅 Java" },
     "map-storage-directory": { en: "Where maps live", yue: "地圖住喺邊" },
