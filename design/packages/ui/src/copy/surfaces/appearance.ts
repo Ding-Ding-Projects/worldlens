@@ -820,6 +820,10 @@ export const APPEARANCE_FIXED = {
     "appearance.type.axesKnown": { en: "Axis ranges come from this font's metadata.", yue: "軸嘅範圍係讀返呢隻字體自己嘅資料。" },
     "appearance.type.fontIdentity.activeBundled": { en: "Bundled font active: {family}.", yue: "用緊隨機附帶嘅字體：{family}。" },
     "appearance.type.fontIdentity.activeInstalled": { en: "Installed font active: {family} ({identity}).", yue: "用緊已安裝嘅字體：{family}（{identity}）。" },
+    "appearance.type.axesUnknown": { en: "This font has no readable axis metadata. The common axis controls remain visible, but unsupported axes are preserved and do not change the face.", yue: "呢隻字體冇讀得到嘅軸資料。常用嘅軸控制照樣見到，但唔支援嘅軸會保留住，唔會改到個字形。" },
+    "appearance.type.fontIdentity.familyMissing": { en: "Family {family} is not available here. The saved family and identity remain unchanged; the generic and CJK fallback stack is rendering.", yue: "呢部機冇 {family} 呢個字族。儲低咗嘅字族同身分維持唔變；而家畫緊嘅係通用同中日韓嘅後備字體。" },
+    "appearance.type.fontIdentity.incompatible": { en: "Saved font identity {identity} belongs to {resolved}, not the selected family {family}. The selected family remains visible and the identity stays saved.", yue: "儲低咗嘅字體身分 {identity} 其實係 {resolved} 嗰隻，唔係你揀嘅 {family}。你揀嗰個字族照樣見到，個身分亦照樣儲住。" },
+    "appearance.type.fontIdentity.missing": { en: "Saved font identity {identity} is not installed. Keeping it saved and using {family} as the current family fallback.", yue: "儲低咗嘅字體身分 {identity} 冇裝喺呢部機。會繼續儲住佢，暫時用 {family} 做後備字族。" },
 } as const satisfies Record<string, FixedString>;
 
 export const APPEARANCE_FACTS = {

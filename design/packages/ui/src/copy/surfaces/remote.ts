@@ -1500,6 +1500,7 @@ export const REMOTE_FIXED = {
     "remote.hosting.noRenders": { en: "No completed render with maps is available yet.", yue: "仲未有行完又有地圖嘅 render。" },
     "remote.hosting.renderTitle": { en: "Finished rendered maps", yue: "行完嘅地圖" },
     "remote.hosting.targetTitle": { en: "Saved SSH targets", yue: "儲低咗嘅 SSH 機" },
+    "remote.docker.start.patience": { en: "Docker's engine can take a minute or two to come up. This waits for it to actually answer.", yue: "Docker 個引擎起身可能要一兩分鐘。呢度會等到佢真係應機為止。" },
 } as const satisfies Record<string, FixedString>;
 
 export const REMOTE_FACTS = {

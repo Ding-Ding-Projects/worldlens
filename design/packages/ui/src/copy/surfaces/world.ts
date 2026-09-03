@@ -2487,6 +2487,7 @@ export const WORLD_FIXED = {
     "world.screen.modeWizard": { en: "Steps", yue: "步驟" },
     "world.ssh.cancelFailed": { en: "Cancellation could not reach the transfer: {message}", yue: "取消傳唔到去個傳輸度：{message}" },
     "world.ssh.cancelling": { en: "Waiting for cancellation", yue: "等緊取消" },
+    "world.ssh.cancelTimeout": { en: "Cancellation has not been confirmed after five seconds. The transfer and this dialog stay open until the bridge confirms it.", yue: "過咗五秒都仲未確認到取消。喺條橋確認之前，個傳輸同呢個對話框都會繼續開住。" },
 } as const satisfies Record<string, FixedString>;
 
 /* -------------------------------------------------------------------------- */

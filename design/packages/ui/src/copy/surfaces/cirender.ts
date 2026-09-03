@@ -1584,6 +1584,9 @@ export const CIRENDER_FIXED = {
     "cirender.cloudConfig.projectNameRequired": { en: "Name this project before continuing.", yue: "繼續之前，先幫呢個專案改個名。" },
     "cirender.cloudConfig.sortingInvalid": { en: "Sort order must be a whole number.", yue: "排序次序要係整數。" },
     "cirender.cloudConfig.webRequired": { en: "Choose a web root, or keep the generated web default.", yue: "揀個 web root，或者用返自動生成嗰個。" },
+    "cirender.cloudConfig.explain": { en: "A guided cloud-first path collects map, storage and render values with the generated defaults visible beside each field. It writes the complete project through local history, without Java or a local render, then returns here without asking for the world, account or repository again.", yue: "一條以雲端行先嘅引導路線，逐項問你地圖、儲存同 render 嘅設定，每個欄位隔籬都見到自動生成嘅預設值。佢會經本機歷史寫低成份專案，唔使 Java 亦唔使喺本機 render，然後返返嚟呢度，唔會再問多次世界、戶口或者 repository。" },
+    "cirender.cloudConfig.mapListHint": { en: "Each generated map is listed as a real checkbox. Keep at least one enabled; disabled maps remain in the project for later editing.", yue: "每張生成嘅地圖都係一個真嘅剔格。至少要開住一張；閂咗嘅地圖仍然留喺專案入面，之後可以再改。" },
+    "cirender.cloudConfig.storageProvenance": { en: "Generated defaults are shown in each field. Nothing is silently inherited from a prior local render because this flow starts from a fresh project schema.", yue: "每個欄位都顯示住自動生成嘅預設值。唔會靜靜雞承繼之前本機 render 嘅嘢，因為呢條路係由一份全新嘅專案結構開始。" },
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {
