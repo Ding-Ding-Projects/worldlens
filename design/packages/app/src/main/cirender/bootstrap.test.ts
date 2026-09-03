@@ -50,6 +50,8 @@ interface FakeCommit {
 class FakeRepo {
     readonly files: Map<string, string>;
     headSha: string | null;
+    refuseContentsWrite = false;
+    seedLeavesRepositoryEmpty = false;
     scopes: readonly string[] | null;
     canWrite: boolean;
     actionsEnabled: boolean;
@@ -177,6 +179,30 @@ class FakeRepo {
             return this.headSha === null
                 ? Response.json({ message: "Not Found" }, { status: 404 })
                 : Response.json({ ref: "refs/heads/main", object: { sha: this.headSha } });
+        }
+        // Models the one thing GitHub's Contents API can do that its Git Data API cannot:
+        // create the very first commit of a repository that has none. Verified against a
+        // real empty repository before this fake was written to match it.
+        if (url.startsWith(`${root}/contents/`) && method === "PUT") {
+            if (this.refuseContentsWrite) {
+                return Response.json({ message: "Contents write refused" }, { status: 403 });
+            }
+            const parsedUrl = new URL(url);
+            const contentsPath = `${new URL(root).pathname}/contents/`;
+            const path = parsedUrl.pathname
+                .slice(contentsPath.length)
+                .split("/")
+                .map(decodeURIComponent)
+                .join("/");
+            const request = body as { content: string };
+            const content = Buffer.from(request.content, "base64").toString("utf8");
+            this.files.set(path, content);
+            const sha = this.#next("commit");
+            if (!this.seedLeavesRepositoryEmpty) this.headSha = sha;
+            return Response.json(
+                { content: { sha: `file-${sha256(content).slice(0, 12)}` }, commit: { sha } },
+                { status: 201 },
+            );
         }
         if (url.startsWith(`${root}/contents/`) && method === "GET") {
             const parsedUrl = new URL(url);
@@ -619,16 +645,44 @@ describe("managed workflow bootstrap transaction", () => {
         expect(repo.visibleCommitCount()).toBe(0);
     });
 
-    it("fails closed before object creation when a repository has no first commit", async () => {
+    it("gives an empty repository its first commit and then installs the workflows", async () => {
         const repo = new FakeRepo({ files: {}, headSha: null });
+
+        const result = await run(repo);
+
+        expect(result.ok).toBe(true);
+        // The seed exists to give the guarded commit a parent, and the workflows still land.
+        expect(repo.files.has("README.md")).toBe(true);
+        for (const template of TEMPLATES) {
+            expect(repo.files.get(template.path)).toBe(template.content);
+        }
+        expect(repo.headSha).not.toBeNull();
+    });
+
+    it("refuses when the repository is still empty after its starter commit was written", async () => {
+        const repo = new FakeRepo({ files: {}, headSha: null });
+        repo.seedLeavesRepositoryEmpty = true;
 
         const result = await run(repo);
 
         expect(result.ok).toBe(false);
         if (result.ok) return;
         expect(result.failure.code).toBe("empty-repository");
-        expect(result.failure.message).toContain("starter commit");
-        expect(repo.mutationCount()).toBe(0);
+        // No workflow was installed on a tip that does not exist.
+        for (const template of TEMPLATES) {
+            expect(repo.files.has(template.path)).toBe(false);
+        }
+    });
+
+    it("reports the real refusal when the starter commit itself is rejected", async () => {
+        const repo = new FakeRepo({ files: {}, headSha: null });
+        repo.refuseContentsWrite = true;
+
+        const result = await run(repo);
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("http-error");
         expect(repo.files.size).toBe(0);
     });
 });
