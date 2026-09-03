@@ -143,7 +143,7 @@ describe("the shared preload adapter", () => {
             verify: async () => ({ ok: true, state: disabled }),
             disable: async () => ({ ok: true, state: disabled }),
             reset: async () => ({ ok: true, state: disabled }),
-            subscribe: (next) => {
+            subscribe: (next: (result: SchoolModeResult) => void) => {
                 listener = next;
                 return () => {
                     listener = null;
@@ -151,7 +151,7 @@ describe("the shared preload adapter", () => {
             },
         };
         await setSchoolModeRecordAdapter(adapter);
-        const live = listener;
+        const live: ((result: SchoolModeResult) => void) | null = listener;
         if (live === null) throw new Error("The shared change listener was not attached.");
         live({
             ok: true,
