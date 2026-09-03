@@ -67,9 +67,9 @@ function errResult<T>(error: OllamaApiError): OllamaResult<T> {
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
 function resolveFetch(fetchImpl: FetchLike | undefined): FetchLike | null {
-    if (fetchImpl) return fetchImpl;
-    const globalFetch = (globalThis as { fetch?: FetchLike }).fetch;
-    return globalFetch ?? null;
+    // Production requests are owned by the typed main-process bridge. This injected seam is
+    // retained only for deterministic unit tests and never discovers a renderer-global fetch.
+    return fetchImpl ?? null;
 }
 
 interface RequestOptions {
@@ -77,6 +77,19 @@ interface RequestOptions {
     readonly fetchImpl?: FetchLike;
     readonly timeoutMs?: number;
     readonly signal?: AbortSignal;
+}
+
+function localBridge(): OllamaBridge | null {
+    const candidate = globalThis.window?.worldlens?.ollama;
+    return candidate ?? null;
+}
+
+function bridgeFailure(message: string): OllamaResult<never> {
+    return errResult({ kind: "unreachable", message });
+}
+
+function operationId(prefix: string): string {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 /**
@@ -204,6 +217,12 @@ export interface OllamaVersion {
 export async function fetchVersion(
     options: RequestOptions = {},
 ): Promise<OllamaResult<OllamaVersion>> {
+    if (options.fetchImpl === undefined) {
+        const bridge = localBridge();
+        if (bridge === null) return bridgeFailure("The packaged build has no local Ollama bridge.");
+        const answer = await bridge.health();
+        return answer.ok ? okResult({ version: answer.version ?? "unknown" }) : errResult({ kind: "unreachable", message: answer.message });
+    }
     const result = await request("/api/version", { method: "GET" }, options);
     if (!result.ok) return result;
     return parseJson<OllamaVersion>(result.value);
@@ -238,6 +257,16 @@ interface TagsResponse {
 export async function fetchInstalledModels(
     options: RequestOptions = {},
 ): Promise<OllamaResult<readonly OllamaInstalledModel[]>> {
+    if (options.fetchImpl === undefined) {
+        const bridge = localBridge();
+        if (bridge === null) return bridgeFailure("The packaged build has no local Ollama bridge.");
+        const answer = await bridge.tags();
+        if (answer.error) return errResult({ kind: "unreachable", message: answer.error });
+        return okResult((answer.models ?? []).flatMap((model) => {
+            if (typeof model.name !== "string") return [];
+            return [{ name: model.name, model: typeof model.model === "string" ? model.model : model.name, modified_at: typeof model.modified_at === "string" ? model.modified_at : "", size: typeof model.size === "number" ? model.size : 0, digest: typeof model.digest === "string" ? model.digest : "", ...(typeof model.details === "object" && model.details !== null ? { details: model.details as OllamaModelDetails } : {}) }];
+        }));
+    }
     const result = await request("/api/tags", { method: "GET" }, options);
     if (!result.ok) return result;
     const parsed = parseJson<TagsResponse>(result.value);
@@ -262,6 +291,11 @@ export async function showModel(
     name: string,
     options: RequestOptions = {},
 ): Promise<OllamaResult<OllamaShowResult>> {
+    if (options.fetchImpl === undefined) {
+        const bridge = localBridge();
+        if (bridge === null) return bridgeFailure("The packaged build has no local Ollama bridge.");
+        try { return okResult(await bridge.show(name) as OllamaShowResult); } catch (error) { return bridgeFailure(error instanceof Error ? error.message : String(error)); }
+    }
     const result = await request(
         "/api/show",
         {
@@ -284,6 +318,12 @@ export async function deleteInstalledModel(
     name: string,
     options: RequestOptions = {},
 ): Promise<OllamaResult<true>> {
+    if (options.fetchImpl === undefined) {
+        const bridge = localBridge();
+        if (bridge === null) return bridgeFailure("The packaged build has no local Ollama bridge.");
+        const answer = await bridge.delete(name);
+        return typeof answer.error === "string" ? errResult({ kind: "http", message: answer.error }) : okResult(true);
+    }
     const result = await request(
         "/api/delete",
         {
@@ -322,6 +362,20 @@ export async function pullModel(
     onProgress: (progress: OllamaPullProgress) => void,
     options: RequestOptions = {},
 ): Promise<OllamaResult<true>> {
+    if (options.fetchImpl === undefined) {
+        if (options.signal?.aborted === true) return errResult({ kind: "aborted", message: "The pull was cancelled." });
+        const bridge = localBridge();
+        if (bridge === null) return bridgeFailure("The packaged build has no local Ollama bridge.");
+        const id = operationId("pull");
+        const unsubscribe = bridge.onStreamProgress((event) => { if (event.operationId !== id) return; for (const record of event.records ?? (event.record ? [event.record] : [])) if (typeof record.status === "string") onProgress(record as unknown as OllamaPullProgress); });
+        const pending = bridge.pull(name, id);
+        if (options.signal) options.signal.addEventListener("abort", () => { void bridge.cancel(id); }, { once: true });
+        try {
+            const rows = await pending;
+            const error = rows.find((row) => typeof row.error === "string");
+            return error ? errResult({ kind: "http", message: String(error.error) }) : okResult(true);
+        } finally { unsubscribe(); }
+    }
     if (options.signal?.aborted === true) {
         return errResult({ kind: "aborted", message: "The pull was cancelled." });
     }
@@ -471,6 +525,17 @@ export async function streamChat(
     chatOptions: OllamaChatOptions = {},
     options: RequestOptions = {},
 ): Promise<OllamaResult<true>> {
+    if (options.fetchImpl === undefined) {
+        if (options.signal?.aborted === true) return errResult({ kind: "aborted", message: "Chat was stopped." });
+        const bridge = localBridge();
+        if (bridge === null) return bridgeFailure("The packaged build has no local Ollama bridge.");
+        const id = operationId("chat");
+        const unsubscribe = bridge.onStreamProgress((event) => { if (event.operationId !== id) return; for (const record of event.records ?? (event.record ? [event.record] : [])) { const raw = record.message; const message = typeof raw === "object" && raw !== null && typeof (raw as { role?: unknown }).role === "string" && typeof (raw as { content?: unknown }).content === "string" ? { role: String((raw as { role: string }).role), content: String((raw as { content: string }).content) } : null; onChunk(message === null ? { done: record.done === true } : { done: record.done === true, message }); } });
+        const pending = bridge.chat({ model, messages, options: chatOptions, stream: true }, id);
+        if (options.signal) options.signal.addEventListener("abort", () => { void bridge.cancel(id); }, { once: true });
+        try { const rows = await pending; const error = rows.find((row) => typeof row.error === "string"); return error ? errResult({ kind: "http", message: String(error.error) }) : okResult(true); }
+        finally { unsubscribe(); }
+    }
     if (options.signal?.aborted === true) {
         return errResult({ kind: "aborted", message: "Chat was stopped." });
     }

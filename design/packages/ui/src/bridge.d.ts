@@ -39,12 +39,17 @@ interface GalleryRevision {
 
 interface GalleryBridge {
     list(): Promise<{ records: GalleryRecord[]; history: GalleryRevision[] }>;
-    readAsset(id: string): Promise<{ mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp"; bytes: Uint8Array }>;
+    readAsset(id: string): Promise<{
+        mime: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
+        bytes: Uint8Array;
+    }>;
     add(draft: Record<string, unknown>): Promise<GalleryRecord>;
     importRecords(drafts: Record<string, unknown>[]): Promise<GalleryRecord[]>;
     update(id: string, changes: Record<string, unknown>): Promise<GalleryRecord>;
     delete(ids: string[]): Promise<number>;
-    export(format: "json" | "markdown"): Promise<{ format: string; filename: string; content: string }>;
+    export(
+        format: "json" | "markdown",
+    ): Promise<{ format: string; filename: string; content: string }>;
 }
 
 /**
@@ -605,7 +610,10 @@ type SharedSchoolModeResult =
 
 interface SharedSchoolModeBridge {
     read(): Promise<SharedSchoolModeResult>;
-    enable(request: { readonly name: string | null; readonly credential: string }): Promise<SharedSchoolModeResult>;
+    enable(request: {
+        readonly name: string | null;
+        readonly credential: string;
+    }): Promise<SharedSchoolModeResult>;
     rename(name: string | null): Promise<SharedSchoolModeResult>;
     verify(credential: string): Promise<SharedSchoolModeResult>;
     disable(credential: string): Promise<SharedSchoolModeResult>;
@@ -664,7 +672,13 @@ type DockerHostingCreateAnswer =
     | {
           readonly ok: false;
           readonly failure: {
-              readonly code: "invalid-request" | "docker-unavailable" | "not-found" | "not-owned" | "command-failed" | "storage-failed";
+              readonly code:
+                  | "invalid-request"
+                  | "docker-unavailable"
+                  | "not-found"
+                  | "not-owned"
+                  | "command-failed"
+                  | "storage-failed";
               readonly message: string;
               readonly detail: string | null;
           };
@@ -686,7 +700,167 @@ type SharedSchoolModeFailureCode =
     | "storage-unavailable"
     | "host-unavailable";
 
+interface ConverterBridge {
+    catalog(): Promise<readonly ConverterAdapterRecord[]>;
+    inspect(path: string): Promise<ConverterInspectionResult>;
+    pdf(request: ConverterPdfRequest): Promise<ConverterOperationResult>;
+    enqueue(items: readonly ConverterQueueDraft[]): Promise<{
+        readonly ok: boolean;
+        readonly queue?: ConverterQueueRecord;
+        readonly message?: string;
+    }>;
+    queue(): Promise<ConverterQueueRecord>;
+    pause(): Promise<ConverterQueueRecord>;
+    resume(): Promise<ConverterQueueRecord>;
+    cancel(id: string): Promise<boolean>;
+    retry(id: string): Promise<boolean>;
+    openInEditor(path: string): Promise<{ readonly ok: boolean; readonly message: string }>;
+}
+
+interface ConverterAdapterRecord {
+    readonly id: string;
+    readonly name: string;
+    readonly category: string;
+    readonly sourceExtensions: readonly string[];
+    readonly targetExtensions: readonly string[];
+    readonly bundled: boolean;
+    readonly available: boolean;
+    readonly unavailableReason: string | null;
+    readonly lossiness: string;
+}
+
+interface ConverterInspection {
+    readonly ok: boolean;
+    readonly path?: string;
+    readonly bytes?: number;
+    readonly adapter?: ConverterAdapterRecord | null;
+    readonly candidates?: readonly ConverterAdapterRecord[];
+    readonly ambiguous?: boolean;
+    readonly message: string;
+}
+
+type ConverterInspectionResult = ConverterInspection;
+
+interface ConverterQueueDraft {
+    readonly id: string;
+    readonly source: string;
+    readonly target: string;
+    readonly adapterId: string;
+    readonly bytes: number | null;
+    readonly operation?: string;
+    readonly pdfRequest?: Record<string, unknown>;
+}
+
+interface ConverterQueueItem extends ConverterQueueDraft {
+    readonly state: string;
+    readonly progress: number;
+    readonly message: string | null;
+    readonly updatedAt: string;
+    readonly result?: Record<string, unknown>;
+}
+
+interface ConverterQueueRecord {
+    readonly version: 1;
+    readonly items: readonly ConverterQueueItem[];
+    readonly paused: boolean;
+    readonly corruption?: string;
+    readonly history?: readonly Record<string, unknown>[];
+}
+
+interface ConverterPdfRequest {
+    readonly operation: string;
+    readonly inputs: readonly string[];
+    readonly output: string;
+    readonly overwrite: boolean;
+    readonly overwriteConfirmation?: string;
+    readonly pages?: readonly number[];
+    readonly rotation?: number;
+    readonly outputs?: readonly string[];
+}
+
+interface ConverterOperationResult {
+    readonly ok: boolean;
+    readonly output: string | null;
+    readonly outputs?: readonly string[];
+    readonly pages: number | null;
+    readonly pageOrder?: readonly number[];
+    readonly rotations?: readonly number[];
+    readonly metadata: Readonly<Record<string, string>>;
+    readonly message: string;
+}
+
+interface OllamaBridge {
+    health(): Promise<{
+        readonly ok: boolean;
+        readonly version: string | null;
+        readonly message: string;
+    }>;
+    tags(): Promise<{
+        readonly models?: readonly Record<string, unknown>[];
+        readonly error?: string;
+    }>;
+    running(): Promise<{
+        readonly models?: readonly Record<string, unknown>[];
+        readonly error?: string;
+    }>;
+    show(name: string): Promise<Record<string, unknown>>;
+    catalog(): Promise<Record<string, unknown>>;
+    catalogRefresh(): Promise<{
+        readonly ok: boolean;
+        readonly catalog?: Record<string, unknown> | null;
+        readonly message?: string;
+    }>;
+    hardware(): Promise<{
+        readonly architecture: string | null;
+        readonly totalRamBytes: number | null;
+        readonly freeDiskBytes: number | null;
+        readonly gpuModel: string | null;
+        readonly gpuVramBytes: number | null;
+        readonly gpuDriverSupported: boolean | null;
+        readonly sources: readonly string[];
+    }>;
+    runtime(): Promise<Record<string, unknown>>;
+    runtimeEnsure(): Promise<Record<string, unknown>>;
+    runtimeCancel(): Promise<boolean>;
+    runtimeStop(): Promise<boolean>;
+    runtimeRestart(): Promise<{ readonly ok: boolean; readonly message?: string }>;
+    runtimeProbe(): Promise<{ readonly ok: boolean; readonly message?: string }>;
+    onStreamProgress(
+        listener: (progress: {
+            readonly operationId?: string;
+            readonly record?: Record<string, unknown>;
+            readonly records?: readonly Record<string, unknown>[];
+        }) => void,
+    ): () => void;
+    onRuntimeProgress(listener: (progress: Record<string, unknown>) => void): () => void;
+    delete(name: string): Promise<Record<string, unknown>>;
+    copy(source: string, destination: string): Promise<Record<string, unknown>>;
+    pull(name: string, operationId: string): Promise<readonly Record<string, unknown>[]>;
+    generate(
+        request: Record<string, unknown>,
+        operationId: string,
+    ): Promise<readonly Record<string, unknown>[]>;
+    chat(
+        request: Record<string, unknown>,
+        operationId: string,
+    ): Promise<readonly Record<string, unknown>[]>;
+    cancel(operationId: string): Promise<boolean>;
+}
+
 interface WorldlensBridge {
+    dialog: {
+        pickFile(options: {
+            readonly title: string;
+            readonly extensions?: readonly string[];
+            readonly startIn?: string;
+        }): Promise<string | null>;
+        pickFolder(options: {
+            readonly title: string;
+            readonly startIn?: string;
+        }): Promise<string | null>;
+    };
+    converter: ConverterBridge;
+    ollama: OllamaBridge;
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;
@@ -695,7 +869,8 @@ interface WorldlensBridge {
      * `null` when the build could not establish one - which is a real answer, not a failure,
      * and must be rendered as "not recorded" rather than filled in from the current clock.
      */
-    getBuildProvenance?: () => Promise<{ version: string; builtAt: string | null }>;
+    getBuildProvenance?: () => Promise<{ version: string; builtAt: string | null }>;
+
     /** How this copy is running. Absent on a shell too old to have been asked. */
     getDeployment?: () => Promise<{
         hosted: boolean;
@@ -705,15 +880,47 @@ interface WorldlensBridge {
     }>;
     releaseLedgerRead?: () => Promise<unknown>;
     dashboardSnapshot(): Promise<DashboardSnapshot>;
-    dashboardRefresh(options?: { readonly concurrency?: number; readonly retries?: number; readonly backoffMs?: number }): Promise<DashboardSnapshot>;
+    dashboardRefresh(options?: {
+        readonly concurrency?: number;
+        readonly retries?: number;
+        readonly backoffMs?: number;
+    }): Promise<DashboardSnapshot>;
     dashboardCancel(): Promise<{ readonly cancelled: boolean }>;
     dockerHosting?: DockerHostingBridge;
     dockerHostingCreate(request: CreateInstanceRequest): Promise<CreateInstanceAnswer>;
     schoolMode?: SharedSchoolModeBridge;
     vocabulary?: {
-        read(): Promise<{ readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string } }>;
-        load(raw: string): Promise<{ readonly ok: boolean; readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string }; readonly reason?: string }>;
-        clear(): Promise<{ readonly ok: boolean; readonly status: "no-file" | "loaded" | "cache-unreadable"; readonly entries: Readonly<Record<string, string>>; readonly metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string }; readonly reason?: string }>;
+        read(): Promise<{
+            readonly status: "no-file" | "loaded" | "cache-unreadable";
+            readonly entries: Readonly<Record<string, string>>;
+            readonly metadata?: {
+                readonly revision: number;
+                readonly sourceDigest: string;
+                readonly loadedAt: string;
+            };
+        }>;
+        load(raw: string): Promise<{
+            readonly ok: boolean;
+            readonly status: "no-file" | "loaded" | "cache-unreadable";
+            readonly entries: Readonly<Record<string, string>>;
+            readonly metadata?: {
+                readonly revision: number;
+                readonly sourceDigest: string;
+                readonly loadedAt: string;
+            };
+            readonly reason?: string;
+        }>;
+        clear(): Promise<{
+            readonly ok: boolean;
+            readonly status: "no-file" | "loaded" | "cache-unreadable";
+            readonly entries: Readonly<Record<string, string>>;
+            readonly metadata?: {
+                readonly revision: number;
+                readonly sourceDigest: string;
+                readonly loadedAt: string;
+            };
+            readonly reason?: string;
+        }>;
     };
     startup: BlueMapStartupBridge;
     addons: AddonsBridge;

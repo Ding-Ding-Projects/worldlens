@@ -1,7 +1,7 @@
 /**
  * The Model Store's catalogue: exhaustive at each refresh, never curated.
  *
- * "Exhaustive" is the word doing the work in the task this file exists for. A hand-picked
+ * A complete snapshot is the word doing the work in the task this file exists for. A hand-picked
  * shortlist of a dozen popular models is a different, easier feature, and it is the wrong
  * one: a person who already knows which model they want does not need a store, and a person
  * who does not is exactly the one a curated list fails silently for, because there is no way
@@ -21,7 +21,7 @@
  *
  * ## Source of truth
  *
- * This module talks to the official Ollama model library's catalogue endpoint. It is
+ * This module talks to the official documented Ollama tags endpoint. It is
  * deliberately written so the actual HTTP call is a small, replaceable seam (`fetchPage`)
  * rather than scattered through the refresh logic, because the one thing this file cannot
  * promise on its own is that the upstream endpoint's shape never changes; what it can promise
@@ -31,7 +31,7 @@
 import type { FetchLike } from "./ollamaApi.js";
 
 /** The official Ollama model library's catalogue API. Overridable for a moved endpoint. */
-export const DEFAULT_CATALOG_URL = "https://ollama.com/api/library";
+export const DEFAULT_CATALOG_URL = "https://ollama.com/library";
 
 /** Longest number of pages a single refresh will follow before refusing to keep pulling. */
 export const MAX_CATALOG_PAGES = 200;
@@ -61,6 +61,7 @@ export interface CatalogRevision {
     readonly pageCount: number;
     /** True only when every page was followed to a natural end with no page refused. */
     readonly complete: boolean;
+    readonly completenessReason?: string | null;
 }
 
 export interface OllamaCatalog {

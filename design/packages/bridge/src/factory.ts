@@ -1037,6 +1037,55 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
 
+        converter: {
+            catalog: () => transport.invoke("converter:catalog"),
+            inspect: (path: unknown) => transport.invoke("converter:inspect", path),
+            pdf: (request: unknown) => transport.invoke("converter:pdf", request),
+            enqueue: (items: unknown) => transport.invoke("converter:enqueue", items),
+            queue: () => transport.invoke("converter:queue"),
+            pause: () => transport.invoke("converter:pause"),
+            resume: () => transport.invoke("converter:resume"),
+            cancel: (id: unknown) => transport.invoke("converter:cancel", id),
+            retry: (id: unknown) => transport.invoke("converter:retry", id),
+            openInEditor: (path: unknown) => transport.invoke("converter:openInEditor", path),
+        },
+
+        ollama: {
+            health: () => transport.invoke("ollama:health"),
+            tags: () => transport.invoke("ollama:tags"),
+            running: () => transport.invoke("ollama:running"),
+            show: (name: unknown) => transport.invoke("ollama:show", name),
+            catalog: () => transport.invoke("ollama:catalog"),
+            catalogRefresh: () => transport.invoke("ollama:catalogRefresh"),
+            hardware: () => transport.invoke("ollama:hardware"),
+            runtime: () => transport.invoke("ollama:runtime"),
+            runtimeEnsure: () => transport.invoke("ollama:runtimeEnsure"),
+            runtimeCancel: () => transport.invoke("ollama:runtimeCancel"),
+            runtimeStop: () => transport.invoke("ollama:runtimeStop"),
+            runtimeRestart: () => transport.invoke("ollama:runtimeRestart"),
+            runtimeProbe: () => transport.invoke("ollama:runtimeProbe"),
+            delete: (name: unknown) => transport.invoke("ollama:delete", name),
+            copy: (source: unknown, destination: unknown) =>
+                transport.invoke("ollama:copy", source, destination),
+            pull: (name: unknown, operationId: unknown) =>
+                transport.invoke("ollama:pull", name, operationId),
+            generate: (request: unknown, operationId: unknown) =>
+                transport.invoke("ollama:generate", request, operationId),
+            chat: (request: unknown, operationId: unknown) =>
+                transport.invoke("ollama:chat", request, operationId),
+            cancel: (operationId: unknown) => transport.invoke("ollama:cancel", operationId),
+            onStreamProgress: (listener: BridgeListener) => {
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
+                transport.on("ollama:streamProgress", forward);
+                return () => transport.off("ollama:streamProgress", forward);
+            },
+            onRuntimeProgress: (listener: BridgeListener) => {
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
+                transport.on("ollama:runtimeProgress", forward);
+                return () => transport.off("ollama:runtimeProgress", forward);
+            },
+        },
+
         listBackupOwners: (accountId: unknown) => transport.invoke("backup:owners", { accountId }),
         listBackupRepositories: (accountId: unknown) =>
             transport.invoke("backup:repositories", { accountId }),

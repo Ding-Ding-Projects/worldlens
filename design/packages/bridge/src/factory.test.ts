@@ -81,6 +81,8 @@ describe("the object the factory builds", () => {
             "history.status",
             "project.readProject",
             "gallery.list",
+            "converter.catalog",
+            "ollama.runtimeEnsure",
             "dialog.pickFolder",
             "locks.vault.put",
             "repair.issueReport.draft",
@@ -161,6 +163,56 @@ describe("the object the factory builds", () => {
                     }),
                 "mcserver:backup:restore:challenge",
             ],
+            [
+                () =>
+                    (
+                        bridge as never as { converter: { catalog(): Promise<unknown> } }
+                    ).converter.catalog(),
+                "converter:catalog",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as {
+                            converter: { openInEditor(path: string): Promise<unknown> };
+                        }
+                    ).converter.openInEditor("C:/maps/export.json"),
+                "converter:openInEditor",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as { ollama: { catalogRefresh(): Promise<unknown> } }
+                    ).ollama.catalogRefresh(),
+                "ollama:catalogRefresh",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as { ollama: { runtimeEnsure(): Promise<unknown> } }
+                    ).ollama.runtimeEnsure(),
+                "ollama:runtimeEnsure",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as {
+                            ollama: {
+                                generate(request: unknown, operationId: string): Promise<unknown>;
+                            };
+                        }
+                    ).ollama.generate({ model: "local-model" }, "operation-1"),
+                "ollama:generate",
+            ],
+            [
+                () =>
+                    (
+                        bridge as never as {
+                            ollama: { cancel(operationId: string): Promise<unknown> };
+                        }
+                    ).ollama.cancel("operation-1"),
+                "ollama:cancel",
+            ],
         ];
         for (const [call, expected] of calls) {
             log.invoked.length = 0;
@@ -186,6 +238,25 @@ describe("the object the factory builds", () => {
         // Same channel, and it happened because the returned closure was called - a method
         // that subscribed and returned nothing usable would leak a listener on every mount.
         expect(log.stoppedListening).toEqual(["render:event"]);
+    });
+
+    it("subscribes and unsubscribes both local-model progress streams", () => {
+        const { transport, log } = recordingTransport();
+        const bridge = createWorldlensBridge<Record<string, never>>(transport) as never as {
+            ollama: {
+                onStreamProgress(listener: () => void): () => void;
+                onRuntimeProgress(listener: () => void): () => void;
+            };
+        };
+
+        const stopStream = bridge.ollama.onStreamProgress(() => undefined);
+        const stopRuntime = bridge.ollama.onRuntimeProgress(() => undefined);
+
+        expect(log.listening).toEqual(["ollama:streamProgress", "ollama:runtimeProgress"]);
+        expect(log.stoppedListening).toEqual([]);
+        stopStream();
+        stopRuntime();
+        expect(log.stoppedListening).toEqual(["ollama:streamProgress", "ollama:runtimeProgress"]);
     });
 
     it("never touches the transport merely by being built", () => {

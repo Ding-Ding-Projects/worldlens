@@ -6,7 +6,6 @@ import {
     mdiChatOutline,
     mdiDeleteOutline,
     mdiDownloadOutline,
-    mdiOpenInNew,
     mdiPencilOutline,
     mdiPlus,
     mdiRefresh,
@@ -40,12 +39,7 @@ import {
     type OllamaChatMessage,
 } from "./ollamaApi.js";
 import { assessFit, type DetectedHardware, type FitVerdict } from "./hardwareFit.js";
-import {
-    catalogIsStale,
-    flattenVariants,
-    refreshCatalog,
-    type CatalogVariant,
-} from "./ollamaCatalog.js";
+import { flattenVariants, type CatalogVariant } from "./ollamaCatalog.js";
 import {
     appendChatMessage,
     cacheFit,
@@ -74,17 +68,41 @@ import {
 
 const { t } = useI18n();
 
-const OLLAMA_DOWNLOAD_URL = "https://ollama.com/download";
-
 /* -------------------------------------------------------------------------- */
 /* Runtime health                                                             */
 /* -------------------------------------------------------------------------- */
 
 const checkingRuntime = ref(false);
+const runtimeProvisioning = ref(false);
+const runtimeProgress = ref("");
+
+async function installRuntime(): Promise<void> {
+    const bridge = globalThis.window?.worldlens?.ollama;
+    if (!bridge || runtimeProvisioning.value) return;
+    runtimeProvisioning.value = true;
+    runtimeProgress.value = "Acquiring the pinned official runtime automatically.";
+    try {
+        const result = await bridge.runtimeEnsure();
+        if (typeof result === "object" && result !== null && "ok" in result && result.ok === true) await checkRuntime();
+        else setRuntimeStatus({ state: "missing", version: null, checkedAt: new Date().toISOString(), detail: typeof result === "object" && result !== null && "message" in result ? String(result.message) : "Automatic acquisition did not complete." });
+    } finally { runtimeProvisioning.value = false; }
+}
+
+async function cancelRuntime(): Promise<void> { const bridge = globalThis.window?.worldlens?.ollama; if (!bridge) return; await bridge.runtimeCancel(); runtimeProgress.value = "Runtime acquisition cancelled. The source files remain untouched."; }
+async function stopRuntime(): Promise<void> { const bridge = globalThis.window?.worldlens?.ollama; if (!bridge) return; const result = await bridge.runtimeStop(); runtimeProgress.value = result ? "Managed Ollama runtime stopped." : "No managed Ollama runtime process was running."; await checkRuntime(); }
+async function restartRuntime(): Promise<void> { const bridge = globalThis.window?.worldlens?.ollama; if (!bridge) return; const result = await bridge.runtimeRestart(); runtimeProgress.value = result.ok ? "Managed Ollama runtime restarted and probed." : result.message ?? "Managed Ollama runtime restart did not complete."; await checkRuntime(); }
+async function probeRuntime(): Promise<void> { const bridge = globalThis.window?.worldlens?.ollama; if (!bridge) return; const result = await bridge.runtimeProbe(); runtimeProgress.value = result.ok ? "Managed Ollama readiness probe succeeded." : result.message ?? "Managed Ollama readiness probe did not succeed."; await checkRuntime(); }
 
 async function checkRuntime(): Promise<void> {
     checkingRuntime.value = true;
     try {
+        const bridge = globalThis.window?.worldlens?.ollama;
+        const runtime = bridge ? await bridge.runtime() : null;
+        if (runtime && runtime.origin === "unavailable") {
+            setRuntimeStatus({ state: "missing", version: null, checkedAt: new Date().toISOString(), detail: typeof runtime.reason === "string" ? runtime.reason : "The runtime is not available." });
+            if (!runtimeProvisioning.value) await installRuntime();
+            return;
+        }
         const result = await fetchVersion();
         if (!result.ok) {
             const state =
@@ -134,10 +152,7 @@ const runtimeLabel = computed(() => {
 const runtimeGuidance = computed(() => {
     switch (ollamaStore.runtime.state) {
         case "missing":
-            return t(
-                "ollama.runtime.missingGuidance",
-                "Ollama itself is not installed. Install it, then check again.",
-            );
+            return t("ollama.runtime.missingGuidance", "The application will acquire the pinned runtime automatically. No manual installation step is required.");
         case "stopped":
             return t(
                 "ollama.runtime.stoppedGuidance",
@@ -155,10 +170,6 @@ const runtimeGuidance = computed(() => {
 
 const runtimeReady = computed(() => ollamaStore.runtime.state === "ready");
 
-function openDownloadPage(): void {
-    globalThis.open?.(OLLAMA_DOWNLOAD_URL, "_blank", "noopener,noreferrer");
-}
-
 /* -------------------------------------------------------------------------- */
 /* Model Store                                                                */
 /* -------------------------------------------------------------------------- */
@@ -168,26 +179,24 @@ const storeRegex = ref(false);
 const storeFlags = ref("i");
 const refreshingCatalog = ref(false);
 const catalogAbort = ref<AbortController | null>(null);
+const catalogRefreshMessage = ref("");
 
 async function refreshStoreCatalog(): Promise<void> {
     if (refreshingCatalog.value) return;
+    const bridge = globalThis.window?.worldlens?.ollama;
+    if (!bridge) return;
     refreshingCatalog.value = true;
-    const controller = new AbortController();
-    catalogAbort.value = controller;
     try {
-        const fetchImpl = (globalThis as { fetch?: typeof fetch }).fetch;
-        if (!fetchImpl) return;
-        const result = await refreshCatalog(fetchImpl, { signal: controller.signal });
-        if (result.ok) {
-            setCatalog(result.catalog, catalogIsStale(result.catalog.revision));
-        } else if (result.partial) {
-            setCatalog(result.partial, true);
+        const result = await bridge.catalogRefresh();
+        catalogRefreshMessage.value = result.ok ? "" : result.message ?? "The official source did not provide an exhaustive catalog, so refresh remains incomplete.";
+        if (result.catalog) {
+            const raw = result.catalog as { readonly variants?: readonly { readonly name: string; readonly family: string | null; readonly size?: number; readonly quantization: string | null; readonly context?: number }[]; readonly fetchedAt?: string; readonly pages?: number; readonly complete?: boolean; readonly revision?: string | null; readonly completenessReason?: string };
+            const groups = new Map<string, { readonly family: string; readonly description: string; readonly capabilities: readonly string[]; readonly tags: { readonly tag: string; readonly sizeBytes: number | null; readonly contextWindow: number | null; readonly quantization: string | null }[] }>();
+            for (const variant of raw.variants ?? []) { const family = variant.family ?? variant.name.split(":")[0]!; const existing = groups.get(family) ?? { family, description: "Official Ollama catalog variant", capabilities: [], tags: [] }; groups.set(family, { ...existing, tags: [...existing.tags, { tag: variant.name.includes(":") ? variant.name.slice(variant.name.indexOf(":") + 1) : variant.name, sizeBytes: typeof variant.size === "number" ? variant.size : null, contextWindow: typeof variant.context === "number" ? variant.context : null, quantization: variant.quantization ?? null }] }); }
+            setCatalog({ models: [...groups.values()], revision: { sourceRevision: raw.revision ?? null, refreshedAt: raw.fetchedAt ?? new Date().toISOString(), pageCount: raw.pages ?? 0, complete: raw.complete === true, completenessReason: raw.completenessReason ?? null } }, result.ok !== true || raw.complete !== true);
         }
     } finally {
-        if (catalogAbort.value === controller) {
-            refreshingCatalog.value = false;
-            catalogAbort.value = null;
-        }
+        refreshingCatalog.value = false;
     }
 }
 
@@ -210,6 +219,15 @@ const detectedHardware = ref<DetectedHardware>({
     gpuDriverSupported: null,
     freeDiskBytes: null,
 });
+const hardwareEvidence = ref("Hardware evidence has not been refreshed.");
+
+async function refreshHardware(): Promise<void> {
+    const bridge = globalThis.window?.worldlens?.ollama;
+    if (!bridge) return;
+    const facts = await bridge.hardware();
+    detectedHardware.value = { totalRamBytes: facts.totalRamBytes, gpuVramBytes: facts.gpuVramBytes, gpuDriverSupported: facts.gpuDriverSupported, freeDiskBytes: facts.freeDiskBytes };
+    hardwareEvidence.value = `Architecture ${facts.architecture ?? "unknown"}; RAM ${facts.totalRamBytes === null ? "unknown" : Math.round(facts.totalRamBytes / 1024 / 1024) + " MiB"}; free disk ${facts.freeDiskBytes === null ? "unknown" : Math.round(facts.freeDiskBytes / 1024 / 1024) + " MiB"}; GPU ${facts.gpuModel ?? "not reported"}. Sources: ${facts.sources.join(", ")}.`;
+}
 
 function fitFor(variant: CatalogVariant): FitVerdict {
     const cached = ollamaStore.fitCache[variant.fullName];
@@ -226,6 +244,19 @@ function fitFor(variant: CatalogVariant): FitVerdict {
 
 const fitFilter = ref<FitVerdict | null>(null);
 const installedFilter = ref<boolean | null>(null);
+const installedFilterSearch = ref("");
+const installedFilterRegex = ref(false);
+const installedFilterFlags = ref("i");
+const fitFilterSearch = ref("");
+const fitFilterRegex = ref(false);
+const fitFilterFlags = ref("i");
+const chatModelSearch = ref("");
+const chatModelRegex = ref(false);
+const chatModelFlags = ref("i");
+const filterItems = (items: readonly { readonly title: string; readonly value: unknown }[], query: string, useRegex: boolean, flags: string) => { if (!query.trim()) return items; try { const matcher = useRegex ? new RegExp(query, flags) : null; return items.filter((item) => matcher ? matcher.test(item.title) : item.title.toLocaleLowerCase().includes(query.toLocaleLowerCase())); } catch { return []; } };
+const installedFilterItems = computed(() => filterItems([{ title: t("config.search.clear", "Clear the search"), value: null }, { title: t("ollama.store.filter.installed", "Installed"), value: true }, { title: t("ollama.model.addToCart", "Add to pull cart"), value: false }], installedFilterSearch.value, installedFilterRegex.value, installedFilterFlags.value));
+const fitFilterItems = computed(() => filterItems([{ title: t("config.search.clear", "Clear the search"), value: null }, { title: t("ollama.fit.runsWell", "Runs well"), value: "Runs well" }, { title: t("ollama.fit.runsWithLimits", "Runs with limits"), value: "Runs with limits" }, { title: t("ollama.fit.unlikely", "Unlikely"), value: "Unlikely" }, { title: t("ollama.fit.unknown", "Unknown"), value: "Unknown" }], fitFilterSearch.value, fitFilterRegex.value, fitFilterFlags.value));
+const chatModelItems = computed(() => filterItems(ollamaStore.installedModels.map((model) => ({ title: model.model, value: model.model })), chatModelSearch.value, chatModelRegex.value, chatModelFlags.value));
 
 const visibleVariants = computed(() =>
     allVariants.value.filter((variant) => {
@@ -269,6 +300,22 @@ const cartAggregateBytes = computed(() =>
 );
 
 const pulling = ref(false);
+const pullControllers = new Map<string, AbortController>();
+
+async function runPullItem(item: ReturnType<typeof enqueuePulls>[number]): Promise<void> {
+    const controller = new AbortController();
+    pullControllers.set(item.id, controller);
+    updatePullItem(item.id, { state: "pulling", statusLine: "Starting…", error: null });
+    try {
+        const result = await pullModel(item.modelName, (progress) => { const percent = typeof progress.total === "number" && progress.total > 0 && typeof progress.completed === "number" ? Math.round((progress.completed / progress.total) * 100) : null; updatePullItem(item.id, { percent, statusLine: progress.status }); }, { signal: controller.signal });
+        if (result.ok) updatePullItem(item.id, { state: "pulled", percent: 100, statusLine: "Pulled." });
+        else updatePullItem(item.id, { state: result.error.kind === "aborted" ? "cancelled" : "failed", error: result.error.message, statusLine: result.error.message });
+    } finally { pullControllers.delete(item.id); }
+}
+
+function cancelPull(id: string): void { pullControllers.get(id)?.abort(); updatePullItem(id, { state: "cancelled", statusLine: "Cancelled by the user." }); }
+async function retryPull(id: string): Promise<void> { const item = ollamaStore.pullQueue.find((candidate) => candidate.id === id); if (!item || (item.state !== "failed" && item.state !== "cancelled")) return; updatePullItem(id, { state: "queued", percent: 0, error: null, statusLine: "Queued for retry." }); await runPullItem(item); await refreshInstalledModels(); }
+function removePull(id: string): void { const index = ollamaStore.pullQueue.findIndex((item) => item.id === id); if (index >= 0 && !pullControllers.has(id)) ollamaStore.pullQueue.splice(index, 1); }
 
 async function startPulls(): Promise<void> {
     if (cart.value.size === 0) return;
@@ -286,22 +333,7 @@ async function startPulls(): Promise<void> {
             cursor += 1;
             if (index >= items.length) return;
             const item = items[index]!;
-            updatePullItem(item.id, { state: "pulling", statusLine: "Starting…" });
-            const result = await pullModel(item.modelName, (progress) => {
-                const percent =
-                    typeof progress.total === "number" &&
-                    progress.total > 0 &&
-                    typeof progress.completed === "number"
-                        ? Math.round((progress.completed / progress.total) * 100)
-                        : null;
-                updatePullItem(item.id, { percent, statusLine: progress.status });
-            });
-            if (result.ok) {
-                updatePullItem(item.id, { state: "pulled", percent: 100, statusLine: "Pulled." });
-            } else {
-                const state = result.error.kind === "aborted" ? "cancelled" : "failed";
-                updatePullItem(item.id, { state, error: result.error.message });
-            }
+            await runPullItem(item);
         }
     }
     await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, () => worker()));
@@ -422,8 +454,13 @@ async function retryLast(): Promise<void> {
     await sendMessage();
 }
 
+let stopRuntimeProgress: (() => void) | undefined;
+
 onMounted(() => {
+    const bridge = globalThis.window?.worldlens?.ollama;
+    stopRuntimeProgress = bridge?.onRuntimeProgress((progress) => { runtimeProgress.value = typeof progress.message === "string" ? progress.message : "Acquiring the runtime automatically."; });
     void checkRuntime();
+    void refreshHardware();
 });
 
 onBeforeUnmount(() => {
@@ -431,6 +468,7 @@ onBeforeUnmount(() => {
     // and its session reference reachable, then append late chunks after the user has moved on.
     chatAbort.value?.abort();
     catalogAbort.value?.abort();
+    stopRuntimeProgress?.();
 });
 </script>
 
@@ -455,17 +493,19 @@ onBeforeUnmount(() => {
                 <p v-if="runtimeGuidance" class="mb-ollama__runtime-guidance">
                     {{ runtimeGuidance }}
                 </p>
+                <p v-if="runtimeProgress" class="mb-ollama__runtime-guidance">{{ runtimeProgress }}</p>
                 <div class="mb-ollama__runtime-actions">
                     <VBtn
                         v-if="ollamaStore.runtime.state === 'missing'"
                         variant="tonal"
-                        :append-icon="mdiOpenInNew"
-                        @click="openDownloadPage"
+                        :prepend-icon="mdiDownloadOutline"
+                        :loading="runtimeProvisioning"
+                        @click="installRuntime"
                     >
                         {{
                             t(
-                                "ollama.runtime.openDownload",
-                                "Open the official Ollama download page",
+                                "ollama.runtime.acquireAutomatically",
+                                "Acquire Ollama automatically",
                             )
                         }}
                     </VBtn>
@@ -477,12 +517,16 @@ onBeforeUnmount(() => {
                     >
                         {{ t("ollama.runtime.recheck", "Check again") }}
                     </VBtn>
+                    <VBtn v-if="runtimeProvisioning" variant="tonal" @click="cancelRuntime">Cancel acquisition</VBtn>
+                    <VBtn variant="tonal" @click="probeRuntime">Probe readiness</VBtn>
+                    <VBtn variant="tonal" @click="restartRuntime">Restart runtime</VBtn>
+                    <VBtn variant="tonal" @click="stopRuntime">Stop runtime</VBtn>
                 </div>
             </div>
         </VAlert>
 
         <VCard v-else class="mb-ollama__ready" variant="tonal" color="success">
-            <VCardText>{{ runtimeLabel }} · {{ ollamaStore.runtime.version }}</VCardText>
+            <VCardText><div>{{ runtimeLabel }} · {{ ollamaStore.runtime.version }}</div><div class="mb-ollama__runtime-actions"><VBtn size="small" variant="tonal" @click="probeRuntime">Probe readiness</VBtn><VBtn size="small" variant="tonal" @click="restartRuntime">Restart runtime</VBtn><VBtn size="small" variant="tonal" @click="stopRuntime">Stop runtime</VBtn></div></VCardText>
         </VCard>
 
         <p class="mb-ollama__intro">
@@ -515,6 +559,7 @@ onBeforeUnmount(() => {
             <h2 id="ollama-store-heading" class="mb-ollama__heading">
                 {{ t("ollama.store.title", "Model Store") }}
             </h2>
+            <p class="mb-ollama__stale" role="status">{{ hardwareEvidence }} <VBtn size="small" variant="text" @click="refreshHardware">Refresh hardware evidence</VBtn></p>
 
             <div class="mb-ollama__store-toolbar">
                 <ConfigSearchField
@@ -541,36 +586,27 @@ onBeforeUnmount(() => {
                 </VBtn>
             </div>
 
+            <VAlert v-if="catalogRefreshMessage" class="mt-2" type="warning" variant="tonal" role="status">{{ catalogRefreshMessage }}</VAlert>
+
             <p v-if="ollamaStore.catalogStale" class="mb-ollama__stale" role="status">
                 {{ t("ollama.store.stale", "Showing the last verified catalogue. It is stale.") }}
             </p>
 
             <div class="mb-ollama__filters">
+                <ConfigSearchField v-model="installedFilterSearch" v-model:regex="installedFilterRegex" v-model:flags="installedFilterFlags" label="Search installed filter" sample="Installed\nNot installed\nClear the search" />
                 <VSelect
                     v-model="installedFilter"
                     :label="t('ollama.store.filter.installed', 'Installed')"
-                    :items="[
-                        { title: t('config.search.clear', 'Clear the search'), value: null },
-                        { title: t('ollama.store.filter.installed', 'Installed'), value: true },
-                        { title: t('ollama.model.addToCart', 'Add to pull cart'), value: false },
-                    ]"
+                    :items="installedFilterItems"
                     density="compact"
                     hide-details
                     class="mb-ollama__filter"
                 />
+                <ConfigSearchField v-model="fitFilterSearch" v-model:regex="fitFilterRegex" v-model:flags="fitFilterFlags" label="Search hardware fit filter" sample="Runs well\nRuns with limits\nUnlikely\nUnknown" />
                 <VSelect
                     v-model="fitFilter"
                     :label="t('ollama.store.filter.fit', 'Hardware fit')"
-                    :items="[
-                        { title: t('config.search.clear', 'Clear the search'), value: null },
-                        { title: t('ollama.fit.runsWell', 'Runs well'), value: 'Runs well' },
-                        {
-                            title: t('ollama.fit.runsWithLimits', 'Runs with limits'),
-                            value: 'Runs with limits',
-                        },
-                        { title: t('ollama.fit.unlikely', 'Unlikely'), value: 'Unlikely' },
-                        { title: t('ollama.fit.unknown', 'Unknown'), value: 'Unknown' },
-                    ]"
+                    :items="fitFilterItems"
                     density="compact"
                     hide-details
                     class="mb-ollama__filter"
@@ -684,6 +720,11 @@ onBeforeUnmount(() => {
                             height="4"
                         />
                     </template>
+                    <template #append>
+                        <VBtn v-if="item.state === 'pulling' || item.state === 'queued'" size="small" variant="text" @click="cancelPull(item.id)">Cancel</VBtn>
+                        <VBtn v-if="item.state === 'failed' || item.state === 'cancelled'" size="small" variant="text" @click="retryPull(item.id)">Retry</VBtn>
+                        <VBtn v-if="item.state !== 'pulling'" size="small" variant="text" @click="removePull(item.id)">Remove</VBtn>
+                    </template>
                 </VListItem>
             </VList>
         </section>
@@ -778,10 +819,11 @@ onBeforeUnmount(() => {
                         <VSelect
                             v-model="activeSession.model"
                             :label="t('ollama.chat.modelLabel', 'Model')"
-                            :items="ollamaStore.installedModels.map((m) => m.model)"
+                            :items="chatModelItems"
                             density="compact"
                             hide-details
                         />
+                        <ConfigSearchField v-model="chatModelSearch" v-model:regex="chatModelRegex" v-model:flags="chatModelFlags" label="Search chat models" :sample="ollamaStore.installedModels.map((m) => m.model).join('\n')" />
                         <VTextarea
                             v-model="activeSession.systemPrompt"
                             :label="t('ollama.chat.systemPrompt', 'System prompt')"

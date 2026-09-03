@@ -54,6 +54,7 @@ export type CoreJobId =
     | "structures"
     | "chunker"
     | "projectCanvas"
+    | "converter"
     | "authenticator"
     | "locks"
     | "support"
@@ -98,6 +99,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     runners: "cirender",
     structures: "structures",
     chunker: "chunker",
+    converter: "converter",
     authenticator: "authenticator",
     locks: "locks",
     support: "support",
@@ -270,6 +272,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         semanticName: "chunker",
         labelKey: "tabs.page.chunker",
         labelFallback: "Convert",
+        icon: mdiSwapHorizontal,
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "converter",
+        semanticName: "converter",
+        labelKey: "tabs.page.converter",
+        labelFallback: "File converter",
         icon: mdiSwapHorizontal,
         seedGroup: null,
         pinnedOnFreshWorkspace: false,

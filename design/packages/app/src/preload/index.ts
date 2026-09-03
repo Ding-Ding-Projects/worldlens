@@ -2365,6 +2365,41 @@ interface AddonsBridge {
 }
 
 interface WorldlensBridge {
+    converter: {
+        catalog(): Promise<unknown>;
+        inspect(path: string): Promise<unknown>;
+        pdf(request: unknown): Promise<unknown>;
+        enqueue(items: unknown): Promise<unknown>;
+        queue(): Promise<unknown>;
+        pause(): Promise<unknown>;
+        resume(): Promise<unknown>;
+        cancel(id: string): Promise<unknown>;
+        retry(id: string): Promise<unknown>;
+        openInEditor(path: string): Promise<unknown>;
+    };
+    ollama: {
+        health(): Promise<unknown>;
+        tags(): Promise<unknown>;
+        running(): Promise<unknown>;
+        show(name: string): Promise<unknown>;
+        catalog(): Promise<unknown>;
+        catalogRefresh(): Promise<unknown>;
+        hardware(): Promise<unknown>;
+        runtime(): Promise<unknown>;
+        runtimeEnsure(): Promise<unknown>;
+        runtimeCancel(): Promise<unknown>;
+        runtimeStop(): Promise<unknown>;
+        runtimeRestart(): Promise<unknown>;
+        runtimeProbe(): Promise<unknown>;
+        onStreamProgress(listener: (progress: unknown) => void): () => void;
+        onRuntimeProgress(listener: (progress: unknown) => void): () => void;
+        delete(name: string): Promise<unknown>;
+        copy(source: string, destination: string): Promise<unknown>;
+        pull(name: string, operationId: string): Promise<unknown>;
+        generate(request: unknown, operationId: string): Promise<unknown>;
+        chat(request: unknown, operationId: string): Promise<unknown>;
+        cancel(operationId: string): Promise<unknown>;
+    };
     syncProfiles(profiles: { id: string; name: string; baseUrl: string }[]): Promise<void>;
     writeClipboardText(text: string): Promise<void>;
     getVersion(): Promise<string>;

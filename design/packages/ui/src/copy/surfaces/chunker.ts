@@ -117,6 +117,7 @@ export const CHUNKER_FIXED = {
     /* The tab label, which lives here rather than beside the other page labels because the
        page and its words arrived together. */
     "tabs.page.chunker": { en: "Convert", yue: "轉換" },
+    "tabs.page.converter": { en: "File converter", yue: "檔案轉換器" },
     "chunker.title": { en: "Convert a world", yue: "轉換世界" },
     "chunker.step.source": { en: "Source world", yue: "來源世界" },
     "chunker.step.target": { en: "Target edition", yue: "目標版本" },

@@ -91,7 +91,11 @@ export /**
  */
 function assertHostedBundleIsElectronFree(outfile) {
     const bundle = readFileSync(outfile, "utf8");
-    const markers = ["Electron failed to install correctly", 'require("electron")', 'from"electron"'];
+    const markers = [
+        "Electron failed to install correctly",
+        'require("electron")',
+        'from"electron"',
+    ];
     const found = markers.filter((marker) => bundle.includes(marker));
     if (found.length === 0) return;
     throw new Error(
@@ -299,33 +303,67 @@ async function main() {
     // The ordinary build must produce the TypeScript bundle before any Java jar
     // may be staged. Packaging performs the fail-closed Java check in beforePack
     // after bootstrap or CI has supplied the artifact.
-    if (!hostedOnly) await stageRenderEngines(undefined, { requireJava: false });
-
     if (!hostedOnly) {
-    /** Main process: ESM (Electron ≥28 supports ESM entry points). */
-    await build({
-        entryPoints: ["src/main/index.ts"],
-        outfile: "dist/main/index.js",
-        bundle: true,
-        platform: "node",
-        format: "esm",
-        target: "node22",
-        external: ["electron"],
-        sourcemap: true,
-        banner: { js: nodeBuiltinRequireShimBanner },
-        // Textual substitution: every occurrence of this identifier in the bundled source
-        // becomes this JSON string literal. `src/main/globals.d.ts` declares the identifier
-        // for TypeScript; `src/main/index.ts` is the only place that reads it.
-        define: {
-            __WORLDLENS_REPOSITORY__: JSON.stringify(repositories.current),
-            __WORLDLENS_LEGACY_REPOSITORY__: JSON.stringify(repositories.legacy),
-            __WORLDLENS_BUILT_AT__: JSON.stringify(resolveBuildTimestamp(process.env)),
-        },
-    });
+        await stageRenderEngines(undefined, { requireJava: false });
 
-    copyZstdWasmAsset("dist/main");
+        /** Main process: ESM (Electron ≥28 supports ESM entry points). */
+        await build({
+            entryPoints: ["src/main/index.ts"],
+            outfile: "dist/main/index.js",
+            bundle: true,
+            platform: "node",
+            format: "esm",
+            target: "node22",
+            external: ["electron"],
+            sourcemap: true,
+            banner: { js: nodeBuiltinRequireShimBanner },
+            // Textual substitution: every occurrence of this identifier in the bundled source
+            // becomes this JSON string literal. `src/main/globals.d.ts` declares the identifier
+            // for TypeScript; `src/main/index.ts` is the only place that reads it.
+            define: {
+                __WORLDLENS_REPOSITORY__: JSON.stringify(repositories.current),
+                __WORLDLENS_LEGACY_REPOSITORY__: JSON.stringify(repositories.legacy),
+                __WORLDLENS_BUILT_AT__: JSON.stringify(resolveBuildTimestamp(process.env)),
+            },
+        });
 
+        copyZstdWasmAsset("dist/main");
+
+        await build({
+            entryPoints: ["src/main/converter/isolatedWorker.ts"],
+            outfile: "dist/main/converter/isolatedWorker.js",
+            bundle: true,
+            platform: "node",
+            format: "esm",
+            target: "node22",
+            sourcemap: true,
+            banner: { js: nodeBuiltinRequireShimBanner },
+        });
+
+        await build({
+            entryPoints: ["src/main/ollama/provision.ts"],
+            outfile: "dist/main/ollama/provision.js",
+            bundle: true,
+            platform: "node",
+            format: "esm",
+            target: "node22",
+            sourcemap: true,
+            banner: { js: nodeBuiltinRequireShimBanner },
+        });
+
+        /** Preload: sandboxed preloads must be CommonJS. */
+        await build({
+            entryPoints: ["src/preload/index.ts"],
+            outfile: "dist/preload/index.cjs",
+            bundle: true,
+            platform: "node",
+            format: "cjs",
+            target: "node22",
+            external: ["electron"],
+            sourcemap: true,
+        });
     }
+
     /**
      * The hosted deployment: the same feature modules, served over HTTP instead of IPC.
      *
@@ -352,18 +390,6 @@ async function main() {
     });
 
     assertHostedBundleIsElectronFree("dist/hosted/index.js");
-
-    /** Preload: sandboxed preloads must be CommonJS. */
-    await build({
-        entryPoints: ["src/preload/index.ts"],
-        outfile: "dist/preload/index.cjs",
-        bundle: true,
-        platform: "node",
-        format: "cjs",
-        target: "node22",
-        external: ["electron"],
-        sourcemap: true,
-    });
 
     console.log("app build done");
 }
