@@ -115,6 +115,25 @@ describe("the shell exposes the host the probe looks for", () => {
         }
     });
 
+    it("still builds the bridge through the factory, which is what makes the question above the right one", () => {
+        /*
+         * PRELOAD_CODE was read and never asserted, so this file's whole argument -- that
+         * membership of BRIDGE_CHANNELS is what decides reachability -- rested on a premise
+         * nothing checked. It holds only while the preload builds the bridge through
+         * createWorldlensBridge and forwards every channel through one invoke. Go back to a
+         * hand-written invoke per call and BRIDGE_CHANNELS stops being the answer, while every
+         * assertion above carries on passing.
+         *
+         * The sibling mcserver guard asserts the same premise for the same reason.
+         */
+        expect(PRELOAD_CODE).toContain("createWorldlensBridge");
+        expect(
+            PRELOAD_CODE.match(/ipcRenderer[.]invoke/g)?.length ?? 0,
+            "more than one ipcRenderer.invoke means a channel is being reached by hand again, " +
+                "and a hand-written call does not need to be in BRIDGE_CHANNELS to work",
+        ).toBe(1);
+    });
+
     it("names the folder the recovery route sends people to", () => {
         // Null here would leave every unlock prompt and the support desk gesturing at
         // "app data" instead of naming a path somebody can actually open. It is a value
