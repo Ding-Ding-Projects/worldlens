@@ -1284,6 +1284,23 @@ export const SETTINGS_FIXED = {
     "settings.engineChoice.jvmUnavailable": { en: "This project explicitly asks for the BlueMap engine, but no suitable JVM or verified engine artifact is available. The render is blocked until both are available; it will not silently switch engines.", yue: "呢個專案指名要 BlueMap 引擎，但而家冇合適嘅 JVM，亦冇驗證過嘅引擎檔案。兩樣齊備之前唔會 render，亦唔會靜靜雞轉用第二個引擎。" },
     "settings.engineChoice.noArtifact": { en: "The packaged BlueMap engine is unavailable, so Automatic selects the Worldlens app engine while repair remains available.", yue: "隨機附帶嘅 BlueMap 引擎用唔到，所以自動揀咗 Worldlens 自己嘅引擎，同時修復嗰條路仍然行得通。" },
     "settings.engineChoice.noJvm": { en: "No suitable JVM is available, so Automatic selects the Worldlens app engine. Nothing is downloaded and no silent fallback occurs.", yue: "冇合適嘅 JVM，所以自動揀咗 Worldlens 自己嘅引擎。唔會落載任何嘢，亦唔會靜靜雞轉用第二個。" },
+    "settings.addons.capabilityReview": { en: "Review and grant each requested capability before enabling this add-on. Clearing one revokes it and disables the add-on.", yue: "開呢個外掛之前，逐項睇清楚再批准佢要求嘅權限。清走任何一項就等於收回，個外掛亦會停用。" },
+    "settings.addons.diagnostics": { en: "Runtime diagnostics", yue: "執行期診斷" },
+    "settings.addons.disable": { en: "Disable", yue: "停用" },
+    "settings.addons.enable": { en: "Enable", yue: "啟用" },
+    "settings.addons.noCapabilities": { en: "No capabilities requested", yue: "冇要求任何權限" },
+    "settings.addons.remove": { en: "Remove", yue: "移除" },
+    "settings.addons.removeTitle": { en: "Remove add-on", yue: "移除外掛" },
+    "settings.addons.removeWarning": { en: "This removes the installed package and its saved state.", yue: "呢個會刪走已安裝嘅套件同佢儲低嘅狀態。" },
+    "settings.addons.safeMode": { en: "Safe mode: keep add-ons disabled", yue: "安全模式：所有外掛保持停用" },
+    "settings.addons.search": { en: "Search add-ons", yue: "搵外掛" },
+    "settings.addons.searchSummary": { en: "{shown} of {total} add-ons shown.", yue: "喺 {total} 個外掛入面顯示緊 {shown} 個。" },
+    "settings.addons.update": { en: "Update", yue: "更新" },
+    "settings.engineChoice.appearanceLabel": { en: "Render engine choice", yue: "Render 引擎選擇" },
+    "settings.engineChoice.comparison": { en: "Engine comparison", yue: "引擎對照" },
+    "settings.engineChoice.pickerLabel": { en: "Render engine selection", yue: "Render 引擎揀選" },
+    "settings.engineChoice.searchHint": { en: "name, version, capability, or unsupported setting", yue: "名、版本、功能，又或者唔支援嘅設定" },
+    "settings.engineChoice.searchLabel": { en: "Search engines", yue: "搵引擎" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {

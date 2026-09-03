@@ -824,6 +824,23 @@ export const APPEARANCE_FIXED = {
     "appearance.type.fontIdentity.familyMissing": { en: "Family {family} is not available here. The saved family and identity remain unchanged; the generic and CJK fallback stack is rendering.", yue: "呢部機冇 {family} 呢個字族。儲低咗嘅字族同身分維持唔變；而家畫緊嘅係通用同中日韓嘅後備字體。" },
     "appearance.type.fontIdentity.incompatible": { en: "Saved font identity {identity} belongs to {resolved}, not the selected family {family}. The selected family remains visible and the identity stays saved.", yue: "儲低咗嘅字體身分 {identity} 其實係 {resolved} 嗰隻，唔係你揀嘅 {family}。你揀嗰個字族照樣見到，個身分亦照樣儲住。" },
     "appearance.type.fontIdentity.missing": { en: "Saved font identity {identity} is not installed. Keeping it saved and using {family} as the current family fallback.", yue: "儲低咗嘅字體身分 {identity} 冇裝喺呢部機。會繼續儲住佢，暫時用 {family} 做後備字族。" },
+    "appearance.choice.search": { en: "Search {label}", yue: "搵 {label}" },
+    "appearance.choice.summary": { en: "Showing {shown} of {total} choices.", yue: "喺 {total} 個選項入面顯示緊 {shown} 個。" },
+    "appearance.editor.state": { en: "Editing state", yue: "而家改緊嘅狀態" },
+    "appearance.lock.lock": { en: "Lock {property}", yue: "鎖住 {property}" },
+    "appearance.lock.unlock": { en: "Unlock {property}", yue: "解鎖 {property}" },
+    "appearance.state.glowColor": { en: "State glow colour", yue: "狀態光暈顏色" },
+    "appearance.state.glowRadius": { en: "State glow radius", yue: "狀態光暈半徑" },
+    "appearance.state.shadowBlur": { en: "State shadow blur", yue: "狀態陰影模糊度" },
+    "appearance.state.shadowColor": { en: "State shadow colour", yue: "狀態陰影顏色" },
+    "appearance.surface.badgeShape": { en: "Badge shape", yue: "徽章形狀" },
+    "appearance.surface.badgeText": { en: "Badge text", yue: "徽章文字" },
+    "appearance.surface.iconColor": { en: "Icon colour", yue: "圖示顏色" },
+    "appearance.surface.iconName": { en: "Icon name", yue: "圖示名" },
+    "appearance.surface.iconSize": { en: "Icon size", yue: "圖示大細" },
+    "appearance.surface.separatorColor": { en: "Separator colour", yue: "分隔線顏色" },
+    "appearance.surface.separatorVisible": { en: "Show separator", yue: "顯示分隔線" },
+    "appearance.type.fontIdentityAutomatic": { en: "Automatic by family", yue: "跟字族自動決定" },
 } as const satisfies Record<string, FixedString>;
 
 export const APPEARANCE_FACTS = {

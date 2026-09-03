@@ -32,6 +32,9 @@ export const AWSACCOUNTS_FIXED = {
     "awsAccounts.alias.hint": { en: "Lower-case letters, numbers and hyphens. 3 to 63 characters. Cannot start or end with a hyphen.", yue: "細楷字母、數字同連字號。3 至 63 個字元。頭尾唔可以係連字號。" },
     "awsAccounts.alias.none": { en: "This account has no name. It is twelve digits, indistinguishable from any other unnamed account.", yue: "呢個戶口冇名，得十二個數字，同其他未改名嘅戶口分唔出。" },
     "awsAccounts.unavailable": { en: "This build cannot reach AWS accounts. Run it as the desktop application to see this list.", yue: "呢個版本駁唔到 AWS 戶口。要用桌面版行先睇到呢張清單。" },
+    "awsAccounts.alias.field": { en: "Account name", yue: "戶口名" },
+    "awsAccounts.list.label": { en: "AWS accounts", yue: "AWS 戶口" },
+    "awsAccounts.search.label": { en: "Search accounts", yue: "搵戶口" },
 } as const satisfies Record<string, FixedString>;
 
 export const AWSACCOUNTS_FACTS = {} as const satisfies Record<

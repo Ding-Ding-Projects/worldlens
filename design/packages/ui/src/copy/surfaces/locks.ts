@@ -580,6 +580,7 @@ export const LOCKS_FIXED = {
     "locks.list.change": { en: "Change", yue: "更改" },
     "locks.menu.change": { en: "Change this lock's password or authenticator...", yue: "改呢個鎖嘅密碼或者驗證器…" },
     "locks.wizard.changeTitle": { en: "Change the lock on {label}", yue: "更改 {label} 上面嘅鎖" },
+    "locks.badge.title": { en: "Locked. Choose to unlock it.", yue: "鎖住咗。㩒一下就可以解鎖。" },
 } as const satisfies Record<string, FixedString>;
 
 export const LOCKS_FACTS = {

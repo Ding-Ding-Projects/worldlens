@@ -144,6 +144,13 @@ export const DOCKERHOSTING_FIXED = {
     "dockerHosting.title": { en: "Docker hosting manager", yue: "Docker 寄存管理" },
     "dockerHosting.unavailable": { en: "This build cannot manage Docker. The desktop bridge is not available.", yue: "呢個版本管唔到 Docker，因為冇桌面版嗰條橋。" },
     "dockerHosting.update": { en: "Update", yue: "更新" },
+    "dockerHosting.removeBody": { en: "This removes only the selected app-owned container. Volumes and unrelated workloads are kept.", yue: "呢個只會刪走你揀嗰個由本 app 擁有嘅容器。磁碟區同其他唔相關嘅工作照樣保留。" },
+    "dockerHosting.removeTitle": { en: "Confirm removing this server", yue: "確認刪走呢部伺服器" },
+    "dockerHosting.search": { en: "Search owned containers", yue: "搵本 app 擁有嘅容器" },
+    "dockerHosting.select": { en: "Select {name}", yue: "揀 {name}" },
+    "dockerHosting.stopBody": { en: "Stopping is safe: it ends this app-owned container, keeps its volumes, and does not touch unrelated Docker workloads.", yue: "停係安全嘅：只會結束呢個由本 app 擁有嘅容器，保留佢啲磁碟區，亦唔會掂到其他唔相關嘅 Docker 工作。" },
+    "dockerHosting.stopTitle": { en: "Confirm stopping this server", yue: "確認停低呢部伺服器" },
+    "dockerHosting.updateDisabled": { en: "Update is disabled until a transactional recreate plan is available; no running workload will be replaced implicitly.", yue: "喺有一套可以一次過完成嘅重建方案之前，更新都會停用；唔會靜靜雞換走緊行緊嘅工作。" },
 } as const satisfies Record<string, FixedString>;
 
 export const DOCKERHOSTING_FACTS = {} as const satisfies Record<

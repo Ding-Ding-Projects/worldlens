@@ -440,6 +440,10 @@ export const SHELL_FIXED = {
     "shell.home.dashboard.titleFresh": { en: "Let's make your first map", yue: "整你第一張地圖啦" },
     "shell.home.dashboard.titleReturning": { en: "Welcome back", yue: "歡迎返嚟" },
     "shell.home.dashboard.welcomeBody": { en: "Nothing is rendered or saved on this machine yet. New map starts one from a world you already have; the guide walks through the whole thing if you would rather be shown.", yue: "呢部機仲未 render 過或者儲過任何嘢。「新地圖」會由你已經有嘅世界開始整；想有人一步步帶你行嘅話，可以用嗰個引導。" },
+    "shell.home.dashboard.browseAll": { en: "Browse everything", yue: "全部睇晒" },
+    "shell.home.dashboard.profileRemote": { en: "Remote server", yue: "遠端伺服器" },
+    "shell.home.dashboard.renderOffer": { en: "Found running · tap to reattach", yue: "搵到緊喺度行 · 㩒一下重新接返" },
+    "shell.home.dashboard.renderWorking": { en: "Working…", yue: "做緊嘢…" },
 } as const satisfies Record<string, FixedString>;
 
 /**

@@ -2488,6 +2488,8 @@ export const WORLD_FIXED = {
     "world.ssh.cancelFailed": { en: "Cancellation could not reach the transfer: {message}", yue: "取消傳唔到去個傳輸度：{message}" },
     "world.ssh.cancelling": { en: "Waiting for cancellation", yue: "等緊取消" },
     "world.ssh.cancelTimeout": { en: "Cancellation has not been confirmed after five seconds. The transfer and this dialog stay open until the bridge confirms it.", yue: "過咗五秒都仲未確認到取消。喺條橋確認之前，個傳輸同呢個對話框都會繼續開住。" },
+    "world.drop.notWorld": { en: "\"{name}\" does not look like a Minecraft world (no level.dat and world data were found).", yue: "「{name}」睇落唔似係 Minecraft 世界（搵唔到 level.dat 同世界資料）。" },
+    "world.screen.modeLabel": { en: "Creation view", yue: "建立方式" },
 } as const satisfies Record<string, FixedString>;
 
 /* -------------------------------------------------------------------------- */
