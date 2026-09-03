@@ -719,7 +719,23 @@ async function assertNoLinks(target: string, stopAt: string): Promise<void> {
         current = parent;
     }
     for (const path of parts) {
-        const info = await lstat(path);
+        let info;
+        try {
+            info = await lstat(path);
+        } catch (error) {
+            // A component that is not there cannot be a symbolic link, and this check exists
+            // to refuse one that is. Reporting ENOENT here turned every absent workspace into
+            // "unsafe-path", which reads as a security refusal -- the caller, and anybody
+            // reading the log, is told the path was rejected when the truth is that nothing is
+            // at it. The existence checks further down produce the honest missing-record or
+            // missing-output reason instead.
+            //
+            // Only ENOENT. A permission error, an I/O error or anything else still fails,
+            // because those are cases where a link genuinely might be there and could not be
+            // ruled out.
+            if ((error as NodeJS.ErrnoException | null)?.code === "ENOENT") continue;
+            throw error;
+        }
         if (info.isSymbolicLink()) throw new Error(`symbolic link is not allowed: ${path}`);
     }
 }
