@@ -29,6 +29,7 @@ import {
 } from "./creativeDocument.js";
 import { applyCreativeLogoVariant, releaseCreativeLogoOwnership, resetCreativeLogoPipeline, syncCreativeLogoStore, type CreativeLogoVariantInput } from "./creativeLogoPipeline.js";
 import { renderCreativeSvg } from "./creativeRenderer.js";
+import ConfigSearchField from "../../config/ConfigSearchField.vue";
 import {
     type CreativeAppearanceCapabilities,
     type CreativeAppearanceDocument,
@@ -63,8 +64,6 @@ const fileInput = ref<HTMLInputElement>();
 const importError = ref("");
 const fieldError = ref("");
 const importState = ref<"idle" | "reading" | "ready" | "error">("idle");
-const regexSample = ref("");
-const regexPattern = ref("");
 const presetQuery = ref("");
 const presetRegexMode = ref(false);
 const presetRegexFlags = ref("i");
@@ -79,7 +78,7 @@ onMounted(() => {
 });
 
 const visibleLayers = computed(() => {
-    const source = (regexMode.value ? regexPattern.value : query.value).trim();
+    const source = query.value.trim();
     if (!source) return document.value.layers;
     try {
         const matcher = regexMode.value ? new RegExp(source, regexFlags.value) : undefined;
@@ -98,17 +97,24 @@ const visiblePresets = computed(() => {
         return [];
     }
 });
+// The builder's preview runs against the real list rather than typed sample text, so what
+// it reports is what the search will actually do. The hand-rolled panel this replaced asked
+// the user to paste their own sample, which meant its match count could disagree with the
+// list underneath it.
+const layerSearchSample = computed(() =>
+    document.value.layers.map((layer) => `${layer.name} ${layer.kind}`).join("\n"),
+);
+const layerSearchSummary = computed(() =>
+    `${visibleLayers.value.length} of ${document.value.layers.length} layers shown.`,
+);
+const presetSearchSample = computed(() =>
+    document.value.presets.map((preset) => preset.name).join("\n"),
+);
+const presetSearchSummary = computed(() =>
+    `${visiblePresets.value.length} of ${document.value.presets.length} presets shown.`,
+);
 
-const regexStatus = computed(() => {
-    if (!regexMode.value) return { error: "", matches: 0, captures: [] as string[] };
-    try {
-        const matcher = new RegExp(regexPattern.value, regexFlags.value.includes("g") ? regexFlags.value : `${regexFlags.value}g`);
-        const matches = [...regexSample.value.matchAll(matcher)];
-        return { error: "", matches: matches.length, captures: matches.flatMap((match) => match.slice(1).filter((value): value is string => value !== undefined)) };
-    } catch (error) {
-        return { error: error instanceof Error ? error.message : "Invalid regular expression.", matches: 0, captures: [] as string[] };
-    }
-});
+
 
 function publish(next: CreativeAppearanceDocument): void {
     releaseCreativeLogoOwnership(document.value.logo.target, next.logo.target);
@@ -223,15 +229,7 @@ function toggleLayerLock(): void {
     publish(updateCreativeLayer(document.value, selectedLayer.value.id, { locked: !selectedLayer.value.locked }, "toggle layer lock"));
 }
 
-function toggleRegex(): void {
-    regexMode.value = !regexMode.value;
-    regexPattern.value = regexMode.value ? query.value : "";
-}
 
-function addRegexToken(token: string): void {
-    regexPattern.value += token;
-    query.value = regexPattern.value;
-}
 
 function selectLayerByKeyboard(event: KeyboardEvent, layer: CreativeLayer, index: number): void {
     if (event.key === "Enter" || event.key === " ") {
@@ -319,9 +317,6 @@ function exportPreset(id: string): void {
     URL.revokeObjectURL(anchor.href);
 }
 
-async function copyRegex(): Promise<void> {
-    if (typeof navigator !== "undefined" && navigator.clipboard) await navigator.clipboard.writeText(regexPattern.value);
-}
 
 function exportDocument(): void {
     const blob = new Blob([exportCreativeDocument(document.value)], { type: "application/json" });
@@ -410,22 +405,23 @@ async function onAssetImport(event: Event): Promise<void> {
         <div class="mb-creative-studio__workbench">
             <aside class="mb-creative-studio__layers" aria-label="Creative layers">
                 <div class="mb-creative-studio__search">
-                    <input v-model="query" type="search" aria-label="Search creative layers" placeholder="Search layers" />
-                    <button type="button" :aria-pressed="regexMode" aria-label="Toggle layer regex builder" @click="toggleRegex">.*</button>
-                    <input v-if="regexMode" v-model="regexFlags" class="mb-creative-studio__flags" aria-label="Regex flags" maxlength="8" />
+                    <ConfigSearchField
+                        v-model="query"
+                        v-model:regex="regexMode"
+                        v-model:flags="regexFlags"
+                        label="Search creative layers"
+                        placeholder="Search layers"
+                        :sample="layerSearchSample"
+                        :summary="layerSearchSummary"
+                    />
                 </div>
-                <div v-if="regexMode" class="mb-creative-studio__regex-builder" aria-label="Layer regex builder">
-                    <div class="mb-creative-studio__regex-tokens" aria-label="Guided regex tokens">
-                        <button v-for="token in ['^', '$', '.*', '[ ]', '( )', '|', '+']" :key="token" type="button" @click="addRegexToken(token)">{{ token }}</button>
-                    </div>
-                    <input v-model="regexPattern" aria-label="Regex pattern" placeholder="Raw pattern" />
-                    <input v-model="regexFlags" aria-label="Regex flags" maxlength="8" placeholder="Flags" />
-                    <textarea v-model="regexSample" aria-label="Regex sample text" placeholder="Sample text for matches and captures" />
-                    <p v-if="regexStatus.error" class="mb-creative-studio__error" role="alert">{{ regexStatus.error }}</p>
-                    <p v-else class="mb-creative-studio__regex-help">{{ regexStatus.matches }} matches, {{ regexStatus.captures.length }} capture values.</p>
-                    <button type="button" @click="copyRegex">Copy pattern</button>
-                </div>
-                <p v-if="regexMode" class="mb-creative-studio__regex-help">Regex mode uses the local JavaScript engine. Invalid patterns show no matches.</p>
+                <!--
+                    The hand-rolled builder that stood here was a token-button row, a raw
+                    pattern box, a flags box and a textarea the user had to paste sample text
+                    into. ConfigSearchField above brings the real anchored builder, and its
+                    preview runs against the actual layer list rather than pasted text, so its
+                    match count cannot disagree with the list underneath it.
+                -->
                 <div class="mb-creative-studio__selection-count" role="status">{{ selected.length }} layer{{ selected.length === 1 ? '' : 's' }} selected</div>
                 <ul class="mb-creative-studio__layer-list" role="listbox" aria-multiselectable="true" aria-label="Creative layers">
                     <li v-for="(layer, index) in visibleLayers" :key="layer.id" role="option" :aria-selected="selected.includes(layer.id)" :class="{ 'is-selected': selected.includes(layer.id) }">
@@ -484,7 +480,16 @@ async function onAssetImport(event: Event): Promise<void> {
                         <figure v-for="variant in document.logo.variants" :key="variant.id" :class="{ 'is-active': document.logo.activeVariantId === variant.id }"><img :src="variant.dataUrl" :alt="`Logo preview at ${variant.width} by ${variant.height} pixels`" /><figcaption>{{ variant.width }} × {{ variant.height }} px</figcaption><button type="button" @click="applyLogoVariant(variant)">{{ document.logo.activeVariantId === variant.id ? 'Active' : 'Apply' }}</button></figure>
                     </div>
                     <div class="mb-creative-studio__preset-manager" aria-label="Creative preset manager">
-                        <div class="mb-creative-studio__preset-search"><input v-model="presetQuery" type="search" aria-label="Search creative presets" /><button type="button" :aria-pressed="presetRegexMode" aria-label="Toggle preset regex builder" @click="presetRegexMode = !presetRegexMode">.*</button><input v-if="presetRegexMode" v-model="presetRegexFlags" aria-label="Preset regex flags" maxlength="8" /></div>
+                        <div class="mb-creative-studio__preset-search">
+                            <ConfigSearchField
+                                v-model="presetQuery"
+                                v-model:regex="presetRegexMode"
+                                v-model:flags="presetRegexFlags"
+                                label="Search creative presets"
+                                :sample="presetSearchSample"
+                                :summary="presetSearchSummary"
+                            />
+                        </div>
                         <p v-if="visiblePresets.length === 0" class="mb-creative-studio__hint">No saved preset matches this search.</p>
                         <div v-for="preset in visiblePresets" :key="preset.id" class="mb-creative-studio__preset-row">
                             <input :value="preset.name" :aria-label="`Rename preset ${preset.name}`" @change="renamePreset(preset.id, $event)" />
