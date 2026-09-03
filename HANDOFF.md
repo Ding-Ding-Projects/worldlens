@@ -154,12 +154,25 @@ acknowledgement, so what it proved was that the refusal fires.
 
 ### Still open, and honest about why
 
-`packages/server/test/map-update-service.test.ts` fails on the **first** watcher created in
-a process while later ones pass in ~250 ms, and the failing set varies between runs.
-`fs.watch` fires fine on this host, so it is a real arming race behind chokidar's `ready`
-event rather than contention. Not fixed: a sleep in production is a workaround, and arming
-by writing a sentinel file would write into a user's world folder. It needs a real
-readiness signal, which is its own piece of work.
+`packages/server/test/map-update-service.test.ts` was recorded here as an arming race behind
+chokidar's `ready`. That was wrong and measuring it says so: polling first-event latency is
+115 ms on this host, native is 2 ms, and the service end to end is 116 ms. Nothing is racing.
+
+Instrumented instead: one watcher per run never arms at all -- `take()` never returns,
+`updateRegion` never runs, and twenty separate writes over ten seconds go unanswered while
+the run loop stays healthy and waiting. Polling is not negotiable on Windows with Node 24+
+because native `fs.watch` aborts the process there.
+
+`c335b98c` makes the tests re-touch with different bytes until something reacts, which
+recovers the ordinary missed-poll case -- three consecutive runs went 2 failures, 1, then 0
+-- and names the never-armed case instead of timing out silently.
+
+The part left is **issue #176**, and it is a product defect rather than a test one: a
+watcher that never arms leaves the loop waiting rather than exiting, and the
+"stopped unexpectedly" warning is on the exit path, so a map stops updating with no error
+anywhere. Two approaches were tried and rejected, and the issue records both so nobody
+repeats them: a sleep in the product, and a scripted watch service for the queue tests
+(which removed the flake and also removed what those tests are about).
 
 The changelog trailer fix restored body text the old strip loop had been silently eating,
 which is why the apostrophe convention only started failing now.

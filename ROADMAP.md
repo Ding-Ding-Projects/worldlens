@@ -17,11 +17,15 @@
 - [x] `pnpm published-text:check` runs `scripts/check-published-text.mjs` and its test
       (issue #168). Terms come from outside the repository; absent, it skips with a printed
       reason and exit 0.
-- [ ] `packages/server/test/map-update-service.test.ts` fails on the first watcher created
-      in a process while later ones pass in ~250 ms. A real arming race behind chokidar's
-      `ready`, not contention: `fs.watch` fires fine on the same host. Deliberately not
-      patched with a sleep or a sentinel write into a user's world folder; it needs a real
-      readiness signal.
+- [x] Measured why `packages/server/test/map-update-service.test.ts` flakes, and made it say
+      so. It is not an arming race behind chokidar's `ready`, which is what this entry
+      first claimed: polling first-event latency is 115 ms and native is 2 ms on the same
+      host. Instrumented, one watcher per run simply never arms -- `take()` never returns
+      through twenty writes over ten seconds while the run loop stays healthy.
+- [ ] Issue #176: that same silence is a product defect, not only a test one. A watcher
+      that never arms leaves the run loop waiting rather than exiting, and the
+      "stopped unexpectedly" warning is on the exit path -- so a map stops updating with
+      no error, no warning and no log line. Needs a liveness decision rather than a guess.
 - [ ] The two files generated from commit history still carry 67 occurrences of internal
       shorthand. Issue #168 records why that is left: editing the generated file is not a
       fix, and fixing history means a force-push.
