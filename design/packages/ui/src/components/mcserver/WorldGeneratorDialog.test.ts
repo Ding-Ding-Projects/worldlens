@@ -158,4 +158,23 @@ describe("WorldGeneratorDialog", () => {
             expect(dialogText()).toContain("Resume the existing generated world");
         } finally { wrapper.unmount(); }
     });
+
+    it("requests cancellation when an active generator dialog is unmounted", async () => {
+        let finish: ((value: unknown) => void) | undefined;
+        const synthetic = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+        const cancel = vi.fn(async () => ({ ok: true, value: { cancelling: true } }));
+        vi.stubGlobal("worldlens", { mcserver: { worldgen: { synthetic, cancel } } });
+        const wrapper = mountDialog();
+        const destination = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Destination")!;
+        destination.vm.$emit("update:modelValue", "generated");
+        dialogButtons().find((button) => button.textContent?.includes("1 GB ("))!.click();
+        await wrapper.vm.$nextTick();
+        dialogButtons().find((button) => button.textContent?.trim() === "Generate")!.click();
+        await flushPromises();
+        expect(synthetic).toHaveBeenCalledTimes(1);
+        wrapper.unmount();
+        expect(cancel).toHaveBeenCalledTimes(1);
+        finish!({ ok: false, failure: { message: "cancelled" } });
+        await flushPromises();
+    });
 });

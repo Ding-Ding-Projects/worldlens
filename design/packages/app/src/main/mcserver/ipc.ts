@@ -18,7 +18,7 @@ import { existsSync } from "node:fs";
 import { generateWorld, generateMeasuredWorld, zipWorld, type MeasuredWorldProgress } from "@worldlens/worldgen";
 import { runLocalSyntheticGeneration } from "./worldgen/localGeneration.js";
 
-import type { IpcMain } from "electron";
+import type { IpcMain, WebContents } from "electron";
 
 import type { BackupRunnerOptions } from "../backup/runner.js";
 import type { BackupRestoreRunnerOptions } from "../backup/restore.js";
@@ -838,17 +838,33 @@ export function registerMcServerHandlers(
             const destination = body.destination.trim();
             if (typeof body.targetBytes === "number") {
                 const owner = syntheticOwner(_event);
+                const sender = (_event as { sender: Pick<WebContents, "id" | "on" | "removeListener" | "isDestroyed"> }).sender;
+                if (typeof sender.on !== "function" || typeof sender.removeListener !== "function" || typeof sender.isDestroyed !== "function" || sender.isDestroyed()) {
+                    return fail("invalid-owner", "Generation needs an active renderer with lifecycle tracking.");
+                }
                 if (syntheticJobs.has(owner)) return fail("busy", "A world generation is already running in this window.");
                 const job = { cancelled: false, progress: { bytes: 0, targetBytes: body.targetBytes, chunkCount: 0, regionCount: 0 } };
+                const cancelOwnedGeneration = () => { job.cancelled = true; };
+                const onNavigation = (_navigationEvent: unknown, _url: string, isInPlace: boolean, isMainFrame: boolean) => {
+                    if (isMainFrame && !isInPlace) cancelOwnedGeneration();
+                };
                 syntheticJobs.set(owner, job);
                 try {
+                    sender.on("destroyed", cancelOwnedGeneration);
+                    sender.on("render-process-gone", cancelOwnedGeneration);
+                    sender.on("did-start-navigation", onNavigation);
                     const result = await generateMeasuredWorld({ seed: body.seed, name: body.worldName, outDir: destination, targetBytes: body.targetBytes,
                         resume: body.resume === true, isCancelled: () => job.cancelled,
                         onProgress: (progress) => { job.progress = progress; } });
                     return ok({ ...result, zipPath: null });
                 } catch (error) {
                     return fail("generation-failed", error instanceof Error ? error.message : String(error));
-                } finally { syntheticJobs.delete(owner); }
+                } finally {
+                    sender.removeListener("destroyed", cancelOwnedGeneration);
+                    sender.removeListener("render-process-gone", cancelOwnedGeneration);
+                    sender.removeListener("did-start-navigation", onNavigation);
+                    syntheticJobs.delete(owner);
+                }
             }
             const plannedWorld = join(destination, body.worldName);
             if (existsSync(plannedWorld)) {

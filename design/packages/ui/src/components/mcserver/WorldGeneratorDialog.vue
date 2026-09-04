@@ -214,7 +214,13 @@ async function pollGeneration(): Promise<void> {
     if (result.ok) generationProgress.value = result.value ?? null;
     if (generating.value) progressTimer = setTimeout(() => void pollGeneration(), 1000);
 }
-onUnmounted(() => { clearTimeout(progressTimer); });
+onUnmounted(() => {
+    clearTimeout(progressTimer);
+    if (generating.value) {
+        generating.value = false;
+        void cancelSyntheticWorld();
+    }
+});
 async function stopGeneration(): Promise<void> {
     const result = await cancelSyntheticWorld();
     if (!result.ok) generationError.value = result.failure?.message ?? t("generationFailed");

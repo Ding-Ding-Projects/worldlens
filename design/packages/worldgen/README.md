@@ -39,6 +39,10 @@ produces byte-identical terrain and a byte-identical manifest to uninterrupted w
 An existing directory is never adopted by a new run, symbolic-link destinations are
 refused, and each active output has an exclusive lock. Status and cancellation are
 scoped to the renderer window that owns the operation.
+Renderer destruction, a renderer crash, or main-frame document navigation cancels the
+owned generation and preserves its progress. Dialog teardown also requests cancellation.
+The main process removes every lifecycle listener and active-job entry when generation
+settles, including unsuccessful operations.
 
 This is graceful cancellation and verified resume, not unconditional crash recovery.
 If the process or machine stops before a region and its manifest agree, unmatched

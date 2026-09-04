@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { EventEmitter } from "node:events";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -108,7 +109,7 @@ describe("registerMcServerHandlers", () => {
     });
 
     it("measures, pauses and resumes a real world through sender-owned IPC controls", async () => {
-        const owner = { sender: { id: 41 } };
+        const owner = { sender: Object.assign(new EventEmitter(), { id: 41, isDestroyed: () => false }) };
         const other = { sender: { id: 42 } };
         const generate = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldGenerate)!;
         const status = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldStatus)!;
@@ -126,6 +127,38 @@ describe("registerMcServerHandlers", () => {
         expect(resumed.value.bytes).toBeGreaterThanOrEqual(30_000);
         expect(resumed.value.cancelled).toBe(false);
         expect(await status(owner)).toMatchObject({ ok: true, value: null });
+    });
+
+    it.each(["destroyed", "render-process-gone", "did-start-navigation"])("preserves generation when the renderer emits %s and removes all listeners", async (eventName) => {
+        const sender = Object.assign(new EventEmitter(), { id: 51, isDestroyed: () => false });
+        const owner = { sender };
+        const generate = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldGenerate)!;
+        const status = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldStatus)!;
+        const cancel = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldCancel)!;
+        const pending = generate(owner, { seed: 123, size: 16, worldName: "lifecycle", destination: dir, outputMode: "folder", targetBytes: 100_000 });
+        expect(sender.listenerCount(eventName)).toBe(1);
+        sender.emit(eventName, {}, "file:///reloaded", false, true);
+        expect(await pending).toMatchObject({ ok: true, value: { cancelled: true, chunkCount: 0 } });
+        expect(await status(owner)).toMatchObject({ ok: true, value: null });
+        expect(await cancel(owner)).toMatchObject({ ok: true, value: { cancelling: false } });
+        for (const name of ["destroyed", "render-process-gone", "did-start-navigation"]) expect(sender.listenerCount(name)).toBe(0);
+        const resumed = await generate(owner, { seed: 123, size: 16, worldName: "lifecycle", destination: dir, outputMode: "folder", targetBytes: 100_000, resume: true });
+        expect(resumed).toMatchObject({ ok: true, value: { cancelled: false } });
+        for (const name of ["destroyed", "render-process-gone", "did-start-navigation"]) expect(sender.listenerCount(name)).toBe(0);
+    });
+
+    it("ignores subframe and same-document navigation and detaches listeners on generation failure", async () => {
+        const sender = Object.assign(new EventEmitter(), { id: 52, isDestroyed: () => false });
+        const owner = { sender };
+        const generate = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldGenerate)!;
+        const request = { seed: 123, size: 16, worldName: "navigation", destination: dir, outputMode: "folder", targetBytes: 30_000 };
+        const pending = generate(owner, request);
+        sender.emit("did-start-navigation", {}, "file:///frame", false, false);
+        sender.emit("did-start-navigation", {}, "file:///app#section", true, true);
+        expect(await pending).toMatchObject({ ok: true, value: { cancelled: false } });
+        expect(await generate(owner, request)).toMatchObject({ ok: false });
+        for (const name of ["destroyed", "render-process-gone", "did-start-navigation"]) expect(sender.listenerCount(name)).toBe(0);
+        expect(await ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldStatus)!(owner)).toMatchObject({ ok: true, value: null });
     });
 
     it("builds a local-process transport from the runtime stored on the record", async () => {
