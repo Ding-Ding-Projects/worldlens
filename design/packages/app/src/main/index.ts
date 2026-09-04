@@ -116,6 +116,8 @@ import { installWorldRepoIpc, WORLD_REPO_EVENT_CHANNEL } from "./worldrepo/index
 import type { WorldRepoIpc } from "./worldrepo/index.js";
 import { DOCKERWORLD_EVENT_CHANNEL, registerDockerWorldHandlers } from "./dockerworld/index.js";
 import type { DockerWorldIpc } from "./dockerworld/index.js";
+import { DOWNLOADER_EVENT_CHANNEL, registerDownloaderHandlers } from "./worlddownloader/ipc.js";
+import type { DownloaderIpc } from "./worlddownloader/ipc.js";
 import { DockerHostingManager, registerDockerHostingHandlers } from "./dockerhosting/index.js";
 import type { DockerHostingIpc } from "./dockerhosting/index.js";
 import {
@@ -152,7 +154,7 @@ import { registerBedrockHandlers, BEDROCK_EVENT_CHANNEL } from "./bedrock/index.
 import type { BedrockIpc } from "./bedrock/index.js";
 import { registerRepairHandlers } from "./repair/index.js";
 import type { RepairIpc } from "./repair/index.js";
-import { ensureJava, resolveCliJar } from "./java/index.js";
+import { discoverJava, ensureJava, resolveCliJar } from "./java/index.js";
 import { registerSysdepHandlers, SYSDEP_INSTALL_EVENT_CHANNEL } from "./sysdeps/ipc.js";
 import type { SysdepIpc } from "./sysdeps/ipc.js";
 import { spawnProcessRunner } from "./sysdeps/process.js";
@@ -1713,6 +1715,43 @@ function startDockerWorld(): DockerWorldIpc {
 }
 
 /**
+ * The world downloader's IPC, wired the same shape as {@link startDockerWorld} beside it.
+ *
+ * `ensureJava` here deliberately never provisions: `discoverJava` is asked with the packaged
+ * `resourcesPath` so a bundled runtime is offered exactly as it is to every other resolver (see
+ * `bundledRuntimeWiring.test.ts`), but nothing here downloads a JVM. `worlddownloader:status` is
+ * a call the settings screen makes on every open and on a poll; turning that into a 200 MB
+ * download the first time nobody has Java would be a status check that silently starts a job
+ * nobody asked for.
+ */
+let worldDownloaderIpc: DownloaderIpc | null = null;
+
+function startWorldDownloader(): DownloaderIpc {
+    if (worldDownloaderIpc !== null) return worldDownloaderIpc;
+    worldDownloaderIpc = registerDownloaderHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+        safeStorage,
+        ensureJava: async () => {
+            const discovery = await discoverJava({
+                dataDir: app.getPath("userData"),
+                resourcesPath: app.isPackaged ? process.resourcesPath : null,
+            });
+            return discovery.installation === null
+                ? null
+                : { executable: discovery.installation.executable };
+        },
+        onEvent: (event) => {
+            for (const window of BrowserWindow.getAllWindows()) {
+                if (!window.isDestroyed())
+                    window.webContents.send(DOWNLOADER_EVENT_CHANNEL, event);
+            }
+        },
+    });
+    app.on("will-quit", () => worldDownloaderIpc?.dispose());
+    return worldDownloaderIpc;
+}
+
+/**
  * Handing a render to a Linux machine over SSH.
  *
  * Reports on the RENDER channel for the same reason: a remote render appears in the same
@@ -2221,6 +2260,12 @@ async function createWindow(): Promise<void> {
         ],
         ["network", "ssh-world-source", "SSH world sources are unavailable", startSshWorldSources],
         ["dependency", "docker-world", "Docker world import is unavailable", startDockerWorld],
+        [
+            "dependency",
+            "world-downloader",
+            "The Fabric Carpet world downloader is unavailable",
+            startWorldDownloader,
+        ],
         [
             "dependency",
             "docker-hosting",
