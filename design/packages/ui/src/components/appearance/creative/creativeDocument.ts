@@ -1,3 +1,6 @@
+/**
+ * lang-gui-exempt: canvas defaults for artwork somebody is drawing. Their document is content, not product chrome, and must not shift when the theme does.
+ */
 import {
     CREATIVE_DOCUMENT_FORMAT,
     CREATIVE_DOCUMENT_VERSION,

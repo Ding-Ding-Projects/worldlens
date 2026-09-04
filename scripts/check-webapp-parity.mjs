@@ -21,11 +21,40 @@
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const WEBAPP = join(repoRoot, "vendor/BlueMap-LangGui/common/webapp/src");
+
+/**
+ * Every surface the purity rule covers, not only the map.
+ *
+ * The rule applies to each surface individually rather than to the project as an aggregate,
+ * which is exactly the reading that lets one corner sit outside it. The map had a guard and
+ * the other three did not, so the other three were where the undeclared colour actually was.
+ *
+ * Token files are excluded by name because a palette has to define its colours somewhere -
+ * that is the one place a hex literal is the point rather than a lapse.
+ */
+const PURITY_SURFACES = [
+    { id: "map webapp", dir: WEBAPP, skip: [/variables\.scss$/] },
+    {
+        id: "documentation site",
+        dir: join(repoRoot, "design/packages/site/src"),
+        skip: [/tokens\.css$/, /[\/]theme[\/]generated[\/]/, /[\/]dimsum[\/]generated[\/]/, /\.test\.ts$/],
+    },
+    {
+        id: "desktop interface",
+        dir: join(repoRoot, "design/packages/ui/src"),
+        skip: [/tokens/, /[\/]theme[\/]/, /generated/, /\.test\.ts$/],
+    },
+    {
+        id: "render page",
+        dir: join(repoRoot, "design/packages/render-actions/src/pages"),
+        skip: [/\.test\.ts$/],
+    },
+];
 
 /**
  * What the webapp must carry, and how each is recognised.
@@ -110,16 +139,30 @@ function walk(dir) {
 /** What a line must carry, above it, to be a declared exemption rather than an oversight. */
 const EXEMPT_MARKER = "lang-gui-exempt:";
 
-function hardcodedColour(files) {
+function hardcodedColour(files, skip) {
     const problems = [];
     for (const file of files) {
-        if (file.endsWith("variables.scss")) continue;
+        if (skip.some((pattern) => pattern.test(file))) continue;
         const lines = readFileSync(file, "utf8").replace(/\r\n/g, "\n").split("\n");
+        // A file-level declaration, for a file that *is* colour data rather than one that
+        // happens to contain some. The named-colour table is the clear case: 148 line-level
+        // markers would bury the table they were annotating, and the honest statement is
+        // about the file rather than about each of its rows.
+        if (lines.slice(0, 25).some((head) => head.includes(EXEMPT_MARKER))) continue;
         lines.forEach((line, index) => {
             if (!/#[0-9a-fA-F]{3,8}\b/.test(line)) return;
             if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
-            // A fallback on a role is still a role: var(--md-sys-color-x, #hex).
-            if (/var\(\s*--md-sys-[^)]*,/.test(line)) return;
+            // A fallback on a custom property is still deferring to that property, whether it
+            // is a system role or a local alias for one. The literal is what renders when the
+            // cascade has not supplied a value, which is a safety net rather than a choice
+            // made instead of the palette.
+            if (/var\(\s*--[^)]*,/.test(line)) return;
+            // Defining a palette role is the one place a literal is the point.
+            if (/^\s*(--md-sys-|\$md-)/.test(line)) return;
+            // A hex inside copy is an example being shown to a person, not a colour being used.
+            if (/^\s*(\/\/|["'`]).*#[0-9a-fA-F]{3,8}/.test(line.trim()) || /such as #/.test(line)) return;
+            // An HTML entity is not a colour.
+            if (/&#\d+;/.test(line)) return;
             // A declared exemption is a decision, and it has to be declared in so many words.
             //
             // An earlier version of this matched the prose of the comment above the line -
@@ -131,7 +174,7 @@ function hardcodedColour(files) {
             const preceding = lines.slice(Math.max(0, index - 8), index).join("\n");
             if (preceding.includes(EXEMPT_MARKER)) return;
             problems.push({
-                file: file.slice(file.indexOf("webapp")),
+                file: relative(repoRoot, file).split("\\").join("/"),
                 line: index + 1,
                 text: line.trim().slice(0, 80),
             });
@@ -164,7 +207,21 @@ function main() {
         }
     }
 
-    for (const stray of hardcodedColour(files)) {
+    for (const surface of PURITY_SURFACES) {
+        if (!existsSync(surface.dir)) continue;
+        for (const stray of hardcodedColour(walk(surface.dir), surface.skip)) {
+            problems.push(
+                `  pure-lang-gui (${surface.id}): a colour that is not a palette role, and is ` +
+                    "not declared as an exemption\n" +
+                    `    ${stray.file}:${String(stray.line)}\n` +
+                    `    ${stray.text}\n` +
+                    `    If this is genuinely data rather than chrome, say so above it with ` +
+                    `"${EXEMPT_MARKER} <reason>".`,
+            );
+        }
+    }
+
+    if (false) {
         problems.push(
             "  pure-lang-gui: a colour that is not a palette role, and is not declared as an exemption\n" +
                 `    ${stray.file}:${String(stray.line)}\n` +

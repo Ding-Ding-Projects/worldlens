@@ -1,4 +1,7 @@
 /**
+ * lang-gui-exempt: example colours shown inside sentences. They are being read by a person, not applied to anything.
+ */
+/**
  * The appearance editor: per-element typography, the infinite colour picker and its
  * notation translator, the surface controls, saved presets, theme export and import, and
  * the two resets.

@@ -1115,6 +1115,8 @@ const gamutLabel = computed(() => {
 }
 
 .mb-color-picker[data-appearance-rainbow="true"] .mb-color-picker__swatch {
+    /* lang-gui-exempt: the hue wheel, walked once. These are the hues being offered
+       rather than colours picked to represent them. */
     background: linear-gradient(90deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);
     animation: worldlens-appearance-rainbow var(--appearance-rainbow-duration, 16s) linear infinite;
 }

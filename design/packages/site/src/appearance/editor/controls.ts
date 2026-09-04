@@ -1,4 +1,7 @@
 /**
+ * lang-gui-exempt: default values for colour controls. What a control starts at is a colour, not a reference to one.
+ */
+/**
  * The controls every appearance editor is built from.
  *
  * Each returns a row with a label, the control, a per-property reset, and a place

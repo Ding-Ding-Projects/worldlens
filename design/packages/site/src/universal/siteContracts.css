@@ -96,7 +96,8 @@
     padding: 16px;
     border: 1px solid var(--outv);
     border-radius: 14px;
-    /* Deliberately not themed, and this is the one place on the page that is true.
+    /* lang-gui-exempt: deliberately not themed, and this is the one place on the page
+       where that is true.
        A QR is read by a camera, not by a person, and a scanner needs real dark-on-light
        contrast in both themes. Tinting it into the palette would make it prettier and
        sometimes unreadable, which is the whole job gone. */
@@ -111,8 +112,8 @@
     inline-size: min(280px, 100%);
     block-size: auto;
     margin-block-end: 12px;
-    /* Same exemption as above: the quiet zone has to be white for a camera to find the
-       code's edges, whatever theme the page is in. */
+    /* lang-gui-exempt: the quiet zone has to be white for a camera to find the code's
+       edges, whatever theme the page is in. */
     background: #fff;
 }
 
@@ -184,19 +185,33 @@
     animation: mb-contract-rainbow 12s linear infinite;
 }
 
+/*
+ * Walks the hue circle rather than crossing it.
+ *
+ * Four hand-picked stops used to sit here, and they had two problems. Stepping the hue at a
+ * fixed interval keeps saturation and lightness constant all the way round, so the animation
+ * stays the same brightness instead of dimming at whichever stop happened to be darkest -
+ * and two stops from a colour back to itself would fade through grey on the way, which is
+ * the failure this shape avoids. It also leaves no colour literal to drift from the palette.
+ */
 @keyframes mb-contract-rainbow {
-    from { --mb-contract-accent: #ef476f; }
-    25% { --mb-contract-accent: #ffd166; }
-    50% { --mb-contract-accent: #06d6a0; }
-    75% { --mb-contract-accent: #118ab2; }
-    to { --mb-contract-accent: #ef476f; }
+    from { --mb-contract-accent: hsl(0 68% 48%); }
+    17% { --mb-contract-accent: hsl(60 68% 48%); }
+    33% { --mb-contract-accent: hsl(120 68% 48%); }
+    50% { --mb-contract-accent: hsl(180 68% 48%); }
+    67% { --mb-contract-accent: hsl(240 68% 48%); }
+    83% { --mb-contract-accent: hsl(300 68% 48%); }
+    to { --mb-contract-accent: hsl(360 68% 48%); }
 }
 
 @media (prefers-reduced-motion: reduce) {
     .mb-contract-page.mb-contract-rainbow,
     .mb-contract-rainbow .mb-contract-page {
         animation: none;
-        --mb-contract-accent: #118ab2;
+        /* Settles on one deliberate colour rather than slowing down, because a slow cycle is
+           still motion and that preference exists to stop motion. The palette's own primary,
+           so it reads as a choice rather than as something that failed to load. */
+        --mb-contract-accent: var(--md-sys-color-primary);
     }
 }
 

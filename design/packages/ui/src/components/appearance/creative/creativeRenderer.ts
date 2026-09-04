@@ -1,3 +1,6 @@
+/**
+ * lang-gui-exempt: colours rendered into a user's own artwork. Same reason as the document beside it.
+ */
 import { DEFAULT_TYPOGRAPHY, detectTypographyCapabilities, typographyCss, type TypographySpec } from "../typographySpec.js";
 import type { CreativeAppearanceDocument, CreativeLayer, CreativeTextLayer } from "./creativeTypes.js";
 

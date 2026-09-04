@@ -1,4 +1,7 @@
 /**
+ * lang-gui-exempt: declared defaults for colour-valued settings. A default is the value itself; a role here would resolve differently per theme and stop being a default.
+ */
+/**
  * Every setting the site has, declared once.
  *
  * The declaration is what the page renders from, what the search indexes, what the

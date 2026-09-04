@@ -1,4 +1,9 @@
 /**
+ * lang-gui-exempt: this file is colour data, not chrome. It is the CSS named-colour table
+ * itself - every literal in it is a value the specification defines, and replacing one with
+ * a palette role would make the translator report a different colour than the one it was
+ * asked about, which is the one thing it exists not to do.
+ *
  * The CSS named colours, and the reverse lookup the translator needs.
  *
  * The contract asks the translator to convert "named colours where defined", which is a

@@ -1232,7 +1232,7 @@ function openSetting(target: SettingsTarget): void {
 }
 
 /*
- * A status palette, which is data rather than chrome and is exempt on that basis - stated
+ * lang-gui-exempt: a status palette, which is data rather than chrome. Stated
  * here so it does not read as a colour somebody forgot to tokenise. Material Design 3 has an
  * error role and no warning role, so a warning colour has to be chosen; these are chosen per
  * theme to hold contrast against each surface, and the contrast theme takes pure yellow
@@ -1242,10 +1242,12 @@ function openSetting(target: SettingsTarget): void {
     color: #7a4a00;
 }
 
+/* lang-gui-exempt: the same status palette, at this theme's contrast. */
 .v-theme--dark .mb-console__line--warning {
     color: #ffb861;
 }
 
+/* lang-gui-exempt: the same status palette, at this theme's contrast. */
 .v-theme--contrast .mb-console__line--warning {
     color: #ffff00;
 }
