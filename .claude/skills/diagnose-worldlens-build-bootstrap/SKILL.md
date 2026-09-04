@@ -11,6 +11,7 @@ description: Diagnose Worldlens build.bat acquisition, archive verification, and
 4. For repeated Java downloads, compare the quoted release version and the runtime build independently. Temurin reports `25.0.4` first and `25.0.4+7-LTS` on its runtime line. Comparing only the first line with `25.0.4+7` rejects the correct runtime forever. `scripts/java-version.ps1` validates both and accepts only the optional LTS suffix.
 5. Keep acquisition deadlines explicit and suppress unattended PowerShell progress rendering. Preserve a previous valid installation until its replacement is verified.
 6. Commit reviewed repairs before starting a new source-bound build. Build receipts refuse modified source and stale output; do not remove that check to accommodate an in-flight edit.
+7. If a TypeScript package reports success but its consumer cannot find `dist/index.js`, inspect the package's `.tsbuildinfo`. Composite TypeScript can emit nothing after `dist` was deleted while incremental state remained. Output preparation must remove the corresponding package build-info files too. `scripts/build-receipt.test.mjs` compiles a real small package, prepares fresh output, and compiles again to prove JavaScript was regenerated.
 
 Focused checks:
 

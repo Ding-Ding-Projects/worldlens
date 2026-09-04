@@ -1,5 +1,16 @@
 # Handoff
 
+## 2026-09-04: measured generator integrated; cold compilation repaired
+
+`4b342447` integrates measured generation, preserved cancellation/resume, and renderer
+lifecycle cancellation. The integrated writer, dialog, IPC and bridge checks passed 62 tests.
+The requested full-size packaged UI runs have not started yet.
+
+The subsequent local build exposed stale composite TypeScript state: preparation removed
+`dist` but retained `.tsbuildinfo`, so dockhand reported success without emitting its entry
+point and wharf could not resolve it. A real-compiler regression first failed on retained
+incremental state; preparation now removes package build-info files along with their outputs.
+
 ## 2026-09-04: exact Java bootstrap verification repaired
 
 The build's Java probe compared `25.0.4` from the quoted version line with the manifest's
