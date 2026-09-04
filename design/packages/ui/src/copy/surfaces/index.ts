@@ -97,6 +97,11 @@ import { TUTORIAL_FACTS, TUTORIAL_FIXED, TUTORIAL_VOICED } from "./tutorial.js";
 import { WORLD_FACTS, WORLD_FIXED, WORLD_VOICED } from "./world.js";
 import { WORLDREPO_FACTS, WORLDREPO_FIXED, WORLDREPO_VOICED } from "./worldrepo.js";
 import { VOCABULARY_FACTS, VOCABULARY_FIXED, VOCABULARY_VOICED } from "./vocabulary.js";
+import {
+    WORLDDOWNLOADER_FACTS,
+    WORLDDOWNLOADER_FIXED,
+    WORLDDOWNLOADER_VOICED,
+} from "./worldDownloader.js";
 
 export const SURFACE_VOICED = {
     ...MEASUREDWORLDGEN_VOICED,
@@ -159,6 +164,7 @@ export const SURFACE_VOICED = {
     ...WORLD_VOICED,
     ...WORLDREPO_VOICED,
     ...VOCABULARY_VOICED,
+    ...WORLDDOWNLOADER_VOICED,
 } as const;
 
 export const SURFACE_FIXED = {
@@ -222,6 +228,7 @@ export const SURFACE_FIXED = {
     ...WORLD_FIXED,
     ...WORLDREPO_FIXED,
     ...VOCABULARY_FIXED,
+    ...WORLDDOWNLOADER_FIXED,
 } as const;
 
 export const SURFACE_FACTS = {
@@ -285,4 +292,5 @@ export const SURFACE_FACTS = {
     ...WORLD_FACTS,
     ...WORLDREPO_FACTS,
     ...VOCABULARY_FACTS,
+    ...WORLDDOWNLOADER_FACTS,
 } as const;

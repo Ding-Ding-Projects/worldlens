@@ -114,6 +114,7 @@ const COVERED_SURFACES = [
     "components/settings",
     "components/tabs",
     "components/world",
+    "components/worlddownloader",
     "components/worldrepo",
     "components/notifications",
     "components/progress",
