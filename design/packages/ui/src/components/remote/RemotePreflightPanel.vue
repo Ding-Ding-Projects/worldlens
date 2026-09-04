@@ -299,6 +299,15 @@ function toggleDetail(stage: string): void {
 .mb-remote-preflight__title {
     font-size: 0.9375rem;
     padding: 8px 12px 0;
+    /*
+     * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
+     * text-overflow: ellipsis`. `overflow-wrap: anywhere` alone does nothing
+     * against an inherited `white-space: nowrap` — the line still never
+     * wraps — so a translated title long enough for bilingual mode or
+     * Cantonese was silently cut off with no ellipsis painted (same Cheap
+     * Jor already fixed in DependencyInstallerPanel.vue).
+     */
+    white-space: normal;
     overflow-wrap: anywhere;
 }
 

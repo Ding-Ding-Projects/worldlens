@@ -255,5 +255,12 @@ function exportSelection(): void {
 </template>
 
 <style scoped>
+/* `.v-card-title` defaults to overflow:hidden/nowrap/ellipsis; these two titles are
+   translated strings that grow past a single line in bilingual mode and Cantonese,
+   so left unset they were silently cut off with no ellipsis painted (same Cheap Jor
+   already fixed in DependencyInstallerPanel.vue). Both cards are inline, not
+   `v-dialog`, so the scoped descendant selector reaches them without a teleport
+   boundary. */
+.mb-docker-hosting .v-card-title{white-space:normal;overflow-wrap:anywhere}
 .mb-docker-hosting__daemon,.mb-docker-hosting__operation{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-block-end:12px}.mb-docker-hosting__create{margin-block:16px}.mb-docker-hosting__create-help{margin-block:0 16px;color:rgba(var(--v-theme-on-surface),.72)}.mb-docker-hosting__create-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.mb-docker-hosting__create-note{margin-block-start:12px}.mb-docker-hosting__disabled{margin-block:12px 0;color:rgb(var(--v-theme-error));font-size:.9rem}.mb-docker-hosting__create-action{margin-block-start:12px}.mb-docker-hosting__create-progress{margin-block-start:12px}.mb-docker-hosting__create-result{margin-block-start:12px}.mb-docker-hosting__list{display:grid;gap:10px;list-style:none;padding:0}.mb-docker-hosting__row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:12px;border:1px solid rgba(var(--v-theme-on-surface),.12);border-radius:16px}.mb-docker-hosting__identity{display:grid;gap:2px;min-width:0}.mb-docker-hosting__identity span{overflow-wrap:anywhere;color:rgba(var(--v-theme-on-surface),.72);font-size:.8rem}.mb-docker-hosting__actions{grid-column:1/-1;display:flex;gap:4px;flex-wrap:wrap}.mb-docker-hosting__row .v-progress-linear{grid-column:1/-1}.mb-docker-hosting__logs{margin-block-start:12px}.mb-docker-hosting__logs pre{max-height:180px;overflow:auto;white-space:pre-wrap}@media (max-width:640px){.mb-docker-hosting__create-grid{grid-template-columns:1fr}}
 </style>

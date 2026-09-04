@@ -334,6 +334,18 @@ watch(
 </template>
 
 <style scoped>
+/*
+ * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
+ * text-overflow: ellipsis`. `mb-mount-browser__title` was applied to opt the
+ * title into its own scoped selector but never actually overrode those three,
+ * so a long path or translated title was silently cut off with no ellipsis
+ * painted (same Cheap Jor already fixed in DependencyInstallerPanel.vue).
+ */
+.mb-mount-browser__title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .mb-mount-browser__where {
     display: flex;
     align-items: center;

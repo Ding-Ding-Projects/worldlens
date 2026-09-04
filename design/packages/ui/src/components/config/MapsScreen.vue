@@ -433,7 +433,7 @@ const storageOptions = computed(() => storageIds(props.workspace));
         <!-- Creating asks for values, so it is a decision dialog rather than a notification. -->
         <v-dialog v-model="createOpen" max-width="560" scrollable>
             <v-card>
-                <v-card-title>{{ t("config.maps.newTitle", "New map") }}</v-card-title>
+                <v-card-title class="mb-config-maps__dialogTitle">{{ t("config.maps.newTitle", "New map") }}</v-card-title>
                 <v-card-text class="mb-config-maps__form">
                     <v-text-field
                         v-model="createName"
@@ -511,7 +511,7 @@ const storageOptions = computed(() => storageIds(props.workspace));
 
         <v-dialog v-model="cloneOpen" max-width="480">
             <v-card>
-                <v-card-title>{{ t("config.maps.duplicateTitle", "Duplicate this map") }}</v-card-title>
+                <v-card-title class="mb-config-maps__dialogTitle">{{ t("config.maps.duplicateTitle", "Duplicate this map") }}</v-card-title>
                 <v-card-text class="mb-config-maps__form">
                     <v-text-field
                         v-model="cloneName"
@@ -552,6 +552,22 @@ const storageOptions = computed(() => storageIds(props.workspace));
 </template>
 
 <style>
+/*
+ * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
+ * text-overflow: ellipsis` for its single-line block title. The two dialog titles
+ * this class is on are translated strings that grow past a single line in
+ * bilingual mode and in playful Cantonese, so left unset they were silently cut
+ * off with no ellipsis painted and no indication anything was missing (same
+ * Cheap Jor already fixed in DependencyInstallerPanel.vue and
+ * ConfigApplyDialog.vue). Applied directly to the title rather than through a
+ * `.mb-config-maps` descendant selector because `v-dialog` teleports its content
+ * to `<body>`, outside that ancestor.
+ */
+.mb-config-maps__dialogTitle {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .mb-config-maps {
     display: grid;
     grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);

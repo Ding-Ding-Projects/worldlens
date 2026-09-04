@@ -214,6 +214,13 @@ onMounted(() => void loadRenders());
 </template>
 
 <style scoped>
+/* `.v-card-title` defaults to overflow:hidden/nowrap/ellipsis; this title is a
+   translated string that grows past a single line in bilingual mode and
+   Cantonese, so left unset it was silently cut off with no ellipsis painted
+   (same Cheap Jor already fixed in DependencyInstallerPanel.vue). Inline card,
+   not `v-dialog`, so the scoped descendant selector reaches it without a
+   teleport boundary. */
+.mb-remote-hosting-screen .v-card-title { white-space: normal; overflow-wrap: anywhere; }
 .mb-remote-hosting-screen__renders { display: grid; gap: 4px; margin: 8px 0 0; padding: 0; list-style: none; }
 .mb-remote-hosting-screen__renders li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 </style>

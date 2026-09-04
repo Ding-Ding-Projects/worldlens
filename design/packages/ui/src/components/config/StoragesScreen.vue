@@ -400,7 +400,7 @@ function confirmDelete(): void {
 
         <v-dialog v-model="createOpen" max-width="520">
             <v-card>
-                <v-card-title>{{ t("config.storages.newTitle", "New storage") }}</v-card-title>
+                <v-card-title class="mb-config-storages__dialogTitle">{{ t("config.storages.newTitle", "New storage") }}</v-card-title>
                 <v-card-text class="mb-config-storages__form">
                     <v-text-field
                         v-model="createName"
@@ -442,6 +442,20 @@ function confirmDelete(): void {
 </template>
 
 <style>
+/*
+ * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
+ * text-overflow: ellipsis`. This dialog's title is a translated string that grows
+ * past a single line in bilingual mode and in playful Cantonese, so left unset it
+ * was silently cut off with no ellipsis painted (same Cheap Jor already fixed in
+ * DependencyInstallerPanel.vue and MapsScreen.vue). Applied directly to the title
+ * rather than through a `.mb-config-storages` descendant selector because
+ * `v-dialog` teleports its content to `<body>`, outside that ancestor.
+ */
+.mb-config-storages__dialogTitle {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .mb-config-storages {
     display: grid;
     grid-template-columns: minmax(200px, 260px) minmax(0, 1fr);
