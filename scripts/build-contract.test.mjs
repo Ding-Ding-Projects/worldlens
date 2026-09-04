@@ -49,7 +49,8 @@ export function assertBuildContract({ build, fetcher, installer, portableScript,
     assert.match(fetcher, /winget install --id Git\.Git --version 2\.55\.0\.3/);
     assert.match(fetcher, /winget install --id GitHub\.cli --version 2\.98\.0/);
     assert.match(fetcher, /acquire-portable-tool\.ps1/);
-    assert.match(portableScript, /Get-FileHash/);
+    assert.match(portableScript, /Get-PortableArchiveSha256 \$archive/);
+    assert.match(portableScript, /Expand-VerifiedPortableArchive \$archive \$staging \$expected/);
     assert.match(portableScript, /finally/);
     assert.match(portableScript, /\$rollback/);
     assert.match(portableScript, /Move-Item -LiteralPath \$destination -Destination \$rollback/);

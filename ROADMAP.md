@@ -1,5 +1,16 @@
 # Roadmap
 
+## Large-world UI verification (2026-09-04)
+
+- [x] Redact temporary renderer access URLs from smoke diagnostics and receipts; verify focused tests.
+- [x] Repair portable archive verification without optional PowerShell cmdlets; verify real archive extraction and digest rejection.
+- [ ] Complete measured 1 GB and 10 GB world generation through the built UI, including resume receipts.
+- [ ] Complete all guided Chunker CLI/config controls and real non-AWS destination dispatch.
+- [ ] Verify Java to Bedrock to Java conversion at both sizes and report supported-content parity and losses.
+- [ ] Verify GitHub Actions rendering first, with task-owned builders-home targets, Pages previews and complete downloads.
+- [ ] Verify the remaining local and SSH rendering and server-creation matrix through the built UI.
+- [ ] Preserve, integrate and publish verified increments; archive and clean only eligible task-owned resources.
+
 ## World backups, legacy worlds, and a render dashboard (2026-09-04)
 
 Three requests, and the first thing worth recording is what already exists, because

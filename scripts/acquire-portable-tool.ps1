@@ -9,6 +9,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot 'portable-archive.ps1')
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $manifest = Get-Content -Raw -LiteralPath (Join-Path $repoRoot "scripts\toolchain-manifest.json") | ConvertFrom-Json
 $architecture = if ([Environment]::GetEnvironmentVariable("PROCESSOR_ARCHITECTURE") -eq "ARM64") { "arm64" } else { "x64" }
@@ -47,10 +48,11 @@ try {
         else { New-Item -ItemType Directory -Force -Path (Join-Path $root.FullName "bin") | Out-Null; New-Item -ItemType File -Force -Path (Join-Path $root.FullName "bin\gh.exe") | Out-Null }
     } else {
         Write-Output "Downloading pinned $Tool $version from $url"
-        Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing
-        $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+        $ProgressPreference = 'SilentlyContinue'
+        Invoke-WebRequest -Uri $url -OutFile $archive -UseBasicParsing -TimeoutSec 120
+        $actual = Get-PortableArchiveSha256 $archive
         if ($actual -ne $expected) { throw "$Tool SHA-256 mismatch: expected $expected, received $actual." }
-        Expand-Archive -LiteralPath $archive -DestinationPath $staging -Force
+        Expand-VerifiedPortableArchive $archive $staging $expected
         if ($Tool -eq "node") {
             $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "node.exe") } | Select-Object -First 1
         } elseif ($Tool -eq "git") {

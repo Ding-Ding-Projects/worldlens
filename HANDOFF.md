@@ -1,5 +1,85 @@
 # Handoff
 
+## 2026-09-04: preservation handoff, runtime matrix incomplete
+
+The measured generator and lifecycle repair are integrated in `main` at `4b342447`.
+Its integrated checks passed 62 tests. Build-path repairs through `8fbee4ad` are also
+published. The direct cheap headless driver now converts CSS coordinates to native
+client pixels, preserves field text, verifies delivered values, and uses explicit HWNDs
+without a visible-screen fallback. Seven driver/privacy checks passed. At 150% scale,
+the corrected native click selected Map in the real packaged UI.
+
+Release `v1.0.1974` targets `4b342447`. Its 426,460,042-byte full package was verified
+against published SHA-256 `e26ef63bbfe0f3e3f0128fcb39e9f7fc67632ae3fb046179ececc720a7f0f140`.
+The extracted executable is unsigned. The real UI reached the generator dialog through
+Map, Make a map, and Generate test world. No 1 GB or 10 GB generation was started in
+this pass, and no large-world rendering, conversion, server boot or lifecycle result is
+claimed. The older successful cloud smoke used 64 MB and skipped Pages.
+
+Preserved implementation branches:
+
+- `task/large-world-proof-20260904`: `b713cda934ef8510c40625a95f3135bdca5eafe8`
+  adds shared localization and current documentation after the integrated generator.
+  68 focused copy/content tests and UI typecheck passed; this follow-up is not integrated.
+- `task/server-creation-proof-20260904`: `0ef6a5696ce445085e033bbfed3008ad528ebac3`
+  contains local/SSH container creation, verified image profiles and rollback, Fabric
+  launchers, Forge/NeoForge installers, and official Spigot BuildTools. Final focused
+  checks passed 130 tests, with application and UI typechecks passing. Actual JVM,
+  BuildTools and container execution through the packaged UI remain unverified.
+- `task/chunker-complete-20260904`: preserve the latest branch tip and review its handoff
+  before integration. The first dispatch/adapter increments were followed by fixes for
+  schema composition, source-format proof, sender ownership, image provenance and
+  edition-aware output checks. These must not be inferred complete from older tests.
+
+Resume with the verified package in a fresh profile, the documented screenshot-home
+override, a new hidden desktop and a newly discovered HWND. Generate the two measured
+worlds through the UI, then prioritize GitHub Actions rendering into task-owned
+`builders-home` repositories, including Pages previews and complete downloads. Continue
+Java-to-Bedrock-to-Java and every supported non-AWS destination and server type afterward.
+AWS remains excluded. EULA consent is limited to disposable tests. Preserve production
+workloads. Retain all unfinished branches and worktrees; cleanup is not complete.
+
+## 2026-09-04: measured generator integrated; cold compilation repaired
+
+`4b342447` integrates measured generation, preserved cancellation/resume, and renderer
+lifecycle cancellation. The integrated writer, dialog, IPC and bridge checks passed 62 tests.
+The requested full-size packaged UI runs have not started yet.
+
+The subsequent local build exposed stale composite TypeScript state: preparation removed
+`dist` but retained `.tsbuildinfo`, so dockhand reported success without emitting its entry
+point and wharf could not resolve it. A real-compiler regression first failed on retained
+incremental state; preparation now removes package build-info files along with their outputs.
+
+## 2026-09-04: exact Java bootstrap verification repaired
+
+The build's Java probe compared `25.0.4` from the quoted version line with the manifest's
+`25.0.4+7`, rejecting the correctly installed runtime. It now checks the release and runtime
+build independently, allowing only the optional `-LTS` suffix. Two focused tests passed,
+and `ensure-build-java.ps1` verified the real installed runtime without downloading again.
+Acquisition has a 180-second deadline and uses the verified framework archive helper.
+The project-local `diagnose-worldlens-build-bootstrap` skill records the method. Current
+application packaging and the requested large-world UI matrix remain unverified.
+
+## 2026-09-04: large-world UI verification in progress
+
+The new pass starts from `79e27c48` and prioritizes GitHub Actions rendering through the real
+desktop UI into task-owned `builders-home` repositories and GitHub Pages. AWS is excluded.
+The prior successful Actions run used a 64 MB world and skipped Pages, so it does not prove
+the requested 1 GB or 10 GB rows. The recorded large local fixtures have not yet been located.
+
+The headless driver now omits renderer authentication queries from diagnostics and capture
+receipts and checks the complete DevTools target inventory before attachment. Its three
+focused privacy tests pass. A new project-local diagnosis skill records the working launch,
+window selection and URL-redaction method. This is tooling proof, not large-world acceptance.
+Generator UI wiring, full Chunker configuration and destination dispatch, server creation,
+current packaging, and the full runtime matrix remain in progress.
+
+The supported `build.bat /s` route exposed a portable-tool bootstrap failure: the shell could
+download Node but could not resolve `Get-FileHash`. Acquisition now hashes and extracts with
+framework APIs and has a 120-second download deadline. Eleven focused build/bootstrap tests
+pass, including real ZIP extraction, refusal before extraction on a wrong digest, and a
+fixture where the two archive cmdlets are unavailable. The complete build is not yet verified.
+
 ## 2026-09-04: destination smoke test at 1 GB and 10 GB, and a double-install that hung a button
 
 **Two synthetic worlds, generated by the committed `worldgen` and measured rather than estimated.**
