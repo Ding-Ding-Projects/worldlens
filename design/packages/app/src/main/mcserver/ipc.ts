@@ -15,7 +15,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
-import { generateWorld, zipWorld } from "@worldlens/worldgen";
+import { generateWorld, generateMeasuredWorld, zipWorld, type MeasuredWorldProgress } from "@worldlens/worldgen";
 import { runLocalSyntheticGeneration } from "./worldgen/localGeneration.js";
 
 import type { IpcMain } from "electron";
@@ -180,6 +180,8 @@ export const MCSERVER_CHANNELS = {
     awsAccountAlias: "mcserver:aws:accountAlias",
     awsCredits: "mcserver:aws:credits",
     syntheticWorldGenerate: "mcserver:worldgen:synthetic",
+    syntheticWorldStatus: "mcserver:worldgen:status",
+    syntheticWorldCancel: "mcserver:worldgen:cancel",
     hostProfilesList: "mcserver:hostProfiles:list",
     hostProfileGet: "mcserver:hostProfiles:get",
     hostProfileSave: "mcserver:hostProfiles:save",
@@ -808,7 +810,15 @@ export function registerMcServerHandlers(
         };
     }
 
+    const syntheticJobs = new Map<number, { cancelled: boolean; progress: MeasuredWorldProgress }>();
+    const syntheticOwner = (event: unknown): number => (event as { sender: { id: number } }).sender.id;
     const handlers: Record<string, (...args: never[]) => Promise<unknown>> = {
+        [MCSERVER_CHANNELS.syntheticWorldStatus]: async (event: never) => ok(syntheticJobs.get(syntheticOwner(event))?.progress ?? null),
+        [MCSERVER_CHANNELS.syntheticWorldCancel]: async (event: never) => {
+            const job = syntheticJobs.get(syntheticOwner(event));
+            if (job) job.cancelled = true;
+            return ok({ cancelling: job !== undefined });
+        },
         [MCSERVER_CHANNELS.syntheticWorldGenerate]: async (_event: never, request: unknown) => {
             if (typeof request !== "object" || request === null) {
                 return fail("invalid-request", "The synthetic-world request could not be read.");
@@ -819,11 +829,27 @@ export function registerMcServerHandlers(
                 typeof body.size !== "number" || !Number.isSafeInteger(body.size) || body.size < 16 || body.size > 40_000 ||
                 typeof body.worldName !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(body.worldName) ||
                 typeof body.destination !== "string" || body.destination.trim() === "" ||
-                body.outputMode !== "folder"
+                body.outputMode !== "folder" ||
+                (body.targetBytes !== undefined && (!Number.isSafeInteger(body.targetBytes) || typeof body.targetBytes !== "number" || body.targetBytes < 1 || body.targetBytes > 100_000_000_000)) ||
+                (body.resume !== undefined && typeof body.resume !== "boolean")
             ) {
                 return fail("invalid-request", "The synthetic-world inputs are invalid.");
             }
             const destination = body.destination.trim();
+            if (typeof body.targetBytes === "number") {
+                const owner = syntheticOwner(_event);
+                if (syntheticJobs.has(owner)) return fail("busy", "A world generation is already running in this window.");
+                const job = { cancelled: false, progress: { bytes: 0, targetBytes: body.targetBytes, chunkCount: 0, regionCount: 0 } };
+                syntheticJobs.set(owner, job);
+                try {
+                    const result = await generateMeasuredWorld({ seed: body.seed, name: body.worldName, outDir: destination, targetBytes: body.targetBytes,
+                        resume: body.resume === true, isCancelled: () => job.cancelled,
+                        onProgress: (progress) => { job.progress = progress; } });
+                    return ok({ ...result, zipPath: null });
+                } catch (error) {
+                    return fail("generation-failed", error instanceof Error ? error.message : String(error));
+                } finally { syntheticJobs.delete(owner); }
+            }
             const plannedWorld = join(destination, body.worldName);
             if (existsSync(plannedWorld)) {
                 return fail("destination-exists", "The chosen world folder already exists. Choose a new empty destination or world name.");

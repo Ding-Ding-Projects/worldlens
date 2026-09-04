@@ -6,8 +6,8 @@
  * pure-function tests cannot: a typo'd component name, a missing prop, a template that
  * throws on render.
  */
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { mount } from "@vue/test-utils";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { mount, flushPromises } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 
@@ -64,6 +64,7 @@ function mountDialog(open = true) {
 // that has nothing to do with it. Clearing unconditionally keeps one real failure from
 // manufacturing a second fake one.
 afterEach(() => {
+    vi.unstubAllGlobals();
     document.body.innerHTML = "";
 });
 
@@ -88,9 +89,9 @@ describe("WorldGeneratorDialog", () => {
         wrapper.unmount();
     });
 
-    it("shows the honest not-wired boundary banner", () => {
+    it("does not label the working synthetic path as unwired", () => {
         const wrapper = mountDialog(true);
-        expect(dialogText()).toContain("not wired up yet");
+        expect(dialogText()).not.toContain("not wired up yet");
         wrapper.unmount();
     });
 
@@ -127,5 +128,34 @@ describe("WorldGeneratorDialog", () => {
         expect(previewButton).toBeDefined();
         expect(previewButton?.disabled).toBe(true);
         wrapper.unmount();
+    });
+
+    it("sends exact decimal target bytes through Generate without an ignored server version", async () => {
+        const synthetic = vi.fn(async () => ({ ok: true, value: { bytes: 1_000_003_000, chunkCount: 100, worldFolder: "generated/world", seed: 123, zipPath: null, targetBytes: 1_000_000_000, overshootBytes: 3000, cancelled: false } }));
+        vi.stubGlobal("worldlens", { mcserver: { worldgen: { synthetic } } });
+        const wrapper = mountDialog();
+        try {
+            const destination = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Destination");
+            expect(destination).toBeDefined();
+            destination!.vm.$emit("update:modelValue", "generated");
+            dialogButtons().find((button) => button.textContent?.includes("1 GB ("))!.click();
+            await wrapper.vm.$nextTick();
+            const generate = dialogButtons().find((button) => button.textContent?.trim() === "Generate")!;
+            expect(generate.disabled).toBe(false);
+            generate.click(); await flushPromises();
+            expect(synthetic).toHaveBeenCalledWith(expect.objectContaining({ targetBytes: 1_000_000_000, resume: false, outputMode: "folder", destination: "generated" }));
+            expect(dialogText()).toContain("overshoot 3000 bytes");
+        } finally { wrapper.unmount(); }
+    });
+
+    it("selects the exact ten-billion-byte target and exposes resume", async () => {
+        const wrapper = mountDialog();
+        try {
+            dialogButtons().find((button) => button.textContent?.includes("10 GB ("))!.click();
+            await wrapper.vm.$nextTick();
+            const target = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Minimum world bytes (decimal)");
+            expect(target!.props("modelValue")).toBe(10_000_000_000);
+            expect(dialogText()).toContain("Resume the existing generated world");
+        } finally { wrapper.unmount(); }
     });
 });

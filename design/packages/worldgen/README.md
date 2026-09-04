@@ -11,6 +11,47 @@ repository**, for use as a deterministic render fixture.
 > plausible-looking, not vanilla-accurate, and a seed here has nothing to do with the
 > same number typed into Minecraft.
 
+## Measured byte targets and safe resume
+
+`generateMeasuredWorld({ seed, name, outDir, targetBytes, resume })` writes real Java
+1.20.4 Anvil terrain until the sum of `level.dat` and region-file lengths reaches the
+requested decimal byte count. The desktop generator exposes exact 1,000,000,000-byte
+and 10,000,000,000-byte presets and a numeric target. Ordinary `generateWorld` callers
+retain the existing square-edge behavior.
+
+The result reports measured bytes, exact overshoot, chunk/region counts and a SHA-256
+of `worldgen-manifest.json`. The manifest records the generator version, seed, name,
+format, target, level-data hash and each region's size, chunk count and SHA-256.
+Manifest bytes do not count toward the terrain target. Chunk sectors use only normal
+Anvil alignment; no filler files or fabricated logical sizes are added.
+
+Regions follow deterministic square shells starting at `(0,0)`. One chunk is generated
+and compressed at a time, with an 8 KiB region header, a 64 KiB streaming hash buffer
+and a bounded ledger. Targets are capped at 100,000,000,000 bytes and the inventory at
+25,000 regions. Generation checks free space for the remaining target plus a 32 MiB
+reserve and rechecks space between regions. Another process can still consume space
+after a check, so disk-write errors remain visible errors.
+
+**Stop and preserve progress** finalizes the current partial region and its ledger.
+Resume validates the original options, level bytes, every recorded region hash and
+the exact file inventory before appending. A paused run resumed with identical inputs
+produces byte-identical terrain and a byte-identical manifest to uninterrupted work.
+An existing directory is never adopted by a new run, symbolic-link destinations are
+refused, and each active output has an exclusive lock. Status and cancellation are
+scoped to the renderer window that owns the operation.
+
+This is graceful cancellation and verified resume, not unconditional crash recovery.
+If the process or machine stops before a region and its manifest agree, unmatched
+bytes, an unfinished manifest or an active lock cause resume to refuse. Retain that
+directory for investigation and choose a new destination; the generator does not
+guess ownership or silently delete unverified content.
+
+Focused verification: `pnpm test packages/worldgen/test/measuredWorld.test.ts` from
+`design/` writes and independently reads real small worlds, verifies actual chunk NBT,
+compares resumed/uninterrupted manifests, and rejects corrupted, foreign and unrelated
+inputs. These tests do not claim a 1 GB or 10 GB UI run occurred. Large-fixture and
+rendering evidence must be recorded separately against the built application.
+
 ## Why it exists
 
 The screenshot job used to point at a third party's public BlueMap demo server, which

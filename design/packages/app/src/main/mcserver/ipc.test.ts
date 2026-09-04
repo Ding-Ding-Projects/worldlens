@@ -107,6 +107,27 @@ describe("registerMcServerHandlers", () => {
         }
     });
 
+    it("measures, pauses and resumes a real world through sender-owned IPC controls", async () => {
+        const owner = { sender: { id: 41 } };
+        const other = { sender: { id: 42 } };
+        const generate = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldGenerate)!;
+        const status = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldStatus)!;
+        const cancel = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldCancel)!;
+        const request = { seed: 123, size: 16, worldName: "measured-ipc", destination: dir, outputMode: "folder", targetBytes: 30_000 };
+        const pending = generate(owner, request);
+        expect(await status(owner)).toMatchObject({ ok: true, value: { targetBytes: 30_000 } });
+        expect(await status(other)).toMatchObject({ ok: true, value: null });
+        expect(await cancel(other)).toMatchObject({ ok: true, value: { cancelling: false } });
+        expect(await generate(owner, request)).toMatchObject({ ok: false, failure: { code: "busy" } });
+        expect(await cancel(owner)).toMatchObject({ ok: true, value: { cancelling: true } });
+        expect(await pending).toMatchObject({ ok: true, value: { cancelled: true, chunkCount: 0 } });
+        const resumed = await generate(owner, { ...request, resume: true }) as { ok: boolean; value: { bytes: number; cancelled: boolean } };
+        expect(resumed.ok).toBe(true);
+        expect(resumed.value.bytes).toBeGreaterThanOrEqual(30_000);
+        expect(resumed.value.cancelled).toBe(false);
+        expect(await status(owner)).toMatchObject({ ok: true, value: null });
+    });
+
     it("builds a local-process transport from the runtime stored on the record", async () => {
         // `createTransport` demands a `localRuntime` callback for every local-process ref
         // and nothing outside this module supplied one, so every local server ever created

@@ -177,6 +177,8 @@ interface RawBridge {
         };
         worldgen?: {
             synthetic?(request: unknown): Promise<unknown>;
+            status?(): Promise<unknown>;
+            cancel?(): Promise<unknown>;
         };
         backup?: {
             create?(id: string, request: unknown): Promise<unknown>;
@@ -229,6 +231,8 @@ export function rconTest(id: string, root: unknown = globalThis): Promise<Answer
 }
 
 export interface SyntheticWorldRequest {
+    readonly targetBytes?: number;
+    readonly resume?: boolean;
     readonly seed: number;
     readonly size: number;
     readonly worldName: string;
@@ -237,6 +241,10 @@ export interface SyntheticWorldRequest {
 }
 
 export interface SyntheticWorldResult {
+    readonly targetBytes?: number;
+    readonly overshootBytes?: number;
+    readonly cancelled?: boolean;
+    readonly manifestPath?: string;
     readonly worldFolder: string;
     readonly zipPath: null;
     readonly chunkCount: number;
@@ -250,6 +258,15 @@ export function generateSyntheticWorld(
 ): Promise<Answer<SyntheticWorldResult>> {
     const b = bridge(root);
     return call(b?.worldgen?.synthetic ? () => b.worldgen!.synthetic!(request) : undefined);
+}
+
+export function syntheticWorldStatus(root: unknown = globalThis): Promise<Answer<{ bytes: number; targetBytes: number; chunkCount: number; regionCount: number } | null>> {
+    const b = bridge(root);
+    return call(b?.worldgen?.status ? () => b.worldgen!.status!() : undefined);
+}
+export function cancelSyntheticWorld(root: unknown = globalThis): Promise<Answer<{ cancelling: boolean }>> {
+    const b = bridge(root);
+    return call(b?.worldgen?.cancel ? () => b.worldgen!.cancel!() : undefined);
 }
 
 export function consoleOpen(id: string, tail: number, root: unknown = globalThis): Promise<Answer<{ sessionId: string }>> {

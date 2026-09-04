@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     VAlert,
@@ -51,7 +51,7 @@ import {
     UNWIRED_STEP_KINDS,
     type WorldGenRunner,
 } from "./worldgen/worldGenPlan.js";
-import { generateSyntheticWorld } from "./mcserverBridge.js";
+import { generateSyntheticWorld, syntheticWorldStatus, cancelSyntheticWorld, type SyntheticWorldResult } from "./mcserverBridge.js";
 
 /**
  * The world-generator wizard: every setting a world can be generated with, chosen
@@ -80,6 +80,14 @@ const { t } = useI18n({
     useScope: "local",
     messages: {
         en: {
+            generationFailed: "The generator did not return a result. Check the operation and retry.",
+            measuredTarget: "Minimum world bytes (decimal)",
+            resume: "Resume the existing generated world",
+            measuredNotice: "Generates valid Java 1.20.4 Anvil chunks until level.dat and region files meet the byte target. No padding. Resume requires the same seed, name and target and verifies every region hash.",
+            paused: "Paused. Valid generated content is retained. Enable Resume with the same inputs to continue.",
+            stopGeneration: "Stop and preserve progress",
+            measuredProgress: "Measured {bytes} / {target} bytes, {chunks} chunks",
+            measuredResult: "Measured {bytes} bytes, {chunks} chunks, overshoot {overshoot} bytes. Folder: {folder}",
             title: "Generate a world",
             boundary:
                 "This build can build the exact plan below and can create the server jar the normal way. Running the plan end to end - launching, watching for readiness, stopping, and packaging - is not wired up yet.",
@@ -125,6 +133,14 @@ const { t } = useI18n({
             engineNotAvailable: "This engine is not available in this build; the plan below is what it would do.",
         },
         yue: {
+            generationFailed: "生成器冇傳返結果。請檢查操作再試。",
+            measuredTarget: "世界最少位元組數（十進制）",
+            resume: "繼續生成現有世界",
+            measuredNotice: "持續生成有效 Java 1.20.4 Anvil 區塊，直到 level.dat 同區域檔案達到指定大小，唔會塞填充資料。繼續時要用相同種子、名稱同目標，並核對每個區域嘅雜湊。",
+            paused: "已暫停，有效內容已保留。保持原有設定並啟用繼續生成即可接住做。",
+            stopGeneration: "停止並保留進度",
+            measuredProgress: "已量度 {bytes} / {target} 位元組，{chunks} 個區塊",
+            measuredResult: "已量度 {bytes} 位元組，{chunks} 個區塊，超出目標 {overshoot} 位元組。資料夾：{folder}",
             title: "生成世界",
             boundary:
                 "呢個版本識砌返出下面成個計劃，亦識用返平時嗰套嘢整伺服器 jar。但係由頭做到尾——開機、等世界搞掂、停機、打包——依家仲未接埋線，唔好以為撳掣就會有世界喎。",
@@ -188,10 +204,29 @@ const runnerKind = ref<"local" | "github-actions">("local");
 const engineId = ref<WorldGenEngineId>("synthetic");
 const showPlan = ref(false);
 const generating = ref(false);
-const generated = ref<{ bytes: number; chunkCount: number; worldFolder: string } | null>(null);
+const generated = ref<SyntheticWorldResult | null>(null);
+const targetBytes = ref<number | null>(null);
+const resumeGeneration = ref(false);
+const generationProgress = ref<{ bytes: number; targetBytes: number; chunkCount: number } | null>(null);
+let progressTimer: ReturnType<typeof setTimeout> | undefined;
+async function pollGeneration(): Promise<void> {
+    const result = await syntheticWorldStatus();
+    if (result.ok) generationProgress.value = result.value ?? null;
+    if (generating.value) progressTimer = setTimeout(() => void pollGeneration(), 1000);
+}
+onUnmounted(() => { clearTimeout(progressTimer); });
+async function stopGeneration(): Promise<void> {
+    const result = await cancelSyntheticWorld();
+    if (!result.ok) generationError.value = result.failure?.message ?? t("generationFailed");
+}
 const generationError = ref<string | null>(null);
 
 const validation = computed(() => validateWorldGenSettings(settings));
+const canGenerate = computed(() => engineId.value !== "synthetic" ? validation.value.ok :
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(settings.worldName.trim()) && settings.outputDestination.trim() !== "" &&
+    Number.isSafeInteger(resolveSeedPreview(settings.seedInput) ?? 0) &&
+    Number.isFinite(settings.pregenerationRadius) && settings.pregenerationRadius >= 16 && settings.pregenerationRadius <= 20_000 &&
+    (targetBytes.value === null || (Number.isSafeInteger(targetBytes.value) && targetBytes.value > 0 && targetBytes.value <= 100_000_000_000)));
 const selectedEngine = computed(
     () => WORLD_GEN_ENGINES.find((engine) => engine.id === engineId.value) ?? WORLD_GEN_ENGINES[0]!,
 );
@@ -257,7 +292,7 @@ function onPreviewPlan(): void {
     showPlan.value = true;
 }
 async function onGenerate(): Promise<void> {
-    if (!validation.value.ok || generating.value) return;
+    if (!canGenerate.value || generating.value) return;
     if (engineId.value !== "synthetic") {
         emit("generate", { ...settings, dimensions: { ...settings.dimensions }, gamerules: { ...settings.gamerules } });
         return;
@@ -265,18 +300,26 @@ async function onGenerate(): Promise<void> {
     generating.value = true;
     generationError.value = null;
     generated.value = null;
+    generationProgress.value = null;
+    const resolvedSeed = resolveSeedPreview(settings.seedInput) ?? rollRandomSeed();
+    settings.seedInput = String(resolvedSeed);
+    if (targetBytes.value !== null) progressTimer = setTimeout(() => void pollGeneration(), 500);
     const answer = await generateSyntheticWorld({
-        seed: resolveSeedPreview(settings.seedInput) ?? rollRandomSeed(),
+        seed: resolvedSeed,
         size: Math.max(16, Math.trunc(settings.pregenerationRadius) * 2),
         worldName: settings.worldName.trim(),
         destination: settings.outputDestination.trim(),
         outputMode: "folder",
+        ...(targetBytes.value === null ? {} : { targetBytes: targetBytes.value, resume: resumeGeneration.value }),
     });
     generating.value = false;
-    if (!answer.ok) { generationError.value = answer.failure.message; return; }
-    generated.value = { bytes: answer.value.bytes, chunkCount: answer.value.chunkCount, worldFolder: answer.value.worldFolder };
+    clearTimeout(progressTimer);
+    if (!answer.ok || answer.value === undefined) { generationError.value = answer.failure?.message ?? t("generationFailed"); return; }
+    generated.value = answer.value;
+    if (answer.value.cancelled) resumeGeneration.value = true;
 }
 function onClose(): void {
+    if (generating.value) return;
     open.value = false;
     showPlan.value = false;
 }
@@ -287,10 +330,10 @@ function onClose(): void {
         <VCard>
             <VCardTitle class="d-flex align-center justify-space-between">
                 <span>{{ t("title") }}</span>
-                <VBtn variant="text" :icon="mdiClose" :aria-label="t('cancel')" @click="onClose" />
+                <VBtn variant="text" :icon="mdiClose" :disabled="generating" :aria-label="t('cancel')" @click="onClose" />
             </VCardTitle>
             <VCardText>
-                <VAlert type="info" variant="tonal" density="compact" class="mb-4">
+                <VAlert v-if="engineId !== 'synthetic'" type="info" variant="tonal" density="compact" class="mb-4">
                     {{ t("boundary") }}
                 </VAlert>
 
@@ -426,12 +469,14 @@ function onClose(): void {
                         ~{{ pregenEstimate.estimatedSeconds }}s
                     </div>
                     <div v-if="engineId === 'synthetic'" class="d-flex flex-wrap ga-2 mt-2" aria-label="Large deterministic world targets">
-                        <VBtn size="small" variant="tonal" @click="settings.pregenerationRadius = 4096">1 GB target (8,192 blocks)</VBtn>
-                        <VBtn size="small" variant="tonal" @click="settings.pregenerationRadius = 12800">10 GB target (25,600 blocks)</VBtn>
+                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 1_000_000_000">1 GB (1,000,000,000 bytes)</VBtn>
+                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 10_000_000_000">10 GB (10,000,000,000 bytes)</VBtn>
                     </div>
                     <div v-if="engineId === 'synthetic'" class="text-caption mt-1">
-                        Targets are minimum-size goals, not padding. The completed folder is measured from its actual region files and level.dat.
+                        {{ t('measuredNotice') }}
                     </div>
+                    <VTextField v-if="engineId === 'synthetic'" v-model.number="targetBytes" type="number" min="1" max="100000000000" :disabled="generating" :label="t('measuredTarget')" clearable />
+                    <VSwitch v-if="engineId === 'synthetic' && targetBytes !== null" v-model="resumeGeneration" :disabled="generating" :label="t('resume')" />
                 </div>
 
                 <VDivider class="my-4" />
@@ -490,7 +535,7 @@ function onClose(): void {
                 <div class="text-subtitle-2 mb-2">{{ t("runner") }}</div>
                 <VRadioGroup v-model="runnerKind" density="compact" hide-details inline class="mb-4">
                     <VRadio value="local" :label="t('runnerLocal')" />
-                    <VRadio value="github-actions" :label="t('runnerGithub')" />
+                    <VRadio value="github-actions" :disabled="engineId === 'synthetic'" :label="t('runnerGithub')" />
                 </VRadioGroup>
 
                 <!-- Plan preview -->
@@ -510,13 +555,19 @@ function onClose(): void {
                 <VAlert v-if="generationError !== null" type="error" variant="tonal" density="compact" class="mt-3">
                     {{ generationError }}
                 </VAlert>
-                <VAlert v-if="generated !== null" type="success" variant="tonal" density="compact" class="mt-3">
-                    Generated {{ generated.chunkCount }} chunks and measured {{ generated.bytes }} bytes at {{ generated.worldFolder }}.
+                <div v-if="generationProgress" role="status" aria-live="polite">
+                    {{ t('measuredProgress', { bytes: generationProgress.bytes, target: generationProgress.targetBytes, chunks: generationProgress.chunkCount }) }}
+                    <progress :value="generationProgress.bytes" :max="generationProgress.targetBytes" :aria-label="t('measuredTarget')" />
+                </div>
+                <VAlert v-if="generated !== null" :type="generated.cancelled ? 'info' : 'success'" variant="tonal" density="compact" class="mt-3">
+                    <div v-if="generated.cancelled">{{ t('paused') }}</div>
+                    {{ t('measuredResult', { bytes: generated.bytes, chunks: generated.chunkCount, overshoot: generated.overshootBytes ?? 0, folder: generated.worldFolder }) }}
                 </VAlert>
             </VCardText>
             <VCardActions>
-                <VBtn variant="text" @click="onClose">{{ t("cancel") }}</VBtn>
-                <VBtn color="primary" variant="flat" :loading="generating" :disabled="!validation.ok || generating" @click="onGenerate">
+                <VBtn v-if="generating && targetBytes !== null" variant="text" @click="stopGeneration">{{ t('stopGeneration') }}</VBtn>
+                <VBtn v-else variant="text" :disabled="generating" @click="onClose">{{ t("cancel") }}</VBtn>
+                <VBtn color="primary" variant="flat" :loading="generating" :disabled="!canGenerate || generating" @click="onGenerate">
                     {{ generating ? 'Generating…' : 'Generate' }}
                 </VBtn>
                 <VBtn color="primary" variant="tonal" :disabled="!validation.ok" @click="onPreviewPlan">
