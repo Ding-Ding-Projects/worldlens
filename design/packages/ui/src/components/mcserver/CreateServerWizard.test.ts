@@ -581,6 +581,41 @@ describe("CreateServerWizard", () => {
         expect(document.querySelector('[data-test="java-found"]')).toBeNull();
     });
 
+    it.each(["local-docker", "ssh-docker"])("submits a real creation plan for %s with the selected port", async (runtime) => {
+        const create = vi.fn(async () => ok(undefined as unknown as ServerRecord));
+        const wrapper = mountWizard({ ...fakeHost(), create, createCapabilities: { localDocker: true } });
+        await flushAll();
+        const vm = wrapper.vm as unknown as {
+            whereItRuns: string; dockerAvailability: { available: boolean }; dockerContainerRef: string;
+            dockerImage: string; hostProfiles: unknown[]; sshHost: string; flavour: string;
+            minecraftVersion: string; serverId: string; serverName: string; port: number;
+            eulaAccepted: boolean; create: () => Promise<void>; javaNotRequired: boolean;
+        };
+        vm.whereItRuns = runtime;
+        await flushAll();
+        vm.dockerAvailability.available = true;
+        vm.dockerContainerRef = "fixture-container";
+        vm.dockerImage = "itzg/minecraft-server:java21";
+        vm.hostProfiles = [{ hostId: "fixture-host", target: { label: "Fixture", host: "fixture.example", image: "itzg/minecraft-server:java21", workDir: "/srv/worldlens" } }];
+        vm.sshHost = "fixture-host";
+        vm.minecraftVersion = "1.21.4";
+        vm.serverId = "fixture-server";
+        vm.serverName = "Fixture server";
+        vm.port = 25579;
+        vm.eulaAccepted = true;
+        await flushAll();
+        expect(vm.javaNotRequired).toBe(true);
+        await vm.create();
+        expect(create).toHaveBeenCalledWith(expect.objectContaining({
+            port: 25579,
+            transport: expect.objectContaining({ kind: runtime }),
+            dockerPlan: expect.objectContaining({ image: "itzg/minecraft-server:java21", serverDir: "/data", ports: [{ host: 25579, container: 25565 }] }),
+        }));
+        expect(wrapper.emitted("open-remote-adoption")).toBeUndefined();
+        expect(wrapper.emitted("created")).toEqual([["fixture-server"]]);
+        wrapper.unmount();
+    });
+
     it("keeps local Docker creation disabled with an exact capability reason", async () => {
         const wrapper = mountWizard(fakeHost());
         await flushAll();

@@ -32,6 +32,10 @@ import { installServerJar, type FetchBinary } from "./install.js";
 import type { ServerRecord, ServerRegistry } from "./registry.js";
 import { createLocalProcessTransport } from "./transport/localProcess.js";
 import { createLocalDockerTransport } from "./transport/localDocker.js";
+import { createSshDockerTransport } from "./transport/sshDocker.js";
+import type { SshOptionsInput } from "../remote/ssh.js";
+import { sshCommandRunner } from "../remote/ssh.js";
+import { execFileCommandRunner } from "../runtime/command.js";
 import type { CommandRunner } from "../runtime/command.js";
 import { fail, ok, type Answer } from "./transport/types.js";
 import type { DiscoverJavaOptions, JavaDiscovery } from "../java/discovery.js";
@@ -100,6 +104,9 @@ export interface CreateLocalDockerServerOptions {
     readonly flavour: FlavourId;
     readonly version: string;
     readonly memoryMb: number;
+    readonly port?: number;
+    readonly loaderVersion?: string;
+    readonly ssh?: { readonly hostId: string; readonly connection: SshOptionsInput; readonly hostDirectory: string };
     readonly acceptedEula: boolean;
     readonly serversRoot: string;
     readonly registry: ServerRegistry;
@@ -117,35 +124,70 @@ export interface CreateLocalDockerServerOptions {
 
 /** Creates a new app-owned local Docker server without routing through local-process Java. */
 export async function createLocalDockerServer(options: CreateLocalDockerServerOptions): Promise<Answer<ServerRecord>> {
-    if (!ID.test(options.id) || !Number.isFinite(options.memoryMb) || options.memoryMb < 256) {
+    if (!ID.test(options.id) || !Number.isInteger(options.memoryMb) || options.memoryMb < 256 || options.memoryMb > 1_048_576 || !options.name.trim() || options.name.length > 512 || /[\r\n\0]/.test(options.name + options.version) || !options.version || options.version.length > 512) {
         return fail("invalid-request", "A Docker server needs a valid id and memory limit.");
     }
     const plan = options.dockerPlan;
-    if (!plan.imageVerified || !/@sha256:[a-f0-9]{64}$/.test(plan.image) || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(plan.containerRef)) {
+    const guidedImage = /^itzg\/minecraft-server:java(?:8|11|17|21|25)$/.test(plan.image);
+    if ((!guidedImage && !/@sha256:[a-f0-9]{64}$/.test(plan.image)) || !/^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$/.test(plan.containerRef)) {
         return fail("invalid-request", "A Docker server needs a verified digest-pinned image and safe container name.");
     }
     if (plan.serverDir !== "/data" || plan.ports.length === 0 || plan.ports.some((port) => !Number.isInteger(port.host) || !Number.isInteger(port.container) || port.host < 1 || port.host > 65_535 || port.container < 1 || port.container > 65_535)) {
         return fail("invalid-request", "The Docker plan must use the scoped /data mount and valid ports.");
     }
-    const serverDir = join(options.serversRoot, options.id);
-    try {
-        await mkdir(serverDir, { recursive: true });
-    } catch (error) {
-        return fail("denied", "The Docker server folder could not be created.", String(error));
+    const selectedPort = options.port ?? plan.ports[0]!.host;
+    if (plan.ports.length !== 1 || plan.ports[0]!.host !== selectedPort || plan.ports[0]!.container !== 25565) {
+        return fail("invalid-request", "The Docker port mapping must match the selected server port and container port 25565.");
     }
-    const transport = createLocalDockerTransport({
+    const existing = await options.registry.get(options.id);
+    if (existing.ok) return fail("invalid-request", "A server with that id already exists.");
+    if (existing.failure.code !== "not-found") return existing;
+    let image = plan.image;
+    if (guidedImage) {
+        const runner = options.ssh === undefined ? plan.runner ?? execFileCommandRunner
+            : sshCommandRunner({ ...options.ssh.connection, ...(plan.runner === undefined ? {} : { runner: plan.runner }) });
+        const docker = plan.docker ?? "docker";
+        const pulled = await runner(docker, ["pull", image], { timeoutMs: 600_000 });
+        if (!pulled.ok) return fail("command-failed", "The selected Minecraft server image could not be downloaded.", pulled.stderr);
+        const inspected = await runner(docker, ["image", "inspect", "--format", "{{json .RepoDigests}}", image], { timeoutMs: 30_000 });
+        if (!inspected.ok) return fail("command-failed", "The downloaded image digest could not be verified.", inspected.stderr);
+        try {
+            const digests: unknown = JSON.parse(inspected.stdout);
+            const pinned = Array.isArray(digests) ? digests.find((value): value is string => typeof value === "string" && /^itzg\/minecraft-server@sha256:[a-f0-9]{64}$/.test(value)) : undefined;
+            if (pinned === undefined) return fail("invalid-request", "Docker did not return a verified Minecraft server image digest.");
+            image = pinned;
+        } catch { return fail("invalid-request", "Docker returned an unreadable image digest."); }
+    }
+    const serverDir = options.ssh?.hostDirectory ?? join(options.serversRoot, options.id);
+    if (options.ssh === undefined) {
+        try {
+            await mkdir(options.serversRoot, { recursive: true });
+            await mkdir(serverDir);
+        } catch (error) {
+            return fail("denied", "The new Docker server folder could not be created. Existing folders are never reused.", String(error));
+        }
+    }
+    const transportOptions = {
         containerRef: plan.containerRef,
         serverDir: plan.serverDir,
         ...(plan.runner === undefined ? {} : { runner: plan.runner }),
         ...(plan.docker === undefined ? {} : { docker: plan.docker }),
-    });
+    };
+    const transport = options.ssh === undefined
+        ? createLocalDockerTransport(transportOptions)
+        : createSshDockerTransport({ ...options.ssh.connection, hostId: options.ssh.hostId, ...transportOptions });
     const instance = await transport.create({
         id: options.id,
         name: options.name,
-        image: plan.image,
+        image,
         memoryMb: options.memoryMb,
         ports: plan.ports,
-        env: { TYPE: options.flavour, VERSION: options.version, EULA: options.acceptedEula ? "TRUE" : "FALSE" },
+        env: {
+            TYPE: options.flavour.toUpperCase(), VERSION: options.version.split("#")[0]!,
+            EULA: options.acceptedEula ? "TRUE" : "FALSE", MEMORY: `${options.memoryMb}M`, SERVER_PORT: "25565",
+            ...(options.flavour === "paper" && options.version.includes("#") ? { PAPER_BUILD: options.version.split("#")[1]! } : {}),
+            ...(options.loaderVersion ? { [options.flavour === "fabric" ? "FABRIC_LOADER_VERSION" : options.flavour === "neoforge" ? "NEOFORGE_VERSION" : "FORGE_VERSION"]: options.loaderVersion } : {}),
+        },
         volumes: [{ host: serverDir, container: plan.serverDir }],
         labels: {
             "com.worldlens.docker-hosting": "true",
@@ -160,7 +202,7 @@ export async function createLocalDockerServer(options: CreateLocalDockerServerOp
         name: options.name,
         flavour: options.flavour,
         minecraftVersion: options.version,
-        ref: { kind: "local-docker", containerRef: plan.containerRef, serverDir: plan.serverDir },
+        ref: transport.ref,
         origin: "created",
         createdAt: options.now?.() ?? new Date().toISOString(),
         updatedAt: options.now?.() ?? new Date().toISOString(),

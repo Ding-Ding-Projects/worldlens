@@ -358,6 +358,12 @@ const whereItRuns = ref<WhereItRuns>("local-process");
 const serverDir = ref("");
 const sshHost = ref("");
 const dockerContainerRef = ref("");
+const dockerImage = ref("itzg/minecraft-server:java21");
+const advancedDockerImage = ref(false);
+const dockerImageOptions = [8, 11, 17, 21, 25].map((version) => ({ title: `Minecraft server · Java ${version}`, value: `itzg/minecraft-server:java${version}` }));
+const selectedHostProfile = computed(() => hostProfiles.value.find((profile) => profile.hostId === sshHost.value));
+const selectedDockerImage = computed(() => whereItRuns.value === "ssh-docker" ? selectedHostProfile.value?.target.image ?? "" : dockerImage.value.trim());
+const dockerImageError = computed(() => /^(?:itzg\/minecraft-server:java(?:8|11|17|21|25)|[A-Za-z0-9][A-Za-z0-9/_.:-]*@sha256:[a-f0-9]{64})$/.test(selectedDockerImage.value) ? null : t("mcserver.wizard.pinnedImageRequired", "Choose a listed Minecraft server image or supply its published digest. SSH images come from the saved host profile."));
 const hostProfiles = ref<readonly HostProfileRecord[]>([]);
 const hostProfileQuery = ref("");
 const hostProfileRegex = ref(false);
@@ -499,7 +505,7 @@ let queuedJavaGeneration: number | null = null;
 let javaDisposed = false;
 
 const requiredJavaFeature = computed(() => selectedVersionEntry.value?.javaFeature ?? 21);
-const javaNotRequired = computed(() => whereItRuns.value === "ssh-docker");
+const javaNotRequired = computed(() => whereItRuns.value === "ssh-docker" || whereItRuns.value === "local-docker");
 
 async function checkJava(): Promise<void> {
     if (!store.hasJava || javaNotRequired.value || javaDisposed) return;
@@ -828,17 +834,9 @@ function transportRef(): TransportRef {
 }
 
 async function create(): Promise<void> {
-    if (!canCreate.value || !canAdvanceFromRuntime.value || !canAdvanceFromJava.value) return;
+    if (creating.value || !canCreate.value || !canAdvanceFromRuntime.value || !canAdvanceFromJava.value) return;
     creating.value = true;
     createFailure.value = null;
-
-    if (whereItRuns.value === "ssh-docker") {
-        emit("open-remote-adoption", sshHost.value.trim());
-        creating.value = false;
-        open.value = false;
-        resetWizard();
-        return;
-    }
 
     if (!store.hasCreate) {
         creating.value = false;
@@ -850,7 +848,9 @@ async function create(): Promise<void> {
     }
 
     const loaderVersion = modLoaderVersion.value.trim();
-    const result = await store.createServer({
+    let result;
+    try {
+    result = await store.createServer({
         id: serverId.value,
         name: serverName.value,
         flavour: flavour.value,
@@ -859,6 +859,13 @@ async function create(): Promise<void> {
         port: port.value,
         acceptedEula: eulaAccepted.value,
         transport: transportRef(),
+        ...(javaNotRequired.value ? { dockerPlan: {
+            image: selectedDockerImage.value,
+            imageVerified: selectedDockerImage.value.includes("@sha256:"),
+            containerRef: whereItRuns.value === "local-docker" ? dockerContainerRef.value.trim() : serverId.value,
+            serverDir: "/data",
+            ports: [{ host: port.value, container: 25565 }],
+        } } : {}),
         provisionJavaIfMissing: !javaNotRequired.value,
         ...(isModLoader.value
             ? {
@@ -868,6 +875,12 @@ async function create(): Promise<void> {
               }
             : {}),
     });
+    } catch (error) {
+        createFailure.value = error instanceof Error ? error.message : String(error);
+        return;
+    } finally {
+        creating.value = false;
+    }
     creating.value = false;
     if (result.ok) {
         emit("created", serverId.value);
@@ -946,6 +959,8 @@ function resetWizard(): void {
     serverDir.value = "";
     sshHost.value = "";
     dockerContainerRef.value = "";
+    dockerImage.value = "itzg/minecraft-server:java21";
+    advancedDockerImage.value = false;
     javaResolution.value = null;
     memoryMb.value = 2048;
     modLoaderVersion.value = "";
@@ -1035,11 +1050,11 @@ const canAdvanceFromRuntime = computed(() => {
         return (
             store.canCreateLocalDocker &&
             dockerAvailability.available === true &&
-            dockerContainerError.value === null
+            dockerContainerError.value === null && dockerImageError.value === null
         );
     }
     if (whereItRuns.value === "aws") return awsAvailable.value;
-    return sshHost.value.trim() !== "";
+    return selectedHostProfile.value !== undefined && dockerImageError.value === null;
 });
 const canAdvanceFromJava = computed(
     () =>
@@ -1078,6 +1093,7 @@ const advanceBlockedReason = computed<string | null>(() => {
                       t("mcserver.wizard.pickModLoader", "Choose a loader version first."));
         case "runtime":
             if (folderError.value !== null) return folderError.value;
+            if (javaNotRequired.value && dockerImageError.value !== null) return dockerImageError.value;
             if (whereItRuns.value === "local-docker" && dockerAvailability.available !== true) {
                 return t(
                     "mcserver.wizard.dockerUnavailable",
@@ -1799,16 +1815,25 @@ const canAdvance = computed(() => {
                             persistent-hint
                             data-test="docker-container-ref"
                         />
-                        <PathField
-                            v-model="serverDir"
-                            field="server folder"
-                            :label="
-                                t(
-                                    'mcserver.wizard.folder',
-                                    'Server folder (mounted into the container)',
-                                )
-                            "
-                            semantic="folder"
+                        <p>{{ t('mcserver.wizard.containerFolder', 'A new folder beneath the application server directory is mounted at /data. Existing folders are never reused.') }}</p>
+                        <SearchableOptionPicker
+                            v-if="!advancedDockerImage"
+                            v-model="dockerImage"
+                            :options="dockerImageOptions"
+                            :label="t('mcserver.wizard.containerImage', 'Minecraft server image')"
+                            :sample="dockerImageOptions.map((option) => option.title).join(String.fromCharCode(10))"
+                            :no-match-text="t('mcserver.wizard.noContainerImage', 'No matching runtime image.')"
+                        />
+                        <VSwitch v-model="advancedDockerImage" :label="t('mcserver.wizard.advancedImage', 'Enter a published image digest')" />
+                        <p>{{ t('mcserver.wizard.imageDownload', 'Create downloads the selected itzg Minecraft server image and verifies its registry digest before creating the container. Choose the Java version required by the selected server.') }}</p>
+                        <VTextField
+                            v-if="advancedDockerImage"
+                            v-model="dockerImage"
+                            data-test="docker-image"
+                            :label="t('mcserver.wizard.dockerImage', 'Digest-pinned Minecraft server image')"
+                            :hint="t('mcserver.wizard.dockerImageHint', 'Use a Minecraft server image compatible with TYPE, VERSION and /data, such as itzg/minecraft-server, followed by its published SHA-256 digest. A new folder is created beneath the application server directory.')"
+                            :error-messages="dockerImageError ?? []"
+                            persistent-hint
                         />
                     </template>
 
@@ -1844,8 +1869,8 @@ const canAdvance = computed(() => {
                             :loading="hostProfileLoading"
                             :hint="
                                 t(
-                                    'mcserver.wizard.sshHostHint',
-                                    'Choose a saved profile, then review an existing remote container. This route does not create or mutate a container before consent.',
+                                    'mcserver.wizard.sshCreateHostHint',
+                                    'Choose a saved profile with a digest-pinned Minecraft server image and an absolute server parent folder. Create makes a new container and a unique data folder on that host.',
                                 )
                             "
                             persistent-hint
@@ -1874,6 +1899,10 @@ const canAdvance = computed(() => {
                                 </div>
                             </template>
                         </VSelect>
+                        <VAlert v-if="selectedHostProfile" type="info" variant="tonal" data-test="ssh-create-plan">
+                            {{ selectedHostProfile.target.image }} · {{ selectedHostProfile.target.workDir }}
+                            <p v-if="dockerImageError">{{ dockerImageError }}</p>
+                        </VAlert>
                         <VAlert v-if="hostProfileFailure" type="warning" variant="tonal">{{
                             hostProfileFailure
                         }}</VAlert>

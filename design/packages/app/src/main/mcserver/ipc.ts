@@ -1584,7 +1584,7 @@ export function registerMcServerHandlers(
                 return fail("invalid-request", "A server port must be a whole number from 1 to 65535.");
             }
             const runtime = readCreateRuntimeKind(body);
-            if (runtime === "local-docker") {
+            if (runtime === "local-docker" || runtime === "ssh-docker") {
                 if (typeof body.dockerPlan !== "object" || body.dockerPlan === null)
                     return fail(
                         "invalid-request",
@@ -1615,12 +1615,30 @@ export function registerMcServerHandlers(
                         "invalid-request",
                         "The local Docker plan contains an invalid port entry.",
                     );
+                let ssh: Parameters<typeof createLocalDockerServer>[0]["ssh"];
+                let docker = options.docker;
+                if (runtime === "ssh-docker") {
+                    const ref = body.transport as Record<string, unknown> | undefined;
+                    if (typeof ref?.hostId !== "string") return fail("invalid-request", "Choose a saved SSH host profile.");
+                    const profile = await hostProfiles.get(ref.hostId);
+                    if (!profile.ok) return profile;
+                    const connection = hostProfiles.sshHost(ref.hostId);
+                    if (connection === null) return fail("not-found", "The saved SSH connection is unavailable.");
+                    if (plan.image !== profile.value.target.image) return fail("invalid-request", "The image no longer matches the saved SSH profile. Reload the profile before creating.");
+                    const root = profile.value.target.workDir;
+                    if (!root.startsWith("/") || root === "/" || root.split("/").includes("..")) return fail("invalid-request", "The SSH profile needs an absolute dedicated server parent folder.");
+                    ssh = { hostId: ref.hostId, connection, hostDirectory: `${root.replace(/\/$/, "")}/worldlens-server-${body.id}-${randomBytes(8).toString("hex")}` };
+                    docker = profile.value.target.docker;
+                }
                 return createLocalDockerServer({
                     id: body.id,
                     name: body.name,
                     flavour: body.flavour,
                     version: body.version,
                     memoryMb: body.memoryMb,
+                    ...(typeof body.port === "number" ? { port: body.port } : {}),
+                    ...(typeof body.loaderVersion === "string" ? { loaderVersion: body.loaderVersion } : {}),
+                    ...(ssh === undefined ? {} : { ssh }),
                     acceptedEula: body.acceptedEula === true,
                     serversRoot,
                     registry,
@@ -1635,7 +1653,7 @@ export function registerMcServerHandlers(
                         ...(options.factory?.runner === undefined
                             ? {}
                             : { runner: options.factory.runner }),
-                        ...(options.docker === undefined ? {} : { docker: options.docker }),
+                        ...(docker === undefined ? {} : { docker }),
                     },
                     ...(options.now === undefined ? {} : { now: options.now }),
                 });
