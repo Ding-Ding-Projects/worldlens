@@ -21,6 +21,7 @@
         "ui:e2e:lowlevel": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/run-worldlens-lowlevel-e2e.ps1",
         "ui:e2e:lowlevel:check": "node --test ../scripts/worldlens-lowlevel-e2e.test.mjs",
         "workflows:drift": "node ../scripts/check-workflow-drift.mjs",
+        "webapp:parity": "node ../scripts/check-webapp-parity.mjs",
         "workflows:drift:list": "node ../scripts/check-workflow-drift.mjs --list",
         "lint": "eslint .",
         "format": "prettier --write .",
