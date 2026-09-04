@@ -20,7 +20,7 @@
  *   node scripts/check-workflow-drift.mjs --list   # show what is being checked
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -92,6 +92,53 @@ function lineOf(text, index) {
     return text.slice(0, index).split("\n").length;
 }
 
+/**
+ * The Chunker formats the workflow offers, against the ones the app offers.
+ *
+ * `chunk-world.yml` used to take this as free text, so a typo dispatched happily and
+ * failed minutes later on a runner with "unknown format". It is a choice list now, which
+ * means there are two lists of the same thing - and two lists of the same thing drift.
+ * This is the check that stops them: the app's list is the one a person edits, and the
+ * workflow's must match it exactly, in the same order, because the first entry is also
+ * the default.
+ */
+function chunkerFormatDrift(repoRoot) {
+    const modelPath = join(repoRoot, "design/packages/ui/src/components/chunker/chunkerModel.ts");
+    const workflowPath = join(WORKFLOW_DIR, "chunk-world.yml");
+    if (!existsSync(modelPath) || !existsSync(workflowPath)) return [];
+
+    const model = readFileSync(modelPath, "utf8");
+    const expected = [...model.matchAll(/id:\s*"((?:JAVA|BEDROCK)_[0-9_]+)"/g)].map((m) => m[1]);
+
+    const workflow = readFileSync(workflowPath, "utf8").replace(/\r\n/g, "\n");
+    const block = /target-format:[\s\S]*?options:\n((?:\s+- \S+\n)+)/.exec(workflow);
+    if (block === null) {
+        return [
+            {
+                file: ".github/workflows/chunk-world.yml",
+                line: 1,
+                id: "chunker-formats",
+                found: "no choice list",
+                expected: `${String(expected.length)} formats`,
+                why: "the Chunker target-format input",
+            },
+        ];
+    }
+
+    const actual = [...block[1].matchAll(/- (\S+)/g)].map((m) => m[1]);
+    if (actual.join(",") === expected.join(",")) return [];
+    return [
+        {
+            file: ".github/workflows/chunk-world.yml",
+            line: workflow.slice(0, block.index ?? 0).split("\n").length,
+            id: "chunker-formats",
+            found: actual.join(", "),
+            expected: expected.join(", "),
+            why: "the Chunker formats, which the app's own list decides",
+        },
+    ];
+}
+
 export function findDrift({ repoRoot = REPO_ROOT } = {}) {
     const manifest = readWorkflowManifest({ repoRoot });
     const problems = [];
@@ -115,6 +162,8 @@ export function findDrift({ repoRoot = REPO_ROOT } = {}) {
             }
         }
     }
+    problems.push(...chunkerFormatDrift(repoRoot));
+
     return { manifest, problems };
 }
 
