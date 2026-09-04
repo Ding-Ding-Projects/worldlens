@@ -146,6 +146,14 @@ export interface CiUploadSummary {
     /** How many assets the archive itself became. More than one cannot be CI-rendered. */
     readonly parts: number;
     readonly label: string;
+    /**
+     * The Cheap LFS pointer this upload produced, verbatim.
+     *
+     * Returned so the caller can commit the record of the backup into the repository
+     * without re-deriving it. Re-deriving would be a second implementation of the pointer
+     * format, and the one thing a restore cannot survive is two disagreeing writers of it.
+     */
+    readonly pointerText: string;
 }
 
 export interface CiUploadFailure {
@@ -464,6 +472,7 @@ async function run(request: CiUploadRequest): Promise<CiUploadSummary> {
         sha256: packed.sha256,
         parts: uploads.length,
         label: source.label,
+        pointerText,
     };
 }
 

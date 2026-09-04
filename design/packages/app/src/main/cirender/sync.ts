@@ -57,6 +57,7 @@ import type {
     GhCliAccountLease,
     GhCliAccountProvider,
 } from "../ghcli/credentialBroker.js";
+import { commitWorldBackup } from "./commitWorldBackup.js";
 import { uploadWorldForRender } from "./upload.js";
 import { collectRenderedMap } from "./collect.js";
 import { fingerprintWorld, isUnchanged } from "./fingerprint.js";
@@ -1544,6 +1545,90 @@ export class CiRenderSync {
                         "manifest beside them; the render workflow verifies every part against its " +
                         "own SHA-256 and the rejoined archive against the whole-file digest before " +
                         "unpacking it.",
+                );
+            }
+
+            /*
+             * Record the backup in the repository itself.
+             *
+             * The world is already durable at this point - the release assets *are* the
+             * backup, and nothing here can make them more so. What this adds is a record
+             * somebody can find: a Cheap LFS pointer and an index committed beside the
+             * workflows, so the backup is discoverable from a clone rather than only by
+             * asking GitHub what releases exist.
+             *
+             * So a failure here is logged and never fails the sync. The render is done and
+             * the world is safe; turning "the index could not be committed" into "your
+             * render failed" would trade something valuable for something merely nice.
+             */
+            const commitFiles = transport.commitFilesAtomically;
+            const readHead = transport.readRepositoryHead;
+            if (commitFiles === undefined || readHead === undefined) {
+                // A transport that cannot commit is a real answer, not a failure. Say so
+                // once rather than reporting a problem the user cannot act on.
+                this.#log(
+                    syncId,
+                    "info",
+                    "This connection cannot commit to the repository, so no in-repository " +
+                        "record was written. The world is on the release either way.",
+                );
+            } else {
+                // The transport speaks base64 and git blob shas; the backup index speaks
+                // text and a head sha. Adapted here, at the one place the two meet, rather
+                // than teaching either side about the other.
+                const head = await readHead(owner, repo);
+                const recorded = await commitWorldBackup({
+                    transport: {
+                        readFile: async (o, r, path) => {
+                            const file = await transport.readFile(o, r, path);
+                            return file === null
+                                ? null
+                                : Buffer.from(file.contentBase64, "base64").toString("utf8");
+                        },
+                        // A repository with no commits has no parent to commit against, and
+                        // the Git Data API cannot create a ref in one. Refusing here turns
+                        // that into a reason the caller reports rather than a stack trace.
+                        readHead: () => {
+                            if (head.sha === null) {
+                                throw new Error(
+                                    "the repository has no commits yet, so there is nothing to commit against",
+                                );
+                            }
+                            return Promise.resolve(head.sha);
+                        },
+                        commitFiles: (o, r, request) =>
+                            commitFiles(o, r, {
+                                branch: request.branch,
+                                expectedHeadSha: request.expectedHeadSha,
+                                files: request.files.map((file) => ({
+                                    path: file.path,
+                                    contentBase64: Buffer.from(file.content, "utf8").toString("base64"),
+                                })),
+                                message: request.message,
+                            }),
+                    },
+                    owner,
+                    repo,
+                    branch: head.branch,
+                    pointerText: result.summary.pointerText,
+                    entry: {
+                        label: result.summary.label,
+                        releaseTag: result.summary.tag,
+                        archive: result.summary.archive,
+                        bytes: result.summary.bytes,
+                        sha256: result.summary.sha256,
+                        parts: result.summary.parts,
+                        createdAt: new Date(this.#clock()).toISOString(),
+                        appVersion: this.#options.appVersion ?? "unknown",
+                    },
+                });
+                this.#log(
+                    syncId,
+                    recorded.ok ? "info" : "warning",
+                    recorded.ok
+                        ? `Recorded this backup at ${recorded.pointerPath}, so it is findable ` +
+                              "from a clone rather than only from the releases page."
+                        : `The world is uploaded and safe, but its record was not committed: ${recorded.reason}`,
                 );
             }
 

@@ -17,6 +17,7 @@ import {
     pointerPathFor,
     withEntry,
     type WorldBackupEntry,
+    type WorldBackupIndex,
 } from "./worldBackupIndex.js";
 
 const POINTER = [
@@ -134,7 +135,7 @@ describe("committing a world backup's pointer", () => {
     });
 
     it("bounds how many entries the index keeps", () => {
-        let index = { indexVersion: WORLD_BACKUP_INDEX_VERSION, entries: [] as WorldBackupEntry[] };
+        let index: WorldBackupIndex = { indexVersion: WORLD_BACKUP_INDEX_VERSION, entries: [] };
         for (let n = 0; n < MAX_INDEX_ENTRIES + 10; n += 1) {
             index = withEntry(index, entry({ releaseTag: `tag-${String(n)}` }));
         }
