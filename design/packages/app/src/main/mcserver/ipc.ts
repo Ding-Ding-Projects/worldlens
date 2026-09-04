@@ -1574,6 +1574,15 @@ export function registerMcServerHandlers(
             if (typeof body.memoryMb !== "number") {
                 return fail("invalid-request", "A server needs a memory limit to be created.");
             }
+            if (
+                body.port !== undefined &&
+                (typeof body.port !== "number" ||
+                    !Number.isInteger(body.port) ||
+                    body.port < 1 ||
+                    body.port > 65_535)
+            ) {
+                return fail("invalid-request", "A server port must be a whole number from 1 to 65535.");
+            }
             const runtime = readCreateRuntimeKind(body);
             if (runtime === "local-docker") {
                 if (typeof body.dockerPlan !== "object" || body.dockerPlan === null)
@@ -1647,6 +1656,7 @@ export function registerMcServerHandlers(
                 flavour: body.flavour,
                 version: body.version,
                 memoryMb: body.memoryMb,
+                ...(typeof body.port === "number" ? { port: body.port } : {}),
                 acceptedEula: body.acceptedEula === true,
                 dataDir: options.dataFolder,
                 serversRoot,

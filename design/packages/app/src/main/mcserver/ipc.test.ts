@@ -539,6 +539,22 @@ describe("registerMcServerHandlers - catalogue, java and create channels", () =>
         expect(answer.failure.code).toBe("invalid-request");
     });
 
+    it("refuses an invalid selected game port before it resolves a catalogue or runtime", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.create, {
+            id: "survival",
+            name: "Survival",
+            flavour: "vanilla",
+            version: "1.21.4",
+            memoryMb: 1024,
+            port: 0,
+            acceptedEula: true,
+            transport: { kind: "local-process", serverDir: "/servers/survival" },
+        })) as { ok: boolean; failure: { code: string; message: string } };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("invalid-request");
+        expect(answer.failure.message).toContain("port");
+    });
+
     it("accepts the transport object the wizard really sends, with no runtime string", async () => {
         // The renderer has never set `runtime`. It sends `transport` as a TransportRef
         // object, and the handler used to compare that object against string literals,

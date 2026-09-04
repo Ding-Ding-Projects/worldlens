@@ -856,6 +856,7 @@ async function create(): Promise<void> {
         flavour: flavour.value,
         version: minecraftVersion.value,
         memoryMb: memoryMb.value,
+        port: port.value,
         acceptedEula: eulaAccepted.value,
         transport: transportRef(),
         provisionJavaIfMissing: !javaNotRequired.value,

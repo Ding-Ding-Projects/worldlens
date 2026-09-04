@@ -242,4 +242,51 @@ describe("createLocalServer", () => {
         const jarBytes = await readFile(join(serversRoot, "survival", "server.jar"));
         expect(jarBytes.equals(JAR_BYTES)).toBe(true);
     });
+
+    it("carries the selected game port into both server.properties and the created runtime", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const result = await createLocalServer({
+            id: "custom-port",
+            name: "Custom port",
+            flavour: "vanilla",
+            version: "1.21.4",
+            memoryMb: 1024,
+            port: 25570,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: fakeFetchText(),
+            fetchBinary: async () => okJarResponse(),
+            javaRunner: fakeJavaRunner,
+            javaExists: fakeJavaExists,
+            javaEnv: fakeJavaEnv,
+        });
+
+        expect(result.ok).toBe(true);
+        await expect(readFile(join(serversRoot, "custom-port", "server.properties"), "utf8"))
+            .resolves.toContain("server-port=25570");
+    });
+
+    it("refuses a port outside the usable range before it touches the catalogue", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const result = await createLocalServer({
+            id: "bad-port",
+            name: "Bad port",
+            flavour: "vanilla",
+            version: "1.21.4",
+            memoryMb: 1024,
+            port: 70000,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: async () => {
+                throw new Error("the catalogue must not be read for an invalid port");
+            },
+        });
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.failure.code).toBe("invalid-request");
+    });
 });

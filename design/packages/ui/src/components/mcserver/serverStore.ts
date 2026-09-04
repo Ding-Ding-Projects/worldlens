@@ -260,6 +260,8 @@ export interface CreateServerRequest {
     readonly flavour: string;
     readonly version: string;
     readonly memoryMb: number;
+    /** The game port selected in the creation wizard. */
+    readonly port?: number;
     readonly acceptedEula: boolean;
     /** The selected transport, explicit so local Docker cannot silently become local-process. */
     readonly transport: TransportRef;
