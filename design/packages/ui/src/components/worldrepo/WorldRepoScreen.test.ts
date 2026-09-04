@@ -231,6 +231,7 @@ function fakeRepoBridge(overrides: Partial<BackupBridge> = {}): { bridge: Backup
         activeBackups: () => Promise.resolve([]),
         onBackupEvent: () => () => {},
         canCancel: true,
+        canPause: false,
         canListRepositories: true,
         canListBackups: true,
         canSeeActive: true,

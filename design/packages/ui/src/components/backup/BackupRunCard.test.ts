@@ -93,7 +93,7 @@ const row: BackupRow = {
 
 function mountCard(initial: BackupRow = row, attachTo?: HTMLElement) {
     return mount(BackupRunCard, {
-        props: { row: initial, canCancel: true, canOpenSettings: true },
+        props: { row: initial, canCancel: true, canPause: false, canOpenSettings: true },
         global: { plugins: [i18n, vuetify] },
         ...(attachTo === undefined ? {} : { attachTo }),
     });

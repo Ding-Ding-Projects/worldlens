@@ -1286,6 +1286,15 @@ function onRailSelect(next: RailDestination): void {
     shell.select(next);
 }
 
+/** The kid shell intentionally has no host destination; hosting stays in the adult shell. */
+const kidDestination = computed<"home" | "map" | "work">(() =>
+    destination.value === "host" ? "work" : destination.value,
+);
+
+function rememberDashboardHosting(id: string): void {
+    globalThis.localStorage?.setItem("worldlens.dashboard.hostingId", id);
+}
+
 async function onActivateFeature(feature: CatalogueFeatureDefinition): Promise<void> {
     await shell.activateFeature(feature);
 }

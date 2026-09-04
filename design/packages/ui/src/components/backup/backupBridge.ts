@@ -162,6 +162,16 @@ export interface BackupFailure {
     readonly accountHost: string | null;
 }
 
+/** One paused backup left by a previous app process, available for explicit resumption. */
+export interface PausedBackupInfo {
+    readonly backupId: string;
+    readonly phase: BackupPhase;
+    readonly tag: string;
+    readonly repository: string;
+    readonly kind: BackupSourceKind | null;
+    readonly label: string;
+}
+
 export interface BackupSummary {
     readonly backupId: string;
     readonly repository: string;

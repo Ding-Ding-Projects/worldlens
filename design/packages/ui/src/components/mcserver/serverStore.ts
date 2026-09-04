@@ -123,17 +123,135 @@ export interface CatalogueSnapshot {
 export interface JavaResolution {
     readonly found: boolean;
     readonly executable: string | null;
-    readonly source: "JAVA_HOME" | "PATH" | "provisioned" | null;
+    readonly source: "bundled" | "JAVA_HOME" | "PATH" | "provisioned" | null;
     readonly version: string | null;
     readonly requiredFeature: number;
     readonly message: string;
 }
 
 export interface JavaProvisionProgress {
-    readonly phase: "downloading" | "extracting" | "verifying" | "done" | "failed";
+    readonly phase: "resolving" | "downloading" | "extracting" | "verifying" | "installing" | "done" | "failed";
     readonly receivedBytes: number;
     readonly totalBytes: number | null;
     readonly message: string;
+}
+
+type JavaSourceValue = JavaResolution["source"];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+}
+
+function isJavaSource(value: unknown): value is Exclude<JavaSourceValue, null> {
+    return value === "bundled" || value === "JAVA_HOME" || value === "PATH" || value === "provisioned";
+}
+
+function featureFromVersion(version: string): number {
+    const match = /^(?:1\.)?(\d+)/.exec(version.trim());
+    const feature = Number(match?.[1] ?? 0);
+    return Number.isSafeInteger(feature) && feature > 0 ? feature : 0;
+}
+
+/** Strictly recognises the renderer-facing Java answer before it is allowed into reactive state. */
+export function isJavaResolution(value: unknown): value is JavaResolution {
+    if (!isRecord(value) || typeof value.found !== "boolean") return false;
+    if (value.executable !== null && typeof value.executable !== "string") return false;
+    if (value.source !== null && !isJavaSource(value.source)) return false;
+    if (value.version !== null && typeof value.version !== "string") return false;
+    return (
+        typeof value.requiredFeature === "number" &&
+        Number.isSafeInteger(value.requiredFeature) &&
+        value.requiredFeature > 0 &&
+        typeof value.message === "string" &&
+        (value.found
+            ? typeof value.executable === "string" && value.source !== null
+            : value.executable === null && value.source === null && value.version === null)
+    );
+}
+
+/** Translates a raw main-process discovery or provision answer into the one UI contract. */
+export function normaliseJavaResolution(raw: unknown, requestedVersion: string): JavaResolution | null {
+    if (!isRecord(raw)) return null;
+    if (isJavaResolution(raw)) return raw;
+    if (!("installation" in raw || "java" in raw || "rejected" in raw || "required" in raw || "feature" in raw || "requirement" in raw)) return null;
+
+    const rawInstallation = isRecord(raw.installation)
+        ? raw.installation
+        : isRecord(raw.java)
+          ? raw.java
+          : null;
+    const rawVersion = rawInstallation !== null && isRecord(rawInstallation.version)
+        ? rawInstallation.version
+        : null;
+    const requiredCandidate =
+        typeof raw.required === "number"
+            ? raw.required
+            : isRecord(raw.requirement) && typeof raw.requirement.feature === "number"
+              ? raw.requirement.feature
+              : typeof raw.feature === "number"
+                ? raw.feature
+                : featureFromVersion(requestedVersion);
+    const requiredFeature =
+        Number.isSafeInteger(requiredCandidate) && requiredCandidate > 0
+            ? requiredCandidate
+            : featureFromVersion(requestedVersion);
+    if (requiredFeature <= 0) return null;
+
+    const executable = rawInstallation?.executable;
+    if (typeof executable === "string" && executable !== "") {
+        const source = isJavaSource(rawInstallation?.source) ? rawInstallation.source : "provisioned";
+        const version = typeof rawVersion?.version === "string" ? rawVersion.version : null;
+        return {
+            found: true,
+            executable,
+            source,
+            version,
+            requiredFeature,
+            message:
+                typeof raw.message === "string" && raw.message !== ""
+                    ? raw.message
+                    : "A suitable Java runtime is available.",
+        };
+    }
+
+    const rejected = Array.isArray(raw.rejected)
+        ? raw.rejected.filter(
+              (entry): entry is Record<string, unknown> =>
+                  isRecord(entry) && typeof entry.reason === "string",
+          )
+        : [];
+    const reasons = rejected
+        .map((entry) => `${typeof entry.source === "string" ? entry.source : "A runtime"}: ${entry.reason}`)
+        .join("; ");
+    return {
+        found: false,
+        executable: null,
+        source: null,
+        version: null,
+        requiredFeature,
+        message:
+            typeof raw.message === "string" && raw.message !== ""
+                ? raw.message
+                : reasons === ""
+                  ? `No usable Java ${requiredFeature} runtime was found on this computer.`
+                  : `No usable Java ${requiredFeature} runtime was found. ${reasons}.`,
+    };
+}
+
+/** Validates a progress payload before forwarding it to the wizard. */
+export function isJavaProvisionProgress(value: unknown): value is JavaProvisionProgress {
+    if (!isRecord(value)) return false;
+    return (
+        value.phase === "resolving" ||
+        value.phase === "downloading" ||
+        value.phase === "extracting" ||
+        value.phase === "verifying" ||
+        value.phase === "installing" ||
+        value.phase === "done" ||
+        value.phase === "failed"
+    ) && typeof value.receivedBytes === "number" && value.receivedBytes >= 0
+        && (value.totalBytes === null || (typeof value.totalBytes === "number" && value.totalBytes >= 0))
+        && typeof value.message === "string";
 }
 
 export interface CreateServerRequest {
@@ -805,27 +923,18 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
                 return notWired("installing Java automatically");
             }
             const result = await host.java.provision(version);
-            if (!result.ok || result.value === undefined) return result;
-            const raw = result.value as unknown as {
-                outcome?: string;
-                feature?: number;
-                java?: { executable?: string; version?: { version?: string } };
-            };
-            if (raw.java?.executable === undefined) return result as Answer<JavaResolution>;
-            return {
-                ok: true,
-                value: {
-                    found: true,
-                    executable: raw.java.executable,
-                    source: "provisioned",
-                    version: raw.java.version?.version ?? null,
-                    requiredFeature: raw.feature ?? (Number(version) || 0),
-                    message:
-                        raw.outcome === "already-installed"
-                            ? "Java is already available."
-                            : "Java was provisioned and verified.",
-                },
-            };
+            if (!result.ok) return result as Answer<JavaResolution>;
+            const value = normaliseJavaResolution(result.value, version);
+            return value === null
+                ? {
+                      ok: false,
+                      failure: {
+                          code: "invalid-java-resolution",
+                          message: "The Java provision response was not a valid runtime report.",
+                          detail: null,
+                      },
+                  }
+                : { ok: true, value };
         },
         onJavaProgress(listener): () => void {
             if (host?.java?.onProgress === undefined) return () => {};

@@ -103,6 +103,7 @@ function fakeBridge(
             };
         },
         canCancel: true,
+        canPause: false,
         canListRepositories: true,
         canListBackups: true,
         canSeeActive: true,
