@@ -60,6 +60,7 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "site-universal-unlock-ladder",
     "site-universal-evidence",
     "school-mode",
+    "adhd-modes",
 ] as const;
 
 export type PagesFeatureId = (typeof REQUIRED_PAGES_FEATURE_IDS)[number];
@@ -535,5 +536,11 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
             "design/packages/site/src/settings/schoolModePanel.ts",
         ],
         ["design/packages/site/src/settings/schoolMode.test.ts"],
+    ),
+    implemented(
+        "adhd-modes",
+        "Five independently toggleable ADHD modes, every one off by default",
+        ["design/packages/site/src/settings/adhdModes.ts"],
+        ["design/packages/site/src/settings/adhdModes.test.ts"],
     ),
 ];
