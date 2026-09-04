@@ -336,14 +336,14 @@ fixture 世界上面已經同 Java 引擎輸出逐 byte 一樣,但佢仲未係�
 (NBT、壓縮、region 容器、1.12.2 到 26.x 嘅 chunk 解碼器)同 resource-pack pipeline 已經移植
 晒、有單元測試。一個渲染仲可以交畀遠端機器行 - 經 SSH、Docker 容器,或者 GitHub Actions。
 
-**個介面。** 80px 應用程式導軌上面三個常設目的地:**Home** 用五個目錄發現全部功能,**Map**
+**個介面。** 80px 應用程式導軌上面三個常設目的地:**Home** 用六個目錄發現全部功能,**Map**
 擁有一直掛住嘅地圖畫布,**Work** 將現有嘅分頁工作區重新安置,淨係擺打開咗嘅工作。導軌腳部
 有指令搜尋、通知歷史同設定 - 全部係導軌動作,唔係浮動按鈕。通知只入歷史,唔會彈出嚟遮住
 內容。快速鍵 `Ctrl+Shift+F` 開指令面板。
 
 **呢個係成人模式,啱啱裝完打開嗰陣唔係見到呢個。** 因為 `kid.enabled` 出貨就已經係
-`true`,所以第一眼見到嘅其實係「兒童模式」:掣大啲、字同圖畫行先,五個目錄變成五個
-「地頭」代替呢三個導軌目的地 - 用嘅係同一批 84 個功能,唔係另外整多一份;仲有 XP 條同
+`true`,所以第一眼見到嘅其實係「兒童模式」:掣大啲、字同圖畫行先,六個目錄變成六個
+「地頭」代替呢三個導軌目的地 - 用嘅係同一批 88 個功能,分布係 29/6/7/7/2/37,唔係另外整多一份;仲有 XP 條同
 埋一本記低真係做過嘅事嘅印仔簿。兩個模式之間乜都冇加、冇減、冇隱藏。撳兒童介面自己嗰個
 「大人掣」,或者過咗嗰關之後喺設定度揀「Kid Mode and Adult Mode」,就會轉返上面講嗰個
 三目的地介面。詳情見 [`docs/kid-mode.md`](docs/kid-mode.md)。
@@ -420,13 +420,13 @@ The desktop shell is a Material Design 3 rewrite, and the whole of it fits in on
 
 | Rail | What it is |
 | --- | --- |
-| **Home** | Five catalogue cards over **84 features**. Open one to see what is inside it. |
+| **Home** | Six catalogue cards over **88 features** split 29/6/7/7/2/37. Open one to see what is inside it. |
 | **Map** | The live 3D canvas and its viewer controls. |
 | **Work** | The tab system, holding only the jobs you have actually started. |
 
 **This is Adult Mode, and a fresh install does not open here.** `kid.enabled` ships `true`, so
 the very first thing anyone sees is Kid Mode: bigger targets, picture-first labels and five
-catalogue "lands" instead of these three rail destinations, drawn from the exact same 84
+catalogue "lands" instead of these three rail destinations, drawn from the exact same 88
 features rather than a second copy of them, plus an XP bar and a sticker book for things
 actually completed. Nothing is added, removed, renamed or gated between the two modes — Kid
 Mode only relabels and resizes what this shell already reaches. The grown-up padlock on Kid
@@ -470,7 +470,7 @@ this rewrite replaced, and not one was skipped, weakened or deleted to bring tha
 </details>
 
 <details>
-<summary><b>The five catalogues</b></summary>
+<summary><b>The six catalogues</b></summary>
 
 | Catalogue | Features | What is in it |
 | --- | ---: | --- |
@@ -494,7 +494,7 @@ freshly built Electron process and driven by clicking its rail and its tab strip
 that produced every capture in the Screenshots section further down this file, run most recently on
 2026-08-15. Not mockups, and not the prototype.
 
-**Home** — five catalogue cards behind an 80 px rail, dark by default. The hero spans both columns
+**Home**, six catalogue cards behind an 80 px rail, dark by default. The hero spans both columns
 and carries the Make a map catalogue's own group headings as chips; the count in the lede is the
 live number of features this build actually exposes, not a number typed into a sentence.
 
@@ -512,8 +512,8 @@ catalogues rather than crowding the strip.
 <summary><b>Kid Mode</b> - what a fresh install actually opens on, not the shell above</summary>
 
 `kid.enabled` ships `true`, so before anyone ever sees the three-destination shell captured above,
-a fresh install shows this instead: bigger touch targets, picture-first labels, and the same 84
-features the adult catalogues hold, reorganised into five "lands" rather than copied into a second
+a fresh install shows this instead: bigger touch targets, picture-first labels, and the same 88
+features the adult catalogues hold, reorganised into six "lands" rather than copied into a second
 set. Nothing is added, removed, renamed or hidden between the two modes - see
 [`docs/kid-mode.md`](docs/kid-mode.md).
 

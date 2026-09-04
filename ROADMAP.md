@@ -1,5 +1,26 @@
 # Roadmap
 
+## Documentation and integrated feature contract refresh (2026-09-02)
+
+- [x] Correct the catalogue prose to the verified 88-row inventory split `29/6/7/7/2/37`,
+      and keep the README and Kid Mode descriptions aligned with the source registry.
+- [x] Add the converter, local model tooling, runtime settings, SSH host profiles, complete
+      version catalogue, creative studio and built-app smoke records to the documentation indexes.
+- [x] Register the corresponding public documentation articles, each with the five required
+      sections, source links and suggested next articles. Every article records source and focused
+      proof as separate from packaged evidence.
+- [x] Correct the stale Minecraft server adoption article so source wiring is described as present,
+      while packaged interaction and isolated-host proof remain explicitly pending.
+- [ ] Merge the source-complete feature branches into `main` and produce one integrated Windows package.
+- [ ] Run the full packaged smoke matrix and refresh only captures proven against that package and
+      commit. The current screenshot evidence check remains red until that work is complete.
+- [ ] Publish a new release only after package provenance, installer contents and remote checks are
+      verified. The current documentation candidate is not a release.
+
+Source-complete does not mean fully verified. The first four rows above describe records and source
+contracts that can be reviewed now. The final three rows are the separate packaged and full-surface
+proof required before this candidate can be called released.
+
 ## Project canvas documentation (2026-08-25)
 
 The node-graph canvas (`design/packages/ui/src/components/canvas/`) already shipped as an

@@ -79,6 +79,13 @@ import { actionWalkthroughs } from "./action-walkthroughs.js";
 import { scheduledSettings } from "./scheduled-settings.js";
 import { panelGeometry } from "./panel-geometry.js";
 import { mcserverHosting } from "./mcserver-hosting.js";
+import { fileConverter } from "./file-converter.js";
+import { localModelTooling } from "./local-model-tooling.js";
+import { runtimeSettings } from "./runtime-settings.js";
+import { mcserverHostProfiles } from "./mcserver-host-profiles.js";
+import { minecraftVersionCatalogue } from "./minecraft-version-catalogue.js";
+import { creativeStudio } from "./creative-studio.js";
+import { uiSmokePlanning } from "./ui-smoke-planning.js";
 
 export const articles: readonly Article[] = [
     glossary,
@@ -118,6 +125,13 @@ export const articles: readonly Article[] = [
     scheduledSettings,
     panelGeometry,
     mcserverHosting,
+    fileConverter,
+    localModelTooling,
+    runtimeSettings,
+    mcserverHostProfiles,
+    minecraftVersionCatalogue,
+    creativeStudio,
+    uiSmokePlanning,
     worldReading,
     worldDiscovery,
     legacyWorldSupport,

@@ -17,7 +17,7 @@ export const mcserverHosting: Article = {
     category: "application",
     status: "shipped",
     statusNote:
-        "The transport layer, the registry, the config editor, the RCON console, the player and plugin managers and the web console are on the default branch, wired into a real 'Minecraft servers' destination in the left rail, and covered by several hundred tests. All of that runs against fakes and in-memory transports: nothing here has met a real Docker daemon, a real SSH host or a real java process, and there is no capture from a packaged build. Two named things are not merely unverified but genuinely unreachable today: the 'Adopt an existing server' button opens nothing, because nowhere it is mounted listens for the event it emits, and a fourth transport - an EC2 instance this app provisions on AWS - has a complete tested backend and no screen that leads to it.",
+        "The transport layer, registry, config editor, RCON console, player and plugin managers and web console are wired into the Minecraft servers destination and covered by focused tests. The adoption event and review route are mounted through the application shell, while real Docker, SSH, Java and packaged Windows evidence remain separate pending proof. The AWS transport still has a tested backend without a screen that leads to it.",
 
     sections: [
         {
@@ -86,19 +86,19 @@ export const mcserverHosting: Article = {
                 {
                     kind: "callout",
                     tone: "warning",
-                    title: "Adoption is built and does not open",
+                    title: "Adoption is wired, packaged proof remains",
                     content: [
                         "A server this app did not create is meant to be adopted through a review dialog ",
                         "that shows exactly what will and will not be permitted before the server joins ",
                         "the list. That dialog, and the read-only discovery logic behind it, are built and ",
-                        "tested. The button that is supposed to open it - ",
+                        "tested. The button that opens it - ",
                         { code: "ServerListScreen.vue" },
-                        "'s \"Adopt an existing server\" control - emits an event nobody listens for at any ",
-                        "of its three mount sites in ",
+                        "'s \"Adopt an existing server\" control - emits the event consumed by the mounted ",
+                        "adoption flow at each application mount site in ",
                         { code: "App.vue" },
-                        ", and the review dialog itself is not mounted anywhere the application runs. There ",
-                        "is also no screen that lists candidate containers to adopt in the first place. ",
-                        "Clicking the button today does nothing, silently.",
+                        ". Candidate containers are listed before the review dialog. Packaged interaction and ",
+                        "a real remote daemon remain pending evidence, so this article does not turn source ",
+                        "wiring into a runtime claim.",
                     ],
                 },
                 {
@@ -179,7 +179,7 @@ export const mcserverHosting: Article = {
                     kind: "list",
                     items: [
                         "An RCON password, when one exists, never reaches the renderer - the record only carries whether one is set, and the secret lives in the operating system credential vault.",
-                        "An adopted server's write scope is meant to be enforced by the transport asking its own capabilities before offering a control, rather than the screen trusting itself - built and tested even though the interface path that would let a user reach adoption does not exist yet (see behaviour, above).",
+                        "An adopted server's write scope is enforced by the transport asking its own capabilities before offering a control, rather than the screen trusting itself. The source path is wired, and the packaged remote-daemon interaction remains pending (see behaviour, above).",
                         "Forgetting a server never deletes anything outside this app's own list, and says so explicitly in the same two-key super-confirmation gate every other destructive action here uses.",
                         "Player-list edits go through the same write-capability gate and stale-hash protection as any other file write.",
                     ],
@@ -215,9 +215,9 @@ export const mcserverHosting: Article = {
                     content: [
                         "No test in this pass drives a real Docker daemon, a real SSH host, a real ",
                         { code: "java -jar" },
-                        " process, or a real AWS account. The adoption button's missing listener and the ",
-                        "absent adoption-browsing screen were found by reading the source, not by a failing ",
-                        "assertion; nothing here currently guards against either one regressing quietly.",
+                        " process, or a real AWS account. Source-level adoption wiring is covered by the ",
+                        "seam guard, while packaged interaction and isolated-host evidence remain pending ",
+                        "and are not inferred from that guard.",
                     ],
                 },
             ],
@@ -236,6 +236,14 @@ export const mcserverHosting: Article = {
         {
             articleId: "ssh-world-sources",
             reason: "The same key-only SSH connection style, reused here for a server reached over SSH instead of a world.",
+        },
+        {
+            articleId: "mcserver-host-profiles",
+            reason: "The guided host profile and remote adoption details behind this server destination.",
+        },
+        {
+            articleId: "minecraft-version-catalogue",
+            reason: "The complete version rows and family picker used by the New server wizard.",
         },
     ],
 

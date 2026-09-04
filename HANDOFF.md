@@ -1,5 +1,31 @@
 # Handoff
 
+## 2026-09-02: current verified baseline and unreleased integration candidate
+
+The single verified release baseline for this handoff is `v1.0.1718`, the non-draft Windows
+release whose installer was downloaded and checked against its published tag. The documentation
+and feature lanes being reconciled here are not a release. The integration candidate is the
+`codex/integration-docs-repair` branch at `265e7d441d92edc3d31f0a0bce24cdbb6ed324ad` before the
+parent integration merges the feature branches, and it remains unreleased pending packaged proof.
+
+Source-complete documentation now records the 88 catalogue rows split `29/6/7/7/2/37`, the
+converter and local model tooling contracts, runtime settings, SSH host profiles, the complete
+version catalogue, the creative studio and the built-app smoke plan. The adoption article now
+describes source wiring as present rather than unreachable. None of those source records is a
+substitute for a packaged Windows run, a real remote host, a live local model service or refreshed
+capture evidence. Those proof boundaries remain open for the parent integration and release pass.
+
+廣東話同步：今次 handoff 唯一 verified release baseline 係 `v1.0.1718`，installer 已經由 published
+tag 下載返嚟核對。呢條 documentation 同 feature reconciliation branch 唔係 release；parent merge
+之前嘅 integration candidate 係 `codex/integration-docs-repair` 嘅
+`265e7d441d92edc3d31f0a0bce24cdbb6ed324ad`，仲未出街，等 packaged proof 先可以講 release。
+
+而家 source-complete 嘅記錄包括 88 行 catalogue，分布 `29/6/7/7/2/37`，converter、local
+model tooling、runtime settings、SSH host profiles、完整 version catalogue、creative studio
+同 built-app smoke plan。adoption 文章亦已經改到講 source wiring 存在，唔再講成 unreachable。
+不過 packaged Windows run、真 remote host、live local model service 同 fresh capture evidence
+仍然係 parent integration 要完成嘅 proof，唔可以由 source record 冒充。
+
 ## 2026-08-25: the application in a browser, a deployment tool, and one gate that will not go green
 
 ### What shipped

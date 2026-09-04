@@ -82,6 +82,7 @@ export const scheduledSettings: Article = {
         },
         { articleId: "language-and-tone", reason: "The language values a rule can schedule." },
         { articleId: "appearance-editor", reason: "The appearance values a rule can schedule." },
+        { articleId: "runtime-settings", reason: "The shared runtime settings surface and its protected local history." },
         {
             articleId: "notification-centre",
             reason: "Where persistent external-source failures remain reviewable.",
