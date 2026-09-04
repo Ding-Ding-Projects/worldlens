@@ -414,9 +414,9 @@ export const home: HomeContent = {
                 {
                     title: "A world to render, with no Minecraft installed",
                     body: "A generator writes a synthetic Minecraft world directly in Anvil format from a seed: terrain, biomes, lighting and all. It exists so a render can be demonstrated and reproduced without a Minecraft server, a download or somebody else's demo site.",
-                    status: "shipped",
+                    status: "ported-unverified",
                     statusNote:
-                        "Built, and proved by reading its own output back through this project's world reader. 19 tests covering terrain, biomes, lighting, packing and determinism run in CI on every push.",
+                        "Synthetic generation and exact measured-byte desktop targets are implemented with focused local tests. The actual 1 GB and 10 GB generation, rendering and built-application walkthrough remain unverified here.",
                     articleId: "test-world-generator",
                 },
                 {

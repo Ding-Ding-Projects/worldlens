@@ -76,18 +76,11 @@ const emit = defineEmits<{
     generate: [settings: WorldGenSettings];
 }>();
 
+const { t: measuredT } = useI18n({ useScope: "global" });
 const { t } = useI18n({
     useScope: "local",
     messages: {
         en: {
-            generationFailed: "The generator did not return a result. Check the operation and retry.",
-            measuredTarget: "Minimum world bytes (decimal)",
-            resume: "Resume the existing generated world",
-            measuredNotice: "Generates valid Java 1.20.4 Anvil chunks until level.dat and region files meet the byte target. No padding. Resume requires the same seed, name and target and verifies every region hash.",
-            paused: "Paused. Valid generated content is retained. Enable Resume with the same inputs to continue.",
-            stopGeneration: "Stop and preserve progress",
-            measuredProgress: "Measured {bytes} / {target} bytes, {chunks} chunks",
-            measuredResult: "Measured {bytes} bytes, {chunks} chunks, overshoot {overshoot} bytes. Folder: {folder}",
             title: "Generate a world",
             boundary:
                 "This build can build the exact plan below and can create the server jar the normal way. Running the plan end to end - launching, watching for readiness, stopping, and packaging - is not wired up yet.",
@@ -133,14 +126,6 @@ const { t } = useI18n({
             engineNotAvailable: "This engine is not available in this build; the plan below is what it would do.",
         },
         yue: {
-            generationFailed: "生成器冇傳返結果。請檢查操作再試。",
-            measuredTarget: "世界最少位元組數（十進制）",
-            resume: "繼續生成現有世界",
-            measuredNotice: "持續生成有效 Java 1.20.4 Anvil 區塊，直到 level.dat 同區域檔案達到指定大小，唔會塞填充資料。繼續時要用相同種子、名稱同目標，並核對每個區域嘅雜湊。",
-            paused: "已暫停，有效內容已保留。保持原有設定並啟用繼續生成即可接住做。",
-            stopGeneration: "停止並保留進度",
-            measuredProgress: "已量度 {bytes} / {target} 位元組，{chunks} 個區塊",
-            measuredResult: "已量度 {bytes} 位元組，{chunks} 個區塊，超出目標 {overshoot} 位元組。資料夾：{folder}",
             title: "生成世界",
             boundary:
                 "呢個版本識砌返出下面成個計劃，亦識用返平時嗰套嘢整伺服器 jar。但係由頭做到尾——開機、等世界搞掂、停機、打包——依家仲未接埋線，唔好以為撳掣就會有世界喎。",
@@ -223,7 +208,7 @@ onUnmounted(() => {
 });
 async function stopGeneration(): Promise<void> {
     const result = await cancelSyntheticWorld();
-    if (!result.ok) generationError.value = result.failure?.message ?? t("generationFailed");
+    if (!result.ok) generationError.value = result.failure?.message ?? "";
 }
 const generationError = ref<string | null>(null);
 
@@ -320,7 +305,7 @@ async function onGenerate(): Promise<void> {
     });
     generating.value = false;
     clearTimeout(progressTimer);
-    if (!answer.ok || answer.value === undefined) { generationError.value = answer.failure?.message ?? t("generationFailed"); return; }
+    if (!answer.ok || answer.value === undefined) { generationError.value = answer.failure?.message ?? ""; return; }
     generated.value = answer.value;
     if (answer.value.cancelled) resumeGeneration.value = true;
 }
@@ -474,15 +459,15 @@ function onClose(): void {
                         {{ t("estimate") }}: {{ pregenEstimate.chunkCount }} chunks, ~{{ (pregenEstimate.estimatedBytes / 1_000_000).toFixed(1) }} MB,
                         ~{{ pregenEstimate.estimatedSeconds }}s
                     </div>
-                    <div v-if="engineId === 'synthetic'" class="d-flex flex-wrap ga-2 mt-2" aria-label="Large deterministic world targets">
-                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 1_000_000_000">1 GB (1,000,000,000 bytes)</VBtn>
-                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 10_000_000_000">10 GB (10,000,000,000 bytes)</VBtn>
+                    <div v-if="engineId === 'synthetic'" class="d-flex flex-wrap ga-2 mt-2" :aria-label="measuredT('worldgen.measured.targets')">
+                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 1_000_000_000">{{ measuredT('worldgen.measured.preset1') }}</VBtn>
+                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 10_000_000_000">{{ measuredT('worldgen.measured.preset10') }}</VBtn>
                     </div>
                     <div v-if="engineId === 'synthetic'" class="text-caption mt-1">
-                        {{ t('measuredNotice') }}
+                        {{ measuredT('worldgen.measured.notice') }}
                     </div>
-                    <VTextField v-if="engineId === 'synthetic'" v-model.number="targetBytes" type="number" min="1" max="100000000000" :disabled="generating" :label="t('measuredTarget')" clearable />
-                    <VSwitch v-if="engineId === 'synthetic' && targetBytes !== null" v-model="resumeGeneration" :disabled="generating" :label="t('resume')" />
+                    <VTextField v-if="engineId === 'synthetic'" v-model.number="targetBytes" type="number" min="1" max="100000000000" :disabled="generating" :label="measuredT('worldgen.measured.target')" clearable />
+                    <VSwitch v-if="engineId === 'synthetic' && targetBytes !== null" v-model="resumeGeneration" :disabled="generating" :label="measuredT('worldgen.measured.resume')" />
                 </div>
 
                 <VDivider class="my-4" />
@@ -559,22 +544,22 @@ function onClose(): void {
                     </VList>
                 </div>
                 <VAlert v-if="generationError !== null" type="error" variant="tonal" density="compact" class="mt-3">
-                    {{ generationError }}
+                    {{ generationError || measuredT('worldgen.measured.failed') }}
                 </VAlert>
                 <div v-if="generationProgress" role="status" aria-live="polite">
-                    {{ t('measuredProgress', { bytes: generationProgress.bytes, target: generationProgress.targetBytes, chunks: generationProgress.chunkCount }) }}
-                    <progress :value="generationProgress.bytes" :max="generationProgress.targetBytes" :aria-label="t('measuredTarget')" />
+                    {{ measuredT('worldgen.measured.progress', { bytes: generationProgress.bytes, target: generationProgress.targetBytes, chunks: generationProgress.chunkCount }) }}
+                    <progress :value="generationProgress.bytes" :max="generationProgress.targetBytes" :aria-label="measuredT('worldgen.measured.target')" />
                 </div>
                 <VAlert v-if="generated !== null" :type="generated.cancelled ? 'info' : 'success'" variant="tonal" density="compact" class="mt-3">
-                    <div v-if="generated.cancelled">{{ t('paused') }}</div>
-                    {{ t('measuredResult', { bytes: generated.bytes, chunks: generated.chunkCount, overshoot: generated.overshootBytes ?? 0, folder: generated.worldFolder }) }}
+                    <div v-if="generated.cancelled">{{ measuredT('worldgen.measured.paused') }}</div>
+                    {{ measuredT('worldgen.measured.result', { bytes: generated.bytes, chunks: generated.chunkCount, overshoot: generated.overshootBytes ?? 0, folder: generated.worldFolder }) }}
                 </VAlert>
             </VCardText>
             <VCardActions>
-                <VBtn v-if="generating && targetBytes !== null" variant="text" @click="stopGeneration">{{ t('stopGeneration') }}</VBtn>
+                <VBtn v-if="generating && targetBytes !== null" variant="text" @click="stopGeneration">{{ measuredT('worldgen.measured.stop') }}</VBtn>
                 <VBtn v-else variant="text" :disabled="generating" @click="onClose">{{ t("cancel") }}</VBtn>
                 <VBtn color="primary" variant="flat" :loading="generating" :disabled="!canGenerate || generating" @click="onGenerate">
-                    {{ generating ? 'Generating…' : 'Generate' }}
+                    {{ measuredT(generating ? 'worldgen.measured.generating' : 'worldgen.measured.generate') }}
                 </VBtn>
                 <VBtn color="primary" variant="tonal" :disabled="!validation.ok" @click="onPreviewPlan">
                     {{ t("previewPlan") }}

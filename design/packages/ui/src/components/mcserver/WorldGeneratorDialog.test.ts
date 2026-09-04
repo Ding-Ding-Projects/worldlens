@@ -6,12 +6,17 @@
  * pure-function tests cannot: a typo'd component name, a missing prop, a template that
  * throws on render.
  */
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { mount, flushPromises } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 
 import WorldGeneratorDialog from "./WorldGeneratorDialog.vue";
+import { installAppVoice } from "../../copy/appVoice.js";
+import { setLanguageMode, setFunnyLevel } from "../setup/setupI18n.js";
+
+const voiceStops: (() => void)[] = [];
+beforeEach(() => { setLanguageMode("en"); setFunnyLevel("en", 1); setFunnyLevel("yue", 1); });
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -45,6 +50,7 @@ beforeAll(() => {
 
 function mountDialog(open = true) {
     const i18n = createI18n({ legacy: false, locale: "en", messages: { en: {} } });
+    voiceStops.push(installAppVoice(i18n as never, () => i18n.global.locale.value));
     const vuetify = createVuetify();
     return mount(WorldGeneratorDialog, {
         props: {
@@ -64,6 +70,7 @@ function mountDialog(open = true) {
 // that has nothing to do with it. Clearing unconditionally keeps one real failure from
 // manufacturing a second fake one.
 afterEach(() => {
+    for (const stop of voiceStops.splice(0)) stop();
     vi.unstubAllGlobals();
     document.body.innerHTML = "";
 });
@@ -176,5 +183,29 @@ describe("WorldGeneratorDialog", () => {
         expect(cancel).toHaveBeenCalledTimes(1);
         finish!({ ok: false, failure: { message: "cancelled" } });
         await flushPromises();
+    });
+
+    it("updates measured labels and prose live from language and funny-level settings", async () => {
+        const wrapper = mountDialog();
+        try {
+            dialogButtons().find((button) => button.textContent?.includes("10 GB ("))!.click();
+            await wrapper.vm.$nextTick();
+            expect(dialogText()).toContain("Minimum world bytes (decimal)");
+            setLanguageMode("yue"); await wrapper.vm.$nextTick();
+            expect(dialogText()).toContain("世界最少位元組數（十進制）");
+            expect(dialogText()).not.toContain("Minimum world bytes (decimal)");
+            setLanguageMode("bilingual"); await wrapper.vm.$nextTick();
+            expect(dialogText()).toContain("Minimum world bytes (decimal)");
+            expect(dialogText()).toContain("世界最少位元組數（十進制）");
+            expect(dialogText()).toContain("10,000,000,000");
+            const serious = dialogText();
+            setFunnyLevel("en", 5); await wrapper.vm.$nextTick();
+            expect(dialogText()).not.toBe(serious);
+            expect(dialogText()).toContain("files must bring the receipts");
+            expect(dialogText()).not.toContain("正方形識講大話");
+            setFunnyLevel("yue", 5); await wrapper.vm.$nextTick();
+            expect(dialogText()).toContain("正方形識講大話");
+            expect(dialogText()).toContain("files must bring the receipts");
+        } finally { wrapper.unmount(); }
     });
 });
