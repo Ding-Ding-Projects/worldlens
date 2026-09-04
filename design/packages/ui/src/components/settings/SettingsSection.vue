@@ -97,29 +97,37 @@ defineExpose({ reveal, element: root });
 </template>
 
 <style>
+/*
+ * M3 card group anatomy.
+ *
+ * `.mb-setting` is the card, `.mb-setting__header` is its title/status row, and
+ * `.mb-setting__list` (below) is the optional M3 list a card wraps its rows in
+ * when it holds more than one control. Every dimension here is a token or a
+ * value straight off the M3 spacing scale (8 / 16 / 24), never an ad-hoc number
+ * chosen by eye - that is what made this dialog read as "a bit cramped" the
+ * first time and it is not getting reintroduced by a second ad-hoc value.
+ */
 .mb-setting {
     display: flex;
     flex-direction: column;
-    /* M3 card anatomy: 24px padding and a 16px internal rhythm rather than the
-       12px/16px this surface shipped with, which is the exact "a bit cramped"
-       complaint a Lang gui card should never earn. */
     gap: 16px;
     padding: 24px;
-    border-radius: 12px;
-    /* An MD3 surface tint rather than a hard-coded grey, so it follows the theme and the
-       accent the appearance settings are set to. */
-    background: rgba(var(--v-theme-on-surface), 0.04);
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    /* The M3 surface-container role, not a hand-mixed tint: it already answers
+       both themes and any accent, because it is the same token the rest of the
+       app's M3 surfaces read from. */
+    background: var(--md-sys-color-surface-container, rgba(var(--v-theme-on-surface), 0.04));
     /* Reserved so the flash outline does not reflow the column when it appears. */
     outline: 2px solid transparent;
     outline-offset: 2px;
     scroll-margin-block: 16px;
 }
 
-/* A divider between stacked sections, drawn from the M3 outline-variant token
+/* A divider between stacked cards, drawn from the M3 outline-variant token
    rather than a bare grey rule, so it survives both themes and any accent. */
 .mb-setting + .mb-setting {
-    border-top: 1px solid rgba(var(--v-theme-outline-variant, var(--v-theme-on-surface)), 0.4);
-    margin-block-start: 4px;
+    border-top: 1px solid var(--md-sys-color-outline-variant, rgba(var(--v-theme-on-surface), 0.4));
+    margin-block-start: 8px;
 }
 
 .mb-setting:focus-visible,
@@ -138,22 +146,28 @@ defineExpose({ reveal, element: root });
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px 12px;
+    gap: 8px 16px;
 }
 
+/* Title-medium: the M3 typescale role for a card/list-group header, read from
+   the same tokens `MenuSideSheet.vue` already draws its own title from, rather
+   than a hand-picked 1rem/500 that happened to look right on one screen. */
 .mb-setting__title {
     margin: 0;
-    font-size: 1rem;
-    font-weight: 500;
-    line-height: 1.4;
+    font-size: var(--md-sys-typescale-title-medium-size, 1rem);
+    line-height: var(--md-sys-typescale-title-medium-line-height, 1.4);
+    font-weight: var(--md-sys-typescale-title-medium-weight, 500);
+    letter-spacing: var(--md-sys-typescale-title-medium-tracking, normal);
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
 }
 
+/* Body-medium: the M3 typescale role for supporting text under a title. */
 .mb-setting__description {
     margin: 0;
-    font-size: 0.8125rem;
-    line-height: 1.5;
+    font-size: var(--md-sys-typescale-body-medium-size, 0.8125rem);
+    line-height: var(--md-sys-typescale-body-medium-line-height, 1.5);
+    letter-spacing: var(--md-sys-typescale-body-medium-tracking, normal);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
 }
@@ -169,5 +183,116 @@ defineExpose({ reveal, element: root });
 .mb-setting .v-field:focus-within {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 1px;
+}
+
+/*
+ * M3 list anatomy, for a card whose body is one or more discrete rows rather
+ * than a single free-form control (a toggle, a select, a slider). A row
+ * component opts in by putting `mb-setting__row` on its own root element; this
+ * card never reaches into a child component's internals to impose it.
+ *
+ * Each row is a real M3 list-item: 56px minimum height (the M3 one-line list
+ * item spec, so a row is never shorter than a comfortable touch target), an
+ * 8/16/24 spacing rhythm inside it, an optional leading-icon column
+ * (`mb-setting__row-icon`), a content column that grows to fill the row, and
+ * an optional trailing column (`mb-setting__row-trailing`) for the control
+ * itself - a switch, a select, a segmented button - so the label and the
+ * control it operates are never squeezed onto the same visual line by
+ * accident. The hover/focus state layer is drawn from the M3 state-opacity
+ * tokens rather than a bespoke tint, exactly like every other interactive M3
+ * surface in this app.
+ */
+.mb-setting__list {
+    display: flex;
+    flex-direction: column;
+    /* The M3 list-item divider inset - it starts after the leading icon
+       column, not at the row's own edge, which is what keeps a stack of rows
+       reading as one list rather than as a stack of unrelated cards. */
+    margin-inline: -24px;
+}
+
+.mb-setting__row {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 16px;
+    min-height: 56px;
+    padding-inline: 24px;
+    padding-block: 8px;
+    border-radius: var(--md-sys-shape-corner-small, 8px);
+}
+
+.mb-setting__list .mb-setting__row + .mb-setting__row {
+    border-top: 1px solid var(--md-sys-color-outline-variant, rgba(var(--v-theme-on-surface), 0.4));
+}
+
+/* A row with no leading icon still gets the same grid, so its content column
+   lines up with a sibling row that does have one. */
+.mb-setting__row:not(:has(.mb-setting__row-icon)) {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.mb-setting__row-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: 24px;
+    block-size: 24px;
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-setting__row-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.mb-setting__row-label {
+    font-size: var(--md-sys-typescale-body-large-size, 1rem);
+    line-height: var(--md-sys-typescale-body-large-line-height, 1.5);
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-setting__row-supporting {
+    font-size: var(--md-sys-typescale-body-medium-size, 0.8125rem);
+    line-height: var(--md-sys-typescale-body-medium-line-height, 1.4);
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    text-wrap: pretty;
+}
+
+.mb-setting__row-trailing {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+/* The M3 state layer: an overlay the same shape as the row, drawn at the
+   spec's hover/pressed opacities against on-surface, sitting under the row's
+   own content so it never fights the control's own focus ring. */
+.mb-setting__row::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: rgb(var(--v-theme-on-surface));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+}
+
+@media (hover: hover) {
+    .mb-setting__row:hover::before {
+        opacity: var(--md-sys-state-hover-opacity, 8%);
+    }
+}
+
+.mb-setting__row:focus-within::before {
+    opacity: var(--md-sys-state-pressed-opacity, 10%);
 }
 </style>

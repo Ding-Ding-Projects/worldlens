@@ -47,6 +47,6 @@ describe("settings section card anatomy (M3 revamp)", () => {
         const divider = text.match(/\.mb-setting \+ \.mb-setting\s*\{[^}]*\}/s)?.[0] ?? "";
         expect(divider, "missing stacked-section divider rule").not.toBe("");
         expect(divider).toContain("border-top");
-        expect(divider).toContain("--v-theme-outline-variant");
+        expect(divider).toContain("--md-sys-color-outline-variant");
     });
 });
