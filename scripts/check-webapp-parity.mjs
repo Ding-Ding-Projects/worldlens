@@ -42,12 +42,12 @@ const PURITY_SURFACES = [
     {
         id: "documentation site",
         dir: join(repoRoot, "design/packages/site/src"),
-        skip: [/tokens\.css$/, /[\/]theme[\/]generated[\/]/, /[\/]dimsum[\/]generated[\/]/, /\.test\.ts$/],
+        skip: [/tokens\.css$/, /\/theme\/generated\//, /\/dimsum\/generated\//, /\.test\.ts$/],
     },
     {
         id: "desktop interface",
         dir: join(repoRoot, "design/packages/ui/src"),
-        skip: [/tokens/, /[\/]theme[\/]/, /generated/, /\.test\.ts$/],
+        skip: [/tokens/, /\/theme\//, /generated/, /\.test\.ts$/],
     },
     {
         id: "render page",
@@ -142,7 +142,11 @@ const EXEMPT_MARKER = "lang-gui-exempt:";
 function hardcodedColour(files, skip) {
     const problems = [];
     for (const file of files) {
-        if (skip.some((pattern) => pattern.test(file))) continue;
+        // Compared with forward slashes throughout. A pattern written with a character class
+        // for "either separator" quietly loses a backslash on its way through tooling and
+        // then matches only one of them - which on Windows means it silently stops skipping.
+        const asPosix = file.split(String.fromCharCode(92)).join("/");
+        if (skip.some((pattern) => pattern.test(asPosix))) continue;
         const lines = readFileSync(file, "utf8").replace(/\r\n/g, "\n").split("\n");
         // A file-level declaration, for a file that *is* colour data rather than one that
         // happens to contain some. The named-colour table is the clear case: 148 line-level
