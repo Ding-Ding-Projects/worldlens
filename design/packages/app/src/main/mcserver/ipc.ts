@@ -1690,6 +1690,7 @@ export function registerMcServerHandlers(
                 );
             if (body.flavour === "spigot") return fail("unsupported", "Local-process Spigot creation requires its BuildTools adapter. Container creation builds from source.");
             const createOptions: CreateLocalServerOptions = {
+                ...(typeof body.gameVersion === "string" ? { gameVersion: body.gameVersion } : {}),
                 id: body.id,
                 name: body.name,
                 flavour: body.flavour,

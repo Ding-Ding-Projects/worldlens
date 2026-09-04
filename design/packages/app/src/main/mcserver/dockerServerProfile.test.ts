@@ -3,17 +3,59 @@ import { dockerServerProfile, SERVER_CREATION_FLAVOURS } from "./dockerServerPro
 import { readFileSync } from "node:fs";
 
 describe("Docker server image contracts", () => {
+    it("keeps year-based Forge game versions intact", () => {
+        const result = dockerServerProfile({ flavour: "forge", version: "26.1-62.0.0" });
+        expect(result.ok).toBe(true);
+        if (result.ok) expect(result.value.env.VERSION).toBe("26.1");
+    });
+    it("requires an explicit game version for year-based NeoForge releases", () => {
+        expect(dockerServerProfile({ flavour: "neoforge", version: "26.1.1" }).ok).toBe(false);
+        const result = dockerServerProfile({
+            flavour: "neoforge",
+            version: "26.1.1",
+            gameVersion: "26.1",
+        });
+        expect(result.ok).toBe(true);
+        if (result.ok)
+            expect(result.value.env).toEqual({
+                TYPE: "NEOFORGE",
+                NEOFORGE_VERSION: "26.1.1",
+                VERSION: "26.1",
+            });
+    });
     it("pins the complete eight-type wizard and creation roster", () => {
-        const expected = ["vanilla", "paper", "purpur", "spigot", "fabric", "forge", "neoforge", "velocity"];
+        const expected = [
+            "vanilla",
+            "paper",
+            "purpur",
+            "spigot",
+            "fabric",
+            "forge",
+            "neoforge",
+            "velocity",
+        ];
         expect([...SERVER_CREATION_FLAVOURS]).toEqual(expected);
-        const source = readFileSync(new URL("../../../../ui/src/components/mcserver/wizardModel.ts", import.meta.url), "utf8");
-        const roster = source.split("export const FLAVOUR_CARDS: readonly FlavourCard[] = [")[1]?.split("export function flavourCard(")[0] ?? "";
-        expect([...roster.matchAll(/^\s+id: "([a-z]+)",/gm)].map((match) => match[1])).toEqual(expected);
+        const source = readFileSync(
+            new URL("../../../../ui/src/components/mcserver/wizardModel.ts", import.meta.url),
+            "utf8",
+        );
+        const roster =
+            source
+                .split("export const FLAVOUR_CARDS: readonly FlavourCard[] = [")[1]
+                ?.split("export function flavourCard(")[0] ?? "";
+        expect([...roster.matchAll(/^\s+id: "([a-z]+)",/gm)].map((match) => match[1])).toEqual(
+            expected,
+        );
     });
     it("builds Spigot from its source instead of an unavailable third-party download", () => {
         const result = dockerServerProfile({ flavour: "spigot", version: "1.21.4" });
         expect(result.ok).toBe(true);
-        if (result.ok) expect(result.value.env).toEqual({ TYPE: "SPIGOT", VERSION: "1.21.4", BUILD_FROM_SOURCE: "true" });
+        if (result.ok)
+            expect(result.value.env).toEqual({
+                TYPE: "SPIGOT",
+                VERSION: "1.21.4",
+                BUILD_FROM_SOURCE: "true",
+            });
     });
     it.each([
         ["vanilla", "1.21.4", undefined, { TYPE: "VANILLA", VERSION: "1.21.4" }],

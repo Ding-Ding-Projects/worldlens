@@ -258,7 +258,7 @@ export const mcserverHosting: Article = {
                         " process, or a real AWS account. Source-level adoption wiring is covered by the ",
                         "seam guard, while packaged interaction and isolated-host evidence remain pending ",
                         "and are not inferred from that guard.",
-                        " Container creation does not establish readiness or playable Velocity backend topology. Local-process Fabric installer resolution and Forge/NeoForge installer execution remain separate adapter work. 容器建立唔等於已啟動或者有完整可玩後端；本機載入器安裝流程仍待另外完成。",
+                        " Container creation does not establish readiness or playable Velocity backend topology. Local Fabric resolves its published launcher; Forge/NeoForge execute their installers and persist verified generated launch arguments. Actual JVM startup remains pending, and local Spigot BuildTools is the next adapter increment. 本機載入器安裝同啟動引數已接駁，真實 JVM 啟動仍待驗證。",
                     ],
                 },
             ],

@@ -51,9 +51,9 @@ If container creation succeeds but registry persistence fails, rollback independ
 
 Focused tests cover each container flavour's exact environment, mounted local/SSH submissions, selected-port mismatch, guided image digest resolution, saved-profile SSH dispatch, and registry-failure rollback that preserves unrelated containers. Typechecks require the workspace declarations to be built first, including `@worldlens/bridge`, `@worldlens/render-actions` and `@worldlens/viewer`.
 
-These checks use command-runner fixtures and mounted components. They do not establish real image download, container readiness, backend reachability, or a playable Velocity topology. Local-process Fabric installer resolution and Forge/NeoForge installer execution remain separate adapter work; this container repair does not claim those local routes are operational.
+These checks use command-runner fixtures and mounted components. They do not establish real image download, container readiness, backend reachability, or a playable Velocity topology. Local-process Fabric now resolves a stable published launcher and builds its URL from the separately chosen game and loader versions. Forge/NeoForge execute their installer in the server directory, verify the generated launcher, and persist the generated Java argument-file path. Restart resolves that path from the registry and invokes Java with the argument file, never with the installer as a server. Legacy Forge may use its generated executable server JAR. Installer success without the expected output is refused before saving a server record. Real JVM startup remains pending verification. Local-process Spigot BuildTools integration remains the next adapter increment.
 
-測試覆蓋每種容器設定、精靈提交、連接埠矛盾、摘要解析、SSH 路由同失敗回復。佢哋仍然係命令執行器測試同掛載元件測試，唔係真實容器啟動證據。本機程序嘅 Fabric 安裝器解析同 Forge/NeoForge 安裝器執行仍屬另一項配接工作。
+測試覆蓋每種容器設定、精靈提交、連接埠矛盾、摘要解析、SSH 路由同失敗回復。Fabric 本機流程會查已發布嘅穩定啟動器；Forge/NeoForge 先執行安裝器、確認產生嘅啟動檔，再將 Java 引數檔路徑存入清單。重新開啟唔會再當安裝器係伺服器。測試仍未代替真實 JVM 啟動證據，本機 Spigot BuildTools 係下一項配接工作。
 
 ## Sources and suggested articles
 

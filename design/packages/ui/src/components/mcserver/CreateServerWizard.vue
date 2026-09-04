@@ -233,7 +233,10 @@ async function refreshCatalogue(): Promise<void> {
 }
 
 const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
-    if (flavour.value === "spigot") return (catalogue.value?.flavours.find((entry) => entry.flavour === "vanilla")?.versions ?? []).filter((entry) => entry.stability === "release");
+    if (flavour.value === "spigot")
+        return (
+            catalogue.value?.flavours.find((entry) => entry.flavour === "vanilla")?.versions ?? []
+        ).filter((entry) => entry.stability === "release");
     const card = FLAVOUR_CARDS.find((c) => c.id === flavour.value);
     if (card?.cataloguedId === null || card === undefined) return [];
     const entry = catalogue.value?.flavours.find((f) => f.flavour === card.cataloguedId);
@@ -342,7 +345,8 @@ const fabricGameOptions = computed(() =>
 watch(minecraftVersion, (value) => {
     if (flavour.value === "fabric" || flavour.value === "neoforge") modLoaderVersion.value = value;
     if (flavour.value === "forge")
-        modLoaderVersion.value = /^(1\.[0-9]+(?:\.[0-9]+)?)-(.+)$/.exec(value)?.[2] ?? "";
+        modLoaderVersion.value =
+            /^((?:1\.[0-9]+|[0-9]{2}\.[0-9]+)(?:\.[0-9]+)?)-(.+)$/.exec(value)?.[2] ?? "";
 });
 const modsDirectory = ref(DEFAULT_MODS_DIRECTORY);
 const preinstallApiLibraries = ref<string[]>([]);
@@ -555,7 +559,8 @@ let queuedJavaGeneration: number | null = null;
 let javaDisposed = false;
 
 const requiredJavaFeature = computed(() =>
-    flavour.value === "fabric"
+    flavour.value === "fabric" ||
+    (flavour.value === "neoforge" && Number(minecraftVersion.value.split(".")[0]) >= 26)
         ? (catalogue.value?.flavours
               .find((entry) => entry.flavour === "vanilla")
               ?.versions.find((entry) => entry.version === fabricGameVersion.value)?.javaFeature ??
@@ -935,7 +940,9 @@ async function create(): Promise<void> {
             version: minecraftVersion.value,
             memoryMb: memoryMb.value,
             port: port.value,
-            ...(flavour.value === "fabric" ? { gameVersion: fabricGameVersion.value } : {}),
+            ...(flavour.value === "fabric" || flavour.value === "neoforge"
+                ? { gameVersion: fabricGameVersion.value }
+                : {}),
             acceptedEula: eulaAccepted.value,
             transport: transportRef(),
             ...(javaNotRequired.value
@@ -1125,7 +1132,12 @@ const canAdvanceFromModLoader = computed(
     () =>
         !isModLoader.value ||
         (modLoaderVersion.value.trim() !== "" &&
-            (flavour.value !== "fabric" || fabricGameVersion.value !== "") &&
+            ((flavour.value !== "fabric" &&
+                !(
+                    flavour.value === "neoforge" &&
+                    Number(minecraftVersion.value.split(".")[0]) >= 26
+                )) ||
+                fabricGameVersion.value !== "") &&
             validateModsDirectory(modsDirectory.value) === null),
 );
 const canAdvanceFromRuntime = computed(() => {
@@ -1751,14 +1763,14 @@ const canAdvance = computed(() => {
                 <!-- Step 3: mod-loader profile (modded flavours only) -->
                 <div v-else-if="step === 'mod-loader'" class="wl-mcserver-wizard__step">
                     <SearchableOptionPicker
-                        v-if="flavour === 'fabric'"
+                        v-if="
+                            flavour === 'fabric' ||
+                            (flavour === 'neoforge' && Number(minecraftVersion.split('.')[0]) >= 26)
+                        "
                         v-model="fabricGameVersion"
                         :options="fabricGameOptions"
                         :label="
-                            t(
-                                'mcserver.wizard.fabricGame',
-                                'Minecraft version for this Fabric loader',
-                            )
+                            t('mcserver.wizard.loaderGame', 'Minecraft version for this loader')
                         "
                         :sample="
                             fabricGameOptions

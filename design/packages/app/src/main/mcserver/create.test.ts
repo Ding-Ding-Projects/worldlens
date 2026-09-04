@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -16,7 +16,13 @@ const VANILLA_MANIFEST = JSON.stringify({
 const JAR_BYTES = Buffer.from("pretend-server-jar-bytes");
 
 const VANILLA_DETAIL = JSON.stringify({
-    downloads: { server: { url: "https://example.test/server-1.21.4.jar", sha1: "irrelevant", size: JAR_BYTES.byteLength } },
+    downloads: {
+        server: {
+            url: "https://example.test/server-1.21.4.jar",
+            sha1: "irrelevant",
+            size: JAR_BYTES.byteLength,
+        },
+    },
     javaVersion: { majorVersion: 8 },
 });
 
@@ -50,13 +56,21 @@ function okJarResponse(): HttpBinaryResponse {
     return {
         ok: true,
         status: 200,
-        headers: { get: (name) => (name.toLowerCase() === "content-length" ? String(JAR_BYTES.byteLength) : null) },
+        headers: {
+            get: (name) =>
+                name.toLowerCase() === "content-length" ? String(JAR_BYTES.byteLength) : null,
+        },
         body: asBody(JAR_BYTES),
     };
 }
 
 /** Fails every candidate instantly, so java discovery never spawns a real process. */
-const noJavaRunner = async () => ({ ok: false, stdout: "", stderr: "", error: "no java on this fake machine" });
+const noJavaRunner = async () => ({
+    ok: false,
+    stdout: "",
+    stderr: "",
+    error: "no java on this fake machine",
+});
 const noJavaExists = () => false;
 
 /** Reports a fake Java 21 so a full create() run never spawns a real process either. */
@@ -236,11 +250,100 @@ describe("createLocalServer", () => {
         const eula = await readFile(join(serversRoot, "survival", "eula.txt"), "utf8");
         expect(eula).toContain("eula=true");
 
-        const properties = await readFile(join(serversRoot, "survival", "server.properties"), "utf8");
+        const properties = await readFile(
+            join(serversRoot, "survival", "server.properties"),
+            "utf8",
+        );
         expect(properties).toContain("server-port=25565");
 
         const jarBytes = await readFile(join(serversRoot, "survival", "server.jar"));
         expect(jarBytes.equals(JAR_BYTES)).toBe(true);
+    });
+
+    it("resolves a published Fabric installer and keeps game and loader versions separate", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const downloads: string[] = [];
+        const result = await createLocalServer({
+            id: "fabric-server",
+            name: "Fabric server",
+            flavour: "fabric",
+            version: "0.16.9",
+            gameVersion: "1.21.4",
+            loaderVersion: "0.16.9",
+            memoryMb: 1024,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: fakeFetchText({
+                ...CATALOGUE_ROUTES,
+                "https://meta.fabricmc.net/v2/versions/loader": JSON.stringify([
+                    { version: "0.16.9", stable: true },
+                ]),
+                "https://meta.fabricmc.net/v2/versions/installer": JSON.stringify([
+                    { version: "1.0.3", stable: true },
+                ]),
+            }),
+            fetchBinary: async (url) => {
+                downloads.push(url);
+                return okJarResponse();
+            },
+            javaRunner: fakeJavaRunner,
+            javaExists: fakeJavaExists,
+            javaEnv: fakeJavaEnv,
+        });
+        expect(result.ok).toBe(true);
+        expect(downloads).toEqual([
+            "https://meta.fabricmc.net/v2/versions/loader/1.21.4/0.16.9/1.0.3/server/jar",
+        ]);
+        if (result.ok) expect(result.value.minecraftVersion).toBe("1.21.4");
+    });
+
+    it("persists the Forge generated argument file instead of launching the installer as a server", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const argsFile = join(
+            serversRoot,
+            "forge-server",
+            "libraries",
+            "net",
+            "minecraftforge",
+            "forge",
+            "1.21.4-54.0.0",
+            "win_args.txt",
+        );
+        const result = await createLocalServer({
+            id: "forge-server",
+            name: "Forge server",
+            flavour: "forge",
+            version: "1.21.4-54.0.0",
+            loaderVersion: "54.0.0",
+            memoryMb: 1024,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: fakeFetchText({
+                ...CATALOGUE_ROUTES,
+                "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json":
+                    JSON.stringify({ promos: { "1.21.4-recommended": "54.0.0" } }),
+            }),
+            fetchBinary: async () => okJarResponse(),
+            javaRunner: fakeJavaRunner,
+            javaExists: fakeJavaExists,
+            javaEnv: fakeJavaEnv,
+            installerRunner: async () => {
+                await mkdir(join(argsFile, ".."), { recursive: true });
+                await writeFile(argsFile, "--launchTarget forgeserver\n");
+                return { ok: true, message: "installed" };
+            },
+        });
+        expect(result.ok).toBe(true);
+        const reread = await createServerRegistry({ dataFolder: dataDir }).get("forge-server");
+        expect(reread.ok).toBe(true);
+        if (reread.ok) {
+            expect(reread.value.localRuntime?.argsFile).toBe(argsFile);
+            expect(reread.value.minecraftVersion).toBe("1.21.4");
+        }
     });
 
     it("carries the selected game port into both server.properties and the created runtime", async () => {
@@ -264,8 +367,9 @@ describe("createLocalServer", () => {
         });
 
         expect(result.ok).toBe(true);
-        await expect(readFile(join(serversRoot, "custom-port", "server.properties"), "utf8"))
-            .resolves.toContain("server-port=25570");
+        await expect(
+            readFile(join(serversRoot, "custom-port", "server.properties"), "utf8"),
+        ).resolves.toContain("server-port=25570");
     });
 
     it("refuses a port outside the usable range before it touches the catalogue", async () => {

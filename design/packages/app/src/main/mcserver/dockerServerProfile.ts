@@ -2,7 +2,16 @@ import type { FlavourId } from "./flavours/catalogue.js";
 import { requiredJavaFeature } from "./flavours/javaRequirement.js";
 import { fail, ok, type Answer } from "./transport/types.js";
 
-export const SERVER_CREATION_FLAVOURS = ["vanilla", "paper", "purpur", "spigot", "fabric", "forge", "neoforge", "velocity"] as const;
+export const SERVER_CREATION_FLAVOURS = [
+    "vanilla",
+    "paper",
+    "purpur",
+    "spigot",
+    "fabric",
+    "forge",
+    "neoforge",
+    "velocity",
+] as const;
 export type ServerCreationFlavour = FlavourId | "spigot";
 
 /** Image contracts are documented by itzg/docker-minecraft-server and itzg/docker-mc-proxy. */
@@ -41,7 +50,9 @@ export function dockerServerProfile(input: {
         game = match[1]!;
         if (match[2]) env[flavour === "paper" ? "PAPER_BUILD" : "PURPUR_BUILD"] = match[2];
     } else if (flavour === "forge") {
-        const match = /^(1\.[0-9]+(?:\.[0-9]+)?)-([0-9][0-9.]*)$/.exec(version);
+        const match = /^((?:1\.[0-9]+|[0-9]{2}\.[0-9]+)(?:\.[0-9]+)?)-([0-9][0-9.]*)$/.exec(
+            version,
+        );
         if (!match)
             return fail(
                 "invalid-request",
@@ -62,6 +73,14 @@ export function dockerServerProfile(input: {
                 "This NeoForge version has no supported Minecraft version mapping.",
             );
         game = `1.${match[1]}${match[2] === "0" ? "" : `.${match[2]}`}`;
+        if (Number(match[1]) >= 26) {
+            if (!input.gameVersion || !/^[0-9]{2}\.[0-9]+(?:\.[0-9]+)?$/.test(input.gameVersion))
+                return fail(
+                    "invalid-request",
+                    "Choose the Minecraft game version separately for this NeoForge release.",
+                );
+            game = input.gameVersion;
+        }
         if (input.loaderVersion && input.loaderVersion !== version)
             return fail(
                 "invalid-request",

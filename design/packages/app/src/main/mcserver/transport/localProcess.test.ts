@@ -100,7 +100,9 @@ describe("createLocalProcessTransport files", () => {
 
     it("writes a new file and reports its hash", async () => {
         const bytes = new Uint8Array(Buffer.from("motd=hello\n"));
-        const answer = await transport.fileWrite("server.properties", bytes, { expectedHash: null });
+        const answer = await transport.fileWrite("server.properties", bytes, {
+            expectedHash: null,
+        });
         expect(answer.ok).toBe(true);
         if (!answer.ok) return;
         expect(answer.value.hash).toBe(hashBytes(bytes));
@@ -114,9 +116,13 @@ describe("createLocalProcessTransport files", () => {
         expect(read.ok).toBe(true);
         if (!read.ok) return;
 
-        const answer = await transport.fileWrite("server.properties", new Uint8Array(Buffer.from("pvp=false\n")), {
-            expectedHash: read.value.hash,
-        });
+        const answer = await transport.fileWrite(
+            "server.properties",
+            new Uint8Array(Buffer.from("pvp=false\n")),
+            {
+                expectedHash: read.value.hash,
+            },
+        );
         expect(answer.ok).toBe(true);
         if (!answer.ok) return;
         expect(answer.value.backupPath).not.toBeNull();
@@ -135,9 +141,13 @@ describe("createLocalProcessTransport files", () => {
         // Something else rewrites it - a plugin, or the server flushing defaults on stop.
         await writeFile(join(dir, "config.yml"), "a: 1\nb: 2\n");
 
-        const answer = await transport.fileWrite("config.yml", new Uint8Array(Buffer.from("a: 99\n")), {
-            expectedHash: read.value.hash,
-        });
+        const answer = await transport.fileWrite(
+            "config.yml",
+            new Uint8Array(Buffer.from("a: 99\n")),
+            {
+                expectedHash: read.value.hash,
+            },
+        );
         expect(answer.ok).toBe(false);
         if (answer.ok) return;
         expect(answer.failure.code).toBe("stale-document");
@@ -148,9 +158,13 @@ describe("createLocalProcessTransport files", () => {
 
     it("allows a deliberate unconditional overwrite", async () => {
         await writeFile(join(dir, "config.yml"), "a: 1\n");
-        const answer = await transport.fileWrite("config.yml", new Uint8Array(Buffer.from("a: 2\n")), {
-            expectedHash: null,
-        });
+        const answer = await transport.fileWrite(
+            "config.yml",
+            new Uint8Array(Buffer.from("a: 2\n")),
+            {
+                expectedHash: null,
+            },
+        );
         expect(answer.ok).toBe(true);
         expect(await readFile(join(dir, "config.yml"), "utf8")).toBe("a: 2\n");
     });
@@ -163,12 +177,16 @@ describe("createLocalProcessTransport files", () => {
             memoryMb: 1024,
             writeScope: ["plugins"],
         });
-        const outside = await scoped.fileWrite("server.properties", new Uint8Array([1]), { expectedHash: null });
+        const outside = await scoped.fileWrite("server.properties", new Uint8Array([1]), {
+            expectedHash: null,
+        });
         expect(outside.ok).toBe(false);
         if (outside.ok) return;
         expect(outside.failure.code).toBe("out-of-scope");
 
-        const inside = await scoped.fileWrite("plugins/a.yml", new Uint8Array([1]), { expectedHash: null });
+        const inside = await scoped.fileWrite("plugins/a.yml", new Uint8Array([1]), {
+            expectedHash: null,
+        });
         expect(inside.ok).toBe(true);
     });
 
@@ -186,6 +204,25 @@ describe("createLocalProcessTransport files", () => {
 });
 
 describe("createLocalProcessTransport lifecycle", () => {
+    it("launches a generated loader argument file without executing the installer jar", async () => {
+        const argsFile = "C:/fixture/libraries/forge/win_args.txt";
+        let actual: readonly string[] = [];
+        const transport = createLocalProcessTransport({
+            serverDir: "C:/fixture",
+            javaPath: "java",
+            jarPath: "C:/fixture/installer.jar",
+            argsFile,
+            memoryMb: 2048,
+            spawnProcess: ((_command: string, args: readonly string[]) => {
+                actual = args;
+                return new FakeChild();
+            }) as never,
+        });
+        expect((await transport.start()).ok).toBe(true);
+        expect(actual).toEqual(["-Xmx2048M", "-Xms1024M", `@${argsFile}`, "nogui"]);
+        expect(actual).not.toContain("-jar");
+        expect(actual).not.toContain("C:/fixture/installer.jar");
+    });
     let dir: string;
     let child: FakeChild;
     let transport: ServerTransport;
@@ -302,7 +339,10 @@ describe("createLocalProcessTransport console", () => {
         child.stdout.write("[12:00:00 INFO]: Starting minecraft server\n[12:00:01 INFO]: Done!\n");
         await reading;
 
-        expect(collected).toEqual(["[12:00:00 INFO]: Starting minecraft server", "[12:00:01 INFO]: Done!"]);
+        expect(collected).toEqual([
+            "[12:00:00 INFO]: Starting minecraft server",
+            "[12:00:01 INFO]: Done!",
+        ]);
     });
 
     it("sends a command as one line", async () => {

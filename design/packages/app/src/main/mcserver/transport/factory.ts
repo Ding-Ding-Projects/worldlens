@@ -14,7 +14,13 @@ import { createSshDockerTransport } from "./sshDocker.js";
 import { createAwsTransport } from "../aws/transport.js";
 import type { SshOptionsInput } from "../../remote/ssh.js";
 import type { CommandRunner } from "../../runtime/command.js";
-import { fail, type Answer, type ServerTransport, type TransportCapabilities, type TransportRef } from "./types.js";
+import {
+    fail,
+    type Answer,
+    type ServerTransport,
+    type TransportCapabilities,
+    type TransportRef,
+} from "./types.js";
 
 export interface FactoryDeps {
     /**
@@ -27,7 +33,14 @@ export interface FactoryDeps {
      */
     readonly sshHost?: (hostId: string) => SshOptionsInput | null;
     /** How a local server's Java runtime and jar are located. */
-    readonly localRuntime?: (serverDir: string) => { readonly javaPath: string; readonly jarPath: string; readonly memoryMb: number } | null;
+    readonly localRuntime?: (
+        serverDir: string,
+    ) => {
+        readonly javaPath: string;
+        readonly jarPath: string;
+        readonly memoryMb: number;
+        readonly argsFile?: string;
+    } | null;
     readonly runner?: CommandRunner;
     readonly docker?: string;
     readonly now?: () => string;
@@ -37,7 +50,10 @@ export interface FactoryDeps {
     readonly awsKnownHostsFile?: string;
 }
 
-export function createTransport(ref: TransportRef, deps: FactoryDeps = {}): Answer<ServerTransport> {
+export function createTransport(
+    ref: TransportRef,
+    deps: FactoryDeps = {},
+): Answer<ServerTransport> {
     switch (ref.kind) {
         case "local-process": {
             const runtime = deps.localRuntime?.(ref.serverDir) ?? null;
@@ -54,6 +70,7 @@ export function createTransport(ref: TransportRef, deps: FactoryDeps = {}): Answ
                     serverDir: ref.serverDir,
                     javaPath: runtime.javaPath,
                     jarPath: runtime.jarPath,
+                    ...(runtime.argsFile === undefined ? {} : { argsFile: runtime.argsFile }),
                     memoryMb: runtime.memoryMb,
                     ...(deps.writeScope === undefined ? {} : { writeScope: deps.writeScope }),
                     ...(deps.now === undefined ? {} : { now: deps.now }),

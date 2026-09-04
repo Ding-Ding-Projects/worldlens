@@ -759,6 +759,36 @@ export function fabricServerJarUrl(
     return `https://meta.fabricmc.net/v2/versions/loader/${encodeURIComponent(gameVersion)}/${encodeURIComponent(loaderVersion)}/${encodeURIComponent(installerVersion)}/server/jar`;
 }
 
+/** Resolve a published stable launcher version through the same bounded metadata transport. */
+export async function resolveFabricInstallerVersion(
+    fetchText: FetchText = defaultFetchText,
+): Promise<Answer<string>> {
+    try {
+        const value: unknown = JSON.parse(
+            await fetchText("https://meta.fabricmc.net/v2/versions/installer"),
+        );
+        if (!Array.isArray(value))
+            return fail("invalid-request", "Fabric installer metadata is not a list.");
+        const entry = value.find(
+            (candidate) =>
+                typeof candidate === "object" &&
+                candidate !== null &&
+                candidate.stable === true &&
+                typeof candidate.version === "string" &&
+                /^[0-9]+(?:\.[0-9]+){1,3}$/.test(candidate.version),
+        );
+        return entry === undefined
+            ? fail("not-found", "No published stable Fabric installer was found.")
+            : ok(entry.version as string);
+    } catch (error) {
+        return fail(
+            "command-failed",
+            "Fabric installer metadata could not be resolved.",
+            String(error),
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------------------
 // Fetching every flavour, caching, and reading the cache back
 // ---------------------------------------------------------------------------------------

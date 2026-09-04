@@ -1,10 +1,9 @@
 /**
  * Bringing a new local Minecraft server into existence, end to end.
  *
- * The one thing every step below shares: it either fully succeeds or leaves nothing new
- * behind for the next launch to trip over. A server "created" with no jar, or a registry
- * record pointing at a folder that was never actually written, is worse than an honest
- * failure - it looks like a server until the moment somebody presses Start.
+ * Registry records are written only after the required payload and launch configuration
+ * exist. A failed local installation retains its files for diagnosis. Container registry
+ * failures use ownership-verified rollback and explicitly report retained resources.
  *
  * The order matters and is deliberate:
  *
@@ -30,10 +29,11 @@ import type { FetchText } from "./flavours/catalogue.js";
 import {
     fabricServerJarUrl,
     listCatalogue,
+    resolveFabricInstallerVersion,
     type FlavourId,
     type VersionEntry,
 } from "./flavours/catalogue.js";
-import { requiredJavaFeature } from "./flavours/javaRequirement.js";
+import { installLocalLoader, type InstallerRunner } from "./localLoaderInstall.js";
 import { installServerJar, type FetchBinary } from "./install.js";
 import type { ServerRecord, ServerRegistry } from "./registry.js";
 import { createLocalProcessTransport } from "./transport/localProcess.js";
@@ -57,6 +57,8 @@ import {
 const ID = /^[a-z][a-z0-9-]{0,62}$/;
 
 export interface CreateLocalServerOptions {
+    readonly gameVersion?: string;
+    readonly installerRunner?: InstallerRunner;
     readonly id: string;
     readonly name: string;
     readonly flavour: FlavourId;
@@ -410,6 +412,7 @@ function resolveDownloadUrl(
     flavour: FlavourId,
     entry: VersionEntry,
     fabricInstallerVersion: string | undefined,
+    gameVersion?: string,
 ): Answer<string> {
     if (entry.downloadUrl !== null) return ok(entry.downloadUrl);
     if (flavour !== "fabric") {
@@ -424,19 +427,12 @@ function resolveDownloadUrl(
     }
     // entry.version here is the Fabric *loader* version; the caller supplies the game
     // version separately, quoted back in the returned URL for provenance.
-    return ok(
-        fabricServerJarUrl(versionForGame(entry, flavour), entry.version, fabricInstallerVersion),
-    );
-}
-
-/**
- * For every flavour except Fabric the catalogue's `version` field IS the Minecraft game
- * version. Fabric is the one exception - its entries are loader builds - so this function
- * exists only so the intent above is legible at the call site rather than silently correct.
- */
-function versionForGame(entry: VersionEntry, flavour: FlavourId): string {
-    void flavour;
-    return entry.version;
+    if (!gameVersion)
+        return fail(
+            "invalid-request",
+            "Choose the Minecraft game version separately from the Fabric loader.",
+        );
+    return ok(fabricServerJarUrl(gameVersion, entry.version, fabricInstallerVersion));
 }
 
 function defaultServerProperties(port: number): string {
@@ -544,16 +540,36 @@ export async function createLocalServer(
     // target game version, which the caller names separately for Fabric); every other
     // flavour's catalogue entry already carries the true requirement from its own API,
     // which is used ahead of a version-string guess wherever it is available.
-    const javaFeatureAnswer =
-        options.flavour === "fabric"
-            ? requiredJavaFeature(options.version)
-            : { known: true as const, feature: entry.value.javaFeature };
-    const feature = javaFeatureAnswer.known ? javaFeatureAnswer.feature : entry.value.javaFeature;
+    const usesInstaller = options.flavour === "forge" || options.flavour === "neoforge";
+    const loaderProfile =
+        usesInstaller || options.flavour === "fabric" ? dockerServerProfile(options) : null;
+    if (loaderProfile !== null && !loaderProfile.ok) return loaderProfile;
+    const gameVersion = loaderProfile?.ok
+        ? loaderProfile.value.env.VERSION
+        : entry.value.version.split("#")[0];
+    const gameEntry = catalogue.value.flavours
+        .find((item) => item.flavour === "vanilla")
+        ?.versions.find((item) => item.version === gameVersion);
+    if (options.flavour === "fabric" && gameEntry === undefined)
+        return fail(
+            "not-found",
+            "The selected Fabric game version is absent from the game catalogue. Refresh it before creating.",
+        );
+    const feature =
+        gameEntry?.javaFeature ??
+        (loaderProfile?.ok ? loaderProfile.value.javaFeature : entry.value.javaFeature);
+    let fabricInstallerVersion = options.fabricInstallerVersion;
+    if (options.flavour === "fabric" && fabricInstallerVersion === undefined) {
+        const resolved = await resolveFabricInstallerVersion(options.fetchText);
+        if (!resolved.ok) return resolved;
+        fabricInstallerVersion = resolved.value;
+    }
 
     const downloadUrl = resolveDownloadUrl(
         options.flavour,
         entry.value,
-        options.fabricInstallerVersion,
+        fabricInstallerVersion,
+        options.gameVersion,
     );
     if (!downloadUrl.ok) return downloadUrl;
 
@@ -567,7 +583,8 @@ export async function createLocalServer(
         return fail("denied", "The server folder could not be created.", String(error));
     }
 
-    const jarPath = join(serverDir, "server.jar");
+    let jarPath = join(serverDir, usesInstaller ? "installer.jar" : "server.jar");
+    let argsFile: string | undefined;
     const installed = await installServerJar({
         url: downloadUrl.value,
         targetPath: jarPath,
@@ -582,6 +599,19 @@ export async function createLocalServer(
               }),
     });
     if (!installed.ok) return installed;
+    if (options.flavour === "forge" || options.flavour === "neoforge") {
+        const prepared = await installLocalLoader({
+            flavour: options.flavour,
+            version: options.version,
+            javaPath: javaRuntime.value.javaPath,
+            installerPath: jarPath,
+            serverDir,
+            ...(options.installerRunner === undefined ? {} : { runner: options.installerRunner }),
+        });
+        if (!prepared.ok) return prepared;
+        jarPath = prepared.value.jarPath;
+        argsFile = prepared.value.argsFile;
+    }
 
     try {
         if (options.modsDirectory !== undefined && options.modsDirectory.trim() !== "") {
@@ -620,6 +650,7 @@ export async function createLocalServer(
         serverDir,
         javaPath: javaRuntime.value.javaPath,
         jarPath,
+        ...(argsFile === undefined ? {} : { argsFile }),
         memoryMb: options.memoryMb,
         ...(options.now === undefined ? {} : { now: options.now }),
     });
@@ -638,10 +669,7 @@ export async function createLocalServer(
         id: options.id,
         name: options.name,
         flavour: options.flavour,
-        minecraftVersion:
-            options.flavour === "fabric"
-                ? options.version
-                : (entry.value.version.split("#")[0] ?? entry.value.version),
+        minecraftVersion: gameVersion ?? options.version,
         ref: { kind: "local-process", serverDir },
         origin: "created",
         createdAt: now(),
@@ -652,6 +680,7 @@ export async function createLocalServer(
         localRuntime: {
             javaPath: javaRuntime.value.javaPath,
             jarPath,
+            ...(argsFile === undefined ? {} : { argsFile }),
             memoryMb: options.memoryMb,
         },
     };
