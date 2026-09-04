@@ -401,9 +401,9 @@ describe("CreateServerWizard", () => {
             javaHost({
                 resolve,
                 onProgress: (listener) => {
-                    captured.listener = listener;
+                    progressListener = listener;
                     return () => {
-                        captured.listener = null;
+                        progressListener = null;
                     };
                 },
             }),
@@ -503,9 +503,9 @@ describe("CreateServerWizard", () => {
                 resolve,
                 provision,
                 onProgress: (listener) => {
-                    captured.listener = listener;
+                    progressListener = listener;
                     return () => {
-                        captured.listener = null;
+                        progressListener = null;
                     };
                 },
             }),
