@@ -13,6 +13,7 @@ import {
     VDivider,
     VIcon,
     VLabel,
+    VProgressCircular,
     VProgressLinear,
     VRadio,
     VRadioGroup,
@@ -55,6 +56,7 @@ import {
     RUNTIME_OPTIONS,
     WIZARD_STEPS,
     filterVersions,
+    versionSearchError,
     groupVersions,
     memorySliderMax,
     DEFAULT_MODS_DIRECTORY,
@@ -110,6 +112,10 @@ const stepNumber = computed(() => visibleSteps.value.indexOf(step.value) + 1);
 
 const catalogue = ref<CatalogueSnapshot | null>(null);
 const catalogueLoading = ref(false);
+/** Set only when the search box itself is what emptied the list. */
+const versionQueryError = computed(() =>
+    versionSearchError(versionQuery.value, versionUseRegex.value, versionFlags.value),
+);
 const catalogueFailure = ref<string | null>(null);
 const versionQuery = ref("");
 const versionUseRegex = ref(false);
@@ -699,9 +705,32 @@ const LEVEL_TYPES = [
 
 const serverId = ref("");
 const serverName = ref("");
+/**
+ * Whether the person actually typed in these fields.
+ *
+ * "The field is not empty" was standing in for this, and the suggestion itself is what
+ * makes it non-empty - so after the first arrival at review the derivation could never run
+ * again. Going back and changing the flavour left `paper-26-2` on a vanilla server, and
+ * these values are persisted verbatim, so the record was genuinely wrong rather than just
+ * the label. Vuetify emits `update:model-value` only for real user input, never for a
+ * programmatic assignment, which is exactly the distinction that was missing.
+ */
+const serverIdEdited = ref(false);
+const serverNameEdited = ref(false);
 const eulaAccepted = ref(false);
 const creating = ref(false);
 const createFailure = ref<string | null>(null);
+
+/**
+ * A failed create stops describing the wizard the moment the wizard changes.
+ *
+ * It was cleared only by submitting again or by resetting, and rendered unconditionally, so
+ * going back and changing the flavour left the previous refusal sitting under the new
+ * choice - which reads as "still broken" for a combination that was never tried.
+ */
+watch([flavour, minecraftVersion, whereItRuns, serverId, serverName], () => {
+    createFailure.value = null;
+});
 
 const idError = computed(() =>
     validateServerId(
@@ -859,14 +888,14 @@ function suggestIdentity(): void {
         .replace(/^-|-$/g, "");
     const base = stem === "" ? "server" : stem;
 
-    if (serverId.value.trim() === "") {
+    if (!serverIdEdited.value) {
         let candidate = base;
         // A second Vanilla 26.2 is an ordinary thing to want, so the suffix counts up
         // rather than refusing.
         for (let n = 2; taken.has(candidate); n += 1) candidate = `${base}-${n}`;
         serverId.value = candidate;
     }
-    if (serverName.value.trim() === "") {
+    if (!serverNameEdited.value) {
         const label =
             FLAVOUR_CARDS.find((card) => card.id === flavour.value)?.name ?? flavour.value;
         serverName.value = game === "" ? label : `${label} ${game}`;
@@ -881,6 +910,8 @@ async function fillSuggestedFolder(): Promise<void> {
 
 function resetWizard(): void {
     invalidateJavaSession();
+    serverIdEdited.value = false;
+    serverNameEdited.value = false;
     step.value = "flavour";
     flavour.value = "paper";
     minecraftVersion.value = "";
@@ -1266,8 +1297,47 @@ const canAdvance = computed(() => {
                             :label="t('mcserver.wizard.searchVersions', 'Search versions')"
                             :sample="versionSample"
                         />
+                        <!--
+                          While the catalogue is being fetched, every other branch on this
+                          step is false: `catalogue` is null so the status line is hidden,
+                          there is no failure yet, the version list is empty, and the empty
+                          caption below is suppressed by `!catalogueLoading`. The result was
+                          a completely blank pane on first launch - and because the fetch
+                          walks roughly a thousand versions, it stayed blank long enough that
+                          people reported the dialog as broken. Say what is happening.
+                        -->
                         <div
-                            v-if="flavourVersions.length === 0 && !catalogueLoading"
+                            v-if="catalogueLoading && flavourVersions.length === 0"
+                            class="wl-mcserver-wizard__versions-loading"
+                            data-test="version-catalogue-loading"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            <VProgressCircular indeterminate size="20" width="2" />
+                            <span class="text-caption">{{
+                                t(
+                                    "mcserver.wizard.catalogueLoading",
+                                    "Fetching the Minecraft version list. The first time takes longest, and it is kept for next time.",
+                                )
+                            }}</span>
+                        </div>
+                        <div
+                            v-if="versionQueryError !== null"
+                            class="text-caption text-error"
+                            data-test="version-search-error"
+                            role="status"
+                            aria-live="polite"
+                        >
+                            {{
+                                t(
+                                    "mcserver.wizard.versionSearchInvalid",
+                                    { reason: versionQueryError },
+                                    "That search pattern is not valid, so nothing can match it: {reason}",
+                                )
+                            }}
+                        </div>
+                        <div
+                            v-else-if="flavourVersions.length === 0 && !catalogueLoading"
                             class="text-caption text-medium-emphasis"
                         >
                             {{
@@ -2039,6 +2109,7 @@ const canAdvance = computed(() => {
                 <div v-else class="wl-mcserver-wizard__step">
                     <VTextField
                         v-model="serverId"
+                        @update:model-value="serverIdEdited = true"
                         :label="t('mcserver.wizard.id', 'Server id')"
                         :error-messages="idError ? [idError] : []"
                         hint="lowercase, letters, digits, hyphens"
@@ -2046,6 +2117,7 @@ const canAdvance = computed(() => {
                     />
                     <VTextField
                         v-model="serverName"
+                        @update:model-value="serverNameEdited = true"
                         :label="t('mcserver.wizard.name', 'Display name')"
                         :error-messages="nameError ? [nameError] : []"
                     />
@@ -2151,6 +2223,12 @@ const canAdvance = computed(() => {
     flex-wrap: wrap;
     gap: 6px;
 }
+.wl-mcserver-wizard__versions-loading {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 .wl-mcserver-wizard__step {
     display: flex;
     flex-direction: column;

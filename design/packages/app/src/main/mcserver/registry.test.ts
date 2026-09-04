@@ -26,6 +26,7 @@ function record(overrides: Partial<ServerRecord> = {}): ServerRecord {
         hasRconSecret: false,
         rconPort: null,
         writeScope: [],
+        localRuntime: null,
         ...overrides,
     };
 }

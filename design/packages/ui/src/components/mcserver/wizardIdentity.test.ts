@@ -31,16 +31,32 @@ describe("the review step proposes rather than demands", () => {
         expect(source).toMatch(/^\s*if \(WIZARD_STEPS\[idx \+ 1\] === "review"\) suggestIdentity\(\);/m);
     });
 
-    it("never overwrites something already typed", () => {
+    it("never overwrites something the person actually typed", () => {
         const body = source.slice(
             source.indexOf("function suggestIdentity()"),
             source.indexOf("async function fillSuggestedFolder"),
         );
         expect(body).not.toBe("");
-        // Both fields are guarded on being empty. A suggestion that replaced a typed value
-        // would be the interface arguing with the person using it.
-        expect(body).toContain('if (serverId.value.trim() === "")');
-        expect(body).toContain('if (serverName.value.trim() === "")');
+        // This used to assert the guards were `serverId.value.trim() === ""`, and that
+        // emptiness test was the defect rather than the contract: the suggestion itself is
+        // what makes the field non-empty, so after the first arrival at review it could
+        // never run again. Going back and changing the flavour left `paper-26-2` on a
+        // vanilla server, and those values are persisted verbatim, so the stored record was
+        // wrong and not merely the label. The intent - never argue with a typed value - is
+        // unchanged; what carries it is now a flag set only by real user input.
+        expect(body).toContain("if (!serverIdEdited.value)");
+        expect(body).toContain("if (!serverNameEdited.value)");
+    });
+
+    it("sets those flags only from real user input, never from its own suggestion", () => {
+        // Vuetify emits `update:model-value` for user edits and not for a programmatic
+        // assignment, which is the whole distinction the emptiness test could not make.
+        expect(source).toMatch(/@update:model-value="serverIdEdited = true"/);
+        expect(source).toMatch(/@update:model-value="serverNameEdited = true"/);
+        // And a fresh wizard forgets them, or the second server created in one session
+        // would keep the first one's name.
+        expect(source).toContain("serverIdEdited.value = false");
+        expect(source).toContain("serverNameEdited.value = false");
     });
 
     it("counts up rather than colliding with an id already taken", () => {

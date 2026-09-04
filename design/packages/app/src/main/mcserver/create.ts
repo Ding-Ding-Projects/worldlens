@@ -57,6 +57,14 @@ export interface CreateLocalServerOptions {
      */
     readonly acceptedEula: boolean;
     readonly dataDir: string;
+    /**
+     * Where the installer's own bundled runtimes live, or null outside a packaged build.
+     *
+     * Creation resolved Java without this, so a clean install could not see the Temurin JRE
+     * inside its own installer: it downloaded a second copy, or refused outright, for a
+     * runtime it was already shipping. That is the exact state bundling exists to remove.
+     */
+    readonly resourcesPath?: string | null;
     readonly serversRoot: string;
     readonly registry: ServerRegistry;
     /**
@@ -157,6 +165,7 @@ export async function createLocalDockerServer(options: CreateLocalDockerServerOp
         hasRconSecret: false,
         rconPort: null,
         writeScope: [],
+        localRuntime: null,
     };
     const saved = await options.registry.put(record);
     if (!saved.ok) return saved;
@@ -231,6 +240,9 @@ async function ensureJavaRuntime(
     const discoveryOptions: DiscoverJavaOptions = {
         dataDir: options.dataDir,
         required: feature,
+        ...(options.resourcesPath === undefined || options.resourcesPath === null
+            ? {}
+            : { resourcesPath: options.resourcesPath }),
         ...(options.javaRunner === undefined ? {} : { runner: options.javaRunner }),
         ...(options.javaExists === undefined ? {} : { exists: options.javaExists }),
         ...(options.javaEnv === undefined ? {} : { env: options.javaEnv }),
@@ -388,6 +400,11 @@ export async function createLocalServer(options: CreateLocalServerOptions): Prom
         hasRconSecret: false,
         rconPort: null,
         writeScope: [],
+        localRuntime: {
+            javaPath: javaRuntime.value.javaPath,
+            jarPath,
+            memoryMb: options.memoryMb,
+        },
     };
 
     return options.registry.put(record);

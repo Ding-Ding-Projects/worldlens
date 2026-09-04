@@ -97,6 +97,39 @@ export interface ServerRecord {
     readonly rconPort: number | null;
     /** Directories WorldLens may write to. Empty means the whole server folder. */
     readonly writeScope: readonly string[];
+    /**
+     * How to actually launch a `local-process` server, or null when it is not known yet.
+     *
+     * Creation resolves all three of these and used to throw them away, so the transport
+     * factory had nothing to build a local server from and every one of them was
+     * permanently unstartable. Null is an honest "not resolved yet" that the factory
+     * repairs by rediscovering Java, not a reason to refuse.
+     */
+    readonly localRuntime: LocalRuntimeRecord | null;
+}
+
+/** The three values `createLocalProcessTransport` needs, persisted with the server. */
+export interface LocalRuntimeRecord {
+    readonly javaPath: string;
+    readonly jarPath: string;
+    readonly memoryMb: number;
+}
+
+/** Reads a {@link LocalRuntimeRecord} from untrusted stored JSON. */
+function parseLocalRuntime(value: unknown): LocalRuntimeRecord | null | undefined {
+    if (value === undefined || value === null) return null;
+    if (typeof value !== "object") return undefined;
+    const raw = value as Record<string, unknown>;
+    if (!hasExactKeys(raw, ["javaPath", "jarPath", "memoryMb"])) return undefined;
+    if (!isString(raw.javaPath, 1024) || !isString(raw.jarPath, 1024)) return undefined;
+    if (
+        typeof raw.memoryMb !== "number" ||
+        !Number.isInteger(raw.memoryMb) ||
+        raw.memoryMb <= 0 ||
+        raw.memoryMb > 1_048_576
+    )
+        return undefined;
+    return { javaPath: raw.javaPath, jarPath: raw.jarPath, memoryMb: raw.memoryMb };
 }
 
 /** The renderer may edit labels and version metadata, never transport identity or authority. */
@@ -116,8 +149,12 @@ function isString(value: unknown, max = MAX_STRING): value is string {
     return typeof value === "string" && value.length <= max && !/[\0]/.test(value);
 }
 
-function hasExactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
-    const allowed = new Set(keys);
+function hasExactKeys(
+    value: Record<string, unknown>,
+    keys: readonly string[],
+    optional: readonly string[] = [],
+): boolean {
+    const allowed = new Set([...keys, ...optional]);
     return (
         Object.keys(value).every((key) => allowed.has(key)) &&
         keys.every((key) => Object.prototype.hasOwnProperty.call(value, key))
@@ -194,7 +231,9 @@ export function parseRecord(value: unknown): ServerRecord | null {
             "hasRconSecret",
             "rconPort",
             "writeScope",
-        ])
+        ],
+            ["localRuntime"],
+        )
     )
         return null;
     if (!isString(raw.id, 64) || !ID.test(raw.id)) return null;
@@ -222,6 +261,8 @@ export function parseRecord(value: unknown): ServerRecord | null {
     if (!Array.isArray(raw.writeScope) || !raw.writeScope.every((entry) => isString(entry, 256)))
         return null;
     const writeScope = raw.writeScope as string[];
+    const localRuntime = parseLocalRuntime(raw.localRuntime);
+    if (localRuntime === undefined) return null;
 
     return {
         id: raw.id,
@@ -235,6 +276,7 @@ export function parseRecord(value: unknown): ServerRecord | null {
         hasRconSecret: raw.hasRconSecret === true,
         rconPort,
         writeScope,
+        localRuntime,
     };
 }
 
