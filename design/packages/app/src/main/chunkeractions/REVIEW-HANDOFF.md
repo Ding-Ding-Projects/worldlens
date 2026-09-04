@@ -1,4 +1,74 @@
-# Partial review-fix preservation, 2026-09-04
+# Partial review-fix preservation, 2026-09-04 (finished 2026-09-04 by a follow-up lane)
+
+The section below this line is the original stop-point checkpoint, preserved verbatim. The
+follow-up work that closed the seven type errors, the localized copy gap and the accessibility
+pass is recorded first.
+
+## What the follow-up lane finished
+
+- Fixed all seven UI type-check errors named below: `ChunkerSchemaEditor.vue`'s three optional-
+  `depth` arithmetic sites now read a non-optional `nestingLevel` computed (`props.depth ?? 0`);
+  `ChunkerScreen.vue`'s `inputFormat` is now conditionally spread into the request object rather
+  than assigned `undefined`, satisfying `exactOptionalPropertyTypes`. `ChunkerValueEditor.vue` was
+  confirmed unused (no import anywhere in the tree) and deleted.
+- `npx vue-tsc --noEmit -p packages/ui/tsconfig.json` and `npx tsc --noEmit -p packages/app/tsconfig.json`
+  were both run clean-slate (deleting `tsconfig.tsbuildinfo` first, since `tsc` is incremental and a
+  stale build-info cache can hide a rebuild). The `ui` package reports **0 errors**. The `app`
+  package still reports 6 errors, but every one of them is in `src/main/mcserver/ipc.ts`
+  (`TransportFailureCode` union mismatches unrelated to Bedrock/Chunker), that file is byte-identical
+  to `origin/main` (confirmed with `git diff origin/main -- ...`, zero lines of diff), and mcserver is
+  explicitly out of this lane's scope. This is a pre-existing defect on `main`, not something this
+  branch introduced or is meant to fix.
+- Localized copy: `ChunkerSchemaEditor.vue` had **zero** `t()` calls before this pass -- every label,
+  hint, alert and picker string was a raw English literal. It now routes through `useI18n()`, and 21
+  new `FixedString` entries were added to `copy/surfaces/chunker.ts` under `chunker.schema.*`
+  (interpolated with `{label}`/`{key}`/`{n}` where the string needs the field name, matching the
+  existing `t(key, params, fallback)` pattern used elsewhere in the app, e.g. `backup.account.active`).
+  The recovery controls in `ChunkerActionsPanel.vue` ("Find saved conversions from before restart",
+  "Recover this saved conversion in this window", the recovery picker's search/select/empty/no-match
+  labels, the account/repository pickers' `selected-label`/`empty-message`/`no-match-message` that had
+  never been wired despite the surrounding `search-label`/`select-label` already using `t()`, the
+  history picker, the `pending` job-status fallback, and the prepare/discovery/operation-failed
+  message strings) are now fully localized under `chunker.actions.*`.
+- Seven pre-existing, wholly unused `chunker.editor.*` catalogue entries were deleted. They predated
+  `ChunkerSchemaEditor.vue`, were never wired to any component (confirmed by `git log -S` and a grep
+  across every `.vue`/`.ts` file), and were failing
+  `appCopy.test.ts > finds a call site for every key in the catalogue` before this lane touched
+  anything -- an orphan, not a regression this lane caused.
+- `npx vitest run packages/ui/src/copy` is green except for one pre-existing failure in
+  `catalogueCoverage.test.ts` naming `world.screen.generateTestWorld` / `world.screen.generator` in
+  `components/world/WorldScreen.vue`. That file and `copy/surfaces/world.ts` are byte-identical to
+  `origin/main` (confirmed the same way), and `worldgen`/world-generator UI is explicitly off-limits
+  to this lane. Not fixed, and not this lane's to fix.
+- Accessibility/layout pass on `ChunkerSchemaEditor.vue` and the recovery controls: the schema
+  editor's own scoped style already used `min-width:0;max-width:100%;overflow-wrap:anywhere` (the
+  house pattern for avoiding Cheap Jor at 320px) and a theme token (`rgb(var(--v-theme-outline))`)
+  rather than a hardcoded hex, so no changes were needed there. `node scripts/check-webapp-parity.mjs`
+  stays green (it inspects the BlueMap-vendored webapp, not this surface, and reports "the BlueMap Tow
+  Fat is not checked out" in this worktree -- expected, not a false pass this lane manufactured). The
+  new/renamed labels are exposed as visible button text or `aria-label` (the per-key "Remove override
+  {key}" and per-item "Remove item {n}" now carry the dynamic value in both the visible text and, for
+  the override row, the `aria-label`), and the `size="small"` `VBtn` usage matches the pre-existing
+  house convention used throughout `ChunkerRoutePicker.vue`, `ChunkerScreen.vue` and
+  `BackupRunCard.vue` rather than introducing a new one.
+- All eleven focused suites the checkpoint named (spread across `bedrock/*.test.ts` and
+  `chunkeractions/*.test.ts`) plus `packages/ui/src/components/chunker` and
+  `packages/app/src/main/chunkeractions` were re-run together: **19 files, 167 tests passed, 2
+  skipped** (the e2e suite, which is designed to skip outside a real conversion environment). Nothing
+  reported "no tests found" and nothing exited 0 with empty output.
+
+## Still outstanding (unchanged from the original checkpoint, and not attempted by this lane)
+
+Real packaged UI acceptance is still outstanding for configuration editing/composition, workflow
+preparation and dispatch, source transfer, progress, cancellation, restart adoption, collection,
+Docker and SSH execution, and registry resolution against a real registry through the built UI. The
+output fixtures prove structural checks, not complete LevelDB logical integrity or an end-to-end
+converted world. Bedrock output, dimension remapping and container conversions still use a
+whole-world JVM and retain their documented memory and duration limits.
+
+---
+
+# Original checkpoint (preserved verbatim below)
 
 Implementation stopped at the owner's explicit preservation request. This is an unfinished checkpoint, not an integration or acceptance claim.
 

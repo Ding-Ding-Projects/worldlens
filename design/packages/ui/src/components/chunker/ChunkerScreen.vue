@@ -430,7 +430,7 @@ async function start(): Promise<void> {
             world: sourceFolder.value,
             output: outputFolder.value,
             format: targetVersionId.value,
-            inputFormat: sourceFormat.value ?? undefined,
+            ...(sourceFormat.value === null ? {} : { inputFormat: sourceFormat.value }),
             config: cliConfig.value,
         });
         conversionId.value = result.conversionId;
