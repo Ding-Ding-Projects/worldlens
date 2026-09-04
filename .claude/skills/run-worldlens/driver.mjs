@@ -52,6 +52,7 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
 import { publicRendererUrl } from "./safe-url.mjs";
+import { createCheapClient, nativeClientPoint } from "./cheap-client.mjs";
 
 /**
  * Find the Worldlens checkout. This file is copied into the global skill catalog and
@@ -90,6 +91,8 @@ const SHOTS = resolve(
 );
 const PORT = process.argv[2] || "9333";
 const LOWLEVEL_MCP_ENDPOINT = process.env.LOWLEVEL_MCP_ENDPOINT || "";
+const LOWLEVEL_CHEAP_CLI = process.env.LOWLEVEL_CHEAP_CLI || "";
+const cheapCall = LOWLEVEL_CHEAP_CLI ? createCheapClient(LOWLEVEL_CHEAP_CLI) : null;
 const LOWLEVEL_HWND = Number(process.env.WORLDLENS_DRIVER_HWND || 0);
 const LOWLEVEL_WINDOW_WIDTH = Number(process.env.WORLDLENS_DRIVER_WIDTH || 0);
 const LOWLEVEL_WINDOW_HEIGHT = Number(process.env.WORLDLENS_DRIVER_HEIGHT || 0);
@@ -97,12 +100,12 @@ const UI_ONLY = process.env.WORLDLENS_UI_ONLY === "1";
 
 if (
   UI_ONLY &&
-  (!LOWLEVEL_MCP_ENDPOINT ||
+  ((!LOWLEVEL_MCP_ENDPOINT && !LOWLEVEL_CHEAP_CLI) ||
     !Number.isInteger(LOWLEVEL_HWND) ||
     LOWLEVEL_HWND <= 0)
 ) {
   throw new Error(
-    "WORLDLENS_UI_ONLY=1 requires LOWLEVEL_MCP_ENDPOINT and a positive WORLDLENS_DRIVER_HWND",
+    "WORLDLENS_UI_ONLY=1 requires a cheap CLI or MCP endpoint and a positive WORLDLENS_DRIVER_HWND",
   );
 }
 
@@ -150,7 +153,7 @@ async function mcpRequest(method, params = {}) {
 }
 
 async function initializeMcp() {
-  if (!UI_ONLY) return;
+  if (!UI_ONLY || cheapCall) return;
   await mcpRequest("initialize", {
     protocolVersion: "2025-03-26",
     capabilities: {},
@@ -160,6 +163,7 @@ async function initializeMcp() {
 }
 
 async function lowlevelCall(name, params) {
+  if (cheapCall) return cheapCall(name, params);
   const result = await mcpRequest("tools/call", {
     name,
     arguments: { params },
@@ -224,7 +228,7 @@ const privacyScan = {
   targetUrlCredentialsOmitted: true,
   loopbackOnly: ["127.0.0.1", "localhost", "[::1]"].includes(pageUrl.hostname),
   unrelatedTargetsObserved: pages.length !== 1,
-  visibleDesktopUntouched: UI_ONLY && LOWLEVEL_MCP_ENDPOINT !== "" && LOWLEVEL_HWND > 0,
+  visibleDesktopUntouched: UI_ONLY && Boolean(LOWLEVEL_MCP_ENDPOINT || LOWLEVEL_CHEAP_CLI) && LOWLEVEL_HWND > 0,
   taskProfileOwned: Boolean(process.env.WORLDLENS_DRIVER_OUTPUT),
   expectedSurfaceOnly: false,
   sensitiveDataReviewed: false,
@@ -294,10 +298,10 @@ async function lowlevelClick(locator, button = "left") {
   await locator.waitFor({ state: "visible", timeout: 45_000 });
   const box = await locator.boundingBox();
   if (!box) throw new Error("target has no visible bounding box");
+  const point = nativeClientPoint(box, await page.evaluate(() => window.devicePixelRatio));
   await lowlevelCall("mouse_click", {
     hwnd: LOWLEVEL_HWND,
-    x: Math.round(box.x + box.width / 2),
-    y: Math.round(box.y + box.height / 2),
+    ...point,
     button,
     clicks: 1,
   });
@@ -308,21 +312,14 @@ async function lowlevelFill(locator, value) {
   await lowlevelClick(locator);
   const inputHwnd = await lowlevelInputHwnd();
   const existing = await locator.inputValue().catch(() => "");
+  await lowlevelCall("win_send_keys", { hwnd: inputHwnd, keys: ["end"] });
   for (let index = 0; index < existing.length; index += 1) {
     await lowlevelCall("win_send_keys", { hwnd: inputHwnd, keys: ["backspace"] });
   }
   const text = String(value);
-  if (/^[A-Za-z0-9 _-]+$/u.test(text)) {
-    for (const character of text) {
-      await lowlevelCall("win_send_keys", {
-        hwnd: inputHwnd,
-        keys: [character === " " ? "space" : character.toLowerCase()],
-      });
-    }
-  } else {
-    await lowlevelCall("type_text", { hwnd: inputHwnd, text });
-  }
+  await lowlevelCall("type_text", { hwnd: inputHwnd, text });
   await settle();
+  if ((await locator.inputValue()) !== text) throw new Error("Background input did not retain the requested field value");
 }
 
 async function lowlevelPress(key) {

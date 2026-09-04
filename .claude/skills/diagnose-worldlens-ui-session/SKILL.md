@@ -16,6 +16,20 @@ Use the repository's existing `run-worldlens` launch and driver workflow. Keep t
 7. Drive visible controls, capture each meaningful transition, and verify outcomes independently. Do not use injected renderer state or direct IPC calls as evidence of UI behavior.
 8. Close only the recorded process tree and desktop after revalidating their identities. Keep receipts honest about source provenance, UI interaction, and missing coverage.
 
+## Direct cheap transport and display scale
+
+Set `LOWLEVEL_CHEAP_CLI` to the resolved installed cheap executable and use
+`WORLDLENS_UI_ONLY=1` with the current `WORLDLENS_DRIVER_HWND`. The driver calls
+the cheap CLI directly with structured arguments, an explicit background HWND,
+no shell and no visible-screen fallback. No compatibility server is necessary.
+
+The renderer reports CSS coordinates, while native background clicks require physical
+client pixels. Multiply the measured bounding-box center by the renderer's current
+`devicePixelRatio`. On the verified 150% session, 1280 x 800 CSS pixels occupied a
+1920 x 1200 client surface. The unscaled Map click hit Home; the scaled click selected Map.
+Do not infer navigation from a successful native command. Verify the resulting visible
+state. Field input must preserve case and match the requested value after delivery.
+
 Run `node --test scripts/worldlens-driver-privacy.test.mjs` after changing URL diagnostics or attachment logic. Keep disclosure tests paired with the exact output bindings; testing an unused sanitizer is insufficient.
 
 ## Verified observations
