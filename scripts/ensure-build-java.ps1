@@ -2,6 +2,9 @@
 param()
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = 'SilentlyContinue'
+. (Join-Path $PSScriptRoot 'portable-archive.ps1')
+. (Join-Path $PSScriptRoot 'java-version.ps1')
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $manifestPath = Join-Path $repoRoot "scripts\toolchain-manifest.json"
 $manifest = Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json
@@ -25,7 +28,7 @@ function Test-Java25([string]$Executable) {
     $ErrorActionPreference = "Continue"
     try { $banner = (& $Executable -version 2>&1 | Out-String) }
     finally { $ErrorActionPreference = $priorPreference }
-    return $LASTEXITCODE -eq 0 -and $banner -match 'version\s+"(?<version>[^"]+)' -and $Matches.version -eq $expectedVersion
+    return $LASTEXITCODE -eq 0 -and (Test-CommittedJavaBanner $banner $expectedVersion)
 }
 
 if (Test-Java25 $java) {
@@ -40,7 +43,7 @@ $staging = Join-Path $toolchainRoot ".temurin-$feature-$runId"
 
 try {
     Write-Output "Downloading committed Eclipse Temurin $expectedRelease ($expectedVersion) from $expectedUrl"
-    Invoke-WebRequest -Uri $expectedUrl -OutFile $archive
+    Invoke-WebRequest -Uri $expectedUrl -OutFile $archive -UseBasicParsing -TimeoutSec 180
     $stream = [IO.File]::OpenRead($archive)
     try {
         $sha = [Security.Cryptography.SHA256]::Create()
@@ -51,7 +54,7 @@ try {
     if ($actual -ne $expectedSha) { throw "Temurin SHA-256 mismatch: expected $expectedSha, received $actual." }
 
     New-Item -ItemType Directory -Path $staging | Out-Null
-    Expand-Archive -LiteralPath $archive -DestinationPath $staging
+    Expand-VerifiedPortableArchive $archive $staging $expectedSha
     $candidate = Get-ChildItem -LiteralPath $staging -Filter java.exe -Recurse -File |
         Where-Object { $_.FullName -match '[\\/]bin[\\/]java\.exe$' } |
         Select-Object -First 1

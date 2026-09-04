@@ -1,5 +1,15 @@
 # Handoff
 
+## 2026-09-04: exact Java bootstrap verification repaired
+
+The build's Java probe compared `25.0.4` from the quoted version line with the manifest's
+`25.0.4+7`, rejecting the correctly installed runtime. It now checks the release and runtime
+build independently, allowing only the optional `-LTS` suffix. Two focused tests passed,
+and `ensure-build-java.ps1` verified the real installed runtime without downloading again.
+Acquisition has a 180-second deadline and uses the verified framework archive helper.
+The project-local `diagnose-worldlens-build-bootstrap` skill records the method. Current
+application packaging and the requested large-world UI matrix remain unverified.
+
 ## 2026-09-04: large-world UI verification in progress
 
 The new pass starts from `79e27c48` and prioritizes GitHub Actions rendering through the real
