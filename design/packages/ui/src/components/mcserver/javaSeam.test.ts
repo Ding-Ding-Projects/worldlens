@@ -190,7 +190,17 @@ describe("the Java provision seam", () => {
         const result = await store.javaProvision("21");
         expect(provision).toHaveBeenCalledWith("21");
         expect(result.value?.found).toBe(true);
-        expect(result.value?.source).toBe("provisioned");
+        // The source it really came from, not the call that found it.
+        //
+        // This asserted "provisioned" until the seam started passing the payload's own
+        // source through, and the payload here says PATH - the runtime was already on the
+        // machine and provisioning found it rather than installing it. Reporting
+        // "provisioned" would have this surface claim credit for an install that never
+        // happened, which matters the moment somebody is working out where their Java
+        // actually is. The fallback to "provisioned" is still there for a provisioner that
+        // does not name a source, which is the only case where the call is the best answer
+        // available. The test name already said "found".
+        expect(result.value?.source).toBe("PATH");
         expect(result.value?.version).toBe("21.0.4");
     });
 });

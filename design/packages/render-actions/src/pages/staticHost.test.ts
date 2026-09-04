@@ -229,8 +229,10 @@ describe("the name the viewer will actually ask for", () => {
     });
 
     it("wants the compressed name once it has turned the flag on", async () => {
-        // After a write the viewer appends .gz, so that is the name that has to be there -
-        // reading the state before the decision would describe a webroot that no longer exists.
+        // A write flips the flag, so afterwards the viewer appends .gz and only the
+        // compressed file will do. A map serving happily as plain files is genuinely about
+        // to stop, and saying so is the point - which is why a write is stricter than a
+        // check rather than the other way round.
         await decompressedMap();
         const report = await prepareStaticHost({ webRoot: root, write: true });
         expect(report.maps[0]?.missing).toEqual(["maps/overworld/textures.json.gz"]);
@@ -240,10 +242,15 @@ describe("the name the viewer will actually ask for", () => {
         // The failure this exists for. Every tile present and no reachable textures.json
         // shows "There was an error trying to load this map" and nothing else, which sends
         // somebody looking at their tiles for hours.
+        //
+        // The message names the compressed file even though the plain one was the last to
+        // go, because publishing is what this tool does and .gz is the name the reader will
+        // need afterwards. Naming whichever form happened to be deleted would be accurate
+        // about the past and useless about the fix.
         await decompressedMap();
         await rm(join(root, "maps", "overworld", "textures.json"));
         const report = await prepareStaticHost({ webRoot: root, write: false });
-        expect(report.maps[0]?.missing).toEqual(["maps/overworld/textures.json"]);
+        expect(report.maps[0]?.missing).toEqual(["maps/overworld/textures.json.gz"]);
         expect(report.servable).toBe(false);
     });
 });

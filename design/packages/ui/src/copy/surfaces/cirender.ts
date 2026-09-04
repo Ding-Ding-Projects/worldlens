@@ -730,6 +730,86 @@ export const CIRENDER_VOICED = {
      * apart; this keeps three apart, because guessing `available` from a failed check is
      * how somebody loses the minute they spent typing a name that was never actually free.
      */
+    "cirender.repo.createAndSetUp": {
+        en: [
+            "Create {repo} and set it up",
+            "Create {repo} and set it up",
+            "Create {repo} and set it up",
+            "Make {repo} and get it ready to render",
+            "Go on then - make {repo} and wire it up ready to go",
+        ],
+        yue: [
+            "整 {repo} 同埋set好佢",
+            "整 {repo} 同埋set好佢",
+            "整 {repo} 同埋set好佢",
+            "開個 {repo} 出嚟，順手set埋佢render",
+            "開個 {repo} 出嚟啦，一次過幫你駁好晒",
+        ],
+    },
+    "cirender.repo.createPrivateInline": {
+        en: [
+            "Create it as a private repository",
+            "Create it as a private repository",
+            "Create it as a private repository",
+            "Make it private instead",
+            "Keep it to yourself - make it a private one",
+        ],
+        yue: [
+            "開做私人倉庫",
+            "開做私人倉庫",
+            "開做私人倉庫",
+            "改為開做私人嗰種",
+            "唔想俾人見？咁就開做私人嗰種啦",
+        ],
+    },
+    "cirender.repo.privateCost": {
+        en: [
+            "A private repository spends this account's own Actions minutes. A public one gets unlimited standard-runner minutes.",
+            "A private repository spends this account's own Actions minutes. A public one gets unlimited standard-runner minutes.",
+            "A private repository spends this account's own Actions minutes, which are finite. A public one gets unlimited standard-runner minutes.",
+            "Private costs you Actions minutes out of this account's allowance. Public gets standard runners for free, with no cap.",
+            "Private burns your own Actions minutes, and they run out. Public gets the standard runners for nothing, all day long.",
+        ],
+        yue: [
+            "私人倉庫會用呢個帳戶自己嘅 Actions 分鐘。公開倉庫用標準 runner 係冇上限嘅。",
+            "私人倉庫會用呢個帳戶自己嘅 Actions 分鐘。公開倉庫用標準 runner 係冇上限嘅。",
+            "私人倉庫會用呢個帳戶自己嘅 Actions 分鐘，而嗰啲分鐘係有限嘅。公開倉庫用標準 runner 就冇上限。",
+            "揀私人就要food你自己帳戶嘅 Actions 分鐘。揀公開就用標準 runner，免費而且冇上限。",
+            "私人嗰種食你自己啲 Actions 分鐘，用完就冇。公開嗰種標準 runner 任你用，唔使錢。",
+        ],
+    },
+    "cirender.checkBlocked.ownerUnavailable": {
+        en: [
+            "No owners came back from GitHub CLI, so there is nothing to choose from yet. Reload the account and owner lists, or sign in.",
+            "No owners came back from GitHub CLI, so there is nothing to choose from yet. Reload the account and owner lists, or sign in.",
+            "GitHub CLI returned no owners, so there is nothing to choose from yet. Reload the account and owner lists, or sign in first.",
+            "GitHub CLI came back with no owners at all, so this list has nothing in it. Reload the accounts and owners, or sign in.",
+            "GitHub CLI handed back an empty list of owners, so there is nothing here to pick. Reload the accounts and owners, or go and sign in.",
+        ],
+        yue: [
+            "GitHub CLI 冇俾到任何擁有者返嚟，所以而家冇嘢揀。重新載入帳戶同擁有者名單，或者登入先。",
+            "GitHub CLI 冇俾到任何擁有者返嚟，所以而家冇嘢揀。重新載入帳戶同擁有者名單，或者登入先。",
+            "GitHub CLI 返嚟嘅擁有者係空嘅，所以而家冇嘢揀。重新載入帳戶同擁有者名單，或者先登入。",
+            "GitHub CLI 一個擁有者都冇俾返，所以呢個名單空空如也。重新載入帳戶同擁有者，或者去登入。",
+            "GitHub CLI 交返嚟嘅擁有者名單係空嘅，冇嘢揀得。重新載入帳戶同擁有者，或者去登入先。",
+        ],
+    },
+    "cirender.bootstrap.cannotCreate": {
+        en: [
+            "This build cannot create that repository through GitHub CLI, or the owner is no longer in the list GitHub returned. Reload the owners and try again.",
+            "This build cannot create that repository through GitHub CLI, or the owner is no longer in the list GitHub returned. Reload the owners and try again.",
+            "This build cannot create that repository through GitHub CLI, or the owner has dropped out of the list GitHub returned. Reload the owners and try again.",
+            "Either this build has no way to create that repository through GitHub CLI, or the owner is no longer in the list GitHub gave back. Reload the owners and have another go.",
+            "Either this build cannot create that repository through GitHub CLI at all, or the owner has quietly dropped off the list GitHub gave back. Reload the owners and try again.",
+        ],
+        yue: [
+            "呢個版本用 GitHub CLI 開唔到嗰個倉庫，又或者嗰個擁有者已經唔喺 GitHub 返嚟嘅名單度。重新載入擁有者再試。",
+            "呢個版本用 GitHub CLI 開唔到嗰個倉庫，又或者嗰個擁有者已經唔喺 GitHub 返嚟嘅名單度。重新載入擁有者再試。",
+            "呢個版本用 GitHub CLI 開唔到嗰個倉庫，又或者嗰個擁有者已經跌咗出 GitHub 返嚟嘅名單。重新載入擁有者再試。",
+            "唔係呢個版本根本用 GitHub CLI 開唔到嗰個倉庫，就係嗰個擁有者已經唔喺 GitHub 俾返嘅名單度。重新載入擁有者再試過。",
+            "要麼呢個版本用 GitHub CLI 就係開唔到嗰個倉庫，要麼嗰個擁有者已經靜靜雞跌咗出 GitHub 俾返嘅名單。重新載入擁有者再試過啦。",
+        ],
+    },
     "cirender.repo.available": {
         en: [
             "{owner}/{repo} is free on GitHub.",

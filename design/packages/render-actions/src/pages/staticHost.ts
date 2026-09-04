@@ -292,14 +292,6 @@ export async function prepareStaticHost(options: PrepareStaticHostOptions): Prom
     // The flag itself. Everything else in this function exists to check that flipping it
     // points the viewer at files that are really there.
     const alreadySet = settings.clientDecompression === true;
-    /*
-     * What the viewer will ask for once this run finishes, not what it asked for before.
-     *
-     * A write turns the flag on, so the compressed names become the right ones; a check that
-     * does not write leaves whatever is there. Reading the state after the decision rather
-     * than before is what stops the report describing a webroot that no longer exists.
-     */
-    const wantsClientDecompression = alreadySet || write;
     if (!alreadySet && write) {
         settings.clientDecompression = true;
         await writeFile(settingsFile, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
@@ -344,23 +336,34 @@ export async function prepareStaticHost(options: PrepareStaticHostOptions): Prom
         // uncompressed names instead would prove nothing about the site we are publishing.
         if (!(await exists(join(mapRoot, "settings.json")))) missing.push(`maps/${id}/settings.json`);
         /*
-         * Check the name the viewer will actually ask for, which the flag decides.
+         * Check the name the viewer will actually ask for, which is not one fixed name.
          *
-         * There are two shapes that both serve correctly from a plain file host, and this
-         * used to report one of them as broken. With client decompression on, the viewer
-         * appends `.gz` and the compressed file is the right one. With it off - a map whose
-         * storage wrote plain files, or one somebody decompressed on the way out - the
-         * viewer asks for `textures.json`, and that map is perfectly servable.
+         * There are two shapes that both serve from a plain file host: compressed with the
+         * flag on, and plain with it off. Checking only the compressed name reported the
+         * second as broken - a false alarm on a map that loads perfectly, confirmed against
+         * a real render.
          *
-         * Checking only the compressed name meant the second shape came back missing a file
-         * it does not need, which is a false alarm on a working map. Worse, the failure it
-         * hides is the one that matters: a map with every tile present and no reachable
-         * textures.json shows "There was an error trying to load this map" and nothing else,
-         * so a wrong answer here sends somebody looking at their tiles for hours.
+         * Which name is right depends on what happens next, and the two callers differ:
+         *
+         * A write turns the flag on, so afterwards the viewer appends `.gz` and only the
+         * compressed file will do. A map that was serving happily as plain files is
+         * genuinely about to stop, and saying so is the point.
+         *
+         * A check writes nothing, and it has two readers. The desktop preflight previews a
+         * publish, so what it wants to hear about is the state that publish would leave. A
+         * plain `--check` is asking whether this webroot serves as it stands. Accepting
+         * either shape answers both honestly: the map is reported broken only when neither
+         * form is there, which is the case where the viewer really does ask for a file that
+         * does not exist and shows an error with every tile present.
+         *
+         * The name in the message is always the compressed one, because publishing is what
+         * this tool does and that is the file the reader will need.
          */
-        const texturesName = wantsClientDecompression ? "textures.json.gz" : "textures.json";
-        if (!(await exists(join(mapRoot, texturesName)))) {
-            missing.push(`maps/${id}/${texturesName}`);
+        const compressed = await exists(join(mapRoot, "textures.json.gz"));
+        const plain = await exists(join(mapRoot, "textures.json"));
+        const servesTextures = write ? compressed : compressed || plain;
+        if (!servesTextures) {
+            missing.push(`maps/${id}/textures.json.gz`);
         }
         if (!(await exists(join(mapRoot, "tiles")))) missing.push(`maps/${id}/tiles/`);
 

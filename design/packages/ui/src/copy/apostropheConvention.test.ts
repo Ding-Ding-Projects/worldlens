@@ -1,5 +1,6 @@
 import { readdir, readFile } from "node:fs/promises";
-import { join, sep } from "node:path";
+import { dirname, join, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
@@ -20,9 +21,24 @@ const TYPOGRAPHIC_APOSTROPHE = "’";
 const SELF = "apostropheConvention.test.ts";
 const GENERATED_CHANGELOG = "changelogData.generated.ts";
 
+/**
+ * Where this file lives, decoded.
+ *
+ * `new URL(...).pathname` is percent-encoded, so a checkout whose path contains a space
+ * arrived here as `%20` and every read failed with ENOENT - which surfaced as this suite
+ * reporting a copy problem when the copy was fine and the path was wrong. It only happens on
+ * a checkout with a space in its name, so it passes for whoever set the repository up and
+ * fails for whoever put it somewhere with a space in the folder name.
+ *
+ * `fileURLToPath` handles the decoding and the Windows drive-letter prefix, which is the
+ * other half this used to do by hand.
+ */
 function directoryOfThisFile(): string {
-    const path = new URL("../", import.meta.url).pathname;
-    return path.startsWith("/") && path[2] === ":" ? path.slice(1) : path;
+    // Two levels: this file sits in copy/, and the scan covers the whole of src/. The
+    // original expressed that as new URL("../"), so the "../" is load-bearing rather than
+    // decorative - dropping it would quietly shrink the sweep to one directory and the
+    // suite would still pass, which is the version of this bug nobody notices.
+    return dirname(dirname(fileURLToPath(import.meta.url)));
 }
 
 async function sourceFiles(directory: string): Promise<readonly string[]> {
