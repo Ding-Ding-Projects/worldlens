@@ -83,6 +83,13 @@ function harness(
     const transfer = fakeTransfer();
     const runner = fakeRunner([
         ...(options.runnerTable ?? []),
+        // The flow reads the container's own managed/id labels back before trusting it. A
+        // double with no answer for that made every later assertion fail as "Inspecting the
+        // hosted map failed" rather than as a missing step.
+        {
+            when: /'inspect'/,
+            answer: output({ stdout: "worldlens-remote-hosting|overworld-abc123" }),
+        },
         { when: /'rm' '-f'/, answer: output({ stdout: "worldlens-host-x" }) },
         { when: /'run' '-d'/, answer: output({ stdout: "container-id-123" }) },
     ]);

@@ -186,6 +186,20 @@ EXPOSE 8100
 # in step by being three lines apart.
 RUN ["node", "/app/dist/index.js", "--help"]
 
+# The commit this image was built from.
+#
+# Issue #169: an image carrying no revision is indistinguishable from a current one, and a
+# build timestamp alone does not settle it either -- two builds of different commits can share
+# a committer date. The ARG is empty by default rather than defaulted to something plausible:
+# an image built without one says so, which is the honest state, and never claims a revision
+# it does not have.
+#
+# org.opencontainers.image.revision is the standard key, so `docker inspect` and every
+# registry UI already know where to look for it.
+ARG WORLDLENS_SOURCE_COMMIT=""
+LABEL org.opencontainers.image.revision="$WORLDLENS_SOURCE_COMMIT"
+LABEL org.opencontainers.image.source="https://github.com/Ding-Ding-Projects/worldlens"
+
 ENTRYPOINT ["node", "/app/dist/index.js"]
 # No arguments by default: matches upstream's own "no actions -> write
 # default configs, print help, exit 1" behaviour (see cli.ts) rather than

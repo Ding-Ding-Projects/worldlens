@@ -44,7 +44,11 @@ const mapPickPoints: { x: number; y: number; z: number }[] = [];
 /** Replaces the live instance (or clears it). Called by MapView, which owns the lifecycle. */
 export function setBlueMapApp(instance: BlueMapApp | null): void {
     if (blueMapApp.value) blueMapApp.value.onMapCoordinatePick = null;
-    if (blueMapApp.value) blueMapApp.value.setMapCoordinatePreview([]);
+    // Optional the same way materialShell is, and for the same reason recorded just below:
+    // a test double and an embedding host both hand over an app that does not carry every
+    // member this store reaches through. Optional chaining on the object alone does not help
+    // here - the object is present and the method is not - so the call itself is optional.
+    blueMapApp.value?.setMapCoordinatePreview?.([]);
     blueMapApp.value = instance;
     // The shell is optional on this instance: a test double, and an embedding host that
         // supplies its own chrome, both hand over an app with no material shell at all.
@@ -60,7 +64,7 @@ export function setBlueMapApp(instance: BlueMapApp | null): void {
             if (mapPickEnabled) {
                 mapPickPoints.push(point);
                 if (mapPickPoints.length > 2) mapPickPoints.splice(0, mapPickPoints.length - 2);
-                instance.setMapCoordinatePreview(mapPickPoints);
+                instance.setMapCoordinatePreview?.(mapPickPoints);
                 mapPickPoint.value = point;
             }
         };
@@ -72,7 +76,7 @@ export function setMapCoordinatePicking(enabled: boolean): void {
     if (!enabled) {
         mapPickPoints.splice(0, mapPickPoints.length);
         mapPickPoint.value = null;
-        blueMapApp.value?.setMapCoordinatePreview([]);
+        blueMapApp.value?.setMapCoordinatePreview?.([]);
     }
 }
 

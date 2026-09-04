@@ -230,6 +230,7 @@ function callSitePlaceholders(): Map<string, Set<string>> {
      * reason.
      */
     const registryKey = /\b[A-Za-z_$][A-Za-z0-9_$]*\s*:\s*(["'])([A-Za-z0-9_.\-]+)\1/g;
+    const bareKey = /["']([A-Za-z0-9_]+(?:[.][A-Za-z0-9_]+)+)["']/g;
 
     for (const file of sourceFiles(sourceRoot)) {
         if (file.endsWith(".test.ts")) continue;
@@ -240,6 +241,36 @@ function callSitePlaceholders(): Map<string, Set<string>> {
         while ((declared = registryKey.exec(text)) !== null) {
             const key = declared[2] as string;
             if (catalogue.has(key) && !byKey.has(key)) byKey.set(key, new Set<string>());
+        }
+
+        /*
+         * The same reasoning as `registryKey` above, for the two shapes its pattern cannot
+         * reach: a quoted property name, and a ternary branch.
+         *
+         * `IssueReportPanel.vue` - the file that comment names - maps bridge statuses to
+         * catalogue keys with `"not-signed-in": "repair.reportSubmitNotSignedIn"`, whose
+         * property name is a quoted hyphenated string rather than a bare identifier, and
+         * chooses one more through `cond ? "repair.reportSubmitRestoreUncertain" : ...`. All
+         * three are indexed dynamically and handed to `t()`, so all three are live, and all
+         * three were reported as catalogue entries nobody calls.
+         *
+         * The safety argument is the one already made: the literal still has to equal a real
+         * catalogue key, and a `t()` fallback is English prose rather than a dotted key, so
+         * this cannot swallow a fallback. What it does accept is a key named only in a
+         * comment, which would read as called when it is not - a narrow cost against
+         * reporting live keys as orphans and inviting somebody to delete their translations.
+         */
+        // Never the catalogue itself. Every entry there is written as `"dotted.key": {...}`,
+        // so scanning copy/ would make each key its own call site and this whole check
+        // vacuous - which it briefly was, and only a deliberate break showed it: an orphaned
+        // key stayed green.
+        if (!file.replace(/[\\]/g, "/").includes("/src/copy/")) {
+            bareKey.lastIndex = 0;
+            let bare: RegExpExecArray | null;
+            while ((bare = bareKey.exec(text)) !== null) {
+                const key = bare[1] as string;
+                if (catalogue.has(key) && !byKey.has(key)) byKey.set(key, new Set<string>());
+            }
         }
 
         call.lastIndex = 0;

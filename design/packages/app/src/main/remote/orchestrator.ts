@@ -268,7 +268,12 @@ export class RemoteRenderOrchestrator {
         const mapIds = request.maps.map((map) => map.id);
         const sshOptions = this.sshOptions(target);
 
-        const requestedEngine = request.engine;
+        // The same default `render` above applied before it checked the route, and the same
+        // one `hosting.ts` applies once for its whole flow. Reading `request.engine` raw here
+        // meant a request that named no engine compared a resolved id against `undefined` and
+        // was refused as "the resolver returned a different engine than the project selected",
+        // when the project had selected nothing and the resolver had answered correctly.
+        const requestedEngine = request.engine ?? "upstream-java";
         let engine: ResolvedEngine;
         try {
             engine = await this.options.resolveEngine(requestedEngine);

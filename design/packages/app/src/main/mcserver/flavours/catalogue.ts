@@ -319,13 +319,6 @@ interface VanillaManifest {
     readonly versions: readonly VanillaManifestEntry[];
 }
 
-interface VanillaVersionDetail {
-    readonly downloads?: {
-        readonly server?: { readonly url?: string; readonly sha1?: string; readonly size?: number };
-    };
-    readonly javaVersion?: { readonly majorVersion?: number };
-}
-
 interface FetchFlavourResult {
     readonly versions: readonly VersionEntry[];
     readonly complete: boolean;

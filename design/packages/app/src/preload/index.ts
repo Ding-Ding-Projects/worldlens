@@ -13,7 +13,6 @@ import type {
     ManagerAnswer,
 } from "../main/dockerhosting/index.js";
 
-const SCHOOL_MODE_CHANGED_CHANNEL = "schoolMode:changed";
 import type {
     CiBootstrapEvent,
     CiBootstrapResult,
@@ -108,7 +107,7 @@ import type {
     AppSettingsState,
 } from "../main/settings/index.js";
 import type { RestoreResult } from "../main/history/index.js";
-import { RELEASE_LEDGER_CHANNEL, type ReleaseLedgerReadout } from "../main/releaseLedger/index.js";
+import { type ReleaseLedgerReadout } from "../main/releaseLedger/index.js";
 import type { StartupDiagnosticsSnapshot, StartupExportFormat } from "../main/startup/index.js";
 import type {
     GalleryAssetRead,
@@ -117,13 +116,7 @@ import type {
     GalleryRevision,
     GalleryUpdate,
 } from "../main/gallery/store.js";
-import {
-    toBridgeCoordinates,
-    toBridgeDiscoveryResult,
-    type BridgeReleaseCoordinates,
-    type WorldSourceDiscoverAnswer,
-    type WorldSourceReferenceAnswer,
-} from "./worldSourceBridge.js";
+import { type BridgeReleaseCoordinates } from "./worldSourceBridge.js";
 
 /** Mirrors `ConsentRecord` in the main process. */
 export interface ConsentRecord {
@@ -3735,20 +3728,6 @@ interface WorldlensBridge {
     >;
     activeBackups(): Promise<readonly string[]>;
     onBackupEvent(listener: (event: BackupEvent) => void): () => void;
-}
-
-interface AddonRecord {
-    id: string;
-    name: string;
-    version: string;
-    description: string;
-    apiVersion: string;
-    capabilities: string[];
-    grantedCapabilities: string[];
-    entry: string;
-    enabled: boolean;
-    importedAt: string;
-    error: string | null;
 }
 
 /**

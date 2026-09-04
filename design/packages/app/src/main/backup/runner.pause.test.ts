@@ -22,7 +22,7 @@ import { fakeGhAccountLease } from "../ghcli/testLease.js";
 import { BackupRunner } from "./runner.js";
 import type { BackupEvent } from "./runner.js";
 import { readPauseState } from "./pauseState.js";
-import { backupIdFor, backupWorkspace } from "./workspace.js";
+import { backupWorkspace } from "./workspace.js";
 
 let workDir = "";
 

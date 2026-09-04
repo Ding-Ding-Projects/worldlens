@@ -462,6 +462,11 @@ jobs:
           file: design/packages/cli/Dockerfile
           platforms: linux/amd64
           push: false
+          # Issue #169: the image says which commit it came from, so a stale image is not
+          # indistinguishable from a current one. github.sha rather than a git call inside
+          # the build, because the checkout there is whatever the context copied in.
+          build-args: |
+            WORLDLENS_SOURCE_COMMIT=${{ github.sha }}
 
       # `latest` moves only on a push to the default branch. A dispatch builds and pushes
       # its own immutable tags, but must not silently become the floating tag people pull.
@@ -475,6 +480,11 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           provenance: false
+          # Issue #169: the image says which commit it came from, so a stale image is not
+          # indistinguishable from a current one. github.sha rather than a git call inside
+          # the build, because the checkout there is whatever the context copied in.
+          build-args: |
+            WORLDLENS_SOURCE_COMMIT=${{ github.sha }}
           tags: |
             ${{ steps.identity.outputs.image }}:${{ steps.identity.outputs.version }}
             ${{ steps.identity.outputs.image }}:sha-${{ github.sha }}

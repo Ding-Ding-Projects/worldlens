@@ -23,6 +23,8 @@ import { MCSERVER_CHANNELS } from "./ipc.js";
  */
 
 const mainIndex = fileURLToPath(new URL("../index.ts", import.meta.url));
+import { BRIDGE_CHANNELS } from "@worldlens/bridge";
+
 const preloadIndex = fileURLToPath(new URL("../../preload/index.ts", import.meta.url));
 
 async function read(path: string): Promise<string> {
@@ -57,23 +59,31 @@ describe("the preload bridge really exposes every channel", () => {
         expect(source).toMatch(/^\s*mcserver: \{$/m);
     });
 
-    it("wires each channel the main process registers", async () => {
-        const source = await read(preloadIndex);
-        // The list is derived from the channel map rather than retyped, so a channel added
-        // to one side and forgotten on the other fails here instead of at runtime as a
-        // control that does nothing.
+    it("has every channel the main process registers in the shared bridge inventory", () => {
+        // The preload used to write one ipcRenderer.invoke("mcserver:…") per channel, and this
+        // check read the file for those literals. It does not any more: the bridge is built by
+        // createWorldlensBridge(electronTransport), which forwards every channel through one
+        // invoke, so there is exactly one ipcRenderer.invoke in the whole preload and the old
+        // assertion could only fail. What decides whether a channel is reachable now is whether
+        // it is in BRIDGE_CHANNELS, so that is what this asks.
         for (const channel of Object.values(MCSERVER_CHANNELS)) {
-            expect(source, `preload never invokes ${channel}`).toContain(`ipcRenderer.invoke("${channel}"`);
+            expect(
+                BRIDGE_CHANNELS,
+                `${channel} is registered in the main process but is not in BRIDGE_CHANNELS, ` +
+                    "so the generic bridge will refuse it and the surface behind it cannot be reached",
+            ).toContain(channel);
         }
     });
 
-    it("exposes at least as many invocations as there are channels", async () => {
+    it("builds the bridge through the shared factory rather than hand-written invokes", async () => {
+        // The guard above is only meaningful while this is true. If the preload goes back to
+        // writing its own per-channel invokes, membership of BRIDGE_CHANNELS stops being what
+        // makes a channel reachable and this file needs rewriting again.
         const source = await read(preloadIndex);
-        const invocations = source.match(/ipcRenderer\.invoke\("mcserver:/g) ?? [];
-        expect(invocations.length).toBeGreaterThanOrEqual(Object.values(MCSERVER_CHANNELS).length);
+        expect(source).toContain("createWorldlensBridge");
+        expect(source).toContain("invoke: (channel, ...args) => ipcRenderer.invoke(channel, ...args)");
     });
 });
-
 describe("the channel map itself stays honest", () => {
     it("names every channel under one prefix", () => {
         for (const channel of Object.values(MCSERVER_CHANNELS)) {

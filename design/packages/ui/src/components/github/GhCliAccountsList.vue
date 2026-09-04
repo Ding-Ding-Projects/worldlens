@@ -1226,7 +1226,7 @@ async function checkAgain(): Promise<void> {
                                         t(
                                             'settings.github.ghCli.logoutActionDetailed',
                                             { login: account.login, host: account.host },
-                                            'On {host}, remove the {login} credential from gh’s local store. If this host supports it, gh may also attempt to revoke the GitHub grant; this app reports refusal separately and never claims revocation succeeded. Other terminals and applications using gh lose this sign-in, and active or in-flight work using it may fail and must be retried.',
+                                            'On {host}, remove the {login} credential from gh\'s local store. If this host supports it, gh may also attempt to revoke the GitHub grant; this app reports refusal separately and never claims revocation succeeded. Other terminals and applications using gh lose this sign-in, and active or in-flight work using it may fail and must be retried.',
                                         )
                                     "
                                     :affected="[

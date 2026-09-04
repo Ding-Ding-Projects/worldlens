@@ -58,7 +58,6 @@ import {
     legacyAppearancePropertyLockPath,
 } from "./appearanceLocks.js";
 import { useLockStore } from "../locks/useLocks.js";
-import type { LockStore } from "../locks/lockStore.js";
 import {
     EDITOR_CHROME_TARGETS,
     readAppearanceState,
@@ -96,7 +95,15 @@ export function appearanceState(): Ref<AppearanceState> {
  * writes to storage and exactly one thing to look at when a change fails to survive a
  * restart.
  */
-export function commitAppearance(next: AppearanceState, locks?: LockStore): void {
+/**
+ * Writes the next appearance state through.
+ *
+ * It used to take a LockStore it never read, which read as though committing consulted the
+ * locks. It does not, and it never did: every caller reconciles through reconcileLockedState
+ * before it gets here, and AppearanceEditor.vue asks locks.at() at the point of the edit. A
+ * parameter that implies an enforcement it does not perform is worse than no parameter.
+ */
+export function commitAppearance(next: AppearanceState): void {
     state.value = next;
     writeAppearanceState(next);
 }
@@ -224,7 +231,7 @@ export function useAppearanceTarget(
 
     function update(next: AppearanceRecord): void {
         const nextState = withRecord(state.value, targetId.value, next);
-        commitAppearance(reconcileLockedState(state.value, nextState), locks);
+        commitAppearance(reconcileLockedState(state.value, nextState));
     }
 
     function lockedForState(
@@ -242,7 +249,6 @@ export function useAppearanceTarget(
         const elements: Record<string, AppearanceRecord> = { ...next.elements };
         const ids = new Set([...Object.keys(previous.elements), ...Object.keys(next.elements)]);
         for (const elementId of ids) {
-            const oldRecord = recordFor(previous, elementId);
             const nextRecord = elements[elementId] ?? emptyRecord();
             const oldResolved = resolveTarget(previous, elementId);
             const kept: AppearanceRecord = {
@@ -458,10 +464,10 @@ export function useAppearanceTarget(
                 const kept = preserveLockedRecord(elementId, source);
                 if (!isRecordEmpty(kept)) elements[elementId] = kept;
             }
-            commitAppearance({ ...state.value, elements, activePreset: "" }, locks);
+            commitAppearance({ ...state.value, elements, activePreset: "" });
         },
         commitState(next) {
-            commitAppearance(reconcileLockedState(state.value, next), locks);
+            commitAppearance(reconcileLockedState(state.value, next));
         },
         setState(stateName, layer) {
             const previous = record.value.states[stateName] ?? {};

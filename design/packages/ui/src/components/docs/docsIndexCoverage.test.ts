@@ -89,9 +89,21 @@ const README_SECTIONS = sectionsByHeading(README_TEXT);
 const APPLICATION_SECTION = README_SECTIONS.get("The application") ?? "";
 const MARKERS_SECTION = README_SECTIONS.get("Markers") ?? "";
 const RENDERING_SECTION = README_SECTIONS.get("Rendering") ?? "";
+/**
+ * A fourth table nobody told this check about. `docs/README.md` grew "## Running it somewhere
+ * other than a desktop" for hosted mode, the container image and Wharf, and because the check
+ * read only three headings it reported all three as unindexed while they were sitting in a
+ * table a reader can plainly see. They belong to the application category: they are ways of
+ * running it, not a fourth kind of thing, and the in-app browser files them under the same
+ * heading rather than growing a category with no table of its own.
+ */
+const HOSTING_SECTION = README_SECTIONS.get("Running it somewhere other than a desktop") ?? "";
 
 /** The `.md` files `docs/README.md` lists under "## The application", in table order. */
-const README_APPLICATION_FILES = linkedMarkdownFiles(APPLICATION_SECTION);
+const README_APPLICATION_FILES = [
+    ...linkedMarkdownFiles(APPLICATION_SECTION),
+    ...linkedMarkdownFiles(HOSTING_SECTION),
+];
 /** The `.md` files `docs/README.md` lists under "## Markers", in table order. */
 const README_MARKERS_FILES = linkedMarkdownFiles(MARKERS_SECTION);
 /** The `.md` files `docs/README.md` lists under "## Rendering", in table order. */
@@ -133,6 +145,14 @@ const CATEGORY_EXEMPT: Readonly<Record<string, string>> = {
         "An acceptance contract and evidence record for issue #66, written to say plainly that " +
         "two dialects are not proven yet. Indexing it would put an open verification question " +
         "beside articles describing behaviour a reader can rely on today.",
+    "bug-audit.md":
+        "A record of one audit pass on one branch: the render that started it, what was found " +
+        "and what was left. It belongs beside that work rather than in an index of what the " +
+        "application does, and a reader looking for a feature has nothing to do with it.",
+    "fresh-windows-build-and-run.md":
+        "The copy-and-paste path for building this checkout on a fresh Windows installation. " +
+        "It is contributor guidance about the repository, not a description of anything the " +
+        "application does for the person running it.",
     "issue-62-cleanup-ledger.md":
         "A planning and evidence ledger for one issue, not an article about a feature of the " +
         "application. A reader of the product index has nothing to do with it, and indexing it " +

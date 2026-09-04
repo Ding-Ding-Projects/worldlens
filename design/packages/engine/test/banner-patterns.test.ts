@@ -41,15 +41,13 @@ function bannerNbt(
         if (entry.pattern !== undefined) writer.name("pattern").valueString(entry.pattern);
         if (entry.Color !== undefined) {
             writer.name("Color");
-            typeof entry.Color === "number"
-                ? writer.valueInt(entry.Color)
-                : writer.valueString(entry.Color);
+            if (typeof entry.Color === "number") writer.valueInt(entry.Color);
+            else writer.valueString(entry.Color);
         }
         if (entry.color !== undefined) {
             writer.name("color");
-            typeof entry.color === "number"
-                ? writer.valueInt(entry.color)
-                : writer.valueString(entry.color);
+            if (typeof entry.color === "number") writer.valueInt(entry.color);
+            else writer.valueString(entry.color);
         }
         writer.endCompound();
     },

@@ -119,6 +119,17 @@ describe("what the container prints on startup", () => {
         expect(printed).toContain("Password: set");
     });
 
+    it("names the build it is running, so a stale container is not indistinguishable from a current one", () => {
+        // Issue #169. The operator looking at a running container cannot pull the image and
+        // read its labels, so the banner has to say it. Under test the build constants are
+        // null -- a test run has no provenance, and that is the same value a build which could
+        // not establish a commit produces -- so this exercises the unavailable state, which is
+        // the one that must not silently print a blank line.
+        const { configuration } = readConfiguration({ WORLDLENS_PASSWORD: "x" });
+
+        expect(describeDeployment(configuration as never)).toContain("commit unknown");
+    });
+
     it("says when nothing is mounted, because that deployment can do nothing", () => {
         const { configuration } = readConfiguration({ WORLDLENS_PASSWORD: "x" });
 

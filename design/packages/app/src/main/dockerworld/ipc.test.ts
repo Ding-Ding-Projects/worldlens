@@ -81,13 +81,23 @@ describe("dockerworld:fetch", () => {
         const fetcher = stubFetcher();
         const ipcMain = register(fetcher);
         const handler = ipcMain.handlers.get("dockerworld:fetch") as Handler;
-        const request = { source: { kind: "container", containerId: "abc", mountDestination: "/data/world" }, destination: "/tmp/x", acknowledgeLiveRisk: true };
+        // liveRiskAcknowledgement, not the acknowledgeLiveRisk boolean this used to send. The
+        // running-container refusal was hardened from a flag into a fresh caller-generated
+        // nonce consumed once, so a boolean is exactly what no longer gets a world out of a
+        // live container. The sanitiser drops the old key, which is correct, and this test was
+        // asserting it survived.
+        const acknowledgement = "live-risk-acknowledgement-token";
+        const request = {
+            source: { kind: "container", containerId: "abc", mountDestination: "/data/world" },
+            destination: "/tmp/x",
+            liveRiskAcknowledgement: acknowledgement,
+        };
         const result = (await handler(noEvent, request)) as { ok: boolean };
         expect(result.ok).toBe(true);
         expect(fetcher.fetch).toHaveBeenCalledWith({
             source: { kind: "container", containerId: "abc", mountDestination: "/data/world" },
             destination: "/tmp/x",
-            acknowledgeLiveRisk: true,
+            liveRiskAcknowledgement: acknowledgement,
         });
     });
 

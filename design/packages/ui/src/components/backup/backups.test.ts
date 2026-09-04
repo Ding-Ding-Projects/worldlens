@@ -107,6 +107,10 @@ function fakeBridge(
         canListRepositories: true,
         canListBackups: true,
         canSeeActive: true,
+        // Required on BackupBridge and missing from this fixture. Production computes it
+        // from whether the host actually has pauseBackup and resumeBackup, so a bridge
+        // that cannot answer it is not a bridge the interface would ever be handed.
+        canPause: true,
         canCreateRepository: true,
         // `Partial<BackupBridge>` spreads its optional keys in as `T | undefined` rather
         // than as genuinely absent, which `exactOptionalPropertyTypes` then refuses to

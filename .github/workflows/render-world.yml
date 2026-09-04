@@ -292,6 +292,30 @@ jobs:
         with:
           persist-credentials: false
 
+      # A Pages deployment fails with a bare 404 when the repository has no Pages site,
+      # and by then the whole render has already been paid for. Measured: a real run planned,
+      # rendered both shards and merged them over about forty minutes, then lost all of it at
+      # "Publish to Pages" because of a repository setting one API call can read. Check it
+      # here, in the two-minute job, rather than at the end of the expensive one.
+      - name: Check that Pages can receive this map
+        if: inputs.output == 'artifact-and-pages'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.ORG_TOKEN || secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" >/dev/null 2>&1; then
+            echo "Pages is enabled on ${GITHUB_REPOSITORY}, so the finished map has somewhere to land."
+            exit 0
+          fi
+          echo "No Pages site on ${GITHUB_REPOSITORY} yet. Trying to enable a workflow-backed one."
+          if gh api -X POST "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow >/dev/null 2>&1; then
+            echo "Enabled workflow-backed Pages on ${GITHUB_REPOSITORY}."
+            exit 0
+          fi
+          echo "::error::This run asked for output 'artifact-and-pages' and ${GITHUB_REPOSITORY} has no GitHub Pages site. Enabling one automatically was refused, which usually means this token has no administration rights on the repository. Turn Pages on at https://github.com/${GITHUB_REPOSITORY}/settings/pages with GitHub Actions as the source, or re-dispatch with output 'artifact' to keep the map as a downloadable artifact. Stopping now, because rendering the whole world first and losing it at the last step helps nobody."
+          exit 1
+
       # This project's own tooling, fresh at a pinned commit, rather than assumed to sit
       # beside `.github/workflows` in whichever repository dispatched this workflow. A
       # repository this application bootstraps for somebody else carries only the three

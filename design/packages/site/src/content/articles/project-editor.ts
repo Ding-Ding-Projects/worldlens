@@ -93,6 +93,10 @@ export const projectEditor: Article = {
     ],
     suggested: [
         { articleId: "tabbed-shell", reason: "The shared tab model and edge placement this editor nests." },
+        {
+            articleId: "project-canvas",
+            reason: "The same project drawn as nodes and wires, and the one way to reach it.",
+        },
         { articleId: "config-history", reason: "The append-only history model project saves use." },
         { articleId: "world-discovery", reason: "The discovery path that opens a world in this editor." },
         { articleId: "project-canvas", reason: "The graph presentation that shares this editor's map model and save path." },

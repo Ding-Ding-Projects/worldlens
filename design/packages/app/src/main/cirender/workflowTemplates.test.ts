@@ -37,7 +37,7 @@ async function scratchDirWith(files: Readonly<Record<string, string>>): Promise<
 }
 
 describe("loadCiWorkflowTemplates", () => {
-    it("ships managed template version 2 with stable map publication and the repository Pages base", async () => {
+    it("ships managed template version 3 with stable map publication and the repository Pages base", async () => {
         const loaded = await loadCiWorkflowTemplates();
         const renderWorld = loaded.templates.find(
             (template) => template.path === ".github/workflows/render-world.yml",
@@ -56,8 +56,8 @@ describe("loadCiWorkflowTemplates", () => {
             .split("\n")
             .filter((line) => line.includes("assert-base-path.mjs"));
 
-        expect(CI_WORKFLOW_TEMPLATE_VERSION).toBe(2);
-        expect(loaded.version).toBe(2);
+        expect(CI_WORKFLOW_TEMPLATE_VERSION).toBe(3);
+        expect(loaded.version).toBe(3);
         expect(content.split(expectedArtifactStep)).toHaveLength(2);
         expect(basePathCalls).toEqual([
             '          node packages/site/scripts/assert-base-path.mjs --dist dist --base "/${GITHUB_REPOSITORY#*/}/"',

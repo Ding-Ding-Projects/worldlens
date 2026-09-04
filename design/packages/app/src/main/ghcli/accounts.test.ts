@@ -147,4 +147,29 @@ describe("structured gh account discovery", () => {
         ]);
         expect(scripted.calls.every((call) => call.omitted.includes("GH_TOKEN"))).toBe(true);
     });
+    it("verifies the sign-out of the very last account, which leaves no accounts behind", async () => {
+        // The status read afterwards reports "no-accounts", which is a successful structured
+        // answer and exactly what signing out the last account produces. Demanding "ready"
+        // made this one case say "could not verify removal" about a removal that had worked.
+        let loggedOut = false;
+        const scripted = runner((args) => {
+            if (args[0] === "--version") return result("gh version 2.97.0" + String.fromCharCode(10));
+            if (args[0] === "auth" && args[1] === "logout") {
+                loggedOut = true;
+                return result();
+            }
+            if (args[0] === "auth" && args[1] === "status") {
+                return result(loggedOut ? JSON.stringify({ hosts: {} }) : STATUS);
+            }
+            return result("", 1);
+        });
+
+        await expect(
+            logoutGhCliAccount(
+                { runner: scripted.runner, executable: EXECUTABLE },
+                "github.com",
+                "OctoCat",
+            ),
+        ).resolves.toMatchObject({ ok: true, localCredential: "removed" });
+    });
 });

@@ -1489,6 +1489,20 @@ export const REMOTE_FIXED = {
         en: "Choose the work directory on {target}",
         yue: "揀返 {target} 上面嘅work directory",
     },
+    /* Catalogue-coverage sweep: no catalogue answer, so every language and every
+       funny level fell back to the English written at the call site. */
+    "remote.docker.start.action": { en: "Start Docker", yue: "開 Docker" },
+    "remote.docker.start.failed": { en: "Docker could not be started.", yue: "開唔到 Docker。" },
+    "remote.docker.start.noHost": { en: "This build cannot start Docker for you.", yue: "呢個版本唔幫到你開 Docker。" },
+    "remote.docker.start.working": { en: "Starting Docker...", yue: "開緊 Docker…" },
+    "remote.hosting.alreadyPublished": { en: "Already published", yue: "已經publish咗" },
+    "remote.hosting.chooseBoth": { en: "Choose a saved SSH target and a finished render to publish it.", yue: "揀一部儲低咗嘅 SSH 機同一個行完嘅 render，先publish得。" },
+    "remote.hosting.noRenders": { en: "No completed render with maps is available yet.", yue: "仲未有行完又有地圖嘅 render。" },
+    "remote.hosting.renderTitle": { en: "Finished rendered maps", yue: "行完嘅地圖" },
+    "remote.hosting.targetTitle": { en: "Saved SSH targets", yue: "儲低咗嘅 SSH 機" },
+    "remote.docker.start.patience": { en: "Docker's engine can take a minute or two to come up. This waits for it to actually answer.", yue: "Docker 個引擎起身可能要一兩分鐘。呢度會等到佢真係應機為止。" },
+    "remote.hosting.loading": { en: "Reading finished renders…", yue: "讀緊已經完成嘅 render…" },
+    "remote.hosting.renderSearch": { en: "Search finished renders", yue: "搵已完成嘅 render" },
 } as const satisfies Record<string, FixedString>;
 
 export const REMOTE_FACTS = {

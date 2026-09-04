@@ -62,6 +62,10 @@ function code(text: string): string {
 }
 
 const PRELOAD_CODE = code(PRELOAD);
+// Read as source rather than imported: this package does not depend on @worldlens/bridge,
+// and the rest of this file already answers its questions by reading the files involved.
+const CHANNELS_CODE = code(source("../../../../bridge/src/channels.ts"));
+const FACTORY_CODE = code(source("../../../../bridge/src/factory.ts"));
 const MAIN_CODE = code(MAIN);
 
 describe("the renderer provides one lock store, from the real host", () => {
@@ -88,27 +92,55 @@ describe("the shell exposes the host the probe looks for", () => {
      * a namespace that is present but one method short is refused exactly as an absent one
      * is, and would put the feature back where it started.
      */
-    it("exposes worldlens.locks with load and save", () => {
-        expect(PRELOAD_CODE).toContain('load: () => ipcRenderer.invoke("locks:load")');
-        expect(PRELOAD_CODE).toContain('save: (locks) => ipcRenderer.invoke("locks:save", locks)');
+    /*
+     * These used to read the preload for one hand-written ipcRenderer.invoke per call. The
+     * preload does not write them any more: createWorldlensBridge forwards every channel
+     * through a single invoke, and readLockDataFolder lives in the factory rather than beside
+     * it. So the question "is this reachable" is now answered by BRIDGE_CHANNELS for the five
+     * calls, and by the factory for the one value that is not a channel at all.
+     */
+    it("has all five lock channels in the shared bridge inventory", () => {
+        for (const channel of [
+            "locks:load",
+            "locks:save",
+            "locks:vault:get",
+            "locks:vault:put",
+            "locks:vault:remove",
+        ]) {
+            expect(
+                CHANNELS_CODE,
+                `${channel} is not in BRIDGE_CHANNELS, so the bridge refuses it and ` +
+                    "resolveLockHost sees a namespace one method short, which it treats as absent",
+            ).toContain(`"${channel}"`);
+        }
     });
 
-    it("exposes the vault's three calls, so a TOTP lock is offerable", () => {
-        expect(PRELOAD_CODE).toContain(
-            'put: (lockId, secretBase32) => ipcRenderer.invoke("locks:vault:put", lockId, secretBase32)',
-        );
-        expect(PRELOAD_CODE).toContain(
-            'get: (lockId) => ipcRenderer.invoke("locks:vault:get", lockId)',
-        );
-        expect(PRELOAD_CODE).toContain(
-            'remove: (lockId) => ipcRenderer.invoke("locks:vault:remove", lockId)',
-        );
+    it("still builds the bridge through the factory, which is what makes the question above the right one", () => {
+        /*
+         * PRELOAD_CODE was read and never asserted, so this file's whole argument -- that
+         * membership of BRIDGE_CHANNELS is what decides reachability -- rested on a premise
+         * nothing checked. It holds only while the preload builds the bridge through
+         * createWorldlensBridge and forwards every channel through one invoke. Go back to a
+         * hand-written invoke per call and BRIDGE_CHANNELS stops being the answer, while every
+         * assertion above carries on passing.
+         *
+         * The sibling mcserver guard asserts the same premise for the same reason.
+         */
+        expect(PRELOAD_CODE).toContain("createWorldlensBridge");
+        expect(
+            PRELOAD_CODE.match(/ipcRenderer[.]invoke/g)?.length ?? 0,
+            "more than one ipcRenderer.invoke means a channel is being reached by hand again, " +
+                "and a hand-written call does not need to be in BRIDGE_CHANNELS to work",
+        ).toBe(1);
     });
 
     it("names the folder the recovery route sends people to", () => {
         // Null here would leave every unlock prompt and the support desk gesturing at
-        // "app data" instead of naming a path somebody can actually open.
-        expect(PRELOAD_CODE).toContain("dataFolder: readLockDataFolder()");
+        // "app data" instead of naming a path somebody can actually open. It is a value
+        // rather than a channel, so the generic forwarder cannot supply it and the factory
+        // reads it over a sync channel of its own.
+        expect(FACTORY_CODE).toContain("dataFolder: readLockDataFolder()");
+        expect(FACTORY_CODE).toContain('transport.sendSync("locks:dataFolder")');
     });
 
     it("registers the handlers those channels invoke", () => {

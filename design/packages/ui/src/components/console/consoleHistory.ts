@@ -420,7 +420,7 @@ function fitIndexToBudget(index: HistoryIndex, drafts: readonly SegmentDraft[]):
     let first = entries[0];
     if (first === undefined) return { index: { ...index, entries }, drafts: keptDrafts };
     const firstRenderId = first.renderId;
-    let firstDrafts = keptDrafts.filter((draft) => draft.renderId === firstRenderId).sort((left, right) => left.segment - right.segment);
+    const firstDrafts = keptDrafts.filter((draft) => draft.renderId === firstRenderId).sort((left, right) => left.segment - right.segment);
     while (firstDrafts.length > 0 && totalBytes({ ...index, entries }) > CONSOLE_HISTORY_MAX_BYTES) {
         const removed = firstDrafts.shift();
         if (removed === undefined) break;

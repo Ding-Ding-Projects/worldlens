@@ -43,7 +43,6 @@ import {
     groupCaptures,
     home,
     releaseAvailability,
-    repoCaptures,
     screenshotAvailability,
     screenshotUrl,
     screenshotsCopy,

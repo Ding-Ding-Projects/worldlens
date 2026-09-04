@@ -152,6 +152,9 @@ describe("no level drops a value out of a sentence", () => {
 /* Facts: what the real call sites in components/palette/ actually pass       */
 /* -------------------------------------------------------------------------- */
 
+/** The shell, which builds the palette's directory entries out of the live workspace. */
+const appShellFile = fileURLToPath(new URL("../../App.vue", import.meta.url));
+
 /** `packages/ui/src/components/palette`, resolved from this file's own location. */
 const paletteComponentRoot = fileURLToPath(
     new URL("../../components/palette", import.meta.url),
@@ -193,7 +196,11 @@ function paletteCallSitePlaceholders(): Map<string, Set<string>> {
     const call = /(?<![\w$.])\$?t\s*\(\s*(["'])([A-Za-z0-9_.\-]+)\1\s*,/g;
     const byKey = new Map<string, Set<string>>();
 
-    for (const file of paletteSourceFiles(paletteComponentRoot)) {
+    // App.vue counts as a call site. The palette component renders the directory; the shell is
+    // what builds it, so every palette.directory.* and palette.where.* key is resolved there
+    // rather than under components/palette/. Reading only that folder reported a dozen live
+    // keys as translating nothing, which is the opposite of what this check is for.
+    for (const file of [...paletteSourceFiles(paletteComponentRoot), appShellFile]) {
         if (file.endsWith(".test.ts")) continue;
         const text = readFileSync(file, "utf8");
         call.lastIndex = 0;
@@ -273,7 +280,13 @@ describe("no level stops saying what the message is for", () => {
             for (const language of LANGUAGES) {
                 PALETTE_VOICED[key][language].forEach((text, index) => {
                     for (const fact of required[language]) {
-                        if (!text.includes(fact)) {
+                        // A fact may offer alternatives separated by " || ": the level has to
+                        // carry one of them, not all. Fifteen entries in the fact table are
+                        // written that way and none of them worked, because this compared the
+                        // whole alternation as one literal - so a level saying "Location"
+                        // failed a requirement that "Location" satisfies.
+                        const alternatives = fact.split(" || ");
+                        if (!alternatives.some((option) => text.includes(option))) {
                             missing.push(`${key} ${language} L${index + 1} lost "${fact}"`);
                         }
                     }

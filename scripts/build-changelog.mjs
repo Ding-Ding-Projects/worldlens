@@ -201,10 +201,42 @@ function canonicalDate(date) {
  * run so a malformed body does not turn a trailer into public prose. Only a trailing run of
  * `Key: value` lines is removed, so a body that merely contains a colon keeps every word of it.
  */
+/** One line of git’s own comment block: a `#` alone or followed by whitespace. */
+const COMMENT_LINE = /^#(\s|$)/;
+
+/** One git trailer line: a `Key: value` whose key is letters and hyphens only. */
+const TRAILER_LINE = /^[A-Za-z][A-Za-z-]*:\s/;
+
+/** The git trailers that record who wrote a commit rather than what it changed. */
+const IDENTITY_TRAILER = /^(?:Co-Authored-By|Signed-off-by|Reviewed-by|Acked-by|Tested-by|Reported-by|Suggested-by|Helped-by|Cc):\s/i;
+
 function stripTrailers(body) {
     const lines = body.replace(/\r\n/g, "\n").replace(/\\r\\n/g, "\n").replace(/\\n/g, "\n").split("\n");
     while (lines.length > 0 && (lines.at(-1) ?? "").trim() === "") lines.pop();
-    while (lines.length > 0 && /^[A-Za-z][A-Za-z-]*:\s/.test(lines.at(-1) ?? "")) lines.pop();
+    // `git merge` appends its "# Conflicts:" comment block *after* the trailers, so the
+    // trailer loop below stops on the first `#` line and every trailer beneath it
+    // survives into the public body. Only a trailing run of comment lines introduced by
+    // git's own exact marker is removed, so a body that genuinely ends in a Markdown
+    // heading keeps it.
+    let comment = lines.length;
+    while (comment > 0 && COMMENT_LINE.test(lines[comment - 1] ?? "")) comment--;
+    if (comment < lines.length && (lines[comment] ?? "").trim() === "# Conflicts:") lines.length = comment;
+    while (lines.length > 0 && (lines.at(-1) ?? "").trim() === "") lines.pop();
+    // Git puts the trailers in their own final paragraph, so a run of `Key: value`
+    // lines counts as trailers only when a blank line separates it from the prose. Without
+    // that condition a one-line body such as "Fix: the thing" is entirely a trailer run and
+    // the whole entry is emptied, which is the opposite of what the note above promises.
+    let trailer = lines.length;
+    while (trailer > 0 && TRAILER_LINE.test(lines[trailer - 1] ?? "")) trailer--;
+    if (trailer > 0 && (lines[trailer - 1] ?? "").trim() === "") {
+        lines.length = trailer;
+    } else if (trailer === 0 && lines.length > 0 && lines.some((line) => IDENTITY_TRAILER.test(line))) {
+        // A body that is nothing but trailers, with no prose above them to separate. It is
+        // only metadata, so the entry has no body -- but "Fix: the thing" is also a lone
+        // Key: value line and is real prose, so this needs one recognised authorship key
+        // before it will empty a body it cannot otherwise tell apart.
+        lines.length = 0;
+    }
     while (lines.length > 0 && (lines.at(-1) ?? "").trim() === "") lines.pop();
     return lines.join("\n").trim();
 }

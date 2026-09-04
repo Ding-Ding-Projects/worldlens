@@ -2,6 +2,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VCard, VCardActions, VCardText, VCardTitle, VChip, VTextField } from "vuetify/components";
+import PathField from "../PathField.vue";
 import { useServerStore } from "./useServers.js";
 
 const emit = defineEmits<{ close: []; saved: [hostId: string] }>();
@@ -15,7 +16,6 @@ const port = ref("22");
 const user = ref("");
 const identityFile = ref("");
 const workDir = ref("~/WorldLens");
-const identityPicker = ref<HTMLInputElement | null>(null);
 const busy = ref(false);
 const message = ref<string | null>(null);
 const scan = ref<Awaited<ReturnType<typeof store.hostProfiles.scan>>["value"] | null>(null);
@@ -38,18 +38,6 @@ function target(): Record<string, unknown> {
         identityFile: identityFile.value.trim() || null,
         workDir: workDir.value.trim(),
     };
-}
-
-function chooseIdentityFile(): void {
-    identityPicker.value?.click();
-}
-
-function readIdentityPath(event: Event): void {
-    const file = (event.target as HTMLInputElement).files?.[0] as (File & { path?: string }) | undefined;
-    if (file === undefined) return;
-    // Electron exposes the selected path to the native file picker. Only the path is kept;
-    // the file is never read or copied into renderer or app data.
-    identityFile.value = file.path ?? file.name;
 }
 
 async function saveAndScan(): Promise<void> {
@@ -95,13 +83,12 @@ async function trust(fingerprint: string): Promise<void> {
             <VTextField v-model="host" :label="t('mcserver.hostProfile.host', 'Host name or address')" autocomplete="off" />
             <VTextField v-model="port" type="number" min="1" max="65535" :label="t('mcserver.hostProfile.port', 'SSH port')" />
             <VTextField v-model="user" :label="t('mcserver.hostProfile.user', 'SSH user')" autocomplete="username" />
-            <div class="wl-mcserver-host-profile__identity">
-                <VTextField v-model="identityFile" :label="t('mcserver.hostProfile.identity', 'Identity file path, optional')" autocomplete="off" />
-                <VBtn variant="tonal" :aria-label="t('mcserver.hostProfile.browseIdentity', 'Browse for identity file')" @click="chooseIdentityFile">
-                    {{ t("common.browse", "Browse") }}
-                </VBtn>
-                <input ref="identityPicker" class="wl-mcserver-host-profile__native-picker" type="file" @change="readIdentityPath" />
-            </div>
+                <PathField
+                    v-model="identityFile"
+                    field="the SSH identity file"
+                    :label="t('mcserver.hostProfile.identity', 'Identity file path, optional')"
+                    semantic="file"
+                />
             <VTextField v-model="workDir" :label="t('mcserver.hostProfile.workDir', 'Remote working folder')" autocomplete="off" />
             <VAlert v-if="message" type="warning" variant="tonal">{{ message }}</VAlert>
             <VAlert v-if="changedKey" type="error" variant="tonal">
@@ -132,7 +119,4 @@ async function trust(fingerprint: string): Promise<void> {
 .wl-mcserver-host-profile__fields { display: grid; gap: 12px; }
 .wl-mcserver-host-profile__offers { display: grid; gap: 8px; }
 .wl-mcserver-host-profile__offer { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.wl-mcserver-host-profile__identity { display: flex; align-items: flex-start; gap: 8px; }
-.wl-mcserver-host-profile__identity .v-input { flex: 1; }
-.wl-mcserver-host-profile__native-picker { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 </style>

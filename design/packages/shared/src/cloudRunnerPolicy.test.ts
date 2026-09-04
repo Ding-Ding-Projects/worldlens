@@ -67,6 +67,16 @@ const WORKFLOW_JOBS: readonly WorkflowJob[] = [
     { workflow: "ci.yml", job: "check", runner: "ubuntu-24.04", tools: [] },
     { workflow: "ci.yml", job: "package", runner: "windows-2022", tools: [] },
     { workflow: "ci.yml", job: "jars", uses: "./.github/workflows/build-jars.yml", tools: [] },
+    // Added by the change that started building and publishing the container image for both
+    // architectures. That change updated ci.yml and did not update this hand-maintained
+    // inventory, so the four checks below have been failing against a job that does exist --
+    // the mirror image of the ci.yml:workflows row above, which named one that did not.
+    //
+    // It reaches a container registry rather than the GitHub API, so no gh row: its
+    // credential is the workflow token granted by the job's own permissions, deliberately
+    // not the shared release-token chain, because a token that can publish a release does
+    // not automatically carry write:packages.
+    { workflow: "ci.yml", job: "docker-image", runner: "ubuntu-24.04", tools: [] },
     // `ci.yml:config-java-roundtrip` and `ci.yml:screenshots` used to be listed here, and both
     // went the same way `ci.yml:workflows` did above. ci.yml is now release inputs only, and it
     // says so itself: "This workflow builds and packages release inputs only. Test, lint,

@@ -234,14 +234,28 @@ describe("a running container's bind-mounted world", () => {
             onEvent: (event) => events.push(event),
         });
 
+        // The acceptance is a fresh nonce, not a boolean and not an omission. This test called
+        // fetch() with neither, from when the flag was a boolean, so what it actually proved
+        // was that the refusal fires -- which is the opposite of its own name.
+        const acknowledgement = "explicitly-accepted-live-risk-nonce";
         const result = await fetcher.fetch({
             source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
             destination,
+            liveRiskAcknowledgement: acknowledgement,
         });
         expect(result.ok).toBe(true);
         const warning = events.find((event) => event.type === "log" && event.level === "warning");
         expect(warning).toBeDefined();
         if (warning?.type === "log") expect(warning.message).toContain("torn region file");
+
+        // Consumed once: the same nonce a second time is refused, which is the whole reason
+        // this is a nonce rather than a flag.
+        const replayed = await fetcher.fetch({
+            source: { kind: "container", containerId: "abc123", mountDestination: "/data/world" },
+            destination,
+            liveRiskAcknowledgement: acknowledgement,
+        });
+        expect(replayed.ok).toBe(false);
     });
 });
 

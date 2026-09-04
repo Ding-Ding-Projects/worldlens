@@ -211,6 +211,42 @@ export function resolveBuildTimestamp(env, runGit = defaultGitCommitterDate) {
     return fromGit === null ? null : fromGit;
 }
 
+/**
+ * The commit this build came from, or null.
+ *
+ * Beside the timestamp rather than instead of it: a time says when, and only a SHA says
+ * which. Issue #169's point is that a container image carrying neither is indistinguishable
+ * from a current one, and a timestamp alone does not settle it either -- two builds of
+ * different commits can share a committer date.
+ *
+ * Overridable through the environment for the same reason the timestamp is: a build from a
+ * tarball export, or from a checkout that is not the source of truth, has to be able to state
+ * the real revision rather than whatever git happens to say locally.
+ */
+function resolveBuildCommit(env) {
+    const declared = env["WORLDLENS_SOURCE_COMMIT"]?.trim();
+    if (declared !== undefined && declared !== "") {
+        if (!/^[0-9a-f]{7,40}$/i.test(declared)) {
+            throw new Error(
+                `WORLDLENS_SOURCE_COMMIT is not a commit id: ${declared}. Set a full or ` +
+                    "abbreviated SHA, or unset it and let the checkout answer.",
+            );
+        }
+        return declared.toLowerCase();
+    }
+    try {
+        const output = execFileSync("git", ["rev-parse", "HEAD"], {
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "ignore"],
+        }).trim();
+        return /^[0-9a-f]{40}$/i.test(output) ? output.toLowerCase() : null;
+    } catch {
+        // Same legitimate absences the committer date documents: no git, no repository, a
+        // tarball export. The surface renders its unavailable state rather than inventing one.
+        return null;
+    }
+}
+
 function defaultGitCommitterDate() {
     try {
         const output = execFileSync("git", ["log", "-1", "--format=%cI"], {
@@ -324,6 +360,7 @@ async function main() {
                 __WORLDLENS_REPOSITORY__: JSON.stringify(repositories.current),
                 __WORLDLENS_LEGACY_REPOSITORY__: JSON.stringify(repositories.legacy),
                 __WORLDLENS_BUILT_AT__: JSON.stringify(resolveBuildTimestamp(process.env)),
+                __WORLDLENS_SOURCE_COMMIT__: JSON.stringify(resolveBuildCommit(process.env)),
             },
         });
 
@@ -385,6 +422,14 @@ async function main() {
         platform: "node",
         format: "esm",
         target: "node22",
+        // The hosted bundle had no define block at all, so every __WORLDLENS_* constant
+        // reached dist/hosted/index.js as a free identifier and threw on first read. That is
+        // why the hosted route could not answer app:buildProvenance even though the desktop
+        // could: there was nothing to answer with.
+        define: {
+            __WORLDLENS_BUILT_AT__: JSON.stringify(resolveBuildTimestamp(process.env)),
+            __WORLDLENS_SOURCE_COMMIT__: JSON.stringify(resolveBuildCommit(process.env)),
+        },
         banner: { js: nodeBuiltinRequireShimBanner },
         sourcemap: true,
     });

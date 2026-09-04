@@ -363,12 +363,40 @@ export async function bootstrapCiRepository(
     try {
         expectedHead = await transport.readRepositoryHead(owner, repo);
         if (expectedHead.sha === null) {
+            // A repository with no commits has no branch ref, and the guarded multi-file
+            // commit below needs a real tip to build on - GitHub's Git Data API cannot create
+            // the very first one. The Contents API can, and this same transport already
+            // exposes it: writeFile documents itself as handling "the very first commit of a
+            // repository that has none yet". So seed one here rather than sending somebody
+            // away to do by hand the one thing this code is already holding the ability to do.
+            //
+            // Only ever reached when the repository is genuinely empty, so there is no user
+            // content this can overwrite, and it is strictly smaller than the workflow files
+            // this call exists to commit and was authorised to write.
+            emit({
+                type: "log",
+                level: "info",
+                message:
+                    `${owner}/${repo} has no commits yet, so ${EMPTY_REPOSITORY_SEED_FILE} is being committed ` +
+                    "first to give the managed workflows a branch tip to land on.",
+                at: stamp(),
+            });
+            await transport.writeFile(
+                owner,
+                repo,
+                EMPTY_REPOSITORY_SEED_FILE,
+                base64Of(emptyRepositorySeed(owner, repo)),
+                EMPTY_REPOSITORY_SEED_MESSAGE,
+            );
+            expectedHead = await transport.readRepositoryHead(owner, repo);
+        }
+        if (expectedHead.sha === null) {
             return fail({
                 code: "empty-repository",
                 message:
-                    `${owner}/${repo} has no first commit yet. GitHub does not allow its Git Data API to create ` +
-                    "the first branch ref, so the managed workflows cannot be installed atomically. Create one " +
-                    "starter commit (the in-app repository creator does this automatically), then try again. Nothing was changed.",
+                    `${owner}/${repo} still reports no first commit after ${EMPTY_REPOSITORY_SEED_FILE} was ` +
+                    "written to it, so the managed workflows cannot be installed atomically - the guarded " +
+                    "commit needs a branch tip to build on. Nothing else was changed.",
                 missingScopes: null,
             });
         }
@@ -609,6 +637,32 @@ function planAction(kind: TemplatePlanKind): CiBootstrapFileAction {
         case "refuse":
             return "refused";
     }
+}
+
+/**
+ * The one file written into a repository that has no commits at all, purely so the guarded
+ * commit that installs the managed workflows has a parent to build on.
+ *
+ * It is a README rather than an empty placeholder because this file is the whole of what a
+ * person sees if they open the repository before the first render finishes, and "why does
+ * this exist" is the question they will have.
+ */
+const EMPTY_REPOSITORY_SEED_FILE = "README.md";
+
+const EMPTY_REPOSITORY_SEED_MESSAGE = "Start the repository so the render workflows have somewhere to land";
+
+function emptyRepositorySeed(owner: string, repo: string): string {
+    return `# ${owner}/${repo}
+
+This repository renders a Minecraft world into a BlueMap map on GitHub Actions.
+
+It was empty when Worldlens was pointed at it, and a repository with no commits has no
+branch a workflow file can be committed to, so this file was written first. The render
+workflows live under .github/workflows/ and are managed by the application: edit them and
+it will stop updating them rather than overwrite your changes.
+
+You can replace everything in this file. Deleting it is fine too.
+`;
 }
 
 function base64Of(text: string): string {

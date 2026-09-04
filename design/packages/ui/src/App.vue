@@ -26,7 +26,6 @@ import {
 import type { MenuPage } from "@worldlens/viewer";
 import MapView from "./components/MapView.vue";
 import { HomeDashboard } from "./components/home/index.js";
-import ProfileManager from "./components/ProfileManager.vue";
 import DashboardScreen from "./components/DashboardScreen.vue";
 import ZoomButtons from "./components/controls/ZoomButtons.vue";
 import FreeFlightMobileControls from "./components/controls/FreeFlightMobileControls.vue";
@@ -1444,6 +1443,29 @@ const paletteDirectoryEntries = computed<readonly PaletteDirectoryEntry[]>(() =>
  * shell's navigation state, because two sources of truth for "which page is showing" is how a
  * palette ends up sending somebody to a screen the strip stopped drawing.
  */
+/**
+ * Remembers which hosting entry the dashboard was opened from, then reveals the page.
+ *
+ * In the template rather than here, this read `globalThis.localStorage`, and a Vue template
+ * resolves a bare identifier against the component instance and a fixed list of allowed
+ * globals that does not include `globalThis`. So it was `undefined.localStorage` at runtime:
+ * opening a hosting entry from the dashboard threw instead of remembering the choice, in both
+ * places the handler was written. vue-tsc had been saying so as
+ * "Property 'globalThis' does not exist on type CreateComponentPublicInstance..." and it was
+ * read as type noise.
+ *
+ * Optional because a build without storage is a real state this app already handles
+ * elsewhere, and failing to remember a selection must not stop the navigation.
+ */
+function openHostingEntry(id: string): void {
+    try {
+        localStorage.setItem("worldlens.dashboard.hostingId", id);
+    } catch {
+        // A refused or absent store is not a reason to refuse the navigation.
+    }
+    revealPage(PAGE_REMOTE_HOSTING);
+}
+
 function revealPage(pageId: string): void {
     // Two of the twelve old page ids are rail destinations now, so a caller that still asks for
     // them by name gets the destination rather than nothing. Everything else is a job: open it
@@ -2704,12 +2726,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                         revealPage(PAGE_MAP);
                                     }
                                 "
-                                @open-hosting="
-                                    (id) => {
-                                        globalThis.localStorage?.setItem('worldlens.dashboard.hostingId', id);
-                                        revealPage(PAGE_REMOTE_HOSTING);
-                                    }
-                                "
+                                @open-hosting="openHostingEntry"
                             />
                         </div>
                     </div>
@@ -3286,15 +3303,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                                     revealPage(PAGE_MAP);
                                                 }
                                             "
-                                            @open-hosting="
-                                                (id) => {
-                                                    globalThis.localStorage?.setItem(
-                                                        'worldlens.dashboard.hostingId',
-                                                        id,
-                                                    );
-                                                    revealPage(PAGE_REMOTE_HOSTING);
-                                                }
-                                            "
+                                            @open-hosting="openHostingEntry"
                                         />
                                     </div>
                                 </div>

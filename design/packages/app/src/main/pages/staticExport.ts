@@ -162,7 +162,8 @@ async function runSevenZip(executable: string, archive: string, source: string, 
         };
         signal.addEventListener("abort", onAbort, { once: true });
         child.once("error", (error) => { signal.removeEventListener("abort", onAbort); reject(error); });
-        child.once("exit", (code) => { signal.removeEventListener("abort", onAbort); code === 0 ? resolvePromise() : reject(new Error(`7z exited with code ${String(code)}`)); });
+        child.once("exit", (code) => { signal.removeEventListener("abort", onAbort); if (code === 0) resolvePromise();
+            else reject(new Error(`7z exited with code ${String(code)}`)); });
     });
 }
 
@@ -274,7 +275,7 @@ export class StaticMapExporter {
             const manifest: StaticMapExportManifest = { version: 1, renderId: request.renderId, engine, exportedAt: new Date().toISOString(), format: request.format, basePath: request.basePath ?? "", maps: selected ?? prepared.maps.map((map) => map.id), files: records, omissions: [...omissions, "Private application history, credentials and local-only settings are omitted."] };
             await writeFile(join(stage, "worldlens-export-manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
             check();
-            let destination = resolve(request.destination);
+            const destination = resolve(request.destination);
             if (request.format === "folder") {
                 await atomicReplace(stage, destination, request.overwrite === true, this.overwriteTokens, request.overwriteToken);
             } else {

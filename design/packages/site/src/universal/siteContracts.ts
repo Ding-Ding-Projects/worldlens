@@ -908,7 +908,6 @@ function filteredSelect(label: string, options: readonly string[], help: string)
     const select = document.createElement("select");
     select.className = "md-field__input";
     const refill = (): void => {
-        const query = filter.value.trim().toLocaleLowerCase();
         select.replaceChildren();
         options.filter((option) => matchesContractQuery(option, filter.value, filter.dataset.regexPattern ?? "", filter.dataset.regexFlags ?? "i")).forEach((option) => {
             const item = document.createElement("option");
@@ -1514,7 +1513,6 @@ function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTM
             filter.className = "md-field__input";
             filter.placeholder = "Filter lock actions";
             filter.setAttribute("aria-label", "Filter lock actions");
-            let dismiss: ((next: Event) => void) | undefined;
             const closeMenu = (): void => {
                 menu.remove();
                 if (dismiss !== undefined) document.removeEventListener("pointerdown", dismiss);
@@ -1532,7 +1530,7 @@ function installUniversalLockWizards(root: HTMLElement, openWizard: (origin: HTM
             menu.style.left = `${Math.max(8, Math.min(left, window.innerWidth - 320))}px`;
             menu.style.top = `${Math.max(8, Math.min(top, window.innerHeight - 120))}px`;
             action.focus();
-            dismiss = (next: Event): void => { if (!menu.contains(next.target as Node)) { closeMenu(); target.focus(); } };
+            const dismiss = (next: Event): void => { if (!menu.contains(next.target as Node)) { closeMenu(); target.focus(); } };
             if (dismiss !== undefined) document.addEventListener("pointerdown", dismiss);
         };
         target.addEventListener("contextmenu", open);

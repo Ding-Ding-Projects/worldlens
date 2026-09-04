@@ -73,6 +73,24 @@ export function registerHostedHandlers(
     // Its own version, which the About surface asks for on every load.
     ipcMain.handle("app:version", () => process.env["WORLDLENS_VERSION"] ?? "0.0.0-hosted");
 
+    // Registered here for the first time. The channel is permitted in BRIDGE_CHANNELS and the
+    // desktop has always answered it, so a hosted deployment returned "no handler is
+    // registered" and the About surface had nothing to show -- which is issue #169's point
+    // exactly: an image that cannot say which commit it came from is indistinguishable from a
+    // current one.
+    //
+    // The constants come from the hosted bundle's own define block, which did not exist until
+    // now either, so both halves had to land together: without the define they would have
+    // reached dist/hosted/index.js as free identifiers and thrown on first read.
+    ipcMain.handle("app:buildProvenance", () => ({
+        version: process.env["WORLDLENS_VERSION"] ?? "0.0.0-hosted",
+        // typeof, not a bare read: a module the runner treats as external is never
+        // transformed, and then the identifier throws rather than being null.
+        builtAt: typeof __WORLDLENS_BUILT_AT__ === "string" ? __WORLDLENS_BUILT_AT__ : null,
+        sourceCommit:
+            typeof __WORLDLENS_SOURCE_COMMIT__ === "string" ? __WORLDLENS_SOURCE_COMMIT__ : null,
+    }));
+
     // Deliberately carries no path. Which folders exist is the operator's business to state;
     // where they are on their disk is not something a browser tab needs, and a path in an
     // interface ends up in a screenshot in an issue.

@@ -2152,7 +2152,7 @@ onBeforeUnmount(() => {
                         :label="
                             t(
                                 'cirender.pages.publish',
-                                'Also host the finished map on this repository’s GitHub Pages site',
+                                'Also host the finished map on this repository\'s GitHub Pages site',
                             )
                         "
                     />

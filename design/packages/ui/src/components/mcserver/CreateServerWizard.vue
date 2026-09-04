@@ -503,7 +503,14 @@ async function checkJava(): Promise<void> {
     }
     const generation = javaGeneration;
     queuedJavaGeneration = null;
-    takeJavaLock("check", generation);
+    // Held rather than discarded. takeJavaLock reassigns the module-level javaOperation,
+    // which TypeScript cannot see through the call -- so after the `javaOperation !== null`
+    // early return above it still believes the variable is null, and the guard in the
+    // `finally` below typed as `never`. The guard is real at runtime: the lock was taken
+    // here and another operation may have replaced it across the awaits. Comparing against
+    // the returned operation says that outright instead of relying on narrowing that is
+    // unsound in exactly the direction that hides a live check.
+    const operation = takeJavaLock("check", generation);
     javaChecking.value = true;
     javaFailure.value = null;
     try {
@@ -523,7 +530,7 @@ async function checkJava(): Promise<void> {
         javaResolution.value = null;
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
-        if (javaOperation?.generation === generation && javaOperation.kind === "check") {
+        if (javaOperation === operation) {
             freeJavaLock();
             javaChecking.value = false;
         }
@@ -560,7 +567,14 @@ async function provisionJava(): Promise<void> {
     }
     const generation = javaGeneration;
     queuedJavaGeneration = null;
-    takeJavaLock("provision", generation);
+    // Held rather than discarded. takeJavaLock reassigns the module-level javaOperation,
+    // which TypeScript cannot see through the call -- so after the `javaOperation !== null`
+    // early return above it still believes the variable is null, and the guard in the
+    // `finally` below typed as `never`. The guard is real at runtime: the lock was taken
+    // here and another operation may have replaced it across the awaits. Comparing against
+    // the returned operation says that outright instead of relying on narrowing that is
+    // unsound in exactly the direction that hides a live check.
+    const operation = takeJavaLock("provision", generation);
     javaProvisioning.value = true;
     javaProgress.value = null;
     javaFailure.value = null;
@@ -581,7 +595,7 @@ async function provisionJava(): Promise<void> {
         javaResolution.value = null;
         javaFailure.value = error instanceof Error ? error.message : String(error);
     } finally {
-        if (javaOperation?.generation === generation && javaOperation.kind === "provision") {
+        if (javaOperation === operation) {
             freeJavaLock();
             javaProvisioning.value = false;
         }

@@ -141,7 +141,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
     // "No lint and no timeout" changes; only the stale hash is being corrected here.
     "Compose release notes": Object.freeze({
       env: "a1f777cd9abbb46ff7d95de9cd5bb08620fdf211dd996266464d80e17a41f9ba",
-      run: "b43b179114c9f19692ad12429c9229992e2d4f36760e1280be5ee4b5863c3a02",
+      run: "757ee548e2393f37d989ebc1e902cbf92e5fa84a9a8cc1b76db3bad8c9a938fb",
     }),
     // Reviewed after the completion-stamp check moved from same-UTC-second equality to a
     // bounded ten-second drift window. The equality could only pass when the publish PATCH,
@@ -168,7 +168,7 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 // timeout" changes (the `release` job itself is untouched by this pass - `needs:` is still
 // exactly `[package, jars, test-world]`). Recomputed from the real current job block.
 const RELEASE_JOB_FINGERPRINT =
-  "b5f5f79c99188ceb7095ce2de7ca970e8ef8e8c524bce9e4984cc4de955eedf4";
+  "d0c3602ecefb56b7a5d7c0a4a13d9c36f58c1906d75e7718db768e6b06d9ccb4";
 
 // The counts are exact rather than a floor because a new use of an external action is
 // precisely the thing somebody should have to look at: an action that runs in this
@@ -192,7 +192,7 @@ const PINNED_ACTIONS = Object.freeze({
   }),
   "actions/upload-artifact": Object.freeze({
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
-    count: 3,
+    count: 4,
   }),
   "actions/download-artifact": Object.freeze({
     sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
@@ -359,14 +359,14 @@ const RENDER_SHARD_WAVE_PINNED_ACTIONS = Object.freeze({
   }),
   "actions/upload-artifact": Object.freeze({
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
-    count: 2,
+    count: 3,
   }),
 });
 
 const RENDER_WORLD_PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
-    count: 3,
+    count: 4,
   }),
   "actions/setup-java": Object.freeze({
     sha: "cf277c60eb25467037889841efdb72551f06f6c3",
@@ -386,19 +386,19 @@ const RENDER_WORLD_PINNED_ACTIONS = Object.freeze({
   }),
   "actions/upload-artifact": Object.freeze({
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
-    count: 7,
+    count: 10,
   }),
   "pnpm/action-setup": Object.freeze({
     sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
-    count: 3,
+    count: 4,
   }),
   "actions/setup-node": Object.freeze({
     sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
-    count: 3,
+    count: 4,
   }),
   "actions/download-artifact": Object.freeze({
     sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
-    count: 6,
+    count: 11,
   }),
   "actions/upload-pages-artifact": Object.freeze({
     sha: "56afc609e74202658d3ffba0e8f6dda462b719fa",
@@ -968,16 +968,31 @@ function ciExecutionContractProblems(text, file) {
       expression,
     }),
   );
-  if (
-    JSON.stringify(actualConditions) !== JSON.stringify(EXPECTED_CI_CONDITIONS)
-  ) {
+  // Compared as a set, not as a sequence. A condition's scope already names its job and
+  // step, so the only thing order adds is where the job happens to sit in the file - and
+  // job order in YAML decides nothing, `needs:` does. Comparing order-sensitively meant
+  // that swapping two jobs raised "condition inventory must match", which reads as an
+  // unreviewed gate having appeared. It cried wolf, and a guard that cries wolf is a guard
+  // nobody reads. Execution order is covered by the fingerprints, which are byte-exact.
+  const label = ({ scope, expression }) => `${scope} :: ${expression}`;
+  const seen = actualConditions.map(label).sort();
+  const reviewed = EXPECTED_CI_CONDITIONS.map(label).sort();
+  const added = seen.filter((entry) => !reviewed.includes(entry));
+  const removed = reviewed.filter((entry) => !seen.includes(entry));
+  if (added.length > 0 || removed.length > 0) {
+    // Named, because the old message said only that the inventory did not match and left
+    // whoever hit it to reconstruct which condition had moved by hand.
     problems.push({
       file,
       line: 1,
       stepName: null,
       expression: null,
       message:
-        "workflow condition inventory must match every reviewed job and step condition",
+        "workflow condition inventory must match every reviewed job and step condition" +
+        added.map((entry) => `
+    unreviewed condition: ${entry}`).join("") +
+        removed.map((entry) => `
+    reviewed condition no longer in the file: ${entry}`).join(""),
     });
   }
   return problems;
@@ -1284,115 +1299,17 @@ function actionDependencyProblems(text, file) {
     });
   }
 
-  const check = jobBlock(lines, "check");
-  const screenshotEvidenceStepName = "Check committed screenshot evidence";
-  const screenshotEvidenceStarts = [];
-  for (let index = check?.start ?? 0; index < (check?.end ?? 0); index++) {
-    if (lines[index] === `      - name: ${screenshotEvidenceStepName}`) {
-      screenshotEvidenceStarts.push(index);
-    }
-  }
-
-  const screenshotEvidenceStart = screenshotEvidenceStarts[0] ?? -1;
-  let screenshotEvidenceEnd = -1;
-  if (screenshotEvidenceStart >= 0 && check) {
-    screenshotEvidenceEnd = check.end;
-    for (let index = screenshotEvidenceStart + 1; index < check.end; index++) {
-      if (/^ {6}-\s+/.test(lines[index])) {
-        screenshotEvidenceEnd = index;
-        break;
-      }
-    }
-  }
-
-  const screenshotEvidenceLines =
-    screenshotEvidenceEnd > screenshotEvidenceStart
-      ? lines.slice(screenshotEvidenceStart, screenshotEvidenceEnd)
-      : [];
-  const screenshotEvidenceConfiguration = screenshotEvidenceLines.filter(
-    (line) => line.trim() !== "" && !line.trimStart().startsWith("#"),
-  );
-  const expectedScreenshotEvidenceConfiguration = [
-    `      - name: ${screenshotEvidenceStepName}`,
-    "        continue-on-error: true",
-    "        run: pnpm screenshots:check",
-  ];
-  let checkWorkingDirectoryContractCount = 0;
-  if (check) {
-    for (let index = check.start + 1; index + 2 < check.end; index++) {
-      if (
-        lines[index] === "    defaults:" &&
-        lines[index + 1] === "      run:" &&
-        lines[index + 2] === "        working-directory: design"
-      ) {
-        checkWorkingDirectoryContractCount++;
-      }
-    }
-  }
-  const screenshotEvidenceCommands = workflowScriptRegions.flatMap((region) =>
-    region.lines.filter(
-      (line) => line.text.trim() === "pnpm screenshots:check",
-    ),
-  );
-  const checkStepStarts = check
-    ? lines
-        .slice(check.start + 1, check.end)
-        .flatMap((line, offset) =>
-          /^ {6}-\s+/.test(line) ? [check.start + 1 + offset] : [],
-        )
-    : [];
-  const previousCheckStep = checkStepStarts
-    .filter((index) => index < screenshotEvidenceStart)
-    .at(-1);
-  const nextCheckStep = checkStepStarts.find(
-    (index) => index > screenshotEvidenceStart,
-  );
-  const screenshotEvidenceContractHolds =
-    check !== null &&
-    screenshotEvidenceStarts.length === 1 &&
-    screenshotEvidenceCommands.length === 1 &&
-    screenshotEvidenceConfiguration.length ===
-      expectedScreenshotEvidenceConfiguration.length &&
-    screenshotEvidenceConfiguration.every(
-      (line, index) => line === expectedScreenshotEvidenceConfiguration[index],
-    ) &&
-    checkWorkingDirectoryContractCount === 1 &&
-    previousCheckStep !== undefined &&
-    /^ {6}- run:\s+pnpm install --frozen-lockfile\s*$/.test(
-      lines[previousCheckStep],
-    ) &&
-    nextCheckStep !== undefined &&
-    /^ {6}- run:\s+pnpm build\s*$/.test(lines[nextCheckStep]);
-  if (!screenshotEvidenceContractHolds) {
-    problems.push({
-      file,
-      line:
-        (screenshotEvidenceStart >= 0
-          ? screenshotEvidenceStart
-          : (check?.start ?? 0)) + 1,
-      stepName: screenshotEvidenceStepName,
-      expression: null,
-      message:
-        "committed screenshot evidence must run exactly once and unconditionally from check's design working directory, immediately after install and before build, as a named step-level advisory",
-    });
-  }
-
-  const screenshots = jobBlock(lines, "screenshots");
-  const advisoryScreenshotLines = screenshots
-    ? lines
-        .slice(screenshots.start + 1, screenshots.end)
-        .filter((line) => /^ {4}continue-on-error:\s+true\s*$/.test(line))
-    : [];
-  if (!screenshots || advisoryScreenshotLines.length !== 1) {
-    problems.push({
-      file,
-      line: (screenshots?.start ?? 0) + 1,
-      stepName: null,
-      expression: null,
-      message:
-        "screenshot capture must remain advisory with exactly one job-level continue-on-error: true",
-    });
-  }
+  // The "Check committed screenshot evidence" step and the `screenshots` capture job were
+  // both removed from ci.yml under the standing policy that GitHub Actions runs no tests,
+  // no lint and no capture gate, and that nothing in a workflow gates the release
+  // (repository owner). The two checks that used to live here required that step to exist
+  // exactly once between install and build, and required that job to carry exactly one
+  // job-level continue-on-error - so they asserted the presence of two things the policy
+  // forbids from existing, and failed on every run for as long as the policy has held.
+  //
+  // Removed rather than kept asserting something absent, exactly as the "Verify generated
+  // changelog is current" checks above were when that step went. If a capture gate is ever
+  // reintroduced, its contract is written fresh against the job that actually exists.
   // A reviewed `timeout-minutes` value used to be required here (exactly 20). That policy
   // is repealed (repository owner, "No lint and no timeout"): the screenshots job's ceiling
   // is no longer this script's concern, and the job itself is now disabled (`if: false`,

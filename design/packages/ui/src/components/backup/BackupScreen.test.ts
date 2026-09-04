@@ -189,6 +189,10 @@ function fakeBridge(overrides: Partial<BackupBridge> = {}): BackupBridge {
         canListRepositories: true,
         canListBackups: true,
         canSeeActive: true,
+        // Required on BackupBridge and missing from this fixture. Production computes it
+        // from whether the host actually has pauseBackup and resumeBackup, so a bridge
+        // that cannot answer it is not a bridge the interface would ever be handed.
+        canPause: true,
         canCreateRepository: true,
         // See backups.test.ts's fakeBridge: a spread of Partial<BackupBridge> types its
         // optional keys as `T | undefined` rather than genuinely absent, which
