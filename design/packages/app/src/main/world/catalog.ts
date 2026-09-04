@@ -59,6 +59,33 @@ const MAX_SIZE_DEPTH = 8;
  */
 export type MinecraftEdition = "java" | "bedrock" | "unknown";
 
+/**
+ * The last DataVersion written before the flattening: Minecraft 1.12.2.
+ *
+ * 1.13 is 1519 and 1.12.2 is 1343, so anything at or below 1343 stores blocks as numeric
+ * ids and metadata rather than as a palette of named states. That is the boundary the
+ * renderer's own chunk decoders are chosen by, and stating it once here keeps the two
+ * from disagreeing.
+ */
+export const LAST_PRE_FLATTENING_DATA_VERSION = 1343;
+
+/**
+ * Whether a world's chunks predate the flattening.
+ *
+ * Null when there is nothing to go on. A missing DataVersion is not "modern": worlds old
+ * enough predate the field entirely, so the honest answer with no region files and no
+ * version is "unknown" rather than a guess in either direction. With region files present
+ * and no DataVersion at all, legacy is the safe reading - a modern world always writes one.
+ */
+export function isLegacyDataVersion(
+    dataVersion: number | null,
+    regionFiles: Readonly<Record<string, number>>,
+): boolean | null {
+    if (dataVersion !== null) return dataVersion <= LAST_PRE_FLATTENING_DATA_VERSION;
+    const hasRegions = Object.values(regionFiles).some((count) => count > 0);
+    return hasRegions ? true : null;
+}
+
 export interface MinecraftWorldSummary {
     /** Which mounted folder this world was found in. */
     readonly folderId: string;
@@ -71,6 +98,24 @@ export interface MinecraftWorldSummary {
     /** Milliseconds since the epoch, or null when the world has never recorded one. */
     readonly lastPlayed: number | null;
     readonly versionName: string | null;
+    /**
+     * `DataVersion` from level.dat, which is the version fact that never lies about itself.
+     *
+     * A world's display name can say anything - it is whatever the last client wrote - but
+     * the data version is what the chunk format actually is. It was already being read and
+     * then thrown away by both callers, which is why nothing in this app could tell a
+     * pre-flattening world from a modern one.
+     */
+    readonly dataVersion: number | null;
+    /**
+     * Whether the chunks predate the flattening: Minecraft 1.12.2 and older.
+     *
+     * Worth answering here rather than at each call site, because the threshold is a fact
+     * about Minecraft and not about any one screen. Null means level.dat did not say, which
+     * is itself informative - very old worlds carry no DataVersion at all, so absence
+     * leans legacy rather than modern.
+     */
+    readonly legacy: boolean | null;
     readonly snapshot: boolean | null;
     readonly gameMode: MinecraftGameMode | null;
     readonly hardcore: boolean | null;
@@ -195,6 +240,8 @@ async function readWorld(
         name: details?.levelName ?? (isBedrock ? await readBedrockLevelName(path) : null),
         lastPlayed: details?.lastPlayed ?? null,
         versionName: details?.versionName ?? null,
+        dataVersion: details?.dataVersion ?? null,
+        legacy: isLegacyDataVersion(details?.dataVersion ?? null, listing?.regionFiles ?? {}),
         snapshot: details?.snapshot ?? null,
         gameMode: details?.gameMode ?? null,
         hardcore: details?.hardcore ?? null,
