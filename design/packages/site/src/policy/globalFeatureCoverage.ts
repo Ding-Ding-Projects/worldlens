@@ -59,6 +59,7 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "site-universal-support-tickets",
     "site-universal-unlock-ladder",
     "site-universal-evidence",
+    "school-mode",
 ] as const;
 
 export type PagesFeatureId = (typeof REQUIRED_PAGES_FEATURE_IDS)[number];
@@ -525,5 +526,14 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
         "Evidence inventory and red-green regressions",
         ["design/packages/site/src/policy/siteUniversalInventory.ts"],
         ["design/packages/site/src/policy/siteUniversalInventory.test.ts"],
+    ),
+    implemented(
+        "school-mode",
+        "School mode, its rename, and the shared unlock credential",
+        [
+            "design/packages/site/src/settings/schoolMode.ts",
+            "design/packages/site/src/settings/schoolModePanel.ts",
+        ],
+        ["design/packages/site/src/settings/schoolMode.test.ts"],
     ),
 ];

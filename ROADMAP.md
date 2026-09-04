@@ -79,11 +79,23 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
       move the batch toward the failure it exists to avoid. Region counts per batch are
       derived from the world's measured size, bounded at 64 so a huge world does not
       become thousands of batches that spend their time starting JVMs.
-- [ ] Universal feature parity on the two non-app surfaces is still open, and is the
-      largest remaining item in this file. The Chunker route model, the render page and
-      the world-backup record all landed with their own tests; the Day Teet Hui and the
-      Lang gui webapp still carry only some of the Yern Geen's contracts. Nothing here
-      claims otherwise.
+- [ ] Universal feature parity. Correcting what an earlier version of this entry said:
+      the Day Teet Hui is not thinly covered. It carries a hand-written fail-closed
+      inventory of 52 contracts in `globalFeatureCoverage.ts`, plus a second universal
+      inventory of 13 in `siteUniversalInventory.ts`, including toy locks, the built-in
+      authenticator, the unlock ladder at the same budget the rules specify, the
+      appearance editor and School mode. The earlier claim came from a grep whose
+      patterns did not match the site's own naming, and it was wrong.
+      What is genuinely open, measured rather than assumed:
+      - [x] School mode was implemented and had no inventory row. Added; the guard was
+            watched failing on a bad path and passing on the real one.
+      - [ ] ADHD modes: no implementation and no row on the site.
+      - [ ] Status Hub: no implementation and no row on the site.
+      - [ ] The Ollama suite manager, file conversion and app-logo customization exist on
+            the site only as documentation articles, with no row and no surface.
+      - [ ] The Lang gui BlueMap webapp has no inventory of its own at all. It is the
+            surface furthest from parity, and unlike the Day Teet Hui nothing currently
+            fails when a contract is missing from it.
 
 ## Local servers, and a Material Design 3 map (2026-09-03)
 
