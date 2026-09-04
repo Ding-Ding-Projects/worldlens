@@ -127,6 +127,7 @@ import type { ServerRecord } from "./components/mcserver/serverModel.js";
 import WebConsolePanel from "./components/mcserver/WebConsolePanel.vue";
 import SupportTickets from "./components/locks/SupportTickets.vue";
 import { DockerHostingScreen, RemoteHostingScreen } from "./components/remote/index.js";
+import WorldDownloaderScreen from "./components/worlddownloader/WorldDownloaderScreen.vue";
 import {
     dropRenderHostMissingReason,
     useDropRenderHost,
@@ -618,6 +619,7 @@ const PAGE_DOCS = "docs";
 const PAGE_OLLAMA = "ollama";
 const PAGE_REMOTE_HOSTING = "remoteHosting";
 const PAGE_DOCKER_HOSTING = "dockerHosting";
+const PAGE_WORLD_DOWNLOADER = "worldDownloader";
 const PAGE_SCREENSHOTS = "screenshots";
 
 /**
@@ -877,6 +879,11 @@ const pages = computed<TabPage[]>(() => [
         id: PAGE_DOCKER_HOSTING,
         label: t("tabs.page.dockerHosting", "Docker hosting"),
         icon: mdiServerNetwork,
+    },
+    {
+        id: PAGE_WORLD_DOWNLOADER,
+        label: t("tabs.page.worldDownloader", "Get a world off a server"),
+        icon: mdiCloudDownloadOutline,
     },
     {
         id: PAGE_SCREENSHOTS,
@@ -2851,6 +2858,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     <DockerHostingScreen />
                 </template>
 
+                <template #worldDownloader>
+                    <WorldDownloaderScreen />
+                </template>
+
                 <template #memory>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
@@ -3463,6 +3474,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
                             <template #dockerHosting>
                                 <DockerHostingScreen />
+                            </template>
+
+                            <template #worldDownloader>
+                                <WorldDownloaderScreen />
                             </template>
 
                             <!--
