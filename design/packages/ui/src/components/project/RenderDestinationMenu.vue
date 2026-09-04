@@ -192,7 +192,7 @@ defineExpose({ open, items, choose });
                     aria-modal="true"
                     aria-labelledby="render-destination-title"
                 >
-                    <v-card-title id="render-destination-title">{{ t("project.destination.title", "Choose where to render") }}</v-card-title>
+                    <v-card-title id="render-destination-title" class="mb-render-destination__title">{{ t("project.destination.title", "Choose where to render") }}</v-card-title>
                     <v-card-subtitle>{{ currentLabel }}</v-card-subtitle>
                     <MenuSearchList
                         ref="menuSearch"
@@ -207,6 +207,20 @@ defineExpose({ open, items, choose });
 </template>
 
 <style>
+/*
+ * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
+ * text-overflow: ellipsis`. This menu title is a translated string that grows
+ * past a single line in bilingual mode and in playful Cantonese, so left unset
+ * it was silently cut off with no ellipsis painted (same Cheap Jor already
+ * fixed in DependencyInstallerPanel.vue). Applied directly to the title rather
+ * than through a descendant selector because `v-menu` teleports its content to
+ * `<body>`.
+ */
+.mb-render-destination__title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .mb-render-destination {
     display: inline-flex;
     max-inline-size: 100%;

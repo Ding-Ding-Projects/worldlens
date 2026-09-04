@@ -100,8 +100,11 @@ defineExpose({ reveal, element: root });
 .mb-setting {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
+    /* M3 card anatomy: 24px padding and a 16px internal rhythm rather than the
+       12px/16px this surface shipped with, which is the exact "a bit cramped"
+       complaint a Lang gui card should never earn. */
+    gap: 16px;
+    padding: 24px;
     border-radius: 12px;
     /* An MD3 surface tint rather than a hard-coded grey, so it follows the theme and the
        accent the appearance settings are set to. */
@@ -109,7 +112,14 @@ defineExpose({ reveal, element: root });
     /* Reserved so the flash outline does not reflow the column when it appears. */
     outline: 2px solid transparent;
     outline-offset: 2px;
-    scroll-margin-block: 12px;
+    scroll-margin-block: 16px;
+}
+
+/* A divider between stacked sections, drawn from the M3 outline-variant token
+   rather than a bare grey rule, so it survives both themes and any accent. */
+.mb-setting + .mb-setting {
+    border-top: 1px solid rgba(var(--v-theme-outline-variant, var(--v-theme-on-surface)), 0.4);
+    margin-block-start: 4px;
 }
 
 .mb-setting:focus-visible,

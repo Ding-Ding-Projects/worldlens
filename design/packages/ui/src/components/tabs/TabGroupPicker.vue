@@ -433,6 +433,12 @@ const rowName = (row: TabGroupPickerRow): string =>
     max-width: 360px;
     max-height: min(70vh, 480px);
     overflow-y: auto;
+    /* Same fix as issue #175 in ConfigRegexBuilder.vue: this card is a `v-menu`
+       popover Vuetify repositions with a `ResizeObserver`, so a scrollbar that
+       toggles on and off as content nears the cap can reflow width-sensitive
+       text into a resize loop that pegs the render thread. Reserving the
+       gutter unconditionally removes the toggle. */
+    scrollbar-gutter: stable;
     padding: 8px 8px 4px;
     /*
      * This dialog is mounted unwrapped inside the same kind of scrim-less, click-through

@@ -123,7 +123,7 @@ defineExpose({ pickFolder, pickProjectFile, validateAndUse, cancelTransferAndClo
 <template>
     <v-dialog :model-value="true" :persistent="activeTransfer" max-width="760" scrollable @update:model-value="requestClose">
         <v-card class="mb-project-import" data-project-import>
-            <v-card-title>{{ t("project.import.title", "Import a rendering project") }}</v-card-title>
+            <v-card-title class="mb-project-import__title">{{ t("project.import.title", "Import a rendering project") }}</v-card-title>
             <v-card-text>
                 <p class="mb-project-import__lede">
                     {{ t("project.import.lede", "Choose a local project, fetch a verified project from an SSH machine, or review the archive route. The source is read-only; the imported local folder is inspected by the same project schema and history path as every other project.") }}
@@ -176,6 +176,18 @@ defineExpose({ pickFolder, pickProjectFile, validateAndUse, cancelTransferAndClo
 </template>
 
 <style>
+/*
+ * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
+ * text-overflow: ellipsis`. This dialog's title is a translated string that
+ * grows past a single line in bilingual mode and in playful Cantonese, so
+ * left unset it was silently cut off with no ellipsis painted (same Cheap
+ * Jor already fixed in DependencyInstallerPanel.vue).
+ */
+.mb-project-import__title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .mb-project-import__lede,
 .mb-project-import__section p {
     line-height: 1.5;

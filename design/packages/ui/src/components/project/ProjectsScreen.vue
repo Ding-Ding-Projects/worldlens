@@ -1353,6 +1353,19 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
 
 <style>
 /*
+ * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
+ * text-overflow: ellipsis`. This card's title is a translated string that grows
+ * past a single line in bilingual mode and in playful Cantonese, so left unset
+ * it was silently cut off with no ellipsis painted (same Cheap Jor already
+ * fixed in DependencyInstallerPanel.vue). This card is inline, not a `v-dialog`,
+ * so the descendant selector below reaches it without a teleport boundary.
+ */
+.mb-projects-screen__create .v-card-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+/*
  * The prototype's page gutter and measure, rather than a 12px pad on a 1100px column.
  *
  * 30px top / 40px side / 48px bottom, content held to 900px: prose that runs the full width of a

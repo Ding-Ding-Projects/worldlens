@@ -433,6 +433,19 @@ function confirmRemoval(): void {
 </template>
 
 <style>
+/*
+ * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
+ * text-overflow: ellipsis`. This card's title is a translated string that grows
+ * past a single line in bilingual mode and in playful Cantonese, so left unset
+ * it was silently cut off with no ellipsis painted (same Cheap Jor already
+ * fixed in DependencyInstallerPanel.vue). Inline card, not a `v-dialog`, so the
+ * descendant selector reaches it without a teleport boundary.
+ */
+.mb-project-storages__create .v-card-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
 .mb-project-storages {
     display: grid;
     grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);

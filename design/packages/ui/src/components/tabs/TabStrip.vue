@@ -2255,6 +2255,12 @@ const tabCountLabel = computed(() =>
     max-width: calc(100vw - 16px);
     max-height: min(calc(100vh - 24px), 640px);
     overflow-y: auto;
+    /* Same fix as issue #175 in ConfigRegexBuilder.vue: this is `v-menu` content
+       Vuetify repositions with a `ResizeObserver`, so a scrollbar toggling on
+       and off near the cap can reflow width-sensitive text into a resize loop
+       that pegs the render thread. Reserving the gutter unconditionally
+       removes the toggle. */
+    scrollbar-gutter: stable;
     overscroll-behavior: contain;
 }
 
