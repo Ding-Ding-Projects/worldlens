@@ -233,6 +233,7 @@ async function refreshCatalogue(): Promise<void> {
 }
 
 const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
+    if (flavour.value === "spigot") return (catalogue.value?.flavours.find((entry) => entry.flavour === "vanilla")?.versions ?? []).filter((entry) => entry.stability === "release");
     const card = FLAVOUR_CARDS.find((c) => c.id === flavour.value);
     if (card?.cataloguedId === null || card === undefined) return [];
     const entry = catalogue.value?.flavours.find((f) => f.flavour === card.cataloguedId);
@@ -332,6 +333,17 @@ const commonApiLibraries = computed<readonly string[]>(
     () => modLoaderCatalogue.value?.commonApiLibraries ?? [],
 );
 const modLoaderVersion = ref("");
+const fabricGameVersion = ref("");
+const fabricGameOptions = computed(() =>
+    (catalogue.value?.flavours.find((entry) => entry.flavour === "vanilla")?.versions ?? []).map(
+        (entry) => ({ title: entry.version, value: entry.version }),
+    ),
+);
+watch(minecraftVersion, (value) => {
+    if (flavour.value === "fabric" || flavour.value === "neoforge") modLoaderVersion.value = value;
+    if (flavour.value === "forge")
+        modLoaderVersion.value = /^(1\.[0-9]+(?:\.[0-9]+)?)-(.+)$/.exec(value)?.[2] ?? "";
+});
 const modsDirectory = ref(DEFAULT_MODS_DIRECTORY);
 const preinstallApiLibraries = ref<string[]>([]);
 const modLoaderMemoryRecommendation = computed(() => recommendedMemoryMb(flavour.value));
@@ -360,10 +372,48 @@ const sshHost = ref("");
 const dockerContainerRef = ref("");
 const dockerImage = ref("itzg/minecraft-server:java21");
 const advancedDockerImage = ref(false);
-const dockerImageOptions = [8, 11, 17, 21, 25].map((version) => ({ title: `Minecraft server · Java ${version}`, value: `itzg/minecraft-server:java${version}` }));
-const selectedHostProfile = computed(() => hostProfiles.value.find((profile) => profile.hostId === sshHost.value));
-const selectedDockerImage = computed(() => whereItRuns.value === "ssh-docker" ? selectedHostProfile.value?.target.image ?? "" : dockerImage.value.trim());
-const dockerImageError = computed(() => /^(?:itzg\/minecraft-server:java(?:8|11|17|21|25)|[A-Za-z0-9][A-Za-z0-9/_.:-]*@sha256:[a-f0-9]{64})$/.test(selectedDockerImage.value) ? null : t("mcserver.wizard.pinnedImageRequired", "Choose a listed Minecraft server image or supply its published digest. SSH images come from the saved host profile."));
+const dockerImageEdited = ref(false);
+const dockerImageRepository = computed(() =>
+    flavour.value === "velocity" ? "itzg/mc-proxy" : "itzg/minecraft-server",
+);
+const dockerImageOptions = computed(() =>
+    (flavour.value === "velocity" ? [8, 17, 21, 25] : [8, 11, 16, 17, 21, 25]).map((version) => ({
+        title: `${flavour.value === "velocity" ? "Velocity proxy" : "Minecraft server"} · Java ${version}`,
+        value: `${dockerImageRepository.value}:java${version}`,
+    })),
+);
+const selectedHostProfile = computed(() =>
+    hostProfiles.value.find((profile) => profile.hostId === sshHost.value),
+);
+const selectedDockerImage = computed(() =>
+    whereItRuns.value === "ssh-docker"
+        ? (selectedHostProfile.value?.target.image ?? "")
+        : dockerImage.value.trim(),
+);
+const dockerImageError = computed(() => {
+    const image = selectedDockerImage.value;
+    const guided = /^itzg\/(minecraft-server|mc-proxy):java(8|11|16|17|21|25)$/.exec(image);
+    if (!guided && !/^[A-Za-z0-9][A-Za-z0-9/_.:-]*@sha256:[a-f0-9]{64}$/.test(image))
+        return t(
+            "mcserver.wizard.pinnedImageRequired",
+            "Choose a listed server image or supply its published digest. SSH images come from the saved host profile.",
+        );
+    if (
+        image.startsWith("itzg/") &&
+        !image.startsWith(`${dockerImageRepository.value}${guided ? ":" : "@"}`)
+    )
+        return t(
+            "mcserver.wizard.imageFamilyMismatch",
+            "This image family cannot run the selected server flavour. Choose the matching server or proxy image.",
+        );
+    if (guided && Number(guided[2]) < requiredJavaFeature.value)
+        return t(
+            "mcserver.wizard.imageJavaMismatch",
+            { n: requiredJavaFeature.value },
+            "This version needs Java {n} or newer. Choose a compatible image before continuing.",
+        );
+    return null;
+});
 const hostProfiles = ref<readonly HostProfileRecord[]>([]);
 const hostProfileQuery = ref("");
 const hostProfileRegex = ref(false);
@@ -504,8 +554,29 @@ let javaOperation: JavaOperation | null = null;
 let queuedJavaGeneration: number | null = null;
 let javaDisposed = false;
 
-const requiredJavaFeature = computed(() => selectedVersionEntry.value?.javaFeature ?? 21);
-const javaNotRequired = computed(() => whereItRuns.value === "ssh-docker" || whereItRuns.value === "local-docker");
+const requiredJavaFeature = computed(() =>
+    flavour.value === "fabric"
+        ? (catalogue.value?.flavours
+              .find((entry) => entry.flavour === "vanilla")
+              ?.versions.find((entry) => entry.version === fabricGameVersion.value)?.javaFeature ??
+          21)
+        : (selectedVersionEntry.value?.javaFeature ?? 21),
+);
+watch(
+    [requiredJavaFeature, dockerImageRepository],
+    () => {
+        if (dockerImageEdited.value || advancedDockerImage.value) return;
+        const compatible = dockerImageOptions.value.find(
+            (option) =>
+                Number(/java([0-9]+)$/.exec(option.value)?.[1]) >= requiredJavaFeature.value,
+        );
+        if (compatible) dockerImage.value = compatible.value;
+    },
+    { immediate: true },
+);
+const javaNotRequired = computed(
+    () => whereItRuns.value === "ssh-docker" || whereItRuns.value === "local-docker",
+);
 
 async function checkJava(): Promise<void> {
     if (!store.hasJava || javaNotRequired.value || javaDisposed) return;
@@ -834,7 +905,14 @@ function transportRef(): TransportRef {
 }
 
 async function create(): Promise<void> {
-    if (creating.value || !canCreate.value || !canAdvanceFromRuntime.value || !canAdvanceFromJava.value) return;
+    if (
+        creating.value ||
+        !canCreate.value ||
+        !canAdvanceFromRuntime.value ||
+        !canAdvanceFromJava.value ||
+        !canAdvanceFromModLoader.value
+    )
+        return;
     creating.value = true;
     createFailure.value = null;
 
@@ -850,31 +928,39 @@ async function create(): Promise<void> {
     const loaderVersion = modLoaderVersion.value.trim();
     let result;
     try {
-    result = await store.createServer({
-        id: serverId.value,
-        name: serverName.value,
-        flavour: flavour.value,
-        version: minecraftVersion.value,
-        memoryMb: memoryMb.value,
-        port: port.value,
-        acceptedEula: eulaAccepted.value,
-        transport: transportRef(),
-        ...(javaNotRequired.value ? { dockerPlan: {
-            image: selectedDockerImage.value,
-            imageVerified: selectedDockerImage.value.includes("@sha256:"),
-            containerRef: whereItRuns.value === "local-docker" ? dockerContainerRef.value.trim() : serverId.value,
-            serverDir: "/data",
-            ports: [{ host: port.value, container: 25565 }],
-        } } : {}),
-        provisionJavaIfMissing: !javaNotRequired.value,
-        ...(isModLoader.value
-            ? {
-                  ...(loaderVersion ? { loaderVersion } : {}),
-                  modsDirectory: modsDirectory.value.trim() || DEFAULT_MODS_DIRECTORY,
-                  preinstallApiLibraries: [...preinstallApiLibraries.value],
-              }
-            : {}),
-    });
+        result = await store.createServer({
+            id: serverId.value,
+            name: serverName.value,
+            flavour: flavour.value,
+            version: minecraftVersion.value,
+            memoryMb: memoryMb.value,
+            port: port.value,
+            ...(flavour.value === "fabric" ? { gameVersion: fabricGameVersion.value } : {}),
+            acceptedEula: eulaAccepted.value,
+            transport: transportRef(),
+            ...(javaNotRequired.value
+                ? {
+                      dockerPlan: {
+                          image: selectedDockerImage.value,
+                          imageVerified: selectedDockerImage.value.includes("@sha256:"),
+                          containerRef:
+                              whereItRuns.value === "local-docker"
+                                  ? dockerContainerRef.value.trim()
+                                  : serverId.value,
+                          serverDir: flavour.value === "velocity" ? "/server" : "/data",
+                          ports: [{ host: port.value, container: 25565 }],
+                      },
+                  }
+                : {}),
+            provisionJavaIfMissing: !javaNotRequired.value,
+            ...(isModLoader.value
+                ? {
+                      ...(loaderVersion ? { loaderVersion } : {}),
+                      modsDirectory: modsDirectory.value.trim() || DEFAULT_MODS_DIRECTORY,
+                      preinstallApiLibraries: [...preinstallApiLibraries.value],
+                  }
+                : {}),
+        });
     } catch (error) {
         createFailure.value = error instanceof Error ? error.message : String(error);
         return;
@@ -961,6 +1047,8 @@ function resetWizard(): void {
     dockerContainerRef.value = "";
     dockerImage.value = "itzg/minecraft-server:java21";
     advancedDockerImage.value = false;
+    dockerImageEdited.value = false;
+    fabricGameVersion.value = "";
     javaResolution.value = null;
     memoryMb.value = 2048;
     modLoaderVersion.value = "";
@@ -1037,6 +1125,7 @@ const canAdvanceFromModLoader = computed(
     () =>
         !isModLoader.value ||
         (modLoaderVersion.value.trim() !== "" &&
+            (flavour.value !== "fabric" || fabricGameVersion.value !== "") &&
             validateModsDirectory(modsDirectory.value) === null),
 );
 const canAdvanceFromRuntime = computed(() => {
@@ -1050,7 +1139,8 @@ const canAdvanceFromRuntime = computed(() => {
         return (
             store.canCreateLocalDocker &&
             dockerAvailability.available === true &&
-            dockerContainerError.value === null && dockerImageError.value === null
+            dockerContainerError.value === null &&
+            dockerImageError.value === null
         );
     }
     if (whereItRuns.value === "aws") return awsAvailable.value;
@@ -1093,7 +1183,8 @@ const advanceBlockedReason = computed<string | null>(() => {
                       t("mcserver.wizard.pickModLoader", "Choose a loader version first."));
         case "runtime":
             if (folderError.value !== null) return folderError.value;
-            if (javaNotRequired.value && dockerImageError.value !== null) return dockerImageError.value;
+            if (javaNotRequired.value && dockerImageError.value !== null)
+                return dockerImageError.value;
             if (whereItRuns.value === "local-docker" && dockerAvailability.available !== true) {
                 return t(
                     "mcserver.wizard.dockerUnavailable",
@@ -1659,6 +1750,28 @@ const canAdvance = computed(() => {
 
                 <!-- Step 3: mod-loader profile (modded flavours only) -->
                 <div v-else-if="step === 'mod-loader'" class="wl-mcserver-wizard__step">
+                    <SearchableOptionPicker
+                        v-if="flavour === 'fabric'"
+                        v-model="fabricGameVersion"
+                        :options="fabricGameOptions"
+                        :label="
+                            t(
+                                'mcserver.wizard.fabricGame',
+                                'Minecraft version for this Fabric loader',
+                            )
+                        "
+                        :sample="
+                            fabricGameOptions
+                                .map((option) => option.title)
+                                .join(String.fromCharCode(10))
+                        "
+                        :no-match-text="
+                            t(
+                                'mcserver.wizard.noFabricGames',
+                                'No Minecraft versions are available. Refresh the catalogue.',
+                            )
+                        "
+                    />
                     <VAlert type="info" variant="tonal" density="compact">
                         {{
                             t(
@@ -1815,23 +1928,60 @@ const canAdvance = computed(() => {
                             persistent-hint
                             data-test="docker-container-ref"
                         />
-                        <p>{{ t('mcserver.wizard.containerFolder', 'A new folder beneath the application server directory is mounted at /data. Existing folders are never reused.') }}</p>
+                        <p>
+                            {{
+                                t(
+                                    "mcserver.wizard.containerFolder",
+                                    "A new folder beneath the application server directory is mounted at /data. Existing folders are never reused.",
+                                )
+                            }}
+                        </p>
                         <SearchableOptionPicker
                             v-if="!advancedDockerImage"
                             v-model="dockerImage"
+                            @update:model-value="dockerImageEdited = true"
                             :options="dockerImageOptions"
                             :label="t('mcserver.wizard.containerImage', 'Minecraft server image')"
-                            :sample="dockerImageOptions.map((option) => option.title).join(String.fromCharCode(10))"
-                            :no-match-text="t('mcserver.wizard.noContainerImage', 'No matching runtime image.')"
+                            :sample="
+                                dockerImageOptions
+                                    .map((option) => option.title)
+                                    .join(String.fromCharCode(10))
+                            "
+                            :no-match-text="
+                                t('mcserver.wizard.noContainerImage', 'No matching runtime image.')
+                            "
                         />
-                        <VSwitch v-model="advancedDockerImage" :label="t('mcserver.wizard.advancedImage', 'Enter a published image digest')" />
-                        <p>{{ t('mcserver.wizard.imageDownload', 'Create downloads the selected itzg Minecraft server image and verifies its registry digest before creating the container. Choose the Java version required by the selected server.') }}</p>
+                        <VSwitch
+                            v-model="advancedDockerImage"
+                            :label="
+                                t('mcserver.wizard.advancedImage', 'Enter a published image digest')
+                            "
+                        />
+                        <p>
+                            {{
+                                t(
+                                    "mcserver.wizard.imageDownload",
+                                    "Create downloads the selected itzg Minecraft server image and verifies its registry digest before creating the container. Choose the Java version required by the selected server.",
+                                )
+                            }}
+                        </p>
                         <VTextField
                             v-if="advancedDockerImage"
                             v-model="dockerImage"
+                            @update:model-value="dockerImageEdited = true"
                             data-test="docker-image"
-                            :label="t('mcserver.wizard.dockerImage', 'Digest-pinned Minecraft server image')"
-                            :hint="t('mcserver.wizard.dockerImageHint', 'Use a Minecraft server image compatible with TYPE, VERSION and /data, such as itzg/minecraft-server, followed by its published SHA-256 digest. A new folder is created beneath the application server directory.')"
+                            :label="
+                                t(
+                                    'mcserver.wizard.dockerImage',
+                                    'Digest-pinned Minecraft server image',
+                                )
+                            "
+                            :hint="
+                                t(
+                                    'mcserver.wizard.dockerImageHint',
+                                    'Use a Minecraft server image compatible with TYPE, VERSION and /data, such as itzg/minecraft-server, followed by its published SHA-256 digest. A new folder is created beneath the application server directory.',
+                                )
+                            "
                             :error-messages="dockerImageError ?? []"
                             persistent-hint
                         />
@@ -1899,8 +2049,14 @@ const canAdvance = computed(() => {
                                 </div>
                             </template>
                         </VSelect>
-                        <VAlert v-if="selectedHostProfile" type="info" variant="tonal" data-test="ssh-create-plan">
-                            {{ selectedHostProfile.target.image }} · {{ selectedHostProfile.target.workDir }}
+                        <VAlert
+                            v-if="selectedHostProfile"
+                            type="info"
+                            variant="tonal"
+                            data-test="ssh-create-plan"
+                        >
+                            {{ selectedHostProfile.target.image }} ·
+                            {{ selectedHostProfile.target.workDir }}
                             <p v-if="dockerImageError">{{ dockerImageError }}</p>
                         </VAlert>
                         <VAlert v-if="hostProfileFailure" type="warning" variant="tonal">{{

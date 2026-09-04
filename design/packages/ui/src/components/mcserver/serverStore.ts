@@ -130,7 +130,8 @@ export interface JavaResolution {
 }
 
 export interface JavaProvisionProgress {
-    readonly phase: "resolving" | "downloading" | "extracting" | "verifying" | "installing" | "done" | "failed";
+    readonly phase:
+        "resolving" | "downloading" | "extracting" | "verifying" | "installing" | "done" | "failed";
     readonly receivedBytes: number;
     readonly totalBytes: number | null;
     readonly message: string;
@@ -143,7 +144,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isJavaSource(value: unknown): value is Exclude<JavaSourceValue, null> {
-    return value === "bundled" || value === "JAVA_HOME" || value === "PATH" || value === "provisioned";
+    return (
+        value === "bundled" || value === "JAVA_HOME" || value === "PATH" || value === "provisioned"
+    );
 }
 
 function featureFromVersion(version: string): number {
@@ -170,19 +173,31 @@ export function isJavaResolution(value: unknown): value is JavaResolution {
 }
 
 /** Translates a raw main-process discovery or provision answer into the one UI contract. */
-export function normaliseJavaResolution(raw: unknown, requestedVersion: string): JavaResolution | null {
+export function normaliseJavaResolution(
+    raw: unknown,
+    requestedVersion: string,
+): JavaResolution | null {
     if (!isRecord(raw)) return null;
     if (isJavaResolution(raw)) return raw;
-    if (!("installation" in raw || "java" in raw || "rejected" in raw || "required" in raw || "feature" in raw || "requirement" in raw)) return null;
+    if (!(
+        "installation" in raw ||
+        "java" in raw ||
+        "rejected" in raw ||
+        "required" in raw ||
+        "feature" in raw ||
+        "requirement" in raw
+    ))
+        return null;
 
     const rawInstallation = isRecord(raw.installation)
         ? raw.installation
         : isRecord(raw.java)
           ? raw.java
           : null;
-    const rawVersion = rawInstallation !== null && isRecord(rawInstallation.version)
-        ? rawInstallation.version
-        : null;
+    const rawVersion =
+        rawInstallation !== null && isRecord(rawInstallation.version)
+            ? rawInstallation.version
+            : null;
     const requiredCandidate =
         typeof raw.required === "number"
             ? raw.required
@@ -199,7 +214,9 @@ export function normaliseJavaResolution(raw: unknown, requestedVersion: string):
 
     const executable = rawInstallation?.executable;
     if (typeof executable === "string" && executable !== "") {
-        const source = isJavaSource(rawInstallation?.source) ? rawInstallation.source : "provisioned";
+        const source = isJavaSource(rawInstallation?.source)
+            ? rawInstallation.source
+            : "provisioned";
         const version = typeof rawVersion?.version === "string" ? rawVersion.version : null;
         return {
             found: true,
@@ -221,7 +238,10 @@ export function normaliseJavaResolution(raw: unknown, requestedVersion: string):
           )
         : [];
     const reasons = rejected
-        .map((entry) => `${typeof entry.source === "string" ? entry.source : "A runtime"}: ${entry.reason}`)
+        .map(
+            (entry) =>
+                `${typeof entry.source === "string" ? entry.source : "A runtime"}: ${entry.reason}`,
+        )
         .join("; ");
     return {
         found: false,
@@ -242,19 +262,23 @@ export function normaliseJavaResolution(raw: unknown, requestedVersion: string):
 export function isJavaProvisionProgress(value: unknown): value is JavaProvisionProgress {
     if (!isRecord(value)) return false;
     return (
-        value.phase === "resolving" ||
-        value.phase === "downloading" ||
-        value.phase === "extracting" ||
-        value.phase === "verifying" ||
-        value.phase === "installing" ||
-        value.phase === "done" ||
-        value.phase === "failed"
-    ) && typeof value.receivedBytes === "number" && value.receivedBytes >= 0
-        && (value.totalBytes === null || (typeof value.totalBytes === "number" && value.totalBytes >= 0))
-        && typeof value.message === "string";
+        (value.phase === "resolving" ||
+            value.phase === "downloading" ||
+            value.phase === "extracting" ||
+            value.phase === "verifying" ||
+            value.phase === "installing" ||
+            value.phase === "done" ||
+            value.phase === "failed") &&
+        typeof value.receivedBytes === "number" &&
+        value.receivedBytes >= 0 &&
+        (value.totalBytes === null ||
+            (typeof value.totalBytes === "number" && value.totalBytes >= 0)) &&
+        typeof value.message === "string"
+    );
 }
 
 export interface CreateServerRequest {
+    readonly gameVersion?: string;
     readonly id: string;
     readonly name: string;
     readonly flavour: string;
