@@ -816,7 +816,7 @@ export function registerMcServerHandlers(
             const body = request as Record<string, unknown>;
             if (
                 typeof body.seed !== "number" || !Number.isSafeInteger(body.seed) ||
-                typeof body.size !== "number" || !Number.isSafeInteger(body.size) || body.size < 16 ||
+                typeof body.size !== "number" || !Number.isSafeInteger(body.size) || body.size < 16 || body.size > 40_000 ||
                 typeof body.worldName !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(body.worldName) ||
                 typeof body.destination !== "string" || body.destination.trim() === "" ||
                 body.outputMode !== "folder"
