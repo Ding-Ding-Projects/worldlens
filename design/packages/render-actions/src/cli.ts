@@ -6,6 +6,7 @@ import { writeShardConfig } from "./config/renderConfig.js";
 import { readProjectMapConfig } from "./config/projectMapConfig.js";
 import { mergeShardMaps, MergeError, type MergeReport } from "./merge/mergeMap.js";
 import { verifyMerge } from "./merge/verify.js";
+import { renderDashboardHtml, type DashboardBackup } from "./pages/renderDashboard.js";
 import { prepareStaticHost } from "./pages/staticHost.js";
 import { formatDuration } from "./plan/estimate.js";
 import { formatBytes } from "./plan/disk.js";
@@ -57,6 +58,7 @@ Commands:
   merge-lowres    merge only the lowres layers of several merge-group partials
   verify          prove the merged map lost and duplicated nothing
   receipt-verify  prove the hosted-runner disk and two-wave receipt is complete
+  render-page     write the page that says what this render was, beside the map
   static-host     prepare a merged map to be served as plain files, and say if it can be
   fingerprint     hash a checked-out world folder, cheaply, to tell if it changed
   schedule-due    say whether a scheduled check is due yet, for a chosen cadence
@@ -1026,6 +1028,76 @@ compares and what it honestly cannot tell.
   --github-output <path>   also write result/reason/changed for Actions
 `;
 
+const RENDER_PAGE_USAGE = `render-page --out <dir> --owner <o> --repo <r> --map-id <id> --world <path> [options]
+
+Writes the page that says what this render actually was, for publishing beside the map.
+
+A published map is a map and nothing else: it does not say which world it came from, when,
+or that the world itself was uploaded first and is still downloadable. All of that is known
+here and was being thrown away.
+
+Options:
+  --map-name <name>   display name; defaults to the id
+  --commit <sha>      the toolchain commit, omitted from the page when absent
+  --run-id <id>       the workflow run, for the link back to its logs
+  --shards <n>        how many shards the plan produced
+  --backups <file>    worlds/index.json, if the repository has one
+`;
+
+/**
+ * Writes the render page.
+ *
+ * Every optional input is genuinely optional and absent from the page when it was not
+ * given, rather than rendered as zero or an empty string. A shard count nobody measured is
+ * not 0, and a number on this page is one a reader can check against the run.
+ */
+async function commandRenderPage(args: Args): Promise<number> {
+    if (args.booleans.has("help")) {
+        process.stdout.write(RENDER_PAGE_USAGE);
+        return 0;
+    }
+
+    const out = resolve(required(args, "out", RENDER_PAGE_USAGE));
+    const mapId = required(args, "map-id", RENDER_PAGE_USAGE);
+    const shardsRaw = args.flags.get("shards");
+    const shards = shardsRaw === undefined ? null : Number.parseInt(shardsRaw, 10);
+
+    // A backups file that cannot be read is reported and then treated as no record, never
+    // as an empty list. The page says those two things differently on purpose.
+    let backups: readonly DashboardBackup[] = [];
+    const backupsPath = args.flags.get("backups");
+    if (backupsPath !== undefined) {
+        try {
+            const parsed: unknown = JSON.parse(await readFile(backupsPath, "utf8"));
+            const entries = (parsed as { entries?: unknown }).entries;
+            if (Array.isArray(entries)) backups = entries as readonly DashboardBackup[];
+        } catch (error) {
+            process.stderr.write(
+                "could not read " + backupsPath + ": " +
+                    (error instanceof Error ? error.message : String(error)) + "\n",
+            );
+        }
+    }
+
+    const html = renderDashboardHtml({
+        owner: required(args, "owner", RENDER_PAGE_USAGE),
+        repo: required(args, "repo", RENDER_PAGE_USAGE),
+        mapId,
+        mapName: args.flags.get("map-name") ?? mapId,
+        world: required(args, "world", RENDER_PAGE_USAGE),
+        commit: args.flags.get("commit") ?? null,
+        runId: args.flags.get("run-id") ?? null,
+        shards: shards === null || Number.isNaN(shards) ? null : shards,
+        renderedAt: new Date().toISOString(),
+        backups,
+    });
+
+    await mkdir(out, { recursive: true });
+    await writeFile(join(out, "index.html"), html, "utf8");
+    process.stderr.write("wrote " + join(out, "index.html") + "\n");
+    return 0;
+}
+
 const STATIC_HOST_USAGE = `static-host --web-root <dir> [options]
 
 Prepares a rendered map to be served by a host that only ever serves files - GitHub
@@ -1246,6 +1318,8 @@ async function main(argv: readonly string[]): Promise<number> {
             return await commandVerify(args);
         case "receipt-verify":
             return await commandReceiptVerify(args);
+        case "render-page":
+            return await commandRenderPage(args);
         case "static-host":
             return await commandStaticHost(args);
         case "fingerprint":

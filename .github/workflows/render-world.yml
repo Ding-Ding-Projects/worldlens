@@ -1170,6 +1170,12 @@ jobs:
       # with the real number, rather than uploading and hoping.
       - name: Combine the site and the map preview
         if: inputs.output == 'artifact-and-pages' && needs.plan.outputs.single-group == 'true'
+        # Bound here rather than interpolated into the script below. A world path is a name
+        # somebody else chose, and expanded into shell text it is somebody else's shell.
+        env:
+          MAP_ID: ${{ needs.plan.outputs.map-id }}
+          WORLD_PATH: ${{ inputs.world }}
+          TOOLCHAIN_COMMIT: ${{ env.WORLDLENS_TOOLCHAIN_COMMIT }}
         run: |
           set -euo pipefail
           rm -rf pages-root
@@ -1187,6 +1193,17 @@ jobs:
             hires_bytes=$((hires_bytes + $(du -sb "$hires" | cut -f1)))
             rm -rf "$hires"
           done
+
+          # The page that says what this render was, at /render/ - beside the map rather
+          # than inside it. The map is upstream's webapp, and a page of ours in there is a
+          # file upstream's next release quietly overwrites. It is never fatal: a missing
+          # page is a missing page, and failing a finished render over one would be trading
+          # the whole world for a footnote.
+          backups_arg=""
+          if [ -f toolchain/worlds/index.json ]; then
+            backups_arg="--backups toolchain/worlds/index.json"
+          fi
+          node toolchain/design/packages/render-actions/dist/cli.js render-page             --out pages-root/render             --owner "${GITHUB_REPOSITORY%%/*}"             --repo "${GITHUB_REPOSITORY#*/}"             --map-id "${MAP_ID}"             --map-name "${MAP_ID}"             --world "${WORLD_PATH}"             --commit "${TOOLCHAIN_COMMIT}"             --run-id "${GITHUB_RUN_ID}"             ${backups_arg}             || echo "::warning::the render page could not be written; the map is unaffected"
 
           preview_bytes=$(du -sb pages-root | cut -f1)
           limit_bytes=$((900 * 1000 * 1000))
