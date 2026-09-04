@@ -391,9 +391,14 @@ export function registerBedrockHandlers(
                     : convertedWorldPath(world);
             const targetFormat =
                 typeof format === "string" && format.trim() !== "" ? format : DEFAULT_JAVA_TARGET;
-            const requestedInputFormat = typeof inputFormat === "string" && inputFormat.trim() !== ""
-                ? inputFormat
-                : detection.bedrock ? null : targetFormat;
+            // The renderer's format is presentation data, never an authority to enable
+            // NBT preservation. This shallow inspection can identify the edition but not
+            // the exact Chunker version id, so preservation fails closed until main owns a
+            // version reader that can prove an exact match.
+            const requestedInputFormat: string | null = null;
+            if (cliConfig.keepOriginalNBT === true && requestedInputFormat !== targetFormat) {
+                return refuse("keepOriginalNBT is only available when main-process inspection proves the source format matches the output format.");
+            }
 
             // Registered before the conversion starts, so a Cancel arriving in the first
             // moments finds an entry rather than an empty map. `onStart` replaces this

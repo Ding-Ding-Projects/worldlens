@@ -353,6 +353,18 @@ describe("bedrock:convert", () => {
         expect(convert).toHaveBeenCalledWith(expect.objectContaining({ inputDirectory: "/worlds/survival" }));
     });
 
+    it("refuses a forged matching input format before the converter starts", async () => {
+        const convert = vi.fn(async () => okOutcome());
+        const { call } = install({ inspect: async () => JAVA_LISTING, convert });
+        const outcome = await call("bedrock:convert", {
+            world: "/worlds/survival", format: "JAVA_1_21_4", inputFormat: "JAVA_1_21_4",
+            config: { keepOriginalNBT: true },
+        }) as { ok: boolean; message: string };
+        expect(outcome.ok).toBe(false);
+        expect(outcome.message).toMatch(/keepOriginalNBT/);
+        expect(convert).not.toHaveBeenCalled();
+    });
+
     it("reports a missing Chunker as a value, never as a rejection", async () => {
         const { call } = install({ find: async () => CHUNKER_MISSING });
 
