@@ -14,6 +14,9 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import { generateWorld, zipWorld } from "@worldlens/worldgen";
+import { runLocalSyntheticGeneration } from "./worldgen/localGeneration.js";
 
 import type { IpcMain } from "electron";
 
@@ -176,6 +179,7 @@ export const MCSERVER_CHANNELS = {
     awsAccounts: "mcserver:aws:accounts",
     awsAccountAlias: "mcserver:aws:accountAlias",
     awsCredits: "mcserver:aws:credits",
+    syntheticWorldGenerate: "mcserver:worldgen:synthetic",
     hostProfilesList: "mcserver:hostProfiles:list",
     hostProfileGet: "mcserver:hostProfiles:get",
     hostProfileSave: "mcserver:hostProfiles:save",
@@ -805,6 +809,31 @@ export function registerMcServerHandlers(
     }
 
     const handlers: Record<string, (...args: never[]) => Promise<unknown>> = {
+        [MCSERVER_CHANNELS.syntheticWorldGenerate]: async (_event: never, request: unknown) => {
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "The synthetic-world request could not be read.");
+            }
+            const body = request as Record<string, unknown>;
+            if (
+                typeof body.seed !== "number" || !Number.isSafeInteger(body.seed) ||
+                typeof body.size !== "number" || !Number.isSafeInteger(body.size) || body.size < 16 ||
+                typeof body.worldName !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(body.worldName) ||
+                typeof body.destination !== "string" || body.destination.trim() === "" ||
+                body.outputMode !== "folder"
+            ) {
+                return fail("invalid-request", "The synthetic-world inputs are invalid.");
+            }
+            const destination = body.destination.trim();
+            const plannedWorld = join(destination, body.worldName);
+            if (existsSync(plannedWorld)) {
+                return fail("destination-exists", "The chosen world folder already exists. Choose a new empty destination or world name.");
+            }
+            const outcome = await runLocalSyntheticGeneration(
+                { seed: body.seed, size: body.size, worldName: body.worldName, destination, outputMode: "folder" },
+                { generateWorld, zipWorld },
+            );
+            return outcome.ok ? ok(outcome.value) : fail(outcome.code, outcome.message);
+        },
         [MCSERVER_CHANNELS.list]: async () => registry.list(),
 
         [MCSERVER_CHANNELS.hostProfilesList]: async () => hostProfiles.list(),

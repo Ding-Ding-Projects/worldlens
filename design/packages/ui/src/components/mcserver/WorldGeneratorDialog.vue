@@ -51,6 +51,7 @@ import {
     UNWIRED_STEP_KINDS,
     type WorldGenRunner,
 } from "./worldgen/worldGenPlan.js";
+import { generateSyntheticWorld } from "./mcserverBridge.js";
 
 /**
  * The world-generator wizard: every setting a world can be generated with, chosen
@@ -186,6 +187,9 @@ const runnerKind = ref<"local" | "github-actions">("local");
 // something a user can actually run to completion.
 const engineId = ref<WorldGenEngineId>("synthetic");
 const showPlan = ref(false);
+const generating = ref(false);
+const generated = ref<{ bytes: number; chunkCount: number; worldFolder: string } | null>(null);
+const generationError = ref<string | null>(null);
 
 const validation = computed(() => validateWorldGenSettings(settings));
 const selectedEngine = computed(
@@ -252,9 +256,25 @@ function onPreviewPlan(): void {
     if (!validation.value.ok) return;
     showPlan.value = true;
 }
-function onGenerate(): void {
-    if (!validation.value.ok || engineId.value !== "vanilla-server") return;
-    emit("generate", { ...settings, dimensions: { ...settings.dimensions }, gamerules: { ...settings.gamerules } });
+async function onGenerate(): Promise<void> {
+    if (!validation.value.ok || generating.value) return;
+    if (engineId.value !== "synthetic") {
+        emit("generate", { ...settings, dimensions: { ...settings.dimensions }, gamerules: { ...settings.gamerules } });
+        return;
+    }
+    generating.value = true;
+    generationError.value = null;
+    generated.value = null;
+    const answer = await generateSyntheticWorld({
+        seed: resolveSeedPreview(settings.seedInput) ?? rollRandomSeed(),
+        size: Math.max(16, Math.trunc(settings.pregenerationRadius) * 2),
+        worldName: settings.worldName.trim(),
+        destination: settings.outputDestination.trim(),
+        outputMode: "folder",
+    });
+    generating.value = false;
+    if (!answer.ok) { generationError.value = answer.failure.message; return; }
+    generated.value = { bytes: answer.value.bytes, chunkCount: answer.value.chunkCount, worldFolder: answer.value.worldFolder };
 }
 function onClose(): void {
     open.value = false;
@@ -405,6 +425,13 @@ function onClose(): void {
                         {{ t("estimate") }}: {{ pregenEstimate.chunkCount }} chunks, ~{{ (pregenEstimate.estimatedBytes / 1_000_000).toFixed(1) }} MB,
                         ~{{ pregenEstimate.estimatedSeconds }}s
                     </div>
+                    <div v-if="engineId === 'synthetic'" class="d-flex flex-wrap ga-2 mt-2" aria-label="Large deterministic world targets">
+                        <VBtn size="small" variant="tonal" @click="settings.pregenerationRadius = 4096">1 GB target (8,192 blocks)</VBtn>
+                        <VBtn size="small" variant="tonal" @click="settings.pregenerationRadius = 12800">10 GB target (25,600 blocks)</VBtn>
+                    </div>
+                    <div v-if="engineId === 'synthetic'" class="text-caption mt-1">
+                        Targets are minimum-size goals, not padding. The completed folder is measured from its actual region files and level.dat.
+                    </div>
                 </div>
 
                 <VDivider class="my-4" />
@@ -446,7 +473,7 @@ function onClose(): void {
                 <div class="text-subtitle-2 mb-2">{{ t("output") }}</div>
                 <VRadioGroup v-model="settings.outputMode" density="compact" hide-details inline class="mb-2">
                     <VRadio value="folder" :label="t('outputFolder')" />
-                    <VRadio value="zip" :label="t('outputZip')" />
+                    <VRadio value="zip" :disabled="engineId === 'synthetic'" :label="t('outputZip')" />
                 </VRadioGroup>
                 <PathField
                     v-model="settings.outputDestination"
@@ -480,11 +507,17 @@ function onClose(): void {
                         </VListItem>
                     </VList>
                 </div>
+                <VAlert v-if="generationError !== null" type="error" variant="tonal" density="compact" class="mt-3">
+                    {{ generationError }}
+                </VAlert>
+                <VAlert v-if="generated !== null" type="success" variant="tonal" density="compact" class="mt-3">
+                    Generated {{ generated.chunkCount }} chunks and measured {{ generated.bytes }} bytes at {{ generated.worldFolder }}.
+                </VAlert>
             </VCardText>
             <VCardActions>
                 <VBtn variant="text" @click="onClose">{{ t("cancel") }}</VBtn>
-                <VBtn v-if="engineId === 'vanilla-server'" color="primary" variant="flat" :disabled="!validation.ok" @click="onGenerate">
-                    Generate
+                <VBtn color="primary" variant="flat" :loading="generating" :disabled="!validation.ok || generating" @click="onGenerate">
+                    {{ generating ? 'Generating…' : 'Generate' }}
                 </VBtn>
                 <VBtn color="primary" variant="tonal" :disabled="!validation.ok" @click="onPreviewPlan">
                     {{ t("previewPlan") }}

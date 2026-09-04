@@ -7,6 +7,7 @@ import ContainerOffers from "./ContainerOffers.vue";
 import InterruptedRenders from "./InterruptedRenders.vue";
 import RenderRunPanel from "./RenderRunPanel.vue";
 import WorldWizard from "./WorldWizard.vue";
+import WorldGeneratorDialog from "../mcserver/WorldGeneratorDialog.vue";
 import ProjectCanvas from "../canvas/ProjectCanvas.vue";
 import { consentIsAccepted, refreshConsent } from "./consentState.js";
 import {
@@ -162,6 +163,7 @@ const emit = defineEmits<{
 }>();
 
 const { t } = useI18n();
+const generatorOpen = ref(false);
 
 const java = createJavaSetting();
 const javaAvailable = computed<boolean | null>(() => {
@@ -562,6 +564,15 @@ async function resume(renderId: string): Promise<void> {
 
 <template>
     <div class="mb-world-screen">
+        <v-card class="mb-world-screen__card" variant="tonal">
+            <v-card-text class="d-flex align-center justify-space-between ga-3 flex-wrap">
+                <span>{{ t("world.screen.generator", "Need a deterministic test world?") }}</span>
+                <v-btn variant="tonal" @click="generatorOpen = true">
+                    {{ t("world.screen.generateTestWorld", "Generate test world") }}
+                </v-btn>
+            </v-card-text>
+        </v-card>
+        <WorldGeneratorDialog v-model="generatorOpen" />
         <section
             v-if="runningElsewhere.length > 0"
             class="mb-world-screen__running"

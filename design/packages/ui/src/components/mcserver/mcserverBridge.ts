@@ -175,6 +175,9 @@ interface RawBridge {
             setPassword?(password: string): Promise<unknown>;
             bind?(): Promise<unknown>;
         };
+        worldgen?: {
+            synthetic?(request: unknown): Promise<unknown>;
+        };
         backup?: {
             create?(id: string, request: unknown): Promise<unknown>;
             cancel?(id: string): Promise<unknown>;
@@ -223,6 +226,30 @@ function bridge(root: unknown = globalThis): RawBridge["mcserver"] | undefined {
 export function rconTest(id: string, root: unknown = globalThis): Promise<Answer<RconTestResult>> {
     const b = bridge(root);
     return call(b?.rconTest ? () => b.rconTest!(id) : undefined);
+}
+
+export interface SyntheticWorldRequest {
+    readonly seed: number;
+    readonly size: number;
+    readonly worldName: string;
+    readonly destination: string;
+    readonly outputMode: "folder";
+}
+
+export interface SyntheticWorldResult {
+    readonly worldFolder: string;
+    readonly zipPath: null;
+    readonly chunkCount: number;
+    readonly bytes: number;
+    readonly seed: number;
+}
+
+export function generateSyntheticWorld(
+    request: SyntheticWorldRequest,
+    root: unknown = globalThis,
+): Promise<Answer<SyntheticWorldResult>> {
+    const b = bridge(root);
+    return call(b?.worldgen?.synthetic ? () => b.worldgen!.synthetic!(request) : undefined);
 }
 
 export function consoleOpen(id: string, tail: number, root: unknown = globalThis): Promise<Answer<{ sessionId: string }>> {
