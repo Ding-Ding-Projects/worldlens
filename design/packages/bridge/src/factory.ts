@@ -990,10 +990,27 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             check: () => transport.invoke("bluemapSource:check"),
         },
 
+        chunkerActions: {
+            prepare: (request: unknown) => transport.invoke("chunkerActions:prepare", request),
+            start: (request: unknown) => transport.invoke("chunkerActions:start", request),
+            list: () => transport.invoke("chunkerActions:list"),
+            recoverable: () => transport.invoke("chunkerActions:recoverable"),
+            adopt: (request: unknown) => transport.invoke("chunkerActions:adopt", request),
+            check: (id: unknown) => transport.invoke("chunkerActions:check", id),
+            collect: (id: unknown) => transport.invoke("chunkerActions:collect", id),
+            cancel: (id: unknown) => transport.invoke("chunkerActions:cancel", id),
+        },
         bedrock: {
             detect: (folder: unknown, sizeBytes: unknown) =>
                 transport.invoke("bedrock:detect", folder, sizeBytes ?? null),
             chunkerStatus: () => transport.invoke("bedrock:chunker"),
+            capabilities: () => transport.invoke("bedrock:capabilities"),
+            inspectOptions: (world: unknown) => transport.invoke("bedrock:inspectOptions", world),
+            configurationSchema: () => transport.invoke("bedrock:configurationSchema"),
+            containerImages: () => transport.invoke("bedrock:containerImages"),
+            containerStart: (request: unknown) => transport.invoke("bedrock:containerStart", request),
+            containerState: (id: unknown) => transport.invoke("bedrock:containerState", id),
+            containerCancel: (id: unknown) => transport.invoke("bedrock:containerCancel", id),
             fetchChunker: () => transport.invoke("bedrock:fetchChunker"),
             convert: (request: unknown) => transport.invoke("bedrock:convert", request),
             cancel: (conversionId: unknown) => transport.invoke("bedrock:cancel", conversionId),

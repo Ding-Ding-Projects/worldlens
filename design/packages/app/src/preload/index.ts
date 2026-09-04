@@ -1303,6 +1303,10 @@ export interface BedrockConvertRequest {
     format?: string;
     /** The source world's measured size, so an out-of-memory failure can name it. */
     sizeBytes?: number | null;
+    /** Source format selected from the verified version registry. */
+    inputFormat?: string;
+    /** Every optional public Chunker CLI setting, passed as structured data. */
+    config?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -1319,6 +1323,13 @@ export interface BedrockBridge {
     detect(folder: string, sizeBytes?: number | null): Promise<BedrockDetectResult>;
     /** Whether Chunker is installed or configured, and what fetching one would get. */
     chunkerStatus(): Promise<ChunkerStatus>;
+    capabilities(): Promise<unknown>;
+    inspectOptions(world: string): Promise<unknown>;
+    configurationSchema(): Promise<unknown>;
+    containerImages(): Promise<unknown>;
+    containerStart(request: unknown): Promise<unknown>;
+    containerState(id: string): Promise<unknown>;
+    containerCancel(id: string): Promise<unknown>;
     /** Downloads the pinned Chunker release, verified against a digest in this app's source. */
     fetchChunker(): Promise<{ ok: boolean; message: string; jarPath: string | null }>;
     /** Converts one world. Resolves when the conversion has ended, whichever way it ended. */
@@ -3298,6 +3309,16 @@ interface WorldlensBridge {
     bluemapSource: BlueMapSourceBridge;
 
     /** Recognising and converting Bedrock Edition worlds. See {@link BedrockBridge}. */
+    chunkerActions: {
+        recoverable(): Promise<unknown>;
+        adopt(request: unknown): Promise<unknown>;
+        prepare(request: unknown): Promise<unknown>;
+        start(request: unknown): Promise<unknown>;
+        list(): Promise<unknown>;
+        check(id: string): Promise<unknown>;
+        collect(id: string): Promise<unknown>;
+        cancel(id: string): Promise<unknown>;
+    };
     bedrock: BedrockBridge;
 
     /** Diagnosing and repairing a failed render or web server. See {@link RepairBridge}. */

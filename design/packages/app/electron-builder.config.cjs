@@ -163,7 +163,7 @@ module.exports = {
         {
             from: "../../../.github/workflows",
             to: "workflows",
-            filter: ["render-world.yml", "render-shard-wave.yml", "scheduled-render.yml"],
+            filter: ["render-world.yml", "render-shard-wave.yml", "scheduled-render.yml", "chunk-world.yml"],
         },
         // Recovery mode is deliberately independent of the ordinary renderer bundle and
         // preload. These two local assets let the minimal no-script recovery window retain
