@@ -93,9 +93,16 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
       - [ ] Status Hub: no implementation and no row on the site.
       - [ ] The Ollama suite manager, file conversion and app-logo customization exist on
             the site only as documentation articles, with no row and no surface.
-      - [ ] The Lang gui BlueMap webapp has no inventory of its own at all. It is the
-            surface furthest from parity, and unlike the Day Teet Hui nothing currently
-            fails when a contract is missing from it.
+      - [x] The Lang gui BlueMap webapp had no inventory of its own. It has one now:
+            eight hand-written contracts in `scripts/check-webapp-parity.mjs`, run as
+            `pnpm webapp:parity`. Correcting the sentence that used to be here as well:
+            I called it the surface furthest from parity before measuring it, and its
+            Material Design 3 layer turned out thorough - the state-layer opacities are
+            the spec values exactly, a 48px touch target is used in eleven files, and
+            there is a full seven-step shape scale. What was missing was not the work
+            but anything watching it, which is a different problem with a different fix.
+            That is now the third measurement I got wrong in this session by grepping
+            for a literal that did not match the code's own naming.
 
 ## Local servers, and a Material Design 3 map (2026-09-03)
 
