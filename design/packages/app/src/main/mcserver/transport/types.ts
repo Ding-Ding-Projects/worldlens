@@ -114,7 +114,25 @@ export type TransportFailureCode =
     /** The request itself was malformed. A caller bug, not a machine problem. */
     | "invalid-request"
     /** This transport cannot do this at all. Check `capabilities` before asking. */
-    | "unsupported";
+    | "unsupported"
+    /*
+     * Synthetic world generation answers through this same shape, and two lanes each added
+     * their half without the union ever being widened - each was green on its own base and
+     * red the moment they met. These name outcomes of generation rather than of a transport,
+     * and they are listed here because the renderer receives one `Answer` type for both.
+     */
+    /** Generation needs a live renderer to own it, and the request arrived without one. */
+    | "invalid-owner"
+    /** A generation is already running for this window; only one at a time per owner. */
+    | "busy"
+    /** The generator itself threw. `message` carries what it said. */
+    | "generation-failed"
+    /** The world folder already exists; a new name or an empty destination is needed. */
+    | "destination-exists"
+    /** Generation was cancelled by its owner before it finished. */
+    | "cancelled"
+    /** Generation ran and did not produce a usable world. */
+    | "failed";
 
 export interface TransportFailure {
     readonly code: TransportFailureCode;

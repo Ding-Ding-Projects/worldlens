@@ -12,9 +12,10 @@
  */
 
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
+import { readdir } from "node:fs/promises";
 import { generateWorld, generateMeasuredWorld, zipWorld, type MeasuredWorldProgress } from "@worldlens/worldgen";
 import { runLocalSyntheticGeneration } from "./worldgen/localGeneration.js";
 
@@ -870,7 +871,22 @@ export function registerMcServerHandlers(
             }
             const outcome = await runLocalSyntheticGeneration(
                 { seed: body.seed, size: body.size, worldName: body.worldName, destination, outputMode: "folder" },
-                { generateWorld, zipWorld },
+                {
+                    generateWorld,
+                    // The deps contract hands over a folder; worldgen's zipWorld wants the
+                    // record it produced. Rebuilt from the folder here rather than widening
+                    // the contract to carry a type only one implementation needs.
+                    zipWorld: async (world, zipPath) => {
+                        const regionDir = join(world.worldFolder, "region");
+                        const regionFiles = existsSync(regionDir)
+                            ? (await readdir(regionDir)).filter((name) => name.endsWith(".mca"))
+                            : [];
+                        return zipWorld(
+                            { ...world, name: basename(world.worldFolder), regionFiles } as Parameters<typeof zipWorld>[0],
+                            zipPath,
+                        );
+                    },
+                },
             );
             return outcome.ok ? ok(outcome.value) : fail(outcome.code, outcome.message);
         },

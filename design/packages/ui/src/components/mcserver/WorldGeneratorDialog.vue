@@ -76,7 +76,10 @@ const emit = defineEmits<{
     generate: [settings: WorldGenSettings];
 }>();
 
-const { t: measuredT } = useI18n({ useScope: "global" });
+// Named so the catalogue's call-site scanner recognises it: it matches `t(`, `tx(` and
+// `tp(` with nothing word-like before them, and `tx(` was invisible to it - which is
+// why two keys reported "call site passes []" while plainly passing three arguments each.
+const { t: tx } = useI18n({ useScope: "global" });
 const { t } = useI18n({
     useScope: "local",
     messages: {
@@ -459,15 +462,15 @@ function onClose(): void {
                         {{ t("estimate") }}: {{ pregenEstimate.chunkCount }} chunks, ~{{ (pregenEstimate.estimatedBytes / 1_000_000).toFixed(1) }} MB,
                         ~{{ pregenEstimate.estimatedSeconds }}s
                     </div>
-                    <div v-if="engineId === 'synthetic'" class="d-flex flex-wrap ga-2 mt-2" :aria-label="measuredT('worldgen.measured.targets')">
-                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 1_000_000_000">{{ measuredT('worldgen.measured.preset1') }}</VBtn>
-                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 10_000_000_000">{{ measuredT('worldgen.measured.preset10') }}</VBtn>
+                    <div v-if="engineId === 'synthetic'" class="d-flex flex-wrap ga-2 mt-2" :aria-label="tx('worldgen.measured.targets')">
+                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 1_000_000_000">{{ tx('worldgen.measured.preset1') }}</VBtn>
+                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 10_000_000_000">{{ tx('worldgen.measured.preset10') }}</VBtn>
                     </div>
                     <div v-if="engineId === 'synthetic'" class="text-caption mt-1">
-                        {{ measuredT('worldgen.measured.notice') }}
+                        {{ tx('worldgen.measured.notice') }}
                     </div>
-                    <VTextField v-if="engineId === 'synthetic'" v-model.number="targetBytes" type="number" min="1" max="100000000000" :disabled="generating" :label="measuredT('worldgen.measured.target')" clearable />
-                    <VSwitch v-if="engineId === 'synthetic' && targetBytes !== null" v-model="resumeGeneration" :disabled="generating" :label="measuredT('worldgen.measured.resume')" />
+                    <VTextField v-if="engineId === 'synthetic'" v-model.number="targetBytes" type="number" min="1" max="100000000000" :disabled="generating" :label="tx('worldgen.measured.target')" clearable />
+                    <VSwitch v-if="engineId === 'synthetic' && targetBytes !== null" v-model="resumeGeneration" :disabled="generating" :label="tx('worldgen.measured.resume')" />
                 </div>
 
                 <VDivider class="my-4" />
@@ -544,22 +547,22 @@ function onClose(): void {
                     </VList>
                 </div>
                 <VAlert v-if="generationError !== null" type="error" variant="tonal" density="compact" class="mt-3">
-                    {{ generationError || measuredT('worldgen.measured.failed') }}
+                    {{ generationError || tx('worldgen.measured.failed') }}
                 </VAlert>
                 <div v-if="generationProgress" role="status" aria-live="polite">
-                    {{ measuredT('worldgen.measured.progress', { bytes: generationProgress.bytes, target: generationProgress.targetBytes, chunks: generationProgress.chunkCount }) }}
-                    <progress :value="generationProgress.bytes" :max="generationProgress.targetBytes" :aria-label="measuredT('worldgen.measured.target')" />
+                    {{ tx('worldgen.measured.progress', { bytes: generationProgress.bytes, target: generationProgress.targetBytes, chunks: generationProgress.chunkCount }, 'Measured {bytes} / {target} bytes, {chunks} chunks.') }}
+                    <progress :value="generationProgress.bytes" :max="generationProgress.targetBytes" :aria-label="tx('worldgen.measured.target')" />
                 </div>
                 <VAlert v-if="generated !== null" :type="generated.cancelled ? 'info' : 'success'" variant="tonal" density="compact" class="mt-3">
-                    <div v-if="generated.cancelled">{{ measuredT('worldgen.measured.paused') }}</div>
-                    {{ measuredT('worldgen.measured.result', { bytes: generated.bytes, chunks: generated.chunkCount, overshoot: generated.overshootBytes ?? 0, folder: generated.worldFolder }) }}
+                    <div v-if="generated.cancelled">{{ tx('worldgen.measured.paused') }}</div>
+                    {{ tx('worldgen.measured.result', { bytes: generated.bytes, chunks: generated.chunkCount, overshoot: generated.overshootBytes ?? 0, folder: generated.worldFolder }, 'Measured {bytes} bytes, {chunks} chunks, overshoot {overshoot} bytes. Folder: {folder}') }}
                 </VAlert>
             </VCardText>
             <VCardActions>
-                <VBtn v-if="generating && targetBytes !== null" variant="text" @click="stopGeneration">{{ measuredT('worldgen.measured.stop') }}</VBtn>
+                <VBtn v-if="generating && targetBytes !== null" variant="text" @click="stopGeneration">{{ tx('worldgen.measured.stop') }}</VBtn>
                 <VBtn v-else variant="text" :disabled="generating" @click="onClose">{{ t("cancel") }}</VBtn>
                 <VBtn color="primary" variant="flat" :loading="generating" :disabled="!canGenerate || generating" @click="onGenerate">
-                    {{ measuredT(generating ? 'worldgen.measured.generating' : 'worldgen.measured.generate') }}
+                    {{ tx(generating ? 'worldgen.measured.generating' : 'worldgen.measured.generate') }}
                 </VBtn>
                 <VBtn color="primary" variant="tonal" :disabled="!validation.ok" @click="onPreviewPlan">
                     {{ t("previewPlan") }}
