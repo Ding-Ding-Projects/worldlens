@@ -21,6 +21,16 @@ Four screenshots of the new-server wizard turned into three P0 defects and a who
 - [x] The build reads the fork: `tools/build-jars.mjs`, `build-jars.yml`, `render-world.yml`,
       `render-private-world.yml`, with the path and repository as shared constants the
       packager's validator consumes.
+- [ ] Fix the provisioning test that hangs. `CreateServerWizard.test.ts` > "shows real
+      provisioning progress, failure, retry, and post-install re-resolution" times out at 30s
+      awaiting `Promise.all([provisioning, duplicateProvisioning])`, so a deduplicated second
+      `provisionJava()` appears never to settle. It hangs with `main`'s own component as well
+      as this branch's, so it is not caused by the wizard changes here - it was simply masked
+      until now by the `captured is not defined` crash that killed the test earlier.
+- [ ] `apostropheConvention.test.ts` fails in any checkout whose path contains a space: it
+      builds a directory path from `import.meta.url` without decoding, so it scans
+      `gerk%20tong%20hui`. Not a product defect, but it makes a linked Gerk Tong Hui under the
+      default path unable to run the suite clean.
 - [ ] Photograph the Material Design 3 interface in a real published map. The local jar build
       is the furthest this went; nothing has been captured from a deployed `/map/`.
 - [ ] Decide whether `vendor/BlueMap` stays. Two full BlueMap checkouts is real disk and real
