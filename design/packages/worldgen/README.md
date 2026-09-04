@@ -56,6 +56,15 @@ compares resumed/uninterrupted manifests, and rejects corrupted, foreign and unr
 inputs. These tests do not claim a 1 GB or 10 GB UI run occurred. Large-fixture and
 rendering evidence must be recorded separately against the built application.
 
+The desktop workflow is **World → Generate test world**. Choose the built-in synthetic
+engine, seed, world name and destination parent folder, select the measured target, then
+choose **Generate**. After completion, select the resulting folder in the ordinary World
+folder picker before configuring a render. Generation itself does not dispatch rendering.
+The entry action, targets, progress, pause/resume and result use the shared English,
+Cantonese and bilingual catalogue with independent five-level voice settings. Counts,
+paths and byte targets remain factual at every level. See [the large-world guide](../../../docs/large-worlds.md)
+for the workflow and its unverified large-fixture boundary.
+
 ## Why it exists
 
 The screenshot job used to point at a third party's public BlueMap demo server, which

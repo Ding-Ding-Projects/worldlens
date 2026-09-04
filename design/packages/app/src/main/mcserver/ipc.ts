@@ -595,9 +595,7 @@ export function registerMcServerHandlers(
      * user with a dead server and a banner. Returns null only when Java genuinely cannot be
      * found, which the factory then reports honestly.
      */
-    async function resolveLocalRuntime(
-        record: ServerRecord,
-    ): Promise<LocalRuntimeRecord | null> {
+    async function resolveLocalRuntime(record: ServerRecord): Promise<LocalRuntimeRecord | null> {
         if (record.localRuntime !== null) return record.localRuntime;
         if (record.ref.kind !== "local-process") return null;
 
@@ -1636,7 +1634,7 @@ export function registerMcServerHandlers(
             if (!isRecordId(body.id) || typeof body.name !== "string" || body.name.trim() === "") {
                 return fail("invalid-request", "A server needs a valid name to be created.");
             }
-            if (!isFlavourId(body.flavour)) {
+            if (!isFlavourId(body.flavour) && body.flavour !== "spigot") {
                 return fail("invalid-request", "That is not a server flavour this app supports.");
             }
             if (typeof body.version !== "string" || body.version.length === 0) {
@@ -1645,8 +1643,20 @@ export function registerMcServerHandlers(
             if (typeof body.memoryMb !== "number") {
                 return fail("invalid-request", "A server needs a memory limit to be created.");
             }
+            if (
+                body.port !== undefined &&
+                (typeof body.port !== "number" ||
+                    !Number.isInteger(body.port) ||
+                    body.port < 1 ||
+                    body.port > 65_535)
+            ) {
+                return fail(
+                    "invalid-request",
+                    "A server port must be a whole number from 1 to 65535.",
+                );
+            }
             const runtime = readCreateRuntimeKind(body);
-            if (runtime === "local-docker") {
+            if (runtime === "local-docker" || runtime === "ssh-docker") {
                 if (typeof body.dockerPlan !== "object" || body.dockerPlan === null)
                     return fail(
                         "invalid-request",
@@ -1677,12 +1687,49 @@ export function registerMcServerHandlers(
                         "invalid-request",
                         "The local Docker plan contains an invalid port entry.",
                     );
+                let ssh: Parameters<typeof createLocalDockerServer>[0]["ssh"];
+                let docker = options.docker;
+                if (runtime === "ssh-docker") {
+                    const ref = body.transport as Record<string, unknown> | undefined;
+                    if (typeof ref?.hostId !== "string")
+                        return fail("invalid-request", "Choose a saved SSH host profile.");
+                    const profile = await hostProfiles.get(ref.hostId);
+                    if (!profile.ok) return profile;
+                    const connection = hostProfiles.sshHost(ref.hostId);
+                    if (connection === null)
+                        return fail("not-found", "The saved SSH connection is unavailable.");
+                    if (plan.image !== profile.value.target.image)
+                        return fail(
+                            "invalid-request",
+                            "The image no longer matches the saved SSH profile. Reload the profile before creating.",
+                        );
+                    const root = profile.value.target.workDir;
+                    if (!root.startsWith("/") || root === "/" || root.split("/").includes(".."))
+                        return fail(
+                            "invalid-request",
+                            "The SSH profile needs an absolute dedicated server parent folder.",
+                        );
+                    ssh = {
+                        hostId: ref.hostId,
+                        connection,
+                        hostDirectory: `${root.replace(/\/$/, "")}/worldlens-server-${body.id}-${randomBytes(8).toString("hex")}`,
+                    };
+                    docker = profile.value.target.docker;
+                }
                 return createLocalDockerServer({
                     id: body.id,
                     name: body.name,
                     flavour: body.flavour,
                     version: body.version,
                     memoryMb: body.memoryMb,
+                    ...(typeof body.port === "number" ? { port: body.port } : {}),
+                    ...(typeof body.loaderVersion === "string"
+                        ? { loaderVersion: body.loaderVersion }
+                        : {}),
+                    ...(typeof body.gameVersion === "string"
+                        ? { gameVersion: body.gameVersion }
+                        : {}),
+                    ...(ssh === undefined ? {} : { ssh }),
                     acceptedEula: body.acceptedEula === true,
                     serversRoot,
                     registry,
@@ -1697,7 +1744,7 @@ export function registerMcServerHandlers(
                         ...(options.factory?.runner === undefined
                             ? {}
                             : { runner: options.factory.runner }),
-                        ...(options.docker === undefined ? {} : { docker: options.docker }),
+                        ...(docker === undefined ? {} : { docker }),
                     },
                     ...(options.now === undefined ? {} : { now: options.now }),
                 });
@@ -1713,11 +1760,13 @@ export function registerMcServerHandlers(
                     `A ${runtime} server cannot be created here. Create it from its own screen instead.`,
                 );
             const createOptions: CreateLocalServerOptions = {
+                ...(typeof body.gameVersion === "string" ? { gameVersion: body.gameVersion } : {}),
                 id: body.id,
                 name: body.name,
                 flavour: body.flavour,
                 version: body.version,
                 memoryMb: body.memoryMb,
+                ...(typeof body.port === "number" ? { port: body.port } : {}),
                 acceptedEula: body.acceptedEula === true,
                 dataDir: options.dataFolder,
                 serversRoot,
@@ -2061,7 +2110,7 @@ export function registerMcServerHandlers(
                 hasRconSecret: rconRaw !== null,
                 rconPort: rconRaw === null ? null : (rconPort as number),
                 writeScope,
-                    localRuntime: null,
+                localRuntime: null,
             };
             const removeServerIfOwned = async (): Promise<void> => {
                 const current = await registry.get(serverRecord.id);

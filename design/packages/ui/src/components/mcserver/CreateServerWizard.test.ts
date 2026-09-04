@@ -431,8 +431,7 @@ describe("CreateServerWizard", () => {
         // `null` it was initialised to - and an annotation does not undo that, because the
         // initialiser has already been narrowed before the annotation is applied.
         const emitProgress = progressListener as unknown as
-            | ((serverId: string, event: unknown) => void)
-            | null;
+            ((serverId: string, event: unknown) => void) | null;
         if (emitProgress !== null) {
             emitProgress("server-1", {
                 phase: "failed",
@@ -579,6 +578,108 @@ describe("CreateServerWizard", () => {
         completeProvision(ok(foundJava()));
         await provisioning;
         expect(document.querySelector('[data-test="java-found"]')).toBeNull();
+    });
+
+    it.each(["local-docker", "ssh-docker"])(
+        "submits a real creation plan for %s with the selected port",
+        async (runtime) => {
+            const create = vi.fn(async () => ok(undefined as unknown as ServerRecord));
+            const wrapper = mountWizard({
+                ...fakeHost(),
+                create,
+                createCapabilities: { localDocker: true },
+            });
+            await flushAll();
+            const vm = wrapper.vm as unknown as {
+                whereItRuns: string;
+                dockerAvailability: { available: boolean };
+                dockerContainerRef: string;
+                dockerImage: string;
+                hostProfiles: unknown[];
+                sshHost: string;
+                flavour: string;
+                minecraftVersion: string;
+                serverId: string;
+                serverName: string;
+                port: number;
+                eulaAccepted: boolean;
+                create: () => Promise<void>;
+                javaNotRequired: boolean;
+            };
+            vm.whereItRuns = runtime;
+            await flushAll();
+            vm.dockerAvailability.available = true;
+            vm.dockerContainerRef = "fixture-container";
+            vm.dockerImage = "itzg/minecraft-server:java21";
+            vm.hostProfiles = [
+                {
+                    hostId: "fixture-host",
+                    target: {
+                        label: "Fixture",
+                        host: "fixture.example",
+                        image: "itzg/minecraft-server:java21",
+                        workDir: "/srv/worldlens",
+                    },
+                },
+            ];
+            vm.sshHost = "fixture-host";
+            vm.minecraftVersion = "1.21.4";
+            vm.serverId = "fixture-server";
+            vm.serverName = "Fixture server";
+            vm.port = 25579;
+            vm.eulaAccepted = true;
+            await flushAll();
+            expect(vm.javaNotRequired).toBe(true);
+            await vm.create();
+            expect(create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    port: 25579,
+                    transport: expect.objectContaining({ kind: runtime }),
+                    dockerPlan: expect.objectContaining({
+                        image: "itzg/minecraft-server:java21",
+                        serverDir: "/data",
+                        ports: [{ host: 25579, container: 25565 }],
+                    }),
+                }),
+            );
+            expect(wrapper.emitted("open-remote-adoption")).toBeUndefined();
+            expect(wrapper.emitted("created")).toEqual([["fixture-server"]]);
+            wrapper.unmount();
+        },
+    );
+
+    it("follows catalogue Java requirements and retains an incompatible explicit override visibly", async () => {
+        const wrapper = mountWizard();
+        await flushAll();
+        const vm = wrapper.vm as unknown as {
+            catalogue: unknown;
+            minecraftVersion: string;
+            dockerImage: string;
+            dockerImageEdited: boolean;
+            dockerImageError: string | null;
+        };
+        vm.catalogue = {
+            flavours: [
+                {
+                    flavour: "paper",
+                    versions: [
+                        { version: "26.2", javaFeature: 25 },
+                        { version: "future", javaFeature: 26 },
+                    ],
+                },
+            ],
+            failures: [],
+        };
+        vm.minecraftVersion = "26.2";
+        await flushAll();
+        expect(vm.dockerImage).toBe("itzg/minecraft-server:java25");
+        vm.dockerImageEdited = true;
+        vm.dockerImage = "itzg/minecraft-server:java21";
+        vm.minecraftVersion = "future";
+        await flushAll();
+        expect(vm.dockerImage).toBe("itzg/minecraft-server:java21");
+        expect(vm.dockerImageError).toContain("26");
+        wrapper.unmount();
     });
 
     it("keeps local Docker creation disabled with an exact capability reason", async () => {

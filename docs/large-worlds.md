@@ -9,6 +9,7 @@ automatically, and one command does it by hand.
 **Contents**
 
 - [What a split asset looks like](#what-a-split-asset-looks-like)
+- [Generating a measured-size test world](#generating-a-measured-size-test-world)
 - [Getting one with the desktop application](#getting-one-with-the-desktop-application)
   - [Where it is](#where-it-is)
   - [What it does](#what-it-does)
@@ -20,6 +21,55 @@ automatically, and one command does it by hand.
 - [Security notes](#security-notes)
 - [Verification](#verification)
 - [Related reading](#related-reading)
+
+## Generating a measured-size test world
+
+The desktop **World** screen exposes **Generate test world**. The built-in synthetic
+engine writes valid Java 1.20.4 Anvil terrain locally. It does not launch Minecraft,
+does not reproduce vanilla terrain, and ignores server-specific generation settings.
+
+1. Choose a seed, folder-safe world name and destination parent folder. Use the browse
+   control to choose the destination. A blank seed is resolved and displayed before work
+   begins, so it can be reused. A new run refuses an already-existing named world folder.
+2. Choose **1 GB (1,000,000,000 bytes)** or **10 GB (10,000,000,000 bytes)**, or enter
+   another minimum decimal byte target. Clear that target to use ordinary square generation.
+3. Choose **Generate**. The progress reports measured bytes against the target and chunk
+   count. The target counts `level.dat` and real region-file lengths, excluding the manifest.
+   Normal Anvil sector alignment is retained; no filler files are added.
+4. Choose **Stop and preserve progress** to pause. Keep the same seed, name, destination
+   and target, enable **Resume the existing generated world**, then choose **Generate**.
+   Resume verifies every recorded file hash before appending to the saved partial region.
+5. Read the final measured bytes, chunk count, exact overshoot and folder path. Select
+   that world folder through the ordinary World folder picker before configuring rendering.
+   Generation does not dispatch GitHub Actions rendering by itself.
+
+`worldgen-manifest.json` records the generator version, seed, name, target, format and
+each file's size and SHA-256. The writer uses one chunk at a time, caps the inventory at
+25,000 regions and the target at 100,000,000,000 bytes, and checks remaining space plus
+a 32 MiB reserve. Another process can still consume space after a check.
+
+The owning renderer's destruction, crash or main-frame reload cancels generation.
+Dialog removal requests cancellation too. Graceful cancellation preserves resumable
+content. An abrupt process or machine interruption that leaves an active lock, incomplete
+manifest or unmatched bytes fails closed; keep that folder for investigation instead of
+assuming it is safe to resume.
+
+The new controls and messages follow English, Cantonese and bilingual presentation and
+both independent funny-level settings. Voice never changes numbers, paths, target values
+or action semantics. Focused local tests cover actual small-world generation, hash checks,
+cancellation, byte-identical resume, renderer lifecycle ownership and the visible controls.
+**This documentation does not claim that 1 GB or 10 GB built-application generation,
+rendering or the full UI walkthrough has been verified.**
+
+喺 **World** 畫面揀 **Generate test world**，設定種子、世界名稱同目的地父資料夾，
+再揀十進制 1,000,000,000 或 10,000,000,000 位元組目標。進度按 `level.dat` 同真實區域
+檔案大小計，唔會加填充檔案。暫停會保留內容；保持相同設定並啟用 **Resume**，先核對
+每個檔案嘅雜湊再繼續。完成後要用一般世界資料夾選擇器揀返個世界，再設定渲染。
+英文、廣東話、雙語同兩個獨立 funny levels 都會即時生效，但數字、路徑同操作意思唔變。
+現有本地測試用細世界驗證功能，呢篇文檔冇聲稱 1 GB 或 10 GB 嘅完整程式實測已完成。
+
+See the [generator package documentation](../design/packages/worldgen/README.md) for the
+API contract and the [rendering workflow](./render-in-actions.md) for the separate next step.
 
 ## What a split asset looks like
 

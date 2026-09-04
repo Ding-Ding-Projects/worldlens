@@ -62,6 +62,7 @@ import {
 } from "./maskDrawCanvas.js";
 import { MENU_FACTS, MENU_FIXED, MENU_VOICED } from "./menu.js";
 import { MCSERVER_FACTS, MCSERVER_FIXED, MCSERVER_VOICED } from "./mcserver.js";
+import { MEASUREDWORLDGEN_FACTS, MEASUREDWORLDGEN_FIXED, MEASUREDWORLDGEN_VOICED } from "./measuredWorldgen.js";
 import { MENUSEARCH_FACTS, MENUSEARCH_FIXED, MENUSEARCH_VOICED } from "./menuSearch.js";
 import {
     NOTIFICATIONSBULK_FACTS,
@@ -98,6 +99,7 @@ import { WORLDREPO_FACTS, WORLDREPO_FIXED, WORLDREPO_VOICED } from "./worldrepo.
 import { VOCABULARY_FACTS, VOCABULARY_FIXED, VOCABULARY_VOICED } from "./vocabulary.js";
 
 export const SURFACE_VOICED = {
+    ...MEASUREDWORLDGEN_VOICED,
     ...CHROME_VOICED,
     ...CHUNKER_VOICED,
     ...CONVERTER_VOICED,
@@ -160,6 +162,7 @@ export const SURFACE_VOICED = {
 } as const;
 
 export const SURFACE_FIXED = {
+    ...MEASUREDWORLDGEN_FIXED,
     ...CHROME_FIXED,
     ...CHUNKER_FIXED,
     ...CONVERTER_FIXED,
@@ -222,6 +225,7 @@ export const SURFACE_FIXED = {
 } as const;
 
 export const SURFACE_FACTS = {
+    ...MEASUREDWORLDGEN_FACTS,
     ...CHROME_FACTS,
     ...CHUNKER_FACTS,
     ...CONVERTER_FACTS,

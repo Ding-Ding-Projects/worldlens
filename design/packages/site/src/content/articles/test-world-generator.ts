@@ -7,9 +7,9 @@ export const testWorldGenerator: Article = {
     summary:
         "A synthetic Minecraft world written directly in Anvil format by this repository, so a render can be demonstrated and reproduced from a seed without a Minecraft server, a download, or somebody else's demo site.",
     category: "delivery",
-    status: "shipped",
+    status: "ported-unverified",
     statusNote:
-        "Built, and proved by reading its own output back through this project's world reader: 19 tests covering terrain, biomes, lighting, packing and determinism, running in CI on every push.",
+        "The generator and measured-size desktop controls are implemented and covered by focused local tests. Actual 1 GB and 10 GB generation, rendering and built-application interaction evidence remain unverified here; workflow publication is not test evidence.",
 
     sections: [
         {
@@ -82,6 +82,23 @@ export const testWorldGenerator: Article = {
                         "behind the 961-tile render figure quoted elsewhere on this site.",
                     ],
                 },
+            ],
+        },
+        {
+            id: "measured-size-workflow",
+            title: "Generate a measured-size world in the desktop application",
+            blocks: [
+                { kind: "list", ordered: true, items: [
+                    "Open the World screen and choose Generate test world. Keep the built-in synthetic engine selected; it writes Java 1.20.4 Anvil terrain locally and ignores server-specific world-generation options.",
+                    "Choose a folder-safe world name, a seed and a destination parent folder using the native browse control. A blank seed is resolved and shown before generation. The named world folder must not already exist for a new run.",
+                    "Choose 1 GB (1,000,000,000 bytes), 10 GB (10,000,000,000 bytes), or enter a minimum decimal byte target. These are measured content targets, not estimates based on a square edge length. Clearing the byte target restores ordinary square generation.",
+                    "Choose Generate. Progress reports measured bytes against the target and the number of chunks. Only level.dat and region-file lengths count toward the target; manifest bytes do not. Normal Anvil sector alignment remains, with no filler files.",
+                    "Use Stop and preserve progress to pause. Keep the original seed, name, destination and target, enable Resume the existing generated world, and choose Generate again. Resume verifies every file hash before appending.",
+                    "Read the final measured bytes, chunk count, exact overshoot and world-folder path. Select that actual world folder through the ordinary World folder picker before configuring rendering. Generation does not itself dispatch a rendering workflow.",
+                ] },
+                { kind: "paragraph", content: "Language settings apply live to the entry action, byte targets, progress, pause/resume copy and result. English, Cantonese and bilingual modes use the shared application catalogue. Each language's independent funny level changes explanatory prose; numbers, paths, target values and action semantics stay exact." },
+                { kind: "paragraph", content: "喺 World 畫面揀 Generate test world，設定種子、世界名稱同目的地父資料夾，再揀 1,000,000,000 或 10,000,000,000 位元組目標。生成器按實際檔案大小交數，唔會塞填充資料。暫停會保留內容；保持相同設定並啟用 Resume，就會先核對雜湊再繼續。完成後用一般資料夾選擇器揀返嗰個世界，先再設定渲染。" },
+                { kind: "callout", tone: "warning", title: "Preservation and verification boundaries", content: "Targets are bounded at 100,000,000,000 bytes and 25,000 regions. The writer checks space for the remaining target plus 32 MiB reserve. Closing, crashing or reloading the owning renderer cancels generation; removing the dialog also requests cancellation. Graceful cancellation is resumable. Abrupt process or machine interruption with a stale lock, unfinished manifest or unmatched region bytes fails closed and preserves the folder for investigation. No 1 GB or 10 GB completion is claimed by this article." },
             ],
         },
         {
@@ -273,6 +290,10 @@ export const testWorldGenerator: Article = {
     ],
 
     sources: [
+        { label: "Measured generator and resume ledger", href: repoFile("design/packages/worldgen/src/measuredWorld.ts") },
+        { label: "Desktop generator controls", href: repoFile("design/packages/ui/src/components/mcserver/WorldGeneratorDialog.vue") },
+        { label: "Measured-world local tests", href: repoFile("design/packages/worldgen/test/measuredWorld.test.ts") },
+        { label: "Large-world workflow documentation", href: repoFile("docs/large-worlds.md") },
         { label: "packages/worldgen", href: repoFile("design/packages/worldgen") },
         {
             label: "packages/worldgen/README.md",

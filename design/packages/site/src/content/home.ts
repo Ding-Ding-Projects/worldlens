@@ -414,9 +414,9 @@ export const home: HomeContent = {
                 {
                     title: "A world to render, with no Minecraft installed",
                     body: "A generator writes a synthetic Minecraft world directly in Anvil format from a seed: terrain, biomes, lighting and all. It exists so a render can be demonstrated and reproduced without a Minecraft server, a download or somebody else's demo site.",
-                    status: "shipped",
+                    status: "ported-unverified",
                     statusNote:
-                        "Built, and proved by reading its own output back through this project's world reader. 19 tests covering terrain, biomes, lighting, packing and determinism run in CI on every push.",
+                        "Synthetic generation and exact measured-byte desktop targets are implemented with focused local tests. The actual 1 GB and 10 GB generation, rendering and built-application walkthrough remain unverified here.",
                     articleId: "test-world-generator",
                 },
                 {
@@ -541,9 +541,9 @@ export const home: HomeContent = {
                 {
                     title: "Run the Minecraft server itself, not only its map",
                     body: "A \"Minecraft servers\" destination that installs, configures, consoles into, and manages the players and plugins of a real server - a local process, a local Docker container, or a container reached over SSH - with every setting a real typed control rather than a text box. A password-protected web console reaches the same four screens from a browser.",
-                    status: "shipped",
+                    status: "ported-unverified",
                     statusNote:
-                        "The transport layer, registry, config editor, RCON console, player and plugin managers and web console are wired into the left rail and covered by several hundred tests, all against fakes rather than a real Docker daemon, SSH host or java process. Adoption's review dialog and discovery logic are built and tested but unreachable: the Adopt button opens nothing, because nothing listens for the event it emits, and no adoption-browsing screen exists yet.",
+                        "Creation and adoption are wired through their separate screens. Focused tests cover typed container creation, image digest resolution, selected ports and ownership-verified rollback. Real packaged interaction, container readiness and complete server topology remain pending. 建立同採用流程已接駁，真實封裝介面同啟動證據仍待驗證。",
                     articleId: "mcserver-hosting",
                     reading: [
                         { label: "docs/minecraft-server-manager.md", href: MCSERVER_MANAGER_DOC_URL },
