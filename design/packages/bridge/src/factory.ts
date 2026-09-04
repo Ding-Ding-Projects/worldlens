@@ -598,6 +598,30 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
 
+        worldDownloader: {
+            status: () => transport.invoke("worlddownloader:status"),
+            ensureJar: (request: unknown) => transport.invoke("worlddownloader:ensureJar", request),
+            readSettings: () => transport.invoke("worlddownloader:readSettings"),
+            writeSettings: (settings: unknown) =>
+                transport.invoke("worlddownloader:writeSettings", settings),
+            testConnection: (request: unknown) =>
+                transport.invoke("worlddownloader:testConnection", request),
+            start: (request: unknown) => transport.invoke("worlddownloader:start", request),
+            stop: (sessionId: unknown) => transport.invoke("worlddownloader:stop", sessionId),
+            saveToken: (token: unknown) => transport.invoke("worlddownloader:saveToken", token),
+            clearToken: () => transport.invoke("worlddownloader:clearToken"),
+            countChunks: (outputFolder: unknown) =>
+                transport.invoke("worlddownloader:countChunks", outputFolder),
+            portFree: (port: unknown) => transport.invoke("worlddownloader:portFree", port),
+            onWorldDownloaderEvent: (listener: BridgeListener) => {
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
+                transport.on("worlddownloader:event", forward);
+                return () => {
+                    transport.off("worlddownloader:event", forward);
+                };
+            },
+        },
+
         dockerHosting: {
             create: (request: unknown) => transport.invoke("dockerhosting:create", request),
             inspect: () => transport.invoke("dockerhosting:inspect"),

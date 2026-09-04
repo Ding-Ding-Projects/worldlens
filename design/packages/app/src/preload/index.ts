@@ -4,6 +4,19 @@ import type { BridgeTransport } from "@worldlens/bridge";
 import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
+import type {
+    DownloaderChunkAnswer,
+    DownloaderConnectionAnswer,
+    DownloaderPortAnswer,
+    DownloaderSettingsAnswer,
+    DownloaderStartAnswer,
+    DownloaderStatus,
+    DownloaderTokenAnswer,
+    DownloaderWriteSettingsAnswer,
+} from "../main/worlddownloader/ipc.js";
+import type { DownloaderEvent } from "../main/worlddownloader/session.js";
+import type { EnsureJarResult } from "../main/worlddownloader/jar.js";
+import type { DownloaderSettings } from "@worldlens/shared/dist/downloaderOptions.js";
 import type { SchoolModeResult } from "../main/schoolMode/index.js";
 import type { VocabularyResult, VocabularySnapshot } from "../main/vocabulary/index.js";
 import type {
@@ -2048,6 +2061,34 @@ export type DockerWorldFingerprintResult =
  * `fetch` resolves once the copy has ended. `onDockerWorldEvent` separately carries the
  * fetcher's real phase and file-count events so a long operation can report honestly.
  */
+/**
+ * The Fabric Carpet world downloader, per `main/worlddownloader/ipc.ts`.
+ *
+ * No method here rejects, for the same reason `DockerWorldBridge` below never does: every
+ * possible answer, including "there is no Java on this machine" and "that port is already
+ * taken", is a sentence the settings screen has to show, never a stack trace. `saveToken` sends
+ * a token in; nothing here ever sends one back out - `status` only reports whether one is held.
+ */
+export interface WorldDownloaderBridge {
+    status(): Promise<DownloaderStatus>;
+    ensureJar(request?: { readonly tag?: string }): Promise<EnsureJarResult>;
+    readSettings(): Promise<DownloaderSettingsAnswer>;
+    writeSettings(settings: DownloaderSettings): Promise<DownloaderWriteSettingsAnswer>;
+    testConnection(request: {
+        readonly host: string;
+        readonly port?: number;
+        readonly declaredVersion?: string;
+    }): Promise<DownloaderConnectionAnswer>;
+    start(request: { readonly settings: DownloaderSettings }): Promise<DownloaderStartAnswer>;
+    stop(sessionId: string): Promise<boolean>;
+    saveToken(token: string): Promise<DownloaderTokenAnswer>;
+    clearToken(): Promise<boolean>;
+    countChunks(outputFolder: string): Promise<DownloaderChunkAnswer>;
+    portFree(port: number): Promise<DownloaderPortAnswer>;
+    /** Real session log/phase/finished events; returns the exact unsubscribe function. */
+    onWorldDownloaderEvent(listener: (event: DownloaderEvent) => void): () => void;
+}
+
 export interface DockerWorldBridge {
     /** Every container and volume Docker knows about, running or not. */
     list(): Promise<DockerWorldListAnswer>;
@@ -3317,6 +3358,8 @@ interface WorldlensBridge {
 
     /** Reading a world out of a Docker container or volume. See {@link DockerWorldBridge}. */
     dockerWorld: DockerWorldBridge;
+    /** The Fabric Carpet world downloader. See {@link WorldDownloaderBridge}. */
+    worldDownloader: WorldDownloaderBridge;
     /** Managing only this application's labelled BlueMap containers. */
     dockerHosting: DockerHostingBridge;
 
