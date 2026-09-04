@@ -7,6 +7,13 @@ import { createSettingMatcher } from "../config/regexEngine.js";
 
 export interface GhEntityPickerItem {
     readonly title: string;
+    /**
+     * The second line beneath the title. Read in four places in this file and folded into
+     * the Vuetify item beneath, and never declared here -- so the component read a field its
+     * own type said did not exist, and a caller passing one was refused by the type it was
+     * passing to.
+     */
+    readonly subtitle?: string | undefined;
     readonly value: string;
     readonly searchText?: string | undefined;
     readonly props?: { readonly disabled?: boolean | undefined } | undefined;

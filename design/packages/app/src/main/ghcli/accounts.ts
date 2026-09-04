@@ -283,7 +283,13 @@ export async function logoutGhCliAccount(
             account.host.trim().toLowerCase() === normalizedHost.toLowerCase() &&
             account.login.trim().toLowerCase() === normalizedLogin.toLowerCase(),
     );
-    const verifiedStatus = status.availability === "ready" && status.source === "json";
+    // "no-accounts" is a successful structured read, not a failed one - it is precisely what
+    // signing out the last account leaves behind. Requiring "ready" made that one case report
+    // "could not verify removal" and warn the person off, about a sign-out that had plainly
+    // worked. What actually proves it is a structured read in which the account is gone.
+    const verifiedStatus =
+        (status.availability === "ready" || status.availability === "no-accounts") &&
+        status.source === "json";
     if (result.started && result.code === 0 && verifiedStatus && !remains) {
         return {
             ok: true,

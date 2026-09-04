@@ -184,6 +184,48 @@ export async function trustHostKey(
     const host = target.port === 22 ? target.host : `[${target.host}]:${String(target.port)}`;
     const line = `${host} ${match.type} ${match.base64}\n`;
 
+    // The `changed` state this file's own header describes as "REFUSED, with no button
+    // anywhere" was documented and never implemented: nothing here read the file it was
+    // about to append to. So a host already recorded with one ssh-rsa key, now offering a
+    // different ssh-rsa key, was accepted -- appending a second conflicting line for the
+    // same host and algorithm. After that the wrong key is a recorded key, which is the one
+    // outcome the header says must not survive.
+    //
+    // Refused rather than replaced. A rebuilt server and an intercepted connection look
+    // identical from here, and a button that resolves it in the user's favour resolves it
+    // in an attacker's favour too. A genuine rotation is removing the recorded line by hand
+    // after checking the new fingerprint out of band.
+    const alreadyRecorded = await recordedFor(target, options.knownHostsFile);
+    // Every recorded algorithm is checked, not just the one being approved. A host whose
+    // ssh-rsa key has changed is not the host that was recorded, whichever key the person
+    // happens to be looking at -- and accepting the ed25519 key here would record a second
+    // key for a host already contradicting itself.
+    const changed = alreadyRecorded.find((recorded) => {
+        const offered = scanned.offers.find((offer) => offer.type === recorded.type);
+        return offered !== undefined && offered.base64 !== recorded.base64;
+    });
+    if (changed !== undefined) {
+        const offered = scanned.offers.find((offer) => offer.type === changed.type);
+        return {
+            ok: false,
+            message:
+                `${target.host} has a changed ${changed.type} key. It was recorded as ` +
+                `${changed.fingerprint} and is now offering ${offered?.fingerprint ?? "a different key"}. ` +
+                "Nothing was recorded and nothing was replaced. If this host was genuinely " +
+                "rebuilt, check the new fingerprint out of band and remove the recorded line " +
+                "yourself before accepting it.",
+        };
+    }
+    const sameAlgorithm = alreadyRecorded.find((offer) => offer.type === match.type);
+    // Already recorded, byte for byte. Appending it again would grow the file on every
+    // confirmation and change nothing.
+    if (sameAlgorithm !== undefined) {
+        return {
+            ok: true,
+            message: `${match.type} key ${match.fingerprint} was already recorded for ${host}.`,
+        };
+    }
+
     await mkdir(dirname(options.knownHostsFile), { recursive: true });
     // Appended, never rewritten: this file may already record other targets, and replacing
     // it to add one line is how the other ones get lost.

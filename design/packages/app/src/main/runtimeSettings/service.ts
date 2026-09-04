@@ -253,7 +253,7 @@ export function createRuntimeSettingsService(
     const customFetcher = options.fetcher;
     let generation = 0;
     const persistedHubState = options.readStatusHubState?.() ?? {};
-    let hubState = {
+    const hubState = {
         registration: persistedHubState.registration === "confirmed" ? "confirmed" : "unrun",
         evidence: persistedHubState.evidence === "confirmed" ? "confirmed" : "unrun",
         replies: persistedHubState.replies === "confirmed" ? "confirmed" : "unrun",

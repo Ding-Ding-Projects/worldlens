@@ -76,6 +76,21 @@ const EXACT: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
         "A container has no desktop, so there is no native file picker to open.",
         "Choose from the folders the operator mounted.",
     ),
+    "runtimeSettings:historySetCredential": refused(
+        "The history credential is encrypted through the desktop's own keyring, and a container " +
+            "has no keyring to encrypt it with.",
+        "Read the history without a credential, or run this on the desktop to set one.",
+    ),
+    "runtimeSettings:statusHubSaveCredential": refused(
+        "Same keyring: the Status Hub credential is stored encrypted by the desktop, which this " +
+            "container cannot do.",
+        "Supply the Status Hub credential to the container out of band instead.",
+    ),
+    "converter:openInEditor": refused(
+        "Opening a result in an editor needs a desktop with that editor installed, and this " +
+            "process is a server the browser is merely talking to.",
+        "Download the converted file and open it on your own computer.",
+    ),
     "files:reveal": refused(
         "There is no file manager in a container, and these files are on the server rather than on this computer.",
     ),
@@ -101,6 +116,11 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
     bluemapSource: available,
     config: available,
     consent: available,
+    // Everything it converts is a file inside a mounted folder, and every adapter it uses is
+    // bundled in the image rather than fetched or found on a PATH. The one member that needs a
+    // desktop is refused by name above.
+    converter: available,
+
     download: available,
     eula: available,
     files: available,
@@ -115,6 +135,12 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
     mounts: available,
     preview: available,
     profiles: available,
+    // The settings themselves, their local history, and the external sources they can be
+    // driven from - all of which a container does over its own network and its own data
+    // directory. The two members that encrypt a secret through the desktop keyring are
+    // refused by name above.
+    runtimeSettings: available,
+
     profilesHistory: available,
     project: available,
     "release-ledger": available,
@@ -149,6 +175,13 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
         "Acting as a GitHub account needs credentials supplied to the container out of band.",
     ),
     hosting: optIn("ssh", "Publishing to another machine needs SSH material."),
+    ollama: refused(
+        "A local Ollama runtime is not in this image, and half of this prefix manages that " +
+            "runtime as a process on the machine - starting it, restarting it, stopping it - " +
+            "which a container cannot do for a host it does not control.",
+        "Run the model tooling on the machine that has Ollama, rather than through this deployment.",
+    ),
+
     mcserver: optIn(
         "docker-socket",
         "Running and adopting Minecraft servers means starting processes and binding ports on the host.",

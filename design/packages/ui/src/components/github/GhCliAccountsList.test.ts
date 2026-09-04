@@ -313,7 +313,7 @@ describe("rendering real accounts", () => {
 
         const gate = root.findComponent({ name: "ConfigSuperConfirm" });
         expect(gate.exists()).toBe(true);
-        expect(gate.props("action")).toContain("credential store");
+        expect(gate.props("action")).toContain("gh's local store");
         expect(gate.props("action")).toContain("attempt to revoke");
         expect(gate.props("action")).toContain("active or in-flight work");
         expect(gate.props("affected")).toEqual([

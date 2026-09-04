@@ -22,6 +22,99 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Two console defects, and a test that was failing on a rule somebody retired - [`7401fd4a1c`](https://github.com/Ding-Ding-Projects/worldlens/commit/7401fd4a1cb3c609578e71a6fd695928d3f6c1b5)
+- Finish the catalogue: nothing renders English in Cantonese mode any more - [`e9d9f99891`](https://github.com/Ding-Ding-Projects/worldlens/commit/e9d9f998918a9b014ca3488b35634b3b697aced0)
+- Translate the sentences that explain what the app just decided - [`7a6f2be934`](https://github.com/Ding-Ding-Projects/worldlens/commit/7a6f2be934339f9ed2349b70cbab10073102015e)
+- Translate the settings sections' own explanations - [`3fea11aa70`](https://github.com/Ding-Ding-Projects/worldlens/commit/3fea11aa70c9c015d348d67ec95526e32c8054ae)
+- Finish the engine-choice and runtime settings copy - [`a778ef6515`](https://github.com/Ding-Ding-Projects/worldlens/commit/a778ef6515db7dfdda41d22ae2edc8dd686f42a4)
+- Answer the add-ons and engine-choice settings in both languages - [`9a3f307511`](https://github.com/Ding-Ding-Projects/worldlens/commit/9a3f3075113dbe2ef17ac61f9e173216e243ecfc)
+- Answer twenty more strings in both languages - [`bd94f6d169`](https://github.com/Ding-Ding-Projects/worldlens/commit/bd94f6d1692db6dcf83633c51f059155f5a27820)
+- Give the AWS accounts section a catalogue, and Docker hosting its words - [`e2e30bb8bb`](https://github.com/Ding-Ding-Projects/worldlens/commit/e2e30bb8bb26e76c8c3b88e42b1374c7b3e8e386)
+- Give fifty-two strings a Cantonese answer, and stop the orphan check lying twice - [`eb02ac8656`](https://github.com/Ding-Ding-Projects/worldlens/commit/eb02ac8656b7ee6ec978c0018d5c1f43b36d9c33)
+- Make the fact check read the alternations its own table is written in - [`e74a7f38b3`](https://github.com/Ding-Ding-Projects/worldlens/commit/e74a7f38b3e8a58cf2df51b54c51aaa909a62077)
+- Ask whether a channel is reachable the way it is now decided - [`dfbaf62119`](https://github.com/Ding-Ding-Projects/worldlens/commit/dfbaf6211933cc30572ee7a841cad9d6e3367671)
+- Give the identity field a picker that still works, and the export a browse - [`d5e64b9def`](https://github.com/Ding-Ding-Projects/worldlens/commit/d5e64b9defb7c9dfdd7377116780a22c73e83c97)
+- Declare where thirteen destructive calls stand, and correct three counts - [`001e213afa`](https://github.com/Ding-Ding-Projects/worldlens/commit/001e213afac23f6d360110e8ab60e1c0871c3e99)
+- Enrol twelve surfaces in the two registries they shipped past - [`de5d61ee69`](https://github.com/Ding-Ding-Projects/worldlens/commit/de5d61ee692c3db5768f60d30f3c17c1ffc22fcf)
+- Give Kid Mode a word for the two surfaces it had no word for - [`ab1d1db520`](https://github.com/Ding-Ding-Projects/worldlens/commit/ab1d1db5200e9e88256f4ba5755fe9d3fafe11c1)
+- Point the reachability guard at the components that actually render - [`0223217a7f`](https://github.com/Ding-Ding-Projects/worldlens/commit/0223217a7fa50dc340b0ba74caa2d427adc66472)
+- Put nine articles back where a reader can find them - [`844a29e0a9`](https://github.com/Ding-Ding-Projects/worldlens/commit/844a29e0a9e2b245e25944d514604b88e6cc19e3)
+- Make each inline copy fallback say what its catalogue entry says - [`46e1ee0048`](https://github.com/Ding-Ding-Projects/worldlens/commit/46e1ee0048cae4760277c713fa3c3b7eeadb7e99)
+- Reach through the map app the way the comment beside it already says to - [`68d2dd143a`](https://github.com/Ding-Ding-Projects/worldlens/commit/68d2dd143a36df98277ea20f38f38661b85de53a)
+
+### Desktop shell
+
+- Classify fifty channels a hosted deployment was silently refusing - [`d5b0ad8696`](https://github.com/Ding-Ding-Projects/worldlens/commit/d5b0ad8696d098ed748de60eefe7a0ef497d9223)
+- Take the lint from sixty-four errors to none - [`49ce4684cc`](https://github.com/Ding-Ding-Projects/worldlens/commit/49ce4684cced053e0346af77fd26f27801ae8744)
+- Send one Content-Security-Policy header, so the fonts are allowed to load - [`7796e601b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/7796e601b1d9c946d1945f2e9a1364c6e9140fcf)
+- Let a remote render that names no engine choose the default one - [`9755846866`](https://github.com/Ding-Ding-Projects/worldlens/commit/9755846866a14ff4b92289ca3c9d619c29cba87e)
+- Believe a sign-out that leaves no accounts behind - [`9a46a028a1`](https://github.com/Ding-Ding-Projects/worldlens/commit/9a46a028a1c6007f56f2725212643a16de9a036c)
+- Check Pages can take the map before rendering it, not after - [`7dacba5146`](https://github.com/Ding-Ding-Projects/worldlens/commit/7dacba5146719e15669c7bcfc1a1096bc325a172)
+- Give an empty repository its first commit instead of sending you away - [`9b2bbef7a1`](https://github.com/Ding-Ding-Projects/worldlens/commit/9b2bbef7a12a39bd895affd8265095a132d533f8)
+
+### Documentation
+
+- Record what this session ran, and what it deliberately did not - [`2fb99b223e`](https://github.com/Ding-Ding-Projects/worldlens/commit/2fb99b223eef7363eba7bcbaafb9e98ec4737af7)
+
+## 1.0.1781 - 2026-09-02
+
+Tagged at [`e09430ee4a`](https://github.com/Ding-Ding-Projects/worldlens/commit/e09430ee4a64a13126a922e2ab6d6b2f11cccdd8).
+
+### Interface
+
+- Preserve the in-flight type, copy and picker work - [`e09430ee4a`](https://github.com/Ding-Ding-Projects/worldlens/commit/e09430ee4a64a13126a922e2ab6d6b2f11cccdd8)
+
+## 1.0.1778 - 2026-09-02
+
+Tagged at [`adc4ae5fba`](https://github.com/Ding-Ding-Projects/worldlens/commit/adc4ae5fba2ec2d97e5b50c999feef126bd53d85).
+
+### Rendering and world data
+
+- Bring nine red tests back to green, and stop re-dispatching a settled recovery - [`adc4ae5fba`](https://github.com/Ding-Ding-Projects/worldlens/commit/adc4ae5fba2ec2d97e5b50c999feef126bd53d85)
+
+## 1.0.1777 - 2026-09-02
+
+Tagged at [`debf983e4a`](https://github.com/Ding-Ding-Projects/worldlens/commit/debf983e4a0c0986fc8db7333dc1104e74126cff).
+
+### Interface
+
+- Offer the upload consent on the row that is asking for it - [`debf983e4a`](https://github.com/Ding-Ding-Projects/worldlens/commit/debf983e4a0c0986fc8db7333dc1104e74126cff)
+
+## 1.0.1775 - 2026-09-02
+
+Tagged at [`df12151614`](https://github.com/Ding-Ding-Projects/worldlens/commit/df12151614623dc7260a2b8288390cd8f6d57dd0).
+
+### Interface
+
+- Make the Java step tell the truth and the install button do something - [`df12151614`](https://github.com/Ding-Ding-Projects/worldlens/commit/df12151614623dc7260a2b8288390cd8f6d57dd0)
+
+## 1.0.1771 - 2026-09-02
+
+Tagged at [`7774dd7843`](https://github.com/Ding-Ding-Projects/worldlens/commit/7774dd78434844f1b7d57ceadf25b15fcbe1ec52).
+
+### Interface
+
+- Preserve incomplete Java bridge repair for reconciliation - [`41d106a476`](https://github.com/Ding-Ding-Projects/worldlens/commit/41d106a476cb9943271be4a7c3e8a5d388cc2584)
+
+### Build, release and tooling
+
+- Publish a map preview to Pages, keep the full map in the download - [`7774dd7843`](https://github.com/Ding-Ding-Projects/worldlens/commit/7774dd78434844f1b7d57ceadf25b15fcbe1ec52)
+
+## 1.0.1770 - 2026-09-02
+
+Tagged at [`10aecea86c`](https://github.com/Ding-Ding-Projects/worldlens/commit/10aecea86c8cd06dd0282de5cbae58fe673809a1).
+
+### Rendering and world data
+
+- Let a world with empty space in the middle be planned - [`10aecea86c`](https://github.com/Ding-Ding-Projects/worldlens/commit/10aecea86c8cd06dd0282de5cbae58fe673809a1)
+
+## 1.0.1769 - 2026-09-02
+
+Tagged at [`394e5233e9`](https://github.com/Ding-Ding-Projects/worldlens/commit/394e5233e9436d7b305247652c1d5030f2898670).
+
+### Interface
+
+- Preserve in-flight copy, console and changelog work - [`394e5233e9`](https://github.com/Ding-Ding-Projects/worldlens/commit/394e5233e9436d7b305247652c1d5030f2898670)
 - Merge the creative appearance studio - [`fa85dd3d93`](https://github.com/Ding-Ding-Projects/worldlens/commit/fa85dd3d939323749f5ab5dec812d26a652c52c7) _(summary of 8 commits, also listed here)_
 - Preserve the in-flight creative appearance studio work - [`e8cffaeeb7`](https://github.com/Ding-Ding-Projects/worldlens/commit/e8cffaeeb74f145aabd45464e941cba7ff9c0fb7)
 - Finish transactional creative ownership - [`eaed1883d2`](https://github.com/Ding-Ding-Projects/worldlens/commit/eaed1883d2985785ad6812e348ba9281874a33a8)
@@ -92,6 +185,7 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Restrict server edits to non-privileged metadata - [`265e7d441d`](https://github.com/Ding-Ding-Projects/worldlens/commit/265e7d441d92edc3d31f0a0bce24cdbb6ed324ad)
 - Merge file conversion and local model tooling - [`2991df58a3`](https://github.com/Ding-Ding-Projects/worldlens/commit/2991df58a3e8a428c5de7a36c5833834eff3fb87) _(summary of 8 commits, also listed here)_
 - Verify managed runtime rollback smoke - [`9e23288a07`](https://github.com/Ding-Ding-Projects/worldlens/commit/9e23288a07c777780f221717277a8f9ca0e3f8cd)
 - Close converter and Ollama review blockers - [`ff00909dee`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff00909dee27d558bf895786244d3815f7c3219b)

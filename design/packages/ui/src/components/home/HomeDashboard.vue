@@ -122,7 +122,7 @@ function renderMeta(row: ActiveRenderRow): string {
 function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
     return isLocalProfile(profile)
         ? t("shell.home.dashboard.profileLocal", "Rendered on this computer")
-        : t("shell.home.dashboard.profileRemote", profile.url || "Remote server");
+        : profile.url || t("shell.home.dashboard.profileRemote", "Remote server");
 }
 </script>
 
@@ -135,7 +135,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                     {{
                         returning
                             ? t("shell.home.dashboard.titleReturning", "Welcome back")
-                            : t("shell.home.dashboard.titleFresh", "Let’s make your first map")
+                            : t("shell.home.dashboard.titleFresh", "Let's make your first map")
                     }}
                 </h1>
             </header>

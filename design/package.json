@@ -16,6 +16,8 @@
         "test:watch": "vitest",
         "test:ci": "node ../scripts/run-tests-ci.mjs",
         "screenshots:check": "node --test ../scripts/check-screenshot-evidence.test.mjs && node ../scripts/check-screenshot-evidence.mjs",
+        "workflows:check": "node --test ../scripts/lint-workflows.test.mjs && node ../scripts/lint-workflows.mjs ..",
+        "published-text:check": "node --test ../scripts/check-published-text.test.mjs && node ../scripts/check-published-text.mjs",
         "ui:e2e:lowlevel": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/run-worldlens-lowlevel-e2e.ps1",
         "ui:e2e:lowlevel:check": "node --test ../scripts/worldlens-lowlevel-e2e.test.mjs",
         "lint": "eslint .",

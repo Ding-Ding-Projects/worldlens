@@ -6,7 +6,10 @@ export interface GalleryIpc { dispose(): void; }
 function sender(event: IpcMainInvokeEvent): void { if (!event.senderFrame) throw new Error("gallery request has no sender frame"); }
 export function registerGalleryHandlers(ipcMain: Pick<IpcMain, "handle" | "removeHandler">, dataDir: string): GalleryIpc {
     const store = new GalleryStore(dataDir);
-    const handlers: Array<[string, (...args: any[]) => unknown]> = [
+    // Electron's own handler type, rather than a hand-written signature: these handlers take
+    // different arguments from one another, so any shared shape written here is either a lie
+    // or an any. Parameters<typeof ipcMain.handle>[1] is exactly what handle() accepts.
+    const handlers: Array<[string, Parameters<typeof ipcMain.handle>[1]]> = [
         ["gallery:list", async (event) => { sender(event); return store.list(); }],
         ["gallery:readAsset", async (event, id: string) => { sender(event); return store.readAsset(id); }],
         ["gallery:add", async (event, draft: GalleryDraft) => { sender(event); return store.add(draft); }],

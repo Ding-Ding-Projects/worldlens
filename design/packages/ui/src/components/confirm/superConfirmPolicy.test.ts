@@ -193,14 +193,118 @@ interface DestructiveFile {
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
     "bridge.d.ts": {
-        count: 4,
+        count: 5,
         destroys:
             "config files on disk, the recorded Mojang download consent, older revisions of a " +
-            "config folder's version history, and older revisions of a world's project history",
+            "config folder's version history, older revisions of a world's project history, and " +
+            "one configured external settings source",
         standing: "type-only",
         note:
             "The preload bridge's shape, not a call to it. All four routes are declared again at " +
             "the files that actually invoke them, and the gate belongs there.",
+    },
+    "components/appearance/creative/CreativeStudio.vue": {
+        count: 3,
+        destroys: "a saved appearance preset, a guide, and the creative layers of the document open in the editor",
+        standing: "reversible",
+        note:
+            "Every one publishes through commitCreativeChange, which is the creative document's own " +
+            "change history rather than a write straight to storage, so each is undone the same way any " +
+            "other edit in this editor is. revokeObjectURL is a browser lifecycle call and is excluded " +
+            "by the sweep's own pattern.",
+    },
+    "components/console/consoleHistory.ts": {
+        count: 10,
+        destroys: "nothing: every call clears a temporary key an atomic write had just finished with",
+        standing: "buffer",
+        note:
+            "Ten removeItem calls and not one of them is a deletion of anything a person owns. The " +
+            "store writes to a temporary key, reads it back to prove the write landed, then removes " +
+            "the temporary. Retained console lines are removed by renderRun.ts, which is declared in " +
+            "its own right.",
+    },
+    "components/gallery/ScreenshotGalleryScreen.vue": {
+        count: 1,
+        destroys: "the selected screenshot records, and the captured images behind them, from the local gallery",
+        standing: "gated",
+        gatedIn: "components/gallery/ScreenshotGalleryScreen.vue",
+    },
+    "components/mcserver/CommandBuilder.vue": {
+        count: 3,
+        destroys: "a saved command preset, and one execute clause of the command being built",
+        standing: "reversible",
+        note:
+            "A preset is a short command the same builder writes again, and an execute clause belongs " +
+            "to a command nobody has run yet. Neither reaches a server.",
+    },
+    "components/mcserver/TargetSelectorField.vue": {
+        count: 2,
+        destroys: "one score or tag condition from the target selector being assembled",
+        standing: "buffer",
+        note:
+            "A condition in a selector nobody has run. The field is building an argument string, and " +
+            "removing a row from it is an edit to unsent text rather than a deletion of anything " +
+            "stored. Nothing reaches a server until the command is sent.",
+    },
+    "components/mcserver/WorldGeneratorDialog.vue": {
+        count: 1,
+        destroys: "one superflat layer from the world settings this dialog is still collecting",
+        standing: "buffer",
+        note:
+            "The dialog has not created the world yet. A layer removed here is a layer that never " +
+            "existed anywhere but this form, and closing the dialog discards the lot anyway.",
+    },
+    "components/mcserver/awsProvisionModel.ts": {
+        count: 1,
+        destroys: "the local note of which AWS instance belongs to a server",
+        standing: "reversible",
+        note:
+            "Forgetting the note, not the instance. Nothing is stopped or terminated on AWS, and the " +
+            "instance is still there to be found and tracked again.",
+    },
+    "components/remote/DockerHostingScreen.vue": {
+        count: 1,
+        destroys: "the one-time authorization token this screen was holding for a stop it has finished asking about",
+        standing: "buffer",
+        note:
+            "Clearing a single-use token after its one use, which is the safe half of handling one. " +
+            "It authorises nothing once spent, no container is touched, and the next stop asks for " +
+            "its own.",
+    },
+    "components/remote/RemoteHostingScreen.vue": {
+        count: 1,
+        destroys: "one remembered browser-storage value for this screen",
+        standing: "reversible",
+        note: "A view preference. Nothing on a remote host, and nothing a person authored.",
+    },
+    "components/remote/dockerHostingBridge.ts": {
+        count: 1,
+        destroys: "nothing: it is the bridge interface's own declaration of removeToken",
+        standing: "type-only",
+        note: "Declared again at DockerHostingScreen.vue, which is where the call actually happens.",
+    },
+    "components/runtimeSettings/RuntimeSettingsPanel.vue": {
+        count: 3,
+        destroys: "one scheduled settings rule, and one configured external source",
+        standing: "reversible",
+        note:
+            "Both are rows the same panel writes again, and a schedule edit is recorded by the local " +
+            "settings history like any other. removeEventListener is a browser call and the sweep's " +
+            "own pattern excludes it.",
+    },
+    "components/settings/AddonManagerPanel.vue": {
+        count: 1,
+        destroys: "one installed design add-on",
+        standing: "reversible",
+        note: "The add-on is installed again from the same panel; nothing it produced is removed with it.",
+    },
+    "components/world/renderRun.ts": {
+        count: 1,
+        destroys: "the retained console lines a person selected, for a render that keeps running",
+        standing: "buffer",
+        note:
+            "Its own doc comment says it: selected retained console lines, without stopping or " +
+            "restarting the render. No tile, no output directory and no record of the run is touched.",
     },
     "components/ProfileManager.vue": {
         count: 1,
@@ -507,10 +611,10 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "to say so.",
     },
     "components/ollama/OllamaScreen.vue": {
-        count: 3,
+        count: 4,
         destroys:
-            "a locally pulled Ollama model's blob on disk, or an entire local chat session and " +
-            "every message it holds",
+            "a locally pulled Ollama model's blob on disk, an entire local chat session and " +
+            "every message it holds, or one row of the pull queue that is not currently pulling",
         standing: "gated",
         gatedIn: "components/ollama/OllamaScreen.vue",
         note:
@@ -705,8 +809,10 @@ const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
             "same menu that removed one.",
     },
     "components/world/RenderRunPanel.vue": {
-        count: 1,
-        destroys: "nothing: it stops a render that is running",
+        count: 2,
+        destroys:
+            "nothing by stopping a render that is running, and the retained console lines a person " +
+            "selected in its history panel",
         standing: "resumable",
         note:
             "Tiles already drawn are kept deliberately, and the interrupted-render offer " +

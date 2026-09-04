@@ -119,7 +119,11 @@ describe("the Java resolve seam", () => {
 
 describe("the Java progress seam", () => {
     it("delivers the event, not the server id", async () => {
-        let sink: ((id: string, event: unknown) => void) | null = null;
+        // A holder rather than a bare `let`. The assignment happens inside the onProgress
+        // callback, which TypeScript cannot see from here, so it narrowed the variable to
+        // exactly `null` at every use below and reported the calls as not callable. A
+        // property access keeps the declared union, which is what is true at runtime.
+        const captured: { sink: ((id: string, event: unknown) => void) | null } = { sink: null };
         const store = createServerStore(
             hostOptions({
                 resolve: (async () => ({
@@ -127,9 +131,9 @@ describe("the Java progress seam", () => {
                     value: discoveryReport({ feature: 21 }),
                 })) as never,
                 onProgress: (listener) => {
-                    sink = listener as (id: string, event: unknown) => void;
+                    captured.sink = listener as (id: string, event: unknown) => void;
                     return () => {
-                        sink = null;
+                        captured.sink = null;
                     };
                 },
             }),
@@ -137,9 +141,9 @@ describe("the Java progress seam", () => {
 
         const seen: JavaProvisionProgress[] = [];
         const stop = store.onJavaProgress((progress) => seen.push(progress));
-        expect(sink).not.toBeNull();
+        expect(captured.sink).not.toBeNull();
 
-        sink?.("srv-1", {
+        captured.sink?.("srv-1", {
             phase: "downloading",
             receivedBytes: 1024,
             totalBytes: 4096,
@@ -150,8 +154,8 @@ describe("the Java progress seam", () => {
         expect(seen[0]?.receivedBytes).toBe(1024);
 
         // Anything that is not a progress event is ignored rather than rendered as NaN.
-        sink?.("srv-1", "srv-1");
-        sink?.("srv-1", null);
+        captured.sink?.("srv-1", "srv-1");
+        captured.sink?.("srv-1", null);
         expect(seen).toHaveLength(1);
         stop();
     });

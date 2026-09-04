@@ -1,0 +1,227 @@
+{
+  "note": "Occurrences reviewed by hand and found to be the ordinary English or technical word rather than the private sense. Positions and reasons only: this file never names a term, because naming one here would be the leak check-published-text.mjs exists to prevent. An edit that moves a line re-flags it, which is correct -- the review was of that occurrence, not of the word.",
+  "entries": [
+    {
+      "file": "design/packages/site/src/appearance/editor/iconButtons.test.ts",
+      "line": 250,
+      "column": 51,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "design/packages/site/src/appearance/strings.ts",
+      "line": 189,
+      "column": 54,
+      "why": "an ordinary English word in prose"
+    },
+    {
+      "file": "design/packages/site/src/appearance/strings.ts",
+      "line": 190,
+      "column": 55,
+      "why": "an ordinary English word in prose"
+    },
+    {
+      "file": "design/packages/site/src/content/articles/bedrock-worlds.ts",
+      "line": 183,
+      "column": 93,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "design/packages/site/src/content/articles/bedrock-worlds.ts",
+      "line": 184,
+      "column": 43,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-repair.md",
+      "line": 80,
+      "column": 94,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-repair.md",
+      "line": 80,
+      "column": 234,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-repair.md",
+      "line": 249,
+      "column": 955,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-repair.md",
+      "line": 249,
+      "column": 1027,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-updates.md",
+      "line": 342,
+      "column": 66,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-updates.md",
+      "line": 346,
+      "column": 28,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-updates.md",
+      "line": 353,
+      "column": 82,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-updates.md",
+      "line": 366,
+      "column": 81,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-updates.md",
+      "line": 569,
+      "column": 197,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-updates.md",
+      "line": 571,
+      "column": 43,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-updates.md",
+      "line": 575,
+      "column": 89,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/automatic-updates.md",
+      "line": 578,
+      "column": 78,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 350,
+      "column": 1,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 358,
+      "column": 32,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 370,
+      "column": 1,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 399,
+      "column": 77,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 400,
+      "column": 82,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 416,
+      "column": 39,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 679,
+      "column": 421,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 699,
+      "column": 46,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 898,
+      "column": 37,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 900,
+      "column": 21,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 906,
+      "column": 33,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 916,
+      "column": 63,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 916,
+      "column": 119,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 922,
+      "column": 113,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 1046,
+      "column": 524,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 1054,
+      "column": 72,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "docs/changelog-viewer.md",
+      "line": 93,
+      "column": 8,
+      "why": "the ordinary command sense, as in git cat-file"
+    },
+    {
+      "file": "docs/changelog-viewer.md",
+      "line": 217,
+      "column": 52,
+      "why": "the ordinary command sense, as in git cat-file"
+    },
+    {
+      "file": "docs/compatibility/banner-patterns.md",
+      "line": 31,
+      "column": 22,
+      "why": "a Minecraft mob name in game data"
+    },
+    {
+      "file": "docs/mcserver-web-console.md",
+      "line": 25,
+      "column": 20,
+      "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    }
+  ]
+}

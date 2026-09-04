@@ -168,7 +168,12 @@ const REACHABLE_SURFACES: readonly {
         why: "Where the tab strip's own running-render counter points. Unreachable, that counter counts into nothing.",
     },
     {
-        component: "ProfileManager",
+        // The surface is still reachable; the component behind it is not the same one.
+        // App.vue's #servers slot renders DashboardScreen, and ProfileManager.vue stayed in
+        // the tree unreferenced. The capture harness learned this the expensive way: it
+        // waited twenty seconds per run for .mb-profiles__list, a listbox that mounts
+        // nowhere, before being pointed at .mb-dashboard instead.
+        component: "DashboardScreen",
         reachedBy: "PAGE_SERVERS",
         why: "The server profile list, and where the command palette's own profiles row lands.",
     },
@@ -205,14 +210,13 @@ const REACHABLE_SURFACES: readonly {
      * rail exists to reach these two.
      */
     {
-        component: "HomeScreen",
+        // HomeScreen.vue and HomeCatalogues.vue were the two catalogue-shaped surfaces this
+        // replaced. Both are still in the tree, unreferenced, should it need reverting - see
+        // the comment beside <HomeDashboard> in App.vue. Listing a deliberately retired
+        // component here asserts that a person can open something nobody meant them to.
+        component: "HomeDashboard",
         reachedBy: "AppRail",
-        why: "The landing surface. It was imported into App.vue and never rendered, which <script setup> drops in silence.",
-    },
-    {
-        component: "HomeCatalogues",
-        reachedBy: "AppRail",
-        why: "The exhaustive index of every capability, underneath Home's own weighted list.",
+        why: "The landing surface: what is happening on this machine now, not an index of everything the application could do.",
     },
     {
         component: "CataloguePage",

@@ -249,8 +249,11 @@ export const projectCanvas: Article = {
                 },
                 {
                     kind: "callout",
-                    tone: "not-implemented",
-                    title: "No built-artifact evidence yet",
+                    // A warning rather than the tone that means unbuilt: the canvas is shipped
+                    // and this says what it does not cover. Badging it "shipped" while calling
+                    // itself unimplemented leaves a reader no way to know which to believe.
+                    tone: "warning",
+                    title: "No built-artifact evidence yet, and one interaction missing",
                     content:
                         "Everything above is proven by source-level and component-shape tests. Nobody has launched the packaged application and looked at the canvas, so there is no screenshot, no recording, and no confirmation that the pan/zoom/drag interactions feel right on a real screen. Wire dragging between ports is also unimplemented: the wires you see are always derived from the model, never drawn by a person.",
                 },

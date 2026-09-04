@@ -579,6 +579,13 @@ export const WORLDREPO_FIXED = {
     "worldrepo.status.notChecked": { en: "Not checked", yue: "未檢查" },
     "worldrepo.status.unknown": { en: "Could not tell", yue: "睇唔出" },
     "worldrepo.size": { en: "{size} across {files} files would be pushed.", yue: "會推送 {size}，共 {files} 個檔案。" },
+    /* Catalogue-coverage sweep: these answered nothing, so every language and every
+       funny level rendered the English fallback. */
+    "worldrepo.repo.failed": { en: "Your repositories could not be read: {detail}", yue: "讀唔到你嘅 repository：{detail}" },
+    "worldrepo.repo.refresh": { en: "Refresh owners and repositories", yue: "重新讀取擁有者同 repository" },
+    "worldrepo.repo.refreshing": { en: "Reading them again...", yue: "再讀多次…" },
+    "worldrepo.repo.emptyForOwner": { en: "This account cannot write to any repository under {owner}.", yue: "呢個戶口喺 {owner} 之下冇任何可以寫入嘅 repository。" },
+    "worldrepo.repo.helpFiltered": { en: "Showing repositories under {owner}. {hidden} under other owners are hidden; clear the owner above to see them.", yue: "顯示緊 {owner} 之下嘅 repository。另外 {hidden} 個喺其他擁有者之下嘅收埋咗；清走上面嗰個擁有者就見到。" },
 } as const satisfies Record<string, FixedString>;
 
 export const WORLDREPO_FACTS = {

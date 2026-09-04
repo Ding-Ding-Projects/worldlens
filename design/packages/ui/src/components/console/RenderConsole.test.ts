@@ -182,9 +182,34 @@ describe("advice beside the engine's line", () => {
         // vue-i18n compiles the English fallback as a message format, so this is the one
         // path where an interpolated value silently disappears while the sentence still
         // reads like a sentence.
-        const wrapper = render([engineLine("WebServer bound to /0.0.0.0:8100")]);
+        //
+        // The annotation is built here rather than through annotationsFor(), because no
+        // rule in ANNOTATION_RULES carries a `capture` any more: the one that did,
+        // `web-server-started`, went with the local WebServer path in 6a2d6ae8. That
+        // commit updated annotate.test.ts and left this test asserting a sentence the
+        // app had stopped producing, so it failed on a rule's absence rather than on the
+        // interpolation it was written to guard. Driving the component directly keeps
+        // the guard pointed at adviceText(), which is the code that would lose the value,
+        // and keeps it standing for the next rule that carries one.
+        const wrapper = render([
+            {
+                ...engineLine("Serving on 0.0.0.0:8100"),
+                annotations: [
+                    {
+                        kind: "port-conflict",
+                        tone: "tip",
+                        settings: null,
+                        text: {
+                            key: "console.advice.probeAddress",
+                            fallback: "The map is being served on {address}.",
+                            values: { address: "0.0.0.0:8100" },
+                        },
+                    },
+                ],
+            },
+        ]);
 
-        expect(wrapper.text()).toContain("The web server is up on /0.0.0.0:8100.");
+        expect(wrapper.text()).toContain("The map is being served on 0.0.0.0:8100.");
         expect(wrapper.text()).not.toContain("{address}");
         wrapper.unmount();
     });
@@ -265,7 +290,10 @@ describe("narrowing what is shown", () => {
 describe("selection-aware structured export", () => {
     it("selects a visible line and exports it as JSON with provenance fields", async () => {
         const wrapper = render([engineLine("first"), engineLine("second")]);
-        const checkboxes = wrapper.findAll(".mb-console__select");
+        // The selection control is a v-checkbox, so .mb-console__select is the wrapper
+        // element and the checkbox itself is the input inside it. Setting a value on the
+        // wrapper fails with "cannot be called on DIV".
+        const checkboxes = wrapper.findAll(".mb-console__select input");
         await checkboxes[1]?.setValue(true);
         const createObjectURL = vi.fn((_blob: Blob) => "blob:console");
         const revokeObjectURL = vi.fn();

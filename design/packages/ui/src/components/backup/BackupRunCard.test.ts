@@ -93,7 +93,10 @@ const row: BackupRow = {
 
 function mountCard(initial: BackupRow = row, attachTo?: HTMLElement) {
     return mount(BackupRunCard, {
-        props: { row: initial, canCancel: true, canOpenSettings: true },
+        // canPause is required and was missing. It is not decoration: the card only offers
+        // the pause button when the host genuinely has both pauseBackup and resumeBackup,
+        // which is what backupBridge.ts computes it from.
+        props: { row: initial, canCancel: true, canOpenSettings: true, canPause: true },
         global: { plugins: [i18n, vuetify] },
         ...(attachTo === undefined ? {} : { attachTo }),
     });

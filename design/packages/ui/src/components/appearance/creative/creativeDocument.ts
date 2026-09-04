@@ -13,7 +13,6 @@ import {
     type CreativeGradientLayer,
     type CreativeHistoryEntry,
     type CreativeLayer,
-    type CreativeMask,
     type CreativeTextLayer,
     type CreativeVectorLayer,
     type CreativeImportResult,
@@ -51,15 +50,6 @@ const DEFAULT_EFFECTS: CreativeEffectStack = {
     shadow: { x: 0, y: 0, blur: 0, color: "" },
     innerGlow: { radius: 0, color: "" },
     outerGlow: { radius: 0, color: "" },
-};
-const DEFAULT_MASK: CreativeMask = {
-    enabled: false,
-    kind: "rectangle",
-    x: 0,
-    y: 0,
-    width: 100,
-    height: 100,
-    feather: 0,
 };
 const DEFAULT_LOGO: CreativeLogoComposition = {
     enabled: false,

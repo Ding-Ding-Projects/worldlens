@@ -59,7 +59,7 @@ export function redactConsoleText(value: string): string {
         // Absolute filesystem paths are useful in the live console but are user-local
         // data in a retained record or export. Keep the fact that a path was printed,
         // without retaining the account name, checkout, or world location.
-        .replace(/(?:[A-Za-z]:[\\/]|\\\\)[^\s"'<>]+/g, "[path]")
+        .replace(/(?:(?<![A-Za-z0-9])[A-Za-z]:[\\/]|\\\\)[^\s"'<>]+/g, "[path]")
         .replace(/(?:\/(?:Users|home|tmp|var|private)\/)[^\s"'<>]+/g, "[path]");
 }
 
@@ -420,7 +420,7 @@ function fitIndexToBudget(index: HistoryIndex, drafts: readonly SegmentDraft[]):
     let first = entries[0];
     if (first === undefined) return { index: { ...index, entries }, drafts: keptDrafts };
     const firstRenderId = first.renderId;
-    let firstDrafts = keptDrafts.filter((draft) => draft.renderId === firstRenderId).sort((left, right) => left.segment - right.segment);
+    const firstDrafts = keptDrafts.filter((draft) => draft.renderId === firstRenderId).sort((left, right) => left.segment - right.segment);
     while (firstDrafts.length > 0 && totalBytes({ ...index, entries }) > CONSOLE_HISTORY_MAX_BYTES) {
         const removed = firstDrafts.shift();
         if (removed === undefined) break;
@@ -653,6 +653,7 @@ function persistV2(record: ConsoleHistoryInput, target: Storage): boolean {
         first = {
             ...first,
             segmentStart: first.segmentStart + 1,
+            segmentRevisions: first.segmentRevisions.slice(1),
             segmentCount: first.segmentCount - 1,
             lineCount: Math.max(0, first.lineCount - segment.lines.length),
             evictedLines: first.evictedLines + segment.lines.length,

@@ -241,6 +241,49 @@ async function waitForCondition(predicate: () => boolean, timeoutMs = 10000): Pr
     expect(predicate()).toBe(true);
 }
 
+/**
+ * Writes a region file and keeps re-touching it until something reacts.
+ *
+ * These tests are flaky on this platform and the cause is measured, not guessed. On Windows
+ * with Node 24 and later this service must poll, because native fs.watch aborts the process
+ * there -- see usesPollingForCurrentRuntime's own comment for the observed abort, which is why
+ * polling is not negotiable. Chokidar's polling sees a new directory entry in about 115ms when
+ * it works, and intermittently one watcher in a run never arms at all: instrumented, its run
+ * loop was healthy, updateRegion never ran, and take() simply never returned. Every test in
+ * this file passes alone; the failing set moves between runs.
+ *
+ * Re-touching with different bytes recovers the ordinary case where one poll was missed --
+ * nothing these tests assert depends on how many writes produced the event, and a region file
+ * being rewritten repeatedly is what happens while a server runs. A poller compares size and
+ * mtime, so the content differs each time: rewriting identical bytes inside one filesystem
+ * timestamp tick is indistinguishable from no write at all.
+ *
+ * It does not recover a watcher that never armed, and it is not pretending to. What it
+ * replaces is a bare ten-second timeout that said only "expected +0 to be 1" with a message
+ * naming the file and how many writes went unanswered, which is the difference between a
+ * mystery and a report.
+ */
+async function writeUntilSeen(
+    file: string,
+    seen: () => boolean,
+    timeoutMs = 10000,
+): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    let attempt = 0;
+    while (!seen() && Date.now() < deadline) {
+        writeFileSync(file, `data ${String(attempt)}`);
+        attempt++;
+        for (let waited = 0; waited < 400 && !seen(); waited += 25) {
+            await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+    }
+    expect(
+        seen(),
+        `nothing reacted to ${String(attempt)} write(s) to ${file} within ${String(timeoutMs)}ms -- ` +
+            "see this helper's comment for the polling-watcher behaviour behind it",
+    ).toBe(true);
+}
+
 /** Waits for the real watcher/queue bridge without turning a busy host into a false failure. */
 async function waitForScheduledRenderTaskCount(manager: RenderManager, expected: number, timeoutMs = 10000): Promise<void> {
     await waitForCondition(() => manager.getScheduledRenderTaskCount() >= expected, timeoutMs);
@@ -257,7 +300,7 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         service.start();
         await watcherReady(service);
 
-        writeFileSync(join(regionFolder, "r.3.-2.mca"), "data");
+        await writeUntilSeen(join(regionFolder, "r.3.-2.mca"), () => manager.getScheduledRenderTaskCount() >= 1);
 
         // let the real fs event and the (short, test-configured) debounce fire
         await waitForScheduledRenderTaskCount(manager, 1);
@@ -336,7 +379,7 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         service.start();
         await watcherReady(service);
 
-        writeFileSync(join(regionFolder, "r.2.2.mca"), "data");
+        await writeUntilSeen(join(regionFolder, "r.2.2.mca"), () => manager.getScheduledRenderTaskCount() >= 2);
         await waitForScheduledRenderTaskCount(manager, 2);
 
         // the running/head task is untouched, and the new one queued behind it rather than
@@ -388,7 +431,7 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         service.start();
         await watcherReady(service);
 
-        writeFileSync(join(regionFolder, "r.1.1.mca"), "data");
+        await writeUntilSeen(join(regionFolder, "r.1.1.mca"), () => (service as unknown as { scheduledUpdates: Map<string, unknown> }).scheduledUpdates.size === 1);
         await waitForCondition(() => (service as unknown as { scheduledUpdates: Map<string, unknown> }).scheduledUpdates.size === 1);
 
         // the debounce timer is pending, nothing scheduled yet
@@ -461,7 +504,7 @@ describe("MapUpdateService: bridges watch events to scheduled render tasks (issu
         service.start();
         await watcherReady(service);
 
-        writeFileSync(join(regionFolder, "r.9.9.mca"), "data");
+        await writeUntilSeen(join(regionFolder, "r.9.9.mca"), () => errors.some((e) => e.message.includes("Exception scheduling render task")));
         await waitForCondition(() => errors.some((e) => e.message.includes("Exception scheduling render task")));
         // the run-loop is still alive after the throw — proven by closing it cleanly rather
         // than the close() call hanging on a run-loop that already died some other way
@@ -500,7 +543,7 @@ describe("MapUpdateService: over a real worldgen-generated world (issue #40's ow
         await watcherReady(service);
 
         // touch (rewrite) the real, worldgen-produced region file
-        writeFileSync(join(regionFolder, regionFiles[0]!), "touched");
+        await writeUntilSeen(join(regionFolder, regionFiles[0]!), () => manager.getScheduledRenderTaskCount() >= 1);
 
         await waitForScheduledRenderTaskCount(manager, 1);
         const task = manager.getScheduledRenderTasks()[0] as WorldRegionUpdateTask;

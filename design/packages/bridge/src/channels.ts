@@ -222,6 +222,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "mcserver:plugins:updates",
     "mcserver:plugins:versions",
     "mcserver:probe",
+    "mcserver:rcon:configure",
     "mcserver:rcon:test",
     "mcserver:save",
     "mcserver:start",

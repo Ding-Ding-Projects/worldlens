@@ -169,7 +169,6 @@ export function ensureManagedUpstreamJava(
     if (running !== undefined) return attachFlight(running, options);
     const controller = new AbortController();
     const listeners = new Set<(progress: EngineProvisionProgress) => void>();
-    let flight: EngineFlight;
     const operation = Promise.resolve()
         .then(() =>
             ensureManagedUpstreamJavaOnce({
@@ -181,7 +180,7 @@ export function ensureManagedUpstreamJava(
         .finally(() => {
             if (inflight.get(key) === flight) inflight.delete(key);
         });
-    flight = { key, controller, listeners, waiters: 0, promise: operation };
+    const flight: EngineFlight = { key, controller, listeners, waiters: 0, promise: operation };
     inflight.set(key, flight);
     return attachFlight(flight, options);
 }
@@ -370,7 +369,7 @@ function isTransientRename(error: unknown): boolean {
     return code === "EPERM" || code === "EACCES" || code === "EBUSY" || code === "EEXIST";
 }
 
-function isRecord(value: unknown): value is Record<string, any> {
+function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null;
 }
 

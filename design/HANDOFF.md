@@ -54,10 +54,15 @@ is deliberately not done here.
 
 ### Known red, and not caused by this work
 
-- `mcserver/mcserverWiring.test.ts` (2 tests) looks for literal `ipcRenderer.invoke("mcserver:…")`
-  strings in `preload/index.ts`. The preload was refactored to a generic transport plus
-  `createWorldlensBridge` from `@worldlens/bridge`, so the guard now guards nothing and fails
-  permanently. It fails identically at `ea550145`. Fix it against the bridge package or retire it.
+- ~~`mcserver/mcserverWiring.test.ts` guards nothing and fails permanently.~~ **Withdrawn.**
+  That was true of the version on `ea550145`, and `main` had already rewritten the guard to check
+  `BRIDGE_CHANNELS` rather than grepping the preload for literal strings. After merging `main` it
+  failed once more, for a completely different and much better reason: it reported
+  `mcserver:rcon:configure` missing from the bridge inventory. That was a stale
+  `packages/bridge/dist/channels.js` from the previous day - the test imports `@worldlens/bridge`,
+  whose `main` points into `dist/`, so it was reading a build that predated the channel. Deleting
+  `dist` and `*.tsbuildinfo` and rebuilding turns it green. Worth recording because the failure
+  names a real channel and reads exactly like a genuine wiring gap rather than a stale build.
 - `scripts/lint-workflows.mjs` reports **12 release-boundary problems on `main` already** -
   action-count inventories and step fingerprints that have drifted from the workflows. Verified
   by diffing its output with and without this work: byte-identical, so nothing here added to it.

@@ -256,7 +256,15 @@ describe("choosing, and falling back where anybody can see it", () => {
             ...scp,
             uploadDirectory: () =>
                 Promise.reject(
-                    new TransferError("Sending C:\\saves\\world failed.", "rsync: -e", 1),
+                    // A real rsync-specific failure. The fallback is deliberately narrow - it
+                    // fires only when rsync itself is missing or cannot speak its protocol, not
+                    // on an ordinary transfer failure, where scp would simply fail again. The
+                    // old two-token stub "rsync: -e" predated that narrowing and matched none of it.
+                    new TransferError(
+                        "Sending C:\\saves\\world failed.",
+                        "rsync: Failed to exec ssh: remote shell not found",
+                        1,
+                    ),
                 ),
         };
 

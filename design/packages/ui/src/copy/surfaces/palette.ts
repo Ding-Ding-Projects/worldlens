@@ -1371,6 +1371,10 @@ export const PALETTE_FIXED = {
      */
     "servers.title": { en: "Servers", yue: "伺服器" },
     "tabs.finder.title": { en: "Find a tab", yue: "搵分頁" },
+    /* Catalogue-coverage sweep: these answered nothing, so every language and every
+       funny level rendered the English fallback. */
+    "palette.shell.adultMode": { en: "Opens the one grown-up gate before switching out of Kid Mode.", yue: "轉返做大人模式之前，會先開嗰個大人閘。" },
+    "palette.where.adultMode": { en: "Opens the grown-up gate in Kid Mode.", yue: "喺小朋友模式度開個大人閘。" },
 } as const satisfies Record<string, FixedString>;
 
 export const PALETTE_FACTS = {
@@ -1405,7 +1409,9 @@ export const PALETTE_FACTS = {
     },
     "palette.row.removeFavourite": { en: ["{title}", "favourites"], yue: ["{title}", "最愛"] },
     "palette.choice.menuLabel": {
-        en: ["{title}", "options || Choices"],
+        // Level 5 says "The many little choices for {title}" - the word is there, in lower
+        // case. The comparison is case-sensitive on purpose, so the alternative is spelled out.
+        en: ["{title}", "options || Choices || choices"],
         yue: ["{title}", "選項 || 選擇"],
     },
     "palette.choice.searchLabel": {

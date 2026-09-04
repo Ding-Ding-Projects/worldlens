@@ -458,6 +458,17 @@ function hardenSession(baseUrl: string): void {
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
         const headers = { ...details.responseHeaders };
         if (hasTrustedOrigin(details.url, baseUrl) && details.resourceType === "mainFrame") {
+            // Case-insensitive delete before the assignment, because assigning over a spread of
+            // the response headers adds a SECOND, differently-cased Content-Security-Policy
+            // entry rather than replacing the first. Repeated CSP headers are not "last one
+            // wins": the browser enforces every one of them, so the narrower original kept
+            // winning and `font-src 'self'` refused every data: URI font the interface embeds.
+            // Measured in a packaged build: twenty refusals in one capture run, no error thrown,
+            // every element keeping its correct styles and the typeface silently falling back.
+            // packages/kid-check/src/main/index.ts found and documented this first.
+            for (const key of Object.keys(headers)) {
+                if (key.toLowerCase() === "content-security-policy") delete headers[key];
+            }
             headers["Content-Security-Policy"] = [
                 "default-src 'self'; " +
                     "script-src 'self'; " +
@@ -555,7 +566,12 @@ function registerIpc(): void {
     ipcMain.handle("app:deployment", () => ({ hosted: false }));
     ipcMain.handle("app:buildProvenance", () => ({
         version: app.getVersion(),
-        builtAt: __WORLDLENS_BUILT_AT__,
+        // typeof, not a bare read, for the same reason the hosted route uses one.
+        builtAt: typeof __WORLDLENS_BUILT_AT__ === "string" ? __WORLDLENS_BUILT_AT__ : null,
+        // A time says when this was built; only the commit says which source it came
+        // from, and two builds of different commits can share a committer date.
+        sourceCommit:
+            typeof __WORLDLENS_SOURCE_COMMIT__ === "string" ? __WORLDLENS_SOURCE_COMMIT__ : null,
     }));
     registerReleaseLedgerHandlers();
 

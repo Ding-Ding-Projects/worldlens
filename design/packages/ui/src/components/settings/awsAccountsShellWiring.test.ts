@@ -42,10 +42,22 @@ describe("aws-accounts settings section is genuinely reachable", () => {
         expect(bridge).toMatch(/^\s*const host = \(globalThis as \{ worldlens\?: \{ mcserver\?: \{ awsAccounts\?: AwsAccountsBridge \} \} \}\)\.worldlens;$/m);
     });
 
-    it("the preload actually exposes mcserver.awsAccounts.list/setAlias/credits", () => {
-        const preload = source(join("..", "..", "..", "..", "app", "src", "preload", "index.ts"));
-        expect(preload).toMatch(/^\s*list: \(\) => ipcRenderer\.invoke\("mcserver:aws:accounts"\),$/m);
-        expect(preload).toMatch(/^\s*setAlias: \(request\) => ipcRenderer\.invoke\("mcserver:aws:accountAlias", request\),$/m);
-        expect(preload).toMatch(/^\s*credits: \(request\) => ipcRenderer\.invoke\("mcserver:aws:credits", request\),$/m);
+    it("has the three aws-account channels in the shared bridge inventory", () => {
+        // This used to read the preload for one hand-written ipcRenderer.invoke per call. The
+        // preload stopped writing them: createWorldlensBridge forwards every channel through a
+        // single invoke, so those literals no longer exist and the old form could only fail.
+        // Membership of BRIDGE_CHANNELS is what decides reachability now.
+        const channels = source(join("..", "..", "..", "..", "bridge", "src", "channels.ts"));
+        for (const channel of [
+            "mcserver:aws:accounts",
+            "mcserver:aws:accountAlias",
+            "mcserver:aws:credits",
+        ]) {
+            expect(
+                channels,
+                `${channel} is not in BRIDGE_CHANNELS, so the bridge refuses it and this ` +
+                    "settings section has nothing behind its controls",
+            ).toContain(`"${channel}"`);
+        }
     });
 });

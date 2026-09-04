@@ -19,7 +19,7 @@
  * and why they no longer apply now that the helper modules are covered too.
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -190,6 +190,15 @@ describe("world.ts: no level drops a value out of a sentence", () => {
 const worldComponentsRoot = fileURLToPath(new URL("../../components/world", import.meta.url));
 
 /**
+ * `App.vue` is the tenth covered file and the only one outside `components/world`. The
+ * whole `world.drop.*` family and `world.renderPromotion.recovered` are called from there
+ * -- the drop handler and the promotion toast live on the shell, not inside the wizard --
+ * so a scan confined to `components/world` reports all nine as orphans while every one of
+ * them has a real call site.
+ */
+const appShellSource = fileURLToPath(new URL("../../App.vue", import.meta.url));
+
+/**
  * Every `.vue`/`.ts` file in `components/world` that carries its own `world.*` call sites,
  * matched by exact filename. `consentState.ts`, `index.ts`, `wizardModel.ts`,
  * `wizardSteps.ts` and `worldBridge.ts` are deliberately absent: none of them calls `t()`
@@ -219,9 +228,12 @@ const COVERED_FILES = new Set([
 ]);
 
 function coveredSourceFiles(): string[] {
-    return readdirSync(worldComponentsRoot)
-        .filter((name) => COVERED_FILES.has(name))
-        .map((name) => join(worldComponentsRoot, name));
+    return [
+        ...readdirSync(worldComponentsRoot)
+            .filter((name) => COVERED_FILES.has(name))
+            .map((name) => join(worldComponentsRoot, name)),
+        appShellSource,
+    ];
 }
 
 /** The index of the closing quote of the literal opening at `start`, or -1. */
@@ -293,7 +305,9 @@ describe("world.ts: answers the call sites in the covered files", () => {
     const sites = callSitePlaceholders();
 
     it("finds the covered source files at all, so a broken scan cannot pass as full coverage", () => {
-        expect(coveredSourceFiles().length).toBe(COVERED_FILES.size);
+        // The named files inside components/world, plus App.vue.
+        expect(coveredSourceFiles().length).toBe(COVERED_FILES.size + 1);
+        expect(existsSync(appShellSource)).toBe(true);
     });
 
     it("finds a call site for every key in this module", () => {

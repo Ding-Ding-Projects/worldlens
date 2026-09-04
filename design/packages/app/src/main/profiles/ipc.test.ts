@@ -321,13 +321,21 @@ describe.skipIf(!hasGit)("a real history, on a real disk", { timeout: 60_000 }, 
 
     it("restores the restore, undoing the undo", async () => {
         const app = await wired();
-        await app.save(state([profile("home", "Home server")]));
-        await app.save(state([]));
+        // With a URL. Every other call in this file passes one; this was the only one relying
+        // on the helper's empty default, which sanitizeProfileUrl refuses -- so the first save
+        // was rejected, the "delete" that followed deleted nothing, and the test was asserting
+        // four revisions against a history that had one. The refusal is right: a profile
+        // without a URL is not a profile the product accepts, local or otherwise, because what
+        // makes a profile local is its dataRoot rather than a missing address.
+        const first = await app.save(state([profile("home", "Home server", "https://example.test")]));
+        expect(first.ok).toBe(true);
+        const deleted = await app.save(state([]));
+        expect(deleted.ok).toBe(true);
         const afterDelete = await app.list();
         const deleteRevision = afterDelete.revisions[0];
 
-        const first = await app.list();
-        const created0 = first.revisions[first.revisions.length - 1];
+        const listed = await app.list();
+        const created0 = listed.revisions[listed.revisions.length - 1];
         await app.restore(created0?.id ?? "");
 
         // Now restore back to the deleted state.

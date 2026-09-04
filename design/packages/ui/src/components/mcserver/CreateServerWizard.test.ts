@@ -186,7 +186,12 @@ describe("CreateServerWizard", () => {
     function javaHost(options: {
         resolve: (version: string) => Promise<Answer<JavaResolution>>;
         provision?: (version: string) => Promise<Answer<JavaResolution>>;
-        onProgress?: (listener: (progress: JavaProvisionProgress) => void) => () => void;
+        // Two parameters, matching the real seam: it delivers the server id alongside the
+        // progress, which is exactly what javaSeam.test.ts is named after. Declared with one
+        // here, this helper described a listener the host would never call that way.
+        onProgress?: (
+            listener: (serverId: string, progress: JavaProvisionProgress) => void,
+        ) => () => void;
     }): McServerHost {
         const host = fakeHost();
         return {
@@ -249,7 +254,7 @@ describe("CreateServerWizard", () => {
     });
 
     it("says plainly that this build has no live catalogue on the version step", async () => {
-        const wrapper = mountWizard();
+        mountWizard();
         await flushAll();
         const next = [...document.querySelectorAll("button")].find(
             (b) => b.textContent?.trim() === "Next",
@@ -394,7 +399,14 @@ describe("CreateServerWizard", () => {
 
     it("does not let a closed wizard session receive stale Java results or progress", async () => {
         const pending: Array<(answer: Answer<JavaResolution>) => void> = [];
-        let progressListener: ((progress: JavaProvisionProgress) => void) | null = null;
+        // A holder rather than a bare `let`: the assignment happens inside the onProgress
+        // callback, which TypeScript cannot see from here, so it narrows the variable to
+        // exactly null and reports every call below as not callable.
+        const captured: {
+            listener:
+                | ((serverId: string, progress: JavaProvisionProgress) => void)
+                | null;
+        } = { listener: null };
         const resolve = vi.fn(
             () => new Promise<Answer<JavaResolution>>((done) => pending.push(done)),
         );
@@ -402,9 +414,9 @@ describe("CreateServerWizard", () => {
             javaHost({
                 resolve,
                 onProgress: (listener) => {
-                    progressListener = listener;
+                    captured.listener = listener;
                     return () => {
-                        progressListener = null;
+                        captured.listener = null;
                     };
                 },
             }),
@@ -422,10 +434,12 @@ describe("CreateServerWizard", () => {
         vm.step = "java";
         await flushAll();
 
-        const emitProgress = progressListener as unknown as (
-            progress: JavaProvisionProgress,
-        ) => void;
-        emitProgress({
+        // No cast. It read "as unknown as (progress) => void", which is what let this
+        // test drive a listener with one argument while the host calls it with the
+        // server id first -- the exact mismatch javaSeam.test.ts is named after.
+        const emitProgress = captured.listener;
+        if (emitProgress === null) throw new Error("The progress listener was not attached.");
+        emitProgress("srv-1", {
             phase: "failed",
             receivedBytes: 1,
             totalBytes: 2,
@@ -483,7 +497,14 @@ describe("CreateServerWizard", () => {
     });
 
     it("shows real provisioning progress, failure, retry, and post-install re-resolution", async () => {
-        let progressListener: ((progress: JavaProvisionProgress) => void) | null = null;
+        // A holder rather than a bare `let`: the assignment happens inside the onProgress
+        // callback, which TypeScript cannot see from here, so it narrows the variable to
+        // exactly null and reports every call below as not callable.
+        const captured: {
+            listener:
+                | ((serverId: string, progress: JavaProvisionProgress) => void)
+                | null;
+        } = { listener: null };
         const resolve = vi
             .fn<(version: string) => Promise<Answer<JavaResolution>>>()
             .mockResolvedValueOnce(ok(missingJava()));
@@ -492,7 +513,7 @@ describe("CreateServerWizard", () => {
             () =>
                 new Promise<Answer<JavaResolution>>((done) => {
                     finishProvision = done;
-                    progressListener?.({
+                    captured.listener?.("srv-1", {
                         phase: "downloading",
                         receivedBytes: 5,
                         totalBytes: 10,
@@ -505,9 +526,9 @@ describe("CreateServerWizard", () => {
                 resolve,
                 provision,
                 onProgress: (listener) => {
-                    progressListener = listener;
+                    captured.listener = listener;
                     return () => {
-                        progressListener = null;
+                        captured.listener = null;
                     };
                 },
             }),

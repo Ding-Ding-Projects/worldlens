@@ -420,6 +420,30 @@ export const SHELL_FIXED = {
     "problems.source.navigation": { en: "Navigation", yue: "導覽" },
     "problems.render.remedy": { en: "Open the render console", yue: "開渲染主控台" },
     "problems.config.remedy": { en: "Open the setting", yue: "開嗰個設定" },
+    /* Catalogue-coverage sweep: these answered nothing, so every language and every
+       funny level rendered the English fallback. */
+    "rail.host": { en: "Host Server", yue: "寄存伺服器" },
+    /* Catalogue-coverage sweep: no catalogue answer, so every language and every
+       funny level fell back to the English written at the call site. */
+    "shell.home.dashboard.drafts": { en: "Pick up where you left off", yue: "接返上次做到嘅位" },
+    "shell.home.dashboard.draftsBody": { en: "You have {count} project drafts waiting for their first render.", yue: "你有 {count} 個專案草稿等緊行第一次 render。" },
+    "shell.home.dashboard.guide": { en: "Walk me through it", yue: "一步步教我" },
+    "shell.home.dashboard.inProgress": { en: "In progress", yue: "做緊" },
+    "shell.home.dashboard.mapsAndServers": { en: "Your maps & servers", yue: "你嘅地圖同伺服器" },
+    "shell.home.dashboard.newMap": { en: "New map", yue: "新地圖" },
+    "shell.home.dashboard.openProjects": { en: "Open projects", yue: "開專案" },
+    "shell.home.dashboard.profileLocal": { en: "Rendered on this computer", yue: "喺呢部機行嘅" },
+    "shell.home.dashboard.profileOverflow": { en: "+{count} more", yue: "仲有 {count} 個" },
+    "shell.home.dashboard.renderOverflow": { en: "+{count} more running", yue: "仲有 {count} 個行緊" },
+    "shell.home.dashboard.renderPercent": { en: "{percent}%", yue: "{percent}%" },
+    "shell.home.dashboard.search": { en: "Search everything", yue: "搵晒所有嘢" },
+    "shell.home.dashboard.titleFresh": { en: "Let's make your first map", yue: "整你第一張地圖啦" },
+    "shell.home.dashboard.titleReturning": { en: "Welcome back", yue: "歡迎返嚟" },
+    "shell.home.dashboard.welcomeBody": { en: "Nothing is rendered or saved on this machine yet. New map starts one from a world you already have; the guide walks through the whole thing if you would rather be shown.", yue: "呢部機仲未 render 過或者儲過任何嘢。「新地圖」會由你已經有嘅世界開始整；想有人一步步帶你行嘅話，可以用嗰個引導。" },
+    "shell.home.dashboard.browseAll": { en: "Browse everything", yue: "全部睇晒" },
+    "shell.home.dashboard.profileRemote": { en: "Remote server", yue: "遠端伺服器" },
+    "shell.home.dashboard.renderOffer": { en: "Found running · tap to reattach", yue: "搵到緊喺度行 · 㩒一下重新接返" },
+    "shell.home.dashboard.renderWorking": { en: "Working…", yue: "做緊嘢…" },
 } as const satisfies Record<string, FixedString>;
 
 /**
