@@ -161,6 +161,61 @@ describe("the application rail", () => {
 
         expect(rail.emitted("select")?.[0]).toEqual(["map"]);
     });
+
+    /*
+     * Job shortcuts: a small, curated set of direct-open buttons beneath the four core
+     * destinations, distinct from them - see `AppRail.vue`'s own doc comment for why growing
+     * this list never widens `RailDestination`.
+     */
+    const SHORTCUTS = [
+        { id: "cirender", icon: "mdi-test-icon", label: "Der Machine rendering" },
+        { id: "dockerHosting", icon: "mdi-test-icon", label: "Docker hosting" },
+        { id: "remoteHosting", icon: "mdi-test-icon", label: "Remote hosting" },
+        { id: "chunker", icon: "mdi-test-icon", label: "Convert" },
+        { id: "backups", icon: "mdi-test-icon", label: "Backups" },
+        { id: "mcservers", icon: "mdi-test-icon", label: "Minecraft servers" },
+        { id: "worldDownloader", icon: "mdi-test-icon", label: "Get a world off a server" },
+    ];
+
+    it("renders no shortcuts at all when none are given, rather than an empty divider", () => {
+        const rail = mountRail();
+        expect(rail.find(".wl-rail__shortcuts").exists()).toBe(false);
+    });
+
+    it("renders every given job shortcut as a real, visibly-labelled button", () => {
+        const rail = mountRail({ jobShortcuts: SHORTCUTS });
+        const shortcuts = rail.findAll("[data-job-shortcut]");
+
+        expect(shortcuts).toHaveLength(SHORTCUTS.length);
+        for (const [index, item] of shortcuts.entries()) {
+            expect(item.element.tagName).toBe("BUTTON");
+            expect(item.attributes("data-job-shortcut")).toBe(SHORTCUTS[index]?.id);
+            expect(item.attributes("aria-label")).toBe(SHORTCUTS[index]?.label);
+            expect(item.find(".wl-rail-label").text().length).toBeGreaterThan(0);
+        }
+    });
+
+    it("emits openJob with the exact job id, never select, when a shortcut is pressed", async () => {
+        const rail = mountRail({ jobShortcuts: SHORTCUTS });
+        const worldDownloaderButton = rail.find('[data-job-shortcut="worldDownloader"]');
+
+        expect(worldDownloaderButton.exists()).toBe(true);
+        await worldDownloaderButton.trigger("click");
+
+        expect(rail.emitted("openJob")?.[0]).toEqual(["worldDownloader"]);
+        expect(rail.emitted("select")).toBeUndefined();
+    });
+
+    it("keeps every shortcut keyboard-reachable, in the same order they render", () => {
+        const rail = mountRail({ jobShortcuts: SHORTCUTS });
+        const shortcuts = rail.findAll("[data-job-shortcut]");
+        // A plain <button> in document order is keyboard-reachable by construction - no
+        // tabindex, no role override, nothing that would pull it out of the tab sequence.
+        for (const item of shortcuts) {
+            expect(item.attributes("tabindex")).toBeUndefined();
+            expect(item.attributes("type")).toBe("button");
+        }
+    });
 });
 
 describe("the status strip", () => {

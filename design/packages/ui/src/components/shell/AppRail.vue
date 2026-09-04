@@ -15,15 +15,35 @@ import type { RailDestination } from "./featureTargets.js";
 import { nonNegativeInteger } from "./shellNumbers.js";
 
 /**
- * The three destinations, and the three footer actions, on an 80 px column that is on screen no
- * matter what the person is doing.
+ * The four core destinations, plus direct-open shortcuts to a handful of frequently reached
+ * jobs, and the three footer actions - on an 80 px column that is on screen no matter what the
+ * person is doing.
+ *
+ * ### Four destinations, not four items
+ *
+ * An earlier version of this component's doc comment said the rail holds exactly four
+ * destinations and treated that as the reason it never grows. That was conflating two different
+ * things: `RailDestination` (home/map/host/work) names which *top-level screen* is showing, and
+ * is deliberately narrow, because widening it would mean every catalogue feature could become "a
+ * screen the shell has to know how to switch to" - the trap this component's own history already
+ * warns about for a *fourth rail destination*. A **shortcut** is a different, smaller claim: it
+ * is a one-click path straight to a job that already lives in Work, exactly what the command
+ * palette's own "open a page" row already does, just anchored where a person's eye already is.
+ * Adding shortcuts costs nothing in the destination model; adding a destination would.
+ *
+ * `jobShortcuts` is that list - Der Machine rendering, Docker hosting, SSH remote hosting,
+ * Chunker, Backups, Minecraft servers and the world downloader, at the time this was written -
+ * and clicking one emits `openJob`, which the shell answers exactly as it answers the palette's
+ * own open-page route: switch to Work, ensure the job's tab exists, reveal it. Nothing here
+ * decides *which* jobs are worth a shortcut; that list lives in `App.vue`, one level up, next to
+ * every other place a job id is named.
  *
  * ### It emits, and owns nothing
  *
- * No overlay state, no job list, no store. The rail says "Work was pressed" and the shell decides
- * what that means, exactly as `App.vue` already makes the command palette work. A rail that
- * opened the settings drawer itself would be a second place that knows how settings opens, and
- * the two would drift.
+ * No overlay state, no job list, no store. The rail says "Work was pressed" or "open this job"
+ * and the shell decides what that means, exactly as `App.vue` already makes the command palette
+ * work. A rail that opened the settings drawer itself would be a second place that knows how
+ * settings opens, and the two would drift.
  *
  * ### Why these are buttons and not floating actions
  *
@@ -66,6 +86,12 @@ const props = withDefaults(
         settingsActivatorId?: string;
         settingsPanelId?: string;
         settingsOpen?: boolean;
+        /**
+         * Direct-open shortcuts to jobs that already live in Work, rendered below the four core
+         * destinations. Not a fifth `RailDestination` - see the doc comment above - just a
+         * one-click path to a job id the shell already knows how to reveal.
+         */
+        jobShortcuts?: readonly { id: string; icon: string; label: string }[];
     }>(),
     {
         paletteShortcut: "Ctrl+Shift+F",
@@ -75,11 +101,15 @@ const props = withDefaults(
         settingsActivatorId: "",
         settingsPanelId: "",
         settingsOpen: false,
+        jobShortcuts: () => [],
     },
 );
 
 const emit = defineEmits<{
     select: [destination: RailDestination];
+    /** A job shortcut was pressed; the shell answers exactly as it answers the palette's own
+     *  open-page route. */
+    openJob: [jobId: string];
     openPalette: [];
     /**
      * One user press changes this state exactly once. The panel still owns its overlay and its
@@ -213,6 +243,30 @@ const unreadLabel = computed(() =>
             </li>
         </ul>
 
+        <!--
+            Direct-open job shortcuts. Same button markup, same 48px target, same accessible
+            name pattern as the four destinations above - the only difference is what pressing
+            one does (`openJob`, not `select`), and that none of them is ever "active" the way a
+            destination is, because the rail does not track which job is on top in Work.
+        -->
+        <ul v-if="(jobShortcuts ?? []).length > 0" class="wl-rail__items wl-rail__shortcuts">
+            <li v-for="item in jobShortcuts ?? []" :key="item.id">
+                <button
+                    type="button"
+                    class="wl-rail-item mb-interactive"
+                    :aria-label="item.label"
+                    :data-job-shortcut="item.id"
+                    :data-tutorial-anchor="`rail-job-${item.id}`"
+                    @click="emit('openJob', item.id)"
+                >
+                    <span class="wl-rail-pill">
+                        <v-icon :icon="item.icon" size="22" />
+                    </span>
+                    <span class="wl-rail-label">{{ item.label }}</span>
+                </button>
+            </li>
+        </ul>
+
         <div class="wl-rail__footer">
             <button
                 type="button"
@@ -316,6 +370,14 @@ const unreadLabel = computed(() =>
     display: flex;
     flex-direction: column;
     gap: 2px;
+}
+
+/* A visible seam between the four core destinations and the job shortcuts beneath them, so the
+ * two groups read as different kinds of thing rather than one undifferentiated list. */
+.wl-rail__shortcuts {
+    margin-block-start: 8px;
+    padding-block-start: 8px;
+    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
 .wl-rail__footer {
