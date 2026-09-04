@@ -51,6 +51,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function boundedJson(value: unknown, depth = 0): boolean {
+    if (depth > 16) return false;
+    if (value === null || typeof value === "boolean") return true;
+    if (typeof value === "string") return value.length <= 8192;
+    if (typeof value === "number") return Number.isFinite(value);
+    if (Array.isArray(value)) return value.length <= 10000 && value.every((item) => boundedJson(item, depth + 1));
+    return isRecord(value) && Object.keys(value).length <= 10000 && Object.entries(value).every(([key, item]) =>
+        key.length <= 256 && !["__proto__", "prototype", "constructor"].includes(key) && boundedJson(item, depth + 1));
+}
+function isPruning(value: unknown): boolean {
+    if (!isRecord(value) || !isRecord(value.configs) || Object.keys(value).some((key) => key !== "configs")) return false;
+    return Object.values(value.configs).every((rule) => isRecord(rule) && typeof rule.include === "boolean" && Array.isArray(rule.regions) &&
+        rule.regions.every((box) => isRecord(box) && ["minChunkX", "minChunkZ", "maxChunkX", "maxChunkZ"].every((key) => Number.isSafeInteger(box[key])) &&
+            Number(box.minChunkX) <= Number(box.maxChunkX) && Number(box.minChunkZ) <= Number(box.maxChunkZ)));
+}
+
 function isStringRecord(value: unknown): value is Readonly<Record<string, string>> {
     return isRecord(value) && Object.values(value).every((entry) => typeof entry === "string");
 }
@@ -74,6 +90,7 @@ function isConverterSettings(value: unknown): value is JsonObject {
 export function validateChunkerCliConfig(value: unknown): ChunkerCliConfig | null {
     if (value === undefined) return {};
     if (!isRecord(value)) return null;
+    if (!boundedJson(value) || JSON.stringify(value).length > 48_000) return null;
     const allowed = new Set(CHUNKER_CLI_OPTION_INVENTORY.slice(3));
     if (Object.keys(value).some((key) => !allowed.has(key as (typeof CHUNKER_CLI_OPTION_INVENTORY)[number]))) return null;
     const config: ChunkerCliConfig = {};
@@ -82,7 +99,8 @@ export function validateChunkerCliConfig(value: unknown): ChunkerCliConfig | nul
         if (candidate === undefined) continue;
         const valid = key === "dimensionMappings" || key === "biomeMappings"
             ? isStringRecord(candidate)
-            : key === "converterSettings" ? isConverterSettings(candidate) : isRecord(candidate);
+            : key === "converterSettings" ? isConverterSettings(candidate)
+            : key === "pruning" ? isPruning(candidate) : isRecord(candidate);
         if (!valid) return null;
         Object.assign(config, { [key]: candidate });
     }

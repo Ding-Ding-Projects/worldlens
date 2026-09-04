@@ -1,4 +1,5 @@
 name: Convert world
+run-name: Chunker ${{ fromJSON(inputs.chunker-config || '{}').operationId || github.run_id }}
 
 # Converts a Minecraft world between editions and versions on GitHub's runners, using
 # Hive Games' Chunker CLI. Nothing is installed locally and no Java is needed on the
@@ -30,6 +31,10 @@ name: Convert world
 on:
   workflow_dispatch:
     inputs:
+      chunker-config:
+        description: Complete bounded Chunker JSON configuration supplied by the desktop converter
+        type: string
+        default: '{}'
       world-source:
         description: Where the world to convert comes from
         type: choice
@@ -54,27 +59,8 @@ on:
         description: >-
           Chunker output format. Edition and version together, exactly as Chunker names
           them.
-        type: choice
+        type: string
         default: JAVA_1_21_4
-        options:
-          - JAVA_1_21_4
-          - JAVA_1_21_0
-          - JAVA_1_20_5
-          - JAVA_1_20_0
-          - JAVA_1_19_0
-          - JAVA_1_18_0
-          - JAVA_1_17_0
-          - JAVA_1_16_0
-          - JAVA_1_13_0
-          - JAVA_1_12_2
-          - BEDROCK_1_21_40
-          - BEDROCK_1_21_0
-          - BEDROCK_1_20_80
-          - BEDROCK_1_20_0
-          - BEDROCK_1_19_0
-          - BEDROCK_1_18_0
-          - BEDROCK_1_17_0
-          - BEDROCK_1_16_0
       prune-bounds:
         description: >-
           Optional trim, as minChunkX,minChunkZ,maxChunkX,maxChunkZ. Blank converts the
@@ -145,7 +131,7 @@ jobs:
           # Optional. Set the repository variable CHUNKER_JAR_SHA256 to the digest you have
           # reviewed and this step refuses anything else. Left unset, the digest is recorded
           # and the run says plainly that nobody pinned it.
-          CHUNKER_JAR_SHA256: ${{ vars.CHUNKER_JAR_SHA256 }}
+          CHUNKER_JAR_SHA256: 327662e8632acdb4571f60939206d605418ac0633741e1e5a58f5d6c6866dc74
         run: |
           set -euo pipefail
           mkdir -p chunker
@@ -241,12 +227,57 @@ jobs:
                 echo "::error::the release download produced no file for '$RELEASE_ASSET'."
                 exit 1
               fi
-              mv "$found" world.zip
+              if [[ "$RELEASE_ASSET" == *.cheaplfs ]]; then
+                export RELEASE_TAG RELEASE_ASSET
+                python3 <<'PY'
+          import hashlib, os, pathlib, subprocess
+          pointer = pathlib.Path('release-in') / os.environ['RELEASE_ASSET']
+          lines = pointer.read_text().splitlines()
+          if len(lines) < 5 or lines[0] != 'version desktop-material/cheap-lfs/v1':
+              raise SystemExit('Unsupported world pointer')
+          fields = dict(line.split(' ', 1) for line in lines[1:5])
+          parts = []
+          for line in lines[5:]:
+              if not line.strip(): continue
+              pieces = line.split(' ', 3)
+              if len(pieces) != 4 or pieces[0] != 'part': raise SystemExit('Unsupported pointer part')
+              parts.append((pieces[3], int(pieces[2]), pieces[1]))
+          if not parts: parts = [(fields['asset-name'], int(fields['size']), fields['sha256'])]
+          whole = hashlib.sha256()
+          total = 0
+          with open('world.zip', 'wb') as output:
+              for name, size, digest in parts:
+                  if name in ('.','..') or pathlib.Path(name).name != name or '/' in name or chr(92) in name or size > 2 * 1024**3:
+                      raise SystemExit('Invalid world part')
+                  args = ['gh', 'release', 'download', os.environ['RELEASE_TAG'], '--pattern', name, '--dir', 'release-in']
+                  if os.environ.get('WORLD_REPOSITORY'): args += ['--repo', os.environ['WORLD_REPOSITORY']]
+                  subprocess.run(args, check=True)
+                  path = pathlib.Path('release-in') / name
+                  part = hashlib.sha256(); count = 0
+                  with path.open('rb') as source:
+                      while block := source.read(1024 * 1024):
+                          part.update(block); whole.update(block); output.write(block); count += len(block)
+                  if count != size or part.hexdigest() != digest: raise SystemExit('World part digest mismatch')
+                  total += count; path.unlink()
+          if total != int(fields['size']) or whole.hexdigest() != fields['sha256']:
+              raise SystemExit('Complete world digest mismatch')
+          PY
+              else
+                mv "$found" world.zip
+              fi
               rm -rf release-in
               ;;
           esac
           if [ -f world.zip ]; then
             echo "Unpacking world.zip ($(du -h world.zip | cut -f1))"
+            python3 <<'PY'
+          import pathlib, stat, zipfile
+          with zipfile.ZipFile('world.zip') as archive:
+              for entry in archive.infolist():
+                  path = pathlib.PurePosixPath(entry.filename.replace(chr(92), '/'))
+                  if path.is_absolute() or '..' in path.parts or ':' in entry.filename or stat.S_ISLNK(entry.external_attr >> 16):
+                      raise SystemExit('Unsafe world archive entry')
+          PY
             unzip -q world.zip -d world-in
             rm -f world.zip
           fi
@@ -286,6 +317,8 @@ jobs:
           PRUNE_BOUNDS: ${{ inputs.prune-bounds }}
           MAX_JOBS: ${{ inputs.max-jobs }}
           REGIONS_PER_SHARD: ${{ inputs.regions-per-shard }}
+          CHUNKER_CONFIG: ${{ inputs.chunker-config }}
+          TARGET_FORMAT: ${{ inputs.target-format }}
         run: |
           set -euo pipefail
           node <<'NODE'
@@ -294,6 +327,18 @@ jobs:
           const REGION_CHUNKS = 32;
           const MARGIN_CHUNKS = 1;
           const MATRIX_LIMIT = 256;
+          const config = JSON.parse(process.env.CHUNKER_CONFIG || '{}');
+          // LevelDB output and dimension remapping cannot be merged by copying Anvil regions.
+          const whole = !process.env.TARGET_FORMAT.startsWith('JAVA_') || Object.entries(config.dimensionMappings || {}).some(([source,target]) => source !== target);
+          const keepRegion = (dimension,x,z) => {
+            const rule=config.pruning?.configs?.[dimension];
+            if(!rule || !rule.regions.length) return true;
+            for(let cx=x*32;cx<x*32+32;cx++) for(let cz=z*32;cz<z*32+32;cz++) {
+              const contains=rule.regions.some(r=>cx>=r.minChunkX&&cx<=r.maxChunkX&&cz>=r.minChunkZ&&cz<=r.maxChunkZ);
+              if(contains === rule.include) return true;
+            }
+            return false;
+          };
 
           const positiveInteger = (raw, fallback, name) => {
             if (raw === undefined || raw.trim() === "") return fallback;
@@ -357,6 +402,7 @@ jobs:
                 process.exit(1);
               }
               const [x, z] = entry;
+              if (!whole && !keepRegion(dimension,x,z)) continue;
               if (bounds !== null) {
                 const minChunkX = x * REGION_CHUNKS;
                 const minChunkZ = z * REGION_CHUNKS;
@@ -424,7 +470,11 @@ jobs:
             process.exit(1);
           }
 
-          writeFileSync("conversion-plan.json", `${JSON.stringify({ version: 1, regions: owned.length, shards }, null, 2)}\n`);
+          if (whole) shards.splice(0, shards.length, { id: '0', whole: true, dimension: 'whole-world', regions: [], pruning: { configs: {} } });
+          else for(const shard of shards) for(const dimension of Object.keys(dimensions)) {
+            if(dimension!==shard.dimension) shard.pruning.configs[dimension]={include:false,regions:[{minChunkX:-2147483648,minChunkZ:-2147483648,maxChunkX:2147483647,maxChunkZ:2147483647}]};
+          }
+          writeFileSync("conversion-plan.json", `${JSON.stringify({ version: 1, whole, regions: owned.length, shards }, null, 2)}\n`);
 
           const output = process.env.GITHUB_OUTPUT;
           appendFileSync(output, `shard-ids=${JSON.stringify(shards.map((shard) => shard.id))}\n`);
@@ -505,6 +555,7 @@ jobs:
         env:
           SHARD: ${{ matrix.shard }}
           TARGET_FORMAT: ${{ inputs.target-format }}
+          CHUNKER_CONFIG: ${{ inputs.chunker-config }}
         run: |
           set -euo pipefail
           node <<'NODE'
@@ -523,17 +574,59 @@ jobs:
           # Java's default heap on a hosted runner is a quarter of its RAM, which leaves a
           # large shard failing on heap while the runner still has memory free. The desktop
           # integration's RECOMMENDED_JVM_ARGS make the same choice for the same reason.
-          java -Xmx6G -jar chunker/chunker-cli.jar \
-            -i world-in \
-            -f "$TARGET_FORMAT" \
-            -o shard-out \
-            -p shard/pruning.json
+          node <<'NODE'
+          const { readFileSync, writeFileSync } = require('node:fs');
+          const { spawnSync } = require('node:child_process');
+          const raw = process.env.CHUNKER_CONFIG || '{}';
+          if (Buffer.byteLength(raw) > 49000) throw Error('Chunker configuration exceeds its bound');
+          const config = JSON.parse(raw);
+          const allowed = ['blockMappings', 'worldSettings', 'pruning', 'converterSettings', 'dimensionRegistry', 'dimensionMappings', 'biomeMappings', 'keepOriginalNBT', 'operationId'];
+          if (Object.keys(config).some(key => !allowed.includes(key))) throw Error('Unknown Chunker option');
+          const shard = JSON.parse(readFileSync('shard/shard.json', 'utf8'));
+          const pruning = JSON.parse(readFileSync('shard/pruning.json', 'utf8'));
+          const intersect = (a,b) => {
+            const r = { minChunkX: Math.max(a.minChunkX,b.minChunkX), minChunkZ: Math.max(a.minChunkZ,b.minChunkZ), maxChunkX: Math.min(a.maxChunkX,b.maxChunkX), maxChunkZ: Math.min(a.maxChunkZ,b.maxChunkZ) };
+            return r.minChunkX <= r.maxChunkX && r.minChunkZ <= r.maxChunkZ ? r : null;
+          };
+          const subtract = (a,b) => {
+            const c=intersect(a,b); if(!c) return [a];
+            return [{...a,maxChunkX:c.minChunkX-1},{...a,minChunkX:c.maxChunkX+1},{minChunkX:c.minChunkX,maxChunkX:c.maxChunkX,minChunkZ:a.minChunkZ,maxChunkZ:c.minChunkZ-1},{minChunkX:c.minChunkX,maxChunkX:c.maxChunkX,minChunkZ:c.maxChunkZ+1,maxChunkZ:a.maxChunkZ}].filter(r=>r.minChunkX<=r.maxChunkX&&r.minChunkZ<=r.maxChunkZ);
+          };
+          for (const [dimension, selection] of Object.entries(pruning.configs)) {
+            if (dimension !== shard.dimension) continue;
+            const rule = config.pruning?.configs?.[dimension];
+            if (rule?.include && rule.regions.length) selection.regions = selection.regions.flatMap(a=>rule.regions.map(b=>intersect(a,b)).filter(Boolean));
+            else if (rule && !rule.include) for (const exclusion of rule.regions) {
+              selection.regions=selection.regions.flatMap(a=>subtract(a,exclusion));
+              if(selection.regions.length>100000) throw Error('Pruning rectangle limit exceeded');
+            }
+            if(!selection.regions.length) { selection.include=false; selection.regions=[{minChunkX:-2147483648,minChunkZ:-2147483648,maxChunkX:2147483647,maxChunkZ:2147483647}]; }
+          }
+          if(shard.whole) Object.assign(pruning, config.pruning || {configs:{}});
+          writeFileSync('shard/pruning.json', JSON.stringify(pruning));
+          const args=['-Xmx6G','-jar','chunker/chunker-cli.jar','-i','world-in','-f',process.env.TARGET_FORMAT,'-o','shard-out','-p','shard/pruning.json'];
+          for(const key of allowed.filter(key=>!['operationId','keepOriginalNBT','pruning'].includes(key))) {
+            if(config[key] === undefined) continue;
+            if(!config[key] || typeof config[key] !== 'object' || Array.isArray(config[key])) throw Error('Invalid Chunker JSON option');
+            const file=`shard/${key}.json`; writeFileSync(file,JSON.stringify(config[key])); args.push(`--${key}`,file);
+          }
+          if(config.keepOriginalNBT === true) args.push('--keepOriginalNBT');
+          const result=spawnSync('java',args,{encoding:'utf8',maxBuffer:16*1024*1024});
+          process.stdout.write(result.stdout || ''); process.stderr.write(result.stderr || '');
+          if(result.status !== 0 || !/^Conversion complete!/m.test(result.stdout || '')) throw Error('Chunker did not complete this shard');
+          NODE
 
           node <<'NODE'
-          const { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync, readdirSync } = require("node:fs");
+          const { readFileSync, writeFileSync, mkdirSync, copyFileSync, cpSync, existsSync, readdirSync } = require("node:fs");
           const { join } = require("node:path");
 
           const shard = JSON.parse(readFileSync("shard/shard.json", "utf8"));
+          if (shard.whole) {
+            if(!existsSync('shard-out/level.dat')) throw Error('Converted world has no level.dat');
+            cpSync('shard-out','shard-kept',{recursive:true});
+            writeFileSync('shard-kept-outcome.json',JSON.stringify({shard:shard.id,dimension:shard.dimension,status:'converted',plannedRegions:0,keptFiles:0,missingRegionFiles:[],globals:[]}));
+            process.exit(0);
+          }
 
           // Where a dimension's region files live inside a Java world, relative to its root.
           // Identical to the desktop integration's dimensionDirectory, and for the same
@@ -752,7 +845,7 @@ jobs:
             return total;
           };
           const merged = existsSync("merged") ? countRegionFiles("merged") : 0;
-          if (merged !== plan.regions) {
+          if (!plan.whole && merged !== plan.regions) {
             problems.push(`the merged world holds ${merged} region file(s) and the plan converted ${plan.regions}.`);
           }
           if (!existsSync(join("merged", "level.dat"))) {

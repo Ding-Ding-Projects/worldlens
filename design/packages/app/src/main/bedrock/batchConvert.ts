@@ -39,6 +39,8 @@
 
 import { cp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
+import { composePruning } from "./pruning.js";
 import {
     GLOBAL_WORLD_ENTRIES,
     REGION_DIRECTORIES,
@@ -87,9 +89,8 @@ export interface BatchLedger {
 }
 
 /** A plan key that changes whenever the batches would be different. */
-export function planKeyFor(batches: readonly ConversionBatch[], format: string): string {
-    const regions = batches.reduce((total, batch) => total + batch.regions.length, 0);
-    return `v1:${format}:${String(batches.length)}:${String(regions)}`;
+export function planKeyFor(batches: readonly ConversionBatch[], format: string, config?: ChunkerCliConfig): string {
+    return `v2:${createHash("sha256").update(JSON.stringify({ batches, format, config })).digest("hex")}`;
 }
 
 export async function readLedger(stagingRoot: string): Promise<BatchLedger | null> {
@@ -207,7 +208,7 @@ export interface BatchedConversionOptions {
     readonly inputDirectory: string;
     readonly outputDirectory: string;
     readonly outputFormat: string;
-    /** Applied to every real conversion batch. Generated batch pruning wins. */
+    /** Applied to every real conversion batch. User pruning intersects batch geometry. */
     readonly config?: ChunkerCliConfig;
     readonly inputFormat?: string | null;
     readonly jvmArgs?: readonly string[];
@@ -351,7 +352,7 @@ export async function convertBedrockWorldInBatches(
     }
 
     // ---- Resume ------------------------------------------------------------------------
-    const planKey = planKeyFor(batches, options.outputFormat);
+    const planKey = planKeyFor(batches, options.outputFormat, options.config);
     const existing = await readLedger(stagingRoot);
     const usable = existing !== null && existing.planKey === planKey;
     if (existing !== null && !usable) {
@@ -378,7 +379,10 @@ export async function convertBedrockWorldInBatches(
         await mkdir(batchDirectory, { recursive: true });
 
         const pruningFile = join(stagingRoot, `pruning-${String(batch.index)}.json`);
-        await writeFile(pruningFile, JSON.stringify(pruningConfigFor(batch)), "utf8");
+        const pruning = composePruning(pruningConfigFor(batch), options.config?.pruning);
+        const closedPruning = { configs: { ...Object.fromEntries(dimensions.filter(entry => entry.dimension !== batch.dimension).map(entry => [entry.dimension, { include: false, regions: [{ minChunkX: -2147483648, minChunkZ: -2147483648, maxChunkX: 2147483647, maxChunkZ: 2147483647 }] }])), ...pruning.configs } };
+        await writeFile(pruningFile, JSON.stringify(closedPruning), "utf8");
+        const { pruning: _userPruning, ...batchConfig } = options.config ?? {};
 
         const run = runFactory({
             javaExecutable: options.javaExecutable,
@@ -386,7 +390,7 @@ export async function convertBedrockWorldInBatches(
             inputDirectory: options.inputDirectory,
             outputDirectory: batchDirectory,
             outputFormat: options.outputFormat,
-            ...(options.config === undefined ? {} : { config: { ...options.config, pruning: pruningConfigFor(batch) } }),
+            config: batchConfig,
             ...(options.inputFormat === undefined ? {} : { inputFormat: options.inputFormat }),
             pruningFile,
             ...(options.jvmArgs === undefined ? {} : { jvmArgs: options.jvmArgs }),

@@ -101,6 +101,7 @@ import {
 import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
 import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
+import { installChunkerActionsIpc } from "./chunkeractions/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
 import {
     installPagesIpc,
@@ -1453,6 +1454,8 @@ let ciRenderIpc: CiRenderIpc | null = null;
 
 function startCiRenders(render: RenderIpc, github: GhCliIpc): CiRenderIpc {
     if (ciRenderIpc !== null) return ciRenderIpc;
+    installChunkerActionsIpc({ ipcMain, account: github.broker.account,
+        dataDir: () => app.getPath("userData"), packaged: app.isPackaged, resourcesDir: process.resourcesPath });
     ciRenderIpc = installCiRenderIpc({
         ipcMain,
         storageDir: () => render.storageDirectory(),

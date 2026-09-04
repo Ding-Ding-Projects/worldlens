@@ -12,14 +12,14 @@ describe("Chunker's pinned CLI inventory", () => {
     it("serializes every optional value as data without a shell", () => {
         const config = validateChunkerCliConfig({
             blockMappings: { "minecraft:stone": "minecraft:diamond_block" }, worldSettings: { seed: 7 },
-            pruning: { configs: [] }, converterSettings: { mapConversion: false }, dimensionRegistry: { mappings: [] },
+            pruning: { configs: {} }, converterSettings: { mapConversion: false }, dimensionRegistry: { mappings: [] },
             dimensionMappings: { overworld: "nether" }, biomeMappings: { "minecraft:plains": "minecraft:desert" },
             keepOriginalNBT: true,
         });
         expect(config).not.toBeNull();
         expect(chunkerConfigArguments(config ?? {}, "JAVA_1_21_4", "JAVA_1_21_4")).toEqual([
             "--blockMappings", '{"minecraft:stone":"minecraft:diamond_block"}', "--worldSettings", '{"seed":7}',
-            "--pruning", '{"configs":[]}', "--converterSettings", '{"mapConversion":false}',
+            "--pruning", '{"configs":{}}', "--converterSettings", '{"mapConversion":false}',
             "--dimensionRegistry", '{"mappings":[]}', "--dimensionMappings", '{"overworld":"nether"}',
             "--biomeMappings", '{"minecraft:plains":"minecraft:desert"}', "--keepOriginalNBT",
         ]);

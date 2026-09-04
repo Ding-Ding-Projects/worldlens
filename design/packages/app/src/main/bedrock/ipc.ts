@@ -33,6 +33,10 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
+import { mkdir, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { probeChunker } from "./capabilities.js";
 import { inspectWorldFolder } from "../world/inspect.js";
 import {
     fetchChunker,
@@ -49,6 +53,7 @@ import {
     convertedWorldPath,
     estimateConvertedSize,
     DEFAULT_JAVA_TARGET,
+    ChunkerConversion,
     RECOMMENDED_JVM_ARGS,
     type ConversionEvent,
     type ConversionOutcome,
@@ -74,6 +79,7 @@ export const BEDROCK_CHANNELS = [
     "bedrock:convert",
     "bedrock:cancel",
     "bedrock:record",
+    "bedrock:capabilities",
 ] as const;
 
 /** The channel every conversion progress, phase and log event arrives on. */
@@ -196,6 +202,16 @@ export function registerBedrockHandlers(
 
     /** In-flight conversions, so `bedrock:cancel` can reach the right one. */
     const running = new Map<string, { cancel(): void }>();
+
+    ipcMain.handle("bedrock:capabilities", async () => {
+        try {
+            const lookup = await find(lookupOptions());
+            if (!lookup.found) return { ok: false, message: lookup.reason };
+            const java = await options.resolveJava();
+            if (!java.ok) return { ok: false, message: java.message };
+            return { ok: true, value: await probeChunker(java.executable, lookup.jarPath) };
+        } catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
+    });
 
     const lookupOptions = (): FindChunkerOptions => ({
         ...(options.dataDir == null ? {} : { dataDir: options.dataDir }),
@@ -395,7 +411,20 @@ export function registerBedrockHandlers(
             // NBT preservation. This shallow inspection can identify the edition but not
             // the exact Chunker version id, so preservation fails closed until main owns a
             // version reader that can prove an exact match.
-            const requestedInputFormat: string | null = null;
+            let requestedInputFormat: string | null = null;
+            if (cliConfig.keepOriginalNBT === true) {
+                const staging = join(options.dataDir ?? tmpdir(), `chunker-identify-${randomUUID()}`);
+                await mkdir(staging, { recursive: true });
+                const probe = new ChunkerConversion({ javaExecutable: java.executable, jarPath: lookup.jarPath,
+                    inputDirectory: world, outputDirectory: staging, outputFormat: "SETTINGS" });
+                const timer = setTimeout(() => probe.cancel(), 120_000);
+                try {
+                    const result = await probe.start();
+                    if (result.exitCode === 0 && result.completeLineSeen && result.sourceEdition) {
+                        requestedInputFormat = result.sourceEdition.toUpperCase().replace(/[ .]/g, "_");
+                    }
+                } finally { clearTimeout(timer); await rm(staging, { recursive: true, force: true }); }
+            }
             if (cliConfig.keepOriginalNBT === true && requestedInputFormat !== targetFormat) {
                 return refuse("keepOriginalNBT is only available when main-process inspection proves the source format matches the output format.");
             }
@@ -456,7 +485,8 @@ export function registerBedrockHandlers(
                 // The merge ledger is an Anvil-region merger. It is valid only for a Java
                 // target, so Java-to-Bedrock stays one verified CLI run rather than being
                 // silently routed through machinery that cannot assemble LevelDB output.
-                if (assessMemoryRisk(measured).level === "high" && targetFormat.startsWith("JAVA")) {
+                const remapsDimensions = Object.entries(cliConfig.dimensionMappings ?? {}).some(([from, to]) => from !== to);
+                if (assessMemoryRisk(measured).level === "high" && targetFormat.startsWith("JAVA") && !remapsDimensions) {
                     const batched = await convertInBatches({
                         javaExecutable: java.executable,
                         jarPath: lookup.jarPath,

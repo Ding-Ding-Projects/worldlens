@@ -21,6 +21,8 @@ import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import ChunkerRoutePicker from "./ChunkerRoutePicker.vue";
+import ChunkerActionsPanel from "./ChunkerActionsPanel.vue";
+import ChunkerAdvancedConfig from "./ChunkerAdvancedConfig.vue";
 import { defaultRouteFor, type ChunkerRoute } from "./chunkerRoute.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import MinecraftWorldList from "../world/MinecraftWorldList.vue";
@@ -166,6 +168,15 @@ const targetVersionId = ref<string>(defaultVersionFor("java"));
 const outputFolder = ref("");
 /** Set by the shell when the chosen output folder already holds something. */
 const outputExists = ref(false);
+const capabilities = ref<{ jarSha256: string; version: string; formats: string[]; options: string[] } | null>(null);
+const capabilityFailure = ref('');
+async function loadCapabilities(): Promise<void> {
+    const host = (globalThis as any).worldlens?.bedrock;
+    if (typeof host?.capabilities !== 'function') { capabilityFailure.value = 'This build cannot inspect the selected converter.'; return; }
+    const answer = await host.capabilities();
+    if (answer.ok) { capabilities.value = answer.value; capabilityFailure.value = ''; }
+    else { capabilities.value = null; capabilityFailure.value = answer.message; }
+}
 
 const editionChoices = computed(() => [
     { value: "java" as Edition, title: "Java Edition" },
@@ -173,10 +184,7 @@ const editionChoices = computed(() => [
 ]);
 
 const versionChoices = computed(() =>
-    versionsFor(targetEdition.value).map((version) => ({
-        value: version.id,
-        title: version.label,
-    })),
+    (capabilities.value?.formats ?? []).filter(format => format.startsWith(targetEdition.value.toUpperCase() + '_')).map(format => ({ value: format, title: format })),
 );
 
 function onEditionChange(value: Edition): void {
@@ -326,24 +334,31 @@ const plan = computed(() => ({
  * Chunker's JSON options.  No value is converted into a free-form command;
  * the main process validates and serializes this object to the pinned CLI.
  */
+const advancedConfig = ref<Record<string, any>>({});
 const cliConfig = computed(() => ({
-    blockMappings: Object.fromEntries(
-        overrides.value.map((override) => [override.from, override.to]),
-    ),
-    worldSettings: settings.value,
+    blockMappings: { identifiers: overrides.value.map((override) => ({ old_identifier: override.from, new_identifier: override.to })) },
+    worldSettings: {
+        ...(worldName.value ? { LevelName: worldName.value } : {}),
+        ...(seed.value ? { RandomSeed: seed.value } : {}),
+        ...(spawnX.value ? { SpawnX: Number(spawnX.value) } : {}),
+        ...(spawnY.value ? { SpawnY: Number(spawnY.value) } : {}),
+        ...(spawnZ.value ? { SpawnZ: Number(spawnZ.value) } : {}),
+        ...Object.fromEntries(Object.entries(gameRuleValues.value).map(([name, value]) => [name.toLowerCase(), value])),
+    },
     pruning: trimEnabled.value
-        ? { configs: [{ minX: minX.value, maxX: maxX.value, minZ: minZ.value, maxZ: maxZ.value }] }
-        : undefined,
+        ? { configs: Object.fromEntries(DIMENSIONS.map(dimension => [dimension, { include: true, regions: [{ minChunkX: minX.value, maxChunkX: maxX.value, minChunkZ: minZ.value, maxChunkZ: maxZ.value }] }])) }
+        : { configs: Object.fromEntries(Object.entries(dimensionTargets.value).filter(([, target]) => target === "drop").map(([dimension]) => [dimension, { include: false, regions: [{ minChunkX: -2147483648, minChunkZ: -2147483648, maxChunkX: 2147483647, maxChunkZ: 2147483647 }] }])) },
     dimensionMappings: Object.fromEntries(
         Object.entries(dimensionTargets.value).filter(([, target]) => target !== "drop"),
     ),
+    ...advancedConfig.value,
 }));
 
 const consequences = computed(() => lossyConsequences(plan.value));
 
 const canStart = computed(
     () =>
-        bridge !== null &&
+        route.value.kind === "local" && bridge !== null &&
         sourceFolder.value.length > 0 &&
         outputFolder.value.length > 0 &&
         targetVersionId.value.length > 0 &&
@@ -386,6 +401,7 @@ function onEvent(event: ConversionProgressEvent): void {
 
 onMounted(() => {
     if (bridge !== null) unsubscribe = bridge.onBedrockEvent(onEvent);
+    void loadCapabilities();
 });
 
 onBeforeUnmount(() => {
@@ -512,6 +528,9 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 2: target edition and version -->
             <section v-else-if="step === 'target'" data-test="chunker-step-target">
                 <h3>{{ t("chunker.step.target", "Target edition") }}</h3>
+                <p v-if="capabilities">{{ capabilities.version }} · SHA-256 {{ capabilities.jarSha256 }}</p>
+                <VAlert v-if="capabilityFailure" type="warning">{{ capabilityFailure }}</VAlert>
+                <VBtn @click="loadCapabilities">{{ t('chunker.refreshCapabilities', 'Inspect selected converter again') }}</VBtn>
                 <VSelect
                     :model-value="targetEdition"
                     :items="editionChoices"
@@ -657,6 +676,7 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 5: world settings -->
             <section v-else-if="step === 'settings'" data-test="chunker-step-settings">
                 <h3>{{ t("chunker.step.settings", "World settings") }}</h3>
+                <ChunkerAdvancedConfig v-model="advancedConfig" />
                 <VTextField
                     v-model="worldName"
                     :label="t('chunker.worldName', 'World name')"
@@ -699,6 +719,8 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 6: review -->
             <section v-else-if="step === 'review'" data-test="chunker-step-review">
                 <h3>{{ t("chunker.step.review", "Review") }}</h3>
+                <ChunkerActionsPanel v-if="route.kind === 'github-actions'" :world-folder="sourceFolder" :output-directory="outputFolder" :target-format="targetVersionId" :config="cliConfig" />
+                <VAlert v-else-if="route.kind !== 'local'" type="warning">{{ t('chunker.routeNotConnected', 'This conversion route is not connected yet. Select another route; nothing will silently run locally.') }}</VAlert>
                 <p data-test="chunker-review-lead">
                     {{
                         t(
