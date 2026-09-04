@@ -41,7 +41,13 @@ const IMPLEMENTATIONS = ["cli", "fabric", "forge", "neoforge", "paper", "spigot"
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_VENDOR = join(REPO_ROOT, "vendor", "BlueMap");
-const DEFAULT_UPSTREAM_REPOSITORY = "https://github.com/BlueMap-Minecraft/BlueMap";
+// The fork, not upstream, because that is what the jars are actually built from - the
+// webapp embedded in them carries this project's Material Design 3 UI. The packager's
+// validator compares the manifest against BLUEMAP_SOURCE_REPOSITORY in
+// design/packages/app/scripts/staged-java-engine.mjs; when this said upstream and that
+// said the fork, CI staged the jar and then refused it with "manifest.source.repository
+// mismatch" - the two have to name the same place.
+const DEFAULT_UPSTREAM_REPOSITORY = "https://github.com/Ding-Ding-Projects/BlueMap";
 
 /** Adapter metadata is source-derived; never hand-edit a release compatibility claim. */
 const ADAPTER_CONTRACTS = {
