@@ -339,20 +339,18 @@ describe("bedrock:convert", () => {
         expect(finished).toContainEqual(expect.objectContaining({ kind: "finished" }));
     });
 
-    it("refuses a Java world rather than making a pointless second copy", async () => {
-        const convert = vi.fn();
+    it("allows Java input so a Java world can become Bedrock", async () => {
+        const convert = vi.fn(async () => okOutcome());
         const { call } = install({ inspect: async () => JAVA_LISTING, convert });
 
         const outcome = (await call("bedrock:convert", { world: "/worlds/survival" })) as {
             ok: boolean;
-            message: string;
+            conversionId: string;
         };
 
-        expect(outcome.ok).toBe(false);
-        expect(outcome.message).toContain("not a Bedrock world");
-        // Re-checked here rather than trusted from the renderer: the detect call that led
-        // to this button may have run against a folder that has since changed.
-        expect(convert).not.toHaveBeenCalled();
+        expect(outcome.ok).toBe(true);
+        expect(outcome.conversionId).toMatch(/[0-9a-f-]{36}/);
+        expect(convert).toHaveBeenCalledWith(expect.objectContaining({ inputDirectory: "/worlds/survival" }));
     });
 
     it("reports a missing Chunker as a value, never as a rejection", async () => {

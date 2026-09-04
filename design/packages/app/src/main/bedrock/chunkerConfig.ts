@@ -8,7 +8,8 @@
  * serialization route to the JVM.
  */
 
-export type JsonObject = Readonly<Record<string, unknown>>;
+/** Any non-array JSON object. Concrete schemas may use declared members. */
+export type JsonObject = object;
 
 export interface ChunkerCliConfig {
     readonly blockMappings?: JsonObject;
