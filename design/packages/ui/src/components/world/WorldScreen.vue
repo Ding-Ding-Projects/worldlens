@@ -124,7 +124,7 @@ const props = withDefaults(
          */
         focusRenderId?: string | null;
         /** A shell-level world drop to prefill the create-a-map wizard. */
-        initialWorldPath?: string | null;
+        initialWorldPath?: string | null | undefined;
         /**
          * Which presentation this screen opens in.
          *

@@ -965,14 +965,11 @@ describe("a recovered map whose optional Pages publication failed", () => {
             renderId: "ci-s",
             artifactSha256: "b".repeat(64),
             recoveryAttemptedRunId: 7,
-            // The structured shape CiPostRenderWarning became: it names the run, the job and
-            // the step that failed, rather than a prose sentence that says a build step failed
-            // without saying which.
             postRenderWarning: {
                 code: "pages-not-published",
                 runId: 7,
-                failingJob: "deploy",
-                failingStep: "Publish to Pages",
+                failingJob: "pages",
+                failingStep: "publish",
             },
             failureCode: null,
             failureMessage: null,
@@ -2967,20 +2964,14 @@ describe("a world nobody has set up yet", () => {
 
     it("cancels an in-flight cloud-config operation with the same operation id", async () => {
         let operationId: string | null = null;
-        // A holder: the assignment is inside a promise executor TypeScript cannot see
-        // from here, so it narrowed the variable to exactly null.
-        const creating: {
-            resolveCreate:
-                | ((result: { ok: false; failure: { code: string; message: string } }) => void)
-                | null;
-        } = { resolveCreate: null };
+         let resolveCreate: ((result: { ok: false; failure: { code: string; message: string } }) => void) | undefined;
         const cancelled: string[] = [];
         const wrapper = mountScreen(
             fakeBridge(noProject(), [], {
                 createCiCloudConfig: async (request) => {
                     operationId = request.operationId;
-                    return await new Promise((resolve) => {
-                        creating.resolveCreate = resolve;
+                     return await new Promise<{ ok: false; failure: { code: string; message: string } }>((resolve) => {
+                        resolveCreate = resolve;
                     });
                 },
                 cancelCiCloudConfig: async (id) => {

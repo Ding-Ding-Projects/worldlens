@@ -59,7 +59,7 @@ export function redactConsoleText(value: string): string {
         // Absolute filesystem paths are useful in the live console but are user-local
         // data in a retained record or export. Keep the fact that a path was printed,
         // without retaining the account name, checkout, or world location.
-        .replace(/(?:(?<![A-Za-z0-9])[A-Za-z]:[\\/]|\\\\)[^\s"'<>]+/g, "[path]")
+        .replace(/(?<![A-Za-z])(?:[A-Za-z]:[\\/]|\\\\)[^\s"'<>]+/g, "[path]")
         .replace(/(?:\/(?:Users|home|tmp|var|private)\/)[^\s"'<>]+/g, "[path]");
 }
 

@@ -36,83 +36,26 @@ Four screenshots of the new-server wizard turned into three P0 defects and a who
       carry the stock webapp rather than this one.
 
 ## Container provenance (2026-09-03)
+## Documentation and integrated feature contract refresh (2026-09-02)
 
-- [x] The build captures the source commit, not only a committer date. Two builds of
-      different commits can share a date, so the time says when and only the commit says
-      which.
-- [x] The hosted esbuild bundle has a `define` block. It had none, so every `__WORLDLENS_*`
-      constant reached `dist/hosted/index.js` as a free identifier.
-- [x] The hosted route registers `app:buildProvenance`. The channel was permitted and the
-      desktop answered it; hosted returned "no handler is registered".
-- [x] Both Dockerfiles carry `org.opencontainers.image.revision`, and CI passes `github.sha`
-      as the build argument. An image built without it reads back empty rather than
-      claiming a revision it does not have.
-- [x] The container prints the revision on startup, because an operator cannot pull the
-      image and read its labels.
-- [x] Verified from the registry rather than the build: the published
-      `worldlens-cli:1.0.1865` reads back `0e360474`, the commit that added the stamp.
-- [ ] `Dockerfile.hosted` has no CI job at all -- nothing in `.github/workflows` references
-      it. So the hosted image can be stamped and is not being built by CI to stamp.
+- [x] Correct the catalogue prose to the verified 88-row inventory split `29/6/7/7/2/37`,
+      and keep the README and Kid Mode descriptions aligned with the source registry.
+- [x] Add the converter, local model tooling, runtime settings, SSH host profiles, complete
+      version catalogue, creative studio and built-app smoke records to the documentation indexes.
+- [x] Register the corresponding public documentation articles, each with the five required
+      sections, source links and suggested next articles. Every article records source and focused
+      proof as separate from packaged evidence.
+- [x] Correct the stale Minecraft server adoption article so source wiring is described as present,
+      while packaged interaction and isolated-host proof remain explicitly pending.
+- [ ] Merge the source-complete feature branches into `main` and produce one integrated Windows package.
+- [ ] Run the full packaged smoke matrix and refresh only captures proven against that package and
+      commit. The current screenshot evidence check remains red until that work is complete.
+- [ ] Publish a new release only after package provenance, installer contents and remote checks are
+      verified. The current documentation candidate is not a release.
 
-### 廣東話 / Cantonese
-
-- [x] Build 會攞源碼 commit，唔淨係攞 committer date。兩個唔同 commit 嘅 build 可以共用
-      同一個日期，所以時間講「幾時」，只有 commit 講到「邊份」。
-- [x] Hosted 個 esbuild bundle 有咗 `define` 區塊。之前完全冇，所以每個 `__WORLDLENS_*`
-      常數去到 `dist/hosted/index.js` 都係自由識別符。
-- [x] Hosted 路線註冊咗 `app:buildProvenance`。條 channel 一直獲准、desktop 亦答到，
-      但 hosted 返嘅係「冇註冊 handler」。
-- [x] 兩個 Dockerfile 都帶 `org.opencontainers.image.revision`，CI 傳 `github.sha`。
-      冇傳參數建出嚟嘅 image 讀返係空白，唔會聲稱一個佢冇嘅版本。
-- [x] 容器啟動時會印出版本，因為操作員唔可能 pull 個 image 再讀 label。
-- [x] 由 registry 驗而唔係由 build 驗：已發佈嘅 `worldlens-cli:1.0.1865` 讀返
-      `0e360474`，即係加咗個蓋章嗰個 commit。
-- [ ] `Dockerfile.hosted` 完全冇 CI job —— `.github/workflows` 入面冇任何嘢引用佢。
-      所以 hosted image 識蓋章，但 CI 根本冇建緊佢去蓋。
-
-## The language contract, and the two pre-publication guards (2026-09-03)
-
-- [x] Every key the interface asks the copy catalogue for has an answer in both languages.
-      239 had none and rendered their English call-site fallback in Cantonese and bilingual
-      mode; `catalogueCoverage.test.ts` reports zero.
-- [x] `awsAccounts.ts` created. That settings section had no catalogue module at all.
-- [x] The orphan-key scanner excludes `src/copy/`. Widened, it scanned the catalogue itself,
-      where every key is its own quoted literal, so every key became its own call site and
-      the guard passed while guarding nothing.
-- [x] `world.ts`'s call-site scan covers `App.vue`, which owns nine `world.*` keys it had
-      never looked at.
-- [x] The home dashboard sends the profile URL as data rather than as a translation
-      fallback, so a catalogue entry cannot replace the address with a fixed phrase.
-- [x] `pnpm workflows:check` runs `scripts/lint-workflows.mjs` and its test (issue #167).
-- [x] `pnpm published-text:check` runs `scripts/check-published-text.mjs` and its test
-      (issue #168). Terms come from outside the repository; absent, it skips with a printed
-      reason and exit 0.
-- [x] Measured why `packages/server/test/map-update-service.test.ts` flakes, and made it say
-      so. It is not an arming race behind chokidar's `ready`, which is what this entry
-      first claimed: polling first-event latency is 115 ms and native is 2 ms on the same
-      host. Instrumented, one watcher per run simply never arms -- `take()` never returns
-      through twenty writes over ten seconds while the run loop stays healthy.
-- [ ] Issue #176: that same silence is a product defect, not only a test one. A watcher
-      that never arms leaves the run loop waiting rather than exiting, and the
-      "stopped unexpectedly" warning is on the exit path -- so a map stops updating with
-      no error, no warning and no log line. Needs a liveness decision rather than a guess.
-- [ ] The two files generated from commit history still carry 67 occurrences of internal
-      shorthand. Issue #168 records why that is left: editing the generated file is not a
-      fix, and fixing history means a force-push.
-
-### 廣東話 / Cantonese
-
-- [x] 介面向 copy catalogue 攞嘅每一個 key 都有兩種語言嘅答案。之前有 239 個冇，喺廣東話
-      同雙語模式下渲染緊 call site 嘅英文後備字串。
-- [x] 新增 `awsAccounts.ts` —— 嗰個設定區之前連 catalogue 模組都冇。
-- [x] 孤兒 key 掃描器排除 `src/copy/`。之前掃埋 catalogue 自己，令每個 key 都變成自己嘅
-      call site，個守衛照樣全綠但乜都冇守到。
-- [x] `world.ts` 嘅 call site 掃描而家包埋 `App.vue`，嗰度有九個佢從來冇望過嘅 `world.*` key。
-- [x] 首頁儀表板將 profile 網址當資料送，唔再當翻譯後備字串。
-- [x] `pnpm workflows:check`（issue #167）同 `pnpm published-text:check`（issue #168）。
-- [ ] `map-update-service.test.ts` 係真嘅 watcher 上線競態；故意唔用 sleep 或者寫哨兵檔案
-      落用戶世界資料夾去掩飾，佢需要一個真嘅就緒訊號。
-- [ ] 由歷史生成嗰兩個檔案仲有 67 處內部術語，#168 記低咗點解要咁樣留低。
+Source-complete does not mean fully verified. The first four rows above describe records and source
+contracts that can be reviewed now. The final three rows are the separate packaged and full-surface
+proof required before this candidate can be called released.
 
 ## Project canvas documentation (2026-08-25)
 
@@ -214,7 +157,7 @@ is ever configured by typing a command or editing a file by hand.
       provisioning, and the "New server" wizard with a real picker at every step.
 - [ ] Complete Mojang Java release and snapshot catalogue with cached source revision, family
       grouping, per-version Wiki states, and bounded wizard rendering. Focused source and UI
-      tests are green on this lane; packaged-artifact capture and full workspace Chuts remain
+      tests are green on this lane; packaged-artifact capture and full workspace gates remain
       open.
 - [x] RCON client and protocol, the console session, and players/ops/whitelist/bans as real
       tables with row actions and an add-player dialog.

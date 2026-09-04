@@ -99,6 +99,7 @@ export const projectEditor: Article = {
         },
         { articleId: "config-history", reason: "The append-only history model project saves use." },
         { articleId: "world-discovery", reason: "The discovery path that opens a world in this editor." },
+        { articleId: "project-canvas", reason: "The graph presentation that shares this editor's map model and save path." },
     ],
     sources: [
         { label: "docs/project-editor.md", href: repoFile("docs/project-editor.md") },

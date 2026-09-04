@@ -1,5 +1,5 @@
 /**
- * The five catalogues, and every one of the eighty-four features underneath them.
+ * The six catalogues, and every one of the eighty-eight features underneath them.
  *
  * `catalogues.test.ts` asserts that count against `ALL_CATALOGUE_FEATURES.length`, so the test is
  * the authority and these prose mentions are a restatement of it. They said eighty-five for a
@@ -31,7 +31,7 @@
  * ### Keys are not targets
  *
  * Eight rows open `renders`, six open `projects`, and eleven open the settings drawer at
- * different sections. Keying by destination would collapse eighty-four rows to about a dozen, so
+ * different sections. Keying by destination would collapse eighty-eight rows to about a dozen, so
  * every row carries its own globally unique `key` and the destination is a separate field.
  * `catalogues.test.ts` asserts uniqueness, because a duplicate key silently drops a row from a
  * `v-for` rather than failing loudly.
@@ -177,7 +177,7 @@ const GROUPS = {
 type GroupName = keyof typeof GROUPS;
 
 /**
- * Builds one row, so eighty-four literals do not each repeat the group-key plumbing.
+ * Builds one row, so eighty-eight literals do not each repeat the group-key plumbing.
  *
  * Deliberately not a class or a fluent builder: the manifest reads best as data, and this is the
  * smallest thing that removes the repetition without hiding what a row actually contains.
@@ -1184,7 +1184,7 @@ const SETUP_FEATURES: readonly CatalogueFeatureDefinition[] = [
 ];
 
 /* -------------------------------------------------------------------------- */
-/* The five catalogues                                                        */
+/* The six catalogues                                                        */
 /* -------------------------------------------------------------------------- */
 
 /**

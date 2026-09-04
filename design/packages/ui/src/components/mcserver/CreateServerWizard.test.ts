@@ -18,7 +18,6 @@ import {
     type Answer,
     type CatalogueVersionEntry,
     type CatalogueSnapshot,
-    type JavaProvisionProgress,
     type JavaResolution,
     type McServerHost,
 } from "./serverStore.js";
@@ -186,12 +185,7 @@ describe("CreateServerWizard", () => {
     function javaHost(options: {
         resolve: (version: string) => Promise<Answer<JavaResolution>>;
         provision?: (version: string) => Promise<Answer<JavaResolution>>;
-        // Two parameters, matching the real seam: it delivers the server id alongside the
-        // progress, which is exactly what javaSeam.test.ts is named after. Declared with one
-        // here, this helper described a listener the host would never call that way.
-        onProgress?: (
-            listener: (serverId: string, progress: JavaProvisionProgress) => void,
-        ) => () => void;
+        onProgress?: (listener: (serverId: string, event: unknown) => void) => () => void;
     }): McServerHost {
         const host = fakeHost();
         return {
@@ -399,14 +393,7 @@ describe("CreateServerWizard", () => {
 
     it("does not let a closed wizard session receive stale Java results or progress", async () => {
         const pending: Array<(answer: Answer<JavaResolution>) => void> = [];
-        // A holder rather than a bare `let`: the assignment happens inside the onProgress
-        // callback, which TypeScript cannot see from here, so it narrows the variable to
-        // exactly null and reports every call below as not callable.
-        const captured: {
-            listener:
-                | ((serverId: string, progress: JavaProvisionProgress) => void)
-                | null;
-        } = { listener: null };
+        let progressListener: ((serverId: string, event: unknown) => void) | null = null;
         const resolve = vi.fn(
             () => new Promise<Answer<JavaResolution>>((done) => pending.push(done)),
         );
@@ -434,17 +421,14 @@ describe("CreateServerWizard", () => {
         vm.step = "java";
         await flushAll();
 
-        // No cast. It read "as unknown as (progress) => void", which is what let this
-        // test drive a listener with one argument while the host calls it with the
-        // server id first -- the exact mismatch javaSeam.test.ts is named after.
-        const emitProgress = captured.listener;
-        if (emitProgress === null) throw new Error("The progress listener was not attached.");
-        emitProgress("srv-1", {
-            phase: "failed",
-            receivedBytes: 1,
-            totalBytes: 2,
-            message: "stale Java progress",
-        });
+        if (typeof progressListener === "function") {
+            progressListener("server-1", {
+                phase: "failed",
+                receivedBytes: 1,
+                totalBytes: 2,
+                message: "stale Java progress",
+            });
+        }
         pending[0]?.({
             ok: false,
             failure: { code: "stale", message: "stale Java failure", detail: null },
@@ -497,14 +481,7 @@ describe("CreateServerWizard", () => {
     });
 
     it("shows real provisioning progress, failure, retry, and post-install re-resolution", async () => {
-        // A holder rather than a bare `let`: the assignment happens inside the onProgress
-        // callback, which TypeScript cannot see from here, so it narrows the variable to
-        // exactly null and reports every call below as not callable.
-        const captured: {
-            listener:
-                | ((serverId: string, progress: JavaProvisionProgress) => void)
-                | null;
-        } = { listener: null };
+        let progressListener: ((serverId: string, event: unknown) => void) | null = null;
         const resolve = vi
             .fn<(version: string) => Promise<Answer<JavaResolution>>>()
             .mockResolvedValueOnce(ok(missingJava()));
@@ -513,7 +490,7 @@ describe("CreateServerWizard", () => {
             () =>
                 new Promise<Answer<JavaResolution>>((done) => {
                     finishProvision = done;
-                    captured.listener?.("srv-1", {
+                    progressListener?.("server-1", {
                         phase: "downloading",
                         receivedBytes: 5,
                         totalBytes: 10,
@@ -535,8 +512,10 @@ describe("CreateServerWizard", () => {
         );
         expect(document.querySelector('[data-test="java-missing"]')).not.toBeNull();
         const provisioning = vm.provisionJava();
+        const duplicateProvisioning = vm.provisionJava();
         await flushAll();
         expect(provision).toHaveBeenCalledWith("21");
+        expect(provision).toHaveBeenCalledTimes(1);
         expect(document.querySelector('[data-test="java-progress"]')).not.toBeNull();
         const completeProvision = finishProvision as unknown as (
             answer: Answer<JavaResolution>,
@@ -545,7 +524,7 @@ describe("CreateServerWizard", () => {
             ok: false,
             failure: { code: "download", message: "Java download failed", detail: null },
         });
-        await provisioning;
+        await Promise.all([provisioning, duplicateProvisioning]);
         expect(document.querySelector('[data-test="java-failure"]')?.textContent).toContain(
             "Java download failed",
         );

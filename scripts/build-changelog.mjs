@@ -60,8 +60,8 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 /** The repository root, one level above `scripts/`. */
 const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -248,7 +248,48 @@ function stripTrailers(body) {
  * caused the redaction. New commits are required to use publication-safe wording before they
  * land; this list exists only for history that cannot be rewritten safely.
  */
-const REDACTED_COMMIT_MESSAGES = new Set([
+export const REDACTED_COMMIT_MESSAGES = new Set([
+    "05d73d64023dba6fc41455d1b1d6cad0e678f73a",
+    "16ea9bb0a42d80562ae60a79d6d1cd533a78ee2d",
+    "0c464f70035401440e53a572b6bf421fcedd3ce3",
+    "0eb136de7e65afa5acac775eafc965a603091a3f",
+    "1e1b99aba103fe7c7a6d51aa989cb2f7d2fd4370",
+    "1950350193a08bc6bd58c2a6a77e4c07f9bff4f9",
+    "209f9624a3302c9f0c138dfdf47d1fff98d01d81",
+    "285990e1e2b261c899e3803283cd1ed9db07c240",
+    "500bd3b3ba8d06beae93e4941fe2c90efd91d906",
+    "5a116c8e2183c34bcf725cd109ee4cf4ac417821",
+    "5a78cb5e7d304a1e6881527b9724bdeb3b7a443a",
+    "68b7d8066eaa94909edd2690867015911bdfefa9",
+    "6b5c39ec120795acc2e58ad3786eb09ffef22863",
+    "71f7d54c19833732a76229f90bbad28404ba0cee",
+    "747517b4482489ed4fdf98b39d4864f30442afc8",
+    "75f2197df3bc888e5df9e4a05fd6b0ca9dccb316",
+    "83bc94050e872289b04c5ced1d65a0af5bfff77d",
+    "a7455e787e674a3b247fe96332099dea0fdf15d4",
+    "aaf748c9af8c3a711151775c15c6579a33d3b75d",
+    "aa65e18cbdb1e0f9c199dc1cdd20a22b7f923005",
+    "ac46de28bab162ab58e045e5e46af23620f07f54",
+    "b221c805cd614bbb8cc1bd750e6baa1e20049b04",
+    "b4163b3f3eff1c0de3caa756cd8e13a485e10d53",
+    "bc567dfac1a8027e04040677078d5fc2b1dd1eac",
+    "bcf1f3b3b041948cf2ffc199de01ce67f87528b1",
+    "c2b7a020cc0d9c40400479d833abda213fd7877d",
+    "c379b29c5ae51a07d490375bcc1dc29a86b1096c",
+    "c6cc1d2445007a71978189f09a414ac6183ba808",
+    "ccc9ed5a5876e5e58222a68cf7a4a8cb337dc2ef",
+    "d48c8110fc59fa539b17bb601f53ccef90f9d120",
+    "e11537c462ab4788485bddb3ed30e4551b6938a8",
+    "e86b0b60b3a551384a7fa8c9dff924e5e2967b59",
+    "e8bb0cb431363f6b68ac311c474bbd8347cc8d91",
+    "f0150dfbca02b355feea32f3dbc7c6290cb5f3a0",
+    "f429b5a0da5bae78467e4f9eb04d162b50e44d0f",
+    "f6524ab4fe05bf3b9343dcbd05ba7d9212bb62d1",
+    "ff7ddb32ee7c0014d49edeb2c93d4e493b72a8de",
+    "fa2f5abba5693736ceae902adb5cd556c4271291",
+    "9b9c16608e1d662a614205d291d8f13a723156e6",
+    "194add465c00ba6cab0e4e8c6359e3c6c0705914",
+    "dcd8729a69f38aa3407bec13ea935b7fd5faca5c",
     "12432939aec0a423693303b1f35719a3a18027ed",
     "1930a6c914dfcbdcb877ecb4255cbe1d6130b8f6",
     "324e21d07bceabf69131250c42f6cf3c104b0500",
@@ -268,7 +309,7 @@ const REDACTED_COMMIT_MESSAGES = new Set([
     "e3782366879bc380462a6ce9b99e2aeebb443dc1",
 ]);
 
-function publicText(text, sha, kind) {
+export function publicText(text, sha, kind) {
     if (!REDACTED_COMMIT_MESSAGES.has(sha)) return text;
     return kind === "subject"
         ? "Internal maintenance message omitted from the public changelog"
@@ -837,9 +878,14 @@ function main(argv) {
     }
 }
 
-try {
-    main(process.argv);
-} catch (error) {
-    console.error(`build-changelog: ${error instanceof Error ? error.message : String(error)}`);
-    process.exitCode = 1;
+const RUNNING_DIRECTLY =
+    process.argv[1] !== undefined && pathToFileURL(resolve(process.argv[1])).href === import.meta.url;
+
+if (RUNNING_DIRECTLY) {
+    try {
+        main(process.argv);
+    } catch (error) {
+        console.error(`build-changelog: ${error instanceof Error ? error.message : String(error)}`);
+        process.exitCode = 1;
+    }
 }

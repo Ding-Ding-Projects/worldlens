@@ -81,6 +81,9 @@ const emit = defineEmits<{
 
 const { t, tx } = useMarkerI18n();
 const app = useBlueMap(() => props.app);
+function selectedPlayersLabel(): string {
+    return tx("players.selected", "{count} selected", { count: selectedPlayerIds.value.length });
+}
 
 const rootSet = computed<AnyMarkerSetData | null>(
     () => app.value?.mapViewer.markers.data ?? null,

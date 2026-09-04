@@ -10,6 +10,7 @@ const props = withDefaults(defineProps<{
     label: string;
     disabled?: boolean;
 }>(), { disabled: false });
+const isDisabled = computed(() => props.disabled === true);
 
 const emit = defineEmits<{ "update:modelValue": [value: PlainValue[]] }>();
 const rows = computed(() => props.modelValue.filter((row): row is Record<string, PlainValue> => typeof row === "object" && row !== null && !Array.isArray(row)));

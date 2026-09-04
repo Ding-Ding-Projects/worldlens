@@ -20,7 +20,7 @@ Kid Mode's own colours as a fourth Vuetify theme alongside dark, light and contr
 
 The single fact every other paragraph in this article depends on: Kid Mode does not know what a
 feature *is*. `KidHome.vue` and `KidCataloguePage.vue` render whatever `ResolvedCatalogue[]` the
-adult shell hands them as a prop - the same eighty-four catalogue features, in the same five
+adult shell hands them as a prop - the same eighty-eight catalogue features, in the same six
 catalogues, that `catalogues.ts` already declares and `capabilities.ts` has already filtered down
 to what this checkout can actually do. `KidJobStrip.vue` re-hosts `WorkPane.vue` rather than
 reimplementing a job list. `KidGrownUpGate.vue` reads the shared restricted-mode record and, once
@@ -31,13 +31,13 @@ adult Home's own cards does.
 
 `kidMode.contract.test.ts` is what keeps that true rather than merely intended. It asserts, from
 the source registries themselves rather than from a number written down in the test: every one of
-the eighty-four catalogue features has a kid label, every one of the eighteen jobs and nineteen
-settings sections does too, every one of the five catalogues does, the kid colour scheme answers
+the eighty-eight catalogue features has a kid label, every one of the eighteen jobs and nineteen
+settings sections does too, every one of the six catalogues does, the kid colour scheme answers
 exactly the roles the dark scheme declares and no others, and every sticker names a feature that
 genuinely exists in the catalogue. A kid label going missing, a feature quietly becoming
 unreachable, a second credential, or a new colour token invented for Kid Mode alone all fail this
 one file. (`kidLabels.ts`'s own doc comment notes that its source registry briefly disagreed with
-itself about whether there were eighty-four or eighty-five features; the count in the test is
+itself about whether there were eighty-eight or eighty-five features; the count in the test is
 derived from `ALL_CATALOGUE_FEATURES.length` rather than typed in, which is exactly what let that
 stale "eighty-five" be caught rather than quietly trusted.)
 
@@ -45,7 +45,7 @@ stale "eighty-five" be caught rather than quietly trusted.)
 
 `kid.enabled` is the one flag `App.vue` checks to decide which shell to mount, and it ships `true`.
 A newly installed copy of the application - nobody has touched a setting yet - opens straight into
-the rail, the GO card and the five lands described below, not into the ordinary tab strip. That
+the rail, the GO card and the six lands described below, not into the ordinary tab strip. That
 makes the way back the first thing worth knowing, not an afterthought:
 
 - The **grown-up padlock** on the kid rail's own footer, beside Find and Messages, opens the gate
@@ -64,11 +64,11 @@ Both the "Kid Mode and Adult Mode" row and the shared restricted mode's own row 
 on an ordinary settings surface, so both are findable the same way every other setting is: through
 that surface's own search field and through the command palette, by either name.
 
-### The five lands, and the same catalogue that draws them
+### The six lands, and the same catalogue that draws them
 
 `KidHome.vue` is Kid Mode's Home: a hero card for the project editor (exactly the same
 `findFeature("make.finding-a-world.the-project-editor")` the adult Home's own hero resolves to),
-five buttons for the five catalogues rendered as "lands" (`Make a map`, `Your maps`, `Show people`,
+six buttons for the six catalogues rendered as "lands" (`Make a map`, `Your maps`, `Show people`,
 `Keep it safe`, `Buttons & help`), a panel for what the app is doing right now, and a panel listing
 the maps and servers this machine knows about. `KidHome.vue` accepts an optional `activity` prop,
 typed for backup and CI rows alongside the render rows it already draws from, but nothing currently
@@ -100,7 +100,7 @@ string built at runtime here is no exception. A screen reader, the tab finder, t
 command palette's own search, and every screenshot this project's harness takes therefore still
 identify a feature by the name its documentation uses, even on a screen where the visible text says
 "Robot helpers." `kidMode.contract.test.ts` checks this at all three label styles for all
-eighty-four features, not just the default one.
+eighty-eight features, not just the default one.
 
 ### The job strip: `WorkPane` re-hosted, never re-implemented
 
@@ -377,7 +377,7 @@ one CDP page exist, and closes only the process and desktop identities it create
 
 | Test | What it holds |
 |---|---|
-| `kidMode.contract.test.ts` | Every one of the eighty-four catalogue features, eighteen jobs, nineteen settings sections and five catalogues has a kid label, derived from the source registries rather than a count written into the test; the accessible name keeps the shipped feature name at all three label styles, for every feature; the kid colour scheme answers exactly the roles the dark scheme declares, sorted, and no others; every sticker names a feature that genuinely exists in the catalogue. |
+| `kidMode.contract.test.ts` | Every one of the eighty-eight catalogue features, eighteen jobs, nineteen settings sections and six catalogues has a kid label, derived from the source registries rather than a count written into the test; the accessible name keeps the shipped feature name at all three label styles, for every feature; the kid colour scheme answers exactly the roles the dark scheme declares, sorted, and no others; every sticker names a feature that genuinely exists in the catalogue. |
 
 As of these sixteen files, that one test file is the whole of Kid Mode's own test coverage - it is a
 coverage-and-non-divergence contract rather than a mounted-component suite, which is a deliberate

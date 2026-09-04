@@ -203,24 +203,24 @@ const layerBlockDraft = ref("minecraft:stone");
 const layerDepthDraft = ref(1);
 
 function onAddLayer(): void {
-    settings.superflatLayers = addSuperflatLayer(settings.superflatLayers, {
+    settings.superflatLayers = [...addSuperflatLayer(settings.superflatLayers, {
         block: layerBlockDraft.value.trim(),
         depth: Math.max(1, Math.round(layerDepthDraft.value)),
-    });
+    })];
 }
 function onRemoveLayer(index: number): void {
-    settings.superflatLayers = removeSuperflatLayer(settings.superflatLayers, index);
+    settings.superflatLayers = [...removeSuperflatLayer(settings.superflatLayers, index)];
 }
 function onMoveLayer(index: number, delta: number): void {
-    settings.superflatLayers = moveSuperflatLayer(settings.superflatLayers, index, index + delta);
+    settings.superflatLayers = [...moveSuperflatLayer(settings.superflatLayers, index, index + delta)];
 }
 function onLayerBlockChange(index: number, value: string): void {
-    settings.superflatLayers = updateSuperflatLayer(settings.superflatLayers, index, { block: value });
+    settings.superflatLayers = [...updateSuperflatLayer(settings.superflatLayers, index, { block: value })];
 }
 function onLayerDepthChange(index: number, value: number): void {
-    settings.superflatLayers = updateSuperflatLayer(settings.superflatLayers, index, {
+    settings.superflatLayers = [...updateSuperflatLayer(settings.superflatLayers, index, {
         depth: Math.max(1, Math.round(value)),
-    });
+    })];
 }
 const layerTotalDepth = computed(() => totalSuperflatDepth(settings.superflatLayers));
 

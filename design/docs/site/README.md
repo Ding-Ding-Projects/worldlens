@@ -12,6 +12,7 @@ states behaviour, configuration, failure modes, security considerations, and ver
 | [Settings tab search](settings-tab-search.md)                                | Per-tab plain-text search and anchored regex builders                                                                             |
 | [Tab and group appearance](tab-appearance-editors.md)                        | Edit tab and group appearance from normal or Shift+right-click menus                                                              |
 | [Startup recovery and brand identity](startup-recovery.md)                   | The shared local Worldlens mark, its accessible Home action, and the documentation-site article for the desktop recovery boundary |
+| [Application feature article registry](../../packages/site/src/content/articles/index.ts) | The public article registry for converter and local model tooling, runtime settings, host profiles, version catalogue, creative studio, and built-app smoke planning |
 
 The site's existing screenshot gallery is a repository-backed verification gallery. It must not
 be described as the user-owned in-app screenshot library tracked by issue #76; that product
