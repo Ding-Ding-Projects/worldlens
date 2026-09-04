@@ -70,10 +70,29 @@ is deliberately not done here.
   docker hosting, backup and history. Not baselined against `main`, so they are *not* claimed as
   pre-existing - only that none sits in a file this work changed.
 
+### Released, and verified against the artifact
+
+`v1.0.1888`, non-draft, target `d18a7fc9` - the exact commit dewed to `main`. CI green on all
+six jobs including the Windows installer that had been red. Assets attached and genuinely
+downloadable (`Setup.exe` HTTP 200; `RELEASES` returns the real Squirrel line naming
+`Worldlens-1.0.1888-full.nupkg` at 426,369,526 bytes, matching the asset listing).
+
+The proof that matters for this work is inside the artifact rather than in the configuration.
+`bluemap-server-plugins-5.23-1.zip` was downloaded from the release, `bluemap-5.23-1-paper.jar`
+opened, and its embedded `webapp.zip` unpacked: 32 Material Design 3 colour roles across 138
+references, 25 focus rings, and zero surviving upstream colour literals. The stylesheet is
+`index-s8BtuYen.css`, the same name the local build produced, so the released bytes and the
+locally verified bytes are the same bytes.
+
+One thing to hold honestly: the jars are stamped `5.23-1` rather than the local `5.23-lang-gui-1`,
+because CI checks the submodule out detached and upstream's `gitVersion()` has no branch name to
+append. Same commit, different label.
+
 ### Not done
 
-Nothing was released. The fork's UI has not been photographed in a published map, and no
-installer was built from the rewired jar path beyond a local CLI build.
+The Material Design 3 interface has not been photographed in a deployed `/map/`. The evidence
+above is byte-level rather than visual, which proves the CSS ships and does not prove how it
+looks on screen.
 
 
 ## 2026-08-26: the engine was never missing, and four other things that photographed or described the wrong thing
