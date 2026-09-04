@@ -36,7 +36,12 @@ import { pipeline } from "node:stream/promises";
 const IMPLEMENTATIONS = ["cli", "fabric", "forge", "neoforge", "paper", "spigot", "sponge"];
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const VENDOR_ROOT = join(REPO_ROOT, "vendor", "BlueMap");
+// The fork, not upstream: the jars embed the webapp and this project's webapp UI is
+// rewritten to Material Design 3. Stated once and reused below so a manifest cannot
+// name one checkout while the build read another.
+const VENDOR_PATH = "vendor/BlueMap-LangGui";
+const BLUEMAP_REPOSITORY = "https://github.com/Ding-Ding-Projects/BlueMap";
+const VENDOR_ROOT = join(REPO_ROOT, ...VENDOR_PATH.split("/"));
 const GRADLE_HOME = join(REPO_ROOT, "tools", "oracle", ".gradle");
 const DEFAULT_STAGING = join(REPO_ROOT, "tools", "oracle", "out", "jars");
 
@@ -335,9 +340,9 @@ async function main() {
                     schemaVersion: 1,
                     stagedAt: new Date().toISOString(),
                     source: {
-                        repository: "https://github.com/BlueMap-Minecraft/BlueMap",
+                        repository: BLUEMAP_REPOSITORY,
                         commit: sourceCommit,
-                        path: "vendor/BlueMap",
+                        path: VENDOR_PATH,
                         version: sourceVersion,
                     },
                     jars: staged.map(({ implementation, version, fileName, size, sha256: digest }) => ({
@@ -347,9 +352,9 @@ async function main() {
                         size,
                         sha256: digest,
                         source: {
-                            repository: "https://github.com/BlueMap-Minecraft/BlueMap",
+                            repository: BLUEMAP_REPOSITORY,
                             commit: sourceCommit,
-                            path: "vendor/BlueMap",
+                            path: VENDOR_PATH,
                         },
                     })),
                 },

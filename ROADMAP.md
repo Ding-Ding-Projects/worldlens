@@ -1,5 +1,41 @@
 # Roadmap
 
+## Local servers, and a Material Design 3 map (2026-09-03)
+
+Four screenshots of the new-server wizard turned into three P0 defects and a whole UI rewrite.
+
+- [x] Server creation accepts the request shape the renderer actually sends. It compared a
+      `TransportRef` *object* against string literals, so every local runtime was refused.
+- [x] Local-process servers can start: `localRuntime` is supplied by the module that owns the
+      registry, and the java path is persisted on the record instead of being computed at
+      creation and thrown away.
+- [x] Creation sees the JRE inside its own installer (`resourcesPath`), and the guard that
+      exists to catch that now also finds a resolver missing from its inventory entirely and
+      follows an options variable to where it is built.
+- [x] The wizard stops persisting a stale identity (a vanilla server saved as `paper-26-2`) and
+      clears a failed create when the inputs change.
+- [x] The published map's homepage points at `/map/`, and the render config asks the webapp to
+      decompress tiles itself since every consumer of that render is a file host.
+- [x] `Ding-Ding-Projects/BlueMap` forked, and its whole webapp UI layer rewritten to Material
+      Design 3 on branch `lang-gui` at upstream `v5.23`.
+- [x] The build reads the fork: `tools/build-jars.mjs`, `build-jars.yml`, `render-world.yml`,
+      `render-private-world.yml`, with the path and repository as shared constants the
+      packager's validator consumes.
+- [ ] Photograph the Material Design 3 interface in a real published map. The local jar build
+      is the furthest this went; nothing has been captured from a deployed `/map/`.
+- [ ] Decide whether `vendor/BlueMap` stays. Two full BlueMap checkouts is real disk and real
+      CI clone time now that only the fork is built from.
+- [ ] Repair or retire `mcserverWiring.test.ts`. It looks for literal
+      `ipcRenderer.invoke("mcserver:…")` strings that the `@worldlens/bridge` refactor removed,
+      so it fails permanently while guarding nothing. Red on `main` already.
+- [ ] Reconcile `scripts/lint-workflows.mjs`. It reports 12 release-boundary problems on `main`
+      already - drifted action-count inventories and step fingerprints. A permanently red guard
+      teaches people to ignore red.
+- [ ] Bring the CLI-jar download paths onto the fork, or say plainly that they are upstream.
+      `installCliJar.ts` and `engineProvisioning.ts` still fetch upstream release jars, which
+      carry the stock webapp rather than this one.
+
+
 ## Project canvas documentation (2026-08-25)
 
 The node-graph canvas (`design/packages/ui/src/components/canvas/`) already shipped as an

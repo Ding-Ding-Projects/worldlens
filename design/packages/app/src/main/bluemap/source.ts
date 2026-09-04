@@ -1,9 +1,13 @@
 /**
  * Which BlueMap the jars in this installation actually are, and whether upstream has moved on.
  *
- * The engine this app renders with is not this app's code. It is BlueMap's own source, vendored
- * at `vendor/BlueMap` as a git submodule pinned to one commit, compiled unmodified by
- * `scripts/bootstrap.mjs` with upstream's own Gradle wrapper. Nothing in the resulting jar is
+ * The engine this app renders with is very nearly not this app's code. It is BlueMap's own
+ * source, vendored at `vendor/BlueMap-LangGui` as a git submodule pinned to one commit and
+ * compiled by `scripts/bootstrap.mjs` with upstream's own Gradle wrapper. The one deliberate
+ * difference is the webapp's UI layer, which this project rewrote to Material Design 3; the
+ * rendering engine itself is untouched. Saying "compiled unmodified" here would be false, and
+ * a comment that overstates a guarantee is worse than none - the careful reader is exactly who
+ * it misleads. Nothing in the resulting jar is
  * written here, which is exactly why the question "what is in there" has no answer inside the
  * jar that this app is entitled to trust: the version in the filename is upstream's
  * `git describe` output, and a filename is a label rather than a provenance record.
@@ -26,7 +30,14 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { resolveCliJar, type JarLookupOptions } from "../java/jars.js";
 
-/** The repository the vendored submodule tracks. Stated once so nothing else spells it out. */
+/**
+ * Upstream's repository, for the "has BlueMap moved on?" check only.
+ *
+ * Deliberately still upstream even though the jars are now built from this project's fork:
+ * the question this constant serves is whether a newer BlueMap release exists, and the fork
+ * publishes no releases of its own. The fork's own commit is recorded in the jar provenance
+ * stamp instead. Stated once so nothing else spells it out.
+ */
 export const BLUEMAP_REPOSITORY = "BlueMap-Minecraft/BlueMap";
 
 /**
@@ -40,7 +51,7 @@ export const JAR_STAMP_NAME = "worldlens-jar-provenance.json";
 
 /** What the build recorded about the jars sitting in this installation. */
 export interface BlueMapJarProvenance {
-    /** The full `vendor/BlueMap` commit the jars were compiled from. */
+    /** The full `vendor/BlueMap-LangGui` commit the jars were compiled from. */
     readonly commit: string;
     /** The same, shortened for display. Derived here so no caller shortens it differently. */
     readonly shortCommit: string;

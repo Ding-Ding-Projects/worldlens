@@ -1,5 +1,76 @@
 # Handoff
 
+## 2026-09-03: local servers could never be created or started, and the map's UI is now Material Design 3
+
+Two independent strands. Everything below was verified by breaking it again and watching the
+test go red; where something is unverified it says so.
+
+### Local Minecraft servers were completely broken, and the suite was green about it
+
+Three defects, all at seams the tests stub rather than exercise:
+
+- **Creation was refused for every local runtime.** The renderer sends `transport` as a
+  `TransportRef` object and never sets the optional `runtime` string, but `mcserver/ipc.ts` read
+  `body.runtime ?? body.transport` and compared the result to string literals - so it compared
+  an *object*, matched neither branch, and answered "That server runtime is not supported by
+  this build" for paper, vanilla, docker and aws alike. The only existing test sent the string
+  form the renderer never sends. Fixed by reading the transport's own discriminant; a new test
+  submits the shape the renderer actually builds.
+- **Any server that existed could never start.** `transport/factory.ts` requires a
+  `localRuntime` callback for every local-process ref and *no production caller supplied one*,
+  so start, status, RCON and config all answered "This server has no Java runtime chosen yet."
+  on every machine whatever Java was installed. The record never persisted the java path such a
+  callback would return; it now does, and an older record repairs itself on first open.
+- **Creation could not see the JRE inside its own installer**, because it discovered Java
+  without `resourcesPath`. `bundledRuntimeWiring.test.ts` exists to catch exactly that and its
+  hand-written inventory omitted the file - the third omission of its kind. It now also scans
+  for a resolver missing from the inventory entirely, and follows an options variable to where
+  it is built, because `create.ts` calls `discoverJava(discoveryOptions)` and the guard only
+  ever read inline arguments. Proof it was toothless: with `create.ts` broken, the *previous*
+  version of the guard stayed green.
+
+Smaller, same area: the wizard could not re-derive a server id once it had suggested one
+(emptiness was standing in for "the user typed this", and the suggestion itself made it
+non-empty), so a vanilla server was genuinely persisted as `paper-26-2`. A failed create no
+longer sticks around after inputs change.
+
+### The published map now builds from this project's BlueMap fork
+
+`Ding-Ding-Projects/BlueMap`, branch `lang-gui`, based at upstream `v5.23` - the same tag
+`vendor/BlueMap` pins. Its `master` is a clean upstream mirror so a future release is a normal
+merge. The whole webapp UI layer is rewritten to Material Design 3: real system tokens, state
+layers instead of background swaps, M3 switch/slider/outlined-field anatomy, 48px targets,
+visible focus rings, elevation, and `prefers-reduced-motion` throughout.
+
+**The build now uses the fork.** `tools/build-jars.mjs`, `.github/workflows/build-jars.yml`,
+`render-world.yml` and `render-private-world.yml` all read `vendor/BlueMap-LangGui`. The path
+and repository are single exported constants (`BLUEMAP_SOURCE_PATH`,
+`BLUEMAP_SOURCE_REPOSITORY`) consumed by the packager's own validator, so a manifest written
+from one source and checked against another cannot pass. `CI_WORKFLOW_TEMPLATE_VERSION` is 3.
+
+`vendor/BlueMap` remains as the unmodified upstream reference to port from. Two full BlueMap
+checkouts is real disk and real CI clone time; retiring the upstream one is a live option and
+is deliberately not done here.
+
+### Known red, and not caused by this work
+
+- `mcserver/mcserverWiring.test.ts` (2 tests) looks for literal `ipcRenderer.invoke("mcserver:…")`
+  strings in `preload/index.ts`. The preload was refactored to a generic transport plus
+  `createWorldlensBridge` from `@worldlens/bridge`, so the guard now guards nothing and fails
+  permanently. It fails identically at `ea550145`. Fix it against the bridge package or retire it.
+- `scripts/lint-workflows.mjs` reports **12 release-boundary problems on `main` already** -
+  action-count inventories and step fingerprints that have drifted from the workflows. Verified
+  by diffing its output with and without this work: byte-identical, so nothing here added to it.
+- A wider run shows 89 failures in 9436 across app/ui/render-actions, clustered in remote-render,
+  docker hosting, backup and history. Not baselined against `main`, so they are *not* claimed as
+  pre-existing - only that none sits in a file this work changed.
+
+### Not done
+
+Nothing was released. The fork's UI has not been photographed in a published map, and no
+installer was built from the rewired jar path beyond a local CLI build.
+
+
 ## 2026-08-26: the engine was never missing, and four other things that photographed or described the wrong thing
 
 Eleven commits, all released through `v1.0.1760`. One theme runs through most of them: the app or

@@ -14,6 +14,7 @@ import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import {
+    BLUEMAP_SOURCE_PATH,
     BLUEMAP_SOURCE_REPOSITORY,
     STAGED_JAVA_ENGINE_SCHEMA,
     hashFile,
@@ -131,7 +132,7 @@ function assertReleaseManifest(manifest, options) {
     if (manifest === null || typeof manifest !== "object") throw new Error("manifest must be an object");
     if (manifest.schemaVersion !== STAGED_JAVA_ENGINE_SCHEMA) throw new Error("manifest.schemaVersion mismatch");
     if (manifest.source?.repository !== BLUEMAP_SOURCE_REPOSITORY) throw new Error("manifest.source.repository mismatch");
-    if (manifest.source?.path !== "vendor/BlueMap") throw new Error("manifest.source.path mismatch");
+    if (manifest.source?.path !== BLUEMAP_SOURCE_PATH) throw new Error("manifest.source.path mismatch");
     if (manifest.source?.version !== options.expectedVersion) throw new Error("manifest.source.version mismatch");
     if (manifest.source?.commit !== options.expectedCommit) throw new Error("manifest.source.commit mismatch");
     if (manifest.workflow?.runId !== options.expectedRunId) throw new Error("manifest.workflow.runId mismatch");
