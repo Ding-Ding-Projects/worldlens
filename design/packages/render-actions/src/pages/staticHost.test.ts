@@ -38,6 +38,26 @@ async function renderedMap(options: { readonly ids?: readonly string[]; readonly
     }
 }
 
+/**
+ * The other shape that serves correctly: plain files, and the flag left off.
+ *
+ * A map whose storage wrote uncompressed, or one somebody decompressed on the way out. The
+ * viewer asks for `textures.json` and `.prbm` and finds both. This was reported as broken
+ * until the check started asking which name the viewer would actually request.
+ */
+async function decompressedMap(id = "overworld") {
+    await writeFile(join(root, "index.html"), "<!doctype html>");
+    await writeFile(
+        join(root, "settings.json"),
+        JSON.stringify({ version: "5.22", mapDataRoot: "maps", maps: [id], clientDecompression: false }),
+    );
+    const mapRoot = join(root, "maps", id);
+    await mkdir(join(mapRoot, "tiles", "0", "x0"), { recursive: true });
+    await writeFile(join(mapRoot, "settings.json"), "{}");
+    await writeFile(join(mapRoot, "textures.json"), "plain-bytes");
+    await writeFile(join(mapRoot, "tiles", "0", "x0", "z0.prbm"), "plain-bytes");
+}
+
 async function settingsOf(): Promise<Record<string, unknown>> {
     return JSON.parse(await readFile(join(root, "settings.json"), "utf8")) as Record<string, unknown>;
 }
@@ -194,5 +214,36 @@ describe("refusing to work on something that is not a rendered map", () => {
         await writeFile(join(root, "settings.json"), "{ not json");
 
         await expect(prepareStaticHost({ webRoot: root })).rejects.toThrow("could not be read");
+    });
+});
+
+describe("the name the viewer will actually ask for", () => {
+    it("accepts a decompressed map, checked without writing", async () => {
+        // Verified against a real render: decompressing the webroot and leaving the flag off
+        // loads correctly in the shipped viewer. Reporting it as missing a file it does not
+        // need was a false alarm on a working map.
+        await decompressedMap();
+        const report = await prepareStaticHost({ webRoot: root, write: false });
+        expect(report.maps[0]?.missing).toEqual([]);
+        expect(report.servable).toBe(true);
+    });
+
+    it("wants the compressed name once it has turned the flag on", async () => {
+        // After a write the viewer appends .gz, so that is the name that has to be there -
+        // reading the state before the decision would describe a webroot that no longer exists.
+        await decompressedMap();
+        const report = await prepareStaticHost({ webRoot: root, write: true });
+        expect(report.maps[0]?.missing).toEqual(["maps/overworld/textures.json.gz"]);
+    });
+
+    it("still catches a map with tiles and no textures at all", async () => {
+        // The failure this exists for. Every tile present and no reachable textures.json
+        // shows "There was an error trying to load this map" and nothing else, which sends
+        // somebody looking at their tiles for hours.
+        await decompressedMap();
+        await rm(join(root, "maps", "overworld", "textures.json"));
+        const report = await prepareStaticHost({ webRoot: root, write: false });
+        expect(report.maps[0]?.missing).toEqual(["maps/overworld/textures.json"]);
+        expect(report.servable).toBe(false);
     });
 });

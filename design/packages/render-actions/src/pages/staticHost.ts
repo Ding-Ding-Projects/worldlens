@@ -292,6 +292,14 @@ export async function prepareStaticHost(options: PrepareStaticHostOptions): Prom
     // The flag itself. Everything else in this function exists to check that flipping it
     // points the viewer at files that are really there.
     const alreadySet = settings.clientDecompression === true;
+    /*
+     * What the viewer will ask for once this run finishes, not what it asked for before.
+     *
+     * A write turns the flag on, so the compressed names become the right ones; a check that
+     * does not write leaves whatever is there. Reading the state after the decision rather
+     * than before is what stops the report describing a webroot that no longer exists.
+     */
+    const wantsClientDecompression = alreadySet || write;
     if (!alreadySet && write) {
         settings.clientDecompression = true;
         await writeFile(settingsFile, `${JSON.stringify(settings, null, 2)}\n`, "utf8");
@@ -335,12 +343,24 @@ export async function prepareStaticHost(options: PrepareStaticHostOptions): Prom
         // Exactly the files the viewer asks for once the flag is on. Checking the
         // uncompressed names instead would prove nothing about the site we are publishing.
         if (!(await exists(join(mapRoot, "settings.json")))) missing.push(`maps/${id}/settings.json`);
-        if (!(await exists(join(mapRoot, "textures.json.gz")))) {
-            // A map rendered with compression off has textures.json and .prbm on disk, and
-            // client decompression would send the viewer looking for files that do not
-            // exist. That map is servable statically as it stands - it just must not have
-            // the flag flipped, which is a different report, not a worse one.
-            missing.push(`maps/${id}/textures.json.gz`);
+        /*
+         * Check the name the viewer will actually ask for, which the flag decides.
+         *
+         * There are two shapes that both serve correctly from a plain file host, and this
+         * used to report one of them as broken. With client decompression on, the viewer
+         * appends `.gz` and the compressed file is the right one. With it off - a map whose
+         * storage wrote plain files, or one somebody decompressed on the way out - the
+         * viewer asks for `textures.json`, and that map is perfectly servable.
+         *
+         * Checking only the compressed name meant the second shape came back missing a file
+         * it does not need, which is a false alarm on a working map. Worse, the failure it
+         * hides is the one that matters: a map with every tile present and no reachable
+         * textures.json shows "There was an error trying to load this map" and nothing else,
+         * so a wrong answer here sends somebody looking at their tiles for hours.
+         */
+        const texturesName = wantsClientDecompression ? "textures.json.gz" : "textures.json";
+        if (!(await exists(join(mapRoot, texturesName)))) {
+            missing.push(`maps/${id}/${texturesName}`);
         }
         if (!(await exists(join(mapRoot, "tiles")))) missing.push(`maps/${id}/tiles/`);
 
