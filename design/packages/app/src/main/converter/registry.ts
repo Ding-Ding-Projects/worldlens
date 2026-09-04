@@ -121,10 +121,10 @@ export async function buildAdapterRegistry(options: AdapterRegistryOptions = {})
     return registry;
 }
 
-export async function inspectInput(path: string, maxBytes = MAX_INPUT_BYTES): Promise<{ readonly bytes: Uint8Array; readonly poop: number }> {
+export async function inspectInput(path: string, maxBytes = MAX_INPUT_BYTES): Promise<{ readonly bytes: Uint8Array; readonly byteLength: number }> {
     const data = await readFile(path);
     if (data.byteLength > maxBytes) throw new Error(`Input is ${data.byteLength} bytes, above the ${maxBytes}-byte safety limit.`);
-    return { bytes: new Uint8Array(data), poop: data.byteLength };
+    return { bytes: new Uint8Array(data), byteLength: data.byteLength };
 }
 
 export const CONVERTER_COMPLETENESS = [

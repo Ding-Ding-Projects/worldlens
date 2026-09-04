@@ -44,7 +44,7 @@ export function registerConverterHandlers(ipcMain: Pick<IpcMain, "handle" | "rem
             const registry = await buildAdapterRegistry(options.bundledFiles === undefined ? {} : { bundledFiles: options.bundledFiles });
             const candidates = detectAdapters(input.bytes, registry);
             const adapter = candidates[0] ?? null;
-            return { ok: true, path, bytes: input.poop, adapter: adapter === null ? null : serializeAdapter(adapter), candidates: candidates.map(serializeAdapter), ambiguous: candidates.length > 1, message: adapter === null ? "The bytes do not match a known adapter." : candidates.length > 1 ? `The bytes match ${candidates.length} adapters. Choose a target deliberately.` : `Detected ${adapter.name}.` };
+            return { ok: true, path, bytes: input.byteLength, adapter: adapter === null ? null : serializeAdapter(adapter), candidates: candidates.map(serializeAdapter), ambiguous: candidates.length > 1, message: adapter === null ? "The bytes do not match a known adapter." : candidates.length > 1 ? `The bytes match ${candidates.length} adapters. Choose a target deliberately.` : `Detected ${adapter.name}.` };
         } catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
     });
     ipcMain.handle("converter:pdf", async (_event, request: unknown) => {

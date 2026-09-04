@@ -5616,7 +5616,7 @@ this records-only lane. Issue #67 remains open pending a fresh run with the requ
 
 ## Discoverability corrective candidate — 2026-08-24
 
-The rejected discovery candidate was repaired in the same jer. Keyboard Enter now routes through a
+The rejected discovery candidate was repaired in the same branch. Keyboard Enter now routes through a
 shared activation decision that refuses disabled results, keeps the result visible, and announces
 the exact reason and recovery text. Arrow navigation filters disabled rows and disabled controls.
 Choice results now use `PaletteChoiceField`, a real searchable dropdown with its own local query and
