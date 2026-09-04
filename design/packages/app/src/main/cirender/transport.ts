@@ -376,7 +376,12 @@ async function configureWorkflowPagesWithApi(
             pagesEndpoint,
         );
     }
-    const url = requiredHttpsUrl(site["html_url"], `Pages URL for ${owner}/${repo}`);
+    const siteUrl = requiredHttpsUrl(site["html_url"], `Pages URL for ${owner}/${repo}`);
+    // GitHub reports the site root, and the site root is the documentation site: the render
+    // workflow copies the map into `pages-root/map/` beside it. Publishing the bare root as
+    // the repository homepage sends every visitor to a page with no map on it, which reads
+    // as a render that silently did nothing. Point at what was actually rendered.
+    const url = `${siteUrl.replace(/\/+$/, "")}/map/`;
 
     const homepageUpdated = (await homepage.read()) !== url;
     if (homepageUpdated) await homepage.set(url);

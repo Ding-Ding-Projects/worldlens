@@ -59,6 +59,7 @@ const RECORD: ServerRecord = {
     hasRconSecret: false,
     rconPort: null,
     writeScope: [],
+    localRuntime: null,
 };
 
 describe("registerMcServerHandlers", () => {
@@ -104,6 +105,28 @@ describe("registerMcServerHandlers", () => {
         for (const channel of Object.values(MCSERVER_CHANNELS)) {
             expect(ipc.handlers.has(channel)).toBe(true);
         }
+    });
+
+    it("builds a local-process transport from the runtime stored on the record", async () => {
+        // `createTransport` demands a `localRuntime` callback for every local-process ref
+        // and nothing outside this module supplied one, so every local server ever created
+        // answered "This server has no Java runtime chosen yet." to start, status, RCON and
+        // config - on every machine, whatever Java was installed. No test referenced
+        // `localRuntime` at all, which is why it shipped.
+        await registered.registry.put({
+            ...RECORD,
+            id: "local",
+            name: "Local",
+            ref: { kind: "local-process", serverDir: join(dir, "local") },
+            localRuntime: { javaPath: "/usr/bin/java", jarPath: "/srv/server.jar", memoryMb: 2048 },
+        });
+
+        const answer = (await invoke(MCSERVER_CHANNELS.status, "local")) as {
+            ok: boolean;
+            failure?: { message: string };
+        };
+        expect(answer.failure?.message ?? "").not.toMatch(/no Java runtime chosen yet/);
+        expect(answer.ok).toBe(true);
     });
 
     it("removes every channel on dispose", () => {
@@ -514,6 +537,42 @@ describe("registerMcServerHandlers - catalogue, java and create channels", () =>
         };
         expect(answer.ok).toBe(false);
         expect(answer.failure.code).toBe("invalid-request");
+    });
+
+    it("accepts the transport object the wizard really sends, with no runtime string", async () => {
+        // The renderer has never set `runtime`. It sends `transport` as a TransportRef
+        // object, and the handler used to compare that object against string literals,
+        // so it matched neither and every local runtime was refused with "not supported
+        // by this build". Every other create test sends the string form or omits it,
+        // which is why a green suite said nothing about the shipped path.
+        //
+        // An unknown version keeps this about the seam: reaching the version lookup at
+        // all proves the runtime check accepted the object and let creation proceed.
+        const answer = (await invoke(MCSERVER_CHANNELS.create, {
+            id: "survival",
+            name: "Survival",
+            flavour: "vanilla",
+            version: "1.0.0-does-not-exist",
+            memoryMb: 1024,
+            acceptedEula: true,
+            transport: { kind: "local-process", serverDir: "/servers/survival" },
+        })) as { ok: boolean; failure: { code: string; message: string } };
+        expect(answer.failure.message).not.toMatch(/not supported by this build/);
+        expect(answer.failure.code).toBe("not-found");
+    });
+
+    it("names the runtime it cannot create here rather than blaming the build", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.create, {
+            id: "survival",
+            name: "Survival",
+            flavour: "vanilla",
+            version: "1.21.4",
+            memoryMb: 1024,
+            acceptedEula: true,
+            transport: { kind: "aws", region: "us-east-1" },
+        })) as { ok: boolean; failure: { message: string } };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.message).toContain("aws");
     });
 
     it("refuses to create a server for an unknown version without downloading anything", async () => {

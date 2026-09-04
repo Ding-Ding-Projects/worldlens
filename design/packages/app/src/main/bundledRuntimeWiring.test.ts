@@ -28,8 +28,8 @@
  * later has to be considered rather than silently inheriting the omission.
  */
 
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
@@ -45,11 +45,23 @@ const mainRoot = dirname(fileURLToPath(import.meta.url));
 const RESOLVERS = [
     "render/engine.ts",
     "mcserver/ipc.ts",
+    "mcserver/create.ts",
     "java/ipc.ts",
     "index.ts",
 ] as const;
 
 /*
+ * `mcserver/create.ts` was missing from the second version, and cost the same defect a
+ * second time: creating a server discovered Java without `resourcesPath`, so a packaged
+ * install could not see the JRE inside its own installer and either downloaded a second
+ * copy or refused outright. The list said nothing, because a hand-written list only checks
+ * the entries already on it - the one that is absent is precisely the one it cannot see.
+ *
+ * So there are now two checks, and they catch opposite mistakes. The list below catches an
+ * inventoried module that stops passing `resourcesPath`. The discovery test at the end of
+ * this file catches a module that resolves a JVM and is not on the list at all. Neither
+ * alone would have caught both omissions.
+ *
  * `java/ipc.ts` was missing from the first version of this list, and the omission proved the
  * point the list exists to make.
  *
@@ -63,6 +75,17 @@ const RESOLVERS = [
  * the second test insists every inventoried module still resolves a JVM: a hand-written list
  * is only as good as the reason each entry is on it.
  */
+
+/** Every `.ts` file under the main process, as paths relative to `mainRoot`. */
+function walkTypeScript(root: string, prefix = ""): string[] {
+    const found: string[] = [];
+    for (const entry of readdirSync(resolve(root, prefix), { withFileTypes: true })) {
+        const rel = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
+        if (entry.isDirectory()) found.push(...walkTypeScript(root, rel));
+        else if (entry.name.endsWith(".ts")) found.push(rel);
+    }
+    return found;
+}
 
 const sourceOf = (file: string): string =>
     readFileSync(resolve(mainRoot, file), "utf8").replace(/\r/g, "");
@@ -134,5 +157,33 @@ describe("the bundled runtime is offered to every path that resolves a JVM", () 
             wirings.length,
             "index.ts should pass the packaged resources path to the surfaces that resolve Java",
         ).toBeGreaterThanOrEqual(3);
+    });
+
+    it("finds no JVM resolver that is missing from the inventory", () => {
+        // The half the hand-written list cannot do. A rule-shaped check passes happily on a
+        // module that is absent, so the list above catches drift inside known call sites and
+        // this catches a call site nobody added. Two omissions have already cost this exact
+        // defect twice; neither check alone would have caught both.
+        const inventory = new Set<string>(RESOLVERS);
+        const missing: string[] = [];
+        for (const file of walkTypeScript(mainRoot)) {
+            if (file.endsWith(".test.ts")) continue;
+            if (inventory.has(file)) continue;
+            const code = codeOf(sourceOf(file));
+            // `(?<!function )` keeps a module's own *declaration* of `ensureJava` from
+            // reading as a call site. `java/index.ts` defines it and forwards
+            // `resourcesPath` correctly; flagging it would be a false positive, and a guard
+            // that cries wolf is one people start ignoring.
+            for (const match of code.matchAll(/(?<!function )\b(ensureJava|discoverJava)\s*\(/g)) {
+                const args = code.slice(match.index ?? 0, (match.index ?? 0) + 400);
+                if (/\bdataDir\b/.test(args)) {
+                    missing.push(
+                        `${file}: calls ${match[1]!}() with a data directory but is not in RESOLVERS`,
+                    );
+                    break;
+                }
+            }
+        }
+        expect(missing, missing.join("\n")).toEqual([]);
     });
 });

@@ -6,7 +6,20 @@ import { basename, join, relative, resolve, sep } from "node:path";
 import { verifyJarFile } from "./jar-verifier.mjs";
 
 export const STAGED_JAVA_ENGINE_SCHEMA = 1;
-export const BLUEMAP_SOURCE_REPOSITORY = "https://github.com/BlueMap-Minecraft/BlueMap";
+/**
+ * Where the BlueMap the app ships is built from.
+ *
+ * This is the Ding-Ding-Projects fork rather than upstream, because the jars embed
+ * the webapp and this project's webapp UI has been rewritten to Material Design 3.
+ * The fork is upstream's v5.23 plus that rewrite; its master stays a clean mirror of
+ * upstream so a future release is a normal merge.
+ *
+ * The repository and the checkout path are exported together and consumed by the
+ * packager's own validator, so a manifest written from one source and validated
+ * against another cannot pass.
+ */
+export const BLUEMAP_SOURCE_REPOSITORY = "https://github.com/Ding-Ding-Projects/BlueMap";
+export const BLUEMAP_SOURCE_PATH = "vendor/BlueMap-LangGui";
 export const MAX_STAGED_JAVA_BYTES = 512 * 1024 * 1024;
 
 /**
@@ -69,7 +82,7 @@ function assertManifestShape(manifest, manifestPath) {
         typeof source !== "object" ||
         source.repository !== BLUEMAP_SOURCE_REPOSITORY ||
         !/^[0-9a-f]{40}$/i.test(source.commit) ||
-        source.path !== "vendor/BlueMap" ||
+        source.path !== BLUEMAP_SOURCE_PATH ||
         typeof source.version !== "string" ||
         !/^\d+\.\d+(?:[-.][0-9A-Za-z.-]+)*$/.test(source.version)
     ) {

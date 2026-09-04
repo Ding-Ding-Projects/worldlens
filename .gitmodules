@@ -1,3 +1,7 @@
 [submodule "vendor/BlueMap"]
 	path = vendor/BlueMap
 	url = https://github.com/BlueMap-Minecraft/BlueMap
+[submodule "vendor/BlueMap-LangGui"]
+	path = vendor/BlueMap-LangGui
+	url = https://github.com/Ding-Ding-Projects/BlueMap.git
+	branch = lang-gui

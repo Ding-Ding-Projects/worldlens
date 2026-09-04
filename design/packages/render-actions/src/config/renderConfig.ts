@@ -180,6 +180,17 @@ export async function writeShardConfig(options: ShardConfigOptions): Promise<Wri
         "enabled: true",
         "webroot: " + quoteConfigString(webRoot),
         "update-settings-file: true",
+        // Tiles are written `compression: gzip` above, and everything this render produces
+        // is consumed as plain files - a downloaded artifact, or GitHub Pages, which is a
+        // file host and not a webserver. Neither sets the headers BlueMap's own webserver
+        // would, so without this the webapp asks for tiles it cannot read and the map comes
+        // up empty with nothing on screen explaining why.
+        //
+        // Upstream defaults it off because upstream assumes its own webserver. Set here
+        // rather than in the shared schema so a self-hosted install keeps that default and
+        // its efficiency; the post-render check in `pages/staticHost.ts` stays as the
+        // verification that this actually reached the generated settings.
+        "client-decompression: true",
         "",
     ].join("\n");
 

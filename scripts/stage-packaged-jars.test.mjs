@@ -8,6 +8,11 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import {
+    BLUEMAP_SOURCE_PATH,
+    BLUEMAP_SOURCE_REPOSITORY,
+} from "../design/packages/app/scripts/staged-java-engine.mjs";
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(HERE, "stage-packaged-jars.mjs");
 const SCRIPT_SOURCE = readFileSync(SCRIPT, "utf8");
@@ -61,10 +66,14 @@ function jarFixture() {
 
 function manifest(bytes, overrides = {}) {
     const fileName = overrides.fileName ?? `bluemap-${VERSION}-cli.jar`;
+    // Imported rather than retyped: the validator compares against these exact
+    // constants, so a fixture with its own copy would keep passing after the real
+    // source moved - which is precisely what happened when the build was pointed at
+    // the fork and this test was the only thing that noticed.
     const source = {
-        repository: "https://github.com/BlueMap-Minecraft/BlueMap",
+        repository: BLUEMAP_SOURCE_REPOSITORY,
         commit: COMMIT,
-        path: "vendor/BlueMap",
+        path: BLUEMAP_SOURCE_PATH,
         version: VERSION,
     };
     return {

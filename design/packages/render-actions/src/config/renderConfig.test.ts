@@ -124,6 +124,16 @@ describe("writing a shard's config directory", () => {
         return await readFile(join(root, "config", "maps", "world.conf"), "utf8");
     }
 
+    it("tells the webapp to decompress tiles itself, because nothing here serves them", async () => {
+        // Tiles are written with `compression: gzip`, and every consumer of this render is a
+        // plain file host: a downloaded artifact, or GitHub Pages. Neither sends the headers
+        // BlueMap's own webserver would, so with upstream's default the webapp requests
+        // tiles it cannot read and the map comes up blank with nothing explaining why.
+        await writeFor(1);
+        const webapp = await readFile(join(root, "config", "webapp.conf"), "utf8");
+        expect(webapp).toContain("client-decompression: true");
+    });
+
     it("turns edges off, which is what makes a shard's tiles match an unsharded render", async () => {
         expect(await writeFor(1)).toContain("render-edges: false");
     });

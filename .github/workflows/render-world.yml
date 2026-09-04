@@ -162,7 +162,7 @@ jobs:
       # carries the submodule, read the commit it moved to, and update this value in
       # the same commit as a person reviewing the change - a render that silently
       # changed renderer version between runs is a render nobody could reproduce.
-      BLUEMAP_UPSTREAM_COMMIT: 4c4cbc291b361ceff6ee239448e9f988f9019dbb
+      BLUEMAP_UPSTREAM_COMMIT: 0b8544162cf6d7e049826cbe7d80989b5f2b8846
     steps:
       # Restore rather than the full cache action, so the build below only runs on a
       # genuine miss and the save step still runs after a build that failed partway
@@ -185,7 +185,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git clone --quiet https://github.com/BlueMap-Minecraft/BlueMap.git vendor/BlueMap
+          git clone --quiet https://github.com/Ding-Ding-Projects/BlueMap.git vendor/BlueMap
           git -C vendor/BlueMap checkout --quiet "$BLUEMAP_UPSTREAM_COMMIT"
           # Upstream vendors BlueMapAPI as its own submodule and takes the api version from it, so
           # a clone without this leaves that directory empty and the build fails while configuring

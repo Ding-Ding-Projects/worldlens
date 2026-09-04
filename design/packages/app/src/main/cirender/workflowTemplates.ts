@@ -34,7 +34,16 @@ import type { CiWorkflowTemplate } from "./bootstrap.js";
  * file changes. It is deliberately independent of a content digest: ordering numbers is
  * what lets an older installed application refuse to downgrade workflows from a newer one.
  */
-export const CI_WORKFLOW_TEMPLATE_VERSION = 3;
+// 4: render-world.yml now clones this project's BlueMap fork at the Material Design 3
+// commit rather than upstream at v5.23. An already-bootstrapped repository needs the new
+// template to render with the new interface, and an older installed application must not
+// hand it back the previous one - which is exactly what this ordering number is for.
+//
+// 4 rather than 3 because main had independently reached 3 for a different template change
+// while this work was in flight. Reusing 3 would have made one number mean two different
+// template sets, and a repository that had already taken the other 3 would never be offered
+// this one - the downgrade refusal would see equal versions and do nothing.
+export const CI_WORKFLOW_TEMPLATE_VERSION = 4;
 
 /** Every workflow file a render or scheduled check needs, relative to `.github/workflows/`. */
 export const CI_WORKFLOW_FILE_NAMES = [

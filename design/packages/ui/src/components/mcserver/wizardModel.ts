@@ -222,6 +222,24 @@ export function filterVersions(
     }
 }
 
+/**
+ * Why a version search matched nothing, when the reason is the pattern itself.
+ *
+ * An invalid regex makes {@link filterVersions} return an empty list, which renders exactly
+ * like a catalogue that fetched nothing - a blank pane with no explanation, and a second way
+ * for this step to look broken while working correctly. Returns null when the query is fine,
+ * so the caller shows this instead of the ordinary empty state rather than as well as it.
+ */
+export function versionSearchError(query: string, useRegex: boolean, flags = "i"): string | null {
+    if (!useRegex || query.trim() === "") return null;
+    try {
+        new RegExp(query, flags);
+        return null;
+    } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+    }
+}
+
 /** Clamp a candidate memory allocation to what the machine can actually spare. */
 export function clampMemoryToMachine(memoryMb: number, totalMachineMb: number): number {
     // Leave at least 1 GB, or a quarter of the machine, for the OS and everything else.

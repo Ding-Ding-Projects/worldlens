@@ -15,7 +15,7 @@ Requires **Node 22+** and **pnpm 10** (the workspace pins `pnpm@10.33.0` via `pa
 ```sh
 git clone https://github.com/Ding-Ding-Projects/worldlens.git
 cd worldlens
-git submodule update --init --recursive   # vendor/BlueMap, the upstream reference
+git submodule update --init --recursive   # both BlueMap checkouts (see below)
 cd design
 pnpm install
 ```
@@ -23,8 +23,22 @@ pnpm install
 The clone URL and directory above are the repository's current hosting path during the rename;
 they are not the product name. Use the current host until the separate repository rename lands.
 
-The submodule is not optional. It is the specification you are porting from, and it is pinned at
-upstream commit `e664c1a`. Legacy Minecraft 1.12 sources come from upstream tag
+There are two BlueMap checkouts and they do different jobs.
+
+`vendor/BlueMap` is upstream, unmodified. It is the specification you are porting from and the
+thing to read when you need to know what BlueMap actually does. It is pinned at upstream commit
+`e664c1a`.
+
+`vendor/BlueMap-LangGui` is this project's fork, and it is **what the jars are built from** -
+by `tools/build-jars.mjs`, by `.github/workflows/build-jars.yml`, and by the render workflows.
+It is upstream's `v5.23` with one deliberate difference: the webapp's UI layer is rewritten to
+Material Design 3. The rendering engine itself is untouched. The jars embed the webapp, so
+building from the fork is what puts that interface into a published map.
+
+If you are reading BlueMap to understand it, read `vendor/BlueMap`. If you are changing what
+this app ships, change the fork.
+
+The submodules are not optional. Legacy Minecraft 1.12 sources come from upstream tag
 `v0.10.3-mc1.12`; fetch them with `git fetch --tags` in `vendor/BlueMap` and read a file with
 `git show v0.10.3-mc1.12:<path>`.
 

@@ -11,6 +11,15 @@ import type { CiWorkflowTemplate } from "./bootstrap.js";
 
 const OWNER = "octocat";
 const REPO = "a-map";
+
+/**
+ * What the repository homepage should point at.
+ *
+ * GitHub reports the Pages site root, and the site root is the documentation site - the
+ * render workflow copies the map into `map/` beside it. The two are deliberately different
+ * values now, so they get different names here rather than one literal typed twice.
+ */
+const MAP_URL = `https://${OWNER}.github.io/${REPO}/map/`;
 const API = "https://api.test";
 const TEMPLATE_VERSION = 2;
 
@@ -329,13 +338,13 @@ describe("managed workflow bootstrap transaction", () => {
         expect(result.ok).toBe(true);
         if (!result.ok) return;
         expect(result.report.pages).toEqual({
-            url: `https://${OWNER}.github.io/${REPO}/`,
+            url: MAP_URL,
             buildType: "workflow",
             created: true,
             homepageUpdated: true,
         });
         expect(repo.pagesBuildType).toBe("workflow");
-        expect(repo.homepage).toBe(`https://${OWNER}.github.io/${REPO}/`);
+        expect(repo.homepage).toBe(MAP_URL);
         expect(repo.calls).toEqual(
             expect.arrayContaining([
                 expect.objectContaining({
@@ -349,7 +358,7 @@ describe("managed workflow bootstrap transaction", () => {
             "edit",
             `github.com/${OWNER}/${REPO}`,
             "--homepage",
-            `https://${OWNER}.github.io/${REPO}/`,
+            MAP_URL,
         ]);
         expect(repo.cliCalls).toContainEqual([
             "repo",
@@ -400,7 +409,7 @@ describe("managed workflow bootstrap transaction", () => {
 
     it("reads back an existing workflow Pages URL without rewriting an identical homepage", async () => {
         const files = currentFiles();
-        const url = `https://${OWNER}.github.io/${REPO}/`;
+        const url = MAP_URL;
         const repo = new FakeRepo({ files, pagesBuildType: "workflow", homepage: url });
         repo.seedMarker(files);
 
@@ -490,7 +499,7 @@ describe("managed workflow bootstrap transaction", () => {
                 },
             },
         });
-        expect(repo.homepage).toBe(`https://${OWNER}.github.io/${REPO}/`);
+        expect(repo.homepage).toBe(MAP_URL);
         expect(repo.calls.some((call) => call.method === "DELETE")).toBe(false);
         expect(
             repo.calls.some(

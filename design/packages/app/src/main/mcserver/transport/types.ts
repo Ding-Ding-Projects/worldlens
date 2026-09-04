@@ -59,6 +59,32 @@ export type TransportRef =
 export type TransportKind = TransportRef["kind"];
 
 /**
+ * Every transport discriminant, as values rather than as a type.
+ *
+ * Two checks, because they catch opposite mistakes and neither catches both.
+ * `satisfies` rejects an entry that is not a real kind; the `Exclude` assertion
+ * below rejects a kind that is missing from the array. Without the second one a
+ * new member of {@link TransportRef} would compile fine while every validator
+ * reading an untrusted payload quietly refused it.
+ */
+export const TRANSPORT_KINDS = [
+    "local-process",
+    "local-docker",
+    "ssh-docker",
+    "aws",
+] as const satisfies readonly TransportKind[];
+
+/** Fails to compile when a {@link TransportKind} is missing from {@link TRANSPORT_KINDS}. */
+type _EveryTransportKindIsListed = Exclude<
+    TransportKind,
+    (typeof TRANSPORT_KINDS)[number]
+> extends never
+    ? true
+    : never;
+const _everyTransportKindIsListed: _EveryTransportKindIsListed = true;
+void _everyTransportKindIsListed;
+
+/**
  * Why a call did not do what was asked.
  *
  * `unreachable` and `not-running` are deliberately separate, and keeping them apart is the

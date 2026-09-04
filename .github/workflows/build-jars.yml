@@ -8,7 +8,8 @@ name: BlueMap jars
 # in the product, the six Minecraft-server adapters upstream ships are shippable too, so
 # every one of them is a product artefact here. See design/docs/decisions.md.
 #
-# These jars are upstream BlueMap's code, built unmodified from the `vendor/BlueMap`
+# These jars are BlueMap's code with this project's Material Design 3 webapp, built
+# from the fork checked out at `vendor/BlueMap-LangGui`
 # submodule. They are not this project's own renderer, and the release notes say so.
 #
 # This is a reusable workflow rather than one with its own push trigger. `ci.yml` calls
@@ -23,12 +24,25 @@ on:
         description: The upstream BlueMap version the jars were built from, e.g. 5.22-27.
         value: ${{ jobs.build.outputs.version }}
       upstream-commit:
-        description: The vendor/BlueMap commit the jars were built from.
+        description: The BlueMap source commit the jars were built from.
         value: ${{ jobs.build.outputs.upstream-commit }}
   workflow_dispatch:
 
 permissions:
   contents: read
+
+# Which checkout the jars are built from.
+#
+# This is the Ding-Ding-Projects fork, not upstream. It is upstream's v5.23 with the
+# webapp's UI layer rewritten to Material Design 3 - the jars embed that webapp, so
+# building from here is what puts the new interface into a published map. The fork's
+# master stays a clean mirror of upstream, so a future BlueMap release is a normal
+# merge rather than a rebase over a theme.
+#
+# Stated once, here, rather than repeated at each step: the path appeared in four
+# places and a rewire that missed one would have quietly built a mixture.
+env:
+  BLUEMAP_SOURCE: vendor/BlueMap-LangGui
 
 jobs:
   build:
@@ -120,7 +134,7 @@ jobs:
       - name: Resolve the upstream version
         id: upstream
         shell: bash
-        working-directory: vendor/BlueMap
+        working-directory: ${{ env.BLUEMAP_SOURCE }}
         run: |
           set -euo pipefail
 
@@ -135,7 +149,7 @@ jobs:
 
           tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
           if [ -z "$tag" ]; then
-            echo "::error::vendor/BlueMap has no tags, so Gradle would stamp every jar as version 0.0. The submodule needs a full-history checkout."
+            echo "::error::${BLUEMAP_SOURCE} has no tags, so Gradle would stamp every jar as version 0.0. The submodule needs a full-history checkout."
             exit 1
           fi
 
@@ -178,7 +192,7 @@ jobs:
       # auto-detection (JAVA_HOME, OS-standard install locations, IDE/version-manager
       # locations) still runs too, this just adds two more places to look.
       - name: Build all seven shadow jars
-        working-directory: vendor/BlueMap
+        working-directory: ${{ env.BLUEMAP_SOURCE }}
         run: >
           ./gradlew --build-cache --stacktrace
           -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_8_X64,JAVA_HOME_25_X64
@@ -209,7 +223,7 @@ jobs:
           node tools/describe-jars.mjs \
             --stage "$GITHUB_WORKSPACE/jars-staging" \
             --out "$GITHUB_WORKSPACE/jars" \
-            --vendor "$GITHUB_WORKSPACE/vendor/BlueMap" \
+            --vendor "$GITHUB_WORKSPACE/$BLUEMAP_SOURCE" \
             --expect-version '${{ steps.upstream.outputs.version }}' \
             --upstream-commit '${{ steps.upstream.outputs.commit }}' \
             --summary "$GITHUB_STEP_SUMMARY"

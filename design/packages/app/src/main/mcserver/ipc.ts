@@ -49,7 +49,12 @@ import {
 } from "./flavours/catalogue.js";
 import { verifyWikiArticle } from "./flavours/wiki.js";
 import { requiredJavaFeature } from "./flavours/javaRequirement.js";
-import { createServerRegistry, type ServerRecord, type ServerRegistry } from "./registry.js";
+import {
+    createServerRegistry,
+    type LocalRuntimeRecord,
+    type ServerRecord,
+    type ServerRegistry,
+} from "./registry.js";
 import { checkCompatibility } from "./plugins/compatibility.js";
 import { installPluginVersion } from "./plugins/install.js";
 import {
@@ -78,8 +83,10 @@ import { RconSecretStore } from "./rcon/secret.js";
 import {
     fail,
     ok,
+    TRANSPORT_KINDS,
     type Answer,
     type ServerTransport,
+    type TransportKind,
     type TransportRef,
 } from "./transport/types.js";
 import { buildWebConsolePasswordRecord, type SafeStorageLike } from "./webconsole/password.js";
@@ -279,6 +286,16 @@ export interface McServerIpc {
     readonly hostProfiles: HostProfileStore;
 }
 
+/**
+ * Memory for a repaired local server whose record predates the stored runtime.
+ *
+ * The value creation actually used was never persisted, so this is a stated default
+ * rather than a recovered fact. It matches the wizard's own default, and the user can
+ * change it; inventing a larger number to look generous would be a guess about a machine
+ * this code cannot see.
+ */
+const DEFAULT_LOCAL_MEMORY_MB = 2048;
+
 function isRecordId(value: unknown): value is string {
     return typeof value === "string" && value.length > 0 && value.length <= 64;
 }
@@ -332,6 +349,35 @@ function isSourceId(value: unknown): value is PluginSourceId {
 
 function isFlavourId(value: unknown): value is FlavourId {
     return typeof value === "string" && (FLAVOUR_IDS as readonly string[]).includes(value);
+}
+
+/**
+ * Reads the runtime a create request is asking for.
+ *
+ * The renderer sends `transport` as a {@link TransportRef} object and leaves the
+ * optional `runtime` string unset, so the older `body.runtime ?? body.transport`
+ * expression produced the *object* and compared it against string literals. It
+ * matched neither, so every local runtime was rejected with "not supported by
+ * this build" whatever flavour and version were chosen. Read the discriminant
+ * out of the object, and keep accepting the plain string for callers that send
+ * one.
+ *
+ * Returns `null` when the request names something this build has no branch for,
+ * which the caller reports rather than guessing a default for.
+ */
+export function readCreateRuntimeKind(body: Record<string, unknown>): TransportKind | null {
+    const candidate =
+        typeof body.runtime === "string"
+            ? body.runtime
+            : typeof body.transport === "object" && body.transport !== null
+              ? (body.transport as Record<string, unknown>).kind
+              : body.transport === undefined && body.runtime === undefined
+                ? "local-process"
+                : undefined;
+    if (typeof candidate !== "string") return null;
+    return (TRANSPORT_KINDS as readonly string[]).includes(candidate)
+        ? (candidate as TransportKind)
+        : null;
 }
 
 function defaultRconHostFor(_ref: TransportRef): string {
@@ -533,6 +579,44 @@ export function registerMcServerHandlers(
     }
 
     /**
+     * Works out how to launch a stored local-process server, repairing the record when it
+     * predates the field.
+     *
+     * Creation resolves the Java executable, the jar and the memory limit and now records
+     * all three. Servers created before that carry null, and a null there is not a reason
+     * to refuse: the jar sits at a known path inside the server folder and Java can be
+     * discovered again, so the record repairs itself on first open rather than leaving the
+     * user with a dead server and a banner. Returns null only when Java genuinely cannot be
+     * found, which the factory then reports honestly.
+     */
+    async function resolveLocalRuntime(
+        record: ServerRecord,
+    ): Promise<LocalRuntimeRecord | null> {
+        if (record.localRuntime !== null) return record.localRuntime;
+        if (record.ref.kind !== "local-process") return null;
+
+        const requirement = requiredJavaFeature(record.minecraftVersion ?? "");
+        const discovery = await discoverJava({
+            dataDir: options.dataFolder,
+            required: requirement.known ? requirement.feature : REQUIRED_JAVA_FEATURE,
+            ...(options.resourcesPath === undefined || options.resourcesPath === null
+                ? {}
+                : { resourcesPath: options.resourcesPath }),
+        });
+        if (discovery.installation === null) return null;
+
+        const repaired: LocalRuntimeRecord = {
+            javaPath: discovery.installation.executable,
+            jarPath: join(record.ref.serverDir, "server.jar"),
+            memoryMb: DEFAULT_LOCAL_MEMORY_MB,
+        };
+        // Write it back so the next open is a plain read and the repair is visible in the
+        // record rather than being redone silently on every call.
+        await registry.put({ ...record, localRuntime: repaired });
+        return repaired;
+    }
+
+    /**
      * Looks a server up and builds its transport, in one step.
      *
      * Every command handler needs both, and doing it here means the write scope stored on
@@ -559,6 +643,18 @@ export function registerMcServerHandlers(
         const adopted = found.value.origin === "adopted" ? await adoptions.get(id) : null;
         const adoptionRecord = adopted !== null && adopted.ok ? adopted.value : null;
 
+        // How a local server is actually launched. Supplied here for the same reason
+        // `awsKnownHostsFile` is: `createTransport` requires it for every local-process
+        // ref, and nothing outside this module was passing it - so every local server ever
+        // created reported "no Java runtime chosen yet" and could not be started, whatever
+        // Java the machine had. Resolved before the factory call because that dep is
+        // synchronous and rediscovery is not.
+        let localRuntime = options.factory?.localRuntime;
+        if (localRuntime === undefined && found.value.ref.kind === "local-process") {
+            const resolved = await resolveLocalRuntime(found.value);
+            if (resolved !== null) localRuntime = () => resolved;
+        }
+
         let sshHost = options.factory?.sshHost;
         if (sshHost === undefined && found.value.ref.kind === "ssh-docker") {
             // Load first so the store's synchronous factory lookup has a warm, validated
@@ -577,6 +673,7 @@ export function registerMcServerHandlers(
             awsKnownHostsFile: join(options.dataFolder, "known_hosts"),
             ...options.factory,
             ...(sshHost === undefined ? {} : { sshHost }),
+            ...(localRuntime === undefined ? {} : { localRuntime }),
             writeScope: found.value.writeScope,
             ...(adoptionRecord === null
                 ? {}
@@ -1477,7 +1574,7 @@ export function registerMcServerHandlers(
             if (typeof body.memoryMb !== "number") {
                 return fail("invalid-request", "A server needs a memory limit to be created.");
             }
-            const runtime = body.runtime ?? body.transport ?? "local-process";
+            const runtime = readCreateRuntimeKind(body);
             if (runtime === "local-docker") {
                 if (typeof body.dockerPlan !== "object" || body.dockerPlan === null)
                     return fail(
@@ -1534,10 +1631,15 @@ export function registerMcServerHandlers(
                     ...(options.now === undefined ? {} : { now: options.now }),
                 });
             }
+            if (runtime === null)
+                return fail(
+                    "invalid-request",
+                    "That server request did not name a runtime this app recognises.",
+                );
             if (runtime !== "local-process")
                 return fail(
                     "invalid-request",
-                    "That server runtime is not supported by this build.",
+                    `A ${runtime} server cannot be created here. Create it from its own screen instead.`,
                 );
             const createOptions: CreateLocalServerOptions = {
                 id: body.id,
@@ -1574,6 +1676,11 @@ export function registerMcServerHandlers(
                 ...(options.javaRunner === undefined ? {} : { javaRunner: options.javaRunner }),
                 ...(options.javaExists === undefined ? {} : { javaExists: options.javaExists }),
                 ...(options.javaEnv === undefined ? {} : { javaEnv: options.javaEnv }),
+                // Without this a packaged install cannot see the JRE inside its own
+                // installer, so it downloads a second copy or refuses outright.
+                ...(options.resourcesPath === undefined || options.resourcesPath === null
+                    ? {}
+                    : { resourcesPath: options.resourcesPath }),
             };
             return createLocalServer(createOptions);
         },
@@ -1883,6 +1990,7 @@ export function registerMcServerHandlers(
                 hasRconSecret: rconRaw !== null,
                 rconPort: rconRaw === null ? null : (rconPort as number),
                 writeScope,
+                    localRuntime: null,
             };
             const removeServerIfOwned = async (): Promise<void> => {
                 const current = await registry.get(serverRecord.id);
