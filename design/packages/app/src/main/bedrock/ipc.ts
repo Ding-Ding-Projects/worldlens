@@ -64,6 +64,7 @@ import {
     writeConversionRecord,
     type ConversionRecord,
 } from "./provenance.js";
+import { validateChunkerCliConfig } from "./chunkerConfig.js";
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
 export const BEDROCK_CHANNELS = [
@@ -348,11 +349,13 @@ export function registerBedrockHandlers(
             if (typeof request !== "object" || request === null) {
                 return refuse("A conversion needs a world folder to convert.");
             }
-            const { world, output, format, sizeBytes } = request as {
+            const { world, output, format, sizeBytes, config, inputFormat } = request as {
                 world?: unknown;
                 output?: unknown;
                 format?: unknown;
                 sizeBytes?: unknown;
+                config?: unknown;
+                inputFormat?: unknown;
             };
             if (typeof world !== "string" || world.trim() === "") {
                 return refuse("A conversion needs a world folder given as text.");
@@ -369,12 +372,8 @@ export function registerBedrockHandlers(
                 return refuse(error instanceof Error ? error.message : String(error));
             }
             const detection = detectBedrockWorld(listing);
-            if (!detection.bedrock) {
-                return refuse(
-                    `${world} is not a Bedrock world, so there is nothing to convert. ` +
-                        `A Java world can be rendered as it is.`,
-                );
-            }
+            const cliConfig = validateChunkerCliConfig(config);
+            if (cliConfig === null) return refuse("Chunker settings were malformed. Choose each setting again before converting.");
 
             const java = await options.resolveJava();
             if (!java.ok) {
@@ -392,6 +391,9 @@ export function registerBedrockHandlers(
                     : convertedWorldPath(world);
             const targetFormat =
                 typeof format === "string" && format.trim() !== "" ? format : DEFAULT_JAVA_TARGET;
+            const requestedInputFormat = typeof inputFormat === "string" && inputFormat.trim() !== ""
+                ? inputFormat
+                : detection.bedrock ? null : targetFormat;
 
             // Registered before the conversion starts, so a Cancel arriving in the first
             // moments finds an entry rather than an empty map. `onStart` replaces this
@@ -446,13 +448,18 @@ export function registerBedrockHandlers(
                 // and its correctness rests on a margin scheme that a single pass does not
                 // need at all. So the whole-world path stays the default and batching is
                 // reserved for worlds large enough that one pass is unlikely to finish.
-                if (assessMemoryRisk(measured).level === "high") {
+                // The merge ledger is an Anvil-region merger. It is valid only for a Java
+                // target, so Java-to-Bedrock stays one verified CLI run rather than being
+                // silently routed through machinery that cannot assemble LevelDB output.
+                if (assessMemoryRisk(measured).level === "high" && targetFormat.startsWith("JAVA")) {
                     const batched = await convertInBatches({
                         javaExecutable: java.executable,
                         jarPath: lookup.jarPath,
                         inputDirectory: world,
                         outputDirectory,
                         outputFormat: targetFormat,
+                        config: cliConfig,
+                        inputFormat: requestedInputFormat,
                         sourceBytes: measured,
                         jvmArgs: options.jvmArgs ?? RECOMMENDED_JVM_ARGS,
                         onEvent: (event) => {
@@ -474,6 +481,8 @@ export function registerBedrockHandlers(
                     inputDirectory: world,
                     outputDirectory,
                     outputFormat: targetFormat,
+                    config: cliConfig,
+                    inputFormat: requestedInputFormat,
                     // Only phrases an out-of-memory failure; the conversion is identical
                     // without it. See `sourceBytes` on ConvertWorldOptions.
                     sourceBytes: measured,

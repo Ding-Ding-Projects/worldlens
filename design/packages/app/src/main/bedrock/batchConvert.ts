@@ -60,6 +60,7 @@ import {
     type ConversionEvent,
     type ConversionOutcome,
 } from "./convert.js";
+import type { ChunkerCliConfig } from "./chunkerConfig.js";
 
 /** The ledger file, inside the staging root so it is removed with everything else. */
 export const LEDGER_FILE = "batches.json";
@@ -206,6 +207,9 @@ export interface BatchedConversionOptions {
     readonly inputDirectory: string;
     readonly outputDirectory: string;
     readonly outputFormat: string;
+    /** Applied to every real conversion batch. Generated batch pruning wins. */
+    readonly config?: ChunkerCliConfig;
+    readonly inputFormat?: string | null;
     readonly jvmArgs?: readonly string[];
     readonly env?: NodeJS.ProcessEnv;
     /** The world's measured size, used to choose how many regions go in a batch. */
@@ -285,6 +289,7 @@ export async function convertBedrockWorldInBatches(
         inputDirectory: options.inputDirectory,
         outputDirectory: settingsDirectory,
         outputFormat: SETTINGS_FORMAT,
+        ...(options.inputFormat === undefined ? {} : { inputFormat: options.inputFormat }),
         ...(options.jvmArgs === undefined ? {} : { jvmArgs: options.jvmArgs }),
         ...(options.env === undefined ? {} : { env: options.env }),
     });
@@ -381,6 +386,8 @@ export async function convertBedrockWorldInBatches(
             inputDirectory: options.inputDirectory,
             outputDirectory: batchDirectory,
             outputFormat: options.outputFormat,
+            ...(options.config === undefined ? {} : { config: { ...options.config, pruning: pruningConfigFor(batch) } }),
+            ...(options.inputFormat === undefined ? {} : { inputFormat: options.inputFormat }),
             pruningFile,
             ...(options.jvmArgs === undefined ? {} : { jvmArgs: options.jvmArgs }),
             ...(options.env === undefined ? {} : { env: options.env }),

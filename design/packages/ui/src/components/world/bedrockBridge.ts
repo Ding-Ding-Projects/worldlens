@@ -114,6 +114,8 @@ export interface BedrockConvertRequest {
     readonly output?: string;
     readonly format?: string;
     readonly sizeBytes?: number | null;
+    readonly inputFormat?: string;
+    readonly config?: Readonly<Record<string, unknown>>;
 }
 
 /** What this surface needs from the shell. All or nothing, per `historyHostFromBridge`'s own rule. */

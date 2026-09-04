@@ -321,6 +321,24 @@ const plan = computed(() => ({
     settings: settings.value,
 }));
 
+/**
+ * The wizard's existing rich controls become the exact structured inputs for
+ * Chunker's JSON options.  No value is converted into a free-form command;
+ * the main process validates and serializes this object to the pinned CLI.
+ */
+const cliConfig = computed(() => ({
+    blockMappings: Object.fromEntries(
+        overrides.value.map((override) => [override.from, override.to]),
+    ),
+    worldSettings: settings.value,
+    pruning: trimEnabled.value
+        ? { configs: [{ minX: minX.value, maxX: maxX.value, minZ: minZ.value, maxZ: maxZ.value }] }
+        : undefined,
+    dimensionMappings: Object.fromEntries(
+        Object.entries(dimensionTargets.value).filter(([, target]) => target !== "drop"),
+    ),
+}));
+
 const consequences = computed(() => lossyConsequences(plan.value));
 
 const canStart = computed(
@@ -389,6 +407,8 @@ async function start(): Promise<void> {
             world: sourceFolder.value,
             output: outputFolder.value,
             format: targetVersionId.value,
+            inputFormat: sourceFormat.value ?? undefined,
+            config: cliConfig.value,
         });
         conversionId.value = result.conversionId;
         outcome.value = result;

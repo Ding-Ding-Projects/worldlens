@@ -1303,6 +1303,10 @@ export interface BedrockConvertRequest {
     format?: string;
     /** The source world's measured size, so an out-of-memory failure can name it. */
     sizeBytes?: number | null;
+    /** Source format selected from the verified version registry. */
+    inputFormat?: string;
+    /** Every optional public Chunker CLI setting, passed as structured data. */
+    config?: Readonly<Record<string, unknown>>;
 }
 
 /**
