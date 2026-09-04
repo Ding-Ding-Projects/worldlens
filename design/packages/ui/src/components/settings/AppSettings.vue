@@ -1343,37 +1343,68 @@ function onDrawer(value: boolean): void {
     gap: 8px;
 }
 
+/*
+ * The one real M3 list in this dialog: search matches, each a two-line list
+ * item (title + supporting text) a person picks a destination from. Built on
+ * the same M3 list anatomy `SettingsSection.vue` exports for a card's own
+ * rows - 56px minimum height, the M3 spacing scale, an outline-variant
+ * divider between items, and a state layer drawn from the spec's hover/
+ * pressed opacities rather than a hand-picked tint - so a search match and a
+ * setting's own row read as the same kind of thing.
+ */
 .mb-settings__results {
-    border-radius: 8px;
-    background: rgba(var(--v-theme-on-surface), 0.04);
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+    background: var(--md-sys-color-surface-container, rgba(var(--v-theme-on-surface), 0.04));
 }
 
 .mb-settings__result-list {
     margin: 0;
-    padding: 4px;
+    padding: 0;
     list-style: none;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+}
+
+.mb-settings__result-list li + li .mb-settings__result {
+    border-top: 1px solid var(--md-sys-color-outline-variant, rgba(var(--v-theme-on-surface), 0.4));
 }
 
 .mb-settings__result {
+    position: relative;
     display: flex;
     flex-direction: column;
+    justify-content: center;
     gap: 2px;
     inline-size: 100%;
+    min-block-size: 56px;
     text-align: start;
-    padding: 8px 10px;
+    padding: 8px 16px;
     border: none;
-    border-radius: 6px;
     background: transparent;
     color: inherit;
     font: inherit;
     cursor: pointer;
 }
 
-.mb-settings__result:hover {
-    background: rgba(var(--v-theme-on-surface), 0.08);
+/* State layer, matching `.mb-setting__row::before` in SettingsSection.vue. */
+.mb-settings__result::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: rgb(var(--v-theme-on-surface));
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease;
+}
+
+@media (hover: hover) {
+    .mb-settings__result:hover::before {
+        opacity: var(--md-sys-state-hover-opacity, 8%);
+    }
+}
+
+.mb-settings__result:focus-visible::before {
+    opacity: var(--md-sys-state-pressed-opacity, 10%);
 }
 
 .mb-settings__result:focus-visible {
@@ -1382,14 +1413,19 @@ function onDrawer(value: boolean): void {
 }
 
 .mb-settings__result-title {
-    font-size: 0.8125rem;
+    position: relative;
+    font-size: var(--md-sys-typescale-body-large-size, 0.8125rem);
     font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
+    overflow-wrap: anywhere;
 }
 
 .mb-settings__result-desc {
-    font-size: 0.75rem;
+    position: relative;
+    font-size: var(--md-sys-typescale-body-medium-size, 0.75rem);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    overflow-wrap: anywhere;
+    text-wrap: pretty;
 }
 
 .mb-settings__body {
@@ -1419,6 +1455,29 @@ function onDrawer(value: boolean): void {
     flex: 0 1 clamp(10rem, 32%, 15rem);
     min-width: 10rem;
     max-width: 40%;
+}
+
+/*
+ * Cheap Jor, found capturing this dialog at a 320px window width: a fixed
+ * `min-width: 10rem` (160px) on the strip left almost nothing of a ~280px
+ * content area for the detail pane, and the M3 title-medium heading this
+ * revamp added (`.mb-setting__title`) has `overflow-wrap: anywhere` - so with
+ * no real width to wrap into, it broke every character of "Mojang download
+ * consent" onto its own line instead of reading as three or four wrapped
+ * words. `flex: 0 1 clamp(...)` already lets the strip shrink; the fixed
+ * `min-width` was the one thing stopping it from shrinking far enough on a
+ * genuinely narrow window. Below the ~360px breakpoint this app's other
+ * vertical strips already collapse at, drop the floor low enough that the
+ * detail pane keeps a usable width, and let the strip's own item labels wrap
+ * rather than forcing a horizontal scrollbar neither pane has room for.
+ */
+@media (max-width: 22.5rem) {
+    .mb-settings__body .mb-tabs-strip-row[data-placement="left"],
+    .mb-settings__body .mb-tabs-strip-row[data-placement="right"] {
+        flex-basis: 40%;
+        min-width: 5.5rem;
+        max-width: 50%;
+    }
 }
 
 .mb-settings__body .mb-tabs__panel,

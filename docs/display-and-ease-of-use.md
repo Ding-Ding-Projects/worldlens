@@ -11,6 +11,32 @@ The code is `design/packages/ui/src/components/settings/uiSizeSetting.ts` and `U
 the size dial, `themeSetting.ts` and `ThemeRow.vue` for the theme, and the section itself in
 `AppSettings.vue` under the `display` anchor.
 
+## Settings dialog layout
+
+Every card in Settings, this one included, shares one M3 anatomy defined once in
+`SettingsSection.vue` rather than each screen inventing its own spacing: 24px card padding, a
+16px internal rhythm, a title drawn from the `title-medium` type role and a description from
+`body-medium`, and a hairline divider between stacked cards drawn from the
+`--md-sys-color-outline-variant` token so it survives every theme without a hand-mixed grey. The
+same file exports an `.mb-setting__row` utility - a 56px-minimum M3 list-item grid with an
+optional leading-icon column, a content column, an optional trailing-control column, and a state
+layer drawn from the M3 hover/pressed opacity tokens - for any card whose body is a stack of
+simple rows rather than one free-form control; the settings search-match list in `AppSettings.vue`
+uses it today.
+
+The dialog's own tab strip is the master pane of an M3 list-detail layout: docked to the left edge
+by default (`TabbedNavigation`'s own `DEFAULT_TAB_PLACEMENT`), `aria-orientation="vertical"`, with
+arrow keys moving along that axis. Only the active tab's section is ever mounted.
+
+**Narrow windows.** At and below a 320px window, the strip's fixed minimum width used to leave the
+detail pane so little room that a title with `overflow-wrap: anywhere` broke every character onto
+its own line rather than wrapping at word boundaries - found and fixed by driving the real
+packaged app through the cheap Lowlevel headless route at that exact width. Below a 22.5rem
+viewport the strip's floor drops to 5.5rem so the detail pane keeps a legible width; both panes
+still shrink and wrap rather than opening a second, horizontal scroll axis. Verified clean at
+320px and at the dialog's normal desktop width, in English and in bilingual mode, and in both the
+dark and light themes.
+
 ## Behaviour
 
 ### The interface size dial

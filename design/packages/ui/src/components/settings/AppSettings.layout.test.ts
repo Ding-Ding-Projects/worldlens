@@ -66,4 +66,39 @@ describe("the settings sheet keeps one scroll axis", () => {
             expect(button).toContain("min-width: 0");
         }
     });
+
+    /**
+     * Regression captured driving the real packaged app through the cheap
+     * Lowlevel headless route at a 320px window width: the vertical strip's
+     * `min-width: 10rem` (160px) left the detail pane so little of a ~280px
+     * content area that its M3 title-medium heading broke every character of
+     * "Mojang download consent" onto its own line, because
+     * `overflow-wrap: anywhere` had no real width left to wrap into. The
+     * `flex: 0 1 clamp(...)` rule already let the strip shrink; the fixed
+     * floor was the one thing stopping it. Verified fixed by re-capturing the
+     * same 320px window after this rule landed - the title now wraps at word
+     * boundaries.
+     */
+    it("lowers the strip's minimum width below 22.5rem so the detail pane keeps a readable width at a 320px window", () => {
+        const narrow = block(
+            settings,
+            /@media \(max-width: 22\.5rem\) \{[\s\S]*?\n\}/,
+            "narrow-window strip floor",
+        );
+        expect(narrow).toContain("min-width: 5.5rem");
+        expect(narrow).toContain('[data-placement="left"]');
+        expect(narrow).toContain('[data-placement="right"]');
+    });
+
+    /**
+     * `TabbedNavigation`'s own tests (`TabbedNavigation.test.ts`) already prove
+     * `aria-orientation` flips to `"vertical"` and arrow keys move along that
+     * axis whenever a strip is docked left or right; this only has to prove
+     * Settings never opts out of that default into a horizontal top/bottom
+     * strip, which would silently undo the docked-left M3 list-detail layout
+     * this revamp asked for.
+     */
+    it("never overrides TabbedNavigation's default placement away from the docked-left vertical strip", () => {
+        expect(settings).not.toMatch(/<TabbedNavigation[\s\S]*?default-placement/);
+    });
 });
