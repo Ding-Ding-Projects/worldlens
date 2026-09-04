@@ -1,5 +1,80 @@
 # Roadmap
 
+## World backups, legacy worlds, and a render dashboard (2026-09-04)
+
+Three requests, and the first thing worth recording is what already exists, because
+two of them are smaller than they look.
+
+**The backup half is already built.** The CI render path *is* the backup path: it reuses
+`main/backup/`, and the world already lands as a permanent GitHub release asset in the
+user's own repository, with a `.cheaplfs` pointer and a `backup.json` sidecar. Release
+assets do not expire; nothing in the codebase deletes or overwrites them
+(`backup/runner.ts:24-29` says so, and there is no `deleteRelease`/`deleteAsset` anywhere).
+
+- [ ] Commit the pointers into the Oak Kay. This is the actual gap: `catalog.ts` rebuilds
+      the backup list by walking releases over the network every time, and *nothing
+      committed in the repository* records which worlds were uploaded. Writing each
+      `.cheaplfs` pointer into the repo gives a durable, offline-readable, restorable
+      record - and the pointer format is already the canonical
+      `desktop-material/cheap-lfs/v1` grammar, so it must be restated exactly rather than
+      re-invented as a near-miss dialect.
+- [ ] An index beside them for humans, following the sidecar's conventions: versioned
+      integer first field, ISO-8601 `createdAt`, lowercase-hex `sha256`, byte counts as
+      numbers, `kind: "render" | "world"`, bounded max read.
+- [ ] A dashboard on each render's Day Teet Hui, covering the render and the world
+      backups it produced. It carries every universal contract like any other page.
+
+**1.12.2 silently fails today, and the docs promise otherwise.** `docs/compatibility/README.md`
+states "the renderer accepts Minecraft 1.12.2 through 26.x" and the marketing copy says the
+same. The shipping Java engine does not keep that. Its lowest decoder is `Chunk_1_13` with a
+floor of **0** (`MCAChunkLoader.java:51-56`), so a DataVersion-1343 chunk is handed to the
+1.13-assuming decoder, which reads pre-flattening `Blocks`/`Data` byte arrays as though they
+were block-state palettes. It does not refuse - it misparses, which is what black chunks are.
+
+Nothing catches it earlier either: `render-actions/src/world/validate.ts` checks only that
+`level.dat` and `.mca` files exist, and `levelDat.ts` reads `dataVersion` correctly and then
+both of its callers throw it away.
+
+A whole-branch merge is not the route, and this is the measurement rather than an opinion:
+`v0.10.3-mc1.12` was last committed 2020-08-21, the 5.23 line has 1,361 commits since, and the
+two share **zero Java file paths** - 170 files against 427, reorganised wholesale.
+
+- [ ] Port `Chunk_1_12` into the fork's Java. This is tractable because 5.23 already has a
+      versioned chunk architecture (`Chunk_1_13/1_15/1_16/1_18` behind `ChunkVersionLoader`),
+      so a 1.12 decoder is the intended extension point rather than a rewrite. Two references
+      exist: upstream's own `ChunkAnvil112.java` and `mapping/BlockIdMapper.java` at
+      `v0.10.3-mc1.12` for the bit-level decoding, and *this project's own TypeScript port* of
+      exactly that into the modern architecture (`engine/src/world/mca/chunk/Chunk_1_12.ts`,
+      credited in `NOTICE`). `LegacyBiomes.java` is already present in 5.23.
+- [ ] Raise the `Chunk_1_13` floor from 0 to 1344 so anything older dispatches to the new
+      decoder - the same one-line change the TypeScript loader already documents as a
+      deliberate deviation from upstream.
+- [ ] Detect a legacy world and say so before somebody waits for a render, the way
+      `BedrockConversionNote.vue` already does for Bedrock worlds. There is no Java equivalent.
+
+## Queued, not started (2026-09-04)
+
+- [ ] Universal feature parity on the two non-app surfaces. Every contract the Yern Geen
+      carries has to be carried by the Day Teet Hui and by the Material Design 3 BlueMap
+      webapp independently: the three language modes, both funny-level sliders, the emoji
+      switch, School mode, narration, tabbed navigation with its four tab searches, a
+      search bar and anchored regex builder on every field and every menu, per-element
+      appearance editing with the infinite colour picker, the command palette on
+      Ctrl+Shift+F, toy locks and the unlock ladder, non-blocking notifications, exports,
+      bulk actions, local history, and the dim sum surprise.
+      Neither surface is exempt for being "only docs" or "only the map viewer", and where
+      a contract genuinely cannot apply, the rule and the reason get written down rather
+      than left as a silent gap. Guarded by a hand-written per-surface inventory, because
+      a rule-shaped check passes cleanly on a surface that has none of them.
+
+- [ ] A dashboard on each render's Day Teet Hui, covering that render and the world backups
+      it produced.
+- [ ] Chunker as a Tow Fat, with its code ported into the app so no See Fut has to be
+      installed by hand.
+- [ ] Full Chunker GUI controls in the app.
+- [ ] Batched rendering: roughly 500 MB of world at a time, recombined afterwards, to work
+      around the memory leak that makes a single large render fail.
+
 ## Local servers, and a Material Design 3 map (2026-09-03)
 
 Four screenshots of the new-server wizard turned into three P0 defects and a whole UI rewrite.
