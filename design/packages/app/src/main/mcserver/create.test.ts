@@ -299,6 +299,64 @@ describe("createLocalServer", () => {
         if (result.ok) expect(result.value.minecraftVersion).toBe("1.21.4");
     });
 
+    it("compiles Spigot from the official plan and records a startable local JAR", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const refs = Object.fromEntries(
+            ["BuildData", "Bukkit", "CraftBukkit", "Spigot"].map((key) => [key, "a".repeat(40)]),
+        );
+        const result = await createLocalServer({
+            id: "spigot-server",
+            name: "Spigot server",
+            flavour: "spigot",
+            version: "1.21.4",
+            memoryMb: 1024,
+            port: 25579,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: fakeFetchText({
+                ...CATALOGUE_ROUTES,
+                "https://hub.spigotmc.org/versions/1.21.4.json": JSON.stringify({
+                    refs,
+                    toolsVersion: 181,
+                    javaVersions: [65, 68],
+                }),
+                "https://hub.spigotmc.org/versions/": '<a href="1.21.4.json">1.21.4</a>',
+                "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/api/json":
+                    JSON.stringify({
+                        number: 200,
+                        artifacts: [
+                            { fileName: "BuildTools.jar", relativePath: "target/BuildTools.jar" },
+                        ],
+                    }),
+            }),
+            fetchBinary: async () => okJarResponse(),
+            javaRunner: fakeJavaRunner,
+            javaExists: fakeJavaExists,
+            javaEnv: fakeJavaEnv,
+            installerRunner: async (_java, _args, cwd) => {
+                await writeFile(
+                    join(cwd, "server.jar"),
+                    Buffer.from([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4]),
+                );
+                return { ok: true, message: "compiled" };
+            },
+        });
+        expect(result.ok).toBe(true);
+        const saved = await createServerRegistry({ dataFolder: dataDir }).get("spigot-server");
+        expect(saved.ok).toBe(true);
+        if (saved.ok) {
+            expect(saved.value.flavour).toBe("spigot");
+            expect(saved.value.localRuntime?.jarPath).toBe(
+                join(serversRoot, "spigot-server", "server.jar"),
+            );
+        }
+        expect(
+            await readFile(join(serversRoot, "spigot-server", "server.properties"), "utf8"),
+        ).toContain("server-port=25579");
+    });
+
     it("persists the Forge generated argument file instead of launching the installer as a server", async () => {
         const registry = createServerRegistry({ dataFolder: dataDir });
         const argsFile = join(

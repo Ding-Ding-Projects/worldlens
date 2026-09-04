@@ -80,7 +80,7 @@ export interface ProbeResult {
 /* -------------------------------------------------------------------------- */
 
 export type CatalogueFlavourId =
-    "vanilla" | "paper" | "velocity" | "purpur" | "fabric" | "forge" | "neoforge";
+    "vanilla" | "paper" | "velocity" | "purpur" | "spigot" | "fabric" | "forge" | "neoforge";
 
 export type VersionStability = "release" | "snapshot";
 export type WikiArticleState = "verified" | "unavailable" | "offline-unverified";

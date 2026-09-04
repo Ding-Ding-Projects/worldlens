@@ -22,7 +22,8 @@
  */
 
 import { mkdir, rmdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { randomUUID } from "node:crypto";
 
 import type { FetchText } from "./flavours/catalogue.js";
@@ -34,6 +35,7 @@ import {
     type VersionEntry,
 } from "./flavours/catalogue.js";
 import { installLocalLoader, type InstallerRunner } from "./localLoaderInstall.js";
+import { buildSpigotServer, resolveSpigotBuildPlan } from "./spigotBuildTools.js";
 import { installServerJar, type FetchBinary } from "./install.js";
 import type { ServerRecord, ServerRegistry } from "./registry.js";
 import { createLocalProcessTransport } from "./transport/localProcess.js";
@@ -61,7 +63,7 @@ export interface CreateLocalServerOptions {
     readonly installerRunner?: InstallerRunner;
     readonly id: string;
     readonly name: string;
-    readonly flavour: FlavourId;
+    readonly flavour: ServerCreationFlavour;
     /** The exact version entry string from the catalogue (`"1.21.4"`, `"1.21.4#11"`, …). */
     readonly version: string;
     readonly memoryMb: number;
@@ -449,6 +451,8 @@ function defaultServerProperties(port: number): string {
 async function ensureJavaRuntime(
     options: CreateLocalServerOptions,
     feature: number,
+    needsCompiler = false,
+    maximumFeature = Number.POSITIVE_INFINITY,
 ): Promise<Answer<{ readonly javaPath: string }>> {
     const discoveryOptions: DiscoverJavaOptions = {
         dataDir: options.dataDir,
@@ -461,7 +465,14 @@ async function ensureJavaRuntime(
         ...(options.javaEnv === undefined ? {} : { env: options.javaEnv }),
     };
     const discovery: JavaDiscovery = await discoverJava(discoveryOptions);
-    if (discovery.installation !== null) {
+    const exists = options.javaExists ?? existsSync;
+    const compilerExists = (javaPath: string) =>
+        exists(join(dirname(javaPath), process.platform === "win32" ? "javac.exe" : "javac"));
+    if (
+        discovery.installation !== null &&
+        discovery.installation.version.feature <= maximumFeature &&
+        (!needsCompiler || compilerExists(discovery.installation.executable))
+    ) {
         return ok({ javaPath: discovery.installation.executable });
     }
 
@@ -481,6 +492,14 @@ async function ensureJavaRuntime(
     };
     try {
         const record = await provisionJava(provisionOptions);
+        if (
+            record.feature > maximumFeature ||
+            (needsCompiler && !compilerExists(record.executable))
+        )
+            return fail(
+                "invalid-request",
+                "The provisioned Java installation does not satisfy the compiler and version requirements.",
+            );
         return ok({ javaPath: record.executable });
     } catch (error) {
         return fail(
@@ -526,14 +545,15 @@ export async function createLocalServer(
     });
     if (!catalogue.ok) return catalogue;
 
+    const catalogueFlavour = options.flavour;
     const flavourCatalogue = catalogue.value.flavours.find(
-        (entry) => entry.flavour === options.flavour,
+        (entry) => entry.flavour === catalogueFlavour,
     );
     if (flavourCatalogue === undefined) {
         return fail("not-found", `"${options.flavour}" is not a server flavour this app supports.`);
     }
 
-    const entry = resolveVersionEntry(options.flavour, options.version, flavourCatalogue.versions);
+    const entry = resolveVersionEntry(catalogueFlavour, options.version, flavourCatalogue.versions);
     if (!entry.ok) return entry;
 
     // Fabric's loader entries do not carry the real Java requirement (it follows the
@@ -565,40 +585,72 @@ export async function createLocalServer(
         fabricInstallerVersion = resolved.value;
     }
 
-    const downloadUrl = resolveDownloadUrl(
-        options.flavour,
-        entry.value,
-        fabricInstallerVersion,
-        options.gameVersion,
-    );
+    const spigotPlan =
+        options.flavour === "spigot"
+            ? await resolveSpigotBuildPlan(options.version, options.fetchText)
+            : null;
+    if (spigotPlan !== null && !spigotPlan.ok) return spigotPlan;
+    const downloadUrl =
+        options.flavour === "spigot" && spigotPlan?.ok
+            ? ok(spigotPlan.value.url)
+            : resolveDownloadUrl(
+                  catalogueFlavour,
+                  entry.value,
+                  fabricInstallerVersion,
+                  options.gameVersion,
+              );
     if (!downloadUrl.ok) return downloadUrl;
 
-    const javaRuntime = await ensureJavaRuntime(options, feature);
+    const javaRuntime = await ensureJavaRuntime(
+        options,
+        spigotPlan?.ok ? spigotPlan.value.javaMin : feature,
+        options.flavour === "spigot",
+        spigotPlan?.ok ? spigotPlan.value.javaMax : undefined,
+    );
     if (!javaRuntime.ok) return javaRuntime;
 
     const serverDir = join(options.serversRoot, options.id);
     try {
-        await mkdir(serverDir, { recursive: true });
+        await mkdir(options.serversRoot, { recursive: true });
+        await mkdir(serverDir);
     } catch (error) {
-        return fail("denied", "The server folder could not be created.", String(error));
+        return fail(
+            "denied",
+            "A new server folder could not be created. Existing folders are never reused.",
+            String(error),
+        );
     }
 
     let jarPath = join(serverDir, usesInstaller ? "installer.jar" : "server.jar");
     let argsFile: string | undefined;
-    const installed = await installServerJar({
-        url: downloadUrl.value,
-        targetPath: jarPath,
-        sha256: entry.value.sha256,
-        ...(options.fetchBinary === undefined ? {} : { fetchBinary: options.fetchBinary }),
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-        ...(options.onDownloadProgress === undefined
-            ? {}
-            : {
-                  onProgress: (progress) =>
-                      options.onDownloadProgress?.(progress.received, progress.total),
-              }),
-    });
-    if (!installed.ok) return installed;
+    if (spigotPlan?.ok) {
+        const built = await buildSpigotServer({
+            plan: spigotPlan.value,
+            javaPath: javaRuntime.value.javaPath,
+            dataDir: options.dataDir,
+            serverDir,
+            ...(options.fetchBinary === undefined ? {} : { fetchBinary: options.fetchBinary }),
+            ...(options.installerRunner === undefined ? {} : { runner: options.installerRunner }),
+            ...(options.now === undefined ? {} : { now: options.now }),
+        });
+        if (!built.ok) return built;
+        jarPath = built.value.jarPath;
+    } else {
+        const installed = await installServerJar({
+            url: downloadUrl.value,
+            targetPath: jarPath,
+            sha256: entry.value.sha256,
+            ...(options.fetchBinary === undefined ? {} : { fetchBinary: options.fetchBinary }),
+            ...(options.signal === undefined ? {} : { signal: options.signal }),
+            ...(options.onDownloadProgress === undefined
+                ? {}
+                : {
+                      onProgress: (progress) =>
+                          options.onDownloadProgress?.(progress.received, progress.total),
+                  }),
+        });
+        if (!installed.ok) return installed;
+    }
     if (options.flavour === "forge" || options.flavour === "neoforge") {
         const prepared = await installLocalLoader({
             flavour: options.flavour,

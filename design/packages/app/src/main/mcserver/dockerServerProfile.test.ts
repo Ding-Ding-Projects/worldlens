@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { dockerServerProfile, SERVER_CREATION_FLAVOURS } from "./dockerServerProfile.js";
 import { readFileSync } from "node:fs";
+import { FLAVOUR_IDS } from "./flavours/catalogue.js";
 
 describe("Docker server image contracts", () => {
     it("keeps year-based Forge game versions intact", () => {
@@ -35,6 +36,7 @@ describe("Docker server image contracts", () => {
             "velocity",
         ];
         expect([...SERVER_CREATION_FLAVOURS]).toEqual(expected);
+        expect([...FLAVOUR_IDS].sort()).toEqual([...expected].sort());
         const source = readFileSync(
             new URL("../../../../ui/src/components/mcserver/wizardModel.ts", import.meta.url),
             "utf8",

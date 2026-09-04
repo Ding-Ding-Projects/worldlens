@@ -1,21 +1,34 @@
 import { execFile } from "node:child_process";
 import { readFile, realpath, stat } from "node:fs/promises";
-import { join, relative, isAbsolute } from "node:path";
+import { dirname, delimiter, join, relative, isAbsolute } from "node:path";
 import { fail, ok, type Answer } from "./transport/types.js";
 
 export type InstallerRunner = (
     javaPath: string,
     args: readonly string[],
     serverDir: string,
+    timeoutMs?: number,
 ) => Promise<{ ok: boolean; message: string }>;
 
 /** A bounded executable invocation, never a generated shell script. */
-export const runJavaInstaller: InstallerRunner = (javaPath, args, serverDir) =>
+export const runJavaInstaller: InstallerRunner = (javaPath, args, serverDir, timeoutMs = 600_000) =>
     new Promise((resolve) => {
+        const env = { ...process.env };
+        if (isAbsolute(javaPath)) {
+            env.JAVA_HOME = dirname(dirname(javaPath));
+            const pathKey = Object.keys(env).find((key) => key.toLowerCase() === "path") ?? "PATH";
+            env[pathKey] = `${dirname(javaPath)}${delimiter}${env[pathKey] ?? ""}`;
+        }
         execFile(
             javaPath,
             [...args],
-            { cwd: serverDir, windowsHide: true, timeout: 600_000, maxBuffer: 4 * 1024 * 1024 },
+            {
+                cwd: serverDir,
+                windowsHide: true,
+                env,
+                timeout: Math.min(timeoutMs, 1_800_000),
+                maxBuffer: 4 * 1024 * 1024,
+            },
             (error, stdout, stderr) => {
                 resolve({
                     ok: error === null,

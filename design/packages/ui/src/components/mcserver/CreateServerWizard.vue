@@ -233,10 +233,6 @@ async function refreshCatalogue(): Promise<void> {
 }
 
 const flavourVersions = computed<readonly CatalogueVersionEntry[]>(() => {
-    if (flavour.value === "spigot")
-        return (
-            catalogue.value?.flavours.find((entry) => entry.flavour === "vanilla")?.versions ?? []
-        ).filter((entry) => entry.stability === "release");
     const card = FLAVOUR_CARDS.find((c) => c.id === flavour.value);
     if (card?.cataloguedId === null || card === undefined) return [];
     const entry = catalogue.value?.flavours.find((f) => f.flavour === card.cataloguedId);

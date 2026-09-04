@@ -21,7 +21,7 @@ The New server wizard sends creation through the main-process server handler. Lo
 | Vanilla | `itzg/minecraft-server` | `/data` | `VERSION` is the selected game version |
 | Paper | `itzg/minecraft-server` | `/data` | `game#build` becomes `VERSION` plus `PAPER_BUILD` |
 | Purpur | `itzg/minecraft-server` | `/data` | `game#build` becomes `VERSION` plus `PURPUR_BUILD` |
-| Spigot | `itzg/minecraft-server` | `/data` | `VERSION` plus `BUILD_FROM_SOURCE=true`; the game picker uses Mojang release metadata, not a claim that a Spigot binary is published |
+| Spigot | `itzg/minecraft-server` | `/data` | `VERSION` plus `BUILD_FROM_SOURCE=true`; the picker reads Spigot's official release index and each release's Java metadata |
 | Fabric | `itzg/minecraft-server` | `/data` | Separate game picker supplies `VERSION`; selected loader supplies `FABRIC_LOADER_VERSION` |
 | Forge | `itzg/minecraft-server` | `/data` | `game-loader` becomes `VERSION` plus `FORGE_VERSION` |
 | NeoForge | `itzg/minecraft-server` | `/data` | Supported `minor.patch.build` naming maps the game version; complete loader version supplies `NEOFORGE_VERSION` |
@@ -51,9 +51,11 @@ If container creation succeeds but registry persistence fails, rollback independ
 
 Focused tests cover each container flavour's exact environment, mounted local/SSH submissions, selected-port mismatch, guided image digest resolution, saved-profile SSH dispatch, and registry-failure rollback that preserves unrelated containers. Typechecks require the workspace declarations to be built first, including `@worldlens/bridge`, `@worldlens/render-actions` and `@worldlens/viewer`.
 
-These checks use command-runner fixtures and mounted components. They do not establish real image download, container readiness, backend reachability, or a playable Velocity topology. Local-process Fabric now resolves a stable published launcher and builds its URL from the separately chosen game and loader versions. Forge/NeoForge execute their installer in the server directory, verify the generated launcher, and persist the generated Java argument-file path. Restart resolves that path from the registry and invokes Java with the argument file, never with the installer as a server. Legacy Forge may use its generated executable server JAR. Installer success without the expected output is refused before saving a server record. Real JVM startup remains pending verification. Local-process Spigot BuildTools integration remains the next adapter increment.
+These checks use command-runner fixtures and mounted components. They do not establish real image download, container readiness, backend reachability, or a playable Velocity topology. Local-process Fabric now resolves a stable published launcher and builds its URL from the separately chosen game and loader versions. Forge/NeoForge execute their installer in the server directory, verify the generated launcher, and persist the generated Java argument-file path. Restart resolves that path from the registry and invokes Java with the argument file, never with the installer as a server. Legacy Forge may use its generated executable server JAR. Installer success without the expected output is refused before saving a server record. Real JVM startup remains pending verification.
 
-測試覆蓋每種容器設定、精靈提交、連接埠矛盾、摘要解析、SSH 路由同失敗回復。Fabric 本機流程會查已發布嘅穩定啟動器；Forge/NeoForge 先執行安裝器、確認產生嘅啟動檔，再將 Java 引數檔路徑存入清單。重新開啟唔會再當安裝器係伺服器。測試仍未代替真實 JVM 啟動證據，本機 Spigot BuildTools 係下一項配接工作。
+Local Spigot resolves the chosen release against the official Spigot metadata, then pins a published Jenkins BuildTools build meeting its minimum requirement. It requires a JDK with `javac` inside the release's permitted Java range, provisioning the application-owned JDK when authorized. BuildTools runs with fixed headless arguments in a fresh application-owned build directory, with a 30-minute deadline. The app copies a bounded JAR output into the new server directory only after the process succeeds and the output signature is checked. `worldlens-build-provenance.json` records the exact BuildTools URL/build, source revisions, downloaded-tool SHA-256 and resulting-server SHA-256. Those digests record observed bytes; they are not code-signing or independent publisher-authentication claims. Failed build directories remain available for diagnosis. Existing server directories and output files are never overwritten.
+
+測試覆蓋每種容器設定、精靈提交、連接埠矛盾、摘要解析、SSH 路由同失敗回復。Fabric 本機流程會查已發布嘅穩定啟動器；Forge/NeoForge 先安裝再保存啟動引數。本機 Spigot 用官方版本資料、固定 BuildTools build 同指定 Java 範圍，在獨立目錄編譯。工具同輸出摘要、來源修訂都寫入來源記錄，但唔冒充簽署證明。已有資料夾唔會被覆寫；真實 JVM 啟動仍待驗證。
 
 ## Sources and suggested articles
 
@@ -62,6 +64,8 @@ These checks use command-runner fixtures and mounted components. They do not est
 - [Forge and NeoForge variables](https://docker-minecraft-server.readthedocs.io/en/latest/types-and-platforms/server-types/forge/)
 - [Published Java variants](https://docker-minecraft-server.readthedocs.io/en/latest/versions/java/)
 - [Proxy image contract](https://github.com/itzg/docker-mc-proxy/blob/master/README.md)
+- [Official BuildTools instructions](https://www.spigotmc.org/wiki/buildtools/)
+- [Official Spigot release index](https://hub.spigotmc.org/versions/)
 - [SSH host profiles](mcserver-host-profiles.md)
 - [Transport boundaries](mcserver-transport.md)
 - [Configuration editing](mcserver-config.md)

@@ -1688,7 +1688,6 @@ export function registerMcServerHandlers(
                     "invalid-request",
                     `A ${runtime} server cannot be created here. Create it from its own screen instead.`,
                 );
-            if (body.flavour === "spigot") return fail("unsupported", "Local-process Spigot creation requires its BuildTools adapter. Container creation builds from source.");
             const createOptions: CreateLocalServerOptions = {
                 ...(typeof body.gameVersion === "string" ? { gameVersion: body.gameVersion } : {}),
                 id: body.id,
