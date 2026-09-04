@@ -14,8 +14,11 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import { generateWorld, generateMeasuredWorld, zipWorld, type MeasuredWorldProgress } from "@worldlens/worldgen";
+import { runLocalSyntheticGeneration } from "./worldgen/localGeneration.js";
 
-import type { IpcMain } from "electron";
+import type { IpcMain, WebContents } from "electron";
 
 import type { BackupRunnerOptions } from "../backup/runner.js";
 import type { BackupRestoreRunnerOptions } from "../backup/restore.js";
@@ -176,6 +179,9 @@ export const MCSERVER_CHANNELS = {
     awsAccounts: "mcserver:aws:accounts",
     awsAccountAlias: "mcserver:aws:accountAlias",
     awsCredits: "mcserver:aws:credits",
+    syntheticWorldGenerate: "mcserver:worldgen:synthetic",
+    syntheticWorldStatus: "mcserver:worldgen:status",
+    syntheticWorldCancel: "mcserver:worldgen:cancel",
     hostProfilesList: "mcserver:hostProfiles:list",
     hostProfileGet: "mcserver:hostProfiles:get",
     hostProfileSave: "mcserver:hostProfiles:save",
@@ -804,7 +810,72 @@ export function registerMcServerHandlers(
         };
     }
 
+    const syntheticJobs = new Map<number, { cancelled: boolean; progress: MeasuredWorldProgress }>();
+    const syntheticOwner = (event: unknown): number => (event as { sender: { id: number } }).sender.id;
     const handlers: Record<string, (...args: never[]) => Promise<unknown>> = {
+        [MCSERVER_CHANNELS.syntheticWorldStatus]: async (event: never) => ok(syntheticJobs.get(syntheticOwner(event))?.progress ?? null),
+        [MCSERVER_CHANNELS.syntheticWorldCancel]: async (event: never) => {
+            const job = syntheticJobs.get(syntheticOwner(event));
+            if (job) job.cancelled = true;
+            return ok({ cancelling: job !== undefined });
+        },
+        [MCSERVER_CHANNELS.syntheticWorldGenerate]: async (_event: never, request: unknown) => {
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "The synthetic-world request could not be read.");
+            }
+            const body = request as Record<string, unknown>;
+            if (
+                typeof body.seed !== "number" || !Number.isSafeInteger(body.seed) ||
+                typeof body.size !== "number" || !Number.isSafeInteger(body.size) || body.size < 16 || body.size > 40_000 ||
+                typeof body.worldName !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(body.worldName) ||
+                typeof body.destination !== "string" || body.destination.trim() === "" ||
+                body.outputMode !== "folder" ||
+                (body.targetBytes !== undefined && (!Number.isSafeInteger(body.targetBytes) || typeof body.targetBytes !== "number" || body.targetBytes < 1 || body.targetBytes > 100_000_000_000)) ||
+                (body.resume !== undefined && typeof body.resume !== "boolean")
+            ) {
+                return fail("invalid-request", "The synthetic-world inputs are invalid.");
+            }
+            const destination = body.destination.trim();
+            if (typeof body.targetBytes === "number") {
+                const owner = syntheticOwner(_event);
+                const sender = (_event as { sender: Pick<WebContents, "id" | "on" | "removeListener" | "isDestroyed"> }).sender;
+                if (typeof sender.on !== "function" || typeof sender.removeListener !== "function" || typeof sender.isDestroyed !== "function" || sender.isDestroyed()) {
+                    return fail("invalid-owner", "Generation needs an active renderer with lifecycle tracking.");
+                }
+                if (syntheticJobs.has(owner)) return fail("busy", "A world generation is already running in this window.");
+                const job = { cancelled: false, progress: { bytes: 0, targetBytes: body.targetBytes, chunkCount: 0, regionCount: 0 } };
+                const cancelOwnedGeneration = () => { job.cancelled = true; };
+                const onNavigation = (_navigationEvent: unknown, _url: string, isInPlace: boolean, isMainFrame: boolean) => {
+                    if (isMainFrame && !isInPlace) cancelOwnedGeneration();
+                };
+                syntheticJobs.set(owner, job);
+                try {
+                    sender.on("destroyed", cancelOwnedGeneration);
+                    sender.on("render-process-gone", cancelOwnedGeneration);
+                    sender.on("did-start-navigation", onNavigation);
+                    const result = await generateMeasuredWorld({ seed: body.seed, name: body.worldName, outDir: destination, targetBytes: body.targetBytes,
+                        resume: body.resume === true, isCancelled: () => job.cancelled,
+                        onProgress: (progress) => { job.progress = progress; } });
+                    return ok({ ...result, zipPath: null });
+                } catch (error) {
+                    return fail("generation-failed", error instanceof Error ? error.message : String(error));
+                } finally {
+                    sender.removeListener("destroyed", cancelOwnedGeneration);
+                    sender.removeListener("render-process-gone", cancelOwnedGeneration);
+                    sender.removeListener("did-start-navigation", onNavigation);
+                    syntheticJobs.delete(owner);
+                }
+            }
+            const plannedWorld = join(destination, body.worldName);
+            if (existsSync(plannedWorld)) {
+                return fail("destination-exists", "The chosen world folder already exists. Choose a new empty destination or world name.");
+            }
+            const outcome = await runLocalSyntheticGeneration(
+                { seed: body.seed, size: body.size, worldName: body.worldName, destination, outputMode: "folder" },
+                { generateWorld, zipWorld },
+            );
+            return outcome.ok ? ok(outcome.value) : fail(outcome.code, outcome.message);
+        },
         [MCSERVER_CHANNELS.list]: async () => registry.list(),
 
         [MCSERVER_CHANNELS.hostProfilesList]: async () => hostProfiles.list(),

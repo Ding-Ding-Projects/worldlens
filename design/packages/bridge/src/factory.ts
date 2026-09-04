@@ -191,6 +191,11 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             worlds: {
                 list: (id: unknown) => transport.invoke("mcserver:worlds:list", id),
             },
+            worldgen: {
+                synthetic: (request: unknown) => transport.invoke("mcserver:worldgen:synthetic", request),
+                status: () => transport.invoke("mcserver:worldgen:status"),
+                cancel: () => transport.invoke("mcserver:worldgen:cancel"),
+            },
             hostProfiles: {
                 list: () => transport.invoke("mcserver:hostProfiles:list"),
                 get: (hostId: unknown) => transport.invoke("mcserver:hostProfiles:get", hostId),
