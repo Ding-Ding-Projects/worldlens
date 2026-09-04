@@ -1325,6 +1325,7 @@ export interface BedrockBridge {
     chunkerStatus(): Promise<ChunkerStatus>;
     capabilities(): Promise<unknown>;
     inspectOptions(world: string): Promise<unknown>;
+    configurationSchema(): Promise<unknown>;
     containerImages(): Promise<unknown>;
     containerStart(request: unknown): Promise<unknown>;
     containerState(id: string): Promise<unknown>;
@@ -3309,6 +3310,8 @@ interface WorldlensBridge {
 
     /** Recognising and converting Bedrock Edition worlds. See {@link BedrockBridge}. */
     chunkerActions: {
+        recoverable(): Promise<unknown>;
+        adopt(request: unknown): Promise<unknown>;
         prepare(request: unknown): Promise<unknown>;
         start(request: unknown): Promise<unknown>;
         list(): Promise<unknown>;

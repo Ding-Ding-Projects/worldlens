@@ -10,7 +10,7 @@ const { t } = useI18n();
 const accounts = createGhCliAccountsStore();
 const ci = resolveCiRenderBridge();
 type Answer = { ok: boolean; value?: any; message?: string };
-type Actions = Record<"prepare" | "start" | "list" | "check" | "collect" | "cancel", (value?: unknown) => Promise<Answer>>;
+type Actions = Record<"prepare" | "start" | "list" | "recoverable" | "adopt" | "check" | "collect" | "cancel", (value?: unknown) => Promise<Answer>>;
 const host = (globalThis as any).worldlens?.chunkerActions as Actions | undefined;
 const accountId = ref<string | null>(null);
 const repository = ref<string | null>(null);
@@ -21,6 +21,8 @@ const busy = ref(false);
 const message = ref("");
 const record = ref<any>(null);
 const history = ref<any[]>([]);
+const recoverable = ref<any[]>([]);
+const recoveryId = ref<string|null>(null);
 const accountItems = computed(() => accounts.accounts.value.map((entry) => ({ title: `${entry.login} (${entry.host})`, value: entry.id, props: { disabled: !entry.healthy } })));
 const repositoryItems = computed(() => repositories.value.map((entry) => ({ title: `${entry.fullName} (${entry.private ? "private" : "public"})`, value: entry.fullName, props: { disabled: !entry.canWrite } })));
 const request = computed(() => ({ ...props, accountId: accountId.value ?? undefined, owner: repository.value?.split("/")[0] ?? "", repo: repository.value?.split("/")[1] ?? "", acknowledgeUpload: upload.value, acknowledgePublic: publicUpload.value }));
@@ -38,6 +40,7 @@ async function call(operation: keyof Actions, value?: unknown): Promise<void> {
         const result = await host[operation](value);
         if (!result.ok) throw new Error(result.message ?? "The operation did not finish.");
         if (operation === "list") history.value = result.value;
+        else if (operation === 'recoverable') recoverable.value = result.value;
         else if (operation === "prepare") message.value = result.value.changed ? `Workflow prepared at ${result.value.commitSha}.` : "The workflow is current.";
         else { record.value = result.value; message.value = result.value.message; }
     } catch (error) { message.value = error instanceof Error ? error.message : String(error); }
@@ -65,6 +68,9 @@ onBeforeUnmount(()=>clearInterval(timer));
         <VBtn :disabled="busy || !repository || !host" @click="call('prepare', request)">{{ t('chunker.actions.prepare', 'Prepare conversion workflow') }}</VBtn>
         <VBtn :disabled="busy || !repository || !upload || !host || !worldFolder || !outputDirectory" @click="call('start', request)">{{ t('chunker.actions.start', 'Upload and convert') }}</VBtn>
         <p role="status" aria-live="polite">{{ message }}</p>
+        <VBtn :disabled="busy" @click="call('recoverable')">Find saved conversions from before restart</VBtn>
+        <GhEntityPicker v-if="recoverable.length" v-model="recoveryId" :items="recoverable.map(entry=>({title:`${entry.repository}: ${entry.state} ${entry.updatedAt}`,value:entry.id}))" data-test-base="chunker-actions-recovery" search-label="Search recoverable conversions" select-label="Saved conversion to recover" selected-label="Selected conversion" empty-message="No recoverable conversions" no-match-message="No matching conversion" />
+        <VBtn v-if="recoveryId" :disabled="busy" @click="call('adopt',{id:recoveryId,confirmed:true})">Recover this saved conversion in this window</VBtn>
         <section v-if="record" data-test="chunker-actions-progress">
             <p>{{ record.state }} · {{ record.bytesDone }} / {{ record.bytesTotal }} bytes</p>
             <VProgressLinear :model-value="record.bytesTotal > 0 ? 100 * record.bytesDone / record.bytesTotal : 0" :indeterminate="record.state === 'waiting'" />

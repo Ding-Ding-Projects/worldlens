@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref,onMounted } from "vue";
 import { useI18n } from 'vue-i18n';
 import { VBtn, VSwitch } from "vuetify/components";
-import ChunkerValueEditor from "./ChunkerValueEditor.vue";
+import ChunkerSchemaEditor from './ChunkerSchemaEditor.vue';
 const props = defineProps<{ modelValue: Record<string, any>; sourceWorld: string }>();
 const emit = defineEmits<{ 'update:modelValue': [value: Record<string, any>] }>();
 const {t}=useI18n();
 const sections = ['blockMappings', 'worldSettings', 'pruning', 'converterSettings', 'dimensionRegistry', 'dimensionMappings', 'biomeMappings'] as const;
 const active = ref<(typeof sections)[number]>('converterSettings');
 const loading=ref(false); const inspectionMessage=ref('');
+const schemas=ref<Record<string,any>>({});
+onMounted(async()=>{schemas.value=await (globalThis as any).worldlens?.bedrock?.configurationSchema?.()??{};});
 async function loadSourceSettings():Promise<void>{
     if(loading.value)return;loading.value=true;
     try {
@@ -16,7 +18,7 @@ async function loadSourceSettings():Promise<void>{
         if(!answer?.ok)throw Error(answer?.message ?? 'The selected converter cannot inspect source settings.');
         const groups=answer.value.settings as Record<string,{name:string;value:unknown}[]>;
         const values=Object.fromEntries(Object.values(groups).flat().map(entry=>[entry.name,entry.value]));
-        update('worldSettings',values);active.value='worldSettings';
+        schemas.value={...schemas.value,worldSettings:answer.value.editorSchema};active.value='worldSettings';
         inspectionMessage.value=`Loaded ${Object.keys(values).length} actual source settings from ${answer.value.sourceFormat}.`;
     }catch(error){inspectionMessage.value=error instanceof Error?error.message:String(error);}finally{loading.value=false;}
 }
@@ -42,9 +44,10 @@ function applyTemplate(): void { update(active.value, structuredClone(presets[ac
         <div role="tablist" aria-label="Chunker configuration options" class="chunker-config-tabs">
             <VBtn v-for="section in sections" :key="section" role="tab" :aria-selected="active === section" @click="active = section">{{ section }}</VBtn>
         </div>
-        <VBtn @click="applyTemplate">{{t('chunker.advanced.template','Use editable template')}}: {{ active }}</VBtn>
+        <VBtn :disabled="!schemas[active]" @click="applyTemplate">{{t('chunker.advanced.template','Use editable template')}}: {{ active }}</VBtn>
         <VBtn @click="reset">{{t('chunker.advanced.reset','Reset this option')}}</VBtn>
-        <ChunkerValueEditor :key="active" :label="active" :model-value="modelValue[active] ?? {}" @update:model-value="update(active, $event)" />
+        <ChunkerSchemaEditor v-if="schemas[active]" :key="active" :schema="schemas[active]" :label="active" :model-value="modelValue[active] ?? {}" @update:model-value="update(active,$event)" />
+        <p v-else>Inspect the source world to load the selected converter's supported fields. No arbitrary fixed property names are accepted.</p>
         <VSwitch :model-value="modelValue.keepOriginalNBT === true" :label="t('chunker.advanced.nbt','Keep original NBT when the exact source and target format match')" @update:model-value="update('keepOriginalNBT', $event === true)" />
         <p>{{t('chunker.advanced.nbtHelp','Original NBT preservation requires the converter to identify the exact source format. A different version or unknown input is refused before writing the converted world.')}}</p>
     </section>

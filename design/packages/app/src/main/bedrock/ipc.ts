@@ -70,7 +70,9 @@ import {
     writeConversionRecord,
     type ConversionRecord,
 } from "./provenance.js";
-import { validateChunkerCliConfig } from "./chunkerConfig.js";
+import { validateChunkerCliConfig,validateChunkerConfigStructure } from "./chunkerConfig.js";
+import {readSelectedSettings,validateSelectedChunkerConfig} from './settingsReport.js';
+import {CHUNKER_EDITOR_SCHEMAS} from './editorSchema.js';
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
 export const BEDROCK_CHANNELS = [
@@ -83,6 +85,7 @@ export const BEDROCK_CHANNELS = [
     "bedrock:record",
     "bedrock:capabilities",
     "bedrock:inspectOptions",
+    "bedrock:configurationSchema",
 ] as const;
 
 /** The channel every conversion progress, phase and log event arrives on. */
@@ -196,7 +199,7 @@ export function registerBedrockHandlers(
     ipcMain: IpcMain,
     options: BedrockIpcOptions,
 ): BedrockIpc {
-    installChunkerContainerIpc({ipcMain,dataDir:options.dataDir ?? tmpdir(),...(options.configuredJar === undefined ? {} : {configuredJar:options.configuredJar})});
+    installChunkerContainerIpc({ipcMain,dataDir:options.dataDir ?? tmpdir(),resolveJava:options.resolveJava,...(options.configuredJar === undefined ? {} : {configuredJar:options.configuredJar})});
     const inspect = options.inspect ?? inspectWorldFolder;
     const find = options.find ?? findChunker;
     const fetch = options.fetch ?? fetchChunker;
@@ -206,6 +209,7 @@ export function registerBedrockHandlers(
 
     /** In-flight conversions, so `bedrock:cancel` can reach the right one. */
     const running = new Map<string, { cancel(): void }>();
+    ipcMain.handle('bedrock:configurationSchema',()=>CHUNKER_EDITOR_SCHEMAS);
 
     ipcMain.handle("bedrock:capabilities", async () => {
         try {
@@ -219,30 +223,14 @@ export function registerBedrockHandlers(
 
     ipcMain.handle('bedrock:inspectOptions', async (_event, world: unknown) => {
         if(typeof world !== 'string' || !world.trim()) return {ok:false,message:'Choose a source world first.'};
-        const staging=join(options.dataDir ?? tmpdir(),`chunker-options-${randomUUID()}`);
         try {
             await inspect(world);
             const lookup=await find(lookupOptions());
             if(!lookup.found) return {ok:false,message:lookup.reason};
             const java=await options.resolveJava();
             if(!java.ok) return {ok:false,message:java.message};
-            await mkdir(staging,{recursive:true});
-            const run=new ChunkerConversion({javaExecutable:java.executable,jarPath:lookup.jarPath,inputDirectory:world,outputDirectory:staging,outputFormat:'SETTINGS'});
-            const timeout=setTimeout(()=>run.cancel(),120_000);
-            let result;try{result=await run.start();}finally{clearTimeout(timeout);}
-            if(result.exitCode!==0 || !result.completeLineSeen) throw Error(result.silentFailure ?? 'The selected converter could not inspect this world.');
-            const file=join(staging,'data.json');
-            if((await stat(file)).size>8*1024*1024) throw Error('The settings report exceeds the 8 MiB inspection limit.');
-            const report=JSON.parse(await readFile(file,'utf8'), (_key: string, value: unknown, context?: {source?: string}) => {
-                if(typeof value === 'number' && Number.isInteger(value) && !Number.isSafeInteger(value)) {
-                    if(!context?.source) throw Error('This runtime cannot preserve the exact large numeric setting.');
-                    return context.source;
-                }
-                return value;
-            }) as {settings?:Record<string,Array<{name:string;value:unknown}>>;dimensions?:object};
-            return {ok:true,value:{sourceFormat:result.sourceEdition,settings:report.settings ?? {},dimensions:Object.keys(report.dimensions ?? {})}};
+            return {ok:true,value:await readSelectedSettings(java.executable,lookup.jarPath,world)};
         }catch(error){return {ok:false,message:error instanceof Error?error.message:String(error)};}
-        finally{await rm(staging,{recursive:true,force:true});}
     });
     const lookupOptions = (): FindChunkerOptions => ({
         ...(options.dataDir == null ? {} : { dataDir: options.dataDir }),
@@ -419,8 +407,7 @@ export function registerBedrockHandlers(
                 return refuse(error instanceof Error ? error.message : String(error));
             }
             const detection = detectBedrockWorld(listing);
-            const cliConfig = validateChunkerCliConfig(config);
-            if (cliConfig === null) return refuse("Chunker settings were malformed. Choose each setting again before converting.");
+            if (!validateChunkerConfigStructure(config)) return refuse("Chunker settings were malformed. Choose each setting again before converting.");
 
             const java = await options.resolveJava();
             if (!java.ok) {
@@ -436,6 +423,10 @@ export function registerBedrockHandlers(
                 typeof output === "string" && output.trim() !== ""
                     ? output
                     : convertedWorldPath(world);
+            let cliConfig;
+            try {cliConfig=await validateSelectedChunkerConfig(config,java.executable,lookup.jarPath,world);}
+            catch(error){return refuse(error instanceof Error?error.message:String(error));}
+            if(cliConfig===null)return refuse('A world setting is unknown to the selected converter or has the wrong type. Inspect source settings again.');
             const targetFormat =
                 typeof format === "string" && format.trim() !== "" ? format : DEFAULT_JAVA_TARGET;
             // The renderer's format is presentation data, never an authority to enable

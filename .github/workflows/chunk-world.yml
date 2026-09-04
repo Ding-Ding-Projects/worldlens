@@ -301,7 +301,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          java -jar chunker/chunker-cli.jar -i world-in -f SETTINGS -o settings-out
+          java -jar chunker/chunker-cli.jar -i world-in -f SETTINGS -o settings-out | tee settings-inspection.log
+          grep -q '^Conversion complete!' settings-inspection.log
           settings=$(find settings-out -name 'data.json' -print -quit)
           if [ -z "$settings" ]; then
             echo "::error::Chunker's settings pass wrote no data.json, so this world's regions could not be read. Refusing to shard against a guessed grid."
@@ -328,6 +329,11 @@ jobs:
           const MARGIN_CHUNKS = 1;
           const MATRIX_LIMIT = 256;
           const config = JSON.parse(process.env.CHUNKER_CONFIG || '{}');
+          const inspection = readFileSync('settings-inspection.log','utf8');
+          const sourceMatch = /^Converting from (Java|Bedrock) ([0-9]+(?:[.][0-9]+)+) to Settings /mi.exec(inspection);
+          const sourceFormat = sourceMatch ? `${sourceMatch[1]}_${sourceMatch[2]}`.toUpperCase().replaceAll('.','_') : null;
+          if(config.keepOriginalNBT !== undefined && typeof config.keepOriginalNBT !== 'boolean') throw Error('Invalid NBT preservation setting');
+          if(config.keepOriginalNBT === true && (!sourceFormat || sourceFormat !== process.env.TARGET_FORMAT)) throw Error('Original NBT requires an exact input and output format match from the trusted SETTINGS inspection.');
           // LevelDB output and dimension remapping cannot be merged by copying Anvil regions.
           const whole = !process.env.TARGET_FORMAT.startsWith('JAVA_') || Object.entries(config.dimensionMappings || {}).some(([source,target]) => source !== target);
           const keepRegion = (dimension,x,z) => {
@@ -382,6 +388,21 @@ jobs:
             process.exit(1);
           }
           const dimensions = parsed?.dimensions;
+          const settingSchema = new Map(Object.values(parsed.settings || {}).flat().map(entry=>[entry.name,entry.type]));
+          for(const [name,value] of Object.entries(config.worldSettings || {})) {
+            const type=settingSchema.get(name);
+            let valid=type==='String'?typeof value==='string':type==='Boolean'?typeof value==='boolean':false;
+            if(['Single','Double'].includes(type)) valid=typeof value==='number'&&Number.isFinite(value);
+            if(['Byte','Int16','Int32'].includes(type)) {
+              const limit=type==='Byte'?128:type==='Int16'?32768:2147483648;
+              valid=Number.isInteger(value)&&value>=-limit&&value<limit;
+            }
+            if(type==='Int64') {
+              valid=(typeof value==='number'&&Number.isSafeInteger(value))||(typeof value==='string'&&/^-?[0-9]+$/.test(value));
+              if(valid) {const integer=BigInt(value);valid=integer>=-9223372036854775808n&&integer<=9223372036854775807n;}
+            }
+            if(!valid) throw Error(`World setting ${name} is unknown or does not match the selected jar's ${type || 'unavailable'} schema.`);
+          }
           if (typeof dimensions !== "object" || dimensions === null) {
             console.log("::error::Chunker's settings report carries no dimensions, so this world cannot be sharded.");
             process.exit(1);
@@ -474,6 +495,7 @@ jobs:
           else for(const shard of shards) for(const dimension of Object.keys(dimensions)) {
             if(dimension!==shard.dimension) shard.pruning.configs[dimension]={include:false,regions:[{minChunkX:-2147483648,minChunkZ:-2147483648,maxChunkX:2147483647,maxChunkZ:2147483647}]};
           }
+          for(const shard of shards) shard.sourceFormat=sourceFormat;
           writeFileSync("conversion-plan.json", `${JSON.stringify({ version: 1, whole, regions: owned.length, shards }, null, 2)}\n`);
 
           const output = process.env.GITHUB_OUTPUT;
@@ -505,13 +527,68 @@ jobs:
           path: chunker/chunker-cli.jar
           retention-days: 1
 
+      - name: Stage the edition-aware payload validator
+        shell: bash
+        run: |
+          cat > verify-world.py <<'PY'
+          import pathlib, struct, sys, zlib
+          root=pathlib.Path(sys.argv[1]); target=sys.argv[2]
+          if not (root/'level.dat').is_file() or (root/'level.dat').stat().st_size==0:
+              raise SystemExit('Converted output has no non-empty level.dat')
+          if target.startswith('BEDROCK_'):
+              db=root/'db'
+              current=(db/'CURRENT').read_text().strip()
+              if not current.startswith('MANIFEST-') or not current[9:].isdigit() or not (db/current).is_file() or (db/current).stat().st_size==0:
+                  raise SystemExit('Converted output has no readable LevelDB manifest')
+              valid=False
+              for path in db.iterdir():
+                  if not path.is_file() or not path.stem.isdigit(): continue
+                  with path.open('rb') as source:
+                      if path.suffix in ('.ldb','.sst') and path.stat().st_size>=48:
+                          source.seek(-8,2); valid=source.read(8)==bytes.fromhex('57fb808b247547db')
+                      elif path.suffix=='.log' and path.stat().st_size>=8:
+                          header=source.read(7); size=struct.unpack('<H',header[4:6])[0]
+                          valid=1<=header[6]<=4 and 0<size<=path.stat().st_size-7
+                  if valid: break
+              if not valid: raise SystemExit('Converted Bedrock output has no readable terrain data')
+          elif target.startswith('JAVA_'):
+              count=0
+              for path in root.rglob('*.mca'):
+                  if path.parent.name!='region': continue
+                  size=path.stat().st_size
+                  if size<12288 or size%4096: raise SystemExit('Invalid Anvil region size')
+                  populated=False
+                  with path.open('rb') as source:
+                      header=source.read(4096)
+                      for i in range(1024):
+                          location=struct.unpack('>I',header[4*i:4*i+4])[0]
+                          if not location: continue
+                          sector=location>>8; sectors=location&255
+                          if sector<2 or not sectors or (sector+sectors)*4096>size: raise SystemExit('Invalid Anvil chunk location')
+                          source.seek(sector*4096); length=struct.unpack('>I',source.read(4))[0]; compression=source.read(1)[0]
+                          if not 2<=length<=sectors*4096-4: raise SystemExit('Invalid Anvil chunk length')
+                          data=source.read(length-1)
+                          if compression in (1,2):
+                              decoder=zlib.decompressobj(31 if compression==1 else 15); data=decoder.decompress(data,16*1024*1024)
+                              if not decoder.eof: raise SystemExit('Anvil chunk exceeds bounded decoding or is truncated')
+                          elif compression!=3: raise SystemExit('Unsupported Anvil compression')
+                          if len(data)<4 or data[0]!=10: raise SystemExit('Invalid Anvil NBT chunk')
+                          populated=True
+                  if not populated: raise SystemExit('Anvil region contains no terrain chunks')
+                  count+=1
+              if not count: raise SystemExit('Converted Java output has no terrain regions')
+          else: raise SystemExit('Unsupported converted output format')
+          PY
+
       # Deliberately not named "chunk-shard-something": the assemble job collects the shards
       # with the pattern `chunk-shard-*`, and a plan artifact swept up with them would then
       # fail as a shard with no outcome record.
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: chunk-plan
-          path: conversion-plan.json
+          path: |
+            conversion-plan.json
+            verify-world.py
           retention-days: 7
 
   # ---------------------------------------------------------------------------------
@@ -610,7 +687,10 @@ jobs:
             if(!config[key] || typeof config[key] !== 'object' || Array.isArray(config[key])) throw Error('Invalid Chunker JSON option');
             const file=`shard/${key}.json`; writeFileSync(file,JSON.stringify(config[key])); args.push(`--${key}`,file);
           }
-          if(config.keepOriginalNBT === true) args.push('--keepOriginalNBT');
+          if(config.keepOriginalNBT === true) {
+            if(!shard.sourceFormat || shard.sourceFormat !== process.env.TARGET_FORMAT) throw Error('Original NBT has no trusted exact source-format match.');
+            args.push('--keepOriginalNBT');
+          }
           const result=spawnSync('java',args,{encoding:'utf8',maxBuffer:16*1024*1024});
           process.stdout.write(result.stdout || ''); process.stderr.write(result.stderr || '');
           if(result.status !== 0 || !/^Conversion complete!/m.test(result.stdout || '')) throw Error('Chunker did not complete this shard');
@@ -707,6 +787,12 @@ jobs:
           console.log(`Chunker wrote: ${entries.join(", ")}`);
           NODE
 
+      - name: Validate converted shard terrain
+        shell: bash
+        env:
+          TARGET_FORMAT: ${{ inputs.target-format }}
+        run: python3 plan-in/verify-world.py shard-out "$TARGET_FORMAT"
+
       - name: Stage what this shard owns
         if: always()
         shell: bash
@@ -777,6 +863,7 @@ jobs:
         shell: bash
         env:
           OUTPUT_NAME: ${{ inputs.output-name }}
+          TARGET_FORMAT: ${{ inputs.target-format }}
         run: |
           set -euo pipefail
           node <<'NODE'
@@ -861,6 +948,7 @@ jobs:
           }
           NODE
 
+          python3 plan-in/verify-world.py merged "$TARGET_FORMAT"
           name="${OUTPUT_NAME}"
           if [ -z "$name" ]; then
             echo "::error::'output-name' is empty."

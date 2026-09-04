@@ -5,8 +5,11 @@ import { join, dirname, isAbsolute, relative } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
 import type { IpcMain } from 'electron';
+import { SenderOwnership, type OperationSender } from './senderOwnership.js';
 import { ChunkerConversion, verifyConvertedWorld } from './convert.js';
-import { validateChunkerCliConfig } from './chunkerConfig.js';
+import { validateChunkerCliConfig,validateChunkerConfigStructure } from './chunkerConfig.js';
+import {readSelectedSettings,validateSelectedChunkerConfig} from './settingsReport.js';
+import {validateConvertedPayload} from './outputValidation.js';
 import { findChunker } from './chunker.js';
 import { validateTarget } from '../remote/target.js';
 import { preflight } from '../remote/preflight.js';
@@ -14,26 +17,26 @@ import { sshArguments, remoteCommandLine } from '../remote/ssh.js';
 import { scpTransfer } from '../remote/transfer.js';
 import { chooseTransfer } from '../remote/rsync.js';
 import { execFileCommandRunner } from '../runtime/command.js';
+import { APPROVED_CHUNKER_IMAGE, resolveApprovedChunkerImage } from './approvedImage.js';
 
 export const CONTAINER_CHANNELS = ['bedrock:containerImages','bedrock:containerStart','bedrock:containerState','bedrock:containerCancel'] as const;
-interface Options { ipcMain: IpcMain; dataDir: string; configuredJar?: string | null }
-interface State { id: string; phase: string; percent: number; logs: string[]; complete: boolean; ok: boolean; output: string | null; message: string }
+interface Options { ipcMain: IpcMain; dataDir: string; configuredJar?: string | null; resolveJava:()=>Promise<{ok:true;executable:string}|{ok:false;message:string}> }
+interface State { id: string; phase: string; percent: number; logs: string[]; complete: boolean; ok: boolean; output: string | null; message: string; runtimeImage: string|null }
 export function installChunkerContainerIpc(options: Options): void {
     const states = new Map<string, State>();
     const cancels = new Map<string, () => void>();
     const activeOutputs = new Set<string>();
-    const handler = (name: typeof CONTAINER_CHANNELS[number], run: (value: any) => Promise<unknown>) => options.ipcMain.handle(name, async (_event, value: unknown) => {
-        try { return { ok: true, value: await run(value) }; }
+    const ownership = new SenderOwnership(id => cancels.get(id)?.());
+    const handler = (name: typeof CONTAINER_CHANNELS[number], run: (value: any, sender: OperationSender) => Promise<unknown>) => options.ipcMain.handle(name, async (event, value: unknown) => {
+        try { return { ok: true, value: await run(value, event.sender) }; }
         catch(error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
     });
     handler('bedrock:containerImages', async () => {
-        const result = await execFileCommandRunner('docker',['image','ls','--format','{{.Repository}}:{{.Tag}}']);
-        if(!result.ok) throw Error(result.stderr || 'Docker image discovery did not complete. Open Runtime settings to recover.');
-        return result.stdout.split(/\r?\n/).filter(line=>line && !line.includes('<none>'));
+        return [APPROVED_CHUNKER_IMAGE];
     });
-    handler('bedrock:containerState', async (id) => states.get(id) ?? null);
-    handler('bedrock:containerCancel', async (id) => { cancels.get(id)?.(); return states.get(id) ?? null; });
-    handler('bedrock:containerStart', async (request) => {
+    handler('bedrock:containerState', async (id, sender) => states.get(ownership.require(id, sender)) ?? null);
+    handler('bedrock:containerCancel', async (id, sender) => { ownership.require(id, sender); cancels.get(id)?.(); return states.get(id) ?? null; });
+    handler('bedrock:containerStart', async (request, sender) => {
         if(!request || !['docker','ssh'].includes(request.kind) || typeof request.world !== 'string' || typeof request.output !== 'string' ||
             !isAbsolute(request.world) || !isAbsolute(request.output) || !/^(JAVA|BEDROCK)_[A-Z0-9_]+$/.test(request.format ?? '')) throw Error('Choose a valid source, new output folder and target format.');
         if(request.acknowledgeTransfer !== true) throw Error('Confirm that the selected route may read or receive this world.');
@@ -41,16 +44,35 @@ export function installChunkerContainerIpc(options: Options): void {
         if(rel === '' || (!rel.startsWith('..')&&!isAbsolute(rel))) throw Error('The output folder must be outside the source world.');
         if(await stat(request.output).catch(()=>null)) throw Error('Choose a new output folder; the converter never replaces an existing world.');
         if(activeOutputs.has(request.output)) throw Error('A conversion for this output directory is already active.');
-        const config=validateChunkerCliConfig(request.config);
-        if(!config) throw Error('The conversion configuration is invalid.');
+        if(!validateChunkerConfigStructure(request.config)) throw Error('The conversion configuration is invalid.');
         const memory = Number(request.memoryGiB ?? 6);
         if(!Number.isInteger(memory) || memory<2 || memory>64) throw Error('Choose a whole memory limit from 2 through 64 GiB.');
         const image=String(request.image ?? '');
-        if(!/^[A-Za-z0-9][A-Za-z0-9._/:@-]{0,255}$/.test(image)) throw Error('Choose an installed container image.');
-        const lookup=await findChunker({dataDir:options.dataDir,...(options.configuredJar ? {configuredJar:options.configuredJar}:{})});
-        if(!lookup.found) throw Error(lookup.reason);
+        if(image !== APPROVED_CHUNKER_IMAGE) throw Error('Choose the approved Eclipse Temurin Java runtime.');
+        const preflightController=new AbortController();const stopPreflight=()=>preflightController.abort();
+        if(sender.isDestroyed())throw Error('The originating window is no longer available.');
+        sender.once('destroyed',stopPreflight);
+        const {lookup,config}=await (async()=>{
+            const lookup=await findChunker({dataDir:options.dataDir,...(options.configuredJar ? {configuredJar:options.configuredJar}:{})});
+            if(!lookup.found)throw Error(lookup.reason);
+            preflightController.signal.throwIfAborted();
+            let config=validateChunkerCliConfig(request.config);
+            if(request.config?.worldSettings&&Object.keys(request.config.worldSettings).length){
+                const java=await options.resolveJava();if(!java.ok)throw Error(java.message);
+                config=await validateSelectedChunkerConfig(request.config,java.executable,lookup.jarPath,request.world,preflightController.signal);
+            }
+            if(!config)throw Error('A setting is unknown to the selected converter or has the wrong type. Inspect source settings again.');
+            if(config.keepOriginalNBT){
+                const java=await options.resolveJava();if(!java.ok)throw Error(java.message);
+                const report=await readSelectedSettings(java.executable,lookup.jarPath,request.world,preflightController.signal);
+                const sourceFormat=report.sourceFormat?.toUpperCase().replace(/[ .]/g,'_');
+                if(!sourceFormat||sourceFormat!==request.format)throw Error('Original NBT requires an exact source and target format match from the selected converter.');
+            }
+            return{lookup,config};
+        })().finally(()=>sender.removeListener?.('destroyed',stopPreflight));
         const id=randomUUID();
-        const state: State={id,phase:'preparing',percent:0,logs:[],complete:false,ok:false,output:null,message:'Preparing the selected container route.'};
+        ownership.claim(id, sender);
+        const state: State={id,phase:'preparing',percent:0,logs:[],complete:false,ok:false,output:null,message:'Preparing the selected container route.',runtimeImage:null};
         states.set(id,state);
         activeOutputs.add(request.output);
         const controller=new AbortController(); let live: ChunkerConversion | null=null;
@@ -73,6 +95,7 @@ export function installChunkerContainerIpc(options: Options): void {
             let input=request.world, jar=lookup.jarPath, work=staging;
             let transfer: Awaited<ReturnType<typeof chooseTransfer>>['transfer'] | null=null;
             let command='docker'; let sshPrefix: string[]=[];
+            let resolvedImage:string;
             const containerName=`worldlens-chunker-${id}`;
             if(request.kind==='ssh') {
                 const targetResult=validateTarget(request.target ?? {});
@@ -81,6 +104,9 @@ export function installChunkerContainerIpc(options: Options): void {
                 const security={target,knownHostsFile:join(options.dataDir,'known_hosts'),userKnownHostsFile:join(homedir(),'.ssh','known_hosts')};
                 const report=await preflight(target,security);
                 if(!report.ok || !report.workDir) throw Error(report.failure?.message ?? 'The SSH host did not pass preflight. Review its host key and runtime in Remote settings.');
+                state.phase='resolving-runtime';
+                const remoteRunner: typeof execFileCommandRunner=(_executable,args,opts)=>execFileCommandRunner('ssh',[...sshArguments(security),remoteCommandLine(['docker',...args])],opts);
+                resolvedImage=await resolveApprovedChunkerImage(image,remoteRunner,controller.signal);
                 work=`${report.workDir}/chunker-${id}`; input=`${work}/input`; jar=`${work}/chunker.jar`;
                 const runner: typeof execFileCommandRunner=(executable,args,opts)=>execFileCommandRunner(executable,args,{...opts,timeoutMs:3_600_000});
                 const choice=await chooseTransfer({...security,runner,signal:controller.signal,scpTransfer:scpTransfer({...security,runner}),onLine:log});
@@ -92,10 +118,12 @@ export function installChunkerContainerIpc(options: Options): void {
                 await transfer.uploadFile(lookup.jarPath,jar,transferOptions);
                 for(const file of files) await transfer.uploadFile(join(configDir,file),`${work}/config/${file}`,transferOptions);
                 command='ssh'; sshPrefix=sshArguments(security);
-            }
+            } else { state.phase='resolving-runtime'; resolvedImage=await resolveApprovedChunkerImage(image,execFileCommandRunner,controller.signal); }
+            state.runtimeImage=resolvedImage;
+            await writeFile(join(staging,'runtime.json'),JSON.stringify({image:resolvedImage}));
             if([input,jar,work].some(path=>path.includes(','))) throw Error('Container mount paths containing commas are not supported. Choose another path.');
-            const docker=['run','--rm','--pull','never','--name',containerName,'--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges','--memory',`${memory}g`,'--pids-limit','512','--tmpfs','/tmp:rw,nosuid,size=512m',
-                '--mount',`type=bind,source=${input},target=/input,readonly`,'--mount',`type=bind,source=${jar},target=/chunker.jar,readonly`,'--mount',`type=bind,source=${work},target=/work`,image,'java'];
+            const docker=['run','--rm','--pull','never','--name',containerName,'--network','none','--read-only','--cap-drop','ALL','--security-opt','no-new-privileges','--memory',`${memory}g`,'--pids-limit','512','--tmpfs','/tmp:rw,nosuid,size=512m','--entrypoint','java',
+                '--mount',`type=bind,source=${input},target=/input,readonly`,'--mount',`type=bind,source=${jar},target=/chunker.jar,readonly`,'--mount',`type=bind,source=${work},target=/work`,resolvedImage];
             const stopArgs=['stop','--time','8',containerName];
             stopContainer=async()=>{await execFileCommandRunner(command,command==='ssh'?[...sshPrefix,remoteCommandLine(['docker',...stopArgs])]:stopArgs);};
             state.phase='converting';
@@ -113,6 +141,7 @@ export function installChunkerContainerIpc(options: Options): void {
             if(transfer) await transfer.downloadDirectory(`${work}/output`,localOutput,{signal:controller.signal,onLine:log});
             const verified=await verifyConvertedWorld(localOutput,request.format);
             if(!verified.ok) throw Error(verified.reason);
+            await validateConvertedPayload(localOutput,request.format);
             controller.signal.throwIfAborted();
             await mkdir(dirname(request.output),{recursive:true});
             await rename(localOutput,request.output);

@@ -14,8 +14,11 @@ import { extractZip } from "../download/extract.js";
 import { validateChunkerCliConfig } from "../bedrock/chunkerConfig.js";
 import type { ChunkerCliConfig } from "../bedrock/chunkerConfig.js";
 import { CHUNK_WORKFLOW_FILE } from "./plan.js";
+import { SenderOwnership, type OperationSender } from '../bedrock/senderOwnership.js';
+import { verifyConvertedWorld } from '../bedrock/convert.js';
+import {validateConvertedPayload} from '../bedrock/outputValidation.js';
 
-export const CHUNKER_ACTION_CHANNELS = ["chunkerActions:prepare", "chunkerActions:start", "chunkerActions:list", "chunkerActions:check", "chunkerActions:collect", "chunkerActions:cancel"] as const;
+export const CHUNKER_ACTION_CHANNELS = ["chunkerActions:prepare", "chunkerActions:start", "chunkerActions:list", "chunkerActions:recoverable", "chunkerActions:adopt", "chunkerActions:check", "chunkerActions:collect", "chunkerActions:cancel"] as const;
 export interface ChunkerActionsRequest {
     accountId?: string;
     owner: string;
@@ -29,6 +32,7 @@ export interface ChunkerActionsRequest {
 }
 export interface ChunkerActionsRecord {
     id: string;
+    bootId?: string;
     request: ChunkerActionsRequest;
     state: "uploading" | "dispatching" | "waiting" | "completed" | "collected" | "failed" | "cancelled";
     message: string;
@@ -76,9 +80,12 @@ async function workflowText(options: Options): Promise<string> {
     }
     throw new Error("The packaged Chunker workflow is missing. Repair this installation before preparing a repository.");
 }
-export function installChunkerActionsIpc(options: Options): { dispose(): void } {
+export function installChunkerActionsIpc(options: Options): { dispose(): Promise<void> } {
     const active = new Map<string, AbortController>();
     const records = new Map<string, ChunkerActionsRecord>();
+    const pending = new Set<Promise<void>>();
+    const bootId = randomUUID();
+    const ownership = new SenderOwnership(id => active.get(id)?.abort());
     const root = () => join(options.dataDir(), "chunker-actions");
     const save = async (record: ChunkerActionsRecord) => {
         record.updatedAt = new Date().toISOString();
@@ -165,9 +172,13 @@ export function installChunkerActionsIpc(options: Options): { dispose(): void } 
             await save(record);
         } finally { active.delete(record.id); }
     };
-    const handle = (name: typeof CHUNKER_ACTION_CHANNELS[number], operation: (value: unknown) => Promise<unknown>) =>
-        options.ipcMain.handle(name, async (_event, value: unknown) => {
-            try { return { ok: true, value: await operation(value) }; }
+    const launch = (record:ChunkerActionsRecord) => {
+        const job=run(record).catch(()=>{record.state='failed';record.message='The conversion state could not be persisted. Retained source parts remain unchanged.';}).finally(()=>pending.delete(job));
+        pending.add(job);
+    };
+    const handle = (name: typeof CHUNKER_ACTION_CHANNELS[number], operation: (value: unknown, sender: OperationSender) => Promise<unknown>) =>
+        options.ipcMain.handle(name, async (event, value: unknown) => {
+            try { return { ok: true, value: await operation(value, event.sender) }; }
             catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
         });
     handle("chunkerActions:prepare", async (value) => {
@@ -181,24 +192,39 @@ export function installChunkerActionsIpc(options: Options): { dispose(): void } 
             "Configure complete Chunker conversion workflow", prior?.sha);
         return { changed: true, commitSha: result.commitSha };
     });
-    handle("chunkerActions:start", async (value) => {
+    handle("chunkerActions:start", async (value, sender) => {
         const r = requestOf(value);
         if ([...records.values()].some((entry) => active.has(entry.id) && entry.request.owner === r.owner && entry.request.repo === r.repo)) throw new Error("A conversion for this repository is already active.");
-        const record: ChunkerActionsRecord = { id: randomUUID(), request: r, state: "uploading", message: "Checking the repository before upload.", bytesDone: 0, bytesTotal: 0, upload: null, world: null, dispatchedAt: null, run: null, jobs: [], archiveSha256: null, updatedAt: new Date().toISOString() };
+        const record: ChunkerActionsRecord = { id: randomUUID(), bootId, request: r, state: "uploading", message: "Checking the repository before upload.", bytesDone: 0, bytesTotal: 0, upload: null, world: null, dispatchedAt: null, run: null, jobs: [], archiveSha256: null, updatedAt: new Date().toISOString() };
+        ownership.claim(record.id, sender);
         await save(record);
-        void run(record);
+        ownership.require(record.id, sender);
+        launch(record);
         return record;
     });
-    handle("chunkerActions:list", async () => {
-        const names = await readdir(root()).catch(() => []);
-        return Promise.all(names.filter((name) => name.endsWith(".json")).map((name) => load(name.slice(0, -5))));
+    handle("chunkerActions:list", async (_value, sender) => {
+        return [...records.values()].filter(record => ownership.owns(record.id, sender));
     });
-    handle("chunkerActions:check", async (value) => {
-        const record = await load(value);
+    handle("chunkerActions:recoverable", async () => {
+        const names = await readdir(root()).catch(() => []);
+        const saved = await Promise.all(names.filter((name) => name.endsWith(".json")).map((name) => load(name.slice(0, -5))));
+        return saved.filter(record => record.bootId !== bootId).map(record => ({id: record.id, repository: `${record.request.owner}/${record.request.repo}`, state: record.state, updatedAt: record.updatedAt}));
+    });
+    handle("chunkerActions:adopt", async (value, sender) => {
+        if (!value || typeof value !== 'object' || (value as {confirmed?:unknown}).confirmed !== true) throw Error('Explicitly confirm recovery of the selected saved conversion.');
+        const record = await load((value as {id?:unknown}).id);
+        if (record.bootId === bootId) throw Error('This conversion belongs to a window in the current application session.');
+        ownership.claim(record.id, sender);
+        record.bootId = bootId;
+        await save(record);
+        return record;
+    });
+    handle("chunkerActions:check", async (value, sender) => {
+        const record = await load(ownership.require(value, sender));
         if (active.has(record.id)) return record;
         const r = record.request;
         const api = await transport(r);
-        if (!record.dispatchedAt) { void run(record); return record; }
+        if (!record.dispatchedAt) { ownership.require(record.id, sender); launch(record); return record; }
         if (!record.run) {
             // Correlate by the exact operation id in run-name, never the nearest timestamp.
             const lease = await options.account(r.accountId, "read");
@@ -217,8 +243,8 @@ export function installChunkerActionsIpc(options: Options): { dispose(): void } 
         await save(record);
         return record;
     });
-    handle("chunkerActions:collect", async (value) => {
-        const record = await load(value);
+    handle("chunkerActions:collect", async (value, sender) => {
+        const record = await load(ownership.require(value, sender));
         if (!record.run || record.state !== "completed") throw new Error("Wait for a successful conversion before collecting.");
         const r = record.request;
         const api = await transport(r);
@@ -235,8 +261,10 @@ export function installChunkerActionsIpc(options: Options): { dispose(): void } 
         if (!(await stat(inner)).isFile()) throw new Error("The expected converted world archive is missing.");
         const prepared = `${r.outputDirectory}.collecting-${record.id}`;
         await extractZip(inner, prepared);
-        const entries = await readdir(prepared);
-        if (!entries.includes("level.dat")) throw new Error("The conversion archive has no level.dat at its root.");
+        const verified = await verifyConvertedWorld(prepared, r.targetFormat);
+        if (!verified.ok) throw new Error(verified.reason);
+        await validateConvertedPayload(prepared,r.targetFormat);
+        ownership.require(record.id, sender);
         await mkdir(dirname(r.outputDirectory), { recursive: true });
         await rename(prepared, r.outputDirectory);
         record.archiveSha256 = hash;
@@ -245,8 +273,8 @@ export function installChunkerActionsIpc(options: Options): { dispose(): void } 
         await save(record);
         return record;
     });
-    handle("chunkerActions:cancel", async (value) => {
-        const record = await load(value);
+    handle("chunkerActions:cancel", async (value, sender) => {
+        const record = await load(ownership.require(value, sender));
         active.get(record.id)?.abort();
         if (record.run && record.run.status !== "completed") {
             const lease = await options.account(record.request.accountId, "write");
@@ -258,5 +286,5 @@ export function installChunkerActionsIpc(options: Options): { dispose(): void } 
         await save(record);
         return record;
     });
-    return { dispose() { for (const controller of active.values()) controller.abort(); for (const channel of CHUNKER_ACTION_CHANNELS) options.ipcMain.removeHandler(channel); } };
+    return { async dispose() { for (const controller of active.values()) controller.abort(); for (const channel of CHUNKER_ACTION_CHANNELS) options.ipcMain.removeHandler(channel); await Promise.allSettled(pending); } };
 }

@@ -25,6 +25,7 @@ import ChunkerActionsPanel from "./ChunkerActionsPanel.vue";
 import ChunkerAdvancedConfig from "./ChunkerAdvancedConfig.vue";
 import ChunkerContainerPanel from "./ChunkerContainerPanel.vue";
 import GhEntityPicker from '../github/GhEntityPicker.vue';
+import {composeChunkerConfiguration} from './chunkerConfigComposition.js';
 import { defaultRouteFor, type ChunkerRoute } from "./chunkerRoute.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import MinecraftWorldList from "../world/MinecraftWorldList.vue";
@@ -337,11 +338,12 @@ const plan = computed(() => ({
  * the main process validates and serializes this object to the pinned CLI.
  */
 const advancedConfig = ref<Record<string, any>>({});
-const dimensionIdentifier = (name: string) => ({ overworld: 'minecraft:overworld', nether: 'minecraft:the_nether', end: 'minecraft:the_end' }[name] ?? name);
+const DIMENSION_IDENTIFIERS:Record<string,string>={overworld:'minecraft:overworld',nether:'minecraft:the_nether',end:'minecraft:the_end'};
+const dimensionIdentifier = (name: string) => DIMENSION_IDENTIFIERS[name] ?? name;
 const guidedPruning = computed(() => ({configs:Object.fromEntries(DIMENSIONS.filter(dimension=>trimEnabled.value || dimensionTargets.value[dimension]==='drop').map(dimension=>[dimensionIdentifier(dimension),dimensionTargets.value[dimension]==='drop'
     ? {include:false,regions:[{minChunkX:-2147483648,minChunkZ:-2147483648,maxChunkX:2147483647,maxChunkZ:2147483647}]}
     : {include:true,regions:[{minChunkX:minX.value,minChunkZ:minZ.value,maxChunkX:maxX.value,maxChunkZ:maxZ.value}]}]))}));
-const cliConfig = computed(() => ({
+const guidedConfig = computed(() => ({
     blockMappings: { identifiers: overrides.value.map((override) => ({ old_identifier: override.from, new_identifier: override.to })) },
     worldSettings: {
         ...(worldName.value ? { LevelName: worldName.value } : {}),
@@ -355,8 +357,9 @@ const cliConfig = computed(() => ({
     dimensionMappings: Object.fromEntries(
         Object.entries(dimensionTargets.value).filter(([, target]) => target !== "drop").map(([source,target]) => [dimensionIdentifier(source),dimensionIdentifier(target)]),
     ),
-    ...advancedConfig.value,
 }));
+const composedConfig = computed(() => composeChunkerConfiguration(guidedConfig.value, advancedConfig.value));
+const cliConfig = computed(() => composedConfig.value.config);
 
 const consequences = computed(() => lossyConsequences(plan.value));
 
@@ -725,6 +728,7 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 6: review -->
             <section v-else-if="step === 'review'" data-test="chunker-step-review">
                 <h3>{{ t("chunker.step.review", "Review") }}</h3>
+                <VAlert v-if="composedConfig.collisions.length" type="warning">Advanced values replace these exact fields. Other guided fields remain unchanged.<ul><li v-for="collision in composedConfig.collisions" :key="collision.path">{{collision.path}}: {{JSON.stringify(collision.previous)}} → {{JSON.stringify(collision.replacement)}}</li></ul></VAlert>
                 <details><summary>{{t('chunker.optionsPreview','Review exact converter options')}}</summary><pre class="mb-chunker-log">{{JSON.stringify(cliConfig,null,2)}}</pre></details>
                 <ChunkerActionsPanel v-if="route.kind === 'github-actions'" :world-folder="sourceFolder" :output-directory="outputFolder" :target-format="targetVersionId" :config="cliConfig" />
                 <ChunkerContainerPanel v-else-if="route.kind === 'docker' || route.kind === 'ssh'" :kind="route.kind" :world="sourceFolder" :output="outputFolder" :format="targetVersionId" :config="cliConfig" />

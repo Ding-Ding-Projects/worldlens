@@ -1,0 +1,12 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {createHash} from 'node:crypto';
+const sourceIndex=process.argv.indexOf('--source');
+const source=sourceIndex<0?'vendor/Chunker/cli/src/main/java/com/hivemc/chunker/conversion/intermediate/level/ChunkerLevelSettings.java':process.argv[sourceIndex+1];
+const text=readFileSync(resolve(source),'utf8');
+const types={boolean:'Boolean',byte:'Byte',short:'Int16',int:'Int32',long:'Int64',float:'Single',double:'Double',String:'String'};
+const fields=Object.fromEntries([...text.matchAll(/^\s*public\s+(boolean|byte|short|int|long|float|double|String)\s+([A-Za-z][A-Za-z0-9_]*)\s*=/gm)].map(match=>[match[2],types[match[1]]]));
+if(!fields.LevelName||!fields.RandomSeed||Object.keys(fields).length<50)throw Error('The pinned settings source did not provide its expected field inventory.');
+const output='design/packages/app/src/main/bedrock/pinnedSettingsSchema.ts';
+writeFileSync(output,`/** Generated from ChunkerLevelSettings.java by scripts/chunker-generate-schema.mjs. */\nexport const PINNED_SETTINGS_SOURCE_SHA256 = ${JSON.stringify(createHash('sha256').update(text).digest('hex'))};\nexport const PINNED_WORLD_SETTINGS: Readonly<Record<string,string>> = ${JSON.stringify(fields,null,4)};\n`);
+console.log(`Generated ${Object.keys(fields).length} declared world-setting fields.`);
