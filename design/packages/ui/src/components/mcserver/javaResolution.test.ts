@@ -85,7 +85,7 @@ describe("Java progress bridge", () => {
         const host: McServerHost = {
             java: {
                 resolve: async () => ({ ok: true, value: { found: false, executable: null, source: null, version: null, requiredFeature: 21, message: "none" } }),
-                onProgress: (listener) => {
+                onProgress: (listener: (serverId: string, event: unknown) => void) => {
                     emit = listener;
                     return () => undefined;
                 },

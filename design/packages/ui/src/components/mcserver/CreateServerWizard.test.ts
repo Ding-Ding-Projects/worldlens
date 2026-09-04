@@ -421,8 +421,20 @@ describe("CreateServerWizard", () => {
         vm.step = "java";
         await flushAll();
 
-        if (typeof progressListener === "function") {
-            progressListener("server-1", {
+        // Read into a const before calling it. TypeScript cannot see the assignment that
+        // happens inside onProgress's callback, so it still believes this is the `null` it
+        // was initialised to - and `typeof null === "function"` narrows to `never`, which is
+        // why calling it reported "not callable" on a variable that plainly holds one.
+        // Cast rather than annotated, matching what this file already does for the same
+        // problem a hundred lines below. TypeScript cannot see the assignment inside
+        // onProgress's callback, so at this point it still believes the variable holds the
+        // `null` it was initialised to - and an annotation does not undo that, because the
+        // initialiser has already been narrowed before the annotation is applied.
+        const emitProgress = progressListener as unknown as
+            | ((serverId: string, event: unknown) => void)
+            | null;
+        if (emitProgress !== null) {
+            emitProgress("server-1", {
                 phase: "failed",
                 receivedBytes: 1,
                 totalBytes: 2,

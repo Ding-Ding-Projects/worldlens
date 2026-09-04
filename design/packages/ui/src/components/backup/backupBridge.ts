@@ -115,13 +115,21 @@ export interface RepositoryReport {
 
 export type BackupPhase = "inspecting" | "packing" | "splitting" | "publishing" | "uploading" | "finished";
 
-/** One backup left paused when the app last closed, as reported by `pausedBackups()`. */
+/**
+ * One backup left paused when the app last closed, available for explicit resumption.
+ *
+ * This was declared twice in this file with the same name and a different `kind`, so
+ * TypeScript merged them into one interface that disagreed with itself. The nullable form is
+ * the true one: `runner.ts` returns null for a pause record written before the kind was
+ * recorded, and the non-nullable copy was a promise the producer could not keep.
+ */
 export interface PausedBackupInfo {
     readonly backupId: string;
     readonly phase: BackupPhase;
     readonly tag: string;
     readonly repository: string;
-    readonly kind: BackupSourceKind;
+    /** Null for a pause record from before the kind was recorded - see `runner.ts`. */
+    readonly kind: BackupSourceKind | null;
     readonly label: string;
 }
 
@@ -162,15 +170,6 @@ export interface BackupFailure {
     readonly accountHost: string | null;
 }
 
-/** One paused backup left by a previous app process, available for explicit resumption. */
-export interface PausedBackupInfo {
-    readonly backupId: string;
-    readonly phase: BackupPhase;
-    readonly tag: string;
-    readonly repository: string;
-    readonly kind: BackupSourceKind | null;
-    readonly label: string;
-}
 
 export interface BackupSummary {
     readonly backupId: string;
