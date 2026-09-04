@@ -1,6 +1,98 @@
 # Handoff
 
+## 2026-09-04: released baseline, a completed Material Design 3 token set, and one recorded hang
+
+**The verified release baseline is `v1.0.1951`**, non-draft, targeting `cccade07`. Its assets were
+downloaded and opened rather than read from the release page: the Squirrel set is complete
+(`Setup.exe`, `RELEASES`, full `.nupkg`), the `RELEASES` manifest's recorded size matches the
+`.nupkg` byte for byte, and the bundled BlueMap jars carry 49 Material Design 3 colour roles, 15
+type roles, 12 fixed roles and five `Chunk_1_12` entries. The previous handoff named `v1.0.1718`,
+which was 233 releases stale.
+
+**Every canonical token role now exists.** The palette had 32 of the 49 colour roles and 7 of the
+15 type roles, and the interface looked fine - which is the problem worth remembering. A surface
+asking for a role that does not exist inherits whatever is in scope and renders plausibly, so two
+thirds of a design system went missing without a single report. `scripts/check-webapp-parity.mjs`
+now names every role individually and requires each colour in **both** themes, because one defined
+in light and forgotten in dark renders correctly for whoever is checking and wrongly for everyone
+else. It runs from the suite at `design/packages/app/src/main/cirender/langGuiPurity.test.ts`.
+
+**The purity gate covers four surfaces**, not the map alone: the vendored webapp, the documentation
+site, the desktop interface and the render page. It refuses a colour that is neither a palette role
+nor an exemption declared in so many words with `lang-gui-exempt: <reason>`. An earlier version
+matched the prose of the comment above a line, so whether an exemption counted depended on which
+synonym somebody reached for.
+
+### What the suite actually says, and how many runs it took to find out
+
+**13,146 passing.** Getting a trustworthy number took three runs and the first two were both
+misleading:
+
+- The first exited **0 with an empty log**. That is the "no tests" shape, not a pass, and believing
+  it would have shipped every defect below.
+- The second gave counts but the harness truncated the log before the file names.
+- Only a JSON reporter named them - and that run exited **1** where the first had exited 0.
+
+Four failures were fixed. Two were introduced during this session: `prepareStaticHost` was choosing
+between the compressed and plain texture names by whether the call writes, which is wrong for the
+desktop preflight (it writes nothing but previews a publish that will); and the one-button
+repository creation added five copy keys to the template and none to the catalogue, so all five
+rendered their English fallback in every language. One assertion was stale rather than wrong - a
+preservation merge taught the Java seam to report the source a runtime was really found at, and the
+older test still demanded `provisioned` for a runtime found on `PATH`. And `apostropheConvention`
+was not a copy problem at all: it built its scan directory from `import.meta.url` without decoding
+it, so **a checkout whose path contains a space** arrived as `%20` and every read failed with
+ENOENT. It passes for whoever set the repository up.
+
+**One failure remains and is deliberate: [#177](https://github.com/Ding-Ding-Projects/worldlens/issues/177).**
+`runner.pause.test.ts` hangs for 30s and fails consistently. The cap is the suite's **own**
+`waitUntil`, not vitest's, so raising `--testTimeout` changes nothing - that is the first thing
+anybody will try. It is left unfixed on purpose: the obvious repair would make it green whether or
+not the runner's pause handling is correct, and that handling is precisely what it exists to check.
+
+Issue #162, which recorded a red baseline, was **closed as stale** - both suites it named now pass,
+verified individually. A stale red-gates issue is worse than none, because the next person to see a
+failure finds their suite listed as known and stops looking. That nearly happened here.
+
+### Gates, all green
+
+```
+node scripts/lint-workflows.mjs          8 workflows, 134 pinned actions, 6 watched release steps
+node scripts/check-workflow-drift.mjs    8 workflows agree with the repository
+node scripts/check-webapp-parity.mjs     8 contracts across 95 webapp files, 4 surfaces
+cd design/packages/site && node scripts/assert-{article-bundle,screenshot-gallery,archive-controls}.mjs
+```
+
+The Worldlens skill said the workflow linter had drifted badly and carried two unresolved
+fingerprint poke guys. It does not; that has been corrected in the skill, so a later pass does not
+read a clean run as suspicious.
+
+### Boundaries this handoff does not cross
+
+The deployed map at `builders-home` **still predates all of this** - its CSS carries zero
+`md-sys-color` tokens, so it is stock upstream until a render runs against the new release. The
+Material Design 3 work is verified in the shipped jar and in a locally rendered 500x500 world
+driven through the cheap headless route, both themes captured. It is not verified on that
+deployment, and nothing here claims it is.
+
+廣東話同步：今次 verified baseline 係 `v1.0.1951`，installer 同 jar 都下載返嚟開過睇過，唔係
+淨係睇 release 頁。Palette 之前得 32 個色角色同 7 個字級，睇落又冇問題 - 呢個先係最麻煩，因為
+搵唔到嘅角色唔會嘈，淨係靜靜雞攞錯個值；而家 49 同 15 齊晒，個 guard 逐個名咁點，仲要兩個
+theme 都要有。
+
+個 suite 跑咗三次先問到真話：第一次 exit 0 但一個字都冇，如果信咗就成 batch 出咗街。修好四個
+，兩個係今次自己搞出嚟嘅，一個係舊 assertion，一個係 path 有空格就爆。仲有一個 #177 特登唔
+修 - 因為求其修法會令佢綠但唔代表個 pause 真係啱，而個 test 本身就係查呢樣嘢。
+
+`builders-home` 上面嗰個地圖仲係舊嘅，未 render 過新 release，呢度冇claim過佢已經係 Lang gui。
+
+
 ## 2026-09-02: current verified baseline and unreleased integration candidate
+
+> **Superseded on 2026-09-04.** The baseline named below, `v1.0.1718`, was current when this was
+> written and is 233 releases behind. See the section above for the verified one. Kept rather than
+> edited, because a handoff is a record of what was true when somebody wrote it, and quietly
+> rewriting the number would erase the fact that it went stale.
 
 The single verified release baseline for this handoff is `v1.0.1718`, the non-draft Windows
 release whose installer was downloaded and checked against its published tag. The documentation
