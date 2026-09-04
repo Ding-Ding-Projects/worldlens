@@ -63,7 +63,7 @@ function boundedJson(value: unknown, depth = 0): boolean {
 function isPruning(value: unknown): boolean {
     if (!isRecord(value) || !isRecord(value.configs) || Object.keys(value).some((key) => key !== "configs")) return false;
     return Object.values(value.configs).every((rule) => isRecord(rule) && typeof rule.include === "boolean" && Array.isArray(rule.regions) &&
-        rule.regions.every((box) => isRecord(box) && ["minChunkX", "minChunkZ", "maxChunkX", "maxChunkZ"].every((key) => Number.isSafeInteger(box[key])) &&
+        rule.regions.every((box) => isRecord(box) && ["minChunkX", "minChunkZ", "maxChunkX", "maxChunkZ"].every((key) => Number.isSafeInteger(box[key]) && Number(box[key]) >= -2147483648 && Number(box[key]) <= 2147483647) &&
             Number(box.minChunkX) <= Number(box.maxChunkX) && Number(box.minChunkZ) <= Number(box.maxChunkZ)));
 }
 

@@ -1324,6 +1324,11 @@ export interface BedrockBridge {
     /** Whether Chunker is installed or configured, and what fetching one would get. */
     chunkerStatus(): Promise<ChunkerStatus>;
     capabilities(): Promise<unknown>;
+    inspectOptions(world: string): Promise<unknown>;
+    containerImages(): Promise<unknown>;
+    containerStart(request: unknown): Promise<unknown>;
+    containerState(id: string): Promise<unknown>;
+    containerCancel(id: string): Promise<unknown>;
     /** Downloads the pinned Chunker release, verified against a digest in this app's source. */
     fetchChunker(): Promise<{ ok: boolean; message: string; jarPath: string | null }>;
     /** Converts one world. Resolves when the conversion has ended, whichever way it ended. */

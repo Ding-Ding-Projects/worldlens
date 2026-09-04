@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onBeforeUnmount, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VProgressLinear, VSwitch } from "vuetify/components";
 import GhEntityPicker from "../github/GhEntityPicker.vue";
@@ -49,6 +49,8 @@ onMounted(async () => {
     await refreshRepositories();
     await call("list");
 });
+const timer=setInterval(()=>{if(record.value && ['uploading','dispatching','waiting'].includes(record.value.state) && !busy.value)void call('check',record.value.id);},10_000);
+onBeforeUnmount(()=>clearInterval(timer));
 </script>
 <template>
     <section data-test="chunker-actions-panel">

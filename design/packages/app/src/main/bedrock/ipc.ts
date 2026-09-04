@@ -33,10 +33,11 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { probeChunker } from "./capabilities.js";
+import { CONTAINER_CHANNELS, installChunkerContainerIpc } from './containerExecution.js';
 import { inspectWorldFolder } from "../world/inspect.js";
 import {
     fetchChunker,
@@ -73,6 +74,7 @@ import { validateChunkerCliConfig } from "./chunkerConfig.js";
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
 export const BEDROCK_CHANNELS = [
+    ...CONTAINER_CHANNELS,
     "bedrock:detect",
     "bedrock:chunker",
     "bedrock:fetchChunker",
@@ -80,6 +82,7 @@ export const BEDROCK_CHANNELS = [
     "bedrock:cancel",
     "bedrock:record",
     "bedrock:capabilities",
+    "bedrock:inspectOptions",
 ] as const;
 
 /** The channel every conversion progress, phase and log event arrives on. */
@@ -193,6 +196,7 @@ export function registerBedrockHandlers(
     ipcMain: IpcMain,
     options: BedrockIpcOptions,
 ): BedrockIpc {
+    installChunkerContainerIpc({ipcMain,dataDir:options.dataDir ?? tmpdir(),...(options.configuredJar === undefined ? {} : {configuredJar:options.configuredJar})});
     const inspect = options.inspect ?? inspectWorldFolder;
     const find = options.find ?? findChunker;
     const fetch = options.fetch ?? fetchChunker;
@@ -213,6 +217,33 @@ export function registerBedrockHandlers(
         } catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
     });
 
+    ipcMain.handle('bedrock:inspectOptions', async (_event, world: unknown) => {
+        if(typeof world !== 'string' || !world.trim()) return {ok:false,message:'Choose a source world first.'};
+        const staging=join(options.dataDir ?? tmpdir(),`chunker-options-${randomUUID()}`);
+        try {
+            await inspect(world);
+            const lookup=await find(lookupOptions());
+            if(!lookup.found) return {ok:false,message:lookup.reason};
+            const java=await options.resolveJava();
+            if(!java.ok) return {ok:false,message:java.message};
+            await mkdir(staging,{recursive:true});
+            const run=new ChunkerConversion({javaExecutable:java.executable,jarPath:lookup.jarPath,inputDirectory:world,outputDirectory:staging,outputFormat:'SETTINGS'});
+            const timeout=setTimeout(()=>run.cancel(),120_000);
+            let result;try{result=await run.start();}finally{clearTimeout(timeout);}
+            if(result.exitCode!==0 || !result.completeLineSeen) throw Error(result.silentFailure ?? 'The selected converter could not inspect this world.');
+            const file=join(staging,'data.json');
+            if((await stat(file)).size>8*1024*1024) throw Error('The settings report exceeds the 8 MiB inspection limit.');
+            const report=JSON.parse(await readFile(file,'utf8'), (_key: string, value: unknown, context?: {source?: string}) => {
+                if(typeof value === 'number' && Number.isInteger(value) && !Number.isSafeInteger(value)) {
+                    if(!context?.source) throw Error('This runtime cannot preserve the exact large numeric setting.');
+                    return context.source;
+                }
+                return value;
+            }) as {settings?:Record<string,Array<{name:string;value:unknown}>>;dimensions?:object};
+            return {ok:true,value:{sourceFormat:result.sourceEdition,settings:report.settings ?? {},dimensions:Object.keys(report.dimensions ?? {})}};
+        }catch(error){return {ok:false,message:error instanceof Error?error.message:String(error)};}
+        finally{await rm(staging,{recursive:true,force:true});}
+    });
     const lookupOptions = (): FindChunkerOptions => ({
         ...(options.dataDir == null ? {} : { dataDir: options.dataDir }),
         ...(options.configuredJar == null ? {} : { configuredJar: options.configuredJar }),

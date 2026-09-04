@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
+import { useI18n } from 'vue-i18n';
 import { VBtn, VSwitch, VTextField } from "vuetify/components";
 import GhEntityPicker from "../github/GhEntityPicker.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -7,6 +8,7 @@ import { createSettingMatcher } from "../config/regexEngine.js";
 defineOptions({ name: "ChunkerValueEditor" });
 const props = withDefaults(defineProps<{ modelValue: any; label: string; depth?: number }>(), { depth: 0 });
 const emit = defineEmits<{ 'update:modelValue': [value: any] }>();
+const {t}=useI18n();
 const query = ref(''); const regex = ref(false); const flags = ref('i');
 const key = ref(''); const kind = ref<string | null>('string');
 const entries = computed(() => Object.entries(props.modelValue ?? {}));
@@ -32,18 +34,18 @@ function add(): void {
 <template>
     <fieldset class="chunker-value-editor">
         <legend>{{ label }}</legend>
-        <ConfigSearchField v-model="query" v-model:regex="regex" v-model:flags="flags" :label="`Search ${label}`" :sample="entries.map(([name]) => name).join('\n')" :summary="`${visible.length} / ${entries.length}`" />
+        <ConfigSearchField v-model="query" v-model:regex="regex" v-model:flags="flags" :label="t('chunker.editor.search','Search properties')" :sample="entries.map(([name]) => name).join('\n')" :summary="`${visible.length} / ${entries.length}`" />
         <div v-for="[name, value] in visible" :key="name" class="chunker-value-row">
             <ChunkerValueEditor v-if="value !== null && typeof value === 'object' && depth < 12" :model-value="value" :label="name" :depth="depth + 1" @update:model-value="set(name, $event)" />
             <VSwitch v-else-if="typeof value === 'boolean'" :model-value="value" :label="name" @update:model-value="set(name, $event === true)" />
             <VTextField v-else :model-value="value" :type="typeof value === 'number' ? 'number' : 'text'" :label="name" @update:model-value="set(name, typeof value === 'number' ? Number($event) : $event)" />
-            <VBtn size="small" :aria-label="`Remove ${name}`" @click="remove(name)">Remove entry</VBtn>
+            <VBtn size="small" :aria-label="`${t('chunker.editor.remove','Remove entry')} ${name}`" @click="remove(name)">{{t('chunker.editor.remove','Remove entry')}}</VBtn>
         </div>
-        <p v-if="entries.length === 0">No overrides. The converter's existing settings remain in effect.</p>
+        <p v-if="entries.length === 0">{{t('chunker.editor.empty',"No overrides. The converter's existing settings remain in effect.")}}</p>
         <div v-if="depth < 12">
-            <VTextField v-if="!Array.isArray(modelValue)" v-model="key" label="Property name" />
+            <VTextField v-if="!Array.isArray(modelValue)" v-model="key" :label="t('chunker.editor.property','Property name')" />
             <GhEntityPicker v-model="kind" :items="['string', 'number', 'boolean', 'object', 'array'].map(value => ({ title: value, value }))" :data-test-base="`chunker-value-type-${depth}`" search-label="Search value types" select-label="Value type" selected-label="Selected type" empty-message="No types available" no-match-message="No matching type" />
-            <VBtn size="small" @click="add">Add {{ Array.isArray(modelValue) ? 'item' : 'property' }}</VBtn>
+            <VBtn size="small" @click="add">{{t('chunker.editor.add','Add entry')}}</VBtn>
         </div>
     </fieldset>
 </template>

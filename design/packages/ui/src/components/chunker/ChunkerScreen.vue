@@ -23,6 +23,8 @@ import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import ChunkerRoutePicker from "./ChunkerRoutePicker.vue";
 import ChunkerActionsPanel from "./ChunkerActionsPanel.vue";
 import ChunkerAdvancedConfig from "./ChunkerAdvancedConfig.vue";
+import ChunkerContainerPanel from "./ChunkerContainerPanel.vue";
+import GhEntityPicker from '../github/GhEntityPicker.vue';
 import { defaultRouteFor, type ChunkerRoute } from "./chunkerRoute.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import MinecraftWorldList from "../world/MinecraftWorldList.vue";
@@ -335,6 +337,10 @@ const plan = computed(() => ({
  * the main process validates and serializes this object to the pinned CLI.
  */
 const advancedConfig = ref<Record<string, any>>({});
+const dimensionIdentifier = (name: string) => ({ overworld: 'minecraft:overworld', nether: 'minecraft:the_nether', end: 'minecraft:the_end' }[name] ?? name);
+const guidedPruning = computed(() => ({configs:Object.fromEntries(DIMENSIONS.filter(dimension=>trimEnabled.value || dimensionTargets.value[dimension]==='drop').map(dimension=>[dimensionIdentifier(dimension),dimensionTargets.value[dimension]==='drop'
+    ? {include:false,regions:[{minChunkX:-2147483648,minChunkZ:-2147483648,maxChunkX:2147483647,maxChunkZ:2147483647}]}
+    : {include:true,regions:[{minChunkX:minX.value,minChunkZ:minZ.value,maxChunkX:maxX.value,maxChunkZ:maxZ.value}]}]))}));
 const cliConfig = computed(() => ({
     blockMappings: { identifiers: overrides.value.map((override) => ({ old_identifier: override.from, new_identifier: override.to })) },
     worldSettings: {
@@ -345,11 +351,9 @@ const cliConfig = computed(() => ({
         ...(spawnZ.value ? { SpawnZ: Number(spawnZ.value) } : {}),
         ...Object.fromEntries(Object.entries(gameRuleValues.value).map(([name, value]) => [name.toLowerCase(), value])),
     },
-    pruning: trimEnabled.value
-        ? { configs: Object.fromEntries(DIMENSIONS.map(dimension => [dimension, { include: true, regions: [{ minChunkX: minX.value, maxChunkX: maxX.value, minChunkZ: minZ.value, maxChunkZ: maxZ.value }] }])) }
-        : { configs: Object.fromEntries(Object.entries(dimensionTargets.value).filter(([, target]) => target === "drop").map(([dimension]) => [dimension, { include: false, regions: [{ minChunkX: -2147483648, minChunkZ: -2147483648, maxChunkX: 2147483647, maxChunkZ: 2147483647 }] }])) },
+    pruning: guidedPruning.value,
     dimensionMappings: Object.fromEntries(
-        Object.entries(dimensionTargets.value).filter(([, target]) => target !== "drop"),
+        Object.entries(dimensionTargets.value).filter(([, target]) => target !== "drop").map(([source,target]) => [dimensionIdentifier(source),dimensionIdentifier(target)]),
     ),
     ...advancedConfig.value,
 }));
@@ -531,18 +535,21 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                 <p v-if="capabilities">{{ capabilities.version }} · SHA-256 {{ capabilities.jarSha256 }}</p>
                 <VAlert v-if="capabilityFailure" type="warning">{{ capabilityFailure }}</VAlert>
                 <VBtn @click="loadCapabilities">{{ t('chunker.refreshCapabilities', 'Inspect selected converter again') }}</VBtn>
-                <VSelect
+                <GhEntityPicker
                     :model-value="targetEdition"
                     :items="editionChoices"
-                    :label="t('chunker.edition', 'Edition')"
-                    density="compact"
-                    @update:model-value="onEditionChange"
+                    :select-label="t('chunker.edition', 'Edition')"
+                    :search-label="t('chunker.edition', 'Edition')"
+                    selected-label="Selected edition" empty-message="No editions available" no-match-message="No matching edition" data-test-base="chunker-edition"
+                    @update:model-value="value => value && onEditionChange(value as Edition)"
                 />
-                <VSelect
-                    v-model="targetVersionId"
+                <GhEntityPicker
+                    :model-value="targetVersionId"
                     :items="versionChoices"
-                    :label="t('chunker.version', 'Version')"
-                    density="compact"
+                    :select-label="t('chunker.version', 'Version')"
+                    :search-label="t('chunker.version', 'Version')"
+                    selected-label="Selected format" empty-message="Inspect the selected converter to load its actual formats." no-match-message="No matching format" data-test-base="chunker-version"
+                    @update:model-value="value => targetVersionId = value ?? ''"
                 />
                 <PathField
                     v-model="outputFolder"
@@ -618,14 +625,13 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                 </VAlert>
 
                 <h4 class="mt-4">{{ t("chunker.dimensions", "Dimension mapping") }}</h4>
-                <VSelect
+                <GhEntityPicker
                     v-for="dimension in DIMENSIONS"
                     :key="dimension"
                     :model-value="dimensionTargets[dimension]"
                     :items="dimensionChoices"
-                    :label="dimension"
-                    density="compact"
-                    @update:model-value="(value: DimensionTarget) => setDimension(dimension, value)"
+                    :select-label="dimension" :search-label="dimension" selected-label="Selected dimension" empty-message="No dimensions available" no-match-message="No matching dimension" :data-test-base="`chunker-dimension-${dimension}`"
+                    @update:model-value="value => value && setDimension(dimension, value as DimensionTarget)"
                 />
             </section>
 
@@ -676,7 +682,7 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 5: world settings -->
             <section v-else-if="step === 'settings'" data-test="chunker-step-settings">
                 <h3>{{ t("chunker.step.settings", "World settings") }}</h3>
-                <ChunkerAdvancedConfig v-model="advancedConfig" />
+                <ChunkerAdvancedConfig v-model="advancedConfig" :source-world="sourceFolder" />
                 <VTextField
                     v-model="worldName"
                     :label="t('chunker.worldName', 'World name')"
@@ -719,7 +725,9 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 6: review -->
             <section v-else-if="step === 'review'" data-test="chunker-step-review">
                 <h3>{{ t("chunker.step.review", "Review") }}</h3>
+                <details><summary>{{t('chunker.optionsPreview','Review exact converter options')}}</summary><pre class="mb-chunker-log">{{JSON.stringify(cliConfig,null,2)}}</pre></details>
                 <ChunkerActionsPanel v-if="route.kind === 'github-actions'" :world-folder="sourceFolder" :output-directory="outputFolder" :target-format="targetVersionId" :config="cliConfig" />
+                <ChunkerContainerPanel v-else-if="route.kind === 'docker' || route.kind === 'ssh'" :kind="route.kind" :world="sourceFolder" :output="outputFolder" :format="targetVersionId" :config="cliConfig" />
                 <VAlert v-else-if="route.kind !== 'local'" type="warning">{{ t('chunker.routeNotConnected', 'This conversion route is not connected yet. Select another route; nothing will silently run locally.') }}</VAlert>
                 <p data-test="chunker-review-lead">
                     {{
