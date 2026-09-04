@@ -109,6 +109,14 @@ export const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAX_CACHE_BYTES = 16 * 1024 * 1024;
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 const MAX_VERSION_DETAIL_BYTES = 512 * 1024;
+
+/**
+ * How many Mojang detail documents to read at once.
+ *
+ * Bounded rather than unbounded: a thousand simultaneous requests is a good way
+ * to be rate-limited and a poor way to treat somebody else's service.
+ */
+const VERSION_DETAIL_CONCURRENCY = 12;
 const MAX_ENTRIES_PER_FLAVOUR = 20_000;
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -323,6 +331,15 @@ interface FetchFlavourResult {
     readonly versions: readonly VersionEntry[];
     readonly complete: boolean;
     readonly sourceRevision?: string;
+    /**
+     * Why this flavour's list is short, when some of it could not be read.
+     *
+     * A per-entry failure no longer throws the whole flavour away, so it also no
+     * longer arrives as an exception - and a reason nobody reports is a reason
+     * nobody sees. The caller folds this into the same `failures` list a thrown
+     * error would have produced, so what a surface has to read did not change.
+     */
+    readonly failure?: string;
 }
 
 /**
@@ -352,8 +369,15 @@ async function fetchVanillaVersions(
         );
     });
 
-    const entries: VersionEntry[] = [];
-    for (const candidate of candidates) {
+    /**
+     * Reads one manifest entry into a catalogue entry, or throws naming which one.
+     *
+     * Lifted out of the loop for two reasons. It can now run concurrently, and a
+     * single malformed detail document costs exactly that one version instead of the
+     * whole flavour - it used to throw straight out of the loop, be caught far above,
+     * and leave vanilla with an empty list and nothing explaining why.
+     */
+    const readCandidate = async (candidate: VanillaManifestEntry): Promise<VersionEntry> => {
         const detailUrl = httpsUrl(candidate.url, `Mojang detail URL for ${candidate.id}`);
         const detailText = await fetchText(detailUrl);
         const detailValue = boundedJson(detailText, detailUrl, MAX_VERSION_DETAIL_BYTES);
@@ -386,7 +410,7 @@ async function fetchVanillaVersions(
             server?.url === undefined
                 ? null
                 : httpsUrl(server.url, `Server download URL for ${candidate.id}`);
-        entries.push({
+        return {
             version: candidate.id,
             stability: candidate.type === "release" ? "release" : "snapshot",
             javaFeature,
@@ -411,11 +435,51 @@ async function fetchVanillaVersions(
                           "Mojang published no server download for this exact version.",
                   }
                 : {}),
-        });
-    }
+        };
+    };
+
+    /**
+     * Mojang publishes one detail document per version, and there are around a
+     * thousand. Read strictly one after another this took minutes, during which the
+     * version step rendered nothing at all - which is why it was reported as broken
+     * rather than as slow.
+     */
+    const entries = new Array<VersionEntry | undefined>(candidates.length);
+    const detailFailures: string[] = [];
+    let nextCandidate = 0;
+    const readInParallel = async (): Promise<void> => {
+        for (;;) {
+            const index = nextCandidate;
+            nextCandidate += 1;
+            if (index >= candidates.length) return;
+            const candidate = candidates[index]!;
+            try {
+                entries[index] = await readCandidate(candidate);
+            } catch (error) {
+                detailFailures.push(
+                    `${candidate.id}: ${error instanceof Error ? error.message : String(error)}`,
+                );
+            }
+        }
+    };
+    await Promise.all(
+        Array.from(
+            { length: Math.min(VERSION_DETAIL_CONCURRENCY, candidates.length) },
+            readInParallel,
+        ),
+    );
+    const kept = entries.filter((entry): entry is VersionEntry => entry !== undefined);
     return {
-        versions: entries,
-        complete: true,
+        versions: kept,
+        ...(detailFailures.length === 0
+            ? {}
+            : {
+                  failure: `${String(detailFailures.length)} version(s) could not be read: ${detailFailures.slice(0, 3).join("; ")}`,
+              }),
+        // Honest rather than optimistic. If some detail documents could not be read,
+        // this is not the whole catalogue, and the surface says so instead of showing
+        // a short list as though it were final.
+        complete: detailFailures.length === 0,
         sourceRevision: createHash("sha256").update(manifestText, "utf8").digest("hex"),
     };
 }
@@ -744,6 +808,10 @@ async function fetchAllFlavours(
         try {
             const result = await fetchers[flavour]();
             flavours.push({ flavour, versions: result.versions, complete: result.complete });
+            // A partial read is reported the same way a total one is. It used to arrive
+            // as a thrown error that cost the whole flavour; now it costs the versions it
+            // actually affected, and this keeps the reason visible either way.
+            if (result.failure !== undefined) failures.push({ flavour, reason: result.failure });
             if (flavour === "vanilla") sourceRevision = result.sourceRevision ?? null;
         } catch (error) {
             failures.push({

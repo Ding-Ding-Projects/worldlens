@@ -418,6 +418,57 @@ describe("refreshCatalogue", () => {
         if (reread.ok) expect(reread.value.sourceRevision).not.toBe("a".repeat(64));
     });
 
+    it("loses one bad version rather than the whole flavour", async () => {
+        // This is the difference between a version step that shows 900 versions with a
+        // note, and one that shows nothing at all. A malformed detail document used to
+        // throw straight out of the fetch loop, get caught at the flavour boundary, and
+        // leave vanilla with an empty list - which renders identically to a catalogue
+        // that never loaded, and is why the step was reported as broken.
+        const manifest = JSON.stringify({
+            versions: [
+                {
+                    id: "1.21.5",
+                    type: "release",
+                    url: "https://example.test/good.json",
+                    releaseTime: "2026-01-01T00:00:00Z",
+                },
+                {
+                    id: "1.21.6",
+                    type: "release",
+                    url: "https://example.test/bad.json",
+                    releaseTime: "2026-01-02T00:00:00Z",
+                },
+            ],
+        });
+        const result = await refreshCatalogue({
+            dataDir: dir,
+            fetchText: async (url) => {
+                if (url === "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json")
+                    return manifest;
+                if (url === "https://example.test/good.json")
+                    return JSON.stringify({
+                        downloads: { server: { url: "https://example.test/server.jar" } },
+                        javaVersion: { majorVersion: 21 },
+                    });
+                if (url === "https://example.test/bad.json")
+                    return JSON.stringify({ javaVersion: { majorVersion: "not a number" } });
+                return fakeFetch(ALL_ROUTES)(url);
+            },
+        });
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        const vanilla = result.value.flavours.find((entry) => entry.flavour === "vanilla");
+        // The good one survives...
+        expect(vanilla?.versions.map((v) => v.version)).toEqual(["1.21.5"]);
+        // ...the list says it is not the whole story...
+        expect(vanilla?.complete).toBe(false);
+        // ...and the reason is still reported where it always was.
+        expect(
+            result.value.failures.find((failure) => failure.flavour === "vanilla")?.reason,
+        ).toContain("1.21.6");
+    });
+
     it("rejects malformed Mojang Java metadata instead of quietly choosing Java 8", async () => {
         const manifest = JSON.stringify({
             versions: [
