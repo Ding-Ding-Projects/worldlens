@@ -148,14 +148,14 @@ describe("the shared preload adapter", () => {
             disable: async () => ({ ok: true, state: disabled }),
             reset: async () => ({ ok: true, state: disabled }),
             subscribe: (next: (result: SchoolModeResult) => void) => {
-                listener = next;
+                captured.listener = next;
                 return () => {
                     captured.listener = null;
                 };
             },
         };
         await setSchoolModeRecordAdapter(adapter);
-        const live: ((result: SchoolModeResult) => void) | null = listener;
+        const live: ((result: SchoolModeResult) => void) | null = captured.listener;
         if (live === null) throw new Error("The shared change listener was not attached.");
         live({
             ok: true,
@@ -205,7 +205,7 @@ describe("the shared preload adapter", () => {
         const retry = reloadSchoolMode();
         expect(useSchoolMode().source.value).toBe("unavailable");
         expect(schoolModeEnabled()).toBe(true);
-        const finish = resolveRetry as ((result: SchoolModeResult) => void) | null;
+        const finish = pending.resolveRetry;
         if (finish === null) throw new Error("The retry read did not start.");
         finish({ ok: true, state: disabled });
         await retry;

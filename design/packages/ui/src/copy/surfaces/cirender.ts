@@ -730,38 +730,6 @@ export const CIRENDER_VOICED = {
      * apart; this keeps three apart, because guessing `available` from a failed check is
      * how somebody loses the minute they spent typing a name that was never actually free.
      */
-    "cirender.repo.createAndSetUp": {
-        en: [
-            "Create {repo} and set it up",
-            "Create {repo} and set it up",
-            "Create {repo} and set it up",
-            "Make {repo} and get it ready to render",
-            "Go on then - make {repo} and wire it up ready to go",
-        ],
-        yue: [
-            "整 {repo} 同埋set好佢",
-            "整 {repo} 同埋set好佢",
-            "整 {repo} 同埋set好佢",
-            "開個 {repo} 出嚟，順手set埋佢render",
-            "開個 {repo} 出嚟啦，一次過幫你駁好晒",
-        ],
-    },
-    "cirender.repo.createPrivateInline": {
-        en: [
-            "Create it as a private repository",
-            "Create it as a private repository",
-            "Create it as a private repository",
-            "Make it private instead",
-            "Keep it to yourself - make it a private one",
-        ],
-        yue: [
-            "開做私人倉庫",
-            "開做私人倉庫",
-            "開做私人倉庫",
-            "改為開做私人嗰種",
-            "唔想俾人見？咁就開做私人嗰種啦",
-        ],
-    },
     "cirender.repo.privateCost": {
         en: [
             "A private repository spends this account's own Actions minutes. A public one gets unlimited standard-runner minutes.",
@@ -1226,6 +1194,14 @@ export const CIRENDER_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const CIRENDER_FIXED = {
+    "cirender.repo.createAndSetUp": {
+        en: "Create {repo} and set it up",
+        yue: "整 {repo} 同埋set好佢",
+    },
+    "cirender.repo.createPrivateInline": {
+        en: "Create it as a private repository",
+        yue: "開做私人倉庫",
+    },
     "cirender.account.empty": {
         en: "No GitHub CLI accounts are signed in.",
         yue: "冇 GitHub CLI 帳戶登入咗。",
@@ -1681,6 +1657,20 @@ export const CIRENDER_FIXED = {
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {
+    // Whose minutes get spent is the entire decision, so both halves have to survive.
+    "cirender.repo.privateCost": {
+        en: ["Actions minutes", "ublic"],
+        yue: ["Actions 分鐘", "公開"],
+    },
+    // Naming the tool is what tells somebody where to go and look.
+    "cirender.checkBlocked.ownerUnavailable": {
+        en: ["GitHub CLI"],
+        yue: ["GitHub CLI"],
+    },
+    "cirender.bootstrap.cannotCreate": {
+        en: ["GitHub CLI"],
+        yue: ["GitHub CLI"],
+    },
     // What this list is for, and the exact label of the button that fills it.
     "cirender.list.empty": {
         en: ["GitHub's own computers", "Render on GitHub"],

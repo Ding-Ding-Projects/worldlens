@@ -943,10 +943,14 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             // expected: the phase was never read, the byte counts became NaN, and a failed
             // download never said so.
             return host.java.onProgress((_id: string, event: unknown) => {
-                if (typeof event !== "object" || event === null) return;
-                const progress = event as JavaProvisionProgress;
-                if (typeof progress.phase !== "string") return;
-                listener(progress);
+                // Validated with the guard written for exactly this, which until now nothing
+                // in the application called - only its own test did. Checking that the phase
+                // is *a string* let "not-a-phase" through, and never looked at the byte
+                // counts at all, so a negative receivedBytes reached the progress bar and
+                // drew it backwards. The guard checks the phase against the seven real ones
+                // and both counts for sign, which is the whole reason it exists.
+                if (!isJavaProvisionProgress(event)) return;
+                listener(event);
             });
         },
         async createServer(request): Promise<Answer<ServerRecord>> {
