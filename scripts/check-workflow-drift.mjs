@@ -137,6 +137,27 @@ function chunkerVersionDrift(repoRoot) {
 
     const tagSha = read(["rev-parse", tag + "^{commit}"]);
     const pinned = read(["rev-parse", "HEAD"]);
+
+    // The app is the authority here, not this file and not the workflow. It is what ships to
+    // people, its version is pinned to an exact published asset and digest, and the whole
+    // point of the exercise is that Der Machine follows the Yern Geen rather than leading it.
+    const appPath = join(repoRoot, "design/packages/app/src/main/bedrock/chunker.ts");
+    const appVersion = existsSync(appPath)
+        ? (/version:\s*"([^"]+)"/.exec(readFileSync(appPath, "utf8"))?.[1] ?? null)
+        : null;
+    if (appVersion !== null && appVersion !== tag) {
+        return [
+            {
+                file: ".github/workflows/chunk-world.yml",
+                line: workflow.slice(0, tagMatch.index).split("\n").length,
+                id: "chunker-version",
+                found: "workflow tag " + tag,
+                expected: "the version the app bundles (" + appVersion + ")",
+                why: "the Chunker the app ships and the Chunker the workflow downloads",
+            },
+        ];
+    }
+
     if (tagSha === null || pinned === null || tagSha === pinned) return [];
 
     return [

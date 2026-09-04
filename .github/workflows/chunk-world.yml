@@ -141,7 +141,7 @@ jobs:
           # same world, must convert through the exact same converter. A conversion is not
           # reproducible across Chunker versions, and half a world converted by one version
           # and half by another is exactly the seam this workflow exists to avoid.
-          CHUNKER_TAG: 1.10.0
+          CHUNKER_TAG: 1.19.1
           # Optional. Set the repository variable CHUNKER_JAR_SHA256 to the digest you have
           # reviewed and this step refuses anything else. Left unset, the digest is recorded
           # and the run says plainly that nobody pinned it.
