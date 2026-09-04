@@ -594,10 +594,19 @@ const checkBlockedBecause = computed<string | null>(() => {
         return t("cirender.checkBlocked.world", "Choose a world folder before checking.");
     }
     if (owner.value.trim() === "") {
-        return t(
-            "cirender.checkBlocked.owner",
-            "Choose or type a repository owner before checking.",
-        );
+        // There is no owner text field - `owner` is only ever written by choosing from
+        // the picker - so "or type" was instructing the user to do something impossible.
+        // When the owner list is empty the picker is not rendered at all, and this was
+        // the whole of the guidance: a permanently unreachable Check and a sentence that
+        // could not be followed. Say which of the two situations they are actually in.
+        const owners = renders.owners.value;
+        const listIsEmpty = owners === null || !owners.ok || owners.owners.length === 0;
+        return listIsEmpty
+            ? t(
+                  "cirender.checkBlocked.ownerUnavailable",
+                  "No owners came back from GitHub CLI, so there is nothing to choose from yet. Reload the account and owner lists, or sign in again from GitHub Settings.",
+              )
+            : t("cirender.checkBlocked.owner", "Choose a repository owner before checking.");
     }
     if (repo.value.trim() === "") {
         return t("cirender.checkBlocked.repo", "Choose or type a repository name before checking.");
@@ -779,8 +788,12 @@ async function setupRepositoryAutomatically(): Promise<boolean> {
     try {
         if (readinessNeedsSetup.value === "missing") {
             if (!canCreateWithCli.value || selectedOwnerKind.value === null) {
-                bootstrapFailureMessage.value =
-                    "This build cannot create the selected repository through GitHub CLI, or the owner is no longer in the real owner list. Refresh the account and owner pickers.";
+                // Was a bare English literal while every neighbour goes through t(), and
+                // it named no action either - "refresh the pickers" is not a control.
+                bootstrapFailureMessage.value = t(
+                    "cirender.bootstrap.cannotCreate",
+                    "This build cannot create that repository through GitHub CLI, or the owner is no longer in the list GitHub returned. Reload the account and owner lists above, then check again.",
+                );
                 bootstrapProgressText.value = null;
                 return false;
             }
@@ -1098,6 +1111,38 @@ async function check(): Promise<void> {
         repo: repo.value.trim(),
         ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
     });
+}
+
+/**
+ * True when the typed name is free and this build can turn it into a set-up repository.
+ *
+ * The app has always been able to create the repository - `createGhRepository` does it
+ * with `--add-readme`, re-validates the owner against the live list and verifies the
+ * result afterwards. What it could not do was *offer*: the create affordance only
+ * appeared after pressing a button labelled "Check before anything is sent", so a
+ * person who typed a name that did not exist had to fill in a form for a repository
+ * that was not there, press a safety check, and only then discover they could make it.
+ */
+const canCreateAndSetUpNow = computed(() => {
+    if (repositoryIsPicked.value) return false;
+    if (!canCreateWithCli.value || !canBootstrapAutomatically.value) return false;
+    if (selectedOwnerKind.value === null) return false;
+    if (bootstrapping.value || renders.checking.value) return false;
+    return renders.nameAvailability.value?.status === "available";
+});
+
+/**
+ * One press: check, create, set up.
+ *
+ * The check still runs - it is part of the button rather than a prerequisite the user
+ * has to know to press first. Nothing is skipped and nothing is assumed from the live
+ * availability probe, which answers a narrower question than readiness does.
+ */
+async function createAndSetUp(): Promise<void> {
+    if (!canCreateAndSetUpNow.value) return;
+    await check();
+    if (readinessNeedsSetup.value !== "missing") return;
+    await setupRepositoryAutomatically();
 }
 
 /** Covers bootstrap and dispatch together, so repeated clicks cannot start parallel setup runs. */
@@ -1763,6 +1808,46 @@ onBeforeUnmount(() => {
                         aria-live="polite"
                     >
                         {{ repoAvailabilityText }}
+                    </p>
+
+                    <VBtn
+                        v-if="canCreateAndSetUpNow"
+                        color="primary"
+                        variant="flat"
+                        class="mt-3 mr-2"
+                        data-test="create-and-set-up"
+                        :loading="bootstrapping"
+                        @click="createAndSetUp"
+                    >
+                        {{
+                            t(
+                                "cirender.repo.createAndSetUp",
+                                { repo: repo.trim() },
+                                "Create {repo} and set it up",
+                            )
+                        }}
+                    </VBtn>
+                    <VSwitch
+                        v-if="canCreateAndSetUpNow"
+                        v-model="createPrivate"
+                        density="compact"
+                        hide-details
+                        class="mt-2"
+                        data-test="create-private-inline"
+                        :label="
+                            t(
+                                'cirender.repo.createPrivateInline',
+                                'Create it as a private repository',
+                            )
+                        "
+                    />
+                    <p v-if="canCreateAndSetUpNow" class="text-medium-emphasis mt-1 text-caption">
+                        {{
+                            t(
+                                "cirender.repo.privateCost",
+                                "A private repository spends this account's own Actions minutes. A public one gets unlimited standard-runner minutes.",
+                            )
+                        }}
                     </p>
 
                     <VBtn
