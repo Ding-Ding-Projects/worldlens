@@ -6,6 +6,7 @@ import {
     mdiCubeOutline,
     mdiLaptop,
     mdiRefresh,
+    mdiAws,
     mdiServerNetwork,
 } from "@mdi/js";
 import { VBtn, VCard, VCardText, VCardTitle, VIcon, VProgressLinear, VRadio, VRadioGroup } from "vuetify/components";
@@ -89,6 +90,7 @@ const ICONS: Readonly<Record<ChunkerRouteId, string>> = {
     docker: mdiCubeOutline,
     "github-actions": mdiCloudUploadOutline,
     ssh: mdiServerNetwork,
+    aws: mdiAws,
 };
 
 /** One row per route, in offer order, each carrying everything its row renders. */
@@ -121,6 +123,13 @@ const FIX_LABELS: Readonly<Record<ChunkerRouteFix, { labelKey: string; fallback:
     "start-docker": { labelKey: "chunkerRoute.fix.startDocker", fallback: "Open Docker Desktop" },
     "sign-in-github": { labelKey: "chunkerRoute.fix.signInGithub", fallback: "Sign in to GitHub" },
     "add-ssh-host": { labelKey: "chunkerRoute.fix.addSshHost", fallback: "Add a machine" },
+    "sign-in-aws": { labelKey: "chunkerRoute.fix.signInAws", fallback: "Sign in to AWS" },
+    // Named for what it does rather than "Fix": it creates billable resources, and a button
+    // that spends money should say so before it is pressed, not after.
+    "provision-aws": {
+        labelKey: "chunkerRoute.fix.provisionAws",
+        fallback: "Set up AWS resources",
+    },
 };
 
 function fixLabel(fix: ChunkerRouteFix): string {

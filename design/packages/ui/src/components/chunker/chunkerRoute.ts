@@ -39,7 +39,7 @@
 /* The four routes                                                             */
 /* -------------------------------------------------------------------------- */
 
-export type ChunkerRouteId = "local" | "docker" | "github-actions" | "ssh";
+export type ChunkerRouteId = "local" | "docker" | "github-actions" | "ssh" | "aws";
 
 /** Every route, in the order a picker should offer them: cheapest and nearest first. */
 export const CHUNKER_ROUTE_IDS: readonly ChunkerRouteId[] = [
@@ -47,6 +47,9 @@ export const CHUNKER_ROUTE_IDS: readonly ChunkerRouteId[] = [
     "docker",
     "github-actions",
     "ssh",
+    // Last, deliberately. It is the only route that spends money without being asked a
+    // second time, so it should not be the one somebody picks by reaching for the top.
+    "aws",
 ] as const;
 
 /**
@@ -76,6 +79,11 @@ export type ChunkerRoute =
           readonly targetId: string | null;
           /** What that machine is called, for display only. */
           readonly label: string | null;
+      }
+    | {
+          readonly kind: "aws";
+          /** The region the render stack is provisioned in. Null until one is chosen. */
+          readonly region: string | null;
       };
 
 /** The id of a chosen route, for anything keyed by route rather than carrying one. */
@@ -100,6 +108,8 @@ export function defaultRouteFor(id: ChunkerRouteId): ChunkerRoute {
             return { kind: "github-actions", owner: null, repo: null };
         case "ssh":
             return { kind: "ssh", targetId: null, label: null };
+        case "aws":
+            return { kind: "aws", region: null };
     }
 }
 
@@ -166,6 +176,20 @@ export function describeRoute(route: ChunkerRoute): ChunkerRouteDescription {
                         ? null
                         : `${route.owner}/${route.repo}`,
             };
+        case "aws":
+            return {
+                id: "aws",
+                labelKey: "chunkerRoute.label.aws",
+                labelFallback: "Amazon's machines",
+                summaryKey: "chunkerRoute.summary.aws",
+                // Says the cost out loud. Every other route is free at rest and this one is
+                // not, and a person choosing between them cannot weigh that unless it is
+                // written where the choice is made rather than discovered on a bill.
+                summaryFallback:
+                    "Sends the world to your own AWS account and converts it there. This one costs " +
+                    "money while it runs, unlike every other route here.",
+                detail: route.region,
+            };
         case "ssh":
             return {
                 id: "ssh",
@@ -202,7 +226,10 @@ export type ChunkerRouteReason =
     | "ci-unsupported"
     | "ci-signed-out"
     | "ssh-unsupported"
-    | "ssh-no-hosts";
+    | "ssh-no-hosts"
+    | "aws-unsupported"
+    | "aws-signed-out"
+    | "aws-not-provisioned";
 
 /**
  * Every reason's catalogue key, written out one literal at a time.
@@ -213,6 +240,9 @@ export type ChunkerRouteReason =
  * one of these sentences, a template would keep on asking for it and render the raw id.
  */
 const REASON_COPY: Readonly<Record<ChunkerRouteReason, { readonly copyKey: string }>> = {
+    "aws-unsupported": { copyKey: "chunkerRoute.reason.aws-unsupported" },
+    "aws-signed-out": { copyKey: "chunkerRoute.reason.aws-signed-out" },
+    "aws-not-provisioned": { copyKey: "chunkerRoute.reason.aws-not-provisioned" },
     "local-unsupported": { copyKey: "chunkerRoute.reason.local-unsupported" },
     "local-no-chunker": { copyKey: "chunkerRoute.reason.local-no-chunker" },
     "docker-unsupported": { copyKey: "chunkerRoute.reason.docker-unsupported" },
@@ -243,11 +273,17 @@ export type ChunkerRouteFix =
     | "install-docker"
     | "start-docker"
     | "sign-in-github"
-    | "add-ssh-host";
+    | "add-ssh-host"
+    | "sign-in-aws"
+    | "provision-aws";
 
 /** The one in-app action that would clear this reason, or null when there is none. */
 export function fixFor(reason: ChunkerRouteReason): ChunkerRouteFix | null {
     switch (reason) {
+        case "aws-signed-out":
+            return "sign-in-aws";
+        case "aws-not-provisioned":
+            return "provision-aws";
         case "local-no-chunker":
             return "install-chunker";
         case "docker-not-installed":
@@ -267,6 +303,7 @@ export function fixFor(reason: ChunkerRouteReason): ChunkerRouteFix | null {
         case "docker-unusable":
         case "ci-unsupported":
         case "ssh-unsupported":
+        case "aws-unsupported":
             return null;
     }
 }
@@ -337,6 +374,20 @@ export interface ChunkerRouteFacts {
         /** How many machines have been set up. Null when the store could not be read. */
         readonly hosts: number | null;
     };
+    readonly aws: {
+        readonly supported: boolean;
+        /** Whether the AWS CLI has usable credentials. Null when it was not asked. */
+        readonly signedIn: boolean | null;
+        /**
+         * Whether the render stack already exists in the chosen region.
+         *
+         * Kept apart from `signedIn` because they need different answers: signed out means
+         * sign in, unprovisioned means create resources that will cost money. Collapsing
+         * them into one "not ready" would offer the wrong fix half the time.
+         */
+        readonly provisioned: boolean | null;
+        readonly region: string | null;
+    };
 }
 
 /** Facts for a build that has measured nothing yet, so a picker can render before probing. */
@@ -346,6 +397,7 @@ export function unprobedFacts(): ChunkerRouteFacts {
         docker: { supported: false, status: null, message: null, image: null },
         githubActions: { supported: false, signedIn: null, account: null },
         ssh: { supported: false, hosts: null },
+        aws: { supported: false, signedIn: null, provisioned: null, region: null },
     };
 }
 
@@ -423,6 +475,29 @@ export function checkRoute(id: ChunkerRouteId, facts: ChunkerRouteFacts): Chunke
                 };
             }
             return { ready: true, detail: null };
+        }
+        case "aws": {
+            if (!facts.aws.supported) {
+                return { ready: false, reason: "aws-unsupported", fix: null, detail: null };
+            }
+            if (facts.aws.signedIn !== true) {
+                return {
+                    ready: false,
+                    reason: "aws-signed-out",
+                    fix: fixFor("aws-signed-out"),
+                    detail: null,
+                };
+            }
+            if (facts.aws.provisioned !== true) {
+                return {
+                    ready: false,
+                    reason: "aws-not-provisioned",
+                    fix: fixFor("aws-not-provisioned"),
+                    detail: null,
+                };
+            }
+            // The region is reported, not merely checked. It is what the bill will say.
+            return { ready: true, detail: facts.aws.region };
         }
     }
 }

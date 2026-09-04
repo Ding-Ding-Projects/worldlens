@@ -79,6 +79,68 @@ interface GhAccountsHost {
 }
 
 /** Everything a host can be built out of, so a test can supply four fakes and no window. */
+/**
+ * The narrow slice of the shell's AWS surface this picker needs.
+ *
+ * Narrow on purpose: the picker decides which radio is offerable, so it asks two questions
+ * and nothing else. Handing it the whole AWS namespace would let a later change here start
+ * provisioning from a picker, which is not a thing a picker should be able to do.
+ */
+export interface AwsChunkerBridge {
+    /** The accounts this machine's CLI profiles can reach. Empty means signed out. */
+    listAccounts: () => Promise<readonly unknown[]>;
+    /** What provisioning would do. `complete` means there is nothing left to create. */
+    planStack: () => Promise<{ readonly complete: boolean; readonly region: string | null }>;
+}
+
+/**
+ * The AWS bridge from the shell, or null when this build has no AWS surface.
+ *
+ * Every field is checked before it is believed. This runs against whatever the preload
+ * exposed, which on an older build is a different shape than the one this file expects.
+ */
+export function resolveAwsChunkerBridge(bridge: unknown): AwsChunkerBridge | null {
+    if (typeof bridge !== "object" || bridge === null) return null;
+    const root = bridge as Record<string, unknown>;
+    const accounts = root.awsAccounts;
+    const server = root.mcServer;
+    if (typeof accounts !== "object" || accounts === null) return null;
+    const list = (accounts as Record<string, unknown>).list;
+    if (typeof list !== "function") return null;
+
+    const awsNamespace =
+        typeof server === "object" && server !== null
+            ? (server as Record<string, unknown>).aws
+            : undefined;
+    const plan =
+        typeof awsNamespace === "object" && awsNamespace !== null
+            ? (awsNamespace as Record<string, unknown>).plan
+            : undefined;
+
+    return {
+        listAccounts: async () => {
+            const result: unknown = await (list as () => Promise<unknown>)();
+            return Array.isArray(result) ? (result as readonly unknown[]) : [];
+        },
+        planStack: async () => {
+            if (typeof plan !== "function") {
+                // The route exists and its readiness cannot be established. Reported as
+                // not complete with no region, which fails closed to "provision first"
+                // rather than offering a start that would refuse.
+                return { complete: false, region: null };
+            }
+            const result: unknown = await (plan as (r: unknown) => Promise<unknown>)({});
+            const record = typeof result === "object" && result !== null
+                ? (result as Record<string, unknown>)
+                : {};
+            return {
+                complete: record.complete === true,
+                region: typeof record.region === "string" ? record.region : null,
+            };
+        },
+    };
+}
+
 export interface ChunkerRoutePieces {
     readonly bedrock: BedrockBridge | null;
     readonly runtime: RuntimeBridge | null;
@@ -86,6 +148,15 @@ export interface ChunkerRoutePieces {
     readonly ci: CiRenderBridge | null;
     /** The shell root, probed for `ghCliListAccounts` only. */
     readonly shell: GhAccountsHost | null;
+    /**
+     * The AWS surface, when this build has one.
+     *
+     * Two questions, not one: whether the CLI has usable credentials, and whether the
+     * render stack exists in a region. They need different answers - signing in is free
+     * and provisioning is not - so collapsing them would offer the wrong action half the
+     * time, and the expensive half at that.
+     */
+    readonly aws?: AwsChunkerBridge | null | undefined;
     /**
      * Where saved SSH machines live. `null` means "keep nothing", which is what a test
      * wants and what a browser with storage blocked genuinely has.
@@ -198,6 +269,32 @@ export function chunkerRouteHostFrom(pieces: ChunkerRoutePieces): ChunkerRouteHo
             /* -- github's runners: a channel, and an account to drive it ------ */
             const ci = await readGhAccounts(pieces.shell);
 
+            /* -- amazon: credentials, then whether the stack exists ----------- */
+            const awsBridge = pieces.aws ?? null;
+            let awsSignedIn: boolean | null = null;
+            let awsProvisioned: boolean | null = null;
+            let awsRegion: string | null = null;
+            if (awsBridge !== null) {
+                try {
+                    const accounts = await awsBridge.listAccounts();
+                    awsSignedIn = accounts.length > 0;
+                } catch {
+                    // Could not ask. Null, not false: "no credentials" and "the question
+                    // could not be put" deserve different answers, and only one of them is
+                    // fixed by signing in.
+                    awsSignedIn = null;
+                }
+                if (awsSignedIn === true) {
+                    try {
+                        const plan = await awsBridge.planStack();
+                        awsProvisioned = plan.complete;
+                        awsRegion = plan.region;
+                    } catch {
+                        awsProvisioned = null;
+                    }
+                }
+            }
+
             /* -- ssh: a channel, and at least one machine set up -------------- */
             let hosts: number | null = null;
             if (pieces.remote !== null) {
@@ -230,6 +327,12 @@ export function chunkerRouteHostFrom(pieces: ChunkerRoutePieces): ChunkerRouteHo
                     supported: pieces.remote !== null,
                     hosts: pieces.remote === null ? null : hosts,
                 },
+                aws: {
+                    supported: awsBridge !== null,
+                    signedIn: awsSignedIn,
+                    provisioned: awsProvisioned,
+                    region: awsRegion,
+                },
             };
         },
     };
@@ -251,6 +354,7 @@ export function chunkerRouteHostFromBridge(bridge: unknown): ChunkerRouteHost | 
         remote: resolveRemoteBridge(),
         ci: resolveCiRenderBridge(),
         shell,
+        aws: resolveAwsChunkerBridge(bridge),
     };
     if (
         pieces.bedrock === null &&
