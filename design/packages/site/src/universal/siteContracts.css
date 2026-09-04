@@ -1,5 +1,7 @@
 .mb-contract-page {
-    --mb-contract-accent: #4fd1c5;
+    /* The palette's own primary. A hand-picked accent here would be the one colour on the
+       page that ignored the visitor's chosen theme. */
+    --mb-contract-accent: var(--md-sys-color-primary);
     --mb-contract-font: system-ui;
     --mb-contract-font-size: 16px;
     --mb-contract-weight: 500;
@@ -94,6 +96,10 @@
     padding: 16px;
     border: 1px solid var(--outv);
     border-radius: 14px;
+    /* Deliberately not themed, and this is the one place on the page that is true.
+       A QR is read by a camera, not by a person, and a scanner needs real dark-on-light
+       contrast in both themes. Tinting it into the palette would make it prettier and
+       sometimes unreadable, which is the whole job gone. */
     background: #fff;
     color: #111;
     white-space: pre-wrap;
@@ -105,6 +111,8 @@
     inline-size: min(280px, 100%);
     block-size: auto;
     margin-block-end: 12px;
+    /* Same exemption as above: the quiet zone has to be white for a camera to find the
+       code's edges, whatever theme the page is in. */
     background: #fff;
 }
 
@@ -112,7 +120,7 @@
     inline-size: min(320px, 100%);
     min-block-size: 180px;
     border-radius: 14px;
-    background: #111;
+    background: var(--md-sys-color-surface-container-highest);
 }
 
 .mb-contract-lock-menu {

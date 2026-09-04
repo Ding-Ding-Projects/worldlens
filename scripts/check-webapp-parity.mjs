@@ -97,6 +97,49 @@ function walk(dir) {
     return found;
 }
 
+/**
+ * Colour that is not a role.
+ *
+ * Pure Lang gui means every chrome colour comes from the palette, so a hex literal outside
+ * the token file is either a colour that ignores the reader's theme or a deliberate
+ * exemption. Deliberate exemptions exist and are legitimate - a QR code has to be true
+ * dark-on-light to scan, a hue gradient's red *is* the hue - so what this refuses is an
+ * undeclared one. An exemption with a reason written beside it is a decision; one without is
+ * indistinguishable from an oversight, and that is exactly the difference being enforced.
+ */
+/** What a line must carry, above it, to be a declared exemption rather than an oversight. */
+const EXEMPT_MARKER = "lang-gui-exempt:";
+
+function hardcodedColour(files) {
+    const problems = [];
+    for (const file of files) {
+        if (file.endsWith("variables.scss")) continue;
+        const lines = readFileSync(file, "utf8").replace(/\r\n/g, "\n").split("\n");
+        lines.forEach((line, index) => {
+            if (!/#[0-9a-fA-F]{3,8}\b/.test(line)) return;
+            if (/^\s*(\/\/|\*|\/\*)/.test(line)) return;
+            // A fallback on a role is still a role: var(--md-sys-color-x, #hex).
+            if (/var\(\s*--md-sys-[^)]*,/.test(line)) return;
+            // A declared exemption is a decision, and it has to be declared in so many words.
+            //
+            // An earlier version of this matched the prose of the comment above the line -
+            // "data colour", "is the hue", and so on - which made whether an exemption counted
+            // depend on which synonym somebody happened to reach for. A comment saying "data
+            // encoding" was refused while one saying "data colour" was accepted, and neither
+            // author would have known why. An explicit marker makes the exemption deliberate
+            // rather than accidentally phrased.
+            const preceding = lines.slice(Math.max(0, index - 8), index).join("\n");
+            if (preceding.includes(EXEMPT_MARKER)) return;
+            problems.push({
+                file: file.slice(file.indexOf("webapp")),
+                line: index + 1,
+                text: line.trim().slice(0, 80),
+            });
+        });
+    }
+    return problems;
+}
+
 function main() {
     if (!existsSync(WEBAPP)) {
         process.stdout.write(
@@ -119,6 +162,17 @@ function main() {
                     `    found in ${String(hits)} files, expected at least ${String(contract.minFiles)}`,
             );
         }
+    }
+
+    for (const stray of hardcodedColour(files)) {
+        problems.push(
+            "  pure-lang-gui: a colour that is not a palette role, and is not declared as an exemption\n" +
+                `    ${stray.file}:${String(stray.line)}\n` +
+                `    ${stray.text}
+` +
+                `    If this is genuinely data rather than chrome, say so above it with ` +
+                `"${EXEMPT_MARKER} <reason>".`,
+        );
     }
 
     if (problems.length > 0) {

@@ -1231,6 +1231,13 @@ function openSetting(target: SettingsTarget): void {
     color: rgb(var(--v-theme-on-surface-variant));
 }
 
+/*
+ * A status palette, which is data rather than chrome and is exempt on that basis - stated
+ * here so it does not read as a colour somebody forgot to tokenise. Material Design 3 has an
+ * error role and no warning role, so a warning colour has to be chosen; these are chosen per
+ * theme to hold contrast against each surface, and the contrast theme takes pure yellow
+ * because that is what it is for.
+ */
 .v-theme--light .mb-console__line--warning {
     color: #7a4a00;
 }

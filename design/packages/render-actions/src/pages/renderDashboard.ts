@@ -87,7 +87,9 @@ const STYLE = `
   --md-sys-color-surface-container-high: #e8e7ec;
   --md-sys-color-on-surface-variant: #43474e;
   --md-sys-color-primary: #1a5ba8;
+  --md-sys-color-on-primary: #ffffff;
   --md-sys-color-outline-variant: #c3c6cf;
+  --md-sys-color-shadow: #000000;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -97,7 +99,9 @@ const STYLE = `
     --md-sys-color-surface-container-high: #282a2f;
     --md-sys-color-on-surface-variant: #c3c6cf;
     --md-sys-color-primary: #a9c7ff;
+    --md-sys-color-on-primary: #00325b;
     --md-sys-color-outline-variant: #43474e;
+    --md-sys-color-shadow: #000000;
   }
 }
 * { box-sizing: border-box; }
@@ -117,22 +121,65 @@ h2 { font-size: 16px; line-height: 24px; font-weight: 500; margin: 32px 0 8px; }
   border-radius: 12px;
   padding: 16px;
   margin-top: 16px;
+  /* Elevation level 1. A container at rest sits on the surface rather than being painted
+     flat onto it, which is what separates a card from a coloured div. */
+  box-shadow: 0 1px 2px rgb(from var(--md-sys-color-shadow) r g b / 0.3),
+              0 1px 3px 1px rgb(from var(--md-sys-color-shadow) r g b / 0.15);
 }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
 dt { color: var(--md-sys-color-on-surface-variant); font-size: 14px; }
 dd { margin: 0; overflow-wrap: anywhere; }
 a { color: var(--md-sys-color-primary); }
 a:focus-visible, .cta:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 2px; }
+/*
+ * A real Material Design 3 filled button, not a coloured rectangle.
+ *
+ * The state layer is the part most often left out, and it is what makes a control feel
+ * answerable: an overlay of the foreground colour at the specified opacity, drawn as a
+ * pseudo-element so the button's own colour is never swapped for a second hand-picked one.
+ * The opacities are the specification's, not approximations of it.
+ *
+ * The visible pill is 40px because that is the button's height; the touch target around it is
+ * 48px, because that is what a finger needs. Making the pill 48px would be a fat button
+ * rather than an accessible one.
+ */
 .cta {
-  display: inline-block;
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
   margin-top: 16px;
   padding: 10px 24px;
   min-height: 40px;
   border-radius: 9999px;
   background: var(--md-sys-color-primary);
-  color: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-primary);
   text-decoration: none;
   font-weight: 500;
+  overflow: hidden;
+  transition: box-shadow 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+.cta::after {
+  content: "";
+  position: absolute;
+  inset: -4px 0;
+  min-height: 48px;
+}
+.cta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+.cta:hover::before { opacity: 0.08; }
+.cta:focus-visible::before { opacity: 0.1; }
+.cta:active::before { opacity: 0.1; }
+.cta:hover { box-shadow: 0 1px 2px rgb(from var(--md-sys-color-shadow) r g b / 0.3), 0 1px 3px 1px rgb(from var(--md-sys-color-shadow) r g b / 0.15); }
+@media (prefers-reduced-motion: reduce) {
+  .cta, .cta::before { transition: none; }
 }
 .scroll { overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; font-size: 14px; }

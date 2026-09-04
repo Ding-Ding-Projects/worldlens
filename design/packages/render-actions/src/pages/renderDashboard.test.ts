@@ -90,8 +90,40 @@ describe("the render dashboard", () => {
     });
 
     it("gives its one action a visible focus ring and a real target size", () => {
+        // 40px is the button; 48px is the finger. Making the pill itself 48px would be a fat
+        // button rather than an accessible one.
         const html = renderDashboardHtml(input());
         expect(html).toContain("focus-visible");
         expect(html).toContain("min-height: 40px");
+        expect(html).toContain("min-height: 48px");
+    });
+
+    it("draws a real state layer, at the specified opacities", () => {
+        // The part most often left out, and the part that makes a control feel answerable.
+        // An overlay of the foreground colour rather than a second hand-picked colour, so
+        // hover cannot drift away from the button's own palette.
+        const html = renderDashboardHtml(input());
+        expect(html).toMatch(/\.cta::before/);
+        expect(html).toMatch(/background: currentColor/);
+        expect(html).toMatch(/\.cta:hover::before \{ opacity: 0\.08; \}/);
+        expect(html).toMatch(/\.cta:focus-visible::before \{ opacity: 0\.1; \}/);
+        expect(html).toMatch(/\.cta:active::before \{ opacity: 0\.1; \}/);
+    });
+
+    it("uses palette roles for its own colours, never a hand-picked one", () => {
+        // Every colour outside the token block has to come from a role, or the page is one
+        // that ignores the reader's theme in exactly one place.
+        const html = renderDashboardHtml(input());
+        const body = html.slice(html.indexOf("* { box-sizing"));
+        const literals = body.match(/#[0-9a-fA-F]{3,8}\b/g) ?? [];
+        expect(literals).toEqual([]);
+    });
+
+    it("puts its cards on the surface rather than painting them flat onto it", () => {
+        expect(renderDashboardHtml(input())).toMatch(/\.card \{[^}]*box-shadow/);
+    });
+
+    it("stops moving when the reader has asked for less motion", () => {
+        expect(renderDashboardHtml(input())).toContain("prefers-reduced-motion: reduce");
     });
 });
