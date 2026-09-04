@@ -70,6 +70,7 @@ export type CoreJobId =
     | "ollama"
     | "remoteHosting"
     | "dockerHosting"
+    | "worldDownloader"
     | "screenshots";
 
 /**
@@ -115,6 +116,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     ollama: "ollama",
     remoteHosting: "remoteHosting",
     dockerHosting: "dockerHosting",
+    worldDownloader: "worldDownloader",
     screenshots: "screenshots",
     browserExtension: "browserExtension",
 } as const satisfies Record<string, JobId>;
@@ -409,6 +411,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelFallback: "Docker hosting",
         icon: mdiServerNetwork,
         seedGroup: "finished",
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "worldDownloader",
+        semanticName: "worldDownloader",
+        labelKey: "tabs.page.worldDownloader",
+        labelFallback: "Get a world off a server",
+        icon: mdiCloudDownloadOutline,
+        seedGroup: "copies",
         pinnedOnFreshWorkspace: false,
     },
     {

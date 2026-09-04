@@ -28,6 +28,12 @@ export const commandPalette: Article = {
                     ],
                 },
                 {
+                    kind: "paragraph",
+                    content: [
+                        "The rail beside it took the smaller half of the same trade-off: rather than widen its four-destination model for every frequently reached job, it now carries a handful of direct-open shortcuts - Der Machine rendering, Docker hosting, remote SSH hosting, Chunker, Backups, Minecraft servers and the world downloader - that call the same open-page route the palette itself uses.",
+                    ],
+                },
+                {
                     kind: "table",
                     caption: "The three kinds of row, which are three types rather than three styles",
                     columns: ["Kind", "What it does", "What it has to carry"],

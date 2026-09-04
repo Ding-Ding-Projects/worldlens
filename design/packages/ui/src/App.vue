@@ -127,6 +127,7 @@ import type { ServerRecord } from "./components/mcserver/serverModel.js";
 import WebConsolePanel from "./components/mcserver/WebConsolePanel.vue";
 import SupportTickets from "./components/locks/SupportTickets.vue";
 import { DockerHostingScreen, RemoteHostingScreen } from "./components/remote/index.js";
+import WorldDownloaderScreen from "./components/worlddownloader/WorldDownloaderScreen.vue";
 import {
     dropRenderHostMissingReason,
     useDropRenderHost,
@@ -618,6 +619,7 @@ const PAGE_DOCS = "docs";
 const PAGE_OLLAMA = "ollama";
 const PAGE_REMOTE_HOSTING = "remoteHosting";
 const PAGE_DOCKER_HOSTING = "dockerHosting";
+const PAGE_WORLD_DOWNLOADER = "worldDownloader";
 const PAGE_SCREENSHOTS = "screenshots";
 
 /**
@@ -879,11 +881,50 @@ const pages = computed<TabPage[]>(() => [
         icon: mdiServerNetwork,
     },
     {
+        id: PAGE_WORLD_DOWNLOADER,
+        label: t("tabs.page.worldDownloader", "Get a world off a server"),
+        icon: mdiCloudDownloadOutline,
+    },
+    {
         id: PAGE_SCREENSHOTS,
         label: t("tabs.page.screenshots", "Screenshots"),
         icon: mdiImageMultipleOutline,
     },
 ]);
+
+/**
+ * The rail's direct-open shortcuts, named here and nowhere else.
+ *
+ * A hand-written list rather than a slice of `pages` above, deliberately: the rail is a small,
+ * curated set of jobs worth a permanent one-click button, not "every job that exists" - the exact
+ * distinction `AppRail.vue`'s own doc comment draws between a shortcut and a destination. Adding
+ * a job to `jobRegistry.ts` never silently grows the rail; a job earns a rail shortcut only when
+ * someone adds it to this list on purpose. `railJobShortcutInventory.test.ts` locks this exact
+ * set so a removed entry - or a rename that leaves a stale id nothing resolves to - fails loudly.
+ */
+const RAIL_JOB_SHORTCUT_IDS = [
+    PAGE_CIRENDER,
+    PAGE_DOCKER_HOSTING,
+    PAGE_REMOTE_HOSTING,
+    PAGE_CHUNKER,
+    PAGE_BACKUPS,
+    PAGE_MCSERVERS,
+    PAGE_WORLD_DOWNLOADER,
+] as const;
+
+const railJobShortcuts = computed<{ id: string; icon: string; label: string }[]>(() => {
+    const byId = new Map(pages.value.map((page) => [page.id, page]));
+    return RAIL_JOB_SHORTCUT_IDS.flatMap((id) => {
+        const page = byId.get(id);
+        // A shortcut whose job this build cannot host (capability-gated out) is dropped rather
+        // than shown pointing nowhere - the same rule `WorkPane.vue` already applies to the tab
+        // itself, so a rail shortcut can never outlive the job it opens. `page.icon` is nullable
+        // on `TabPage` in general; every entry named above sets one, so the fallback never fires.
+        return page === undefined
+            ? []
+            : [{ id: page.id, icon: page.icon ?? "", label: page.label }];
+    });
+});
 
 /**
  * How a brand-new workspace is arranged, and why it is not twelve flat tabs.
@@ -2851,6 +2892,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     <DockerHostingScreen />
                 </template>
 
+                <template #worldDownloader>
+                    <WorldDownloaderScreen />
+                </template>
+
                 <template #memory>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
@@ -2903,7 +2948,9 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :settings-activator-id="settingsActivatorId"
                         :settings-panel-id="SETTINGS_PANEL_ID"
                         :settings-open="settingsOpen"
+                        :job-shortcuts="railJobShortcuts"
                         @select="onRailSelect"
+                        @open-job="revealPage($event)"
                         @open-palette="paletteOpen = true"
                         @toggle-notifications="notificationsOpen = !notificationsOpen"
                         @open-settings="toggleSettingsFromRail"
@@ -3463,6 +3510,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
                             <template #dockerHosting>
                                 <DockerHostingScreen />
+                            </template>
+
+                            <template #worldDownloader>
+                                <WorldDownloaderScreen />
                             </template>
 
                             <!--

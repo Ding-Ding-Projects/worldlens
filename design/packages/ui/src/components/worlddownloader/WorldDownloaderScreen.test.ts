@@ -60,43 +60,76 @@ const defaultStatus: DownloaderStatus = {
     secret: { held: false, savedAt: null },
 };
 
+/**
+ * Every mock is typed against `WorldDownloaderBridge`'s own method, by name, rather than left
+ * for `vi.fn()` to infer from its implementation. `vi.fn<T>()` (`@vitest/spy`'s single-type-
+ * parameter form) takes the whole function type, so a mismatched parameter or return type here
+ * is a compile error against the real bridge contract - not a cast that would hide the same
+ * mismatch from the renderer's real preload binding.
+ */
 function fakeBridge(overrides: Partial<WorldDownloaderBridge> = {}): WorldDownloaderBridge {
     let listener: ((event: DownloaderEvent) => void) | null = null;
+
+    const status = vi.fn<WorldDownloaderBridge["status"]>(async () => defaultStatus);
+    const ensureJar = vi.fn<WorldDownloaderBridge["ensureJar"]>(async () => ({
+        ok: true,
+        record: { path: "/jar", tag: "latest", sha256: "abc" },
+    }));
+    const readSettings = vi.fn<WorldDownloaderBridge["readSettings"]>(async () => ({
+        settings: {
+            server: "play.example.test",
+            outputFolder: "/worlds/out",
+            declaredVersion: "1.21",
+            account: { mode: "offline", username: "Steve" },
+            options: {},
+        },
+        stored: false,
+    }));
+    const writeSettings = vi.fn<WorldDownloaderBridge["writeSettings"]>(async () => ({
+        ok: true,
+        savedAt: "now",
+        problems: [],
+    }));
+    const testConnection = vi.fn<WorldDownloaderBridge["testConnection"]>(async () => ({
+        ping: { ok: true, message: "reached" },
+        matchesDeclared: true,
+        reportedAnchor: "1.21",
+        message: "play.example.test answered as 1.21.",
+    }));
+    const start = vi.fn<WorldDownloaderBridge["start"]>(async () => ({ ok: true, sessionId: "s1" }));
+    const stop = vi.fn<WorldDownloaderBridge["stop"]>(async () => true);
+    const saveToken = vi.fn<WorldDownloaderBridge["saveToken"]>(async () => ({ ok: true }));
+    const clearToken = vi.fn<WorldDownloaderBridge["clearToken"]>(async () => true);
+    const countChunks = vi.fn<WorldDownloaderBridge["countChunks"]>(async () => ({
+        ok: true,
+        total: 0,
+        bytes: 0,
+        dimensions: [],
+    }));
+    const portFree = vi.fn<WorldDownloaderBridge["portFree"]>(async () => ({
+        free: true,
+        message: "Port 25566 is free.",
+    }));
+    const onWorldDownloaderEvent = vi.fn<WorldDownloaderBridge["onWorldDownloaderEvent"]>((cb) => {
+        listener = cb;
+        return () => {
+            listener = null;
+        };
+    });
+
     return {
-        status: vi.fn(async () => defaultStatus),
-        ensureJar: vi.fn(async () => ({
-            ok: true,
-            record: { path: "/jar", tag: "latest", sha256: "abc" },
-        })),
-        readSettings: vi.fn(async () => ({
-            settings: {
-                server: "play.example.test",
-                outputFolder: "/worlds/out",
-                declaredVersion: "1.21",
-                account: { mode: "offline", username: "Steve" },
-                options: {},
-            },
-            stored: false,
-        })),
-        writeSettings: vi.fn(async () => ({ ok: true, savedAt: "now", problems: [] })),
-        testConnection: vi.fn(async () => ({
-            ping: { ok: true, message: "reached" },
-            matchesDeclared: true,
-            reportedAnchor: "1.21",
-            message: "play.example.test answered as 1.21.",
-        })),
-        start: vi.fn(async () => ({ ok: true, sessionId: "s1" })),
-        stop: vi.fn(async () => true),
-        saveToken: vi.fn(async () => ({ ok: true })),
-        clearToken: vi.fn(async () => true),
-        countChunks: vi.fn(async () => ({ ok: true, total: 0, bytes: 0, dimensions: [] })),
-        portFree: vi.fn(async () => ({ free: true, message: "Port 25566 is free." })),
-        onWorldDownloaderEvent: vi.fn((cb: (event: DownloaderEvent) => void) => {
-            listener = cb;
-            return () => {
-                listener = null;
-            };
-        }),
+        status,
+        ensureJar,
+        readSettings,
+        writeSettings,
+        testConnection,
+        start,
+        stop,
+        saveToken,
+        clearToken,
+        countChunks,
+        portFree,
+        onWorldDownloaderEvent,
         ...overrides,
     };
 }
@@ -138,12 +171,12 @@ describe("WorldDownloaderScreen", () => {
 
     it("starts a download only through the bridge, and reports a real failure message honestly", async () => {
         const bridge = fakeBridge({
-            status: vi.fn(async () => ({
+            status: vi.fn<WorldDownloaderBridge["status"]>(async () => ({
                 ...defaultStatus,
                 jar: { path: "/jar", tag: "latest", sha256: "abc" },
                 java: { available: true, executable: "/usr/bin/java" },
             })),
-            start: vi.fn(async () => ({
+            start: vi.fn<WorldDownloaderBridge["start"]>(async () => ({
                 ok: false,
                 message: "The server refused the connection.",
                 problems: [],
@@ -162,7 +195,9 @@ describe("WorldDownloaderScreen", () => {
     it("subscribes to real session events and unsubscribes on unmount", async () => {
         const unsubscribe = vi.fn();
         const bridge = fakeBridge({
-            onWorldDownloaderEvent: vi.fn(() => unsubscribe),
+            onWorldDownloaderEvent: vi.fn<WorldDownloaderBridge["onWorldDownloaderEvent"]>(
+                () => unsubscribe,
+            ),
         });
         const wrapper = mountScreen(bridge);
         await flushPromises();
