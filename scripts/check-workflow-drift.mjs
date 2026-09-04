@@ -20,6 +20,7 @@
  *   node scripts/check-workflow-drift.mjs --list   # show what is being checked
  */
 
+import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -102,6 +103,54 @@ function lineOf(text, index) {
  * workflow's must match it exactly, in the same order, because the first entry is also
  * the default.
  */
+/**
+ * The Chunker Tow Fat and the workflow must name the same Chunker.
+ *
+ * The workflow downloads a published jar by tag; the Yern Geen builds one from the vendored
+ * source. Two different Chunkers converting the same world is the kind of difference nobody
+ * notices until a world comes back subtly wrong from one route and not the other - and
+ * nothing on either side states its version, so it would never be diagnosed.
+ *
+ * Chunker declares no version anywhere in its source, so the tag is the only record. This
+ * resolves that tag inside the checked-out Tow Fat and compares it with the commit the Oak
+ * Kay actually pins, which is offline and exact. An uninitialised Tow Fat is skipped rather
+ * than reported: a fresh checkout without --recurse-submodules has nothing to compare, and
+ * failing there would be a complaint about the clone rather than about drift.
+ */
+function chunkerVersionDrift(repoRoot) {
+    const workflowPath = join(WORKFLOW_DIR, "chunk-world.yml");
+    const towFat = join(repoRoot, "vendor/Chunker");
+    if (!existsSync(workflowPath) || !existsSync(join(towFat, ".git"))) return [];
+
+    const workflow = readFileSync(workflowPath, "utf8").replace(/\r\n/g, "\n");
+    const tagMatch = /CHUNKER_TAG:\s*(\S+)/.exec(workflow);
+    if (tagMatch === null) return [];
+    const tag = tagMatch[1];
+
+    const read = (args) => {
+        try {
+            return execFileSync("git", args, { cwd: towFat, encoding: "utf8" }).trim();
+        } catch {
+            return null;
+        }
+    };
+
+    const tagSha = read(["rev-parse", tag + "^{commit}"]);
+    const pinned = read(["rev-parse", "HEAD"]);
+    if (tagSha === null || pinned === null || tagSha === pinned) return [];
+
+    return [
+        {
+            file: ".github/workflows/chunk-world.yml",
+            line: workflow.slice(0, tagMatch.index).split("\n").length,
+            id: "chunker-version",
+            found: "workflow tag " + tag + " (" + tagSha.slice(0, 8) + ")",
+            expected: "the pinned Tow Fat (" + pinned.slice(0, 8) + ")",
+            why: "the Chunker the app builds and the Chunker the workflow downloads",
+        },
+    ];
+}
+
 function chunkerFormatDrift(repoRoot) {
     const modelPath = join(repoRoot, "design/packages/ui/src/components/chunker/chunkerModel.ts");
     const workflowPath = join(WORKFLOW_DIR, "chunk-world.yml");
@@ -163,6 +212,7 @@ export function findDrift({ repoRoot = REPO_ROOT } = {}) {
         }
     }
     problems.push(...chunkerFormatDrift(repoRoot));
+    problems.push(...chunkerVersionDrift(repoRoot));
 
     return { manifest, problems };
 }

@@ -5,3 +5,6 @@
 	path = vendor/BlueMap-LangGui
 	url = https://github.com/Ding-Ding-Projects/BlueMap.git
 	branch = lang-gui
+[submodule "vendor/Chunker"]
+	path = vendor/Chunker
+	url = https://github.com/HiveGamesOSS/Chunker.git
