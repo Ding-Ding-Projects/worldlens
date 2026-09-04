@@ -39,7 +39,24 @@ const committedScreenshots = fileURLToPath(new URL("../../../docs/screenshots", 
 const repositoryName = process.env["GITHUB_REPOSITORY"]?.split("/")[1];
 const base = process.env["SITE_BASE"] ?? (repositoryName ? `/${repositoryName}/` : "/worldlens/");
 
+/**
+ * What this build actually is, taken from the environment that produced it.
+ *
+ * Every value is read rather than written in, and an absent one stays absent. The status
+ * surface turns a missing value into an honest "not recorded" rather than a plausible
+ * guess: launch time is not build time, and a page that prints one as the other is wrong in
+ * the direction nobody checks.
+ */
+const buildProvenance = {
+    version: process.env["SITE_VERSION"] ?? null,
+    commit: process.env["GITHUB_SHA"] ?? null,
+    builtAt: process.env["SITE_BUILT_AT"] ?? null,
+};
+
 export default defineConfig({
+    define: {
+        __SITE_PROVENANCE__: JSON.stringify(buildProvenance),
+    },
     base,
     publicDir: false,
     plugins: [canonicalArchiveSitePlugin(packageRoot, base)],

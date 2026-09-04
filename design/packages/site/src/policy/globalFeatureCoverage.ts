@@ -61,6 +61,7 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "site-universal-evidence",
     "school-mode",
     "adhd-modes",
+    "version-and-updated-at",
 ] as const;
 
 export type PagesFeatureId = (typeof REQUIRED_PAGES_FEATURE_IDS)[number];
@@ -542,5 +543,11 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
         "Five independently toggleable ADHD modes, every one off by default",
         ["design/packages/site/src/settings/adhdModes.ts"],
         ["design/packages/site/src/settings/adhdModes.test.ts"],
+    ),
+    implemented(
+        "version-and-updated-at",
+        "The running version and that build's updated-at time, or an honest unavailable state",
+        ["design/packages/site/src/policy/siteStatus.ts", "design/packages/site/vite.config.ts"],
+        ["design/packages/site/src/policy/siteStatus.test.ts"],
     ),
 ];
