@@ -63,6 +63,7 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "adhd-modes",
     "version-and-updated-at",
     "app-logo-customization",
+    "file-conversion",
 ] as const;
 
 export type PagesFeatureId = (typeof REQUIRED_PAGES_FEATURE_IDS)[number];
@@ -556,5 +557,11 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
         "Shipped logo presets plus a local custom image, validated by its bytes",
         ["design/packages/site/src/appearance/customLogo.ts"],
         ["design/packages/site/src/appearance/customLogo.test.ts"],
+    ),
+    implemented(
+        "file-conversion",
+        "The conversions a page can genuinely do, and every category it cannot, by name",
+        ["design/packages/site/src/settings/fileConversion.ts"],
+        ["design/packages/site/src/settings/fileConversion.test.ts"],
     ),
 ];
