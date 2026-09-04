@@ -64,6 +64,7 @@ export const REQUIRED_PAGES_FEATURE_IDS = [
     "version-and-updated-at",
     "app-logo-customization",
     "file-conversion",
+    "local-model-runtime",
 ] as const;
 
 export type PagesFeatureId = (typeof REQUIRED_PAGES_FEATURE_IDS)[number];
@@ -563,5 +564,11 @@ export const PAGES_FEATURE_COVERAGE: readonly PagesFeatureCoverage[] = [
         "The conversions a page can genuinely do, and every category it cannot, by name",
         ["design/packages/site/src/settings/fileConversion.ts"],
         ["design/packages/site/src/settings/fileConversion.test.ts"],
+    ),
+    implemented(
+        "local-model-runtime",
+        "Reads a loopback model runtime, and states the four things a page cannot do",
+        ["design/packages/site/src/settings/localModels.ts"],
+        ["design/packages/site/src/settings/localModels.test.ts"],
     ),
 ];
