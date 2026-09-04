@@ -559,6 +559,15 @@ async function provisionJava(): Promise<void> {
     // landing during that check did nothing at all, said nothing at all, and looked exactly
     // like a broken button. Wait for the check instead, then take the lock.
     if (javaOperation !== null) {
+        // Which kind is holding the lock decides what to do after it lets go, and this used
+        // to ignore that. Waiting for a *check* and then provisioning is the point: a click
+        // landing during the check that runs when the step opens used to do nothing at all
+        // and look exactly like a broken button. Waiting for a *provision* and then
+        // provisioning again is a second install of something that was just installed - a
+        // double click ran the whole download twice, and the second run's promise never
+        // settled because the first had already taken the answer, so the spinner stayed up
+        // for good.
+        const waitingFor = javaOperation.kind;
         javaProvisioning.value = true;
         try {
             await javaOperation.settled;
@@ -566,6 +575,9 @@ async function provisionJava(): Promise<void> {
             javaProvisioning.value = false;
         }
         if (javaDisposed || javaNotRequired.value) return;
+        // The provision we were queued behind has finished and applied its result. There is
+        // nothing left for this click to do, and doing it anyway is the bug above.
+        if (waitingFor === "provision") return;
         if (javaOperation !== null) {
             javaFailure.value = t("mcserver.wizard.javaBusy", "Wait for the Java check to finish.");
             return;

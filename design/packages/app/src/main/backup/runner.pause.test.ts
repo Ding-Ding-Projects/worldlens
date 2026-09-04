@@ -101,6 +101,21 @@ function fakeGitHub() {
             return answer(201, { id, tag_name: body.tag_name, html_url: `https://github.test/o/r/releases/${String(id)}`, assets: [] });
         }
         if (method === "POST" && url.includes("/assets?name=")) {
+            /*
+             * A real upload takes time, and without that this suite cannot test a pause.
+             *
+             * The runner's pause boundary sits between assets, where nothing is half-sent -
+             * that placement was checked and is correct. But an upload that resolves in the
+             * same microtask leaves no window: the whole loop finishes inside the 5ms the
+             * test's own poll waits before calling pause, so the boundary is never reached
+             * with a pause pending and no `paused` event is ever emitted.
+             *
+             * One tick per asset is enough. This is giving the fake a property the real
+             * thing has rather than loosening what is asserted - the assertions below are
+             * unchanged, and a runner that failed to observe a pause between assets would
+             * still fail them.
+             */
+            await new Promise((resolve) => setTimeout(resolve, 1));
             const releaseId = Number(url.split("/releases/")[1]?.split("/")[0]);
             const name = decodeURIComponent(url.split("name=")[1] as string);
             const release = [...releases.values()].find((r) => r.id === releaseId);

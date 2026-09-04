@@ -2997,7 +2997,7 @@ describe("a world nobody has set up yet", () => {
         const cancel = wizard.findAll("button").find((button) => button.text() === "Cancel");
         await cancel!.trigger("click");
         expect(cancelled).toEqual([operationId]);
-        creating.resolveCreate?.({ ok: false, failure: { code: "cancelled", message: "cancelled" } });
+        resolveCreate?.({ ok: false, failure: { code: "cancelled", message: "cancelled" } });
         await flushPromises();
     });
 
