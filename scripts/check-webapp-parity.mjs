@@ -187,6 +187,87 @@ function hardcodedColour(files, skip) {
     return problems;
 }
 
+/**
+ * The complete Material Design 3 token set, named one role at a time.
+ *
+ * A partial palette is worse than an obviously absent one, because the roles that exist look
+ * authoritative: a surface reaching for `surface-dim` or `body-small` and getting nothing
+ * inherits whatever is in scope, renders plausibly, and is wrong in a way nobody reports.
+ * Two thirds of these were missing and the interface looked fine, which is the whole problem.
+ *
+ * Written out rather than counted. A check that asserted "at least 40 roles" would pass on a
+ * palette with forty of the wrong ones, and a check that compared against whatever the file
+ * happens to define would pass on anything at all.
+ */
+const M3_COLOUR_ROLES = [
+    "primary", "on-primary", "primary-container", "on-primary-container",
+    "secondary", "on-secondary", "secondary-container", "on-secondary-container",
+    "tertiary", "on-tertiary", "tertiary-container", "on-tertiary-container",
+    "error", "on-error", "error-container", "on-error-container",
+    "surface", "on-surface", "surface-variant", "on-surface-variant",
+    "surface-dim", "surface-bright", "surface-tint",
+    "surface-container-lowest", "surface-container-low", "surface-container",
+    "surface-container-high", "surface-container-highest",
+    "background", "on-background",
+    "outline", "outline-variant",
+    "inverse-surface", "inverse-on-surface", "inverse-primary",
+    "scrim", "shadow",
+    // The fixed roles hold one tone across both themes, for something that spans them.
+    "primary-fixed", "primary-fixed-dim", "on-primary-fixed", "on-primary-fixed-variant",
+    "secondary-fixed", "secondary-fixed-dim", "on-secondary-fixed", "on-secondary-fixed-variant",
+    "tertiary-fixed", "tertiary-fixed-dim", "on-tertiary-fixed", "on-tertiary-fixed-variant",
+];
+
+const M3_TYPE_ROLES = [
+    "display-large", "display-medium", "display-small",
+    "headline-large", "headline-medium", "headline-small",
+    "title-large", "title-medium", "title-small",
+    "body-large", "body-medium", "body-small",
+    "label-large", "label-medium", "label-small",
+];
+
+/** Every role needs all four, or a call site has to remember to supply the rest. */
+const TYPE_PROPERTIES = ["size", "line", "weight", "tracking"];
+
+/**
+ * Checks the token set, in the theme file rather than in the components.
+ *
+ * Both themes are checked, because a role defined in light and forgotten in dark is a
+ * surface that renders correctly for half its readers - the half doing the checking, as a
+ * rule, since a developer's own theme is the one they look at.
+ */
+function tokenCompleteness(repoRoot) {
+    const file = join(repoRoot, "vendor/BlueMap-LangGui/common/webapp/src/scss/variables.scss");
+    if (!existsSync(file)) return [];
+    const text = readFileSync(file, "utf8");
+
+    const problems = [];
+    for (const role of M3_COLOUR_ROLES) {
+        // Anchored to the whole declaration, so `surface` cannot be satisfied by
+        // `surface-dim` and `primary` cannot be satisfied by `primary-container`.
+        const declared = new RegExp("--md-sys-color-" + role + ":", "g");
+        const count = (text.match(declared) ?? []).length;
+        if (count === 0) problems.push("  missing colour role: --md-sys-color-" + role);
+        else if (count < 2) {
+            problems.push(
+                "  colour role defined in only one theme: --md-sys-color-" + role +
+                    " (a role present in light and absent in dark renders correctly for " +
+                    "whoever is checking and wrongly for everyone else)",
+            );
+        }
+    }
+    for (const role of M3_TYPE_ROLES) {
+        for (const property of TYPE_PROPERTIES) {
+            if (!text.includes("--md-sys-typescale-" + role + "-" + property + ":")) {
+                problems.push(
+                    "  missing type token: --md-sys-typescale-" + role + "-" + property,
+                );
+            }
+        }
+    }
+    return problems;
+}
+
 function main() {
     if (!existsSync(WEBAPP)) {
         process.stdout.write(
@@ -210,6 +291,8 @@ function main() {
             );
         }
     }
+
+    problems.push(...tokenCompleteness(repoRoot));
 
     for (const surface of PURITY_SURFACES) {
         if (!existsSync(surface.dir)) continue;
