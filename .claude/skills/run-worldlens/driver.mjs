@@ -51,6 +51,7 @@ import { existsSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createInterface } from "node:readline";
+import { publicRendererUrl } from "./safe-url.mjs";
 
 /**
  * Find the Worldlens checkout. This file is copied into the global skill catalog and
@@ -188,6 +189,21 @@ const { chromium } = require("@playwright/test");
 const out = (s) => process.stdout.write(`ok ${s}\n`);
 const bad = (s) => process.stdout.write(`err ${s}\n`);
 
+// Count every DevTools target, including workers and extensions, before connecting.
+// Keep the exact authenticated URL in memory only for the identity comparison.
+const targetInventory = await fetch(`http://127.0.0.1:${PORT}/json/list`, {
+  signal: AbortSignal.timeout(8000),
+}).then((response) => {
+  if (!response.ok) throw new Error(`DevTools inventory returned HTTP ${response.status}`);
+  return response.json();
+});
+if (!Array.isArray(targetInventory) || targetInventory.length !== 1 || targetInventory[0].type !== "page") {
+  throw new Error("DevTools must expose exactly one target, of page type");
+}
+const expectedRendererUrl = new URL(targetInventory[0].url);
+if (!['http:', 'https:'].includes(expectedRendererUrl.protocol) || expectedRendererUrl.hostname !== '127.0.0.1') {
+  throw new Error("The sole DevTools target must be the owned loopback renderer");
+}
 const browser = await chromium.connectOverCDP(`http://127.0.0.1:${PORT}`);
 const contexts = browser.contexts();
 const pages = contexts.flatMap((c) => c.pages());
@@ -199,11 +215,13 @@ if (pages.length !== 1) {
 }
 const page = pages[0];
 const pageUrl = new URL(page.url());
+if (pageUrl.href !== expectedRendererUrl.href) throw new Error("Renderer identity changed during attachment");
 const privacyScan = {
   version: 1,
   targetCount: pages.length,
   targetType: "page",
-  targetUrl: pageUrl.href,
+  targetUrl: publicRendererUrl(pageUrl.href),
+  targetUrlCredentialsOmitted: true,
   loopbackOnly: ["127.0.0.1", "localhost", "[::1]"].includes(pageUrl.hostname),
   unrelatedTargetsObserved: pages.length !== 1,
   visibleDesktopUntouched: UI_ONLY && LOWLEVEL_MCP_ENDPOINT !== "" && LOWLEVEL_HWND > 0,
@@ -214,7 +232,7 @@ const privacyScan = {
   handEdited: false,
 };
 if (!privacyScan.loopbackOnly) {
-  throw new Error(`the sole CDP target is not a loopback Worldlens page: ${pageUrl.href}`);
+  throw new Error("the sole CDP target is not a loopback Worldlens page");
 }
 await mkdir(SHOTS, { recursive: true });
 await writeFile(join(SHOTS, "privacy-scan.json"), `${JSON.stringify(privacyScan, null, 2)}\n`, "utf8");
@@ -248,7 +266,7 @@ if (
   bad("the sole page target is not Worldlens on loopback");
   process.exit(1);
 }
-out(`attached ${page.url()}`);
+out(`attached ${publicRendererUrl(page.url())}`);
 await initializeMcp();
 
 const settle = () => page.waitForTimeout(250);
@@ -878,7 +896,7 @@ const buttonScope = () =>
     .then((n) => (n ? ".v-overlay--active button" : "button"));
 
 const commands = {
-  url: async () => out(page.url()),
+  url: async () => out(publicRendererUrl(page.url())),
   ss: async (name) => {
     await mkdir(SHOTS, { recursive: true });
     const file = join(SHOTS, `${name || "shot"}.png`);
