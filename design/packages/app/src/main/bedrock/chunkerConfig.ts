@@ -55,6 +55,17 @@ function isStringRecord(value: unknown): value is Readonly<Record<string, string
     return isRecord(value) && Object.values(value).every((entry) => typeof entry === "string");
 }
 
+const CONVERTER_SETTING_KEYS = new Set([
+    "mapConversion", "lootTableConversion", "itemConversion", "blockConnections",
+    "enableCompact", "discardEmptyChunks", "preventYBiomeBlending", "customIdentifiers",
+]);
+
+function isConverterSettings(value: unknown): value is JsonObject {
+    return isRecord(value) && Object.entries(value).every(([key, entry]) =>
+        CONVERTER_SETTING_KEYS.has(key) && typeof entry === "boolean",
+    );
+}
+
 /**
  * Rejects malformed IPC data before it reaches picocli.  JSON configuration is
  * data, never a raw command-line escape hatch: arrays, null and scalar values
@@ -69,7 +80,10 @@ export function validateChunkerCliConfig(value: unknown): ChunkerCliConfig | nul
     for (const [key] of JSON_OPTIONS) {
         const candidate = value[key];
         if (candidate === undefined) continue;
-        if ((key === "dimensionMappings" || key === "biomeMappings") ? !isStringRecord(candidate) : !isRecord(candidate)) return null;
+        const valid = key === "dimensionMappings" || key === "biomeMappings"
+            ? isStringRecord(candidate)
+            : key === "converterSettings" ? isConverterSettings(candidate) : isRecord(candidate);
+        if (!valid) return null;
         Object.assign(config, { [key]: candidate });
     }
     if (value.keepOriginalNBT !== undefined) {
