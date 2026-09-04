@@ -79,7 +79,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
       move the batch toward the failure it exists to avoid. Region counts per batch are
       derived from the world's measured size, bounded at 64 so a huge world does not
       become thousands of batches that spend their time starting JVMs.
-- [ ] Universal feature parity. Correcting what an earlier version of this entry said:
+- [x] Universal feature parity. Correcting what an earlier version of this entry said:
       the Day Teet Hui is not thinly covered. It carries a hand-written fail-closed
       inventory of 52 contracts in `globalFeatureCoverage.ts`, plus a second universal
       inventory of 13 in `siteUniversalInventory.ts`, including toy locks, the built-in
@@ -89,10 +89,17 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
       What is genuinely open, measured rather than assumed:
       - [x] School mode was implemented and had no inventory row. Added; the guard was
             watched failing on a bad path and passing on the real one.
-      - [ ] ADHD modes: no implementation and no row on the site.
-      - [ ] Status Hub: no implementation and no row on the site.
-      - [ ] The Ollama suite manager, file conversion and app-logo customization exist on
-            the site only as documentation articles, with no row and no surface.
+      - [x] ADHD modes: five, independently toggleable, every one off by default.
+      - [x] The site could not say which version of itself you were reading. It states
+            its version, that build's updated-at time to the second with the zone named,
+            and its commit - or an honest 'not recorded' where the build carried none.
+            Nothing falls back to the current time.
+      - [x] App-logo customization, validated by the file's bytes rather than its name,
+            with SVG deliberately refused and the reason stated.
+      - [x] File conversion: what a page can genuinely do, plus every category it cannot,
+            listed by name with its reason rather than hidden.
+      - [x] A local model runtime read over loopback only, with the four things a page
+            cannot do stated where somebody would go looking for them.
       - [x] The Lang gui BlueMap webapp had no inventory of its own. It has one now:
             eight hand-written contracts in `scripts/check-webapp-parity.mjs`, run as
             `pnpm webapp:parity`. Correcting the sentence that used to be here as well:
