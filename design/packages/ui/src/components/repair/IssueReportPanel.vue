@@ -43,18 +43,16 @@ function offlineState(reason = t("repair.reportOffline", "Issue reporting is una
 }
 
 function localizedBridgeMessage(status: string, message: string): string {
-    const keys: Record<string, string> = {
-        invalid: "repair.reportSubmitInvalid",
-        missing: "repair.reportDraftMissing",
-        offline: "repair.reportSubmitOffline",
-        "not-signed-in": "repair.reportSubmitNotSignedIn",
-        "permission-denied": "repair.reportSubmitPermissionDenied",
-        failed: message.toLowerCase().includes("restore")
-            ? "repair.reportSubmitRestoreUncertain"
-            : "repair.reportSubmitFailed",
-        cancelled: "repair.reportExportCancelled",
+    const keys: Record<string, { copyKey: string }> = {
+        invalid: { copyKey: "repair.reportSubmitInvalid" },
+        missing: { copyKey: "repair.reportDraftMissing" },
+        offline: { copyKey: "repair.reportSubmitOffline" },
+        "not-signed-in": { copyKey: "repair.reportSubmitNotSignedIn" },
+        "permission-denied": { copyKey: "repair.reportSubmitPermissionDenied" },
+        failed: { copyKey: message.toLowerCase().includes("restore") ? "repair.reportSubmitRestoreUncertain" : "repair.reportSubmitFailed" },
+        cancelled: { copyKey: "repair.reportExportCancelled" },
     };
-    const fallback = t(keys[status] ?? "repair.reportSubmitFailed", "The report operation did not complete.");
+    const fallback = t(keys[status]?.copyKey ?? "repair.reportSubmitFailed", "The report operation did not complete.");
     return message.trim() === "" ? fallback : fallback + " " + message;
 }
 
@@ -235,17 +233,17 @@ onMounted(() => {
 });
 
 function fieldLabel(field: IssueReportField): string {
-    const labels: Record<string, string> = {
-        app: "repair.reportFieldApp",
-        build: "repair.reportFieldBuild",
-        platform: "repair.reportFieldPlatform",
-        engine: "repair.reportFieldEngine",
-        failureCategory: "repair.reportFieldCategory",
-        configFacts: "repair.reportFieldConfig",
-        reproductionSteps: "repair.reportFieldReproduction",
-        consoleEvidence: "repair.reportFieldConsole",
+    const labels: Record<string, { labelKey: string }> = {
+        app: { labelKey: "repair.reportFieldApp" },
+        build: { labelKey: "repair.reportFieldBuild" },
+        platform: { labelKey: "repair.reportFieldPlatform" },
+        engine: { labelKey: "repair.reportFieldEngine" },
+        failureCategory: { labelKey: "repair.reportFieldCategory" },
+        configFacts: { labelKey: "repair.reportFieldConfig" },
+        reproductionSteps: { labelKey: "repair.reportFieldReproduction" },
+        consoleEvidence: { labelKey: "repair.reportFieldConsole" },
     };
-    return t(labels[field.key] ?? "", field.label);
+    return t(labels[field.key]?.labelKey ?? "", field.label);
 }
 </script>
 

@@ -81,6 +81,10 @@ function mountWithStalledBridge(): VueWrapper {
     return wrapper;
 }
 
+function dashboardVm(view: VueWrapper): { loading: boolean; cancelRefresh: () => void; errorMessage: string } {
+    return view.vm as unknown as { loading: boolean; cancelRefresh: () => void; errorMessage: string };
+}
+
 afterEach(() => {
     wrapper?.unmount();
     wrapper = null;
@@ -93,13 +97,13 @@ describe("the dashboard cannot be left frozen by a request that never answers", 
         await nextTick();
 
         // The reported state: busy, with nothing to show.
-        expect(view.vm.loading, "the mount's own request is still pending, so it is busy").toBe(true);
+        expect(dashboardVm(view).loading, "the mount's own request is still pending, so it is busy").toBe(true);
 
-        view.vm.cancelRefresh();
+        dashboardVm(view).cancelRefresh();
         await nextTick();
 
         expect(
-            view.vm.loading,
+            dashboardVm(view).loading,
             "Cancel must end the wait here rather than relying on a request that may never settle",
         ).toBe(false);
     });
@@ -108,14 +112,14 @@ describe("the dashboard cannot be left frozen by a request that never answers", 
         vi.useFakeTimers();
         const view = mountWithStalledBridge();
         await nextTick();
-        expect(view.vm.loading).toBe(true);
+        expect(dashboardVm(view).loading).toBe(true);
 
         await vi.advanceTimersByTimeAsync(61_000);
         await nextTick();
 
-        expect(view.vm.loading, "the deadline must release the spinner").toBe(false);
+        expect(dashboardVm(view).loading, "the deadline must release the spinner").toBe(false);
         expect(
-            String(view.vm.errorMessage),
+            String(dashboardVm(view).errorMessage),
             "and it must say what happened rather than silently showing an empty dashboard",
         ).toMatch(/did not answer/i);
     });

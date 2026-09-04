@@ -219,6 +219,6 @@ export function resolveRepairBridge(): RepairBridge | null {
         failures: () => complete.failures(),
         diagnose: (id) => complete.diagnose(id),
         run: (id) => complete.run(id),
-        issueReport: reportBridge,
+        ...(reportBridge === undefined ? {} : { issueReport: reportBridge }),
     };
 }

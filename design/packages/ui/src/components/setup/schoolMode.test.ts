@@ -197,7 +197,7 @@ describe("the shared preload adapter", () => {
         const retry = reloadSchoolMode();
         expect(useSchoolMode().source.value).toBe("unavailable");
         expect(schoolModeEnabled()).toBe(true);
-        const finish = resolveRetry;
+        const finish = resolveRetry as ((result: SchoolModeResult) => void) | null;
         if (finish === null) throw new Error("The retry read did not start.");
         finish({ ok: true, state: disabled });
         await retry;

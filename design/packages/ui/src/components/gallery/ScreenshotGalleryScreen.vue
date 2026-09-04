@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { blueMapApp } from "../../stores/bluemap.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { VBtn, VCheckbox, VSelect, VTextarea, VTextField } from "vuetify/components";
 
 interface GalleryRecord {
@@ -19,6 +20,17 @@ interface GalleryRecord {
     imported: boolean;
 }
 
+interface GalleryApiRecord {
+    id: string;
+    name: string;
+    asset: string;
+    tags: string[];
+    notes: string;
+    metadata: Record<string, unknown>;
+    createdAt: string;
+    updatedAt: string;
+}
+
 const records = ref<GalleryRecord[]>([]);
 const query = ref("");
 const regexMode = ref(false);
@@ -29,7 +41,7 @@ const editing = ref<GalleryRecord | null>(null);
 const importInput = ref<HTMLInputElement | null>(null);
 const status = ref("");
 
-const galleryHost = (globalThis as { worldlens?: { gallery?: { list?: () => Promise<{ records: GalleryRecord[] }>; readAsset?: (id: string) => Promise<{ mime: string; bytes: Uint8Array }>; add?: (draft: unknown) => Promise<GalleryRecord>; update?: (id: string, changes: Partial<GalleryRecord>) => Promise<GalleryRecord>; export?: (format: "json" | "markdown") => Promise<{ filename: string; content: string }>; delete?: (ids: string[]) => Promise<number> } } }).worldlens?.gallery;
+const galleryHost = (globalThis as { worldlens?: { gallery?: { list?: () => Promise<{ records: GalleryApiRecord[] }>; readAsset?: (id: string) => Promise<{ mime: string; bytes: Uint8Array }>; add?: (draft: Record<string, unknown>) => Promise<GalleryApiRecord>; update?: (id: string, changes: Record<string, unknown>) => Promise<GalleryApiRecord>; export?: (format: "json" | "markdown") => Promise<{ filename: string; content: string }>; delete?: (ids: string[]) => Promise<number> } } }).worldlens?.gallery;
 const assetUrls = ref(new Map<string, string>());
 function revokeAssets(): void { for (const url of assetUrls.value.values()) URL.revokeObjectURL(url); assetUrls.value.clear(); }
 async function hydrateAssets(items: readonly GalleryRecord[]): Promise<void> {
@@ -38,9 +50,9 @@ async function hydrateAssets(items: readonly GalleryRecord[]): Promise<void> {
     if (readAsset === undefined) return;
     await Promise.all(items.map(async (record) => { try { const asset = await readAsset(record.id); assetUrls.value.set(record.id, URL.createObjectURL(new Blob([asset.bytes as unknown as BlobPart], { type: asset.mime }))); } catch { status.value = "One or more gallery images could not be read; metadata remains available."; } }));
 }
-function bridgeRecord(record: GalleryRecord): GalleryRecord {
-    const value = record as unknown as { id: string; name: string; asset: string; tags: string[]; notes: string; metadata: { timestamp: string; mapId: string; projectId: string; version: string; coordinates: Record<string, number>; camera: Record<string, number> } };
-    return { id: value.id, title: value.name, source: value.asset, image: "", capturedAt: value.metadata.timestamp, map: `${value.metadata.mapId} / ${value.metadata.projectId}`, coordinates: JSON.stringify(value.metadata.coordinates), camera: JSON.stringify(value.metadata.camera), version: value.metadata.version, tags: value.tags, notes: value.notes, imported: true };
+function bridgeRecord(record: GalleryApiRecord): GalleryRecord {
+    const value = record as GalleryApiRecord & { metadata: { timestamp?: unknown; mapId?: unknown; projectId?: unknown; version?: unknown; coordinates?: unknown; camera?: unknown } };
+    return { id: value.id, title: value.name, source: value.asset, image: "", capturedAt: String(value.metadata.timestamp ?? "Unknown"), map: `${String(value.metadata.mapId ?? "Unknown")} / ${String(value.metadata.projectId ?? "Unknown")}`, coordinates: JSON.stringify(value.metadata.coordinates ?? {}), camera: JSON.stringify(value.metadata.camera ?? {}), version: String(value.metadata.version ?? "Unknown"), tags: value.tags, notes: value.notes, imported: true };
 }
 
 const categories = computed(() => ["all", ...new Set(records.value.flatMap((record) => record.tags))]);
@@ -74,8 +86,18 @@ function invertVisible(): void {
 }
 function exportRecords(format: "json" | "csv" | "md"): void {
     const chosen = records.value.filter((record) => selected.value.size === 0 || selected.value.has(record.id));
-    if (galleryHost?.export === undefined || (format !== "json" && format !== "md")) { status.value = "The gallery bridge is unavailable; no export was written."; return; }
-    void galleryHost.export(format === "md" ? "markdown" : "json").then((file) => { const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([file.content], { type: "text/plain;charset=utf-8" })); link.download = file.filename; link.click(); URL.revokeObjectURL(link.href); status.value = `Exported ${chosen.length} record${chosen.length === 1 ? "" : "s"}.`; }).catch(() => { status.value = "The gallery bridge refused the export; no file was written."; });
+    const csvCell = (value: string): string => `"${value.replaceAll('"', '""')}"`;
+    const content = format === "json"
+        ? JSON.stringify({ exportedAt: new Date().toISOString(), selection: selected.value.size === 0 ? "all" : "selected", records: chosen }, null, 2)
+        : format === "md"
+            ? [`# Screenshot gallery export`, `Exported at: ${new Date().toISOString()}`, `Records: ${chosen.length}`, "", ...chosen.map((record) => `## ${record.title}\n\n- Source: ${record.source}\n- Captured: ${record.capturedAt}\n- Map: ${record.map}\n- Coordinates: ${record.coordinates}\n- Camera: ${record.camera}\n- Version: ${record.version}\n- Tags: ${record.tags.join(", ")}\n- Notes: ${record.notes}`)].join("\n")
+            : ["id,title,source,capturedAt,map,coordinates,camera,version,tags,notes", ...chosen.map((record) => [record.id, record.title, record.source, record.capturedAt, record.map, record.coordinates, record.camera, record.version, record.tags.join("; "), record.notes].map(csvCell).join(","))].join("\n");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob([content], { type: format === "csv" ? "text/csv;charset=utf-8" : "text/plain;charset=utf-8" }));
+    link.download = `worldlens-gallery.${format === "md" ? "md" : format}`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    status.value = `Exported ${chosen.length} record${chosen.length === 1 ? "" : "s"}.`;
 }
 function removeSelected(): void {
     if (!selected.value.size || galleryHost?.delete === undefined) { status.value = "Deletion is unavailable until the gallery bridge and shared confirmation surface are present."; return; }
@@ -113,14 +135,8 @@ function captureCurrentView(): void {
             <input ref="importInput" class="mb-visually-hidden" type="file" accept="image/*" multiple @change="importFiles" />
         </header>
         <div class="mb-screenshot-gallery__toolbar" role="search">
-            <VTextField id="screenshot-gallery-search" v-model="query" label="Search captures" placeholder="Title, map, tags, coordinates…" density="comfortable" hide-details />
-            <VBtn variant="text" :aria-expanded="regexMode" @click="regexMode = !regexMode">Regex builder</VBtn>
+            <ConfigSearchField id="screenshot-gallery-search" v-model="query" v-model:regex="regexMode" v-model:flags="regexFlags" label="Search captures" placeholder="Title, map, tags, coordinates…" :sample="records.map((record) => [record.title, record.source, record.map, record.coordinates, record.camera, record.version, record.tags.join(' '), record.notes].join(' ')).join('\n')" />
             <VSelect v-model="category" :items="categories" label="Filter by tag" density="comfortable" hide-details />
-        </div>
-        <div v-if="regexMode" class="mb-screenshot-gallery__regex" role="region" aria-label="Anchored regex builder">
-            <VTextField v-model="query" label="Pattern" aria-label="Regular expression pattern" density="compact" hide-details />
-            <VTextField v-model="regexFlags" label="Flags" maxlength="6" aria-label="Regular expression flags" density="compact" hide-details />
-            <span v-if="query" class="mb-screenshot-gallery__hint">{{ filtered.length }} matching captures</span>
         </div>
         <div class="mb-screenshot-gallery__bulk" aria-label="Bulk actions">
             <span>{{ selected.size }} selected · {{ filtered.length }} shown</span>
