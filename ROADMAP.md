@@ -2,6 +2,11 @@
 
 ## Evidence refresh (2026-09-05)
 
+- [x] Chunker Actions screen exposes all ten `chunk-world.yml` dispatch inputs, guarded by `scripts/check-chunker-ui-inventory.mjs` (`28294f9d`).
+- [x] App downloads and assembles multi-group renders (`map-lowres` + `partial-hires-N`) instead of refusing them (`545b74e3`).
+- [ ] Exercise the multi-group fetch from the built app against a live multi-group run.
+- [ ] Add the chunker copy surface to the copy coverage gate.
+
 - [ ] Refresh the four stale capture-evidence groups (`app-playwright-manifest`, `app-playwright-map-dependent`, `lowlevel-ui-e2e`, `hosted-deployment`) against the current interface digest and record the new `uiSourceDigest` values; `node scripts/check-screenshot-evidence.mjs` has been red on `main` since before 2026-09-05.
 - [ ] Finish the 10 GB Java to Bedrock to Java round trip with the byte-scaled timeout and record its semantic comparison.
 - [x] Record the 10 GB GitHub Actions render verdict and inspected artifact (run 33941015721 attempt 2, success, six merge groups; HANDOFF.md 2026-09-05).

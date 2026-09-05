@@ -22,6 +22,28 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Merge commit '28294f9d' - [`8d47d86cd4`](https://github.com/Ding-Ding-Projects/worldlens/commit/8d47d86cd42dbd03bf67f086218c3964e451bb9c) _(summary of 2 commits, also listed here)_
+- Cover every chunk-world.yml dispatch input in the Chunker Actions UI - [`28294f9dfd`](https://github.com/Ding-Ding-Projects/worldlens/commit/28294f9dfd40589f1a343f6fd8a7f9decf0e88ac)
+
+### Desktop shell
+
+- Merge commit '545b74e3' - [`273b7db1af`](https://github.com/Ding-Ding-Projects/worldlens/commit/273b7db1af1211a53ad9184f7433c373090f63e4) _(summary of 2 commits, also listed here)_
+- Fetch and assemble a multi-group rendered map, not just refuse it - [`545b74e34f`](https://github.com/Ding-Ding-Projects/worldlens/commit/545b74e34fc0ab77a96b23abb7ec32c85d8b5de0)
+
+## 1.0.2008 - 2026-09-05
+
+Tagged at [`a924d330d6`](https://github.com/Ding-Ding-Projects/worldlens/commit/a924d330d6c59cf8c5f46de59db0cfbff1310703).
+
+### Build, release and tooling
+
+- Advance the managed workflows' toolchain pin to the merge-memory fix - [`a924d330d6`](https://github.com/Ding-Ding-Projects/worldlens/commit/a924d330d6c59cf8c5f46de59db0cfbff1310703)
+
+## 1.0.2006 - 2026-09-05
+
+Tagged at [`40680d795a`](https://github.com/Ding-Ding-Projects/worldlens/commit/40680d795ae388e5a4de05fa299e95ee2af39ab8).
+
+### Interface
+
 - Register ConfigRegexBuilder once, not twice, in both overlay inventories - [`6c6412e8a0`](https://github.com/Ding-Ding-Projects/worldlens/commit/6c6412e8a0c180a64ccce3f2349223d565e5380b)
 - Merge the downloader lane's guard fixes into integrate/puppies - [`60f54763ed`](https://github.com/Ding-Ding-Projects/worldlens/commit/60f54763ed60dabc4ef08cbe2d9dcc7d1a7302a8) _(summary of 2 commits, also listed here)_
 - Fix six red tests from the world downloader lane: honest seeding, hosted classification, Kid Mode labels, More-menu registries, a real browse button, and a token that never touches the renderer - [`e1a43b7cae`](https://github.com/Ding-Ding-Projects/worldlens/commit/e1a43b7cae6c08a89925dd86433e0a0726b682fa)
@@ -89,6 +111,7 @@ full message for the in-app changelog viewer.
 
 ### Documentation
 
+- Say plainly what was stopped and what was verified before landing - [`40680d795a`](https://github.com/Ding-Ding-Projects/worldlens/commit/40680d795ae388e5a4de05fa299e95ee2af39ab8)
 - Record the large-world pass in the handoff and roadmap, pending rows named - [`5870386174`](https://github.com/Ding-Ding-Projects/worldlens/commit/5870386174f8e5a0a946a76a102c3d73c4925376)
 - Merge commit '29695c32' into integrate/puppies - [`772c3df31a`](https://github.com/Ding-Ding-Projects/worldlens/commit/772c3df31a0ee698ee7129a19c705ae78c662fab) _(summary of 2 commits, also listed here)_
 - Replace the stale rail evidence with fresh captures of the actual fix - [`29695c325c`](https://github.com/Ding-Ding-Projects/worldlens/commit/29695c325c41aead7d26ae3558957318ab87aba1)
