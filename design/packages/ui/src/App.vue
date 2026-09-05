@@ -912,19 +912,49 @@ const RAIL_JOB_SHORTCUT_IDS = [
     PAGE_WORLD_DOWNLOADER,
 ] as const;
 
-const railJobShortcuts = computed<{ id: string; icon: string; label: string }[]>(() => {
-    const byId = new Map(pages.value.map((page) => [page.id, page]));
-    return RAIL_JOB_SHORTCUT_IDS.flatMap((id) => {
-        const page = byId.get(id);
-        // A shortcut whose job this build cannot host (capability-gated out) is dropped rather
-        // than shown pointing nowhere - the same rule `WorkPane.vue` already applies to the tab
-        // itself, so a rail shortcut can never outlive the job it opens. `page.icon` is nullable
-        // on `TabPage` in general; every entry named above sets one, so the fallback never fires.
-        return page === undefined
-            ? []
-            : [{ id: page.id, icon: page.icon ?? "", label: page.label }];
-    });
-});
+/**
+ * The compact, one-line label each shortcut shows on the rail itself.
+ *
+ * Regression: v2-08-rail-7-jobs-1280x800-dark.png showed the *full* bilingual page label
+ * ("Get a world off a server 由伺服器攞返個世界") wrapping five lines inside the 80px column.
+ * The full label is never lost - it stays the button's `aria-label` and its tooltip text below
+ * - this is only what renders on screen, so it has to fit one line at every supported width and
+ * in both language modes. `t()` here rather than a plain string so bilingual mode still shows
+ * a real (short) Cantonese form rather than silently staying English-only.
+ */
+const RAIL_JOB_SHORTCUT_LABELS: Record<(typeof RAIL_JOB_SHORTCUT_IDS)[number], string> = {
+    [PAGE_CIRENDER]: t("rail.shortcut.cirender", "Der Machine"),
+    [PAGE_DOCKER_HOSTING]: t("rail.shortcut.dockerHosting", "Docker"),
+    [PAGE_REMOTE_HOSTING]: t("rail.shortcut.remoteHosting", "Remote SSH"),
+    [PAGE_CHUNKER]: t("rail.shortcut.chunker", "Chunker"),
+    [PAGE_BACKUPS]: t("rail.shortcut.backups", "Backups"),
+    [PAGE_MCSERVERS]: t("rail.shortcut.mcservers", "MC servers"),
+    [PAGE_WORLD_DOWNLOADER]: t("rail.shortcut.worldDownloader", "World DL"),
+};
+
+const railJobShortcuts = computed<{ id: string; icon: string; label: string; shortLabel: string }[]>(
+    () => {
+        const byId = new Map(pages.value.map((page) => [page.id, page]));
+        return RAIL_JOB_SHORTCUT_IDS.flatMap((id) => {
+            const page = byId.get(id);
+            // A shortcut whose job this build cannot host (capability-gated out) is dropped
+            // rather than shown pointing nowhere - the same rule `WorkPane.vue` already applies
+            // to the tab itself, so a rail shortcut can never outlive the job it opens.
+            // `page.icon` is nullable on `TabPage` in general; every entry named above sets
+            // one, so the fallback never fires.
+            return page === undefined
+                ? []
+                : [
+                      {
+                          id: page.id,
+                          icon: page.icon ?? "",
+                          label: page.label,
+                          shortLabel: RAIL_JOB_SHORTCUT_LABELS[id],
+                      },
+                  ];
+        });
+    },
+);
 
 /**
  * How a brand-new workspace is arranged, and why it is not twelve flat tabs.

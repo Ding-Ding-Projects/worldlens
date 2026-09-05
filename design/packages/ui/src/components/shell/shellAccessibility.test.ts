@@ -168,18 +168,36 @@ describe("the application rail", () => {
      * this list never widens `RailDestination`.
      */
     const SHORTCUTS = [
-        { id: "cirender", icon: "mdi-test-icon", label: "Der Machine rendering" },
-        { id: "dockerHosting", icon: "mdi-test-icon", label: "Docker hosting" },
-        { id: "remoteHosting", icon: "mdi-test-icon", label: "Remote hosting" },
-        { id: "chunker", icon: "mdi-test-icon", label: "Convert" },
-        { id: "backups", icon: "mdi-test-icon", label: "Backups" },
-        { id: "mcservers", icon: "mdi-test-icon", label: "Minecraft servers" },
-        { id: "worldDownloader", icon: "mdi-test-icon", label: "Get a world off a server" },
+        { id: "cirender", icon: "mdi-test-icon", label: "Der Machine rendering", shortLabel: "Der Machine" },
+        { id: "dockerHosting", icon: "mdi-test-icon", label: "Docker hosting", shortLabel: "Docker" },
+        { id: "remoteHosting", icon: "mdi-test-icon", label: "Remote hosting", shortLabel: "Remote SSH" },
+        { id: "chunker", icon: "mdi-test-icon", label: "Convert", shortLabel: "Chunker" },
+        { id: "backups", icon: "mdi-test-icon", label: "Backups", shortLabel: "Backups" },
+        { id: "mcservers", icon: "mdi-test-icon", label: "Minecraft servers", shortLabel: "MC servers" },
+        { id: "worldDownloader", icon: "mdi-test-icon", label: "Get a world off a server", shortLabel: "World DL" },
     ];
 
     it("renders no shortcuts at all when none are given, rather than an empty divider", () => {
         const rail = mountRail();
         expect(rail.find(".wl-rail__shortcuts").exists()).toBe(false);
+    });
+
+    it("keeps all four destinations rendered and visible with every shortcut configured", () => {
+        // The regression itself: v2-08-rail-7-jobs-1280x800-dark.png showed the rail scrolled
+        // to a position where Home, Map, Host Server and Work were entirely out of view and
+        // only the seven shortcuts were on screen. jsdom cannot measure real scroll position or
+        // visibility, so this proves the half it can: the four destination buttons are still
+        // real, present, undetached elements - not conditionally removed, not `display: none` -
+        // once seven shortcuts are configured alongside them. The rest of the guarantee (that
+        // they can never scroll away) is `railOverflow.test.ts`'s job, proven as arithmetic.
+        const rail = mountRail({ jobShortcuts: SHORTCUTS });
+        const destinations = rail.findAll(".wl-rail__items:not(.wl-rail__shortcuts) > li > .wl-rail-item");
+
+        expect(destinations).toHaveLength(4);
+        for (const destination of destinations) {
+            expect(destination.isVisible()).toBe(true);
+            expect(destination.attributes("style") ?? "").not.toContain("display: none");
+        }
     });
 
     it("renders every given job shortcut as a real, visibly-labelled button", () => {
@@ -191,7 +209,11 @@ describe("the application rail", () => {
             expect(item.element.tagName).toBe("BUTTON");
             expect(item.attributes("data-job-shortcut")).toBe(SHORTCUTS[index]?.id);
             expect(item.attributes("aria-label")).toBe(SHORTCUTS[index]?.label);
-            expect(item.find(".wl-rail-label").text().length).toBeGreaterThan(0);
+            // The full bilingual label is the accessible name and the tooltip - never the
+            // on-screen text, which is the short, single-line form. This is the exact
+            // regression from v2-08-rail-7-jobs-1280x800-dark.png: the full label rendered
+            // visibly and wrapped five lines inside the 80px column.
+            expect(item.find(".wl-rail-label").text()).toBe(SHORTCUTS[index]?.shortLabel);
         }
     });
 
