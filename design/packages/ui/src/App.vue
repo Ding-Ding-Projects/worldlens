@@ -922,15 +922,27 @@ const RAIL_JOB_SHORTCUT_IDS = [
  * in both language modes. `t()` here rather than a plain string so bilingual mode still shows
  * a real (short) Cantonese form rather than silently staying English-only.
  */
-const RAIL_JOB_SHORTCUT_LABELS: Record<(typeof RAIL_JOB_SHORTCUT_IDS)[number], string> = {
-    [PAGE_CIRENDER]: t("rail.shortcut.cirender", "Der Machine"),
-    [PAGE_DOCKER_HOSTING]: t("rail.shortcut.dockerHosting", "Docker"),
-    [PAGE_REMOTE_HOSTING]: t("rail.shortcut.remoteHosting", "Remote SSH"),
-    [PAGE_CHUNKER]: t("rail.shortcut.chunker", "Chunker"),
-    [PAGE_BACKUPS]: t("rail.shortcut.backups", "Backups"),
-    [PAGE_MCSERVERS]: t("rail.shortcut.mcservers", "MC servers"),
-    [PAGE_WORLD_DOWNLOADER]: t("rail.shortcut.worldDownloader", "World DL"),
-};
+/**
+ * A real `computed()`, not a plain object literal - `t()` evaluated once at module setup
+ * time bakes in whatever the catalogue happened to answer (or its fallback, if messages had
+ * not finished loading yet) forever, with no way to pick up a later catalogue change. This is
+ * exactly how a real running build kept rendering "Der Machine", "Remote SSH" and "Chunker"
+ * after shell.ts's own catalogue values had already changed to "Actions", "SSH" and "Convert" -
+ * found only by inspecting the live app, not by reading source. The fallback strings below are
+ * kept in step with shell.ts's current values on principle, but the reactive `computed()` is
+ * what actually guarantees they cannot drift apart in the running application.
+ */
+const RAIL_JOB_SHORTCUT_LABELS = computed<Record<(typeof RAIL_JOB_SHORTCUT_IDS)[number], string>>(
+    () => ({
+        [PAGE_CIRENDER]: t("rail.shortcut.cirender", "Actions"),
+        [PAGE_DOCKER_HOSTING]: t("rail.shortcut.dockerHosting", "Docker"),
+        [PAGE_REMOTE_HOSTING]: t("rail.shortcut.remoteHosting", "SSH"),
+        [PAGE_CHUNKER]: t("rail.shortcut.chunker", "Convert"),
+        [PAGE_BACKUPS]: t("rail.shortcut.backups", "Backups"),
+        [PAGE_MCSERVERS]: t("rail.shortcut.mcservers", "Servers"),
+        [PAGE_WORLD_DOWNLOADER]: t("rail.shortcut.worldDownloader", "Downloader"),
+    }),
+);
 
 const railJobShortcuts = computed<{ id: string; icon: string; label: string; shortLabel: string }[]>(
     () => {
@@ -949,7 +961,7 @@ const railJobShortcuts = computed<{ id: string; icon: string; label: string; sho
                           id: page.id,
                           icon: page.icon ?? "",
                           label: page.label,
-                          shortLabel: RAIL_JOB_SHORTCUT_LABELS[id],
+                          shortLabel: RAIL_JOB_SHORTCUT_LABELS.value[id],
                       },
                   ];
         });
