@@ -1199,7 +1199,14 @@ pnpm install
 pnpm lint          # lint runs before tsc in CI; an unused variable hides every real type error
 pnpm build
 pnpm test
+pnpm check:private-terms   # fail-closed; skips with a printed reason when no term file is configured
 ```
+
+`check:private-terms` (`scripts/check-private-terms.mjs`) scans every tracked file for informal
+internal wording, reading its term list from a file outside this repository named by the
+`WORLDLENS_PRIVATE_TERMS_FILE` environment variable. With that variable unset - the case on every
+public machine, including CI - it prints one line saying it skipped and exits 0; it never fails a
+clone that has no access to the private list. Set the variable to actually run it locally.
 
 Per-package type checks, for the package you touched:
 

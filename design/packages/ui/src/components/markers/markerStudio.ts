@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: marker colours a person picks for their own map. Their markers are content.
+ * material-exempt: marker colours a person picks for their own map. Their markers are content.
  */
 /** Pure, map-scoped model for user-authored BlueMap markers. */
 export type StudioMarkerKind = "poi" | "line" | "shape" | "extrude";

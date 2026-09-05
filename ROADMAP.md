@@ -36,7 +36,7 @@ user's own repository, with a `.cheaplfs` pointer and a `backup.json` sidecar. R
 assets do not expire; nothing in the codebase deletes or overwrites them
 (`backup/runner.ts:24-29` says so, and there is no `deleteRelease`/`deleteAsset` anywhere).
 
-- [x] Commit the pointers into the Oak Kay. This is the actual gap: `catalog.ts` rebuilds
+- [x] Commit the pointers into the repository. This is the actual gap: `catalog.ts` rebuilds
       the backup list by walking releases over the network every time, and *nothing
       committed in the repository* records which worlds were uploaded. Writing each
       `.cheaplfs` pointer into the repo gives a durable, offline-readable, restorable
@@ -46,7 +46,7 @@ assets do not expire; nothing in the codebase deletes or overwrites them
 - [x] An index beside them for humans, following the sidecar's conventions: versioned
       integer first field, ISO-8601 `createdAt`, lowercase-hex `sha256`, byte counts as
       numbers, `kind: "render" | "world"`, bounded max read.
-- [x] A dashboard on each render's Day Teet Hui, covering the render and the world
+- [x] A dashboard on each render's GitHub Pages site, covering the render and the world
       backups it produced. It carries every universal contract like any other page.
 
 **1.12.2 silently fails today, and the docs promise otherwise.** `docs/compatibility/README.md`
@@ -80,7 +80,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
 ## Queued, not started (2026-09-04)
 
 - [ ] Universal feature parity on the two non-app surfaces. Every contract the Yern Geen
-      carries has to be carried by the Day Teet Hui and by the Material Design 3 BlueMap
+      carries has to be carried by the GitHub Pages site and by the Material Design 3 BlueMap
       webapp independently: the three language modes, both funny-level sliders, the emoji
       switch, School mode, narration, tabbed navigation with its four tab searches, a
       search bar and anchored regex builder on every field and every menu, per-element
@@ -92,7 +92,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
       than left as a silent gap. Guarded by a hand-written per-surface inventory, because
       a rule-shaped check passes cleanly on a surface that has none of them.
 
-- [x] A dashboard on each render's Day Teet Hui, covering that render and the world backups
+- [x] A dashboard on each render's GitHub Pages site, covering that render and the world backups
       it produced.
 - [x] Chunker as a Tow Fat, with its code ported into the app so no See Fut has to be
       installed by hand.
@@ -105,7 +105,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
       derived from the world's measured size, bounded at 64 so a huge world does not
       become thousands of batches that spend their time starting JVMs.
 - [x] Universal feature parity. Correcting what an earlier version of this entry said:
-      the Day Teet Hui is not thinly covered. It carries a hand-written fail-closed
+      the GitHub Pages site is not thinly covered. It carries a hand-written fail-closed
       inventory of 52 contracts in `globalFeatureCoverage.ts`, plus a second universal
       inventory of 13 in `siteUniversalInventory.ts`, including toy locks, the built-in
       authenticator, the unlock ladder at the same budget the rules specify, the
@@ -125,7 +125,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
             listed by name with its reason rather than hidden.
       - [x] A local model runtime read over loopback only, with the four things a page
             cannot do stated where somebody would go looking for them.
-      - [x] The Lang gui BlueMap webapp had no inventory of its own. It has one now:
+      - [x] The Material Design 3 BlueMap webapp had no inventory of its own. It has one now:
             eight hand-written contracts in `scripts/check-webapp-parity.mjs`, run as
             `pnpm webapp:parity`. Correcting the sentence that used to be here as well:
             I called it the surface furthest from parity before measuring it, and its
@@ -165,7 +165,7 @@ Four screenshots of the new-server wizard turned into three P0 defects and a who
       until now by the `captured is not defined` crash that killed the test earlier.
 - [ ] `apostropheConvention.test.ts` fails in any checkout whose path contains a space: it
       builds a directory path from `import.meta.url` without decoding, so it scans
-      `gerk%20tong%20hui`. Not a product defect, but it makes a linked Gerk Tong Hui under the
+      `worktree%20`. Not a product defect, but it makes a linked worktree under the
       default path unable to run the suite clean.
 - [ ] Photograph the Material Design 3 interface in a real published map. The local jar build
       is the furthest this went; nothing has been captured from a deployed `/map/`.

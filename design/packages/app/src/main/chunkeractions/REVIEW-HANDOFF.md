@@ -42,7 +42,7 @@ pass is recorded first.
   to this lane. Not fixed, and not this lane's to fix.
 - Accessibility/layout pass on `ChunkerSchemaEditor.vue` and the recovery controls: the schema
   editor's own scoped style already used `min-width:0;max-width:100%;overflow-wrap:anywhere` (the
-  house pattern for avoiding Cheap Jor at 320px) and a theme token (`rgb(var(--v-theme-outline))`)
+  house pattern for avoiding clipping at 320px) and a theme token (`rgb(var(--v-theme-outline))`)
   rather than a hardcoded hex, so no changes were needed there. `node scripts/check-webapp-parity.mjs`
   stays green (it inspects the BlueMap-vendored webapp, not this surface, and reports "the BlueMap Tow
   Fat is not checked out" in this worktree -- expected, not a false pass this lane manufactured). The

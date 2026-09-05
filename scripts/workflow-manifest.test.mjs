@@ -5,7 +5,7 @@
  *
  * The load-bearing case is the rename. `design/packages/app` appears as a literal
  * in a dozen workflow steps today, and the whole reason this module exists is that
- * moving it silently breaks Der Machine. A test that only checks today's paths
+ * moving it silently breaks GitHub Actions. A test that only checks today's paths
  * would pass just as happily on a module that hard-coded them.
  */
 

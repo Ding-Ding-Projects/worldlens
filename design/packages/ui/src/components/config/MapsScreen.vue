@@ -558,7 +558,7 @@ const storageOptions = computed(() => storageIds(props.workspace));
  * this class is on are translated strings that grow past a single line in
  * bilingual mode and in playful Cantonese, so left unset they were silently cut
  * off with no ellipsis painted and no indication anything was missing (same
- * Cheap Jor already fixed in DependencyInstallerPanel.vue and
+ * clipping already fixed in DependencyInstallerPanel.vue and
  * ConfigApplyDialog.vue). Applied directly to the title rather than through a
  * `.mb-config-maps` descendant selector because `v-dialog` teleports its content
  * to `<body>`, outside that ancestor.

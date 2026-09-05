@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: the picker's own swatch presets. A swatch is a colour a visitor is being offered, so it is the value itself rather than a role standing in for one.
+ * material-exempt: the picker's own swatch presets. A swatch is a colour a visitor is being offered, so it is the value itself rather than a role standing in for one.
  */
 /**
  * The infinite colour picker.

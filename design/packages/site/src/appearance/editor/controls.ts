@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: default values for colour controls. What a control starts at is a colour, not a reference to one.
+ * material-exempt: default values for colour controls. What a control starts at is a colour, not a reference to one.
  */
 /**
  * The controls every appearance editor is built from.

@@ -161,14 +161,14 @@ where it left off.
 
 ### Destinations
 
-**Der Machine: verified end to end.** Run `33908043476` built the CLI, measured and planned, rendered
+**GitHub Actions: verified end to end.** Run `33908043476` built the CLI, measured and planned, rendered
 one shard, and produced a 103 MB `rendered-map` artifact. Its receipt carries a real plan
 fingerprint and per-phase free-space measurements, so it is evidence rather than a green tick. The
 world it rendered is published as the `smoke-world-2026-09-04` release so the run is repeatable.
 
 **SSH: transport verified.** Two inventoried hosts answered and returned live state.
 
-**Yere Dow: blocked, and not routed around.** `com.docker.service` is Stopped, this session is not
+**Docker: blocked, and not routed around.** `com.docker.service` is Stopped, this session is not
 elevated, and starting it is refused. The LAN hosts are not a substitute and were not used: one
 runs the live Minecraft server alongside ten containers, another is ARM with 3 GB and twelve live
 user containers, and the third answers ping but times out on SSH. Rendering on either would risk
@@ -197,7 +197,7 @@ second - so all three ran as `true` while appearing to offer a choice.
 render 完，62,354 塊 tile，2.49 GB 出品，用個 shipped tool 驗過真係出得街。10 GB 行到 6.75%
 特登停低 - 唔係壞咗，係夠數推算：呢部機大約一 GB 世界一個鐘。
 
-Der Machine 全程行得通，有 103 MB 地圖同真嘅 receipt。Yere Dow 塞住咗:個 service 要 admin 先
+GitHub Actions 全程行得通，有 103 MB 地圖同真嘅 receipt。Docker 塞住咗:個 service 要 admin 先
 開到，而 LAN 嗰幾部機各自行緊人哋嘅嘢，唔可以攞嚟撞。
 
 
@@ -216,11 +216,11 @@ asking for a role that does not exist inherits whatever is in scope and renders 
 thirds of a design system went missing without a single report. `scripts/check-webapp-parity.mjs`
 now names every role individually and requires each colour in **both** themes, because one defined
 in light and forgotten in dark renders correctly for whoever is checking and wrongly for everyone
-else. It runs from the suite at `design/packages/app/src/main/cirender/langGuiPurity.test.ts`.
+else. It runs from the suite at `design/packages/app/src/main/cirender/materialPurity.test.ts`.
 
 **The purity gate covers four surfaces**, not the map alone: the vendored webapp, the documentation
 site, the desktop interface and the render page. It refuses a colour that is neither a palette role
-nor an exemption declared in so many words with `lang-gui-exempt: <reason>`. An earlier version
+nor an exemption declared in so many words with `material-exempt: <reason>`. An earlier version
 matched the prose of the comment above a line, so whether an exemption counted depended on which
 synonym somebody reached for.
 
@@ -265,7 +265,7 @@ cd design/packages/site && node scripts/assert-{article-bundle,screenshot-galler
 ```
 
 The Worldlens skill said the workflow linter had drifted badly and carried two unresolved
-fingerprint poke guys. It does not; that has been corrected in the skill, so a later pass does not
+fingerprint defects. It does not; that has been corrected in the skill, so a later pass does not
 read a clean run as suspicious.
 
 ### Boundaries this handoff does not cross
@@ -285,7 +285,7 @@ theme 都要有。
 ，兩個係今次自己搞出嚟嘅，一個係舊 assertion，一個係 path 有空格就爆。仲有一個 #177 特登唔
 修 - 因為求其修法會令佢綠但唔代表個 pause 真係啱，而個 test 本身就係查呢樣嘢。
 
-`builders-home` 上面嗰個地圖仲係舊嘅，未 render 過新 release，呢度冇claim過佢已經係 Lang gui。
+`builders-home` 上面嗰個地圖仲係舊嘅，未 render 過新 release，呢度冇claim過佢已經係 Material Design 3。
 
 
 ## 2026-09-02: current verified baseline and unreleased integration candidate

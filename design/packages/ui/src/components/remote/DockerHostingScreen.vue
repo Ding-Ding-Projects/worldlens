@@ -257,7 +257,7 @@ function exportSelection(): void {
 <style scoped>
 /* `.v-card-title` defaults to overflow:hidden/nowrap/ellipsis; these two titles are
    translated strings that grow past a single line in bilingual mode and Cantonese,
-   so left unset they were silently cut off with no ellipsis painted (same Cheap Jor
+   so left unset they were silently cut off with no ellipsis painted (same clipping
    already fixed in DependencyInstallerPanel.vue). Both cards are inline, not
    `v-dialog`, so the scoped descendant selector reaches them without a teleport
    boundary. */

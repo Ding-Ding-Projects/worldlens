@@ -18,7 +18,7 @@
  * This mounts the field standalone (mirroring `ConfigRegexBuilder.test.ts`'s own
  * pattern), clicks the button that opens the builder, and asserts the builder's
  * own card actually renders within the tick budget. A hang here fails the test
- * by timeout rather than by assertion, which is the right shape for a poke guy
+ * by timeout rather than by assertion, which is the right shape for a defect
  * whose real-world symptom is "the window stops responding."
  */
 

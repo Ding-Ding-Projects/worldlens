@@ -4,7 +4,7 @@
  * `scripts/check-workflow-drift.mjs` compares what every workflow *states* about
  * this project - the app package's path, the Node major, the workspace root pnpm
  * reads - against what `scripts/workflow-manifest.mjs` *discovers*. This runs it
- * from the suite, because Der Machine runs no tests and gates nothing here, so a
+ * from the suite, because GitHub Actions runs no tests and gates nothing here, so a
  * check that lived only in CI would never run at all, and one that lived only in a
  * npm script would run only when somebody remembered.
  *

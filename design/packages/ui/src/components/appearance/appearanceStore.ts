@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: stored appearance values. These are what a visitor chose, so they are data by definition.
+ * material-exempt: stored appearance values. These are what a visitor chose, so they are data by definition.
  */
 /**
  * Where appearance lives between launches, and how it travels between machines.

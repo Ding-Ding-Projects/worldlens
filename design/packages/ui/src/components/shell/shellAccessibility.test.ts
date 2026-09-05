@@ -168,7 +168,7 @@ describe("the application rail", () => {
      * this list never widens `RailDestination`.
      */
     const SHORTCUTS = [
-        { id: "cirender", icon: "mdi-test-icon", label: "Der Machine rendering", shortLabel: "Der Machine" },
+        { id: "cirender", icon: "mdi-test-icon", label: "GitHub Actions rendering", shortLabel: "GitHub Actions" },
         { id: "dockerHosting", icon: "mdi-test-icon", label: "Docker hosting", shortLabel: "Docker" },
         { id: "remoteHosting", icon: "mdi-test-icon", label: "Remote hosting", shortLabel: "Remote SSH" },
         { id: "chunker", icon: "mdi-test-icon", label: "Convert", shortLabel: "Chunker" },
