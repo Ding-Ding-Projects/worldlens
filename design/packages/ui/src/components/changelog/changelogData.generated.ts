@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "e82717b41ed2f4863232672130115c19d68f7b66",
+        shortSha: "e82717b41e",
+        date: "2026-09-05T12:38:37-04:00",
+        subject: "Move the vendored fork to vendor/BlueMap-Material on branch material-design-3",
+        details: "The fork's branch and its submodule folder carried an informal shorthand in\ntheir names; both now say what they are. The fork commit renames the purity\nguard's exemption marker to match, so the guard reads the vendored files\nagain instead of reporting every data colour as undeclared. Five more\nchangelog entries get plain-wording overrides for the same reason.\n\nFork 條 branch 同 submodule 個資料夾之前用咗個內部簡稱做名，而家改返正名。\nFork 嗰邊嘅 commit 一齊改咗純度檢查嘅豁免標記，檢查先識得再讀 vendored 檔案，\n唔會將每個數據顏色都當未申報。Changelog 再多五條用返正常字眼。",
+        category: "build",
+        areas: ["build", "docs", "shell", "interface", "other"],
+        files: 17,
+    },
+    {
         sha: "15f6ec193bec7fa8fec2bafb83d9799f6ff37202",
         shortSha: "15f6ec193b",
         date: "2026-09-05T12:18:27-04:00",

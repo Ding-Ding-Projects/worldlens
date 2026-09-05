@@ -25,6 +25,10 @@ full message for the in-app changelog viewer.
 - Merge commit 'cda9d25b' - [`15f6ec193b`](https://github.com/Ding-Ding-Projects/worldlens/commit/15f6ec193bec7fa8fec2bafb83d9799f6ff37202) _(summary of 2 commits, also listed here)_
 - Replace informal house wording with plain terms and add an externally-configured wording guard - [`cda9d25b24`](https://github.com/Ding-Ding-Projects/worldlens/commit/cda9d25b249b6fcf60358183dcef0ed5d16865ef)
 
+### Build, release and tooling
+
+- Move the vendored fork to vendor/BlueMap-Material on branch material-design-3 - [`e82717b41e`](https://github.com/Ding-Ding-Projects/worldlens/commit/e82717b41ed2f4863232672130115c19d68f7b66)
+
 ## 1.0.2022 - 2026-09-05
 
 Tagged at [`f04e46c070`](https://github.com/Ding-Ding-Projects/worldlens/commit/f04e46c0704e498e11828d80df147c89cbfbd6f2).
