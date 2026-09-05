@@ -961,6 +961,23 @@
     aspect-ratio: 4 / 3;
 }
 
+/*
+ * The shorter window the rail-overflow evidence needs: 1280 by 600 is the height at which
+ * the tail of the job shortcuts stops fitting and folds into the More control, so the
+ * capture that proves that control opens can only exist at this shape.
+ */
+.mb-shot-image[data-ratio="32 / 15"] {
+    aspect-ratio: 32 / 15;
+}
+
+/*
+ * 320 by 800: the narrowest supported width, driven through emulated device metrics rather
+ * than a window somebody sized, and taller than it is wide like the two phone ratios below.
+ */
+.mb-shot-image[data-ratio="2 / 5"] {
+    aspect-ratio: 2 / 5;
+}
+
 .mb-shot-image[data-ratio="16 / 9"] {
     aspect-ratio: 16 / 9;
 }
