@@ -20,10 +20,27 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Build, release and tooling
+
+- Merge commit '8f2473cf' - [`ad8405565c`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad8405565ca2466308d40ebac7f6a5ff61f3088e) _(summary of 3 commits, also listed here)_
+- Bound the comparison's chunk-key recorders so a big diff can't segfault the process - [`0ffcf0af10`](https://github.com/Ding-Ding-Projects/worldlens/commit/0ffcf0af10ff771111e4c55c0d4b9b967e84d895)
+
+### Documentation
+
+- Write down the 10 GB segfault, the fix, and the honest status of the retry - [`8f2473cfe3`](https://github.com/Ding-Ding-Projects/worldlens/commit/8f2473cfe3f1f0bb0c059330e2c2730bb5b2264b)
+
+## 1.0.2014 - 2026-09-05
+
+Tagged at [`994d10f0cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/994d10f0cde554023b5d26c0b545ebd2fe77186c).
+
 ### Desktop shell
 
 - Merge commit 'ef213554' - [`010ac69594`](https://github.com/Ding-Ding-Projects/worldlens/commit/010ac695941ad2598c8072dc537d066772e6fdcd) _(summary of 2 commits, also listed here)_
 - Fetch a completed render this app never dispatched itself; 收返一個唔係自己 dispatch 嘅 render - [`ef2135548a`](https://github.com/Ding-Ding-Projects/worldlens/commit/ef2135548a392052bcab5cc1edcc845dbfe12a55)
+
+### Documentation
+
+- Record the fetch-elsewhere card in the handoff, roadmap and changelog - [`994d10f0cd`](https://github.com/Ding-Ding-Projects/worldlens/commit/994d10f0cde554023b5d26c0b545ebd2fe77186c)
 
 ## 1.0.2012 - 2026-09-05
 
