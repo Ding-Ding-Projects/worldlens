@@ -952,6 +952,20 @@ export class CiRenderSync {
             accountId: request.accountId ?? state.accountId,
         };
 
+        /*
+         * Collecting a run that is already recorded as dispatched writes nothing: it
+         * neither uploads the world nor starts a workflow, it only reads that run and
+         * downloads its artifact. Deciding it here, before a credential is leased, is
+         * what lets the whole path run against a repository the account can only read,
+         * which is the ordinary case for a render fetched on a second device. `#run`
+         * takes the same decision from this exact value, so a credential leased for
+         * reading can never be handed to a path that would publish.
+         */
+        const resumeRecordedRun =
+            (request as CiSyncRunRequest).resumeRecordedRun === true &&
+            state.stage === "dispatched" &&
+            state.runId !== null;
+
         const controller = new AbortController();
         this.#running.set(syncId, controller);
         this.emit({
@@ -973,7 +987,7 @@ export class CiRenderSync {
                 repo,
                 request,
                 controller.signal,
-                "write",
+                resumeRecordedRun ? "read" : "write",
             );
             if (routed.transport === null || !routed.report.ready) {
                 return this.#failed(
@@ -1000,10 +1014,7 @@ export class CiRenderSync {
                 project: project.project,
                 signal: controller.signal,
                 startedAt,
-                resumeRecordedRun:
-                    (request as CiSyncRunRequest).resumeRecordedRun === true &&
-                    state.stage === "dispatched" &&
-                    state.runId !== null,
+                resumeRecordedRun,
             });
             return result;
         } catch (error) {
@@ -1638,18 +1649,14 @@ export class CiRenderSync {
             );
         }
 
-        if (!repository.canWrite) {
-            return this.#failed(
-                syncId,
-                failure(
-                    "read-only",
-                    `The signed-in account cannot write to ${repository.fullName}, so it cannot ` +
-                        "publish the world there or start a workflow on it. Nothing was uploaded.",
-                    { route },
-                ),
-            );
-        }
-
+        /*
+         * Collecting a run that was already dispatched happens before the gates below,
+         * because none of them describe it: it uploads nothing and starts nothing, so
+         * refusing it for want of write permission or a public-repository
+         * acknowledgement would refuse a download for reasons drawn from a publication
+         * it is not attempting. A render fetched on a second device, or one made by
+         * somebody else, is routinely held in a repository this account can only read.
+         */
         if (context.resumeRecordedRun && state.runId !== null) {
             return await this.#finishRecordedRun({
                 owner,
@@ -1662,6 +1669,18 @@ export class CiRenderSync {
                 state,
                 startedAt: context.startedAt,
             });
+        }
+
+        if (!repository.canWrite) {
+            return this.#failed(
+                syncId,
+                failure(
+                    "read-only",
+                    `The signed-in account cannot write to ${repository.fullName}, so it cannot ` +
+                        "publish the world there or start a workflow on it. Nothing was uploaded.",
+                    { route },
+                ),
+            );
         }
 
         if (!repository.private && context.request.acknowledgePublic !== true) {
