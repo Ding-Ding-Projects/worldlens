@@ -1929,6 +1929,11 @@ function startBedrockConversion(): BedrockIpc {
     if (bedrockIpc !== null) return bedrockIpc;
     bedrockIpc = registerBedrockHandlers(ipcMain, {
         dataDir: app.getPath("userData"),
+        // The Chunker jar ships inside the installer under `resources/bundled/chunker/`.
+        // Passing this is what lets `findChunker` see it; without it a packaged build hunts
+        // the user's profile for a converter it is already carrying, which is precisely the
+        // "Chunker is not installed" a v1.0.2026 install showed while holding 30 MB of it.
+        resourcesPath: app.isPackaged ? process.resourcesPath : null,
         appVersion: app.getVersion(),
         resolveJava: async () => {
             try {

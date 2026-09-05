@@ -1,0 +1,23 @@
+{
+    "schemaVersion": 1,
+    "note": "The runtimes that ship inside the Worldlens installer, pinned by digest. scripts/stage-bundled-runtimes.mjs stages exactly these, scripts/assert-packaged-bundles.mjs proves the packaged output still contains them, and src/main/bedrock/chunker.ts verifies the Chunker jar against this SHA-256 before running it. A change here is a reviewed source change, which is the point: a constant in the repository cannot be moved by whatever answers the network.",
+    "chunker": {
+        "project": "Chunker",
+        "publisher": "Hive Games",
+        "licence": "MIT",
+        "licenceUrl": "https://github.com/HiveGamesOSS/Chunker/blob/main/LICENSE",
+        "version": "1.19.1",
+        "asset": "chunker-cli-1.19.1.jar",
+        "sizeBytes": 31790149,
+        "sha256": "327662e8632acdb4571f60939206d605418ac0633741e1e5a58f5d6c6866dc74",
+        "url": "https://github.com/HiveGamesOSS/Chunker/releases/download/1.19.1/chunker-cli-1.19.1.jar",
+        "packagedPath": "bundled/chunker/chunker-cli-1.19.1.jar"
+    },
+    "java": {
+        "project": "Eclipse Temurin JRE",
+        "release": "jdk-25.0.4.1+1",
+        "version": "25.0.4.1+1-LTS",
+        "sha256": "4c95451cea98556def2c54f7782933f52a26d4a36bd85e1d59f0364464828b07",
+        "packagedPath": "bundled/java/bin/java.exe"
+    }
+}

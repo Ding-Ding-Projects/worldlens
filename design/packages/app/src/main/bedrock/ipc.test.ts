@@ -228,7 +228,7 @@ describe("bedrock:detect", () => {
 });
 
 describe("bedrock:chunker", () => {
-    it("reports an absent Chunker honestly, with its licence and the fact it is not bundled", async () => {
+    it("reports an absent Chunker honestly, and does not claim the missing copy is bundled", async () => {
         const { call } = install({ find: async () => CHUNKER_MISSING });
 
         const status = (await call("bedrock:chunker")) as {
@@ -239,9 +239,50 @@ describe("bedrock:chunker", () => {
 
         expect(status.lookup.found).toBe(false);
         expect(status.licence).toMatchObject({ spdx: "MIT", holder: "Hive Games", bundled: false });
-        expect(status.licence.note).toContain("permits redistribution");
+        expect(status.licence.note).toContain("MIT licensed");
         expect(status.available.digestTrust).toBe("pinned");
         expect(status.available.verificationNote).toContain("do not publish a signature");
+    });
+
+    it("says the converter is bundled when the bundled copy is the one that resolved", async () => {
+        // The row that was wrong for a whole release. `bundled` is a statement about the
+        // copy in front of this person, so it has to follow the lookup rather than a
+        // constant somebody wrote once and nobody revisited when the jar went into the
+        // installer.
+        const { call } = install({
+            find: async () => ({
+                found: true,
+                source: "bundled",
+                jarPath: "/app/resources/bundled/chunker/chunker-cli-1.19.1.jar",
+                version: "1.19.1",
+            }),
+        });
+
+        const status = (await call("bedrock:chunker")) as {
+            licence: { bundled: boolean; note: string };
+        };
+
+        expect(status.licence.bundled).toBe(true);
+        expect(status.licence.note).toContain("inside its own installer");
+        expect(status.licence.note).not.toContain("does not bundle");
+    });
+
+    it("passes resourcesPath through, so a packaged build can see its own bundled jar", async () => {
+        // The defect, stated as a test: registering the handlers with a resourcesPath and
+        // never handing it to the resolver is exactly what shipped, and it is invisible from
+        // inside `findChunker`'s own suite.
+        let seen: string | null | undefined = undefined;
+        const { call } = install({
+            resourcesPath: "/app/resources",
+            find: async (lookupOptions) => {
+                seen = lookupOptions.resourcesPath ?? null;
+                return CHUNKER_MISSING;
+            },
+        });
+
+        await call("bedrock:chunker");
+
+        expect(seen).toBe("/app/resources");
     });
 });
 

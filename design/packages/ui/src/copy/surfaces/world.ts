@@ -1920,25 +1920,31 @@ export const WORLD_VOICED = {
     /*
      * Chunker missing, and being fetched. A separate button from Convert on purpose - see
      * `bedrock:fetchChunker`'s own doc comment - and this is the explanation shown before
-     * that button does anything: what it is, that this app does not bundle it, and that the
-     * download is verified against a digest committed in this app rather than merely
-     * trusted. `{size}` is the one interpolated fact; the digest-verification sentence is a
-     * fact every level has to keep saying, pinned in `WORLD_FACTS` below.
+     * that button does anything.
+     *
+     * It used to say the app "does not bundle" Chunker. That stopped being true when the jar
+     * went into the installer, and for one whole release it was the app denying it owned
+     * something it was shipping: v1.0.2026 carried `resources/bundled/chunker/` and told every
+     * user to go and fetch it anyway. The row now appears only when the bundled copy is
+     * genuinely absent - a development checkout, or an install missing the file - and says what
+     * the app will do about that rather than what the person should go and do. `{size}` is the
+     * one interpolated fact; the digest-verification sentence is a fact every level has to keep
+     * saying, pinned in `WORLD_FACTS` below.
      */
     "bedrock.chunkerMissing": {
         en: [
-            "Chunker is a separate open-source converter this app does not bundle. Converting this world means fetching it once ({size}), verified against a digest committed in this app.",
-            "Chunker is a separate open-source converter this app does not bundle. Converting this world means fetching it once ({size}), verified against a digest committed in this app.",
-            "Chunker is a separate open-source converter, and this app does not carry a copy of it. Converting this world means fetching it once ({size}), verified against a digest committed in this app before it is trusted.",
-            "Chunker is a separate open-source project this app never bundles. Converting this world means fetching it once ({size}), and what arrives is checked against a digest committed right here in this app, not merely assumed to be intact.",
-            "Chunker lives on its own as a separate open-source project - this app carries none of it in advance. Converting this world means fetching it once ({size}), and every byte that arrives is checked against a digest committed right here in this app before anything trusts it.",
+            "Chunker normally ships inside this app, but this build has no copy on disk. The app can fetch the same pinned jar ({size}), verified against a digest committed in this app.",
+            "Chunker normally ships inside this app, but this build has no copy on disk. The app can fetch the same pinned jar ({size}), verified against a digest committed in this app.",
+            "Chunker normally ships inside this app, and this build has no copy of it on disk. The app can fetch the same pinned jar ({size}) from Hive Games' own release, verified against a digest committed in this app before it is trusted.",
+            "Chunker normally travels inside this app's own installer, and this build has arrived without it. The app can fetch the same pinned jar ({size}) from Hive Games' own release, and what lands is checked against a digest committed right here, not merely assumed to be intact.",
+            "Chunker normally rides along inside this app's own installer, and this particular build has turned up without it. The app can fetch the very same pinned jar ({size}) straight from Hive Games' own release, and every byte that lands is checked against a digest committed right here before anything trusts it.",
         ],
         yue: [
-            "Chunker 係一個獨立嘅開源轉換工具，呢個程式冇帶住佢。轉換呢個世界要落載一次（{size}），並且會同呢個程式入面寫死嘅 digest 對過先。",
-            "Chunker 係一個獨立嘅開源轉換工具，呢個程式冇帶住佢。轉換呢個世界要落載一次（{size}），並且會同呢個程式入面寫死嘅 digest 對過先。",
-            "Chunker 係一個獨立嘅開源轉換工具，呢個程式根本冇帶佢喺身。轉換呢個世界要落載一次（{size}），落到嚟仲要同呢個程式入面寫死嘅 digest 對過先信得過。",
-            "Chunker 係一個完全獨立嘅開源專案，呢個程式從來冇夾埋佢。轉換呢個世界要落載一次（{size}），落到嚟嗰份會同寫死喺呢個程式入面嘅 digest 對過，唔係求其信咗佢就算。",
-            "Chunker 自己一個開源專案咁企喺度，呢個程式一啲都冇預先帶埋。轉換呢個世界要落載一次（{size}），落到嚟嘅每一個位元組都會同寫死喺呢個程式入面嘅 digest 對過先，冇對過就唔會信。",
+            "呢個程式平常會將 Chunker 帶埋喺安裝檔入面，不過呢個版本喺磁碟上找唔到佢。程式可以自己落載同一份釘死嘅 jar（{size}），並且會同寫死喺程式入面嘅 digest 對過。",
+            "呢個程式平常會將 Chunker 帶埋喺安裝檔入面，不過呢個版本喺磁碟上找唔到佢。程式可以自己落載同一份釘死嘅 jar（{size}），並且會同寫死喺程式入面嘅 digest 對過。",
+            "呢個程式平常會將 Chunker 帶埋喺安裝檔入面，而呢個版本喺磁碟上冇一份。程式可以直接喺 Hive Games 自己嘅發佈落載同一份釘死嘅 jar（{size}），落到嘅要同寫死喺程式入面嘅 digest 對過先信得過。",
+            "Chunker 平常係跟埋呢個程式嘅安裝檔一齊行嘅，不過呢個版本冇帶到佢。程式可以喺 Hive Games 自己嘅發佈落載同一份釘死嘅 jar（{size}），落到嘅那份會同寫死喺呢度嘅 digest 對過，唔係求其信咗佢就算。",
+            "Chunker 平常係坐埋呢個程式嘅安裝檔一齊過來嘅，而呢個版本就冇帶到佢。程式可以直接喺 Hive Games 自己嘅發佈落載同一份釘死嘅 jar（{size}），落到嘅每一個位元組都會同寫死喺呢度嘅 digest 對過先，冇對過就唔會信。",
         ],
     },
     "bedrock.fetchingChunker": {
@@ -2468,6 +2474,26 @@ export const WORLD_FIXED = {
      * `BedrockConversionNote.vue` - so this stays a plain button label rather than a
      * voiced sentence with its own funny levels.
      */
+    /* Which converter is about to run, and where it came from. An installed build answers
+       "bundled"; the other three exist because somebody chose them or an earlier version
+       fetched one. Naming the source is what stops a shipped converter from being invisible. */
+    "bedrock.chunkerBundled": {
+        en: "Chunker {version} ships with this app. Nothing is downloaded to convert this world.",
+        yue: "Chunker {version} 係跟住呢個程式一齊嚟嘅。轉換呢個世界唔使落載任何嘢。",
+    },
+    "bedrock.chunkerConfigured": {
+        en: "Using the Chunker {version} jar chosen in settings, rather than the copy that ships with this app.",
+        yue: "而家用緊設定入面揀嘅 Chunker {version} jar，唔係跟住程式嚟嗰份。",
+    },
+    "bedrock.chunkerEnvironment": {
+        en: "Using the Chunker {version} jar named by the CHUNKER_CLI_JAR environment variable.",
+        yue: "而家用緊 CHUNKER_CLI_JAR 環境變數指住嘅 Chunker {version} jar。",
+    },
+    "bedrock.chunkerDownloaded": {
+        en: "Using the Chunker {version} jar this app downloaded earlier and keeps in its own data folder.",
+        yue: "而家用緊程式之前落載、擺喺自己資料夾入面嗰份 Chunker {version} jar。",
+    },
+    "bedrock.retryFetchChunker": { en: "Try the download again", yue: "再試落載一次" },
     "bedrock.fetchChunkerSized": { en: "Download Chunker ({size})", yue: "落載 Chunker（{size}）" },
     "bedrock.fetchChunker": { en: "Download Chunker", yue: "落載 Chunker" },
     /* What `bedrock.chunkerMissing` interpolates when the release's own size was not read. */

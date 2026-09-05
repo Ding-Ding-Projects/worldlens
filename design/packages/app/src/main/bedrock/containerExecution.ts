@@ -20,7 +20,7 @@ import { execFileCommandRunner } from '../runtime/command.js';
 import { APPROVED_CHUNKER_IMAGE, resolveApprovedChunkerImage } from './approvedImage.js';
 
 export const CONTAINER_CHANNELS = ['bedrock:containerImages','bedrock:containerStart','bedrock:containerState','bedrock:containerCancel'] as const;
-interface Options { ipcMain: IpcMain; dataDir: string; configuredJar?: string | null; resolveJava:()=>Promise<{ok:true;executable:string}|{ok:false;message:string}> }
+interface Options { ipcMain: IpcMain; dataDir: string; configuredJar?: string | null; resourcesPath?: string | null; resolveJava:()=>Promise<{ok:true;executable:string}|{ok:false;message:string}> }
 interface State { id: string; phase: string; percent: number; logs: string[]; complete: boolean; ok: boolean; output: string | null; message: string; runtimeImage: string|null }
 export function installChunkerContainerIpc(options: Options): void {
     const states = new Map<string, State>();
@@ -53,7 +53,7 @@ export function installChunkerContainerIpc(options: Options): void {
         if(sender.isDestroyed())throw Error('The originating window is no longer available.');
         sender.once('destroyed',stopPreflight);
         const {lookup,config}=await (async()=>{
-            const lookup=await findChunker({dataDir:options.dataDir,...(options.configuredJar ? {configuredJar:options.configuredJar}:{})});
+            const lookup=await findChunker({dataDir:options.dataDir,...(options.resourcesPath ? {resourcesPath:options.resourcesPath}:{}),...(options.configuredJar ? {configuredJar:options.configuredJar}:{})});
             if(!lookup.found)throw Error(lookup.reason);
             preflightController.signal.throwIfAborted();
             let config=validateChunkerCliConfig(request.config);

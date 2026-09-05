@@ -127,7 +127,15 @@ export interface ChunkerStatus {
         readonly spdx: "MIT";
         readonly holder: "Hive Games";
         readonly url: string;
-        readonly bundled: false;
+        /**
+         * Whether the converter in use is the copy this app's installer carried.
+         *
+         * A `boolean`, not the `false` literal it used to be. The literal was not a type so
+         * much as a policy written into the type system, and it survived the day the jar
+         * actually went into the installer - so the one field that could have contradicted
+         * the "does not bundle" copy was forbidden from ever doing so.
+         */
+        readonly bundled: boolean;
         readonly note: string;
     };
 }
@@ -155,6 +163,15 @@ export interface BedrockIpcOptions {
     readonly dataDir?: string | null;
     /** A jar path the person chose in settings. */
     readonly configuredJar?: string | null;
+    /**
+     * Electron's `process.resourcesPath` in a packaged build, null in development.
+     *
+     * Without this the app cannot see the Chunker jar its own installer carries, and every
+     * shipped build reports the converter as absent while holding 30 MB of it - which is
+     * exactly what v1.0.2026 did. Passed the same way `resolveJava` is already given
+     * `resourcesPath`, and for the same reason.
+     */
+    readonly resourcesPath?: string | null;
     /**
      * Produces a JVM to run Chunker on, or explains why it cannot.
      *
@@ -199,7 +216,7 @@ export function registerBedrockHandlers(
     ipcMain: IpcMain,
     options: BedrockIpcOptions,
 ): BedrockIpc {
-    installChunkerContainerIpc({ipcMain,dataDir:options.dataDir ?? tmpdir(),resolveJava:options.resolveJava,...(options.configuredJar === undefined ? {} : {configuredJar:options.configuredJar})});
+    installChunkerContainerIpc({ipcMain,dataDir:options.dataDir ?? tmpdir(),resolveJava:options.resolveJava,...(options.resourcesPath == null ? {} : {resourcesPath:options.resourcesPath}),...(options.configuredJar === undefined ? {} : {configuredJar:options.configuredJar})});
     const inspect = options.inspect ?? inspectWorldFolder;
     const find = options.find ?? findChunker;
     const fetch = options.fetch ?? fetchChunker;
@@ -234,6 +251,7 @@ export function registerBedrockHandlers(
     });
     const lookupOptions = (): FindChunkerOptions => ({
         ...(options.dataDir == null ? {} : { dataDir: options.dataDir }),
+        ...(options.resourcesPath == null ? {} : { resourcesPath: options.resourcesPath }),
         ...(options.configuredJar == null ? {} : { configuredJar: options.configuredJar }),
     });
 
@@ -300,15 +318,23 @@ export function registerBedrockHandlers(
                 spdx: "MIT",
                 holder: "Hive Games",
                 url: CHUNKER_LICENCE_URL,
-                // Stated as a fact about this app, not about the licence. MIT permits
-                // bundling; this app chooses not to, and saying so here keeps the interface
-                // from implying a restriction that does not exist.
-                bundled: false,
+                // A fact about the copy in front of this person, not a policy sentence. An
+                // installed build resolves the jar the installer carried and this is true; a
+                // development checkout with nothing staged resolves something else, and
+                // claiming "bundled" there would be the same untrue statement as the one
+                // this row used to make in the opposite direction.
+                bundled: lookup.found && lookup.source === "bundled",
                 note:
-                    "Chunker is a separate open-source project by Hive Games, MIT licensed. " +
-                    "Its licence permits redistribution, but this app does not bundle it: it " +
-                    "is downloaded on request so that people who never convert a world do not " +
-                    "carry it, and so the converter can be updated without a new app release.",
+                    lookup.found && lookup.source === "bundled"
+                        ? "Chunker is a separate open-source project by Hive Games, MIT licensed. " +
+                          "Its licence permits redistribution, and this app ships the pinned " +
+                          `chunker-cli ${pinnedRelease().version} jar inside its own installer, so a ` +
+                          "Bedrock world converts with the network unplugged. Copyright (c) Hive " +
+                          "Games; the MIT licence text travels with the jar."
+                        : "Chunker is a separate open-source project by Hive Games, MIT licensed. " +
+                          "Installed builds of this app carry the pinned chunker-cli jar inside the " +
+                          "installer; this build is running the copy named above instead, which is " +
+                          "ordinary in a development checkout or when a jar has been chosen by hand.",
             },
         };
     });
