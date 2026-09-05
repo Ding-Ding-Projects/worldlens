@@ -21,7 +21,14 @@
 // 48px is the row's own block-size; +2 folds in `.wl-rail__items`'s 2px inter-item gap so the
 // per-item cost used for the fitting arithmetic matches what each additional row actually
 // costs, rather than under-counting by exactly the gap and drifting over budget one item late.
-export const RAIL_SHORTCUT_ITEM_PX = 50;
+//
+// The row is a 48px *minimum*, not a fixed height, because its label wraps rather than
+// truncating (see `.wl-rail-label--compact`) and a personal-vocabulary replacement is free to be
+// longer than the shipped short label. Three wrapped lines at 11px/1.25 plus the row's own 8px
+// of block padding is ~50px, so 52 is a row that has grown as far as any plausible replacement
+// takes it, plus the 2px gap. Budgeting the grown row rather than the shipped one is what keeps
+// the four destinations from being pushed out of view by a longer word.
+export const RAIL_SHORTCUT_ITEM_PX = 52;
 export const RAIL_MORE_BUTTON_PX = 50;
 /** `.wl-rail__shortcuts`'s own margin-block-start (8) + padding-block-start (8) + its 1px
  *  top border - the fixed cost of the divider between destinations and shortcuts, spent once
