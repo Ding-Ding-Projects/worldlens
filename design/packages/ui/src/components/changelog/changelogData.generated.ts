@@ -26,6 +26,27 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "5d61ee48f3d3ae39f1786c843f3048f73bfe7c51",
+        shortSha: "5d61ee48f3",
+        date: "2026-09-05T14:32:54-04:00",
+        subject: "Merge commit '54e44695' (legacy Chunker archive name), tests from both sides kept",
+        details: "",
+        category: "interface",
+        areas: ["interface", "shell", "build", "docs"],
+        files: 10,
+        summarizes: 2,
+    },
+    {
+        sha: "54e44695ef3d90568b40b98f8b0bd7d1906a233a",
+        shortSha: "54e44695ef",
+        date: "2026-09-05T13:44:31-04:00",
+        subject: "Collect a pre-upgrade conversion under the name its run actually used",
+        details: "Records saved before `dispatchedOutputName` existed were dispatched with an\n`output-name` of `converted-<id>`, and the workflow names the inner archive\n`${OUTPUT_NAME}.zip`, so those runs produced `converted-<id>.zip`. The collect\nfallback asked for `converted-world-<id>.zip` instead, a name no historical run\never wrote, so `stat` rejected with ENOENT and a verified download was thrown\naway. `load()` cannot recover the dispatched value either, because `requestOf`\nonly refills `outputName` with the current default. The fallback now uses the\nprefix the previous build dispatched, and a regression test collects a record\npersisted without the field and asserts the inner archive path it opens.\n\n舊 record 冇 `dispatchedOutputName`，當年 dispatch 出去嘅係 `converted-<id>`，\nworkflow 亦都照咁改名，但收貨嗰陣居然去搵 `converted-world-<id>.zip`，\n搵埋一世都冇。個 zip 明明下載好、digest 又啱晒，就係因為改錯個名而白做。\n而家跟返當年真係派出去嗰個名，再加個測試睇實佢開邊個檔案。",
+        category: "shell",
+        areas: ["shell"],
+        files: 2,
+    },
+    {
         sha: "e96b8e1f3cb710c38bc3f42c4f7ce4b28061bc21",
         shortSha: "e96b8e1f3c",
         date: "2026-09-05T14:24:24-04:00",

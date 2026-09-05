@@ -22,6 +22,7 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Merge commit '54e44695' (legacy Chunker archive name), tests from both sides kept - [`5d61ee48f3`](https://github.com/Ding-Ding-Projects/worldlens/commit/5d61ee48f3d3ae39f1786c843f3048f73bfe7c51) _(summary of 2 commits, also listed here)_
 - Merge commit '22cbda5a' - [`876a7b7456`](https://github.com/Ding-Ding-Projects/worldlens/commit/876a7b74567db0dcd75752811924fe1d55cdd840) _(summary of 2 commits, also listed here)_
 - Name each attachable run in its own row controls - [`22cbda5aeb`](https://github.com/Ding-Ding-Projects/worldlens/commit/22cbda5aeb2608f775b0ea88ca6a3ee8f2ccb205)
 - Merge commit '3e33034e' - [`99a974dab6`](https://github.com/Ding-Ding-Projects/worldlens/commit/99a974dab6ee69d593fad3cd9363c4df7e6cf96b) _(summary of 2 commits, also listed here)_
@@ -38,6 +39,7 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
+- Collect a pre-upgrade conversion under the name its run actually used - [`54e44695ef`](https://github.com/Ding-Ding-Projects/worldlens/commit/54e44695ef3d90568b40b98f8b0bd7d1906a233a)
 - Merge commit '2048964a' - [`1e6c0f2b39`](https://github.com/Ding-Ding-Projects/worldlens/commit/1e6c0f2b39dc7d0950bd4b7d8158073e38697d02) _(summary of 2 commits, also listed here)_
 - Let a read-only repository hand over a render it already finished - [`2048964aeb`](https://github.com/Ding-Ding-Projects/worldlens/commit/2048964aebedcec6d5070d308768aac5266b4c94)
 - Merge commit '2c53204c' - [`8d151b99fa`](https://github.com/Ding-Ding-Projects/worldlens/commit/8d151b99fafeb6f3986cd4445208b7135933e5c7) _(summary of 2 commits, also listed here)_

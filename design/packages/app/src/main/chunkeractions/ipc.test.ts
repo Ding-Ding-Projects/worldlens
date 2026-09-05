@@ -3,11 +3,10 @@ import type {IpcMain} from 'electron';import {describe,it,expect,vi} from 'vites
 vi.mock('../cirender/transport.js',()=>({brokerCliTransport:vi.fn()}));
 vi.mock('../cirender/upload.js',()=>({uploadWorldForRender:vi.fn()}));
 import {brokerCliTransport} from '../cirender/transport.js';
+import {installChunkerActionsIpc} from './ipc.js';
 vi.mock('../download/extract.js',async(importOriginal)=>({...(await importOriginal<object>()),extractZip:vi.fn()}));
 vi.mock('../bedrock/convert.js',async(importOriginal)=>({...(await importOriginal<object>()),verifyConvertedWorld:vi.fn()}));
 vi.mock('../bedrock/outputValidation.js',()=>({validateConvertedPayload:vi.fn()}));
-import {installChunkerActionsIpc} from './ipc.js';
-import {brokerCliTransport} from '../cirender/transport.js';
 import {extractZip} from '../download/extract.js';
 import {verifyConvertedWorld} from '../bedrock/convert.js';
 import {validateConvertedPayload} from '../bedrock/outputValidation.js';
@@ -68,6 +67,10 @@ describe('conversion start upload consent',()=>{
             expect(own.value.message).toContain('Confirm the world upload');
             expect(dispatched).toHaveLength(1);
         }finally{await service.dispose();vi.mocked(brokerCliTransport).mockReset();await rm(root,{recursive:true,force:true});}
+    });
+});
+
+
 describe('collecting a conversion dispatched by an earlier build',()=>{
     it('reads the inner archive under the output name that build actually dispatched',async()=>{
         const root=await mkdtemp(join(tmpdir(),'chunker-legacy-')),sender=new Sender(),id=randomUUID();
