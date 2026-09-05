@@ -10,8 +10,8 @@ import {
 } from "../bluemap.js";
 import { chunksInRegionRectangle, type WorldMeasurement } from "../world/measure.js";
 import { estimateRenderSeconds, formatDuration, type Estimate } from "./estimate.js";
-import { estimateDiskBytes, formatBytes, type DiskEstimate } from "./disk.js";
-import { DEFAULT_MERGE_GROUP_SIZE } from "../resume/mergeTree.js";
+import { estimateDiskBytes, formatBytes, TILE_OUTPUT_RATIO, type DiskEstimate } from "./disk.js";
+import { chooseMergeGroupSize, DEFAULT_MERGE_GROUP_SIZE } from "../resume/mergeTree.js";
 
 /** One unit of parallel work: a rectangle of the world, rendered by one Actions job. */
 export interface Shard {
@@ -50,6 +50,14 @@ export interface ShardPlan {
     estimate: Estimate;
     /** how much free disk this plan needs, at its two disk-heaviest points */
     disk: DiskEstimate;
+    /**
+     * Shards one merge-group job can safely take on, chosen so its shards' tile bytes
+     * stay under the merge memory budget (see `chooseMergeGroupSize` in
+     * `resume/mergeTree.ts`). `plan` and `waves` both use this as their merge-group
+     * size unless a caller explicitly overrides it with `--group-size`, so the two
+     * commands can never disagree about how the plan's shards are grouped.
+     */
+    mergeGroupSize: number;
     /** seconds one job is allowed to spend rendering */
     budgetSeconds: number;
     /** how many shards the estimate asked for, before any cap was applied */
@@ -408,6 +416,19 @@ export function planShards(measurement: WorldMeasurement, options: PlanOptions):
             : largestShardChunkCount / measurement.chunkCount;
     const disk = estimateDiskBytes({ worldBytes: measurement.bytes, largestShardFraction });
 
+    // Total tile bytes across every shard, not only the busiest one: `disk.shardTileBytes`
+    // is scaled by `largestShardFraction` for the disk check above, but a merge group's
+    // memory risk comes from the sum of ITS shards' tiles, so the group sizing below needs
+    // the plan-wide total. Tile bytes scale with the world's own size regardless of how it
+    // is sharded, so this is the same `TILE_OUTPUT_RATIO` estimate `estimateDiskBytes` uses
+    // internally, just without the busiest-shard fraction applied.
+    const totalTileBytes = measurement.bytes * TILE_OUTPUT_RATIO;
+    const mergeGroupSize = chooseMergeGroupSize({
+        totalTileBytes,
+        shardCount: Math.max(1, shards.length),
+        cap: options.groupSize,
+    });
+
     decision.push(
         "Needs roughly " +
             formatBytes(disk.requiredBytes) +
@@ -433,6 +454,7 @@ export function planShards(measurement: WorldMeasurement, options: PlanOptions):
         },
         estimate,
         disk,
+        mergeGroupSize,
         budgetSeconds,
         requestedShards,
         grid,

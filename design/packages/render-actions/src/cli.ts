@@ -362,7 +362,14 @@ async function commandPlan(args: Args): Promise<number> {
     const waves = planWaves(shardIds);
     const tree = planMergeTree(
         shardIds,
-        optionalNumber(args, "group-size") ?? DEFAULT_MERGE_GROUP_SIZE,
+        // The plan already worked out how many shards one merge group can safely take on
+        // without a group's job needing more decoded-tile memory than a hosted runner has
+        // (`chooseMergeGroupSize`, `resume/mergeTree.ts`). Both this command and `plan`
+        // itself default to that, so the plan step's `group-count`/`group-ids` outputs and
+        // this command's own re-derivation of the tree (called once per merge job, from
+        // the same shard-plan.json) can never disagree about how the shards are grouped.
+        // `--group-size` remains available to force a different value, same as before.
+        optionalNumber(args, "group-size") ?? plan.mergeGroupSize ?? DEFAULT_MERGE_GROUP_SIZE,
     );
 
     const outputs: [string, string][] = [
@@ -566,7 +573,14 @@ async function commandWaves(args: Args): Promise<number> {
     const waves = waveSize === undefined ? planWaves(shardIds) : planWaves(shardIds, waveSize);
     const tree = planMergeTree(
         shardIds,
-        optionalNumber(args, "group-size") ?? DEFAULT_MERGE_GROUP_SIZE,
+        // The plan already worked out how many shards one merge group can safely take on
+        // without a group's job needing more decoded-tile memory than a hosted runner has
+        // (`chooseMergeGroupSize`, `resume/mergeTree.ts`). Both this command and `plan`
+        // itself default to that, so the plan step's `group-count`/`group-ids` outputs and
+        // this command's own re-derivation of the tree (called once per merge job, from
+        // the same shard-plan.json) can never disagree about how the shards are grouped.
+        // `--group-size` remains available to force a different value, same as before.
+        optionalNumber(args, "group-size") ?? plan.mergeGroupSize ?? DEFAULT_MERGE_GROUP_SIZE,
     );
 
     const output: [string, string][] = [

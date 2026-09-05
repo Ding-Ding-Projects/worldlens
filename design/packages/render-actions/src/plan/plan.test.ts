@@ -342,6 +342,58 @@ describe("not buying speed with the map itself", () => {
     });
 });
 
+describe("memory-aware merge group sizing", () => {
+    // The failure this guards: a 10 GB world split into 30 shards was planned with a
+    // single flat merge group of all 30, and that group's job was killed by its
+    // runner's memory limit while merging the lowres layers. `mergeGroupSize` is chosen
+    // so a group of that many shards' tiles stays under the merge memory budget.
+    it("splits a 10 GB, 30-shard world into more than one merge group", () => {
+        const world = denseWorld(51); // ~10.9 GB at the default density
+        const plan = planShards(world, {
+            mapId: "world",
+            budgetSeconds: 4 * 3600,
+            maxJobs: 256,
+            forceShards: 30,
+            ...layout,
+        });
+
+        expect(plan.shards.length).toBe(30);
+        expect(plan.mergeGroupSize).toBeLessThan(30);
+        expect(plan.mergeGroupSize).toBeGreaterThan(1);
+    });
+
+    it("keeps a small world's shards in one merge group", () => {
+        const world = denseWorld(5); // a fraction of a GB
+        const plan = planShards(world, {
+            mapId: "world",
+            budgetSeconds: 4 * 3600,
+            maxJobs: 256,
+            forceShards: 5,
+            ...layout,
+        });
+
+        // `forceShards` is a request, not a promise: `chooseGrid` lays out the closest
+        // grid it can on a 5x5 world, which need not be exactly 5 cells. What matters
+        // here is that however many shards it produced, they still fit in one group.
+        expect(plan.shards.length).toBeGreaterThan(0);
+        expect(plan.mergeGroupSize).toBeGreaterThanOrEqual(plan.shards.length);
+        expect(plan.mergeGroupSize).toBeLessThanOrEqual(DEFAULT_MERGE_GROUP_SIZE);
+    });
+
+    it("never exceeds the default cap, however dense the world", () => {
+        const world = denseWorld(51);
+        const plan = planShards(world, {
+            mapId: "world",
+            budgetSeconds: 4 * 3600,
+            maxJobs: 256,
+            forceShards: 2,
+            ...layout,
+        });
+
+        expect(plan.mergeGroupSize).toBeLessThanOrEqual(DEFAULT_MERGE_GROUP_SIZE);
+    });
+});
+
 describe("the plan's disk estimate", () => {
     it("gives an unsharded plan the whole map's worth of tiles, not a shard's fraction", () => {
         const plan = planShards(denseWorld(2), { mapId: "world", budgetSeconds: 4 * 3600, ...layout });
