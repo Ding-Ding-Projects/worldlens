@@ -22,6 +22,14 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Gate the Chunker Actions screen's copy in the coverage test - [`c50be6fc26`](https://github.com/Ding-Ding-Projects/worldlens/commit/c50be6fc2681f64da011ec70e5c2737f78953d83)
+
+## 1.0.2010 - 2026-09-05
+
+Tagged at [`e4cd9efb40`](https://github.com/Ding-Ding-Projects/worldlens/commit/e4cd9efb4053d8a49059e1ebb8b6269face0ead1).
+
+### Interface
+
 - Merge commit '28294f9d' - [`8d47d86cd4`](https://github.com/Ding-Ding-Projects/worldlens/commit/8d47d86cd42dbd03bf67f086218c3964e451bb9c) _(summary of 2 commits, also listed here)_
 - Cover every chunk-world.yml dispatch input in the Chunker Actions UI - [`28294f9dfd`](https://github.com/Ding-Ding-Projects/worldlens/commit/28294f9dfd40589f1a343f6fd8a7f9decf0e88ac)
 
@@ -29,6 +37,10 @@ full message for the in-app changelog viewer.
 
 - Merge commit '545b74e3' - [`273b7db1af`](https://github.com/Ding-Ding-Projects/worldlens/commit/273b7db1af1211a53ad9184f7433c373090f63e4) _(summary of 2 commits, also listed here)_
 - Fetch and assemble a multi-group rendered map, not just refuse it - [`545b74e34f`](https://github.com/Ding-Ding-Projects/worldlens/commit/545b74e34fc0ab77a96b23abb7ec32c85d8b5de0)
+
+### Documentation
+
+- Record the Chunker input sweep and multi-group fetch in the handoff, roadmap and changelog - [`e4cd9efb40`](https://github.com/Ding-Ding-Projects/worldlens/commit/e4cd9efb4053d8a49059e1ebb8b6269face0ead1)
 
 ## 1.0.2008 - 2026-09-05
 
