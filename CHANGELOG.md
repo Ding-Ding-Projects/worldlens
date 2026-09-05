@@ -22,6 +22,21 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Register ConfigRegexBuilder once, not twice, in both overlay inventories - [`6c6412e8a0`](https://github.com/Ding-Ding-Projects/worldlens/commit/6c6412e8a0c180a64ccce3f2349223d565e5380b)
+- Merge the downloader lane's guard fixes into integrate/puppies - [`60f54763ed`](https://github.com/Ding-Ding-Projects/worldlens/commit/60f54763ed60dabc4ef08cbe2d9dcc7d1a7302a8) _(summary of 2 commits, also listed here)_
+- Fix six red tests from the world downloader lane: honest seeding, hosted classification, Kid Mode labels, More-menu registries, a real browse button, and a token that never touches the renderer - [`e1a43b7cae`](https://github.com/Ding-Ding-Projects/worldlens/commit/e1a43b7cae6c08a89925dd86433e0a0726b682fa)
+- Merge commit 'b67eea6a' into integrate/puppies - [`74d40c12ed`](https://github.com/Ding-Ding-Projects/worldlens/commit/74d40c12ed870a56e472b9e5bbdef3342b297ef3) _(summary of 2 commits, also listed here)_
+- Register ConfigRegexBuilder.vue in both overlay/menu hand-written inventories - [`b67eea6a89`](https://github.com/Ding-Ding-Projects/worldlens/commit/b67eea6a891ce3a55b231688653e7e0c9e308650)
+- Merge commit 'ca7dc046' into integrate/puppies - [`8e7d931464`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e7d93146412791fa062dfc7dbfb6a70ec9efabc) _(summary of 3 commits, also listed here)_
+- Two more real bugs the previous fix's own captures were still showing - [`ca7dc04620`](https://github.com/Ding-Ding-Projects/worldlens/commit/ca7dc04620acd4f4b5f92de862579083a0f6e743)
+- Give every rail shortcut its own short label, not an ellipsis on the full one - [`ed5ff28c2c`](https://github.com/Ding-Ding-Projects/worldlens/commit/ed5ff28c2c629bb2c2a1f57040d8675a51d0744f)
+- Merge commit '2afb99b3' into integrate/puppies - [`84b57dd4b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/84b57dd4b19574985d744fbcd45312f7fd03a5ee) _(summary of 3 commits, also listed here)_
+- Fix the rail overflow the jsdom test could never have caught - [`2afb99b3cc`](https://github.com/Ding-Ding-Projects/worldlens/commit/2afb99b3ccc6212998ad00fc3c626dc417ca7e1d)
+- Stop the rail eating its own destinations, and the Home row bleeding sideways - [`14d6e1f210`](https://github.com/Ding-Ding-Projects/worldlens/commit/14d6e1f210908b9f2dc0941a54f042c6fbd1217c)
+- Give the narrow settings search its own catalogue entry - [`62eefb07ee`](https://github.com/Ding-Ding-Projects/worldlens/commit/62eefb07ee2f21246d83aa2e09c68d06cc945c0e)
+- Merge commit 'f413d34b' into integrate/puppies - [`6db5c74222`](https://github.com/Ding-Ding-Projects/worldlens/commit/6db5c74222ac98a25fea70918f8ea523c4990b77) _(summary of 2 commits, also listed here)_
+- Actually go single-column below 600px: real overflow found and fixed at 320px - [`f413d34bfa`](https://github.com/Ding-Ding-Projects/worldlens/commit/f413d34bfa88bfe6bd94ca49f63ded4460366ace)
+- Anchor the changelog trailer guard to line starts - [`dc958181f5`](https://github.com/Ding-Ding-Projects/worldlens/commit/dc958181f5e3b21271999e995ad82a5e96267675)
 - Merge commit 'd72cecc4' into integrate/puppies - [`1f2e726bb2`](https://github.com/Ding-Ding-Projects/worldlens/commit/1f2e726bb266caf2eb228bf031554018c0cbbde2) _(summary of 3 commits, also listed here)_
 - Give the rail shortcuts, without lying about what four means - [`d72cecc430`](https://github.com/Ding-Ding-Projects/worldlens/commit/d72cecc430a480ef62fc323a9f19197e740fcceb)
 - Actually reach the world downloader from the shell, and type the fakes properly - [`4f4e0cc742`](https://github.com/Ding-Ding-Projects/worldlens/commit/4f4e0cc74298fbfadd7975fe9a488b2283bb6750)
@@ -35,8 +50,15 @@ full message for the in-app changelog viewer.
 - Connect container conversion routes and inspect complete world settings - [`f09457d399`](https://github.com/Ding-Ding-Projects/worldlens/commit/f09457d3999f28ba1492e9687967e9555656bba3)
 - Localize measured world generation and document its workflow - [`b713cda934`](https://github.com/Ding-Ding-Projects/worldlens/commit/b713cda934ef8510c40625a95f3135bdca5eafe8)
 
+### Rendering and world data
+
+- Merge commit 'cbd07077' into integrate/puppies - [`a79d63bee6`](https://github.com/Ding-Ding-Projects/worldlens/commit/a79d63bee62565cb15775f75b9912b36c76b01bf) _(summary of 2 commits, also listed here)_
+- Stop a 30-shard merge group from being killed for memory, and stream lowres decode - [`cbd0707795`](https://github.com/Ding-Ding-Projects/worldlens/commit/cbd070779521d2647a61f335ede79bd4598d7da6)
+
 ### Desktop shell
 
+- Merge commit 'ae00618d' into integrate/puppies - [`586e742903`](https://github.com/Ding-Ding-Projects/worldlens/commit/586e742903ebf967865d335b347f2e27f71d2486) _(summary of 2 commits, also listed here)_
+- Fix three integration-tip poke guys: hosted classification, workflow drift, packaging split - [`ae00618d12`](https://github.com/Ding-Ding-Projects/worldlens/commit/ae00618d1285581214d285bf8e50c23570c1e8a7)
 - Register the world downloader with the main process, at long last - [`9a5aa19089`](https://github.com/Ding-Ding-Projects/worldlens/commit/9a5aa19089c90ecb14e8119d456a91e1889c6124)
 - Merge commit 'c65df076' into integrate/puppies - [`8e7f0185d3`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e7f0185d38eeb7f5619e47222d3e2a8629e81d1) _(summary of 10 commits, also listed here)_
 - Preserve partial Chunker review fixes - [`d60939076f`](https://github.com/Ding-Ding-Projects/worldlens/commit/d60939076f5626ffb7bb7e6a8f0c093565b6bd2e)
@@ -59,7 +81,19 @@ full message for the in-app changelog viewer.
 
 ### Build, release and tooling
 
+- Stop the settings capture script writing the retired rail filename - [`ded937e797`](https://github.com/Ding-Ding-Projects/worldlens/commit/ded937e797e4a23737ba9105634920b9b3be64bd)
+- Merge commit '671ff6d6' into integrate/puppies - [`88593a0cc7`](https://github.com/Ding-Ding-Projects/worldlens/commit/88593a0cc771dd0218c8bf6380f5028c36033398) _(summary of 3 commits, also listed here)_
+- Auto-scale Chunker round-trip timeout with world size, report real partial bytes - [`671ff6d6fa`](https://github.com/Ding-Ding-Projects/worldlens/commit/671ff6d6fa7d6bf3b967a4c934979eb72ca3ea35)
+- Add fixture generation and real-Chunker round-trip proof scripts - [`d856f150ef`](https://github.com/Ding-Ding-Projects/worldlens/commit/d856f150ef9dcd2086b0fe89009d45431cb008a2)
 - Merge remote-tracking branch 'origin/main' into task/chunker-complete-finish - [`a30b8afd8e`](https://github.com/Ding-Ding-Projects/worldlens/commit/a30b8afd8ed34086bfab3446e976a1d34ba92330) _(summary of 11 commits, also listed here)_
+
+### Documentation
+
+- Record the large-world pass in the handoff and roadmap, pending rows named - [`5870386174`](https://github.com/Ding-Ding-Projects/worldlens/commit/5870386174f8e5a0a946a76a102c3d73c4925376)
+- Merge commit '29695c32' into integrate/puppies - [`772c3df31a`](https://github.com/Ding-Ding-Projects/worldlens/commit/772c3df31a0ee698ee7129a19c705ae78c662fab) _(summary of 2 commits, also listed here)_
+- Replace the stale rail evidence with fresh captures of the actual fix - [`29695c325c`](https://github.com/Ding-Ding-Projects/worldlens/commit/29695c325c41aead7d26ae3558957318ab87aba1)
+- Merge commit '3ce03dc7' into integrate/puppies - [`d52fc852ef`](https://github.com/Ding-Ding-Projects/worldlens/commit/d52fc852efbec010a084efacf29a5b6f0fd3bd97) _(summary of 2 commits, also listed here)_
+- Commit the CDP capture script and land its 12 evidence images under guard - [`3ce03dc7d2`](https://github.com/Ding-Ding-Projects/worldlens/commit/3ce03dc7d2531284bb843f54324ba5cec55bc0b0)
 
 ### Elsewhere in the repository
 
