@@ -69,7 +69,7 @@ function requestOf(value: unknown): ChunkerActionsRequest {
         acknowledgeUpload: r.acknowledgeUpload === true, acknowledgePublic: r.acknowledgePublic === true };
 }
 async function workflowText(options: Options): Promise<string> {
-    if (options.packaged) return readFile(join(options.resourcesDir, "workflows", CHUNK_WORKFLOW_FILE), "utf8");
+    if (options.packaged) return readFile(join(options.resourcesDir, "chunk-workflow", CHUNK_WORKFLOW_FILE), "utf8");
     let directory = dirname(fileURLToPath(import.meta.url));
     for (let depth = 0; depth < 12; depth++) {
         const candidate = join(directory, ".github", "workflows", CHUNK_WORKFLOW_FILE);

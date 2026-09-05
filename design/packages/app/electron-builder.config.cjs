@@ -163,7 +163,21 @@ module.exports = {
         {
             from: "../../../.github/workflows",
             to: "workflows",
-            filter: ["render-world.yml", "render-shard-wave.yml", "scheduled-render.yml", "chunk-world.yml"],
+            filter: ["render-world.yml", "render-shard-wave.yml", "scheduled-render.yml"],
+        },
+        // chunk-world.yml is bootstrapped into a target repository by chunkerActions:prepare
+        // (packages/app/src/main/chunkeractions/ipc.ts), a completely separate feature from
+        // the cirender bootstrap above. It genuinely is a managed template written into other
+        // repositories, but it must never join the "workflows" filter above: that list is
+        // exactly CI_WORKFLOW_FILE_NAMES, and bootstrapCiRepository() writes every one of
+        // those into a repository unconditionally whenever someone bootstraps CI for map
+        // rendering. Folding chunk-world.yml into that list would make a map-rendering
+        // bootstrap silently install the Chunker conversion workflow too, for users who
+        // never asked for it. It gets its own destination instead.
+        {
+            from: "../../../.github/workflows",
+            to: "chunk-workflow",
+            filter: ["chunk-world.yml"],
         },
         // Recovery mode is deliberately independent of the ordinary renderer bundle and
         // preload. These two local assets let the minimal no-script recovery window retain
