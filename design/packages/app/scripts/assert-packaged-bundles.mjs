@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * assert-packaged-bundles.mjs - prove the runtimes are in the packaged output, not the config.
  *
