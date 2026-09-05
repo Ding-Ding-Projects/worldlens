@@ -32,6 +32,7 @@ import {
     syncIdFor,
     writeCiSyncState,
 } from "./state.js";
+import type { GhCredentialAccess } from "../ghcli/credentialBroker.js";
 import type { CiSyncState } from "./state.js";
 import { CiRenderSync, VERIFIED_MAP_UPLOAD_STEP } from "./sync.js";
 import type { CiSyncEvent, CiSyncRequest } from "./sync.js";
@@ -150,11 +151,16 @@ function makeSync(options: {
     mounts?: LocalMapHandler;
     eulaAccepted?: boolean;
     events?: CiSyncEvent[];
+    /** Collects the access level every credential lease was asked for, in order. */
+    accesses?: (GhCredentialAccess | undefined)[];
     writeState?: ((path: string, state: CiSyncState) => Promise<void>) | undefined;
 }): CiRenderSync {
     return new CiRenderSync({
         storageDir: () => join(workDir, "maps"),
-        account: recordingGhAccountProvider(options.github),
+        account: recordingGhAccountProvider(
+            options.github,
+            options.accesses === undefined ? {} : { accesses: options.accesses },
+        ),
         eulaAccepted: () => options.eulaAccepted ?? true,
         ...(options.mounts === undefined ? {} : { mounts: options.mounts }),
         ...(options.events === undefined
@@ -2212,6 +2218,76 @@ describe("fetching a render made elsewhere", () => {
         expect(saved?.stage).toBe("rendered");
         expect(saved?.mapId).toBe(FOREIGN_MAP_ID);
         expect(saved?.runId).toBe(77);
+    });
+
+    /*
+     * The same fetch, against a repository this account can only read.
+     *
+     * `attach` uploads nothing and dispatches nothing, so the write-permission refusal -
+     * whose own words are about publishing a world and starting a workflow - never
+     * described this path. Refusing here also contradicted `listAttachableRuns`, which
+     * lists a repository's finished runs under a read credential: the picker offered
+     * runs that fetching then turned down. A render made on somebody else's repository,
+     * or on an organization repository this account only reads, is exactly what this
+     * feature exists to collect.
+     */
+    it("collects a run from a repository the account cannot write to", async () => {
+        const site = join(workDir, "read-only-site");
+        await mkdir(join(site, "maps", MAP_ID, "tiles"), { recursive: true });
+        await writeFile(join(site, "settings.json"), '{"maps":["world"]}', "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "settings.json"), "{}", "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "tiles", "0.prbm"), "tile", "utf8");
+        const archive = join(workDir, "read-only-rendered-map.zip");
+        const packed = await packFolder(site, archive);
+        const bytes = new Uint8Array(await readFile(archive));
+
+        const github = baseRoutes(new RecordingGitHub(), true, false)
+            .on("GET", /\/actions\/runs\/43$/, {
+                status: 200,
+                json: runJson({ id: 43, status: "completed", conclusion: "success" }),
+            })
+            .on("GET", "/actions/runs/43/jobs", { status: 200, json: { jobs: [] } })
+            .on("GET", "/actions/runs/43/artifacts", {
+                status: 200,
+                json: {
+                    artifacts: [
+                        artifactJson({
+                            id: 92,
+                            name: "rendered-map",
+                            bytes: bytes.byteLength,
+                            digest: `sha256:${packed.sha256}`,
+                        }),
+                    ],
+                },
+            })
+            .on("GET", "/artifacts/92/zip", { status: 200, bytes });
+
+        const accesses: (GhCredentialAccess | undefined)[] = [];
+        const mounts = new LocalMapHandler();
+        const result = await makeSync({ github, mounts, accesses }).attach({
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            mapId: MAP_ID,
+            runId: 43,
+        });
+
+        expect(result.ok && result.outcome === "rendered").toBe(true);
+        if (!result.ok || result.outcome !== "rendered") return;
+        expect(result.summary.uploaded).toBe(false);
+        expect(mounts.getMounts()).toHaveLength(1);
+        expect(nothingUploaded(github)).toBe(true);
+        expect(github.never("/dispatches")).toBe(true);
+        // A path that writes nothing asks for no credential that could: a real broker
+        // revalidates the account before a write, and there is no write here to guard.
+        expect(accesses.length).toBeGreaterThan(0);
+        expect(accesses.every((access) => access === "read")).toBe(true);
+
+        const syncId = syncIdFor(OWNER, REPO, world, MAP_ID);
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const saved = await readCiSyncState(workspace.stateFile);
+        expect(saved?.stage).toBe("rendered");
+        expect(saved?.runId).toBe(43);
     });
 
     it("refuses an invalid run id before touching GitHub", async () => {
