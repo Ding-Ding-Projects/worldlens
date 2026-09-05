@@ -2077,8 +2077,11 @@ export type DockerWorldFingerprintResult =
  *
  * No method here rejects, for the same reason `DockerWorldBridge` below never does: every
  * possible answer, including "there is no Java on this machine" and "that port is already
- * taken", is a sentence the settings screen has to show, never a stack trace. `saveToken` sends
- * a token in; nothing here ever sends one back out - `status` only reports whether one is held.
+ * taken", is a sentence the settings screen has to show, never a stack trace. `openTokenIntake`
+ * takes no token argument at all: it asks main to open its own isolated intake window (see
+ * `main/worlddownloader/tokenIntakeWindow.ts`), where the token is typed directly and never
+ * crosses into this renderer. Nothing here ever sends a token value back out either -
+ * `status` only reports whether one is held.
  */
 export interface WorldDownloaderBridge {
     status(): Promise<DownloaderStatus>;
@@ -2092,7 +2095,7 @@ export interface WorldDownloaderBridge {
     }): Promise<DownloaderConnectionAnswer>;
     start(request: { readonly settings: DownloaderSettings }): Promise<DownloaderStartAnswer>;
     stop(sessionId: string): Promise<boolean>;
-    saveToken(token: string): Promise<DownloaderTokenAnswer>;
+    openTokenIntake(): Promise<DownloaderTokenAnswer>;
     clearToken(): Promise<boolean>;
     countChunks(outputFolder: string): Promise<DownloaderChunkAnswer>;
     portFree(port: number): Promise<DownloaderPortAnswer>;

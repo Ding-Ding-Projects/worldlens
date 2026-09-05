@@ -402,7 +402,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "worlddownloader:ensureJar",
     "worlddownloader:portFree",
     "worlddownloader:readSettings",
-    "worlddownloader:saveToken",
+    "worlddownloader:openTokenIntake",
     "worlddownloader:start",
     "worlddownloader:status",
     "worlddownloader:stop",

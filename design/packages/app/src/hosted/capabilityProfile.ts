@@ -99,6 +99,29 @@ const EXACT: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
         "The clipboard belongs to the computer running the browser, not to the server, so the server writing to it would be writing to the wrong machine.",
         "The interface copies through the browser's own clipboard instead.",
     ),
+
+    // The world downloader's own exceptions to its otherwise-available prefix below.
+    "worlddownloader:ensureJar": refused(
+        "Same reasoning as java: below - a downloaded jar would be discarded the next time " +
+            "this container is recreated, so fetching one into it is pointless rather than merely risky.",
+    ),
+    "worlddownloader:testConnection": refused(
+        "This pings whatever host and port the caller names, from the container's own " +
+            "network position. Reachable over a network, that is an arbitrary outbound probe " +
+            "a caller could point at anything the container can reach, not only Minecraft servers.",
+    ),
+    "worlddownloader:start": refused(
+        "Starting a download spawns a JVM running the tool jar this container never keeps " +
+            "(see ensureJar above) and needs the Java this deployment does not provide (see java: below).",
+    ),
+    "worlddownloader:stop": refused(
+        "Nothing here can ever be running, because starting one is refused above.",
+    ),
+    "worlddownloader:openTokenIntake": refused(
+        "The token is typed into its own native window, opened by the main process. A " +
+            "container has no desktop and no such window to open - the same reason dialog: is " +
+            "refused below.",
+    ),
 });
 
 /**
@@ -154,6 +177,10 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
     world: available,
     worldrepo: available,
     worldsource: available,
+    // Status, settings, chunk-counting, the port self-probe and clearing a held token are all
+    // reads/writes local to the container's own data directory and its own network position -
+    // see EXACT above for the members of this prefix that are refused instead.
+    worlddownloader: available,
 
     // Reaching past the container, each behind its own explicit grant.
     addons: optIn(

@@ -163,6 +163,7 @@ export const KID_JOB_LABELS: Readonly<Record<string, FixedString>> = {
     "Watch it live": { en: "Watch it now", yue: "而家睇" },
     Backups: { en: "Safe copies", yue: "安全副本" },
     "World repository": { en: "Copy that grows", yue: "會大嘅副本" },
+    "Get a world off a server": { en: "Bring a world home", yue: "帶個世界返屋企" },
     Docs: { en: "Read about it", yue: "睇下資料" },
     Ollama: { en: "Talk to the robot", yue: "同機械人傾偈" },
     // `jobRegistry.ts`'s Memory job spells its `labelFallback` with a lowercase "console" -

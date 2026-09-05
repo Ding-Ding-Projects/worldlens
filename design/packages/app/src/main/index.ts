@@ -119,6 +119,7 @@ import { DOCKERWORLD_EVENT_CHANNEL, registerDockerWorldHandlers } from "./docker
 import type { DockerWorldIpc } from "./dockerworld/index.js";
 import { DOWNLOADER_EVENT_CHANNEL, registerDownloaderHandlers } from "./worlddownloader/ipc.js";
 import type { DownloaderIpc } from "./worlddownloader/ipc.js";
+import { openTokenIntakeWindow } from "./worlddownloader/tokenIntakeWindow.js";
 import { DockerHostingManager, registerDockerHostingHandlers } from "./dockerhosting/index.js";
 import type { DockerHostingIpc } from "./dockerhosting/index.js";
 import {
@@ -1748,6 +1749,11 @@ function startWorldDownloader(): DownloaderIpc {
                 if (!window.isDestroyed())
                     window.webContents.send(DOWNLOADER_EVENT_CHANNEL, event);
             }
+        },
+        openTokenIntake: async (ipcEvent) => {
+            const parent = BrowserWindow.fromWebContents(ipcEvent.sender);
+            const result = await openTokenIntakeWindow({ parent });
+            return result.submitted ? result.token : null;
         },
     });
     app.on("will-quit", () => worldDownloaderIpc?.dispose());

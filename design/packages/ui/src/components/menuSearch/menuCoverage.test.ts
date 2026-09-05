@@ -77,6 +77,22 @@ const DEFAULT_SEARCH_MARKERS = [
  */
 const REGISTRY: readonly MenuRegistryEntry[] = [
     {
+        file: "config/ConfigRegexBuilder.vue",
+        builtVia: "v-menu",
+        menu:
+            "Not a menu-owning file: the '<v-menu>' text the sweep matches is a doc comment " +
+            "naming where this card is anchored - the real v-menu lives in " +
+            "ConfigSearchField.vue, which already carries its own entry below.",
+        status: "not-applicable",
+        reason: "The matched text is a CSS comment, not a real <v-menu> tag; this file builds no menu of its own.",
+    },
+    {
+        file: "shell/AppRail.vue",
+        builtVia: "v-menu",
+        menu: "The rail's own 'More' overflow menu, listing job shortcuts that do not fit the rail's fixed row.",
+        status: "has-search",
+    },
+    {
         file: "appearance/AppearanceTarget.vue",
         builtVia: "v-menu",
         menu: "The generic 'Edit appearance...' context menu every per-element target opens.",

@@ -57,8 +57,11 @@ export const WORLDDOWNLOADER_FIXED = {
         en: "These are the application's own defaults - nothing has been saved yet.",
         yue: "呢啲係程式本身嘅預設值 - 仲未儲存過任何設定。",
     },
-    "worldDownloader.settings.token": { en: "Access token", yue: "Access token" },
-    "worldDownloader.settings.saveToken": { en: "Save token", yue: "儲存 token" },
+    "worldDownloader.settings.openTokenIntake": { en: "Add access token", yue: "新增 access token" },
+    "worldDownloader.settings.tokenIntakeExplain": {
+        en: "The token is typed into its own window, and this screen never sees the value.",
+        yue: "個 token 會喺佢自己嗰個獨立視窗入面打，呢個畫面永遠都睇唔到個值。",
+    },
     "worldDownloader.settings.clearToken": { en: "Forget token", yue: "忘記 token" },
     "worldDownloader.settings.tokenHeld": { en: "A token is held for this computer.", yue: "呢部電腦已經記住咗一個 token。" },
     "worldDownloader.settings.tokenNotHeld": { en: "No token is held.", yue: "冇記住任何 token。" },
