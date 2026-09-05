@@ -15,9 +15,9 @@ respectively, all green. The final pre-`main` verification is recorded below the
 | Measured 10 GB fixture | verified | `fixture-10gb-seed-2002`, 1.20.4, 10,000,003,649 decimal bytes, 2,380 regions, 2,436,647 chunks, 2,208 s, provenance JSON |
 | GitHub Actions render, 1 GB | verified | `builders-home/wl-render-1gb-20260904` run 33929016654: success, 25 min 55 s, 15 jobs green, 12 shards; `rendered-map` downloaded: 60,759 tiles, `textures.json.gz`, 2.4 GB |
 | GitHub Actions split upload, 10 GB | verified | app's own `uploadWorldForRender` through the production credential broker: 7 parts, 10,000,846,398 bytes, sha256 `c1529343…`, 27 min 08 s |
-| GitHub Actions render, 10 GB | attempt 1 failed at merge; attempt 2 in flight | run 33932567847: all 30 shards rendered green (17.65 GB of shard artifacts); the single merge job was cancelled by the platform 8 min into merging with no timeout configured and no cancel issued; the planner's disk decision (35.8 GiB) covers fetch and shard jobs but not the merge job that holds every shard at once; the failed job was re-run against the same artifacts |
+| GitHub Actions render, 10 GB | fix landed; fresh run in flight | run 33932567847: all 30 shards green, the single merge job killed twice by runner memory (exit 143); root cause was lod-1 lowres compositing decoding every shard's PNGs at once plus a flat 32-shard merge group; fixed in `cbd07077` (streamed compositing, memory-bounded `mergeGroupSize` in the plan); the target's workflows pin the toolchain to `a79d63be` and run 33941015721 is rendering the world again; its verdict is not recorded here and must not be assumed |
 | Java to Bedrock to Java, 1 GB | verified | real Chunker CLI: 347 s + 245 s, 243,665/243,665 chunks matched, 162 documented-loss only, 0 undocumented, 0 missing, 0 extra, verdict clean |
-| Java to Bedrock to Java, 10 GB | pending | Java to Bedrock leg complete, Bedrock to Java leg running |
+| Java to Bedrock to Java, 10 GB | stopped, not verified | first attempt killed by the harness's own 50 min timeout (fixed: byte-scaled timeout); the 4 h rerun completed the Java to Bedrock leg and was 4.6 GB into the Bedrock to Java leg when the user stopped local work because the machine was lagging; rerun from `scripts/fixtures/round-trip-chunker.mjs` when the machine is free |
 | Negative Chunker cases | verified | corrupt input, invalid settings, interrupted, unwritable destination: all correctly refused |
 | Local Docker destination | blocked | Docker Desktop engine pipe absent on this host; needs elevation; recorded, not verified |
 | Local 10 GB render | partial | stopped at 6.75 %, resumable |
@@ -38,12 +38,13 @@ into a string literal (edit such lines with raw strings and read them back).
 Release: not yet cut from this branch. The `main` tip is still `365fb3be`; `integrate/puppies`
 is a fast-forward ahead of it. Every lane has landed. The whole-tree verification at `ded937e7` (build, both typechecks at
 zero, lint-workflows and parity green, 68 articles, 230 PNGs, 7/7 node tests) ran 1,035 vitest
-files: 1,020 green, 6 skipped, 9 red. The reds are completeness guards catching the new work
-(seeded-tab inventory, hosted capability classification for the new channels, Kid Mode labels,
-two `<v-menu>` registries, a path field without its browse button, a token-bearing renderer API
-on the downloader bridge, `chunk-world.yml` format drift, and a packaged four-file template set
-against a three-name loader list). Each was sent back to its owning lane; nothing lands on `main`
-until the whole tree is green.
+files: 1,020 green, 6 skipped, 9 red. Every red was a completeness guard catching the new work
+and every one was fixed by its owning lane and re-run green individually on the integrated tree
+(`586e7429`, `74d40c12`, `6c6412e8`); drift, lint-workflows, parity, gallery, bundle and the
+node tests were green again at `6c6412e8`. The second whole-tree vitest run at `6c6412e8` was
+stopped by the user before it finished because the machine was lagging, so the last complete
+whole-tree vitest verdict is the one at `ded937e7` plus the nine individually re-verified files;
+the next owner should run `cd design && npx vitest run` once on a quiet machine.
 
 ## 2026-09-04: preservation handoff, runtime matrix incomplete
 
