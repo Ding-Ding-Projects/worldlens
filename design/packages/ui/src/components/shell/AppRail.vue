@@ -435,16 +435,30 @@ function onMoreMenuChange(open: boolean): void {
                     aria-haspopup="menu"
                     :aria-expanded="moreOpen ? 'true' : 'false'"
                     data-rail-more
-                    @click="moreOpen = true"
+                    @click="moreOpen = !moreOpen"
                 >
                     <span class="wl-rail-pill">
                         <v-icon :icon="mdiDotsHorizontal" size="18" />
                     </span>
-                    <span class="wl-rail-label wl-rail-label--compact">{{ t("rail.more", "More") }}</span>
+                    <span class="wl-rail-label wl-rail-label--compact">{{
+                        t("rail.more", "More")
+                    }}</span>
                 </button>
+                <!--
+                    `target`, never `activator`. An `activator` element makes the overlay
+                    bind its own click listener to that same button, and the button already
+                    has one: a real pointer click then ran both, so the state went true and
+                    straight back to false inside one click and the menu never appeared. A
+                    DOM-dispatched click in a unit test happened to survive it, which is why
+                    this shipped - the packaged build's own instrumentation recorded the
+                    `aria-expanded` sequence true, true, false, false for one press. `target`
+                    gives the overlay the same anchor geometry and none of the events, so the
+                    button below is the only thing that opens or closes this menu - the exact
+                    arrangement `NotificationPanel` already uses for the bell.
+                -->
                 <v-menu
                     v-model="moreOpen"
-                    :activator="moreButtonRef ?? undefined"
+                    :target="moreButtonRef ?? undefined"
                     location="end"
                     :close-on-content-click="false"
                     @update:model-value="onMoreMenuChange"
@@ -474,7 +488,10 @@ function onMoreMenuChange(open: boolean): void {
                                     <span>{{ item.label }}</span>
                                 </button>
                             </li>
-                            <li v-if="filteredOverflow.length === 0" class="wl-rail-more-menu__empty">
+                            <li
+                                v-if="filteredOverflow.length === 0"
+                                class="wl-rail-more-menu__empty"
+                            >
                                 {{ t("rail.moreShortcuts.empty", "No shortcuts match.") }}
                             </li>
                         </ul>
@@ -689,7 +706,15 @@ function onMoreMenuChange(open: boolean): void {
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
-    block-size: 48px;
+    /*
+     * A minimum, never a fixed height. The shipped short labels are one line inside it, but the
+     * text this row renders is not always the shipped text: the local personal-vocabulary file
+     * replaces user-facing wording, and a replacement is free to be longer than the label it
+     * replaces. A fixed height forced the single line to end in an ellipsis the moment that
+     * happened - the packaged v1.0.2026 build measured a ten-character replacement at 58px of
+     * text inside a 49px box - and a visible label nobody can read is a clipping defect, not a
+     * compact row. With a minimum the label wraps and the row grows instead.
+     */
     min-block-size: 48px;
     gap: 4px;
     /*
@@ -716,15 +741,25 @@ function onMoreMenuChange(open: boolean): void {
     flex: 0 0 auto;
 }
 
+/*
+ * The compact label wraps; it never truncates. `white-space: nowrap` plus `text-overflow:
+ * ellipsis` was the defect: it is only ever invisible while the rendered text happens to be the
+ * shipped short label, and the vocabulary layer means that is not a property this component
+ * controls. Nothing here clamps a line count either - a clamp is still clipping, just tidier -
+ * so a long replacement costs a second line rather than a lost word. Two wrapped lines are
+ * 28px of text, which still fits inside the row's own 48px minimum; a longer one grows the row,
+ * and `RAIL_SHORTCUT_ITEM_PX` carries the budget for that growth.
+ */
 .wl-rail-label--compact {
     text-align: start;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    overflow: visible;
+    text-overflow: clip;
     inline-size: auto;
     min-inline-size: 0;
     flex: 1 1 auto;
-    /* Overrides the two-line clamp above: a compact row is one line, full stop, by design. */
+    /* Overrides the two-line clamp inherited from `.wl-rail-label` above. */
     display: block;
     -webkit-line-clamp: unset;
 }
