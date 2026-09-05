@@ -26,7 +26,8 @@ import ChunkerAdvancedConfig from "./ChunkerAdvancedConfig.vue";
 import ChunkerContainerPanel from "./ChunkerContainerPanel.vue";
 import GhEntityPicker from '../github/GhEntityPicker.vue';
 import {composeChunkerConfiguration} from './chunkerConfigComposition.js';
-import { defaultRouteFor, type ChunkerRoute } from "./chunkerRoute.js";
+import { type ChunkerRoute } from "./chunkerRoute.js";
+import { initialChunkerRoute, saveChunkerRoute } from "./chunkerRouteStore.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import MinecraftWorldList from "../world/MinecraftWorldList.vue";
 import { resolveWorldCatalogBridge } from "../world/worldCatalog.js";
@@ -198,11 +199,29 @@ function onEditionChange(value: Edition): void {
 /**
  * Where the conversion runs.
  *
- * Local to begin with, because it is the one route that is ready without anything else
- * being installed, signed into or switched on. The picker replaces this the moment somebody
- * chooses a route that its own probe says is ready.
+ * Restored from the last session when there was one, and local otherwise, because local is
+ * the one route that is ready without anything else being installed, signed into or
+ * switched on. The picker replaces this the moment somebody chooses a route that its own
+ * probe says is ready.
+ *
+ * A restored route is a remembered *choice* and never a claim that it still works: the
+ * picker measures readiness against a fresh probe on every launch, so a route that has
+ * since lost its Docker, its repository or its machine arrives disabled with its own reason
+ * rather than quietly starting a conversion that cannot run.
  */
-const route = ref<ChunkerRoute>(defaultRouteFor("local"));
+const route = ref<ChunkerRoute>(initialChunkerRoute());
+
+/**
+ * Remember the route, so the next launch opens on the destination this one used.
+ *
+ * Written on change rather than on start: the value being remembered is which destination
+ * somebody picked, and that is a decision they made whether or not they went on to convert
+ * anything with it.
+ */
+function chooseRoute(value: ChunkerRoute): void {
+    route.value = value;
+    saveChunkerRoute(value);
+}
 
 /* -------------------------------------------------------------------------- */
 /* Step 3: trimming and dimensions                                            */
@@ -569,7 +588,7 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
 
                 <ChunkerRoutePicker
                     :route="route"
-                    @update:route="(value: ChunkerRoute) => (route = value)"
+                    @update:route="chooseRoute"
                 />
             </section>
 
@@ -730,9 +749,19 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                 <h3>{{ t("chunker.step.review", "Review") }}</h3>
                 <VAlert v-if="composedConfig.collisions.length" type="warning">Advanced values replace these exact fields. Other guided fields remain unchanged.<ul><li v-for="collision in composedConfig.collisions" :key="collision.path">{{collision.path}}: {{JSON.stringify(collision.previous)}} → {{JSON.stringify(collision.replacement)}}</li></ul></VAlert>
                 <details><summary>{{t('chunker.optionsPreview','Review exact converter options')}}</summary><pre class="mb-chunker-log">{{JSON.stringify(cliConfig,null,2)}}</pre></details>
+                <!--
+                    Exactly one destination's panel is on screen, and it is the destination
+                    the picker holds.
+
+                    The branches are mutually exclusive and every route is accounted for, so
+                    there is no arrangement of `route` that renders two sections or none of
+                    them by accident. The final branch names `aws` rather than testing "not
+                    local", so a route added to the model later arrives here as a visible gap
+                    to fill instead of silently inheriting the not-connected notice.
+                -->
                 <ChunkerActionsPanel v-if="route.kind === 'github-actions'" :world-folder="sourceFolder" :output-directory="outputFolder" :target-format="targetVersionId" :config="cliConfig" />
                 <ChunkerContainerPanel v-else-if="route.kind === 'docker' || route.kind === 'ssh'" :kind="route.kind" :world="sourceFolder" :output="outputFolder" :format="targetVersionId" :config="cliConfig" />
-                <VAlert v-else-if="route.kind !== 'local'" type="warning">{{ t('chunker.routeNotConnected', 'This conversion route is not connected yet. Select another route; nothing will silently run locally.') }}</VAlert>
+                <VAlert v-else-if="route.kind === 'aws'" type="warning">{{ t('chunker.routeNotConnected', 'This conversion route is not connected yet. Select another route; nothing will silently run locally.') }}</VAlert>
                 <p data-test="chunker-review-lead">
                     {{
                         t(

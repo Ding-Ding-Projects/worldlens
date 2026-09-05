@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiCloudUploadOutline,
@@ -85,6 +85,21 @@ const facts = ref<ChunkerRouteFacts>(props.facts ?? unprobedFacts());
 const probing = ref(false);
 const chosen = ref<ChunkerRouteId>(props.route === undefined ? "local" : props.route.kind);
 
+/**
+ * Follow the route the page holds.
+ *
+ * Seeding `chosen` once at setup leaves the radio showing whatever was selected when this
+ * card was first created, so a route restored from the last session - or changed anywhere
+ * else on the page - would light up a different row than the one the conversion would
+ * actually use. Two answers to "which route is this" is one too many.
+ */
+watch(
+    () => props.route?.kind,
+    (kind) => {
+        if (kind !== undefined) chosen.value = kind;
+    },
+);
+
 const ICONS: Readonly<Record<ChunkerRouteId, string>> = {
     local: mdiLaptop,
     docker: mdiCubeOutline,
@@ -158,7 +173,11 @@ async function probe(): Promise<void> {
     }
 }
 
-function select(id: ChunkerRouteId): void {
+function select(id: ChunkerRouteId | null): void {
+    // The group emits `null` when it is cleared, and the radios are `ChunkerRouteId`s the
+    // rest of the time. Anything that is not a route this build knows about is ignored
+    // rather than coerced, so a stray value cannot become a selected-but-unrenderable route.
+    if (id === null || !CHUNKER_ROUTE_IDS.includes(id)) return;
     if (!checkRoute(id, facts.value).ready) return;
     chosen.value = id;
     emit(
@@ -191,18 +210,27 @@ onMounted(() => {
                 {{ routeHostMissingReason() }}
             </p>
 
-            <VRadioGroup :model-value="chosen" hide-details>
+            <!--
+                The handler belongs to the group, not to each radio.
+
+                A `VRadio` inside a `VRadioGroup` does not own a model of its own: the group
+                does, and the group is what emits when the selection moves. A per-radio
+                `@update:model-value` therefore never fires at all, which is exactly how this
+                picker could show GitHub's runners selected while the page it drives still
+                held the previous route and rendered that route's section instead.
+            -->
+            <VRadioGroup
+                :model-value="chosen"
+                hide-details
+                @update:model-value="(value) => select(value as ChunkerRouteId)"
+            >
                 <div
                     v-for="row in rows"
                     :key="row.id"
                     class="mb-4"
                     :data-test="`chunker-route-row-${row.id}`"
                 >
-                    <VRadio
-                        :value="row.id"
-                        :disabled="!row.readiness.ready"
-                        @update:model-value="select(row.id)"
-                    >
+                    <VRadio :value="row.id" :disabled="!row.readiness.ready">
                         <template #label>
                             <span class="d-inline-flex align-center ga-2">
                                 <VIcon :icon="row.icon" size="small" />

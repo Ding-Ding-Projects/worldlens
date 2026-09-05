@@ -27,21 +27,26 @@ async function run(action:'containerStart'|'containerState'|'containerCancel'):P
     }catch(error){message.value=error instanceof Error?error.message:String(error);}finally{busy.value=false;}
 }
 onMounted(()=>void refresh());
+
 const timer=setInterval(()=>{if(state.value&&!state.value.complete&&!busy.value)void run('containerState');},1500);
 onBeforeUnmount(()=>clearInterval(timer));
 </script>
 <template>
-    <section data-test="chunker-container-panel">
+    <section class="mb-chunker-container__panel" data-test="chunker-container-panel">
         <h3>{{kind==='ssh'?t('chunker.container.ssh','Convert on an SSH host'):t('chunker.container.local','Convert in a local container')}}</h3>
         <p>{{t('chunker.container.explain','The container reads the source without modifying it, has no network, and writes only its task staging directory. The whole-world JVM uses the memory limit below. Output is installed only after conversion and structural checks finish.')}}</p>
         <GhEntityPicker v-model="image" :items="images.map(value=>({title:value,value}))" data-test-base="chunker-container-image" search-label="Search approved runtimes" select-label="Approved Java runtime" selected-label="Selected runtime" empty-message="No approved runtime is available in this build." no-match-message="No matching runtime" />
         <p>The official runtime is resolved from its canonical registry before transfer, then mounted only by its verified immutable digest.</p>
         <GhEntityPicker v-if="kind==='ssh'" v-model="targetId" :items="targets.map(entry=>({title:`${entry.label} (${entry.user}@${entry.host})`,value:entry.id}))" data-test-base="chunker-container-target" search-label="Search saved hosts" select-label="SSH host" selected-label="Selected host" empty-message="Add a host and verify its key in Remote settings first." no-match-message="No matching host" />
         <p v-if="target">{{target.image}} · {{target.workDir}}</p>
-        <VBtn :disabled="busy" @click="refresh">{{t('chunker.container.refresh','Refresh available choices')}}</VBtn>
+        <div class="mb-chunker-container__actions">
+            <VBtn :disabled="busy" @click="refresh">{{t('chunker.container.refresh','Refresh available choices')}}</VBtn>
+        </div>
         <VTextField v-model.number="memory" type="number" min="2" max="64" :label="t('chunker.container.memory','Container memory limit (GiB)')" />
         <VSwitch v-model="acknowledged" :label="kind==='ssh'?t('chunker.container.authorizeSsh','I authorize transferring this world to the selected host'):t('chunker.container.authorizeLocal','I authorize the selected container to read this world')" />
-        <VBtn :disabled="busy || (state && !state.complete) || !acknowledged || (kind==='ssh'?!target:!image)" @click="run('containerStart')">{{t('chunker.container.start','Start conversion on this route')}}</VBtn>
+        <div class="mb-chunker-container__actions">
+            <VBtn :disabled="busy || (state && !state.complete) || !acknowledged || (kind==='ssh'?!target:!image)" @click="run('containerStart')">{{t('chunker.container.start','Start conversion on this route')}}</VBtn>
+        </div>
         <p role="status">{{message}}</p>
         <section v-if="state">
             <p>{{state.phase}} · {{state.percent}}%</p>
@@ -53,3 +58,39 @@ onBeforeUnmount(()=>clearInterval(timer));
         </section>
     </section>
 </template>
+
+<style scoped>
+/*
+ * One vertical rhythm for the whole panel, rather than each control being left to whatever
+ * margin it happens to carry.
+ *
+ * The reported defect was a real overlap: a bare `VBtn` is inline-flex, so it sits in an
+ * anonymous line box with no block margin under it, and the outlined field that followed
+ * began immediately below - close enough that the field's floating label, which is
+ * translated up above the field's own top edge, was painted straight over the words on the
+ * button. Nothing was mis-sized; there was simply no space between the two, and a button
+ * with a label written across it reads as a rendering fault rather than as a layout one.
+ *
+ * A flex column with a Material Design 3 spacing step between children fixes it at the
+ * container rather than one gap at a time, so a control added here later inherits the space
+ * instead of re-earning the same defect. `--md-sys-spacing-4` is the 16px step this design
+ * system publishes; the literal is the documented fallback used elsewhere in this package.
+ */
+.mb-chunker-container__panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--md-sys-spacing-4, 16px);
+    align-items: stretch;
+}
+
+/*
+ * The button row is its own flex line so the button keeps its intrinsic width instead of
+ * being stretched across the panel, and so a second action can join it later without
+ * needing a second rule.
+ */
+.mb-chunker-container__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--md-sys-spacing-2, 8px);
+}
+</style>
