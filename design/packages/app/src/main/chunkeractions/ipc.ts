@@ -317,7 +317,9 @@ export function installChunkerActionsIpc(options: Options): { dispose(): Promise
         if (`sha256:${hash}` !== outputs[0].digest) throw new Error("The downloaded result does not match GitHub's digest. Nothing was installed.");
         const staging = join(root(), `${record.id}-download-${randomUUID()}`);
         await extractZip(archive, staging);
-        const inner = join(staging, `${record.dispatchedOutputName ?? `converted-world-${record.id}`}.zip`);
+        // Records saved before `dispatchedOutputName` existed were dispatched with an `output-name` of
+        // `converted-<id>`, so that is the only inner archive name their runs ever produced.
+        const inner = join(staging, `${record.dispatchedOutputName ?? `converted-${record.id}`}.zip`);
         if (!(await stat(inner)).isFile()) throw new Error("The expected converted world archive is missing.");
         const prepared = `${r.outputDirectory}.collecting-${record.id}`;
         await extractZip(inner, prepared);
