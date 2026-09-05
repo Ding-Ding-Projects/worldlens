@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
@@ -214,6 +214,37 @@ const appSettingsHistoryHost = simpleHistoryHostFrom(
 /* -------------------------------------------------------------------------- */
 
 const query = ref("");
+
+/*
+ * The search field's own bilingual label ("Search settings 搜尋設定") does not
+ * fit one line beside its append-inner icons (clear, regex toggle, the ".*"
+ * builder opener) once this dialog goes single-column below 600px - and
+ * truncating the label with CSS fought Vuetify's own floating-label notch,
+ * which sizes itself from the untruncated text and left the two visibly
+ * disagreeing. A short, real label that always fits is simpler and more
+ * honest than a truncated long one: the placeholder text still carries the
+ * full explanation for anyone who has room to read it.
+ */
+const NARROW_SEARCH_QUERY = "(max-width: 37.5rem)";
+const isNarrowSearch = ref(
+    typeof globalThis.matchMedia === "function"
+        ? globalThis.matchMedia(NARROW_SEARCH_QUERY).matches
+        : false,
+);
+let narrowSearchMedia: MediaQueryList | null = null;
+function onNarrowSearchChange(event: MediaQueryListEvent): void {
+    isNarrowSearch.value = event.matches;
+}
+onMounted(() => {
+    if (typeof globalThis.matchMedia !== "function") return;
+    narrowSearchMedia = globalThis.matchMedia(NARROW_SEARCH_QUERY);
+    isNarrowSearch.value = narrowSearchMedia.matches;
+    narrowSearchMedia.addEventListener("change", onNarrowSearchChange);
+});
+onBeforeUnmount(() => {
+    narrowSearchMedia?.removeEventListener("change", onNarrowSearchChange);
+    narrowSearchMedia = null;
+});
 const regexMode = ref(false);
 // `i` because nobody means case-sensitively when they type a setting name, and `m`
 // because a section's searchable text is several lines — title, explanation, and every
@@ -829,7 +860,11 @@ function onDrawer(value: boolean): void {
                     v-model="query"
                     v-model:regex="regexMode"
                     v-model:flags="flags"
-                    :label="t('settings.search.label', 'Search settings')"
+                    :label="
+                        isNarrowSearch
+                            ? t('settings.search.labelShort', 'Search')
+                            : t('settings.search.label', 'Search settings')
+                    "
                     :placeholder="
                         t('settings.search.hint', 'name, explanation, or a value on screen')
                     "
@@ -1417,14 +1452,14 @@ function onDrawer(value: boolean): void {
     font-size: var(--md-sys-typescale-body-large-size, 0.8125rem);
     font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .mb-settings__result-desc {
     position: relative;
     font-size: var(--md-sys-typescale-body-medium-size, 0.75rem);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
     text-wrap: pretty;
 }
 
@@ -1458,25 +1493,140 @@ function onDrawer(value: boolean): void {
 }
 
 /*
- * Cheap Jor, found capturing this dialog at a 320px window width: a fixed
- * `min-width: 10rem` (160px) on the strip left almost nothing of a ~280px
- * content area for the detail pane, and the M3 title-medium heading this
- * revamp added (`.mb-setting__title`) has `overflow-wrap: anywhere` - so with
- * no real width to wrap into, it broke every character of "Mojang download
- * consent" onto its own line instead of reading as three or four wrapped
- * words. `flex: 0 1 clamp(...)` already lets the strip shrink; the fixed
- * `min-width` was the one thing stopping it from shrinking far enough on a
- * genuinely narrow window. Below the ~360px breakpoint this app's other
- * vertical strips already collapse at, drop the floor low enough that the
- * detail pane keeps a usable width, and let the strip's own item labels wrap
- * rather than forcing a horizontal scrollbar neither pane has room for.
+ * Below ~600px (37.5rem) this dialog goes single-column, the M3 pattern for a
+ * list-detail surface that no longer has room for two side-by-side panes.
+ *
+ * The first attempt at a 320px fix only lowered the vertical strip's
+ * `min-width` floor, which was still wrong: the strip kept most of the
+ * width, "Mojang download consent" broke mid-word ("downloa/d") because the
+ * M3 heading still had `overflow-wrap: anywhere` (fixed above, now
+ * `break-word`, so a break only ever happens inside a word wider than its
+ * own container), the search field wrapped its bilingual label onto a
+ * second line with the regex affordance stacked underneath it, and the
+ * detail pane still opened a horizontal scrollbar - narrower does not mean
+ * narrow enough once two panes are fighting for one dimension.
+ *
+ * `.mb-tabs--left`/`.mb-tabs--right` (`TabbedNavigation.vue`) is what puts
+ * the strip and the panel side by side; forcing it to `column` here stacks
+ * them instead, without touching that shared component; every other
+ * consumer of `TabbedNavigation` keeps its own row layout untouched. The
+ * strip row itself still carries `data-placement="left"`, so it is still
+ * governed by `TabStrip.vue`'s vertical-placement rules unless overridden -
+ * the rules below flip its own axis to a horizontal, `overflow-x: auto`
+ * chip row so `role="tablist"`/`role="tab"`, the existing keyboard
+ * navigation, and the strip's own search-and-regex-builder flyout
+ * (`TabFinder.vue`, opened from `.mb-tabs-strip__controls`) all keep working
+ * exactly as they do at a wide desktop width - only the axis changes, not
+ * the component. The detail pane (`.mb-tabs__panel`) gets the row `column`
+ * gave it, i.e. the dialog's full width.
  */
-@media (max-width: 22.5rem) {
+@media (max-width: 37.5rem) {
+    .mb-settings__body .mb-tabs--left,
+    .mb-settings__body .mb-tabs--right {
+        flex-direction: column;
+    }
+
     .mb-settings__body .mb-tabs-strip-row[data-placement="left"],
     .mb-settings__body .mb-tabs-strip-row[data-placement="right"] {
-        flex-basis: 40%;
-        min-width: 5.5rem;
-        max-width: 50%;
+        flex: 0 0 auto;
+        flex-direction: row;
+        inline-size: 100%;
+        max-inline-size: 100%;
+        min-inline-size: 0;
+        block-size: auto;
+        max-block-size: 3rem;
+        border-inline-end: 0;
+        border-inline-start: 0;
+        border-block-end: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+        overflow-x: auto;
+        overflow-y: hidden;
+        /* A horizontally scrollable region still needs a keyboard path for a
+           user who cannot drag a scrollbar; the strip's own tabs remain
+           individually focusable and Home/End/arrow-key navigation (already
+           built into `TabStrip.vue`) scrolls a focused tab into view. */
+        scrollbar-width: thin;
+    }
+
+    .mb-settings__body .mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip {
+        flex-direction: row;
+        align-items: stretch;
+        min-inline-size: max-content;
+        min-block-size: 0;
+    }
+
+    .mb-settings__body .mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__pinned,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__ordinary,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__segment,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__group,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__pinned,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__ordinary,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__segment,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__group {
+        flex-direction: row;
+        align-items: stretch;
+    }
+
+    .mb-settings__body .mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip {
+        flex: 1 1 auto;
+    }
+
+    /* The strip's own search-and-regex-builder opener, the "+" and the "..."
+       overflow menu live in this sibling block, not inside the tablist. It
+       kept its vertical-placement wrap-and-border-on-top styling, which in a
+       3rem-tall horizontal row squeezed it illegibly; pin it to one row
+       beside the tablist instead, matching a horizontal strip's own layout. */
+    .mb-settings__body .mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__controls,
+    .mb-settings__body .mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__controls {
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+        justify-content: flex-start;
+        padding-block-start: 0;
+        border-block-start: 0;
+        border-inline-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+        padding-inline-start: 4px;
+    }
+
+    .mb-settings__body .mb-tabs__panel {
+        inline-size: 100%;
+        max-inline-size: 100%;
+    }
+
+    .mb-settings__body .mb-setting {
+        inline-size: 100%;
+        max-inline-size: 100%;
+    }
+
+    /* The search field's bilingual label ("Search settings 搜尋設定") no longer
+       wraps onto a second line with the regex affordance pushed underneath
+       it: the label truncates with an ellipsis instead, and the append-inner
+       icons (clear, regex toggle, the ".*" builder opener) stay in one row
+       beside the input exactly as they do at a wide window. */
+    .mb-settings__search .v-field__field,
+    .mb-settings__search .v-label {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .mb-settings__search .v-field__append-inner {
+        flex-wrap: nowrap;
+    }
+
+    /*
+     * Real horizontal overflow found by probing `scrollWidth` vs `clientWidth`
+     * at 320px, not by eye: `ConsentSettingsRow.vue`'s `.mb-consent-row__facts`
+     * grid floors every column at `minmax(12rem, 1fr)` (192px), which is wider
+     * than the ~136-216px this dialog's detail pane actually has once the
+     * dialog itself is narrow, so `auto-fit` still tried to lay out a column
+     * too wide for its box and the whole card scrolled sideways. That
+     * component lives outside this task's file scope, so the fix is a
+     * descendant override here rather than an edit there: below 600px, one
+     * column, no 12rem floor.
+     */
+    .mb-settings__body .mb-consent-row__facts {
+        grid-template-columns: 1fr;
     }
 }
 

@@ -159,7 +159,7 @@ defineExpose({ reveal, element: root });
     font-weight: var(--md-sys-typescale-title-medium-weight, 500);
     letter-spacing: var(--md-sys-typescale-title-medium-tracking, normal);
     color: rgb(var(--v-theme-on-surface));
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 /* Body-medium: the M3 typescale role for supporting text under a title. */
@@ -247,7 +247,7 @@ defineExpose({ reveal, element: root });
     flex-direction: column;
     gap: 2px;
     min-width: 0;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
 }
 
 .mb-setting__row-label {
