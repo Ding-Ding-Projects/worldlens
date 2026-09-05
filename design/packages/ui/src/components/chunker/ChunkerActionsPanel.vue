@@ -72,6 +72,31 @@ const pruneBounds = computed(() => {
 const pruneBoundsBackwards = computed(() => pruneMode.value === "guided" && pruneMinX.value !== null && pruneMaxX.value !== null && pruneMinZ.value !== null && pruneMaxZ.value !== null && (pruneMinX.value > pruneMaxX.value || pruneMinZ.value > pruneMaxZ.value));
 const pruneTextInvalid = computed(() => pruneMode.value === "text" && pruneText.value.trim() !== "" && !/^-?\d+,-?\d+,-?\d+,-?\d+$/.test(pruneText.value.trim()));
 
+/**
+ * A boundary the controls cannot yet express.
+ *
+ * `pruneBounds` yields "" for a guided set that is not four whole numbers and for a blank
+ * text field, and "" is the exact value the workflow reads as "convert the whole world". So
+ * an unfinished boundary used to start a full-world conversion, which is the opposite of the
+ * choice that was made, with nothing on screen naming the unmet condition. An emptied
+ * `v-model.number` field stores "" rather than null, so completeness is asked of the value
+ * itself rather than of a null check.
+ */
+const pruneCornerMissing = (value: unknown): boolean => !Number.isInteger(value);
+const pruneGuidedIncomplete = computed(() => pruneMode.value === "guided" && [pruneMinX.value, pruneMinZ.value, pruneMaxX.value, pruneMaxZ.value].some(pruneCornerMissing));
+const pruneTextMissing = computed(() => pruneMode.value === "text" && pruneText.value.trim() === "");
+const pruneIncomplete = computed(() => pruneGuidedIncomplete.value || pruneTextMissing.value);
+function pruneCornerErrors(value: unknown): string[] {
+    return pruneMode.value === "guided" && pruneCornerMissing(value)
+        ? [t("chunker.actions.pruneCornerRequired", 'Give a whole number here, or choose "Convert the whole world".')]
+        : [];
+}
+const pruneTextErrors = computed(() => {
+    if (pruneTextInvalid.value) return [t("chunker.actions.pruneTextInvalid", "Must be four whole numbers separated by commas: minChunkX,minChunkZ,maxChunkX,maxChunkZ.")];
+    if (pruneTextMissing.value) return [t("chunker.actions.pruneTextRequired", 'Enter the four bounds, or choose "Convert the whole world".')];
+    return [];
+});
+
 const maxJobsInvalid = computed(() => !/^\d+$/.test(maxJobs.value) || Number(maxJobs.value) < 1 || Number(maxJobs.value) > 256);
 const regionsPerShardInvalid = computed(() => !/^\d+$/.test(regionsPerShard.value) || Number(regionsPerShard.value) < 1);
 const sourceRepositoryInvalid = computed(() => sourceRepository.value.trim() !== "" && !/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(sourceRepository.value.trim()));
@@ -99,7 +124,7 @@ const canStart = computed(() =>
     !busy.value && !!repository.value && !!host && !!props.worldFolder && !!props.outputDirectory &&
     (!usesOwnUpload.value || upload.value) &&
     !externalWorldRequired.value && !sourceRepositoryInvalid.value &&
-    !maxJobsInvalid.value && !regionsPerShardInvalid.value && !pruneBoundsBackwards.value && !pruneTextInvalid.value,
+    !maxJobsInvalid.value && !regionsPerShardInvalid.value && !pruneBoundsBackwards.value && !pruneTextInvalid.value && !pruneIncomplete.value,
 );
 async function refreshRepositories(): Promise<void> {
     repositories.value = [];
@@ -174,10 +199,10 @@ onBeforeUnmount(()=>clearInterval(timer));
             <VRadio value="text" :label="t('chunker.actions.pruneText', 'Enter bounds as text')" data-test="chunker-actions-prune-text" />
         </VRadioGroup>
         <div v-if="pruneMode === 'guided'" class="mb-chunker-bounds" data-test="chunker-actions-prune-guided-fields">
-            <VTextField v-model.number="pruneMinX" type="number" :label="t('chunker.actions.pruneMinX', 'Minimum chunk X')" density="compact" data-test="chunker-actions-prune-min-x" />
-            <VTextField v-model.number="pruneMinZ" type="number" :label="t('chunker.actions.pruneMinZ', 'Minimum chunk Z')" density="compact" data-test="chunker-actions-prune-min-z" />
-            <VTextField v-model.number="pruneMaxX" type="number" :label="t('chunker.actions.pruneMaxX', 'Maximum chunk X')" density="compact" data-test="chunker-actions-prune-max-x" />
-            <VTextField v-model.number="pruneMaxZ" type="number" :label="t('chunker.actions.pruneMaxZ', 'Maximum chunk Z')" density="compact" data-test="chunker-actions-prune-max-z" />
+            <VTextField v-model.number="pruneMinX" :error-messages="pruneCornerErrors(pruneMinX)" type="number" :label="t('chunker.actions.pruneMinX', 'Minimum chunk X')" density="compact" data-test="chunker-actions-prune-min-x" />
+            <VTextField v-model.number="pruneMinZ" :error-messages="pruneCornerErrors(pruneMinZ)" type="number" :label="t('chunker.actions.pruneMinZ', 'Minimum chunk Z')" density="compact" data-test="chunker-actions-prune-min-z" />
+            <VTextField v-model.number="pruneMaxX" :error-messages="pruneCornerErrors(pruneMaxX)" type="number" :label="t('chunker.actions.pruneMaxX', 'Maximum chunk X')" density="compact" data-test="chunker-actions-prune-max-x" />
+            <VTextField v-model.number="pruneMaxZ" :error-messages="pruneCornerErrors(pruneMaxZ)" type="number" :label="t('chunker.actions.pruneMaxZ', 'Maximum chunk Z')" density="compact" data-test="chunker-actions-prune-max-z" />
         </div>
         <VAlert v-if="pruneBoundsBackwards" type="error" variant="tonal" data-test="chunker-actions-prune-backwards">
             {{ t('chunker.actions.pruneBackwards', 'The maximum is lower than the minimum, so this boundary keeps nothing.') }}
@@ -187,7 +212,7 @@ onBeforeUnmount(()=>clearInterval(timer));
             v-model="pruneText"
             :label="t('chunker.actions.pruneTextLabel', 'Bounds (minChunkX,minChunkZ,maxChunkX,maxChunkZ)')"
             :placeholder="t('chunker.actions.pruneTextPlaceholder', '-8,-8,8,8')"
-            :error-messages="pruneTextInvalid ? [t('chunker.actions.pruneTextInvalid', 'Must be four whole numbers separated by commas: minChunkX,minChunkZ,maxChunkX,maxChunkZ.')] : []"
+            :error-messages="pruneTextErrors"
             data-test="chunker-actions-prune-text-field"
         />
 

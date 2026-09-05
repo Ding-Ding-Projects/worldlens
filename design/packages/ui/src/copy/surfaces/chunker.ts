@@ -177,6 +177,8 @@ export const CHUNKER_FIXED = {
     'chunker.actions.pruneMaxX': {en:'Maximum chunk X',yue:'最大區塊 X'},
     'chunker.actions.pruneMaxZ': {en:'Maximum chunk Z',yue:'最大區塊 Z'},
     'chunker.actions.pruneBackwards': {en:'The maximum is lower than the minimum, so this boundary keeps nothing.',yue:'最大值細過最小值，呢個邊界乜都留唔到。'},
+    'chunker.actions.pruneCornerRequired': {en:'Give a whole number here, or choose "Convert the whole world".',yue:'呢度要填一個整數，唔係就揀「轉換成個世界」。'},
+    'chunker.actions.pruneTextRequired': {en:'Enter the four bounds, or choose "Convert the whole world".',yue:'請輸入四個邊界值，唔係就揀「轉換成個世界」。'},
     'chunker.actions.pruneTextLabel': {en:'Bounds (minChunkX,minChunkZ,maxChunkX,maxChunkZ)',yue:'邊界（minChunkX,minChunkZ,maxChunkX,maxChunkZ）'},
     'chunker.actions.pruneTextPlaceholder': {en:'-8,-8,8,8',yue:'-8,-8,8,8'},
     'chunker.actions.pruneTextInvalid': {en:'Must be four whole numbers separated by commas: minChunkX,minChunkZ,maxChunkX,maxChunkZ.',yue:'必須係四個用逗號分開嘅整數：minChunkX,minChunkZ,maxChunkX,maxChunkZ。'},
