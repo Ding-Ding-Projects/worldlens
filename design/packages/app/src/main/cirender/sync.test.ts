@@ -2073,3 +2073,141 @@ describe("refusals are values, and none of them is a stack", () => {
         expect(sync.activeSyncIds()).toHaveLength(0);
     });
 });
+
+describe("fetching a render made elsewhere", () => {
+    /*
+     * A second device, or a reinstall, has no `sync.json` for a run somebody else
+     * dispatched - or that this same computer dispatched before it was wiped. `attach`
+     * is the only path onto it: it writes the run's identity as a recorded "dispatched"
+     * sync with no uploaded-world identity at all, then collects through the exact same
+     * `#finishRecordedRun` path `resume` uses.
+     */
+    it("collects a run this computer never uploaded anything for, with no release identity recorded", async () => {
+        const site = join(workDir, "attached-site");
+        await mkdir(join(site, "maps", MAP_ID, "tiles"), { recursive: true });
+        await writeFile(join(site, "settings.json"), '{"maps":["world"]}', "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "settings.json"), "{}", "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "tiles", "0.prbm"), "tile", "utf8");
+        const archive = join(workDir, "attached-rendered-map.zip");
+        const packed = await packFolder(site, archive);
+        const bytes = new Uint8Array(await readFile(archive));
+
+        const github = baseRoutes(new RecordingGitHub())
+            .on("GET", /\/actions\/runs\/42$/, {
+                status: 200,
+                json: runJson({ id: 42, status: "completed", conclusion: "success" }),
+            })
+            .on("GET", "/actions/runs/42/jobs", { status: 200, json: { jobs: [] } })
+            .on("GET", "/actions/runs/42/artifacts", {
+                status: 200,
+                json: {
+                    artifacts: [
+                        artifactJson({
+                            id: 90,
+                            name: "rendered-map",
+                            bytes: bytes.byteLength,
+                            digest: `sha256:${packed.sha256}`,
+                        }),
+                    ],
+                },
+            })
+            .on("GET", "/artifacts/90/zip", { status: 200, bytes });
+
+        const events: CiSyncEvent[] = [];
+        const mounts = new LocalMapHandler();
+        const result = await makeSync({ github, mounts, events }).attach({
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            mapId: MAP_ID,
+            runId: 42,
+        });
+
+        expect(result.ok && result.outcome === "rendered").toBe(true);
+        if (!result.ok || result.outcome !== "rendered") return;
+        expect(result.summary.releaseTag).toBeNull();
+        expect(result.summary.assetName).toBeNull();
+        expect(result.summary.uploaded).toBe(false);
+        expect(mounts.getMounts()).toHaveLength(1);
+        // Nothing was ever uploaded for a run this computer only attached to.
+        expect(nothingUploaded(github)).toBe(true);
+        expect(events.some((event) => event.type === "failed")).toBe(false);
+
+        const syncId = syncIdFor(OWNER, REPO, world, MAP_ID);
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const saved = await readCiSyncState(workspace.stateFile);
+        expect(saved?.stage).toBe("rendered");
+        expect(saved?.runId).toBe(42);
+        expect(saved?.releaseTag).toBeNull();
+        expect(saved?.assetName).toBeNull();
+    });
+
+    it("refuses an invalid run id before touching GitHub", async () => {
+        const github = baseRoutes(new RecordingGitHub());
+        const result = await makeSync({ github }).attach({
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            mapId: MAP_ID,
+            runId: 0,
+        });
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("invalid-run");
+        expect(github.never("/dispatches")).toBe(true);
+    });
+
+    it("lists a repository's completed runs and reads the map id back out of the run's own title", async () => {
+        const github = baseRoutes(new RecordingGitHub()).on(
+            "GET",
+            /\/actions\/workflows\/render-world\.yml\/runs/,
+            {
+                status: 200,
+                json: {
+                    workflow_runs: [
+                        {
+                            ...(runJson({
+                                id: 42,
+                                status: "completed",
+                                conclusion: "success",
+                            }) as Record<string, unknown>),
+                            display_title: "Render world (minecraft:overworld)",
+                        },
+                        {
+                            ...(runJson({
+                                id: 41,
+                                status: "completed",
+                                conclusion: "failure",
+                            }) as Record<string, unknown>),
+                            display_title: "Render world",
+                        },
+                    ],
+                },
+            },
+        );
+
+        const result = await makeSync({ github }).listAttachableRuns(OWNER, REPO);
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.runs).toHaveLength(2);
+        expect(result.runs[0]).toMatchObject({ id: 42, mapId: "world", conclusion: "success" });
+        // A run whose title never named a map - dispatched from the Actions tab by hand, or
+        // by a fork's own workflow - is still listed, just without a parsed map id.
+        expect(result.runs[1]).toMatchObject({ id: 41, mapId: null });
+    });
+
+    it("reports the exact refusal when the selected credential cannot reach the repository", async () => {
+        const github = new RecordingGitHub().on("GET", /\/actions\/workflows\/render-world\.yml$/, {
+            status: 404,
+            json: { message: "Not Found" },
+        });
+
+        const result = await makeSync({ github }).listAttachableRuns(OWNER, REPO);
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("no-route");
+    });
+});

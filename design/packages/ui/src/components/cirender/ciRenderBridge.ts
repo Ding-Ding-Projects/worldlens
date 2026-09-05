@@ -216,6 +216,32 @@ export type CiRepositoryCreateResult =
           readonly needsSignIn?: boolean | undefined;
       };
 
+/**
+ * One completed run of the render workflow, offered by "Fetch a render made elsewhere" -
+ * a mirror of `main/cirender/sync.ts`'s `CiAttachableRun`.
+ */
+export interface CiAttachableRun {
+    readonly id: number;
+    readonly runNumber: number;
+    readonly htmlUrl: string;
+    readonly conclusion: string | null;
+    readonly createdAt: string;
+    readonly headSha: string;
+    readonly displayTitle: string;
+    /** Parsed from the run's own title when the workflow named its map there. */
+    readonly mapId: string | null;
+}
+
+/** What `attachCiRun` needs to fetch a run this computer never dispatched itself. */
+export interface CiAttachRunRequest {
+    readonly worldFolder: string;
+    readonly owner: string;
+    readonly repo: string;
+    readonly runId: number;
+    readonly mapId?: string | undefined;
+    readonly accountId?: string | undefined;
+}
+
 export type CiRoute = "gh";
 
 /**
@@ -321,8 +347,9 @@ export interface CiSyncFailure {
 export interface CiSyncSummary {
     readonly syncId: string;
     readonly repository: string;
-    readonly releaseTag: string;
-    readonly assetName: string;
+    /** Null for a run fetched by id rather than uploaded and dispatched by this computer. */
+    readonly releaseTag: string | null;
+    readonly assetName: string | null;
     readonly runId: number;
     readonly runUrl: string;
     readonly renderId: string;
@@ -615,6 +642,18 @@ export interface CiRenderBridge {
      */
     activeCiRenders(): Promise<readonly string[]>;
     onCiRenderEvent(listener: (event: CiSyncEvent) => void): () => void;
+    /**
+     * "Fetch a render made elsewhere": every completed run of the render workflow on one
+     * repository, for a person who never dispatched one from this computer. Optional -
+     * a build without it falls back to the ordinary start/resume flow only.
+     */
+    listAttachableCiRuns?(request: {
+        readonly owner: string;
+        readonly repo: string;
+        readonly accountId?: string | undefined;
+    }): Promise<Answer<readonly CiAttachableRun[]>>;
+    /** Attaches to, then collects, one of those runs. Present exactly when the above is. */
+    attachCiRun?(request: CiAttachRunRequest): Promise<CiSyncResult>;
     /** Builds, atomically saves and history-records a missing project through the main process. */
     createCiCloudConfig?(request: {
         readonly operationId: string;
@@ -706,6 +745,12 @@ type Host = Partial<{
     forgetCiRender: (syncId: string) => Promise<boolean>;
     activeCiRenders: () => Promise<readonly string[]>;
     onCiRenderEvent: (listener: (event: CiSyncEvent) => void) => () => void;
+    listAttachableCiRuns: (request: {
+        owner: string;
+        repo: string;
+        accountId?: string;
+    }) => Promise<Answer<readonly CiAttachableRun[]>>;
+    attachCiRun: (request: CiAttachRunRequest) => Promise<CiSyncResult>;
     createCiCloudConfig: (request: {
         operationId: string;
         request: CiSyncRequest;
@@ -793,7 +838,10 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
             ? { createCiCloudConfig: (request) => host.createCiCloudConfig!(request) }
             : {}),
         ...(isFunction(host.cancelCiCloudConfig)
-            ? { cancelCiCloudConfig: (operationId: string) => host.cancelCiCloudConfig!(operationId) }
+            ? {
+                  cancelCiCloudConfig: (operationId: string) =>
+                      host.cancelCiCloudConfig!(operationId),
+              }
             : {}),
         checkCiRender: (syncId) =>
             isFunction(host.checkCiRender)
@@ -835,6 +883,16 @@ export function resolveCiRenderBridge(): CiRenderBridge | null {
         // flight lead to the same screen. What must never happen is a build inventing one.
         activeCiRenders: () =>
             isFunction(host.activeCiRenders) ? host.activeCiRenders() : Promise.resolve([]),
+        ...(isFunction(host.listAttachableCiRuns) && isFunction(host.attachCiRun)
+            ? {
+                  listAttachableCiRuns: (request: {
+                      owner: string;
+                      repo: string;
+                      accountId?: string;
+                  }) => host.listAttachableCiRuns!(request),
+                  attachCiRun: (request: CiAttachRunRequest) => host.attachCiRun!(request),
+              }
+            : {}),
         canCancel,
         canForget,
         canList,

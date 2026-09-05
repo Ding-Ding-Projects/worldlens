@@ -22,6 +22,7 @@ import CloudRenderConfigWizard from "./CloudRenderConfigWizard.vue";
 import ciRenderScreenSource from "./CiRenderScreen.vue?raw";
 import type {
     Answer,
+    CiAttachableRun,
     CiBootstrapResult,
     CiPreflight,
     CiRenderBridge,
@@ -3010,6 +3011,164 @@ describe("a world nobody has set up yet", () => {
         ).toBeDefined();
         expect(wrapper.find('[data-test="default-project-unavailable"]').text()).toContain(
             "desktop bridge",
+        );
+    });
+});
+
+describe("fetching a render made elsewhere", () => {
+    function attachableRun(overrides: Partial<CiAttachableRun> = {}): CiAttachableRun {
+        return {
+            id: 42,
+            runNumber: 3,
+            htmlUrl: "https://github.test/runs/42",
+            conclusion: "success",
+            createdAt: "2026-08-04T10:00:00Z",
+            headSha: "abc123",
+            displayTitle: "Render world (minecraft:overworld)",
+            mapId: "world",
+            ...overrides,
+        };
+    }
+
+    it("offers no such section on a build missing either bridge method", () => {
+        const wrapper = mountScreen(fakeBridge(preflight()));
+        expect(wrapper.find('[data-test="attach-card"]').exists()).toBe(false);
+    });
+
+    it("lists a repository's completed runs and lets one be fetched", async () => {
+        const listCalls: { owner: string; repo: string }[] = [];
+        const attachCalls: unknown[] = [];
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: (request) => {
+                    listCalls.push({ owner: request.owner, repo: request.repo });
+                    return Promise.resolve({ ok: true, value: [attachableRun()] });
+                },
+                attachCiRun: (request) => {
+                    attachCalls.push(request);
+                    return Promise.resolve({
+                        ok: true,
+                        syncId: "s",
+                        outcome: "rendered",
+                        summary: {
+                            syncId: "s",
+                            repository: "o/r",
+                            releaseTag: null,
+                            assetName: null,
+                            runId: 42,
+                            runUrl: "https://github.test/runs/42",
+                            renderId: "ci-s",
+                            dataRoot: "/data",
+                            mapId: "world",
+                            mapName: "World",
+                            route: "gh",
+                            uploaded: false,
+                            artifactBytes: 10,
+                            artifactSha256: "a".repeat(64),
+                            verified: true,
+                        },
+                        durationMs: 10,
+                    });
+                },
+            }),
+        );
+
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="attach-card"]').exists()).toBe(true);
+
+        const listButton = wrapper.find('[data-test="attach-list"]');
+        await listButton.trigger("click");
+        await flushPromises();
+
+        expect(listCalls).toEqual([{ owner: "o", repo: "r" }]);
+        expect(wrapper.find('[data-test="attach-run"]').text()).toContain("world");
+
+        await wrapper.find('[data-test="attach-run-select"]').trigger("click");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-run-fetch"]').trigger("click");
+        await flushPromises();
+
+        expect(attachCalls).toEqual([
+            expect.objectContaining({ owner: "o", repo: "r", runId: 42, worldFolder: "/world" }),
+        ]);
+    });
+
+    it("shows an honest empty state when the repository has no completed runs", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () => Promise.resolve({ ok: true, value: [] }),
+                attachCiRun: () =>
+                    Promise.resolve({
+                        ok: false,
+                        syncId: "nowhere",
+                        failure: {
+                            code: "invalid-run",
+                            message: "not used",
+                            detail: null,
+                            status: null,
+                            needsSignIn: false,
+                            needsEula: false,
+                            route: null,
+                            run: null,
+                            failingJob: null,
+                            logExcerpt: null,
+                        },
+                    }),
+            }),
+        );
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="attach-run"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="attach-empty"]').exists()).toBe(true);
+    });
+
+    it("reports a refusal from the selected credential rather than an empty list", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () =>
+                    Promise.resolve({
+                        ok: false,
+                        message: "The selected GitHub CLI account cannot use the render workflow.",
+                    }),
+                attachCiRun: () =>
+                    Promise.resolve({
+                        ok: false,
+                        syncId: "nowhere",
+                        failure: {
+                            code: "invalid-run",
+                            message: "not used",
+                            detail: null,
+                            status: null,
+                            needsSignIn: false,
+                            needsEula: false,
+                            route: null,
+                            run: null,
+                            failingJob: null,
+                            logExcerpt: null,
+                        },
+                    }),
+            }),
+        );
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="attach-failure"]').text()).toContain(
+            "cannot use the render workflow",
         );
     });
 });

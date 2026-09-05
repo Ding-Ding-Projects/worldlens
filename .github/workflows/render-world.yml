@@ -1,5 +1,11 @@
 name: Render world
 
+# The run's own display title names the map and dimension it was dispatched with, so
+# "fetch a render made elsewhere" can tell runs apart in a list without a local record
+# of what any of them were for - see cirender/actions.ts's listWorkflowRuns and
+# docs/render-in-actions.md.
+run-name: Render ${{ inputs.map-id }} (${{ inputs.dimension }})
+
 # Renders a Minecraft world into a BlueMap map entirely on GitHub's runners. Nothing is
 # installed locally and no Java is needed on the machine that starts the run.
 #

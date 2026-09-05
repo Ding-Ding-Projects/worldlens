@@ -211,8 +211,13 @@ export interface CiSyncFailure {
 export interface CiSyncSummary {
     readonly syncId: string;
     readonly repository: string;
-    readonly releaseTag: string;
-    readonly assetName: string;
+    /**
+     * Null for a run this computer fetched by id rather than dispatched itself - see
+     * {@link CiRenderSync.attach} - because there is no upload this app made to name a
+     * release and asset for.
+     */
+    readonly releaseTag: string | null;
+    readonly assetName: string | null;
     readonly runId: number;
     readonly runUrl: string;
     readonly renderId: string;
@@ -357,6 +362,46 @@ export interface CiSyncRequest {
 
 /** Main-process-only continuation marker. `readRequest` never accepts it from IPC. */
 type CiSyncRunRequest = CiSyncRequest & { readonly resumeRecordedRun?: boolean };
+
+/** One completed run of the render workflow, as offered to "fetch a render made elsewhere". */
+export interface CiAttachableRun {
+    readonly id: number;
+    readonly runNumber: number;
+    readonly htmlUrl: string;
+    readonly conclusion: string | null;
+    readonly createdAt: string;
+    readonly headSha: string;
+    readonly displayTitle: string;
+    /**
+     * Parsed from {@link displayTitle} when the workflow set a `run-name` naming it - see
+     * `render-world.yml`. Null for a run dispatched before that existed, or dispatched by
+     * a fork that removed it; the picker still lists the run by its raw title either way.
+     */
+    readonly mapId: string | null;
+}
+
+/** What `attach` needs to fetch a run this computer never dispatched itself. */
+export interface CiAttachRunRequest {
+    readonly worldFolder: string;
+    readonly owner: string;
+    readonly repo: string;
+    readonly runId: number;
+    /** Which local map to file the collected map under. Omitted, its first enabled map. */
+    readonly mapId?: string | undefined;
+    readonly accountId?: string | undefined;
+}
+
+/**
+ * The map id `render-world.yml`'s `run-name: Render ${{ inputs.map-id }} (${{
+ * inputs.dimension }})` embedded in the run's display title, or null when the title does
+ * not have that shape - an older run, a fork's own workflow, or a manually dispatched run
+ * from the Actions tab that never went through this format at all.
+ */
+function mapIdFromDisplayTitle(displayTitle: string): string | null {
+    const match = /^Render (.+) \([^()]*\)$/.exec(displayTitle);
+    const captured = match?.[1]?.trim() ?? "";
+    return captured.length > 0 ? captured : null;
+}
 
 export type CiSyncResult =
     | {
@@ -961,6 +1006,159 @@ export class CiRenderSync {
     }
 
     /**
+     * Every completed run of the render workflow on one repository, for a person who never
+     * dispatched one themselves - a second device, or an application that lost its own
+     * record. Read-only: nothing here writes a sync record or touches anything on GitHub
+     * beyond listing what is already there.
+     */
+    async listAttachableRuns(
+        owner: string,
+        repo: string,
+        accountId?: string,
+    ): Promise<
+        | { readonly ok: true; readonly runs: readonly CiAttachableRun[] }
+        | { readonly ok: false; readonly failure: CiSyncFailure }
+    > {
+        const trimmedOwner = owner.trim();
+        const trimmedRepo = repo.trim();
+        if (trimmedOwner === "" || trimmedRepo === "") {
+            return {
+                ok: false,
+                failure: failure("no-repository", "A repository owner and name are required."),
+            };
+        }
+        const routed = await this.#resolveRoute(
+            trimmedOwner,
+            trimmedRepo,
+            { accountId },
+            undefined,
+            "read",
+        );
+        if (routed.transport === null || !routed.report.ready) {
+            return {
+                ok: false,
+                failure: failure("no-route", routed.report.describe, {
+                    needsSignIn: routed.report.gh.recovery === "github-settings",
+                }),
+            };
+        }
+        try {
+            const runs = await routed.transport.listWorkflowRuns(
+                trimmedOwner,
+                trimmedRepo,
+                this.#options.workflowFile ?? RENDER_WORKFLOW_FILE,
+            );
+            return {
+                ok: true,
+                runs: runs
+                    .filter((run) => run.status === "completed")
+                    .map((run) => ({
+                        id: run.id,
+                        runNumber: run.runNumber,
+                        htmlUrl: run.htmlUrl,
+                        conclusion: run.conclusion,
+                        createdAt: run.createdAt,
+                        headSha: run.headSha,
+                        displayTitle: run.displayTitle,
+                        mapId: mapIdFromDisplayTitle(run.displayTitle),
+                    })),
+            };
+        } catch (error) {
+            return { ok: false, failure: fromError(error, routed.report.route) };
+        }
+    }
+
+    /**
+     * Attaches this computer to a run it never dispatched itself, then collects it through
+     * exactly the same path {@link resume} does - {@link collectRenderedMap} - by writing
+     * the run's identity as a recorded "dispatched" sync and resuming it. Nothing is
+     * uploaded, nothing is dispatched: a run finished by somebody or something else is
+     * fetched, verified and mounted precisely as this computer's own runs are.
+     *
+     * There is deliberately no uploaded-world identity to record - {@link
+     * CiSyncState.releaseTag} and {@link CiSyncState.assetName} stay null, because this
+     * computer made no upload for this run to name. `#finishRecordedRun` only ever needed
+     * the run id to collect; the release identity was only ever needed to *reuse* an
+     * upload, which an attached run has none of to reuse.
+     */
+    async attach(request: CiAttachRunRequest): Promise<CiSyncResult> {
+        const owner = request.owner.trim();
+        const repo = request.repo.trim();
+        if (owner === "" || repo === "") {
+            return this.#failed(
+                "nowhere",
+                failure("no-repository", "A repository owner and name are required."),
+            );
+        }
+        if (!Number.isInteger(request.runId) || request.runId <= 0) {
+            return this.#failed(
+                "nowhere",
+                failure("invalid-run", "A run id is required to fetch a render made elsewhere."),
+            );
+        }
+
+        const project = await readProjectAt(request.worldFolder);
+        if (!project.ok) {
+            return this.#failed("nowhere", failure(project.failure.code, project.failure.message));
+        }
+        const picked = chooseProjectMap(project.project, request.mapId);
+        if (!picked.ok) {
+            return this.#failed("nowhere", failure(picked.failure.code, picked.failure.message));
+        }
+
+        const syncId = syncIdFor(owner, repo, request.worldFolder, picked.map.id);
+        if (this.#running.has(syncId)) {
+            return this.#failed(
+                syncId,
+                failure(
+                    "already-running",
+                    "This world and map are already being synced. Watch the one in flight rather " +
+                        "than attaching a second run to it.",
+                ),
+            );
+        }
+
+        const workspace = ciSyncWorkspace(this.#options.storageDir(), syncId);
+        const existing = await readCiSyncState(workspace.stateFile);
+        const now = this.#timestamp();
+        const base =
+            existing ??
+            newCiSyncState({
+                syncId,
+                owner,
+                repo,
+                worldFolder: request.worldFolder,
+                mapId: picked.map.id,
+                mapName: picked.map.name,
+                dimension: picked.map.dimension,
+                at: now,
+            });
+        const state: CiSyncState = {
+            ...base,
+            accountId: request.accountId ?? base.accountId,
+            stage: "dispatched",
+            runId: request.runId,
+            runNumber: null,
+            runUrl: null,
+            dispatchedAt: now,
+            failureCode: null,
+            failureMessage: null,
+            updatedAt: now,
+        };
+        await this.#save(workspace.stateFile, state);
+
+        return await this.sync({
+            worldFolder: request.worldFolder,
+            owner,
+            repo,
+            mapId: picked.map.id,
+            ...(request.accountId === undefined ? {} : { accountId: request.accountId }),
+            follow: true,
+            resumeRecordedRun: true,
+        } as CiSyncRunRequest);
+    }
+
+    /**
      * One poll of a recorded run, changing nothing.
      *
      * The cheap "is it done yet" for a surface that does not want to hold a following
@@ -1022,14 +1220,19 @@ export class CiRenderSync {
         const { owner, repo, syncId, workspace, signal, transport, route } = context;
         let state = context.state;
         const runId = state.runId;
+        // The uploaded-world identity is required to *reuse an upload*, never to collect a
+        // finished render. A run attached by id through `attach()` genuinely has neither -
+        // this computer never uploaded anything for it - and that is not incomplete, it is
+        // the honest fact about a render made elsewhere. Only a missing run id, which is
+        // the one identity this whole method exists to follow, is refused here.
         const releaseTag = state.releaseTag;
         const assetName = state.assetName;
-        if (runId === null || releaseTag === null || assetName === null) {
+        if (runId === null) {
             return this.#failed(
                 syncId,
                 failure(
                     "resume-record-incomplete",
-                    "This recorded render does not contain its run and uploaded-world identity, so it cannot be resumed safely.",
+                    "This recorded render does not contain the run it was following, so it cannot be resumed safely.",
                     { route },
                 ),
             );
@@ -1602,7 +1805,9 @@ export class CiRenderSync {
                                 expectedHeadSha: request.expectedHeadSha,
                                 files: request.files.map((file) => ({
                                     path: file.path,
-                                    contentBase64: Buffer.from(file.content, "utf8").toString("base64"),
+                                    contentBase64: Buffer.from(file.content, "utf8").toString(
+                                        "base64",
+                                    ),
                                 })),
                                 message: request.message,
                             }),
