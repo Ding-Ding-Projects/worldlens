@@ -174,12 +174,100 @@ const outputFolder = ref("");
 const outputExists = ref(false);
 const capabilities = ref<{ jarSha256: string; version: string; formats: string[]; options: string[] } | null>(null);
 const capabilityFailure = ref('');
+const inspectingConverter = ref(false);
 async function loadCapabilities(): Promise<void> {
     const host = (globalThis as any).worldlens?.bedrock;
-    if (typeof host?.capabilities !== 'function') { capabilityFailure.value = 'This build cannot inspect the selected converter.'; return; }
-    const answer = await host.capabilities();
-    if (answer.ok) { capabilities.value = answer.value; capabilityFailure.value = ''; }
-    else { capabilities.value = null; capabilityFailure.value = answer.message; }
+    if (typeof host?.capabilities !== 'function') { capabilityFailure.value = t('chunker.noCapabilityBridge', 'This build cannot inspect the selected converter.'); return; }
+    inspectingConverter.value = true;
+    try {
+        const answer = await host.capabilities();
+        if (answer.ok) { capabilities.value = answer.value; capabilityFailure.value = ''; }
+        else { capabilities.value = null; capabilityFailure.value = answer.message; }
+    } catch (error) {
+        // `bedrock:capabilities` promises never to reject, so arriving here means the bridge
+        // itself failed. Reported rather than thrown: an unhandled rejection in a click
+        // handler is a button that visibly does nothing, which is the exact defect this
+        // screen was reported for.
+        capabilities.value = null;
+        capabilityFailure.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        inspectingConverter.value = false;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Getting a converter when there is none                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The route picker's `fix` actions, actually connected to something.
+ *
+ * `ChunkerRoutePicker` has always emitted `fix` for a route it cannot run, and this screen
+ * mounted it without listening. So "Get Chunker" was a button that emitted an event into an
+ * empty room: no handler, no error, no console line, nothing on screen. It is the decorative
+ * control the project rules forbid, and it is why the shipped app offered a fix that did
+ * nothing at all.
+ *
+ * Only `install-chunker` is answered here, because it is the only one this screen can
+ * genuinely do itself. Every other fix opens a surface this component does not own, so it is
+ * re-emitted upward with an honest message rather than silently swallowed a second time.
+ */
+const fetchingChunker = ref(false);
+const fetchReceived = ref<number | null>(null);
+const fetchTotal = ref<number | null>(null);
+const fetchFailure = ref<string | null>(null);
+const fetchDone = ref<string | null>(null);
+let unsubscribeFetch: (() => void) | null = null;
+
+const fetchPercent = computed(() => {
+    const total = fetchTotal.value;
+    const received = fetchReceived.value;
+    if (total === null || total <= 0 || received === null) return null;
+    return Math.min(100, (received / total) * 100);
+});
+
+async function getChunker(): Promise<void> {
+    if (bridge === null || fetchingChunker.value) return;
+    fetchingChunker.value = true;
+    fetchFailure.value = null;
+    fetchDone.value = null;
+    fetchReceived.value = null;
+    fetchTotal.value = null;
+    unsubscribeFetch = bridge.onBedrockEvent((event) => {
+        if (event.kind === "download" && event.conversionId === "chunker") {
+            fetchReceived.value = event.received;
+            fetchTotal.value = event.total;
+        }
+    });
+    try {
+        const result = await bridge.fetchChunker();
+        if (result.ok) {
+            fetchDone.value = result.message;
+            // Re-probe rather than assume: the point of the download is that the converter
+            // is now usable, and that is a question only the main process can answer.
+            await loadCapabilities();
+        } else {
+            fetchFailure.value = result.message;
+        }
+    } catch (error) {
+        fetchFailure.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        fetchingChunker.value = false;
+        unsubscribeFetch?.();
+        unsubscribeFetch = null;
+    }
+}
+
+function onRouteFix(fix: string): void {
+    if (fix === "install-chunker") {
+        void getChunker();
+        return;
+    }
+    fetchFailure.value = t(
+        "chunker.fixElsewhere",
+        { fix },
+        "This fix ({fix}) is completed on another screen; this one only fetches a converter.",
+    );
 }
 
 const editionChoices = computed(() => [
@@ -556,7 +644,17 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                 <h3>{{ t("chunker.step.target", "Target edition") }}</h3>
                 <p v-if="capabilities">{{ capabilities.version }} · SHA-256 {{ capabilities.jarSha256 }}</p>
                 <VAlert v-if="capabilityFailure" type="warning">{{ capabilityFailure }}</VAlert>
-                <VBtn @click="loadCapabilities">{{ t('chunker.refreshCapabilities', 'Inspect selected converter again') }}</VBtn>
+                <VBtn :loading="inspectingConverter" data-test="chunker-refresh-capabilities" @click="loadCapabilities">{{ t('chunker.refreshCapabilities', 'Inspect selected converter again') }}</VBtn>
+                <VBtn
+                    v-if="capabilities === null"
+                    class="ms-2"
+                    variant="tonal"
+                    :loading="fetchingChunker"
+                    data-test="chunker-get-converter"
+                    @click="getChunker"
+                >
+                    {{ t("chunkerRoute.fix.installChunker", "Get Chunker") }}
+                </VBtn>
                 <GhEntityPicker
                     :model-value="targetEdition"
                     :items="editionChoices"
@@ -589,7 +687,36 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                 <ChunkerRoutePicker
                     :route="route"
                     @update:route="chooseRoute"
+                    @fix="onRouteFix"
                 />
+
+                <!--
+                    The result of pressing a fix, shown on the same card that offered it.
+                    Without these three states "Get Chunker" would still be indistinguishable
+                    from a dead button whenever the download were slow or refused.
+                -->
+                <div v-if="fetchingChunker" class="mt-2" data-test="chunker-fetch-progress">
+                    <VProgressLinear
+                        :model-value="fetchPercent ?? 0"
+                        :indeterminate="fetchPercent === null"
+                        color="primary"
+                    />
+                    <span class="text-caption">
+                        {{ t("chunker.fetching", "Downloading Chunker…") }}
+                        <template v-if="fetchPercent !== null">{{ Math.round(fetchPercent) }}%</template>
+                    </span>
+                </div>
+                <VAlert v-else-if="fetchFailure !== null" type="error" variant="tonal" class="mt-2">
+                    <span data-test="chunker-fetch-failure">{{ fetchFailure }}</span>
+                    <template #append>
+                        <VBtn size="small" variant="text" data-test="chunker-fetch-retry" @click="getChunker">
+                            {{ t("chunker.retryFetch", "Try the download again") }}
+                        </VBtn>
+                    </template>
+                </VAlert>
+                <VAlert v-else-if="fetchDone !== null" type="success" variant="tonal" class="mt-2">
+                    <span data-test="chunker-fetch-done">{{ fetchDone }}</span>
+                </VAlert>
             </section>
 
             <!-- Step 3: trimming and dimensions -->

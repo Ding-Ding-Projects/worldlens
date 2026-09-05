@@ -72,7 +72,18 @@ export interface ChunkerReleaseReadout {
 }
 
 export interface ChunkerStatus {
-    readonly lookup: { readonly found: boolean; readonly version: string | null } & Record<string, unknown>;
+    readonly lookup: {
+        readonly found: boolean;
+        readonly version: string | null;
+        /**
+         * Where the converter came from, when one was found. `bundled` is the ordinary
+         * answer on an installed build - the jar inside this app's own installer - and the
+         * interface says which, because "Chunker 1.19.1 is ready" without a provenance is a
+         * sentence that cannot distinguish the shipped converter from one a previous version
+         * downloaded into the user's profile.
+         */
+        readonly source?: "bundled" | "configured" | "environment" | "downloaded";
+    } & Record<string, unknown>;
     readonly available: ChunkerReleaseReadout;
     readonly fidelity: FidelityBriefing;
     readonly licence: ChunkerLicence;

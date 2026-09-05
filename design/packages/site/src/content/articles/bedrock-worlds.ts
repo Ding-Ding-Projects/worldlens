@@ -83,13 +83,17 @@ export const bedrockWorlds: Article = {
                             ],
                         },
                         {
-                            term: "Why nothing is bundled",
+                            term: "It ships inside the installer",
                             description: [
-                                "The licence permits bundling. This app does not, as a product decision rather ",
-                                "than a licence restriction: 30 MB in every installer for a feature most people ",
-                                "never use is a poor trade, and a bundled copy would pin a converter version to ",
-                                "an app release when the converter tracks new Minecraft versions on its own ",
-                                "schedule.",
+                                "The MIT licence permits redistribution, and this app carries the pinned ",
+                                "chunker-cli jar inside its own installer, under ",
+                                { code: "resources/bundled/chunker/" },
+                                ". A Bedrock world converts with the network unplugged. The app hashes that ",
+                                "jar against a digest committed in its own source before running it, and ",
+                                "refuses a copy whose bytes are not the ones the release shipped. Where a ",
+                                "build genuinely has no copy - a development checkout - the app fetches the ",
+                                "same pinned jar itself, verified, with progress; there is never a link to go ",
+                                "and download one by hand.",
                             ],
                         },
                         {

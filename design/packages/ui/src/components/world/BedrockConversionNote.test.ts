@@ -405,7 +405,41 @@ describe("fetching Chunker itself, when it is not on this machine", () => {
         await wrapper.vm.$nextTick();
 
         expect(wrapper.text()).toContain("digest did not match");
-        expect(wrapper.findAll("button").find((b) => b.text().includes("Download Chunker"))).toBeDefined();
+        // The button stays, and now says what pressing it again would do. A failed download
+        // whose only remaining control still reads "Download Chunker" is indistinguishable
+        // from one that never started.
+        expect(
+            wrapper.findAll("button").find((b) => b.text().includes("Try the download again")),
+        ).toBeDefined();
+        wrapper.unmount();
+    });
+
+    it("names where a found Chunker came from, rather than only offering Convert", async () => {
+        // The state a packaged build is in once it can see its own bundled jar. Without a
+        // provenance line the interface cannot tell a user whether the converter about to run
+        // is the one the release shipped or one an earlier version downloaded.
+        const bridge = fakeBridge({
+            detect: vi.fn(async () => BEDROCK),
+            chunkerStatus: vi.fn(async () => ({
+                ...CHUNKER_MISSING,
+                lookup: {
+                    found: true,
+                    source: "bundled" as const,
+                    jarPath: "/app/resources/bundled/chunker/chunker-cli-1.19.1.jar",
+                    version: "1.19.1",
+                },
+            })),
+        });
+        const wrapper = render(bridge);
+        await settleDebounce();
+        await wrapper.vm.$nextTick();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await wrapper.vm.$nextTick();
+
+        expect(wrapper.get('[data-test="bedrock-chunker-provenance"]').text()).toContain(
+            "Chunker 1.19.1 ships with this app",
+        );
+        expect(wrapper.text()).not.toContain("does not bundle");
         wrapper.unmount();
     });
 });

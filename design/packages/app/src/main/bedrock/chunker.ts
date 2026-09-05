@@ -62,6 +62,8 @@
  * download path honest when one is needed.
  */
 
+import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { downloadVerified, type FetchBinary } from "../java/download.js";
@@ -107,8 +109,33 @@ export interface ChunkerRelease {
     readonly verificationNote: string;
 }
 
-/** Where a usable Chunker came from. */
-export type ChunkerSource = "configured" | "environment" | "downloaded";
+/**
+ * Where a usable Chunker came from.
+ *
+ * `bundled` is the ordinary answer on an installed build: the jar is inside the installer,
+ * under `<resourcesPath>/bundled/chunker/`. The other three exist because somebody chose
+ * them, or because a development checkout has nothing staged.
+ */
+export type ChunkerSource = "bundled" | "configured" | "environment" | "downloaded";
+
+/** Where the installer puts the Chunker jar, relative to Electron's `resourcesPath`. */
+export const BUNDLED_CHUNKER_DIRECTORY = "bundled/chunker";
+
+/**
+ * `<resources>/bundled/chunker/chunker-cli-<version>.jar`, the copy inside the installer.
+ *
+ * The mirror of `bundledJavaExecutable` in `../java/discovery.ts`, and it exists for the
+ * same reason: a resource is only bundled if something looks for it where the packager put
+ * it. Until this function existed the packaging config copied the jar into every installer
+ * and no code path in the app ever read that directory, so a shipped build carried 30 MB of
+ * converter and told the user it did not bundle one.
+ */
+export function bundledChunkerJarPath(
+    resourcesPath: string,
+    asset: string = PINNED_CHUNKER.asset,
+): string {
+    return join(resourcesPath, "bundled", "chunker", asset);
+}
 
 export interface ChunkerLocation {
     readonly source: ChunkerSource;
@@ -143,6 +170,16 @@ export type ChunkerLookup = ({ readonly found: true } & ChunkerLocation) | Chunk
 /** Injected so no test ever touches a real file system to prove this file works. */
 export type FileProbe = (path: string) => Promise<boolean>;
 
+const defaultDigest: DigestProbe = async (path) => {
+    const existing = digestMemo.get(path);
+    if (existing !== undefined) return existing;
+    const pending = sha256OfFile(path);
+    digestMemo.set(path, pending);
+    // A failed hash must not be remembered as the answer for the rest of the session.
+    pending.catch(() => digestMemo.delete(path));
+    return pending;
+};
+
 const defaultProbe: FileProbe = async (path) => {
     try {
         return (await stat(path)).isFile();
@@ -151,13 +188,53 @@ const defaultProbe: FileProbe = async (path) => {
     }
 };
 
+/**
+ * Hashes a file, streaming it.
+ *
+ * Streamed rather than `readFile`d because this runs against a 30 MB jar and there is no
+ * reason to hold it all in memory to look at it once.
+ */
+export async function sha256OfFile(path: string): Promise<string> {
+    const hash = createHash("sha256");
+    for await (const chunk of createReadStream(path)) hash.update(chunk as Buffer);
+    return hash.digest("hex");
+}
+
+/** Injected in tests so no test needs a real 30 MB jar to prove the digest gate works. */
+export type DigestProbe = (path: string) => Promise<string>;
+
+/**
+ * Digests already computed in this process, keyed by path.
+ *
+ * The bundled jar cannot change while the app is running - it lives inside the installed
+ * application directory - so hashing it once per launch is both sufficient and the most this
+ * check may cost. Without the memo every screen that asks "is Chunker here" would hash 30 MB
+ * again, which is how a correct check becomes one somebody removes for being slow.
+ */
+const digestMemo = new Map<string, Promise<string>>();
+
+/** Clears {@link digestMemo}. Tests only; nothing in the app replaces a bundled jar. */
+export function resetBundledDigestCache(): void {
+    digestMemo.clear();
+}
+
 export interface FindChunkerOptions {
     /** Electron's `userData`, where a downloaded copy lives. Null means none is kept. */
     readonly dataDir?: string | null;
+    /**
+     * Electron's `process.resourcesPath` in a packaged build, null in development.
+     *
+     * Same shape and same meaning as `discovery.ts`'s option of the same name. Omitting it
+     * is what a development checkout does, and it is why this is not an error: the staging
+     * step runs during packaging, not during `pnpm build`.
+     */
+    readonly resourcesPath?: string | null;
     /** A path the person chose in settings. Wins over everything else. */
     readonly configuredJar?: string | null;
     readonly env?: NodeJS.ProcessEnv;
     readonly probe?: FileProbe;
+    /** Computes a file's SHA-256. Injected in tests. */
+    readonly digest?: DigestProbe;
 }
 
 /** The environment variable an advanced user or a CI job can point at a jar. */
@@ -192,6 +269,7 @@ export function versionFromJarName(path: string): string | null {
 export async function findChunker(options: FindChunkerOptions = {}): Promise<ChunkerLookup> {
     const probe = options.probe ?? defaultProbe;
     const env = options.env ?? process.env;
+    const digest = options.digest ?? defaultDigest;
     const searched: string[] = [];
 
     const configured = options.configuredJar?.trim();
@@ -222,19 +300,62 @@ export async function findChunker(options: FindChunkerOptions = {}): Promise<Chu
         };
     }
 
+    // The copy inside the installer, ahead of anything the app downloaded for itself. An
+    // installed build reaches this and stops here, which is the whole point of bundling: the
+    // converter a user runs is the converter the release shipped, not whatever a previous
+    // version happened to fetch into their profile.
+    if (options.resourcesPath != null && options.resourcesPath.trim() !== "") {
+        const bundled = bundledChunkerJarPath(options.resourcesPath);
+        searched.push(bundled);
+        if (await probe(bundled)) {
+            let actual: string;
+            try {
+                actual = await digest(bundled);
+            } catch (error) {
+                return {
+                    found: false,
+                    reason:
+                        `The Chunker ${PINNED_CHUNKER.version} that ships with this app could not be ` +
+                        `read at ${bundled} (${error instanceof Error ? error.message : String(error)}). ` +
+                        "Reinstalling the app restores it; you can also point the app at a chunker-cli " +
+                        "jar of your own.",
+                    remedy: "configure",
+                    searched,
+                };
+            }
+            if (actual === PINNED_CHUNKER.sha256) return found("bundled", bundled);
+            // Never run it. A jar at the bundled path whose bytes are not the bytes this
+            // release was built against is either a damaged install or something that
+            // replaced it, and there is no version of "probably fine" worth having here.
+            return {
+                found: false,
+                reason:
+                    `The Chunker that ships with this app failed its integrity check: ${bundled} ` +
+                    `hashes to ${actual.slice(0, 12)}… where this release expects ` +
+                    `${PINNED_CHUNKER.sha256.slice(0, 12)}…. It has not been run. Reinstall the app ` +
+                    "to restore the shipped copy, or point the app at a chunker-cli jar you trust.",
+                remedy: "configure",
+                searched,
+            };
+        }
+    }
+
     if (options.dataDir != null && options.dataDir.trim() !== "") {
         const downloaded = chunkerJarPath(options.dataDir);
         searched.push(downloaded);
         if (await probe(downloaded)) return found("downloaded", downloaded);
     }
 
+    // Reached by a development checkout with nothing staged, and by an install whose
+    // bundled copy is genuinely gone. Both are fixed by the same automatic, digest-verified
+    // download, so this says what the app will do rather than what the user should go and do.
     return {
         found: false,
         reason:
-            "Chunker is not installed. It is a separate open-source converter from Hive " +
-            "Games (MIT licensed) and this app does not bundle it, so converting a Bedrock " +
-            `world means fetching the ${PINNED_CHUNKER.sizeBytes >= 1e6 ? `${String(Math.round(PINNED_CHUNKER.sizeBytes / 1e6))} MB` : "small"} ` +
-            `chunker-cli jar once, or pointing the app at a copy you already have.`,
+            `Chunker ${PINNED_CHUNKER.version} normally ships inside this app, but this build has ` +
+            "no copy of it on disk. The app can fetch the same pinned, digest-verified jar " +
+            `(${PINNED_CHUNKER.sizeBytes >= 1e6 ? `${String(Math.round(PINNED_CHUNKER.sizeBytes / 1e6))} MB` : "small"}) ` +
+            "from Hive Games' own release, or you can point it at a chunker-cli jar you already have.",
         remedy: "download",
         searched,
     };

@@ -137,6 +137,49 @@ const chunkerMissing = computed(
     () => chunkerStatus.value?.lookup.found === false,
 );
 
+/**
+ * One sentence saying which converter is about to run and where it came from.
+ *
+ * Named rather than implied. An installed build resolves the jar inside its own installer
+ * and says so; a jar somebody configured, or one an earlier version downloaded, says that
+ * instead. Until this existed the row had exactly two states - missing, or a Convert button
+ * with no account of what it would run - which is how a release could ship a bundled
+ * converter and have nobody notice it was never being used.
+ */
+const chunkerProvenance = computed<string | null>(() => {
+    const lookup = chunkerStatus.value?.lookup;
+    if (lookup === undefined || !lookup.found) return null;
+    const version = lookup.version ?? chunkerStatus.value?.available.version ?? "";
+    switch (lookup.source) {
+        case "bundled":
+            return t(
+                "bedrock.chunkerBundled",
+                { version },
+                "Chunker {version} ships with this app. Nothing is downloaded to convert this world.",
+            );
+        case "configured":
+            return t(
+                "bedrock.chunkerConfigured",
+                { version },
+                "Using the Chunker {version} jar chosen in settings, rather than the copy that ships with this app.",
+            );
+        case "environment":
+            return t(
+                "bedrock.chunkerEnvironment",
+                { version },
+                "Using the Chunker {version} jar named by the CHUNKER_CLI_JAR environment variable.",
+            );
+        case "downloaded":
+            return t(
+                "bedrock.chunkerDownloaded",
+                { version },
+                "Using the Chunker {version} jar this app downloaded earlier and keeps in its own data folder.",
+            );
+        default:
+            return null;
+    }
+});
+
 /** `31790149` -> `"~30 MB"`. A rough figure, stated as one, matching the size Chunker's own module quotes in its "not installed" sentence. */
 const chunkerSizeText = computed(() => {
     const bytes = chunkerStatus.value?.available.sizeBytes ?? null;
@@ -384,7 +427,7 @@ onBeforeUnmount(() => {
                         t(
                             "bedrock.chunkerMissing",
                             { size: chunkerSizeText ?? chunkerSizeUnknownText },
-                            "Chunker is a separate open-source converter this app does not bundle. Converting this world means fetching it once ({size}), verified against a digest committed in this app.",
+                            "Chunker normally ships inside this app, but this build has no copy on disk. The app can fetch the same pinned jar ({size}), verified against a digest committed in this app.",
                         )
                     }}
                 </p>
@@ -397,20 +440,30 @@ onBeforeUnmount(() => {
                         @click="fetchChunkerJar"
                     >
                         {{
-                            chunkerSizeText === null
-                                ? t("bedrock.fetchChunker", "Download Chunker")
-                                : t(
-                                      "bedrock.fetchChunkerSized",
-                                      { size: chunkerSizeText },
-                                      "Download Chunker ({size})",
-                                  )
+                            fetchFailure !== null
+                                ? t("bedrock.retryFetchChunker", "Try the download again")
+                                : chunkerSizeText === null
+                                  ? t("bedrock.fetchChunker", "Download Chunker")
+                                  : t(
+                                        "bedrock.fetchChunkerSized",
+                                        { size: chunkerSizeText },
+                                        "Download Chunker ({size})",
+                                    )
                         }}
                     </v-btn>
                 </div>
             </template>
         </template>
 
-        <div class="mb-bedrock-note__actions" v-else>
+        <template v-else>
+            <p
+                v-if="chunkerProvenance !== null"
+                class="mb-bedrock-note__explanation"
+                data-test="bedrock-chunker-provenance"
+            >
+                {{ chunkerProvenance }}
+            </p>
+        <div class="mb-bedrock-note__actions">
             <v-btn
                 v-if="!converting"
                 :prepend-icon="mdiSwapHorizontal"
@@ -430,6 +483,7 @@ onBeforeUnmount(() => {
                 {{ t("bedrock.checkingChunker", "Checking whether Chunker is installed…") }}
             </span>
         </div>
+        </template>
     </v-alert>
 </template>
 

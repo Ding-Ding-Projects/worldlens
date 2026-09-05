@@ -50,8 +50,17 @@ async function assertStagedJavaEngine() {
  *
  * @param {import("electron-builder").AfterPackContext} context
  */
-async function brandWindowsExecutable(context) {
+async function verifyBundlesAndBrandExecutable(context) {
+    // Checked against the directory electron-builder just wrote, not against the staging
+    // directory or this file's own extraResources list. Both of those were correct in
+    // v1.0.2026 and the app still could not find its bundled Chunker, so the only assertion
+    // worth making is one about the packaged result. Scoped to win32 because the pinned
+    // runtimes in bundled-runtimes.manifest.json are Windows assets, and Windows is the
+    // delivery target; a second platform would need its own pins before it could be checked.
     if (context.electronPlatformName !== "win32") return;
+
+    const { assertPackagedBundles } = await import("./scripts/assert-packaged-bundles.mjs");
+    await assertPackagedBundles(`${context.appOutDir}/resources`);
 
     const executableName = `${context.packager.appInfo.productFilename}.exe`;
     // Node and rcedit accept forward slashes on Windows, so these stay ordinary strings
@@ -208,7 +217,7 @@ module.exports = {
     ],
     asar: true,
     beforePack: assertStagedJavaEngine,
-    afterPack: brandWindowsExecutable,
+    afterPack: verifyBundlesAndBrandExecutable,
     // Permanent product policy: Worldlens artifacts are intentionally unsigned. Integrity is
     // supplied by HTTPS, the immutable Squirrel feed metadata, and package hashes.
     forceCodeSigning: false,

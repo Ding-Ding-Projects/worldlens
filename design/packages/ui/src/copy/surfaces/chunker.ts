@@ -193,6 +193,13 @@ export const CHUNKER_FIXED = {
     'chunker.actions.regionsPerShardHint': {en:'How many region files one job converts before another starts.',yue:'一個工作喺另一個開始之前會轉換幾多個區域檔案。'},
     'chunker.actions.regionsPerShardInvalid': {en:'Must be a whole number of at least 1.',yue:'必須係至少 1 嘅整數。'},
     'chunker.refreshCapabilities': {en:'Inspect selected converter again',yue:'重新檢查所選轉換器'},
+    /* The states of "Get Chunker". Until this screen listened for the route picker's `fix`
+       event, pressing it did nothing at all - so a download that is running, one that failed,
+       and one that finished all needed words of their own before the button could be honest. */
+    'chunker.fetching': {en:'Downloading Chunker…',yue:'落載緊 Chunker……'},
+    'chunker.retryFetch': {en:'Try the download again',yue:'再試落載一次'},
+    'chunker.noCapabilityBridge': {en:'This build cannot inspect the selected converter.',yue:'呢個版本檢查唔到所選嘅轉換器。'},
+    'chunker.fixElsewhere': {en:'This fix ({fix}) is completed on another screen; this one only fetches a converter.',yue:'呢個修正（{fix}）要喺另一個畫面完成；呢度淨係負責攞轉換器。'},
     'chunker.routeNotConnected': {en:'This conversion route is not connected yet. Select another route; nothing will silently run locally.',yue:'呢條轉換路線未接通，請揀另一條。程式唔會偷偷改用本機執行。'},
     'chunker.advanced.title': {en:'Complete converter configuration',yue:'完整轉換器設定'},
     'chunker.advanced.load': {en:'Load every setting from the source world',yue:'讀取來源世界嘅全部設定'},

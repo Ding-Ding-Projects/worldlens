@@ -46,10 +46,12 @@ export {
 } from "./detect.js";
 
 export {
+    BUNDLED_CHUNKER_DIRECTORY,
     CHUNKER_JAR_ENV,
     CHUNKER_DIRECTORY,
     PINNED_CHUNKER,
     REQUIRED_CHUNKER_JAVA_FEATURE,
+    bundledChunkerJarPath,
     chunkerJarPath,
     fetchChunker,
     findChunker,
@@ -60,6 +62,7 @@ export {
     type ChunkerMissing,
     type ChunkerRelease,
     type ChunkerSource,
+    type DigestProbe,
     type DigestTrust,
     type FetchChunkerOptions,
     type FetchChunkerResult,
