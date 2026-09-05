@@ -1254,6 +1254,19 @@ async function loadAttachableRuns(): Promise<void> {
     await renders.loadAttachableRuns(owner.value.trim(), repo.value.trim(), effectiveAccountId.value);
 }
 
+/**
+ * How one attachable run is named to assistive technology.
+ *
+ * Every row in this list carries the same two captions, and the text that tells one run
+ * from the next sits in sibling spans that belong to neither button. This is that same
+ * identity in a form a control can be named with: the map id when the run's title could
+ * be parsed and the raw title when it could not, plus the run number, because one
+ * repository can hold several finished runs of the same map.
+ */
+function attachRunName(run: CiAttachableRun): string {
+    return `${run.mapId ?? run.displayTitle} #${run.runNumber}`;
+}
+
 function selectAttachRun(run: CiAttachableRun): void {
     selectedAttachRunId.value = run.id;
 }
@@ -2509,6 +2522,14 @@ onBeforeUnmount(() => {
                                     size="small"
                                     :variant="run.id === selectedAttachRunId ? 'flat' : 'tonal'"
                                     :color="run.id === selectedAttachRunId ? 'primary' : undefined"
+                                    :aria-current="run.id === selectedAttachRunId ? 'true' : undefined"
+                                    :aria-label="
+                                        t(
+                                            'cirender.attach.selectRun',
+                                            { run: attachRunName(run) },
+                                            'Select {run}',
+                                        )
+                                    "
                                     data-test="attach-run-select"
                                     @click="selectAttachRun(run)"
                                 >
@@ -2528,6 +2549,14 @@ onBeforeUnmount(() => {
                                     :prepend-icon="mdiOpenInNew"
                                     size="small"
                                     variant="text"
+                                    :aria-label="
+                                        t(
+                                            'cirender.attach.openRun',
+                                            { run: attachRunName(run) },
+                                            'Open run {run} on GitHub',
+                                        )
+                                    "
+                                    data-test="attach-run-open"
                                     @click="emit('open', run.htmlUrl)"
                                 >
                                     {{ t("cirender.openRun", "Open the run on GitHub") }}

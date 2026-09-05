@@ -3206,6 +3206,89 @@ describe("fetching a render made elsewhere", () => {
         ]);
     });
 
+    /*
+     * Every row in this list renders the same two captions, so with the run's identity
+     * living only in sibling spans, listing the controls gives one "Select" per finished
+     * run and nothing to tell them apart; and the chosen row was drawn differently
+     * without being marked differently, so which run is selected was carried by colour
+     * alone. Both are asserted here rather than left to the eye.
+     */
+    it("names the run in each row's controls and marks the chosen row", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () =>
+                    Promise.resolve({
+                        ok: true,
+                        value: [
+                            attachableRun({ id: 42, runNumber: 3, mapId: "overworld" }),
+                            attachableRun({
+                                id: 43,
+                                runNumber: 4,
+                                mapId: null,
+                                displayTitle: "Render the nether",
+                            }),
+                        ],
+                    }),
+                attachCiRun: () =>
+                    Promise.resolve({
+                        ok: false,
+                        syncId: "nowhere",
+                        failure: {
+                            code: "invalid-run",
+                            message: "not used",
+                            detail: null,
+                            status: null,
+                            needsSignIn: false,
+                            needsEula: false,
+                            route: null,
+                            run: null,
+                            failingJob: null,
+                            logExcerpt: null,
+                        },
+                    }),
+            }),
+        );
+
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+
+        // Each control says which run it acts on, including the run number: two finished
+        // runs of one map are otherwise the same sentence twice.
+        const selects = wrapper.findAll('[data-test="attach-run-select"]');
+        expect(selects).toHaveLength(2);
+        expect(selects.map((button) => button.attributes("aria-label"))).toEqual([
+            "Select overworld #3",
+            "Select Render the nether #4",
+        ]);
+        expect(
+            wrapper
+                .findAll('[data-test="attach-run-open"]')
+                .map((button) => button.attributes("aria-label")),
+        ).toEqual([
+            "Open run overworld #3 on GitHub",
+            "Open run Render the nether #4 on GitHub",
+        ]);
+
+        // Nothing is chosen yet, so no row claims to be the current one.
+        expect(selects.map((button) => button.attributes("aria-current"))).toEqual([
+            undefined,
+            undefined,
+        ]);
+
+        await selects[1]!.trigger("click");
+        await flushPromises();
+
+        expect(
+            wrapper
+                .findAll('[data-test="attach-run-select"]')
+                .map((button) => button.attributes("aria-current")),
+        ).toEqual([undefined, "true"]);
+    });
+
     it("shows an honest empty state when the repository has no completed runs", async () => {
         const wrapper = mountScreen(
             fakeBridge(preflight(), [], {

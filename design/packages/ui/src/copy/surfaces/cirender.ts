@@ -1378,6 +1378,19 @@ export const CIRENDER_FIXED = {
         yue: "而家仲未列過已完成嘅 run。喺上面揀個 repository，再列出嚟睇下。",
     },
     "cirender.attach.select": { en: "Select", yue: "揀呢個" },
+    /*
+     * The list repeats one row per completed run, so the visible captions "Select" and
+     * "Open the run on GitHub" are identical on every row and say nothing about which run
+     * they act on. These name the run in the control's own accessible name, so a reader
+     * who reaches a row out of its surrounding text still knows what pressing it does.
+     * {run} is the run's map id, or its title when the map could not be parsed, followed
+     * by the run number - two runs of the same map are otherwise indistinguishable.
+     */
+    "cirender.attach.selectRun": { en: "Select {run}", yue: "揀 {run}" },
+    "cirender.attach.openRun": {
+        en: "Open run {run} on GitHub",
+        yue: "喺 GitHub 開 {run} 呢個 run",
+    },
     "cirender.attach.confirm": {
         en: "Fetch {mapId} into the map list for the world selected above. Its render already finished on GitHub; this only downloads, verifies and registers it.",
         yue: "將 {mapId} 攞落上面揀咗嗰個世界嘅地圖清單。佢喺 GitHub 已經 render 完；呢度淨係落載、驗證、登記佢。",
