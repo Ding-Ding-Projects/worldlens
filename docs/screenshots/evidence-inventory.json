@@ -526,13 +526,11 @@
         "docs/screenshots/settings-320-bilingual-light.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
         "docs/screenshots/settings-1280-scale200.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
         "docs/screenshots/settings-640-scale200.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
-        "docs/screenshots/rail-job-shortcuts-1280-dark.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
-        "docs/screenshots/rail-job-shortcuts-320.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
         "docs/screenshots/world-downloader-1280.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
         "docs/screenshots/config-regex-builder-open-1280.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
         "docs/screenshots/config-regex-builder-open-320.png": "6db5c74222ac98a25fea70918f8ea523c4990b77"
       },
-      "expectedCount": 12,
+      "expectedCount": 10,
       "targets": [
         "docs/screenshots/settings-1280-dark-en.png",
         "docs/screenshots/settings-320-dark-en.png",
@@ -541,8 +539,6 @@
         "docs/screenshots/settings-320-bilingual-light.png",
         "docs/screenshots/settings-1280-scale200.png",
         "docs/screenshots/settings-640-scale200.png",
-        "docs/screenshots/rail-job-shortcuts-1280-dark.png",
-        "docs/screenshots/rail-job-shortcuts-320.png",
         "docs/screenshots/world-downloader-1280.png",
         "docs/screenshots/config-regex-builder-open-1280.png",
         "docs/screenshots/config-regex-builder-open-320.png"
@@ -550,6 +546,25 @@
       "capturedFromInterfaceSource": false,
       "notGradedBecause": "point-in-time evidence closing GitHub issue #175 (the regex-builder popover crash) and verifying the single-column Settings revamp and the merged rail job shortcuts at one exact commit; freshness is judged against that recorded historical source commit rather than the current interface source, the same treatment issue-baselines already gives point-in-time issue evidence",
       "uiSourceDigestNote": "Not digested against current interface source because this group is graded by historicalRecaptureComplaints against its recorded sourceCommits instead; every target maps to 6db5c74222ac98a25fea70918f8ea523c4990b77, the commit these twelve images were actually captured from."
+    },
+    {
+      "id": "lowlevel-cdp-rail-2026-09-05",
+      "authority": "scripts/capture-rail-cdp.mjs",
+      "command": "node scripts/capture-rail-cdp.mjs <output-dir> -- launches the built Electron app with --worldlens-direct-launch on a cheap Lowlevel hidden desktop and drives it entirely through raw CDP (Chrome DevTools Protocol) over a plain WebSocket connection, no Playwright dependency, including Emulation.setDeviceMetricsOverride for the 1280x800 and 1280x600 viewport captures",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "replacementPolicy": "Replace every target during this release pass from its exact historical source commit via scripts/capture-rail-cdp.mjs; a current-build image, mock, source preview, or relabelled different state is refused.",
+      "sourceCommits": {
+        "docs/screenshots/rail-job-shortcuts-1280-dark.png": "8e7d93146412791fa062dfc7dbfb6a70ec9efabc",
+        "docs/screenshots/rail-job-shortcuts-1280x600.png": "8e7d93146412791fa062dfc7dbfb6a70ec9efabc"
+      },
+      "expectedCount": 2,
+      "targets": [
+        "docs/screenshots/rail-job-shortcuts-1280-dark.png",
+        "docs/screenshots/rail-job-shortcuts-1280x600.png"
+      ],
+      "capturedFromInterfaceSource": false,
+      "notGradedBecause": "point-in-time evidence that the rail-overflow and short-label regressions were actually fixed at one exact commit, after the settings lane's own earlier rail-job-shortcuts captures (6db5c74222ac98a25fea70918f8ea523c4990b77) had gone stale by showing a rail state - scrolling past its own destinations, every shortcut label truncated - that no longer exists on this branch; freshness is judged against that recorded historical source commit rather than the current interface source, the same treatment the settings/rail group and issue-baselines already give point-in-time issue evidence",
+      "uiSourceDigestNote": "Not digested against current interface source because this group is graded by historicalRecaptureComplaints against its recorded sourceCommits instead; both targets map to 8e7d93146412791fa062dfc7dbfb6a70ec9efabc, the commit these two images were actually captured from."
     }
   ]
 }
