@@ -22,8 +22,24 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Merge commit '41664628' - [`ed947def16`](https://github.com/Ding-Ding-Projects/worldlens/commit/ed947def167691c26060762d967d5b8ff9bc22c5) _(summary of 2 commits, also listed here)_
+- Render the destination you picked, and stop the label sitting on the button - [`41664628da`](https://github.com/Ding-Ding-Projects/worldlens/commit/41664628da56f5a14aa03e8851d1f341bdb01830)
+
+## 1.0.2031 - 2026-09-05
+
+Tagged at [`dbb6f981ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/dbb6f981bafcb7dc6a1a0f8f6a5f219857d79e0f).
+
+### Interface
+
 - Merge commit 'b8751e26' - [`800af5a5e2`](https://github.com/Ding-Ding-Projects/worldlens/commit/800af5a5e25e205e48e9b7cd175d7b55c273554b) _(summary of 2 commits, also listed here)_
 - Let a rail shortcut label wrap, and let the More button be the only thing that opens its menu - [`b8751e2623`](https://github.com/Ding-Ding-Projects/worldlens/commit/b8751e2623d47dd8e58b00071569127cefa33de5)
+
+## 1.0.2030 - 2026-09-05
+
+Tagged at [`1e548c9acf`](https://github.com/Ding-Ding-Projects/worldlens/commit/1e548c9acf0047504bd46098646edb4173b3c93e).
+
+### Interface
+
 - Merge commit '9bc6f0f4' - [`05497ad29d`](https://github.com/Ding-Ding-Projects/worldlens/commit/05497ad29d256d9252c5e2a813afc8514c72093d) _(summary of 2 commits, also listed here)_
 - Reach the folder picker the screen actually has, so the world browse buttons work - [`9bc6f0f479`](https://github.com/Ding-Ding-Projects/worldlens/commit/9bc6f0f479e8a26b11472c0ee1d181b1f4987eb1)
 
