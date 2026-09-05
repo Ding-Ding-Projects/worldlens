@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 255,
+  "expectedTargetCount": 263,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -565,6 +565,30 @@
       "capturedFromInterfaceSource": false,
       "notGradedBecause": "point-in-time evidence that the rail-overflow and short-label regressions were actually fixed at one exact commit, after the settings lane's own earlier rail-job-shortcuts captures (6db5c74222ac98a25fea70918f8ea523c4990b77) had gone stale by showing a rail state - scrolling past its own destinations, every shortcut label truncated - that no longer exists on this branch; freshness is judged against that recorded historical source commit rather than the current interface source, the same treatment the settings/rail group and issue-baselines already give point-in-time issue evidence",
       "uiSourceDigestNote": "Not digested against current interface source because this group is graded by historicalRecaptureComplaints against its recorded sourceCommits instead; both targets map to 8e7d93146412791fa062dfc7dbfb6a70ec9efabc, the commit these two images were actually captured from."
+    },
+    {
+      "id": "packaged-release-issues-180-183",
+      "authority": "scripts/capture-issues-180-183-cdp.mjs",
+      "command": "node scripts/capture-issues-180-183-cdp.mjs <output-dir> --app <extracted>/lib/net45/Worldlens.exe -- launches the packaged release, extracted from Worldlens-1.0.2035-full.nupkg, on a cheap Lowlevel hidden desktop from a generated batch wrapper that sets WORLDLENS_UI_ONLY and WORLDLENS_SCREENSHOT_STORAGE, with --worldlens-direct-launch, an isolated --user-data-dir and --remote-debugging-port, and drives it entirely through raw CDP (Chrome DevTools Protocol) over a plain WebSocket connection, no Playwright dependency, including Emulation.setDeviceMetricsOverride for the 1280x600, 1280x800 and 320-wide viewport captures",
+      "reproducibility": "packaged-release-hidden-desktop",
+      "replacementPolicy": "Replace every target by re-running scripts/capture-issues-180-183-cdp.mjs against a packaged release built from the recorded commit; a development-tree image, mock, source preview, or relabelled different state is refused.",
+      "releaseTag": "v1.0.2035",
+      "releaseAsset": "Worldlens-1.0.2035-full.nupkg",
+      "releaseCommit": "65a772d917c1ea0e2a345703a5d2203855f68c85",
+      "expectedCount": 8,
+      "targets": [
+        "docs/screenshots/issue-180-rail-more-open.png",
+        "docs/screenshots/issue-180-rail-long-label-wrap.png",
+        "docs/screenshots/issue-181-convert-source-actions-enabled.png",
+        "docs/screenshots/issue-182-convert-converter-provenance.png",
+        "docs/screenshots/issue-183-convert-destination-picker.png",
+        "docs/screenshots/issue-183-convert-review-local-destination.png",
+        "docs/screenshots/issue-183-convert-container-memory-field.png",
+        "docs/screenshots/issue-183-convert-container-memory-field-320.png"
+      ],
+      "capturedFromInterfaceSource": true,
+      "uiSourceDigest": "f89b3b58bf51d64c9abf5a09f60137637f0b641f309a0046541cfa2f3bb4c5b2",
+      "uiSourceDigestNote": "Release v1.0.2035 was published from 65a772d917c1ea0e2a345703a5d2203855f68c85, which is the commit these captures were taken at, so the packaged renderer under the lens and this tree's interface source are the same interface and the group is graded against it like any other. Two states the issues name could not be photographed on a signed-out machine and no picture stands in for either: the hosted-runner destination is held unselectable by its own readiness gate, so its panel cannot be reached, and the source step's discovery row shows the Minecraft folder this machine actually has. The picker capture shows that gate as it stands instead."
     }
   ]
 }
