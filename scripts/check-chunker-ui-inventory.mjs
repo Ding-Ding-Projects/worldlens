@@ -41,6 +41,12 @@ const IPC_PATH = join(REPO_ROOT, "design/packages/app/src/main/chunkeractions/ip
  * panel itself; `target-format` reuses the version picker that already lives on the wider
  * Chunker screen (the same picker local conversion uses), and `chunker-config` is composed
  * by the existing schema editor rather than being one field.
+ *
+ * A row whose literal is a prop binding also names `uiOwner`, the component that binding
+ * must sit on. The Chunker screen renders one panel per conversion route and those panels
+ * take similarly named props from the same variables, so the identical attribute text can
+ * appear on more than one element; without the owner an unanchored substring search is
+ * satisfied by the wrong element and stops being able to notice the right one disappearing.
  */
 const INVENTORY = [
     {
@@ -48,8 +54,11 @@ const INVENTORY = [
         uiFile: "panel",
         uiLiteral: ":config=\"cliConfig\"",
         // Composed by the existing guided/advanced schema editor and passed straight through
-        // as the `config` prop; checked on the screen, not the panel.
+        // as the `config` prop; checked on the screen, not the panel. The neighbouring
+        // <ChunkerContainerPanel> for the docker/ssh route carries the same `:config="cliConfig"`
+        // text, so this row is anchored to the element it is actually about.
         checkOn: "screen",
+        uiOwner: "ChunkerActionsPanel",
         dispatchLiteral: '"chunker-config": JSON.stringify(',
     },
     {
@@ -76,8 +85,10 @@ const INVENTORY = [
         uiLiteral: ":target-format=\"targetVersionId\"",
         // The panel receives the format as a prop from the screen's own version picker
         // (`data-test-base="chunker-version"`), the same list the local-conversion route
-        // uses; checked on the screen, not the panel.
+        // uses; checked on the screen, not the panel, and anchored to the panel element for
+        // the same reason `chunker-config` is.
         checkOn: "screen",
+        uiOwner: "ChunkerActionsPanel",
         dispatchLiteral: '"target-format": r.targetFormat',
     },
     {
@@ -123,6 +134,22 @@ function workflowInputs() {
     return [...block[1].matchAll(/^ {6}([a-z][a-z0-9-]*):\n/gm)].map((m) => m[1]);
 }
 
+function escapeForRegExp(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * True when `source` carries `uiLiteral`, and - when the row names a `uiOwner` - carries it
+ * inside that component's own opening tag rather than anywhere in the file. `[^>]*` cannot
+ * cross the `>` that ends the tag it started in, so a sibling element that happens to carry
+ * the same attribute text does not satisfy the row.
+ */
+function hasUiLiteral(source, row) {
+    if (row.uiOwner === undefined) return source.includes(row.uiLiteral);
+    const pattern = new RegExp(`<${escapeForRegExp(row.uiOwner)}\\b[^>]*${escapeForRegExp(row.uiLiteral)}`);
+    return pattern.test(source);
+}
+
 function reportOf() {
     const declared = workflowInputs();
     const findings = [];
@@ -146,8 +173,9 @@ function reportOf() {
         if (panel !== null && screen !== null) {
             const source = row.checkOn === "screen" ? screen : panel;
             const sourceName = row.checkOn === "screen" ? "ChunkerScreen.vue" : "ChunkerActionsPanel.vue";
-            if (!source.includes(row.uiLiteral)) {
-                findings.push({ input, why: `expected literal ${JSON.stringify(row.uiLiteral)} in ${sourceName}` });
+            if (!hasUiLiteral(source, row)) {
+                const where = row.uiOwner === undefined ? sourceName : `${sourceName}'s <${row.uiOwner}> element`;
+                findings.push({ input, why: `expected literal ${JSON.stringify(row.uiLiteral)} in ${where}` });
             }
         }
         if (ipc !== null && !ipc.includes(row.dispatchLiteral)) {
