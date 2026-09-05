@@ -19,6 +19,7 @@ import {
     computeRailShortcutSplit,
     RAIL_MORE_BUTTON_PX,
     RAIL_SHORTCUT_ITEM_PX,
+    RAIL_SHORTCUTS_DIVIDER_PX,
 } from "./railOverflow.js";
 import { nonNegativeInteger } from "./shellNumbers.js";
 
@@ -222,10 +223,44 @@ const measuredFooter = ref<number | null>(null);
 
 let railObserver: ResizeObserver | null = null;
 
+/**
+ * `destinationsEl`'s and `footerEl`'s own `getBoundingClientRect().height` were the first cut
+ * here, and a real running build (not jsdom) proved them wrong by a consistent 46px at both
+ * 800px and 600px window heights - `.wl-rail`'s own 26px of top/bottom padding, plus the
+ * shortcuts divider's 17px of margin/padding/border, sit between those two elements and the
+ * rail's edges, and neither element's own height includes space it does not occupy. Measuring
+ * the *distance from the rail's edges* instead - `destinationsRect.bottom - railRect.top` and
+ * `railRect.bottom - footerRect.top` - folds the rail's own padding into the number
+ * automatically, because that padding is exactly the gap between the rail's edge and the first
+ * child's edge. The divider is still a fixed, separately-known cost (`RAIL_SHORTCUTS_DIVIDER_PX`),
+ * spent only when at least one shortcut is going to render at all.
+ */
 function measureRail(): void {
-    measuredAvailable.value = railEl.value?.clientHeight ?? null;
-    measuredDestinations.value = destinationsEl.value?.getBoundingClientRect().height ?? null;
-    measuredFooter.value = footerEl.value?.getBoundingClientRect().height ?? null;
+    const rail = railEl.value;
+    const destinations = destinationsEl.value;
+    const footer = footerEl.value;
+    if (rail === null || destinations === null || footer === null) {
+        measuredAvailable.value = null;
+        measuredDestinations.value = null;
+        measuredFooter.value = null;
+        return;
+    }
+    const railRect = rail.getBoundingClientRect();
+    const destinationsRect = destinations.getBoundingClientRect();
+
+    // The footer's own HEIGHT, never its position. `.wl-rail__footer`'s `margin-block-start:
+    // auto` only pushes it flush against the rail's bottom edge when there is room left to push
+    // it there - the moment shortcuts overflow, the footer is wherever the overflow left it, and
+    // `railRect.bottom - footerRect.top` stops meaning "the footer's height" and starts meaning
+    // garbage (it went negative in the exact case this function exists to prevent). Real bug,
+    // found only by measuring a real running build: this function decided "everything fits"
+    // once, before the footer had anywhere honest left to be, and stayed wrong forever after -
+    // the fixed point of using a rendered result to justify the render that produced it.
+    measuredDestinations.value = destinationsRect.bottom - railRect.top;
+    measuredAvailable.value = rail.clientHeight;
+    measuredFooter.value =
+        footer.getBoundingClientRect().height +
+        ((props.jobShortcuts ?? []).length > 0 ? RAIL_SHORTCUTS_DIVIDER_PX : 0);
 }
 
 onMounted(() => {
@@ -656,13 +691,19 @@ function onMoreMenuChange(open: boolean): void {
     justify-content: flex-start;
     block-size: 48px;
     min-block-size: 48px;
-    gap: 10px;
-    padding-inline: 10px;
+    gap: 6px;
+    /* Deliberately tighter than the destinations' 4px-2px padding above: an 80px column has
+     * very little room left for a readable label once an icon and its own padding are paid
+     * for, and the label - not the icon - is the thing this compact row exists to show. */
+    padding-inline: 6px;
 }
 
 .wl-rail-item--compact .wl-rail-pill {
-    inline-size: 32px;
-    block-size: 32px;
+    /* No pill capsule for a compact row - it is decorative weight the 80px column cannot
+     * afford here, and removing it is most of the width the label gets back. */
+    background: none !important;
+    inline-size: 22px;
+    block-size: 22px;
     flex: 0 0 auto;
 }
 

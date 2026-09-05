@@ -1,12 +1,18 @@
 /**
- * `computeRailShortcutSplit` at the two real, captured heights.
+ * `computeRailShortcutSplit`'s own arithmetic, at illustrative heights standing in for the two
+ * real, captured ones.
  *
  * v2-08-rail-7-jobs-1280x800-dark.png showed the four core destinations scrolled out of view
- * with seven multi-line shortcuts filling the rail instead. These numbers are the fix's real
- * budget: measured against the actual CSS this component ships (four 50px destinations, a
- * ~160px three-button footer, compact 44px single-line shortcuts, a 44px "More" button), a
- * 1280x800 window's rail should comfortably hold all seven; a 600px-tall window should not, and
- * must fold the remainder into "More" rather than ever letting the destinations move.
+ * with seven multi-line shortcuts filling the rail instead. `DESTINATIONS_BLOCK`/`FOOTER_BLOCK`
+ * below are illustrative constants for exercising the algorithm, not a literal transcription of
+ * the real CSS - `AppRail.vue` measures both live via `getBoundingClientRect()`, and the real
+ * numbers vary with how many destination labels happen to wrap onto a second line. What has to
+ * hold regardless of the exact numbers is the invariant these tests assert: destinations plus
+ * footer plus every visible shortcut (plus "More" when shown) never exceeds the available
+ * height. A real running build (not jsdom) is what actually proved this arithmetic correct -
+ * see the doc comment on `measureRail()` in `AppRail.vue` for the real bug it caught: measuring
+ * the footer's *position* rather than its *height* fed the split function a number that was
+ * only honest when nothing had overflowed yet, which is exactly backwards.
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -15,7 +21,7 @@ import {
     RAIL_SHORTCUT_ITEM_PX,
 } from "./railOverflow.js";
 
-// Mirrors the real AppRail.vue measurements: 4 destinations x 50px, footer ~160px.
+// Illustrative, not a literal CSS transcription - see the file-level doc comment above.
 const DESTINATIONS_BLOCK = 200;
 const FOOTER_BLOCK = 160;
 const SHORTCUT_ITEM = RAIL_SHORTCUT_ITEM_PX;

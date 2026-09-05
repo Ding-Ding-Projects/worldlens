@@ -18,8 +18,15 @@
 
 /** Fixed height of one compact rail row (a shortcut, or the "More" button) - a single source
  *  of truth shared between the component's own CSS comment and this arithmetic. */
-export const RAIL_SHORTCUT_ITEM_PX = 48;
-export const RAIL_MORE_BUTTON_PX = 48;
+// 48px is the row's own block-size; +2 folds in `.wl-rail__items`'s 2px inter-item gap so the
+// per-item cost used for the fitting arithmetic matches what each additional row actually
+// costs, rather than under-counting by exactly the gap and drifting over budget one item late.
+export const RAIL_SHORTCUT_ITEM_PX = 50;
+export const RAIL_MORE_BUTTON_PX = 50;
+/** `.wl-rail__shortcuts`'s own margin-block-start (8) + padding-block-start (8) + its 1px
+ *  top border - the fixed cost of the divider between destinations and shortcuts, spent once
+ *  whenever at least one shortcut renders at all. */
+export const RAIL_SHORTCUTS_DIVIDER_PX = 17;
 
 export interface RailOverflowInput {
     /** The rail's total available block size (its own `clientHeight`, in px). */
