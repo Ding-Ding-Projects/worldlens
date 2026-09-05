@@ -7,7 +7,7 @@
 - [x] Exercise the multi-group fetch from the built app against a live multi-group run (v1.0.2012, run 33941015721, 17.5 GB, verified: true).
 - [x] Cloud Render screen: fetch a finished render from a run this device did not dispatch (`ef213554`).
 - [x] Drive the "fetch a render made elsewhere" card in the built app against a live run (v1.0.2016; found and fixed the map-id assumption, `450fe89d`).
-- [ ] Re-drive the fixed attach flow in a packaged build and see the map register.
+- [x] Re-drive the fixed attach flow in a packaged build and see the map register (v1.0.2018, run 33941015721 registered as `fixture_10gb`).
 - [x] Add the chunker copy surface to the copy coverage gate (`c50be6fc`).
 
 - [ ] Refresh the four stale capture-evidence groups (`app-playwright-manifest`, `app-playwright-map-dependent`, `lowlevel-ui-e2e`, `hosted-deployment`) against the current interface digest and record the new `uiSourceDigest` values; `node scripts/check-screenshot-evidence.mjs` has been red on `main` since before 2026-09-05.

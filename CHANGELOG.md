@@ -20,7 +20,9 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
-_No changes have been committed since `v1.0.2018`._
+### Documentation
+
+- Record the clean 10 GB Chunker round trip and keep its evidence file - [`00a9dbd733`](https://github.com/Ding-Ding-Projects/worldlens/commit/00a9dbd73335b3c940342b30a87f441886a6a2ff)
 
 ## 1.0.2018 - 2026-09-05
 

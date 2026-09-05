@@ -24,7 +24,18 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  * the last release" line rather than being hidden, because a missing section and an empty one
  * read very differently to somebody checking whether their fix shipped.
  */
-export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [];
+export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
+    {
+        sha: "00a9dbd73335b3c940342b30a87f441886a6a2ff",
+        shortSha: "00a9dbd733",
+        date: "2026-09-05T10:06:17-04:00",
+        subject: "Record the clean 10 GB Chunker round trip and keep its evidence file",
+        details: "Two and a quarter hours of comparing 2,436,647 chunks against themselves ended\nthe way the 1 GB run did: every chunk matched, nothing missing, nothing extra,\nonly the documented DataVersion and heightmap changes. The evidence JSON now\nlives beside the doc so the number is checkable rather than remembered.\n\n比較咗兩個幾鐘 243 萬個 chunk，結果同 1 GB 嗰次一樣：粒粒對得上，冇少冇多，\n淨係 DataVersion 同 heightmap 照文件咁變。證據 JSON 放埋喺文件隔籬，唔使靠記性。",
+        category: "docs",
+        areas: ["docs", "interface"],
+        files: 6,
+    }
+];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
