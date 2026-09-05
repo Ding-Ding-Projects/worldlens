@@ -22,18 +22,22 @@ import { describe, expect, it } from "vitest";
 // Six levels: cirender -> main -> src -> app -> packages -> design -> repo root.
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..", "..");
 
-function runDrift(args: readonly string[] = []): { ok: boolean; output: string } {
+function run(args: readonly string[]): { ok: boolean; output: string } {
     try {
-        const output = execFileSync(
-            process.execPath,
-            [join(repoRoot, "scripts", "check-workflow-drift.mjs"), ...args],
-            { cwd: repoRoot, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-        );
+        const output = execFileSync(process.execPath, [...args], {
+            cwd: repoRoot,
+            encoding: "utf8",
+            stdio: ["ignore", "pipe", "pipe"],
+        });
         return { ok: true, output };
     } catch (error) {
         const failure = error as { stdout?: string; stderr?: string };
         return { ok: false, output: `${failure.stdout ?? ""}${failure.stderr ?? ""}` };
     }
+}
+
+function runDrift(args: readonly string[] = []): { ok: boolean; output: string } {
+    return run([join(repoRoot, "scripts", "check-workflow-drift.mjs"), ...args]);
 }
 
 describe("the workflows agree with the repository", () => {
@@ -52,6 +56,21 @@ describe("the workflows agree with the repository", () => {
         expect(across, output).not.toBeNull();
         expect(Number(across?.[1] ?? 0)).toBeGreaterThanOrEqual(8);
     });
+
+    it("passes its own unit guard, which covers the wording it prints", () => {
+        // `scripts/check-workflow-drift.test.mjs` drives the Chunker version check against a
+        // fixture repository, because the branch that reports a pinned-commit mismatch never
+        // fires on the committed tree. It is spawned from here for the same reason this file
+        // spawns the check itself: a guard living only in an npm script runs only when
+        // somebody remembers it.
+        const { ok, output } = run([
+            "--test",
+            "--test-reporter=tap",
+            join(repoRoot, "scripts", "check-workflow-drift.test.mjs"),
+        ]);
+        expect(output, output).toMatch(/# fail 0/);
+        expect(ok, output).toBe(true);
+    }, 120_000);
 
     it("states which facts it is checking, so a missing one is visible", () => {
         // The inventory is hand-written on purpose: a rule that only checked the

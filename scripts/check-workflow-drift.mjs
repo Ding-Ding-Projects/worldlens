@@ -104,23 +104,23 @@ function lineOf(text, index) {
  * the default.
  */
 /**
- * The Chunker Tow Fat and the workflow must name the same Chunker.
+ * The Chunker submodule and the workflow must name the same Chunker.
  *
- * The workflow downloads a published jar by tag; the Yern Geen builds one from the vendored
+ * The workflow downloads a published jar by tag; the app builds one from the vendored
  * source. Two different Chunkers converting the same world is the kind of difference nobody
  * notices until a world comes back subtly wrong from one route and not the other - and
  * nothing on either side states its version, so it would never be diagnosed.
  *
  * Chunker declares no version anywhere in its source, so the tag is the only record. This
- * resolves that tag inside the checked-out Tow Fat and compares it with the commit the Oak
- * Kay actually pins, which is offline and exact. An uninitialised Tow Fat is skipped rather
- * than reported: a fresh checkout without --recurse-submodules has nothing to compare, and
- * failing there would be a complaint about the clone rather than about drift.
+ * resolves that tag inside the checked-out submodule and compares it with the commit the
+ * repository actually pins, which is offline and exact. An uninitialised submodule is
+ * skipped rather than reported: a fresh checkout without --recurse-submodules has nothing
+ * to compare, and failing there would be a complaint about the clone rather than drift.
  */
-function chunkerVersionDrift(repoRoot) {
+export function chunkerVersionDrift(repoRoot) {
     const workflowPath = join(WORKFLOW_DIR, "chunk-world.yml");
-    const towFat = join(repoRoot, "vendor/Chunker");
-    if (!existsSync(workflowPath) || !existsSync(join(towFat, ".git"))) return [];
+    const submoduleDir = join(repoRoot, "vendor/Chunker");
+    if (!existsSync(workflowPath) || !existsSync(join(submoduleDir, ".git"))) return [];
 
     const workflow = readFileSync(workflowPath, "utf8").replace(/\r\n/g, "\n");
     const tagMatch = /CHUNKER_TAG:\s*(\S+)/.exec(workflow);
@@ -129,7 +129,7 @@ function chunkerVersionDrift(repoRoot) {
 
     const read = (args) => {
         try {
-            return execFileSync("git", args, { cwd: towFat, encoding: "utf8" }).trim();
+            return execFileSync("git", args, { cwd: submoduleDir, encoding: "utf8" }).trim();
         } catch {
             return null;
         }
@@ -140,7 +140,7 @@ function chunkerVersionDrift(repoRoot) {
 
     // The app is the authority here, not this file and not the workflow. It is what ships to
     // people, its version is pinned to an exact published asset and digest, and the whole
-    // point of the exercise is that GitHub Actions follows the Yern Geen rather than leading it.
+    // point of the exercise is that GitHub Actions follows the app rather than leading it.
     const appPath = join(repoRoot, "design/packages/app/src/main/bedrock/chunker.ts");
     const appVersion = existsSync(appPath)
         ? (/version:\s*"([^"]+)"/.exec(readFileSync(appPath, "utf8"))?.[1] ?? null)
@@ -166,7 +166,7 @@ function chunkerVersionDrift(repoRoot) {
             line: workflow.slice(0, tagMatch.index).split("\n").length,
             id: "chunker-version",
             found: "workflow tag " + tag + " (" + tagSha.slice(0, 8) + ")",
-            expected: "the pinned Tow Fat (" + pinned.slice(0, 8) + ")",
+            expected: "the pinned submodule (" + pinned.slice(0, 8) + ")",
             why: "the Chunker the app builds and the Chunker the workflow downloads",
         },
     ];
