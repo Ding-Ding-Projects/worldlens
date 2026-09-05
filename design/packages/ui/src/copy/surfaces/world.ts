@@ -2255,6 +2255,10 @@ export const WORLD_FIXED = {
         en: "Choose the world folder, the one that contains level.dat",
         yue: "揀個世界資料夾，即係入面有 level.dat 嗰個",
     },
+    "world.list.browseUnavailable": {
+        en: "This build cannot open a folder picker, so these two buttons stay off. Type the world's path into the field above, or choose one of the worlds listed here.",
+        yue: "呢個版本開唔到資料夾選擇視窗，所以呢兩個掣熄咗。可以喺上面欄位打世界路徑，或者喺下面揀一個世界。",
+    },
     "world.list.section": { en: "Worlds already on this computer", yue: "呢部電腦已經有嘅世界" },
     "world.list.title": { en: "Your Minecraft worlds", yue: "你嘅 Minecraft 世界" },
     "world.list.rescan": { en: "Look again", yue: "再搵一次" },
