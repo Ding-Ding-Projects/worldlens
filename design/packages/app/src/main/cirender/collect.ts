@@ -26,15 +26,28 @@
  * download when GitHub supplied none. Calling a recorded digest a verification would be a
  * claim this code cannot support.
  *
- * ## A map that shipped in parts is refused, not guessed at
+ * ## A map that shipped in parts is assembled, not just refused
  *
  * A world too large for one runner to assemble publishes `map-lowres` plus one
- * `partial-hires-N` per merge group, and the run summary explains how to put them
- * together. Unpacking `map-lowres` on its own would produce a map that loads, shows the
- * overview, and has no detail at any zoom - which looks like a rendering bug rather than
- * a missing download. So it is refused with the reason and the artifacts named.
+ * `partial-hires-N` per merge group (`.github/workflows/render-world.yml`'s "Say where the
+ * map went" and "Publish the verified map artifact" steps), and the run summary explains
+ * how to put them together by hand. This used to be exactly where the app stopped: it knew
+ * only the single `rendered-map` shape, so a large world it had just finished rendering on
+ * GitHub could never be fetched back onto this computer or any other - the run succeeded,
+ * every job was green, and the app reported "no rendered-map artifact" as though nothing
+ * had happened at all.
+ *
+ * The fix downloads every part GitHub actually published - `map-lowres` for the webapp,
+ * metadata and lowres pyramid, then each `partial-hires-N` for its slice of the hires
+ * tiles - verifies each one exactly as the single-artifact path already does, and unpacks
+ * them into one tree: `map-lowres` first (it carries the whole webapp skeleton), then every
+ * `partial-hires-N` into `maps/<id>/tiles/0/` inside it, precisely as the run summary's own
+ * instructions say. A part that is missing, expired, or fails its digest is still refused
+ * rather than guessed at - assembling from an incomplete set would produce exactly the
+ * "loads, no detail anywhere" map this whole file exists to prevent.
  */
 
+import { createHash } from "node:crypto";
 import { readdir, rename, rm, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { sha256File } from "@worldlens/parts";
@@ -51,11 +64,14 @@ import type { CiTransport } from "./transport.js";
 /** The artifact a hierarchical merge publishes instead of a whole map. */
 const LOWRES_ARTIFACT = "map-lowres";
 
+/** The name prefix every hires-tile shard of a hierarchical merge publishes under. */
+const HIRES_PART_PREFIX = "partial-hires-";
+
 export interface CollectFailure {
     readonly code:
         | "no-map-artifact"
         | "ambiguous-map-artifact"
-        | "map-shipped-in-parts"
+        | "map-parts-incomplete"
         | "artifact-expired"
         | "artifact-digest-missing"
         | "digest-mismatch"
@@ -73,8 +89,14 @@ export interface CollectSuccess {
     readonly dataRoot: string;
     readonly bytes: number;
     readonly sha256: string;
-    /** True only when GitHub published a digest and the bytes matched it. */
+    /** True only when GitHub published a digest and the bytes matched it, on every part. */
     readonly verified: boolean;
+    /**
+     * The artifact this render is keyed to for provenance. For a map shipped in parts,
+     * this is `map-lowres`; every `partial-hires-N` that was assembled alongside it is
+     * not separately represented here, because nothing downstream of this record reads
+     * more than one artifact identity.
+     */
     readonly artifact: WorkflowArtifact;
     /** BlueMap's storage id, which may differ from the raw project map id. */
     readonly mapId: string;
@@ -89,7 +111,14 @@ export interface CollectOptions {
     readonly signal?: AbortSignal | undefined;
     /** Where maps live. The CI map is unpacked beside every local render, on purpose. */
     readonly storageDir: string;
-    /** Where the artifact zip is staged before it is unpacked. */
+    /**
+     * Where the artifact zip is staged before it is unpacked.
+     *
+     * For a map shipped in parts, this path names the `map-lowres` download; each
+     * `partial-hires-N` is staged beside it under a name derived from this one, so every
+     * staged file lives in the same directory and a resumed download finds exactly the
+     * bytes it already wrote.
+     */
     readonly artifactFile: string;
     /** The render id to file it under. Always a `ci-` id; never a local render's. */
     readonly renderId: string;
@@ -127,79 +156,6 @@ export async function collectRenderedMap(
     const maps = artifacts.filter((artifact) => artifact.name === RENDERED_MAP_ARTIFACT);
     const map = maps[0];
 
-    if (map === undefined) {
-        const lowres = artifacts.find((artifact) => artifact.name === LOWRES_ARTIFACT);
-        if (lowres !== undefined) {
-            const parts = artifacts
-                .filter((artifact) => artifact.name.startsWith("partial-hires-"))
-                .map((artifact) => artifact.name);
-            return refuse(
-                "map-shipped-in-parts",
-                `This world was too large for one runner to assemble, so the run published ` +
-                    `${LOWRES_ARTIFACT} and ${String(parts.length)} hires part` +
-                    `${parts.length === 1 ? "" : "s"} (${parts.join(", ") || "none listed"}) instead of ` +
-                    `one ${RENDERED_MAP_ARTIFACT}. Nothing was downloaded: unpacking the lowres ` +
-                    "artifact on its own would give a map that loads and has no detail at any zoom, " +
-                    "which looks like a broken render rather than a missing download. The run " +
-                    "summary on GitHub says how to assemble the parts by hand.",
-            );
-        }
-        return refuse(
-            "no-map-artifact",
-            `Run ${String(runId)} finished but published no ${RENDERED_MAP_ARTIFACT} artifact. It ` +
-                `has: ${artifacts.map((artifact) => artifact.name).join(", ") || "no artifacts at all"}.`,
-        );
-    }
-
-    if (maps.length !== 1) {
-        return refuse(
-            "ambiguous-map-artifact",
-            `Run ${String(runId)} published ${String(maps.length)} artifacts named ` +
-                `${RENDERED_MAP_ARTIFACT}. Nothing was downloaded because there is no safe way ` +
-                "to choose which one is the finished map.",
-        );
-    }
-
-    if (map.expired) {
-        return refuse(
-            "artifact-expired",
-            `The ${RENDERED_MAP_ARTIFACT} artifact from run ${String(runId)} has passed its ` +
-                "retention period and GitHub has deleted it. Start the render again; nothing on " +
-                "this computer was changed.",
-        );
-    }
-
-    const published = publishedSha256(map.digest);
-    if (options.requirePublishedDigest === true && published === null) {
-        return refuse(
-            "artifact-digest-missing",
-            `The ${RENDERED_MAP_ARTIFACT} artifact from run ${String(runId)} has no published ` +
-                "SHA-256 digest. Nothing was downloaded because a map recovered from a failed run " +
-                "must be verified against GitHub's own digest.",
-        );
-    }
-
-    await options.transport.downloadArtifact(
-        owner,
-        repo,
-        map,
-        options.artifactFile,
-        options.onBytes,
-    );
-
-    const sha256 = await sha256File(options.artifactFile, options.signal);
-    if (published !== null && published !== sha256) {
-        // Deleted rather than kept. A file that failed its published digest is the one
-        // file on disk that must never be reused, and a resumed download would otherwise
-        // see the right length and skip the transfer for ever.
-        await rm(options.artifactFile, { force: true }).catch(() => undefined);
-        return refuse(
-            "digest-mismatch",
-            `The ${RENDERED_MAP_ARTIFACT} artifact arrived with SHA-256 ${sha256}, and GitHub ` +
-                `published ${published}. Nothing was unpacked and no map was registered.`,
-        );
-    }
-
     const workspace = renderWorkspace(options.storageDir, options.renderId);
     const storageMapId = sanitizeMapId(options.mapId);
     const stagedWebRoot = `${workspace.webRoot}.collecting-${String(runId)}`;
@@ -207,13 +163,107 @@ export async function collectRenderedMap(
     const stagedRecord = `${workspace.recordFile}.collecting-${String(runId)}`;
     const previousRecord = `${workspace.recordFile}.previous-${String(runId)}`;
 
-    await recoverInterruptedSwap(workspace.webRoot, previousWebRoot);
-    await recoverInterruptedSwap(workspace.recordFile, previousRecord);
-    await rm(stagedWebRoot, { recursive: true, force: true });
-    await rm(stagedRecord, { force: true });
-    await extractZip(options.artifactFile, stagedWebRoot, {
-        ...(options.signal === undefined ? {} : { signal: options.signal }),
-    });
+    let primaryArtifact: WorkflowArtifact;
+    let totalBytes: number;
+    let combinedSha256: string;
+    let anyUnverified: boolean;
+
+    if (map === undefined) {
+        const lowresCandidates = artifacts.filter((artifact) => artifact.name === LOWRES_ARTIFACT);
+        if (lowresCandidates.length === 0) {
+            return refuse(
+                "no-map-artifact",
+                `Run ${String(runId)} finished but published no ${RENDERED_MAP_ARTIFACT} artifact. It ` +
+                    `has: ${artifacts.map((artifact) => artifact.name).join(", ") || "no artifacts at all"}.`,
+            );
+        }
+        if (lowresCandidates.length > 1) {
+            return refuse(
+                "ambiguous-map-artifact",
+                `Run ${String(runId)} published ${String(lowresCandidates.length)} artifacts named ` +
+                    `${LOWRES_ARTIFACT}. Nothing was downloaded because there is no safe way to choose ` +
+                    "which one is the finished map's lowres half.",
+            );
+        }
+        const lowres = lowresCandidates[0];
+        if (lowres === undefined) {
+            return refuse(
+                "no-map-artifact",
+                `Run ${String(runId)} finished but published no ${RENDERED_MAP_ARTIFACT} artifact.`,
+            );
+        }
+
+        const partsResult = resolveHiresParts(artifacts, runId);
+        if (!partsResult.ok) return partsResult;
+        const parts = partsResult.parts;
+
+        await recoverInterruptedSwap(workspace.webRoot, previousWebRoot);
+        await recoverInterruptedSwap(workspace.recordFile, previousRecord);
+        await rm(stagedWebRoot, { recursive: true, force: true });
+        await rm(stagedRecord, { force: true });
+
+        const lowresFile = `${options.artifactFile}.map-lowres.zip`;
+        const lowresFetch = await fetchAndVerify(owner, repo, runId, lowres, lowresFile, options);
+        if (!lowresFetch.ok) return lowresFetch;
+
+        await extractZip(lowresFile, stagedWebRoot, {
+            ...(options.signal === undefined ? {} : { signal: options.signal }),
+        });
+
+        let bytes = lowres.sizeInBytes;
+        const digests: string[] = [lowresFetch.sha256];
+        let unverified = !lowresFetch.verified;
+        const hiresRoot = join(stagedWebRoot, "maps", storageMapId, "tiles", "0");
+
+        for (const part of parts) {
+            const partFile = `${options.artifactFile}.${part.name}.zip`;
+            const partFetch = await fetchAndVerify(owner, repo, runId, part, partFile, options);
+            if (!partFetch.ok) {
+                await rm(stagedWebRoot, { recursive: true, force: true }).catch(() => undefined);
+                return partFetch;
+            }
+            await extractZip(partFile, hiresRoot, {
+                ...(options.signal === undefined ? {} : { signal: options.signal }),
+            });
+            bytes += part.sizeInBytes;
+            digests.push(partFetch.sha256);
+            if (!partFetch.verified) unverified = true;
+        }
+
+        primaryArtifact = lowres;
+        totalBytes = bytes;
+        // A single sha256 identifying *this exact assembled set*: every part's own
+        // verified-or-recorded digest, in the stable lowres-then-parts order, hashed
+        // together. Reproducible from the same run's artifacts and honest that it names
+        // a set rather than one file.
+        combinedSha256 = createHash("sha256").update(digests.join(":")).digest("hex");
+        anyUnverified = unverified;
+    } else {
+        if (maps.length !== 1) {
+            return refuse(
+                "ambiguous-map-artifact",
+                `Run ${String(runId)} published ${String(maps.length)} artifacts named ` +
+                    `${RENDERED_MAP_ARTIFACT}. Nothing was downloaded because there is no safe way ` +
+                    "to choose which one is the finished map.",
+            );
+        }
+
+        const single = await fetchAndVerify(owner, repo, runId, map, options.artifactFile, options);
+        if (!single.ok) return single;
+
+        await recoverInterruptedSwap(workspace.webRoot, previousWebRoot);
+        await recoverInterruptedSwap(workspace.recordFile, previousRecord);
+        await rm(stagedWebRoot, { recursive: true, force: true });
+        await rm(stagedRecord, { force: true });
+        await extractZip(options.artifactFile, stagedWebRoot, {
+            ...(options.signal === undefined ? {} : { signal: options.signal }),
+        });
+
+        primaryArtifact = map;
+        totalBytes = map.sizeInBytes;
+        combinedSha256 = single.sha256;
+        anyUnverified = !single.verified;
+    }
 
     const looksLikeAMap = await isAMap(stagedWebRoot, storageMapId);
     if (!looksLikeAMap) {
@@ -229,7 +279,7 @@ export async function collectRenderedMap(
         await rm(stagedWebRoot, { recursive: true, force: true }).catch(() => undefined);
         return refuse(
             "artifact-not-a-map",
-            `The ${RENDERED_MAP_ARTIFACT} artifact unpacked without a maps/${storageMapId} folder ` +
+            `The ${primaryArtifact.name} artifact unpacked without a maps/${storageMapId} folder ` +
                 "containing its settings.json and a root settings.json beside it, so it is not a " +
                 `map this application can serve. ${found} Nothing was registered.`,
         );
@@ -283,12 +333,143 @@ export async function collectRenderedMap(
         renderId: options.renderId,
         webRoot: workspace.webRoot,
         dataRoot: LocalMapHandler.dataRoot(options.renderId),
-        bytes: map.sizeInBytes,
-        sha256,
-        verified: published !== null,
-        artifact: map,
+        bytes: totalBytes,
+        sha256: combinedSha256,
+        verified: !anyUnverified,
+        artifact: primaryArtifact,
         mapId: storageMapId,
     };
+}
+
+/**
+ * Every `partial-hires-N` this run published, checked for a contiguous `0..count-1` run
+ * with no gaps and no duplicates, in ascending order.
+ *
+ * A missing index is refused by name rather than silently assembled around: a merge
+ * group's tiles are disjoint (see the workflow's own comment on `partial-hires-${matrix.group}`),
+ * so a gap is not "slightly incomplete detail" - it is a rectangle of the world with no
+ * hires tiles at all, which reads as a rendering bug in exactly the area that failed to
+ * upload rather than as the missing download it actually is.
+ */
+function resolveHiresParts(
+    artifacts: readonly WorkflowArtifact[],
+    runId: number,
+): { readonly ok: true; readonly parts: readonly WorkflowArtifact[] } | CollectFailureResult {
+    const byIndex = new Map<number, WorkflowArtifact>();
+    const unparsed: string[] = [];
+    for (const artifact of artifacts) {
+        if (!artifact.name.startsWith(HIRES_PART_PREFIX)) continue;
+        const suffix = artifact.name.slice(HIRES_PART_PREFIX.length);
+        const index = /^\d+$/.test(suffix) ? Number(suffix) : NaN;
+        if (!Number.isInteger(index)) {
+            unparsed.push(artifact.name);
+            continue;
+        }
+        const existing = byIndex.get(index);
+        if (existing === undefined || artifact.id > existing.id) byIndex.set(index, artifact);
+    }
+
+    if (byIndex.size === 0) {
+        return refuse(
+            "map-parts-incomplete",
+            `This world was too large for one runner to assemble, so the run published ` +
+                `${LOWRES_ARTIFACT} instead of ${RENDERED_MAP_ARTIFACT} - but it published no ` +
+                `${HIRES_PART_PREFIX}N artifacts at all. Nothing was downloaded: a map with a ` +
+                "lowres pyramid and no hires tiles anywhere would look like a broken render " +
+                `rather than an incomplete run. Run ${String(runId)} on GitHub explains what it ` +
+                "actually published.",
+        );
+    }
+
+    const expectedCount = byIndex.size;
+    const missing: number[] = [];
+    for (let index = 0; index < expectedCount; index += 1) {
+        if (!byIndex.has(index)) missing.push(index);
+    }
+    if (missing.length > 0 || unparsed.length > 0) {
+        const missingText =
+            missing.length > 0
+                ? `missing part${missing.length === 1 ? "" : "s"} at index ` +
+                  `${missing.map((index) => `${HIRES_PART_PREFIX}${String(index)}`).join(", ")}`
+                : null;
+        const unparsedText =
+            unparsed.length > 0
+                ? `${unparsed.length === 1 ? "an artifact" : "artifacts"} named like a hires part but ` +
+                  `not numbered plainly (${unparsed.join(", ")})`
+                : null;
+        return refuse(
+            "map-parts-incomplete",
+            `This world was too large for one runner to assemble, so the run published ` +
+                `${LOWRES_ARTIFACT} plus ${HIRES_PART_PREFIX}N hires parts, but the parts it ` +
+                `published do not form a complete, contiguous 0..${String(expectedCount - 1)} set: ` +
+                `${[missingText, unparsedText].filter((text): text is string => text !== null).join("; ")}. ` +
+                "Nothing was downloaded, because assembling around a gap would produce a map that " +
+                `loads with a hole in its detail rather than the missing download it actually is. ` +
+                `Run ${String(runId)} on GitHub lists exactly what it published.`,
+        );
+    }
+
+    const parts: WorkflowArtifact[] = [];
+    for (let index = 0; index < expectedCount; index += 1) {
+        const part = byIndex.get(index);
+        if (part !== undefined) parts.push(part);
+    }
+    return { ok: true, parts };
+}
+
+type CollectFailureResult = { readonly ok: false; readonly failure: CollectFailure };
+type FetchResult =
+    | { readonly ok: true; readonly sha256: string; readonly verified: boolean }
+    | CollectFailureResult;
+
+/**
+ * Downloads one artifact to `destinationFile`, then checks it against GitHub's published
+ * digest exactly as the single-`rendered-map` path always has - shared here so a map
+ * shipped in parts is held to the same standard, part by part, rather than a looser one.
+ */
+async function fetchAndVerify(
+    owner: string,
+    repo: string,
+    runId: number,
+    artifact: WorkflowArtifact,
+    destinationFile: string,
+    options: CollectOptions,
+): Promise<FetchResult> {
+    if (artifact.expired) {
+        return refuse(
+            "artifact-expired",
+            `The ${artifact.name} artifact from run ${String(runId)} has passed its retention ` +
+                "period and GitHub has deleted it. Start the render again; nothing on this " +
+                "computer was changed.",
+        );
+    }
+
+    const published = publishedSha256(artifact.digest);
+    if (options.requirePublishedDigest === true && published === null) {
+        return refuse(
+            "artifact-digest-missing",
+            `The ${artifact.name} artifact from run ${String(runId)} has no published SHA-256 ` +
+                "digest. Nothing was downloaded because a map recovered from a failed run must be " +
+                "verified against GitHub's own digest.",
+        );
+    }
+
+    await options.transport.downloadArtifact(owner, repo, artifact, destinationFile, options.onBytes);
+
+    const sha256 = await sha256File(destinationFile, options.signal);
+    if (published !== null && published !== sha256) {
+        // Deleted rather than kept. A file that failed its published digest is the one
+        // file on disk that must never be reused, and a resumed download would otherwise
+        // see the right length and skip the transfer for ever.
+        await rm(destinationFile, { force: true }).catch(() => undefined);
+        return refuse(
+            "digest-mismatch",
+            `The ${artifact.name} artifact arrived with SHA-256 ${sha256}, and GitHub published ` +
+                `${published}. Nothing was unpacked and no map was registered.`,
+        );
+    }
+
+    return { ok: true, sha256, verified: published !== null };
 }
 
 async function pathExists(path: string): Promise<boolean> {
@@ -376,10 +557,7 @@ async function isAMap(webRoot: string, mapId: string): Promise<boolean> {
     );
 }
 
-function refuse(
-    code: CollectFailure["code"],
-    message: string,
-): { readonly ok: false; readonly failure: CollectFailure } {
+function refuse(code: CollectFailure["code"], message: string): CollectFailureResult {
     return { ok: false, failure: { code, message } };
 }
 
