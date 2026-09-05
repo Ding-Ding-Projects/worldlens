@@ -79,15 +79,97 @@ describe("the settings sheet keeps one scroll axis", () => {
      * same 320px window after this rule landed - the title now wraps at word
      * boundaries.
      */
-    it("lowers the strip's minimum width below 22.5rem so the detail pane keeps a readable width at a 320px window", () => {
-        const narrow = block(
+    /**
+     * Superseded by the single-column collapse below: a 320px window
+     * genuinely needs the strip out of the detail pane's way entirely, not
+     * merely a lower floor on a strip that still sits beside it. Kept as
+     * history in the comment on the 37.5rem rule rather than as a live
+     * assertion on a value that no longer exists.
+     */
+
+    /**
+     * The M3 single-column collapse, below ~600px (37.5rem): the strip stops
+     * sitting beside the detail pane (`.mb-tabs--left`/`.mb-tabs--right`
+     * forced to `column`, from `TabbedNavigation.vue`) and flattens into a
+     * horizontal row (`data-placement="left"`/`"right"` still apply -
+     * `TabStrip.vue` itself is untouched - only their axis is overridden
+     * here), so the detail pane gets the dialog's full width. This is the
+     * breakpoint a real capture at 320px was taken against; see
+     * `docs/display-and-ease-of-use.md` for the capture evidence and the
+     * jsdom-has-no-layout-engine reason this is asserted against the
+     * stylesheet text rather than a mounted measurement, the same approach
+     * `tabPanelContainingBlock.test.ts` documents for the same limitation.
+     */
+    it("collapses the docked tab strip into a horizontal row below the 37.5rem single-column breakpoint", () => {
+        const collapse = block(
             settings,
-            /@media \(max-width: 22\.5rem\) \{[\s\S]*?\n\}/,
-            "narrow-window strip floor",
+            /@media \(max-width: 37\.5rem\) \{[\s\S]*?\n\}/,
+            "single-column collapse",
         );
-        expect(narrow).toContain("min-width: 5.5rem");
-        expect(narrow).toContain('[data-placement="left"]');
-        expect(narrow).toContain('[data-placement="right"]');
+        expect(collapse).toContain(".mb-tabs--left");
+        expect(collapse).toContain(".mb-tabs--right");
+        expect(collapse).toContain("flex-direction: column");
+        expect(collapse).toContain('[data-placement="left"]');
+        expect(collapse).toContain('[data-placement="right"]');
+        expect(collapse).toContain("flex-direction: row");
+        expect(collapse).toContain("overflow-x: auto");
+    });
+
+    /**
+     * The detail pane must actually receive the width the collapse frees up,
+     * not just have the strip step out of a layout that still constrains it
+     * some other way.
+     */
+    it("gives the detail pane the dialog's full width once the strip has collapsed", () => {
+        const collapse = block(
+            settings,
+            /@media \(max-width: 37\.5rem\) \{[\s\S]*?\n\}/,
+            "single-column collapse",
+        );
+        expect(collapse).toContain(".mb-tabs__panel");
+        expect(collapse).toContain("inline-size: 100%");
+    });
+
+    /**
+     * Real regression: capturing this dialog through the cheap Lowlevel
+     * headless route at 320px measured `.mb-consent-row__facts`
+     * (`ConsentSettingsRow.vue`, outside this task's file scope) at
+     * `scrollWidth: 192` against a `clientWidth: 136` parent - a real
+     * sideways-scrolling detail pane, from a `minmax(12rem, 1fr)` grid floor
+     * wider than the narrow dialog ever gives it. Fixed with a descendant
+     * override here rather than editing that out-of-scope file. The
+     * assertion is against the override rule rather than a live
+     * `scrollWidth`/`clientWidth` measurement because jsdom has no layout
+     * engine to produce either number; the real measurement that found and
+     * then cleared this overflow is the probe recorded alongside the capture
+     * evidence for this task.
+     */
+    it("removes the 12rem column floor that overflowed the consent row's fact grid at 320px", () => {
+        const collapse = block(
+            settings,
+            /@media \(max-width: 37\.5rem\) \{[\s\S]*?\n\}/,
+            "single-column collapse",
+        );
+        const factsRule = block(
+            collapse,
+            /\.mb-consent-row__facts\s*\{[^}]*\}/s,
+            "consent-facts column override",
+        );
+        expect(factsRule).toContain("grid-template-columns: 1fr");
+    });
+
+    /**
+     * The search field's bilingual label ("Search settings 搜尋設定") stays on
+     * one line with its append-inner icons beside it rather than wrapping and
+     * pushing the regex-builder affordance underneath - a real defect a
+     * capture at 320px found. Fixed by swapping to a short label under the
+     * same breakpoint (`isNarrowSearch` in the script block) rather than by
+     * truncating the long one with CSS, which fought Vuetify's own
+     * floating-label notch sizing.
+     */
+    it("swaps the search field to a short one-line label below the single-column breakpoint", () => {
+        expect(settings).toContain("isNarrowSearch");
+        expect(settings).toMatch(/settings\.search\.labelShort['"],\s*['"]Search['"]/);
     });
 
     /**

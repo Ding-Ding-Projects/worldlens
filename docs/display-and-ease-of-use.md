@@ -28,14 +28,36 @@ The dialog's own tab strip is the master pane of an M3 list-detail layout: docke
 by default (`TabbedNavigation`'s own `DEFAULT_TAB_PLACEMENT`), `aria-orientation="vertical"`, with
 arrow keys moving along that axis. Only the active tab's section is ever mounted.
 
-**Narrow windows.** At and below a 320px window, the strip's fixed minimum width used to leave the
-detail pane so little room that a title with `overflow-wrap: anywhere` broke every character onto
-its own line rather than wrapping at word boundaries - found and fixed by driving the real
-packaged app through the cheap Lowlevel headless route at that exact width. Below a 22.5rem
-viewport the strip's floor drops to 5.5rem so the detail pane keeps a legible width; both panes
-still shrink and wrap rather than opening a second, horizontal scroll axis. Verified clean at
-320px and at the dialog's normal desktop width, in English and in bilingual mode, and in both the
-dark and light themes.
+**Narrow windows: single column below 600px.** A first pass at a 320px window only lowered the
+strip's minimum width, which was not narrow enough - the strip still took most of the width, a
+heading broke mid-word, the search field wrapped its bilingual label onto a second line with the
+regex-builder affordance pushed underneath it, and the detail pane opened its own horizontal
+scrollbar. Driving the real packaged app through the cheap Lowlevel headless route at that exact
+width found all four, and the fix is the M3 pattern for a list-detail surface below ~600px
+(37.5rem): one column, not two competing for one dimension.
+
+Below that breakpoint, `TabbedNavigation`'s own `.mb-tabs--left`/`.mb-tabs--right` row layout is
+forced to `column` from this dialog's own stylesheet, stacking the strip above the detail pane
+instead of beside it, without editing that shared component. The strip row itself keeps its
+`data-placement="left"` and every one of `TabStrip.vue`'s behaviours - `role="tablist"`/`role="tab"`,
+arrow-key navigation, the strip's own search-and-regex-builder flyout - and only has its own axis
+flipped to a horizontal, scrollable row, so it no longer claims most of the dialog's width. The
+detail pane receives the width the collapse frees.
+
+Two further fixes came out of that same capture: `overflow-wrap: anywhere` on the M3 heading and
+labels (`SettingsSection.vue`, `AppSettings.vue`) is now `overflow-wrap: break-word`, so a break
+only happens inside a single word wider than its own container rather than at every character;
+and a real overflow was measured (`scrollWidth` 192px against a `clientWidth` of 136px) in
+`ConsentSettingsRow.vue`'s `.mb-consent-row__facts` grid, whose `minmax(12rem, 1fr)` column floor
+is wider than this dialog's narrow detail pane - fixed with a descendant override in
+`AppSettings.vue` (`grid-template-columns: 1fr` below 37.5rem) rather than an edit to that
+component, which sits outside this dialog's own file. The search field's bilingual label
+("Search settings 搜尋設定") swaps to a short "Search" label below the same breakpoint instead of
+being truncated with CSS, which fought Vuetify's own floating-label notch sizing.
+
+Verified clean at 320px and at the dialog's normal desktop width, in English and in bilingual
+mode, in both the dark and light themes, and at 200% device scale factor (1280x800 and 640x700,
+set through `Emulation.setDeviceMetricsOverride`) - nothing clips at any of those tuples.
 
 ## Behaviour
 
