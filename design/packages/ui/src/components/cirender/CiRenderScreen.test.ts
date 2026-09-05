@@ -35,6 +35,7 @@ import type {
     CiSyncState,
     RouteReport,
 } from "./ciRenderBridge.js";
+import { createGhCliAccountsStore } from "../github/ghCliAccountsStore.js";
 import type { GhCliAccountReadout, GhCliBridge } from "../github/ghCliBridge.js";
 import type {
     MinecraftFolder,
@@ -348,16 +349,23 @@ async function selectOwner(wrapper: ReturnType<typeof mountScreen>, login: strin
 }
 
 /**
- * A scripted `GitHubBridge` behind the account picker: `list` answers with whichever account
- * is currently active, `setActive` really changes it (so a follow-up list reflects the
- * switch), and every call is recorded so a test can prove a switch actually reached the
- * bridge rather than only updating on-screen state.
+ * A scripted `GhCliBridge` behind the account picker: `ghCliListAccounts` answers with
+ * whichever account is currently active, `ghCliSwitchAccount` really changes it (so a
+ * follow-up list reflects the switch), and every call is recorded so a test can prove a
+ * switch actually reached the bridge rather than only updating on-screen state.
+ *
+ * The switch method has to be present for that proof to mean anything. Every `GhCliBridge`
+ * member is optional, so a bridge that left it out would make the store's `switchAccount`
+ * return false before recording anything, and an assertion that the picker "never switches
+ * the active account" could then never fail. The test named "gives the account picker a
+ * bridge that really can switch" below holds that capability in place.
  */
 function fakeAccountsBridge(
     accounts: readonly GhCliAccountReadout[],
     activeId: string | null,
 ): { bridge: GhCliBridge; calls: string[] } {
     const calls: string[] = [];
+    let active = activeId;
     return {
         calls,
         bridge: {
@@ -368,11 +376,24 @@ function fakeAccountsBridge(
                     version: "gh version 2.97.0",
                     accounts: accounts.map((account) => ({
                         ...account,
-                        active: account.id === activeId,
+                        active: account.id === active,
                     })),
                     source: "json",
                     capabilities: { structuredStatus: true },
                     message: "ready",
+                });
+            },
+            ghCliSwitchAccount: (host: string, login: string) => {
+                calls.push("switch");
+                const chosen = accounts.find((account) => account.login === login) ?? null;
+                if (chosen !== null) active = chosen.id;
+                return Promise.resolve({
+                    ok: chosen !== null,
+                    account: chosen === null ? null : { ...chosen, active: true },
+                    message:
+                        chosen === null
+                            ? `No ${login} account on ${host}`
+                            : `Switched ${host} to ${login}`,
                 });
             },
         },
@@ -1437,6 +1458,27 @@ describe("render as: which stored GitHub account this render authenticates as", 
         // proves Settings, downloads, backups and everything else kept reading whichever
         // account was already active - this picker only ever read the list, never wrote it.
         expect(accountCalls).toEqual(["list"]);
+    });
+
+    it("gives the account picker a bridge that really can switch, so the assertion above can fail", async () => {
+        // The assertion above is only worth anything while this bridge is capable of the
+        // thing it claims never happens. Every `GhCliBridge` member is optional, so a
+        // bridge without `ghCliSwitchAccount` makes the store refuse the switch before
+        // recording a call, and `["list"]` would then be true no matter what the screen did.
+        const { bridge, calls } = fakeAccountsBridge(
+            [ghAccount({ id: "a1", login: "octocat" }), ghAccount({ id: "a2", login: "monalisa" })],
+            "a1",
+        );
+        const store = createGhCliAccountsStore({ bridge });
+        expect(store.canSwitch).toBe(true);
+        await store.load();
+        expect(store.accounts.value.find((account) => account.active)?.login).toBe("octocat");
+
+        expect(await store.switchAccount("github.com", "monalisa")).toBe(true);
+        // Recorded, and the follow-up list really reflects the new active account, so a
+        // regression that switched from this screen would show up in the call log.
+        expect(calls).toEqual(["list", "switch", "list"]);
+        expect(store.accounts.value.find((account) => account.active)?.login).toBe("monalisa");
     });
 
     it("clears the owner field and a stale preflight report when a different account is chosen", async () => {
