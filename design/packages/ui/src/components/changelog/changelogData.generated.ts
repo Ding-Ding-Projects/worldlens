@@ -26,6 +26,27 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "800af5a5e25e205e48e9b7cd175d7b55c273554b",
+        shortSha: "800af5a5e2",
+        date: "2026-09-05T13:19:33-04:00",
+        subject: "Merge commit 'b8751e26'",
+        details: "",
+        category: "interface",
+        areas: ["interface"],
+        files: 4,
+        summarizes: 2,
+    },
+    {
+        sha: "b8751e2623d47dd8e58b00071569127cefa33de5",
+        shortSha: "b8751e2623",
+        date: "2026-09-05T13:18:39-04:00",
+        subject: "Let a rail shortcut label wrap, and let the More button be the only thing that opens its menu",
+        details: "Two defects the owner found in the packaged v1.0.2026 rail, both reproduced by driving that\nexact build through the headless route.\n\nThe compact shortcut row pinned itself to 48px and told the browser to ellipsize whatever did\nnot fit on one line. That is invisible for exactly as long as the rendered text is the shipped\nshort label - and the text this row renders is not the row's own business, because the local\npersonal-vocabulary file replaces user-facing wording and a replacement is free to be longer.\nThe build measured a ten-character replacement at 58px of text inside a 49px box, so the row\nproudly displayed half a word and an ellipsis. The label now wraps and the row grows, nothing\nclamps a line count (a clamp is clipping with better manners), and the overflow budget counts\nthe grown row instead of the shipped one so the four destinations still cannot be pushed out.\n\nThe More menu was handed the button as its overlay activator, so the overlay bound a second\nclick listener to a button that already had one. One press ran both: open, then closed again.\nInstrumenting the packaged build recorded aria-expanded going true, true, false, false inside a\nsingle click - the menu was opened and shut faster than anyone could see it, which the button\nthen reported as nothing happening at all. A DOM-dispatched click in jsdom survived the double\nbinding, which is how this shipped past a green suite. The overlay now takes the button as\ntarget - same anchor, none of the events - and the button toggles its own state, the same\narrangement the bell next to it already uses after learning the same lesson.\n\n導覽列個捷徑標籤唔准再食字。原本鎖死 48px 一行，長少少就變「XX…」，但個字唔係佢話事 - 用家本地詞彙檔可以\n換成更長嘅字，於是包好嘅版本量到 58px 塞入 49px，剩返半個字加三點。而家會自動換行、個行自己長高，計位\n時亦按長高咗嘅行計，四個主要目的地照樣企硬。\n\n至於「More」撳極都無反應：個彈出選單攞咗粒掣做 activator，於是同一粒掣有兩個 click，撳一下開完即刻關。\n喺實際包好嘅版本量到 aria-expanded 一下之間 true, true, false, false - 開過，眨眼都嚟唔切。改用 target\n淨要位置唔要事件，開關全部歸粒掣自己管，同隔籬個鈴一樣。",
+        category: "interface",
+        areas: ["interface"],
+        files: 4,
+    },
+    {
         sha: "05497ad29d256d9252c5e2a813afc8514c72093d",
         shortSha: "05497ad29d",
         date: "2026-09-05T13:12:46-04:00",
