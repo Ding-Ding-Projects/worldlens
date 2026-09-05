@@ -2142,6 +2142,78 @@ describe("fetching a render made elsewhere", () => {
         expect(saved?.assetName).toBeNull();
     });
 
+    /*
+     * The bug this whole rewrite exists for: a run made elsewhere renders a completely
+     * different world than the one open in this project. The local project here only
+     * ever defines "world" - the artifact carries "fixture_10gb" instead, exactly the
+     * shape a second device's huge test render would have. Attaching with no explicit
+     * `mapId` used to force `chooseProjectMap`'s "only one enabled map, that must be it"
+     * fallback onto this project's own "world", which the artifact never had a folder
+     * for - refused as `artifact-not-a-map` for a reason that had nothing to do with the
+     * artifact being broken. It must now read the run's own title first and register the
+     * render under *that* identity instead.
+     */
+    it("registers under the run's own map id when it differs from the local project's map", async () => {
+        const FOREIGN_MAP_ID = "fixture_10gb";
+        const site = join(workDir, "foreign-site");
+        await mkdir(join(site, "maps", FOREIGN_MAP_ID, "tiles"), { recursive: true });
+        await writeFile(join(site, "settings.json"), '{"maps":["fixture_10gb"]}', "utf8");
+        await writeFile(join(site, "maps", FOREIGN_MAP_ID, "settings.json"), "{}", "utf8");
+        await writeFile(join(site, "maps", FOREIGN_MAP_ID, "tiles", "0.prbm"), "tile", "utf8");
+        const archive = join(workDir, "foreign-rendered-map.zip");
+        const packed = await packFolder(site, archive);
+        const bytes = new Uint8Array(await readFile(archive));
+
+        const github = baseRoutes(new RecordingGitHub())
+            .on("GET", /\/actions\/runs\/77$/, {
+                status: 200,
+                json: {
+                    ...(runJson({ id: 77, status: "completed", conclusion: "success" }) as Record<
+                        string,
+                        unknown
+                    >),
+                    display_title: `Render ${FOREIGN_MAP_ID} (minecraft:overworld)`,
+                },
+            })
+            .on("GET", "/actions/runs/77/jobs", { status: 200, json: { jobs: [] } })
+            .on("GET", "/actions/runs/77/artifacts", {
+                status: 200,
+                json: {
+                    artifacts: [
+                        artifactJson({
+                            id: 91,
+                            name: "rendered-map",
+                            bytes: bytes.byteLength,
+                            digest: `sha256:${packed.sha256}`,
+                        }),
+                    ],
+                },
+            })
+            .on("GET", "/artifacts/91/zip", { status: 200, bytes });
+
+        const mounts = new LocalMapHandler();
+        // Deliberately no `mapId` here - this is the whole point of the fix. Only the
+        // run's own title says what this render is.
+        const result = await makeSync({ github, mounts }).attach({
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            runId: 77,
+        });
+
+        expect(result.ok && result.outcome === "rendered").toBe(true);
+        if (!result.ok || result.outcome !== "rendered") return;
+        expect(result.summary.mapId).toBe(FOREIGN_MAP_ID);
+        expect(mounts.getMounts()).toHaveLength(1);
+
+        const syncId = syncIdFor(OWNER, REPO, world, FOREIGN_MAP_ID);
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const saved = await readCiSyncState(workspace.stateFile);
+        expect(saved?.stage).toBe("rendered");
+        expect(saved?.mapId).toBe(FOREIGN_MAP_ID);
+        expect(saved?.runId).toBe(77);
+    });
+
     it("refuses an invalid run id before touching GitHub", async () => {
         const github = baseRoutes(new RecordingGitHub());
         const result = await makeSync({ github }).attach({

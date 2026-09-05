@@ -404,6 +404,34 @@ so GitHub's own run list already names what it rendered. A run dispatched before
 existed, or from a fork whose workflow never carried it, is still listed — just under its
 raw title, with no parsed map id to show beside it.
 
+**Which map the fetch registers under is read from the run itself, never assumed from the
+local project.** A render made elsewhere is a render of its own world — the project open
+in this application right now may have no map by that name at all, or may have exactly one
+enabled map that has nothing to do with the run being attached. Registering under "whichever
+map this project happens to have" used to be exactly what happened whenever the field was
+left blank, and it produced a refusal that read as "not a map" for a reason that had nothing
+to do with the artifact being broken: a huge test render of one world, attached from a
+project describing a different one entirely, was forced under the wrong id and then refused
+because the artifact never had a folder by that name.
+
+So the map id is resolved in order, and never by guessing between equals:
+
+1. an explicit choice — the **Register as map** field on the card, prefilled from the run's
+   own title and editable before fetching;
+2. the id `render-world.yml`'s `run-name:` embedded in the run's own display title;
+3. this project's own map, exactly as before, only when neither of the above says anything
+   — an older run, one dispatched by hand from the Actions tab, or a fork's own workflow
+   that never carried the run name at all.
+
+As a last safety net, `collectRenderedMap` itself checks what the unpacked artifact's own
+`maps/` folder actually contains: if the requested id is not there but the artifact holds
+exactly one other valid map (its own `settings.json` and tiles), it is registered under
+*that* id rather than refused — the case a sanitization drift between the application and
+an older workflow template can produce. When the artifact holds more than one other valid
+map and none of them is the one requested, the refusal names every map id it found instead
+of guessing, so the **Register as map** field can be set to the right one and the run
+fetched again.
+
 ### Two GitHub credentials, one chosen per sync
 
 A typical machine holds two: the app's own sign-in and `gh`'s. They are not
@@ -1104,6 +1132,16 @@ Cloud Render 畫面上面嘅**攞返一個喺第度做嘅 render**，就係嗰�
 呢條路唯一真係冇嘅嘢，係已上傳世界嗰個身份：呢部機自己嗰次上傳用嘅係邊個 release tag 同 asset，因為根本冇上傳過。佢寫低嗰份 sync 紀錄會老老實實咁講——`releaseTag` 同 `assetName` 會維持 `null`——而唔係作一個冇人指到嘅 release 出嚟。一個收返 resume run 嘅 collector，本來就淨係需要個 run id 去跟；個 release 身份本來就淨係用嚟決定一次**上傳**可唔可以省返，呢個唔適用於一個呢部機從來冇開始過嘅 run。
 
 每個 run 嘅 map id（如果個清單有得顯示嘅話），係由個 run 自己嘅 display title 攞返嚟：`render-world.yml` 設咗 `run-name: Render ${{ inputs.map-id }} (${{ inputs.dimension }})`，所以 GitHub 自己個 run 清單已經寫低咗佢 render 緊咩。一個喺呢個功能有之前就派發咗嘅 run，或者一個 fork 自己嘅 workflow 從來冇帶呢樣嘢，一樣照樣列出嚟——只不過用返佢原本嘅 title，冇解析到嘅 map id 擺喺隔籬。
+
+**呢個 fetch 會登記做邊個地圖，係由個 run 自己度讀返嚟，從來唔係靠估本機個 project 有咩。** 一個喺第度做嘅 render，render 緊嘅係佢自己嗰個世界——而家開緊嘅呢個 project 好可能根本冇一個咁樣命名嘅 map，又或者剩係有一個 enabled 嘅 map，但同要 attach 嗰個 run 完全冇關係。以前如果個欄留空，就會直接登記做「呢個 project 剩係有嘅嗰個 map」，然後出嚟嘅拒絕會講「唔係張地圖」——但真正原因同個 artifact 本身冇乜關係：一個好大嘅測試世界喺第度 render 咗，attach 嗰陣個 project 講緊嘅係完全唔同嘅另一個世界，個 map id 就俾人逼咗變成錯嗰個，然後因為個 artifact 根本冇嗰個名嘅夾而俾人拒絕。
+
+所以個 map id 依家係跟住呢個次序去搵，從來唔會喺兩個都啱嘅嘢入面亂咁揀：
+
+1. 一個明確嘅選擇——卡片上面**登記做邊個地圖**嗰個欄，會自動用個 run 自己個標題填咗先，撳落載之前仲可以自己改；
+2. `render-world.yml` 嗰個 `run-name:` 埋喺個 run 自己 display title 入面嘅 id；
+3. 只有上面兩樣都冇講到嘢嗰陣，先會用返呢個 project 自己嘅 map，同以前一樣——例如一個舊 run、一個由 Actions 分頁手動 dispatch 嘅 run，或者一個 fork 自己嘅 workflow 從來冇帶 run name 呢樣嘢。
+
+作為最後一重保障，`collectRenderedMap` 自己都會check 解壓咗嘅 artifact 個 `maps/` 夾入面實情有乜嘢：如果要求嗰個 id 唔喺度，但個 artifact 剩係有另外一個有效嘅 map（有自己嘅 `settings.json` 同 tiles），就會登記做**嗰一個**，而唔係直接拒絕——呢個係 app 同一個舊啲嘅 workflow template 之間 sanitization 走鬼可以整出嚟嘅情況。如果個 artifact 有多過一個其他有效嘅 map，而佢哋冇一個係要求緊嗰個，個拒絕就會逐個講晒搵到嘅 map id，唔會亂咁估——咁樣就可以喺**登記做邊個地圖**度填返啱嗰個，再攞多次。
 
 ### 兩個 GitHub 憑證，每次 sync 揀一個
 

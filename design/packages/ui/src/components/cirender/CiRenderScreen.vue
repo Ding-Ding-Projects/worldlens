@@ -1211,6 +1211,19 @@ const selectedAttachRun = computed<CiAttachableRun | null>(
         renders.attachableRuns.value.find((run) => run.id === selectedAttachRunId.value) ?? null,
 );
 
+/**
+ * Which map this fetch will register the render under - editable, because the run's own
+ * title is only ever a best guess. Prefilled from {@link selectedAttachRun}'s parsed map
+ * id whenever the selected run changes, so the field always starts by showing exactly
+ * what will happen if nothing is typed over it; a run whose title could not be parsed
+ * starts empty, which lets the application fall back to its own default rather than
+ * sending an empty string as though it were a real choice.
+ */
+const attachMapId = ref("");
+watch(selectedAttachRun, (run) => {
+    attachMapId.value = run?.mapId ?? "";
+});
+
 /** Owner or repository changed underneath a listing that no longer describes them. */
 watch([owner, repo], () => {
     selectedAttachRunId.value = null;
@@ -1229,11 +1242,13 @@ function selectAttachRun(run: CiAttachableRun): void {
 async function attachSelectedRun(): Promise<void> {
     const run = selectedAttachRun.value;
     if (run === null || worldFolder.value.trim() === "") return;
+    const typedMapId = attachMapId.value.trim();
     const result = await renders.attachRun({
         worldFolder: worldFolder.value.trim(),
         owner: owner.value.trim(),
         repo: repo.value.trim(),
         runId: run.id,
+        ...(typedMapId === "" ? {} : { mapId: typedMapId }),
         ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
     });
     if (result?.ok === true && result.outcome === "rendered") {
@@ -2527,6 +2542,30 @@ onBeforeUnmount(() => {
                                 )
                             }}
                         </p>
+                        <!--
+                            The run's own title is only ever a best guess at what it
+                            rendered - `attachRun` reads it back out of GitHub itself
+                            before trusting it. Prefilled from that same guess so this
+                            field always shows exactly what will happen if nothing is
+                            typed over it, and left editable because the guess can be
+                            wrong: a run whose title has no map in it at all, or one
+                            that named a map this project has never heard of, both need
+                            a way to say what it actually is.
+                        -->
+                        <VTextField
+                            v-model="attachMapId"
+                            :label="t('cirender.attach.mapId', 'Register as map')"
+                            :hint="
+                                t(
+                                    'cirender.attach.mapId.help',
+                                    'Read from the run\'s own title. Change it if that guess is wrong, or leave it blank to let the application decide.',
+                                )
+                            "
+                            persistent-hint
+                            density="compact"
+                            class="mb-3"
+                            data-test="attach-map-id-field"
+                        />
                         <VBtn
                             :prepend-icon="mdiCloudDownloadOutline"
                             :disabled="worldFolder.trim() === ''"

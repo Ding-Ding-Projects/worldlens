@@ -76,8 +76,16 @@ export interface CollectFailure {
         | "artifact-digest-missing"
         | "digest-mismatch"
         | "artifact-not-a-map"
+        | "artifact-multiple-maps"
         | "collect-failed";
     readonly message: string;
+    /**
+     * Every map id the unpacked artifact actually held a valid `settings.json` under,
+     * present only for {@link code} `"artifact-multiple-maps"` - so a caller can offer a
+     * person the exact choice the message describes in words, rather than making them
+     * retype an id off a screenshot.
+     */
+    readonly availableMapIds?: readonly string[];
 }
 
 export interface CollectSuccess {
@@ -167,6 +175,10 @@ export async function collectRenderedMap(
     let totalBytes: number;
     let combinedSha256: string;
     let anyUnverified: boolean;
+    // Set early only for the lowres-plus-parts branch, which has to know where the hires
+    // tiles belong *before* it can download them. The single-artifact branch resolves
+    // this afterwards, alongside the branches converging below.
+    let resolvedMapId: string | null = null;
 
     if (map === undefined) {
         const lowresCandidates = artifacts.filter((artifact) => artifact.name === LOWRES_ARTIFACT);
@@ -210,10 +222,37 @@ export async function collectRenderedMap(
             ...(options.signal === undefined ? {} : { signal: options.signal }),
         });
 
+        // The lowres artifact already carries the whole `maps/<id>` skeleton and its
+        // `settings.json` - everything {@link resolveArtifactMapId} needs is here before
+        // a single hires byte is fetched, which matters because the hires tiles have to
+        // land under whichever id this resolves to, not blindly under the one requested.
+        const lowresResolved = await resolveArtifactMapId(stagedWebRoot, storageMapId);
+        if (!lowresResolved.ok) {
+            const found = await describeUnpackedArtifact(stagedWebRoot, storageMapId);
+            await rm(stagedWebRoot, { recursive: true, force: true }).catch(() => undefined);
+            if (lowresResolved.candidates.length > 1) {
+                return refuse(
+                    "artifact-multiple-maps",
+                    `The ${lowres.name} artifact holds ${String(lowresResolved.candidates.length)} ` +
+                        `valid maps (${describeEntries(lowresResolved.candidates)}) and none of them is ` +
+                        `maps/${storageMapId}, so there is no safe way to guess which one this render ` +
+                        "is. Pick one explicitly and fetch again. Nothing was registered.",
+                    lowresResolved.candidates,
+                );
+            }
+            return refuse(
+                "artifact-not-a-map",
+                `The ${lowres.name} artifact unpacked without a maps/${storageMapId} folder ` +
+                    "containing its settings.json and a root settings.json beside it, so it is not a " +
+                    `map this application can serve. ${found} Nothing was registered.`,
+            );
+        }
+        resolvedMapId = lowresResolved.mapId;
+
         let bytes = lowres.sizeInBytes;
         const digests: string[] = [lowresFetch.sha256];
         let unverified = !lowresFetch.verified;
-        const hiresRoot = join(stagedWebRoot, "maps", storageMapId, "tiles", "0");
+        const hiresRoot = join(stagedWebRoot, "maps", resolvedMapId, "tiles", "0");
 
         for (const part of parts) {
             const partFile = `${options.artifactFile}.${part.name}.zip`;
@@ -265,8 +304,7 @@ export async function collectRenderedMap(
         anyUnverified = !single.verified;
     }
 
-    const looksLikeAMap = await isAMap(stagedWebRoot, storageMapId);
-    if (!looksLikeAMap) {
+    if (resolvedMapId === null) {
         // Diagnose *before* deleting the evidence. The refusal below used to say only
         // what it expected and never what it found, which is exactly why this bug shipped
         // undiagnosable from a screenshot: a user (and an agent looking at their bug
@@ -275,14 +313,35 @@ export async function collectRenderedMap(
         // name (the classic app-vs-workflow sanitizeMapId drift - see bluemap.ts and issue
         // #47), or had the right folder but a truncated settings.json inside it. Read the
         // directory back while it still exists and say what is actually there.
-        const found = await describeUnpackedArtifact(stagedWebRoot, storageMapId);
-        await rm(stagedWebRoot, { recursive: true, force: true }).catch(() => undefined);
-        return refuse(
-            "artifact-not-a-map",
-            `The ${primaryArtifact.name} artifact unpacked without a maps/${storageMapId} folder ` +
-                "containing its settings.json and a root settings.json beside it, so it is not a " +
-                `map this application can serve. ${found} Nothing was registered.`,
-        );
+        //
+        // The requested id losing is no longer automatically fatal, though: a render made
+        // elsewhere is free to carry a map id nobody here guessed correctly ahead of time.
+        // When the artifact's own `maps/` folder holds exactly one other valid map,
+        // {@link resolveArtifactMapId} already returned it as a match and this branch is
+        // never reached for that case - it is reached only when there is genuinely none,
+        // or genuinely more than one, to choose between.
+        const resolved = await resolveArtifactMapId(stagedWebRoot, storageMapId);
+        if (!resolved.ok) {
+            const found = await describeUnpackedArtifact(stagedWebRoot, storageMapId);
+            await rm(stagedWebRoot, { recursive: true, force: true }).catch(() => undefined);
+            if (resolved.candidates.length > 1) {
+                return refuse(
+                    "artifact-multiple-maps",
+                    `The ${primaryArtifact.name} artifact holds ${String(resolved.candidates.length)} ` +
+                        `valid maps (${describeEntries(resolved.candidates)}) and none of them is ` +
+                        `maps/${storageMapId}, so there is no safe way to guess which one this render ` +
+                        "is. Pick one explicitly and fetch again. Nothing was registered.",
+                    resolved.candidates,
+                );
+            }
+            return refuse(
+                "artifact-not-a-map",
+                `The ${primaryArtifact.name} artifact unpacked without a maps/${storageMapId} folder ` +
+                    "containing its settings.json and a root settings.json beside it, so it is not a " +
+                    `map this application can serve. ${found} Nothing was registered.`,
+            );
+        }
+        resolvedMapId = resolved.mapId;
     }
 
     const startedAt = options.startedAt ?? new Date().toISOString();
@@ -299,7 +358,7 @@ export async function collectRenderedMap(
         javaVersion: "21 (temurin, GitHub Actions runner)",
         maps: [
             {
-                id: storageMapId,
+                id: resolvedMapId,
                 name: options.mapName,
                 world: options.worldFolder,
                 dimension: options.dimension,
@@ -337,7 +396,7 @@ export async function collectRenderedMap(
         sha256: combinedSha256,
         verified: !anyUnverified,
         artifact: primaryArtifact,
-        mapId: storageMapId,
+        mapId: resolvedMapId,
     };
 }
 
@@ -557,8 +616,52 @@ async function isAMap(webRoot: string, mapId: string): Promise<boolean> {
     );
 }
 
-function refuse(code: CollectFailure["code"], message: string): CollectFailureResult {
-    return { ok: false, failure: { code, message } };
+function refuse(
+    code: CollectFailure["code"],
+    message: string,
+    availableMapIds?: readonly string[],
+): CollectFailureResult {
+    return {
+        ok: false,
+        failure: {
+            code,
+            message,
+            ...(availableMapIds === undefined ? {} : { availableMapIds }),
+        },
+    };
+}
+
+/**
+ * Which map id the unpacked artifact should actually be registered under.
+ *
+ * The requested id (this project's own choice, or a run's parsed title) wins whenever the
+ * artifact genuinely has a valid map by that name - the ordinary case, and the only one
+ * that ever mattered before renders made on another device could be attached here. When
+ * it does not, this looks at what the artifact's own `maps/` folder actually contains:
+ * exactly one other valid map there is registered under *its* id instead of being refused
+ * outright, because a render made elsewhere is free to carry a map id this project (or
+ * the id parsed off the run's title) never heard of. More than one, or none at all, is a
+ * real ambiguity this cannot guess through - the caller decides what to do with it.
+ */
+async function resolveArtifactMapId(
+    webRoot: string,
+    requestedMapId: string,
+): Promise<
+    | { readonly ok: true; readonly mapId: string }
+    | { readonly ok: false; readonly candidates: readonly string[] }
+> {
+    if (await isAMap(webRoot, requestedMapId)) return { ok: true, mapId: requestedMapId };
+
+    const mapsEntries = await listNames(join(webRoot, "maps"));
+    const candidates: string[] = [];
+    if (mapsEntries !== null) {
+        for (const entry of mapsEntries) {
+            if (await isAMap(webRoot, entry)) candidates.push(entry);
+        }
+    }
+    const only = candidates.length === 1 ? candidates[0] : undefined;
+    if (only !== undefined) return { ok: true, mapId: only };
+    return { ok: false, candidates };
 }
 
 /**
@@ -635,7 +738,7 @@ async function listNames(dir: string): Promise<string[] | null> {
 }
 
 /** A short, bounded, human-readable rendering of a directory listing for an error message. */
-function describeEntries(names: string[]): string {
+function describeEntries(names: readonly string[]): string {
     const MAX_NAMES = 12;
     const shown = names.slice(0, MAX_NAMES).map((name) => `"${name}"`);
     const remainder = names.length - shown.length;

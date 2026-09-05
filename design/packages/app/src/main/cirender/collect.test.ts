@@ -351,3 +351,142 @@ describe("the single rendered-map path is unchanged", () => {
         ]);
     });
 });
+
+describe("an artifact carries a different map than the one requested", () => {
+    /*
+     * A render made elsewhere is a render of *its own* world - the map id this computer
+     * asked for (its own project's map, or a best-effort guess) has no bearing on what
+     * the artifact actually contains. `resolveArtifactMapId` exists to recognise that:
+     * when the requested id is not there but the artifact holds exactly one other valid
+     * map, that map is registered under its own real id rather than refused outright.
+     */
+    it("registers under the artifact's own map id when the requested one is not there", async () => {
+        const FOREIGN_MAP_ID = "fixture_10gb";
+        const whole = await zipFolder("rendered-map", new Map([
+            ["settings.json", '{"maps":["fixture_10gb"]}'],
+            [`maps/${FOREIGN_MAP_ID}/settings.json`, "{}"],
+            [`maps/${FOREIGN_MAP_ID}/tiles/0/0.prbm`, "tile"],
+        ]));
+        const artifacts = [
+            artifact({ id: 1, name: "rendered-map", sizeInBytes: 42, digest: `sha256:${whole.sha256}` }),
+        ];
+        const transport = fakeTransport(artifacts, new Map([["rendered-map", whole.path]]));
+        const mounts = new LocalMapHandler();
+
+        // This computer's own project only has "world" - the artifact was never going to
+        // agree with that, and should not be forced to.
+        const result = await collectRenderedMap(
+            OWNER,
+            REPO,
+            RUN_ID,
+            collectOptions({ transport, mounts, mapId: MAP_ID }),
+        );
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.mapId).toBe(FOREIGN_MAP_ID);
+        expect(mounts.getMounts()).toHaveLength(1);
+
+        const workspace = renderWorkspace(join(workDir, "maps"), "ci-test");
+        const record = JSON.parse(
+            await readFile(join(workspace.recordFile), "utf8"),
+        ) as { maps: { id: string }[] };
+        expect(record.maps[0]?.id).toBe(FOREIGN_MAP_ID);
+    });
+
+    it("resolves before the hires parts land, for a map shipped in parts too", async () => {
+        const FOREIGN_MAP_ID = "fixture_10gb";
+        const lowres = await zipFolder("map-lowres", new Map([
+            ["settings.json", '{"maps":["fixture_10gb"]}'],
+            [`maps/${FOREIGN_MAP_ID}/settings.json`, "{}"],
+        ]));
+        const part0 = await zipFolder("partial-hires-0", new Map([["0.prbm", "hires-shard-0"]]));
+        const artifacts = [
+            artifact({ id: 1, name: "map-lowres", sizeInBytes: 100, digest: `sha256:${lowres.sha256}` }),
+            artifact({ id: 2, name: "partial-hires-0", sizeInBytes: 40, digest: `sha256:${part0.sha256}` }),
+        ];
+        const transport = fakeTransport(
+            artifacts,
+            new Map([
+                ["map-lowres", lowres.path],
+                ["partial-hires-0", part0.path],
+            ]),
+        );
+        const mounts = new LocalMapHandler();
+
+        const result = await collectRenderedMap(
+            OWNER,
+            REPO,
+            RUN_ID,
+            collectOptions({ transport, mounts, mapId: MAP_ID }),
+        );
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.mapId).toBe(FOREIGN_MAP_ID);
+
+        // The hires shard landed under the *resolved* id, not the one requested.
+        const workspace = renderWorkspace(join(workDir, "maps"), "ci-test");
+        const shard0 = await readFile(
+            join(workspace.webRoot, "maps", FOREIGN_MAP_ID, "tiles", "0", "0.prbm"),
+            "utf8",
+        );
+        expect(shard0).toBe("hires-shard-0");
+    });
+
+    it("refuses, naming every candidate, when more than one other valid map is present", async () => {
+        const whole = await zipFolder("rendered-map", new Map([
+            ["settings.json", '{"maps":["alpha","beta"]}'],
+            ["maps/alpha/settings.json", "{}"],
+            ["maps/alpha/tiles/0/0.prbm", "tile-a"],
+            ["maps/beta/settings.json", "{}"],
+            ["maps/beta/tiles/0/0.prbm", "tile-b"],
+        ]));
+        const artifacts = [
+            artifact({ id: 1, name: "rendered-map", sizeInBytes: 42, digest: `sha256:${whole.sha256}` }),
+        ];
+        const transport = fakeTransport(artifacts, new Map([["rendered-map", whole.path]]));
+        const mounts = new LocalMapHandler();
+
+        const result = await collectRenderedMap(
+            OWNER,
+            REPO,
+            RUN_ID,
+            collectOptions({ transport, mounts, mapId: MAP_ID }),
+        );
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("artifact-multiple-maps");
+        expect(result.failure.availableMapIds).toEqual(["alpha", "beta"]);
+        expect(result.failure.message).toContain("alpha");
+        expect(result.failure.message).toContain("beta");
+        expect(mounts.getMounts()).toHaveLength(0);
+    });
+
+    it("still refuses as not-a-map, naming what it found, when nothing valid is present", async () => {
+        const whole = await zipFolder("rendered-map", new Map([
+            ["settings.json", '{"maps":["world"]}'],
+            [`maps/${MAP_ID}`, "not-a-real-map-directory-marker"],
+        ]));
+        const artifacts = [
+            artifact({ id: 1, name: "rendered-map", sizeInBytes: 42, digest: `sha256:${whole.sha256}` }),
+        ];
+        const transport = fakeTransport(artifacts, new Map([["rendered-map", whole.path]]));
+        const mounts = new LocalMapHandler();
+
+        const result = await collectRenderedMap(
+            OWNER,
+            REPO,
+            RUN_ID,
+            collectOptions({ transport, mounts, mapId: "unknown_map" }),
+        );
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("artifact-not-a-map");
+        expect(result.failure.availableMapIds).toBeUndefined();
+        expect(result.failure.message).toContain("world");
+        expect(mounts.getMounts()).toHaveLength(0);
+    });
+});
