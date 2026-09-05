@@ -26,6 +26,16 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "46e026d688049a0b3013df2735bb7be579cff34a",
+        shortSha: "46e026d688",
+        date: "2026-09-05T12:43:18-04:00",
+        subject: "Record the Docker render of the 1 GB world in the handoff and roadmap",
+        details: "The released CLI image rendered the whole 1 GB fixture on this machine,\nbetween and around a Chunker job it had to share the box with, and left a\ncomplete map on disk. The row says so with the tile count.\n\n已出街嗰個 CLI image 喺呢部機同 Chunker 爭住用都 render 晒成個 1 GB 世界，\n地圖完整落地。交接表記低，連 tile 數目。",
+        category: "docs",
+        areas: ["docs", "interface"],
+        files: 3,
+    },
+    {
         sha: "e82717b41ed2f4863232672130115c19d68f7b66",
         shortSha: "e82717b41e",
         date: "2026-09-05T12:38:37-04:00",

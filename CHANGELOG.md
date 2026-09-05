@@ -29,6 +29,10 @@ full message for the in-app changelog viewer.
 
 - Move the vendored fork to vendor/BlueMap-Material on branch material-design-3 - [`e82717b41e`](https://github.com/Ding-Ding-Projects/worldlens/commit/e82717b41ed2f4863232672130115c19d68f7b66)
 
+### Documentation
+
+- Record the Docker render of the 1 GB world in the handoff and roadmap - [`46e026d688`](https://github.com/Ding-Ding-Projects/worldlens/commit/46e026d688049a0b3013df2735bb7be579cff34a)
+
 ## 1.0.2022 - 2026-09-05
 
 Tagged at [`f04e46c070`](https://github.com/Ding-Ding-Projects/worldlens/commit/f04e46c0704e498e11828d80df147c89cbfbd6f2).
