@@ -58,9 +58,31 @@ on:
       target-format:
         description: >-
           Chunker output format. Edition and version together, exactly as Chunker names
-          them.
-        type: string
+          them. Kept in the exact order and spelling of the app's own format list
+          (design/packages/ui/src/components/chunker/chunkerModel.ts), which
+          scripts/check-workflow-drift.mjs enforces so this list cannot quietly drift
+          from what the desktop app actually offers.
+        type: choice
         default: JAVA_1_21_4
+        options:
+          - JAVA_1_21_4
+          - JAVA_1_21_0
+          - JAVA_1_20_5
+          - JAVA_1_20_0
+          - JAVA_1_19_0
+          - JAVA_1_18_0
+          - JAVA_1_17_0
+          - JAVA_1_16_0
+          - JAVA_1_13_0
+          - JAVA_1_12_2
+          - BEDROCK_1_21_40
+          - BEDROCK_1_21_0
+          - BEDROCK_1_20_80
+          - BEDROCK_1_20_0
+          - BEDROCK_1_19_0
+          - BEDROCK_1_18_0
+          - BEDROCK_1_17_0
+          - BEDROCK_1_16_0
       prune-bounds:
         description: >-
           Optional trim, as minChunkX,minChunkZ,maxChunkX,maxChunkZ. Blank converts the

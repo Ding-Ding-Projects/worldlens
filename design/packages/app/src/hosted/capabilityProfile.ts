@@ -161,6 +161,10 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
         "An addon is code this application runs. On a desktop that is a person deciding about their own machine; over a network it is arbitrary execution on somebody's server.",
     ),
     cirender: optIn("github", "Driving cloud renders needs GitHub credentials."),
+    chunkerActions: optIn(
+        "github",
+        "Uploading a world and dispatching a conversion needs GitHub credentials to upload it and run the workflow.",
+    ),
     dashboard: optIn("ssh", "Polling other hosts needs SSH material."),
     dockerhosting: optIn(
         "docker-socket",
