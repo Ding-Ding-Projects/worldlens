@@ -20,7 +20,7 @@
         "published-text:check": "node --test ../scripts/check-published-text.test.mjs && node ../scripts/check-published-text.mjs",
         "ui:e2e:lowlevel": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File ../scripts/run-worldlens-lowlevel-e2e.ps1",
         "ui:e2e:lowlevel:check": "node --test ../scripts/worldlens-lowlevel-e2e.test.mjs",
-        "workflows:drift": "node ../scripts/check-workflow-drift.mjs",
+        "workflows:drift": "node --test ../scripts/check-workflow-drift.test.mjs && node ../scripts/check-workflow-drift.mjs",
         "webapp:parity": "node ../scripts/check-webapp-parity.mjs",
         "check:private-terms": "node ../scripts/check-private-terms.mjs",
         "workflows:drift:list": "node ../scripts/check-workflow-drift.mjs --list",
