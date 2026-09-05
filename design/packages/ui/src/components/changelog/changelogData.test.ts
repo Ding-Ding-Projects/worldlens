@@ -131,9 +131,19 @@ describe("the generated changelog", () => {
         }
     });
 
+    /**
+     * A trailer is a `Key: value` line at the start of a line, never a phrase inside prose.
+     * One commit body legitimately quotes "Co-Authored-By: ..." while describing the very
+     * bug that leaked trailers, so a substring check would refuse a correct body. Match the
+     * line shape instead, and prove the matcher on a synthetic trailer so it cannot go quiet.
+     */
+    const TRAILER_LINE = /^(?:Co-Authored-By|Signed-off-by|Reviewed-by):/im;
+
     it("keeps trailers out of the bodies it will search and export", () => {
+        expect(TRAILER_LINE.test("Fix the thing\n\nCo-Authored-By: A <a@b>")).toBe(true);
+        expect(TRAILER_LINE.test('It quoted "Co-Authored-By: A" inside a sentence.')).toBe(false);
         for (const entry of entries) {
-            expect(entry.details).not.toContain("Co-Authored-By:");
+            expect(entry.details).not.toMatch(TRAILER_LINE);
         }
     });
 
