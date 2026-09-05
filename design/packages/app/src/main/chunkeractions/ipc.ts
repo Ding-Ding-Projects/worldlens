@@ -29,6 +29,22 @@ export interface ChunkerActionsRequest {
     config: ChunkerCliConfig;
     acknowledgeUpload: boolean;
     acknowledgePublic: boolean;
+    /** workflow_dispatch `world-source`. "release-asset" with a blank `externalWorld` uploads worldFolder automatically. */
+    worldSource: "release-asset" | "url" | "artifact";
+    /** workflow_dispatch `world`, supplied directly when bypassing this app's own upload (worldSource is "url"/"artifact", or an explicit release asset elsewhere). */
+    externalWorld: string;
+    /** workflow_dispatch `world-repository`. Blank means "this repository" (the destination repository), exactly as the workflow documents. */
+    sourceRepository: string;
+    /** workflow_dispatch `output-name` prefix. The dispatched value also carries the record id so collection can find the exact artifact. */
+    outputName: string;
+    /** workflow_dispatch `output`. */
+    output: "artifact" | "artifact-and-release";
+    /** workflow_dispatch `max-jobs`, as the exact string the workflow parses. */
+    maxJobs: string;
+    /** workflow_dispatch `regions-per-shard`, as the exact string the workflow parses. */
+    regionsPerShard: string;
+    /** workflow_dispatch `prune-bounds`: blank, or "minChunkX,minChunkZ,maxChunkX,maxChunkZ". */
+    pruneBounds: string;
 }
 export interface ChunkerActionsRecord {
     id: string;
@@ -40,6 +56,7 @@ export interface ChunkerActionsRecord {
     bytesTotal: number;
     upload: CiUploadResume | null;
     world: string | null;
+    dispatchedOutputName: string | null;
     dispatchedAt: string | null;
     run: WorkflowRun | null;
     jobs: readonly WorkflowJob[];
@@ -55,6 +72,18 @@ interface Options {
 }
 const NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
 const ID = /^[a-f0-9-]{36}$/;
+const REPOSITORY = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}\/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
+const OUTPUT_NAME_PREFIX = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,79}$/;
+const WORLD_SOURCES = ["release-asset", "url", "artifact"] as const;
+const OUTPUT_MODES = ["artifact", "artifact-and-release"] as const;
+const PRUNE_BOUNDS = /^-?\d+,-?\d+,-?\d+,-?\d+$/;
+/** Mirrors the workflow's own `positiveInteger()` bound: at least 1, exactly as GitHub Actions parses it. */
+function positiveIntegerString(value: unknown, field: string): string {
+    if (typeof value !== "string" || !/^\d+$/.test(value)) throw new Error(`'${field}' must be a whole number.`);
+    const n = Number(value);
+    if (!Number.isSafeInteger(n) || n < 1) throw new Error(`'${field}' must be at least 1.`);
+    return String(n);
+}
 function requestOf(value: unknown): ChunkerActionsRequest {
     if (!value || typeof value !== "object") throw new Error("Choose a world, account, repository and destination.");
     const r = value as ChunkerActionsRequest;
@@ -64,9 +93,28 @@ function requestOf(value: unknown): ChunkerActionsRequest {
         !/^[A-Z][A-Z0-9_]{0,79}$/.test(r.targetFormat ?? "")) throw new Error("The conversion has an invalid repository, folder or target format.");
     const config = validateChunkerCliConfig(r.config);
     if (config === null || Buffer.byteLength(JSON.stringify(config)) > 48_000) throw new Error("Conversion configuration is invalid or exceeds 48 KB.");
+    const worldSource = (WORLD_SOURCES as readonly string[]).includes(r.worldSource as string) ? r.worldSource : "release-asset";
+    const externalWorld = typeof r.externalWorld === "string" ? r.externalWorld.trim() : "";
+    if (worldSource !== "release-asset" && externalWorld === "") throw new Error("Give the world's URL or artifact reference before dispatching.");
+    const sourceRepository = typeof r.sourceRepository === "string" ? r.sourceRepository.trim() : "";
+    if (sourceRepository !== "" && !REPOSITORY.test(sourceRepository)) throw new Error("'world-repository' must be owner/name, or blank for this repository.");
+    const outputNamePrefix = typeof r.outputName === "string" && r.outputName.trim() !== "" ? r.outputName.trim() : "converted-world";
+    if (!OUTPUT_NAME_PREFIX.test(outputNamePrefix)) throw new Error("'output-name' may only use letters, digits, '.', '_' and '-'.");
+    const output = (OUTPUT_MODES as readonly string[]).includes(r.output as string) ? r.output : "artifact";
+    const maxJobs = positiveIntegerString(r.maxJobs ?? "64", "max-jobs");
+    if (Number(maxJobs) > 256) throw new Error("'max-jobs' cannot exceed 256; GitHub itself refuses a larger matrix.");
+    const regionsPerShard = positiveIntegerString(r.regionsPerShard ?? "64", "regions-per-shard");
+    const pruneBounds = typeof r.pruneBounds === "string" ? r.pruneBounds.trim() : "";
+    if (pruneBounds !== "") {
+        if (!PRUNE_BOUNDS.test(pruneBounds)) throw new Error("'prune-bounds' must be minChunkX,minChunkZ,maxChunkX,maxChunkZ.");
+        const [minX, minZ, maxX, maxZ] = pruneBounds.split(",").map(Number);
+        if (minX! > maxX! || minZ! > maxZ!) throw new Error("'prune-bounds' has its minimum past its maximum.");
+    }
     return { owner: r.owner, repo: r.repo, worldFolder: r.worldFolder, outputDirectory: r.outputDirectory,
         targetFormat: r.targetFormat, config, ...(typeof r.accountId === "string" ? { accountId: r.accountId } : {}),
-        acknowledgeUpload: r.acknowledgeUpload === true, acknowledgePublic: r.acknowledgePublic === true };
+        acknowledgeUpload: r.acknowledgeUpload === true, acknowledgePublic: r.acknowledgePublic === true,
+        worldSource: worldSource as ChunkerActionsRequest["worldSource"], externalWorld, sourceRepository,
+        outputName: outputNamePrefix, output: output as ChunkerActionsRequest["output"], maxJobs, regionsPerShard, pruneBounds };
 }
 async function workflowText(options: Options): Promise<string> {
     if (options.packaged) return readFile(join(options.resourcesDir, "chunk-workflow", CHUNK_WORKFLOW_FILE), "utf8");
@@ -128,38 +176,50 @@ export function installChunkerActionsIpc(options: Options): { dispose(): Promise
             if (!r.acknowledgeUpload || (!repository.private && !r.acknowledgePublic)) throw new Error("Confirm the world upload and public visibility before starting.");
             const recipe = await api.readFile(r.owner, r.repo, `.github/workflows/${CHUNK_WORKFLOW_FILE}`);
             if (!recipe || !Buffer.from(recipe.contentBase64, "base64").toString("utf8").includes("chunker-config:")) throw new Error("Prepare this repository with the complete Chunker workflow before uploading.");
-            if (!record.world) {
-                record.state = "uploading";
-                await save(record);
-                let persistence = Promise.resolve();
-                const uploaded = await uploadWorldForRender({ transport: api, owner: r.owner, repo: r.repo,
-                    worldFolder: r.worldFolder, storageDir: options.dataDir(), partSize: 500 * 1024 * 1024,
-                    ...(record.upload ? { resume: record.upload } : {}), signal: controller.signal,
-                    onEvent: (event) => {
-                        if (event.type === "release") {
-                            record.upload = { tag: event.tag, archiveName: event.archiveName };
-                            persistence = persistence.then(() => save(record));
-                        }
-                        if (event.type === "progress") { record.bytesDone = event.bytesDone; record.bytesTotal = event.bytesTotal; }
-                        if (event.type === "log") record.message = event.message;
-                        // The release event is followed by an awaited save before dispatch. In-memory progress is polled live.
-                    },
-                });
-                await persistence;
-                await save(record);
-                if (!uploaded.ok) throw new Error(uploaded.failure.message);
-                record.world = `${uploaded.summary.tag}/${uploaded.summary.archive}.cheaplfs`;
+            // "release-asset" with no externalWorld means this app uploads the local worldFolder itself, into
+            // the destination repository, exactly as it always has. Any other source - or an explicit
+            // external reference even for "release-asset" - bypasses the upload entirely and dispatches
+            // straight against whatever the user pointed the workflow's own `world`/`world-repository` at.
+            const usesOwnUpload = r.worldSource === "release-asset" && r.externalWorld === "";
+            if (usesOwnUpload) {
+                if (!record.world) {
+                    record.state = "uploading";
+                    await save(record);
+                    let persistence = Promise.resolve();
+                    const uploaded = await uploadWorldForRender({ transport: api, owner: r.owner, repo: r.repo,
+                        worldFolder: r.worldFolder, storageDir: options.dataDir(), partSize: 500 * 1024 * 1024,
+                        ...(record.upload ? { resume: record.upload } : {}), signal: controller.signal,
+                        onEvent: (event) => {
+                            if (event.type === "release") {
+                                record.upload = { tag: event.tag, archiveName: event.archiveName };
+                                persistence = persistence.then(() => save(record));
+                            }
+                            if (event.type === "progress") { record.bytesDone = event.bytesDone; record.bytesTotal = event.bytesTotal; }
+                            if (event.type === "log") record.message = event.message;
+                            // The release event is followed by an awaited save before dispatch. In-memory progress is polled live.
+                        },
+                    });
+                    await persistence;
+                    await save(record);
+                    if (!uploaded.ok) throw new Error(uploaded.failure.message);
+                    record.world = `${uploaded.summary.tag}/${uploaded.summary.archive}.cheaplfs`;
+                    await save(record);
+                }
+            } else if (!record.world) {
+                record.world = r.externalWorld;
                 await save(record);
             }
             if (!record.dispatchedAt) {
                 const branch = await api.readDefaultBranch(r.owner, r.repo);
                 record.state = "dispatching";
                 record.dispatchedAt = new Date().toISOString();
+                record.dispatchedOutputName = `${r.outputName}-${record.id}`;
                 await save(record);
                 await api.dispatchWorkflow(r.owner, r.repo, CHUNK_WORKFLOW_FILE, branch, {
-                    "world-source": "release-asset", world: record.world, "world-repository": `${r.owner}/${r.repo}`,
-                    "target-format": r.targetFormat, "output-name": `converted-${record.id}`, output: "artifact",
-                    "max-jobs": "64", "regions-per-shard": "64", "prune-bounds": "",
+                    "world-source": r.worldSource, world: record.world!,
+                    "world-repository": usesOwnUpload ? `${r.owner}/${r.repo}` : r.sourceRepository,
+                    "target-format": r.targetFormat, "output-name": record.dispatchedOutputName, output: r.output,
+                    "max-jobs": r.maxJobs, "regions-per-shard": r.regionsPerShard, "prune-bounds": r.pruneBounds,
                     "chunker-config": JSON.stringify({ ...r.config, operationId: record.id }),
                 });
             }
@@ -195,7 +255,7 @@ export function installChunkerActionsIpc(options: Options): { dispose(): Promise
     handle("chunkerActions:start", async (value, sender) => {
         const r = requestOf(value);
         if ([...records.values()].some((entry) => active.has(entry.id) && entry.request.owner === r.owner && entry.request.repo === r.repo)) throw new Error("A conversion for this repository is already active.");
-        const record: ChunkerActionsRecord = { id: randomUUID(), bootId, request: r, state: "uploading", message: "Checking the repository before upload.", bytesDone: 0, bytesTotal: 0, upload: null, world: null, dispatchedAt: null, run: null, jobs: [], archiveSha256: null, updatedAt: new Date().toISOString() };
+        const record: ChunkerActionsRecord = { id: randomUUID(), bootId, request: r, state: "uploading", message: "Checking the repository before upload.", bytesDone: 0, bytesTotal: 0, upload: null, world: null, dispatchedOutputName: null, dispatchedAt: null, run: null, jobs: [], archiveSha256: null, updatedAt: new Date().toISOString() };
         ownership.claim(record.id, sender);
         await save(record);
         ownership.require(record.id, sender);
@@ -257,7 +317,7 @@ export function installChunkerActionsIpc(options: Options): { dispose(): Promise
         if (`sha256:${hash}` !== outputs[0].digest) throw new Error("The downloaded result does not match GitHub's digest. Nothing was installed.");
         const staging = join(root(), `${record.id}-download-${randomUUID()}`);
         await extractZip(archive, staging);
-        const inner = join(staging, `converted-${record.id}.zip`);
+        const inner = join(staging, `${record.dispatchedOutputName ?? `converted-world-${record.id}`}.zip`);
         if (!(await stat(inner)).isFile()) throw new Error("The expected converted world archive is missing.");
         const prepared = `${r.outputDirectory}.collecting-${record.id}`;
         await extractZip(inner, prepared);
