@@ -148,6 +148,11 @@ describe("a map that shipped in parts", () => {
             artifact({ id: 1, name: "map-lowres", sizeInBytes: 100, digest: `sha256:${lowres.sha256}` }),
             artifact({ id: 2, name: "partial-hires-0", sizeInBytes: 40, digest: `sha256:${part0.sha256}` }),
             artifact({ id: 3, name: "partial-hires-1", sizeInBytes: 60, digest: `sha256:${part1.sha256}` }),
+            // The lowres shards of the same two merge groups. `map-lowres` is what they
+            // were composited into, so these are read only for the group count and the
+            // download list below proves neither of them was fetched.
+            artifact({ id: 4, name: "partial-lowres-0", sizeInBytes: 5 }),
+            artifact({ id: 5, name: "partial-lowres-1", sizeInBytes: 5 }),
         ];
         const transport = fakeTransport(
             artifacts,
@@ -315,6 +320,63 @@ describe("a map that shipped in parts", () => {
         expect(result.ok).toBe(false);
         if (result.ok) return;
         expect(result.failure.code).toBe("map-parts-incomplete");
+        expect(transport.downloads).toHaveLength(0);
+    });
+
+    // The gap an expected count taken from the surviving parts cannot see: losing the
+    // last index lowers that count with it, leaving what remains trivially contiguous.
+    // The run's own record of the group is its `partial-lowres-N`, published by the same
+    // job from paths that include a settings.json which always exists.
+    it("refuses when the highest partial-hires index never published at all", async () => {
+        const artifacts = [
+            artifact({ id: 1, name: "map-lowres" }),
+            artifact({ id: 2, name: "partial-hires-0" }),
+            artifact({ id: 3, name: "partial-hires-1" }),
+            artifact({ id: 4, name: "partial-lowres-0" }),
+            artifact({ id: 5, name: "partial-lowres-1" }),
+            // Merge group 2 ran and published its lowres shard, but its hires directory
+            // came out empty, so `if-no-files-found: warn` published no partial-hires-2
+            // and left the job green.
+            artifact({ id: 6, name: "partial-lowres-2" }),
+        ];
+        const transport = fakeTransport(artifacts, new Map());
+
+        const result = await collectRenderedMap(
+            OWNER,
+            REPO,
+            RUN_ID,
+            collectOptions({ transport }),
+        );
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("map-parts-incomplete");
+        expect(result.failure.message).toContain("partial-hires-2");
+        expect(transport.downloads).toHaveLength(0);
+    });
+
+    it("refuses when two artifacts claim the same partial-hires index", async () => {
+        const artifacts = [
+            artifact({ id: 1, name: "map-lowres" }),
+            artifact({ id: 2, name: "partial-hires-0" }),
+            // A second artifact under the same name. Keeping the newer of the two and
+            // saying nothing would hide one merge group's tiles behind another's.
+            artifact({ id: 3, name: "partial-hires-0" }),
+            artifact({ id: 4, name: "partial-hires-1" }),
+        ];
+        const transport = fakeTransport(artifacts, new Map());
+
+        const result = await collectRenderedMap(
+            OWNER,
+            REPO,
+            RUN_ID,
+            collectOptions({ transport }),
+        );
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("map-parts-incomplete");
+        expect(result.failure.message).toContain("more than one artifact at index partial-hires-0");
         expect(transport.downloads).toHaveLength(0);
     });
 });

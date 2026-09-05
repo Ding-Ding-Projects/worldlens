@@ -67,6 +67,17 @@ const LOWRES_ARTIFACT = "map-lowres";
 /** The name prefix every hires-tile shard of a hierarchical merge publishes under. */
 const HIRES_PART_PREFIX = "partial-hires-";
 
+/**
+ * The name prefix every lowres shard of a hierarchical merge publishes under.
+ *
+ * Never downloaded here - `map-lowres` is what those shards were composited into, and it
+ * is the artifact this collector fetches. They are read only as the run's own record of
+ * how many merge groups it planned: one merge-group job publishes `partial-hires-N` and
+ * `partial-lowres-N` side by side, and only the lowres upload lists a path
+ * (`settings.json`) that exists whatever the group produced.
+ */
+const LOWRES_PART_PREFIX = "partial-lowres-";
+
 export interface CollectFailure {
     readonly code:
         | "no-map-artifact"
@@ -401,10 +412,21 @@ export async function collectRenderedMap(
 }
 
 /**
- * Every `partial-hires-N` this run published, checked for a contiguous `0..count-1` run
- * with no gaps and no duplicates, in ascending order.
+ * Every `partial-hires-N` this run published, checked against the merge-group count the
+ * run itself recorded rather than against the parts that survived, and returned in
+ * ascending order.
  *
- * A missing index is refused by name rather than silently assembled around: a merge
+ * The expected count is one past the highest group index any artifact of the run names,
+ * `partial-hires-N` or `partial-lowres-N`. Counting the surviving hires parts instead
+ * cannot see a missing *final* part: dropping `partial-hires-3` drops the expected count
+ * to 3 along with it, leaving `0..2` trivially contiguous, so the one gap that goes
+ * unreported is the one at the end of the range. That gap is reachable rather than
+ * theoretical - `actions/upload-artifact` defaults to `if-no-files-found: warn`, so a
+ * merge group whose hires directory came out empty publishes no artifact and still
+ * leaves its job green, while the same group's `partial-lowres-N` upload lists
+ * `settings.json`, which is always there, so that artifact still records the group.
+ *
+ * A missing or duplicated index is refused by name rather than silently assembled around: a merge
  * group's tiles are disjoint (see the workflow's own comment on `partial-hires-${matrix.group}`),
  * so a gap is not "slightly incomplete detail" - it is a rectangle of the world with no
  * hires tiles at all, which reads as a rendering bug in exactly the area that failed to
@@ -415,8 +437,18 @@ function resolveHiresParts(
     runId: number,
 ): { readonly ok: true; readonly parts: readonly WorkflowArtifact[] } | CollectFailureResult {
     const byIndex = new Map<number, WorkflowArtifact>();
+    const duplicated = new Set<number>();
     const unparsed: string[] = [];
+    // Every merge-group index this run left any trace of. A group whose hires upload
+    // published nothing is still named by its `partial-lowres-N`, which is then the only
+    // record that the group ran at all.
+    const groupIndices = new Set<number>();
     for (const artifact of artifacts) {
+        if (artifact.name.startsWith(LOWRES_PART_PREFIX)) {
+            const suffix = artifact.name.slice(LOWRES_PART_PREFIX.length);
+            if (/^\d+$/.test(suffix)) groupIndices.add(Number(suffix));
+            continue;
+        }
         if (!artifact.name.startsWith(HIRES_PART_PREFIX)) continue;
         const suffix = artifact.name.slice(HIRES_PART_PREFIX.length);
         const index = /^\d+$/.test(suffix) ? Number(suffix) : NaN;
@@ -424,7 +456,9 @@ function resolveHiresParts(
             unparsed.push(artifact.name);
             continue;
         }
+        groupIndices.add(index);
         const existing = byIndex.get(index);
+        if (existing !== undefined) duplicated.add(index);
         if (existing === undefined || artifact.id > existing.id) byIndex.set(index, artifact);
     }
 
@@ -440,16 +474,28 @@ function resolveHiresParts(
         );
     }
 
-    const expectedCount = byIndex.size;
+    // One past the highest index the run named, never the number of parts that arrived:
+    // see this function's own comment for why the surviving count cannot detect a part
+    // missing from the end. `byIndex` is non-empty by the check above, so `groupIndices`
+    // is too.
+    const expectedCount = Math.max(...groupIndices) + 1;
     const missing: number[] = [];
     for (let index = 0; index < expectedCount; index += 1) {
         if (!byIndex.has(index)) missing.push(index);
     }
-    if (missing.length > 0 || unparsed.length > 0) {
+    if (missing.length > 0 || duplicated.size > 0 || unparsed.length > 0) {
         const missingText =
             missing.length > 0
                 ? `missing part${missing.length === 1 ? "" : "s"} at index ` +
                   `${missing.map((index) => `${HIRES_PART_PREFIX}${String(index)}`).join(", ")}`
+                : null;
+        const duplicateText =
+            duplicated.size > 0
+                ? `more than one artifact at index ` +
+                  `${[...duplicated]
+                      .sort((left, right) => left - right)
+                      .map((index) => `${HIRES_PART_PREFIX}${String(index)}`)
+                      .join(", ")}`
                 : null;
         const unparsedText =
             unparsed.length > 0
@@ -461,7 +507,9 @@ function resolveHiresParts(
             `This world was too large for one runner to assemble, so the run published ` +
                 `${LOWRES_ARTIFACT} plus ${HIRES_PART_PREFIX}N hires parts, but the parts it ` +
                 `published do not form a complete, contiguous 0..${String(expectedCount - 1)} set: ` +
-                `${[missingText, unparsedText].filter((text): text is string => text !== null).join("; ")}. ` +
+                `${[missingText, duplicateText, unparsedText]
+                    .filter((text): text is string => text !== null)
+                    .join("; ")}. ` +
                 "Nothing was downloaded, because assembling around a gap would produce a map that " +
                 `loads with a hole in its detail rather than the missing download it actually is. ` +
                 `Run ${String(runId)} on GitHub lists exactly what it published.`,
