@@ -128,6 +128,23 @@ async function workflowText(options: Options): Promise<string> {
     }
     throw new Error("The packaged Chunker workflow is missing. Repair this installation before preparing a repository.");
 }
+/**
+ * The workflow zips the merged world as `<output-name>.zip` inside the fixed `converted-world` artifact, so
+ * the inner name is exactly whatever that run was dispatched with. Resolving it from the extracted staging
+ * directory rather than from a recomputed name is what lets a record persisted by an earlier build - which
+ * has no `dispatchedOutputName` and was dispatched under a different prefix - still be collected. The
+ * recorded name is used only to disambiguate an artifact that carries more than one archive; a legacy record
+ * falls back to the `converted-<id>` name that the earlier build actually dispatched.
+ */
+async function innerArchiveName(staging: string, record: ChunkerActionsRecord): Promise<string | null> {
+    const entries = await readdir(staging, { withFileTypes: true }).catch(() => []);
+    const archives = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".zip")).map((entry) => entry.name);
+    if (archives.length === 1) return archives[0]!;
+    for (const candidate of [record.dispatchedOutputName, `converted-${record.id}`]) {
+        if (candidate && archives.includes(`${candidate}.zip`)) return `${candidate}.zip`;
+    }
+    return null;
+}
 export function installChunkerActionsIpc(options: Options): { dispose(): Promise<void> } {
     const active = new Map<string, AbortController>();
     const records = new Map<string, ChunkerActionsRecord>();
@@ -317,8 +334,9 @@ export function installChunkerActionsIpc(options: Options): { dispose(): Promise
         if (`sha256:${hash}` !== outputs[0].digest) throw new Error("The downloaded result does not match GitHub's digest. Nothing was installed.");
         const staging = join(root(), `${record.id}-download-${randomUUID()}`);
         await extractZip(archive, staging);
-        const inner = join(staging, `${record.dispatchedOutputName ?? `converted-world-${record.id}`}.zip`);
-        if (!(await stat(inner)).isFile()) throw new Error("The expected converted world archive is missing.");
+        const name = await innerArchiveName(staging, record);
+        if (name === null) throw new Error("The expected converted world archive is missing.");
+        const inner = join(staging, name);
         const prepared = `${r.outputDirectory}.collecting-${record.id}`;
         await extractZip(inner, prepared);
         const verified = await verifyConvertedWorld(prepared, r.targetFormat);
