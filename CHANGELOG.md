@@ -22,14 +22,58 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
-- Merge commit '41664628' - [`ed947def16`](https://github.com/Ding-Ding-Projects/worldlens/commit/ed947def167691c26060762d967d5b8ff9bc22c5) _(summary of 2 commits, also listed here)_
-- Render the destination you picked, and stop the label sitting on the button - [`41664628da`](https://github.com/Ding-Ding-Projects/worldlens/commit/41664628da56f5a14aa03e8851d1f341bdb01830)
+- Merge commit '22cbda5a' - [`876a7b7456`](https://github.com/Ding-Ding-Projects/worldlens/commit/876a7b74567db0dcd75752811924fe1d55cdd840) _(summary of 2 commits, also listed here)_
+- Name each attachable run in its own row controls - [`22cbda5aeb`](https://github.com/Ding-Ding-Projects/worldlens/commit/22cbda5aeb2608f775b0ea88ca6a3ee8f2ccb205)
+- Merge commit '3e33034e' - [`99a974dab6`](https://github.com/Ding-Ding-Projects/worldlens/commit/99a974dab6ee69d593fad3cd9363c4df7e6cf96b) _(summary of 2 commits, also listed here)_
+- Refuse a half-typed prune boundary instead of converting the whole world - [`3e33034e13`](https://github.com/Ding-Ding-Projects/worldlens/commit/3e33034e131b641e268674a0d6cd6188263092a9)
+- Merge commit 'fdeec5ff' - [`9badd43d66`](https://github.com/Ding-Ding-Projects/worldlens/commit/9badd43d6668f3f8c2382125370847d270037dad) _(summary of 2 commits, also listed here)_
+- Say why the fetch button is dead until a world is chosen - [`fdeec5ff81`](https://github.com/Ding-Ding-Projects/worldlens/commit/fdeec5ff819300919be7f97e2c8a117abbeb48a2)
+- Merge commit '28d72f42' - [`111f825a91`](https://github.com/Ding-Ding-Projects/worldlens/commit/111f825a9112eb30698c403583d37290f6e4fd35) _(summary of 2 commits, also listed here)_
+- Give the account-picker test bridge a switch it can actually record - [`28d72f4272`](https://github.com/Ding-Ding-Projects/worldlens/commit/28d72f42729d5c7908ec6b13fec6a2022716a658)
+
+### Server, CLI and configuration
+
+- Merge commit '8df42821' - [`13fc36351c`](https://github.com/Ding-Ding-Projects/worldlens/commit/13fc36351ce588f705c26baf42e91059f3b7db6f) _(summary of 2 commits, also listed here)_
+- Give the encrypted render workflow the Java 25 its renderer needs - [`8df4282189`](https://github.com/Ding-Ding-Projects/worldlens/commit/8df42821897f3d4e3388d798baa3c969a3290e54)
+
+### Desktop shell
+
+- Merge commit '2048964a' - [`1e6c0f2b39`](https://github.com/Ding-Ding-Projects/worldlens/commit/1e6c0f2b39dc7d0950bd4b7d8158073e38697d02) _(summary of 2 commits, also listed here)_
+- Let a read-only repository hand over a render it already finished - [`2048964aeb`](https://github.com/Ding-Ding-Projects/worldlens/commit/2048964aebedcec6d5070d308768aac5266b4c94)
+- Merge commit '2c53204c' - [`8d151b99fa`](https://github.com/Ding-Ding-Projects/worldlens/commit/8d151b99fafeb6f3986cd4445208b7135933e5c7) _(summary of 2 commits, also listed here)_
+- Anchor the chunker-config guard row to the panel it is actually about - [`2c53204c9f`](https://github.com/Ding-Ding-Projects/worldlens/commit/2c53204c9faf0f20f5073a4c0c8eafba145036c9)
+- Merge commit 'b03c893a' - [`dfbc9a4df6`](https://github.com/Ding-Ding-Projects/worldlens/commit/dfbc9a4df6c573b21ccb669e0de3e973f9e499b4) _(summary of 2 commits, also listed here)_
+- Ask for upload consent only when this app actually uploads the world - [`b03c893acb`](https://github.com/Ding-Ding-Projects/worldlens/commit/b03c893acb7b35a9bbb6d2884c27205a2097a383)
+- Merge commit 'f5be4fb8' - [`738e4acde1`](https://github.com/Ding-Ding-Projects/worldlens/commit/738e4acde1708715f3df63ec94361ec8297b56a0) _(summary of 2 commits, also listed here)_
+- Count the hires parts the run planned, not the ones that turned up - [`f5be4fb8d4`](https://github.com/Ding-Ding-Projects/worldlens/commit/f5be4fb8d4e70fe43318dd11db7eb19df1d71641)
+
+### Build, release and tooling
+
+- Merge commit '77e2efcf' - [`e96b8e1f3c`](https://github.com/Ding-Ding-Projects/worldlens/commit/e96b8e1f3cb710c38bc3f42c4f7ce4b28061bc21) _(summary of 2 commits, also listed here)_
+- Scrub internal shorthand out of the changelog overrides, and guard them - [`77e2efcf06`](https://github.com/Ding-Ding-Projects/worldlens/commit/77e2efcf066565061af1e8530a1a40bcad8a5689)
+- Merge commit 'aebef7af' - [`19d34ca173`](https://github.com/Ding-Ding-Projects/worldlens/commit/19d34ca173ca61296afec47a213d6d2ec2efdba7) _(summary of 2 commits, also listed here)_
+- Catch a private term that wraps across a line break - [`aebef7afb4`](https://github.com/Ding-Ding-Projects/worldlens/commit/aebef7afb42c47140d3ded1713e53cc0e22588d4)
+- Merge commit 'ffbce115' - [`0e42f84cea`](https://github.com/Ding-Ding-Projects/worldlens/commit/0e42f84ceaef040f88e925e797dae4d18422c439) _(summary of 2 commits, also listed here)_
+- Say "submodule" in the drift report, not an in-house nickname - [`ffbce11570`](https://github.com/Ding-Ding-Projects/worldlens/commit/ffbce115700519a6211281d2bfd86d20c67ee944)
+
+## 1.0.2035 - 2026-09-05
+
+Tagged at [`65a772d917`](https://github.com/Ding-Ding-Projects/worldlens/commit/65a772d917c1ea0e2a345703a5d2203855f68c85).
 
 ### Desktop shell
 
 - Drop the shebang from the packaged-bundles assertion so it parses on a CRLF checkout - [`df2174dd0a`](https://github.com/Ding-Ding-Projects/worldlens/commit/df2174dd0aa9cfbbb0d7130ae39cbade039a7dff)
 - Merge commit '3fb2781a' - [`5f7b4952f6`](https://github.com/Ding-Ding-Projects/worldlens/commit/5f7b4952f67b3dcac27fd02febbebbf80ee6c4ff) _(summary of 2 commits, also listed here)_
 - Let the app find the Chunker it was already shipping - [`3fb2781a1e`](https://github.com/Ding-Ding-Projects/worldlens/commit/3fb2781a1e2b80212ecb008fcc7f886bb04f8896)
+
+## 1.0.2034 - 2026-09-05
+
+Tagged at [`8bf886028a`](https://github.com/Ding-Ding-Projects/worldlens/commit/8bf886028a2f3eddb8636afe5cb834fb969a8809).
+
+### Interface
+
+- Merge commit '41664628' - [`ed947def16`](https://github.com/Ding-Ding-Projects/worldlens/commit/ed947def167691c26060762d967d5b8ff9bc22c5) _(summary of 2 commits, also listed here)_
+- Render the destination you picked, and stop the label sitting on the button - [`41664628da`](https://github.com/Ding-Ding-Projects/worldlens/commit/41664628da56f5a14aa03e8851d1f341bdb01830)
 
 ## 1.0.2031 - 2026-09-05
 

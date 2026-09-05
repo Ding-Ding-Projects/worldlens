@@ -715,8 +715,8 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing, b
      * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
      * text-overflow: ellipsis`. The font-size/padding above never touched
      * those three, so a translated title long enough for bilingual mode or
-     * Cantonese was silently cut off with no ellipsis painted (same Cheap
-     * Jor already fixed in DependencyInstallerPanel.vue).
+     * Cantonese was silently cut off with no ellipsis painted (same clipping
+     * defect already fixed in DependencyInstallerPanel.vue).
      */
     white-space: normal;
     overflow-wrap: anywhere;

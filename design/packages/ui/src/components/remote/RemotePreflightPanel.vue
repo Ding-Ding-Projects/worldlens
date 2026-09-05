@@ -304,8 +304,8 @@ function toggleDetail(stage: string): void {
      * text-overflow: ellipsis`. `overflow-wrap: anywhere` alone does nothing
      * against an inherited `white-space: nowrap` — the line still never
      * wraps — so a translated title long enough for bilingual mode or
-     * Cantonese was silently cut off with no ellipsis painted (same Cheap
-     * Jor already fixed in DependencyInstallerPanel.vue).
+     * Cantonese was silently cut off with no ellipsis painted (same clipping
+     * defect already fixed in DependencyInstallerPanel.vue).
      */
     white-space: normal;
     overflow-wrap: anywhere;

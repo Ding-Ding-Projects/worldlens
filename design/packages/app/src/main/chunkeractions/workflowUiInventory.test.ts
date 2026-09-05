@@ -4,8 +4,8 @@
  *
  * `scripts/check-chunker-ui-inventory.mjs` does the actual comparison against a
  * hand-written inventory, for the same reason `scripts/check-workflow-drift.mjs` is spawned
- * from `workflowDrift.test.ts` rather than reimplemented here: it is a local check that Der
- * Machine never runs, so the only thing that runs it at all is this suite.
+ * from `workflowDrift.test.ts` rather than reimplemented here: it is a local check that GitHub
+ * Actions never runs, so the only thing that runs it at all is this suite.
  */
 
 import { execFileSync } from "node:child_process";

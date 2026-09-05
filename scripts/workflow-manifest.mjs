@@ -6,8 +6,8 @@
  * point: `design/packages/app` appears as a literal string a dozen times across
  * `ci.yml` alone, `node-version: 22` is copied into every workflow while the real
  * constraint lives in `engines.node`, and the product name is duplicated out of
- * `electron-builder.config.cjs` by hand. Move or rename any of them and Der
- * Machine breaks in a way nothing announces until a run fails.
+ * `electron-builder.config.cjs` by hand. Move or rename any of them and GitHub
+ * Actions breaks in a way nothing announces until a run fails.
  *
  * So packages are found by their **name** in the pnpm workspace, not by their
  * path. Renaming a directory changes nothing here. Renaming a *package* is a

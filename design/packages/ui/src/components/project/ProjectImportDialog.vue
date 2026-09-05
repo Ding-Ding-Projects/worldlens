@@ -180,8 +180,8 @@ defineExpose({ pickFolder, pickProjectFile, validateAndUse, cancelTransferAndClo
  * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
  * text-overflow: ellipsis`. This dialog's title is a translated string that
  * grows past a single line in bilingual mode and in playful Cantonese, so
- * left unset it was silently cut off with no ellipsis painted (same Cheap
- * Jor already fixed in DependencyInstallerPanel.vue).
+ * left unset it was silently cut off with no ellipsis painted (same clipping
+ * defect already fixed in DependencyInstallerPanel.vue).
  */
 .mb-project-import__title {
     white-space: normal;
