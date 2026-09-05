@@ -354,6 +354,77 @@ describe("direct world browsing", () => {
         expect(fake.unmounted).toEqual([]);
         view.unmount();
     });
+
+    /*
+     * The seam the packaged build actually failed at.
+     *
+     * `provideConfigHost()` is only called by the World, Projects and Config screens, so on
+     * the Chunker and CI-render screens - which render this list too - the injected host was
+     * null and both buttons rendered permanently disabled, saying nothing about why. The
+     * preload's own `window.worldlens.dialog` picker was there the whole time.
+     */
+    it("browses through the dialog bridge when no config host was provided", async () => {
+        const chosen: string[] = [];
+        const asked: string[] = [];
+        const fake = fakeBridge();
+        (globalThis as { worldlens?: unknown }).worldlens = {
+            dialog: {
+                pickFolder: async (options: { title: string }) => {
+                    asked.push(options.title);
+                    return "/portable/world";
+                },
+                pickFile: async () => null,
+            },
+        };
+        try {
+            const view = mount(MinecraftWorldList, {
+                props: {
+                    modelValue: "",
+                    bridge: fake.bridge,
+                    onChoose: (folder: string) => chosen.push(folder),
+                },
+                global: { plugins: [vuetify, i18n()] },
+            });
+            await flushPromises();
+
+            const browse = view.find('[data-test="browse-world-folder"]');
+            expect(browse.attributes("disabled")).toBeUndefined();
+            expect(
+                view.find('[data-test="mount-minecraft-folder"]').attributes("disabled"),
+            ).toBeUndefined();
+            expect(view.find('[data-test="browse-unavailable-reason"]').exists()).toBe(false);
+
+            await browse.trigger("click");
+            await flushPromises();
+
+            expect(chosen).toEqual(["/portable/world"]);
+            expect(asked).toHaveLength(1);
+            view.unmount();
+        } finally {
+            delete (globalThis as { worldlens?: unknown }).worldlens;
+        }
+    });
+
+    it("disables both buttons with a stated reason when no picker exists at all", async () => {
+        const fake = fakeBridge();
+        const view = mount(MinecraftWorldList, {
+            props: { modelValue: "", bridge: fake.bridge },
+            global: { plugins: [vuetify, i18n()] },
+        });
+        await flushPromises();
+
+        expect(view.find('[data-test="browse-world-folder"]').attributes("disabled")).toBeDefined();
+        expect(
+            view.find('[data-test="mount-minecraft-folder"]').attributes("disabled"),
+        ).toBeDefined();
+        const reason = view.find('[data-test="browse-unavailable-reason"]');
+        expect(reason.exists()).toBe(true);
+        expect(reason.text()).toContain("cannot open a folder picker");
+        expect(view.find('[data-test="browse-world-folder"]').attributes("aria-describedby")).toBe(
+            "mb-world-list-browse-unavailable",
+        );
+        view.unmount();
+    });
 });
 
 describe("the search", () => {
