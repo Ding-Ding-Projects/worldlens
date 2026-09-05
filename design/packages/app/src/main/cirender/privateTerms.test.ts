@@ -14,6 +14,11 @@
  * this suite does not attempt to reproduce that path, because doing so would require holding
  * the private terms somewhere this repository's tests can read them, which is exactly the
  * leak the guard exists to prevent.
+ *
+ * What the matching itself does is still provable here, against terms invented for the test:
+ * `scripts/check-private-terms.test.mjs` drives the scan directly over throwaway files, and
+ * is spawned below so that it runs as part of this suite rather than only when somebody
+ * remembers the npm script.
  */
 
 import { execFileSync } from "node:child_process";
@@ -23,12 +28,24 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 // Six levels: cirender -> main -> src -> app -> packages -> design -> repo root.
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..", "..", "..");
+const repoRoot = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    "..",
+    "..",
+    "..",
+    "..",
+    "..",
+    "..",
+);
 const script = join(repoRoot, "scripts", "check-private-terms.mjs");
+const unitTests = join(repoRoot, "scripts", "check-private-terms.test.mjs");
 
-function runGuard(env: Record<string, string | undefined>): { ok: boolean; output: string } {
+function runGuard(
+    env: Record<string, string | undefined>,
+    args: string[] = [script],
+): { ok: boolean; output: string } {
     try {
-        const output = execFileSync(process.execPath, [script], {
+        const output = execFileSync(process.execPath, args, {
             cwd: repoRoot,
             encoding: "utf8",
             stdio: ["ignore", "pipe", "pipe"],
@@ -61,5 +78,15 @@ describe("the private-terms guard", () => {
         });
         expect(result.ok).toBe(true);
         expect(result.output).toContain("private-terms check skipped: no term file");
+    });
+
+    it("passes its own scan tests, which cover a term wrapped across a line break", () => {
+        // Those tests use terms invented for them, so they exercise the matching without
+        // holding anything private. The wrapped case is the one that matters: nearly every
+        // real term is two or three words, and this repository's prose is wrapped, so a scan
+        // that read each line on its own would report clean over a genuine occurrence.
+        const result = runGuard({ WORLDLENS_PRIVATE_TERMS_FILE: undefined }, ["--test", unitTests]);
+        expect(result.output).toContain("fail 0");
+        expect(result.ok).toBe(true);
     });
 });
