@@ -24,12 +24,11 @@
  * Usage:
  *   node scripts/capture-settings-cdp.mjs <output-dir> [--port 19710] [--desktop NAME]
  *
- * Writes twelve PNGs into <output-dir>:
+ * Writes ten PNGs into <output-dir> (the two rail captures moved to scripts/capture-rail-cdp.mjs):
  *   settings-1280-dark-en.png            settings-320-dark-en.png
  *   settings-bilingual.png               settings-light.png
  *   settings-320-bilingual-light.png     settings-1280-scale200.png
- *   settings-640-scale200.png            rail-job-shortcuts-1280-dark.png
- *   rail-job-shortcuts-320.png           world-downloader-1280.png
+ *   settings-640-scale200.png            world-downloader-1280.png
  *   config-regex-builder-open-1280.png   config-regex-builder-open-320.png
  */
 
@@ -214,18 +213,11 @@ async function main() {
         await page.evaluate(() => document.body.getBoundingClientRect().width);
         console.log("renderer responsive at 320: took", Date.now() - start, "ms");
 
-        // Close Settings, rail with its job shortcuts, then the World downloader screen.
+        // Close Settings, then the World downloader screen (the rail itself is captured by
+        // scripts/capture-rail-cdp.mjs, which owns those two evidence files).
         await page.setViewportSize({ width: 1280, height: 800 });
         await page.waitForTimeout(200);
         await page.keyboard.press("Escape").catch(() => {});
-        await page.waitForTimeout(300);
-        await page.screenshot({ path: join(args.out, "rail-job-shortcuts-1280-dark.png") });
-
-        await page.setViewportSize({ width: 320, height: 700 });
-        await page.waitForTimeout(300);
-        await page.screenshot({ path: join(args.out, "rail-job-shortcuts-320.png") });
-
-        await page.setViewportSize({ width: 1280, height: 800 });
         await page.waitForTimeout(300);
         const worldDownloaderRail = page.getByText("Get a world off a server", { exact: false }).first();
         if (await worldDownloaderRail.count()) {
