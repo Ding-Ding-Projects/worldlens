@@ -1395,6 +1395,21 @@ export const CIRENDER_FIXED = {
         yue: "由個 run 自己個標題度讀返嚟嘅。如果估錯就自己改；留空就等 app 自己決定。",
     },
     "cirender.attach.fetch": { en: "Fetch this render", yue: "攞返呢個 render" },
+    /*
+     * The world a fetched render is registered into is chosen in a card further up
+     * the screen, so this button can be dead for a reason nothing beside it mentions.
+     * These two say it where the refusal happens: `needWorld` as the tooltip and as a
+     * visible line under the button, `fetchBlockedLabel` as the accessible name, so
+     * the reason is spoken as well as seen.
+     */
+    "cirender.attach.needWorld": {
+        en: "Choose a world above before fetching a render into it.",
+        yue: "喺上面揀咗個世界先，然後至可以攞個 render 落嚟。",
+    },
+    "cirender.attach.fetchBlockedLabel": {
+        en: "Fetch this render: {reason}",
+        yue: "攞返呢個 render：{reason}",
+    },
     "cirender.owner.kindOrg": { en: "Organization", yue: "組織" },
     "cirender.owner.kindYou": { en: "Your own account", yue: "你自己個戶口" },
     "cirender.repo.rowPrivate": { en: "{owner} - private", yue: "{owner} - 私人" },

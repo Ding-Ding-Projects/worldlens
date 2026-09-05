@@ -1224,6 +1224,25 @@ watch(selectedAttachRun, (run) => {
     attachMapId.value = run?.mapId ?? "";
 });
 
+/**
+ * Why the Fetch button cannot run yet, or null when it can.
+ *
+ * The same discipline `browseUnavailableBecause`, `checkBlockedBecause` and
+ * `blockedBecause` hold their buttons to: a disabled control in this card always says why,
+ * sighted or via a screen reader. It matters more here than anywhere else on the screen,
+ * because the world field lives in a different card further up: a fetch that merely goes
+ * grey sends somebody hunting for a condition nothing on this card mentions, and the
+ * sentence directly above the button already speaks of "the world selected above" as
+ * though one had been.
+ */
+const attachBlockedBecause = computed<string | null>(() => {
+    if (worldFolder.value.trim() !== "") return null;
+    return t(
+        "cirender.attach.needWorld",
+        "Choose a world above before fetching a render into it.",
+    );
+});
+
 /** Owner or repository changed underneath a listing that no longer describes them. */
 watch([owner, repo], () => {
     selectedAttachRunId.value = null;
@@ -2568,7 +2587,17 @@ onBeforeUnmount(() => {
                         />
                         <VBtn
                             :prepend-icon="mdiCloudDownloadOutline"
-                            :disabled="worldFolder.trim() === ''"
+                            :disabled="attachBlockedBecause !== null"
+                            :title="attachBlockedBecause ?? undefined"
+                            :aria-label="
+                                attachBlockedBecause !== null
+                                    ? t(
+                                          'cirender.attach.fetchBlockedLabel',
+                                          { reason: attachBlockedBecause },
+                                          'Fetch this render: {reason}',
+                                      )
+                                    : undefined
+                            "
                             :loading="renders.attaching.value"
                             color="primary"
                             data-test="attach-run-fetch"
@@ -2576,6 +2605,13 @@ onBeforeUnmount(() => {
                         >
                             {{ t("cirender.attach.fetch", "Fetch this render") }}
                         </VBtn>
+                        <p
+                            v-if="attachBlockedBecause !== null"
+                            class="text-medium-emphasis mt-2"
+                            data-test="attach-blocked"
+                        >
+                            {{ attachBlockedBecause }}
+                        </p>
                     </div>
                 </VCardText>
             </VCard>

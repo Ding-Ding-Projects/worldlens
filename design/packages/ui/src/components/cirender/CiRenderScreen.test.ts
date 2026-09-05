@@ -3280,4 +3280,79 @@ describe("fetching a render made elsewhere", () => {
             "cannot use the render workflow",
         );
     });
+
+    /*
+     * The world a fetch registers into is chosen in a card further up the screen, and it
+     * starts empty on exactly the machine this card is for - one that has never seen the
+     * world the run was made from. So the button that refuses has to say what it is
+     * waiting for, the way every other disabled control on this screen does; the sentence
+     * above it speaks of "the world selected above" and would otherwise be describing a
+     * selection that was never made.
+     */
+    it("says why the fetch is dead while no world is chosen, and works once one is", async () => {
+        const attachCalls: unknown[] = [];
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () =>
+                    Promise.resolve({ ok: true, value: [attachableRun()] }),
+                attachCiRun: (request) => {
+                    attachCalls.push(request);
+                    return Promise.resolve({
+                        ok: true,
+                        syncId: "s",
+                        outcome: "rendered",
+                        summary: {
+                            syncId: "s",
+                            repository: "o/r",
+                            releaseTag: null,
+                            assetName: null,
+                            runId: 42,
+                            runUrl: "https://github.test/runs/42",
+                            renderId: "ci-s",
+                            dataRoot: "/data",
+                            mapId: "world",
+                            mapName: "World",
+                            route: "gh",
+                            uploaded: false,
+                            artifactBytes: 10,
+                            artifactSha256: "a".repeat(64),
+                            verified: true,
+                        },
+                        durationMs: 10,
+                    });
+                },
+            }),
+        );
+
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-run-select"]').trigger("click");
+        await flushPromises();
+
+        const blocked = wrapper.find('[data-test="attach-run-fetch"]');
+        expect(blocked.attributes("disabled")).toBeDefined();
+        expect(wrapper.find('[data-test="attach-blocked"]').text()).toContain(
+            "Choose a world above",
+        );
+        expect(blocked.attributes("title")).toContain("Choose a world above");
+        expect(blocked.attributes("aria-label")).toContain("Choose a world above");
+
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="attach-blocked"]').exists()).toBe(false);
+        expect(
+            wrapper.find('[data-test="attach-run-fetch"]').attributes("disabled"),
+        ).toBeUndefined();
+
+        await wrapper.find('[data-test="attach-run-fetch"]').trigger("click");
+        await flushPromises();
+
+        expect(attachCalls).toEqual([
+            expect.objectContaining({ owner: "o", repo: "r", runId: 42, worldFolder: "/world" }),
+        ]);
+    });
 });
