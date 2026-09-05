@@ -9,9 +9,17 @@
 //     --jar <path-to-chunker-cli-jar> \
 //     [--java <path-to-java-executable>] \
 //     [--java-format JAVA_1_20_5] [--bedrock-format BEDROCK_1_20_80] \
-//     [--out <evidence.json>]
+//     [--out <evidence.json>] \
+//     [--timeout-minutes <n> | --timeout-ms <n>]
 //
 // This never mutates the original world: everything happens on a copy under --work.
+//
+// Per-leg timeout: explicit --timeout-minutes/--timeout-ms wins outright. Otherwise the
+// timeout scales with the source world's actual on-disk bytes - max(50 min, bytes/1e9 *
+// 15 min) - because a fixed timeout tuned against a 1 GB world (as this repository's own
+// first attempt was) silently truncates a real, still-succeeding conversion of a 10 GB
+// one; that truncation is a harness limit, never a Chunker failure, and is recorded as
+// such (`timedOut: true`) rather than folded into an undocumented-difference verdict.
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { join, resolve } from "node:path";
@@ -33,7 +41,7 @@ function parseArgs(argv) {
     const options = {
         world: null, work: null, jar: null, java: "java",
         javaFormat: "JAVA_1_20_5", bedrockFormat: "BEDROCK_1_20_80",
-        out: null, timeoutMs: 60 * 60 * 1000,
+        out: null, timeoutMs: null, // null = auto-scale from the world's actual byte size; see header comment
     };
     for (let i = 0; i < argv.length; i++) {
         const arg = argv[i];
@@ -47,6 +55,7 @@ function parseArgs(argv) {
             case "--bedrock-format": options.bedrockFormat = next(); break;
             case "--out": options.out = resolve(next()); break;
             case "--timeout-ms": options.timeoutMs = Number(next()); break;
+            case "--timeout-minutes": options.timeoutMs = Number(next()) * 60 * 1000; break;
             default: throw new Error("Unknown argument: " + arg);
         }
     }
@@ -120,25 +129,51 @@ export async function roundTripAndCompare(options) {
     // Never touch the original: convert from a copy, so the "pristine fixture" contract holds.
     await cp(options.world, workingCopy, { recursive: true });
 
+    // Auto-scale the per-leg timeout from the source world's real on-disk bytes when the
+    // caller did not pin one explicitly - a fixed timeout tuned against a small fixture
+    // silently truncates a real, still-succeeding conversion of a much larger one (this
+    // exact mistake happened against the 10 GB fixture: a 50-minute fixed timeout killed
+    // a leg that was still legitimately converting). Floor 50 minutes, then 15 minutes
+    // per source gigabyte, derived from the measured ~1 GB-per-~6-minute Chunker rate
+    // observed on this project's own fixtures plus headroom for a busy shared host.
+    let timeoutMs = options.timeoutMs;
+    let timeoutSource = "explicit";
+    if (timeoutMs === null) {
+        const sourceBytes = await directoryByteSize(workingCopy).catch(() => 0);
+        const floorMs = 50 * 60 * 1000;
+        const scaledMs = (sourceBytes / 1_000_000_000) * 15 * 60 * 1000;
+        timeoutMs = Math.max(floorMs, scaledMs);
+        timeoutSource = "auto-scaled from " + sourceBytes + " source bytes (floor 50 min, +15 min/GB)";
+    }
+
     const legs = {};
     legs.javaToBedrock = await runChunkerLeg({
         java: options.java, jar: options.jar, inputDirectory: workingCopy,
-        outputDirectory: bedrockOut, outputFormat: options.bedrockFormat, timeoutMs: options.timeoutMs,
+        outputDirectory: bedrockOut, outputFormat: options.bedrockFormat, timeoutMs,
     });
-    legs.javaToBedrock.outputBytes = legs.javaToBedrock.exitCode === 0 ? await directoryByteSize(bedrockOut).catch(() => 0) : 0;
+    legs.javaToBedrock.timeoutMs = timeoutMs;
+    legs.javaToBedrock.timeoutSource = timeoutSource;
+    // Always measure what is actually on disk, killed or not - a leg the harness killed
+    // mid-write still left real, partial output, and reporting 0 bytes for it would hide
+    // exactly the evidence a reader needs to tell "harness timeout" from "wrote nothing".
+    legs.javaToBedrock.outputBytes = await directoryByteSize(bedrockOut).catch(() => 0);
 
     if (legs.javaToBedrock.exitCode !== 0) {
-        return { legs, comparison: null, verdict: "java-to-bedrock-failed" };
+        const verdict = legs.javaToBedrock.timedOut ? "java-to-bedrock-harness-timeout" : "java-to-bedrock-failed";
+        return { legs, comparison: null, verdict };
     }
 
     legs.bedrockToJava = await runChunkerLeg({
         java: options.java, jar: options.jar, inputDirectory: bedrockOut,
-        outputDirectory: javaBackOut, outputFormat: options.javaFormat, timeoutMs: options.timeoutMs,
+        outputDirectory: javaBackOut, outputFormat: options.javaFormat, timeoutMs,
     });
-    legs.bedrockToJava.outputBytes = legs.bedrockToJava.exitCode === 0 ? await directoryByteSize(javaBackOut).catch(() => 0) : 0;
+    legs.bedrockToJava.timeoutMs = timeoutMs;
+    legs.bedrockToJava.timeoutSource = timeoutSource;
+    legs.bedrockToJava.outputBytes = await directoryByteSize(javaBackOut).catch(() => 0);
 
     if (legs.bedrockToJava.exitCode !== 0) {
-        return { legs, comparison: null, verdict: "bedrock-to-java-failed" };
+        const verdict = legs.bedrockToJava.timedOut ? "bedrock-to-java-harness-timeout" : "bedrock-to-java-failed";
+        return { legs, comparison: null, verdict };
     }
 
     // Streamed region-by-region: a gigabyte-scale world's full chunk set does not
