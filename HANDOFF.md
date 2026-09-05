@@ -1,5 +1,50 @@
 # Handoff
 
+## 2026-09-05: large-world proof, Chunker round trip, downloader, settings, integration
+
+Integration branch `integrate/puppies` (base `main` at `365fb3be`) carries every lane of this
+pass; each merge was verified independently on the integration tree before the next one
+landed (build, `tsc`/`vue-tsc` at zero errors, `check-webapp-parity`, `lint-workflows`, and
+the touched-area vitest suites). The broad suite at `7f6f4e40` was 141 files, 1,580 tests
+passed, 5 skipped. Later merges were verified with 82, 134, 33, 182 and 127 focused files
+respectively, all green. The final pre-`main` verification is recorded below the table.
+
+| Row | State | Evidence |
+| --- | --- | --- |
+| Measured 1 GB fixture | verified | `fixture-1gb-seed-1001`, 1.20.4, 1,000,002,111 decimal bytes, 238 regions, 243,665 chunks, 153 s, provenance JSON with manifest SHA-256 |
+| Measured 10 GB fixture | verified | `fixture-10gb-seed-2002`, 1.20.4, 10,000,003,649 decimal bytes, 2,380 regions, 2,436,647 chunks, 2,208 s, provenance JSON |
+| GitHub Actions render, 1 GB | verified | `builders-home/wl-render-1gb-20260904` run 33929016654: success, 25 min 55 s, 15 jobs green, 12 shards; `rendered-map` downloaded: 60,759 tiles, `textures.json.gz`, 2.4 GB |
+| GitHub Actions split upload, 10 GB | verified | app's own `uploadWorldForRender` through the production credential broker: 7 parts, 10,000,846,398 bytes, sha256 `c1529343…`, 27 min 08 s |
+| GitHub Actions render, 10 GB | attempt 1 failed at merge; attempt 2 in flight | run 33932567847: all 30 shards rendered green (17.65 GB of shard artifacts); the single merge job was cancelled by the platform 8 min into merging with no timeout configured and no cancel issued; the planner's disk decision (35.8 GiB) covers fetch and shard jobs but not the merge job that holds every shard at once; the failed job was re-run against the same artifacts |
+| Java to Bedrock to Java, 1 GB | verified | real Chunker CLI: 347 s + 245 s, 243,665/243,665 chunks matched, 162 documented-loss only, 0 undocumented, 0 missing, 0 extra, verdict clean |
+| Java to Bedrock to Java, 10 GB | pending | Java to Bedrock leg complete, Bedrock to Java leg running |
+| Negative Chunker cases | verified | corrupt input, invalid settings, interrupted, unwritable destination: all correctly refused |
+| Local Docker destination | blocked | Docker Desktop engine pipe absent on this host; needs elevation; recorded, not verified |
+| Local 10 GB render | partial | stopped at 6.75 %, resumable |
+| World downloader | merged, verified | main-process wiring, bridge namespace, screen, bilingual copy, docs article and index rows; reachable from the Work pane, `jobRegistry`, and the command palette |
+| Left rail job shortcuts | merged, verified | seven shortcuts with dedicated short labels in both languages, overflow folded into an anchored More menu with its own search and regex builder, primary destinations never scroll away; three real-build defects found and fixed by measuring the DOM; captures at 1280x800 and 1280x600 committed with their own inventory group |
+| Settings dialog revamp | merged, verified | M3 token layer and list-row anatomy, single-column layout below 600 px, break-word wrapping, one-line search, consent-facts grid floor removed; ten real captures incl. 200 % scale committed; short search label given its catalogue entry |
+| Issue #175 | fixed, open | scrollbar-toggle layout loop in the anchored regex popover, `scrollbar-gutter: stable`; kept open until a built-artifact capture exists |
+| Chunker review fixes | merged | schema editor types, 21 copy keys, 167 focused tests |
+| Changelog | current | regenerated through v1.0.1978 (375 versions, 1,872 entries); trailer guard anchored to line starts |
+| Capture evidence | committed | twelve real CDP captures (settings at six tuples incl. 200 %, rail shortcuts, downloader, #175 popover) under `docs/screenshots/` with `scripts/capture-settings-cdp.mjs` and inventory group `lowlevel-cdp-settings-rail-2026-09-05`; gallery guard 230 PNGs green |
+| `check-screenshot-evidence.mjs` | pre-existing red | four older groups (`app-playwright-manifest`, `app-playwright-map-dependent`, `lowlevel-ui-e2e`, `hosted-deployment`, ~154 images) carry interface digests older than the tree; proven red on `main` at `365fb3be` in a throwaway checkout (exit 1), so this pass did not cause it and did not hide it; refresh needs the full Playwright/map-fixture/hosted pass |
+
+Dead ends worth not repeating: `zip` is not installed on this host (use Python's zipfile);
+the first tiny proof run stalled for an hour on `actions/setup-node` with no log blob (a
+hosted-runner stall, cancel and redispatch); a heredoc ate a backslash and put real newlines
+into a string literal (edit such lines with raw strings and read them back).
+
+Release: not yet cut from this branch. The `main` tip is still `365fb3be`; `integrate/puppies`
+is a fast-forward ahead of it. Every lane has landed. The whole-tree verification at `ded937e7` (build, both typechecks at
+zero, lint-workflows and parity green, 68 articles, 230 PNGs, 7/7 node tests) ran 1,035 vitest
+files: 1,020 green, 6 skipped, 9 red. The reds are completeness guards catching the new work
+(seeded-tab inventory, hosted capability classification for the new channels, Kid Mode labels,
+two `<v-menu>` registries, a path field without its browse button, a token-bearing renderer API
+on the downloader bridge, `chunk-world.yml` format drift, and a packaged four-file template set
+against a three-name loader list). Each was sent back to its owning lane; nothing lands on `main`
+until the whole tree is green.
+
 ## 2026-09-04: preservation handoff, runtime matrix incomplete
 
 The measured generator and lifecycle repair are integrated in `main` at `4b342447`.

@@ -1,5 +1,11 @@
 # Roadmap
 
+## Evidence refresh (2026-09-05)
+
+- [ ] Refresh the four stale capture-evidence groups (`app-playwright-manifest`, `app-playwright-map-dependent`, `lowlevel-ui-e2e`, `hosted-deployment`) against the current interface digest and record the new `uiSourceDigest` values; `node scripts/check-screenshot-evidence.mjs` has been red on `main` since before 2026-09-05.
+- [ ] Finish the 10 GB Java to Bedrock to Java round trip with the byte-scaled timeout and record its semantic comparison.
+- [ ] Record the 10 GB GitHub Actions render verdict and inspected artifact.
+
 ## Large-world UI verification (2026-09-04)
 
 - [x] Redact temporary renderer access URLs from smoke diagnostics and receipts; verify focused tests.
