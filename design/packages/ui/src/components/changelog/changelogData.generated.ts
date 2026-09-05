@@ -26,6 +26,37 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
+        sha: "df2174dd0aa9cfbbb0d7130ae39cbade039a7dff",
+        shortSha: "df2174dd0a",
+        date: "2026-09-05T14:05:04-04:00",
+        subject: "Drop the shebang from the packaged-bundles assertion so it parses on a CRLF checkout",
+        details: "The script is always launched through node, and the shebang line plus a\ncarriage return made vitest refuse the whole module on Windows checkouts\nwhile the same file passed on an LF worktree.\n\n個 script 一律用 node 行，shebang 行加個 \\r 就令 vitest 喺 Windows checkout\n成個模組都唔肯讀，LF worktree 就冇事。",
+        category: "shell",
+        areas: ["shell"],
+        files: 1,
+    },
+    {
+        sha: "5f7b4952f67b3dcac27fd02febbebbf80ee6c4ff",
+        shortSha: "5f7b4952f6",
+        date: "2026-09-05T14:03:34-04:00",
+        subject: "Merge commit '3fb2781a'",
+        details: "",
+        category: "shell",
+        areas: ["shell", "interface", "docs", "site"],
+        files: 24,
+        summarizes: 2,
+    },
+    {
+        sha: "3fb2781a1e2b80212ecb008fcc7f886bb04f8896",
+        shortSha: "3fb2781a1e",
+        date: "2026-09-05T13:59:02-04:00",
+        subject: "Let the app find the Chunker it was already shipping",
+        details: "v1.0.2026's installer contained resources/bundled/chunker/chunker-cli-1.19.1.jar\nat exactly the pinned 31,790,149 bytes, and findChunker had no resourcesPath\noption at all, so every installed build searched the user's profile, found\nnothing, and told them the app \"does not bundle\" the converter it was carrying.\nThe packaging config was correct throughout, which is why nothing went red: a\nfeature wired at one end and consumed at neither ships silently.\n\nThe resolver now looks in the installer, verifies the jar against a digest\ncommitted in bundled-runtimes.manifest.json before running it, and refuses one\nwhose bytes are not this release's. The interface names which of the four\nsources is in use instead of reporting a bare version, and the missing-copy\nstate says the app will fetch the same pinned jar itself rather than telling\nsomebody to go and get one.\n\nAlso connected the Get Chunker button, which emitted a fix event into an empty\nroom: ChunkerScreen mounted the route picker without a listener, so pressing it\ndid nothing at all - no handler, no console line, no error. The packaged\nrenderer bundle carries zero occurrences of onFix, which is what a compiled\n@fix listener becomes.\n\nscripts/assert-packaged-bundles.mjs now reads the directory electron-builder\nactually produced, from afterPack, because checking the configuration proved\nexactly nothing for a whole release.\n\n個 app 明明將 Chunker 揹咗入安裝檔，然後同用戶講自己冇帶。v1.0.2026 個\nnupkg 入面實實在在有 resources/bundled/chunker/chunker-cli-1.19.1.jar，大細\n啱啱好係釘死嘅 31,790,149 bytes，但 findChunker 根本冇 resourcesPath 呢個\n選項，所以每部機都去搵用戶 profile，搵唔到，然後一路揹住份 jar 一路嗌冇裝。\n打包全綠，因為一頭駁咗、兩頭冇人用嘅嘢，係會靜靜雞出貨嘅。\n\n而家會先喺安裝檔度搵，行之前對埋 digest，唔啱就拒絕唔行；介面亦會講明用緊\n四個來源邊一個。順手駁返粒 Get Chunker 掣 —— 佢一直向住冇人聽嘅空氣派事件，\n撳落去乜都唔會發生。",
+        category: "shell",
+        areas: ["shell", "interface", "docs", "site"],
+        files: 24,
+    },
+    {
         sha: "ed947def167691c26060762d967d5b8ff9bc22c5",
         shortSha: "ed947def16",
         date: "2026-09-05T13:55:50-04:00",

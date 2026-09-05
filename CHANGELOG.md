@@ -25,6 +25,12 @@ full message for the in-app changelog viewer.
 - Merge commit '41664628' - [`ed947def16`](https://github.com/Ding-Ding-Projects/worldlens/commit/ed947def167691c26060762d967d5b8ff9bc22c5) _(summary of 2 commits, also listed here)_
 - Render the destination you picked, and stop the label sitting on the button - [`41664628da`](https://github.com/Ding-Ding-Projects/worldlens/commit/41664628da56f5a14aa03e8851d1f341bdb01830)
 
+### Desktop shell
+
+- Drop the shebang from the packaged-bundles assertion so it parses on a CRLF checkout - [`df2174dd0a`](https://github.com/Ding-Ding-Projects/worldlens/commit/df2174dd0aa9cfbbb0d7130ae39cbade039a7dff)
+- Merge commit '3fb2781a' - [`5f7b4952f6`](https://github.com/Ding-Ding-Projects/worldlens/commit/5f7b4952f67b3dcac27fd02febbebbf80ee6c4ff) _(summary of 2 commits, also listed here)_
+- Let the app find the Chunker it was already shipping - [`3fb2781a1e`](https://github.com/Ding-Ding-Projects/worldlens/commit/3fb2781a1e2b80212ecb008fcc7f886bb04f8896)
+
 ## 1.0.2031 - 2026-09-05
 
 Tagged at [`dbb6f981ba`](https://github.com/Ding-Ding-Projects/worldlens/commit/dbb6f981bafcb7dc6a1a0f8f6a5f219857d79e0f).
