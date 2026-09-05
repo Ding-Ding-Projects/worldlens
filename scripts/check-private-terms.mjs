@@ -24,6 +24,15 @@
  * the first chunk). A term is matched case-insensitively as a whole word or phrase, so a
  * substring inside an unrelated longer word never counts.
  *
+ * Matching runs against the whole file rather than one line at a time, because a term can be
+ * a phrase and this repository hard-wraps its prose comments. A phrase whose two halves land
+ * either side of a line break appears in no single line, so a per-line sweep reports the file
+ * clean while the phrase is plainly there. `collapseWrappedLines` folds each single line
+ * break, along with the surrounding indentation and any `*`, `//` or `#` continuation marker,
+ * into one space, and keeps enough of a map back to the original text to report the real line
+ * number. A blank line survives as two spaces rather than one, so two unrelated paragraphs
+ * never join into a phrase that neither of them contains.
+ *
  * It also inspects the subject line of the last 200 commits, but Git history is immutable
  * here (this repository's remote is public and its history is never rewritten to satisfy a
  * local check), so a hit there is reported for visibility only and never fails the run. The
@@ -85,6 +94,57 @@ function trackedFiles() {
         .filter((line) => line.length > 0);
 }
 
+/**
+ * One single line break, with its surrounding indentation and any comment continuation
+ * marker. Exactly one break and never a run of them: folding a run would join two paragraphs
+ * that a reader never sees as one sentence. A blank line therefore produces two of these
+ * matches, one per break, and so becomes two spaces in the normalised text, which no
+ * single-spaced phrase can match.
+ */
+const WRAP = /[^\S\r\n]*\r?\n[^\S\r\n]*(?:\*|\/\/|#)?[^\S\r\n]*/g;
+
+/**
+ * The file's text with every wrap folded to a single space, plus the map back to the original
+ * offsets.
+ *
+ * `segments` holds one entry per run of text copied through verbatim: the offset it starts at
+ * in the normalised string, and the offset the same character has in the original. That is all
+ * `originalOffset` needs to undo the folding for a reported position.
+ */
+function collapseWrappedLines(text) {
+    const segments = [];
+    let normalized = "";
+    let last = 0;
+    WRAP.lastIndex = 0;
+    for (let match = WRAP.exec(text); match !== null; match = WRAP.exec(text)) {
+        segments.push({ start: normalized.length, origin: last });
+        normalized += `${text.slice(last, match.index)} `;
+        last = match.index + match[0].length;
+    }
+    segments.push({ start: normalized.length, origin: last });
+    normalized += text.slice(last);
+    return { normalized, segments };
+}
+
+/** The offset in the original text of a position in the normalised text. */
+function originalOffset(segments, offset) {
+    let chosen = segments[0];
+    for (const segment of segments) {
+        if (segment.start > offset) break;
+        chosen = segment;
+    }
+    return chosen.origin + (offset - chosen.start);
+}
+
+/** The 1-based line number of an offset in the original text. */
+function lineOf(text, offset) {
+    let line = 1;
+    for (let index = 0; index < offset && index < text.length; index += 1) {
+        if (text.charCodeAt(index) === 10) line += 1;
+    }
+    return line;
+}
+
 /** Every hit in the tracked files, as { file, line }. Binary files are skipped. */
 function scanFiles(files, pattern) {
     const hits = [];
@@ -97,9 +157,18 @@ function scanFiles(files, pattern) {
         }
         if (raw.subarray(0, 8000).includes(0)) continue; // binary, not a leak of text
         const text = raw.toString("utf8");
-        for (const [index, line] of text.split(/\r?\n/).entries()) {
-            pattern.lastIndex = 0;
-            if (pattern.test(line)) hits.push({ file, line: index + 1 });
+        const { normalized, segments } = collapseWrappedLines(text);
+        const seen = new Set();
+        pattern.lastIndex = 0;
+        for (let match = pattern.exec(normalized); match !== null; match = pattern.exec(normalized)) {
+            if (match[0].length === 0) {
+                pattern.lastIndex += 1;
+                continue;
+            }
+            const line = lineOf(text, originalOffset(segments, match.index));
+            if (seen.has(line)) continue;
+            seen.add(line);
+            hits.push({ file, line });
         }
     }
     return hits;
@@ -156,6 +225,6 @@ function main() {
     process.exitCode = 1;
 }
 
-export { matcher, readTerms, scanCommitSubjects, scanFiles, trackedFiles };
+export { collapseWrappedLines, matcher, readTerms, scanCommitSubjects, scanFiles, trackedFiles };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) main();

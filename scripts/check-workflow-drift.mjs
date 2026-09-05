@@ -112,10 +112,10 @@ function lineOf(text, index) {
  * nothing on either side states its version, so it would never be diagnosed.
  *
  * Chunker declares no version anywhere in its source, so the tag is the only record. This
- * resolves that tag inside the checked-out Tow Fat and compares it with the commit the Oak
- * Kay actually pins, which is offline and exact. An uninitialised Tow Fat is skipped rather
- * than reported: a fresh checkout without --recurse-submodules has nothing to compare, and
- * failing there would be a complaint about the clone rather than about drift.
+ * resolves that tag inside the checked-out Tow Fat and compares it with the commit the
+ * repository actually pins, which is offline and exact. An uninitialised Tow Fat is skipped
+ * rather than reported: a fresh checkout without --recurse-submodules has nothing to compare,
+ * and failing there would be a complaint about the clone rather than about drift.
  */
 function chunkerVersionDrift(repoRoot) {
     const workflowPath = join(WORKFLOW_DIR, "chunk-world.yml");
