@@ -26,50 +26,105 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
-        sha: "46e026d688049a0b3013df2735bb7be579cff34a",
-        shortSha: "46e026d688",
-        date: "2026-09-05T12:43:18-04:00",
-        subject: "Record the Docker render of the 1 GB world in the handoff and roadmap",
-        details: "The released CLI image rendered the whole 1 GB fixture on this machine,\nbetween and around a Chunker job it had to share the box with, and left a\ncomplete map on disk. The row says so with the tile count.\n\n已出街嗰個 CLI image 喺呢部機同 Chunker 爭住用都 render 晒成個 1 GB 世界，\n地圖完整落地。交接表記低，連 tile 數目。",
-        category: "docs",
-        areas: ["docs", "interface"],
-        files: 3,
-    },
-    {
-        sha: "e82717b41ed2f4863232672130115c19d68f7b66",
-        shortSha: "e82717b41e",
-        date: "2026-09-05T12:38:37-04:00",
-        subject: "Move the vendored fork to vendor/BlueMap-Material on branch material-design-3",
-        details: "The fork's branch and its submodule folder carried an informal shorthand in\ntheir names; both now say what they are. The fork commit renames the purity\nguard's exemption marker to match, so the guard reads the vendored files\nagain instead of reporting every data colour as undeclared. Five more\nchangelog entries get plain-wording overrides for the same reason.\n\nFork 條 branch 同 submodule 個資料夾之前用咗個內部簡稱做名，而家改返正名。\nFork 嗰邊嘅 commit 一齊改咗純度檢查嘅豁免標記，檢查先識得再讀 vendored 檔案，\n唔會將每個數據顏色都當未申報。Changelog 再多五條用返正常字眼。",
-        category: "build",
-        areas: ["build", "docs", "shell", "interface", "other"],
-        files: 17,
-    },
-    {
-        sha: "15f6ec193bec7fa8fec2bafb83d9799f6ff37202",
-        shortSha: "15f6ec193b",
-        date: "2026-09-05T12:18:27-04:00",
-        subject: "Merge commit 'cda9d25b'",
+        sha: "05497ad29d256d9252c5e2a813afc8514c72093d",
+        shortSha: "05497ad29d",
+        date: "2026-09-05T13:12:46-04:00",
+        subject: "Merge commit '9bc6f0f4'",
         details: "",
         category: "interface",
-        areas: ["interface", "site", "build", "docs", "shell"],
-        files: 50,
+        areas: ["interface"],
+        files: 3,
         summarizes: 2,
     },
     {
-        sha: "cda9d25b249b6fcf60358183dcef0ed5d16865ef",
-        shortSha: "cda9d25b24",
-        date: "2026-09-05T12:17:44-04:00",
-        subject: "Replace informal house wording with plain terms and add an externally-configured wording guard",
-        details: "The repository is public, and a set of informal internal shorthand terms had\nleaked into tracked prose: comments, handoff and roadmap notes, test fixtures,\nand a handful of commit messages that the generated changelog copies verbatim.\nNone of it changed behaviour -- it was all prose, log strings, and one code\nmarker (the Material Design 3 purity guard's own exemption marker, which\ncarried the same shorthand baked into a literal string used across twenty-odd\nfiles) -- so every occurrence is swapped for the ordinary English word it\nalready stood for: a clipping defect stays a clipping defect, a guard stays a\nguard, GitHub Actions stays GitHub Actions.\n\nRenamed materialPurity.test.ts to materialPurity.test.ts and its internal\n\"pure-material-design\"/\"material-exempt:\" markers to \"pure-material-design\"/\n\"material-exempt:\", updating every file that declares an exemption with the\nold marker and every doc that named the old filename.\n\nThe generated changelog is derived from git history, and history is immutable\nhere, so a handful of old commit subjects and bodies still carry the old\nwording verbatim. Added scripts/changelog-overrides.json: a committed,\nper-commit-SHA map of neutral subject/body text that build-changelog.mjs\nconsults before falling back to the raw commit message (and before the\nexisting full-redaction list), so the published changelog and its in-app\nviewer read cleanly without rewriting a single commit. Filled it for every\ncommit a full-history sweep found still carrying the old wording.\n\nAdded scripts/check-private-terms.mjs: a fail-closed sibling to the existing\ncheck-published-text.mjs, reading its term list from a file outside this\nrepository named by WORLDLENS_PRIVATE_TERMS_FILE. With that variable unset --\nthe case on every public machine, including CI -- it prints one line saying it\nskipped and exits 0. With it set, it scans every tracked file and fails naming\nfile:line for any hit, and separately reports (without failing) any of the\nlast 200 commit subjects that still carry the old wording, pointing at the\noverrides file as the fix. Wired as `check:private-terms` in design/\npackage.json, documented in AGENTS.md, and covered by a vitest wrapper that\nexercises the skip path (the only path a shared checkout can exercise without\nholding the private term list itself).\n\nVerified: the guard reports clean on this tree with a real term list supplied\nvia the environment variable, and correctly fails naming the exact file and\nline when a term is deliberately reintroduced. build-changelog.mjs --check,\nlint-workflows.mjs, and the site's article-bundle assertion all still pass;\nthe renamed and new test files pass under vitest.\n\n換走啲平時傾偈用嘅代號，改用正正常常嘅字，仲加多個睇門口嘅工具\n\n呢個 repo 係公開嘅，一批平時內部傾偈用開嘅代號漏咗入去 - 留喺註解、交更同\n路線圖筆記、測試固件，仲有幾個 commit message（生成嘅 changelog 會照抄）。\n冇一樣係改緊行為，全部係文字、log 字串，同一個寫死喺代碼度嘅標記（個\nMaterial Design 3 純度 guard 自己嗰個 exemption 標記，本來個代號直情焗死喺\n廿幾個檔案入面嘅一個字串），所以逐個換返做本身代表嘅普通英文字。\n\n個 materialPurity.test.ts 改咗名做 materialPurity.test.ts，入面嘅標記同埋\n成廿幾個檔案入面嗰個 exemption 標記都跟住改，舊檔名喺文檔度提到嘅都改晒。\n\nChangelog 係跟住 commit history 生成嘅，而歷史喺呢度係唔郁得，所以有幾個\n舊 commit 嘅 subject 同 body 仍然係照字咁講嗰套。加咗\nscripts/changelog-overrides.json：一個逐個 commit SHA 對返一套正常字眼嘅\n對照表，build-changelog.mjs 生成嗰陣會先睇呢度，睇唔到先揸返原本嘅 commit\n字。搵晒成部歷史入面仲有漏嘅 commit，逐個填好。\n\n加咗 scripts/check-private-terms.mjs：同現有嘅 check-published-text.mjs 做\n兄弟，代號清單擺喺 repo 外面，用 WORLDLENS_PRIVATE_TERMS_FILE 呢個環境變數\n指路。冇設呢個變數 - 即係公開機器同 CI 嗰啲情況 - 佢淨係印一句話咗過就收工，\nexit 0。有設嘅話就掃晒成個 repo 嘅檔案，撞到就報返檔名同行數然後 fail；\n仲會（唔會令個 run 爆）額外報埋最近 200 個 commit 標題入面重有幾多個仲用緊\n舊字眼，指去 overrides 個檔度執。喺 design/package.json 加咗\ncheck:private-terms，AGENTS.md 記低點用，仲加咗個 vitest 包住去驗個\n「冇檔就跳過」嘅路線。\n\n驗證過：擺一份真嘅代號清單落去，個 guard 喺呢棵樹度乾乾淨淨；特登加返一個\n代號入去，佢即刻指出邊個檔邊一行。build-changelog.mjs --check、\nlint-workflows.mjs、個網站嘅文章 bundle 驗證都仲係綠;新加同改咗名嗰啲測試\n喺 vitest 底下都過晒。",
+        sha: "9bc6f0f479e8a26b11472c0ee1d181b1f4987eb1",
+        shortSha: "9bc6f0f479",
+        date: "2026-09-05T13:12:06-04:00",
+        subject: "Reach the folder picker the screen actually has, so the world browse buttons work",
+        details: "Both \"Browse for a world folder\" and \"Mount another Minecraft folder\" rendered\npermanently disabled on the Convert (Chunker) and CI-render screens of the\npackaged v1.0.2026 build, with nothing said about why. MinecraftWorldList.vue\nread its picker through useConfigHost(), which is a Vue injection installed only\nby WorldScreen, ProjectsScreen and ConfigScreen; the two screens above sit under\nnone of them, so the injection resolved to null and both buttons were dead. The\npreload was innocent the whole time: window.worldlens.config and\nwindow.worldlens.dialog.pickFolder were both fully present in the packaged app.\n\nThe list now prefers the injected host when there is one and otherwise falls\nback to window.worldlens.dialog, the screen-agnostic picker PathField.vue and\nCiRenderScreen.vue already use. When neither seam exists the buttons stay\ndisabled but say so, in the button's own tooltip, in adjacent text and through\naria-describedby, in English and Cantonese.\n\n兩個掣 -- 「瀏覽揀世界資料夾」同「掛載多一個 Minecraft 資料夾」-- 喺 Convert\n同 CI 算圖畫面一直熄住，仲乜都唔講。原因係佢淨係識用 provideConfigHost() 注入\n嘅 host，而嗰兩個畫面根本冇人 provide 過，所以永遠係 null。preload 其實一直\n都有 dialog.pickFolder，白白熄咗。而家有 host 用 host，冇就用 dialog；兩樣都\n冇先熄，而且會講清楚點解。",
         category: "interface",
-        areas: ["interface", "site", "build", "docs", "shell"],
-        files: 50,
+        areas: ["interface"],
+        files: 3,
     }
 ];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "1.0.2026",
+        tag: "v1.0.2026",
+        date: "2026-09-05T12:44:51-04:00",
+        commit: "350887af56eb9d79a6ed0520d19490035c93426a",
+        entries: [
+            {
+                sha: "350887af56eb9d79a6ed0520d19490035c93426a",
+                shortSha: "350887af56",
+                date: "2026-09-05T12:44:51-04:00",
+                subject: "Retire the stale 'Docker blocked' handoff row now that the render completed",
+                details: "Two rows in one table disagreed about Docker; the older one lost.\n\n同一張表兩行講 Docker 講到相反，舊嗰行輸咗。",
+                category: "docs",
+                areas: ["docs", "interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2025",
+        tag: "v1.0.2025",
+        date: "2026-09-05T12:43:18-04:00",
+        commit: "46e026d688049a0b3013df2735bb7be579cff34a",
+        entries: [
+            {
+                sha: "46e026d688049a0b3013df2735bb7be579cff34a",
+                shortSha: "46e026d688",
+                date: "2026-09-05T12:43:18-04:00",
+                subject: "Record the Docker render of the 1 GB world in the handoff and roadmap",
+                details: "The released CLI image rendered the whole 1 GB fixture on this machine,\nbetween and around a Chunker job it had to share the box with, and left a\ncomplete map on disk. The row says so with the tile count.\n\n已出街嗰個 CLI image 喺呢部機同 Chunker 爭住用都 render 晒成個 1 GB 世界，\n地圖完整落地。交接表記低，連 tile 數目。",
+                category: "docs",
+                areas: ["docs", "interface"],
+                files: 3,
+            }
+        ],
+    },
+    {
+        version: "1.0.2024",
+        tag: "v1.0.2024",
+        date: "2026-09-05T12:38:37-04:00",
+        commit: "e82717b41ed2f4863232672130115c19d68f7b66",
+        entries: [
+            {
+                sha: "e82717b41ed2f4863232672130115c19d68f7b66",
+                shortSha: "e82717b41e",
+                date: "2026-09-05T12:38:37-04:00",
+                subject: "Move the vendored fork to vendor/BlueMap-Material on branch material-design-3",
+                details: "The fork's branch and its submodule folder carried an informal shorthand in\ntheir names; both now say what they are. The fork commit renames the purity\nguard's exemption marker to match, so the guard reads the vendored files\nagain instead of reporting every data colour as undeclared. Five more\nchangelog entries get plain-wording overrides for the same reason.\n\nFork 條 branch 同 submodule 個資料夾之前用咗個內部簡稱做名，而家改返正名。\nFork 嗰邊嘅 commit 一齊改咗純度檢查嘅豁免標記，檢查先識得再讀 vendored 檔案，\n唔會將每個數據顏色都當未申報。Changelog 再多五條用返正常字眼。",
+                category: "build",
+                areas: ["build", "docs", "shell", "interface", "other"],
+                files: 17,
+            },
+            {
+                sha: "15f6ec193bec7fa8fec2bafb83d9799f6ff37202",
+                shortSha: "15f6ec193b",
+                date: "2026-09-05T12:18:27-04:00",
+                subject: "Merge commit 'cda9d25b'",
+                details: "",
+                category: "interface",
+                areas: ["interface", "site", "build", "docs", "shell"],
+                files: 50,
+                summarizes: 2,
+            },
+            {
+                sha: "cda9d25b249b6fcf60358183dcef0ed5d16865ef",
+                shortSha: "cda9d25b24",
+                date: "2026-09-05T12:17:44-04:00",
+                subject: "Replace informal house wording with plain terms and add an externally-configured wording guard",
+                details: "The repository is public, and a set of informal internal shorthand terms had\nleaked into tracked prose: comments, handoff and roadmap notes, test fixtures,\nand a handful of commit messages that the generated changelog copies verbatim.\nNone of it changed behaviour -- it was all prose, log strings, and one code\nmarker (the Material Design 3 purity guard's own exemption marker, which\ncarried the same shorthand baked into a literal string used across twenty-odd\nfiles) -- so every occurrence is swapped for the ordinary English word it\nalready stood for: a clipping defect stays a clipping defect, a guard stays a\nguard, GitHub Actions stays GitHub Actions.\n\nRenamed materialPurity.test.ts to materialPurity.test.ts and its internal\n\"pure-material-design\"/\"material-exempt:\" markers to \"pure-material-design\"/\n\"material-exempt:\", updating every file that declares an exemption with the\nold marker and every doc that named the old filename.\n\nThe generated changelog is derived from git history, and history is immutable\nhere, so a handful of old commit subjects and bodies still carry the old\nwording verbatim. Added scripts/changelog-overrides.json: a committed,\nper-commit-SHA map of neutral subject/body text that build-changelog.mjs\nconsults before falling back to the raw commit message (and before the\nexisting full-redaction list), so the published changelog and its in-app\nviewer read cleanly without rewriting a single commit. Filled it for every\ncommit a full-history sweep found still carrying the old wording.\n\nAdded scripts/check-private-terms.mjs: a fail-closed sibling to the existing\ncheck-published-text.mjs, reading its term list from a file outside this\nrepository named by WORLDLENS_PRIVATE_TERMS_FILE. With that variable unset --\nthe case on every public machine, including CI -- it prints one line saying it\nskipped and exits 0. With it set, it scans every tracked file and fails naming\nfile:line for any hit, and separately reports (without failing) any of the\nlast 200 commit subjects that still carry the old wording, pointing at the\noverrides file as the fix. Wired as `check:private-terms` in design/\npackage.json, documented in AGENTS.md, and covered by a vitest wrapper that\nexercises the skip path (the only path a shared checkout can exercise without\nholding the private term list itself).\n\nVerified: the guard reports clean on this tree with a real term list supplied\nvia the environment variable, and correctly fails naming the exact file and\nline when a term is deliberately reintroduced. build-changelog.mjs --check,\nlint-workflows.mjs, and the site's article-bundle assertion all still pass;\nthe renamed and new test files pass under vitest.\n\n換走啲平時傾偈用嘅代號，改用正正常常嘅字，仲加多個睇門口嘅工具\n\n呢個 repo 係公開嘅，一批平時內部傾偈用開嘅代號漏咗入去 - 留喺註解、交更同\n路線圖筆記、測試固件，仲有幾個 commit message（生成嘅 changelog 會照抄）。\n冇一樣係改緊行為，全部係文字、log 字串，同一個寫死喺代碼度嘅標記（個\nMaterial Design 3 純度 guard 自己嗰個 exemption 標記，本來個代號直情焗死喺\n廿幾個檔案入面嘅一個字串），所以逐個換返做本身代表嘅普通英文字。\n\n個 materialPurity.test.ts 改咗名做 materialPurity.test.ts，入面嘅標記同埋\n成廿幾個檔案入面嗰個 exemption 標記都跟住改，舊檔名喺文檔度提到嘅都改晒。\n\nChangelog 係跟住 commit history 生成嘅，而歷史喺呢度係唔郁得，所以有幾個\n舊 commit 嘅 subject 同 body 仍然係照字咁講嗰套。加咗\nscripts/changelog-overrides.json：一個逐個 commit SHA 對返一套正常字眼嘅\n對照表，build-changelog.mjs 生成嗰陣會先睇呢度，睇唔到先揸返原本嘅 commit\n字。搵晒成部歷史入面仲有漏嘅 commit，逐個填好。\n\n加咗 scripts/check-private-terms.mjs：同現有嘅 check-published-text.mjs 做\n兄弟，代號清單擺喺 repo 外面，用 WORLDLENS_PRIVATE_TERMS_FILE 呢個環境變數\n指路。冇設呢個變數 - 即係公開機器同 CI 嗰啲情況 - 佢淨係印一句話咗過就收工，\nexit 0。有設嘅話就掃晒成個 repo 嘅檔案，撞到就報返檔名同行數然後 fail；\n仲會（唔會令個 run 爆）額外報埋最近 200 個 commit 標題入面重有幾多個仲用緊\n舊字眼，指去 overrides 個檔度執。喺 design/package.json 加咗\ncheck:private-terms，AGENTS.md 記低點用，仲加咗個 vitest 包住去驗個\n「冇檔就跳過」嘅路線。\n\n驗證過：擺一份真嘅代號清單落去，個 guard 喺呢棵樹度乾乾淨淨；特登加返一個\n代號入去，佢即刻指出邊個檔邊一行。build-changelog.mjs --check、\nlint-workflows.mjs、個網站嘅文章 bundle 驗證都仲係綠;新加同改咗名嗰啲測試\n喺 vitest 底下都過晒。",
+                category: "interface",
+                areas: ["interface", "site", "build", "docs", "shell"],
+                files: 50,
+            }
+        ],
+    },
     {
         version: "1.0.2022",
         tag: "v1.0.2022",

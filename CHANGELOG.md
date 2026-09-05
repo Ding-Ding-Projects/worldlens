@@ -22,16 +22,37 @@ full message for the in-app changelog viewer.
 
 ### Interface
 
+- Merge commit '9bc6f0f4' - [`05497ad29d`](https://github.com/Ding-Ding-Projects/worldlens/commit/05497ad29d256d9252c5e2a813afc8514c72093d) _(summary of 2 commits, also listed here)_
+- Reach the folder picker the screen actually has, so the world browse buttons work - [`9bc6f0f479`](https://github.com/Ding-Ding-Projects/worldlens/commit/9bc6f0f479e8a26b11472c0ee1d181b1f4987eb1)
+
+## 1.0.2026 - 2026-09-05
+
+Tagged at [`350887af56`](https://github.com/Ding-Ding-Projects/worldlens/commit/350887af56eb9d79a6ed0520d19490035c93426a).
+
+### Documentation
+
+- Retire the stale 'Docker blocked' handoff row now that the render completed - [`350887af56`](https://github.com/Ding-Ding-Projects/worldlens/commit/350887af56eb9d79a6ed0520d19490035c93426a)
+
+## 1.0.2025 - 2026-09-05
+
+Tagged at [`46e026d688`](https://github.com/Ding-Ding-Projects/worldlens/commit/46e026d688049a0b3013df2735bb7be579cff34a).
+
+### Documentation
+
+- Record the Docker render of the 1 GB world in the handoff and roadmap - [`46e026d688`](https://github.com/Ding-Ding-Projects/worldlens/commit/46e026d688049a0b3013df2735bb7be579cff34a)
+
+## 1.0.2024 - 2026-09-05
+
+Tagged at [`e82717b41e`](https://github.com/Ding-Ding-Projects/worldlens/commit/e82717b41ed2f4863232672130115c19d68f7b66).
+
+### Interface
+
 - Merge commit 'cda9d25b' - [`15f6ec193b`](https://github.com/Ding-Ding-Projects/worldlens/commit/15f6ec193bec7fa8fec2bafb83d9799f6ff37202) _(summary of 2 commits, also listed here)_
 - Replace informal house wording with plain terms and add an externally-configured wording guard - [`cda9d25b24`](https://github.com/Ding-Ding-Projects/worldlens/commit/cda9d25b249b6fcf60358183dcef0ed5d16865ef)
 
 ### Build, release and tooling
 
 - Move the vendored fork to vendor/BlueMap-Material on branch material-design-3 - [`e82717b41e`](https://github.com/Ding-Ding-Projects/worldlens/commit/e82717b41ed2f4863232672130115c19d68f7b66)
-
-### Documentation
-
-- Record the Docker render of the 1 GB world in the handoff and roadmap - [`46e026d688`](https://github.com/Ding-Ding-Projects/worldlens/commit/46e026d688049a0b3013df2735bb7be579cff34a)
 
 ## 1.0.2022 - 2026-09-05
 
