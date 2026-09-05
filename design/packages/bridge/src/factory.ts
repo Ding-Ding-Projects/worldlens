@@ -192,7 +192,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                 list: (id: unknown) => transport.invoke("mcserver:worlds:list", id),
             },
             worldgen: {
-                synthetic: (request: unknown) => transport.invoke("mcserver:worldgen:synthetic", request),
+                synthetic: (request: unknown) =>
+                    transport.invoke("mcserver:worldgen:synthetic", request),
                 status: () => transport.invoke("mcserver:worldgen:status"),
                 cancel: () => transport.invoke("mcserver:worldgen:cancel"),
             },
@@ -709,6 +710,9 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         cancelCiRender: (syncId: unknown) => transport.invoke("cirender:cancel", syncId),
         forgetCiRender: (syncId: unknown) => transport.invoke("cirender:forget", syncId),
         activeCiRenders: () => transport.invoke("cirender:active"),
+        listAttachableCiRuns: (request: unknown) =>
+            transport.invoke("cirender:listAttachableRuns", request),
+        attachCiRun: (request: unknown) => transport.invoke("cirender:attachRun", request),
         onCiRenderEvent: (listener: BridgeListener) => {
             const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("cirender:event", forward);
@@ -1032,7 +1036,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             inspectOptions: (world: unknown) => transport.invoke("bedrock:inspectOptions", world),
             configurationSchema: () => transport.invoke("bedrock:configurationSchema"),
             containerImages: () => transport.invoke("bedrock:containerImages"),
-            containerStart: (request: unknown) => transport.invoke("bedrock:containerStart", request),
+            containerStart: (request: unknown) =>
+                transport.invoke("bedrock:containerStart", request),
             containerState: (id: unknown) => transport.invoke("bedrock:containerState", id),
             containerCancel: (id: unknown) => transport.invoke("bedrock:containerCancel", id),
             fetchChunker: () => transport.invoke("bedrock:fetchChunker"),

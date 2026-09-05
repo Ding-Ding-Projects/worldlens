@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiCalendarSyncOutline,
+    mdiCloudDownloadOutline,
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
     mdiFileDocumentPlusOutline,
@@ -52,6 +53,7 @@ import {
 import type { CiRow } from "./ciRenders.js";
 import { resolveCiRenderBridge } from "./ciRenderBridge.js";
 import type {
+    CiAttachableRun,
     CiCloudRenderConfigInput,
     CiBootstrapEvent,
     CiBootstrapFailureCode,
@@ -1180,6 +1182,67 @@ async function start(): Promise<void> {
         }
     } finally {
         startRequestInFlight.value = false;
+    }
+}
+
+/* -- fetching a render made elsewhere: no upload, no dispatch, just a listing and a fetch -- */
+
+const attachQuery = ref("");
+const attachRegex = ref(false);
+const attachFlags = ref("i");
+/** The run somebody has clicked, kept separate from the list so scrolling never loses it. */
+const selectedAttachRunId = ref<number | null>(null);
+
+function visibleAttachableRuns(): readonly CiAttachableRun[] {
+    const matcher = createSettingMatcher(attachQuery.value, attachRegex.value, attachFlags.value);
+    return renders.attachableRuns.value.filter((run) =>
+        matcher.test(
+            `${run.displayTitle} ${run.mapId ?? ""} ${run.conclusion ?? ""} ${run.headSha}`,
+        ),
+    );
+}
+
+function attachSample(): string {
+    return renders.attachableRuns.value.map((run) => run.displayTitle).join("\n");
+}
+
+const selectedAttachRun = computed<CiAttachableRun | null>(
+    () =>
+        renders.attachableRuns.value.find((run) => run.id === selectedAttachRunId.value) ?? null,
+);
+
+/** Owner or repository changed underneath a listing that no longer describes them. */
+watch([owner, repo], () => {
+    selectedAttachRunId.value = null;
+    renders.clearAttachableRuns();
+});
+
+async function loadAttachableRuns(): Promise<void> {
+    selectedAttachRunId.value = null;
+    await renders.loadAttachableRuns(owner.value.trim(), repo.value.trim(), effectiveAccountId.value);
+}
+
+function selectAttachRun(run: CiAttachableRun): void {
+    selectedAttachRunId.value = run.id;
+}
+
+async function attachSelectedRun(): Promise<void> {
+    const run = selectedAttachRun.value;
+    if (run === null || worldFolder.value.trim() === "") return;
+    const result = await renders.attachRun({
+        worldFolder: worldFolder.value.trim(),
+        owner: owner.value.trim(),
+        repo: repo.value.trim(),
+        runId: run.id,
+        ...(effectiveAccountId.value === undefined ? {} : { accountId: effectiveAccountId.value }),
+    });
+    if (result?.ok === true && result.outcome === "rendered") {
+        selectedAttachRunId.value = null;
+        emit("rendered", {
+            renderId: result.summary.renderId,
+            dataRoot: result.summary.dataRoot,
+            mapId: result.summary.mapId,
+        });
     }
 }
 
@@ -2337,6 +2400,143 @@ onBeforeUnmount(() => {
                         >
                             {{ defaultProjectMessage }}
                         </p>
+                    </div>
+                </VCardText>
+            </VCard>
+
+            <VCard v-if="renders.canFetchAttached" class="mb-4" data-test="attach-card">
+                <VCardTitle>
+                    {{ t("cirender.attach.title", "Fetch a render made elsewhere") }}
+                </VCardTitle>
+                <VCardText>
+                    <p class="text-medium-emphasis mb-3">
+                        {{
+                            t(
+                                "cirender.attach.explain",
+                                { owner: owner || "owner", repo: repo || "repo" },
+                                "For a run started on a second device, or by this application before it was reinstalled: nothing is uploaded and nothing is dispatched. This lists what {owner}/{repo}'s render workflow has already finished, so you can fetch and register one of them here instead.",
+                            )
+                        }}
+                    </p>
+
+                    <VBtn
+                        :prepend-icon="mdiCloudDownloadOutline"
+                        :disabled="owner.trim() === '' || repo.trim() === ''"
+                        :loading="renders.loadingAttachableRuns.value"
+                        variant="tonal"
+                        data-test="attach-list"
+                        @click="loadAttachableRuns"
+                    >
+                        {{ t("cirender.attach.list", "List completed runs") }}
+                    </VBtn>
+
+                    <VAlert
+                        v-if="renders.attachableRunsFailure.value !== null"
+                        type="warning"
+                        variant="tonal"
+                        density="compact"
+                        class="mt-3"
+                        data-test="attach-failure"
+                        role="alert"
+                    >
+                        {{ renders.attachableRunsFailure.value }}
+                    </VAlert>
+
+                    <template v-if="renders.attachableRuns.value.length > 0">
+                        <ConfigSearchField
+                            v-model="attachQuery"
+                            v-model:regex="attachRegex"
+                            v-model:flags="attachFlags"
+                            :label="t('cirender.attach.search', 'Search completed runs')"
+                            :sample="attachSample()"
+                            density="compact"
+                            class="mt-3"
+                        />
+                        <p
+                            v-if="visibleAttachableRuns().length === 0"
+                            class="text-medium-emphasis mt-2"
+                            data-test="attach-no-match"
+                        >
+                            {{
+                                t(
+                                    "cirender.attach.noMatch",
+                                    "No completed run matches that search.",
+                                )
+                            }}
+                        </p>
+                        <ul v-else class="ci-attach-runs mt-2" data-test="attach-runs">
+                            <li
+                                v-for="run in visibleAttachableRuns()"
+                                :key="run.id"
+                                class="d-flex align-center ga-2 flex-wrap py-1"
+                                data-test="attach-run"
+                            >
+                                <VBtn
+                                    size="small"
+                                    :variant="run.id === selectedAttachRunId ? 'flat' : 'tonal'"
+                                    :color="run.id === selectedAttachRunId ? 'primary' : undefined"
+                                    data-test="attach-run-select"
+                                    @click="selectAttachRun(run)"
+                                >
+                                    {{ t("cirender.attach.select", "Select") }}
+                                </VBtn>
+                                <VChip
+                                    size="x-small"
+                                    :color="run.conclusion === 'success' ? 'success' : 'error'"
+                                >
+                                    {{ run.conclusion ?? "?" }}
+                                </VChip>
+                                <span>{{ run.mapId ?? run.displayTitle }}</span>
+                                <span class="text-medium-emphasis text-caption">
+                                    #{{ run.runNumber }} · {{ run.createdAt }}
+                                </span>
+                                <VBtn
+                                    :prepend-icon="mdiOpenInNew"
+                                    size="small"
+                                    variant="text"
+                                    @click="emit('open', run.htmlUrl)"
+                                >
+                                    {{ t("cirender.openRun", "Open the run on GitHub") }}
+                                </VBtn>
+                            </li>
+                        </ul>
+                    </template>
+                    <p
+                        v-else-if="!renders.loadingAttachableRuns.value"
+                        class="text-medium-emphasis mt-2"
+                        data-test="attach-empty"
+                    >
+                        {{
+                            t(
+                                "cirender.attach.empty",
+                                "No completed runs listed yet. Choose a repository above, then list them.",
+                            )
+                        }}
+                    </p>
+
+                    <div v-if="selectedAttachRun !== null" class="mt-3">
+                        <p class="text-medium-emphasis mb-2">
+                            {{
+                                t(
+                                    "cirender.attach.confirm",
+                                    {
+                                        mapId:
+                                            selectedAttachRun.mapId ?? selectedAttachRun.displayTitle,
+                                    },
+                                    "Fetch {mapId} into the map list for the world selected above. Its render already finished on GitHub; this only downloads, verifies and registers it.",
+                                )
+                            }}
+                        </p>
+                        <VBtn
+                            :prepend-icon="mdiCloudDownloadOutline"
+                            :disabled="worldFolder.trim() === ''"
+                            :loading="renders.attaching.value"
+                            color="primary"
+                            data-test="attach-run-fetch"
+                            @click="attachSelectedRun"
+                        >
+                            {{ t("cirender.attach.fetch", "Fetch this render") }}
+                        </VBtn>
                     </div>
                 </VCardText>
             </VCard>

@@ -16,6 +16,7 @@ import {
     githubApiSendJson,
     isRepositoryEmpty,
     listRunArtifacts,
+    listWorkflowRuns,
     readActionsPolicy,
     readDefaultBranch,
     readJobLogTail,
@@ -157,6 +158,16 @@ export interface CiTransport {
         since: Date,
     ): Promise<WorkflowRun | null>;
     readRun(owner: string, repo: string, runId: number): Promise<WorkflowRun>;
+    /**
+     * Every completed run of the render workflow, newest first - what "fetch a render
+     * made elsewhere" lists from. Never a run this computer dispatched itself; those
+     * already have a local record and are followed through {@link readRun} instead.
+     */
+    listWorkflowRuns(
+        owner: string,
+        repo: string,
+        workflowFile: string,
+    ): Promise<readonly WorkflowRun[]>;
     readRunJobs(owner: string, repo: string, runId: number): Promise<readonly WorkflowJob[]>;
     readJobLogTail(
         owner: string,
@@ -578,8 +589,7 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
 
     return {
         route: "gh",
-        describe:
-            `the selected GitHub CLI account (${options.account ?? options.lease.login} on ${options.lease.host})`,
+        describe: `the selected GitHub CLI account (${options.account ?? options.lease.login} on ${options.lease.host})`,
         canUpload: true,
         readWorkflow: (owner, repo, file) => readWorkflow(owner, repo, file, call),
         readDefaultBranch: (owner, repo) => readDefaultBranch(owner, repo, call),
@@ -589,6 +599,7 @@ export function brokerCliTransport(options: BrokerCliTransportOptions): CiTransp
             findDispatchedRun(owner, repo, file, since, call),
         readRun: (owner, repo, runId) => readRun(owner, repo, runId, call),
         readRunJobs: (owner, repo, runId) => readRunJobs(owner, repo, runId, call),
+        listWorkflowRuns: (owner, repo, file) => listWorkflowRuns(owner, repo, file, call),
         readJobLogTail: (owner, repo, jobId, maxLines) =>
             readJobLogTail(owner, repo, jobId, call, maxLines ?? LOG_TAIL_LINES),
         listRunArtifacts: (owner, repo, runId) => listRunArtifacts(owner, repo, runId, call),

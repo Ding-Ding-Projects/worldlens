@@ -20,6 +20,8 @@ import { computed, ref } from "vue";
 import type { ComputedRef, Ref } from "vue";
 import { formatBytes } from "../downloads/downloads.js";
 import type {
+    CiAttachableRun,
+    CiAttachRunRequest,
     CiJobReport,
     CiOwnerChoicesAnswer,
     CiPostRenderWarning,
@@ -394,6 +396,18 @@ export interface CiRenders {
     readonly canListRepositories: boolean;
 
     /**
+     * "Fetch a render made elsewhere": every completed run of the render workflow this
+     * computer never dispatched itself, offered for a chosen repository. `canFetchAttached`
+     * is false on a build missing either bridge method, exactly like the `canX` flags above -
+     * the surface simply does not offer the section then.
+     */
+    readonly attachableRuns: Ref<readonly CiAttachableRun[]>;
+    readonly loadingAttachableRuns: Ref<boolean>;
+    readonly attachableRunsFailure: Ref<string | null>;
+    readonly attaching: Ref<boolean>;
+    readonly canFetchAttached: boolean;
+
+    /**
      * Scheduled re-rendering: on or off, its cadence, and what
      * `.github/workflows/scheduled-render.yml` last found. See docs/scheduled-render.md.
      * `canManageSchedule` is false on a build without the two bridge methods, exactly like
@@ -441,6 +455,12 @@ export interface CiRenders {
      */
     loadOwners(accountId?: string): Promise<void>;
     loadRepositories(accountId?: string): Promise<void>;
+    /** Lists what `owner/repo`'s render workflow has already finished. */
+    loadAttachableRuns(owner: string, repo: string, accountId?: string): Promise<void>;
+    /** Drops the last "fetch elsewhere" listing, for a repository field that just changed. */
+    clearAttachableRuns(): void;
+    /** Attaches to one listed run, then collects it exactly as a resumed sync would. */
+    attachRun(request: CiAttachRunRequest): Promise<CiSyncResult | null>;
     suggestRepoName(sourceName: string): Promise<string | null>;
     checkRepoName(owner: string, repo: string, accountId?: string): Promise<void>;
     /** Drops whatever the last check said, for a field that just changed underneath it. */
@@ -569,6 +589,11 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
     const nameAvailability = ref<CiRepositoryNameAvailability | null>(null);
     const checkingName = ref(false);
 
+    const attachableRuns = ref<readonly CiAttachableRun[]>([]);
+    const loadingAttachableRuns = ref(false);
+    const attachableRunsFailure = ref<string | null>(null);
+    const attaching = ref(false);
+
     const schedule = ref<CiScheduleStatus | null>(null);
     const loadingSchedule = ref(false);
     const scheduleFailure = ref<string | null>(null);
@@ -581,6 +606,7 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
     let repositoriesLoadToken = 0;
     let preflightLoadToken = 0;
     let scheduleLoadToken = 0;
+    let attachableRunsLoadToken = 0;
     const resuming = new Set<string>();
     // Bumped on every checkRepoName/clearNameAvailability call so a slow, out-of-order
     // availability answer can tell it has been superseded and drop itself instead of
@@ -905,6 +931,13 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
         canCheckRepoName: bridge?.checkCiRepoName !== undefined,
         canListRepositories: bridge?.listExistingRepositories !== undefined,
 
+        attachableRuns,
+        loadingAttachableRuns,
+        attachableRunsFailure,
+        attaching,
+        canFetchAttached:
+            bridge?.listAttachableCiRuns !== undefined && bridge?.attachCiRun !== undefined,
+
         schedule,
         loadingSchedule,
         scheduleFailure,
@@ -1132,6 +1165,67 @@ export function createCiRenders(bridge: CiRenderBridge | null): CiRenders {
                 }
             } finally {
                 if (token === repositoriesLoadToken) loadingRepositories.value = false;
+            }
+        },
+
+        async loadAttachableRuns(owner: string, repo: string, accountId?: string): Promise<void> {
+            if (bridge?.listAttachableCiRuns === undefined) return;
+            const token = ++attachableRunsLoadToken;
+            loadingAttachableRuns.value = true;
+            attachableRuns.value = [];
+            attachableRunsFailure.value = null;
+            try {
+                const answer = await bridge.listAttachableCiRuns({
+                    owner,
+                    repo,
+                    ...(accountId === undefined ? {} : { accountId }),
+                });
+                if (token !== attachableRunsLoadToken) return;
+                if (answer.ok) attachableRuns.value = answer.value;
+                else attachableRunsFailure.value = answer.message;
+            } catch (error) {
+                if (token === attachableRunsLoadToken)
+                    attachableRunsFailure.value = describe(error);
+            } finally {
+                if (token === attachableRunsLoadToken) loadingAttachableRuns.value = false;
+            }
+        },
+
+        clearAttachableRuns(): void {
+            attachableRunsLoadToken += 1;
+            attachableRuns.value = [];
+            attachableRunsFailure.value = null;
+            loadingAttachableRuns.value = false;
+        },
+
+        async attachRun(request: CiAttachRunRequest): Promise<CiSyncResult | null> {
+            // Every row update this produces arrives through the same "started"/"phase"/
+            // "log"/"run"/"finished"/"failed" events `startRender` relies on - `sync.attach`
+            // calls the ordinary sync loop internally, so it emits exactly those, and
+            // `handle` below is already subscribed. Nothing here writes a row directly.
+            if (bridge?.attachCiRun === undefined) return null;
+            attaching.value = true;
+            try {
+                return await bridge.attachCiRun(request);
+            } catch (error) {
+                return {
+                    ok: false,
+                    syncId: "nowhere",
+                    failure: {
+                        code: "bridge",
+                        message: describe(error),
+                        detail: null,
+                        status: null,
+                        needsSignIn: false,
+                        needsEula: false,
+                        route: null,
+                        run: null,
+                        failingJob: null,
+                        logExcerpt: null,
+                    },
+                };
+            } finally {
+                attaching.value = false;
             }
         },
 

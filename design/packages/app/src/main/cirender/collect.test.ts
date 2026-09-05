@@ -74,6 +74,7 @@ function fakeTransport(
         findDispatchedRun: unused,
         readRun: unused,
         readRunJobs: unused,
+        listWorkflowRuns: unused,
         readJobLogTail: unused,
         listRunArtifacts: () => Promise.resolve(artifacts),
         downloadArtifact: async (_owner, _repo, target, destination) => {

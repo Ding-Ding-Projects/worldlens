@@ -109,6 +109,13 @@ export interface WorkflowRun {
     /** The commit the workflow ran from. This is what identifies the renderer exactly. */
     readonly headSha: string;
     readonly event: string;
+    /**
+     * GitHub's own display title for the run - the `run-name:` the workflow set, when it
+     * set one, or the workflow's own name otherwise. `render-world.yml` names it after the
+     * map id and dimension it was dispatched with, which is the only place that identity
+     * survives once a run is old enough that this computer never recorded dispatching it.
+     */
+    readonly displayTitle: string;
 }
 
 export interface WorkflowArtifact {
@@ -472,6 +479,41 @@ export async function findDispatchedRun(
     if (!response.ok) throw await refuse(response, url, `Listing runs of ${workflowFile}`);
 
     return pickDispatchedRun(await response.json(), since);
+}
+
+/**
+ * Every completed run of one workflow, newest first - what "fetch a render made
+ * elsewhere" lists from, for a person picking up a render this computer never dispatched
+ * itself and so has no local record of at all.
+ *
+ * `status=completed` is asked for on the wire rather than filtered afterwards: a run still
+ * `in_progress` or `queued` has nothing to collect yet, and there is no reason to spend a
+ * page listing runs that would only be refused a moment later.
+ */
+export async function listWorkflowRuns(
+    owner: string,
+    repo: string,
+    workflowFile: string,
+    options: ActionsCallOptions,
+    perPage = 30,
+): Promise<readonly WorkflowRun[]> {
+    const url =
+        `${base(options)}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}` +
+        `/actions/workflows/${encodeURIComponent(workflowFile)}/runs` +
+        `?status=completed&per_page=${String(Math.max(1, Math.min(perPage, 100)))}`;
+    const response = await options.fetch(url, init(options));
+    if (!response.ok)
+        throw await refuse(response, url, `Listing completed runs of ${workflowFile}`);
+
+    const body: unknown = await response.json();
+    const raw = isRecord(body) ? body["workflow_runs"] : null;
+    if (!Array.isArray(raw)) return [];
+    const runs: WorkflowRun[] = [];
+    for (const item of raw) {
+        const run = parseRun(item);
+        if (run !== null) runs.push(run);
+    }
+    return runs;
 }
 
 /**
@@ -1012,5 +1054,6 @@ export function parseRun(value: unknown): WorkflowRun | null {
         updatedAt: text(value["updated_at"]),
         headSha: text(value["head_sha"]),
         event: text(value["event"]),
+        displayTitle: text(value["display_title"]),
     };
 }

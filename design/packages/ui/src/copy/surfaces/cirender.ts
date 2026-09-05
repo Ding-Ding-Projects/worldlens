@@ -1353,6 +1353,36 @@ export const CIRENDER_FIXED = {
     "cirender.openRun": { en: "Open the run on GitHub", yue: "喺 GitHub 開個 run" },
     "cirender.stop": { en: "Stop watching", yue: "唔再睇住" },
     "cirender.remove": { en: "Remove from list", yue: "由清單移除" },
+
+    /*
+     * "Fetch a render made elsewhere": a run this computer never dispatched itself - a
+     * second device, or a reinstall that lost its own record. Nothing here uploads or
+     * dispatches anything; it only lists and collects a run that already finished.
+     */
+    "cirender.attach.title": {
+        en: "Fetch a render made elsewhere",
+        yue: "攞返一個喺第度做嘅 render",
+    },
+    "cirender.attach.explain": {
+        en: "For a run started on a second device, or by this application before it was reinstalled: nothing is uploaded and nothing is dispatched. This lists what {owner}/{repo}'s render workflow has already finished, so you can fetch and register one of them here instead.",
+        yue: "俾一個喺第二部機開始、或者呢個 app 未重裝之前開始嘅 run 用：乜都唔會上傳，乜都唔會 dispatch。呢度會列出 {owner}/{repo} 個 render workflow 已經完成咗嘅嘢，等你喺呢度攞返其中一個、登記落嚟。",
+    },
+    "cirender.attach.list": { en: "List completed runs", yue: "列出已完成嘅 run" },
+    "cirender.attach.search": { en: "Search completed runs", yue: "搜尋已完成嘅 run" },
+    "cirender.attach.noMatch": {
+        en: "No completed run matches that search.",
+        yue: "冇已完成嘅 run 符合嗰個搜尋。",
+    },
+    "cirender.attach.empty": {
+        en: "No completed runs listed yet. Choose a repository above, then list them.",
+        yue: "而家仲未列過已完成嘅 run。喺上面揀個 repository，再列出嚟睇下。",
+    },
+    "cirender.attach.select": { en: "Select", yue: "揀呢個" },
+    "cirender.attach.confirm": {
+        en: "Fetch {mapId} into the map list for the world selected above. Its render already finished on GitHub; this only downloads, verifies and registers it.",
+        yue: "將 {mapId} 攞落上面揀咗嗰個世界嘅地圖清單。佢喺 GitHub 已經 render 完；呢度淨係落載、驗證、登記佢。",
+    },
+    "cirender.attach.fetch": { en: "Fetch this render", yue: "攞返呢個 render" },
     "cirender.owner.kindOrg": { en: "Organization", yue: "組織" },
     "cirender.owner.kindYou": { en: "Your own account", yue: "你自己個戶口" },
     "cirender.repo.rowPrivate": { en: "{owner} - private", yue: "{owner} - 私人" },
@@ -1630,30 +1660,102 @@ export const CIRENDER_FIXED = {
     },
     /* Catalogue-coverage sweep: no answer here, so every language and both funny-level
        extremes showed the English written at the call site. */
-    "cirender.account.unhealthy": { en: "{login} on {host} needs reauthentication before it can render.", yue: "{login}（{host}）要重新登入先 render 得。" },
-    "cirender.cloudConfig.dataRequired": { en: "Choose a data folder, or keep the generated data default.", yue: "揀個資料資料夾，或者用返自動生成嗰個。" },
-    "cirender.cloudConfig.mapIdTaken": { en: "The map id {id} is reserved by another generated dimension.", yue: "地圖 id {id} 已經畀另一個生成嘅維度佔咗。" },
-    "cirender.cloudConfig.mapNameRequired": { en: "Give the primary map a name before continuing.", yue: "繼續之前，畀主地圖改個名先。" },
-    "cirender.cloudConfig.mapRequired": { en: "Keep at least one map enabled for the cloud render.", yue: "雲端 render 至少要開住一張地圖。" },
-    "cirender.cloudConfig.open": { en: "Create cloud render configuration", yue: "整份雲端 render 設定" },
-    "cirender.cloudConfig.outputPick": { en: "Choose the cloud render output folder", yue: "揀雲端 render output 資料夾" },
-    "cirender.cloudConfig.projectNameRequired": { en: "Name this project before continuing.", yue: "繼續之前，先幫呢個專案改個名。" },
-    "cirender.cloudConfig.sortingInvalid": { en: "Sort order must be a whole number.", yue: "排序次序要係整數。" },
-    "cirender.cloudConfig.webRequired": { en: "Choose a web root, or keep the generated web default.", yue: "揀個 web root，或者用返自動生成嗰個。" },
-    "cirender.cloudConfig.explain": { en: "A guided cloud-first path collects map, storage and render values with the generated defaults visible beside each field. It writes the complete project through local history, without Java or a local render, then returns here without asking for the world, account or repository again.", yue: "一條以雲端行先嘅引導路線，逐項問你地圖、儲存同 render 嘅設定，每個欄位隔籬都見到自動生成嘅預設值。佢會經本機歷史寫低成份專案，唔使 Java 亦唔使喺本機 render，然後返返嚟呢度，唔會再問多次世界、戶口或者 repository。" },
-    "cirender.cloudConfig.mapListHint": { en: "Each generated map is listed as a real checkbox. Keep at least one enabled; disabled maps remain in the project for later editing.", yue: "每張生成嘅地圖都係一個真嘅剔格。至少要開住一張；閂咗嘅地圖仍然留喺專案入面，之後可以再改。" },
-    "cirender.cloudConfig.storageProvenance": { en: "Generated defaults are shown in each field. Nothing is silently inherited from a prior local render because this flow starts from a fresh project schema.", yue: "每個欄位都顯示住自動生成嘅預設值。唔會靜靜雞承繼之前本機 render 嘅嘢，因為呢條路係由一份全新嘅專案結構開始。" },
-    "cirender.cloudConfig.dataProvenance": { en: "Generated default: data.", yue: "自動生成嘅預設值：data。" },
-    "cirender.cloudConfig.mapIdProvenance": { en: "Lower-case id used as the maps folder and URL segment.", yue: "細楷嘅 id，會做 maps 資料夾同網址嗰一段。" },
-    "cirender.cloudConfig.mapNameProvenance": { en: "Written to the selected map config; the generated preset supplies the other values.", yue: "會寫入你揀咗嘅地圖設定；其餘嘅值由自動生成嘅預設提供。" },
-    "cirender.cloudConfig.outputBrowse": { en: "Browse for cloud output folder", yue: "瀏覽揀雲端輸出資料夾" },
-    "cirender.cloudConfig.outputProvenance": { en: "Empty keeps the generated project default; a chosen path is recorded in render.outputFolder.", yue: "留空就用返自動生成嘅專案預設；揀咗路徑就會記入 render.outputFolder。" },
-    "cirender.cloudConfig.primaryDimensionProvenance": { en: "Default: Overworld, the first generated map.", yue: "預設係主世界，即係第一張生成嘅地圖。" },
-    "cirender.cloudConfig.projectNameProvenance": { en: "Suggested from the selected world folder name.", yue: "根據你揀嗰個世界資料夾嘅名提議出嚟。" },
-    "cirender.cloudConfig.routeProvenance": { en: "Fixed by this cloud-first guide; preflight still checks the actual route before upload.", yue: "由呢條雲端優先嘅引導定死；上載前嘅檢查仍然會核實真正嘅路線。" },
-    "cirender.cloudConfig.sortingProvenance": { en: "Default follows the selected dimension preset.", yue: "預設跟你揀嗰個維度嘅預設設定。" },
-    "cirender.cloudConfig.threadsProvenance": { en: "Default: automatic, so the cloud runner chooses a safe value.", yue: "預設係自動，等雲端執行器自己揀個安全值。" },
-    "cirender.cloudConfig.webProvenance": { en: "Generated default: web.", yue: "自動生成嘅預設值：web。" },
+    "cirender.account.unhealthy": {
+        en: "{login} on {host} needs reauthentication before it can render.",
+        yue: "{login}（{host}）要重新登入先 render 得。",
+    },
+    "cirender.cloudConfig.dataRequired": {
+        en: "Choose a data folder, or keep the generated data default.",
+        yue: "揀個資料資料夾，或者用返自動生成嗰個。",
+    },
+    "cirender.cloudConfig.mapIdTaken": {
+        en: "The map id {id} is reserved by another generated dimension.",
+        yue: "地圖 id {id} 已經畀另一個生成嘅維度佔咗。",
+    },
+    "cirender.cloudConfig.mapNameRequired": {
+        en: "Give the primary map a name before continuing.",
+        yue: "繼續之前，畀主地圖改個名先。",
+    },
+    "cirender.cloudConfig.mapRequired": {
+        en: "Keep at least one map enabled for the cloud render.",
+        yue: "雲端 render 至少要開住一張地圖。",
+    },
+    "cirender.cloudConfig.open": {
+        en: "Create cloud render configuration",
+        yue: "整份雲端 render 設定",
+    },
+    "cirender.cloudConfig.outputPick": {
+        en: "Choose the cloud render output folder",
+        yue: "揀雲端 render output 資料夾",
+    },
+    "cirender.cloudConfig.projectNameRequired": {
+        en: "Name this project before continuing.",
+        yue: "繼續之前，先幫呢個專案改個名。",
+    },
+    "cirender.cloudConfig.sortingInvalid": {
+        en: "Sort order must be a whole number.",
+        yue: "排序次序要係整數。",
+    },
+    "cirender.cloudConfig.webRequired": {
+        en: "Choose a web root, or keep the generated web default.",
+        yue: "揀個 web root，或者用返自動生成嗰個。",
+    },
+    "cirender.cloudConfig.explain": {
+        en: "A guided cloud-first path collects map, storage and render values with the generated defaults visible beside each field. It writes the complete project through local history, without Java or a local render, then returns here without asking for the world, account or repository again.",
+        yue: "一條以雲端行先嘅引導路線，逐項問你地圖、儲存同 render 嘅設定，每個欄位隔籬都見到自動生成嘅預設值。佢會經本機歷史寫低成份專案，唔使 Java 亦唔使喺本機 render，然後返返嚟呢度，唔會再問多次世界、戶口或者 repository。",
+    },
+    "cirender.cloudConfig.mapListHint": {
+        en: "Each generated map is listed as a real checkbox. Keep at least one enabled; disabled maps remain in the project for later editing.",
+        yue: "每張生成嘅地圖都係一個真嘅剔格。至少要開住一張；閂咗嘅地圖仍然留喺專案入面，之後可以再改。",
+    },
+    "cirender.cloudConfig.storageProvenance": {
+        en: "Generated defaults are shown in each field. Nothing is silently inherited from a prior local render because this flow starts from a fresh project schema.",
+        yue: "每個欄位都顯示住自動生成嘅預設值。唔會靜靜雞承繼之前本機 render 嘅嘢，因為呢條路係由一份全新嘅專案結構開始。",
+    },
+    "cirender.cloudConfig.dataProvenance": {
+        en: "Generated default: data.",
+        yue: "自動生成嘅預設值：data。",
+    },
+    "cirender.cloudConfig.mapIdProvenance": {
+        en: "Lower-case id used as the maps folder and URL segment.",
+        yue: "細楷嘅 id，會做 maps 資料夾同網址嗰一段。",
+    },
+    "cirender.cloudConfig.mapNameProvenance": {
+        en: "Written to the selected map config; the generated preset supplies the other values.",
+        yue: "會寫入你揀咗嘅地圖設定；其餘嘅值由自動生成嘅預設提供。",
+    },
+    "cirender.cloudConfig.outputBrowse": {
+        en: "Browse for cloud output folder",
+        yue: "瀏覽揀雲端輸出資料夾",
+    },
+    "cirender.cloudConfig.outputProvenance": {
+        en: "Empty keeps the generated project default; a chosen path is recorded in render.outputFolder.",
+        yue: "留空就用返自動生成嘅專案預設；揀咗路徑就會記入 render.outputFolder。",
+    },
+    "cirender.cloudConfig.primaryDimensionProvenance": {
+        en: "Default: Overworld, the first generated map.",
+        yue: "預設係主世界，即係第一張生成嘅地圖。",
+    },
+    "cirender.cloudConfig.projectNameProvenance": {
+        en: "Suggested from the selected world folder name.",
+        yue: "根據你揀嗰個世界資料夾嘅名提議出嚟。",
+    },
+    "cirender.cloudConfig.routeProvenance": {
+        en: "Fixed by this cloud-first guide; preflight still checks the actual route before upload.",
+        yue: "由呢條雲端優先嘅引導定死；上載前嘅檢查仍然會核實真正嘅路線。",
+    },
+    "cirender.cloudConfig.sortingProvenance": {
+        en: "Default follows the selected dimension preset.",
+        yue: "預設跟你揀嗰個維度嘅預設設定。",
+    },
+    "cirender.cloudConfig.threadsProvenance": {
+        en: "Default: automatic, so the cloud runner chooses a safe value.",
+        yue: "預設係自動，等雲端執行器自己揀個安全值。",
+    },
+    "cirender.cloudConfig.webProvenance": {
+        en: "Generated default: web.",
+        yue: "自動生成嘅預設值：web。",
+    },
 } as const satisfies Record<string, FixedString>;
 
 export const CIRENDER_FACTS = {

@@ -374,6 +374,36 @@ separate resume command — starting a sync reads that record first, so closing 
 application during a four-hour render and reopening it afterwards finds the run by its id,
 reads its outcome, and collects the map.
 
+### Fetching a render made elsewhere
+
+Resume reads a record `<storage>/ci-render/<syncId>/sync.json` this computer wrote itself,
+which is exactly what a second device — or this same computer after a reinstall — does not
+have. Without it, a finished run just sits on GitHub with no local path onto it, however
+plainly `gh run view` could tell you it succeeded.
+
+**Fetch a render made elsewhere**, on the Cloud Render screen, is that path. Choose the
+repository (the same owner and repository fields the ordinary form uses), press **List
+completed runs**, and the screen lists what `render-world.yml` has already finished there —
+newest first, each with its conclusion, run number, date and a link to open it on GitHub.
+Selecting one and pressing **Fetch this render** attaches this computer to that run and
+collects it through the identical path a resumed sync uses: the same artifact listing, the
+same digest verification, the same unpacking into `<storage>/<renderId>/web`, the same
+mount beside every local render. Nothing is uploaded and nothing is dispatched — the run
+already happened; this only downloads, verifies and registers what it produced.
+
+The one thing this path genuinely lacks is the uploaded-world identity: which release tag
+and asset this computer's own upload used, because there was no upload. The sync record it
+writes says so honestly — `releaseTag` and `assetName` stay `null` — rather than inventing a
+release nobody can point to. A collector fetching a resumed run only ever needed the run id
+to follow; the release identity was only ever needed to decide whether an *upload* could be
+skipped, which does not apply to a run this computer never started.
+
+Each run's map id, when the list can show one, comes from the run's own display title:
+`render-world.yml` sets `run-name: Render ${{ inputs.map-id }} (${{ inputs.dimension }})`,
+so GitHub's own run list already names what it rendered. A run dispatched before that
+existed, or from a fork whose workflow never carried it, is still listed — just under its
+raw title, with no parsed map id to show beside it.
+
 ### Two GitHub credentials, one chosen per sync
 
 A typical machine holds two: the app's own sign-in and `gh`'s. They are not
@@ -1064,6 +1094,16 @@ upload the world  ->  start the workflow  ->  follow the run  ->  fetch the map 
 ### 佢識續做，因為熄咗個 app 係最有可能嘅中斷
 
 每一件耐久嘅事實都會即時寫低：上傳咗嘅 fingerprint、去咗邊個 tag 同 asset、派發出嚟嗰個 run、以及佢點樣完結。冇一個獨立嘅 resume 指令 —— 開始一次 sync 嗰陣會先讀嗰份紀錄，所以喺四個鐘嘅 render 中途熄咗個 application、之後再開返，會靠 id 搵返個 run、讀返佢嘅結果，然後收返幅地圖。
+
+### 攞返一個喺第度做嘅 render
+
+Resume 會讀返一份呢部機自己寫低嘅紀錄 `<storage>/ci-render/<syncId>/sync.json`，但呢樣嘢正正係第二部機——又或者呢部機重裝之後——冇嘅。冇咗佢，一個已經喺 GitHub 完成咗嘅 run 就淨係擺喺嗰度，本機完全冇路捉到佢，就算 `gh run view` 已經話你知佢成功咗都冇用。
+
+Cloud Render 畫面上面嘅**攞返一個喺第度做嘅 render**，就係嗰條路。揀好 repository（同平時嗰張表一樣嘅 owner 同 repository 欄），撳**列出已完成嘅 run**，個畫面就會列出嗰個 repository 個 `render-world.yml` 已經完成咗嘅嘢——最新排先，每個都有佢嘅結論、run number、日期，同一個去 GitHub 開嗰個 run 嘅連結。揀一個、撳**攞返呢個 render**，就會將呢部機接駁去嗰個 run，然後用同 resume 一個 sync 一模一樣嘅方式收返佢：同一個 artifact 清單、同一個 digest 驗證、同一個解壓去 `<storage>/<renderId>/web`、同一個掛落每個本機 render 隔籬嘅方式。乜都唔會上傳，乜都唔會 dispatch——個 run 已經發生咗；呢度淨係落載、驗證、登記佢做出嚟嘅嘢。
+
+呢條路唯一真係冇嘅嘢，係已上傳世界嗰個身份：呢部機自己嗰次上傳用嘅係邊個 release tag 同 asset，因為根本冇上傳過。佢寫低嗰份 sync 紀錄會老老實實咁講——`releaseTag` 同 `assetName` 會維持 `null`——而唔係作一個冇人指到嘅 release 出嚟。一個收返 resume run 嘅 collector，本來就淨係需要個 run id 去跟；個 release 身份本來就淨係用嚟決定一次**上傳**可唔可以省返，呢個唔適用於一個呢部機從來冇開始過嘅 run。
+
+每個 run 嘅 map id（如果個清單有得顯示嘅話），係由個 run 自己嘅 display title 攞返嚟：`render-world.yml` 設咗 `run-name: Render ${{ inputs.map-id }} (${{ inputs.dimension }})`，所以 GitHub 自己個 run 清單已經寫低咗佢 render 緊咩。一個喺呢個功能有之前就派發咗嘅 run，或者一個 fork 自己嘅 workflow 從來冇帶呢樣嘢，一樣照樣列出嚟——只不過用返佢原本嘅 title，冇解析到嘅 map id 擺喺隔籬。
 
 ### 兩個 GitHub 憑證，每次 sync 揀一個
 
