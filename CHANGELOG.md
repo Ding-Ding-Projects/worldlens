@@ -20,8 +20,18 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Documentation
+
+- Merge commit 'c2ce392e' - [`48116ec11a`](https://github.com/Ding-Ding-Projects/worldlens/commit/48116ec11abe97f2b2ec0786f1c8fb007e59fd6b) _(summary of 2 commits, also listed here)_
+- Photograph the packaged 1.0.2035 build for the rail and Convert defects - [`c2ce392ed3`](https://github.com/Ding-Ding-Projects/worldlens/commit/c2ce392ed36b7c79366e8b0b76e7caa2848b62d6)
+
+## 1.0.2038 - 2026-09-05
+
+Tagged at [`558d8c5dc6`](https://github.com/Ding-Ding-Projects/worldlens/commit/558d8c5dc60e67733e783d2973bb9ffa1ba64786).
+
 ### Interface
 
+- Reword six wrapped comments the widened guard now sees, keep both sides' Chunker tests, regenerate the changelog - [`558d8c5dc6`](https://github.com/Ding-Ding-Projects/worldlens/commit/558d8c5dc60e67733e783d2973bb9ffa1ba64786)
 - Merge commit '54e44695' (legacy Chunker archive name), tests from both sides kept - [`5d61ee48f3`](https://github.com/Ding-Ding-Projects/worldlens/commit/5d61ee48f3d3ae39f1786c843f3048f73bfe7c51) _(summary of 2 commits, also listed here)_
 - Merge commit '22cbda5a' - [`876a7b7456`](https://github.com/Ding-Ding-Projects/worldlens/commit/876a7b74567db0dcd75752811924fe1d55cdd840) _(summary of 2 commits, also listed here)_
 - Name each attachable run in its own row controls - [`22cbda5aeb`](https://github.com/Ding-Ding-Projects/worldlens/commit/22cbda5aeb2608f775b0ea88ca6a3ee8f2ccb205)
