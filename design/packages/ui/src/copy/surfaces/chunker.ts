@@ -289,6 +289,11 @@ export const CHUNKER_FIXED = {
         en: "This build has no converter, so nothing on this page can run.",
         yue: "呢個版本冇轉換器，所以呢一頁乜都行唔到。",
     },
+    "chunker.boundsBackwards": {
+        en: "The maximum is lower than the minimum, so this boundary keeps nothing.",
+        yue: "最大值細過最小值，呢個邊界乜都留唔到。",
+    },
+    "chunker.optionsPreview": { en: "Review exact converter options", yue: "查看確實嘅轉換器選項" },
 } as const satisfies Record<string, FixedString>;
 
 export const CHUNKER_FACTS = {

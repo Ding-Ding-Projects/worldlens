@@ -123,6 +123,7 @@ const COVERED_SURFACES = [
     // strings live in `surfaces/pathField.ts`, registered into `SURFACE_VOICED`/
     // `SURFACE_FIXED` alongside the rest.
     "components/PathField.vue",
+    "components/chunker",
 ] as const;
 
 /**
