@@ -24,6 +24,15 @@
  * the first chunk). A term is matched case-insensitively as a whole word or phrase, so a
  * substring inside an unrelated longer word never counts.
  *
+ * Most terms are two or three words, and most of this repository's prose sits in wrapped
+ * comment blocks, so a term whose words land on either side of a line break is the ordinary
+ * shape rather than a corner. Each file is therefore scanned twice: once line by line, and
+ * once over a joined view in which every line break, along with the following line's leading
+ * whitespace and comment-continuation marker, becomes a single space. A hit found in the
+ * joined view is mapped back to the line its first character came from, so the report is
+ * still a file and a line number. The two passes are merged and de-duplicated, so an
+ * occurrence that sits whole on one line is reported once.
+ *
  * It also inspects the subject line of the last 200 commits, but Git history is immutable
  * here (this repository's remote is public and its history is never rewritten to satisfy a
  * local check), so a hit there is reported for visibility only and never fails the run. The
@@ -85,6 +94,49 @@ function trackedFiles() {
         .filter((line) => line.length > 0);
 }
 
+/**
+ * What a wrapped line carries before its prose resumes: indentation, then at most one
+ * continuation marker. An asterisk is excluded when it closes a block comment, because the
+ * words on either side of a closing delimiter are two constructs rather than one wrapped
+ * sentence.
+ */
+const CONTINUATION = /^[ \t]*(?:\/\/+|\*(?!\/)|#+|>+)?[ \t]*/;
+
+/**
+ * The file as one line-wrapped-tolerant string, plus where each source line begins in it.
+ *
+ * `segments` is one entry per source line, in order, so a match offset maps back to a line
+ * by walking forward to the last segment that starts at or before it.
+ */
+function joinWrappedLines(text) {
+    const lines = text.split(/\r?\n/);
+    const segments = [];
+    let joined = "";
+    for (const [index, line] of lines.entries()) {
+        if (index > 0) joined += " ";
+        segments.push({ offset: joined.length, line: index + 1 });
+        joined += index === 0 ? line : line.replace(CONTINUATION, "");
+    }
+    return { joined, segments };
+}
+
+/** The source line of every match in the joined view, in order. */
+function scanJoined(text, pattern) {
+    const { joined, segments } = joinWrappedLines(text);
+    const lines = [];
+    let cursor = 0;
+    pattern.lastIndex = 0;
+    for (let match = pattern.exec(joined); match !== null; match = pattern.exec(joined)) {
+        if (match[0].length === 0) {
+            pattern.lastIndex += 1; // a zero-width match would otherwise never advance
+            continue;
+        }
+        while (cursor + 1 < segments.length && segments[cursor + 1].offset <= match.index) cursor += 1;
+        lines.push(segments[cursor].line);
+    }
+    return lines;
+}
+
 /** Every hit in the tracked files, as { file, line }. Binary files are skipped. */
 function scanFiles(files, pattern) {
     const hits = [];
@@ -97,10 +149,13 @@ function scanFiles(files, pattern) {
         }
         if (raw.subarray(0, 8000).includes(0)) continue; // binary, not a leak of text
         const text = raw.toString("utf8");
+        const lines = new Set();
         for (const [index, line] of text.split(/\r?\n/).entries()) {
             pattern.lastIndex = 0;
-            if (pattern.test(line)) hits.push({ file, line: index + 1 });
+            if (pattern.test(line)) lines.add(index + 1);
         }
+        for (const line of scanJoined(text, pattern)) lines.add(line);
+        for (const line of [...lines].sort((left, right) => left - right)) hits.push({ file, line });
     }
     return hits;
 }
