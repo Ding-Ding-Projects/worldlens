@@ -20,6 +20,15 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Desktop shell
+
+- Merge commit '450fe89d' - [`b062ee4d67`](https://github.com/Ding-Ding-Projects/worldlens/commit/b062ee4d67c4fa2a9ef54a1567ebff89157dd1bf) _(summary of 2 commits, also listed here)_
+- Fix attach() forcing a foreign render under this project's own map id - [`450fe89dfd`](https://github.com/Ding-Ding-Projects/worldlens/commit/450fe89dfda7f7f851a6444dcd0d38ae2bed787f)
+
+## 1.0.2016 - 2026-09-05
+
+Tagged at [`24de773d93`](https://github.com/Ding-Ding-Projects/worldlens/commit/24de773d936c8811b41148d03649698706a7889c).
+
 ### Build, release and tooling
 
 - Merge commit '8f2473cf' - [`ad8405565c`](https://github.com/Ding-Ding-Projects/worldlens/commit/ad8405565ca2466308d40ebac7f6a5ff61f3088e) _(summary of 3 commits, also listed here)_
