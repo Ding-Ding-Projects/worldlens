@@ -4,7 +4,7 @@
 
 - [ ] Refresh the four stale capture-evidence groups (`app-playwright-manifest`, `app-playwright-map-dependent`, `lowlevel-ui-e2e`, `hosted-deployment`) against the current interface digest and record the new `uiSourceDigest` values; `node scripts/check-screenshot-evidence.mjs` has been red on `main` since before 2026-09-05.
 - [ ] Finish the 10 GB Java to Bedrock to Java round trip with the byte-scaled timeout and record its semantic comparison.
-- [ ] Record the 10 GB GitHub Actions render verdict and inspected artifact.
+- [x] Record the 10 GB GitHub Actions render verdict and inspected artifact (run 33941015721 attempt 2, success, six merge groups; HANDOFF.md 2026-09-05).
 
 ## Large-world UI verification (2026-09-04)
 
@@ -13,7 +13,7 @@
 - [ ] Complete measured 1 GB and 10 GB world generation through the built UI, including resume receipts.
 - [ ] Complete all guided Chunker CLI/config controls and real non-AWS destination dispatch.
 - [ ] Verify Java to Bedrock to Java conversion at both sizes and report supported-content parity and losses.
-- [ ] Verify GitHub Actions rendering first, with task-owned builders-home targets, Pages previews and complete downloads.
+- [x] Verify GitHub Actions rendering first, with task-owned builders-home targets and complete downloads (1 GB run 33929016654 and 10 GB run 33941015721 verified from their artifacts; Pages preview not exercised because both runs used `output=artifact`).
 - [ ] Verify the remaining local and SSH rendering and server-creation matrix through the built UI.
 - [ ] Preserve, integrate and publish verified increments; archive and clean only eligible task-owned resources.
 

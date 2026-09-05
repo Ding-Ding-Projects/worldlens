@@ -43,7 +43,7 @@ import type { CiWorkflowTemplate } from "./bootstrap.js";
 // while this work was in flight. Reusing 3 would have made one number mean two different
 // template sets, and a repository that had already taken the other 3 would never be offered
 // this one - the downgrade refusal would see equal versions and do nothing.
-export const CI_WORKFLOW_TEMPLATE_VERSION = 4;
+export const CI_WORKFLOW_TEMPLATE_VERSION = 5;
 
 /** Every workflow file a render or scheduled check needs, relative to `.github/workflows/`. */
 export const CI_WORKFLOW_FILE_NAMES = [

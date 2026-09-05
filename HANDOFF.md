@@ -15,7 +15,7 @@ respectively, all green. The final pre-`main` verification is recorded below the
 | Measured 10 GB fixture | verified | `fixture-10gb-seed-2002`, 1.20.4, 10,000,003,649 decimal bytes, 2,380 regions, 2,436,647 chunks, 2,208 s, provenance JSON |
 | GitHub Actions render, 1 GB | verified | `builders-home/wl-render-1gb-20260904` run 33929016654: success, 25 min 55 s, 15 jobs green, 12 shards; `rendered-map` downloaded: 60,759 tiles, `textures.json.gz`, 2.4 GB |
 | GitHub Actions split upload, 10 GB | verified | app's own `uploadWorldForRender` through the production credential broker: 7 parts, 10,000,846,398 bytes, sha256 `c1529343…`, 27 min 08 s |
-| GitHub Actions render, 10 GB | fix landed; fresh run in flight | run 33932567847: all 30 shards green, the single merge job killed twice by runner memory (exit 143); root cause was lod-1 lowres compositing decoding every shard's PNGs at once plus a flat 32-shard merge group; fixed in `cbd07077` (streamed compositing, memory-bounded `mergeGroupSize` in the plan); the target's workflows pin the toolchain to `a79d63be` and run 33941015721 is rendering the world again; its verdict is not recorded here and must not be assumed |
+| GitHub Actions render, 10 GB | verified | run 33932567847 exposed the defect (30 shards green, one merge group killed twice by runner memory, exit 143: lod-1 lowres compositing held every shard's PNGs at once, plus a flat 32-shard group); fixed in `cbd07077`; run 33941015721 attempt 2 with the toolchain pinned to `a79d63be` succeeded at 05:22Z: 39 jobs green, six merge groups, `map-lowres` (2,883 files, zoom 1–3, textures) plus six `partial-hires` artifacts inspected |
 | Java to Bedrock to Java, 1 GB | verified | real Chunker CLI: 347 s + 245 s, 243,665/243,665 chunks matched, 162 documented-loss only, 0 undocumented, 0 missing, 0 extra, verdict clean |
 | Java to Bedrock to Java, 10 GB | stopped, not verified | first attempt killed by the harness's own 50 min timeout (fixed: byte-scaled timeout); the 4 h rerun completed the Java to Bedrock leg and was 4.6 GB into the Bedrock to Java leg when the user stopped local work because the machine was lagging; rerun from `scripts/fixtures/round-trip-chunker.mjs` when the machine is free |
 | Negative Chunker cases | verified | corrupt input, invalid settings, interrupted, unwritable destination: all correctly refused |
@@ -43,8 +43,9 @@ and every one was fixed by its owning lane and re-run green individually on the 
 (`586e7429`, `74d40c12`, `6c6412e8`); drift, lint-workflows, parity, gallery, bundle and the
 node tests were green again at `6c6412e8`. The second whole-tree vitest run at `6c6412e8` was
 stopped by the user before it finished because the machine was lagging, so the last complete
-whole-tree vitest verdict is the one at `ded937e7` plus the nine individually re-verified files;
-the next owner should run `cd design && npx vitest run` once on a quiet machine.
+whole-tree vitest verdict at that time was the one at `ded937e7` plus the nine individually
+re-verified files. The full run was then repeated on the released commit `40680d79` on a quiet
+machine: 1,030 test files passed, 6 skipped, 0 failed (2026-09-05T04:37:58Z to 05:04:10Z).
 
 ## 2026-09-04: preservation handoff, runtime matrix incomplete
 
