@@ -3097,6 +3097,73 @@ describe("fetching a render made elsewhere", () => {
         ]);
     });
 
+    /*
+     * `attach` reads the run's own title before this project's map - a render made
+     * elsewhere is a render of its own world, and forcing it under whichever map this
+     * project happens to have is exactly the bug that shipped. The card has to show
+     * which map it is actually about to register under before the person clicks fetch,
+     * and let them override it when the run's own title is missing or wrong.
+     */
+    it("shows the map id it will register, prefilled from the run's own title", async () => {
+        const attachCalls: unknown[] = [];
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () =>
+                    Promise.resolve({
+                        ok: true,
+                        value: [attachableRun({ id: 77, mapId: "fixture_10gb" })],
+                    }),
+                attachCiRun: (request) => {
+                    attachCalls.push(request);
+                    return Promise.resolve({
+                        ok: false,
+                        syncId: "nowhere",
+                        failure: {
+                            code: "invalid-run",
+                            message: "not used",
+                            detail: null,
+                            status: null,
+                            needsSignIn: false,
+                            needsEula: false,
+                            route: null,
+                            run: null,
+                            failingJob: null,
+                            logExcerpt: null,
+                        },
+                    });
+                },
+            }),
+        );
+
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-run-select"]').trigger("click");
+        await flushPromises();
+
+        // Selecting the run prefills the card with exactly the map id it parsed - never
+        // this project's own map, which the local project here calls "world".
+        const mapIdField = wrapper.find('[data-test="attach-map-id-field"] input');
+        expect((mapIdField.element as HTMLInputElement).value).toBe("fixture_10gb");
+
+        // A person can override the guess before fetching.
+        await mapIdField.setValue("fixture_10gb_corrected");
+        await wrapper.find('[data-test="attach-run-fetch"]').trigger("click");
+        await flushPromises();
+
+        expect(attachCalls).toEqual([
+            expect.objectContaining({
+                owner: "o",
+                repo: "r",
+                runId: 77,
+                mapId: "fixture_10gb_corrected",
+            }),
+        ]);
+    });
+
     it("shows an honest empty state when the repository has no completed runs", async () => {
         const wrapper = mountScreen(
             fakeBridge(preflight(), [], {

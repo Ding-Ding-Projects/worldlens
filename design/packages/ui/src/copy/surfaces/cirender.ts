@@ -1382,6 +1382,18 @@ export const CIRENDER_FIXED = {
         en: "Fetch {mapId} into the map list for the world selected above. Its render already finished on GitHub; this only downloads, verifies and registers it.",
         yue: "將 {mapId} 攞落上面揀咗嗰個世界嘅地圖清單。佢喺 GitHub 已經 render 完；呢度淨係落載、驗證、登記佢。",
     },
+    /*
+     * Editable, prefilled from the run's own title (see `parseRunDisplayTitle` in
+     * `sync.ts`) - a render made elsewhere describes its own world, never necessarily
+     * this project's, so the field says which map this fetch is actually about to
+     * register under and lets a person correct it when the run's own guess is wrong or
+     * missing entirely.
+     */
+    "cirender.attach.mapId": { en: "Register as map", yue: "登記做邊個地圖" },
+    "cirender.attach.mapId.help": {
+        en: "Read from the run's own title. Change it if that guess is wrong, or leave it blank to let the application decide.",
+        yue: "由個 run 自己個標題度讀返嚟嘅。如果估錯就自己改；留空就等 app 自己決定。",
+    },
     "cirender.attach.fetch": { en: "Fetch this render", yue: "攞返呢個 render" },
     "cirender.owner.kindOrg": { en: "Organization", yue: "組織" },
     "cirender.owner.kindYou": { en: "Your own account", yue: "你自己個戶口" },

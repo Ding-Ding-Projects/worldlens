@@ -57,6 +57,7 @@ import type {
     GhCliAccountLease,
     GhCliAccountProvider,
 } from "../ghcli/credentialBroker.js";
+import { sanitizeMapId } from "@worldlens/render-actions";
 import { commitWorldBackup } from "./commitWorldBackup.js";
 import { uploadWorldForRender } from "./upload.js";
 import { collectRenderedMap } from "./collect.js";
@@ -386,21 +387,50 @@ export interface CiAttachRunRequest {
     readonly owner: string;
     readonly repo: string;
     readonly runId: number;
-    /** Which local map to file the collected map under. Omitted, its first enabled map. */
+    /**
+     * Which map to file the collected render under, overriding whatever this computer can
+     * work out on its own.
+     *
+     * Left undefined the ordinary way: {@link CiRenderSync.attach} reads the run's own
+     * title first ({@link parseRunDisplayTitle}) and registers the render under *that* map
+     * id, because a run made elsewhere is describing its own world, never this project's.
+     * Only when the title cannot be parsed does it fall back to this project's own map
+     * (its first enabled one, or an exact/dimension match) - the same rule every other
+     * sync path already applies through {@link chooseProjectMap}.
+     */
     readonly mapId?: string | undefined;
     readonly accountId?: string | undefined;
 }
 
+/** {@link parseRunDisplayTitle}'s answer: what a run's own title says it rendered. */
+interface ParsedRunTitle {
+    readonly mapId: string;
+    readonly dimension: string | null;
+}
+
 /**
- * The map id `render-world.yml`'s `run-name: Render ${{ inputs.map-id }} (${{
- * inputs.dimension }})` embedded in the run's display title, or null when the title does
- * not have that shape - an older run, a fork's own workflow, or a manually dispatched run
- * from the Actions tab that never went through this format at all.
+ * `render-world.yml`'s `run-name: Render ${{ inputs.map-id }} (${{ inputs.dimension }})`,
+ * read back out of the run's display title - or null when the title does not have that
+ * shape: an older run, a fork's own workflow, or a manually dispatched run from the
+ * Actions tab that never went through this format at all.
+ *
+ * This is the *only* thing that can name a foreign run's map id before it has been
+ * downloaded - {@link CiAttachRunRequest.mapId} lets a person override it, but nothing
+ * about *this* computer's own project can be trusted to guess it, because a render made
+ * elsewhere is a render of somebody else's world, which may have no map by that name (or
+ * any name) in the project the person happens to have open right now.
  */
+function parseRunDisplayTitle(displayTitle: string): ParsedRunTitle | null {
+    const match = /^Render (.+) \(([^()]*)\)$/.exec(displayTitle);
+    const mapId = match?.[1]?.trim() ?? "";
+    if (mapId.length === 0) return null;
+    const dimension = match?.[2]?.trim() ?? "";
+    return { mapId, dimension: dimension.length > 0 ? dimension : null };
+}
+
+/** Just the map id half of {@link parseRunDisplayTitle}, for the run picker's own listing. */
 function mapIdFromDisplayTitle(displayTitle: string): string | null {
-    const match = /^Render (.+) \([^()]*\)$/.exec(displayTitle);
-    const captured = match?.[1]?.trim() ?? "";
-    return captured.length > 0 ? captured : null;
+    return parseRunDisplayTitle(displayTitle)?.mapId ?? null;
 }
 
 export type CiSyncResult =
@@ -845,11 +875,52 @@ export class CiRenderSync {
         if (!project.ok)
             return this.#failed("nowhere", failure(project.failure.code, project.failure.message));
 
-        const picked = chooseProjectMap(project.project, request.mapId);
-        if (!picked.ok)
-            return this.#failed("nowhere", failure(picked.failure.code, picked.failure.message));
+        // A resumed or attached sync already knows exactly which map it is, on record -
+        // `resume()` and `attach()` never invent a mapId, they only ever pass back one
+        // that was already written to a `sync.json`. `chooseProjectMap` exists to pick a
+        // map out of *this project's own* list, which is the wrong question here: an
+        // attached run can be a render of a map this project has never heard of (a
+        // different device, a different world entirely), and re-running that lookup
+        // would silently substitute this project's own map for whichever one the run
+        // actually produced - which is exactly the bug this whole path exists to fix.
+        // So a resumed/attached sync reads its own prior record first and, when there is
+        // one, trusts it completely; only a genuinely new dispatch (no prior record, or
+        // not a resume at all) asks the project to choose.
+        const resuming =
+            (request as CiSyncRunRequest).resumeRecordedRun === true && request.mapId !== undefined;
+        let recordedState: CiSyncState | null = null;
+        if (resuming) {
+            const candidateSyncId = syncIdFor(
+                owner,
+                repo,
+                request.worldFolder,
+                request.mapId as string,
+            );
+            recordedState = await readCiSyncState(
+                ciSyncWorkspace(this.#options.storageDir(), candidateSyncId).stateFile,
+            );
+        }
 
-        const syncId = syncIdFor(owner, repo, request.worldFolder, picked.map.id);
+        let pickedMap: ProjectMap;
+        if (recordedState !== null) {
+            pickedMap = {
+                id: recordedState.mapId,
+                name: recordedState.mapName,
+                dimension: recordedState.dimension,
+                world: null,
+                config: "",
+                storage: "file",
+                sorting: 0,
+                enabled: true,
+            };
+        } else {
+            const picked = chooseProjectMap(project.project, request.mapId);
+            if (!picked.ok)
+                return this.#failed("nowhere", failure(picked.failure.code, picked.failure.message));
+            pickedMap = picked.map;
+        }
+
+        const syncId = syncIdFor(owner, repo, request.worldFolder, pickedMap.id);
         if (this.#running.has(syncId)) {
             return this.#failed(
                 syncId,
@@ -864,15 +935,16 @@ export class CiRenderSync {
 
         const workspace = ciSyncWorkspace(this.#options.storageDir(), syncId);
         let state =
+            recordedState ??
             (await readCiSyncState(workspace.stateFile)) ??
             newCiSyncState({
                 syncId,
                 owner,
                 repo,
                 worldFolder: request.worldFolder,
-                mapId: picked.map.id,
-                mapName: picked.map.name,
-                dimension: picked.map.dimension,
+                mapId: pickedMap.id,
+                mapName: pickedMap.name,
+                dimension: pickedMap.dimension,
                 at: this.#timestamp(),
             });
         state = {
@@ -886,7 +958,7 @@ export class CiRenderSync {
             type: "started",
             syncId,
             repository: `${owner}/${repo}`,
-            mapId: picked.map.id,
+            mapId: pickedMap.id,
             worldFolder: request.worldFolder,
             at: this.#timestamp(),
         });
@@ -924,7 +996,7 @@ export class CiRenderSync {
                 syncId,
                 state,
                 workspace,
-                map: picked.map,
+                map: pickedMap,
                 project: project.project,
                 signal: controller.signal,
                 startedAt,
@@ -1080,6 +1152,34 @@ export class CiRenderSync {
      * computer made no upload for this run to name. `#finishRecordedRun` only ever needed
      * the run id to collect; the release identity was only ever needed to *reuse* an
      * upload, which an attached run has none of to reuse.
+     *
+     * ## Whose map this is
+     *
+     * A render made elsewhere describes *its own* world, never necessarily this project's.
+     * This used to hand every attached run to {@link chooseProjectMap} the same way a new
+     * dispatch is - which, for the common case of a project with exactly one enabled map,
+     * meant "attach" always registered under *this project's* map id regardless of what
+     * the run actually rendered. A run of a completely different world (`fixture_10gb`)
+     * would be forced under this project's own id (`world`), the artifact would have no
+     * `maps/world` folder to show for it, and the refusal message could only report
+     * "not a map" - correctly, but for a reason that had nothing to do with the artifact
+     * being broken.
+     *
+     * So the map id is resolved in order of how sure we can be, and never by guessing
+     * between equals:
+     *
+     *   1. {@link CiAttachRunRequest.mapId}, an explicit choice a person typed or picked;
+     *   2. the id `render-world.yml`'s `run-name:` embedded in the run's own display
+     *      title ({@link parseRunDisplayTitle}) - the run's own word for what it is;
+     *   3. this project's own map, exactly as before, when neither of the above is
+     *      available (an older run, a hand-dispatched one, a fork's own workflow).
+     *
+     * Steps 1 and 2 never fall through {@link chooseProjectMap}'s fuzzy resolution - its
+     * "only one enabled map, so that must be it" fallback is exactly the substitution
+     * this fix removes. This project's own map/dimension name is reused for display only
+     * when it happens to define that *exact* id; otherwise the run's own identity is
+     * used verbatim; `collect.ts` sanitizes it the same way the workflow does before it
+     * ever touches the filesystem.
      */
     async attach(request: CiAttachRunRequest): Promise<CiSyncResult> {
         const owner = request.owner.trim();
@@ -1101,12 +1201,70 @@ export class CiRenderSync {
         if (!project.ok) {
             return this.#failed("nowhere", failure(project.failure.code, project.failure.message));
         }
-        const picked = chooseProjectMap(project.project, request.mapId);
-        if (!picked.ok) {
-            return this.#failed("nowhere", failure(picked.failure.code, picked.failure.message));
+
+        let targetMapId: string;
+        let targetMapName: string;
+        let targetDimension: string;
+
+        const explicitMapId = request.mapId?.trim();
+        if (explicitMapId !== undefined && explicitMapId.length > 0) {
+            const exactLocal = project.project.maps.find((candidate) => candidate.id === explicitMapId);
+            targetMapId = explicitMapId;
+            targetMapName = exactLocal?.name ?? explicitMapId;
+            targetDimension = exactLocal?.dimension ?? "unknown";
+        } else {
+            // No explicit choice - read the run's own title before assuming anything
+            // about this project's own maps at all.
+            const routed = await this.#resolveRoute(
+                owner,
+                repo,
+                { accountId: request.accountId },
+                undefined,
+                "read",
+            );
+            if (routed.transport === null || !routed.report.ready) {
+                return this.#failed(
+                    "nowhere",
+                    failure("no-route", routed.report.describe, {
+                        needsSignIn: routed.report.gh.recovery === "github-settings",
+                    }),
+                );
+            }
+
+            let run: WorkflowRun;
+            try {
+                run = await routed.transport.readRun(owner, repo, request.runId);
+            } catch (error) {
+                return this.#failed("nowhere", fromError(error, routed.report.route));
+            }
+
+            const parsedTitle = parseRunDisplayTitle(run.displayTitle);
+            if (parsedTitle !== null) {
+                const exactLocal = project.project.maps.find(
+                    (candidate) => candidate.id === parsedTitle.mapId,
+                );
+                targetMapId = parsedTitle.mapId;
+                targetMapName = exactLocal?.name ?? parsedTitle.mapId;
+                targetDimension = exactLocal?.dimension ?? parsedTitle.dimension ?? "unknown";
+            } else {
+                // The run's title never named a map - an older run, one dispatched by
+                // hand from the Actions tab, or a fork's own workflow. There is nothing
+                // left to identify it by except this project's own map, exactly as this
+                // path always resolved one before the run's title existed to read.
+                const picked = chooseProjectMap(project.project, undefined);
+                if (!picked.ok) {
+                    return this.#failed(
+                        "nowhere",
+                        failure(picked.failure.code, picked.failure.message),
+                    );
+                }
+                targetMapId = picked.map.id;
+                targetMapName = picked.map.name;
+                targetDimension = picked.map.dimension;
+            }
         }
 
-        const syncId = syncIdFor(owner, repo, request.worldFolder, picked.map.id);
+        const syncId = syncIdFor(owner, repo, request.worldFolder, targetMapId);
         if (this.#running.has(syncId)) {
             return this.#failed(
                 syncId,
@@ -1128,9 +1286,9 @@ export class CiRenderSync {
                 owner,
                 repo,
                 worldFolder: request.worldFolder,
-                mapId: picked.map.id,
-                mapName: picked.map.name,
-                dimension: picked.map.dimension,
+                mapId: targetMapId,
+                mapName: targetMapName,
+                dimension: targetDimension,
                 at: now,
             });
         const state: CiSyncState = {
@@ -1151,7 +1309,7 @@ export class CiRenderSync {
             worldFolder: request.worldFolder,
             owner,
             repo,
-            mapId: picked.map.id,
+            mapId: targetMapId,
             ...(request.accountId === undefined ? {} : { accountId: request.accountId }),
             follow: true,
             resumeRecordedRun: true,
@@ -1351,9 +1509,28 @@ export class CiRenderSync {
                     `than verified: ${collected.sha256}.`,
             );
         }
+        // `collected.mapId` is `sanitizeMapId(state.mapId)` in the ordinary case, so a
+        // mismatch there is expected and not a drift - the recorded identity stays the
+        // raw id `chooseProjectMap` picked. It is a real drift only when *sanitizing*
+        // the recorded id still would not equal what was collected, which is exactly
+        // what happens when an attached run's artifact did not have the requested map
+        // but held exactly one other valid one instead - only a run made elsewhere can
+        // do that. Recording the id it was actually filed under then keeps this sync's
+        // own record honest about where the map lives, rather than repeating a request
+        // that turned out wrong.
+        const mapIdDrifted = sanitizeMapId(state.mapId) !== collected.mapId;
+        if (mapIdDrifted) {
+            this.#log(
+                syncId,
+                "info",
+                `The artifact was registered as "${collected.mapId}" rather than the requested ` +
+                    `"${state.mapId}" - that is the map id the artifact itself actually carried.`,
+            );
+        }
         state = {
             ...state,
             stage: "rendered",
+            mapId: mapIdDrifted ? collected.mapId : state.mapId,
             renderId: collected.renderId,
             artifactSha256: collected.sha256,
             failureCode: null,
@@ -2169,9 +2346,16 @@ export class CiRenderSync {
             );
         }
 
+        // See the identical comment in `#finishRecordedRun`: `collected.mapId` is the
+        // *sanitized storage* id, and `sanitizeMapId(context.map.id)` equalling it is the
+        // ordinary case, not a drift - the recorded identity keeps the project's raw map
+        // id. It is a real drift only when even the sanitized form disagrees, which is
+        // the sanitizeMapId-drift safety net {@link resolveArtifactMapId} exists for.
+        const mapIdDrifted = sanitizeMapId(context.map.id) !== collected.mapId;
         state = {
             ...state,
             stage: "rendered",
+            mapId: mapIdDrifted ? collected.mapId : context.map.id,
             renderId: collected.renderId,
             artifactSha256: collected.sha256,
             postRenderWarning,
