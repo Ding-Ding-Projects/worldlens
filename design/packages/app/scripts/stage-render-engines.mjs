@@ -346,7 +346,7 @@ async function resolveJavaArtifact(requireJava) {
         });
         await writeFile(
             stagedManifestPath,
-            `${JSON.stringify({ ...staged, source: "vendor/BlueMap-LangGui", jars }, null, 4)}\n`,
+            `${JSON.stringify({ ...staged, source: "vendor/BlueMap-Material", jars }, null, 4)}\n`,
             "utf8",
         );
         return {

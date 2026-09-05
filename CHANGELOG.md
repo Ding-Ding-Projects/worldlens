@@ -20,7 +20,10 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
-_No changes have been committed since `v1.0.2022`._
+### Interface
+
+- Merge commit 'cda9d25b' - [`15f6ec193b`](https://github.com/Ding-Ding-Projects/worldlens/commit/15f6ec193bec7fa8fec2bafb83d9799f6ff37202) _(summary of 2 commits, also listed here)_
+- Replace informal house wording with plain terms and add an externally-configured wording guard - [`cda9d25b24`](https://github.com/Ding-Ding-Projects/worldlens/commit/cda9d25b249b6fcf60358183dcef0ed5d16865ef)
 
 ## 1.0.2022 - 2026-09-05
 
@@ -575,7 +578,7 @@ Tagged at [`d18a7fc936`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Elsewhere in the repository
 
-- Merge remote-tracking branch 'origin/main' into feature/unbreak-local-servers-and-lang-gui - [`d18a7fc936`](https://github.com/Ding-Ding-Projects/worldlens/commit/d18a7fc93643a47a5120bb72bfba59f4325d1e09) _(summary of 3 commits, also listed here)_
+- Merge remote-tracking branch 'origin/main' into feature/unbreak-local-servers-and-material-design-3 - [`d18a7fc936`](https://github.com/Ding-Ding-Projects/worldlens/commit/d18a7fc93643a47a5120bb72bfba59f4325d1e09) _(summary of 3 commits, also listed here)_
 
 ## 1.0.1873 - 2026-09-03
 

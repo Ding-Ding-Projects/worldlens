@@ -25,7 +25,7 @@ import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const WEBAPP = join(repoRoot, "vendor/BlueMap-LangGui/common/webapp/src");
+const WEBAPP = join(repoRoot, "vendor/BlueMap-Material/common/webapp/src");
 
 /**
  * Every surface the purity rule covers, not only the map.
@@ -237,7 +237,7 @@ const TYPE_PROPERTIES = ["size", "line", "weight", "tracking"];
  * rule, since a developer's own theme is the one they look at.
  */
 function tokenCompleteness(repoRoot) {
-    const file = join(repoRoot, "vendor/BlueMap-LangGui/common/webapp/src/scss/variables.scss");
+    const file = join(repoRoot, "vendor/BlueMap-Material/common/webapp/src/scss/variables.scss");
     if (!existsSync(file)) return [];
     const text = readFileSync(file, "utf8");
 

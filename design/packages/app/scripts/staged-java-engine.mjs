@@ -19,7 +19,7 @@ export const STAGED_JAVA_ENGINE_SCHEMA = 1;
  * against another cannot pass.
  */
 export const BLUEMAP_SOURCE_REPOSITORY = "https://github.com/Ding-Ding-Projects/BlueMap";
-export const BLUEMAP_SOURCE_PATH = "vendor/BlueMap-LangGui";
+export const BLUEMAP_SOURCE_PATH = "vendor/BlueMap-Material";
 export const MAX_STAGED_JAVA_BYTES = 512 * 1024 * 1024;
 
 /**

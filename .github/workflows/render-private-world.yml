@@ -182,14 +182,14 @@ jobs:
       - uses: gradle/actions/setup-gradle@0b6dd653ba04f4f93bf581ec31e66cbd7dcb644d # v4
 
       - name: Build the shadow jar
-        working-directory: vendor/BlueMap-LangGui
+        working-directory: vendor/BlueMap-Material
         run: ./gradlew --no-daemon :cli:shadowJar
 
       - name: Collect the jar
         shell: bash
         run: |
           set -euo pipefail
-          jar=$(find vendor/BlueMap-LangGui/implementations/cli/build/libs -maxdepth 1 -name '*-shadow.jar' -print -quit)
+          jar=$(find vendor/BlueMap-Material/implementations/cli/build/libs -maxdepth 1 -name '*-shadow.jar' -print -quit)
           if [ -z "$jar" ]; then
             echo "::error::the Gradle build produced no shadow jar"
             exit 1

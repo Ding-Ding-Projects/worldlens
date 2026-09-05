@@ -9,7 +9,7 @@ name: BlueMap jars
 # every one of them is a product artefact here. See design/docs/decisions.md.
 #
 # These jars are BlueMap's code with this project's Material Design 3 webapp, built
-# from the fork checked out at `vendor/BlueMap-LangGui`
+# from the fork checked out at `vendor/BlueMap-Material`
 # submodule. They are not this project's own renderer, and the release notes say so.
 #
 # This is a reusable workflow rather than one with its own push trigger. `ci.yml` calls
@@ -42,7 +42,7 @@ permissions:
 # Stated once, here, rather than repeated at each step: the path appeared in four
 # places and a rewire that missed one would have quietly built a mixture.
 env:
-  BLUEMAP_SOURCE: vendor/BlueMap-LangGui
+  BLUEMAP_SOURCE: vendor/BlueMap-Material
 
 jobs:
   build:

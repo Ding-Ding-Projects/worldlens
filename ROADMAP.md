@@ -153,7 +153,7 @@ Four screenshots of the new-server wizard turned into three P0 defects and a who
 - [x] The published map's homepage points at `/map/`, and the render config asks the webapp to
       decompress tiles itself since every consumer of that render is a file host.
 - [x] `Ding-Ding-Projects/BlueMap` forked, and its whole webapp UI layer rewritten to Material
-      Design 3 on branch `lang-gui` at upstream `v5.23`.
+      Design 3 on branch `material-design-3` at upstream `v5.23`.
 - [x] The build reads the fork: `tools/build-jars.mjs`, `build-jars.yml`, `render-world.yml`,
       `render-private-world.yml`, with the path and repository as shared constants the
       packager's validator consumes.

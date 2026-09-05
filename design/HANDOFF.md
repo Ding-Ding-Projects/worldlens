@@ -36,14 +36,14 @@ longer sticks around after inputs change.
 
 ### The published map now builds from this project's BlueMap fork
 
-`Ding-Ding-Projects/BlueMap`, branch `lang-gui`, based at upstream `v5.23` - the same tag
+`Ding-Ding-Projects/BlueMap`, branch `material-design-3`, based at upstream `v5.23` - the same tag
 `vendor/BlueMap` pins. Its `master` is a clean upstream mirror so a future release is a normal
 merge. The whole webapp UI layer is rewritten to Material Design 3: real system tokens, state
 layers instead of background swaps, M3 switch/slider/outlined-field anatomy, 48px targets,
 visible focus rings, elevation, and `prefers-reduced-motion` throughout.
 
 **The build now uses the fork.** `tools/build-jars.mjs`, `.github/workflows/build-jars.yml`,
-`render-world.yml` and `render-private-world.yml` all read `vendor/BlueMap-LangGui`. The path
+`render-world.yml` and `render-private-world.yml` all read `vendor/BlueMap-Material`. The path
 and repository are single exported constants (`BLUEMAP_SOURCE_PATH`,
 `BLUEMAP_SOURCE_REPOSITORY`) consumed by the packager's own validator, so a manifest written
 from one source and checked against another cannot pass. `CI_WORKFLOW_TEMPLATE_VERSION` is 3.
@@ -84,7 +84,7 @@ references, 25 focus rings, and zero surviving upstream colour literals. The sty
 `index-s8BtuYen.css`, the same name the local build produced, so the released bytes and the
 locally verified bytes are the same bytes.
 
-One thing to hold honestly: the jars are stamped `5.23-1` rather than the local `5.23-lang-gui-1`,
+One thing to hold honestly: the jars are stamped `5.23-1` rather than the local `5.23-material-1`,
 because CI checks the submodule out detached and upstream's `gitVersion()` has no branch name to
 append. Same commit, different label.
 
