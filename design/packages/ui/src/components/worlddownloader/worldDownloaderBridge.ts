@@ -141,7 +141,7 @@ export interface WorldDownloaderBridge {
     }): Promise<DownloaderConnectionAnswer>;
     start(request: { readonly settings: DownloaderSettings }): Promise<DownloaderStartAnswer>;
     stop(sessionId: string): Promise<boolean>;
-    saveToken(token: string): Promise<DownloaderTokenAnswer>;
+    openTokenIntake(): Promise<DownloaderTokenAnswer>;
     clearToken(): Promise<boolean>;
     countChunks(outputFolder: string): Promise<DownloaderChunkAnswer>;
     portFree(port: number): Promise<DownloaderPortAnswer>;
@@ -168,7 +168,7 @@ export function resolveWorldDownloaderBridge(): WorldDownloaderBridge | null {
         "testConnection",
         "start",
         "stop",
-        "saveToken",
+        "openTokenIntake",
         "clearToken",
         "countChunks",
         "portFree",

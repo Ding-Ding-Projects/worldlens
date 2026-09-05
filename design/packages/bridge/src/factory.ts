@@ -608,7 +608,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                 transport.invoke("worlddownloader:testConnection", request),
             start: (request: unknown) => transport.invoke("worlddownloader:start", request),
             stop: (sessionId: unknown) => transport.invoke("worlddownloader:stop", sessionId),
-            saveToken: (token: unknown) => transport.invoke("worlddownloader:saveToken", token),
+            openTokenIntake: () => transport.invoke("worlddownloader:openTokenIntake"),
             clearToken: () => transport.invoke("worlddownloader:clearToken"),
             countChunks: (outputFolder: unknown) =>
                 transport.invoke("worlddownloader:countChunks", outputFolder),

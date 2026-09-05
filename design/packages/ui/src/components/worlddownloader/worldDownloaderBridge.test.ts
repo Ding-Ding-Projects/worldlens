@@ -12,7 +12,7 @@ function complete() {
         testConnection: vi.fn(),
         start: vi.fn(),
         stop: vi.fn(),
-        saveToken: vi.fn(),
+        openTokenIntake: vi.fn(),
         clearToken: vi.fn(),
         countChunks: vi.fn(),
         portFree: vi.fn(),

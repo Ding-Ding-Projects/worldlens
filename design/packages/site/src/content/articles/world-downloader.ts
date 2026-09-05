@@ -92,7 +92,7 @@ export const worldDownloader: Article = {
                 {
                     kind: "list",
                     items: [
-                        "The access token is saved and cleared through dedicated channels; status only reports whether one is held, never its value.",
+                        "The access token is typed into its own main-process-owned intake window, never into this application’s ordinary renderer; the bridge only opens that window and clears whatever is held. Status only reports whether a token is held, never its value.",
                         "worlddownloader:start re-validates the settings server-side with the same validator the renderer's own form uses, because a released renderer and a released main process are separate artifacts that can drift.",
                         "Redacted session arguments let the status surface show what a running session was launched with, by index, without ever holding the secret itself.",
                     ],

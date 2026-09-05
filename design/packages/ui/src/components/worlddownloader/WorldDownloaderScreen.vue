@@ -17,6 +17,7 @@ import {
     VTextField,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import PathField from "../PathField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     resolveWorldDownloaderBridge,
@@ -77,7 +78,6 @@ const startMessage = ref<string | null>(null);
 const portFree = ref<boolean | null>(null);
 const portMessage = ref<string | null>(null);
 const savedJustNow = ref(false);
-const tokenInput = ref("");
 const log = ref<string[]>([]);
 const logQuery = ref("");
 const logRegex = ref(false);
@@ -169,12 +169,11 @@ async function ensureJar(): Promise<void> {
     }
 }
 
-async function saveToken(): Promise<void> {
-    if (bridge.value === null || tokenInput.value === "") return;
+async function openTokenIntake(): Promise<void> {
+    if (bridge.value === null) return;
     busy.value = "token";
     try {
-        await bridge.value.saveToken(tokenInput.value);
-        tokenInput.value = "";
+        await bridge.value.openTokenIntake();
         await refreshStatus();
     } finally {
         busy.value = "none";
@@ -351,9 +350,12 @@ const phaseLabel = computed<string | null>(() => {
                         persistent-hint
                         data-test="world-downloader-server-field"
                     />
-                    <VTextField
+                    <PathField
                         v-model="settings.outputFolder"
+                        field="the folder to save the world into"
+                        semantic="folder"
                         :label="t('worldDownloader.settings.outputFolder', 'Save the world to')"
+                        density="compact"
                         data-test="world-downloader-output-field"
                     />
                     <VTextField
@@ -393,20 +395,22 @@ const phaseLabel = computed<string | null>(() => {
                                     : t("worldDownloader.settings.tokenNotHeld", "No token is held.")
                             }}
                         </p>
-                        <VTextField
-                            v-model="tokenInput"
-                            type="password"
-                            :label="t('worldDownloader.settings.token', 'Access token')"
-                            data-test="world-downloader-token-field"
-                        />
+                        <p>
+                            {{
+                                t(
+                                    "worldDownloader.settings.tokenIntakeExplain",
+                                    "The token is typed into its own window, and this screen never sees the value.",
+                                )
+                            }}
+                        </p>
                         <div class="mb-status-row">
                             <VBtn
                                 :loading="busy === 'token'"
-                                :disabled="busy !== 'none' || tokenInput === ''"
-                                data-test="world-downloader-save-token"
-                                @click="saveToken"
+                                :disabled="busy !== 'none'"
+                                data-test="world-downloader-open-token-intake"
+                                @click="openTokenIntake"
                             >
-                                {{ t("worldDownloader.settings.saveToken", "Save token") }}
+                                {{ t("worldDownloader.settings.openTokenIntake", "Add access token") }}
                             </VBtn>
                             <VBtn
                                 :loading="busy === 'token'"

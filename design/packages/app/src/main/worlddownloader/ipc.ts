@@ -21,11 +21,13 @@
  *
  * ## What never crosses this bridge
  *
- * The access token. `worlddownloader:saveToken` takes one in and `worlddownloader:clearToken`
- * removes it; nothing here ever sends one back out. `worlddownloader:status` carries the secret
- * *status* - held or not, and since when - and `worlddownloader:start` fetches the token from the
- * credential store inside this process and hands it straight to the spawn. A renderer that wanted
- * to display the token would have nowhere to ask for it.
+ * The access token. `worlddownloader:openTokenIntake` opens a separate main-process-owned
+ * window (see `tokenIntakeWindow.ts`) where the token is typed; this channel itself never
+ * receives one as an argument, and `worlddownloader:clearToken` removes whatever is held.
+ * `worlddownloader:status` carries the secret *status* - held or not, and since when - and
+ * `worlddownloader:start` fetches the token from the credential store inside this process and
+ * hands it straight to the spawn. A renderer that wanted to display the token, or to send one in
+ * over this bridge, would have nowhere to do either.
  */
 
 import { createServer } from "node:net";
@@ -66,7 +68,7 @@ export const DOWNLOADER_CHANNELS = [
     "worlddownloader:testConnection",
     "worlddownloader:start",
     "worlddownloader:stop",
-    "worlddownloader:saveToken",
+    "worlddownloader:openTokenIntake",
     "worlddownloader:clearToken",
     "worlddownloader:countChunks",
     "worlddownloader:portFree",
@@ -190,6 +192,12 @@ export interface DownloaderIpcOptions {
     readonly createProbeServer?: PortProbeFactory;
     /** Injected so a test never walks a real world folder. */
     readonly countChunks?: CountDownloaderChunks;
+    /**
+     * Opens the token intake window and resolves the token typed there, or null when the window
+     * was cancelled or closed. Injected so a test never opens a real Electron window, and so this
+     * module keeps importing Electron only as a type - see the module doc comment.
+     */
+    readonly openTokenIntake?: (event: IpcMainInvokeEvent) => Promise<string | null>;
 }
 
 export interface DownloaderIpc {
@@ -605,13 +613,23 @@ export function registerDownloaderHandlers(
     });
 
     ipcMain.handle(
-        "worlddownloader:saveToken",
-        (_event: IpcMainInvokeEvent, token: unknown): DownloaderTokenAnswer => {
-            if (typeof token !== "string") {
+        "worlddownloader:openTokenIntake",
+        async (event: IpcMainInvokeEvent): Promise<DownloaderTokenAnswer> => {
+            const openIntake = options.openTokenIntake;
+            if (openIntake === undefined) {
                 return {
                     ok: false,
-                    message: "No token was received, so nothing was saved.",
+                    message: "This build has no way to open the token entry window, so nothing was saved.",
                 };
+            }
+            let token: string | null;
+            try {
+                token = await openIntake(event);
+            } catch {
+                token = null;
+            }
+            if (token === null) {
+                return { ok: false, message: "No token was entered, so nothing was saved." };
             }
             try {
                 return secrets.save(token);

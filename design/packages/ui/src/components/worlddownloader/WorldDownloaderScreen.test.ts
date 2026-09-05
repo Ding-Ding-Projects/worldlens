@@ -98,7 +98,7 @@ function fakeBridge(overrides: Partial<WorldDownloaderBridge> = {}): WorldDownlo
     }));
     const start = vi.fn<WorldDownloaderBridge["start"]>(async () => ({ ok: true, sessionId: "s1" }));
     const stop = vi.fn<WorldDownloaderBridge["stop"]>(async () => true);
-    const saveToken = vi.fn<WorldDownloaderBridge["saveToken"]>(async () => ({ ok: true }));
+    const openTokenIntake = vi.fn<WorldDownloaderBridge["openTokenIntake"]>(async () => ({ ok: true }));
     const clearToken = vi.fn<WorldDownloaderBridge["clearToken"]>(async () => true);
     const countChunks = vi.fn<WorldDownloaderBridge["countChunks"]>(async () => ({
         ok: true,
@@ -125,7 +125,7 @@ function fakeBridge(overrides: Partial<WorldDownloaderBridge> = {}): WorldDownlo
         testConnection,
         start,
         stop,
-        saveToken,
+        openTokenIntake,
         clearToken,
         countChunks,
         portFree,
