@@ -173,14 +173,16 @@ export function installChunkerActionsIpc(options: Options): { dispose(): Promise
             const api = await transport(r, controller.signal);
             const repository = await api.readRepository(r.owner, r.repo);
             if (!repository.canWrite) throw new Error("The selected account cannot write to this repository.");
-            if (!r.acknowledgeUpload || (!repository.private && !r.acknowledgePublic)) throw new Error("Confirm the world upload and public visibility before starting.");
-            const recipe = await api.readFile(r.owner, r.repo, `.github/workflows/${CHUNK_WORKFLOW_FILE}`);
-            if (!recipe || !Buffer.from(recipe.contentBase64, "base64").toString("utf8").includes("chunker-config:")) throw new Error("Prepare this repository with the complete Chunker workflow before uploading.");
             // "release-asset" with no externalWorld means this app uploads the local worldFolder itself, into
             // the destination repository, exactly as it always has. Any other source - or an explicit
             // external reference even for "release-asset" - bypasses the upload entirely and dispatches
             // straight against whatever the user pointed the workflow's own `world`/`world-repository` at.
             const usesOwnUpload = r.worldSource === "release-asset" && r.externalWorld === "";
+            // Consent covers this app uploading the world into the repository. A dispatch against a URL or an
+            // existing artifact uploads nothing, and the panel hides both switches in that case.
+            if (usesOwnUpload && (!r.acknowledgeUpload || (!repository.private && !r.acknowledgePublic))) throw new Error("Confirm the world upload and public visibility before starting.");
+            const recipe = await api.readFile(r.owner, r.repo, `.github/workflows/${CHUNK_WORKFLOW_FILE}`);
+            if (!recipe || !Buffer.from(recipe.contentBase64, "base64").toString("utf8").includes("chunker-config:")) throw new Error("Prepare this repository with the complete Chunker workflow before uploading.");
             if (usesOwnUpload) {
                 if (!record.world) {
                     record.state = "uploading";
