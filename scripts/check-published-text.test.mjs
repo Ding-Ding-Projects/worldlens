@@ -6,11 +6,21 @@
 
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { matcher, readTerms, scan, termsCandidates } from "./check-published-text.mjs";
+import {
+  OVERRIDES_PATH,
+  matcher,
+  readTerms,
+  scan,
+  scanOverrides,
+  termsCandidates,
+} from "./check-published-text.mjs";
+
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 function scratch() {
   return mkdtempSync(join(tmpdir(), "published-text-"));
@@ -168,6 +178,92 @@ test("walks a directory and skips node_modules and dot directories", () => {
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("scans an overrides file by decoded field, naming the commit and the field", () => {
+  const dir = scratch();
+  try {
+    const path = join(dir, "overrides.json");
+    writeFileSync(
+      path,
+      JSON.stringify({
+        aaa1111: { subject: "a clean subject", body: "first line\nthen zorb here" },
+        bbb2222: { subject: "a zorb in the subject", body: "clean body" },
+        ccc3333: { subject: "clean", body: "clean" },
+        ddd4444: { subject: 42, body: null },
+      }),
+    );
+    const hits = scanOverrides(path, ["zorb"]);
+    assert.deepEqual(
+      hits.map((hit) => [hit.where, hit.line, hit.column]),
+      [
+        ["aaa1111 body", 2, 6],
+        ["bbb2222 subject", 1, 3],
+      ],
+    );
+    // A non-string field is skipped rather than crashing the run.
+    assert.ok(!hits.some((hit) => hit.where.startsWith("ddd4444")));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("finds a term a raw line scan of the same JSON would miss", () => {
+  const dir = scratch();
+  try {
+    const path = join(dir, "overrides.json");
+    // A body whose newline immediately precedes the term. In the file on disk that newline
+    // is the two characters backslash and n, so a line scan of the raw bytes reads the `n`
+    // as the character before the term and the word-boundary lookbehind refuses the hit.
+    writeFileSync(path, JSON.stringify({ aaa1111: { body: "a line\nzorb starts the next" } }));
+    assert.deepEqual(scan([path], ["zorb"]), []);
+    assert.deepEqual(
+      scanOverrides(path, ["zorb"]).map((hit) => [hit.where, hit.line, hit.column]),
+      [["aaa1111 body", 2, 1]],
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("survives an absent or unparsable overrides file without a hit", () => {
+  const dir = scratch();
+  try {
+    assert.deepEqual(scanOverrides(join(dir, "absent.json"), ["zorb"]), []);
+    const broken = join(dir, "broken.json");
+    writeFileSync(broken, "{ not json zorb");
+    assert.deepEqual(scanOverrides(broken, ["zorb"]), []);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("this repository's own changelog overrides carry no internal shorthand", () => {
+  // The overrides file is authored by hand precisely so a historical commit can be
+  // published safely, and publicText() copies it verbatim into CHANGELOG.md and the in-app
+  // changelog data. So residue here is published text, and unlike the generated files it is
+  // a one-line edit rather than a history rewrite.
+  //
+  // Skipped where the terms file is not, which is every machine but the maintainer's -- the
+  // same policy the script itself uses, and for the same reason: a check whose normal state
+  // is red is a check everyone learns to scroll past.
+  let terms = null;
+  for (const candidate of termsCandidates()) {
+    const found = readTerms(candidate);
+    if (found !== null) {
+      terms = found;
+      break;
+    }
+  }
+  if (terms === null) return;
+
+  const hits = scanOverrides(join(REPO_ROOT, OVERRIDES_PATH), terms);
+  // The term itself is never in the message: printing it here would put it in a terminal
+  // and a CI log, which is the publication this whole guard exists to prevent.
+  assert.deepEqual(
+    hits.map((hit) => `${OVERRIDES_PATH} ${hit.where} line ${hit.line} column ${hit.column}`),
+    [],
+  );
 });
 
 test("names a candidate path for the terms file without hard-coding one", () => {
