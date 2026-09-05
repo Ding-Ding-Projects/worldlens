@@ -282,20 +282,6 @@ interface OverlayEntry {
 
 const REGISTRY: readonly OverlayEntry[] = [
     {
-        file: "components/config/ConfigRegexBuilder.vue",
-        surface:
-            "Not a menu-owning file: the '<v-menu>' text the sweep matches is inside a CSS " +
-            "comment naming where this card is anchored - the real <v-menu> lives in " +
-            "ConfigSearchField.vue, a few lines away, which already carries its own entry " +
-            "below.",
-        ownVMenu: true,
-        wrapsAppearanceTarget: false,
-        status: "not-applicable",
-        reason:
-            "The matched text is a doc comment, not a real <v-menu> tag; this file owns no " +
-            "menu of its own for the activator/target/persistent mechanism check to examine.",
-    },
-    {
         file: "components/shell/AppRail.vue",
         surface:
             "The rail's own 'More' overflow menu, listing job shortcuts that do not fit the " +
