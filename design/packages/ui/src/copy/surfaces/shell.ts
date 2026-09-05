@@ -423,13 +423,23 @@ export const SHELL_FIXED = {
     /* Catalogue-coverage sweep: these answered nothing, so every language and every
        funny level rendered the English fallback. */
     "rail.host": { en: "Host Server", yue: "寄存伺服器" },
-    "rail.shortcut.cirender": { en: "Der Machine", yue: "雲端渲染" },
+    /*
+     * Dedicated short display labels for the rail's compact shortcut rows - deliberately not
+     * the job's full title (that stays the button's accessible name and tooltip, from
+     * `tabs.page.*` beside these). Material navigation rails use short single-line labels, and
+     * an 80px column genuinely cannot hold "Get a world off a server" on one line at any font
+     * size worth reading - the regression these replace was exactly that: the full label
+     * truncating mid-word behind an ellipsis ("Remo…", "Chun…", "Back…"). At most ~10 Latin
+     * characters or ~4 CJK characters, and never an ellipsis - see
+     * `railShortcutLabels.test.ts`, which enforces both bounds on every entry below.
+     */
+    "rail.shortcut.cirender": { en: "Actions", yue: "操作" },
     "rail.shortcut.dockerHosting": { en: "Docker", yue: "Docker" },
-    "rail.shortcut.remoteHosting": { en: "Remote SSH", yue: "遠端 SSH" },
-    "rail.shortcut.chunker": { en: "Chunker", yue: "轉換" },
+    "rail.shortcut.remoteHosting": { en: "SSH", yue: "SSH" },
+    "rail.shortcut.chunker": { en: "Convert", yue: "轉換" },
     "rail.shortcut.backups": { en: "Backups", yue: "備份" },
-    "rail.shortcut.mcservers": { en: "MC servers", yue: "MC 伺服器" },
-    "rail.shortcut.worldDownloader": { en: "World DL", yue: "世界下載" },
+    "rail.shortcut.mcservers": { en: "Servers", yue: "伺服器" },
+    "rail.shortcut.worldDownloader": { en: "Downloader", yue: "下載器" },
     "rail.more": { en: "More", yue: "更多" },
     "rail.moreShortcuts": { en: "More shortcuts ({count})", yue: "更多捷徑（{count}）" },
     "rail.moreShortcuts.title": { en: "More shortcuts", yue: "更多捷徑" },
