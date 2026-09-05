@@ -926,7 +926,7 @@ const RAIL_JOB_SHORTCUT_IDS = [
  * A real `computed()`, not a plain object literal - `t()` evaluated once at module setup
  * time bakes in whatever the catalogue happened to answer (or its fallback, if messages had
  * not finished loading yet) forever, with no way to pick up a later catalogue change. This is
- * exactly how a real running build kept rendering "Der Machine", "Remote SSH" and "Chunker"
+ * exactly how a real running build kept rendering "GitHub Actions", "Remote SSH" and "Chunker"
  * after shell.ts's own catalogue values had already changed to "Actions", "SSH" and "Convert" -
  * found only by inspecting the live app, not by reading source. The fallback strings below are
  * kept in step with shell.ts's current values on principle, but the reactive `computed()` is

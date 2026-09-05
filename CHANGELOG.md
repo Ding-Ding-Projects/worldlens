@@ -20,6 +20,20 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+_No changes have been committed since `v1.0.2022`._
+
+## 1.0.2022 - 2026-09-05
+
+Tagged at [`f04e46c070`](https://github.com/Ding-Ding-Projects/worldlens/commit/f04e46c0704e498e11828d80df147c89cbfbd6f2).
+
+### Documentation
+
+- Record that the fetch-elsewhere card registers a foreign render in the packaged build - [`f04e46c070`](https://github.com/Ding-Ding-Projects/worldlens/commit/f04e46c0704e498e11828d80df147c89cbfbd6f2)
+
+## 1.0.2020 - 2026-09-05
+
+Tagged at [`00a9dbd733`](https://github.com/Ding-Ding-Projects/worldlens/commit/00a9dbd73335b3c940342b30a87f441886a6a2ff).
+
 ### Documentation
 
 - Record the clean 10 GB Chunker round trip and keep its evidence file - [`00a9dbd733`](https://github.com/Ding-Ding-Projects/worldlens/commit/00a9dbd73335b3c940342b30a87f441886a6a2ff)
@@ -122,7 +136,7 @@ Tagged at [`40680d795a`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 - Give the rail shortcuts, without lying about what four means - [`d72cecc430`](https://github.com/Ding-Ding-Projects/worldlens/commit/d72cecc430a480ef62fc323a9f19197e740fcceb)
 - Actually reach the world downloader from the shell, and type the fakes properly - [`4f4e0cc742`](https://github.com/Ding-Ding-Projects/worldlens/commit/4f4e0cc74298fbfadd7975fe9a488b2283bb6750)
 - Merge commit '400fc284' into integrate/puppies - [`ee2a61f523`](https://github.com/Ding-Ding-Projects/worldlens/commit/ee2a61f523bcd9227f00fa5e9e2ebfa6d46059a7) _(summary of 2 commits, also listed here)_
-- Real M3 card group anatomy for Settings, plus a genuine narrow-window Cheap Jor found and fixed - [`400fc28449`](https://github.com/Ding-Ding-Projects/worldlens/commit/400fc2844941e887ee379f7da782ad595ffc9f53)
+- Real M3 card group anatomy for Settings, plus a genuine narrow-window Clipping found and fixed - [`400fc28449`](https://github.com/Ding-Ding-Projects/worldlens/commit/400fc2844941e887ee379f7da782ad595ffc9f53)
 - Merge commit 'e87377ac' into integrate/puppies - [`e5462a9ffb`](https://github.com/Ding-Ding-Projects/worldlens/commit/e5462a9ffb8422d45bb6d90e5b9eae995fcf2ad3) _(summary of 5 commits, also listed here)_
 - Give the world downloader a face: a real MD3 settings screen - [`8835c9b314`](https://github.com/Ding-Ding-Projects/worldlens/commit/8835c9b3141a91f46cfc09aa402272b8d00513dc)
 - Merge commit '1b63fd34' into integrate/puppies - [`5c9dfe6c14`](https://github.com/Ding-Ding-Projects/worldlens/commit/5c9dfe6c1493167d236255488e28c90a791aa2a6) _(summary of 2 commits, also listed here)_
@@ -139,7 +153,7 @@ Tagged at [`40680d795a`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 ### Desktop shell
 
 - Merge commit 'ae00618d' into integrate/puppies - [`586e742903`](https://github.com/Ding-Ding-Projects/worldlens/commit/586e742903ebf967865d335b347f2e27f71d2486) _(summary of 2 commits, also listed here)_
-- Fix three integration-tip poke guys: hosted classification, workflow drift, packaging split - [`ae00618d12`](https://github.com/Ding-Ding-Projects/worldlens/commit/ae00618d1285581214d285bf8e50c23570c1e8a7)
+- Fix three integration-tip defects: hosted classification, workflow drift, packaging split - [`ae00618d12`](https://github.com/Ding-Ding-Projects/worldlens/commit/ae00618d1285581214d285bf8e50c23570c1e8a7)
 - Register the world downloader with the main process, at long last - [`9a5aa19089`](https://github.com/Ding-Ding-Projects/worldlens/commit/9a5aa19089c90ecb14e8119d456a91e1889c6124)
 - Merge commit 'c65df076' into integrate/puppies - [`8e7f0185d3`](https://github.com/Ding-Ding-Projects/worldlens/commit/8e7f0185d38eeb7f5619e47222d3e2a8629e81d1) _(summary of 10 commits, also listed here)_
 - Preserve partial Chunker review fixes - [`d60939076f`](https://github.com/Ding-Ding-Projects/worldlens/commit/d60939076f5626ffb7bb7e6a8f0c093565b6bd2e)
@@ -337,7 +351,7 @@ Tagged at [`59b3b79412`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Interface
 
-- Pure Lang gui on every surface, with the exemptions written down - [`59b3b79412`](https://github.com/Ding-Ding-Projects/worldlens/commit/59b3b79412bde3c04e3bceb51ab604c949e5752b)
+- Pure Material Design 3 on every surface, with the exemptions written down - [`59b3b79412`](https://github.com/Ding-Ding-Projects/worldlens/commit/59b3b79412bde3c04e3bceb51ab604c949e5752b)
 
 ## 1.0.1936 - 2026-09-04
 
@@ -345,7 +359,7 @@ Tagged at [`41970600df`](https://github.com/Ding-Ding-Projects/worldlens/commit/
 
 ### Interface
 
-- Pure Lang gui across every surface, and a guard that will not accept prose - [`41970600df`](https://github.com/Ding-Ding-Projects/worldlens/commit/41970600df414e856bcf1adad1951d00e08c5e3d)
+- Pure Material Design 3 across every surface, and a guard that will not accept prose - [`41970600df`](https://github.com/Ding-Ding-Projects/worldlens/commit/41970600df414e856bcf1adad1951d00e08c5e3d)
 
 ## 1.0.1931 - 2026-09-04
 

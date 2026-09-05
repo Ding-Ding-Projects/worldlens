@@ -22,6 +22,7 @@
         "ui:e2e:lowlevel:check": "node --test ../scripts/worldlens-lowlevel-e2e.test.mjs",
         "workflows:drift": "node ../scripts/check-workflow-drift.mjs",
         "webapp:parity": "node ../scripts/check-webapp-parity.mjs",
+        "check:private-terms": "node ../scripts/check-private-terms.mjs",
         "workflows:drift:list": "node ../scripts/check-workflow-drift.mjs --list",
         "lint": "eslint .",
         "format": "prettier --write .",

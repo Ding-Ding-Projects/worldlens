@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: a table describing which CSS properties the typography editor emits, and the value each carries. It is a specification of behaviour rather than styling applied to anything.
+ * material-exempt: a table describing which CSS properties the typography editor emits, and the value each carries. It is a specification of behaviour rather than styling applied to anything.
  */
 /**
  * The typography half of the appearance editor: what a user can decide about text, and

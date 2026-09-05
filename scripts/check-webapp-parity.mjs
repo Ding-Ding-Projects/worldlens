@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * The Lang gui webapp's completeness inventory.
+ * The Material Design 3 webapp's completeness inventory.
  *
- * The Day Teet Hui has had a hand-written fail-closed inventory for a while. The map's
+ * The GitHub Pages site has had a hand-written fail-closed inventory for a while. The map's
  * webapp had none at all, which meant its whole Material Design 3 layer could have been
  * lost in an upstream merge with nothing going red - and an upstream merge is exactly how
  * it would be lost, because every file it touches is a file upstream also owns.
@@ -129,7 +129,7 @@ function walk(dir) {
 /**
  * Colour that is not a role.
  *
- * Pure Lang gui means every chrome colour comes from the palette, so a hex literal outside
+ * Pure Material Design 3 means every chrome colour comes from the palette, so a hex literal outside
  * the token file is either a colour that ignores the reader's theme or a deliberate
  * exemption. Deliberate exemptions exist and are legitimate - a QR code has to be true
  * dark-on-light to scan, a hue gradient's red *is* the hue - so what this refuses is an
@@ -137,7 +137,7 @@ function walk(dir) {
  * indistinguishable from an oversight, and that is exactly the difference being enforced.
  */
 /** What a line must carry, above it, to be a declared exemption rather than an oversight. */
-const EXEMPT_MARKER = "lang-gui-exempt:";
+const EXEMPT_MARKER = "material-exempt:";
 
 function hardcodedColour(files, skip) {
     const problems = [];
@@ -298,7 +298,7 @@ function main() {
         if (!existsSync(surface.dir)) continue;
         for (const stray of hardcodedColour(walk(surface.dir), surface.skip)) {
             problems.push(
-                `  pure-lang-gui (${surface.id}): a colour that is not a palette role, and is ` +
+                `  pure-material-design (${surface.id}): a colour that is not a palette role, and is ` +
                     "not declared as an exemption\n" +
                     `    ${stray.file}:${String(stray.line)}\n` +
                     `    ${stray.text}\n` +
@@ -310,7 +310,7 @@ function main() {
 
     if (false) {
         problems.push(
-            "  pure-lang-gui: a colour that is not a palette role, and is not declared as an exemption\n" +
+            "  pure-material-design: a colour that is not a palette role, and is not declared as an exemption\n" +
                 `    ${stray.file}:${String(stray.line)}\n` +
                 `    ${stray.text}
 ` +
@@ -321,7 +321,7 @@ function main() {
 
     if (problems.length > 0) {
         process.stderr.write(
-            "The Lang gui webapp has lost part of its Material Design 3 layer:\n\n" +
+            "The Material Design 3 webapp has lost part of its Material Design 3 layer:\n\n" +
                 problems.join("\n\n") +
                 "\n\nThis is what an upstream merge takes away silently, because every file " +
                 "involved is one upstream also owns.\n",

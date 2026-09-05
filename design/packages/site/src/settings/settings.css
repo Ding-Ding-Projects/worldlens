@@ -1072,7 +1072,7 @@
     border: 1px solid var(--md-sys-color-outline-variant);
     border-radius: var(--md-sys-shape-corner-medium, 12px);
     background:
-        /* lang-gui-exempt: the colour field itself. Black-to-transparent over
+        /* material-exempt: the colour field itself. Black-to-transparent over
            white-to-hue is how saturation and value are drawn, so these are axes of the
            control rather than colours chosen for it. */
         linear-gradient(to top, #000, transparent),
@@ -1088,7 +1088,7 @@
     width: 22px;
     height: 22px;
     transform: translate(-50%, -50%);
-    /* lang-gui-exempt: the thumb has to stay visible against every colour a person can
+    /* material-exempt: the thumb has to stay visible against every colour a person can
        pick, including the palette's own. A role would vanish over its own value. */
     border: 2px solid #fff;
     border-radius: 50%;
@@ -1145,7 +1145,7 @@
 .mb-track-hue {
     background: linear-gradient(
         to right,
-        /* lang-gui-exempt: the hue wheel. Red here is the hue red - it is the value being
+        /* material-exempt: the hue wheel. Red here is the hue red - it is the value being
            chosen, not a colour chosen to display it. */
         #f00 0%,
         #ff0 17%,

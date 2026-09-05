@@ -19,7 +19,7 @@ import { JOB_IDS } from "./jobRegistry.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const appSource = readFileSync(resolve(here, "../../App.vue"), "utf8").replace(/\r/g, "");
 
-/** Exactly what was asked for: Der Machine rendering, Docker hosting, SSH remote hosting,
+/** Exactly what was asked for: GitHub Actions rendering, Docker hosting, SSH remote hosting,
  *  Chunker, Backups, Minecraft servers, and the world downloader. */
 const REQUIRED_SHORTCUT_JOB_IDS = [
     "cirender",

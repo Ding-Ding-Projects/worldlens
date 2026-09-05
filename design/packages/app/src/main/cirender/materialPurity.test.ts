@@ -5,7 +5,7 @@
  * desktop interface and the render page, and refuses a colour that is neither a palette role
  * nor an explicitly declared exemption.
  *
- * It runs from the suite for the same reason the workflow-drift check does: Der Machine runs
+ * It runs from the suite for the same reason the workflow-drift check does: GitHub Actions runs
  * no tests and gates nothing, so a check living only in CI would never run at all, and one
  * living only in an npm script would run only when somebody remembered. A guard nobody runs
  * is decoration, and this one exists precisely because the drift it catches is invisible -
@@ -45,7 +45,7 @@ function runPurity(): { ok: boolean; output: string } {
 describe("pure Material Design 3, on every surface", () => {
     it("passes on the repository as it stands", () => {
         const result = runPurity();
-        expect(result.output).not.toMatch(/pure-lang-gui/);
+        expect(result.output).not.toMatch(/pure-material-design/);
         expect(result.ok).toBe(true);
     });
 
@@ -66,13 +66,13 @@ describe("pure Material Design 3, on every surface", () => {
         // Proved by putting one where the guard actually looks, rather than by trusting that
         // it would. The probe file is removed in a finally, so a failure here cannot leave
         // the repository dirty - and it is named distinctively so a stray one is obvious.
-        const probe = join(repoRoot, "design/packages/site/src/theme/lang-gui-purity-probe.css");
+        const probe = join(repoRoot, "design/packages/site/src/theme/material-purity-probe.css");
         try {
-            writeFileSync(probe, ".lang-gui-purity-probe { background: #ff00aa; }\n", "utf8");
+            writeFileSync(probe, ".material-purity-probe { background: #ff00aa; }\n", "utf8");
             const result = runPurity();
             expect(result.ok).toBe(false);
-            expect(result.output).toMatch(/pure-lang-gui/);
-            expect(result.output).toContain("lang-gui-purity-probe.css");
+            expect(result.output).toMatch(/pure-material-design/);
+            expect(result.output).toContain("material-purity-probe.css");
         } finally {
             rmSync(probe, { force: true });
         }
@@ -82,12 +82,12 @@ describe("pure Material Design 3, on every surface", () => {
         // The other half. A guard that refused everything would also pass the test above, and
         // an exemption route that did not work would make the guard unusable rather than
         // strict.
-        const probe = join(repoRoot, "design/packages/site/src/theme/lang-gui-purity-probe.css");
+        const probe = join(repoRoot, "design/packages/site/src/theme/material-purity-probe.css");
         try {
             writeFileSync(
                 probe,
-                "/* lang-gui-exempt: a probe, and not a real surface. */\n" +
-                    ".lang-gui-purity-probe { background: #ff00aa; }\n",
+                "/* material-exempt: a probe, and not a real surface. */\n" +
+                    ".material-purity-probe { background: #ff00aa; }\n",
                 "utf8",
             );
             expect(runPurity().ok).toBe(true);

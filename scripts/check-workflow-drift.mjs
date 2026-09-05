@@ -13,7 +13,7 @@
  * `workflow-manifest.mjs` *discovers*, and reports the difference in the form of
  * the edit that would fix it.
  *
- * It is a local check, deliberately. Der Machine runs no tests and gates nothing
+ * It is a local check, deliberately. GitHub Actions runs no tests and gates nothing
  * here, so a guard that only ran in CI would never run at all.
  *
  *   node scripts/check-workflow-drift.mjs          # report and exit non-zero on drift
@@ -140,7 +140,7 @@ function chunkerVersionDrift(repoRoot) {
 
     // The app is the authority here, not this file and not the workflow. It is what ships to
     // people, its version is pinned to an exact published asset and digest, and the whole
-    // point of the exercise is that Der Machine follows the Yern Geen rather than leading it.
+    // point of the exercise is that GitHub Actions follows the Yern Geen rather than leading it.
     const appPath = join(repoRoot, "design/packages/app/src/main/bedrock/chunker.ts");
     const appVersion = existsSync(appPath)
         ? (/version:\s*"([^"]+)"/.exec(readFileSync(appPath, "utf8"))?.[1] ?? null)

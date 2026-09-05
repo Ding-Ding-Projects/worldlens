@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: the default canvas colour behind a logo somebody is making. Their artwork is not chrome and does not follow the theme.
+ * material-exempt: the default canvas colour behind a logo somebody is making. Their artwork is not chrome and does not follow the theme.
  */
 /**
  * Where the chosen app-logo presentation is kept: which preset or custom mark is active,

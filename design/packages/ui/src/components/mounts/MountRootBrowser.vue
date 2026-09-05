@@ -339,7 +339,7 @@ watch(
  * text-overflow: ellipsis`. `mb-mount-browser__title` was applied to opt the
  * title into its own scoped selector but never actually overrode those three,
  * so a long path or translated title was silently cut off with no ellipsis
- * painted (same Cheap Jor already fixed in DependencyInstallerPanel.vue).
+ * painted (same clipping already fixed in DependencyInstallerPanel.vue).
  */
 .mb-mount-browser__title {
     white-space: normal;

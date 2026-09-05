@@ -96,7 +96,7 @@
     padding: 16px;
     border: 1px solid var(--outv);
     border-radius: 14px;
-    /* lang-gui-exempt: deliberately not themed, and this is the one place on the page
+    /* material-exempt: deliberately not themed, and this is the one place on the page
        where that is true.
        A QR is read by a camera, not by a person, and a scanner needs real dark-on-light
        contrast in both themes. Tinting it into the palette would make it prettier and
@@ -112,7 +112,7 @@
     inline-size: min(280px, 100%);
     block-size: auto;
     margin-block-end: 12px;
-    /* lang-gui-exempt: the quiet zone has to be white for a camera to find the code's
+    /* material-exempt: the quiet zone has to be white for a camera to find the code's
        edges, whatever theme the page is in. */
     background: #fff;
 }

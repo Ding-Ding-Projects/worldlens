@@ -40,7 +40,7 @@ import { nonNegativeInteger } from "./shellNumbers.js";
  * palette's own "open a page" row already does, just anchored where a person's eye already is.
  * Adding shortcuts costs nothing in the destination model; adding a destination would.
  *
- * `jobShortcuts` is that list - Der Machine rendering, Docker hosting, SSH remote hosting,
+ * `jobShortcuts` is that list - GitHub Actions rendering, Docker hosting, SSH remote hosting,
  * Chunker, Backups, Minecraft servers and the world downloader, at the time this was written -
  * and clicking one emits `openJob`, which the shell answers exactly as it answers the palette's
  * own open-page route: switch to Work, ensure the job's tab exists, reveal it. Nothing here
