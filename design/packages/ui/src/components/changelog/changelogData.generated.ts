@@ -24,32 +24,49 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  * the last release" line rather than being hidden, because a missing section and an empty one
  * read very differently to somebody checking whether their fix shipped.
  */
-export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
-    {
-        sha: "b062ee4d67c4fa2a9ef54a1567ebff89157dd1bf",
-        shortSha: "b062ee4d67",
-        date: "2026-09-05T09:21:59-04:00",
-        subject: "Merge commit '450fe89d'",
-        details: "",
-        category: "shell",
-        areas: ["shell", "interface", "docs"],
-        files: 8,
-        summarizes: 2,
-    },
-    {
-        sha: "450fe89dfda7f7f851a6444dcd0d38ae2bed787f",
-        shortSha: "450fe89dfd",
-        date: "2026-09-05T09:21:16-04:00",
-        subject: "Fix attach() forcing a foreign render under this project's own map id",
-        details: "attach() called chooseProjectMap() with no override, so a run made on another\ndevice (project fixture_10gb, run named \"Render fixture_10gb (...)\") was\nsilently registered under whichever map this project's own worldlens.project.json\nhappened to define (\"world\") -- because chooseProjectMap falls back to \"only one\nenabled map, that must be it\" when nothing else matches. The artifact obviously\nhad no maps/world folder, so collect.ts refused with \"artifact-not-a-map\" for a\nreason that had nothing to do with the artifact being broken.\n\nattach() now reads the run's own display title via readRun() before touching\nthe local project at all, and resolves the map id in order: an explicit\noverride, then the run's own parsed title, then (only when neither exists) the\nlocal project's map exactly as before. sync()'s own resume path no longer\nre-derives the map through chooseProjectMap on a resumed/attached sync either --\nit trusts the sync's own prior record, which is the only thing that can name a\nforeign map correctly.\n\ncollect.ts gained a second, independent safety net: when the requested map id\nis not in the unpacked artifact but exactly one other valid map is, it registers\nunder that one instead of refusing; when there is more than one and none match,\nit refuses by naming every candidate rather than guessing. The UI card gained an\neditable \"Register as map\" field, prefilled from the run's own title, so a wrong\nor missing guess can be corrected before fetching.\n\n个 attach() 冚唪唥都靠 chooseProjectMap() 度嗰句「淨係得一个 enabled map，实系佢\n喇」乱咁估，所以第二部机 render 嘅嘢一落嚟就即刻被逼变成呢个 project 自己嗰个\nmap id -- 个 run 明明叫紧 fixture_10gb，个 project 剩系识\"world\"，个 artifact\n入面梗系冇 maps/world 嗰个夹,然之後个拒絕仲要净系識講\"唔系张地图\",完全冇讲到\n点解。而家 attach() 会先读返个 run 自己个 display title,先至考虑用邊個 map id;\nsync() 嘅 resume 路径亦都唔再靠 chooseProjectMap 乱咁重新估个 map,净系信返之前\n写低嘅纪录。collect.ts 仲加咗一重保险:解压咗嘅 artifact 入面剩系有一个有效\nmap 嗰阵,直接登记做嗰一个,唔使拒绝;有多过一个又冇一个啱嗰阵,就逐个讲晒搵到\n嘅比人揀。UI 张卡度加咗个\"登记做边个地图\"嘅栏,可以自己改返啱。",
-        category: "shell",
-        areas: ["shell", "interface", "docs"],
-        files: 8,
-    }
-];
+export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "1.0.2018",
+        tag: "v1.0.2018",
+        date: "2026-09-05T09:25:17-04:00",
+        commit: "ac1f8f2727c83ba1f41fd861ed98e121e36c4414",
+        entries: [
+            {
+                sha: "ac1f8f2727c83ba1f41fd861ed98e121e36c4414",
+                shortSha: "ac1f8f2727",
+                date: "2026-09-05T09:25:17-04:00",
+                subject: "Record the attach map-id fix in the handoff, roadmap and changelog",
+                details: "Clicking the real card in the real build found the one thing the tests could\nnot: attach trusted the local project's map name over the render's own. The\nrecord says what was clicked, what refused, what changed, and what is still\nunproven.\n\n喺正式安裝版㩒真嘅掣先捉到測試捉唔到嘅嘢：attach 信本機 project 個地圖名多過\nrender 自己個名。記低咗㩒咗乜、邊步拒絕、改咗乜、仲有乜未證。",
+                category: "docs",
+                areas: ["docs", "interface"],
+                files: 4,
+            },
+            {
+                sha: "b062ee4d67c4fa2a9ef54a1567ebff89157dd1bf",
+                shortSha: "b062ee4d67",
+                date: "2026-09-05T09:21:59-04:00",
+                subject: "Merge commit '450fe89d'",
+                details: "",
+                category: "shell",
+                areas: ["shell", "interface", "docs"],
+                files: 8,
+                summarizes: 2,
+            },
+            {
+                sha: "450fe89dfda7f7f851a6444dcd0d38ae2bed787f",
+                shortSha: "450fe89dfd",
+                date: "2026-09-05T09:21:16-04:00",
+                subject: "Fix attach() forcing a foreign render under this project's own map id",
+                details: "attach() called chooseProjectMap() with no override, so a run made on another\ndevice (project fixture_10gb, run named \"Render fixture_10gb (...)\") was\nsilently registered under whichever map this project's own worldlens.project.json\nhappened to define (\"world\") -- because chooseProjectMap falls back to \"only one\nenabled map, that must be it\" when nothing else matches. The artifact obviously\nhad no maps/world folder, so collect.ts refused with \"artifact-not-a-map\" for a\nreason that had nothing to do with the artifact being broken.\n\nattach() now reads the run's own display title via readRun() before touching\nthe local project at all, and resolves the map id in order: an explicit\noverride, then the run's own parsed title, then (only when neither exists) the\nlocal project's map exactly as before. sync()'s own resume path no longer\nre-derives the map through chooseProjectMap on a resumed/attached sync either --\nit trusts the sync's own prior record, which is the only thing that can name a\nforeign map correctly.\n\ncollect.ts gained a second, independent safety net: when the requested map id\nis not in the unpacked artifact but exactly one other valid map is, it registers\nunder that one instead of refusing; when there is more than one and none match,\nit refuses by naming every candidate rather than guessing. The UI card gained an\neditable \"Register as map\" field, prefilled from the run's own title, so a wrong\nor missing guess can be corrected before fetching.\n\n个 attach() 冚唪唥都靠 chooseProjectMap() 度嗰句「淨係得一个 enabled map，实系佢\n喇」乱咁估，所以第二部机 render 嘅嘢一落嚟就即刻被逼变成呢个 project 自己嗰个\nmap id -- 个 run 明明叫紧 fixture_10gb，个 project 剩系识\"world\"，个 artifact\n入面梗系冇 maps/world 嗰个夹,然之後个拒絕仲要净系識講\"唔系张地图\",完全冇讲到\n点解。而家 attach() 会先读返个 run 自己个 display title,先至考虑用邊個 map id;\nsync() 嘅 resume 路径亦都唔再靠 chooseProjectMap 乱咁重新估个 map,净系信返之前\n写低嘅纪录。collect.ts 仲加咗一重保险:解压咗嘅 artifact 入面剩系有一个有效\nmap 嗰阵,直接登记做嗰一个,唔使拒绝;有多过一个又冇一个啱嗰阵,就逐个讲晒搵到\n嘅比人揀。UI 张卡度加咗个\"登记做边个地图\"嘅栏,可以自己改返啱。",
+                category: "shell",
+                areas: ["shell", "interface", "docs"],
+                files: 8,
+            }
+        ],
+    },
     {
         version: "1.0.2016",
         tag: "v1.0.2016",

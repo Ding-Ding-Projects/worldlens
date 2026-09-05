@@ -20,10 +20,20 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+_No changes have been committed since `v1.0.2018`._
+
+## 1.0.2018 - 2026-09-05
+
+Tagged at [`ac1f8f2727`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac1f8f2727c83ba1f41fd861ed98e121e36c4414).
+
 ### Desktop shell
 
 - Merge commit '450fe89d' - [`b062ee4d67`](https://github.com/Ding-Ding-Projects/worldlens/commit/b062ee4d67c4fa2a9ef54a1567ebff89157dd1bf) _(summary of 2 commits, also listed here)_
 - Fix attach() forcing a foreign render under this project's own map id - [`450fe89dfd`](https://github.com/Ding-Ding-Projects/worldlens/commit/450fe89dfda7f7f851a6444dcd0d38ae2bed787f)
+
+### Documentation
+
+- Record the attach map-id fix in the handoff, roadmap and changelog - [`ac1f8f2727`](https://github.com/Ding-Ding-Projects/worldlens/commit/ac1f8f2727c83ba1f41fd861ed98e121e36c4414)
 
 ## 1.0.2016 - 2026-09-05
 
