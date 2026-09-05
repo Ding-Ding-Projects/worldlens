@@ -329,6 +329,16 @@ the unpack are the download subsystem's own. The credential comes from the app's
 session. The map is mounted by the render subsystem, so it appears in the map list beside
 every local render and the viewer cannot tell the two apart.
 
+A world large enough to need more than one merge group publishes its map as `map-lowres`
+plus one `partial-hires-N` per group instead of the single `rendered-map` artifact (see
+["Two waves, one merge"](#two-waves-one-merge) above). The app's fetch step recognises both
+shapes: it lists the run's artifacts, and when there is no `rendered-map` but there is a
+`map-lowres`, it downloads and verifies `map-lowres` and every `partial-hires-N` the same way
+it verifies a single artifact, then unpacks `map-lowres` first and each `partial-hires-N` into
+`maps/<id>/tiles/0/` inside it - the exact assembly the run's own summary tells a person to do
+by hand. So the manual instructions on the run page and what the app does when you click
+"fetch" are the same operation; the app just does it for you and verifies every part first.
+
 ### What it refuses, and why each refusal exists
 
 | Refusal                             | Why                                                                                                                                                               |
@@ -338,7 +348,7 @@ every local render and the viewer cannot tell the two apart.
 | `upload-not-acknowledged`           | Uploading a world sends it to GitHub, and that is said in as many words before it happens rather than after.                                                      |
 | `world-too-large`                   | The archive would pass a release asset's 2 GiB limit. Refused **before** anything is packed, from the folder's own byte total.                                    |
 | `unsupported-dimension`             | The project's map renders a dimension the workflow's `dimension` choice does not offer. Caught here rather than as GitHub's generic 422.                          |
-| `map-shipped-in-parts`              | The run published `map-lowres` plus hires parts. Unpacking the lowres alone gives a map that loads and has no detail at any zoom, which reads as a broken render. |
+| `map-parts-incomplete`              | The run published `map-lowres` plus hires parts, but the parts do not form a complete, contiguous set. Assembling around a gap would give a map that loads with a hole in its detail rather than the missing download it actually is. |
 | `run-failure`, `run-timed_out`, ... | The run ended badly. The failing job is named and the tail of its log is carried back, and **no map is downloaded or registered**.                                |
 
 ### An unchanged world is not uploaded twice
@@ -887,8 +897,11 @@ world: it exercised no mods, no custom resource pack, and one flat generated ter
   2 GiB per asset — refused before packing rather than discovered after an hour of it. A
   larger world can still be rendered by this workflow through the `repository` or `url`
   sources, or dimension by dimension.
-- **The app collects only the single `rendered-map` artifact.** A map that shipped in parts
-  is refused with the artifacts named, and assembled by hand from the run summary.
+- **The app assembles a map that shipped in parts.** A world too large for one runner
+  downloads and verifies `map-lowres` plus every `partial-hires-N`, then unpacks them into
+  one tree exactly as the run summary's own instructions describe. A part that is missing,
+  expired or fails its digest is still refused with the artifacts named, rather than
+  assembled around the gap.
 - **Cancelling a sync in the app stops watching the run, not the run.** A render already
   going on GitHub carries on there, and a later sync can still collect it.
 
@@ -1040,7 +1053,7 @@ upload the world  ->  start the workflow  ->  follow the run  ->  fetch the map 
 
 ### 佢會拒絕啲乜，同埋點解每個拒絕都存在
 
-`eula-not-accepted`：呢部電腦未接受過 Mojang 嘅授權；app 唔會代人接受，佢會指向本來就有問嘅嗰個設定。`public-not-acknowledged`：個 repository 係 PUBLIC 而個警告未被接受 —— 一個世界載住啲建築、座標，同埋朋友喺個箱度剩低嘅所有嘢。`upload-not-acknowledged`：上傳一個世界即係將佢送去 GitHub，呢句要喺事前講清楚，唔係事後先講。`world-too-large`：打包出嚟會過 release asset 嘅 2 GiB 上限，係喺**打包之前**就用 folder 自己嘅 byte 總數拒絕。`unsupported-dimension`：project 嘅地圖 render 嘅 dimension 唔喺 workflow 個 `dimension` 選項入面，喺呢度攔截好過收到 GitHub 一個籠統嘅 422。`map-shipped-in-parts`：個 run 發佈咗 `map-lowres` 加啲 hires 部件；淨係解壓 lowres 會得到一幅載得到、但任何 zoom 都冇細節嘅地圖，睇落就好似 render 壞咗。`run-failure`、`run-timed_out` 等等：個 run 收得唔好，佢會講出邊個 job 失敗、將嗰個 job 嘅 log 尾段帶返嚟，而且**唔會下載或者註冊任何地圖**。
+`eula-not-accepted`：呢部電腦未接受過 Mojang 嘅授權；app 唔會代人接受，佢會指向本來就有問嘅嗰個設定。`public-not-acknowledged`：個 repository 係 PUBLIC 而個警告未被接受 —— 一個世界載住啲建築、座標，同埋朋友喺個箱度剩低嘅所有嘢。`upload-not-acknowledged`：上傳一個世界即係將佢送去 GitHub，呢句要喺事前講清楚，唔係事後先講。`world-too-large`：打包出嚟會過 release asset 嘅 2 GiB 上限，係喺**打包之前**就用 folder 自己嘅 byte 總數拒絕。`unsupported-dimension`：project 嘅地圖 render 嘅 dimension 唔喺 workflow 個 `dimension` 選項入面，喺呢度攔截好過收到 GitHub 一個籠統嘅 422。`map-parts-incomplete`：個 run 發佈咗 `map-lowres` 加 hires 部件，但啲部件砌唔返一個完整、連續嘅集合。圍住個窿砌落去會得到一幅有部分冇細節嘅地圖，而唔係佢實際係嘅「未攞齊」。`run-failure`、`run-timed_out` 等等：個 run 收得唔好，佢會講出邊個 job 失敗、將嗰個 job 嘅 log 尾段帶返嚟，而且**唔會下載或者註冊任何地圖**。
 
 ### 冇改過嘅世界唔會上傳兩次
 
@@ -1339,7 +1352,7 @@ lod3:  pixels=1004004 colorDiff=0 metaDiff=0
 - **Merge 係單執行緒 Node。** 喺一幅好大嘅地圖上面，lod 重砌係慢嗰部分；佢同 lod-1 tile 數量成正比，唔係同 hires tile 數量成正比。
 - **`rstate` 唔會 merge**，所以之後對 merge 完嗰幅地圖做增量 render 會全部重新 render。
 - **App 嘅 CI sync 係當一個 release asset 送個世界出去**，所以佢嘅天花板就係 GitHub 每個 asset 2 GiB —— 喺打包之前就拒絕，而唔係打咗一個鐘之後先發現。更大嘅世界仲可以經 `repository` 或者 `url` source 用呢個 workflow render，或者逐個 dimension 咁 render。
-- **App 淨係收 `rendered-map` 嗰一個 artifact。** 分咗幾份交付嘅地圖會被拒絕、並列出啲 artifact 名，要靠 run summary 手動砌返。
+- **App 而家識砌返分咗幾份交付嘅地圖。** 一個世界太大俾一部 runner 砌嘅話，app 會落載並核實 `map-lowres`加埋每一個 `partial-hires-N`，然後照住 run summary 嘅講法將佢哋砌埋做一棵樹。如果有部件唔見咗、過期咗，或者過唔到 digest 核實，都仲係會拒絕並列出啲 artifact 名，而唔會圍住個窿砌落去。
 - **喺 app 度取消一次 sync 係停止睇住個 run，唔係停個 run。** 已經喺 GitHub 度行緊嘅 render 會繼續喺嗰邊行，之後一次 sync 仲可以收返佢。
 
 ### 喺本機行各個部件

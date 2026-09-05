@@ -1941,7 +1941,12 @@ describe("a successful run comes back as a map in the list", () => {
         expect(mounts.getMounts()).toHaveLength(0);
     });
 
-    it("refuses a map that shipped in parts rather than half-unpacking it", async () => {
+    it("refuses a map shipped in parts with a gap, rather than assembling around it", async () => {
+        // Was: unconditionally refused every multi-group render, even a complete one -
+        // see collect.test.ts for the positive case this defect fix now makes possible.
+        // What must still be refused is a genuinely incomplete part set: here
+        // partial-hires-1 never got published, so index 1 is a real gap rather than a
+        // reachable part this computer merely has not fetched yet.
         const github = releaseRoute(baseRoutes(new RecordingGitHub()))
             .on("GET", /\/actions\/runs\/7$/, {
                 status: 200,
@@ -1954,7 +1959,7 @@ describe("a successful run comes back as a map in the list", () => {
                     artifacts: [
                         artifactJson({ id: 9, name: "map-lowres", bytes: 10 }),
                         artifactJson({ id: 10, name: "partial-hires-0", bytes: 10 }),
-                        artifactJson({ id: 11, name: "partial-hires-1", bytes: 10 }),
+                        artifactJson({ id: 11, name: "partial-hires-2", bytes: 10 }),
                     ],
                 },
             });
@@ -1966,8 +1971,8 @@ describe("a successful run comes back as a map in the list", () => {
 
         expect(result.ok).toBe(false);
         if (result.ok) return;
-        expect(result.failure.code).toBe("map-shipped-in-parts");
-        expect(result.failure.message).toContain("partial-hires-0");
+        expect(result.failure.code).toBe("map-parts-incomplete");
+        expect(result.failure.message).toContain("partial-hires-1");
         expect(mounts.getMounts()).toHaveLength(0);
         expect(github.never("/zip")).toBe(true);
     });
