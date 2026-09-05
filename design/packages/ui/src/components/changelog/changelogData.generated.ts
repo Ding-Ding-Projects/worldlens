@@ -26,19 +26,48 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  */
 export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
     {
-        sha: "c50be6fc2681f64da011ec70e5c2737f78953d83",
-        shortSha: "c50be6fc26",
-        date: "2026-09-05T03:15:50-04:00",
-        subject: "Gate the Chunker Actions screen's copy in the coverage test",
-        details: "Add components/chunker to catalogueCoverage.test.ts's COVERED_SURFACES\nso its keys stop being invisible to the guard, and voice the two keys\nthat were missing a catalogue entry (chunker.boundsBackwards,\nchunker.optionsPreview in ChunkerScreen.vue), both plain facts with no\nfunny-level variation.\n\n加返 Chunker Actions 呢版嘅文案入去覆蓋率測試度，之前成塊都漏晒喺\nguard 出面。原本兩個 key 冇註冊，宜家補晒，個 gate 由紅變返綠。",
-        category: "interface",
-        areas: ["interface"],
-        files: 2,
+        sha: "010ac695941ad2598c8072dc537d066772e6fdcd",
+        shortSha: "010ac69594",
+        date: "2026-09-05T05:29:29-04:00",
+        subject: "Merge commit 'ef213554'",
+        details: "",
+        category: "shell",
+        areas: ["shell", "interface", "other", "build", "docs"],
+        files: 21,
+        summarizes: 2,
+    },
+    {
+        sha: "ef2135548a392052bcab5cc1edcc845dbfe12a55",
+        shortSha: "ef2135548a",
+        date: "2026-09-05T05:29:00-04:00",
+        subject: "Fetch a completed render this app never dispatched itself; 收返一個唔係自己 dispatch 嘅 render",
+        details: "A second device, or a reinstall, has no local sync.json for a run somebody else started,\nso the app had genuinely no path onto a finished render it never dispatched itself -\ntoday's whole proof for this had to be done by hand-editing a sync record on disk. This\nadds \"Fetch a render made elsewhere\" on the Cloud Render screen: pick the repository,\nlist what render-world.yml has already finished there, select a run and fetch it through\nthe exact same collect/verify/mount path a resumed sync already uses.\n\n- actions.ts/transport.ts: list completed workflow runs; parse the map id back out of the\n  run's own display title, which render-world.yml now sets via `run-name` (template\n  version bumped to 6, since older repositories need the new workflow to get it).\n- sync.ts: attach()/listAttachableRuns() write a \"dispatched\" record for a run this\n  computer never uploaded anything for, then reuse #finishRecordedRun unchanged. Its old\n  guard refused to resume without a release tag and asset name - fine for reusing an\n  upload, dead weight for collecting one, so it now only requires the run id.\n  CiSyncSummary.releaseTag/assetName become nullable to say so honestly instead of\n  inventing a release nobody can point to.\n- ipc.ts/bridge: two new channels, wired straight through to the renderer.\n- CiRenderScreen.vue: a new card reusing the existing owner/repo fields, a searchable run\n  list with the project's regex builder, and a confirm-and-fetch button.\n- Bilingual copy, English + Cantonese docs mirror, and tests for all of the above -\n  including watching one new test go red with the handler disabled, then green again.\n\n一部第二嘅機，或者重裝過嘅呢部機，本身就冇第二個人開始嗰個 run 嘅 sync.json，所以呢個 app\n根本冇路捉到一個自己冇 dispatch 過嘅已完成 render —— 今日成個證明都要靠人手改 sync 紀錄先做到。\n而家 Cloud Render 畫面加咗「攞返一個喺第度做嘅 render」：揀 repository、列出\nrender-world.yml 已完成嘅嘢、揀一個、用同 resume 一樣嘅收圖/驗證/掛載路徑攞返嚟。",
+        category: "shell",
+        areas: ["shell", "interface", "other", "build", "docs"],
+        files: 21,
     }
 ];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "1.0.2012",
+        tag: "v1.0.2012",
+        date: "2026-09-05T03:37:26-04:00",
+        commit: "7d98e1814738672ffa86724bae4c62c60d4adc54",
+        entries: [
+            {
+                sha: "c50be6fc2681f64da011ec70e5c2737f78953d83",
+                shortSha: "c50be6fc26",
+                date: "2026-09-05T03:15:50-04:00",
+                subject: "Gate the Chunker Actions screen's copy in the coverage test",
+                details: "Add components/chunker to catalogueCoverage.test.ts's COVERED_SURFACES\nso its keys stop being invisible to the guard, and voice the two keys\nthat were missing a catalogue entry (chunker.boundsBackwards,\nchunker.optionsPreview in ChunkerScreen.vue), both plain facts with no\nfunny-level variation.\n\n加返 Chunker Actions 呢版嘅文案入去覆蓋率測試度，之前成塊都漏晒喺\nguard 出面。原本兩個 key 冇註冊，宜家補晒，個 gate 由紅變返綠。",
+                category: "interface",
+                areas: ["interface"],
+                files: 2,
+            }
+        ],
+    },
     {
         version: "1.0.2010",
         tag: "v1.0.2010",

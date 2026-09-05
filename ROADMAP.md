@@ -4,8 +4,10 @@
 
 - [x] Chunker Actions screen exposes all ten `chunk-world.yml` dispatch inputs, guarded by `scripts/check-chunker-ui-inventory.mjs` (`28294f9d`).
 - [x] App downloads and assembles multi-group renders (`map-lowres` + `partial-hires-N`) instead of refusing them (`545b74e3`).
-- [ ] Exercise the multi-group fetch from the built app against a live multi-group run.
-- [ ] Add the chunker copy surface to the copy coverage gate.
+- [x] Exercise the multi-group fetch from the built app against a live multi-group run (v1.0.2012, run 33941015721, 17.5 GB, verified: true).
+- [x] Cloud Render screen: fetch a finished render from a run this device did not dispatch (`ef213554`).
+- [ ] Drive the "fetch a render made elsewhere" card in the built app against a live run.
+- [x] Add the chunker copy surface to the copy coverage gate (`c50be6fc`).
 
 - [ ] Refresh the four stale capture-evidence groups (`app-playwright-manifest`, `app-playwright-map-dependent`, `lowlevel-ui-e2e`, `hosted-deployment`) against the current interface digest and record the new `uiSourceDigest` values; `node scripts/check-screenshot-evidence.mjs` has been red on `main` since before 2026-09-05.
 - [ ] Finish the 10 GB Java to Bedrock to Java round trip with the byte-scaled timeout and record its semantic comparison.

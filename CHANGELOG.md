@@ -20,6 +20,15 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Desktop shell
+
+- Merge commit 'ef213554' - [`010ac69594`](https://github.com/Ding-Ding-Projects/worldlens/commit/010ac695941ad2598c8072dc537d066772e6fdcd) _(summary of 2 commits, also listed here)_
+- Fetch a completed render this app never dispatched itself; 收返一個唔係自己 dispatch 嘅 render - [`ef2135548a`](https://github.com/Ding-Ding-Projects/worldlens/commit/ef2135548a392052bcab5cc1edcc845dbfe12a55)
+
+## 1.0.2012 - 2026-09-05
+
+Tagged at [`7d98e18147`](https://github.com/Ding-Ding-Projects/worldlens/commit/7d98e1814738672ffa86724bae4c62c60d4adc54).
+
 ### Interface
 
 - Gate the Chunker Actions screen's copy in the coverage test - [`c50be6fc26`](https://github.com/Ding-Ding-Projects/worldlens/commit/c50be6fc2681f64da011ec70e5c2737f78953d83)
