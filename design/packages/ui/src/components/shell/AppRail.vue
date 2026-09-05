@@ -407,7 +407,7 @@ function onMoreMenuChange(open: boolean): void {
                     @click="emit('openJob', item.id)"
                 >
                     <span class="wl-rail-pill">
-                        <v-icon :icon="item.icon" size="22" />
+                        <v-icon :icon="item.icon" size="18" />
                     </span>
                     <!--
                         The visible label is the short form and stays on one line - the
@@ -438,7 +438,7 @@ function onMoreMenuChange(open: boolean): void {
                     @click="moreOpen = true"
                 >
                     <span class="wl-rail-pill">
-                        <v-icon :icon="mdiDotsHorizontal" size="22" />
+                        <v-icon :icon="mdiDotsHorizontal" size="18" />
                     </span>
                     <span class="wl-rail-label wl-rail-label--compact">{{ t("rail.more", "More") }}</span>
                 </button>
@@ -691,19 +691,28 @@ function onMoreMenuChange(open: boolean): void {
     justify-content: flex-start;
     block-size: 48px;
     min-block-size: 48px;
-    gap: 6px;
-    /* Deliberately tighter than the destinations' 4px-2px padding above: an 80px column has
+    gap: 4px;
+    /*
+     * Deliberately tighter than the destinations' 4px-2px padding above: an 80px column has
      * very little room left for a readable label once an icon and its own padding are paid
-     * for, and the label - not the icon - is the thing this compact row exists to show. */
-    padding-inline: 6px;
+     * for, and the label - not the icon - is the thing this compact row exists to show.
+     *
+     * 4px padding + an 18px icon + this 4px gap leaves ~50px for the label, which is what
+     * "Actions", "Convert" and "Backups" (each 7 Latin characters, the widest of the seven
+     * dedicated short labels in shell.ts) actually need - a real running build still showed
+     * them ellipsis-truncated at the previous 6px/22px/6px budget, which left only ~40px.
+     * `railShortcutLabels.test.ts` enforces the character-count bound; this is what keeps
+     * that bound also being enough pixels in the real, rendered row.
+     */
+    padding-inline: 4px;
 }
 
 .wl-rail-item--compact .wl-rail-pill {
     /* No pill capsule for a compact row - it is decorative weight the 80px column cannot
      * afford here, and removing it is most of the width the label gets back. */
     background: none !important;
-    inline-size: 22px;
-    block-size: 22px;
+    inline-size: 18px;
+    block-size: 18px;
     flex: 0 0 auto;
 }
 
