@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 243,
+  "expectedTargetCount": 255,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -511,6 +511,45 @@
       ],
       "capturedFromInterfaceSource": false,
       "notGradedBecause": "drawn by packages/wharf's own three renderer files, which import nothing from design/packages/ui/src; a digest of that package would neither go stale when Wharf changed nor stay valid when it did not, so recording one would look like provenance and check nothing"
+    },
+    {
+      "id": "lowlevel-cdp-settings-rail-2026-09-05",
+      "authority": "scripts/capture-settings-cdp.mjs",
+      "command": "node scripts/capture-settings-cdp.mjs <output-dir> -- launches the built Electron app with --worldlens-direct-launch on a cheap Lowlevel hidden desktop and drives it entirely through Chrome DevTools Protocol (Playwright connectOverCDP), including Emulation.setDeviceMetricsOverride for the 200% device-scale-factor captures",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "replacementPolicy": "Replace every target during this release pass from its exact historical source commit via scripts/capture-settings-cdp.mjs; a current-build image, mock, source preview, or relabelled different state is refused.",
+      "sourceCommits": {
+        "docs/screenshots/settings-1280-dark-en.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/settings-320-dark-en.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/settings-bilingual.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/settings-light.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/settings-320-bilingual-light.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/settings-1280-scale200.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/settings-640-scale200.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/rail-job-shortcuts-1280-dark.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/rail-job-shortcuts-320.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/world-downloader-1280.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/config-regex-builder-open-1280.png": "6db5c74222ac98a25fea70918f8ea523c4990b77",
+        "docs/screenshots/config-regex-builder-open-320.png": "6db5c74222ac98a25fea70918f8ea523c4990b77"
+      },
+      "expectedCount": 12,
+      "targets": [
+        "docs/screenshots/settings-1280-dark-en.png",
+        "docs/screenshots/settings-320-dark-en.png",
+        "docs/screenshots/settings-bilingual.png",
+        "docs/screenshots/settings-light.png",
+        "docs/screenshots/settings-320-bilingual-light.png",
+        "docs/screenshots/settings-1280-scale200.png",
+        "docs/screenshots/settings-640-scale200.png",
+        "docs/screenshots/rail-job-shortcuts-1280-dark.png",
+        "docs/screenshots/rail-job-shortcuts-320.png",
+        "docs/screenshots/world-downloader-1280.png",
+        "docs/screenshots/config-regex-builder-open-1280.png",
+        "docs/screenshots/config-regex-builder-open-320.png"
+      ],
+      "capturedFromInterfaceSource": false,
+      "notGradedBecause": "point-in-time evidence closing GitHub issue #175 (the regex-builder popover crash) and verifying the single-column Settings revamp and the merged rail job shortcuts at one exact commit; freshness is judged against that recorded historical source commit rather than the current interface source, the same treatment issue-baselines already gives point-in-time issue evidence",
+      "uiSourceDigestNote": "Not digested against current interface source because this group is graded by historicalRecaptureComplaints against its recorded sourceCommits instead; every target maps to 6db5c74222ac98a25fea70918f8ea523c4990b77, the commit these twelve images were actually captured from."
     }
   ]
 }
