@@ -20,6 +20,12 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+_No changes have been committed since `v1.0.2040`._
+
+## 1.0.2040 - 2026-09-05
+
+Tagged at [`71f3e87653`](https://github.com/Ding-Ding-Projects/worldlens/commit/71f3e8765346184bdfcc73011d8f4a1efa3bc4a4).
+
 ### Documentation
 
 - Merge commit 'c2ce392e' - [`48116ec11a`](https://github.com/Ding-Ding-Projects/worldlens/commit/48116ec11abe97f2b2ec0786f1c8fb007e59fd6b) _(summary of 2 commits, also listed here)_

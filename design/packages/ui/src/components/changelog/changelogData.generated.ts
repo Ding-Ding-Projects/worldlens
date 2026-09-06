@@ -24,32 +24,39 @@ export const CHANGELOG_REPOSITORY_URL = "https://github.com/Ding-Ding-Projects/w
  * the last release" line rather than being hidden, because a missing section and an empty one
  * read very differently to somebody checking whether their fix shipped.
  */
-export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [
-    {
-        sha: "48116ec11abe97f2b2ec0786f1c8fb007e59fd6b",
-        shortSha: "48116ec11a",
-        date: "2026-09-05T14:55:23-04:00",
-        subject: "Merge commit 'c2ce392e'",
-        details: "",
-        category: "docs",
-        areas: ["docs", "site", "build"],
-        files: 20,
-        summarizes: 2,
-    },
-    {
-        sha: "c2ce392ed36b7c79366e8b0b76e7caa2848b62d6",
-        shortSha: "c2ce392ed3",
-        date: "2026-09-05T14:46:55-04:00",
-        subject: "Photograph the packaged 1.0.2035 build for the rail and Convert defects",
-        details: "Eight captures of release v1.0.2035, extracted from its own full package and\ndriven on a cheap Lowlevel hidden desktop over raw Chrome DevTools Protocol,\nplus the script that took them so anyone can take them again.\n\nThe rail's More control opens its anchored menu with the filter field and the\nsix overflowed shortcuts; a twelve-character personal-vocabulary replacement\nwraps across two lines instead of ending in an ellipsis. The Convert screen's\ntwo folder actions render live with no unmet-condition line. Its target step\nreports converter 1.19.1 and a jar digest the script hashes against the jar the\ninstaller stages, so the picture is evidence of the bundled copy rather than a\nscreenshot of a sentence. The review step renders only the chosen destination's\nsection, proven at both destinations a signed-out machine can select, and the\ncontainer section's memory field sits clear of the Refresh button at 1280 and\nat 320 pixels wide.\n\nThe hosted-runner destination has no capture: its own readiness gate holds it\nunselectable while no account is signed in, so the picker is photographed as it\nstands and the inventory says plainly that the panel was not reached.\n\n廣東話版：攞咗 v1.0.2035 個正式包，喺隱藏桌面用 CDP 影咗八張真圖。More 掣真係\n彈到個選單出嚟，長 label 換行唔再變「…」，兩個資料夾掣唔再灰，轉換器個 SHA-256\n同裝住嗰個 jar 一模一樣，記憶體欄同 Refresh 掣終於唔再疊埋一齊。GitHub runner\n嗰個未簽到入唔到，影唔到就照直講，冇擺假圖上去。",
-        category: "docs",
-        areas: ["docs", "site", "build"],
-        files: 20,
-    }
-];
+export const CHANGELOG_UNRELEASED: readonly ChangelogEntry[] = [];
 
 /** Every released version, newest first. */
 export const CHANGELOG_VERSIONS: readonly ChangelogVersion[] = [
+    {
+        version: "1.0.2040",
+        tag: "v1.0.2040",
+        date: "2026-09-05T14:56:40-04:00",
+        commit: "71f3e8765346184bdfcc73011d8f4a1efa3bc4a4",
+        entries: [
+            {
+                sha: "48116ec11abe97f2b2ec0786f1c8fb007e59fd6b",
+                shortSha: "48116ec11a",
+                date: "2026-09-05T14:55:23-04:00",
+                subject: "Merge commit 'c2ce392e'",
+                details: "",
+                category: "docs",
+                areas: ["docs", "site", "build"],
+                files: 20,
+                summarizes: 2,
+            },
+            {
+                sha: "c2ce392ed36b7c79366e8b0b76e7caa2848b62d6",
+                shortSha: "c2ce392ed3",
+                date: "2026-09-05T14:46:55-04:00",
+                subject: "Photograph the packaged 1.0.2035 build for the rail and Convert defects",
+                details: "Eight captures of release v1.0.2035, extracted from its own full package and\ndriven on a cheap Lowlevel hidden desktop over raw Chrome DevTools Protocol,\nplus the script that took them so anyone can take them again.\n\nThe rail's More control opens its anchored menu with the filter field and the\nsix overflowed shortcuts; a twelve-character personal-vocabulary replacement\nwraps across two lines instead of ending in an ellipsis. The Convert screen's\ntwo folder actions render live with no unmet-condition line. Its target step\nreports converter 1.19.1 and a jar digest the script hashes against the jar the\ninstaller stages, so the picture is evidence of the bundled copy rather than a\nscreenshot of a sentence. The review step renders only the chosen destination's\nsection, proven at both destinations a signed-out machine can select, and the\ncontainer section's memory field sits clear of the Refresh button at 1280 and\nat 320 pixels wide.\n\nThe hosted-runner destination has no capture: its own readiness gate holds it\nunselectable while no account is signed in, so the picker is photographed as it\nstands and the inventory says plainly that the panel was not reached.\n\n廣東話版：攞咗 v1.0.2035 個正式包，喺隱藏桌面用 CDP 影咗八張真圖。More 掣真係\n彈到個選單出嚟，長 label 換行唔再變「…」，兩個資料夾掣唔再灰，轉換器個 SHA-256\n同裝住嗰個 jar 一模一樣，記憶體欄同 Refresh 掣終於唔再疊埋一齊。GitHub runner\n嗰個未簽到入唔到，影唔到就照直講，冇擺假圖上去。",
+                category: "docs",
+                areas: ["docs", "site", "build"],
+                files: 20,
+            }
+        ],
+    },
     {
         version: "1.0.2038",
         tag: "v1.0.2038",
