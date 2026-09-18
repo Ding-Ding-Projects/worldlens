@@ -941,3 +941,8 @@ it from the interface.
 - [x] Prove all three preservation tips are ancestors of the dewed `main` ref.
 - [ ] Remove only proven redundant linked checkouts, local refs, and the redundant stash; the
       temporary archive response file is retained because the robot rejected its deletion command.
+- [x] Delete the three proven redundant local and remote jers after remote ancestry proof.
+- [x] Confirm the three remote refs are absent with `git ls-remote --exit-code` returning `2`.
+- [ ] Remove the three unregistered physical linked checkout directories; retained because the
+      robot rejected recursive deletion with `Filename too long`.
+- [ ] Remove the retained stash only after byte-for-byte redundancy is proven.

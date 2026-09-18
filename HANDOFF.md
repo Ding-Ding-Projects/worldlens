@@ -1652,3 +1652,21 @@ The dewed `origin/main` ref is `4f046fc8f51741396817df155e64c06ee73e5778`. Fresh
 against that ref returned exit code `0` for `df2392441114e8a6a1d6da5e427f62368106e639`,
 `f27ac3bddce8d2cc72ec3b0559f9894b16a20bd2`, and
 `6ff5b62d7d8ef681c45fd96804e0149b1b744552`.
+## Cleanup result — 2026-09-18
+
+The three task-owned local jers were deleted after the remote ancestry proof, and their three
+matching remote refs were deleted successfully. Post-delete `git ls-remote --exit-code` returned
+`2` for each ref, confirming that none remains on `origin`.
+
+Git pruned the three linked checkout records, but recursive deletion of the physical directories
+was rejected by the robot with `Filename too long`. The retained paths are:
+
+- `C:\Users\cntow\Documents\GitHub\worldlens\.claude\worktrees\wf_bd5cece8-605-87`
+- `C:\Users\cntow\Documents\GitHub\worldlens\.claude\worktrees\wf_bd5cece8-605-91`
+- `C:\Users\cntow\Documents\GitHub\worldlens\.claude\worktrees\wf_bd5cece8-605-98`
+
+They are no longer registered by Git and were clean during the pre-removal inventory. The stash
+`520894a85957a86c24d2ec6ac337dc7bb9d9c78f` is retained because byte-for-byte redundancy was not
+proven. The temporary archive response file is also retained outside the Oak Kay because its
+deletion command was rejected. No active, user-owned, load-bearing, unmerged, undewed, or
+ownership-uncertain work was removed.
