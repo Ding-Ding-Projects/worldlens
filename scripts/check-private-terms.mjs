@@ -24,14 +24,13 @@
  * the first chunk). A term is matched case-insensitively as a whole word or phrase, so a
  * substring inside an unrelated longer word never counts.
  *
- * Most terms are two or three words, and most of this repository's prose sits in wrapped
- * comment blocks, so a term whose words land on either side of a line break is the ordinary
- * shape rather than a corner. Each file is therefore scanned twice: once line by line, and
- * once over a joined view in which every line break, along with the following line's leading
- * whitespace and comment-continuation marker, becomes a single space. A hit found in the
- * joined view is mapped back to the line its first character came from, so the report is
- * still a file and a line number. The two passes are merged and de-duplicated, so an
- * occurrence that sits whole on one line is reported once.
+ * Matching runs over the whole file rather than one line at a time, against a copy in which
+ * every run of whitespace has been collapsed to a single space and a comment continuation
+ * marker that begins a wrapped line (` * `, `// `, `# `, `-- `, `> `) has been dropped. Most
+ * of the terms are multi-word phrases and this repository hard-wraps prose comments, so a
+ * line-by-line scan cannot see a phrase whose words land on opposite sides of a wrap, and a
+ * clean verdict from such a scan would not be evidence of absence. A hit is reported at the
+ * line the match begins on.
  *
  * It also inspects the subject line of the last 200 commits, but Git history is immutable
  * here (this repository's remote is public and its history is never rewritten to satisfy a
@@ -94,47 +93,96 @@ function trackedFiles() {
         .filter((line) => line.length > 0);
 }
 
-/**
- * What a wrapped line carries before its prose resumes: indentation, then at most one
- * continuation marker. An asterisk is excluded when it closes a block comment, because the
- * words on either side of a closing delimiter are two constructs rather than one wrapped
- * sentence.
- */
-const CONTINUATION = /^[ \t]*(?:\/\/+|\*(?!\/)|#+|>+)?[ \t]*/;
+const WHITESPACE_RUN = /\s+/g;
+/** A comment continuation marker at the head of a wrapped line, plus the space after it. */
+const CONTINUATION_MARKER = /^(?:\*|\/\/|#|--|>)(?=[ \t]|$)[ \t]*/;
 
 /**
- * The file as one line-wrapped-tolerant string, plus where each source line begins in it.
- *
- * `segments` is one entry per source line, in order, so a match offset maps back to a line
- * by walking forward to the last segment that starts at or before it.
+ * The text with every whitespace run collapsed to a single space and a comment continuation
+ * marker dropped, alongside the segments needed to map an offset in the collapsed copy back
+ * to an offset in the original.
  */
-function joinWrappedLines(text) {
-    const lines = text.split(/\r?\n/);
+function collapseWhitespace(text) {
     const segments = [];
-    let joined = "";
-    for (const [index, line] of lines.entries()) {
-        if (index > 0) joined += " ";
-        segments.push({ offset: joined.length, line: index + 1 });
-        joined += index === 0 ? line : line.replace(CONTINUATION, "");
+    const pieces = [];
+    let collapsedLength = 0;
+    let cursor = 0;
+
+    const keep = (start, end) => {
+        if (end <= start) return;
+        segments.push({ collapsedStart: collapsedLength, originalStart: start, length: end - start });
+        pieces.push(text.slice(start, end));
+        collapsedLength += end - start;
+    };
+    const separate = () => {
+        if (collapsedLength === 0) return; // nothing to separate from yet
+        if (pieces[pieces.length - 1] === " ") return; // never two spaces in a row
+        pieces.push(" ");
+        collapsedLength += 1;
+    };
+
+    WHITESPACE_RUN.lastIndex = 0;
+    let run;
+    while ((run = WHITESPACE_RUN.exec(text)) !== null) {
+        keep(cursor, run.index);
+        let next = run.index + run[0].length;
+        if (run[0].includes("\n")) {
+            const marker = CONTINUATION_MARKER.exec(text.slice(next, next + 8));
+            if (marker) next += marker[0].length;
+        }
+        separate();
+        cursor = next;
+        WHITESPACE_RUN.lastIndex = next;
     }
-    return { joined, segments };
+    keep(cursor, text.length);
+
+    return { collapsed: pieces.join(""), segments };
 }
 
-/** The source line of every match in the joined view, in order. */
-function scanJoined(text, pattern) {
-    const { joined, segments } = joinWrappedLines(text);
-    const lines = [];
-    let cursor = 0;
-    pattern.lastIndex = 0;
-    for (let match = pattern.exec(joined); match !== null; match = pattern.exec(joined)) {
-        if (match[0].length === 0) {
-            pattern.lastIndex += 1; // a zero-width match would otherwise never advance
-            continue;
+/** The offset in the original text that a collapsed-text offset came from. */
+function originalOffset(segments, collapsedIndex) {
+    let low = 0;
+    let high = segments.length - 1;
+    let fallback = 0;
+    while (low <= high) {
+        const middle = (low + high) >> 1;
+        const segment = segments[middle];
+        if (collapsedIndex < segment.collapsedStart) {
+            fallback = segment.originalStart;
+            high = middle - 1;
+        } else if (collapsedIndex >= segment.collapsedStart + segment.length) {
+            fallback = segment.originalStart + segment.length;
+            low = middle + 1;
+        } else {
+            return segment.originalStart + (collapsedIndex - segment.collapsedStart);
         }
-        while (cursor + 1 < segments.length && segments[cursor + 1].offset <= match.index) cursor += 1;
-        lines.push(segments[cursor].line);
     }
-    return lines;
+    return fallback;
+}
+
+/** The 1-based line number that an offset in the original text falls on. */
+function lineNumberAt(lineStarts, offset) {
+    let low = 0;
+    let high = lineStarts.length - 1;
+    let line = 0;
+    while (low <= high) {
+        const middle = (low + high) >> 1;
+        if (lineStarts[middle] <= offset) {
+            line = middle;
+            low = middle + 1;
+        } else {
+            high = middle - 1;
+        }
+    }
+    return line + 1;
+}
+
+function lineStartsOf(text) {
+    const starts = [0];
+    for (let index = 0; index < text.length; index += 1) {
+        if (text[index] === "\n") starts.push(index + 1);
+    }
+    return starts;
 }
 
 /** Every hit in the tracked files, as { file, line }. Binary files are skipped. */
@@ -149,12 +197,19 @@ function scanFiles(files, pattern) {
         }
         if (raw.subarray(0, 8000).includes(0)) continue; // binary, not a leak of text
         const text = raw.toString("utf8");
-        const lines = new Set();
-        for (const [index, line] of text.split(/\r?\n/).entries()) {
-            pattern.lastIndex = 0;
-            if (pattern.test(line)) lines.add(index + 1);
+        const { collapsed, segments } = collapseWhitespace(text);
+
+        const offsets = new Set();
+        pattern.lastIndex = 0;
+        let match;
+        while ((match = pattern.exec(collapsed)) !== null) {
+            offsets.add(originalOffset(segments, match.index));
+            if (match[0].length === 0) pattern.lastIndex += 1; // no term is empty, but do not hang if one is
         }
-        for (const line of scanJoined(text, pattern)) lines.add(line);
+        if (offsets.size === 0) continue;
+
+        const lineStarts = lineStartsOf(text);
+        const lines = new Set([...offsets].map((offset) => lineNumberAt(lineStarts, offset)));
         for (const line of [...lines].sort((left, right) => left - right)) hits.push({ file, line });
     }
     return hits;
