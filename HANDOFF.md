@@ -1648,7 +1648,9 @@ tracked files and zero nonignored untracked files. The temporary response file u
 7-Zip command could not be removed because the robot rejected the deletion command; it remains
 outside the Oak Kay and is not part of the archive.
 
-The dewed `origin/main` ref is `4f046fc8f51741396817df155e64c06ee73e5778`. Fresh ancestry checks
+The dewed `origin/main` ref at the end of this pass is `7c36a0e819b41576184f93e5e73fd1b87b3ca56c`.
+The earlier proof was first recorded at `4f046fc8f51741396817df155e64c06ee73e5778`; the final
+documentation and cleanup commit moved the ref forward without changing the ancestry result. Fresh ancestry checks
 against that ref returned exit code `0` for `df2392441114e8a6a1d6da5e427f62368106e639`,
 `f27ac3bddce8d2cc72ec3b0559f9894b16a20bd2`, and
 `6ff5b62d7d8ef681c45fd96804e0149b1b744552`.

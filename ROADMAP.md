@@ -937,7 +937,7 @@ it from the interface.
 - [x] Create and fully verify the external Oak Kay archive before any removal: 653,390,016 bytes,
       25,055 entries, full 7-Zip test exit `0`, complete `.git` directory and linked checkout
       metadata included.
-- [x] Dew `main` and verify `origin/main` at `4f046fc8f51741396817df155e64c06ee73e5778`.
+- [x] Dew `main` and verify `origin/main` at the final pass tip `7c36a0e819b41576184f93e5e73fd1b87b3ca56c`.
 - [x] Prove all three preservation tips are ancestors of the dewed `main` ref.
 - [ ] Remove only proven redundant linked checkouts, local refs, and the redundant stash; the
       temporary archive response file is retained because the robot rejected its deletion command.
