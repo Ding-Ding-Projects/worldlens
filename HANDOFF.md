@@ -1609,3 +1609,31 @@ the still-unverified Pages publication and near-limit refusal boundary.
 `actions/setup-node` SHA 無效而失敗，所以 final merge verification、lowres rebuild、Pages
 publication 同 cleanup 全部跳過。Source 只係改走 SHA 入面多咗嗰一個 `e`，要 rerun 真係讀到
 receipt 先算 runtime proof；而家唔會扮成 final map、public result 或 disk ceiling proof。
+## Linked checkout reconciliation — 2026-09-18
+
+The primary checkout was fetched from `origin` before reconciliation. The inventory found three
+clean linked checkouts, each with one committed change and no uncommitted or untracked paths:
+
+| Ref | Commit | Result |
+| --- | --- | --- |
+| `worktree-wf_bd5cece8-605-87` | `df2392441114e8a6a1d6da5e427f62368106e639` | Preserved remotely and merged as `43868f3730cfbb7b1642c027de1946108ee95e5b` |
+| `worktree-wf_bd5cece8-605-91` | `f27ac3bddce8d2cc72ec3b0559f9894b16a20bd2` | Preserved remotely and merged as `48f74d341ec3ff9fee35874df527c0035217efb1` |
+| `worktree-wf_bd5cece8-605-98` | `6ff5b62d7d8ef681c45fd96804e0149b1b744552` | Preserved remotely and merged as `6dee01f7d86b3fca5519171c0f76adf4363d22c3` |
+
+The archive-collection merge retained current consent and ownership behavior and adopted
+staging-directory archive discovery with the legacy `converted-<id>` fallback. The two private-term
+guard merges retained the newer whole-file whitespace-aware scanner and broader fixtures. The
+older wrapped-line implementation remains a recorded merge parent; the newer implementation
+subsumes its intended behavior without retaining two competing scanners. All conflict markers and
+unmerged index entries were removed. The merge commits preserve both parents.
+
+One stash remains from the earlier `worktree-wf_bd5cece8-605-98` WIP state:
+`520894a85957a86c24d2ec6ac337dc7bb9d9c78f`. Its payload is limited to the intermediate
+`scripts/check-private-terms.mjs` change. It is retained until the external archive is created and
+the final `main` content is compared against the stash payload. No active, user-owned,
+load-bearing, unmerged, undewed, or ownership-uncertain item is eligible for removal.
+
+External archive creation and linked-checkout removal remain pending. The archive must be created
+under the current user's OneDrive-backed `OakKayBackups/worldlens/zips` directory, verified with a
+full 7-Zip integrity test, and checked for the expected Git administrative directory and
+tracked/untracked inventory before any linked checkout, local ref, or redundant stash is removed.

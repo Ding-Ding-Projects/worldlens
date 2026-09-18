@@ -919,3 +919,18 @@ it from the interface.
 - [ ] Real built-artifact captures of the picker, the costed preflight, a running AWS job
       and the teardown gate.
 - [ ] One end-to-end render on a live AWS account, and one tunnel serving a real map.
+- [x] Fetch `origin` and inventory the primary checkout, all linked checkouts, local refs, index
+      conflicts, untracked paths, submodule state, and stashes.
+- [x] Preserve and verify the three linked refs with `git ls-remote` before integration.
+- [x] Integrate the three completed linked changes into `main` with merge commits that preserve
+      both parents: `43868f3730cfbb7b1642c027de1946108ee95e5b`,
+      `6dee01f7d86b3fca5519171c0f76adf4363d22c3`, and
+      `48f74d341ec3ff9fee35874df527c0035217efb1`.
+- [x] Resolve all merge conflicts, remove all unmerged index entries and conflict markers, and
+      record non-obvious choices in `HANDOFF.md`.
+- [ ] Create and fully verify the external Oak Kay archive before any removal.
+- [ ] Push `main`, verify the remote `main` ref, and prove each cleanup source tip is an ancestor
+      of the pushed `main`.
+- [ ] Remove only proven redundant linked checkouts, local refs, and the redundant stash; retain
+      and document anything active, user-owned, load-bearing, unmerged, undewed, or
+      ownership-uncertain.
