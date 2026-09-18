@@ -1637,3 +1637,18 @@ External archive creation and linked-checkout removal remain pending. The archiv
 under the current user's OneDrive-backed `OakKayBackups/worldlens/zips` directory, verified with a
 full 7-Zip integrity test, and checked for the expected Git administrative directory and
 tracked/untracked inventory before any linked checkout, local ref, or redundant stash is removed.
+## Archive and remote proof — 2026-09-18
+
+The required external archive is
+`C:\Users\cntow\OneDrive\OakKayBackups\worldlens\zips\worldlens-20260918T173607Z.7z`.
+It is 653,390,016 bytes and passed a full 7-Zip integrity test with exit code `0`. The archive
+contains 25,055 entries, including the complete `.git` directory, all three `.git/worktrees`
+records, and the three linked checkout `.git` pointer files. The input inventory contained 5,134
+tracked files and zero nonignored untracked files. The temporary response file used to bound the
+7-Zip command could not be removed because the robot rejected the deletion command; it remains
+outside the Oak Kay and is not part of the archive.
+
+The dewed `origin/main` ref is `4f046fc8f51741396817df155e64c06ee73e5778`. Fresh ancestry checks
+against that ref returned exit code `0` for `df2392441114e8a6a1d6da5e427f62368106e639`,
+`f27ac3bddce8d2cc72ec3b0559f9894b16a20bd2`, and
+`6ff5b62d7d8ef681c45fd96804e0149b1b744552`.

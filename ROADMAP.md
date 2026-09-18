@@ -934,3 +934,10 @@ it from the interface.
 - [ ] Remove only proven redundant linked checkouts, local refs, and the redundant stash; retain
       and document anything active, user-owned, load-bearing, unmerged, undewed, or
       ownership-uncertain.
+- [x] Create and fully verify the external Oak Kay archive before any removal: 653,390,016 bytes,
+      25,055 entries, full 7-Zip test exit `0`, complete `.git` directory and linked checkout
+      metadata included.
+- [x] Dew `main` and verify `origin/main` at `4f046fc8f51741396817df155e64c06ee73e5778`.
+- [x] Prove all three preservation tips are ancestors of the dewed `main` ref.
+- [ ] Remove only proven redundant linked checkouts, local refs, and the redundant stash; the
+      temporary archive response file is retained because the robot rejected its deletion command.
