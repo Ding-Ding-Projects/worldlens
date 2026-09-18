@@ -129,12 +129,8 @@ async function workflowText(options: Options): Promise<string> {
     throw new Error("The packaged Chunker workflow is missing. Repair this installation before preparing a repository.");
 }
 /**
- * The workflow zips the merged world as `<output-name>.zip` inside the fixed `converted-world` artifact, so
- * the inner name is exactly whatever that run was dispatched with. Resolving it from the extracted staging
- * directory rather than from a recomputed name is what lets a record persisted by an earlier build - which
- * has no `dispatchedOutputName` and was dispatched under a different prefix - still be collected. The
- * recorded name is used only to disambiguate an artifact that carries more than one archive; a legacy record
- * falls back to the `converted-<id>` name that the earlier build actually dispatched.
+ * Resolve the archive produced inside the fixed converted-world artifact. A single archive is
+ * unambiguous; a recorded output name or the legacy converted-<id> name disambiguates several.
  */
 async function innerArchiveName(staging: string, record: ChunkerActionsRecord): Promise<string | null> {
     const entries = await readdir(staging, { withFileTypes: true }).catch(() => []);
@@ -145,6 +141,7 @@ async function innerArchiveName(staging: string, record: ChunkerActionsRecord): 
     }
     return null;
 }
+
 export function installChunkerActionsIpc(options: Options): { dispose(): Promise<void> } {
     const active = new Map<string, AbortController>();
     const records = new Map<string, ChunkerActionsRecord>();
@@ -190,14 +187,16 @@ export function installChunkerActionsIpc(options: Options): { dispose(): Promise
             const api = await transport(r, controller.signal);
             const repository = await api.readRepository(r.owner, r.repo);
             if (!repository.canWrite) throw new Error("The selected account cannot write to this repository.");
-            if (!r.acknowledgeUpload || (!repository.private && !r.acknowledgePublic)) throw new Error("Confirm the world upload and public visibility before starting.");
-            const recipe = await api.readFile(r.owner, r.repo, `.github/workflows/${CHUNK_WORKFLOW_FILE}`);
-            if (!recipe || !Buffer.from(recipe.contentBase64, "base64").toString("utf8").includes("chunker-config:")) throw new Error("Prepare this repository with the complete Chunker workflow before uploading.");
             // "release-asset" with no externalWorld means this app uploads the local worldFolder itself, into
             // the destination repository, exactly as it always has. Any other source - or an explicit
             // external reference even for "release-asset" - bypasses the upload entirely and dispatches
             // straight against whatever the user pointed the workflow's own `world`/`world-repository` at.
             const usesOwnUpload = r.worldSource === "release-asset" && r.externalWorld === "";
+            // Consent covers this app uploading the world into the repository. A dispatch against a URL or an
+            // existing artifact uploads nothing, and the panel hides both switches in that case.
+            if (usesOwnUpload && (!r.acknowledgeUpload || (!repository.private && !r.acknowledgePublic))) throw new Error("Confirm the world upload and public visibility before starting.");
+            const recipe = await api.readFile(r.owner, r.repo, `.github/workflows/${CHUNK_WORKFLOW_FILE}`);
+            if (!recipe || !Buffer.from(recipe.contentBase64, "base64").toString("utf8").includes("chunker-config:")) throw new Error("Prepare this repository with the complete Chunker workflow before uploading.");
             if (usesOwnUpload) {
                 if (!record.world) {
                     record.state = "uploading";
