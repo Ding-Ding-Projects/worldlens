@@ -574,7 +574,7 @@ export const home: HomeContent = {
                 },
                 {
                     title: "A localhost server nothing else can reach",
-                    body: "The embedded server binds the loopback address on an ephemeral port and refuses every request that does not carry the token minted for that launch, so another process on the same machine cannot read your map.",
+                    body: "The embedded server binds the loopback address on an ephemeral port, checks its launch token on every request, confines static UI assets to the configured web root, and releases active streams during disconnect and shutdown.",
                     status: "shipped",
                     statusNote:
                         "Built and tested, including the refusal paths, and running in every launch of the app.",
