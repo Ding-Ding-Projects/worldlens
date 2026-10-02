@@ -2,7 +2,13 @@
 
 Per porting-conventions rule 5, this file records every place the TypeScript port
 deliberately differs from upstream `vendor/BlueMap` (`e664c1a`) in behavior or API.
-Bug-for-bug-preserved oddities are NOT listed here — only actual changes.
+Bug-for-bug-preserved oddities are NOT listed here - only actual changes.
+
+## HTTP serving fixes (2026-10-02)
+
+- **Static files are confined to the canonical configured web root** (`packages/server/src/http/StaticHandler.ts`). The pre-fix handler's string-prefix containment allowed encoded traversal into a same-prefix sibling and followed outside symlinks. The fix checks path components and canonical targets, including a directory's `index.html`, while supporting a symlinked configured root and internal links. Canonicalization does not make concurrent replacement of ancestors or links race-proof; the configured tree is trusted and must not be modified by an attacker during requests.
+- **Static response streams use Node's promise pipeline** (`packages/server/src/http/StaticHandler.ts`) so a read error cannot become an unhandled stream error, and a disconnect closes the file stream and descriptor. A response whose headers were sent is terminated on read failure; a second response status is not appended.
+- **HTTP shutdown closes active connections before waiting for the server close callback** (`packages/server/src/http/HttpServer.ts`), so a long-lived SSE or file response cannot prevent shutdown from reaching connection cleanup.
 
 ## Viewer package (`packages/viewer`)
 

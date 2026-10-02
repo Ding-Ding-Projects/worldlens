@@ -1,5 +1,13 @@
 # Handoff
 
+## 2026-10-02: HTTP static files escape the web root and active streams can stall shutdown
+
+On main at `92bf5c8c7b286a74fa07baa70915c056970851bb`, deterministic loopback HTTP fixtures reproduced four findings from the 2026-09-04 audit on Windows with Node 24.19.0: encoded sibling traversal and an outside directory junction returned a synthetic outside-root marker; removing a file between stat and open crashed an isolated child on an unhandled `ReadStream` error; cancelling a large file response left its descriptor open; and `HttpServer.close()` stayed pending while an event stream remained open.
+
+`StaticHandler` now uses component-boundary and canonical real-path checks for files and directory indexes, rejects malformed and NUL paths, supports symlinked roots and internal links, and awaits `stream.pipeline()` so failed or cancelled responses close their source. `HttpServer.close()` calls `closeAllConnections()` after `server.close()` starts and before awaiting its callback. These checks trust the configured web tree against concurrent replacement while requests resolve; portable `realpath` checks do not prevent an attacker racing ancestor or link replacement.
+
+The opt-in original harness passed 6/6 after the fix. Permanent server coverage passed 101 tests across 9 files, with 1 skipped; the static HTTP regression file passed 17 checks with 1 Windows file-symlink skip because this host denied link creation. Server, site and full workspace builds passed, and full workspace typecheck passed across 20 packages after building generated dependencies. The CLI build skipped copying BlueMap web assets because the optional `vendor/BlueMap` submodule is not present. Focused lint passed; workspace lint reports 20 errors in unrelated files. `design/docs/deviations.md` records the HTTP differences from upstream. No live deployment, packaged app or remote CI was tested.
+
 ## 2026-09-03: local servers could never be created or started, and the map's UI is now Material Design 3
 
 Two independent strands. Everything below was verified by breaking it again and watching the
