@@ -126,6 +126,8 @@ function fakeFetch(routes: Record<string, string>): FetchText {
 }
 
 const ALL_ROUTES: Record<string, string> = {
+    "https://hub.spigotmc.org/versions/1.21.4.json": JSON.stringify({ javaVersions: [65, 68] }),
+    "https://hub.spigotmc.org/versions/": '<a href="1.21.4.json">1.21.4.json</a>',
     "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json": VANILLA_MANIFEST,
     "https://example.test/1.21.4.json": VANILLA_DETAIL,
     "https://example.test/24w45a.json": VANILLA_SNAPSHOT_DETAIL,
@@ -137,8 +139,10 @@ const ALL_ROUTES: Record<string, string> = {
     "https://api.purpurmc.org/v2/purpur/1.21.4": PURPUR_VERSION,
     "https://api.purpurmc.org/v2/purpur": PURPUR_PROJECT,
     "https://meta.fabricmc.net/v2/versions/loader": FABRIC_LOADERS,
-    "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json": FORGE_PROMOTIONS,
-    "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml": NEOFORGE_METADATA,
+    "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json":
+        FORGE_PROMOTIONS,
+    "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml":
+        NEOFORGE_METADATA,
 };
 
 describe("refreshCatalogue", () => {

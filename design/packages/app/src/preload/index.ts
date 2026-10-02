@@ -4,6 +4,19 @@ import type { BridgeTransport } from "@worldlens/bridge";
 import type { IpcRendererEvent } from "electron";
 import type { UpdateState, UpdateRestartResult } from "../main/update/index.js";
 import type { EulaLoadResult } from "../main/eula/index.js";
+import type {
+    DownloaderChunkAnswer,
+    DownloaderConnectionAnswer,
+    DownloaderPortAnswer,
+    DownloaderSettingsAnswer,
+    DownloaderStartAnswer,
+    DownloaderStatus,
+    DownloaderTokenAnswer,
+    DownloaderWriteSettingsAnswer,
+} from "../main/worlddownloader/ipc.js";
+import type { DownloaderEvent } from "../main/worlddownloader/session.js";
+import type { EnsureJarResult } from "../main/worlddownloader/jar.js";
+import type { DownloaderSettings } from "@worldlens/shared/dist/downloaderOptions.js";
 import type { SchoolModeResult } from "../main/schoolMode/index.js";
 import type { VocabularyResult, VocabularySnapshot } from "../main/vocabulary/index.js";
 import type {
@@ -1303,6 +1316,10 @@ export interface BedrockConvertRequest {
     format?: string;
     /** The source world's measured size, so an out-of-memory failure can name it. */
     sizeBytes?: number | null;
+    /** Source format selected from the verified version registry. */
+    inputFormat?: string;
+    /** Every optional public Chunker CLI setting, passed as structured data. */
+    config?: Readonly<Record<string, unknown>>;
 }
 
 /**
@@ -1319,6 +1336,13 @@ export interface BedrockBridge {
     detect(folder: string, sizeBytes?: number | null): Promise<BedrockDetectResult>;
     /** Whether Chunker is installed or configured, and what fetching one would get. */
     chunkerStatus(): Promise<ChunkerStatus>;
+    capabilities(): Promise<unknown>;
+    inspectOptions(world: string): Promise<unknown>;
+    configurationSchema(): Promise<unknown>;
+    containerImages(): Promise<unknown>;
+    containerStart(request: unknown): Promise<unknown>;
+    containerState(id: string): Promise<unknown>;
+    containerCancel(id: string): Promise<unknown>;
     /** Downloads the pinned Chunker release, verified against a digest in this app's source. */
     fetchChunker(): Promise<{ ok: boolean; message: string; jarPath: string | null }>;
     /** Converts one world. Resolves when the conversion has ended, whichever way it ended. */
@@ -2048,6 +2072,37 @@ export type DockerWorldFingerprintResult =
  * `fetch` resolves once the copy has ended. `onDockerWorldEvent` separately carries the
  * fetcher's real phase and file-count events so a long operation can report honestly.
  */
+/**
+ * The Fabric Carpet world downloader, per `main/worlddownloader/ipc.ts`.
+ *
+ * No method here rejects, for the same reason `DockerWorldBridge` below never does: every
+ * possible answer, including "there is no Java on this machine" and "that port is already
+ * taken", is a sentence the settings screen has to show, never a stack trace. `openTokenIntake`
+ * takes no token argument at all: it asks main to open its own isolated intake window (see
+ * `main/worlddownloader/tokenIntakeWindow.ts`), where the token is typed directly and never
+ * crosses into this renderer. Nothing here ever sends a token value back out either -
+ * `status` only reports whether one is held.
+ */
+export interface WorldDownloaderBridge {
+    status(): Promise<DownloaderStatus>;
+    ensureJar(request?: { readonly tag?: string }): Promise<EnsureJarResult>;
+    readSettings(): Promise<DownloaderSettingsAnswer>;
+    writeSettings(settings: DownloaderSettings): Promise<DownloaderWriteSettingsAnswer>;
+    testConnection(request: {
+        readonly host: string;
+        readonly port?: number;
+        readonly declaredVersion?: string;
+    }): Promise<DownloaderConnectionAnswer>;
+    start(request: { readonly settings: DownloaderSettings }): Promise<DownloaderStartAnswer>;
+    stop(sessionId: string): Promise<boolean>;
+    openTokenIntake(): Promise<DownloaderTokenAnswer>;
+    clearToken(): Promise<boolean>;
+    countChunks(outputFolder: string): Promise<DownloaderChunkAnswer>;
+    portFree(port: number): Promise<DownloaderPortAnswer>;
+    /** Real session log/phase/finished events; returns the exact unsubscribe function. */
+    onWorldDownloaderEvent(listener: (event: DownloaderEvent) => void): () => void;
+}
+
 export interface DockerWorldBridge {
     /** Every container and volume Docker knows about, running or not. */
     list(): Promise<DockerWorldListAnswer>;
@@ -3298,6 +3353,16 @@ interface WorldlensBridge {
     bluemapSource: BlueMapSourceBridge;
 
     /** Recognising and converting Bedrock Edition worlds. See {@link BedrockBridge}. */
+    chunkerActions: {
+        recoverable(): Promise<unknown>;
+        adopt(request: unknown): Promise<unknown>;
+        prepare(request: unknown): Promise<unknown>;
+        start(request: unknown): Promise<unknown>;
+        list(): Promise<unknown>;
+        check(id: string): Promise<unknown>;
+        collect(id: string): Promise<unknown>;
+        cancel(id: string): Promise<unknown>;
+    };
     bedrock: BedrockBridge;
 
     /** Diagnosing and repairing a failed render or web server. See {@link RepairBridge}. */
@@ -3317,6 +3382,8 @@ interface WorldlensBridge {
 
     /** Reading a world out of a Docker container or volume. See {@link DockerWorldBridge}. */
     dockerWorld: DockerWorldBridge;
+    /** The Fabric Carpet world downloader. See {@link WorldDownloaderBridge}. */
+    worldDownloader: WorldDownloaderBridge;
     /** Managing only this application's labelled BlueMap containers. */
     dockerHosting: DockerHostingBridge;
 

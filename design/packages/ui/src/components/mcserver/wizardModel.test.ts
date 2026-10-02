@@ -43,7 +43,7 @@ describe("FLAVOUR_CARDS", () => {
     it("flavourCard looks one up by id", () => {
         expect(flavourCard("paper")?.name).toBe("Paper");
         expect(flavourCard("vanilla")?.cataloguedId).toBe("vanilla");
-        expect(flavourCard("spigot")?.cataloguedId).toBeNull();
+        expect(flavourCard("spigot")?.cataloguedId).toBe("spigot");
     });
 });
 

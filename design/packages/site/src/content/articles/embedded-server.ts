@@ -169,6 +169,7 @@ export const embeddedServer: Article = {
                         "The token is the actual control. It is 24 bytes from the platform's cryptographic random source, checked on every request before any handler runs.",
                         "The token is never persisted, so it cannot leak from a file, a settings store or a crash dump written after the process ends.",
                         "The query-parameter form exists only because EventSource cannot set headers. It is the weaker of the two, because URLs end up in logs and in the DOM, which is why the desktop app attaches the header form for every request it can.",
+                        "Static UI requests are confined to the configured web root after resolving filesystem links; keep that tree trusted and unchanged while the server is running. File streams close on read errors and client disconnects, and server shutdown closes active HTTP connections before waiting for completion.",
                     ],
                 },
                 {
@@ -189,6 +190,7 @@ export const embeddedServer: Article = {
                     items: [
                         "The server package has tests for the token gate in both forms, for handler ordering and for the 404 and 500 paths.",
                         "The proxy has tests for streamed responses, 204 passthrough and ETag revalidation.",
+                        "The server package tests static path and symlink confinement, malformed paths, stream failures and cancellation cleanup, and shutdown with active event streams and file downloads.",
                         "The packaged app was booted under a virtual framebuffer during the phase that built it, and the server answered an unauthenticated request with 403.",
                         "Lint, build and tests run on every push in the CI workflow.",
                     ],
@@ -198,7 +200,7 @@ export const embeddedServer: Article = {
                     tone: "note",
                     title: "What has not been verified",
                     content:
-                        "There is no automated test that a second process on the same machine is refused, and no fuzzing of the request path. Both would be worth adding when the Phase E route set lands.",
+                        "Canonical path checks and stream cleanup assume the configured web tree is trusted against concurrent replacement while a request is being resolved. Path fuzzing and packaged Windows UI verification have not been run for this change.",
                 },
             ],
         },

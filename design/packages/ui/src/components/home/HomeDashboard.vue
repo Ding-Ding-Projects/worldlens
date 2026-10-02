@@ -397,6 +397,27 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
     opacity: 0.92;
 }
 
+/*
+ * Regression: v2-09-rail-7-jobs-320.png captured a real horizontal scrollbar on the Home page
+ * body at a 320px window - this row of three buttons was the cause. `flex-wrap: wrap` alone
+ * was not a strong enough guarantee at the narrowest supported width, where even one button
+ * wrapping onto its own line still leaves three buttons' worth of `white-space: nowrap` content
+ * width in play. Below 600px the row stops wrapping and stacks instead: full width, one button
+ * per line, which is the M3 pattern this project already uses elsewhere for a primary-action
+ * row that cannot fit its siblings (see `AppSettings.vue`'s own single-column collapse).
+ */
+@media (max-width: 600px) {
+    .wl-dash__actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .wl-action {
+        inline-size: 100%;
+        justify-content: center;
+    }
+}
+
 /* -------------------------------------------------------------------------- */
 /* First-run welcome                                                          */
 /* -------------------------------------------------------------------------- */

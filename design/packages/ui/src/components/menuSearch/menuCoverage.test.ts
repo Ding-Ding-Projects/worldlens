@@ -77,6 +77,12 @@ const DEFAULT_SEARCH_MARKERS = [
  */
 const REGISTRY: readonly MenuRegistryEntry[] = [
     {
+        file: "shell/AppRail.vue",
+        builtVia: "v-menu",
+        menu: "The rail's own 'More' overflow menu, listing job shortcuts that do not fit the rail's fixed row.",
+        status: "has-search",
+    },
+    {
         file: "appearance/AppearanceTarget.vue",
         builtVia: "v-menu",
         menu: "The generic 'Edit appearance...' context menu every per-element target opens.",
@@ -127,6 +133,24 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         menu: "The regex builder popover anchored to every settings search field.",
         status: "not-applicable",
         reason: "A value editor (the pattern builder), not a filterable command list.",
+    },
+    {
+        file: "config/ConfigRegexBuilder.vue",
+        builtVia: "v-menu",
+        menu:
+            "The pattern-builder card itself, the content ConfigSearchField.vue's real " +
+            "<v-menu> anchors -- not a second popover. This file's own doc comments quote " +
+            "the literal string <v-menu> in backtick-quoted prose, which is exactly enough " +
+            "for the live sweep above (a raw-text search for '<' plus a tag name) to count " +
+            "it as a second owner; there is no actual <v-menu>/<VMenu> tag in this file's " +
+            "own <template>. Registered builtVia: v-menu to match what the sweep mechanically " +
+            "finds, same as its sibling entry above.",
+        status: "not-applicable",
+        reason:
+            "The pattern-builder card ConfigSearchField.vue already anchors: a value editor " +
+            "(pattern, flags, token palette, live matches), not a filterable command list -- " +
+            "the same category the file's own doc comment names alongside a colour picker, " +
+            "a font picker and a date range.",
     },
     {
         file: "config/ConfigSuperConfirm.vue",

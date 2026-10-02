@@ -1,0 +1,123 @@
+{
+  "startedAt": "2026-09-05T11:53:55.968Z",
+  "finishedAt": "2026-09-05T14:03:09.991Z",
+  "options": {
+    "world": null,
+    "work": "C:\\Users\\cntow\\AppData\\Local\\Temp\\fixtures\\roundtrip-10gb-r3",
+    "jar": null,
+    "java": "java",
+    "javaFormat": "JAVA_1_20_5",
+    "bedrockFormat": "BEDROCK_1_20_80",
+    "out": "C:\\Users\\cntow\\AppData\\Local\\Temp\\fixtures\\roundtrip-10gb-r3\\evidence.json",
+    "timeoutMs": null,
+    "compareOnly": true
+  },
+  "legs": {
+    "javaToBedrock": {
+      "reused": true,
+      "outputBytes": 3745619998,
+      "note": "leg reused from an earlier run; timing/exitCode unavailable in --compare-only mode"
+    },
+    "bedrockToJava": {
+      "reused": true,
+      "outputBytes": 10004947876,
+      "note": "leg reused from an earlier run; timing/exitCode unavailable in --compare-only mode"
+    }
+  },
+  "comparison": {
+    "totalChunksBefore": 2436647,
+    "totalChunksAfter": 2436647,
+    "matchedChunks": 2436647,
+    "chunksWithDocumentedLossOnly": 2436647,
+    "chunksWithUndocumentedDifferences": 0,
+    "missingChunks": [],
+    "missingChunksTotal": 0,
+    "extraChunks": [],
+    "extraChunksTotal": 0,
+    "documentedLossSample": [
+      {
+        "chunk": "0,0",
+        "difference": "DataVersion changed: 3700 -> 3837"
+      },
+      {
+        "chunk": "0,0",
+        "difference": "chunk (0,0) WORLD_SURFACE heightmap differs"
+      },
+      {
+        "chunk": "0,0",
+        "difference": "chunk (0,0) OCEAN_FLOOR heightmap differs"
+      },
+      {
+        "chunk": "1,0",
+        "difference": "DataVersion changed: 3700 -> 3837"
+      },
+      {
+        "chunk": "1,0",
+        "difference": "chunk (1,0) WORLD_SURFACE heightmap differs"
+      },
+      {
+        "chunk": "1,0",
+        "difference": "chunk (1,0) OCEAN_FLOOR heightmap differs"
+      },
+      {
+        "chunk": "2,0",
+        "difference": "DataVersion changed: 3700 -> 3837"
+      },
+      {
+        "chunk": "2,0",
+        "difference": "chunk (2,0) WORLD_SURFACE heightmap differs"
+      },
+      {
+        "chunk": "2,0",
+        "difference": "chunk (2,0) OCEAN_FLOOR heightmap differs"
+      },
+      {
+        "chunk": "3,0",
+        "difference": "DataVersion changed: 3700 -> 3837"
+      },
+      {
+        "chunk": "3,0",
+        "difference": "chunk (3,0) WORLD_SURFACE heightmap differs"
+      },
+      {
+        "chunk": "3,0",
+        "difference": "chunk (3,0) OCEAN_FLOOR heightmap differs"
+      },
+      {
+        "chunk": "4,0",
+        "difference": "DataVersion changed: 3700 -> 3837"
+      },
+      {
+        "chunk": "4,0",
+        "difference": "chunk (4,0) WORLD_SURFACE heightmap differs"
+      },
+      {
+        "chunk": "4,0",
+        "difference": "chunk (4,0) OCEAN_FLOOR heightmap differs"
+      },
+      {
+        "chunk": "5,0",
+        "difference": "DataVersion changed: 3700 -> 3837"
+      },
+      {
+        "chunk": "5,0",
+        "difference": "chunk (5,0) WORLD_SURFACE heightmap differs"
+      },
+      {
+        "chunk": "5,0",
+        "difference": "chunk (5,0) OCEAN_FLOOR heightmap differs"
+      },
+      {
+        "chunk": "6,0",
+        "difference": "DataVersion changed: 3700 -> 3837"
+      },
+      {
+        "chunk": "6,0",
+        "difference": "chunk (6,0) WORLD_SURFACE heightmap differs"
+      }
+    ],
+    "undocumentedDifferences": [],
+    "undocumentedDifferencesTruncated": false
+  },
+  "verdict": "clean"
+}

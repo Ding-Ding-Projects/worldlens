@@ -1,5 +1,11 @@
 name: Render world
 
+# The run's own display title names the map and dimension it was dispatched with, so
+# "fetch a render made elsewhere" can tell runs apart in a list without a local record
+# of what any of them were for - see cirender/actions.ts's listWorkflowRuns and
+# docs/render-in-actions.md.
+run-name: Render ${{ inputs.map-id }} (${{ inputs.dimension }})
+
 # Renders a Minecraft world into a BlueMap map entirely on GitHub's runners. Nothing is
 # installed locally and no Java is needed on the machine that starts the run.
 #
@@ -137,7 +143,7 @@ env:
   # a change to design/packages/render-actions or design/packages/site lands on this
   # project's own main branch, update this value to that commit in the same change - a
   # toolchain that silently changed between runs is a render nobody could reproduce.
-  WORLDLENS_TOOLCHAIN_COMMIT: 10aecea86c8cd06dd0282de5cbae58fe673809a1
+  WORLDLENS_TOOLCHAIN_COMMIT: 40680d795ae388e5a4de05fa299e95ee2af39ab8
 
 jobs:
   # ---------------------------------------------------------------------------------

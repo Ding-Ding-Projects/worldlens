@@ -54,11 +54,14 @@ export {
 } from "./waves.js";
 
 export {
+    chooseMergeGroupSize,
     DEFAULT_MERGE_GROUP_SIZE,
     describeMergeTree,
     groupOf,
+    MERGE_MEMORY_BUDGET_BYTES,
     planMergeTree,
     type MergeGroup,
+    type MergeGroupSizeInputs,
     type MergeTree,
     type MergeTreeSummaryOptions,
 } from "./mergeTree.js";

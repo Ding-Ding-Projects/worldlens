@@ -83,6 +83,7 @@ import type { Readable } from "node:stream";
 import { dirname, join } from "node:path";
 import { LineSplitter } from "../render/progress.js";
 import { inspectWorldFolder } from "../world/inspect.js";
+import { chunkerConfigArguments, type ChunkerCliConfig } from "./chunkerConfig.js";
 
 /**
  * The Java format converted worlds are written as.
@@ -192,6 +193,10 @@ export interface ChunkerRunOptions {
     /** Where the Java world is written. Should be a staging path. */
     readonly outputDirectory: string;
     readonly outputFormat?: string;
+    /** The public JSON options and guarded NBT-copy flag from Chunker's CLI. */
+    readonly config?: ChunkerCliConfig;
+    /** Detected source format, required to protect keepOriginalNBT. */
+    readonly inputFormat?: string | null;
     /**
      * A pruning JSON file for `-p`, restricting the conversion to part of the world.
      *
@@ -273,10 +278,7 @@ export class ChunkerConversion {
         args.push("-f", options.outputFormat ?? DEFAULT_JAVA_TARGET);
         args.push("-o", options.outputDirectory);
         if (options.pruningFile !== undefined) args.push("-p", options.pruningFile);
-        // `--keepOriginalNBT` is deliberately never passed. Chunker only honours it when
-        // input and output formats match, and refuses the whole conversion with
-        // `System.exit(0)` when they differ - which for a Bedrock-to-Java conversion is
-        // always. Passing it would turn every conversion into a silent no-op.
+        args.push(...chunkerConfigArguments(options.config, options.inputFormat ?? null, options.outputFormat ?? DEFAULT_JAVA_TARGET));
         return args;
     }
 
@@ -486,6 +488,7 @@ export interface ConvertedWorldCheck {
  */
 export async function verifyConvertedWorld(
     directory: string,
+    outputFormat: string = DEFAULT_JAVA_TARGET,
     inspect: typeof inspectWorldFolder = inspectWorldFolder,
 ): Promise<ConvertedWorldCheck> {
     let listing;
@@ -503,6 +506,15 @@ export async function verifyConvertedWorld(
     const levelDat = listing.entries.some(
         (entry) => !entry.directory && entry.path.toLowerCase() === "level.dat",
     );
+    if (outputFormat.startsWith("BEDROCK")) {
+        const bedrock = listing.leveldbFiles !== null && listing.leveldbFiles > 0;
+        return {
+            ok: bedrock,
+            regionFiles: 0,
+            levelDat,
+            reason: bedrock ? "" : "The conversion produced no readable Bedrock LevelDB database.",
+        };
+    }
     let regionFiles = 0;
     for (const [key, count] of Object.entries(listing.regionFiles)) {
         // The empty key is the chosen folder itself, which for a world is never where
@@ -630,6 +642,8 @@ export async function convertBedrockWorld(
         inputDirectory: options.inputDirectory,
         outputDirectory: staging,
         ...(options.outputFormat === undefined ? {} : { outputFormat: options.outputFormat }),
+        ...(options.config === undefined ? {} : { config: options.config }),
+        ...(options.inputFormat === undefined ? {} : { inputFormat: options.inputFormat }),
         ...(options.pruningFile === undefined ? {} : { pruningFile: options.pruningFile }),
         ...(options.jvmArgs === undefined ? {} : { jvmArgs: options.jvmArgs }),
         ...(options.cwd === undefined ? {} : { cwd: options.cwd }),
@@ -722,7 +736,7 @@ export async function convertBedrockWorld(
         );
     }
 
-    const check = await verify(staging);
+    const check = await verify(staging, options.outputFormat ?? DEFAULT_JAVA_TARGET);
     if (!check.ok) {
         return await fail("incomplete-output", check.reason);
     }

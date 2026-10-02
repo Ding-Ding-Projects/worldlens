@@ -85,7 +85,9 @@ export class HttpServer {
     async close(): Promise<void> {
         await new Promise<void>((resolve, reject) => {
             this.server.close((err) => (err ? reject(err) : resolve()));
+            // Stop accepting connections first, then terminate active HTTP streams
+            // before awaiting the close callback that those streams would block.
+            this.server.closeAllConnections();
         });
-        this.server.closeAllConnections();
     }
 }

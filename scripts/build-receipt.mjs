@@ -90,8 +90,17 @@ export function prepare(repo, receipt) {
   const startedAt = Date.now();
   const design = resolve(repo, "design", "packages");
   for (const packageName of readdirSync(design)) {
-    const dist = join(design, packageName, "dist");
+    const packageRoot = join(design, packageName);
+    if (!statSync(packageRoot).isDirectory()) continue;
+    const dist = join(packageRoot, "dist");
     rmSync(dist, { recursive: true, force: true });
+    // Composite tsc trusts its build-info file even after dist is removed.
+    // Invalidating outputs and retaining that cache silently emits nothing.
+    for (const entry of readdirSync(packageRoot, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.endsWith(".tsbuildinfo")) {
+        rmSync(join(packageRoot, entry.name), { force: true });
+      }
+    }
     if (packageName === "app") rmSync(join(design, packageName, "release", "win-unpacked"), { recursive: true, force: true });
   }
   writeFileSync(receipt, JSON.stringify({ schemaVersion: 1, state: "prepared", startedAt, source: sourceState(repo), outputs }, null, 2) + "\n");

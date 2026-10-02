@@ -76,7 +76,7 @@ export const FLAVOUR_CARDS: readonly FlavourCard[] = [
         tagline: "The plugin API Paper is built on",
         description:
             "The original plugin-capable server Paper forked from. Still widely supported, though Paper usually outperforms it.",
-        cataloguedId: null,
+        cataloguedId: "spigot",
     },
     {
         id: "fabric",

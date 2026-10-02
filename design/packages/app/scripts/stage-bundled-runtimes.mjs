@@ -100,6 +100,34 @@ const converterRegistrySource = join(appRoot, "src", "main", "converter", "regis
 
 const log = (message) => process.stdout.write(`[stage-bundled-runtimes] ${message}\n`);
 
+/**
+ * The committed manifest is the one pin, so this script, the packaged-output assertion and
+ * the runtime resolver cannot come to disagree. Three copies of a digest is three digests,
+ * and the one that moves last is the one nobody notices.
+ */
+function assertPinsMatchManifest() {
+    const manifestFile = join(appRoot, "bundled-runtimes.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestFile, "utf8"));
+    const mismatches = [];
+    for (const [field, mine, theirs] of [
+        ["chunker.version", PINNED_CHUNKER.version, manifest.chunker.version],
+        ["chunker.asset", PINNED_CHUNKER.asset, manifest.chunker.asset],
+        ["chunker.sha256", PINNED_CHUNKER.sha256, manifest.chunker.sha256],
+        ["chunker.sizeBytes", PINNED_CHUNKER.sizeBytes, manifest.chunker.sizeBytes],
+        ["chunker.url", PINNED_CHUNKER.url, manifest.chunker.url],
+        ["java.release", PINNED_JRE.release, manifest.java.release],
+        ["java.sha256", PINNED_JRE.sha256, manifest.java.sha256],
+    ]) {
+        if (mine !== theirs) mismatches.push(`  ${field}: script has ${String(mine)}, manifest has ${String(theirs)}`);
+    }
+    if (mismatches.length > 0) {
+        throw new Error(
+            `bundled-runtimes.manifest.json disagrees with the pins in this script:\n${mismatches.join("\n")}\n` +
+                "Update both in the same reviewed commit.",
+        );
+    }
+}
+
 const sha256Of = (file) => createHash("sha256").update(readFileSync(file)).digest("hex");
 
 /**
@@ -241,6 +269,7 @@ function stageBuiltinConverterManifest() {
 
 async function main() {
     const args = new Set(process.argv.slice(2));
+    assertPinsMatchManifest();
 
     if (args.has("--refresh")) {
         await refresh();

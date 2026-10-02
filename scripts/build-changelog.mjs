@@ -309,7 +309,48 @@ export const REDACTED_COMMIT_MESSAGES = new Set([
     "e3782366879bc380462a6ce9b99e2aeebb443dc1",
 ]);
 
+/**
+ * Per-commit overrides for a message that is otherwise fine to keep but whose exact wording
+ * cannot be repeated verbatim in a public record.
+ *
+ * Commit history is immutable, so a commit written with informal internal wording stays that
+ * way in `git log` forever. Rather than redacting the whole entry the way
+ * {@link REDACTED_COMMIT_MESSAGES} does, this file gives that one commit a neutral subject and
+ * body that keep the technical content -- what changed, why, how it was verified -- and drop
+ * only the wording that cannot travel. New commits are required to use publication-safe wording
+ * from the start; this file exists only for history that cannot be rewritten safely.
+ *
+ * Loaded once at generation time from `scripts/changelog-overrides.json`, keyed by the full
+ * commit SHA. An entry applies to both {@link CHANGELOG_PATH} and {@link DATA_PATH}: whichever
+ * of `subject`/`body` it supplies replaces the raw commit text before {@link REDACTED_COMMIT_MESSAGES}
+ * is even consulted, since an overridden commit is by definition already safe to publish.
+ */
+const CHANGELOG_OVERRIDES_PATH = join(REPO_ROOT, "scripts", "changelog-overrides.json");
+
+function readChangelogOverrides() {
+    let raw;
+    try {
+        raw = readFileSync(CHANGELOG_OVERRIDES_PATH, "utf8");
+    } catch (error) {
+        if (error && error.code === "ENOENT") return new Map();
+        throw error;
+    }
+    const parsed = JSON.parse(raw);
+    const overrides = new Map();
+    for (const [sha, entry] of Object.entries(parsed)) {
+        overrides.set(sha, { subject: entry.subject, body: entry.body });
+    }
+    return overrides;
+}
+
+const CHANGELOG_OVERRIDES = readChangelogOverrides();
+
 export function publicText(text, sha, kind) {
+    const override = CHANGELOG_OVERRIDES.get(sha);
+    if (override) {
+        if (kind === "subject" && typeof override.subject === "string") return override.subject;
+        if (kind === "details" && typeof override.body === "string") return override.body;
+    }
     if (!REDACTED_COMMIT_MESSAGES.has(sha)) return text;
     return kind === "subject"
         ? "Internal maintenance message omitted from the public changelog"

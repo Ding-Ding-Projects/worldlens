@@ -110,6 +110,7 @@ export interface ServerRecord {
 
 /** The three values `createLocalProcessTransport` needs, persisted with the server. */
 export interface LocalRuntimeRecord {
+    readonly argsFile?: string;
     readonly javaPath: string;
     readonly jarPath: string;
     readonly memoryMb: number;
@@ -120,7 +121,8 @@ function parseLocalRuntime(value: unknown): LocalRuntimeRecord | null | undefine
     if (value === undefined || value === null) return null;
     if (typeof value !== "object") return undefined;
     const raw = value as Record<string, unknown>;
-    if (!hasExactKeys(raw, ["javaPath", "jarPath", "memoryMb"])) return undefined;
+    if (!hasExactKeys(raw, ["javaPath", "jarPath", "memoryMb"], ["argsFile"])) return undefined;
+    if (raw.argsFile !== undefined && !isString(raw.argsFile, 2048)) return undefined;
     if (!isString(raw.javaPath, 1024) || !isString(raw.jarPath, 1024)) return undefined;
     if (
         typeof raw.memoryMb !== "number" ||
@@ -129,7 +131,12 @@ function parseLocalRuntime(value: unknown): LocalRuntimeRecord | null | undefine
         raw.memoryMb > 1_048_576
     )
         return undefined;
-    return { javaPath: raw.javaPath, jarPath: raw.jarPath, memoryMb: raw.memoryMb };
+    return {
+        javaPath: raw.javaPath,
+        jarPath: raw.jarPath,
+        memoryMb: raw.memoryMb,
+        ...(typeof raw.argsFile === "string" ? { argsFile: raw.argsFile } : {}),
+    };
 }
 
 /** The renderer may edit labels and version metadata, never transport identity or authority. */
@@ -219,19 +226,21 @@ export function parseRecord(value: unknown): ServerRecord | null {
     if (typeof value !== "object" || value === null) return null;
     const raw = value as Record<string, unknown>;
     if (
-        !hasExactKeys(raw, [
-            "id",
-            "name",
-            "flavour",
-            "minecraftVersion",
-            "ref",
-            "origin",
-            "createdAt",
-            "updatedAt",
-            "hasRconSecret",
-            "rconPort",
-            "writeScope",
-        ],
+        !hasExactKeys(
+            raw,
+            [
+                "id",
+                "name",
+                "flavour",
+                "minecraftVersion",
+                "ref",
+                "origin",
+                "createdAt",
+                "updatedAt",
+                "hasRconSecret",
+                "rconPort",
+                "writeScope",
+            ],
             ["localRuntime"],
         )
     )

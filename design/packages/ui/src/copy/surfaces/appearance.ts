@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: example colours shown inside sentences. They are being read by a person, not applied to anything.
+ * material-exempt: example colours shown inside sentences. They are being read by a person, not applied to anything.
  */
 /**
  * The appearance editor: per-element typography, the infinite colour picker and its

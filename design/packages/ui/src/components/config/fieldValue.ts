@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: colour values read from and written to a BlueMap configuration file. They belong to that file's format, not to this interface.
+ * material-exempt: colour values read from and written to a BlueMap configuration file. They belong to that file's format, not to this interface.
  */
 /**
  * Moving one setting between three shapes: what HOCON holds, what a control

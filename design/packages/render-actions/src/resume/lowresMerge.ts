@@ -110,17 +110,21 @@ async function mergeLowresLayersIntoDirectory(
     else await writeFile(join(output, "textures.json"), galleries[0]!.bytes);
 
     // lod 1: composited, because a lowres tile straddles group boundaries by construction
-    const sources = new Map<string, LowresTile[]>();
+    //
+    // As in `mergeShardMaps`, only paths are collected here - decoding every partial's
+    // lowres tiles up front held every one of them, uncompressed, in memory at once. This
+    // job's partials are small (lod 1 and above only), but the fix is cheap and keeps the
+    // two merges from disagreeing about how a lowres tile is read.
+    const sourcePaths = new Map<string, string[]>();
     for (const directory of partials) {
         const files = await listFiles(join(directory, "tiles", "1"));
         for (const [relativePath, absolutePath] of files) {
             const cell = parseGridCellPath(relativePath, ".png");
             if (cell === null) continue;
-            const tile = LowresTile.decode(await readFile(absolutePath), lowresTileSize);
             const key = cellKey(cell);
-            const bucket = sources.get(key);
-            if (bucket === undefined) sources.set(key, [tile]);
-            else bucket.push(tile);
+            const bucket = sourcePaths.get(key);
+            if (bucket === undefined) sourcePaths.set(key, [absolutePath]);
+            else bucket.push(absolutePath);
         }
     }
 
@@ -130,12 +134,15 @@ async function mergeLowresLayersIntoDirectory(
     let overruledErasures = 0;
     let firstConflict: { tile: string; x: number; z: number } | null = null;
 
-    for (const [key, tiles] of sources) {
-        if (tiles.length === 1) {
-            lod1.set(key, tiles[0]!);
+    for (const [key, paths] of sourcePaths) {
+        if (paths.length === 1) {
+            lod1.set(key, LowresTile.decode(await readFile(paths[0]!), lowresTileSize));
             continue;
         }
         composited++;
+        const tiles = await Promise.all(
+            paths.map(async (path) => LowresTile.decode(await readFile(path), lowresTileSize)),
+        );
         const result = compositeLowresTile(tiles, lowresTileSize);
         lod1.set(key, result.tile);
         conflictingPixels += result.conflictingPixels;

@@ -125,7 +125,7 @@ export interface PruningBox {
 
 /** The `-p` payload, shaped exactly as `DimensionPruningList` deserialises it. */
 export interface PruningConfigFile {
-    readonly configs: Readonly<Record<string, { readonly include: true; readonly regions: readonly PruningBox[] }>>;
+    readonly configs: Readonly<Record<string, { readonly include: boolean; readonly regions: readonly PruningBox[] }>>;
 }
 
 /**

@@ -32,6 +32,7 @@ import {
     syncIdFor,
     writeCiSyncState,
 } from "./state.js";
+import type { GhCredentialAccess } from "../ghcli/credentialBroker.js";
 import type { CiSyncState } from "./state.js";
 import { CiRenderSync, VERIFIED_MAP_UPLOAD_STEP } from "./sync.js";
 import type { CiSyncEvent, CiSyncRequest } from "./sync.js";
@@ -150,11 +151,16 @@ function makeSync(options: {
     mounts?: LocalMapHandler;
     eulaAccepted?: boolean;
     events?: CiSyncEvent[];
+    /** Collects the access level every credential lease was asked for, in order. */
+    accesses?: (GhCredentialAccess | undefined)[];
     writeState?: ((path: string, state: CiSyncState) => Promise<void>) | undefined;
 }): CiRenderSync {
     return new CiRenderSync({
         storageDir: () => join(workDir, "maps"),
-        account: recordingGhAccountProvider(options.github),
+        account: recordingGhAccountProvider(
+            options.github,
+            options.accesses === undefined ? {} : { accesses: options.accesses },
+        ),
         eulaAccepted: () => options.eulaAccepted ?? true,
         ...(options.mounts === undefined ? {} : { mounts: options.mounts }),
         ...(options.events === undefined
@@ -1941,7 +1947,12 @@ describe("a successful run comes back as a map in the list", () => {
         expect(mounts.getMounts()).toHaveLength(0);
     });
 
-    it("refuses a map that shipped in parts rather than half-unpacking it", async () => {
+    it("refuses a map shipped in parts with a gap, rather than assembling around it", async () => {
+        // Was: unconditionally refused every multi-group render, even a complete one -
+        // see collect.test.ts for the positive case this defect fix now makes possible.
+        // What must still be refused is a genuinely incomplete part set: here
+        // partial-hires-1 never got published, so index 1 is a real gap rather than a
+        // reachable part this computer merely has not fetched yet.
         const github = releaseRoute(baseRoutes(new RecordingGitHub()))
             .on("GET", /\/actions\/runs\/7$/, {
                 status: 200,
@@ -1954,7 +1965,7 @@ describe("a successful run comes back as a map in the list", () => {
                     artifacts: [
                         artifactJson({ id: 9, name: "map-lowres", bytes: 10 }),
                         artifactJson({ id: 10, name: "partial-hires-0", bytes: 10 }),
-                        artifactJson({ id: 11, name: "partial-hires-1", bytes: 10 }),
+                        artifactJson({ id: 11, name: "partial-hires-2", bytes: 10 }),
                     ],
                 },
             });
@@ -1966,8 +1977,8 @@ describe("a successful run comes back as a map in the list", () => {
 
         expect(result.ok).toBe(false);
         if (result.ok) return;
-        expect(result.failure.code).toBe("map-shipped-in-parts");
-        expect(result.failure.message).toContain("partial-hires-0");
+        expect(result.failure.code).toBe("map-parts-incomplete");
+        expect(result.failure.message).toContain("partial-hires-1");
         expect(mounts.getMounts()).toHaveLength(0);
         expect(github.never("/zip")).toBe(true);
     });
@@ -2066,5 +2077,285 @@ describe("refusals are values, and none of them is a stack", () => {
         if (second.ok) return;
         expect(second.failure.code).toBe("already-running");
         expect(sync.activeSyncIds()).toHaveLength(0);
+    });
+});
+
+describe("fetching a render made elsewhere", () => {
+    /*
+     * A second device, or a reinstall, has no `sync.json` for a run somebody else
+     * dispatched - or that this same computer dispatched before it was wiped. `attach`
+     * is the only path onto it: it writes the run's identity as a recorded "dispatched"
+     * sync with no uploaded-world identity at all, then collects through the exact same
+     * `#finishRecordedRun` path `resume` uses.
+     */
+    it("collects a run this computer never uploaded anything for, with no release identity recorded", async () => {
+        const site = join(workDir, "attached-site");
+        await mkdir(join(site, "maps", MAP_ID, "tiles"), { recursive: true });
+        await writeFile(join(site, "settings.json"), '{"maps":["world"]}', "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "settings.json"), "{}", "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "tiles", "0.prbm"), "tile", "utf8");
+        const archive = join(workDir, "attached-rendered-map.zip");
+        const packed = await packFolder(site, archive);
+        const bytes = new Uint8Array(await readFile(archive));
+
+        const github = baseRoutes(new RecordingGitHub())
+            .on("GET", /\/actions\/runs\/42$/, {
+                status: 200,
+                json: runJson({ id: 42, status: "completed", conclusion: "success" }),
+            })
+            .on("GET", "/actions/runs/42/jobs", { status: 200, json: { jobs: [] } })
+            .on("GET", "/actions/runs/42/artifacts", {
+                status: 200,
+                json: {
+                    artifacts: [
+                        artifactJson({
+                            id: 90,
+                            name: "rendered-map",
+                            bytes: bytes.byteLength,
+                            digest: `sha256:${packed.sha256}`,
+                        }),
+                    ],
+                },
+            })
+            .on("GET", "/artifacts/90/zip", { status: 200, bytes });
+
+        const events: CiSyncEvent[] = [];
+        const mounts = new LocalMapHandler();
+        const result = await makeSync({ github, mounts, events }).attach({
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            mapId: MAP_ID,
+            runId: 42,
+        });
+
+        expect(result.ok && result.outcome === "rendered").toBe(true);
+        if (!result.ok || result.outcome !== "rendered") return;
+        expect(result.summary.releaseTag).toBeNull();
+        expect(result.summary.assetName).toBeNull();
+        expect(result.summary.uploaded).toBe(false);
+        expect(mounts.getMounts()).toHaveLength(1);
+        // Nothing was ever uploaded for a run this computer only attached to.
+        expect(nothingUploaded(github)).toBe(true);
+        expect(events.some((event) => event.type === "failed")).toBe(false);
+
+        const syncId = syncIdFor(OWNER, REPO, world, MAP_ID);
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const saved = await readCiSyncState(workspace.stateFile);
+        expect(saved?.stage).toBe("rendered");
+        expect(saved?.runId).toBe(42);
+        expect(saved?.releaseTag).toBeNull();
+        expect(saved?.assetName).toBeNull();
+    });
+
+    /*
+     * The bug this whole rewrite exists for: a run made elsewhere renders a completely
+     * different world than the one open in this project. The local project here only
+     * ever defines "world" - the artifact carries "fixture_10gb" instead, exactly the
+     * shape a second device's huge test render would have. Attaching with no explicit
+     * `mapId` used to force `chooseProjectMap`'s "only one enabled map, that must be it"
+     * fallback onto this project's own "world", which the artifact never had a folder
+     * for - refused as `artifact-not-a-map` for a reason that had nothing to do with the
+     * artifact being broken. It must now read the run's own title first and register the
+     * render under *that* identity instead.
+     */
+    it("registers under the run's own map id when it differs from the local project's map", async () => {
+        const FOREIGN_MAP_ID = "fixture_10gb";
+        const site = join(workDir, "foreign-site");
+        await mkdir(join(site, "maps", FOREIGN_MAP_ID, "tiles"), { recursive: true });
+        await writeFile(join(site, "settings.json"), '{"maps":["fixture_10gb"]}', "utf8");
+        await writeFile(join(site, "maps", FOREIGN_MAP_ID, "settings.json"), "{}", "utf8");
+        await writeFile(join(site, "maps", FOREIGN_MAP_ID, "tiles", "0.prbm"), "tile", "utf8");
+        const archive = join(workDir, "foreign-rendered-map.zip");
+        const packed = await packFolder(site, archive);
+        const bytes = new Uint8Array(await readFile(archive));
+
+        const github = baseRoutes(new RecordingGitHub())
+            .on("GET", /\/actions\/runs\/77$/, {
+                status: 200,
+                json: {
+                    ...(runJson({ id: 77, status: "completed", conclusion: "success" }) as Record<
+                        string,
+                        unknown
+                    >),
+                    display_title: `Render ${FOREIGN_MAP_ID} (minecraft:overworld)`,
+                },
+            })
+            .on("GET", "/actions/runs/77/jobs", { status: 200, json: { jobs: [] } })
+            .on("GET", "/actions/runs/77/artifacts", {
+                status: 200,
+                json: {
+                    artifacts: [
+                        artifactJson({
+                            id: 91,
+                            name: "rendered-map",
+                            bytes: bytes.byteLength,
+                            digest: `sha256:${packed.sha256}`,
+                        }),
+                    ],
+                },
+            })
+            .on("GET", "/artifacts/91/zip", { status: 200, bytes });
+
+        const mounts = new LocalMapHandler();
+        // Deliberately no `mapId` here - this is the whole point of the fix. Only the
+        // run's own title says what this render is.
+        const result = await makeSync({ github, mounts }).attach({
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            runId: 77,
+        });
+
+        expect(result.ok && result.outcome === "rendered").toBe(true);
+        if (!result.ok || result.outcome !== "rendered") return;
+        expect(result.summary.mapId).toBe(FOREIGN_MAP_ID);
+        expect(mounts.getMounts()).toHaveLength(1);
+
+        const syncId = syncIdFor(OWNER, REPO, world, FOREIGN_MAP_ID);
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const saved = await readCiSyncState(workspace.stateFile);
+        expect(saved?.stage).toBe("rendered");
+        expect(saved?.mapId).toBe(FOREIGN_MAP_ID);
+        expect(saved?.runId).toBe(77);
+    });
+
+    /*
+     * The same fetch, against a repository this account can only read.
+     *
+     * `attach` uploads nothing and dispatches nothing, so the write-permission refusal -
+     * whose own words are about publishing a world and starting a workflow - never
+     * described this path. Refusing here also contradicted `listAttachableRuns`, which
+     * lists a repository's finished runs under a read credential: the picker offered
+     * runs that fetching then turned down. A render made on somebody else's repository,
+     * or on an organization repository this account only reads, is exactly what this
+     * feature exists to collect.
+     */
+    it("collects a run from a repository the account cannot write to", async () => {
+        const site = join(workDir, "read-only-site");
+        await mkdir(join(site, "maps", MAP_ID, "tiles"), { recursive: true });
+        await writeFile(join(site, "settings.json"), '{"maps":["world"]}', "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "settings.json"), "{}", "utf8");
+        await writeFile(join(site, "maps", MAP_ID, "tiles", "0.prbm"), "tile", "utf8");
+        const archive = join(workDir, "read-only-rendered-map.zip");
+        const packed = await packFolder(site, archive);
+        const bytes = new Uint8Array(await readFile(archive));
+
+        const github = baseRoutes(new RecordingGitHub(), true, false)
+            .on("GET", /\/actions\/runs\/43$/, {
+                status: 200,
+                json: runJson({ id: 43, status: "completed", conclusion: "success" }),
+            })
+            .on("GET", "/actions/runs/43/jobs", { status: 200, json: { jobs: [] } })
+            .on("GET", "/actions/runs/43/artifacts", {
+                status: 200,
+                json: {
+                    artifacts: [
+                        artifactJson({
+                            id: 92,
+                            name: "rendered-map",
+                            bytes: bytes.byteLength,
+                            digest: `sha256:${packed.sha256}`,
+                        }),
+                    ],
+                },
+            })
+            .on("GET", "/artifacts/92/zip", { status: 200, bytes });
+
+        const accesses: (GhCredentialAccess | undefined)[] = [];
+        const mounts = new LocalMapHandler();
+        const result = await makeSync({ github, mounts, accesses }).attach({
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            mapId: MAP_ID,
+            runId: 43,
+        });
+
+        expect(result.ok && result.outcome === "rendered").toBe(true);
+        if (!result.ok || result.outcome !== "rendered") return;
+        expect(result.summary.uploaded).toBe(false);
+        expect(mounts.getMounts()).toHaveLength(1);
+        expect(nothingUploaded(github)).toBe(true);
+        expect(github.never("/dispatches")).toBe(true);
+        // A path that writes nothing asks for no credential that could: a real broker
+        // revalidates the account before a write, and there is no write here to guard.
+        expect(accesses.length).toBeGreaterThan(0);
+        expect(accesses.every((access) => access === "read")).toBe(true);
+
+        const syncId = syncIdFor(OWNER, REPO, world, MAP_ID);
+        const workspace = ciSyncWorkspace(join(workDir, "maps"), syncId);
+        const saved = await readCiSyncState(workspace.stateFile);
+        expect(saved?.stage).toBe("rendered");
+        expect(saved?.runId).toBe(43);
+    });
+
+    it("refuses an invalid run id before touching GitHub", async () => {
+        const github = baseRoutes(new RecordingGitHub());
+        const result = await makeSync({ github }).attach({
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            mapId: MAP_ID,
+            runId: 0,
+        });
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("invalid-run");
+        expect(github.never("/dispatches")).toBe(true);
+    });
+
+    it("lists a repository's completed runs and reads the map id back out of the run's own title", async () => {
+        const github = baseRoutes(new RecordingGitHub()).on(
+            "GET",
+            /\/actions\/workflows\/render-world\.yml\/runs/,
+            {
+                status: 200,
+                json: {
+                    workflow_runs: [
+                        {
+                            ...(runJson({
+                                id: 42,
+                                status: "completed",
+                                conclusion: "success",
+                            }) as Record<string, unknown>),
+                            display_title: "Render world (minecraft:overworld)",
+                        },
+                        {
+                            ...(runJson({
+                                id: 41,
+                                status: "completed",
+                                conclusion: "failure",
+                            }) as Record<string, unknown>),
+                            display_title: "Render world",
+                        },
+                    ],
+                },
+            },
+        );
+
+        const result = await makeSync({ github }).listAttachableRuns(OWNER, REPO);
+
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.runs).toHaveLength(2);
+        expect(result.runs[0]).toMatchObject({ id: 42, mapId: "world", conclusion: "success" });
+        // A run whose title never named a map - dispatched from the Actions tab by hand, or
+        // by a fork's own workflow - is still listed, just without a parsed map id.
+        expect(result.runs[1]).toMatchObject({ id: 41, mapId: null });
+    });
+
+    it("reports the exact refusal when the selected credential cannot reach the repository", async () => {
+        const github = new RecordingGitHub().on("GET", /\/actions\/workflows\/render-world\.yml$/, {
+            status: 404,
+            json: { message: "Not Found" },
+        });
+
+        const result = await makeSync({ github }).listAttachableRuns(OWNER, REPO);
+
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.failure.code).toBe("no-route");
     });
 });

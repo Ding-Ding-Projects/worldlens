@@ -139,6 +139,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "mcserver-plugins.md",
     "mcserver-web-console.md",
     "mcserver-aws.md",
+    "mcserver-hosting.md",
 ];
 
 /**
@@ -179,6 +180,7 @@ export const RENDERING_ORDER: readonly string[] = [
     "world-sources.md",
     "ssh-world-sources.md",
     "docker-world-source.md",
+    "world-downloader.md",
     "world-git-repository.md",
     "repository-adoption.md",
     "remote-render.md",

@@ -2,7 +2,7 @@
  * Which BlueMap the jars in this installation actually are, and whether upstream has moved on.
  *
  * The engine this app renders with is very nearly not this app's code. It is BlueMap's own
- * source, vendored at `vendor/BlueMap-LangGui` as a git submodule pinned to one commit and
+ * source, vendored at `vendor/BlueMap-Material` as a git submodule pinned to one commit and
  * compiled by `scripts/bootstrap.mjs` with upstream's own Gradle wrapper. The one deliberate
  * difference is the webapp's UI layer, which this project rewrote to Material Design 3; the
  * rendering engine itself is untouched. Saying "compiled unmodified" here would be false, and
@@ -51,7 +51,7 @@ export const JAR_STAMP_NAME = "worldlens-jar-provenance.json";
 
 /** What the build recorded about the jars sitting in this installation. */
 export interface BlueMapJarProvenance {
-    /** The full `vendor/BlueMap-LangGui` commit the jars were compiled from. */
+    /** The full `vendor/BlueMap-Material` commit the jars were compiled from. */
     readonly commit: string;
     /** The same, shortened for display. Derived here so no caller shortens it differently. */
     readonly shortCommit: string;

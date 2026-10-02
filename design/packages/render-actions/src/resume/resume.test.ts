@@ -80,6 +80,7 @@ function plan(overrides: Partial<ShardPlan> = {}): ShardPlan {
             requiredBytes: 62_548_899,
             largestShardFraction: 2000 / 3969,
         },
+        mergeGroupSize: 32,
         budgetSeconds: 14_400,
         requestedShards: 2,
         grid: { x: 2, z: 1 },

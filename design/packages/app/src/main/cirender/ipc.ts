@@ -50,6 +50,7 @@ import { isCiScheduleCadence, readCiSchedule, writeCiSchedule } from "./schedule
 import type { CiScheduleStatus, CiScheduleWriteResult } from "./schedule.js";
 import { CiRenderSync } from "./sync.js";
 import type {
+    CiAttachableRun,
     CiPreflight,
     CiSyncFailure,
     CiSyncEvent,
@@ -75,6 +76,11 @@ export const CIRENDER_CHANNELS = [
     "cirender:start",
     "cirender:resume",
     "cirender:check",
+    // "Fetch a render made elsewhere": listing a repository's already-finished runs of the
+    // render workflow, and attaching this computer to one of them without uploading or
+    // dispatching anything. See docs/render-in-actions.md.
+    "cirender:listAttachableRuns",
+    "cirender:attachRun",
     "cirender:list",
     "cirender:cancel",
     "cirender:forget",
@@ -255,6 +261,83 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                 };
             }
             return await sync.resume(id);
+        },
+    );
+
+    // "Fetch a render made elsewhere": listing what a repository's render workflow has
+    // already finished, and attaching this computer to one of those runs the same way
+    // `cirender:resume` attaches to a run it dispatched itself. Neither channel uploads or
+    // dispatches anything.
+    options.ipcMain.handle(
+        "cirender:listAttachableRuns",
+        async (
+            _event: IpcMainInvokeEvent,
+            request: unknown,
+        ): Promise<Answer<readonly CiAttachableRun[]>> => {
+            const record = isRecord(request) ? request : null;
+            const owner = record === null ? null : readText(record["owner"]);
+            const repo = record === null ? null : readText(record["repo"]);
+            if (owner === null || repo === null) {
+                return { ok: false, message: "A repository owner and name are required." };
+            }
+            const accountId = record === null ? null : readText(record["accountId"]);
+            try {
+                const result = await sync.listAttachableRuns(owner, repo, accountId ?? undefined);
+                return result.ok
+                    ? { ok: true, value: result.runs }
+                    : {
+                          ok: false,
+                          message: result.failure.message,
+                          needsSignIn: result.failure.needsSignIn,
+                      };
+            } catch (error) {
+                return { ok: false, message: sentence(error) };
+            }
+        },
+    );
+
+    options.ipcMain.handle(
+        "cirender:attachRun",
+        async (_event: IpcMainInvokeEvent, request: unknown): Promise<CiSyncResult> => {
+            const record = isRecord(request) ? request : null;
+            const worldFolder = record === null ? null : readText(record["worldFolder"]);
+            const owner = record === null ? null : readText(record["owner"]);
+            const repo = record === null ? null : readText(record["repo"]);
+            const runId = record === null ? null : record["runId"];
+            if (
+                worldFolder === null ||
+                owner === null ||
+                repo === null ||
+                typeof runId !== "number"
+            ) {
+                return {
+                    ok: false,
+                    syncId: "nowhere",
+                    failure: {
+                        code: "invalid-request",
+                        message:
+                            "A world folder, a repository owner and name, and a run id are required.",
+                        detail: null,
+                        status: null,
+                        needsSignIn: false,
+                        needsEula: false,
+                        route: null,
+                        run: null,
+                        failingJob: null,
+                        logExcerpt: null,
+                    },
+                };
+            }
+            const mapId = readText(record?.["mapId"] ?? null);
+            const accountId = readText(record?.["accountId"] ?? null);
+            return await sync.attach({
+                worldFolder,
+                owner,
+                repo,
+                runId,
+                ...(mapId === null ? {} : { mapId }),
+                ...(accountId === null ? {} : { accountId }),
+            });
         },
     );
 
@@ -646,13 +729,19 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
             if (operationId === null) {
                 return {
                     ok: false,
-                    failure: { code: "invalid-request", message: "A cloud configuration operation id is required." },
+                    failure: {
+                        code: "invalid-request",
+                        message: "A cloud configuration operation id is required.",
+                    },
                 };
             }
             if (cloudConfigCancels.has(operationId)) {
                 return {
                     ok: false,
-                    failure: { code: "invalid-request", message: "That cloud configuration operation is already running." },
+                    failure: {
+                        code: "invalid-request",
+                        message: "That cloud configuration operation is already running.",
+                    },
                 };
             }
             const request = readRequest(outer?.request);
@@ -683,7 +772,9 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
                     ? { threads: source["threads"] as number | null | undefined }
                     : {}),
                 ...(typeof source["force"] === "boolean" ? { force: source["force"] } : {}),
-                ...(typeof source["fixEdges"] === "boolean" ? { fixEdges: source["fixEdges"] } : {}),
+                ...(typeof source["fixEdges"] === "boolean"
+                    ? { fixEdges: source["fixEdges"] }
+                    : {}),
                 ...(typeof source["metrics"] === "boolean" ? { metrics: source["metrics"] } : {}),
             };
             const controller = new AbortController();
@@ -710,14 +801,17 @@ export function installCiRenderIpc(options: CiRenderIpcOptions): CiRenderIpc {
         },
     );
 
-    options.ipcMain.handle("cirender:cancelCloudConfig", (_event: IpcMainInvokeEvent, value: unknown) => {
-        const operationId = readText(value);
-        if (operationId === null) return false;
-        const controller = cloudConfigCancels.get(operationId);
-        if (controller === undefined) return false;
-        controller.abort();
-        return true;
-    });
+    options.ipcMain.handle(
+        "cirender:cancelCloudConfig",
+        (_event: IpcMainInvokeEvent, value: unknown) => {
+            const operationId = readText(value);
+            if (operationId === null) return false;
+            const controller = cloudConfigCancels.get(operationId);
+            if (controller === undefined) return false;
+            controller.abort();
+            return true;
+        },
+    );
 
     return {
         sync,
@@ -755,9 +849,13 @@ function optionalText(record: Record<string, unknown>, key: string): Record<stri
     return value === null ? {} : { [key]: value };
 }
 
-function optionalStringArray(record: Record<string, unknown>, key: string): { enabledMapIds?: readonly string[] } {
+function optionalStringArray(
+    record: Record<string, unknown>,
+    key: string,
+): { enabledMapIds?: readonly string[] } {
     const value = record[key];
-    if (!Array.isArray(value) || !value.every((item): item is string => typeof item === "string")) return {};
+    if (!Array.isArray(value) || !value.every((item): item is string => typeof item === "string"))
+        return {};
     return { enabledMapIds: value };
 }
 
@@ -811,6 +909,10 @@ function readRequest(value: unknown): CiSyncRequest | null {
         ...(typeof record["maxJobs"] === "number" ? { maxJobs: record["maxJobs"] } : {}),
         ...(output === "artifact" || output === "artifact-and-pages" ? { output } : {}),
     };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
 }
 
 function readText(value: unknown): string | null {

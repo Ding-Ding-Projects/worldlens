@@ -1,10 +1,10 @@
 [submodule "vendor/BlueMap"]
 	path = vendor/BlueMap
 	url = https://github.com/BlueMap-Minecraft/BlueMap
-[submodule "vendor/BlueMap-LangGui"]
-	path = vendor/BlueMap-LangGui
+[submodule "vendor/BlueMap-Material"]
+	path = vendor/BlueMap-Material
 	url = https://github.com/Ding-Ding-Projects/BlueMap.git
-	branch = lang-gui
+	branch = material-design-3
 [submodule "vendor/Chunker"]
 	path = vendor/Chunker
 	url = https://github.com/HiveGamesOSS/Chunker.git

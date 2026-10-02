@@ -176,6 +176,17 @@ release. Moving Chunker means shipping a new build, and a person who needs a new
 the one bundled has to update the app or point `CHUNKER_CLI_JAR` at their own jar. Neither the
 licence nor anything else forced this either way. It is a product decision, restated.
 
+**Staging it was only half the change, and for one release only that half existed.** v1.0.2026's
+installer really did contain `resources/bundled/chunker/chunker-cli-1.19.1.jar` at the pinned
+31,790,149 bytes, and `findChunker` had no way to name that directory — it searched a configured
+path, `CHUNKER_CLI_JAR` and the user's own data folder, and nothing else. So every installed build
+reported the converter as absent while carrying it, and the interface said the app "does not
+bundle" Chunker on a screen backed by a jar the installer had just written. The resolution order is
+now: a jar configured in settings, `CHUNKER_CLI_JAR`, **the bundled copy**, then a downloaded one;
+the bundled jar is hashed against `bundled-runtimes.manifest.json` before it runs and refused if it
+does not match; and `scripts/assert-packaged-bundles.mjs` checks the directory electron-builder
+actually produced, because the packaging configuration was correct throughout and proved nothing.
+
 The download path remains for the case where the bundled jar is missing or unusable, and for
 platforms with nothing staged. When a Bedrock world is detected and no Chunker can be found, the
 wizard's Bedrock note shows a **Download Chunker (~30 MB)** button in the exact spot **Convert**

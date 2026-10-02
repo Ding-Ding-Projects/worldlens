@@ -834,3 +834,85 @@ describe("cirender:scheduleRead and cirender:scheduleWrite", () => {
         expect(github.never("/actions/variables")).toBe(true);
     });
 });
+
+describe("fetching a render made elsewhere", () => {
+    it("refuses to list runs without a repository owner and name", async () => {
+        const { ipcMain, github } = install();
+        const answer = (await (ipcMain.handlers.get("cirender:listAttachableRuns") as Handler)(
+            noEvent,
+            { owner: "  " },
+        )) as { ok: false; message: string };
+
+        expect(answer.ok).toBe(false);
+        expect(answer.message).toContain("owner and name");
+        expect(github.calls).toHaveLength(0);
+    });
+
+    it("lists a repository's completed runs through the selected credential", async () => {
+        const github = new RecordingGitHub()
+            .on("GET", /\/actions\/workflows\/render-world\.yml$/, {
+                status: 200,
+                json: { id: 1, name: "Render world", state: "active", path: "x" },
+            })
+            .on("GET", /\/repos\/o\/r$/, {
+                status: 200,
+                json: repositoryJson({ owner: OWNER, repo: REPO, isPrivate: true }),
+            })
+            .on("GET", /\/actions\/workflows\/render-world\.yml\/runs/, {
+                status: 200,
+                json: {
+                    workflow_runs: [
+                        {
+                            id: 42,
+                            run_number: 3,
+                            html_url: "https://github.test/runs/42",
+                            status: "completed",
+                            conclusion: "success",
+                            created_at: "2026-08-04T10:00:00Z",
+                            updated_at: "2026-08-04T10:05:00Z",
+                            head_sha: "abc",
+                            event: "workflow_dispatch",
+                            display_title: "Render world (minecraft:overworld)",
+                        },
+                    ],
+                },
+            });
+        const { ipcMain } = install({ github });
+
+        const answer = (await (ipcMain.handlers.get("cirender:listAttachableRuns") as Handler)(
+            noEvent,
+            { owner: OWNER, repo: REPO },
+        )) as { ok: true; value: readonly { id: number; mapId: string | null }[] };
+
+        expect(answer.ok).toBe(true);
+        expect(answer.value).toHaveLength(1);
+        expect(answer.value[0]).toMatchObject({ id: 42, mapId: "world" });
+    });
+
+    it("refuses to attach without a world folder, repository, and numeric run id", async () => {
+        const { ipcMain, github } = install();
+        const result = (await (ipcMain.handlers.get("cirender:attachRun") as Handler)(noEvent, {
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            runId: "42",
+        })) as { ok: false; failure: { code: string } };
+
+        expect(result.ok).toBe(false);
+        expect(result.failure.code).toBe("invalid-request");
+        expect(github.calls).toHaveLength(0);
+    });
+
+    it("never lets authorization cross while attaching a run", async () => {
+        const { ipcMain } = install();
+        const result = (await (ipcMain.handlers.get("cirender:attachRun") as Handler)(noEvent, {
+            worldFolder: world,
+            owner: OWNER,
+            repo: REPO,
+            runId: 42,
+            accountId: FORBIDDEN_RENDERER_VALUE,
+        })) as unknown;
+
+        expect(JSON.stringify(result)).not.toContain("token");
+    });
+});

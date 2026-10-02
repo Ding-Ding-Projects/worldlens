@@ -35,6 +35,23 @@ describe("bedrock handlers are wired into the running app", () => {
         expect(source).toMatch(/registerBedrockHandlers\s*\(\s*ipcMain\s*,/);
     });
 
+    /**
+     * The half of the wiring `ipc.test.ts` still cannot see.
+     *
+     * `registerBedrockHandlers` was genuinely called in v1.0.2026, so the two checks above
+     * were green - and the call passed `dataDir` without `resourcesPath`, so the resolver was
+     * never told where the installer had put the Chunker jar. Every packaged build then
+     * reported the converter as absent while carrying 31,790,149 bytes of it at
+     * `resources/bundled/chunker/chunker-cli-1.19.1.jar`. A test that stubs `find` cannot
+     * notice a missing argument at the one real call site, so the real call site is read here.
+     */
+    it("hands registerBedrockHandlers the packaged resourcesPath, not just a data directory", () => {
+        const call = source.slice(source.indexOf("registerBedrockHandlers(ipcMain,"));
+        const optionsObject = call.slice(0, call.indexOf("resolveJava:"));
+
+        expect(optionsObject).toMatch(/\bresourcesPath:\s*app\.isPackaged\s*\?\s*process\.resourcesPath\s*:\s*null/);
+    });
+
     it("invokes its own wiring function from createWindow, so it runs when the app starts", () => {
         const startFunction = source.match(/function\s+(\w+)\s*\([^)]*\)\s*:\s*BedrockIpc\s*\{/);
         expect(startFunction, "expected a start*() function returning BedrockIpc").not.toBeNull();

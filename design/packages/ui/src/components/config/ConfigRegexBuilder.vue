@@ -365,9 +365,38 @@ async function copy(value: string, what: string): Promise<void> {
 </template>
 
 <style>
+/*
+ * Fix for issue #175: clicking this builder's opener crashed the renderer in a
+ * packaged build. This card is the content of an anchored `<v-menu>`
+ * (`ConfigSearchField.vue`), and Vuetify's `connectedLocationStrategy` watches
+ * this exact element with a `ResizeObserver` to keep the popover positioned as
+ * its content changes size (`locationStrategies.ts`). A `max-height` capped,
+ * `overflow-y: auto` card whose content nearly fills that cap is the textbook
+ * setup for a scrollbar-toggle layout loop: the scrollbar's own width narrows
+ * the content box, which can push wrapped text (`.mb-config-regex__meta`,
+ * `.mb-config-regex__row legend`) down by a line, growing past the cap and
+ * showing the scrollbar — which was the very thing that freed the width the
+ * text needed to fit *without* it, so removing the scrollbar reflows the text
+ * back to fitting, hiding it again, and around again. Each cycle re-fires the
+ * `ResizeObserver`, each firing re-measures and repositions the popover, and
+ * Vuetify's own flip-loop guard only catches an alternating `flipped` boolean
+ * (see `locationStrategies.js`'s `CircularBuffer` check) — it has no signal for
+ * a plain native scrollbar/width oscillation, so nothing there stops this one.
+ * On a real machine that pegs the render thread in a tight synchronous loop
+ * with no yield point, which is indistinguishable from a hang and is exactly
+ * what a "Target crashed" report looks like from the outside.
+ *
+ * `scrollbar-gutter: stable` reserves the scrollbar's track unconditionally, so
+ * whether the content currently needs to scroll or not, the available content
+ * width never changes when the scrollbar appears or disappears. That removes
+ * the only thing that was flipping back and forth, without changing the visual
+ * layout in the case that never had a scrollbar at all (the reserved gutter is
+ * empty space, not a rendered scrollbar).
+ */
 .mb-config-regex {
     max-height: min(70vh, 640px);
     overflow-y: auto;
+    scrollbar-gutter: stable;
 }
 
 .mb-config-regex__body {

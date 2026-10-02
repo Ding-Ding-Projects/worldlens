@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, utimesSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, utimesSync } from "node:fs";
+import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -11,6 +12,36 @@ function git(cwd, args) {
   assert.equal(result.status, 0, result.stderr);
   return result.stdout.trim();
 }
+
+test("a fresh output build invalidates composite TypeScript state and emits real JavaScript", () => {
+  const repo = mkdtempSync(join(tmpdir(), "worldlens-incremental-receipt-"));
+  try {
+    const packageRoot = join(repo, "design", "packages", "fixture");
+    mkdirSync(join(packageRoot, "src"), { recursive: true });
+    writeFileSync(join(repo, ".gitignore"), "**/dist/\n**/*.tsbuildinfo\nreceipt.json\n");
+    writeFileSync(join(packageRoot, "tsconfig.json"), JSON.stringify({ compilerOptions: {
+      composite: true, rootDir: "src", outDir: "dist", types: [], skipLibCheck: true,
+    }, include: ["src/**/*.ts"] }));
+    writeFileSync(join(packageRoot, "src", "index.ts"), "export const value = 42;\n");
+    git(repo, ["init", "--quiet"]);
+    git(repo, ["config", "user.name", "receipt-test"]);
+    git(repo, ["config", "user.email", "receipt-test@example.invalid"]);
+    git(repo, ["add", "."]);
+    git(repo, ["commit", "--quiet", "-m", "fixture"]);
+    const require = createRequire(join(process.cwd(), "design", "package.json"));
+    const compiler = require.resolve("typescript/lib/tsc.js");
+    const compile = () => {
+      const result = spawnSync(process.execPath, [compiler, "-p", join(packageRoot, "tsconfig.json")], { encoding: "utf8", timeout: 30000 });
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+    };
+    compile();
+    assert.ok(existsSync(join(packageRoot, "tsconfig.tsbuildinfo")));
+    prepare(repo, join(repo, "receipt.json"));
+    assert.equal(existsSync(join(packageRoot, "tsconfig.tsbuildinfo")), false, "output removal must invalidate its incremental state");
+    compile();
+    assert.match(readFileSync(join(packageRoot, "dist", "index.js"), "utf8"), /value = 42/);
+  } finally { rmSync(repo, { recursive: true, force: true }); }
+});
 
 test("build receipt clears owned outputs and records current source identity", () => {
   const repo = mkdtempSync(join(tmpdir(), "worldlens-receipt-"));

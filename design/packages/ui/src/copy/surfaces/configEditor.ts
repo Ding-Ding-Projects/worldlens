@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: example colours quoted in copy so somebody can see the format BlueMap expects.
+ * material-exempt: example colours quoted in copy so somebody can see the format BlueMap expects.
  */
 /**
  * The config screen's editing machinery: the regex builder behind every settings

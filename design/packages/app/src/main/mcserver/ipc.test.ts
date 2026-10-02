@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { EventEmitter } from "node:events";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
@@ -80,6 +81,7 @@ describe("registerMcServerHandlers", () => {
         calls = [];
         const runner: CommandRunner = async (command, args) => {
             calls.push({ command, args });
+            if (args[0] === "image" && args[1] === "inspect") return dockerOutput({ stdout: JSON.stringify([`itzg/minecraft-server@sha256:${"a".repeat(64)}`]) });
             if (args[0] === "inspect") {
                 return dockerOutput({
                     stdout: JSON.stringify({ Status: "running", Running: true, ExitCode: 0 }),
@@ -105,6 +107,59 @@ describe("registerMcServerHandlers", () => {
         for (const channel of Object.values(MCSERVER_CHANNELS)) {
             expect(ipc.handlers.has(channel)).toBe(true);
         }
+    });
+
+    it("measures, pauses and resumes a real world through sender-owned IPC controls", async () => {
+        const owner = { sender: Object.assign(new EventEmitter(), { id: 41, isDestroyed: () => false }) };
+        const other = { sender: { id: 42 } };
+        const generate = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldGenerate)!;
+        const status = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldStatus)!;
+        const cancel = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldCancel)!;
+        const request = { seed: 123, size: 16, worldName: "measured-ipc", destination: dir, outputMode: "folder", targetBytes: 30_000 };
+        const pending = generate(owner, request);
+        expect(await status(owner)).toMatchObject({ ok: true, value: { targetBytes: 30_000 } });
+        expect(await status(other)).toMatchObject({ ok: true, value: null });
+        expect(await cancel(other)).toMatchObject({ ok: true, value: { cancelling: false } });
+        expect(await generate(owner, request)).toMatchObject({ ok: false, failure: { code: "busy" } });
+        expect(await cancel(owner)).toMatchObject({ ok: true, value: { cancelling: true } });
+        expect(await pending).toMatchObject({ ok: true, value: { cancelled: true, chunkCount: 0 } });
+        const resumed = await generate(owner, { ...request, resume: true }) as { ok: boolean; value: { bytes: number; cancelled: boolean } };
+        expect(resumed.ok).toBe(true);
+        expect(resumed.value.bytes).toBeGreaterThanOrEqual(30_000);
+        expect(resumed.value.cancelled).toBe(false);
+        expect(await status(owner)).toMatchObject({ ok: true, value: null });
+    });
+
+    it.each(["destroyed", "render-process-gone", "did-start-navigation"])("preserves generation when the renderer emits %s and removes all listeners", async (eventName) => {
+        const sender = Object.assign(new EventEmitter(), { id: 51, isDestroyed: () => false });
+        const owner = { sender };
+        const generate = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldGenerate)!;
+        const status = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldStatus)!;
+        const cancel = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldCancel)!;
+        const pending = generate(owner, { seed: 123, size: 16, worldName: "lifecycle", destination: dir, outputMode: "folder", targetBytes: 100_000 });
+        expect(sender.listenerCount(eventName)).toBe(1);
+        sender.emit(eventName, {}, "file:///reloaded", false, true);
+        expect(await pending).toMatchObject({ ok: true, value: { cancelled: true, chunkCount: 0 } });
+        expect(await status(owner)).toMatchObject({ ok: true, value: null });
+        expect(await cancel(owner)).toMatchObject({ ok: true, value: { cancelling: false } });
+        for (const name of ["destroyed", "render-process-gone", "did-start-navigation"]) expect(sender.listenerCount(name)).toBe(0);
+        const resumed = await generate(owner, { seed: 123, size: 16, worldName: "lifecycle", destination: dir, outputMode: "folder", targetBytes: 100_000, resume: true });
+        expect(resumed).toMatchObject({ ok: true, value: { cancelled: false } });
+        for (const name of ["destroyed", "render-process-gone", "did-start-navigation"]) expect(sender.listenerCount(name)).toBe(0);
+    });
+
+    it("ignores subframe and same-document navigation and detaches listeners on generation failure", async () => {
+        const sender = Object.assign(new EventEmitter(), { id: 52, isDestroyed: () => false });
+        const owner = { sender };
+        const generate = ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldGenerate)!;
+        const request = { seed: 123, size: 16, worldName: "navigation", destination: dir, outputMode: "folder", targetBytes: 30_000 };
+        const pending = generate(owner, request);
+        sender.emit("did-start-navigation", {}, "file:///frame", false, false);
+        sender.emit("did-start-navigation", {}, "file:///app#section", true, true);
+        expect(await pending).toMatchObject({ ok: true, value: { cancelled: false } });
+        expect(await generate(owner, request)).toMatchObject({ ok: false });
+        for (const name of ["destroyed", "render-process-gone", "did-start-navigation"]) expect(sender.listenerCount(name)).toBe(0);
+        expect(await ipc.handlers.get(MCSERVER_CHANNELS.syntheticWorldStatus)!(owner)).toMatchObject({ ok: true, value: null });
     });
 
     it("builds a local-process transport from the runtime stored on the record", async () => {
@@ -414,6 +469,60 @@ describe("registerMcServerHandlers", () => {
         });
     });
 
+    it("resolves a guided image through Docker and creates from the returned digest", async () => {
+        calls.length = 0;
+        const answer = await invoke(MCSERVER_CHANNELS.create, {
+            id: "guided-image", name: "Guided image", flavour: "vanilla", version: "1.21.4",
+            memoryMb: 1024, port: 25579, acceptedEula: true, runtime: "local-docker",
+            dockerPlan: { image: "itzg/minecraft-server:java21", imageVerified: false,
+                containerRef: "guided-image", serverDir: "/data", ports: [{ host: 25579, container: 25565 }] },
+        }) as { ok: boolean };
+        expect(answer.ok).toBe(true);
+        expect(calls.map((call) => call.args[0])).toEqual(["pull", "image", "create"]);
+        expect(calls[2]!.args.at(-1)).toBe(`itzg/minecraft-server@sha256:${"a".repeat(64)}`);
+        expect(calls[2]!.args).toContain("127.0.0.1:25579:25565");
+    });
+
+    it("rejects a stale Docker mapping instead of ignoring the selected port", async () => {
+        calls.length = 0;
+        const answer = await invoke(MCSERVER_CHANNELS.create, {
+            id: "port-conflict", name: "Port conflict", flavour: "paper", version: "1.21.4",
+            memoryMb: 1024, port: 25579, acceptedEula: true, runtime: "local-docker",
+            dockerPlan: { image: `itzg/minecraft-server@sha256:${"a".repeat(64)}`, imageVerified: true,
+                containerRef: "port-conflict", serverDir: "/data", ports: [{ host: 25565, container: 25565 }] },
+        }) as { ok: boolean };
+        expect(answer.ok).toBe(false);
+        expect(calls).toHaveLength(0);
+        expect((await registered.registry.get("port-conflict")).ok).toBe(false);
+    });
+
+    it("creates through the saved SSH profile and records only the new owned container", async () => {
+        const image = `itzg/minecraft-server@sha256:${"a".repeat(64)}`;
+        expect((await registered.hostProfiles.save({ hostId: "fixture-host", target: {
+            id: "fixture-host", label: "Fixture", host: "fixture.example", port: 22, user: "fixture",
+            identityFile: null, workDir: "/srv/worldlens", image, docker: "docker", keepRemoteFiles: false,
+        } })).ok).toBe(true);
+        calls.length = 0;
+        const answer = await invoke(MCSERVER_CHANNELS.create, {
+            id: "ssh-new", name: "SSH new", flavour: "paper", version: "1.21.4#11",
+            memoryMb: 1024, port: 25579, acceptedEula: true,
+            transport: { kind: "ssh-docker", hostId: "fixture-host", containerRef: "ssh-new", serverDir: "/data" },
+            dockerPlan: { image, imageVerified: true, containerRef: "ssh-new", serverDir: "/data",
+                ports: [{ host: 25579, container: 25565 }] },
+        }) as { ok: boolean; value?: ServerRecord };
+        expect(answer.ok).toBe(true);
+        expect(answer.value?.ref).toEqual({ kind: "ssh-docker", hostId: "fixture-host", containerRef: "ssh-new", serverDir: "/data" });
+        const creation = calls.find((call) => call.command === "ssh" && call.args.join(" ").includes("'create'"));
+        expect(creation).toBeDefined();
+        expect(creation!.args.join(" ")).toContain("127.0.0.1:25579:25565");
+        expect(creation!.args.join(" ")).toContain("/srv/worldlens/worldlens-server-ssh-new-");
+        expect(creation!.args.join(" ")).toContain("MEMORY=1024M");
+        expect(creation!.args.join(" ")).toContain("PAPER_BUILD=11");
+        expect(creation!.args.join(" ")).toContain("com.worldlens.docker-instance=ssh-new");
+        expect(calls.some((call) => call.command === "docker" || call.args.includes("rm"))).toBe(false);
+        expect((await registered.registry.get("ssh-new")).ok).toBe(true);
+    });
+
     it("forgetting a server never asks Docker to remove anything", async () => {
         const answer = (await invoke(MCSERVER_CHANNELS.forget, "survival")) as { ok: boolean };
         expect(answer.ok).toBe(true);
@@ -537,6 +646,22 @@ describe("registerMcServerHandlers - catalogue, java and create channels", () =>
         };
         expect(answer.ok).toBe(false);
         expect(answer.failure.code).toBe("invalid-request");
+    });
+
+    it("refuses an invalid selected game port before it resolves a catalogue or runtime", async () => {
+        const answer = (await invoke(MCSERVER_CHANNELS.create, {
+            id: "survival",
+            name: "Survival",
+            flavour: "vanilla",
+            version: "1.21.4",
+            memoryMb: 1024,
+            port: 0,
+            acceptedEula: true,
+            transport: { kind: "local-process", serverDir: "/servers/survival" },
+        })) as { ok: boolean; failure: { code: string; message: string } };
+        expect(answer.ok).toBe(false);
+        expect(answer.failure.code).toBe("invalid-request");
+        expect(answer.failure.message).toContain("port");
     });
 
     it("accepts the transport object the wizard really sends, with no runtime string", async () => {

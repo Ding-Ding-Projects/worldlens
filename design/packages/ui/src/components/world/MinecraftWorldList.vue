@@ -13,6 +13,7 @@ import { VAlert, VBtn, VChip, VIcon, VProgressCircular, VTextField } from "vueti
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { useConfigHost } from "../config/configHost.js";
+import { resolvePathFieldBridge } from "../pathFieldHost.js";
 import {
     describeFolderOrigin,
     describeFolderResolution,
@@ -82,6 +83,45 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const host = useConfigHost();
+
+/**
+ * The folder picker, from whichever seam this screen actually has.
+ *
+ * `useConfigHost()` is an injection, so it only resolves under the three screens that call
+ * `provideConfigHost()`: World, Projects and Config. This list is also rendered by the
+ * Chunker and CI-render screens, which sit under none of them, so on those screens the host
+ * was `null` in the real desktop app and both buttons rendered permanently greyed out with
+ * nothing said about why - even though the packaged preload carries a working picker.
+ *
+ * `window.worldlens.dialog` is the screen-agnostic one: it asks nothing of its caller
+ * beyond existing, exactly as `PathField.vue` and `CiRenderScreen.vue` already use it. Prefer
+ * the injected host when there is one, so a test that provides a fake host still drives the
+ * fake, and fall back to the dialog bridge everywhere else.
+ */
+const dialogBridge = resolvePathFieldBridge();
+
+/** Opens a native folder picker, or null when this build genuinely has neither seam. */
+const pickFolder = computed<
+    ((options: { title: string; startIn?: string }) => Promise<string | null>) | null
+>(() => {
+    if (host !== null) return (options) => host.pickDirectory(options);
+    if (dialogBridge !== null) return (options) => dialogBridge.pickFolder(options);
+    return null;
+});
+
+/**
+ * Why the two browse buttons are dead on this build, or null when they work.
+ *
+ * A disabled control here always says why, on screen and through its accessible
+ * description, rather than being a button that looks broken and explains nothing.
+ */
+const pickerUnavailableBecause = computed<string | null>(() => {
+    if (pickFolder.value !== null) return null;
+    return t(
+        "world.list.browseUnavailable",
+        "This build cannot open a folder picker, so these two buttons stay off. Type the world's path into the field above, or choose one of the worlds listed here.",
+    );
+});
 
 /* -------------------------------------------------------------------------- */
 /* Loading                                                                    */
@@ -294,8 +334,9 @@ const renaming = ref<string | null>(null);
 const renameText = ref("");
 
 async function browseForFolder(): Promise<void> {
-    if (host === null || props.bridge === null) return;
-    const chosen = await host.pickDirectory({
+    const pick = pickFolder.value;
+    if (pick === null || props.bridge === null) return;
+    const chosen = await pick({
         title: t("world.mounts.pick", "Choose a Minecraft folder, or the saves folder inside one"),
     });
     if (chosen === null) return;
@@ -310,8 +351,9 @@ async function browseForFolder(): Promise<void> {
  * world or create a mount record just because the user changed their mind.
  */
 async function browseForWorld(): Promise<void> {
-    if (host === null) return;
-    const chosen = await host.pickDirectory({
+    const pick = pickFolder.value;
+    if (pick === null) return;
+    const chosen = await pick({
         title: t("world.list.browseWorldPrompt", "Choose the world folder, the one that contains level.dat"),
         ...(props.modelValue.trim() === "" ? {} : { startIn: props.modelValue.trim() }),
     });
@@ -511,7 +553,11 @@ function failureOf(folder: MinecraftFolder): string | null {
             <v-btn
                 data-test="browse-world-folder"
                 :prepend-icon="mdiFolderSearchOutline"
-                :disabled="host === null"
+                :disabled="pickerUnavailableBecause !== null"
+                :title="pickerUnavailableBecause ?? undefined"
+                :aria-describedby="
+                    pickerUnavailableBecause === null ? undefined : 'mb-world-list-browse-unavailable'
+                "
                 variant="tonal"
                 size="small"
                 @click="browseForWorld"
@@ -521,7 +567,11 @@ function failureOf(folder: MinecraftFolder): string | null {
             <v-btn
                 data-test="mount-minecraft-folder"
                 :prepend-icon="mdiFolderPlusOutline"
-                :disabled="host === null"
+                :disabled="pickerUnavailableBecause !== null"
+                :title="pickerUnavailableBecause ?? undefined"
+                :aria-describedby="
+                    pickerUnavailableBecause === null ? undefined : 'mb-world-list-browse-unavailable'
+                "
                 variant="tonal"
                 size="small"
                 @click="browseForFolder"
@@ -536,6 +586,14 @@ function failureOf(folder: MinecraftFolder): string | null {
                     )
                 }}
             </span>
+            <p
+                v-if="pickerUnavailableBecause !== null"
+                id="mb-world-list-browse-unavailable"
+                data-test="browse-unavailable-reason"
+                class="mb-world-list__hint"
+            >
+                {{ pickerUnavailableBecause }}
+            </p>
         </div>
 
         <v-alert v-if="mountFailure" type="warning" density="compact" variant="tonal" class="mt-2" role="alert">

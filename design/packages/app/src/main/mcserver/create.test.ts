@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -16,7 +16,13 @@ const VANILLA_MANIFEST = JSON.stringify({
 const JAR_BYTES = Buffer.from("pretend-server-jar-bytes");
 
 const VANILLA_DETAIL = JSON.stringify({
-    downloads: { server: { url: "https://example.test/server-1.21.4.jar", sha1: "irrelevant", size: JAR_BYTES.byteLength } },
+    downloads: {
+        server: {
+            url: "https://example.test/server-1.21.4.jar",
+            sha1: "irrelevant",
+            size: JAR_BYTES.byteLength,
+        },
+    },
     javaVersion: { majorVersion: 8 },
 });
 
@@ -50,13 +56,21 @@ function okJarResponse(): HttpBinaryResponse {
     return {
         ok: true,
         status: 200,
-        headers: { get: (name) => (name.toLowerCase() === "content-length" ? String(JAR_BYTES.byteLength) : null) },
+        headers: {
+            get: (name) =>
+                name.toLowerCase() === "content-length" ? String(JAR_BYTES.byteLength) : null,
+        },
         body: asBody(JAR_BYTES),
     };
 }
 
 /** Fails every candidate instantly, so java discovery never spawns a real process. */
-const noJavaRunner = async () => ({ ok: false, stdout: "", stderr: "", error: "no java on this fake machine" });
+const noJavaRunner = async () => ({
+    ok: false,
+    stdout: "",
+    stderr: "",
+    error: "no java on this fake machine",
+});
 const noJavaExists = () => false;
 
 /** Reports a fake Java 21 so a full create() run never spawns a real process either. */
@@ -236,10 +250,205 @@ describe("createLocalServer", () => {
         const eula = await readFile(join(serversRoot, "survival", "eula.txt"), "utf8");
         expect(eula).toContain("eula=true");
 
-        const properties = await readFile(join(serversRoot, "survival", "server.properties"), "utf8");
+        const properties = await readFile(
+            join(serversRoot, "survival", "server.properties"),
+            "utf8",
+        );
         expect(properties).toContain("server-port=25565");
 
         const jarBytes = await readFile(join(serversRoot, "survival", "server.jar"));
         expect(jarBytes.equals(JAR_BYTES)).toBe(true);
+    });
+
+    it("resolves a published Fabric installer and keeps game and loader versions separate", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const downloads: string[] = [];
+        const result = await createLocalServer({
+            id: "fabric-server",
+            name: "Fabric server",
+            flavour: "fabric",
+            version: "0.16.9",
+            gameVersion: "1.21.4",
+            loaderVersion: "0.16.9",
+            memoryMb: 1024,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: fakeFetchText({
+                ...CATALOGUE_ROUTES,
+                "https://meta.fabricmc.net/v2/versions/loader": JSON.stringify([
+                    { version: "0.16.9", stable: true },
+                ]),
+                "https://meta.fabricmc.net/v2/versions/installer": JSON.stringify([
+                    { version: "1.0.3", stable: true },
+                ]),
+            }),
+            fetchBinary: async (url) => {
+                downloads.push(url);
+                return okJarResponse();
+            },
+            javaRunner: fakeJavaRunner,
+            javaExists: fakeJavaExists,
+            javaEnv: fakeJavaEnv,
+        });
+        expect(result.ok).toBe(true);
+        expect(downloads).toEqual([
+            "https://meta.fabricmc.net/v2/versions/loader/1.21.4/0.16.9/1.0.3/server/jar",
+        ]);
+        if (result.ok) expect(result.value.minecraftVersion).toBe("1.21.4");
+    });
+
+    it("compiles Spigot from the official plan and records a startable local JAR", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const refs = Object.fromEntries(
+            ["BuildData", "Bukkit", "CraftBukkit", "Spigot"].map((key) => [key, "a".repeat(40)]),
+        );
+        const result = await createLocalServer({
+            id: "spigot-server",
+            name: "Spigot server",
+            flavour: "spigot",
+            version: "1.21.4",
+            memoryMb: 1024,
+            port: 25579,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: fakeFetchText({
+                ...CATALOGUE_ROUTES,
+                "https://hub.spigotmc.org/versions/1.21.4.json": JSON.stringify({
+                    refs,
+                    toolsVersion: 181,
+                    javaVersions: [65, 68],
+                }),
+                "https://hub.spigotmc.org/versions/": '<a href="1.21.4.json">1.21.4</a>',
+                "https://hub.spigotmc.org/jenkins/job/BuildTools/lastSuccessfulBuild/api/json":
+                    JSON.stringify({
+                        number: 200,
+                        artifacts: [
+                            { fileName: "BuildTools.jar", relativePath: "target/BuildTools.jar" },
+                        ],
+                    }),
+            }),
+            fetchBinary: async () => okJarResponse(),
+            javaRunner: fakeJavaRunner,
+            javaExists: fakeJavaExists,
+            javaEnv: fakeJavaEnv,
+            installerRunner: async (_java, _args, cwd) => {
+                await writeFile(
+                    join(cwd, "server.jar"),
+                    Buffer.from([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4]),
+                );
+                return { ok: true, message: "compiled" };
+            },
+        });
+        expect(result.ok).toBe(true);
+        const saved = await createServerRegistry({ dataFolder: dataDir }).get("spigot-server");
+        expect(saved.ok).toBe(true);
+        if (saved.ok) {
+            expect(saved.value.flavour).toBe("spigot");
+            expect(saved.value.localRuntime?.jarPath).toBe(
+                join(serversRoot, "spigot-server", "server.jar"),
+            );
+        }
+        expect(
+            await readFile(join(serversRoot, "spigot-server", "server.properties"), "utf8"),
+        ).toContain("server-port=25579");
+    });
+
+    it("persists the Forge generated argument file instead of launching the installer as a server", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const argsFile = join(
+            serversRoot,
+            "forge-server",
+            "libraries",
+            "net",
+            "minecraftforge",
+            "forge",
+            "1.21.4-54.0.0",
+            "win_args.txt",
+        );
+        const result = await createLocalServer({
+            id: "forge-server",
+            name: "Forge server",
+            flavour: "forge",
+            version: "1.21.4-54.0.0",
+            loaderVersion: "54.0.0",
+            memoryMb: 1024,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: fakeFetchText({
+                ...CATALOGUE_ROUTES,
+                "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json":
+                    JSON.stringify({ promos: { "1.21.4-recommended": "54.0.0" } }),
+            }),
+            fetchBinary: async () => okJarResponse(),
+            javaRunner: fakeJavaRunner,
+            javaExists: fakeJavaExists,
+            javaEnv: fakeJavaEnv,
+            installerRunner: async () => {
+                await mkdir(join(argsFile, ".."), { recursive: true });
+                await writeFile(argsFile, "--launchTarget forgeserver\n");
+                return { ok: true, message: "installed" };
+            },
+        });
+        expect(result.ok).toBe(true);
+        const reread = await createServerRegistry({ dataFolder: dataDir }).get("forge-server");
+        expect(reread.ok).toBe(true);
+        if (reread.ok) {
+            expect(reread.value.localRuntime?.argsFile).toBe(argsFile);
+            expect(reread.value.minecraftVersion).toBe("1.21.4");
+        }
+    });
+
+    it("carries the selected game port into both server.properties and the created runtime", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const result = await createLocalServer({
+            id: "custom-port",
+            name: "Custom port",
+            flavour: "vanilla",
+            version: "1.21.4",
+            memoryMb: 1024,
+            port: 25570,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: fakeFetchText(),
+            fetchBinary: async () => okJarResponse(),
+            javaRunner: fakeJavaRunner,
+            javaExists: fakeJavaExists,
+            javaEnv: fakeJavaEnv,
+        });
+
+        expect(result.ok).toBe(true);
+        await expect(
+            readFile(join(serversRoot, "custom-port", "server.properties"), "utf8"),
+        ).resolves.toContain("server-port=25570");
+    });
+
+    it("refuses a port outside the usable range before it touches the catalogue", async () => {
+        const registry = createServerRegistry({ dataFolder: dataDir });
+        const result = await createLocalServer({
+            id: "bad-port",
+            name: "Bad port",
+            flavour: "vanilla",
+            version: "1.21.4",
+            memoryMb: 1024,
+            port: 70000,
+            acceptedEula: true,
+            dataDir,
+            serversRoot,
+            registry,
+            fetchText: async () => {
+                throw new Error("the catalogue must not be read for an invalid port");
+            },
+        });
+
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.failure.code).toBe("invalid-request");
     });
 });

@@ -70,6 +70,7 @@ export type CoreJobId =
     | "ollama"
     | "remoteHosting"
     | "dockerHosting"
+    | "worldDownloader"
     | "screenshots";
 
 /**
@@ -115,6 +116,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     ollama: "ollama",
     remoteHosting: "remoteHosting",
     dockerHosting: "dockerHosting",
+    worldDownloader: "worldDownloader",
     screenshots: "screenshots",
     browserExtension: "browserExtension",
 } as const satisfies Record<string, JobId>;
@@ -409,6 +411,19 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelFallback: "Docker hosting",
         icon: mdiServerNetwork,
         seedGroup: "finished",
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "worldDownloader",
+        semanticName: "worldDownloader",
+        labelKey: "tabs.page.worldDownloader",
+        labelFallback: "Get a world off a server",
+        icon: mdiCloudDownloadOutline,
+        // Not seeded, like "world" (the wizard) above: this is an acquisition action - getting
+        // a world from a live server - not a "keep a copy of a map you already made" action the
+        // way backups/worldrepo beside it are. A fresh workspace should not imply this job is
+        // one of the ones about preserving your own output.
+        seedGroup: null,
         pinnedOnFreshWorkspace: false,
     },
     {

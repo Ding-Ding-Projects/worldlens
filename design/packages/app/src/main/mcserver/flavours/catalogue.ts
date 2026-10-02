@@ -29,13 +29,14 @@ import { atomicWriteTextFile } from "../../storage/atomicReplace.js";
 import { fail, ok, type Answer } from "../transport/types.js";
 
 export type FlavourId =
-    "vanilla" | "paper" | "velocity" | "purpur" | "fabric" | "forge" | "neoforge";
+    "vanilla" | "paper" | "velocity" | "purpur" | "spigot" | "fabric" | "forge" | "neoforge";
 
 export const FLAVOUR_IDS: readonly FlavourId[] = [
     "vanilla",
     "paper",
     "velocity",
     "purpur",
+    "spigot",
     "fabric",
     "forge",
     "neoforge",
@@ -759,6 +760,40 @@ export function fabricServerJarUrl(
     return `https://meta.fabricmc.net/v2/versions/loader/${encodeURIComponent(gameVersion)}/${encodeURIComponent(loaderVersion)}/${encodeURIComponent(installerVersion)}/server/jar`;
 }
 
+/** Resolve a published stable launcher version through the same bounded metadata transport. */
+export async function fetchServerMetadata(url: string): Promise<string> {
+    return defaultFetchText(url);
+}
+
+export async function resolveFabricInstallerVersion(
+    fetchText: FetchText = defaultFetchText,
+): Promise<Answer<string>> {
+    try {
+        const value: unknown = JSON.parse(
+            await fetchText("https://meta.fabricmc.net/v2/versions/installer"),
+        );
+        if (!Array.isArray(value))
+            return fail("invalid-request", "Fabric installer metadata is not a list.");
+        const entry = value.find(
+            (candidate) =>
+                typeof candidate === "object" &&
+                candidate !== null &&
+                candidate.stable === true &&
+                typeof candidate.version === "string" &&
+                /^[0-9]+(?:\.[0-9]+){1,3}$/.test(candidate.version),
+        );
+        return entry === undefined
+            ? fail("not-found", "No published stable Fabric installer was found.")
+            : ok(entry.version as string);
+    } catch (error) {
+        return fail(
+            "command-failed",
+            "Fabric installer metadata could not be resolved.",
+            String(error),
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------------------
 // Fetching every flavour, caching, and reading the cache back
 // ---------------------------------------------------------------------------------------
@@ -780,6 +815,70 @@ async function fetchAllFlavours(
     sourceRevision: string | null;
 }> {
     const fetchers: Record<FlavourId, () => Promise<FetchFlavourResult>> = {
+        spigot: async () => {
+            const index = await fetchText("https://hub.spigotmc.org/versions/");
+            const releases = [
+                ...new Set(
+                    [
+                        ...index.matchAll(
+                            /href="((?:1\.[0-9]+|[0-9]{2}\.[0-9]+)(?:\.[0-9]+)?)\.json"/g,
+                        ),
+                    ].map((match) => match[1]!),
+                ),
+            ].sort((a, b) => b.localeCompare(a, "en", { numeric: true }));
+            if (releases.length === 0)
+                throw new Error(
+                    "The official Spigot index contained no supported release records.",
+                );
+            const versions: VersionEntry[] = [];
+            const failures: string[] = [];
+            const selected = releases.slice(0, limit);
+            for (let offset = 0; offset < selected.length; offset += 4) {
+                const batch = await Promise.all(
+                    selected.slice(offset, offset + 4).map(async (version) => {
+                        try {
+                            const metadata = JSON.parse(
+                                await fetchText(
+                                    `https://hub.spigotmc.org/versions/${version}.json`,
+                                ),
+                            ) as { javaVersions?: unknown };
+                            const range = metadata.javaVersions;
+                            if (
+                                !Array.isArray(range) ||
+                                range.length !== 2 ||
+                                !Number.isInteger(range[0]) ||
+                                range[0] < 52 ||
+                                range[0] > 144
+                            )
+                                throw new Error("No supported Java requirement was published.");
+                            return {
+                                version,
+                                stability: "release" as const,
+                                javaFeature: range[0] - 44,
+                                downloadUrl: null,
+                                sha256: null,
+                                releasedAt: null,
+                            };
+                        } catch {
+                            failures.push(version);
+                            return null;
+                        }
+                    }),
+                );
+                versions.push(
+                    ...batch.filter((entry): entry is NonNullable<typeof entry> => entry !== null),
+                );
+            }
+            return {
+                versions,
+                complete: failures.length === 0 && releases.length <= limit,
+                ...(failures.length
+                    ? {
+                          failure: `${failures.length} Spigot release records could not be resolved.`,
+                      }
+                    : {}),
+            };
+        },
         vanilla: () => fetchVanillaVersions(fetchText, limit),
         paper: () => fetchPaperFamilyVersions(fetchText, "paper", limit),
         velocity: () => fetchPaperFamilyVersions(fetchText, "velocity", limit),
@@ -1069,12 +1168,15 @@ export async function listCatalogue(options: CatalogueOptions): Promise<Answer<C
     const cached = await readCache(options.dataDir);
     if (cached !== null) {
         const withAge = withStaleness(cached, now);
-        if (!withAge.stale) return ok(withAge);
+        const missingFlavour = FLAVOUR_IDS.some(
+            (id) => !cached.flavours.some((entry) => entry.flavour === id),
+        );
+        if (!withAge.stale && !missingFlavour) return ok(withAge);
         // Stale: try a refresh, but a cache - even a stale one - beats nothing when the
         // refresh itself fails, so the offline branch below still has something to serve.
         const refreshed = await refreshCatalogue(options);
         if (refreshed.ok) return refreshed;
-        return ok(withAge);
+        return ok({ ...withAge, stale: true });
     }
 
     const refreshed = await refreshCatalogue(options);

@@ -2,7 +2,9 @@
 /**
  * A pre-publication check for the maintainers' internal shorthand in text this repository
  * publishes: the generated changelog, CHANGELOG.md, the documentation site, the README,
- * and - the case that started this - a commit message, before it is written.
+ * and - the case that started this - a commit message, before it is written. It also reads
+ * `scripts/changelog-overrides.json`, whose hand-written subjects and bodies are copied
+ * verbatim into the changelog surfaces, so it is published text one step before publication.
  *
  * The point issue #168 makes is that the eleven files fixed in fa2f5abb were found by a
  * manual sweep, and a manual sweep is exactly what will not happen next time.
@@ -115,6 +117,18 @@ const GENERATED_FROM_HISTORY = Object.freeze([
   "CHANGELOG.md",
   "design/packages/ui/src/components/changelog/changelogData.generated.ts",
 ]);
+
+/**
+ * The hand-written replacement text that feeds those two generated files.
+ *
+ * `scripts/changelog-overrides.json` gives one historical commit a neutral subject and body,
+ * and `publicText()` in `build-changelog.mjs` substitutes them before anything else, so an
+ * override is copied byte-for-byte into CHANGELOG.md and into the in-app changelog data. That
+ * makes it published text, and the accepted-residue reasoning above does not cover it: an
+ * override body was authored by hand for the express purpose of being publishable, so a term
+ * in one is a one-line edit rather than the history rewrite that reasoning exists to avoid.
+ */
+const OVERRIDES_PATH = "scripts/changelog-overrides.json";
 
 /** Where the terms file might be, most explicit first. */
 function termsCandidates() {
@@ -245,6 +259,53 @@ function scan(files, terms) {
   return hits;
 }
 
+/**
+ * Every hit in the decoded fields of an overrides file, as { file, where, line, column, term }.
+ *
+ * It needs its own scan rather than an entry in {@link PUBLISHED} because the file is JSON: a
+ * multi-line body is one physical line holding `\n` as the two characters backslash and n. A
+ * line scan of the raw bytes therefore sees that `n` as the character immediately before the
+ * next word, and `matcher`'s word-boundary lookbehind refuses a hit that is genuinely there --
+ * a false negative on exactly the text that is about to be published. Parsing first, and
+ * scanning each `subject` and `body` as the reader will see it, is what closes that gap.
+ *
+ * `where` names the commit and the field, since a line number inside a JSON string is not
+ * something a person can navigate to.
+ */
+function scanOverrides(path, terms) {
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(path, "utf8"));
+  } catch {
+    // Absent or unparsable is not this script's failure to report: build-changelog.mjs owns
+    // reading this file and fails loudly on malformed JSON.
+    return [];
+  }
+  const pattern = matcher(terms);
+  const file = relative(ROOT, path).split(sep).join("/");
+  const hits = [];
+  for (const [sha, entry] of Object.entries(parsed ?? {})) {
+    for (const kind of ["subject", "body"]) {
+      const text = entry?.[kind];
+      if (typeof text !== "string") continue;
+      for (const [index, line] of text.split("\n").entries()) {
+        pattern.lastIndex = 0;
+        let match;
+        while ((match = pattern.exec(line)) !== null) {
+          hits.push({
+            file,
+            where: `${sha} ${kind}`,
+            line: index + 1,
+            column: match.index + 1,
+            term: match[0],
+          });
+        }
+      }
+    }
+  }
+  return hits;
+}
+
 function main() {
   const argv = process.argv.slice(2);
   const show = argv.includes("--show");
@@ -299,12 +360,18 @@ function main() {
         : PUBLISHED.flatMap(({ path, extensions }) => filesUnder(path, extensions));
 
   const reviewed = allowlist();
-  const hits = scan(files, terms).filter(
-    (hit) => !reviewed.has(`${hit.file}:${hit.line}:${hit.column}`),
-  );
+  // Only on the default run: an explicit file list or a commit message is a question about
+  // those exact paths, and answering it with an unrelated file's hits would be confusing.
+  const scanTheOverrides = commitMessage === null && explicitFiles.length === 0;
+  const overrideHits = scanTheOverrides
+    ? scanOverrides(join(ROOT, OVERRIDES_PATH), terms)
+    : [];
+  const hits = scan(files, terms)
+    .filter((hit) => !reviewed.has(`${hit.file}:${hit.line}:${hit.column}`))
+    .concat(overrideHits);
   if (hits.length === 0) {
     process.stdout.write(
-      `check-published-text: clean - ${files.length} file(s) checked against ${terms.length} terms` +
+      `check-published-text: clean - ${files.length + (scanTheOverrides ? 1 : 0)} file(s) checked against ${terms.length} terms` +
         (reviewed.size > 0 ? `, ${reviewed.size} reviewed occurrence(s) allowed` : "") +
         "\n",
     );
@@ -318,7 +385,9 @@ function main() {
     // The term itself is withheld unless --show. Printing it would put it in a terminal,
     // a CI log or a pasted bug report, which is the publication this exists to prevent.
     process.stderr.write(
-      `${hit.file}:${hit.line}:${hit.column}: internal shorthand${show ? ` (${hit.term})` : ""}\n`,
+      `${hit.file}:${hit.line}:${hit.column}: internal shorthand` +
+        (hit.where ? ` in ${hit.where}` : "") +
+        `${show ? ` (${hit.term})` : ""}\n`,
     );
   }
   if (residue.length > 0) {
@@ -341,7 +410,15 @@ function main() {
   process.exitCode = 1;
 }
 
-export { PUBLISHED, matcher, readTerms, scan, termsCandidates };
+export {
+  OVERRIDES_PATH,
+  PUBLISHED,
+  matcher,
+  readTerms,
+  scan,
+  scanOverrides,
+  termsCandidates,
+};
 
 if (
   process.argv[1] &&

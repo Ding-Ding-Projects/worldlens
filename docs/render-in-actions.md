@@ -329,6 +329,16 @@ the unpack are the download subsystem's own. The credential comes from the app's
 session. The map is mounted by the render subsystem, so it appears in the map list beside
 every local render and the viewer cannot tell the two apart.
 
+A world large enough to need more than one merge group publishes its map as `map-lowres`
+plus one `partial-hires-N` per group instead of the single `rendered-map` artifact (see
+["Two waves, one merge"](#two-waves-one-merge) above). The app's fetch step recognises both
+shapes: it lists the run's artifacts, and when there is no `rendered-map` but there is a
+`map-lowres`, it downloads and verifies `map-lowres` and every `partial-hires-N` the same way
+it verifies a single artifact, then unpacks `map-lowres` first and each `partial-hires-N` into
+`maps/<id>/tiles/0/` inside it - the exact assembly the run's own summary tells a person to do
+by hand. So the manual instructions on the run page and what the app does when you click
+"fetch" are the same operation; the app just does it for you and verifies every part first.
+
 ### What it refuses, and why each refusal exists
 
 | Refusal                             | Why                                                                                                                                                               |
@@ -338,7 +348,7 @@ every local render and the viewer cannot tell the two apart.
 | `upload-not-acknowledged`           | Uploading a world sends it to GitHub, and that is said in as many words before it happens rather than after.                                                      |
 | `world-too-large`                   | The archive would pass a release asset's 2 GiB limit. Refused **before** anything is packed, from the folder's own byte total.                                    |
 | `unsupported-dimension`             | The project's map renders a dimension the workflow's `dimension` choice does not offer. Caught here rather than as GitHub's generic 422.                          |
-| `map-shipped-in-parts`              | The run published `map-lowres` plus hires parts. Unpacking the lowres alone gives a map that loads and has no detail at any zoom, which reads as a broken render. |
+| `map-parts-incomplete`              | The run published `map-lowres` plus hires parts, but the parts do not form a complete, contiguous set. Assembling around a gap would give a map that loads with a hole in its detail rather than the missing download it actually is. |
 | `run-failure`, `run-timed_out`, ... | The run ended badly. The failing job is named and the tail of its log is carried back, and **no map is downloaded or registered**.                                |
 
 ### An unchanged world is not uploaded twice
@@ -363,6 +373,64 @@ tag and asset it went to, the run that dispatch produced, and how it ended. Ther
 separate resume command — starting a sync reads that record first, so closing the
 application during a four-hour render and reopening it afterwards finds the run by its id,
 reads its outcome, and collects the map.
+
+### Fetching a render made elsewhere
+
+Resume reads a record `<storage>/ci-render/<syncId>/sync.json` this computer wrote itself,
+which is exactly what a second device — or this same computer after a reinstall — does not
+have. Without it, a finished run just sits on GitHub with no local path onto it, however
+plainly `gh run view` could tell you it succeeded.
+
+**Fetch a render made elsewhere**, on the Cloud Render screen, is that path. Choose the
+repository (the same owner and repository fields the ordinary form uses), press **List
+completed runs**, and the screen lists what `render-world.yml` has already finished there —
+newest first, each with its conclusion, run number, date and a link to open it on GitHub.
+Selecting one and pressing **Fetch this render** attaches this computer to that run and
+collects it through the identical path a resumed sync uses: the same artifact listing, the
+same digest verification, the same unpacking into `<storage>/<renderId>/web`, the same
+mount beside every local render. Nothing is uploaded and nothing is dispatched — the run
+already happened; this only downloads, verifies and registers what it produced.
+
+The one thing this path genuinely lacks is the uploaded-world identity: which release tag
+and asset this computer's own upload used, because there was no upload. The sync record it
+writes says so honestly — `releaseTag` and `assetName` stay `null` — rather than inventing a
+release nobody can point to. A collector fetching a resumed run only ever needed the run id
+to follow; the release identity was only ever needed to decide whether an *upload* could be
+skipped, which does not apply to a run this computer never started.
+
+Each run's map id, when the list can show one, comes from the run's own display title:
+`render-world.yml` sets `run-name: Render ${{ inputs.map-id }} (${{ inputs.dimension }})`,
+so GitHub's own run list already names what it rendered. A run dispatched before that
+existed, or from a fork whose workflow never carried it, is still listed — just under its
+raw title, with no parsed map id to show beside it.
+
+**Which map the fetch registers under is read from the run itself, never assumed from the
+local project.** A render made elsewhere is a render of its own world — the project open
+in this application right now may have no map by that name at all, or may have exactly one
+enabled map that has nothing to do with the run being attached. Registering under "whichever
+map this project happens to have" used to be exactly what happened whenever the field was
+left blank, and it produced a refusal that read as "not a map" for a reason that had nothing
+to do with the artifact being broken: a huge test render of one world, attached from a
+project describing a different one entirely, was forced under the wrong id and then refused
+because the artifact never had a folder by that name.
+
+So the map id is resolved in order, and never by guessing between equals:
+
+1. an explicit choice — the **Register as map** field on the card, prefilled from the run's
+   own title and editable before fetching;
+2. the id `render-world.yml`'s `run-name:` embedded in the run's own display title;
+3. this project's own map, exactly as before, only when neither of the above says anything
+   — an older run, one dispatched by hand from the Actions tab, or a fork's own workflow
+   that never carried the run name at all.
+
+As a last safety net, `collectRenderedMap` itself checks what the unpacked artifact's own
+`maps/` folder actually contains: if the requested id is not there but the artifact holds
+exactly one other valid map (its own `settings.json` and tiles), it is registered under
+*that* id rather than refused — the case a sanitization drift between the application and
+an older workflow template can produce. When the artifact holds more than one other valid
+map and none of them is the one requested, the refusal names every map id it found instead
+of guessing, so the **Register as map** field can be set to the right one and the run
+fetched again.
 
 ### Two GitHub credentials, one chosen per sync
 
@@ -887,8 +955,11 @@ world: it exercised no mods, no custom resource pack, and one flat generated ter
   2 GiB per asset — refused before packing rather than discovered after an hour of it. A
   larger world can still be rendered by this workflow through the `repository` or `url`
   sources, or dimension by dimension.
-- **The app collects only the single `rendered-map` artifact.** A map that shipped in parts
-  is refused with the artifacts named, and assembled by hand from the run summary.
+- **The app assembles a map that shipped in parts.** A world too large for one runner
+  downloads and verifies `map-lowres` plus every `partial-hires-N`, then unpacks them into
+  one tree exactly as the run summary's own instructions describe. A part that is missing,
+  expired or fails its digest is still refused with the artifacts named, rather than
+  assembled around the gap.
 - **Cancelling a sync in the app stops watching the run, not the run.** A render already
   going on GitHub carries on there, and a later sync can still collect it.
 
@@ -1040,7 +1111,7 @@ upload the world  ->  start the workflow  ->  follow the run  ->  fetch the map 
 
 ### 佢會拒絕啲乜，同埋點解每個拒絕都存在
 
-`eula-not-accepted`：呢部電腦未接受過 Mojang 嘅授權；app 唔會代人接受，佢會指向本來就有問嘅嗰個設定。`public-not-acknowledged`：個 repository 係 PUBLIC 而個警告未被接受 —— 一個世界載住啲建築、座標，同埋朋友喺個箱度剩低嘅所有嘢。`upload-not-acknowledged`：上傳一個世界即係將佢送去 GitHub，呢句要喺事前講清楚，唔係事後先講。`world-too-large`：打包出嚟會過 release asset 嘅 2 GiB 上限，係喺**打包之前**就用 folder 自己嘅 byte 總數拒絕。`unsupported-dimension`：project 嘅地圖 render 嘅 dimension 唔喺 workflow 個 `dimension` 選項入面，喺呢度攔截好過收到 GitHub 一個籠統嘅 422。`map-shipped-in-parts`：個 run 發佈咗 `map-lowres` 加啲 hires 部件；淨係解壓 lowres 會得到一幅載得到、但任何 zoom 都冇細節嘅地圖，睇落就好似 render 壞咗。`run-failure`、`run-timed_out` 等等：個 run 收得唔好，佢會講出邊個 job 失敗、將嗰個 job 嘅 log 尾段帶返嚟，而且**唔會下載或者註冊任何地圖**。
+`eula-not-accepted`：呢部電腦未接受過 Mojang 嘅授權；app 唔會代人接受，佢會指向本來就有問嘅嗰個設定。`public-not-acknowledged`：個 repository 係 PUBLIC 而個警告未被接受 —— 一個世界載住啲建築、座標，同埋朋友喺個箱度剩低嘅所有嘢。`upload-not-acknowledged`：上傳一個世界即係將佢送去 GitHub，呢句要喺事前講清楚，唔係事後先講。`world-too-large`：打包出嚟會過 release asset 嘅 2 GiB 上限，係喺**打包之前**就用 folder 自己嘅 byte 總數拒絕。`unsupported-dimension`：project 嘅地圖 render 嘅 dimension 唔喺 workflow 個 `dimension` 選項入面，喺呢度攔截好過收到 GitHub 一個籠統嘅 422。`map-parts-incomplete`：個 run 發佈咗 `map-lowres` 加 hires 部件，但啲部件砌唔返一個完整、連續嘅集合。圍住個窿砌落去會得到一幅有部分冇細節嘅地圖，而唔係佢實際係嘅「未攞齊」。`run-failure`、`run-timed_out` 等等：個 run 收得唔好，佢會講出邊個 job 失敗、將嗰個 job 嘅 log 尾段帶返嚟，而且**唔會下載或者註冊任何地圖**。
 
 ### 冇改過嘅世界唔會上傳兩次
 
@@ -1051,6 +1122,26 @@ upload the world  ->  start the workflow  ->  follow the run  ->  fetch the map 
 ### 佢識續做，因為熄咗個 app 係最有可能嘅中斷
 
 每一件耐久嘅事實都會即時寫低：上傳咗嘅 fingerprint、去咗邊個 tag 同 asset、派發出嚟嗰個 run、以及佢點樣完結。冇一個獨立嘅 resume 指令 —— 開始一次 sync 嗰陣會先讀嗰份紀錄，所以喺四個鐘嘅 render 中途熄咗個 application、之後再開返，會靠 id 搵返個 run、讀返佢嘅結果，然後收返幅地圖。
+
+### 攞返一個喺第度做嘅 render
+
+Resume 會讀返一份呢部機自己寫低嘅紀錄 `<storage>/ci-render/<syncId>/sync.json`，但呢樣嘢正正係第二部機——又或者呢部機重裝之後——冇嘅。冇咗佢，一個已經喺 GitHub 完成咗嘅 run 就淨係擺喺嗰度，本機完全冇路捉到佢，就算 `gh run view` 已經話你知佢成功咗都冇用。
+
+Cloud Render 畫面上面嘅**攞返一個喺第度做嘅 render**，就係嗰條路。揀好 repository（同平時嗰張表一樣嘅 owner 同 repository 欄），撳**列出已完成嘅 run**，個畫面就會列出嗰個 repository 個 `render-world.yml` 已經完成咗嘅嘢——最新排先，每個都有佢嘅結論、run number、日期，同一個去 GitHub 開嗰個 run 嘅連結。揀一個、撳**攞返呢個 render**，就會將呢部機接駁去嗰個 run，然後用同 resume 一個 sync 一模一樣嘅方式收返佢：同一個 artifact 清單、同一個 digest 驗證、同一個解壓去 `<storage>/<renderId>/web`、同一個掛落每個本機 render 隔籬嘅方式。乜都唔會上傳，乜都唔會 dispatch——個 run 已經發生咗；呢度淨係落載、驗證、登記佢做出嚟嘅嘢。
+
+呢條路唯一真係冇嘅嘢，係已上傳世界嗰個身份：呢部機自己嗰次上傳用嘅係邊個 release tag 同 asset，因為根本冇上傳過。佢寫低嗰份 sync 紀錄會老老實實咁講——`releaseTag` 同 `assetName` 會維持 `null`——而唔係作一個冇人指到嘅 release 出嚟。一個收返 resume run 嘅 collector，本來就淨係需要個 run id 去跟；個 release 身份本來就淨係用嚟決定一次**上傳**可唔可以省返，呢個唔適用於一個呢部機從來冇開始過嘅 run。
+
+每個 run 嘅 map id（如果個清單有得顯示嘅話），係由個 run 自己嘅 display title 攞返嚟：`render-world.yml` 設咗 `run-name: Render ${{ inputs.map-id }} (${{ inputs.dimension }})`，所以 GitHub 自己個 run 清單已經寫低咗佢 render 緊咩。一個喺呢個功能有之前就派發咗嘅 run，或者一個 fork 自己嘅 workflow 從來冇帶呢樣嘢，一樣照樣列出嚟——只不過用返佢原本嘅 title，冇解析到嘅 map id 擺喺隔籬。
+
+**呢個 fetch 會登記做邊個地圖，係由個 run 自己度讀返嚟，從來唔係靠估本機個 project 有咩。** 一個喺第度做嘅 render，render 緊嘅係佢自己嗰個世界——而家開緊嘅呢個 project 好可能根本冇一個咁樣命名嘅 map，又或者剩係有一個 enabled 嘅 map，但同要 attach 嗰個 run 完全冇關係。以前如果個欄留空，就會直接登記做「呢個 project 剩係有嘅嗰個 map」，然後出嚟嘅拒絕會講「唔係張地圖」——但真正原因同個 artifact 本身冇乜關係：一個好大嘅測試世界喺第度 render 咗，attach 嗰陣個 project 講緊嘅係完全唔同嘅另一個世界，個 map id 就俾人逼咗變成錯嗰個，然後因為個 artifact 根本冇嗰個名嘅夾而俾人拒絕。
+
+所以個 map id 依家係跟住呢個次序去搵，從來唔會喺兩個都啱嘅嘢入面亂咁揀：
+
+1. 一個明確嘅選擇——卡片上面**登記做邊個地圖**嗰個欄，會自動用個 run 自己個標題填咗先，撳落載之前仲可以自己改；
+2. `render-world.yml` 嗰個 `run-name:` 埋喺個 run 自己 display title 入面嘅 id；
+3. 只有上面兩樣都冇講到嘢嗰陣，先會用返呢個 project 自己嘅 map，同以前一樣——例如一個舊 run、一個由 Actions 分頁手動 dispatch 嘅 run，或者一個 fork 自己嘅 workflow 從來冇帶 run name 呢樣嘢。
+
+作為最後一重保障，`collectRenderedMap` 自己都會check 解壓咗嘅 artifact 個 `maps/` 夾入面實情有乜嘢：如果要求嗰個 id 唔喺度，但個 artifact 剩係有另外一個有效嘅 map（有自己嘅 `settings.json` 同 tiles），就會登記做**嗰一個**，而唔係直接拒絕——呢個係 app 同一個舊啲嘅 workflow template 之間 sanitization 走鬼可以整出嚟嘅情況。如果個 artifact 有多過一個其他有效嘅 map，而佢哋冇一個係要求緊嗰個，個拒絕就會逐個講晒搵到嘅 map id，唔會亂咁估——咁樣就可以喺**登記做邊個地圖**度填返啱嗰個，再攞多次。
 
 ### 兩個 GitHub 憑證，每次 sync 揀一個
 
@@ -1339,7 +1430,7 @@ lod3:  pixels=1004004 colorDiff=0 metaDiff=0
 - **Merge 係單執行緒 Node。** 喺一幅好大嘅地圖上面，lod 重砌係慢嗰部分；佢同 lod-1 tile 數量成正比，唔係同 hires tile 數量成正比。
 - **`rstate` 唔會 merge**，所以之後對 merge 完嗰幅地圖做增量 render 會全部重新 render。
 - **App 嘅 CI sync 係當一個 release asset 送個世界出去**，所以佢嘅天花板就係 GitHub 每個 asset 2 GiB —— 喺打包之前就拒絕，而唔係打咗一個鐘之後先發現。更大嘅世界仲可以經 `repository` 或者 `url` source 用呢個 workflow render，或者逐個 dimension 咁 render。
-- **App 淨係收 `rendered-map` 嗰一個 artifact。** 分咗幾份交付嘅地圖會被拒絕、並列出啲 artifact 名，要靠 run summary 手動砌返。
+- **App 而家識砌返分咗幾份交付嘅地圖。** 一個世界太大俾一部 runner 砌嘅話，app 會落載並核實 `map-lowres`加埋每一個 `partial-hires-N`，然後照住 run summary 嘅講法將佢哋砌埋做一棵樹。如果有部件唔見咗、過期咗，或者過唔到 digest 核實，都仲係會拒絕並列出啲 artifact 名，而唔會圍住個窿砌落去。
 - **喺 app 度取消一次 sync 係停止睇住個 run，唔係停個 run。** 已經喺 GitHub 度行緊嘅 render 會繼續喺嗰邊行，之後一次 sync 仲可以收返佢。
 
 ### 喺本機行各個部件

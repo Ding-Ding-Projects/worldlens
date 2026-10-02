@@ -116,7 +116,7 @@ const USAGE = `Usage: node tools/describe-jars.mjs --stage <dir> --out <dir> [op
   --out <dir>              Where the renamed jars and the index files go. Required.
   --vendor <dir>           Vendored upstream source, read for each implementation's
                            supported Minecraft versions.
-                           Default: vendor/BlueMap-LangGui
+                           Default: vendor/BlueMap-Material
   --expect-version <v>     Fail unless the staged jars carry exactly this version.
   --upstream-commit <sha>  Upstream commit the jars were built from.
   --upstream-repo <url>    Default: ${DEFAULT_UPSTREAM_REPOSITORY}
@@ -571,7 +571,7 @@ async function main() {
         version,
         commit: options.upstreamCommit,
         sourceSha: options.upstreamCommit,
-        submodulePath: "vendor/BlueMap-LangGui",
+        submodulePath: "vendor/BlueMap-Material",
     };
 
     const markdown = composeMarkdown(described, upstream, requiredJava);

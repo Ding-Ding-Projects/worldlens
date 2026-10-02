@@ -191,6 +191,12 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             worlds: {
                 list: (id: unknown) => transport.invoke("mcserver:worlds:list", id),
             },
+            worldgen: {
+                synthetic: (request: unknown) =>
+                    transport.invoke("mcserver:worldgen:synthetic", request),
+                status: () => transport.invoke("mcserver:worldgen:status"),
+                cancel: () => transport.invoke("mcserver:worldgen:cancel"),
+            },
             hostProfiles: {
                 list: () => transport.invoke("mcserver:hostProfiles:list"),
                 get: (hostId: unknown) => transport.invoke("mcserver:hostProfiles:get", hostId),
@@ -593,6 +599,30 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
 
+        worldDownloader: {
+            status: () => transport.invoke("worlddownloader:status"),
+            ensureJar: (request: unknown) => transport.invoke("worlddownloader:ensureJar", request),
+            readSettings: () => transport.invoke("worlddownloader:readSettings"),
+            writeSettings: (settings: unknown) =>
+                transport.invoke("worlddownloader:writeSettings", settings),
+            testConnection: (request: unknown) =>
+                transport.invoke("worlddownloader:testConnection", request),
+            start: (request: unknown) => transport.invoke("worlddownloader:start", request),
+            stop: (sessionId: unknown) => transport.invoke("worlddownloader:stop", sessionId),
+            openTokenIntake: () => transport.invoke("worlddownloader:openTokenIntake"),
+            clearToken: () => transport.invoke("worlddownloader:clearToken"),
+            countChunks: (outputFolder: unknown) =>
+                transport.invoke("worlddownloader:countChunks", outputFolder),
+            portFree: (port: unknown) => transport.invoke("worlddownloader:portFree", port),
+            onWorldDownloaderEvent: (listener: BridgeListener) => {
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
+                transport.on("worlddownloader:event", forward);
+                return () => {
+                    transport.off("worlddownloader:event", forward);
+                };
+            },
+        },
+
         dockerHosting: {
             create: (request: unknown) => transport.invoke("dockerhosting:create", request),
             inspect: () => transport.invoke("dockerhosting:inspect"),
@@ -680,6 +710,9 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         cancelCiRender: (syncId: unknown) => transport.invoke("cirender:cancel", syncId),
         forgetCiRender: (syncId: unknown) => transport.invoke("cirender:forget", syncId),
         activeCiRenders: () => transport.invoke("cirender:active"),
+        listAttachableCiRuns: (request: unknown) =>
+            transport.invoke("cirender:listAttachableRuns", request),
+        attachCiRun: (request: unknown) => transport.invoke("cirender:attachRun", request),
         onCiRenderEvent: (listener: BridgeListener) => {
             const forward = (_event: unknown, payload: unknown): void => listener(payload);
             transport.on("cirender:event", forward);
@@ -985,10 +1018,28 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             check: () => transport.invoke("bluemapSource:check"),
         },
 
+        chunkerActions: {
+            prepare: (request: unknown) => transport.invoke("chunkerActions:prepare", request),
+            start: (request: unknown) => transport.invoke("chunkerActions:start", request),
+            list: () => transport.invoke("chunkerActions:list"),
+            recoverable: () => transport.invoke("chunkerActions:recoverable"),
+            adopt: (request: unknown) => transport.invoke("chunkerActions:adopt", request),
+            check: (id: unknown) => transport.invoke("chunkerActions:check", id),
+            collect: (id: unknown) => transport.invoke("chunkerActions:collect", id),
+            cancel: (id: unknown) => transport.invoke("chunkerActions:cancel", id),
+        },
         bedrock: {
             detect: (folder: unknown, sizeBytes: unknown) =>
                 transport.invoke("bedrock:detect", folder, sizeBytes ?? null),
             chunkerStatus: () => transport.invoke("bedrock:chunker"),
+            capabilities: () => transport.invoke("bedrock:capabilities"),
+            inspectOptions: (world: unknown) => transport.invoke("bedrock:inspectOptions", world),
+            configurationSchema: () => transport.invoke("bedrock:configurationSchema"),
+            containerImages: () => transport.invoke("bedrock:containerImages"),
+            containerStart: (request: unknown) =>
+                transport.invoke("bedrock:containerStart", request),
+            containerState: (id: unknown) => transport.invoke("bedrock:containerState", id),
+            containerCancel: (id: unknown) => transport.invoke("bedrock:containerCancel", id),
             fetchChunker: () => transport.invoke("bedrock:fetchChunker"),
             convert: (request: unknown) => transport.invoke("bedrock:convert", request),
             cancel: (conversionId: unknown) => transport.invoke("bedrock:cancel", conversionId),

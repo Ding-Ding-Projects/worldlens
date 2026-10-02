@@ -15,15 +15,21 @@ export const mcserverHosting: Article = {
     summary:
         "Installing a Minecraft server, editing every one of its settings as a real control, running its console, managing its plugins and its players - all from the application, over a local process, a local Docker container, a container reached over SSH, or a browser talking to a locally hosted web console.",
     category: "application",
-    status: "shipped",
+    status: "ported-unverified",
     statusNote:
-        "The transport layer, registry, config editor, RCON console, player and plugin managers and web console are wired into the Minecraft servers destination and covered by focused tests. The adoption event and review route are mounted through the application shell, while real Docker, SSH, Java and packaged Windows evidence remain separate pending proof. The AWS transport still has a tested backend without a screen that leads to it.",
+        "Local and SSH container creation are wired through the wizard and covered by focused tests, including image resolution and ownership-verified rollback. Real Docker, SSH, Java and packaged Windows evidence remain pending. 本機同 SSH 容器建立已接駁並有針對性測試；真實執行證據仍然待驗證。",
 
     sections: [
         {
             id: "behaviour",
             title: "Behaviour",
             blocks: [
+                {
+                    kind: "paragraph",
+                    content: [
+                        "New server creates a new local or SSH container; adopting an existing container is a separate flow. Guided images follow the selected Java requirement and are resolved to a registry digest before creation. Velocity uses the proxy image and /server; ordinary servers use /data. Fabric game and loader versions are chosen separately, and Forge, NeoForge, Paper and Purpur retain their selected build identity. 新增伺服器會建立新容器，唔會送去採用現有容器流程。映像先查摘要，版本同載入器各自分清楚。",
+                    ],
+                },
                 {
                     kind: "paragraph",
                     content: [
@@ -49,7 +55,10 @@ export const mcserverHosting: Article = {
                     caption: "Where a server can live, and how the application reaches it",
                     columns: ["Where", "How"],
                     rows: [
-                        ["A process on this computer", "A Java runtime the application downloads for it"],
+                        [
+                            "A process on this computer",
+                            "A Java runtime the application downloads for it",
+                        ],
                         ["A container on this computer", "The local Docker daemon"],
                         ["A container on another machine", "The same commands, over SSH"],
                         [
@@ -93,7 +102,7 @@ export const mcserverHosting: Article = {
                         "the list. That dialog, and the read-only discovery logic behind it, are built and ",
                         "tested. The button that opens it - ",
                         { code: "ServerListScreen.vue" },
-                        "'s \"Adopt an existing server\" control - emits the event consumed by the mounted ",
+                        '\'s "Adopt an existing server" control - emits the event consumed by the mounted ',
                         "adoption flow at each application mount site in ",
                         { code: "App.vue" },
                         ". Candidate containers are listed before the review dialog. Packaged interaction and ",
@@ -108,7 +117,11 @@ export const mcserverHosting: Article = {
                         "ordinary browser rather than only from the desktop shell, through a locally ",
                         "hosted, password-protected HTTP server started and stopped from the same panel - ",
                         "see ",
-                        { link: "the web console article", href: MCSERVER_WEB_CONSOLE_DOC_URL, external: true },
+                        {
+                            link: "the web console article",
+                            href: MCSERVER_WEB_CONSOLE_DOC_URL,
+                            external: true,
+                        },
                         " for its sign-in, sessions and unlock ladder.",
                     ],
                 },
@@ -137,12 +150,38 @@ export const mcserverHosting: Article = {
                     caption: "What kind of setting becomes what kind of control",
                     columns: ["Setting kind", "Control", "Examples"],
                     rows: [
-                        ["A yes/no", "Switch", [{ code: "pvp" }, ", ", { code: "online-mode" }, ", ", { code: "hardcore" }]],
-                        ["A fixed set of choices", "Menu", [{ code: "difficulty" }, ", ", { code: "gamemode" }]],
-                        ["A bounded number", "Bounded stepper", [{ code: "view-distance" }, " (2-32), ", { code: "max-players" }]],
-                        ["A port", "Stepper, 1-65535", [{ code: "server-port" }, ", ", { code: "rcon.port" }]],
+                        [
+                            "A yes/no",
+                            "Switch",
+                            [
+                                { code: "pvp" },
+                                ", ",
+                                { code: "online-mode" },
+                                ", ",
+                                { code: "hardcore" },
+                            ],
+                        ],
+                        [
+                            "A fixed set of choices",
+                            "Menu",
+                            [{ code: "difficulty" }, ", ", { code: "gamemode" }],
+                        ],
+                        [
+                            "A bounded number",
+                            "Bounded stepper",
+                            [{ code: "view-distance" }, " (2-32), ", { code: "max-players" }],
+                        ],
+                        [
+                            "A port",
+                            "Stepper, 1-65535",
+                            [{ code: "server-port" }, ", ", { code: "rcon.port" }],
+                        ],
                         ["A colour", "Infinite colour picker", "chat and MOTD colours"],
-                        ["A folder or file", "Field with a native browse button", "world and plugin locations"],
+                        [
+                            "A folder or file",
+                            "Field with a native browse button",
+                            "world and plugin locations",
+                        ],
                         ["Records", "A table with an add dialog", "operators, whitelist, bans"],
                         ["Genuine prose", "A text box - and only here", "the message of the day"],
                     ],
@@ -156,6 +195,7 @@ export const mcserverHosting: Article = {
                 {
                     kind: "list",
                     items: [
+                        "A failed registry save triggers rollback only after the exact stopped container's immutable ID, ownership labels and this invocation's creation identifier are independently verified. Nonempty directories and unproven containers are retained with an explicit recovery message. 清單儲存失敗時，先查清楚本次擁有權先回復；有資料嘅目錄同未證實擁有嘅容器都會保留。",
                         "Every bridge call answers ok/failure rather than throwing; a failed list load keeps whatever was last shown instead of rendering an empty list, because an empty list is a claim of zero servers and a failed read is a different, honest claim.",
                         "A control whose action cannot succeed - an unreachable host, a read-only transport, an adopted server whose owner never granted a permission - is disabled with the exact reason named in its own tooltip.",
                         [
@@ -218,6 +258,7 @@ export const mcserverHosting: Article = {
                         " process, or a real AWS account. Source-level adoption wiring is covered by the ",
                         "seam guard, while packaged interaction and isolated-host evidence remain pending ",
                         "and are not inferred from that guard.",
+                        " Container creation does not establish readiness or playable Velocity backend topology. Local Fabric resolves its published launcher; Forge/NeoForge execute their installers and persist verified generated launch arguments. Spigot uses its official release index and pinned BuildTools build, verifies the output JAR and records source revisions and observed digests. Actual JVM startup remains pending. 本機安裝同啟動路徑已接駁，Spigot 會記錄官方來源同編譯結果；真實 JVM 啟動仍待驗證。",
                     ],
                 },
             ],
@@ -248,13 +289,20 @@ export const mcserverHosting: Article = {
     ],
 
     sources: [
+        { label: "docs/mcserver-hosting.md", href: repoFile("docs/mcserver-hosting.md") },
         { label: "docs/mcserver-transport.md", href: MCSERVER_TRANSPORT_DOC_URL },
         { label: "docs/mcserver-config.md", href: MCSERVER_CONFIG_DOC_URL },
         { label: "docs/minecraft-server-manager.md", href: MCSERVER_MANAGER_DOC_URL },
         { label: "docs/mcserver-plugins.md", href: MCSERVER_PLUGINS_DOC_URL },
         { label: "docs/mcserver-web-console.md", href: MCSERVER_WEB_CONSOLE_DOC_URL },
         { label: "docs/mcserver-aws.md", href: MCSERVER_AWS_DOC_URL },
-        { label: "packages/app/src/main/mcserver/registry.ts", href: repoFile("design/packages/app/src/main/mcserver/registry.ts") },
-        { label: "packages/ui/src/components/mcserver/ServerListScreen.vue", href: repoFile("design/packages/ui/src/components/mcserver/ServerListScreen.vue") },
+        {
+            label: "packages/app/src/main/mcserver/registry.ts",
+            href: repoFile("design/packages/app/src/main/mcserver/registry.ts"),
+        },
+        {
+            label: "packages/ui/src/components/mcserver/ServerListScreen.vue",
+            href: repoFile("design/packages/ui/src/components/mcserver/ServerListScreen.vue"),
+        },
     ],
 };

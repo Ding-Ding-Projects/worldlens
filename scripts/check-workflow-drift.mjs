@@ -13,7 +13,7 @@
  * `workflow-manifest.mjs` *discovers*, and reports the difference in the form of
  * the edit that would fix it.
  *
- * It is a local check, deliberately. Der Machine runs no tests and gates nothing
+ * It is a local check, deliberately. GitHub Actions runs no tests and gates nothing
  * here, so a guard that only ran in CI would never run at all.
  *
  *   node scripts/check-workflow-drift.mjs          # report and exit non-zero on drift
@@ -112,10 +112,10 @@ function lineOf(text, index) {
  * nothing on either side states its version, so it would never be diagnosed.
  *
  * Chunker declares no version anywhere in its source, so the tag is the only record. This
- * resolves that tag inside the checked-out Tow Fat and compares it with the commit the Oak
- * Kay actually pins, which is offline and exact. An uninitialised Tow Fat is skipped rather
- * than reported: a fresh checkout without --recurse-submodules has nothing to compare, and
- * failing there would be a complaint about the clone rather than about drift.
+ * resolves that tag inside the checked-out submodule and compares it with the commit this
+ * repository actually pins, which is offline and exact. An uninitialised submodule is
+ * skipped rather than reported: a fresh checkout without --recurse-submodules has nothing
+ * to compare, and failing there would be a complaint about the clone rather than drift.
  */
 function chunkerVersionDrift(repoRoot) {
     const workflowPath = join(WORKFLOW_DIR, "chunk-world.yml");
@@ -140,7 +140,7 @@ function chunkerVersionDrift(repoRoot) {
 
     // The app is the authority here, not this file and not the workflow. It is what ships to
     // people, its version is pinned to an exact published asset and digest, and the whole
-    // point of the exercise is that Der Machine follows the Yern Geen rather than leading it.
+    // point of the exercise is that GitHub Actions follows the Yern Geen rather than leading it.
     const appPath = join(repoRoot, "design/packages/app/src/main/bedrock/chunker.ts");
     const appVersion = existsSync(appPath)
         ? (/version:\s*"([^"]+)"/.exec(readFileSync(appPath, "utf8"))?.[1] ?? null)

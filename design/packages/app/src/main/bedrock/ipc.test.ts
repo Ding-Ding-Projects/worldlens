@@ -228,7 +228,7 @@ describe("bedrock:detect", () => {
 });
 
 describe("bedrock:chunker", () => {
-    it("reports an absent Chunker honestly, with its licence and the fact it is not bundled", async () => {
+    it("reports an absent Chunker honestly, and does not claim the missing copy is bundled", async () => {
         const { call } = install({ find: async () => CHUNKER_MISSING });
 
         const status = (await call("bedrock:chunker")) as {
@@ -239,9 +239,50 @@ describe("bedrock:chunker", () => {
 
         expect(status.lookup.found).toBe(false);
         expect(status.licence).toMatchObject({ spdx: "MIT", holder: "Hive Games", bundled: false });
-        expect(status.licence.note).toContain("permits redistribution");
+        expect(status.licence.note).toContain("MIT licensed");
         expect(status.available.digestTrust).toBe("pinned");
         expect(status.available.verificationNote).toContain("do not publish a signature");
+    });
+
+    it("says the converter is bundled when the bundled copy is the one that resolved", async () => {
+        // The row that was wrong for a whole release. `bundled` is a statement about the
+        // copy in front of this person, so it has to follow the lookup rather than a
+        // constant somebody wrote once and nobody revisited when the jar went into the
+        // installer.
+        const { call } = install({
+            find: async () => ({
+                found: true,
+                source: "bundled",
+                jarPath: "/app/resources/bundled/chunker/chunker-cli-1.19.1.jar",
+                version: "1.19.1",
+            }),
+        });
+
+        const status = (await call("bedrock:chunker")) as {
+            licence: { bundled: boolean; note: string };
+        };
+
+        expect(status.licence.bundled).toBe(true);
+        expect(status.licence.note).toContain("inside its own installer");
+        expect(status.licence.note).not.toContain("does not bundle");
+    });
+
+    it("passes resourcesPath through, so a packaged build can see its own bundled jar", async () => {
+        // The defect, stated as a test: registering the handlers with a resourcesPath and
+        // never handing it to the resolver is exactly what shipped, and it is invisible from
+        // inside `findChunker`'s own suite.
+        let seen: string | null | undefined = undefined;
+        const { call } = install({
+            resourcesPath: "/app/resources",
+            find: async (lookupOptions) => {
+                seen = lookupOptions.resourcesPath ?? null;
+                return CHUNKER_MISSING;
+            },
+        });
+
+        await call("bedrock:chunker");
+
+        expect(seen).toBe("/app/resources");
     });
 });
 
@@ -339,19 +380,29 @@ describe("bedrock:convert", () => {
         expect(finished).toContainEqual(expect.objectContaining({ kind: "finished" }));
     });
 
-    it("refuses a Java world rather than making a pointless second copy", async () => {
-        const convert = vi.fn();
+    it("allows Java input so a Java world can become Bedrock", async () => {
+        const convert = vi.fn(async () => okOutcome());
         const { call } = install({ inspect: async () => JAVA_LISTING, convert });
 
         const outcome = (await call("bedrock:convert", { world: "/worlds/survival" })) as {
             ok: boolean;
-            message: string;
+            conversionId: string;
         };
 
+        expect(outcome.ok).toBe(true);
+        expect(outcome.conversionId).toMatch(/[0-9a-f-]{36}/);
+        expect(convert).toHaveBeenCalledWith(expect.objectContaining({ inputDirectory: "/worlds/survival" }));
+    });
+
+    it("refuses a forged matching input format before the converter starts", async () => {
+        const convert = vi.fn(async () => okOutcome());
+        const { call } = install({ inspect: async () => JAVA_LISTING, convert });
+        const outcome = await call("bedrock:convert", {
+            world: "/worlds/survival", format: "JAVA_1_21_4", inputFormat: "JAVA_1_21_4",
+            config: { keepOriginalNBT: true },
+        }) as { ok: boolean; message: string };
         expect(outcome.ok).toBe(false);
-        expect(outcome.message).toContain("not a Bedrock world");
-        // Re-checked here rather than trusted from the renderer: the detect call that led
-        // to this button may have run against a folder that has since changed.
+        expect(outcome.message).toMatch(/keepOriginalNBT/);
         expect(convert).not.toHaveBeenCalled();
     });
 

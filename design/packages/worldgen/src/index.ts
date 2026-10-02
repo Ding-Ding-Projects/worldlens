@@ -54,6 +54,7 @@ export { RegionFileWriter, regionFileName, regionOf } from "./region.js";
 export { ZipWriter, crc32, type ZipEntryOptions } from "./zip.js";
 
 // world assembly
+export { generateMeasuredWorld, measuredRegionCoordinates, MEASURED_LEDGER, type MeasuredWorldOptions, type MeasuredWorldProgress, type MeasuredWorldResult } from "./measuredWorld.js";
 export {
     DEFAULT_WORLD_FORMAT,
     defaultWorldName,

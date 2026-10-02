@@ -127,6 +127,7 @@ import type { ServerRecord } from "./components/mcserver/serverModel.js";
 import WebConsolePanel from "./components/mcserver/WebConsolePanel.vue";
 import SupportTickets from "./components/locks/SupportTickets.vue";
 import { DockerHostingScreen, RemoteHostingScreen } from "./components/remote/index.js";
+import WorldDownloaderScreen from "./components/worlddownloader/WorldDownloaderScreen.vue";
 import {
     dropRenderHostMissingReason,
     useDropRenderHost,
@@ -618,6 +619,7 @@ const PAGE_DOCS = "docs";
 const PAGE_OLLAMA = "ollama";
 const PAGE_REMOTE_HOSTING = "remoteHosting";
 const PAGE_DOCKER_HOSTING = "dockerHosting";
+const PAGE_WORLD_DOWNLOADER = "worldDownloader";
 const PAGE_SCREENSHOTS = "screenshots";
 
 /**
@@ -879,11 +881,92 @@ const pages = computed<TabPage[]>(() => [
         icon: mdiServerNetwork,
     },
     {
+        id: PAGE_WORLD_DOWNLOADER,
+        label: t("tabs.page.worldDownloader", "Get a world off a server"),
+        icon: mdiCloudDownloadOutline,
+    },
+    {
         id: PAGE_SCREENSHOTS,
         label: t("tabs.page.screenshots", "Screenshots"),
         icon: mdiImageMultipleOutline,
     },
 ]);
+
+/**
+ * The rail's direct-open shortcuts, named here and nowhere else.
+ *
+ * A hand-written list rather than a slice of `pages` above, deliberately: the rail is a small,
+ * curated set of jobs worth a permanent one-click button, not "every job that exists" - the exact
+ * distinction `AppRail.vue`'s own doc comment draws between a shortcut and a destination. Adding
+ * a job to `jobRegistry.ts` never silently grows the rail; a job earns a rail shortcut only when
+ * someone adds it to this list on purpose. `railJobShortcutInventory.test.ts` locks this exact
+ * set so a removed entry - or a rename that leaves a stale id nothing resolves to - fails loudly.
+ */
+const RAIL_JOB_SHORTCUT_IDS = [
+    PAGE_CIRENDER,
+    PAGE_DOCKER_HOSTING,
+    PAGE_REMOTE_HOSTING,
+    PAGE_CHUNKER,
+    PAGE_BACKUPS,
+    PAGE_MCSERVERS,
+    PAGE_WORLD_DOWNLOADER,
+] as const;
+
+/**
+ * The compact, one-line label each shortcut shows on the rail itself.
+ *
+ * Regression: v2-08-rail-7-jobs-1280x800-dark.png showed the *full* bilingual page label
+ * ("Get a world off a server 由伺服器攞返個世界") wrapping five lines inside the 80px column.
+ * The full label is never lost - it stays the button's `aria-label` and its tooltip text below
+ * - this is only what renders on screen, so it has to fit one line at every supported width and
+ * in both language modes. `t()` here rather than a plain string so bilingual mode still shows
+ * a real (short) Cantonese form rather than silently staying English-only.
+ */
+/**
+ * A real `computed()`, not a plain object literal - `t()` evaluated once at module setup
+ * time bakes in whatever the catalogue happened to answer (or its fallback, if messages had
+ * not finished loading yet) forever, with no way to pick up a later catalogue change. This is
+ * exactly how a real running build kept rendering "GitHub Actions", "Remote SSH" and "Chunker"
+ * after shell.ts's own catalogue values had already changed to "Actions", "SSH" and "Convert" -
+ * found only by inspecting the live app, not by reading source. The fallback strings below are
+ * kept in step with shell.ts's current values on principle, but the reactive `computed()` is
+ * what actually guarantees they cannot drift apart in the running application.
+ */
+const RAIL_JOB_SHORTCUT_LABELS = computed<Record<(typeof RAIL_JOB_SHORTCUT_IDS)[number], string>>(
+    () => ({
+        [PAGE_CIRENDER]: t("rail.shortcut.cirender", "Actions"),
+        [PAGE_DOCKER_HOSTING]: t("rail.shortcut.dockerHosting", "Docker"),
+        [PAGE_REMOTE_HOSTING]: t("rail.shortcut.remoteHosting", "SSH"),
+        [PAGE_CHUNKER]: t("rail.shortcut.chunker", "Convert"),
+        [PAGE_BACKUPS]: t("rail.shortcut.backups", "Backups"),
+        [PAGE_MCSERVERS]: t("rail.shortcut.mcservers", "Servers"),
+        [PAGE_WORLD_DOWNLOADER]: t("rail.shortcut.worldDownloader", "Downloader"),
+    }),
+);
+
+const railJobShortcuts = computed<{ id: string; icon: string; label: string; shortLabel: string }[]>(
+    () => {
+        const byId = new Map(pages.value.map((page) => [page.id, page]));
+        return RAIL_JOB_SHORTCUT_IDS.flatMap((id) => {
+            const page = byId.get(id);
+            // A shortcut whose job this build cannot host (capability-gated out) is dropped
+            // rather than shown pointing nowhere - the same rule `WorkPane.vue` already applies
+            // to the tab itself, so a rail shortcut can never outlive the job it opens.
+            // `page.icon` is nullable on `TabPage` in general; every entry named above sets
+            // one, so the fallback never fires.
+            return page === undefined
+                ? []
+                : [
+                      {
+                          id: page.id,
+                          icon: page.icon ?? "",
+                          label: page.label,
+                          shortLabel: RAIL_JOB_SHORTCUT_LABELS.value[id],
+                      },
+                  ];
+        });
+    },
+);
 
 /**
  * How a brand-new workspace is arranged, and why it is not twelve flat tabs.
@@ -2851,6 +2934,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     <DockerHostingScreen />
                 </template>
 
+                <template #worldDownloader>
+                    <WorldDownloaderScreen />
+                </template>
+
                 <template #memory>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
@@ -2903,7 +2990,9 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :settings-activator-id="settingsActivatorId"
                         :settings-panel-id="SETTINGS_PANEL_ID"
                         :settings-open="settingsOpen"
+                        :job-shortcuts="railJobShortcuts"
                         @select="onRailSelect"
+                        @open-job="revealPage($event)"
                         @open-palette="paletteOpen = true"
                         @toggle-notifications="notificationsOpen = !notificationsOpen"
                         @open-settings="toggleSettingsFromRail"
@@ -3463,6 +3552,10 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
                             <template #dockerHosting>
                                 <DockerHostingScreen />
+                            </template>
+
+                            <template #worldDownloader>
+                                <WorldDownloaderScreen />
                             </template>
 
                             <!--

@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: colour values handled as data by the contract playground rather than applied as chrome.
+ * material-exempt: colour values handled as data by the contract playground rather than applied as chrome.
  */
 /**
  * The static site's own universal-contract playground.

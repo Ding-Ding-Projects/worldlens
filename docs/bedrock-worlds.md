@@ -90,7 +90,7 @@ docs, and the project receives funding from Mojang Studios.
 It ships as an Electron desktop app *and* as a standalone CLI jar. The CLI is what this app
 uses: one file, about 30 MB, no installer and no native components.
 
-### Licence, and why nothing is bundled
+### Licence, and why the jar ships inside the installer
 
 Chunker is **MIT licensed**, Copyright (c) 2024 Hive Games
 ([LICENSE](https://github.com/HiveGamesOSS/Chunker/blob/main/LICENSE)).
@@ -101,14 +101,36 @@ Chunker is **MIT licensed**, Copyright (c) 2024 Hive Games
 - **Required attribution:** the copyright notice and the permission notice must be included
   in all copies or substantial portions of the software.
 
-**This app nevertheless does not bundle it.** That is a product decision, not a licence
-restriction, and the distinction matters enough to state plainly rather than letting the
-interface imply a prohibition that does not exist. The reasons are that 30 MB in every
-installer is a poor trade for a feature most people never use, and that a bundled copy pins
-a converter version to an app release — the converter tracks new Minecraft versions on its
-own schedule and should be updatable without shipping a new app.
+**This app bundles it.** `scripts/stage-bundled-runtimes.mjs` stages the pinned
+`chunker-cli-1.19.1.jar` into `dist/bundled/chunker/`, electron-builder copies that into the
+installer as `resources/bundled/chunker/`, and the app resolves it from there. A person who
+installs Worldlens can convert a Bedrock world with the network unplugged.
 
-So the app detects an installed Chunker first, and offers to fetch one only if asked.
+The old reasoning — 30 MB is a poor trade for a feature most people never use, and a bundled
+copy pins a converter version to an app release — was re-decided. The first half is not the
+trade it appeared to be: an installer that cannot convert a world until the machine has been
+online is not an installer that contains the app. The second half is simply true, and is now
+a real consequence rather than a hypothetical one: the converter version moves when the app
+version moves, or when somebody points the app at a jar of their own.
+
+<details>
+<summary><b>What went wrong in v1.0.2026, and the shape of the mistake</b></summary>
+
+The jar went into the installer and nothing was taught to look for it. v1.0.2026's
+`Worldlens-1.0.2026-full.nupkg` contains
+`lib/net45/resources/bundled/chunker/chunker-cli-1.19.1.jar` at exactly the pinned
+31,790,149 bytes, and `findChunker` had no `resourcesPath` option at all — so every installed
+build searched the user's profile, found nothing, and reported the converter as absent while
+carrying it. Packaging was green, the extraResources entry was correct, and the only symptom
+was the app denying it owned something it was shipping.
+
+It is the general shape recorded elsewhere in this repository: **a feature wired at one end
+and consumed at neither ships silently.** The guard against a repeat is
+`scripts/assert-packaged-bundles.mjs`, which reads the directory electron-builder actually
+produced rather than the configuration that describes it.
+</details>
+
+So the app runs the bundled jar first, and fetches one only when there genuinely is none.
 
 ### The CLI contract
 
@@ -155,11 +177,30 @@ listing every valid value, which this app captures and reports rather than swall
 
 ### Obtaining it, and what "verified" honestly means
 
-The app looks, in order, at a jar configured in settings, then `CHUNKER_CLI_JAR`, then a
-copy it downloaded into its own data directory. A configured path that does not exist is
-**reported**, never silently skipped in favour of another copy — running a different
-converter than the one that was named is how somebody spends an afternoon wondering why a
-setting does nothing.
+The app looks, in order, at:
+
+| Order | Source | Reported as |
+|---|---|---|
+| 1 | a jar configured in settings | `configured` |
+| 2 | `CHUNKER_CLI_JAR` | `environment` |
+| 3 | **the jar inside this app's own installer**, `<resources>/bundled/chunker/` | `bundled` |
+| 4 | a copy the app downloaded into its own data directory | `downloaded` |
+
+The two explicit overrides come first on purpose: somebody who names a converter meant it,
+and quietly running a different one is how an afternoon disappears. Nobody has configured
+anything on a fresh install, so **the bundled jar is what an ordinary install resolves**, and
+the interface says which of the four it is rather than reporting a bare version. A configured
+path that does not exist is **reported**, never silently skipped in favour of another copy.
+
+The bundled jar is hashed against the SHA-256 committed in `bundled-runtimes.manifest.json`
+before it is run, once per launch. A jar at the bundled path whose bytes are not this
+release's bytes is **refused rather than run**: it is either a damaged install or something
+that replaced it, and there is no version of "probably fine" worth having with somebody's
+only copy of a world at the other end.
+
+Step 4 exists for a development checkout, where nothing has been staged, and for an install
+whose bundled copy is genuinely gone. It is automatic, digest-verified and reported with real
+progress; there is no browser link and no "fetch it yourself" copy anywhere in the app.
 
 If asked to fetch one, the download is checked against a SHA-256. What that check is worth
 was researched rather than assumed, and the answer is narrower than one would like. As of
@@ -624,7 +665,8 @@ does not work.
 
 | Situation | What happens |
 |---|---|
-| Chunker not installed | Reported as a value with what it is, its licence, that the app does not bundle it, and where the app looked |
+| Chunker not on disk at all | Reported as a value saying the app normally ships it, that this build has no copy, that the app can fetch the same pinned jar, and every path it looked at |
+| Bundled Chunker present but altered | Refused, not run, naming both digests |
 | Configured jar missing | Reported by path — never silently replaced with another copy |
 | No Java 17+ | Reported, with the JVM layer's own reason |
 | Folder is actually a Java world | Refused before anything runs; a Java world needs no conversion |
@@ -675,7 +717,9 @@ the whole of what detection reads.
 | File | Covers |
 |---|---|
 | `detect.test.ts` | A Bedrock world detected and named; a Java world unaffected; a Java world with a stray `db` folder still Java; a fresh Java world with no terrain still Java; a `saves` folder not mistaken for a world; `levelname.txt` trimming and its absence |
-| `chunker.test.ts` | Chunker absent reported honestly with licence and search paths; never rejecting; configured over downloaded; a missing configured jar reported rather than replaced; version read from a jar name, and `null` rather than a guess |
+| `chunker.test.ts` | The bundled jar found and reported as `bundled`; preferred over a downloaded copy; yielding to a configured one; a bundled jar failing its digest refused rather than run; the fallback to a downloaded copy; absence reported honestly with every search path; never rejecting; the pinned release agreeing with `bundled-runtimes.manifest.json` |
+| `packagedBundles.test.ts` | The packaging guard against a real tree: green when both runtimes are present, red when the jar is missing, red when its bytes differ at the same size, red when the JRE is missing |
+| `wiring.test.ts` | That the one real call site hands `registerBedrockHandlers` the packaged `resourcesPath`, which is the argument v1.0.2026 omitted |
 | `convert.test.ts` | The documented command line; `--keepOriginalNBT` never passed; **no `-Xmx` in the recommended JVM arguments**; progress parsing including a comma decimal separator; the failure that exits zero; **out-of-memory recognised from exit 12, from a worker-thread stack trace that exits 1, and from an OS kill — but not from a spawn failure or a cancellation**; **the OOM message never suggesting a bigger heap**; verification rejecting a `level.dat` with no terrain; **a cancelled conversion cleaning up after itself**; **a failed conversion leaving nothing that looks like a world**; a stale staging directory cleared |
 | `memory.test.ts` | Silence below the threshold and on an unmeasured world; the warning above it sized against the world; that it names whose limitation it is, promises the cleanup that actually happens, attributes the figure to observation rather than upstream, and **never offers more memory as the fix** |
 | `batch.test.ts` | Malformed settings reports refused; dimension-separated, row-major plans; one-chunk margin geometry; ownership filtering and custom-dimension paths |
@@ -803,7 +847,11 @@ java -jar chunker-cli-<version>.jar -i "<world>" -f JAVA_1_21_4 -o "<output>"
 
 #### 點樣攞到佢，同「已驗證」老實嚟講係咩意思
 
-個 app 會按次序睇：設定入面配置嘅 jar、然後 `CHUNKER_CLI_JAR`、然後佢自己下載去自己 data 目錄嗰份副本。一條配置咗但唔存在嘅路徑會被**報告**，永遠唔會靜靜雞跳過去用另一份副本 —— 行緊一個唔係你指名嗰個轉換器，就係一個人花成個下晝諗點解一個設定乜都唔做嘅原因。
+個 app 會按次序睇四個地方：設定入面配置嘅 jar（報告為 `configured`）、`CHUNKER_CLI_JAR`（`environment`）、**呢個 app 自己安裝檔入面嗰份 jar**，即 `<resources>/bundled/chunker/`（`bundled`），最後先至係佢自己下載去自己 data 目錄嗰份副本（`downloaded`）。兩個明示嘅覆寫排喺前面係有意嘅：指名咗一個轉換器嘅人係真係想用嗰個。新裝機冇人配置過任何嘢，所以**一部普通安裝解析到嘅就係夾埋喺安裝檔嗰份 jar**，而介面會講明係四個入面邊一個，唔會淨係報一個版本號。一條配置咗但唔存在嘅路徑會被**報告**，永遠唔會靜靜雞跳過去用另一份副本 —— 行緊一個唔係你指名嗰個轉換器，就係一個人花成個下晝諗點解一個設定乜都唔做嘅原因。
+
+夾埋嗰份 jar 喺行之前會同 `bundled-runtimes.manifest.json` 入面 commit 咗嘅 SHA-256 對過，每次開程式對一次。一份擺喺 bundled 路徑、但啲 bytes 唔係呢個 release 嗰啲嘅 jar，會**被拒絕而唔會行**：唔係個安裝壞咗就係有人換咗佢，而另一頭係人哋世界嘅唯一一份副本，冇「應該冇事嘅」呢種講法。
+
+第四步係留返畀開發 checkout（乜都未 stage 過），同埋畀夾埋嗰份真係唔見咗嘅安裝。佢係自動、對 digest、有真進度嘅；個 app 入面冇任何瀏覽器連結，亦冇「你自己去攞」呢種文案。
 
 如果叫佢去攞一個，下載會對一個 SHA-256。嗰個檢查值幾多錢係研究過而唔係假設嘅，而答案比人想要嘅窄。截至 Chunker 1.19.1：冇發佈 `SHA256SUMS` 或者同等 checksum 檔；冇分離簽名（`.asc`、`.sig`、`.intoto.jsonl`）；CLI jar 冇 GitHub artifact attestation；CLI jar 亦冇 Authenticode 簽名（Hive Games 有用 Azure Trusted Signing 簽佢哋嘅 Windows `.exe` 產物，但 CLI jar 唔係 `.exe`）。唯一有嘅，就係 releases API 上面 GitHub 自己嘅逐 asset `sha256` digest。
 
@@ -814,6 +862,10 @@ java -jar chunker-cli-<version>.jar -i "<world>" -f JAVA_1_21_4 -o "<output>"
 未驗證嘅嘢永遠唔會出現喺最終路徑：下載落一個 `.part` 檔，等 hash 對上先至改名就位，重用同一套攞 JDK 嗰啲已驗證下載程式碼。
 
 #### 由 wizard 度攞佢
+
+呢個 app **有**夾埋 Chunker。`scripts/stage-bundled-runtimes.mjs` 會將釘死嘅 `chunker-cli-1.19.1.jar` stage 落 `dist/bundled/chunker/`，electron-builder 再將佢抄入安裝檔做 `resources/bundled/chunker/`，程式就喺嗰度攞。裝咗 Worldlens 嘅人，就算拔咗網線都轉換到一個 Bedrock 世界。
+
+v1.0.2026 出過嘅事值得寫低：份 jar 入咗安裝檔，但冇任何嘢識去嗰度搵佢。嗰個 `Worldlens-1.0.2026-full.nupkg` 入面實實在在有 `lib/net45/resources/bundled/chunker/chunker-cli-1.19.1.jar`，大細啱啱好係釘死嘅 31,790,149 bytes，而 `findChunker` 根本冇 `resourcesPath` 呢個選項 —— 所以每一部裝咗嘅機都去搵用戶 profile，搵唔到，然後一路揹住份 jar 一路話冇裝到轉換器。打包係綠嘅，extraResources 都啱，唯一嘅症狀就係個 app 否認自己擁有緊佢正喺度出貨嘅嘢。**一頭駁咗、兩頭都冇人用嘅功能，會靜靜雞出貨。** `scripts/assert-packaged-bundles.mjs` 就係防止再發生嘅守衛：佢讀嘅係 electron-builder 真係寫出嚟嗰個目錄，唔係描述佢嗰份設定。
 
 `bedrock:fetchChunker` —— 即係上面嗰個 handler —— 存在咗一段時間，但介面從來冇嘢叫過佢：一個唔見咗嘅 Chunker jar 會喺 **Convert** 度撞死，得返 main process 自己嗰句「Chunker is not installed」，冇路走。而家 wizard 嘅 Bedrock 提示一偵測到 Bedrock 世界就會即刻問 `bedrock:chunker` 攞狀態，而喺 Chunker 唔見咗嗰陣，佢會喺 **Convert** 嘅位置顯示一粒 **Download Chunker (~30 MB)** 掣 —— 永遠唔會兩粒一齊出，因為一粒實會失敗嘅 Convert 掣，仲衰過根本唔提供。
 

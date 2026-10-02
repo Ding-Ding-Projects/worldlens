@@ -25,7 +25,7 @@
  */
 
 import { readFile, writeFile } from "node:fs/promises";
-import type { GhCliAccountProvider } from "../ghcli/credentialBroker.js";
+import type { GhCliAccountProvider, GhCredentialAccess } from "../ghcli/credentialBroker.js";
 import { fakeGhAccountLease } from "../ghcli/testLease.js";
 
 export interface RecordedCall {
@@ -113,10 +113,20 @@ export class RecordingGitHub {
 /** A complete secret-free gh account provider backed by the recording API fake. */
 export function recordingGhAccountProvider(
     github: RecordingGitHub,
-    options: { readonly signedIn?: boolean; readonly calls?: (string | undefined)[] } = {},
+    options: {
+        readonly signedIn?: boolean;
+        readonly calls?: (string | undefined)[];
+        /**
+         * Every access level the code under test asked a lease for, in order. A real
+         * broker revalidates the account before a write and does not before a read, so a
+         * path that only downloads asking for `"write"` is a difference tests can see.
+         */
+        readonly accesses?: (GhCredentialAccess | undefined)[];
+    } = {},
 ): GhCliAccountProvider {
-    return async (accountId) => {
+    return async (accountId, access) => {
         options.calls?.push(accountId);
+        options.accesses?.push(access);
         if (options.signedIn === false) return null;
         const login = accountId === "acct-2" ? "monalisa" : "octocat";
         return fakeGhAccountLease({

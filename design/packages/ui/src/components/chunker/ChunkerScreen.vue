@@ -21,7 +21,13 @@ import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import ChunkerRoutePicker from "./ChunkerRoutePicker.vue";
-import { defaultRouteFor, type ChunkerRoute } from "./chunkerRoute.js";
+import ChunkerActionsPanel from "./ChunkerActionsPanel.vue";
+import ChunkerAdvancedConfig from "./ChunkerAdvancedConfig.vue";
+import ChunkerContainerPanel from "./ChunkerContainerPanel.vue";
+import GhEntityPicker from '../github/GhEntityPicker.vue';
+import {composeChunkerConfiguration} from './chunkerConfigComposition.js';
+import { type ChunkerRoute } from "./chunkerRoute.js";
+import { initialChunkerRoute, saveChunkerRoute } from "./chunkerRouteStore.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import MinecraftWorldList from "../world/MinecraftWorldList.vue";
 import { resolveWorldCatalogBridge } from "../world/worldCatalog.js";
@@ -166,6 +172,103 @@ const targetVersionId = ref<string>(defaultVersionFor("java"));
 const outputFolder = ref("");
 /** Set by the shell when the chosen output folder already holds something. */
 const outputExists = ref(false);
+const capabilities = ref<{ jarSha256: string; version: string; formats: string[]; options: string[] } | null>(null);
+const capabilityFailure = ref('');
+const inspectingConverter = ref(false);
+async function loadCapabilities(): Promise<void> {
+    const host = (globalThis as any).worldlens?.bedrock;
+    if (typeof host?.capabilities !== 'function') { capabilityFailure.value = t('chunker.noCapabilityBridge', 'This build cannot inspect the selected converter.'); return; }
+    inspectingConverter.value = true;
+    try {
+        const answer = await host.capabilities();
+        if (answer.ok) { capabilities.value = answer.value; capabilityFailure.value = ''; }
+        else { capabilities.value = null; capabilityFailure.value = answer.message; }
+    } catch (error) {
+        // `bedrock:capabilities` promises never to reject, so arriving here means the bridge
+        // itself failed. Reported rather than thrown: an unhandled rejection in a click
+        // handler is a button that visibly does nothing, which is the exact defect this
+        // screen was reported for.
+        capabilities.value = null;
+        capabilityFailure.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        inspectingConverter.value = false;
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Getting a converter when there is none                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The route picker's `fix` actions, actually connected to something.
+ *
+ * `ChunkerRoutePicker` has always emitted `fix` for a route it cannot run, and this screen
+ * mounted it without listening. So "Get Chunker" was a button that emitted an event into an
+ * empty room: no handler, no error, no console line, nothing on screen. It is the decorative
+ * control the project rules forbid, and it is why the shipped app offered a fix that did
+ * nothing at all.
+ *
+ * Only `install-chunker` is answered here, because it is the only one this screen can
+ * genuinely do itself. Every other fix opens a surface this component does not own, so it is
+ * re-emitted upward with an honest message rather than silently swallowed a second time.
+ */
+const fetchingChunker = ref(false);
+const fetchReceived = ref<number | null>(null);
+const fetchTotal = ref<number | null>(null);
+const fetchFailure = ref<string | null>(null);
+const fetchDone = ref<string | null>(null);
+let unsubscribeFetch: (() => void) | null = null;
+
+const fetchPercent = computed(() => {
+    const total = fetchTotal.value;
+    const received = fetchReceived.value;
+    if (total === null || total <= 0 || received === null) return null;
+    return Math.min(100, (received / total) * 100);
+});
+
+async function getChunker(): Promise<void> {
+    if (bridge === null || fetchingChunker.value) return;
+    fetchingChunker.value = true;
+    fetchFailure.value = null;
+    fetchDone.value = null;
+    fetchReceived.value = null;
+    fetchTotal.value = null;
+    unsubscribeFetch = bridge.onBedrockEvent((event) => {
+        if (event.kind === "download" && event.conversionId === "chunker") {
+            fetchReceived.value = event.received;
+            fetchTotal.value = event.total;
+        }
+    });
+    try {
+        const result = await bridge.fetchChunker();
+        if (result.ok) {
+            fetchDone.value = result.message;
+            // Re-probe rather than assume: the point of the download is that the converter
+            // is now usable, and that is a question only the main process can answer.
+            await loadCapabilities();
+        } else {
+            fetchFailure.value = result.message;
+        }
+    } catch (error) {
+        fetchFailure.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        fetchingChunker.value = false;
+        unsubscribeFetch?.();
+        unsubscribeFetch = null;
+    }
+}
+
+function onRouteFix(fix: string): void {
+    if (fix === "install-chunker") {
+        void getChunker();
+        return;
+    }
+    fetchFailure.value = t(
+        "chunker.fixElsewhere",
+        { fix },
+        "This fix ({fix}) is completed on another screen; this one only fetches a converter.",
+    );
+}
 
 const editionChoices = computed(() => [
     { value: "java" as Edition, title: "Java Edition" },
@@ -173,10 +276,7 @@ const editionChoices = computed(() => [
 ]);
 
 const versionChoices = computed(() =>
-    versionsFor(targetEdition.value).map((version) => ({
-        value: version.id,
-        title: version.label,
-    })),
+    (capabilities.value?.formats ?? []).filter(format => format.startsWith(targetEdition.value.toUpperCase() + '_')).map(format => ({ value: format, title: format })),
 );
 
 function onEditionChange(value: Edition): void {
@@ -187,11 +287,29 @@ function onEditionChange(value: Edition): void {
 /**
  * Where the conversion runs.
  *
- * Local to begin with, because it is the one route that is ready without anything else
- * being installed, signed into or switched on. The picker replaces this the moment somebody
- * chooses a route that its own probe says is ready.
+ * Restored from the last session when there was one, and local otherwise, because local is
+ * the one route that is ready without anything else being installed, signed into or
+ * switched on. The picker replaces this the moment somebody chooses a route that its own
+ * probe says is ready.
+ *
+ * A restored route is a remembered *choice* and never a claim that it still works: the
+ * picker measures readiness against a fresh probe on every launch, so a route that has
+ * since lost its Docker, its repository or its machine arrives disabled with its own reason
+ * rather than quietly starting a conversion that cannot run.
  */
-const route = ref<ChunkerRoute>(defaultRouteFor("local"));
+const route = ref<ChunkerRoute>(initialChunkerRoute());
+
+/**
+ * Remember the route, so the next launch opens on the destination this one used.
+ *
+ * Written on change rather than on start: the value being remembered is which destination
+ * somebody picked, and that is a decision they made whether or not they went on to convert
+ * anything with it.
+ */
+function chooseRoute(value: ChunkerRoute): void {
+    route.value = value;
+    saveChunkerRoute(value);
+}
 
 /* -------------------------------------------------------------------------- */
 /* Step 3: trimming and dimensions                                            */
@@ -321,11 +439,40 @@ const plan = computed(() => ({
     settings: settings.value,
 }));
 
+/**
+ * The wizard's existing rich controls become the exact structured inputs for
+ * Chunker's JSON options.  No value is converted into a free-form command;
+ * the main process validates and serializes this object to the pinned CLI.
+ */
+const advancedConfig = ref<Record<string, any>>({});
+const DIMENSION_IDENTIFIERS:Record<string,string>={overworld:'minecraft:overworld',nether:'minecraft:the_nether',end:'minecraft:the_end'};
+const dimensionIdentifier = (name: string) => DIMENSION_IDENTIFIERS[name] ?? name;
+const guidedPruning = computed(() => ({configs:Object.fromEntries(DIMENSIONS.filter(dimension=>trimEnabled.value || dimensionTargets.value[dimension]==='drop').map(dimension=>[dimensionIdentifier(dimension),dimensionTargets.value[dimension]==='drop'
+    ? {include:false,regions:[{minChunkX:-2147483648,minChunkZ:-2147483648,maxChunkX:2147483647,maxChunkZ:2147483647}]}
+    : {include:true,regions:[{minChunkX:minX.value,minChunkZ:minZ.value,maxChunkX:maxX.value,maxChunkZ:maxZ.value}]}]))}));
+const guidedConfig = computed(() => ({
+    blockMappings: { identifiers: overrides.value.map((override) => ({ old_identifier: override.from, new_identifier: override.to })) },
+    worldSettings: {
+        ...(worldName.value ? { LevelName: worldName.value } : {}),
+        ...(seed.value ? { RandomSeed: seed.value } : {}),
+        ...(spawnX.value ? { SpawnX: Number(spawnX.value) } : {}),
+        ...(spawnY.value ? { SpawnY: Number(spawnY.value) } : {}),
+        ...(spawnZ.value ? { SpawnZ: Number(spawnZ.value) } : {}),
+        ...Object.fromEntries(Object.entries(gameRuleValues.value).map(([name, value]) => [name.toLowerCase(), value])),
+    },
+    pruning: guidedPruning.value,
+    dimensionMappings: Object.fromEntries(
+        Object.entries(dimensionTargets.value).filter(([, target]) => target !== "drop").map(([source,target]) => [dimensionIdentifier(source),dimensionIdentifier(target)]),
+    ),
+}));
+const composedConfig = computed(() => composeChunkerConfiguration(guidedConfig.value, advancedConfig.value));
+const cliConfig = computed(() => composedConfig.value.config);
+
 const consequences = computed(() => lossyConsequences(plan.value));
 
 const canStart = computed(
     () =>
-        bridge !== null &&
+        route.value.kind === "local" && bridge !== null &&
         sourceFolder.value.length > 0 &&
         outputFolder.value.length > 0 &&
         targetVersionId.value.length > 0 &&
@@ -368,6 +515,7 @@ function onEvent(event: ConversionProgressEvent): void {
 
 onMounted(() => {
     if (bridge !== null) unsubscribe = bridge.onBedrockEvent(onEvent);
+    void loadCapabilities();
 });
 
 onBeforeUnmount(() => {
@@ -389,6 +537,8 @@ async function start(): Promise<void> {
             world: sourceFolder.value,
             output: outputFolder.value,
             format: targetVersionId.value,
+            ...(sourceFormat.value === null ? {} : { inputFormat: sourceFormat.value }),
+            config: cliConfig.value,
         });
         conversionId.value = result.conversionId;
         outcome.value = result;
@@ -492,18 +642,34 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 2: target edition and version -->
             <section v-else-if="step === 'target'" data-test="chunker-step-target">
                 <h3>{{ t("chunker.step.target", "Target edition") }}</h3>
-                <VSelect
+                <p v-if="capabilities">{{ capabilities.version }} · SHA-256 {{ capabilities.jarSha256 }}</p>
+                <VAlert v-if="capabilityFailure" type="warning">{{ capabilityFailure }}</VAlert>
+                <VBtn :loading="inspectingConverter" data-test="chunker-refresh-capabilities" @click="loadCapabilities">{{ t('chunker.refreshCapabilities', 'Inspect selected converter again') }}</VBtn>
+                <VBtn
+                    v-if="capabilities === null"
+                    class="ms-2"
+                    variant="tonal"
+                    :loading="fetchingChunker"
+                    data-test="chunker-get-converter"
+                    @click="getChunker"
+                >
+                    {{ t("chunkerRoute.fix.installChunker", "Get Chunker") }}
+                </VBtn>
+                <GhEntityPicker
                     :model-value="targetEdition"
                     :items="editionChoices"
-                    :label="t('chunker.edition', 'Edition')"
-                    density="compact"
-                    @update:model-value="onEditionChange"
+                    :select-label="t('chunker.edition', 'Edition')"
+                    :search-label="t('chunker.edition', 'Edition')"
+                    selected-label="Selected edition" empty-message="No editions available" no-match-message="No matching edition" data-test-base="chunker-edition"
+                    @update:model-value="value => value && onEditionChange(value as Edition)"
                 />
-                <VSelect
-                    v-model="targetVersionId"
+                <GhEntityPicker
+                    :model-value="targetVersionId"
                     :items="versionChoices"
-                    :label="t('chunker.version', 'Version')"
-                    density="compact"
+                    :select-label="t('chunker.version', 'Version')"
+                    :search-label="t('chunker.version', 'Version')"
+                    selected-label="Selected format" empty-message="Inspect the selected converter to load its actual formats." no-match-message="No matching format" data-test-base="chunker-version"
+                    @update:model-value="value => targetVersionId = value ?? ''"
                 />
                 <PathField
                     v-model="outputFolder"
@@ -520,8 +686,37 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
 
                 <ChunkerRoutePicker
                     :route="route"
-                    @update:route="(value: ChunkerRoute) => (route = value)"
+                    @update:route="chooseRoute"
+                    @fix="onRouteFix"
                 />
+
+                <!--
+                    The result of pressing a fix, shown on the same card that offered it.
+                    Without these three states "Get Chunker" would still be indistinguishable
+                    from a dead button whenever the download were slow or refused.
+                -->
+                <div v-if="fetchingChunker" class="mt-2" data-test="chunker-fetch-progress">
+                    <VProgressLinear
+                        :model-value="fetchPercent ?? 0"
+                        :indeterminate="fetchPercent === null"
+                        color="primary"
+                    />
+                    <span class="text-caption">
+                        {{ t("chunker.fetching", "Downloading Chunker…") }}
+                        <template v-if="fetchPercent !== null">{{ Math.round(fetchPercent) }}%</template>
+                    </span>
+                </div>
+                <VAlert v-else-if="fetchFailure !== null" type="error" variant="tonal" class="mt-2">
+                    <span data-test="chunker-fetch-failure">{{ fetchFailure }}</span>
+                    <template #append>
+                        <VBtn size="small" variant="text" data-test="chunker-fetch-retry" @click="getChunker">
+                            {{ t("chunker.retryFetch", "Try the download again") }}
+                        </VBtn>
+                    </template>
+                </VAlert>
+                <VAlert v-else-if="fetchDone !== null" type="success" variant="tonal" class="mt-2">
+                    <span data-test="chunker-fetch-done">{{ fetchDone }}</span>
+                </VAlert>
             </section>
 
             <!-- Step 3: trimming and dimensions -->
@@ -579,14 +774,13 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
                 </VAlert>
 
                 <h4 class="mt-4">{{ t("chunker.dimensions", "Dimension mapping") }}</h4>
-                <VSelect
+                <GhEntityPicker
                     v-for="dimension in DIMENSIONS"
                     :key="dimension"
                     :model-value="dimensionTargets[dimension]"
                     :items="dimensionChoices"
-                    :label="dimension"
-                    density="compact"
-                    @update:model-value="(value: DimensionTarget) => setDimension(dimension, value)"
+                    :select-label="dimension" :search-label="dimension" selected-label="Selected dimension" empty-message="No dimensions available" no-match-message="No matching dimension" :data-test-base="`chunker-dimension-${dimension}`"
+                    @update:model-value="value => value && setDimension(dimension, value as DimensionTarget)"
                 />
             </section>
 
@@ -637,6 +831,7 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 5: world settings -->
             <section v-else-if="step === 'settings'" data-test="chunker-step-settings">
                 <h3>{{ t("chunker.step.settings", "World settings") }}</h3>
+                <ChunkerAdvancedConfig v-model="advancedConfig" :source-world="sourceFolder" />
                 <VTextField
                     v-model="worldName"
                     :label="t('chunker.worldName', 'World name')"
@@ -679,6 +874,21 @@ const succeeded = computed(() => outcome.value !== null && outcome.value.ok);
             <!-- Step 6: review -->
             <section v-else-if="step === 'review'" data-test="chunker-step-review">
                 <h3>{{ t("chunker.step.review", "Review") }}</h3>
+                <VAlert v-if="composedConfig.collisions.length" type="warning">Advanced values replace these exact fields. Other guided fields remain unchanged.<ul><li v-for="collision in composedConfig.collisions" :key="collision.path">{{collision.path}}: {{JSON.stringify(collision.previous)}} → {{JSON.stringify(collision.replacement)}}</li></ul></VAlert>
+                <details><summary>{{t('chunker.optionsPreview','Review exact converter options')}}</summary><pre class="mb-chunker-log">{{JSON.stringify(cliConfig,null,2)}}</pre></details>
+                <!--
+                    Exactly one destination's panel is on screen, and it is the destination
+                    the picker holds.
+
+                    The branches are mutually exclusive and every route is accounted for, so
+                    there is no arrangement of `route` that renders two sections or none of
+                    them by accident. The final branch names `aws` rather than testing "not
+                    local", so a route added to the model later arrives here as a visible gap
+                    to fill instead of silently inheriting the not-connected notice.
+                -->
+                <ChunkerActionsPanel v-if="route.kind === 'github-actions'" :world-folder="sourceFolder" :output-directory="outputFolder" :target-format="targetVersionId" :config="cliConfig" />
+                <ChunkerContainerPanel v-else-if="route.kind === 'docker' || route.kind === 'ssh'" :kind="route.kind" :world="sourceFolder" :output="outputFolder" :format="targetVersionId" :config="cliConfig" />
+                <VAlert v-else-if="route.kind === 'aws'" type="warning">{{ t('chunker.routeNotConnected', 'This conversion route is not connected yet. Select another route; nothing will silently run locally.') }}</VAlert>
                 <p data-test="chunker-review-lead">
                     {{
                         t(

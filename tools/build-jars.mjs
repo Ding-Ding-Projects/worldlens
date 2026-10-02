@@ -39,7 +39,7 @@ const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // The fork, not upstream: the jars embed the webapp and this project's webapp UI is
 // rewritten to Material Design 3. Stated once and reused below so a manifest cannot
 // name one checkout while the build read another.
-const VENDOR_PATH = "vendor/BlueMap-LangGui";
+const VENDOR_PATH = "vendor/BlueMap-Material";
 const BLUEMAP_REPOSITORY = "https://github.com/Ding-Ding-Projects/BlueMap";
 const VENDOR_ROOT = join(REPO_ROOT, ...VENDOR_PATH.split("/"));
 const GRADLE_HOME = join(REPO_ROOT, "tools", "oracle", ".gradle");

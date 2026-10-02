@@ -47,6 +47,36 @@ export class RegionFileWriter {
         return new RegionFileWriter(await open(path, "w"));
     }
 
+    static async createExclusive(path: string): Promise<RegionFileWriter> {
+        return new RegionFileWriter(await open(path, "wx"));
+    }
+
+    /** Reopen only a manifest-verified sequential region. */
+    static async resume(path: string, chunks: number): Promise<RegionFileWriter> {
+        const handle = await open(path, "r+");
+        try {
+            const region = new RegionFileWriter(handle);
+            const { bytesRead } = await handle.read(region.header, 0, region.header.length, 0);
+            const size = (await handle.stat()).size;
+            if (bytesRead !== region.header.length || size % SECTOR_SIZE !== 0) throw new Error("Invalid region header.");
+            let sector = HEADER_SECTORS;
+            for (let slot = 0; slot < 1024; slot++) {
+                const offset = region.header.readUIntBE(slot * 4, 3);
+                const length = region.header[slot * 4 + 3]!;
+                if (slot < chunks) {
+                    if (offset !== sector || length === 0) throw new Error("Invalid sequential region inventory.");
+                    sector += length;
+                } else if (offset !== 0 || length !== 0) throw new Error("Unexpected region chunk.");
+            }
+            if (sector * SECTOR_SIZE !== size) throw new Error("Unexpected region payload length.");
+            region.nextSector = sector;
+            region.chunkCount = chunks;
+            return region;
+        } catch (error) { await handle.close(); throw error; }
+    }
+
+    get bytes(): number { return this.nextSector * SECTOR_SIZE; }
+
     /** appends one chunk; `chunkX`/`chunkZ` are world chunk coordinates */
     async addChunk(chunkX: number, chunkZ: number, nbt: Uint8Array): Promise<void> {
         const compressed = deflateSync(nbt);

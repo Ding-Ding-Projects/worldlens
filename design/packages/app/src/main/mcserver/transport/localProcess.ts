@@ -56,6 +56,7 @@ import {
 export const BACKUP_DIR = ".worldlens-backups";
 
 export interface LocalProcessOptions {
+    readonly argsFile?: string;
     readonly serverDir: string;
     /** Absolute path to the java binary this server should run under. */
     readonly javaPath: string;
@@ -81,9 +82,12 @@ function fromNodeError<T>(error: unknown, what: string): Answer<T> {
     const code = (error as NodeError | null)?.code;
     const detail = error instanceof Error ? error.message : String(error);
     if (code === "ENOENT") return fail("not-found", `${what} is not there.`, detail);
-    if (code === "EACCES" || code === "EPERM") return fail("denied", `This computer refused access to ${what}.`, detail);
-    if (code === "EISDIR") return fail("invalid-request", `${what} is a folder, not a file.`, detail);
-    if (code === "ENOTDIR") return fail("invalid-request", `Part of the path to ${what} is not a folder.`, detail);
+    if (code === "EACCES" || code === "EPERM")
+        return fail("denied", `This computer refused access to ${what}.`, detail);
+    if (code === "EISDIR")
+        return fail("invalid-request", `${what} is a folder, not a file.`, detail);
+    if (code === "ENOTDIR")
+        return fail("invalid-request", `Part of the path to ${what} is not a folder.`, detail);
     return fail("command-failed", `Could not reach ${what}.`, detail);
 }
 
@@ -150,7 +154,14 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
             // one world is how a world gets corrupted.
             return ok(undefined);
         }
-        const args = [`-Xmx${options.memoryMb}M`, `-Xms${Math.min(options.memoryMb, 1024)}M`, "-jar", options.jarPath, "nogui"];
+        const args = [
+            `-Xmx${options.memoryMb}M`,
+            `-Xms${Math.min(options.memoryMb, 1024)}M`,
+            ...(options.argsFile === undefined
+                ? ["-jar", options.jarPath]
+                : [`@${options.argsFile}`]),
+            "nogui",
+        ];
         try {
             const spawned = spawnProcess(options.javaPath, args, {
                 cwd: options.serverDir,
@@ -172,7 +183,8 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
 
     async function stop(stopOptions: StopOptions): Promise<Answer<void>> {
         const running = child;
-        if (running === null || running.exitCode !== null) return fail("not-running", "That server is not running.");
+        if (running === null || running.exitCode !== null)
+            return fail("not-running", "That server is not running.");
 
         if (stopOptions.graceful) {
             // `stop` on stdin is what the server itself understands: it saves every world
@@ -216,7 +228,10 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
     async function attach(attachOptions?: AttachOptions): Promise<Answer<ConsoleSession>> {
         const running = child;
         if (running === null || running.exitCode !== null) {
-            return fail("not-running", "That server is not running, so there is nothing to listen to.");
+            return fail(
+                "not-running",
+                "That server is not running, so there is nothing to listen to.",
+            );
         }
         void attachOptions;
 
@@ -274,11 +289,15 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
                 },
             },
             async send(command: string): Promise<Answer<void>> {
-                if (done || running.exitCode !== null) return fail("not-running", "That server is not running.");
+                if (done || running.exitCode !== null)
+                    return fail("not-running", "That server is not running.");
                 if (/[\r\n]/.test(command)) {
                     // One line in, one command run. A newline inside the string would run
                     // whatever follows it as a second command the user never confirmed.
-                    return fail("invalid-request", "A console command cannot contain a line break.");
+                    return fail(
+                        "invalid-request",
+                        "A console command cannot contain a line break.",
+                    );
                 }
                 running.stdin?.write(`${command}\n`);
                 return ok(undefined);
@@ -333,7 +352,10 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
         try {
             const info = await stat(resolved.value.absolute);
             if (info.isSymbolicLink()) {
-                return fail("out-of-scope", "That is a shortcut to somewhere else, which this server will not follow.");
+                return fail(
+                    "out-of-scope",
+                    "That is a shortcut to somewhere else, which this server will not follow.",
+                );
             }
             const bytes = await readFile(resolved.value.absolute);
             const truncated = bytes.byteLength > limit;
@@ -349,7 +371,11 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
         }
     }
 
-    async function fileWrite(path: string, blob: Uint8Array, writeOptions: WriteOptions): Promise<Answer<WriteReceipt>> {
+    async function fileWrite(
+        path: string,
+        blob: Uint8Array,
+        writeOptions: WriteOptions,
+    ): Promise<Answer<WriteReceipt>> {
         const resolved = resolveForWrite(path, scope);
         if (!resolved.ok) return resolved;
         const target = resolved.value.absolute;
@@ -367,7 +393,10 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
 
         if (writeOptions.expectedHash !== null) {
             if (existing === null) {
-                return fail("stale-document", "That file is no longer there, so the change could not be applied to it.");
+                return fail(
+                    "stale-document",
+                    "That file is no longer there, so the change could not be applied to it.",
+                );
             }
             if (!hashesMatch(hashBytes(existing), writeOptions.expectedHash)) {
                 return fail(
@@ -381,7 +410,11 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
         let backupPath: string | null = null;
         if (existing !== null && (writeOptions.backup ?? true)) {
             const stamp = now().replace(/[:.]/g, "-");
-            backupPath = join(options.serverDir, BACKUP_DIR, `${resolved.value.relative.replace(/[\\/]/g, "_")}.${stamp}.bak`);
+            backupPath = join(
+                options.serverDir,
+                BACKUP_DIR,
+                `${resolved.value.relative.replace(/[\\/]/g, "_")}.${stamp}.bak`,
+            );
             try {
                 await mkdir(dirname(backupPath), { recursive: true });
                 await copyFile(target, backupPath);

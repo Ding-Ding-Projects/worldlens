@@ -250,17 +250,25 @@ async function mergeShardMapsIntoDirectory(options: MergeOptions): Promise<Merge
         );
 
     // 4. lod 1: composite, because lowres tiles overlap shard cuts by construction
-    const lod1Sources = new Map<string, LowresTile[]>();
+    //
+    // Only the *paths* are collected up front, never the decoded pixels. A decoded lowres
+    // tile is an uncompressed RGBA image ~2 MB at the default tile size, and a large world
+    // can have thousands of lod-1 tiles across dozens of shards; decoding every one of them
+    // before compositing a single pixel held gigabytes of image buffers alive at once and
+    // was the actual cause of a merge job being killed by its runner's memory limit on a
+    // 10 GB world (30 shards, one merge group) even though the tiles themselves fit on
+    // disk. Decoding is deferred to the composite loop below, so at most the handful of
+    // shards that share one lowres tile's boundary are ever decoded at the same time.
+    const lod1SourcePaths = new Map<string, string[]>();
     for (const directory of shards) {
         const files = await listFiles(join(directory, "tiles", "1"));
         for (const [relativePath, absolutePath] of files) {
             const cell = parseGridCellPath(relativePath, ".png");
             if (cell === null) continue;
-            const tile = LowresTile.decode(await readFile(absolutePath), lowresTileSize);
             const key = cellKey(cell);
-            const bucket = lod1Sources.get(key);
-            if (bucket === undefined) lod1Sources.set(key, [tile]);
-            else bucket.push(tile);
+            const bucket = lod1SourcePaths.get(key);
+            if (bucket === undefined) lod1SourcePaths.set(key, [absolutePath]);
+            else bucket.push(absolutePath);
         }
     }
 
@@ -270,12 +278,15 @@ async function mergeShardMapsIntoDirectory(options: MergeOptions): Promise<Merge
     let firstConflict: { tile: string; x: number; z: number } | null = null;
     let composited = 0;
 
-    for (const [key, sources] of lod1Sources) {
-        if (sources.length === 1) {
-            lod1.set(key, sources[0]!);
+    for (const [key, sourcePaths] of lod1SourcePaths) {
+        if (sourcePaths.length === 1) {
+            lod1.set(key, LowresTile.decode(await readFile(sourcePaths[0]!), lowresTileSize));
             continue;
         }
         composited++;
+        const sources = await Promise.all(
+            sourcePaths.map(async (path) => LowresTile.decode(await readFile(path), lowresTileSize)),
+        );
         const result = compositeLowresTile(sources, lowresTileSize);
         lod1.set(key, result.tile);
         conflictingPixels += result.conflictingPixels;

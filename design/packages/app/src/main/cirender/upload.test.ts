@@ -76,6 +76,7 @@ function fakeTransport(release: CiRelease = { id: 5, tag: "", htmlUrl: "https://
         findDispatchedRun: unused,
         readRun: unused,
         readRunJobs: unused,
+        listWorkflowRuns: unused,
         readJobLogTail: unused,
         listRunArtifacts: unused,
         downloadArtifact: unused,

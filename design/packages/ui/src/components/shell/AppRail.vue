@@ -1,29 +1,58 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiBellOutline,
     mdiBriefcaseOutline,
     mdiCogOutline,
+    mdiDotsHorizontal,
     mdiHomeOutline,
     mdiMagnify,
     mdiMapOutline,
     mdiServerOutline,
 } from "@mdi/js";
-import { VIcon, VTooltip } from "vuetify/components";
+import { VIcon, VMenu, VTooltip } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import type { RailDestination } from "./featureTargets.js";
+import {
+    computeRailShortcutSplit,
+    RAIL_MORE_BUTTON_PX,
+    RAIL_SHORTCUT_ITEM_PX,
+    RAIL_SHORTCUTS_DIVIDER_PX,
+} from "./railOverflow.js";
 import { nonNegativeInteger } from "./shellNumbers.js";
 
 /**
- * The three destinations, and the three footer actions, on an 80 px column that is on screen no
- * matter what the person is doing.
+ * The four core destinations, plus direct-open shortcuts to a handful of frequently reached
+ * jobs, and the three footer actions - on an 80 px column that is on screen no matter what the
+ * person is doing.
+ *
+ * ### Four destinations, not four items
+ *
+ * An earlier version of this component's doc comment said the rail holds exactly four
+ * destinations and treated that as the reason it never grows. That was conflating two different
+ * things: `RailDestination` (home/map/host/work) names which *top-level screen* is showing, and
+ * is deliberately narrow, because widening it would mean every catalogue feature could become "a
+ * screen the shell has to know how to switch to" - the trap this component's own history already
+ * warns about for a *fourth rail destination*. A **shortcut** is a different, smaller claim: it
+ * is a one-click path straight to a job that already lives in Work, exactly what the command
+ * palette's own "open a page" row already does, just anchored where a person's eye already is.
+ * Adding shortcuts costs nothing in the destination model; adding a destination would.
+ *
+ * `jobShortcuts` is that list - GitHub Actions rendering, Docker hosting, SSH remote hosting,
+ * Chunker, Backups, Minecraft servers and the world downloader, at the time this was written -
+ * and clicking one emits `openJob`, which the shell answers exactly as it answers the palette's
+ * own open-page route: switch to Work, ensure the job's tab exists, reveal it. Nothing here
+ * decides *which* jobs are worth a shortcut; that list lives in `App.vue`, one level up, next to
+ * every other place a job id is named.
  *
  * ### It emits, and owns nothing
  *
- * No overlay state, no job list, no store. The rail says "Work was pressed" and the shell decides
- * what that means, exactly as `App.vue` already makes the command palette work. A rail that
- * opened the settings drawer itself would be a second place that knows how settings opens, and
- * the two would drift.
+ * No overlay state, no job list, no store. The rail says "Work was pressed" or "open this job"
+ * and the shell decides what that means, exactly as `App.vue` already makes the command palette
+ * work. A rail that opened the settings drawer itself would be a second place that knows how
+ * settings opens, and the two would drift.
  *
  * ### Why these are buttons and not floating actions
  *
@@ -66,6 +95,12 @@ const props = withDefaults(
         settingsActivatorId?: string;
         settingsPanelId?: string;
         settingsOpen?: boolean;
+        /**
+         * Direct-open shortcuts to jobs that already live in Work, rendered below the four core
+         * destinations. Not a fifth `RailDestination` - see the doc comment above - just a
+         * one-click path to a job id the shell already knows how to reveal.
+         */
+        jobShortcuts?: readonly { id: string; icon: string; label: string; shortLabel: string }[];
     }>(),
     {
         paletteShortcut: "Ctrl+Shift+F",
@@ -75,11 +110,15 @@ const props = withDefaults(
         settingsActivatorId: "",
         settingsPanelId: "",
         settingsOpen: false,
+        jobShortcuts: () => [],
     },
 );
 
 const emit = defineEmits<{
     select: [destination: RailDestination];
+    /** A job shortcut was pressed; the shell answers exactly as it answers the palette's own
+     *  open-page route. */
+    openJob: [jobId: string];
     openPalette: [];
     /**
      * One user press changes this state exactly once. The panel still owns its overlay and its
@@ -158,6 +197,143 @@ const unreadLabel = computed(() =>
               "Notifications, {count} unread",
           ),
 );
+
+/**
+ * Real measured heights driving `computeRailShortcutSplit`, so the four destinations can never
+ * be pushed out of view by however many shortcuts happen to be configured.
+ *
+ * Regression: v2-08-rail-7-jobs-1280x800-dark.png showed the whole rail as one scrolling column
+ * with the destinations scrolled out of the visible area and every shortcut label wrapping
+ * three to five lines inside the 80px column. The fix has two parts - compact, single-line
+ * shortcut rows (see `.wl-rail-label--compact` below) so each one is a fixed, small height
+ * rather than an unbounded multi-line one, and this measurement so the exact number that fits
+ * is computed from the real rendered rail rather than assumed.
+ *
+ * `ResizeObserver` is guarded because jsdom (this suite's unit-test environment) does not
+ * implement it by default; every mounted test either stubs it or never receives a resize
+ * callback, so `shortcutSplit` below falls back to "show everything" until the first real
+ * measurement lands - the same safe default a server-rendered or not-yet-painted rail needs.
+ */
+const railEl = ref<HTMLElement | null>(null);
+const destinationsEl = ref<HTMLElement | null>(null);
+const footerEl = ref<HTMLElement | null>(null);
+const measuredAvailable = ref<number | null>(null);
+const measuredDestinations = ref<number | null>(null);
+const measuredFooter = ref<number | null>(null);
+
+let railObserver: ResizeObserver | null = null;
+
+/**
+ * `destinationsEl`'s and `footerEl`'s own `getBoundingClientRect().height` were the first cut
+ * here, and a real running build (not jsdom) proved them wrong by a consistent 46px at both
+ * 800px and 600px window heights - `.wl-rail`'s own 26px of top/bottom padding, plus the
+ * shortcuts divider's 17px of margin/padding/border, sit between those two elements and the
+ * rail's edges, and neither element's own height includes space it does not occupy. Measuring
+ * the *distance from the rail's edges* instead - `destinationsRect.bottom - railRect.top` and
+ * `railRect.bottom - footerRect.top` - folds the rail's own padding into the number
+ * automatically, because that padding is exactly the gap between the rail's edge and the first
+ * child's edge. The divider is still a fixed, separately-known cost (`RAIL_SHORTCUTS_DIVIDER_PX`),
+ * spent only when at least one shortcut is going to render at all.
+ */
+function measureRail(): void {
+    const rail = railEl.value;
+    const destinations = destinationsEl.value;
+    const footer = footerEl.value;
+    if (rail === null || destinations === null || footer === null) {
+        measuredAvailable.value = null;
+        measuredDestinations.value = null;
+        measuredFooter.value = null;
+        return;
+    }
+    const railRect = rail.getBoundingClientRect();
+    const destinationsRect = destinations.getBoundingClientRect();
+
+    // The footer's own HEIGHT, never its position. `.wl-rail__footer`'s `margin-block-start:
+    // auto` only pushes it flush against the rail's bottom edge when there is room left to push
+    // it there - the moment shortcuts overflow, the footer is wherever the overflow left it, and
+    // `railRect.bottom - footerRect.top` stops meaning "the footer's height" and starts meaning
+    // garbage (it went negative in the exact case this function exists to prevent). Real bug,
+    // found only by measuring a real running build: this function decided "everything fits"
+    // once, before the footer had anywhere honest left to be, and stayed wrong forever after -
+    // the fixed point of using a rendered result to justify the render that produced it.
+    measuredDestinations.value = destinationsRect.bottom - railRect.top;
+    measuredAvailable.value = rail.clientHeight;
+    measuredFooter.value =
+        footer.getBoundingClientRect().height +
+        ((props.jobShortcuts ?? []).length > 0 ? RAIL_SHORTCUTS_DIVIDER_PX : 0);
+}
+
+onMounted(() => {
+    measureRail();
+    if (typeof ResizeObserver !== "undefined" && railEl.value !== null) {
+        railObserver = new ResizeObserver(() => measureRail());
+        railObserver.observe(railEl.value);
+    }
+});
+
+onBeforeUnmount(() => {
+    railObserver?.disconnect();
+    railObserver = null;
+});
+
+const shortcutSplit = computed(() => {
+    const shortcuts = props.jobShortcuts ?? [];
+    if (
+        measuredAvailable.value === null ||
+        measuredDestinations.value === null ||
+        measuredFooter.value === null
+    ) {
+        return { visibleCount: shortcuts.length, overflowCount: 0, showMore: false };
+    }
+    return computeRailShortcutSplit({
+        availableBlockSize: measuredAvailable.value,
+        destinationsBlockSize: measuredDestinations.value,
+        footerBlockSize: measuredFooter.value,
+        shortcutItemBlockSize: RAIL_SHORTCUT_ITEM_PX,
+        moreButtonBlockSize: RAIL_MORE_BUTTON_PX,
+        shortcutCount: shortcuts.length,
+    });
+});
+
+const visibleShortcuts = computed(() =>
+    (props.jobShortcuts ?? []).slice(0, shortcutSplit.value.visibleCount),
+);
+const overflowShortcuts = computed(() =>
+    (props.jobShortcuts ?? []).slice(shortcutSplit.value.visibleCount),
+);
+
+/**
+ * The "More" menu: an anchored, searchable list for whatever shortcuts did not fit, per the
+ * house rule that every list-shaped surface gets its own search with an anchored regex builder.
+ * `ConfigSearchField` is the shared component every other search-with-regex-builder field in
+ * this application already uses; reusing it here rather than writing a second one is the point.
+ */
+const moreOpen = ref(false);
+const moreQuery = ref("");
+const moreRegex = ref(false);
+const moreFlags = ref("i");
+const moreButtonRef = ref<HTMLElement | null>(null);
+
+const filteredOverflow = computed(() => {
+    const matcher = createSettingMatcher(moreQuery.value, moreRegex.value, moreFlags.value);
+    if (matcher.error !== null || moreQuery.value === "") return overflowShortcuts.value;
+    return overflowShortcuts.value.filter((item) => matcher.test(item.label));
+});
+
+function selectFromMore(jobId: string): void {
+    emit("openJob", jobId);
+    moreOpen.value = false;
+}
+
+function onMoreMenuChange(open: boolean): void {
+    if (open) return;
+    moreQuery.value = "";
+    // Vuetify's own activator-focus-return is not guaranteed across every close path (Escape,
+    // an outside click, a selection): returning focus explicitly is what actually keeps the
+    // "More" button reachable by keyboard immediately after closing, rather than dropping focus
+    // to the document body.
+    void nextTick(() => moreButtonRef.value?.focus());
+}
 </script>
 
 <template>
@@ -167,6 +343,7 @@ const unreadLabel = computed(() =>
         running two of these applications side by side hears which one they are in.
     -->
     <nav
+        ref="railEl"
         class="wl-rail"
         :aria-label="t('rail.label', { product: productName }, '{product} navigation')"
     >
@@ -178,7 +355,7 @@ const unreadLabel = computed(() =>
             so the two namespaces cannot collide, and `tutorialAnchors.test.ts` is what proves
             every step still resolves the control it names.
         -->
-        <ul class="wl-rail__items">
+        <ul ref="destinationsEl" class="wl-rail__items">
             <li v-for="item in items" :key="item.id">
                 <button
                     type="button"
@@ -213,7 +390,117 @@ const unreadLabel = computed(() =>
             </li>
         </ul>
 
-        <div class="wl-rail__footer">
+        <!--
+            Direct-open job shortcuts. Same button markup, same 48px target, same accessible
+            name pattern as the four destinations above - the only difference is what pressing
+            one does (`openJob`, not `select`), and that none of them is ever "active" the way a
+            destination is, because the rail does not track which job is on top in Work.
+        -->
+        <ul v-if="visibleShortcuts.length > 0" class="wl-rail__items wl-rail__shortcuts">
+            <li v-for="item in visibleShortcuts" :key="item.id">
+                <button
+                    type="button"
+                    class="wl-rail-item wl-rail-item--compact mb-interactive"
+                    :aria-label="item.label"
+                    :data-job-shortcut="item.id"
+                    :data-tutorial-anchor="`rail-job-${item.id}`"
+                    @click="emit('openJob', item.id)"
+                >
+                    <span class="wl-rail-pill">
+                        <v-icon :icon="item.icon" size="18" />
+                    </span>
+                    <!--
+                        The visible label is the short form and stays on one line - the
+                        regression this fixes was a bilingual label ("Get a world off a server
+                        由伺服器攞返個世界") wrapping five lines inside an 80px column. The full
+                        form is never lost: it is the button's own accessible name above, and a
+                        tooltip repeats it for a sighted pointer user who wants the long version.
+                    -->
+                    <span class="wl-rail-label wl-rail-label--compact">{{ item.shortLabel }}</span>
+                    <v-tooltip activator="parent" location="end" :text="item.label" />
+                </button>
+            </li>
+            <li v-if="shortcutSplit.showMore">
+                <button
+                    ref="moreButtonRef"
+                    type="button"
+                    class="wl-rail-item wl-rail-item--compact mb-interactive"
+                    :aria-label="
+                        t(
+                            'rail.moreShortcuts',
+                            { count: String(overflowShortcuts.length) },
+                            'More shortcuts ({count})',
+                        )
+                    "
+                    aria-haspopup="menu"
+                    :aria-expanded="moreOpen ? 'true' : 'false'"
+                    data-rail-more
+                    @click="moreOpen = !moreOpen"
+                >
+                    <span class="wl-rail-pill">
+                        <v-icon :icon="mdiDotsHorizontal" size="18" />
+                    </span>
+                    <span class="wl-rail-label wl-rail-label--compact">{{
+                        t("rail.more", "More")
+                    }}</span>
+                </button>
+                <!--
+                    `target`, never `activator`. An `activator` element makes the overlay
+                    bind its own click listener to that same button, and the button already
+                    has one: a real pointer click then ran both, so the state went true and
+                    straight back to false inside one click and the menu never appeared. A
+                    DOM-dispatched click in a unit test happened to survive it, which is why
+                    this shipped - the packaged build's own instrumentation recorded the
+                    `aria-expanded` sequence true, true, false, false for one press. `target`
+                    gives the overlay the same anchor geometry and none of the events, so the
+                    button below is the only thing that opens or closes this menu - the exact
+                    arrangement `NotificationPanel` already uses for the bell.
+                -->
+                <v-menu
+                    v-model="moreOpen"
+                    :target="moreButtonRef ?? undefined"
+                    location="end"
+                    :close-on-content-click="false"
+                    @update:model-value="onMoreMenuChange"
+                >
+                    <div
+                        class="wl-rail-more-menu"
+                        role="menu"
+                        :aria-label="t('rail.moreShortcuts.title', 'More shortcuts')"
+                    >
+                        <ConfigSearchField
+                            v-model="moreQuery"
+                            v-model:regex="moreRegex"
+                            v-model:flags="moreFlags"
+                            :label="t('rail.moreShortcuts.search', 'Filter shortcuts')"
+                            density="compact"
+                            :sample="overflowShortcuts.map((item) => item.label).join('\n')"
+                        />
+                        <ul class="wl-rail-more-menu__list">
+                            <li v-for="item in filteredOverflow" :key="item.id">
+                                <button
+                                    type="button"
+                                    class="wl-rail-more-menu__item mb-interactive"
+                                    :data-job-shortcut="item.id"
+                                    @click="selectFromMore(item.id)"
+                                >
+                                    <v-icon :icon="item.icon" size="20" />
+                                    <span>{{ item.label }}</span>
+                                </button>
+                            </li>
+                            <li
+                                v-if="filteredOverflow.length === 0"
+                                class="wl-rail-more-menu__empty"
+                            >
+                                {{ t("rail.moreShortcuts.empty", "No shortcuts match.") }}
+                            </li>
+                        </ul>
+                    </div>
+                </v-menu>
+            </li>
+        </ul>
+
+        <div ref="footerEl" class="wl-rail__footer">
             <button
                 type="button"
                 class="wl-rail-action mb-interactive"
@@ -318,6 +605,14 @@ const unreadLabel = computed(() =>
     gap: 2px;
 }
 
+/* A visible seam between the four core destinations and the job shortcuts beneath them, so the
+ * two groups read as different kinds of thing rather than one undifferentiated list. */
+.wl-rail__shortcuts {
+    margin-block-start: 8px;
+    padding-block-start: 8px;
+    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
 .wl-rail__footer {
     margin-block-start: auto;
     display: flex;
@@ -391,6 +686,134 @@ const unreadLabel = computed(() =>
     text-align: center;
     inline-size: 100%;
     overflow-wrap: anywhere;
+    /* Two lines, never more. A bilingual destination label wraps once and stops; the shortcuts
+     * below skip wrapping entirely (see `--compact`) rather than needing this clamp at all. */
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/*
+ * A shortcut row: icon beside a single-line label rather than icon-over-wrapped-label, and a
+ * fixed 48px height (`RAIL_SHORTCUT_ITEM_PX` in railOverflow.ts - the two must agree, because
+ * the overflow arithmetic assumes every shortcut costs exactly this many pixels). The full
+ * bilingual name never disappears - it is the button's `aria-label` and its tooltip - this is
+ * only the on-screen text, which regression v2-08 showed wrapping five lines when it was the
+ * long form.
+ */
+.wl-rail-item--compact {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    /*
+     * A minimum, never a fixed height. The shipped short labels are one line inside it, but the
+     * text this row renders is not always the shipped text: the local personal-vocabulary file
+     * replaces user-facing wording, and a replacement is free to be longer than the label it
+     * replaces. A fixed height forced the single line to end in an ellipsis the moment that
+     * happened - the packaged v1.0.2026 build measured a ten-character replacement at 58px of
+     * text inside a 49px box - and a visible label nobody can read is a clipping defect, not a
+     * compact row. With a minimum the label wraps and the row grows instead.
+     */
+    min-block-size: 48px;
+    gap: 4px;
+    /*
+     * Deliberately tighter than the destinations' 4px-2px padding above: an 80px column has
+     * very little room left for a readable label once an icon and its own padding are paid
+     * for, and the label - not the icon - is the thing this compact row exists to show.
+     *
+     * 4px padding + an 18px icon + this 4px gap leaves ~50px for the label, which is what
+     * "Actions", "Convert" and "Backups" (each 7 Latin characters, the widest of the seven
+     * dedicated short labels in shell.ts) actually need - a real running build still showed
+     * them ellipsis-truncated at the previous 6px/22px/6px budget, which left only ~40px.
+     * `railShortcutLabels.test.ts` enforces the character-count bound; this is what keeps
+     * that bound also being enough pixels in the real, rendered row.
+     */
+    padding-inline: 4px;
+}
+
+.wl-rail-item--compact .wl-rail-pill {
+    /* No pill capsule for a compact row - it is decorative weight the 80px column cannot
+     * afford here, and removing it is most of the width the label gets back. */
+    background: none !important;
+    inline-size: 18px;
+    block-size: 18px;
+    flex: 0 0 auto;
+}
+
+/*
+ * The compact label wraps; it never truncates. `white-space: nowrap` plus `text-overflow:
+ * ellipsis` was the defect: it is only ever invisible while the rendered text happens to be the
+ * shipped short label, and the vocabulary layer means that is not a property this component
+ * controls. Nothing here clamps a line count either - a clamp is still clipping, just tidier -
+ * so a long replacement costs a second line rather than a lost word. Two wrapped lines are
+ * 28px of text, which still fits inside the row's own 48px minimum; a longer one grows the row,
+ * and `RAIL_SHORTCUT_ITEM_PX` carries the budget for that growth.
+ */
+.wl-rail-label--compact {
+    text-align: start;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    overflow: visible;
+    text-overflow: clip;
+    inline-size: auto;
+    min-inline-size: 0;
+    flex: 1 1 auto;
+    /* Overrides the two-line clamp inherited from `.wl-rail-label` above. */
+    display: block;
+    -webkit-line-clamp: unset;
+}
+
+/*
+ * The "More" menu's own anchored panel - a bounded, scrollable list with its own search field
+ * and regex builder (via `ConfigSearchField`), per the house rule that a search field never
+ * ships without one.
+ */
+.wl-rail-more-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+    min-inline-size: 240px;
+    max-inline-size: 320px;
+    max-block-size: 360px;
+    background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
+    border-radius: var(--md-sys-shape-corner-medium, 12px);
+}
+
+.wl-rail-more-menu__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    overflow-y: auto;
+}
+
+.wl-rail-more-menu__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    inline-size: 100%;
+    min-block-size: 44px;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: var(--md-sys-shape-corner-small, 8px);
+    background: none;
+    color: rgb(var(--v-theme-on-surface));
+    text-align: start;
+    cursor: pointer;
+}
+
+.wl-rail-more-menu__item:hover {
+    background: rgba(var(--v-theme-on-surface), 0.08);
+}
+
+.wl-rail-more-menu__empty {
+    padding: 8px 10px;
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: 0.875rem;
 }
 
 .wl-rail-action {

@@ -57,6 +57,75 @@
 /** How many shards one group merge takes on. Small enough for one runner's disk. */
 export const DEFAULT_MERGE_GROUP_SIZE = 32;
 
+/**
+ * The decoded-tile working-memory budget one merge-group job is planned against.
+ *
+ * ## What actually bounds memory here
+ *
+ * `mergeShardMaps` (src/merge/mergeMap.ts) copies hires tiles (`tiles/0`) with
+ * `fs.copyFile`, never reading them into JS memory - that is the bulk of a render's
+ * bytes (roughly `TILE_OUTPUT_RATIO` times the world's size) and it is disk traffic,
+ * not heap. The part that used to hold memory is lod 1 (`tiles/1`): every shard's lowres
+ * tiles were decoded to uncompressed RGBA buffers (~2 MB each at the default tile size)
+ * and kept in one big map, ALL of them, before a single pixel was composited. That is
+ * now fixed directly (only the paths are collected up front; decoding happens per
+ * output tile, so at most the few shards sharing one lowres tile's boundary are decoded
+ * at once) - see the comment beside `lod1SourcePaths` in mergeMap.ts.
+ *
+ * That fix alone would very likely have been enough: measured on the run that failed
+ * (30 shards, 17.65 GiB of shard artifacts, ubuntu-24.04's ~7 GiB runner), the actual
+ * lod-1 tile count for a world that size is small next to the hires tile count, so
+ * decoding one boundary's worth of tiles at a time costs tens of megabytes, not
+ * gigabytes.
+ *
+ * This budget is the guard on top of that fix, not a replacement for it. Grouping still
+ * matters because a group's job also has to download and hold every one of its shards'
+ * artifacts on disk at once (the `pattern: shard-g<group>-*` download step), hold the
+ * `listFiles`/`hiresOwner` bookkeeping for all of them, and run the atomic-output staging
+ * copy alongside whatever the OS keeps in page cache for files it just wrote - all of
+ * which scale with how many shards one group takes on. Bounding total *tile bytes* per
+ * group (rather than merely counting shards) keeps that scaling in check regardless of
+ * how dense a particular world's tiles are.
+ *
+ * The number: GitHub-hosted standard Linux runners (`ubuntu-24.04`) report roughly 7 GiB
+ * of RAM. Half of that, 4 GiB, is kept aside from the disk/bookkeeping scaling above
+ * while still leaving comfortable headroom under the real 7 GiB ceiling for the OS, the
+ * Node.js baseline, and everything else already running in the job (checkout, the
+ * toolchain build, actions/download-artifact). It is deliberately a round, conservative
+ * number in the same spirit as this package's other safety margins
+ * (`DISK_SAFETY_FACTOR`, the render-time estimate's own margin): a group that runs light
+ * on memory costs nothing extra, a group that runs out loses the whole run.
+ */
+export const MERGE_MEMORY_BUDGET_BYTES = 4 * 1024 ** 3;
+
+export interface MergeGroupSizeInputs {
+    /** Tile bytes the whole plan is expected to produce, summed across every shard. */
+    readonly totalTileBytes: number;
+    /** How many shards the plan has. */
+    readonly shardCount: number;
+    /** Never returns more than this, whatever the memory budget would allow. */
+    readonly cap?: number | undefined;
+    /** Overrides {@link MERGE_MEMORY_BUDGET_BYTES}, for tests. */
+    readonly memoryBudgetBytes?: number | undefined;
+}
+
+/**
+ * How many shards one merge group can take on without a group's job needing more than
+ * {@link MERGE_MEMORY_BUDGET_BYTES} worth of its shards' tile bytes at once.
+ *
+ * Always at least 1 (a group of one shard is a no-op merge and cannot be split further)
+ * and never more than `cap` (still {@link DEFAULT_MERGE_GROUP_SIZE} unless the caller
+ * asked for a different upper bound).
+ */
+export function chooseMergeGroupSize(inputs: MergeGroupSizeInputs): number {
+    const cap = Math.max(1, Math.floor(inputs.cap ?? DEFAULT_MERGE_GROUP_SIZE));
+    const shardCount = Math.max(1, Math.floor(inputs.shardCount));
+    const budget = Math.max(1, inputs.memoryBudgetBytes ?? MERGE_MEMORY_BUDGET_BYTES);
+    const perShardTileBytes = Math.max(1, inputs.totalTileBytes) / shardCount;
+    const affordable = Math.max(1, Math.floor(budget / perShardTileBytes));
+    return Math.min(cap, affordable);
+}
+
 export interface MergeGroup {
     /** 0-based; also the matrix entry and the artifact name suffix. */
     readonly index: number;

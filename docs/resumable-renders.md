@@ -414,6 +414,45 @@ A group merge passes `--lod-count 1`, so it does not build coarse lods that the 
 would discard: a group's lod 2 is averaged over pixels no shard in that group rendered, and
 is wrong in a way that leaves no trace in the file.
 
+### How big one merge group is allowed to be
+
+`DEFAULT_MERGE_GROUP_SIZE` (32) is only the ceiling. The actual size a plan uses,
+`mergeGroupSize`, is chosen so that a group's shards' tile bytes stay under a documented
+merge memory budget - because a group that ignores that bound can be killed by its own
+runner before it finishes.
+
+This is not theoretical. A real 10 GB world split into 30 shards (17.65 GiB of shard
+artifacts) was planned with a single flat group of all 30, and that group's merge job was
+killed twice - once cancelled by the runner, once ending as `node` process `Killed`, exit
+code 143 - a few minutes into "Merge this group's shards" on a standard `ubuntu-24.04`
+runner (roughly 7 GiB of RAM). The actual cause was `mergeShardMaps` decoding *every*
+shard's lod-1 (`tiles/1`) lowres tiles into uncompressed RGBA buffers (~2 MB each) and
+holding all of them in memory before compositing a single pixel - hires tiles (`tiles/0`,
+the bulk of a render's bytes) were never the problem, because they are copied with
+`fs.copyFile` and never read into JS memory at all. That decode-everything-up-front shape
+is fixed directly: only file paths are collected for lod 1 now, and a tile is decoded only
+when it is actually composited, so at most the handful of shards sharing one lowres tile's
+boundary are ever decoded at once (see the comment beside `lod1SourcePaths` in
+`merge/mergeMap.ts`, and the matching fix in `resume/lowresMerge.ts` for the final
+lowres-only merge).
+
+The group-size bound (`chooseMergeGroupSize` in `resume/mergeTree.ts`) exists on top of
+that fix, as a guard rather than a replacement for it: a group's job still has to download
+and hold every one of its shards' artifacts on disk at once, keep `listFiles`/hires-collision
+bookkeeping for all of them, and run the atomic-output staging copy alongside whatever the
+OS keeps in its page cache - all of which scale with how many shards one group takes on,
+independently of the lowres-decode fix. The budget is set at 4 GiB, comfortably under a
+standard runner's ~7 GiB, leaving headroom for the OS, Node's own baseline, and everything
+else already running in the job. A world dense enough that 30 shards' worth of tiles would
+outweigh that budget is now planned with several smaller groups instead of one large one;
+a world small enough to fit stays exactly as it was, in one group.
+
+The plan step writes the chosen `mergeGroupSize` into `shard-plan.json` (alongside
+`disk`, `budgetSeconds`, and everything else the workflow already reads from there), so
+both the `plan` command's own `group-count`/`group-ids` outputs and the `waves --group`
+command a later merge job calls (which re-reads the same shard-plan.json) agree on the
+same grouping without the workflow template needing to know anything changed.
+
 **For a world small enough to have one merge group, none of this changes anything.** The
 single group is the whole merge, it verifies against every shard exactly as before, and it
 publishes one `rendered-map` artifact and, optionally, Pages.
@@ -728,6 +767,16 @@ Workflow 聲明咗 **十二** 個 wave job，因為 Actions 產生唔到數量�
 Group merge 係可組合嘅。先 merge (A, B) 再 merge (AB, C)，同一次過 merge (A, B, C) 得出嘅 lod-1 pixel 一樣，因為每個 pixel 都係靠一個排名決定 —— 已 render 地形贏抹除、抹除贏未觸碰 —— 而「攞一組入面最好嗰個」無論一次過做定分階段做都一樣。兩個 group 對同一個 pixel 揸住*唔同*地形，喺每一列都只屬於恰好一個 shard 嘅前提下依然係冇可能嘅，亦依然會被當成錯誤而唔會靠估。
 
 一次 group merge 會傳 `--lod-count 1`，所以佢唔會砌一啲最後一步會掉咗嘅粗 lod：一個 group 嘅 lod 2 係喺嗰個 group 入面冇任何 shard render 過嘅 pixel 上面平均出嚟，而佢錯得喺檔案入面唔留半點痕跡。
+
+#### 一個 merge group 可以大到幾大
+
+`DEFAULT_MERGE_GROUP_SIZE`（32）淨係個天花板。一個 plan 真正用嘅 `mergeGroupSize`，係揀到令一個 group 入面啲 shard 嘅 tile bytes 加埋都仲喺一個寫低咗嘅 merge memory budget 之下 —— 因為一個唔理呢條線嘅 group，可以喺做完之前就俾自己嗰部 runner 殺咗。
+
+呢個唔係得個講字。一個真實嘅 10 GB 世界，切成 30 個 shard（17.65 GiB 嘅 shard artifact），本來畀晒 30 個 shard 一齊入一個扁平嘅 group，結果嗰個 group 嘅 merge job 死咗兩次 —— 一次俾 runner 取消、一次以 `node` process `Killed`、exit code 143 收場 —— 都係喺一部標準 `ubuntu-24.04` runner（大約 7 GiB RAM）上面，行「Merge this group's shards」嗰陣行咗幾分鐘就死。真正原因係 `mergeShardMaps` 將*每一個* shard 嘅 lod-1（`tiles/1`）lowres tile 全部解碼做未壓縮嘅 RGBA buffer（每塊大約 2 MB），仲要係合成任何一個 pixel 之前就已經全部揸喺 memory 度 —— hires tile（`tiles/0`，一次 render 大部份嘅 bytes）從來都唔係問題，因為佢哋用 `fs.copyFile` 複製，從來冇讀入過 JS memory。呢種「乜都要解晒先做嘢」嘅寫法而家直接修好咗：lod 1 而家淨係預先收集檔案路徑，一塊 tile 淨係喺真正要合成嗰刻先解碼，所以同一時間最多都係跨住同一塊 lowres tile 邊界嗰幾個 shard 先會被解碼（見 `merge/mergeMap.ts` 入面 `lod1SourcePaths` 隔籬個註解，同埋 `resume/lowresMerge.ts` 入面對應嘅修法，嗰個係最後一步淨 merge lowres 嗰個）。
+
+Group-size 嘅上限（`resume/mergeTree.ts` 入面嘅 `chooseMergeGroupSize`）係疊喺呢個修法上面嘅把關，唔係代替佢：一個 group 嘅 job 依然要一次過下載同揸住佢每個 shard 嘅 artifact、幫佢哋全部維護 `listFiles`／hires 碰撞紀錄、仲要同 atomic-output staging 複製一齊行，同埋 OS page cache 揸住嘅嘢 —— 呢啲全部都會跟一個 group 揸幾多個 shard 而縮放，同 lowres-decode 嗰個修法無關。呢個 budget 定咗喺 4 GiB，比標準 runner 大約 7 GiB 舒服咁低，留返空間畀 OS、Node 自己嘅基本開銷，同埋個 job 入面本身已經行緊嘅嘢。一個密到 30 個 shard 嘅 tile 加埋都會超過呢個 budget 嘅世界，而家會被規劃成幾個細啲嘅 group，而唔係一個大嘅；一個細到夠嘅世界就完全照舊，仍然係一個 group。
+
+Plan 步驟會將揀好嘅 `mergeGroupSize` 寫入 `shard-plan.json`（同 `disk`、`budgetSeconds` 呢啲 workflow 本身已經有讀嘅嘢擺埋一齊），所以 `plan` command 自己嘅 `group-count`／`group-ids` output，同埋之後一個 merge job 會叫嘅 `waves --group` command（佢會重新讀返同一份 shard-plan.json），兩邊對「點分組」呢件事永遠一致，workflow 個 template 完全唔使知道有嘢改咗。
 
 **對於細到得一個 merge group 嘅世界，上面呢啲全部都唔改變任何嘢。** 嗰個單一 group 就係成個 merge，佢照舊對住每個 shard 驗證，並且發佈一個 `rendered-map` artifact，同埋（如果你想）Pages。
 

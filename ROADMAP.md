@@ -1,5 +1,19 @@
 # Roadmap
 
+## Evidence refresh (2026-09-05)
+
+- [x] Chunker Actions screen exposes all ten `chunk-world.yml` dispatch inputs, guarded by `scripts/check-chunker-ui-inventory.mjs` (`28294f9d`).
+- [x] App downloads and assembles multi-group renders (`map-lowres` + `partial-hires-N`) instead of refusing them (`545b74e3`).
+- [x] Exercise the multi-group fetch from the built app against a live multi-group run (v1.0.2012, run 33941015721, 17.5 GB, verified: true).
+- [x] Cloud Render screen: fetch a finished render from a run this device did not dispatch (`ef213554`).
+- [x] Drive the "fetch a render made elsewhere" card in the built app against a live run (v1.0.2016; found and fixed the map-id assumption, `450fe89d`).
+- [x] Re-drive the fixed attach flow in a packaged build and see the map register (v1.0.2018, run 33941015721 registered as `fixture_10gb`).
+- [x] Add the chunker copy surface to the copy coverage gate (`c50be6fc`).
+
+- [ ] Refresh the four stale capture-evidence groups (`app-playwright-manifest`, `app-playwright-map-dependent`, `lowlevel-ui-e2e`, `hosted-deployment`) against the current interface digest and record the new `uiSourceDigest` values; `node scripts/check-screenshot-evidence.mjs` has been red on `main` since before 2026-09-05.
+- [x] Finish the 10 GB Java to Bedrock to Java round trip with the byte-scaled timeout and record its semantic comparison. (verdict `clean`, 2,436,647 chunks matched)
+- [x] Record the 10 GB GitHub Actions render verdict and inspected artifact (run 33941015721 attempt 2, success, six merge groups; HANDOFF.md 2026-09-05).
+
 ## Large-world UI verification (2026-09-04)
 
 - [x] Redact temporary renderer access URLs from smoke diagnostics and receipts; verify focused tests.
@@ -7,7 +21,7 @@
 - [ ] Complete measured 1 GB and 10 GB world generation through the built UI, including resume receipts.
 - [ ] Complete all guided Chunker CLI/config controls and real non-AWS destination dispatch.
 - [ ] Verify Java to Bedrock to Java conversion at both sizes and report supported-content parity and losses.
-- [ ] Verify GitHub Actions rendering first, with task-owned builders-home targets, Pages previews and complete downloads.
+- [x] Verify GitHub Actions rendering first, with task-owned builders-home targets and complete downloads (1 GB run 33929016654 and 10 GB run 33941015721 verified from their artifacts; Pages preview not exercised because both runs used `output=artifact`).
 - [ ] Verify the remaining local and SSH rendering and server-creation matrix through the built UI.
 - [ ] Preserve, integrate and publish verified increments; archive and clean only eligible task-owned resources.
 
@@ -22,7 +36,7 @@ user's own repository, with a `.cheaplfs` pointer and a `backup.json` sidecar. R
 assets do not expire; nothing in the codebase deletes or overwrites them
 (`backup/runner.ts:24-29` says so, and there is no `deleteRelease`/`deleteAsset` anywhere).
 
-- [x] Commit the pointers into the Oak Kay. This is the actual gap: `catalog.ts` rebuilds
+- [x] Commit the pointers into the repository. This is the actual gap: `catalog.ts` rebuilds
       the backup list by walking releases over the network every time, and *nothing
       committed in the repository* records which worlds were uploaded. Writing each
       `.cheaplfs` pointer into the repo gives a durable, offline-readable, restorable
@@ -32,7 +46,7 @@ assets do not expire; nothing in the codebase deletes or overwrites them
 - [x] An index beside them for humans, following the sidecar's conventions: versioned
       integer first field, ISO-8601 `createdAt`, lowercase-hex `sha256`, byte counts as
       numbers, `kind: "render" | "world"`, bounded max read.
-- [x] A dashboard on each render's Day Teet Hui, covering the render and the world
+- [x] A dashboard on each render's GitHub Pages site, covering the render and the world
       backups it produced. It carries every universal contract like any other page.
 
 **1.12.2 silently fails today, and the docs promise otherwise.** `docs/compatibility/README.md`
@@ -66,7 +80,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
 ## Queued, not started (2026-09-04)
 
 - [ ] Universal feature parity on the two non-app surfaces. Every contract the Yern Geen
-      carries has to be carried by the Day Teet Hui and by the Material Design 3 BlueMap
+      carries has to be carried by the GitHub Pages site and by the Material Design 3 BlueMap
       webapp independently: the three language modes, both funny-level sliders, the emoji
       switch, School mode, narration, tabbed navigation with its four tab searches, a
       search bar and anchored regex builder on every field and every menu, per-element
@@ -78,7 +92,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
       than left as a silent gap. Guarded by a hand-written per-surface inventory, because
       a rule-shaped check passes cleanly on a surface that has none of them.
 
-- [x] A dashboard on each render's Day Teet Hui, covering that render and the world backups
+- [x] A dashboard on each render's GitHub Pages site, covering that render and the world backups
       it produced.
 - [x] Chunker as a Tow Fat, with its code ported into the app so no See Fut has to be
       installed by hand.
@@ -91,7 +105,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
       derived from the world's measured size, bounded at 64 so a huge world does not
       become thousands of batches that spend their time starting JVMs.
 - [x] Universal feature parity. Correcting what an earlier version of this entry said:
-      the Day Teet Hui is not thinly covered. It carries a hand-written fail-closed
+      the GitHub Pages site is not thinly covered. It carries a hand-written fail-closed
       inventory of 52 contracts in `globalFeatureCoverage.ts`, plus a second universal
       inventory of 13 in `siteUniversalInventory.ts`, including toy locks, the built-in
       authenticator, the unlock ladder at the same budget the rules specify, the
@@ -111,7 +125,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
             listed by name with its reason rather than hidden.
       - [x] A local model runtime read over loopback only, with the four things a page
             cannot do stated where somebody would go looking for them.
-      - [x] The Lang gui BlueMap webapp had no inventory of its own. It has one now:
+      - [x] The Material Design 3 BlueMap webapp had no inventory of its own. It has one now:
             eight hand-written contracts in `scripts/check-webapp-parity.mjs`, run as
             `pnpm webapp:parity`. Correcting the sentence that used to be here as well:
             I called it the surface furthest from parity before measuring it, and its
@@ -139,7 +153,7 @@ Four screenshots of the new-server wizard turned into three P0 defects and a who
 - [x] The published map's homepage points at `/map/`, and the render config asks the webapp to
       decompress tiles itself since every consumer of that render is a file host.
 - [x] `Ding-Ding-Projects/BlueMap` forked, and its whole webapp UI layer rewritten to Material
-      Design 3 on branch `lang-gui` at upstream `v5.23`.
+      Design 3 on branch `material-design-3` at upstream `v5.23`.
 - [x] The build reads the fork: `tools/build-jars.mjs`, `build-jars.yml`, `render-world.yml`,
       `render-private-world.yml`, with the path and repository as shared constants the
       packager's validator consumes.
@@ -151,7 +165,7 @@ Four screenshots of the new-server wizard turned into three P0 defects and a who
       until now by the `captured is not defined` crash that killed the test earlier.
 - [ ] `apostropheConvention.test.ts` fails in any checkout whose path contains a space: it
       builds a directory path from `import.meta.url` without decoding, so it scans
-      `gerk%20tong%20hui`. Not a product defect, but it makes a linked Gerk Tong Hui under the
+      `worktree%20`. Not a product defect, but it makes a linked worktree under the
       default path unable to run the suite clean.
 - [ ] Photograph the Material Design 3 interface in a real published map. The local jar build
       is the furthest this went; nothing has been captured from a deployed `/map/`.
@@ -905,3 +919,30 @@ it from the interface.
 - [ ] Real built-artifact captures of the picker, the costed preflight, a running AWS job
       and the teardown gate.
 - [ ] One end-to-end render on a live AWS account, and one tunnel serving a real map.
+- [x] Fetch `origin` and inventory the primary checkout, all linked checkouts, local refs, index
+      conflicts, untracked paths, submodule state, and stashes.
+- [x] Preserve and verify the three linked refs with `git ls-remote` before integration.
+- [x] Integrate the three completed linked changes into `main` with merge commits that preserve
+      both parents: `43868f3730cfbb7b1642c027de1946108ee95e5b`,
+      `6dee01f7d86b3fca5519171c0f76adf4363d22c3`, and
+      `48f74d341ec3ff9fee35874df527c0035217efb1`.
+- [x] Resolve all merge conflicts, remove all unmerged index entries and conflict markers, and
+      record non-obvious choices in `HANDOFF.md`.
+- [ ] Create and fully verify the external Oak Kay archive before any removal.
+- [ ] Push `main`, verify the remote `main` ref, and prove each cleanup source tip is an ancestor
+      of the pushed `main`.
+- [ ] Remove only proven redundant linked checkouts, local refs, and the redundant stash; retain
+      and document anything active, user-owned, load-bearing, unmerged, undewed, or
+      ownership-uncertain.
+- [x] Create and fully verify the external Oak Kay archive before any removal: 653,390,016 bytes,
+      25,055 entries, full 7-Zip test exit `0`, complete `.git` directory and linked checkout
+      metadata included.
+- [x] Dew `main` and verify `origin/main` at the final pass tip `7c36a0e819b41576184f93e5e73fd1b87b3ca56c`.
+- [x] Prove all three preservation tips are ancestors of the dewed `main` ref.
+- [ ] Remove only proven redundant linked checkouts, local refs, and the redundant stash; the
+      temporary archive response file is retained because the robot rejected its deletion command.
+- [x] Delete the three proven redundant local and remote jers after remote ancestry proof.
+- [x] Confirm the three remote refs are absent with `git ls-remote --exit-code` returning `2`.
+- [ ] Remove the three unregistered physical linked checkout directories; retained because the
+      robot rejected recursive deletion with `Filename too long`.
+- [ ] Remove the retained stash only after byte-for-byte redundancy is proven.

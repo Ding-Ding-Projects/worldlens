@@ -33,6 +33,11 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
+import { mkdir, rm, readFile, stat } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import { probeChunker } from "./capabilities.js";
+import { CONTAINER_CHANNELS, installChunkerContainerIpc } from './containerExecution.js';
 import { inspectWorldFolder } from "../world/inspect.js";
 import {
     fetchChunker,
@@ -49,6 +54,7 @@ import {
     convertedWorldPath,
     estimateConvertedSize,
     DEFAULT_JAVA_TARGET,
+    ChunkerConversion,
     RECOMMENDED_JVM_ARGS,
     type ConversionEvent,
     type ConversionOutcome,
@@ -64,15 +70,22 @@ import {
     writeConversionRecord,
     type ConversionRecord,
 } from "./provenance.js";
+import { validateChunkerCliConfig,validateChunkerConfigStructure } from "./chunkerConfig.js";
+import {readSelectedSettings,validateSelectedChunkerConfig} from './settingsReport.js';
+import {CHUNKER_EDITOR_SCHEMAS} from './editorSchema.js';
 
 /** Every channel this module registers, so `dispose` cannot drift from `register`. */
 export const BEDROCK_CHANNELS = [
+    ...CONTAINER_CHANNELS,
     "bedrock:detect",
     "bedrock:chunker",
     "bedrock:fetchChunker",
     "bedrock:convert",
     "bedrock:cancel",
     "bedrock:record",
+    "bedrock:capabilities",
+    "bedrock:inspectOptions",
+    "bedrock:configurationSchema",
 ] as const;
 
 /** The channel every conversion progress, phase and log event arrives on. */
@@ -114,7 +127,15 @@ export interface ChunkerStatus {
         readonly spdx: "MIT";
         readonly holder: "Hive Games";
         readonly url: string;
-        readonly bundled: false;
+        /**
+         * Whether the converter in use is the copy this app's installer carried.
+         *
+         * A `boolean`, not the `false` literal it used to be. The literal was not a type so
+         * much as a policy written into the type system, and it survived the day the jar
+         * actually went into the installer - so the one field that could have contradicted
+         * the "does not bundle" copy was forbidden from ever doing so.
+         */
+        readonly bundled: boolean;
         readonly note: string;
     };
 }
@@ -142,6 +163,15 @@ export interface BedrockIpcOptions {
     readonly dataDir?: string | null;
     /** A jar path the person chose in settings. */
     readonly configuredJar?: string | null;
+    /**
+     * Electron's `process.resourcesPath` in a packaged build, null in development.
+     *
+     * Without this the app cannot see the Chunker jar its own installer carries, and every
+     * shipped build reports the converter as absent while holding 30 MB of it - which is
+     * exactly what v1.0.2026 did. Passed the same way `resolveJava` is already given
+     * `resourcesPath`, and for the same reason.
+     */
+    readonly resourcesPath?: string | null;
     /**
      * Produces a JVM to run Chunker on, or explains why it cannot.
      *
@@ -186,6 +216,7 @@ export function registerBedrockHandlers(
     ipcMain: IpcMain,
     options: BedrockIpcOptions,
 ): BedrockIpc {
+    installChunkerContainerIpc({ipcMain,dataDir:options.dataDir ?? tmpdir(),resolveJava:options.resolveJava,...(options.resourcesPath == null ? {} : {resourcesPath:options.resourcesPath}),...(options.configuredJar === undefined ? {} : {configuredJar:options.configuredJar})});
     const inspect = options.inspect ?? inspectWorldFolder;
     const find = options.find ?? findChunker;
     const fetch = options.fetch ?? fetchChunker;
@@ -195,9 +226,32 @@ export function registerBedrockHandlers(
 
     /** In-flight conversions, so `bedrock:cancel` can reach the right one. */
     const running = new Map<string, { cancel(): void }>();
+    ipcMain.handle('bedrock:configurationSchema',()=>CHUNKER_EDITOR_SCHEMAS);
 
+    ipcMain.handle("bedrock:capabilities", async () => {
+        try {
+            const lookup = await find(lookupOptions());
+            if (!lookup.found) return { ok: false, message: lookup.reason };
+            const java = await options.resolveJava();
+            if (!java.ok) return { ok: false, message: java.message };
+            return { ok: true, value: await probeChunker(java.executable, lookup.jarPath) };
+        } catch (error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
+    });
+
+    ipcMain.handle('bedrock:inspectOptions', async (_event, world: unknown) => {
+        if(typeof world !== 'string' || !world.trim()) return {ok:false,message:'Choose a source world first.'};
+        try {
+            await inspect(world);
+            const lookup=await find(lookupOptions());
+            if(!lookup.found) return {ok:false,message:lookup.reason};
+            const java=await options.resolveJava();
+            if(!java.ok) return {ok:false,message:java.message};
+            return {ok:true,value:await readSelectedSettings(java.executable,lookup.jarPath,world)};
+        }catch(error){return {ok:false,message:error instanceof Error?error.message:String(error)};}
+    });
     const lookupOptions = (): FindChunkerOptions => ({
         ...(options.dataDir == null ? {} : { dataDir: options.dataDir }),
+        ...(options.resourcesPath == null ? {} : { resourcesPath: options.resourcesPath }),
         ...(options.configuredJar == null ? {} : { configuredJar: options.configuredJar }),
     });
 
@@ -264,15 +318,23 @@ export function registerBedrockHandlers(
                 spdx: "MIT",
                 holder: "Hive Games",
                 url: CHUNKER_LICENCE_URL,
-                // Stated as a fact about this app, not about the licence. MIT permits
-                // bundling; this app chooses not to, and saying so here keeps the interface
-                // from implying a restriction that does not exist.
-                bundled: false,
+                // A fact about the copy in front of this person, not a policy sentence. An
+                // installed build resolves the jar the installer carried and this is true; a
+                // development checkout with nothing staged resolves something else, and
+                // claiming "bundled" there would be the same untrue statement as the one
+                // this row used to make in the opposite direction.
+                bundled: lookup.found && lookup.source === "bundled",
                 note:
-                    "Chunker is a separate open-source project by Hive Games, MIT licensed. " +
-                    "Its licence permits redistribution, but this app does not bundle it: it " +
-                    "is downloaded on request so that people who never convert a world do not " +
-                    "carry it, and so the converter can be updated without a new app release.",
+                    lookup.found && lookup.source === "bundled"
+                        ? "Chunker is a separate open-source project by Hive Games, MIT licensed. " +
+                          "Its licence permits redistribution, and this app ships the pinned " +
+                          `chunker-cli ${pinnedRelease().version} jar inside its own installer, so a ` +
+                          "Bedrock world converts with the network unplugged. Copyright (c) Hive " +
+                          "Games; the MIT licence text travels with the jar."
+                        : "Chunker is a separate open-source project by Hive Games, MIT licensed. " +
+                          "Installed builds of this app carry the pinned chunker-cli jar inside the " +
+                          "installer; this build is running the copy named above instead, which is " +
+                          "ordinary in a development checkout or when a jar has been chosen by hand.",
             },
         };
     });
@@ -348,11 +410,13 @@ export function registerBedrockHandlers(
             if (typeof request !== "object" || request === null) {
                 return refuse("A conversion needs a world folder to convert.");
             }
-            const { world, output, format, sizeBytes } = request as {
+            const { world, output, format, sizeBytes, config, inputFormat } = request as {
                 world?: unknown;
                 output?: unknown;
                 format?: unknown;
                 sizeBytes?: unknown;
+                config?: unknown;
+                inputFormat?: unknown;
             };
             if (typeof world !== "string" || world.trim() === "") {
                 return refuse("A conversion needs a world folder given as text.");
@@ -369,12 +433,7 @@ export function registerBedrockHandlers(
                 return refuse(error instanceof Error ? error.message : String(error));
             }
             const detection = detectBedrockWorld(listing);
-            if (!detection.bedrock) {
-                return refuse(
-                    `${world} is not a Bedrock world, so there is nothing to convert. ` +
-                        `A Java world can be rendered as it is.`,
-                );
-            }
+            if (!validateChunkerConfigStructure(config)) return refuse("Chunker settings were malformed. Choose each setting again before converting.");
 
             const java = await options.resolveJava();
             if (!java.ok) {
@@ -390,8 +449,33 @@ export function registerBedrockHandlers(
                 typeof output === "string" && output.trim() !== ""
                     ? output
                     : convertedWorldPath(world);
+            let cliConfig;
+            try {cliConfig=await validateSelectedChunkerConfig(config,java.executable,lookup.jarPath,world);}
+            catch(error){return refuse(error instanceof Error?error.message:String(error));}
+            if(cliConfig===null)return refuse('A world setting is unknown to the selected converter or has the wrong type. Inspect source settings again.');
             const targetFormat =
                 typeof format === "string" && format.trim() !== "" ? format : DEFAULT_JAVA_TARGET;
+            // The renderer's format is presentation data, never an authority to enable
+            // NBT preservation. This shallow inspection can identify the edition but not
+            // the exact Chunker version id, so preservation fails closed until main owns a
+            // version reader that can prove an exact match.
+            let requestedInputFormat: string | null = null;
+            if (cliConfig.keepOriginalNBT === true) {
+                const staging = join(options.dataDir ?? tmpdir(), `chunker-identify-${randomUUID()}`);
+                await mkdir(staging, { recursive: true });
+                const probe = new ChunkerConversion({ javaExecutable: java.executable, jarPath: lookup.jarPath,
+                    inputDirectory: world, outputDirectory: staging, outputFormat: "SETTINGS" });
+                const timer = setTimeout(() => probe.cancel(), 120_000);
+                try {
+                    const result = await probe.start();
+                    if (result.exitCode === 0 && result.completeLineSeen && result.sourceEdition) {
+                        requestedInputFormat = result.sourceEdition.toUpperCase().replace(/[ .]/g, "_");
+                    }
+                } finally { clearTimeout(timer); await rm(staging, { recursive: true, force: true }); }
+            }
+            if (cliConfig.keepOriginalNBT === true && requestedInputFormat !== targetFormat) {
+                return refuse("keepOriginalNBT is only available when main-process inspection proves the source format matches the output format.");
+            }
 
             // Registered before the conversion starts, so a Cancel arriving in the first
             // moments finds an entry rather than an empty map. `onStart` replaces this
@@ -446,13 +530,19 @@ export function registerBedrockHandlers(
                 // and its correctness rests on a margin scheme that a single pass does not
                 // need at all. So the whole-world path stays the default and batching is
                 // reserved for worlds large enough that one pass is unlikely to finish.
-                if (assessMemoryRisk(measured).level === "high") {
+                // The merge ledger is an Anvil-region merger. It is valid only for a Java
+                // target, so Java-to-Bedrock stays one verified CLI run rather than being
+                // silently routed through machinery that cannot assemble LevelDB output.
+                const remapsDimensions = Object.entries(cliConfig.dimensionMappings ?? {}).some(([from, to]) => from !== to);
+                if (assessMemoryRisk(measured).level === "high" && targetFormat.startsWith("JAVA") && !remapsDimensions) {
                     const batched = await convertInBatches({
                         javaExecutable: java.executable,
                         jarPath: lookup.jarPath,
                         inputDirectory: world,
                         outputDirectory,
                         outputFormat: targetFormat,
+                        config: cliConfig,
+                        inputFormat: requestedInputFormat,
                         sourceBytes: measured,
                         jvmArgs: options.jvmArgs ?? RECOMMENDED_JVM_ARGS,
                         onEvent: (event) => {
@@ -474,6 +564,8 @@ export function registerBedrockHandlers(
                     inputDirectory: world,
                     outputDirectory,
                     outputFormat: targetFormat,
+                    config: cliConfig,
+                    inputFormat: requestedInputFormat,
                     // Only phrases an out-of-memory failure; the conversion is identical
                     // without it. See `sourceBytes` on ConvertWorldOptions.
                     sourceBytes: measured,

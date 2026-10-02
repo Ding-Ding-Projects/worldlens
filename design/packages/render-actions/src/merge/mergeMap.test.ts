@@ -140,6 +140,7 @@ function planFor(shardCount: number): ShardPlan {
             requiredBytes: 5,
             largestShardFraction: 1 / shardCount,
         },
+        mergeGroupSize: 32,
         budgetSeconds: 3600,
         requestedShards: shardCount,
         grid: { x: shardCount, z: 1 },

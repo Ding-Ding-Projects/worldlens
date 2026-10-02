@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from "vue";
+import { computed, reactive, ref, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     VAlert,
@@ -51,6 +51,7 @@ import {
     UNWIRED_STEP_KINDS,
     type WorldGenRunner,
 } from "./worldgen/worldGenPlan.js";
+import { generateSyntheticWorld, syntheticWorldStatus, cancelSyntheticWorld, type SyntheticWorldResult } from "./mcserverBridge.js";
 
 /**
  * The world-generator wizard: every setting a world can be generated with, chosen
@@ -75,6 +76,10 @@ const emit = defineEmits<{
     generate: [settings: WorldGenSettings];
 }>();
 
+// Named so the catalogue's call-site scanner recognises it: it matches `t(`, `tx(` and
+// `tp(` with nothing word-like before them, and `tx(` was invisible to it - which is
+// why two keys reported "call site passes []" while plainly passing three arguments each.
+const { t: tx } = useI18n({ useScope: "global" });
 const { t } = useI18n({
     useScope: "local",
     messages: {
@@ -186,8 +191,36 @@ const runnerKind = ref<"local" | "github-actions">("local");
 // something a user can actually run to completion.
 const engineId = ref<WorldGenEngineId>("synthetic");
 const showPlan = ref(false);
+const generating = ref(false);
+const generated = ref<SyntheticWorldResult | null>(null);
+const targetBytes = ref<number | null>(null);
+const resumeGeneration = ref(false);
+const generationProgress = ref<{ bytes: number; targetBytes: number; chunkCount: number } | null>(null);
+let progressTimer: ReturnType<typeof setTimeout> | undefined;
+async function pollGeneration(): Promise<void> {
+    const result = await syntheticWorldStatus();
+    if (result.ok) generationProgress.value = result.value ?? null;
+    if (generating.value) progressTimer = setTimeout(() => void pollGeneration(), 1000);
+}
+onUnmounted(() => {
+    clearTimeout(progressTimer);
+    if (generating.value) {
+        generating.value = false;
+        void cancelSyntheticWorld();
+    }
+});
+async function stopGeneration(): Promise<void> {
+    const result = await cancelSyntheticWorld();
+    if (!result.ok) generationError.value = result.failure?.message ?? "";
+}
+const generationError = ref<string | null>(null);
 
 const validation = computed(() => validateWorldGenSettings(settings));
+const canGenerate = computed(() => engineId.value !== "synthetic" ? validation.value.ok :
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(settings.worldName.trim()) && settings.outputDestination.trim() !== "" &&
+    Number.isSafeInteger(resolveSeedPreview(settings.seedInput) ?? 0) &&
+    Number.isFinite(settings.pregenerationRadius) && settings.pregenerationRadius >= 16 && settings.pregenerationRadius <= 20_000 &&
+    (targetBytes.value === null || (Number.isSafeInteger(targetBytes.value) && targetBytes.value > 0 && targetBytes.value <= 100_000_000_000)));
 const selectedEngine = computed(
     () => WORLD_GEN_ENGINES.find((engine) => engine.id === engineId.value) ?? WORLD_GEN_ENGINES[0]!,
 );
@@ -252,11 +285,35 @@ function onPreviewPlan(): void {
     if (!validation.value.ok) return;
     showPlan.value = true;
 }
-function onGenerate(): void {
-    if (!validation.value.ok || engineId.value !== "vanilla-server") return;
-    emit("generate", { ...settings, dimensions: { ...settings.dimensions }, gamerules: { ...settings.gamerules } });
+async function onGenerate(): Promise<void> {
+    if (!canGenerate.value || generating.value) return;
+    if (engineId.value !== "synthetic") {
+        emit("generate", { ...settings, dimensions: { ...settings.dimensions }, gamerules: { ...settings.gamerules } });
+        return;
+    }
+    generating.value = true;
+    generationError.value = null;
+    generated.value = null;
+    generationProgress.value = null;
+    const resolvedSeed = resolveSeedPreview(settings.seedInput) ?? rollRandomSeed();
+    settings.seedInput = String(resolvedSeed);
+    if (targetBytes.value !== null) progressTimer = setTimeout(() => void pollGeneration(), 500);
+    const answer = await generateSyntheticWorld({
+        seed: resolvedSeed,
+        size: Math.max(16, Math.trunc(settings.pregenerationRadius) * 2),
+        worldName: settings.worldName.trim(),
+        destination: settings.outputDestination.trim(),
+        outputMode: "folder",
+        ...(targetBytes.value === null ? {} : { targetBytes: targetBytes.value, resume: resumeGeneration.value }),
+    });
+    generating.value = false;
+    clearTimeout(progressTimer);
+    if (!answer.ok || answer.value === undefined) { generationError.value = answer.failure?.message ?? ""; return; }
+    generated.value = answer.value;
+    if (answer.value.cancelled) resumeGeneration.value = true;
 }
 function onClose(): void {
+    if (generating.value) return;
     open.value = false;
     showPlan.value = false;
 }
@@ -267,10 +324,10 @@ function onClose(): void {
         <VCard>
             <VCardTitle class="d-flex align-center justify-space-between">
                 <span>{{ t("title") }}</span>
-                <VBtn variant="text" :icon="mdiClose" :aria-label="t('cancel')" @click="onClose" />
+                <VBtn variant="text" :icon="mdiClose" :disabled="generating" :aria-label="t('cancel')" @click="onClose" />
             </VCardTitle>
             <VCardText>
-                <VAlert type="info" variant="tonal" density="compact" class="mb-4">
+                <VAlert v-if="engineId !== 'synthetic'" type="info" variant="tonal" density="compact" class="mb-4">
                     {{ t("boundary") }}
                 </VAlert>
 
@@ -405,6 +462,15 @@ function onClose(): void {
                         {{ t("estimate") }}: {{ pregenEstimate.chunkCount }} chunks, ~{{ (pregenEstimate.estimatedBytes / 1_000_000).toFixed(1) }} MB,
                         ~{{ pregenEstimate.estimatedSeconds }}s
                     </div>
+                    <div v-if="engineId === 'synthetic'" class="d-flex flex-wrap ga-2 mt-2" :aria-label="tx('worldgen.measured.targets')">
+                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 1_000_000_000">{{ tx('worldgen.measured.preset1') }}</VBtn>
+                        <VBtn size="small" variant="tonal" :disabled="generating" @click="targetBytes = 10_000_000_000">{{ tx('worldgen.measured.preset10') }}</VBtn>
+                    </div>
+                    <div v-if="engineId === 'synthetic'" class="text-caption mt-1">
+                        {{ tx('worldgen.measured.notice') }}
+                    </div>
+                    <VTextField v-if="engineId === 'synthetic'" v-model.number="targetBytes" type="number" min="1" max="100000000000" :disabled="generating" :label="tx('worldgen.measured.target')" clearable />
+                    <VSwitch v-if="engineId === 'synthetic' && targetBytes !== null" v-model="resumeGeneration" :disabled="generating" :label="tx('worldgen.measured.resume')" />
                 </div>
 
                 <VDivider class="my-4" />
@@ -446,7 +512,7 @@ function onClose(): void {
                 <div class="text-subtitle-2 mb-2">{{ t("output") }}</div>
                 <VRadioGroup v-model="settings.outputMode" density="compact" hide-details inline class="mb-2">
                     <VRadio value="folder" :label="t('outputFolder')" />
-                    <VRadio value="zip" :label="t('outputZip')" />
+                    <VRadio value="zip" :disabled="engineId === 'synthetic'" :label="t('outputZip')" />
                 </VRadioGroup>
                 <PathField
                     v-model="settings.outputDestination"
@@ -463,7 +529,7 @@ function onClose(): void {
                 <div class="text-subtitle-2 mb-2">{{ t("runner") }}</div>
                 <VRadioGroup v-model="runnerKind" density="compact" hide-details inline class="mb-4">
                     <VRadio value="local" :label="t('runnerLocal')" />
-                    <VRadio value="github-actions" :label="t('runnerGithub')" />
+                    <VRadio value="github-actions" :disabled="engineId === 'synthetic'" :label="t('runnerGithub')" />
                 </VRadioGroup>
 
                 <!-- Plan preview -->
@@ -480,11 +546,23 @@ function onClose(): void {
                         </VListItem>
                     </VList>
                 </div>
+                <VAlert v-if="generationError !== null" type="error" variant="tonal" density="compact" class="mt-3">
+                    {{ generationError || tx('worldgen.measured.failed') }}
+                </VAlert>
+                <div v-if="generationProgress" role="status" aria-live="polite">
+                    {{ tx('worldgen.measured.progress', { bytes: generationProgress.bytes, target: generationProgress.targetBytes, chunks: generationProgress.chunkCount }, 'Measured {bytes} / {target} bytes, {chunks} chunks.') }}
+                    <progress :value="generationProgress.bytes" :max="generationProgress.targetBytes" :aria-label="tx('worldgen.measured.target')" />
+                </div>
+                <VAlert v-if="generated !== null" :type="generated.cancelled ? 'info' : 'success'" variant="tonal" density="compact" class="mt-3">
+                    <div v-if="generated.cancelled">{{ tx('worldgen.measured.paused') }}</div>
+                    {{ tx('worldgen.measured.result', { bytes: generated.bytes, chunks: generated.chunkCount, overshoot: generated.overshootBytes ?? 0, folder: generated.worldFolder }, 'Measured {bytes} bytes, {chunks} chunks, overshoot {overshoot} bytes. Folder: {folder}') }}
+                </VAlert>
             </VCardText>
             <VCardActions>
-                <VBtn variant="text" @click="onClose">{{ t("cancel") }}</VBtn>
-                <VBtn v-if="engineId === 'vanilla-server'" color="primary" variant="flat" :disabled="!validation.ok" @click="onGenerate">
-                    Generate
+                <VBtn v-if="generating && targetBytes !== null" variant="text" @click="stopGeneration">{{ tx('worldgen.measured.stop') }}</VBtn>
+                <VBtn v-else variant="text" :disabled="generating" @click="onClose">{{ t("cancel") }}</VBtn>
+                <VBtn color="primary" variant="flat" :loading="generating" :disabled="!canGenerate || generating" @click="onGenerate">
+                    {{ tx(generating ? 'worldgen.measured.generating' : 'worldgen.measured.generate') }}
                 </VBtn>
                 <VBtn color="primary" variant="tonal" :disabled="!validation.ok" @click="onPreviewPlan">
                     {{ t("previewPlan") }}

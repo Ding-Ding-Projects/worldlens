@@ -248,6 +248,8 @@ export {
     firstUnsuccessfulJob,
 } from "./sync.js";
 export type {
+    CiAttachableRun,
+    CiAttachRunRequest,
     CiJobReport,
     CiPreflight,
     CiRenderSyncOptions,

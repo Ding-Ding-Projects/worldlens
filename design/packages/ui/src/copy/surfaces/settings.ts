@@ -1001,6 +1001,7 @@ export const SETTINGS_FIXED = {
     /* The settings screen itself. */
     "settings.body": { en: "All settings", yue: "所有設定" },
     "settings.search.label": { en: "Search settings", yue: "搜尋設定" },
+    "settings.search.labelShort": { en: "Search", yue: "搜尋" },
     "settings.search.hint": {
         en: "name, explanation, or a value on screen",
         yue: "名稱、說明，或者畫面上見到嘅值",

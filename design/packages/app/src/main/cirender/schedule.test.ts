@@ -42,6 +42,7 @@ function fakeTransport(initial: Readonly<Record<string, string>> = {}): CiTransp
         findDispatchedRun: unused,
         readRun: unused,
         readRunJobs: unused,
+        listWorkflowRuns: unused,
         readJobLogTail: unused,
         listRunArtifacts: unused,
         downloadArtifact: unused,

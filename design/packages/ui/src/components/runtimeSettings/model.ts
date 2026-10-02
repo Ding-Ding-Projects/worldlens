@@ -1,5 +1,5 @@
 /**
- * lang-gui-exempt: a colour-valued runtime setting's default. It is a value the renderer is given, not a surface being painted.
+ * material-exempt: a colour-valued runtime setting's default. It is a value the renderer is given, not a surface being painted.
  */
 /**
  * Versioned runtime preferences shared by the desktop settings surface.

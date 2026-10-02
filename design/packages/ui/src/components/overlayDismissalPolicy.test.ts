@@ -282,6 +282,15 @@ interface OverlayEntry {
 
 const REGISTRY: readonly OverlayEntry[] = [
     {
+        file: "components/shell/AppRail.vue",
+        surface:
+            "The rail's own 'More' overflow menu, listing job shortcuts that do not fit the " +
+            "rail's fixed row.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
         file: APPEARANCE_TARGET_FILE,
         surface:
             "The shared per-element 'Edit appearance...' context menu and its editor popover -- " +
@@ -403,6 +412,24 @@ const REGISTRY: readonly OverlayEntry[] = [
     {
         file: "components/config/ConfigSearchField.vue",
         surface: "The regex builder popover anchored to every settings search field.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/config/ConfigRegexBuilder.vue",
+        surface:
+            "The pattern-builder card itself -- the content ConfigSearchField.vue's real " +
+            "<v-menu> anchors, not a second overlay. Its own two doc comments quote the " +
+            "literal string <v-menu> in backtick-quoted prose describing where this " +
+            "card lives, which is exactly enough for this file's naive tag sweep (it reads " +
+            "raw text for '<' followed by a tag name, comments included) to mistake it for " +
+            "a real <v-menu> tag. There is none: no <v-menu>, <VMenu>, or v-bind spread of " +
+            "one appears anywhere in this file's <template>. Registered ownVMenu: true " +
+            "purely so the completeness check above (which trusts the same mechanical " +
+            "sweep) does not itself go stale the day either comment's wording changes; the " +
+            "scrollbar-gutter: stable fix applied to this card's popover container earlier " +
+            "in this lane changed its scrolling behaviour, never gave it a second overlay.",
         ownVMenu: true,
         wrapsAppearanceTarget: false,
         status: "clean",

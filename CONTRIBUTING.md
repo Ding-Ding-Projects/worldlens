@@ -29,7 +29,7 @@ There are two BlueMap checkouts and they do different jobs.
 thing to read when you need to know what BlueMap actually does. It is pinned at upstream commit
 `e664c1a`.
 
-`vendor/BlueMap-LangGui` is this project's fork, and it is **what the jars are built from** -
+`vendor/BlueMap-Material` is this project's fork, and it is **what the jars are built from** -
 by `tools/build-jars.mjs`, by `.github/workflows/build-jars.yml`, and by the render workflows.
 It is upstream's `v5.23` with one deliberate difference: the webapp's UI layer is rewritten to
 Material Design 3. The rendering engine itself is untouched. The jars embed the webapp, so

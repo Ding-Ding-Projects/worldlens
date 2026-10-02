@@ -169,6 +169,11 @@ const WIRED_PATH_FIELDS: readonly WiredField[] = [
             "Local destination folder for a world fetched from Docker (world.docker.destination)",
         needle: "world.docker.destination",
     },
+    {
+        file: "components/worlddownloader/WorldDownloaderScreen.vue",
+        describes: '"Save the world to" (worldDownloader.settings.outputFolder)',
+        needle: "worldDownloader.settings.outputFolder",
+    },
 ];
 
 describe("every path field the wiring pass reported still carries the browse affordance", () => {

@@ -22,6 +22,7 @@ import CloudRenderConfigWizard from "./CloudRenderConfigWizard.vue";
 import ciRenderScreenSource from "./CiRenderScreen.vue?raw";
 import type {
     Answer,
+    CiAttachableRun,
     CiBootstrapResult,
     CiPreflight,
     CiRenderBridge,
@@ -34,6 +35,7 @@ import type {
     CiSyncState,
     RouteReport,
 } from "./ciRenderBridge.js";
+import { createGhCliAccountsStore } from "../github/ghCliAccountsStore.js";
 import type { GhCliAccountReadout, GhCliBridge } from "../github/ghCliBridge.js";
 import type {
     MinecraftFolder,
@@ -347,16 +349,23 @@ async function selectOwner(wrapper: ReturnType<typeof mountScreen>, login: strin
 }
 
 /**
- * A scripted `GitHubBridge` behind the account picker: `list` answers with whichever account
- * is currently active, `setActive` really changes it (so a follow-up list reflects the
- * switch), and every call is recorded so a test can prove a switch actually reached the
- * bridge rather than only updating on-screen state.
+ * A scripted `GhCliBridge` behind the account picker: `ghCliListAccounts` answers with
+ * whichever account is currently active, `ghCliSwitchAccount` really changes it (so a
+ * follow-up list reflects the switch), and every call is recorded so a test can prove a
+ * switch actually reached the bridge rather than only updating on-screen state.
+ *
+ * The switch method has to be present for that proof to mean anything. Every `GhCliBridge`
+ * member is optional, so a bridge that left it out would make the store's `switchAccount`
+ * return false before recording anything, and an assertion that the picker "never switches
+ * the active account" could then never fail. The test named "gives the account picker a
+ * bridge that really can switch" below holds that capability in place.
  */
 function fakeAccountsBridge(
     accounts: readonly GhCliAccountReadout[],
     activeId: string | null,
 ): { bridge: GhCliBridge; calls: string[] } {
     const calls: string[] = [];
+    let active = activeId;
     return {
         calls,
         bridge: {
@@ -367,11 +376,24 @@ function fakeAccountsBridge(
                     version: "gh version 2.97.0",
                     accounts: accounts.map((account) => ({
                         ...account,
-                        active: account.id === activeId,
+                        active: account.id === active,
                     })),
                     source: "json",
                     capabilities: { structuredStatus: true },
                     message: "ready",
+                });
+            },
+            ghCliSwitchAccount: (host: string, login: string) => {
+                calls.push("switch");
+                const chosen = accounts.find((account) => account.login === login) ?? null;
+                if (chosen !== null) active = chosen.id;
+                return Promise.resolve({
+                    ok: chosen !== null,
+                    account: chosen === null ? null : { ...chosen, active: true },
+                    message:
+                        chosen === null
+                            ? `No ${login} account on ${host}`
+                            : `Switched ${host} to ${login}`,
                 });
             },
         },
@@ -1436,6 +1458,27 @@ describe("render as: which stored GitHub account this render authenticates as", 
         // proves Settings, downloads, backups and everything else kept reading whichever
         // account was already active - this picker only ever read the list, never wrote it.
         expect(accountCalls).toEqual(["list"]);
+    });
+
+    it("gives the account picker a bridge that really can switch, so the assertion above can fail", async () => {
+        // The assertion above is only worth anything while this bridge is capable of the
+        // thing it claims never happens. Every `GhCliBridge` member is optional, so a
+        // bridge without `ghCliSwitchAccount` makes the store refuse the switch before
+        // recording a call, and `["list"]` would then be true no matter what the screen did.
+        const { bridge, calls } = fakeAccountsBridge(
+            [ghAccount({ id: "a1", login: "octocat" }), ghAccount({ id: "a2", login: "monalisa" })],
+            "a1",
+        );
+        const store = createGhCliAccountsStore({ bridge });
+        expect(store.canSwitch).toBe(true);
+        await store.load();
+        expect(store.accounts.value.find((account) => account.active)?.login).toBe("octocat");
+
+        expect(await store.switchAccount("github.com", "monalisa")).toBe(true);
+        // Recorded, and the follow-up list really reflects the new active account, so a
+        // regression that switched from this screen would show up in the call log.
+        expect(calls).toEqual(["list", "switch", "list"]);
+        expect(store.accounts.value.find((account) => account.active)?.login).toBe("monalisa");
     });
 
     it("clears the owner field and a stale preflight report when a different account is chosen", async () => {
@@ -3011,5 +3054,388 @@ describe("a world nobody has set up yet", () => {
         expect(wrapper.find('[data-test="default-project-unavailable"]').text()).toContain(
             "desktop bridge",
         );
+    });
+});
+
+describe("fetching a render made elsewhere", () => {
+    function attachableRun(overrides: Partial<CiAttachableRun> = {}): CiAttachableRun {
+        return {
+            id: 42,
+            runNumber: 3,
+            htmlUrl: "https://github.test/runs/42",
+            conclusion: "success",
+            createdAt: "2026-08-04T10:00:00Z",
+            headSha: "abc123",
+            displayTitle: "Render world (minecraft:overworld)",
+            mapId: "world",
+            ...overrides,
+        };
+    }
+
+    it("offers no such section on a build missing either bridge method", () => {
+        const wrapper = mountScreen(fakeBridge(preflight()));
+        expect(wrapper.find('[data-test="attach-card"]').exists()).toBe(false);
+    });
+
+    it("lists a repository's completed runs and lets one be fetched", async () => {
+        const listCalls: { owner: string; repo: string }[] = [];
+        const attachCalls: unknown[] = [];
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: (request) => {
+                    listCalls.push({ owner: request.owner, repo: request.repo });
+                    return Promise.resolve({ ok: true, value: [attachableRun()] });
+                },
+                attachCiRun: (request) => {
+                    attachCalls.push(request);
+                    return Promise.resolve({
+                        ok: true,
+                        syncId: "s",
+                        outcome: "rendered",
+                        summary: {
+                            syncId: "s",
+                            repository: "o/r",
+                            releaseTag: null,
+                            assetName: null,
+                            runId: 42,
+                            runUrl: "https://github.test/runs/42",
+                            renderId: "ci-s",
+                            dataRoot: "/data",
+                            mapId: "world",
+                            mapName: "World",
+                            route: "gh",
+                            uploaded: false,
+                            artifactBytes: 10,
+                            artifactSha256: "a".repeat(64),
+                            verified: true,
+                        },
+                        durationMs: 10,
+                    });
+                },
+            }),
+        );
+
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="attach-card"]').exists()).toBe(true);
+
+        const listButton = wrapper.find('[data-test="attach-list"]');
+        await listButton.trigger("click");
+        await flushPromises();
+
+        expect(listCalls).toEqual([{ owner: "o", repo: "r" }]);
+        expect(wrapper.find('[data-test="attach-run"]').text()).toContain("world");
+
+        await wrapper.find('[data-test="attach-run-select"]').trigger("click");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-run-fetch"]').trigger("click");
+        await flushPromises();
+
+        expect(attachCalls).toEqual([
+            expect.objectContaining({ owner: "o", repo: "r", runId: 42, worldFolder: "/world" }),
+        ]);
+    });
+
+    /*
+     * `attach` reads the run's own title before this project's map - a render made
+     * elsewhere is a render of its own world, and forcing it under whichever map this
+     * project happens to have is exactly the bug that shipped. The card has to show
+     * which map it is actually about to register under before the person clicks fetch,
+     * and let them override it when the run's own title is missing or wrong.
+     */
+    it("shows the map id it will register, prefilled from the run's own title", async () => {
+        const attachCalls: unknown[] = [];
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () =>
+                    Promise.resolve({
+                        ok: true,
+                        value: [attachableRun({ id: 77, mapId: "fixture_10gb" })],
+                    }),
+                attachCiRun: (request) => {
+                    attachCalls.push(request);
+                    return Promise.resolve({
+                        ok: false,
+                        syncId: "nowhere",
+                        failure: {
+                            code: "invalid-run",
+                            message: "not used",
+                            detail: null,
+                            status: null,
+                            needsSignIn: false,
+                            needsEula: false,
+                            route: null,
+                            run: null,
+                            failingJob: null,
+                            logExcerpt: null,
+                        },
+                    });
+                },
+            }),
+        );
+
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-run-select"]').trigger("click");
+        await flushPromises();
+
+        // Selecting the run prefills the card with exactly the map id it parsed - never
+        // this project's own map, which the local project here calls "world".
+        const mapIdField = wrapper.find('[data-test="attach-map-id-field"] input');
+        expect((mapIdField.element as HTMLInputElement).value).toBe("fixture_10gb");
+
+        // A person can override the guess before fetching.
+        await mapIdField.setValue("fixture_10gb_corrected");
+        await wrapper.find('[data-test="attach-run-fetch"]').trigger("click");
+        await flushPromises();
+
+        expect(attachCalls).toEqual([
+            expect.objectContaining({
+                owner: "o",
+                repo: "r",
+                runId: 77,
+                mapId: "fixture_10gb_corrected",
+            }),
+        ]);
+    });
+
+    /*
+     * Every row in this list renders the same two captions, so with the run's identity
+     * living only in sibling spans, listing the controls gives one "Select" per finished
+     * run and nothing to tell them apart; and the chosen row was drawn differently
+     * without being marked differently, so which run is selected was carried by colour
+     * alone. Both are asserted here rather than left to the eye.
+     */
+    it("names the run in each row's controls and marks the chosen row", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () =>
+                    Promise.resolve({
+                        ok: true,
+                        value: [
+                            attachableRun({ id: 42, runNumber: 3, mapId: "overworld" }),
+                            attachableRun({
+                                id: 43,
+                                runNumber: 4,
+                                mapId: null,
+                                displayTitle: "Render the nether",
+                            }),
+                        ],
+                    }),
+                attachCiRun: () =>
+                    Promise.resolve({
+                        ok: false,
+                        syncId: "nowhere",
+                        failure: {
+                            code: "invalid-run",
+                            message: "not used",
+                            detail: null,
+                            status: null,
+                            needsSignIn: false,
+                            needsEula: false,
+                            route: null,
+                            run: null,
+                            failingJob: null,
+                            logExcerpt: null,
+                        },
+                    }),
+            }),
+        );
+
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+
+        // Each control says which run it acts on, including the run number: two finished
+        // runs of one map are otherwise the same sentence twice.
+        const selects = wrapper.findAll('[data-test="attach-run-select"]');
+        expect(selects).toHaveLength(2);
+        expect(selects.map((button) => button.attributes("aria-label"))).toEqual([
+            "Select overworld #3",
+            "Select Render the nether #4",
+        ]);
+        expect(
+            wrapper
+                .findAll('[data-test="attach-run-open"]')
+                .map((button) => button.attributes("aria-label")),
+        ).toEqual([
+            "Open run overworld #3 on GitHub",
+            "Open run Render the nether #4 on GitHub",
+        ]);
+
+        // Nothing is chosen yet, so no row claims to be the current one.
+        expect(selects.map((button) => button.attributes("aria-current"))).toEqual([
+            undefined,
+            undefined,
+        ]);
+
+        await selects[1]!.trigger("click");
+        await flushPromises();
+
+        expect(
+            wrapper
+                .findAll('[data-test="attach-run-select"]')
+                .map((button) => button.attributes("aria-current")),
+        ).toEqual([undefined, "true"]);
+    });
+
+    it("shows an honest empty state when the repository has no completed runs", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () => Promise.resolve({ ok: true, value: [] }),
+                attachCiRun: () =>
+                    Promise.resolve({
+                        ok: false,
+                        syncId: "nowhere",
+                        failure: {
+                            code: "invalid-run",
+                            message: "not used",
+                            detail: null,
+                            status: null,
+                            needsSignIn: false,
+                            needsEula: false,
+                            route: null,
+                            run: null,
+                            failingJob: null,
+                            logExcerpt: null,
+                        },
+                    }),
+            }),
+        );
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="attach-run"]').exists()).toBe(false);
+        expect(wrapper.find('[data-test="attach-empty"]').exists()).toBe(true);
+    });
+
+    it("reports a refusal from the selected credential rather than an empty list", async () => {
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () =>
+                    Promise.resolve({
+                        ok: false,
+                        message: "The selected GitHub CLI account cannot use the render workflow.",
+                    }),
+                attachCiRun: () =>
+                    Promise.resolve({
+                        ok: false,
+                        syncId: "nowhere",
+                        failure: {
+                            code: "invalid-run",
+                            message: "not used",
+                            detail: null,
+                            status: null,
+                            needsSignIn: false,
+                            needsEula: false,
+                            route: null,
+                            run: null,
+                            failingJob: null,
+                            logExcerpt: null,
+                        },
+                    }),
+            }),
+        );
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="attach-failure"]').text()).toContain(
+            "cannot use the render workflow",
+        );
+    });
+
+    /*
+     * The world a fetch registers into is chosen in a card further up the screen, and it
+     * starts empty on exactly the machine this card is for - one that has never seen the
+     * world the run was made from. So the button that refuses has to say what it is
+     * waiting for, the way every other disabled control on this screen does; the sentence
+     * above it speaks of "the world selected above" and would otherwise be describing a
+     * selection that was never made.
+     */
+    it("says why the fetch is dead while no world is chosen, and works once one is", async () => {
+        const attachCalls: unknown[] = [];
+        const wrapper = mountScreen(
+            fakeBridge(preflight(), [], {
+                listAttachableCiRuns: () =>
+                    Promise.resolve({ ok: true, value: [attachableRun()] }),
+                attachCiRun: (request) => {
+                    attachCalls.push(request);
+                    return Promise.resolve({
+                        ok: true,
+                        syncId: "s",
+                        outcome: "rendered",
+                        summary: {
+                            syncId: "s",
+                            repository: "o/r",
+                            releaseTag: null,
+                            assetName: null,
+                            runId: 42,
+                            runUrl: "https://github.test/runs/42",
+                            renderId: "ci-s",
+                            dataRoot: "/data",
+                            mapId: "world",
+                            mapName: "World",
+                            route: "gh",
+                            uploaded: false,
+                            artifactBytes: 10,
+                            artifactSha256: "a".repeat(64),
+                            verified: true,
+                        },
+                        durationMs: 10,
+                    });
+                },
+            }),
+        );
+
+        await selectOwner(wrapper, "o");
+        await wrapper.find('[data-test="repo-field"] input').setValue("r");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-list"]').trigger("click");
+        await flushPromises();
+        await wrapper.find('[data-test="attach-run-select"]').trigger("click");
+        await flushPromises();
+
+        const blocked = wrapper.find('[data-test="attach-run-fetch"]');
+        expect(blocked.attributes("disabled")).toBeDefined();
+        expect(wrapper.find('[data-test="attach-blocked"]').text()).toContain(
+            "Choose a world above",
+        );
+        expect(blocked.attributes("title")).toContain("Choose a world above");
+        expect(blocked.attributes("aria-label")).toContain("Choose a world above");
+
+        await wrapper.find('[data-test="world-field"] input').setValue("/world");
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="attach-blocked"]').exists()).toBe(false);
+        expect(
+            wrapper.find('[data-test="attach-run-fetch"]').attributes("disabled"),
+        ).toBeUndefined();
+
+        await wrapper.find('[data-test="attach-run-fetch"]').trigger("click");
+        await flushPromises();
+
+        expect(attachCalls).toEqual([
+            expect.objectContaining({ owner: "o", repo: "r", runId: 42, worldFolder: "/world" }),
+        ]);
     });
 });

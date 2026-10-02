@@ -145,6 +145,10 @@ export const dockerWorldSource: Article = {
             articleId: "ssh-world-sources",
             reason: "The explicitly remote world-source route, with target and host-key ownership.",
         },
+        {
+            articleId: "world-downloader",
+            reason: "The other input route with the identical \"fully built module, not yet wired\" shape this one shares.",
+        },
     ],
     sources: [
         { label: "docs/docker-world-source.md", href: DOCKER_WORLD_SOURCE_DOC_URL },

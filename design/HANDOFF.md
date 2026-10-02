@@ -1,5 +1,13 @@
 # Handoff
 
+## 2026-10-02: HTTP static files escape the web root and active streams can stall shutdown
+
+On main at `92bf5c8c7b286a74fa07baa70915c056970851bb`, deterministic loopback HTTP fixtures reproduced four findings from the 2026-09-04 audit on Windows with Node 24.19.0: encoded sibling traversal and an outside directory junction returned a synthetic outside-root marker; removing a file between stat and open crashed an isolated child on an unhandled `ReadStream` error; cancelling a large file response left its descriptor open; and `HttpServer.close()` stayed pending while an event stream remained open.
+
+`StaticHandler` now uses component-boundary and canonical real-path checks for files and directory indexes, rejects malformed and NUL paths, supports symlinked roots and internal links, and awaits `stream.pipeline()` so failed or cancelled responses close their source. `HttpServer.close()` calls `closeAllConnections()` after `server.close()` starts and before awaiting its callback. These checks trust the configured web tree against concurrent replacement while requests resolve; portable `realpath` checks do not prevent an attacker racing ancestor or link replacement.
+
+The opt-in original harness passed 6/6 after the fix. Permanent server coverage passed 101 tests across 9 files, with 1 skipped; the static HTTP regression file passed 17 checks with 1 Windows file-symlink skip because this host denied link creation. Server, site and full workspace builds passed, and full workspace typecheck passed across 20 packages after building generated dependencies. The CLI build skipped copying BlueMap web assets because the optional `vendor/BlueMap` submodule is not present. Focused lint passed; workspace lint reports 20 errors in unrelated files. `design/docs/deviations.md` records the HTTP differences from upstream. No live deployment, packaged app or remote CI was tested.
+
 ## 2026-09-03: local servers could never be created or started, and the map's UI is now Material Design 3
 
 Two independent strands. Everything below was verified by breaking it again and watching the
@@ -36,14 +44,14 @@ longer sticks around after inputs change.
 
 ### The published map now builds from this project's BlueMap fork
 
-`Ding-Ding-Projects/BlueMap`, branch `lang-gui`, based at upstream `v5.23` - the same tag
+`Ding-Ding-Projects/BlueMap`, branch `material-design-3`, based at upstream `v5.23` - the same tag
 `vendor/BlueMap` pins. Its `master` is a clean upstream mirror so a future release is a normal
 merge. The whole webapp UI layer is rewritten to Material Design 3: real system tokens, state
 layers instead of background swaps, M3 switch/slider/outlined-field anatomy, 48px targets,
 visible focus rings, elevation, and `prefers-reduced-motion` throughout.
 
 **The build now uses the fork.** `tools/build-jars.mjs`, `.github/workflows/build-jars.yml`,
-`render-world.yml` and `render-private-world.yml` all read `vendor/BlueMap-LangGui`. The path
+`render-world.yml` and `render-private-world.yml` all read `vendor/BlueMap-Material`. The path
 and repository are single exported constants (`BLUEMAP_SOURCE_PATH`,
 `BLUEMAP_SOURCE_REPOSITORY`) consumed by the packager's own validator, so a manifest written
 from one source and checked against another cannot pass. `CI_WORKFLOW_TEMPLATE_VERSION` is 3.
@@ -84,7 +92,7 @@ references, 25 focus rings, and zero surviving upstream colour literals. The sty
 `index-s8BtuYen.css`, the same name the local build produced, so the released bytes and the
 locally verified bytes are the same bytes.
 
-One thing to hold honestly: the jars are stamped `5.23-1` rather than the local `5.23-lang-gui-1`,
+One thing to hold honestly: the jars are stamped `5.23-1` rather than the local `5.23-material-1`,
 because CI checks the submodule out detached and upstream's `gitVersion()` has no branch name to
 append. Same commit, different label.
 

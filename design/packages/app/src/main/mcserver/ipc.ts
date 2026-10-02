@@ -12,10 +12,14 @@
  */
 
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import { readdir } from "node:fs/promises";
+import { generateWorld, generateMeasuredWorld, zipWorld, type MeasuredWorldProgress } from "@worldlens/worldgen";
+import { runLocalSyntheticGeneration } from "./worldgen/localGeneration.js";
 
-import type { IpcMain } from "electron";
+import type { IpcMain, WebContents } from "electron";
 
 import type { BackupRunnerOptions } from "../backup/runner.js";
 import type { BackupRestoreRunnerOptions } from "../backup/restore.js";
@@ -176,6 +180,9 @@ export const MCSERVER_CHANNELS = {
     awsAccounts: "mcserver:aws:accounts",
     awsAccountAlias: "mcserver:aws:accountAlias",
     awsCredits: "mcserver:aws:credits",
+    syntheticWorldGenerate: "mcserver:worldgen:synthetic",
+    syntheticWorldStatus: "mcserver:worldgen:status",
+    syntheticWorldCancel: "mcserver:worldgen:cancel",
     hostProfilesList: "mcserver:hostProfiles:list",
     hostProfileGet: "mcserver:hostProfiles:get",
     hostProfileSave: "mcserver:hostProfiles:save",
@@ -589,9 +596,7 @@ export function registerMcServerHandlers(
      * user with a dead server and a banner. Returns null only when Java genuinely cannot be
      * found, which the factory then reports honestly.
      */
-    async function resolveLocalRuntime(
-        record: ServerRecord,
-    ): Promise<LocalRuntimeRecord | null> {
+    async function resolveLocalRuntime(record: ServerRecord): Promise<LocalRuntimeRecord | null> {
         if (record.localRuntime !== null) return record.localRuntime;
         if (record.ref.kind !== "local-process") return null;
 
@@ -804,7 +809,87 @@ export function registerMcServerHandlers(
         };
     }
 
+    const syntheticJobs = new Map<number, { cancelled: boolean; progress: MeasuredWorldProgress }>();
+    const syntheticOwner = (event: unknown): number => (event as { sender: { id: number } }).sender.id;
     const handlers: Record<string, (...args: never[]) => Promise<unknown>> = {
+        [MCSERVER_CHANNELS.syntheticWorldStatus]: async (event: never) => ok(syntheticJobs.get(syntheticOwner(event))?.progress ?? null),
+        [MCSERVER_CHANNELS.syntheticWorldCancel]: async (event: never) => {
+            const job = syntheticJobs.get(syntheticOwner(event));
+            if (job) job.cancelled = true;
+            return ok({ cancelling: job !== undefined });
+        },
+        [MCSERVER_CHANNELS.syntheticWorldGenerate]: async (_event: never, request: unknown) => {
+            if (typeof request !== "object" || request === null) {
+                return fail("invalid-request", "The synthetic-world request could not be read.");
+            }
+            const body = request as Record<string, unknown>;
+            if (
+                typeof body.seed !== "number" || !Number.isSafeInteger(body.seed) ||
+                typeof body.size !== "number" || !Number.isSafeInteger(body.size) || body.size < 16 || body.size > 40_000 ||
+                typeof body.worldName !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(body.worldName) ||
+                typeof body.destination !== "string" || body.destination.trim() === "" ||
+                body.outputMode !== "folder" ||
+                (body.targetBytes !== undefined && (!Number.isSafeInteger(body.targetBytes) || typeof body.targetBytes !== "number" || body.targetBytes < 1 || body.targetBytes > 100_000_000_000)) ||
+                (body.resume !== undefined && typeof body.resume !== "boolean")
+            ) {
+                return fail("invalid-request", "The synthetic-world inputs are invalid.");
+            }
+            const destination = body.destination.trim();
+            if (typeof body.targetBytes === "number") {
+                const owner = syntheticOwner(_event);
+                const sender = (_event as { sender: Pick<WebContents, "id" | "on" | "removeListener" | "isDestroyed"> }).sender;
+                if (typeof sender.on !== "function" || typeof sender.removeListener !== "function" || typeof sender.isDestroyed !== "function" || sender.isDestroyed()) {
+                    return fail("invalid-owner", "Generation needs an active renderer with lifecycle tracking.");
+                }
+                if (syntheticJobs.has(owner)) return fail("busy", "A world generation is already running in this window.");
+                const job = { cancelled: false, progress: { bytes: 0, targetBytes: body.targetBytes, chunkCount: 0, regionCount: 0 } };
+                const cancelOwnedGeneration = () => { job.cancelled = true; };
+                const onNavigation = (_navigationEvent: unknown, _url: string, isInPlace: boolean, isMainFrame: boolean) => {
+                    if (isMainFrame && !isInPlace) cancelOwnedGeneration();
+                };
+                syntheticJobs.set(owner, job);
+                try {
+                    sender.on("destroyed", cancelOwnedGeneration);
+                    sender.on("render-process-gone", cancelOwnedGeneration);
+                    sender.on("did-start-navigation", onNavigation);
+                    const result = await generateMeasuredWorld({ seed: body.seed, name: body.worldName, outDir: destination, targetBytes: body.targetBytes,
+                        resume: body.resume === true, isCancelled: () => job.cancelled,
+                        onProgress: (progress) => { job.progress = progress; } });
+                    return ok({ ...result, zipPath: null });
+                } catch (error) {
+                    return fail("generation-failed", error instanceof Error ? error.message : String(error));
+                } finally {
+                    sender.removeListener("destroyed", cancelOwnedGeneration);
+                    sender.removeListener("render-process-gone", cancelOwnedGeneration);
+                    sender.removeListener("did-start-navigation", onNavigation);
+                    syntheticJobs.delete(owner);
+                }
+            }
+            const plannedWorld = join(destination, body.worldName);
+            if (existsSync(plannedWorld)) {
+                return fail("destination-exists", "The chosen world folder already exists. Choose a new empty destination or world name.");
+            }
+            const outcome = await runLocalSyntheticGeneration(
+                { seed: body.seed, size: body.size, worldName: body.worldName, destination, outputMode: "folder" },
+                {
+                    generateWorld,
+                    // The deps contract hands over a folder; worldgen's zipWorld wants the
+                    // record it produced. Rebuilt from the folder here rather than widening
+                    // the contract to carry a type only one implementation needs.
+                    zipWorld: async (world, zipPath) => {
+                        const regionDir = join(world.worldFolder, "region");
+                        const regionFiles = existsSync(regionDir)
+                            ? (await readdir(regionDir)).filter((name) => name.endsWith(".mca"))
+                            : [];
+                        return zipWorld(
+                            { ...world, name: basename(world.worldFolder), regionFiles } as Parameters<typeof zipWorld>[0],
+                            zipPath,
+                        );
+                    },
+                },
+            );
+            return outcome.ok ? ok(outcome.value) : fail(outcome.code, outcome.message);
+        },
         [MCSERVER_CHANNELS.list]: async () => registry.list(),
 
         [MCSERVER_CHANNELS.hostProfilesList]: async () => hostProfiles.list(),
@@ -1565,7 +1650,7 @@ export function registerMcServerHandlers(
             if (!isRecordId(body.id) || typeof body.name !== "string" || body.name.trim() === "") {
                 return fail("invalid-request", "A server needs a valid name to be created.");
             }
-            if (!isFlavourId(body.flavour)) {
+            if (!isFlavourId(body.flavour) && body.flavour !== "spigot") {
                 return fail("invalid-request", "That is not a server flavour this app supports.");
             }
             if (typeof body.version !== "string" || body.version.length === 0) {
@@ -1574,8 +1659,20 @@ export function registerMcServerHandlers(
             if (typeof body.memoryMb !== "number") {
                 return fail("invalid-request", "A server needs a memory limit to be created.");
             }
+            if (
+                body.port !== undefined &&
+                (typeof body.port !== "number" ||
+                    !Number.isInteger(body.port) ||
+                    body.port < 1 ||
+                    body.port > 65_535)
+            ) {
+                return fail(
+                    "invalid-request",
+                    "A server port must be a whole number from 1 to 65535.",
+                );
+            }
             const runtime = readCreateRuntimeKind(body);
-            if (runtime === "local-docker") {
+            if (runtime === "local-docker" || runtime === "ssh-docker") {
                 if (typeof body.dockerPlan !== "object" || body.dockerPlan === null)
                     return fail(
                         "invalid-request",
@@ -1606,12 +1703,49 @@ export function registerMcServerHandlers(
                         "invalid-request",
                         "The local Docker plan contains an invalid port entry.",
                     );
+                let ssh: Parameters<typeof createLocalDockerServer>[0]["ssh"];
+                let docker = options.docker;
+                if (runtime === "ssh-docker") {
+                    const ref = body.transport as Record<string, unknown> | undefined;
+                    if (typeof ref?.hostId !== "string")
+                        return fail("invalid-request", "Choose a saved SSH host profile.");
+                    const profile = await hostProfiles.get(ref.hostId);
+                    if (!profile.ok) return profile;
+                    const connection = hostProfiles.sshHost(ref.hostId);
+                    if (connection === null)
+                        return fail("not-found", "The saved SSH connection is unavailable.");
+                    if (plan.image !== profile.value.target.image)
+                        return fail(
+                            "invalid-request",
+                            "The image no longer matches the saved SSH profile. Reload the profile before creating.",
+                        );
+                    const root = profile.value.target.workDir;
+                    if (!root.startsWith("/") || root === "/" || root.split("/").includes(".."))
+                        return fail(
+                            "invalid-request",
+                            "The SSH profile needs an absolute dedicated server parent folder.",
+                        );
+                    ssh = {
+                        hostId: ref.hostId,
+                        connection,
+                        hostDirectory: `${root.replace(/\/$/, "")}/worldlens-server-${body.id}-${randomBytes(8).toString("hex")}`,
+                    };
+                    docker = profile.value.target.docker;
+                }
                 return createLocalDockerServer({
                     id: body.id,
                     name: body.name,
                     flavour: body.flavour,
                     version: body.version,
                     memoryMb: body.memoryMb,
+                    ...(typeof body.port === "number" ? { port: body.port } : {}),
+                    ...(typeof body.loaderVersion === "string"
+                        ? { loaderVersion: body.loaderVersion }
+                        : {}),
+                    ...(typeof body.gameVersion === "string"
+                        ? { gameVersion: body.gameVersion }
+                        : {}),
+                    ...(ssh === undefined ? {} : { ssh }),
                     acceptedEula: body.acceptedEula === true,
                     serversRoot,
                     registry,
@@ -1626,7 +1760,7 @@ export function registerMcServerHandlers(
                         ...(options.factory?.runner === undefined
                             ? {}
                             : { runner: options.factory.runner }),
-                        ...(options.docker === undefined ? {} : { docker: options.docker }),
+                        ...(docker === undefined ? {} : { docker }),
                     },
                     ...(options.now === undefined ? {} : { now: options.now }),
                 });
@@ -1642,11 +1776,13 @@ export function registerMcServerHandlers(
                     `A ${runtime} server cannot be created here. Create it from its own screen instead.`,
                 );
             const createOptions: CreateLocalServerOptions = {
+                ...(typeof body.gameVersion === "string" ? { gameVersion: body.gameVersion } : {}),
                 id: body.id,
                 name: body.name,
                 flavour: body.flavour,
                 version: body.version,
                 memoryMb: body.memoryMb,
+                ...(typeof body.port === "number" ? { port: body.port } : {}),
                 acceptedEula: body.acceptedEula === true,
                 dataDir: options.dataFolder,
                 serversRoot,
@@ -1990,7 +2126,7 @@ export function registerMcServerHandlers(
                 hasRconSecret: rconRaw !== null,
                 rconPort: rconRaw === null ? null : (rconPort as number),
                 writeScope,
-                    localRuntime: null,
+                localRuntime: null,
             };
             const removeServerIfOwned = async (): Promise<void> => {
                 const current = await registry.get(serverRecord.id);
