@@ -26,14 +26,20 @@
 // truncating (see `.wl-rail-label--compact`) and a personal-vocabulary replacement is free to be
 // longer than the shipped short label. Three wrapped lines at 11px/1.25 plus the row's own 8px
 // of block padding is ~50px, so 52 is a row that has grown as far as any plausible replacement
-// takes it, plus the 2px gap. Budgeting the grown row rather than the shipped one is what keeps
-// the four destinations from being pushed out of view by a longer word.
+// takes it, plus the 2px gap. This is an initial estimate, never an upper bound: AppRail.vue
+// raises it from actual rendered rows when a longer label needs more space.
 export const RAIL_SHORTCUT_ITEM_PX = 52;
 export const RAIL_MORE_BUTTON_PX = 50;
 /** `.wl-rail__shortcuts`'s own margin-block-start (8) + padding-block-start (8) + its 1px
  *  top border - the fixed cost of the divider between destinations and shortcuts, spent once
  *  whenever at least one shortcut renders at all. */
 export const RAIL_SHORTCUTS_DIVIDER_PX = 17;
+
+/** Actual available rail height, in CSS pixels after window chrome and browser zoom. */
+export const RAIL_COMPACT_MAX_BLOCK_SIZE = 520;
+export function isCompactRail(blockSize: number): boolean {
+    return Number.isFinite(blockSize) && blockSize > 0 && blockSize <= RAIL_COMPACT_MAX_BLOCK_SIZE;
+}
 
 export interface RailOverflowInput {
     /** The rail's total available block size (its own `clientHeight`, in px). */
@@ -42,7 +48,7 @@ export interface RailOverflowInput {
     readonly destinationsBlockSize: number;
     /** Real measured height of the footer's three action buttons, including gaps/padding. */
     readonly footerBlockSize: number;
-    /** Fixed height of one compact, single-line shortcut row (icon + short label). */
+    /** Conservative measured height of a shortcut row, including the inter-item gap. */
     readonly shortcutItemBlockSize: number;
     /** Height of the "More" button itself, spent only when not every shortcut fits. */
     readonly moreButtonBlockSize: number;
@@ -59,17 +65,27 @@ export interface RailOverflowResult {
 }
 
 export function computeRailShortcutSplit(input: RailOverflowInput): RailOverflowResult {
+    const shortcutCount = Number.isFinite(input.shortcutCount)
+        ? Math.max(0, Math.trunc(input.shortcutCount))
+        : 0;
+    if (shortcutCount === 0) {
+        return { visibleCount: 0, overflowCount: 0, showMore: false };
+    }
+    // Unknown geometry must not turn into NaN slice bounds or silently remove the only route.
+    if (![
+        input.availableBlockSize,
+        input.destinationsBlockSize,
+        input.footerBlockSize,
+        input.shortcutItemBlockSize,
+        input.moreButtonBlockSize,
+    ].every(Number.isFinite)) {
+        return { visibleCount: 0, overflowCount: shortcutCount, showMore: true };
+    }
     const budget = Math.max(
         0,
         input.availableBlockSize - input.destinationsBlockSize - input.footerBlockSize,
     );
     const itemSize = Math.max(1, input.shortcutItemBlockSize);
-    const shortcutCount = Math.max(0, Math.trunc(input.shortcutCount));
-
-    if (shortcutCount === 0) {
-        return { visibleCount: 0, overflowCount: 0, showMore: false };
-    }
-
     const fitsEverything = Math.floor(budget / itemSize);
     if (fitsEverything >= shortcutCount) {
         return { visibleCount: shortcutCount, overflowCount: 0, showMore: false };

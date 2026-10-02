@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiBellOutline,
@@ -17,16 +17,18 @@ import { createSettingMatcher } from "../config/regexEngine.js";
 import type { RailDestination } from "./featureTargets.js";
 import {
     computeRailShortcutSplit,
+    isCompactRail,
     RAIL_MORE_BUTTON_PX,
     RAIL_SHORTCUT_ITEM_PX,
     RAIL_SHORTCUTS_DIVIDER_PX,
 } from "./railOverflow.js";
 import { nonNegativeInteger } from "./shellNumbers.js";
+import { restoreRailMenuFocus } from "./railMenuFocus.js";
 
 /**
  * The four core destinations, plus direct-open shortcuts to a handful of frequently reached
- * jobs, and the three footer actions - on an 80 px column that is on screen no matter what the
- * person is doing.
+ * jobs, and the three footer actions. The ordinary rail is 80 px wide; a short rail uses a
+ * 192 px grid, keeping labels, targets and the overflow route reachable without a taller window.
  *
  * ### Four destinations, not four items
  *
@@ -49,7 +51,7 @@ import { nonNegativeInteger } from "./shellNumbers.js";
  *
  * ### It emits, and owns nothing
  *
- * No overlay state, no job list, no store. The rail says "Work was pressed" or "open this job"
+ * No application overlay state, job ownership or store. The rail says "Work was pressed" or "open this job"
  * and the shell decides what that means, exactly as `App.vue` already makes the command palette
  * work. A rail that opened the settings drawer itself would be a second place that knows how
  * settings opens, and the two would drift.
@@ -199,41 +201,27 @@ const unreadLabel = computed(() =>
 );
 
 /**
- * Real measured heights driving `computeRailShortcutSplit`, so the four destinations can never
- * be pushed out of view by however many shortcuts happen to be configured.
- *
- * Regression: v2-08-rail-7-jobs-1280x800-dark.png showed the whole rail as one scrolling column
- * with the destinations scrolled out of the visible area and every shortcut label wrapping
- * three to five lines inside the 80px column. The fix has two parts - compact, single-line
- * shortcut rows (see `.wl-rail-label--compact` below) so each one is a fixed, small height
- * rather than an unbounded multi-line one, and this measurement so the exact number that fits
- * is computed from the real rendered rail rather than assumed.
- *
- * `ResizeObserver` is guarded because jsdom (this suite's unit-test environment) does not
- * implement it by default; every mounted test either stubs it or never receives a resize
- * callback, so `shortcutSplit` below falls back to "show everything" until the first real
- * measurement lands - the same safe default a server-rendered or not-yet-painted rail needs.
+ * Measure real content, including translated labels, rather than treating an estimated row
+ * height as a maximum. Until layout is available, retain the ordinary unmeasured fallback.
+ * The short-height layout uses a separate destination scroller and a pinned utility row.
  */
 const railEl = ref<HTMLElement | null>(null);
 const destinationsEl = ref<HTMLElement | null>(null);
 const footerEl = ref<HTMLElement | null>(null);
+const shortcutsEl = ref<HTMLElement | null>(null);
 const measuredAvailable = ref<number | null>(null);
 const measuredDestinations = ref<number | null>(null);
 const measuredFooter = ref<number | null>(null);
+const measuredShortcutItem = ref(RAIL_SHORTCUT_ITEM_PX);
+const measuredMoreButton = ref(RAIL_MORE_BUTTON_PX);
+const compactRail = computed(() => isCompactRail(measuredAvailable.value ?? 0));
 
 let railObserver: ResizeObserver | null = null;
 
 /**
- * `destinationsEl`'s and `footerEl`'s own `getBoundingClientRect().height` were the first cut
- * here, and a real running build (not jsdom) proved them wrong by a consistent 46px at both
- * 800px and 600px window heights - `.wl-rail`'s own 26px of top/bottom padding, plus the
- * shortcuts divider's 17px of margin/padding/border, sit between those two elements and the
- * rail's edges, and neither element's own height includes space it does not occupy. Measuring
- * the *distance from the rail's edges* instead - `destinationsRect.bottom - railRect.top` and
- * `railRect.bottom - footerRect.top` - folds the rail's own padding into the number
- * automatically, because that padding is exactly the gap between the rail's edge and the first
- * child's edge. The divider is still a fixed, separately-known cost (`RAIL_SHORTCUTS_DIVIDER_PX`),
- * spent only when at least one shortcut is going to render at all.
+ * Measure the footer's height, never its position: overflow can move its top below the rail.
+ * clientHeight includes rail padding, so reserve its bottom padding explicitly. A scrolled
+ * destination rect needs scrollTop added back or scrolling would create imaginary free space.
  */
 function measureRail(): void {
     const rail = railEl.value;
@@ -248,28 +236,55 @@ function measureRail(): void {
     const railRect = rail.getBoundingClientRect();
     const destinationsRect = destinations.getBoundingClientRect();
 
-    // The footer's own HEIGHT, never its position. `.wl-rail__footer`'s `margin-block-start:
-    // auto` only pushes it flush against the rail's bottom edge when there is room left to push
-    // it there - the moment shortcuts overflow, the footer is wherever the overflow left it, and
-    // `railRect.bottom - footerRect.top` stops meaning "the footer's height" and starts meaning
-    // garbage (it went negative in the exact case this function exists to prevent). Real bug,
-    // found only by measuring a real running build: this function decided "everything fits"
-    // once, before the footer had anywhere honest left to be, and stayed wrong forever after -
-    // the fixed point of using a rendered result to justify the render that produced it.
-    measuredDestinations.value = destinationsRect.bottom - railRect.top;
+    const style = getComputedStyle(rail);
+    const bottomPadding = Math.max(0, Number.parseFloat(style.paddingBlockEnd) || 0);
     measuredAvailable.value = rail.clientHeight;
+    measuredDestinations.value = destinationsRect.bottom - railRect.top + rail.scrollTop;
     measuredFooter.value =
         footer.getBoundingClientRect().height +
+        bottomPadding +
         ((props.jobShortcuts ?? []).length > 0 ? RAIL_SHORTCUTS_DIVIDER_PX : 0);
+
+    // Keep a conservative high-water mark. Forgetting a tall row when it folds into More
+    // would immediately make it fit again, causing an endless resize/render oscillation.
+    for (const row of shortcutsEl.value?.querySelectorAll<HTMLElement>("[data-job-shortcut]") ?? []) {
+        measuredShortcutItem.value = Math.max(
+            measuredShortcutItem.value,
+            row.getBoundingClientRect().height + 2,
+        );
+    }
+    if (moreButtonRef.value !== null) {
+        measuredMoreButton.value = Math.max(
+            measuredMoreButton.value,
+            moreButtonRef.value.getBoundingClientRect().height + 2,
+        );
+    }
 }
 
 onMounted(() => {
     measureRail();
     if (typeof ResizeObserver !== "undefined" && railEl.value !== null) {
         railObserver = new ResizeObserver(() => measureRail());
-        railObserver.observe(railEl.value);
+        for (const element of [railEl.value, destinationsEl.value, footerEl.value, shortcutsEl.value]) {
+            if (element !== null) railObserver.observe(element);
+        }
     }
 });
+
+// The list can mount or disappear without changing the outer rail's height.
+watch(
+    shortcutsEl,
+    (element, previous) => {
+        if (previous !== null) railObserver?.unobserve(previous);
+        if (element !== null) railObserver?.observe(element);
+        measureRail();
+    },
+    { flush: "post" },
+);
+watch(
+    () => props.jobShortcuts.length,
+    () => { void nextTick(measureRail); },
+);
 
 onBeforeUnmount(() => {
     railObserver?.disconnect();
@@ -278,6 +293,9 @@ onBeforeUnmount(() => {
 
 const shortcutSplit = computed(() => {
     const shortcuts = props.jobShortcuts ?? [];
+    if (compactRail.value) {
+        return { visibleCount: 0, overflowCount: shortcuts.length, showMore: shortcuts.length > 0 };
+    }
     if (
         measuredAvailable.value === null ||
         measuredDestinations.value === null ||
@@ -289,8 +307,8 @@ const shortcutSplit = computed(() => {
         availableBlockSize: measuredAvailable.value,
         destinationsBlockSize: measuredDestinations.value,
         footerBlockSize: measuredFooter.value,
-        shortcutItemBlockSize: RAIL_SHORTCUT_ITEM_PX,
-        moreButtonBlockSize: RAIL_MORE_BUTTON_PX,
+        shortcutItemBlockSize: measuredShortcutItem.value,
+        moreButtonBlockSize: measuredMoreButton.value,
         shortcutCount: shortcuts.length,
     });
 });
@@ -313,6 +331,7 @@ const moreQuery = ref("");
 const moreRegex = ref(false);
 const moreFlags = ref("i");
 const moreButtonRef = ref<HTMLElement | null>(null);
+const moreMenuRef = ref<HTMLElement | null>(null);
 
 const filteredOverflow = computed(() => {
     const matcher = createSettingMatcher(moreQuery.value, moreRegex.value, moreFlags.value);
@@ -325,15 +344,25 @@ function selectFromMore(jobId: string): void {
     moreOpen.value = false;
 }
 
-function onMoreMenuChange(open: boolean): void {
-    if (open) return;
+// Observe the state itself: selection and the activator toggle do not emit VMenu's update
+// event. Capture focus before teardown, then respect any focus moved into the newly opened job.
+watch(moreOpen, (open, wasOpen) => {
+    if (open || !wasOpen) return;
     moreQuery.value = "";
-    // Vuetify's own activator-focus-return is not guaranteed across every close path (Escape,
-    // an outside click, a selection): returning focus explicitly is what actually keeps the
-    // "More" button reachable by keyboard immediately after closing, rather than dropping focus
-    // to the document body.
-    void nextTick(() => moreButtonRef.value?.focus());
-}
+    const menu = moreMenuRef.value;
+    const active = railEl.value?.ownerDocument.activeElement ?? null;
+    void nextTick(() => {
+        if (moreOpen.value) return;
+        const target =
+            moreButtonRef.value ??
+            railEl.value?.querySelector<HTMLElement>("[aria-current='page']") ??
+            null;
+        restoreRailMenuFocus(menu, target, active);
+    });
+});
+watch(() => shortcutSplit.value.showMore, (show) => {
+    if (!show) moreOpen.value = false;
+});
 </script>
 
 <template>
@@ -345,6 +374,7 @@ function onMoreMenuChange(open: boolean): void {
     <nav
         ref="railEl"
         class="wl-rail"
+        :class="{ 'wl-rail--short': compactRail }"
         :aria-label="t('rail.label', { product: productName }, '{product} navigation')"
     >
         <!--
@@ -355,7 +385,7 @@ function onMoreMenuChange(open: boolean): void {
             so the two namespaces cannot collide, and `tutorialAnchors.test.ts` is what proves
             every step still resolves the control it names.
         -->
-        <ul ref="destinationsEl" class="wl-rail__items">
+        <ul ref="destinationsEl" class="wl-rail__items wl-rail__destinations">
             <li v-for="item in items" :key="item.id">
                 <button
                     type="button"
@@ -396,7 +426,11 @@ function onMoreMenuChange(open: boolean): void {
             one does (`openJob`, not `select`), and that none of them is ever "active" the way a
             destination is, because the rail does not track which job is on top in Work.
         -->
-        <ul v-if="visibleShortcuts.length > 0" class="wl-rail__items wl-rail__shortcuts">
+        <ul
+            v-if="visibleShortcuts.length > 0 || shortcutSplit.showMore"
+            ref="shortcutsEl"
+            class="wl-rail__items wl-rail__shortcuts"
+        >
             <li v-for="item in visibleShortcuts" :key="item.id">
                 <button
                     type="button"
@@ -410,8 +444,8 @@ function onMoreMenuChange(open: boolean): void {
                         <v-icon :icon="item.icon" size="18" />
                     </span>
                     <!--
-                        The visible label is the short form and stays on one line - the
-                        regression this fixes was a bilingual label ("Get a world off a server
+                        The visible label uses the short form and may wrap when customized.
+                        The original regression was a bilingual label ("Get a world off a server
                         由伺服器攞返個世界") wrapping five lines inside an 80px column. The full
                         form is never lost: it is the button's own accessible name above, and a
                         tooltip repeats it for a sighted pointer user who wants the long version.
@@ -461,9 +495,9 @@ function onMoreMenuChange(open: boolean): void {
                     :target="moreButtonRef ?? undefined"
                     location="end"
                     :close-on-content-click="false"
-                    @update:model-value="onMoreMenuChange"
                 >
                     <div
+                        ref="moreMenuRef"
                         class="wl-rail-more-menu"
                         role="menu"
                         :aria-label="t('rail.moreShortcuts.title', 'More shortcuts')"
@@ -577,9 +611,8 @@ function onMoreMenuChange(open: boolean): void {
 
 <style scoped>
 /*
- * 80 px at every supported width, including 800. It is a fixed column rather than a flexible one
- * on purpose: a rail that shrank on a narrow window would clip its own labels, and the labels are
- * the reason it is 80 rather than 56.
+ * The normal rail keeps its 80 px width. Short heights switch to the grid below rather
+ * than shrinking targets or cutting labels to make an overfull column appear to fit.
  */
 .wl-rail {
     display: flex;
@@ -587,6 +620,7 @@ function onMoreMenuChange(open: boolean): void {
     inline-size: 80px;
     min-inline-size: 80px;
     flex: 0 0 80px;
+    min-block-size: 0;
     /* The prototype prints 14/12 and a 2px gap, and the difference from a symmetric 12 is
      * visible: the first pill sits one notch lower than the title bar bottom edge. */
     padding: 14px 0 12px;
@@ -686,18 +720,17 @@ function onMoreMenuChange(open: boolean): void {
     text-align: center;
     inline-size: 100%;
     overflow-wrap: anywhere;
-    /* Two lines, never more. A bilingual destination label wraps once and stops; the shortcuts
-     * below skip wrapping entirely (see `--compact`) rather than needing this clamp at all. */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    /* A translated or personalized name is content, not a two-line decoration. */
+    display: block;
+    min-inline-size: 0;
+    white-space: normal;
+    overflow: visible;
 }
 
 /*
- * A shortcut row: icon beside a single-line label rather than icon-over-wrapped-label, and a
- * fixed 48px height (`RAIL_SHORTCUT_ITEM_PX` in railOverflow.ts - the two must agree, because
- * the overflow arithmetic assumes every shortcut costs exactly this many pixels). The full
+ * A shortcut row: icon beside a wrapping short label, with a 48px minimum rather than a
+ * fixed height. The overflow arithmetic starts with `RAIL_SHORTCUT_ITEM_PX` and increases
+ * that budget from actual rows when custom text needs more space. The full
  * bilingual name never disappears - it is the button's `aria-label` and its tooltip - this is
  * only the on-screen text, which regression v2-08 showed wrapping five lines when it was the
  * long form.
@@ -748,7 +781,7 @@ function onMoreMenuChange(open: boolean): void {
  * controls. Nothing here clamps a line count either - a clamp is still clipping, just tidier -
  * so a long replacement costs a second line rather than a lost word. Two wrapped lines are
  * 28px of text, which still fits inside the row's own 48px minimum; a longer one grows the row,
- * and `RAIL_SHORTCUT_ITEM_PX` carries the budget for that growth.
+ * and the measured row high-water mark carries the budget for that growth.
  */
 .wl-rail-label--compact {
     text-align: start;
@@ -759,9 +792,7 @@ function onMoreMenuChange(open: boolean): void {
     inline-size: auto;
     min-inline-size: 0;
     flex: 1 1 auto;
-    /* Overrides the two-line clamp inherited from `.wl-rail-label` above. */
     display: block;
-    -webkit-line-clamp: unset;
 }
 
 /*
@@ -774,9 +805,15 @@ function onMoreMenuChange(open: boolean): void {
     flex-direction: column;
     gap: 8px;
     padding: 8px;
-    min-inline-size: 240px;
-    max-inline-size: 320px;
-    max-block-size: 360px;
+    box-sizing: border-box;
+    inline-size: min(320px, calc(100dvw - 16px));
+    min-inline-size: 0;
+    max-inline-size: min(320px, calc(100dvw - 16px));
+    min-block-size: 0;
+    max-block-size: min(360px, calc(100dvh - 16px));
+    overflow-y: auto;
+    overflow-x: hidden;
+    overflow-wrap: anywhere;
     background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
     border-radius: var(--md-sys-shape-corner-medium, 12px);
 }
@@ -788,6 +825,8 @@ function onMoreMenuChange(open: boolean): void {
     display: flex;
     flex-direction: column;
     gap: 2px;
+    min-inline-size: 0;
+    min-block-size: 44px;
     overflow-y: auto;
 }
 
@@ -804,6 +843,16 @@ function onMoreMenuChange(open: boolean): void {
     color: rgb(var(--v-theme-on-surface));
     text-align: start;
     cursor: pointer;
+}
+
+.wl-rail-more-menu__item > span {
+    min-inline-size: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.wl-rail-more-menu__item > :deep(.v-icon) {
+    flex: 0 0 auto;
 }
 
 .wl-rail-more-menu__item:hover {
@@ -887,9 +936,100 @@ function onMoreMenuChange(open: boolean): void {
 
 /* Visible focus in all three themes, using the existing focus role rather than a new colour. */
 .wl-rail-item:focus-visible,
-.wl-rail-action:focus-visible {
+.wl-rail-action:focus-visible,
+.wl-rail-more-menu__item:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 2px;
+}
+
+/*
+ * Short-height grid: four labelled destinations above one pinned utility row. More occupies
+ * its own 48 px column beside three 44 px footer actions. Only the destination area scrolls
+ * at extreme logical heights; shortcuts never evict More or the footer from that row.
+ */
+.wl-rail--short {
+    display: grid;
+    inline-size: 192px;
+    min-inline-size: 192px;
+    flex-basis: 192px;
+    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-rows: minmax(44px, 1fr) auto;
+    gap: 4px 0;
+    padding-block: 4px;
+}
+
+.wl-rail--short .wl-rail__destinations {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-content: start;
+    min-block-size: 0;
+    overflow-y: auto;
+    scrollbar-gutter: stable;
+}
+
+.wl-rail--short .wl-rail__destinations .wl-rail-item {
+    flex-direction: row;
+    min-block-size: 44px;
+    gap: 4px;
+    padding-inline: 4px;
+    text-align: start;
+}
+
+.wl-rail--short .wl-rail__destinations .wl-rail-pill {
+    inline-size: 24px;
+    block-size: 32px;
+    flex: 0 0 24px;
+}
+
+.wl-rail--short .wl-rail__destinations .wl-rail-label {
+    text-align: start;
+    flex: 1 1 auto;
+}
+
+.wl-rail--short .wl-rail__shortcuts {
+    grid-column: 1;
+    grid-row: 2;
+    margin-block-start: 0;
+    padding-block-start: 0;
+    border-block-start: 0;
+}
+
+.wl-rail--short .wl-rail__shortcuts .wl-rail-item {
+    flex-direction: column;
+    justify-content: center;
+    min-block-size: 44px;
+    gap: 2px;
+}
+
+.wl-rail--short .wl-rail__shortcuts .wl-rail-label {
+    text-align: center;
+    flex: 0 1 auto;
+}
+
+.wl-rail--short .wl-rail__footer {
+    grid-column: 2;
+    grid-row: 2;
+    flex-direction: row;
+    justify-content: space-evenly;
+    margin-block-start: 0;
+    padding-block-start: 0;
+}
+
+.wl-rail--short .wl-rail-action {
+    inline-size: 44px;
+    min-inline-size: 44px;
+    block-size: 44px;
+    flex: 0 0 44px;
+}
+
+/* App.vue's detached world host is outside the flex body. Its ordinary 80 px inset must
+ * follow the actual compact rail too; other overlays anchor directly to their own controls.
+ * Only an existing compact rail activates this rule, not a map-only or child-mode shell.
+ */
+:global(:root:has(.wl-rail--short) .mb-world-host--beside-rail) {
+    inset-inline-start: 192px;
 }
 
 /* This stays last so every transition introduced by the rail is covered. */
