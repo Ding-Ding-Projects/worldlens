@@ -166,9 +166,9 @@
     },
     {
       "id": "site-compact-proof",
-      "authority": "design/packages/site/scripts/compact-proof.mjs",
-      "command": "Build and serve @worldlens/site on a loopback CDP-enabled Chromium target, then run compact-proof.mjs once per docs/runtime-proof scenario with PAGES_PROOF_SCREENSHOT set to the paired PNG path.",
-      "reproducibility": "current-build-loopback",
+      "authority": "Historical site sources and capture scripts at each target's sourceCommits entry; runtimeProofs explicitly maps the archived scenario reports.",
+      "command": "Check out each target's sourceCommits entry, build and serve that historical site on loopback, launch the browser through cheap Lowlevel on a named hidden desktop, require exactly one expected CDP page, drive the viewport and scenario named in runtimeProofs, and capture the paired PNG. Use the historical compact-proof.mjs interface where available; early commits require a separate CDP screenshot after the scenario because they do not implement PAGES_PROOF_SCREENSHOT. The current schema-v3 matrix command does not reproduce these archived states.",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
       "expectedCount": 14,
       "targets": [
         "docs/screenshots/pages-parity-360x640-collapsed.png",
@@ -187,7 +187,47 @@
         "docs/screenshots/pages-parity-tabs-390x844-english.png"
       ],
       "capturedFromInterfaceSource": false,
-      "notGradedBecause": "produced from design/packages/site, which is a different package with its own sources; design/packages/ui/src does not decide what the documentation site looks like"
+      "notGradedBecause": "Historical site captures from the per-target sourceCommits; neither the current site runtime nor design/packages/ui/src produced these pixels.",
+      "sourceCommits": {
+        "docs/screenshots/pages-parity-360x640-collapsed.png": "11a5c2131099eefa1773e153c4c0be974d23a33a",
+        "docs/screenshots/pages-parity-390x844-bilingual-2x-expanded.png": "11a5c2131099eefa1773e153c4c0be974d23a33a",
+        "docs/screenshots/pages-parity-390x844-bilingual-2x.png": "11a5c2131099eefa1773e153c4c0be974d23a33a",
+        "docs/screenshots/pages-parity-390x844-collapsed.png": "11a5c2131099eefa1773e153c4c0be974d23a33a",
+        "docs/screenshots/pages-parity-414x896-collapsed.png": "11a5c2131099eefa1773e153c4c0be974d23a33a",
+        "docs/screenshots/pages-parity-appearance-414x844-bilingual.png": "82139b484903d81997e11306292983dbd55a608f",
+        "docs/screenshots/pages-parity-changelog-414x844-bilingual.png": "10c8881bdf787c229bfa9ac0ead2327cb1e1f25f",
+        "docs/screenshots/pages-parity-command-390x844-bilingual-2x.png": "10c8881bdf787c229bfa9ac0ead2327cb1e1f25f",
+        "docs/screenshots/pages-parity-command-390x844-bilingual.png": "10c8881bdf787c229bfa9ac0ead2327cb1e1f25f",
+        "docs/screenshots/pages-parity-desktop-1024x768.png": "11a5c2131099eefa1773e153c4c0be974d23a33a",
+        "docs/screenshots/pages-parity-schedule-390x844-bilingual.png": "10c8881bdf787c229bfa9ac0ead2327cb1e1f25f",
+        "docs/screenshots/pages-parity-search-360x640-english.png": "10c8881bdf787c229bfa9ac0ead2327cb1e1f25f",
+        "docs/screenshots/pages-parity-settings-1024x768.png": "10c8881bdf787c229bfa9ac0ead2327cb1e1f25f",
+        "docs/screenshots/pages-parity-tabs-390x844-english.png": "10c8881bdf787c229bfa9ac0ead2327cb1e1f25f"
+      },
+      "sourceCommitEvidence": "Per-target last image-changing commits from GitHub path-specific history, verified 2026-10-05. Every PNG was last changed on 2026-08-07, before compact-proof.mjs was retargeted at c60e085f551883af94e9f8ad03946dad26755375. These are historical captures, not schema-v3 current-runtime evidence.",
+      "replacementPolicy": "Recapture only from the target's exact historical source commit and original viewport/state; do not replace it with a current-runtime matrix image or advance a source digest.",
+      "runtimeProofs": {
+        "docs/screenshots/pages-parity-360x640-collapsed.png": "docs/runtime-proof/pages-parity-360x640-collapsed.json",
+        "docs/screenshots/pages-parity-390x844-bilingual-2x-expanded.png": "docs/runtime-proof/pages-parity-390x844-bilingual-2x-expanded.json",
+        "docs/screenshots/pages-parity-390x844-bilingual-2x.png": "docs/runtime-proof/pages-parity-390x844-bilingual-2x.json",
+        "docs/screenshots/pages-parity-390x844-collapsed.png": "docs/runtime-proof/pages-parity-390x844-collapsed.json",
+        "docs/screenshots/pages-parity-414x896-collapsed.png": "docs/runtime-proof/pages-parity-414x896-collapsed.json",
+        "docs/screenshots/pages-parity-appearance-414x844-bilingual.png": "docs/runtime-proof/pages-parity-appearance-414x844-bilingual.json",
+        "docs/screenshots/pages-parity-changelog-414x844-bilingual.png": "docs/runtime-proof/pages-parity-changelog-414x844-bilingual.json",
+        "docs/screenshots/pages-parity-command-390x844-bilingual-2x.png": "docs/runtime-proof/pages-parity-command-390x844-bilingual-2x.json",
+        "docs/screenshots/pages-parity-command-390x844-bilingual.png": "docs/runtime-proof/pages-parity-command-390x844-bilingual.json",
+        "docs/screenshots/pages-parity-desktop-1024x768.png": "docs/runtime-proof/pages-parity-desktop-1024x768.json",
+        "docs/screenshots/pages-parity-schedule-390x844-bilingual.png": "docs/runtime-proof/pages-parity-schedule-390x844-bilingual.json",
+        "docs/screenshots/pages-parity-search-360x640-english.png": "docs/runtime-proof/pages-parity-search-360x640-english.json",
+        "docs/screenshots/pages-parity-settings-1024x768.png": "docs/runtime-proof/pages-parity-settings-1024x768-english.json",
+        "docs/screenshots/pages-parity-tabs-390x844-english.png": "docs/runtime-proof/pages-parity-tabs-390x844-english.json"
+      },
+      "reportOnlyProofs": {
+        "docs/runtime-proof/pages-parity-appearance-414x896-bilingual.json": "An archived JSON report exists, but no paired PNG is tracked; it does not count as screenshot evidence.",
+        "docs/runtime-proof/pages-parity-changelog-414x896-bilingual.json": "An archived JSON report exists, but no paired PNG is tracked; it does not count as screenshot evidence.",
+        "docs/runtime-proof/pages-parity-exports-390x844-bilingual.json": "An archived JSON report exists, but no paired PNG is tracked; it does not count as screenshot evidence.",
+        "docs/runtime-proof/pages-parity-notifications-414x896-cantonese.json": "An archived JSON report exists, but no paired PNG is tracked; it does not count as screenshot evidence."
+      }
     },
     {
       "id": "site-walkthrough-media",
@@ -412,15 +452,20 @@
     },
     {
       "id": "site-tabs-compact-proof",
-      "authority": "design/packages/site/scripts/compact-proof.mjs",
-      "command": "Run the built site through compact-proof.mjs at 414x896 with bottom tab placement and PAGES_PROOF_SCREENSHOT set to this target.",
-      "reproducibility": "current-build-loopback",
+      "authority": "Historical four-edge-tabs capture committed at 56a7ab6410a4533fb89f852fecbc4854ac6f1151, before compact-proof.mjs existed.",
+      "command": "Check out 56a7ab6410a4533fb89f852fecbc4854ac6f1151, build and serve that site on loopback, launch through cheap Lowlevel on a named hidden desktop, require exactly one expected CDP page, set the viewport to 414x896 and bottom tab placement through the real site controls, then capture the whole window. compact-proof.mjs did not exist at this commit and is not the producer of this target.",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
       "expectedCount": 1,
       "targets": [
         "docs/screenshots/site-tabs-bottom-414x896-window.png"
       ],
       "capturedFromInterfaceSource": false,
-      "notGradedBecause": "produced from design/packages/site, which is a different package with its own sources"
+      "notGradedBecause": "Historical site captures from the per-target sourceCommits; neither the current site runtime nor design/packages/ui/src produced these pixels.",
+      "sourceCommits": {
+        "docs/screenshots/site-tabs-bottom-414x896-window.png": "56a7ab6410a4533fb89f852fecbc4854ac6f1151"
+      },
+      "sourceCommitEvidence": "Per-target last image-changing commits from GitHub path-specific history, verified 2026-10-05. Every PNG was last changed on 2026-08-07, before compact-proof.mjs was retargeted at c60e085f551883af94e9f8ad03946dad26755375. These are historical captures, not schema-v3 current-runtime evidence.",
+      "replacementPolicy": "Recapture only from the target's exact historical source commit and original viewport/state; do not replace it with a current-runtime matrix image or advance a source digest."
     },
     {
       "id": "profile-migration-packaged",
@@ -437,17 +482,14 @@
     {
       "id": "lowlevel-ui-e2e",
       "authority": "scripts/worldlens-lowlevel-e2e.json driven by .claude/skills/run-worldlens/driver.mjs",
-      "command": "cd design && pnpm ui:e2e:lowlevel",
+      "command": "cd design && pnpm ui:e2e:lowlevel -PlanPath scripts/worldlens-lowlevel-e2e.json",
       "reproducibility": "current-build-lowlevel-mcp-hidden-desktop-ui-only",
-      "expectedCount": 18,
+      "expectedCount": 14,
       "targets": [
         "docs/screenshots/lowlevel-adult-home.png",
         "docs/screenshots/lowlevel-adult-kid-mode-settings.png",
         "docs/screenshots/lowlevel-adult-map-empty.png",
         "docs/screenshots/lowlevel-adult-settings.png",
-        "docs/screenshots/lowlevel-ci-render-history-fixed.png",
-        "docs/screenshots/lowlevel-ci-render-remove-confirmation.png",
-        "docs/screenshots/lowlevel-ci-render-row-removed.png",
         "docs/screenshots/lowlevel-kid-explore-empty.png",
         "docs/screenshots/lowlevel-kid-first-run-consent.png",
         "docs/screenshots/lowlevel-kid-first-run-licence.png",
@@ -457,12 +499,51 @@
         "docs/screenshots/lowlevel-kid-home.png",
         "docs/screenshots/lowlevel-kid-jobs.png",
         "docs/screenshots/lowlevel-kid-returned-from-settings.png",
-        "docs/screenshots/lowlevel-kid-stickers.png",
+        "docs/screenshots/lowlevel-kid-stickers.png"
+      ],
+      "capturedFromInterfaceSource": true,
+      "uiSourceDigest": "10e21e51523d90099ddf5f8d57761aa17510016d08ee2221a930edfd0492374c",
+      "uiSourceDigestNote": "Recaptured 2026-08-19 from the exact interface digest recorded here. Cheap Lowlevel launched the real Electron app on a named off-screen Windows desktop and performed the 36-action Adult/Kid journey plus the persisted failed-run removal journey. All 17 whole-window PNGs were decoded and visually inspected. The failed private workflow row restored as failed, exposed Remove from list, passed the two-key full-slider confirmation, and disappeared without removing the unrelated cancelled public row. Capture-only home and map-storage paths prevented host worlds, render records and profile paths from entering the pixels. Each promoted image has an exact source commit, built main-process artifact hash, interaction ledger, single-target privacy record, zero console/page errors, cleanup proof, byte-preserving transaction and active record in promoted-evidence.json. CDP only located visible controls and read assertions; every state change used Lowlevel input.",
+      "planFiles": [
+        "scripts/worldlens-lowlevel-e2e.json"
+      ],
+      "preconditions": "A clean, built and packaged candidate plus a working Lowlevel MCP installation on Windows. This plan uses the fresh isolated profile created by the runner and declines download consent."
+    },
+    {
+      "id": "lowlevel-ci-render-history",
+      "authority": "scripts/worldlens-lowlevel-ci-render.json driven by .claude/skills/run-worldlens/driver.mjs",
+      "command": "From the repository root, after satisfying preconditions, pipe \"plan scripts/worldlens-lowlevel-ci-render.json\" to node .claude/skills/run-worldlens/driver.mjs <CDP-port> with the prepared hidden-desktop session and Lowlevel driver environment.",
+      "reproducibility": "blocked-on-persisted-real-cloud-render-history",
+      "expectedCount": 3,
+      "targets": [
+        "docs/screenshots/lowlevel-ci-render-history-fixed.png",
+        "docs/screenshots/lowlevel-ci-render-remove-confirmation.png",
+        "docs/screenshots/lowlevel-ci-render-row-removed.png"
+      ],
+      "capturedFromInterfaceSource": true,
+      "uiSourceDigest": "10e21e51523d90099ddf5f8d57761aa17510016d08ee2221a930edfd0492374c",
+      "uiSourceDigestNote": "Inherited unchanged from the former combined lowlevel-ui-e2e group. Splitting its plan provenance did not recapture these images or establish current freshness.",
+      "planFiles": [
+        "scripts/worldlens-lowlevel-ci-render.json"
+      ],
+      "preconditions": "A built app already running on a named Lowlevel hidden desktop with exactly one CDP page, configured LOWLEVEL_MCP_ENDPOINT, WORLDLENS_DRIVER_HWND, WORLDLENS_DRIVER_WIDTH, WORLDLENS_DRIVER_HEIGHT, WORLDLENS_DRIVER_OUTPUT, WORLDLENS_DRIVER_DESKTOP, WORLDLENS_UI_ONLY=1 and WORLDLENS_PLAN_EXIT=1, and an isolated capture profile containing a real failed cloud-render row. The fresh-profile runner cannot supply that history. This plan accepts download consent and removes a local history row; those actions need current authorization before replay."
+    },
+    {
+      "id": "lowlevel-public-pages-render",
+      "authority": "scripts/worldlens-lowlevel-existing-public-pages-render.json driven by .claude/skills/run-worldlens/driver.mjs",
+      "command": "From the repository root, after satisfying preconditions, pipe \"plan scripts/worldlens-lowlevel-existing-public-pages-render.json\" to node .claude/skills/run-worldlens/driver.mjs <CDP-port> with the prepared hidden-desktop session and Lowlevel driver environment.",
+      "reproducibility": "blocked-on-authorized-world-repository-and-real-actions-run",
+      "expectedCount": 1,
+      "targets": [
         "docs/screenshots/lowlevel-public-pages-render-retry.png"
       ],
       "capturedFromInterfaceSource": true,
       "uiSourceDigest": "10e21e51523d90099ddf5f8d57761aa17510016d08ee2221a930edfd0492374c",
-      "uiSourceDigestNote": "Recaptured 2026-08-19 from the exact interface digest recorded here. Cheap Lowlevel launched the real Electron app on a named off-screen Windows desktop and performed the 36-action Adult/Kid journey plus the persisted failed-run removal journey. All 17 whole-window PNGs were decoded and visually inspected. The failed private workflow row restored as failed, exposed Remove from list, passed the two-key full-slider confirmation, and disappeared without removing the unrelated cancelled public row. Capture-only home and map-storage paths prevented host worlds, render records and profile paths from entering the pixels. Each promoted image has an exact source commit, built main-process artifact hash, interaction ledger, single-target privacy record, zero console/page errors, cleanup proof, byte-preserving transaction and active record in promoted-evidence.json. CDP only located visible controls and read assertions; every state change used Lowlevel input."
+      "uiSourceDigestNote": "Inherited unchanged from the former combined lowlevel-ui-e2e group. Splitting its plan provenance did not recapture these images or establish current freshness.",
+      "planFiles": [
+        "scripts/worldlens-lowlevel-existing-public-pages-render.json"
+      ],
+      "preconditions": "A built app already running on a named Lowlevel hidden desktop with exactly one CDP page and the same configured Lowlevel driver environment as lowlevel-ci-render-history. Supply WORLDLENS_CI_WORLD and WORLDLENS_TARGET_REPOSITORY_SEARCH, authenticate the intended GitHub account, and obtain current authorization for download consent, world upload, public repository publication, Pages, and the real Actions dispatch. This plan is not an offline screenshot-only check."
     },
     {
       "id": "retired-app-surfaces",

@@ -298,6 +298,101 @@ export function historicalRecaptureComplaints(groups) {
   return complaints;
 }
 
+/** Static provenance: each plan names exactly the PNGs its evidence group claims. */
+export function planProvenanceComplaints(groups, readPlan) {
+  const complaints = [];
+  const required = new Set([
+    "lowlevel-ui-e2e",
+    "lowlevel-ci-render-history",
+    "lowlevel-public-pages-render",
+  ]);
+  for (const group of groups) {
+    if (group.planFiles === undefined && !required.has(group.id)) continue;
+    if (!Array.isArray(group.planFiles) || group.planFiles.length === 0) {
+      complaints.push(`${group.id}: planFiles must be a non-empty array`);
+      continue;
+    }
+    const outputs = [];
+    for (const file of group.planFiles) {
+      if (typeof file !== "string" || !/^scripts\/[a-zA-Z0-9_-]+\.json$/u.test(file)) {
+        complaints.push(`${group.id}: invalid plan file ${String(file)}`);
+        continue;
+      }
+      if (!normalise(group.command).includes(file)) {
+        complaints.push(`${group.id}: ${file} is not named by command`);
+      }
+      let plan;
+      try {
+        plan = readPlan(file);
+      } catch (error) {
+        complaints.push(`${group.id}: cannot read ${file}: ${error.message}`);
+        continue;
+      }
+      if (!Array.isArray(plan)) {
+        complaints.push(`${group.id}: ${file} must contain a plan array`);
+        continue;
+      }
+      for (const step of plan) {
+        if (step?.action !== "screenshot") continue;
+        if (typeof step.name !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/u.test(step.name)) {
+          complaints.push(`${group.id}: ${file} has an invalid screenshot name`);
+          continue;
+        }
+        const output = `docs/screenshots/${step.name}.png`;
+        if (outputs.includes(output)) {
+          complaints.push(`${group.id}: duplicate screenshot output ${output}`);
+        }
+        outputs.push(output);
+      }
+    }
+    for (const file of difference(outputs, group.targets)) {
+      complaints.push(`${group.id}: ${file} is produced by its plans but absent from targets`);
+    }
+    for (const file of difference(group.targets, outputs)) {
+      complaints.push(`${group.id}: ${file} is not produced by its plans`);
+    }
+  }
+  return complaints;
+}
+
+/** Account for archived JSON reports without inventing a PNG for report-only captures. */
+export function compactProofComplaints(group, reportFiles) {
+  if (group === undefined) return ["site-compact-proof group is required"];
+  const complaints = [];
+  const mappings = group.runtimeProofs ?? {};
+  const reportsOnly = group.reportOnlyProofs ?? {};
+  const declared = [];
+  for (const target of group.targets) {
+    if (typeof mappings[target] !== "string" || mappings[target] === "") {
+      complaints.push(`${group.id}: ${target} has no runtime proof mapping`);
+    }
+  }
+  for (const [target, report] of Object.entries(mappings)) {
+    if (!group.targets.includes(target)) {
+      complaints.push(`${group.id}: ${target} is an unexpected target in runtimeProofs`);
+    }
+    declared.push(report);
+  }
+  for (const [report, reason] of Object.entries(reportsOnly)) {
+    if (typeof reason !== "string" || reason.trim() === "") {
+      complaints.push(`${group.id}: ${report} needs a report-only reason`);
+    }
+    declared.push(report);
+  }
+  for (const report of new Set(declared)) {
+    if (!reportFiles.includes(report)) {
+      complaints.push(`${group.id}: ${String(report)} is not tracked runtime proof`);
+    }
+    if (declared.filter((file) => file === report).length > 1) {
+      complaints.push(`${group.id}: ${String(report)} is accounted for more than once`);
+    }
+  }
+  for (const report of difference(reportFiles, declared)) {
+    complaints.push(`${group.id}: ${report} is unaccounted runtime proof`);
+  }
+  return complaints;
+}
+
 function main() {
   const inventory = JSON.parse(readFileSync(inventoryPath, "utf8"));
   const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
@@ -365,6 +460,21 @@ function main() {
       );
     }
   }
+
+  assertEmpty(
+    planProvenanceComplaints(inventory.groups, (file) => {
+      if (!tracked.includes(file)) throw new Error("plan is not tracked");
+      return JSON.parse(readFileSync(resolve(repoRoot, file), "utf8"));
+    }),
+    "screenshot plan provenance is incomplete",
+  );
+  assertEmpty(
+    compactProofComplaints(
+      inventory.groups.find((group) => group.id === "site-compact-proof"),
+      tracked.filter((file) => /^docs\/runtime-proof\/pages-parity-[^/]+\.json$/u.test(file)),
+    ),
+    "compact proof report provenance is incomplete",
+  );
 
   const historicalComplaints = historicalRecaptureComplaints(inventory.groups);
   for (const group of inventory.groups.filter(
@@ -540,3 +650,4 @@ if (
 ) {
   main();
 }
+

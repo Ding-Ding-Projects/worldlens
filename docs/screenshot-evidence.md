@@ -1,6 +1,6 @@
 # Screenshot evidence: how staleness is detected, and how to refresh it
 
-This project keeps ~200 committed screenshots under `docs/screenshots/` as evidence that the
+This project keeps committed screenshots under `docs/screenshots/` as evidence that the
 interface looks the way the documentation and issue history say it does. Screenshots rot: a UI
 change lands, nobody retakes the pictures, and the images quietly start showing an older build
 while their captions confidently describe the current one. `scripts/check-screenshot-evidence.mjs`
@@ -10,10 +10,10 @@ ships.
 ## What the check actually validates
 
 It is a **source-digest fingerprint check, not a pixel diff.** It never opens or compares the PNG
-bytes against a reference image. Instead, for each evidence group it:
+bytes against a reference image. Instead, for each group marked `capturedFromInterfaceSource` it:
 
-1. Walks the exact set of source files that can affect that group's rendered output (renderer,
-   main process, preload — excluding test files, which cannot change what ships).
+1. Walks `design/packages/ui/src`, excluding test files and generated changelog data. This
+   particular digest does not cover the main process, preload or documentation site sources.
 2. Hashes that file set into one digest, in a way that ignores file collection order and line-ending
    differences between checkouts, but changes on any real content change to a shipping file.
 3. Compares that digest against the `uiSourceDigest` recorded for the group in
@@ -31,15 +31,51 @@ picture of the version of the app that exists right now?" — and answers it pre
 single capture run writes, with one entry per image giving its `surface` (what it shows) and a
 full `caption`. It is not what the check grades against; `evidence-inventory.json` is.
 
-## The three evidence groups
+## Plan-driven evidence and provenance
 
 | group | image count | regenerate command | what it needs |
 |---|---|---|---|
 | `app-playwright-manifest` | 117 | `cd design && pnpm build && pnpm --filter @worldlens/app screenshots` | The built app, launched headless with remote debugging enabled and driven over the Chrome DevTools Protocol. No dev server, no map data. |
 | `app-playwright-map-dependent` | 15 | `cd design && pnpm build && WORLDLENS_CAPTURE_MAP=<a rendered web root: settings.json + maps/> WORLDLENS_CAPTURE_PROVENANCE=<the JSON that render wrote> pnpm --filter @worldlens/app screenshots` | Everything the first group needs, **plus a genuinely rendered map**: real tile output from a real Minecraft world render, served from a local web root. |
-| `lowlevel-ui-e2e` | 18 | `cd design && pnpm ui:e2e:lowlevel` | The same built, headless-driven app, exercised through a committed UI action plan instead of the Playwright spec file. |
+| `lowlevel-ui-e2e` | 14 | `cd design && pnpm ui:e2e:lowlevel -PlanPath scripts/worldlens-lowlevel-e2e.json` | A clean packaged app and Lowlevel MCP on Windows; the default plan uses a fresh isolated profile and declines download consent. |
+| `lowlevel-ci-render-history` | 3 | Run `scripts/worldlens-lowlevel-ci-render.json` through the committed driver in a prepared hidden-desktop session. | A real failed render row in the isolated profile. The fresh-profile runner cannot provide it; replay also accepts consent and removes a local row, requiring current authorization. |
+| `lowlevel-public-pages-render` | 1 | Run `scripts/worldlens-lowlevel-existing-public-pages-render.json` through the committed driver in a prepared hidden-desktop session. | `WORLDLENS_CI_WORLD`, `WORLDLENS_TARGET_REPOSITORY_SEARCH`, an authenticated account, and authorization for consent, upload, public Pages publication and a real Actions dispatch. |
 
-After any of these, the new digest is recorded with:
+The inventory's `planFiles` lists are checked against the union of each JSON plan's
+`screenshot` step names. The group must list exactly those `docs/screenshots/<name>.png`
+outputs, and its command must name every plan. Missing plans, malformed screenshot names,
+duplicate outputs and both directions of a target mismatch fail the guard. This is a static
+contract check; it does not execute a command, prove a successful capture, or satisfy its
+preconditions. Capture output still needs the existing verification and promotion procedure.
+
+The three Lowlevel groups keep the original digest unchanged. The split records which plan can
+produce which image; it is not a recapture and does not clear stale evidence. The other inventory
+groups retain their own capture, historical-source and external-state requirements.
+
+### Archived compact proof
+
+The 14 `site-compact-proof` PNGs and the one `site-tabs-compact-proof` PNG were last changed on
+2026-08-07. Their per-target `sourceCommits` now pin those historical versions. The bottom-tabs
+image predates `compact-proof.mjs` itself; it was never an output of that command. The current
+script was retargeted at `c60e085f551883af94e9f8ad03946dad26755375` on 2026-08-09 and writes
+schema-v3 matrix or single-viewport reports, using `PAGES_PROOF_SCREENSHOT_DIR` and viewport
+labels for PNG names. That current interface cannot reproduce the old scenario captures.
+
+`runtimeProofs` explicitly pairs the 14 archived images with their JSON reports. In particular,
+`pages-parity-settings-1024x768.png` maps to
+`pages-parity-settings-1024x768-english.json`; no image or report needs renaming. Four archived
+reports have no tracked screenshot and are explicitly recorded in `reportOnlyProofs`:
+
+- `pages-parity-appearance-414x896-bilingual.json`
+- `pages-parity-changelog-414x896-bilingual.json`
+- `pages-parity-exports-390x844-bilingual.json`
+- `pages-parity-notifications-414x896-cantonese.json`
+
+They remain report-only evidence, outside the screenshot count. The guard rejects missing or
+duplicate mappings, unknown reports, unexplained targets and report-only entries without a
+reason. No image, report or digest was regenerated by this provenance correction.
+
+After a complete, verified recapture of a graded group, the new digest is recorded with:
 
 ```
 node scripts/check-screenshot-evidence.mjs --print-interface-digest
@@ -124,3 +160,23 @@ Because no complete capture set was produced, the evidence inventory digests wer
 The expected post-attempt result is therefore unchanged: 3 stale graded groups and 0 committed
 groups recaptured. Run `cd design && npm run screenshots:check` again after a complete map-backed and
 persistent-Lowlevel capture to obtain the next exact verdict.
+
+
+## 廣東話
+
+截圖清單依家會核對每組 `planFiles` 入面所有 `screenshot` 步驟，確保輸出嘅
+`docs/screenshots/<name>.png` 同 `targets` 完全一致，而且記錄嘅指令有寫明每個計劃。
+遺漏檔案、錯誤名稱、重複輸出同兩邊對唔上都會報錯。呢個係靜態核對，唔代表真係
+跑過截圖指令，亦唔會代替實際執行、驗證、批准同證據提升程序。
+
+原本 18 張 Lowlevel 截圖拆成 14 張一般介面、3 張真實失敗雲端工作歷史，同 1 張
+公開 Pages 工作。一般計劃用全新獨立設定檔；歷史計劃需要已有真實失敗記錄；Pages
+計劃需要世界路徑、目標倉庫、登入，以及上載、公開發佈同 Actions 執行嘅現時授權。
+拆組保留原有 digest，冇重新截圖，亦冇將過期證據扮成最新。
+
+14 張 compact 圖同 1 張底部分頁圖最後喺 2026-08-07 改過，依家按每張圖嘅
+`sourceCommits` 當歷史證據處理。底部分頁圖仲早過 `compact-proof.mjs` 出現；現時
+schema-v3 指令用 `PAGES_PROOF_SCREENSHOT_DIR` 輸出 viewport 圖，唔可以重製舊場景。
+`runtimeProofs` 明確配對 14 份報告，包括 settings 圖同帶 `-english` 名稱嘅 JSON。
+四份冇 PNG 嘅報告保留喺 `reportOnlyProofs`，唔會憑空變成截圖，亦唔計入圖片總數。
+以上修正冇改動任何圖片、報告或者 digest；完整驗證重拍之前，過期狀態照樣保留。
