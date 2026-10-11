@@ -5,10 +5,12 @@ import { createI18n } from "vue-i18n";
 import FrontBuildProvenance from "./FrontBuildProvenance.vue";
 import AppTitleBar from "./AppTitleBar.vue";
 import { createVuetify } from "vuetify";
+import { voiceMessages } from "../../copy/appVoice.js";
+import type { LanguageMode } from "../setup/setupI18n.js";
 
 afterEach(() => vi.unstubAllGlobals());
 
-function render(answer?: unknown, reject = false) {
+function render(answer?: unknown, reject = false, mode: LanguageMode = "en") {
     vi.stubGlobal(
         "worldlens",
         answer === undefined
@@ -27,7 +29,7 @@ function render(answer?: unknown, reject = false) {
                     locale: "en",
                     missingWarn: false,
                     fallbackWarn: false,
-                    messages: {},
+                    messages: { en: voiceMessages({ mode, funnyEn: 3, funnyYue: 3 }) },
                 }),
             ],
         },
@@ -35,6 +37,31 @@ function render(answer?: unknown, reject = false) {
 }
 
 describe("front-screen build provenance", () => {
+    it.each(["yue", "bilingual"] as const)(
+        "formats the Cantonese update date independently of the viewer locale in %s mode",
+        async (mode) => {
+            const instant = "2026-10-11T12:20:41.000Z";
+            const wrapper = render(
+                { version: "1.0.42", updatedAt: instant, timestampOrigin: "build" },
+                false,
+                mode,
+            );
+            await flushPromises();
+            const options: Intl.DateTimeFormatOptions = {
+                year: "numeric", month: "short", day: "numeric",
+                hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short",
+            };
+            const cantonese = new Intl.DateTimeFormat("zh-HK", options).format(new Date(instant));
+            const english = new Intl.DateTimeFormat("en", options).format(new Date(instant));
+            const text = wrapper.get("time").text();
+            expect(text).toContain(`更新於 ${cantonese}`);
+            if (mode === "bilingual") expect(text).toContain(`Updated ${english}`);
+            else expect(text).not.toContain(english);
+            expect(wrapper.get("time").attributes("datetime")).toBe(instant);
+            wrapper.unmount();
+        },
+    );
+
     it("mounts visible provenance in the initial desktop caption", async () => {
         vi.stubGlobal("worldlens", {
             getBuildProvenance: () =>

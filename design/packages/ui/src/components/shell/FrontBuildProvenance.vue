@@ -2,26 +2,29 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 
-const { t, locale } = useI18n();
+const { t } = useI18n();
 const version = ref<string | null>(null);
 const updatedAt = ref<string | null>(null);
 
 const localUpdatedAt = computed(() => {
     if (updatedAt.value === null) return null;
     const instant = new Date(updatedAt.value);
-    try {
-        return new Intl.DateTimeFormat(locale.value.startsWith("yue") ? "zh-HK" : "en", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            timeZoneName: "short",
-        }).format(instant);
-    } catch {
-        return instant.toISOString();
-    }
+    const format = (language: "en" | "zh-HK") => {
+        try {
+            return new Intl.DateTimeFormat(language, {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                timeZoneName: "short",
+            }).format(instant);
+        } catch {
+            return instant.toISOString();
+        }
+    };
+    return { en: format("en"), yue: format("zh-HK") };
 });
 
 onMounted(async () => {
@@ -69,7 +72,13 @@ onMounted(async () => {
         </span>
         <span data-testid="front-build-updated">
             <time v-if="localUpdatedAt !== null" :datetime="updatedAt!">
-                {{ t("frontBuild.updated", { timestamp: localUpdatedAt }, "Updated {timestamp}") }}
+                {{
+                    t(
+                        "frontBuild.updated",
+                        { timestampEn: localUpdatedAt.en, timestampYue: localUpdatedAt.yue },
+                        "Updated {timestampEn}",
+                    )
+                }}
             </time>
             <template v-else>{{
                 t("frontBuild.updatedUnavailable", "Updated time unavailable")
