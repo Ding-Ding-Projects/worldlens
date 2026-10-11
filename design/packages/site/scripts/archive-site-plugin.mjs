@@ -119,7 +119,7 @@ export function buildScreenshotCatalog(packageRoot) {
                 viewport: screenshotViewport(file, description, state),
                 commit: `${typeof exactSourceCommit === "string" && /^[0-9a-f]{40}$/iu.test(exactSourceCommit) ? exactSourceCommit : manifestCommit || "Not pinned to a candidate commit"}; ${group.authority}; ${proof}`,
                 capturedAt: String(
-                    source?.capturedAt || "Not recorded for this individual capture",
+                    source?.capturedAt || group.captureTimes?.[target] || "Not recorded for this individual capture",
                 ),
             });
         }

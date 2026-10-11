@@ -3404,7 +3404,7 @@
             ],
             "consumer": "The initial native caption mounts the metadata consumer before navigation. The build records an update event once and freezes it into desktop and hosted bundles.",
             "limitation": "Source checks pass, including absent/invalid/source-only provenance and initial-caption regressions. Exact rebuilt native layout, all language/theme/scale tuples and other surface consumers remain pending.",
-            "sourceCommit": "f99902780e916435c12fbbb38bb626e3162bc17a"
+            "sourceCommit": "6620f9874075abf75504252b2c3f4ccc48e687c7"
           }
         },
         "hosted-workspace": {

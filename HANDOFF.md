@@ -1,5 +1,8 @@
 # Handoff
 
+Root candidate 6620f987 stopped at the existing documentation-gallery completeness check because the newly promoted PNG lacked its separate evidence-inventory group. The exact historical-source group, genuine caption, source digest/hash and validated capture time are now registered. The gallery reports 239 PNGs, 13 categories and 10 passing negative mutations; the publication scan passes. The GUI type check passed with 3072 MiB at 0033110e, and the later change touches only build-event timestamp validation and its focused tests. Invalid explicit calendar dates reproduced red before the UTC round-trip repair and now pass all three build-event checks. Exact root retry and native provenance acceptance remain pending.
+
+
 Pending next unit: the desktop initial caption now renders version and update-event provenance through the existing metadata channel. build.mjs records the actual build event once, independent of the legacy source-commit timestamp, and freezes it into desktop/hosted bundles. The renderer accepts only canonical timestamps with explicit build/release origin; missing, invalid, source-only and unclassified metadata remain unavailable. Sixteen caption/component checks and three build-event checks pass. Both timestamp-origin and initial-caption-consumer negative regressions were observed red, restored byte-exactly, and their four selected cases returned green. The first broad GUI type check exceeded its default approximately 2 GB heap and is not a passing verdict. The final bridge declaration is synchronized; a fixed-input 3072 MiB retry, exact root build and native front-screen acceptance remain pending. This unit is preserved as unfinished until those checks complete.
 
 

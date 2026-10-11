@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 263,
+  "expectedTargetCount": 264,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -670,6 +670,26 @@
       "capturedFromInterfaceSource": true,
       "uiSourceDigest": "f89b3b58bf51d64c9abf5a09f60137637f0b641f309a0046541cfa2f3bb4c5b2",
       "uiSourceDigestNote": "Release v1.0.2035 was published from 65a772d917c1ea0e2a345703a5d2203855f68c85, which is the commit these captures were taken at, so the packaged renderer under the lens and this tree's interface source are the same interface and the group is graded against it like any other. Two states the issues name could not be photographed on a signed-out machine and no picture stands in for either: the hosted-runner destination is held unselectable by its own readiness gate, so its panel cannot be reached, and the source step's discovery row shows the Minecraft folder this machine actually has. The picker capture shows that gate as it stands instead."
+    },
+    {
+      "id": "historical-version-layout-20261011",
+      "authority": "Validated source-bound hidden native CDP layout observation",
+      "command": "Rebuild 82727748029d3b1c140d052924a775ac52de52a4 with build.bat /s; use cheap Lowlevel hidden-desktop launch with an isolated profile and exact process identity, then CDP onboarding with download declined, Host Server, New server, Vanilla, historical alpha, and original 1280 x 752 viewport at 150% scale.",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "replacementPolicy": "Retain these original bytes and source identity. New caption/provenance builds require separate captures and are never substituted for this dated layout proof.",
+      "sourceCommits": {
+        "docs/screenshots/server-alpha-layout-82727748.png": "82727748029d3b1c140d052924a775ac52de52a4"
+      },
+      "captureTimes": {
+        "docs/screenshots/server-alpha-layout-82727748.png": "2026-10-11T12:21:40.134Z"
+      },
+      "expectedCount": 1,
+      "targets": [
+        "docs/screenshots/server-alpha-layout-82727748.png"
+      ],
+      "capturedFromInterfaceSource": false,
+      "notGradedBecause": "This is dated point-in-time layout proof at exact source 82727748, before the subsequent initial-caption provenance change. It is not current whole-interface acceptance.",
+      "uiSourceDigestNote": "Exact root source digest 2a303218906a935c55e40a70d2e6d0edd3d1a14fa7ca603232a99654f2c2fec1; genuine PNG SHA-256 2ab117f36c324805809d51b942d4f3f9a596b1edf69bc5fe142171045443e2df. English dark theme, 1280 x 752 CSS viewport, 150% scale; raw PNG 1920 x 1128. Private receipts retained; other tuples remain pending."
     }
   ]
 }
