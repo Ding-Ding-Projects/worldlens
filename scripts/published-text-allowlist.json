@@ -865,28 +865,424 @@
       "why": "Exact preserved historical branch reference, not newly authored presentation."
     },
     {
-      "line": 86,
+      "line": 91,
       "file": "scripts/check-published-text.mjs",
       "column": 61,
       "why": "Ordinary memory allocation terminology in a documented false-positive example."
     },
     {
-      "line": 86,
+      "line": 91,
       "file": "scripts/check-published-text.mjs",
       "column": 72,
       "why": "Exact Git command in a documented false-positive example."
     },
     {
-      "line": 366,
+      "line": 371,
       "file": "scripts/check-published-text.test.mjs",
       "column": 81,
       "why": "Exact Git command preserved by a historical-output regression."
     },
     {
-      "line": 367,
+      "line": 372,
       "file": "scripts/check-published-text.test.mjs",
       "column": 82,
       "why": "Exact shell command preserved by a historical-output regression."
+    },
+    {
+      "file": "design/packages/site/scripts/server-articles.mjs",
+      "line": 54,
+      "column": 25,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/scripts/archive-site-plugin.mjs",
+      "line": 9,
+      "column": 24,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/scripts/archive-site-plugin.mjs",
+      "line": 111,
+      "column": 17,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/scripts/archive-site-plugin.mjs",
+      "line": 233,
+      "column": 30,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/scripts/archive-site-plugin.mjs",
+      "line": 233,
+      "column": 45,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/scripts/archive-site-plugin.mjs",
+      "line": 260,
+      "column": 13,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 216,
+      "column": 46,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 218,
+      "column": 47,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 219,
+      "column": 112,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 220,
+      "column": 40,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 221,
+      "column": 89,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 223,
+      "column": 28,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 224,
+      "column": 32,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 457,
+      "column": 47,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 460,
+      "column": 100,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 461,
+      "column": 93,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 463,
+      "column": 111,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 465,
+      "column": 36,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1215,
+      "column": 52,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1216,
+      "column": 12,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1769,
+      "column": 11,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1775,
+      "column": 11,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1775,
+      "column": 27,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1775,
+      "column": 63,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1778,
+      "column": 103,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1865,
+      "column": 22,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1866,
+      "column": 48,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1875,
+      "column": 51,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1895,
+      "column": 86,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1895,
+      "column": 90,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1895,
+      "column": 102,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1895,
+      "column": 112,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2032,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2033,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2034,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2035,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2041,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2042,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2043,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2044,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2045,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2046,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2047,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2048,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2052,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2053,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2054,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2055,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2056,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2057,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2058,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2059,
+      "column": 9,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2076,
+      "column": 50,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2076,
+      "column": 63,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2076,
+      "column": 95,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2078,
+      "column": 78,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2082,
+      "column": 51,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2087,
+      "column": 44,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2088,
+      "column": 13,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2088,
+      "column": 48,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2088,
+      "column": 56,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2089,
+      "column": 44,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2090,
+      "column": 35,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2090,
+      "column": 43,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2749,
+      "column": 35,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 2749,
+      "column": 53,
+      "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
     }
   ]
 }

@@ -99,3 +99,9 @@ Four focused Node cases cover production inclusion, content/block structure, pre
 ### 廣東話
 
 正式網站實際用 archive pipeline；舊 TypeScript 清單有篇文章，唔代表正式輸出真係有。新接駁直接讀三篇現行 Markdown，保留原本五十九篇，合共六十二篇。表格各行同程式碼保留分行，清單用真正列表，其他內容維持安全文字渲染。缺檔、標題／圍欄格式錯誤、漏文章或者重複身分都會令組裝失敗。行內 Markdown 連結仍係文字，完整連結、導覽、版面同已部署網站驗收未完成。
+
+### Article chrome and initial template parsing
+
+A rebuilt diagnostic at 94b73f9c rendered the new SSH lifecycle article at 1440x1000 and emulated390x844, with zero body overflow or unnamed interactive controls. It also recorded26 console messages and one placeholder-image404, so that run did not pass runtime acceptance. Initial HTML was letting unresolved image URLs load and literal SVG bindings reach the browser parser before hydration. The production transform now stores dynamic src/d attributes inertly and the runtime compiler maps them back only when evaluating bindings.
+
+The generic article chrome no longer claims every article is built/verified, has five named test files or was updated at one historical date/revision. It directs readers to the actual verification section and marks unavailable update provenance honestly. The three current Markdown articles carry their exact source paths. Unrelated generic article thumbnails were removed from presentation while preserving their original files. The ignored frame-ancestors meta directive was removed; effective framing restrictions require a supported HTTP response header, and are not claimed for the static deployment. Other CSP directives remain in place. Six focused cases cover assembly and these source regressions; rebuilt and live proof remain pending.

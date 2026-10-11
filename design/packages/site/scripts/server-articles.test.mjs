@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadServerArticles, markdownArticle } from "./server-articles.mjs";
-import { buildCanonicalRuntime, mergeServerArticleCatalog } from "./archive-site-plugin.mjs";
+import { buildCanonicalRuntime, canonicalArchiveSitePlugin, mergeServerArticleCatalog } from "./archive-site-plugin.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 test("production runtime includes each independently required current server article", () => {
@@ -36,6 +36,22 @@ test("all 59 originals survive and incomplete or duplicate merged catalogues fai
     assert.throws(() => mergeServerArticleCatalog(archive, current.slice(1)), /exactly 62/u);
     assert.throws(() => mergeServerArticleCatalog(archive, [{ ...current[0], id: archive.articles[0].id }, ...current.slice(1)]), /id duplicates/u);
     assert.throws(() => mergeServerArticleCatalog(archive, [{ ...current[0], title: archive.articles[0].title }, ...current.slice(1)]), /title duplicates/u);
+    assert.throws(() => mergeServerArticleCatalog(archive, [{ ...current[0], sourcePath: "../private.md" }, ...current.slice(1)]), /safe documentation path/u);
+});
+test("production templates keep unresolved image and SVG attributes inert before hydration", () => {
+    const source = readFileSync(resolve(root, "index.html"), "utf8");
+    const html = canonicalArchiveSitePlugin(root, "/worldlens/").transformIndexHtml(source);
+    assert.doesNotMatch(html, /\s(?:d|src)="\{\{/u);
+    assert.match(html, /data-wl-bind-d="\{\{/u);
+    assert.match(html, /data-wl-bind-src="\{\{/u);
+    assert.ok(buildCanonicalRuntime(root).includes('name.startsWith("data-wl-bind-")'));
+});
+test("article chrome cannot invent verification, test counts or update provenance", () => {
+    const source = readFileSync(resolve(root, "index.html"), "utf8");
+    assert.doesNotMatch(source, /Built &amp; verified|5 named test files|Updated 2026-08-06/u);
+    assert.match(source, /articleVerificationTitle: tr\("Verification documented"/u);
+    assert.match(source, /Article update time and revision are not recorded/u);
+    assert.equal(loadServerArticles(root)[2].sourcePath, "docs/server-management/ssh-process-lifecycle.md");
 });
 test("malformed source fails rather than silently dropping the article", () => {
     assert.throws(() => markdownArticle("Missing title", "bad"), /initial title/u);

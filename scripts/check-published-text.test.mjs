@@ -36,6 +36,11 @@ test("default publication checks reject private text in the feature inventory an
     "ROADMAP.md",
     "docs/contracts/feature-delivery-inventory.json",
     "scripts/check-feature-delivery-inventory.mjs",
+    "design/packages/site/index.html",
+    "design/packages/site/scripts/archive-site-plugin.mjs",
+    "design/packages/site/scripts/assert-article-bundle.mjs",
+    "design/packages/site/scripts/server-articles.mjs",
+    "design/packages/site/scripts/server-articles.test.mjs",
   ]) {
     const directory = scratch();
     try {

@@ -6,7 +6,7 @@
 <meta name="description" content="Worldlens renders Minecraft worlds into an accessible Material Design 3 map experience, with complete offline documentation for every feature.">
 <meta name="theme-color" content="#00639B">
 <meta name="referrer" content="no-referrer">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'none'; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Worldlens documentation">
 <meta property="og:description" content="Render Minecraft worlds into 3D maps and explore the production documentation articles.">
@@ -839,15 +839,9 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
           <div style="border-radius:12px;border:1px solid var(--outv);background:var(--s-lowest);padding:14px;margin-bottom:24px;">
             <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-bottom:6px;color:var(--p);">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8z"></path></svg>
-              Built &amp; verified
+              {{ articleVerificationTitle }}
             </div>
-            <div style="font-size:12px;line-height:1.5;color:var(--osv);">5 named test files guard this article's claims.</div>
-          </div>
-
-          <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--osv);margin-bottom:10px;">In this article</div>
-          <div style="display:flex;gap:8px;margin-bottom:24px;">
-            <img src="assets/shot-shell.png" alt="" aria-hidden="true" loading="lazy" style="width:50%;aspect-ratio:16/10;object-fit:cover;object-position:top left;border-radius:8px;border:1px solid var(--outv);">
-            <img src="assets/shot-theme-dark.png" alt="" aria-hidden="true" loading="lazy" style="width:50%;aspect-ratio:16/10;object-fit:cover;object-position:top left;border-radius:8px;border:1px solid var(--outv);">
+            <div style="font-size:12px;line-height:1.5;color:var(--osv);">{{ articleVerificationSummary }}</div>
           </div>
 
           <div style="font-size:11px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--osv);margin-bottom:10px;">Related</div>
@@ -857,11 +851,11 @@ input,select,textarea{min-block-size:max(44px,var(--minhit));}
             </sc-for>
           </div>
 
-          <a href="https://github.com/Ding-Ding-Projects/worldlens/tree/main/docs" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;text-decoration:none;">
+          <a href="{{ articleEditHref }}" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;text-decoration:none;">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"></path></svg>
             Edit this page on GitHub
           </a>
-          <div style="font-family:var(--mono);font-size:11.5px;color:var(--osv);margin-top:16px;line-height:1.6;">Updated 2026-08-06<br>45fa6f42ae</div>
+          <div style="font-family:var(--mono);font-size:11.5px;color:var(--osv);margin-top:16px;line-height:1.6;">{{ articleUpdateProvenance }}</div>
         </div>
       </div>
     </aside>
@@ -2754,7 +2748,11 @@ class Component extends DCLogic {
       articleTitle: article ? article.title : "Article not found",
       articleCatLabel: article ? (CAT_LABEL[article.cat] || "Documentation") : "Documentation",
       articleSectionCount: article ? String((article.sections || []).filter((x) => x.heading).length) : "0",
-      articleSource: article ? ((article.id.indexOf("site-") === 0 ? "docs/site/" + article.id.replace(/^site-/, "") : "docs/" + article.id) + ".md") : "",
+      articleSource: article ? (article.sourcePath || ((article.id.indexOf("site-") === 0 ? "docs/site/" + article.id.replace(/^site-/, "") : "docs/" + article.id) + ".md")) : "",
+      articleEditHref: article ? ("https://github.com/Ding-Ding-Projects/worldlens/blob/main/" + (article.sourcePath || ((article.id.indexOf("site-") === 0 ? "docs/site/" + article.id.replace(/^site-/, "") : "docs/" + article.id) + ".md"))) : "https://github.com/Ding-Ding-Projects/worldlens/tree/main/docs",
+      articleVerificationTitle: tr("Verification documented", "驗證狀態已記錄"),
+      articleVerificationSummary: tr("Read this article's verification section for exact evidence and remaining gaps.", "請閱讀本文驗證章節，查看實際證據同未完成項目。"),
+      articleUpdateProvenance: tr("Article update time and revision are not recorded.", "未有記錄本文更新時間同修訂。"),
       articleLede: ledeText,
       articleLedeStyle: ledeText
         ? "font-size:calc(var(--basefs) * 1.1);line-height:var(--lh);color:var(--osv);margin:0 0 8px;text-wrap:pretty;"

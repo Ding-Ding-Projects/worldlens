@@ -215,7 +215,10 @@ function validateArticleCatalog(articleCatalog, expectedCount = EXPECTED_ARTICLE
     for (const [articleIndex, article] of articleCatalog.articles.entries()) {
         const label = `Canonical archive article[${articleIndex}]`;
         assertRecord(article, label);
-        assertExactKeys(article, ARTICLE_KEYS, label);
+        assertExactKeys(article, Object.hasOwn(article, "sourcePath") ? [...ARTICLE_KEYS, "sourcePath"] : ARTICLE_KEYS, label);
+        if (Object.hasOwn(article, "sourcePath") &&
+            (typeof article.sourcePath !== "string" || !/^docs\/[a-zA-Z0-9/_-]+\.md$/u.test(article.sourcePath)))
+            throw new Error(`${label}.sourcePath is not a safe documentation path`);
         const id = assertTrimmedNonBlankString(article.id, `${label}.id`);
         const title = assertTrimmedNonBlankString(article.title, `${label}.title`);
         const normalizedId = id.normalize("NFKC").toLocaleLowerCase("en-US");
@@ -438,6 +441,11 @@ export function buildCanonicalRuntime(packageRoot) {
         buildScreenshotCatalog(packageRoot),
     );
     let runtime = supportSource;
+    const propertyKey = "      let key = name;";
+    if (runtime.split(propertyKey).length !== 2)
+        throw new Error("Archive property compiler binding anchor changed");
+    runtime = runtime.replace(propertyKey,
+        '      let key = name.startsWith("data-wl-bind-") ? name.slice("data-wl-bind-".length) : name;');
     runtime = replaceSection(
         runtime,
         "  function evalDcLogic(src) {",
@@ -642,7 +650,10 @@ export function canonicalArchiveSitePlugin(packageRoot, base) {
             if (!logicScript.test(html)) {
                 throw new Error("Canonical archive index is missing its production logic trigger");
             }
-            return html.replace(logicScript, "$1class Component extends DCLogic {}$2");
+            // Browser parsing must not execute unresolved image URLs or parse literal
+            // template expressions as SVG path data before the runtime hydrates.
+            return html.replace(logicScript, "$1class Component extends DCLogic {}$2")
+                .replace(/(\s)(d|src)="(\{\{[^"\n]+\}\})"/gu, '$1data-wl-bind-$2="$3"');
         },
         buildStart() {
             for (const file of files) {

@@ -56,7 +56,7 @@ export function markdownArticle(source, id) {
 
 export function loadServerArticles(packageRoot) {
     const repositoryRoot = resolve(packageRoot, "../../..");
-    return SERVER_ARTICLES.map((entry) => markdownArticle(
+    return SERVER_ARTICLES.map((entry) => ({ ...markdownArticle(
         readFileSync(resolve(repositoryRoot, entry.path), "utf8"), entry.id,
-    ));
+    ), sourcePath: entry.path }));
 }
