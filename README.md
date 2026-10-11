@@ -11,7 +11,7 @@ The [complete feature delivery inventory](docs/contracts/feature-delivery-invent
 
 The [production server-article report](docs/site/production-server-articles.md) records the current 62-article assembly and focused desktop/mobile verification of the initial binding repair. Complete cleanup, live documentation/wiki navigation and all-surface acceptance remain pending.
 
-The [SSH-process foundation](docs/server-management/ssh-process-lifecycle.md) now has persisted installation identity and production transport/IPC routing. Creation, files, authenticated console and live target acceptance are still pending; the creation wizard does not offer the incomplete target.
+The [SSH-process foundation](docs/server-management/ssh-process-lifecycle.md) now has persisted installation identity, production transport/IPC routing and bounded capability/status refresh. The exact root build and hidden native unavailable-host observation passed at `f1d51b2d`: the saved record shows Unknown and disables lifecycle actions at normal and minimum sizes. Creation, files, authenticated console and live target acceptance are still pending; the creation wizard does not offer the incomplete target. Captures remain unpromoted because temporary-profile cleanup is incomplete.
 
 ### Current adoption-browser evidence
 

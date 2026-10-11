@@ -13,7 +13,7 @@
 - [x] Verify CLI viewer distribution from the maintained fork through focused staging checks and the exact root build at 82727748.
 - [ ] Integrate verified BlueMap v5.29 while preserving the Material viewer and legacy decoder.
 - [ ] Implement SSH-process hosting, Bedrock and version-bound server controls.
-- [ ] Finish SSH-process integration: persisted created-installation records, factory/IPC routing, capability publication and per-action UI model are implemented. Seventeen transport cases and eighteen lifecycle cases pass. Installation, files, authenticated console, creator and live systemd/Minecraft/GUI acceptance remain pending; forced termination is unsupported.
+- [ ] Finish SSH-process integration: persisted created-installation records, factory/IPC routing, capability publication and bounded refresh are implemented. The exact root build and UI type check pass at f1d51b2d; a hidden native fixture shows Unknown and disabled lifecycle actions at 1280x752 and 800x600, English/dark, CDP scale 1.5. Installation, files, authenticated console, creator and live systemd/Minecraft acceptance remain pending; forced termination is unsupported, other display tuples are unverified and captures remain unpromoted.
 - [x] Verify the bounded initial native-caption increment at e9cad90a: exact root build, 24 setup/provenance checks, 48 inspected/validated dark-setup and light-home tuples, promoted genuine initial capture and owned teardown.
 - [x] Verify independent English/Cantonese/bilingual date formatting at e0efd139: two red/green regressions, 37 focused checks, exact root build/type check and 48 rebuilt inspected/validated tuples.
 - [ ] Complete caption physical DPI, light first-run and hosted/documentation/embedded-viewer consumers.

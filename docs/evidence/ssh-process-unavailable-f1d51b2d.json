@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "kind": "bounded-native-observation",
+  "sourceCommit": "f1d51b2dd46c7f193d1e5a5e8474bc2e3961b5ab",
+  "sourceDigest": "265f934eb3eb386ed05884c71aecb09fffc053c934e9c8855862ef06715d58a4",
+  "buildEntrypoint": "build.bat /s",
+  "buildVerified": true,
+  "uiTypecheckVerified": true,
+  "route": "cheap-lowlevel-headless",
+  "fixture": "Saved SSH-process record with a nonexistent host profile; no live SSH host contacted",
+  "language": "en",
+  "theme": "dark",
+  "viewports": [
+    {
+      "height": 752,
+      "cdpScale": 1.5,
+      "width": 1280
+    },
+    {
+      "height": 600,
+      "cdpScale": 1.5,
+      "width": 800
+    }
+  ],
+  "physicalDpiVerified": false,
+  "expectedStatus": "unknown",
+  "startEnabled": false,
+  "stopEnabled": false,
+  "minimumDocumentHorizontalOverflow": false,
+  "captures": [
+    {
+      "id": "record-capture",
+      "sha256": "6b1b775f148b6e6b57413c201220268d7370355b7c3383b0d6dda88be9cac45a",
+      "bytes": 95195,
+      "startedAt": "2026-10-11T16:03:57.841Z",
+      "capturedAt": "2026-10-11T16:03:57.961Z",
+      "inspected": true,
+      "promoted": false
+    },
+    {
+      "id": "minimum-capture",
+      "sha256": "3e25a4d1dc5e236d93805c253aef9a9a03bca817486de1010cc05dfdc7456a08",
+      "bytes": 83535,
+      "startedAt": "2026-10-11T16:03:58.031Z",
+      "capturedAt": "2026-10-11T16:03:58.118Z",
+      "inspected": true,
+      "promoted": false
+    }
+  ],
+  "runtimeObservation": {
+    "version": 1,
+    "requested": true,
+    "enabled": true,
+    "complete": true,
+    "startedAt": "2026-10-11T16:03:57.835Z",
+    "endedAt": "2026-10-11T16:03:58.119Z",
+    "coverage": "cdp-plan-interval",
+    "startupHistoryObserved": false,
+    "mappingVersion": 1,
+    "consoleErrorCount": 0,
+    "unhandledExceptionCount": 0,
+    "pageErrorCount": 0,
+    "historicalEventsExcluded": 0,
+    "invalidEventCount": 0,
+    "interruptionCode": null,
+    "binding": {
+      "helperSha256": "14418ddb5a3869f893aa508ec04b7d1fd3f928f32974d99470fa57d5c81bf6fe",
+      "launchReceiptSha256": "ab22719288f6936dab2424e9f5c8b402257f605f0d51d3aba3b491e39afa6869"
+    }
+  },
+  "cleanup": {
+    "recordedProcesses": 4,
+    "remainingListeners": 0,
+    "remainingProcesses": 0,
+    "desktopAbsent": true,
+    "profileRetained": true,
+    "complete": false
+  },
+  "limitations": [
+    "No live SSH lifecycle or installation acceptance",
+    "No complete display matrix",
+    "Profile retained after automatic approval rejected the earlier exact deletion; no alternate route attempted",
+    "Captures inspected but not promoted",
+    "No installer, release or deployment acceptance"
+  ]
+}

@@ -3174,11 +3174,18 @@
               "design/packages/ui/src/components/mcserver/adoptionOwnership.test.ts",
               "design/packages/app/src/main/mcserver/ipc.ts",
               "design/packages/app/src/main/mcserver/adoptionDefaultRunner.test.ts",
-              "docs/server-management/adoption-ownership.md"
+              "docs/server-management/adoption-ownership.md",
+              "design/packages/app/src/main/mcserver/transport/sshProcess.ts",
+              "design/packages/app/src/main/mcserver/transport/sshProcess.test.ts",
+              "design/packages/app/src/main/mcserver/transport/sshProcessLifecycle.ts",
+              "design/packages/app/src/main/mcserver/registry.ts",
+              "design/packages/ui/src/components/mcserver/ServerListScreen.vue",
+              "design/packages/ui/src/components/mcserver/serverStore.ts",
+              "docs/server-management/ssh-process-lifecycle.md"
             ],
-            "consumer": "Mounted server list, adoption discovery/review and production local execution.",
-            "limitation": "Ownership and production local-runner repairs pass24 focused checks, GUI type checking and exact root builds. Native discovery reaches the absent local daemon and reports unreachable; real candidate adoption remains pending. Minimum dialog caption overlap was observed; its layout repair awaits rebuilt verification. SSH-process, Bedrock, complete version-bound controls and full per-target acceptance remain incomplete.",
-            "sourceCommit": "447b96411ca5af4db2c272af44e63b7e47117455"
+            "consumer": "Mounted server list, adoption discovery/review, persisted SSH-process transport and production IPC capability/status delivery.",
+            "limitation": "Partial implementation only. Local adoption and SSH-process ownership/registry/transport wiring have focused checks and exact root builds. Capability refresh and stale-state handling have mounted/store regression coverage. SSH-process installation, files, authenticated console, creator and live remote acceptance remain incomplete, as do Bedrock, full version-bound controls and the complete target/display matrix. Historical and current capture evidence remain individually bound in the handoff.",
+            "sourceCommit": "f1d51b2dd46c7f193d1e5a5e8474bc2e3961b5ab"
           }
         },
         "hosted-workspace": {
