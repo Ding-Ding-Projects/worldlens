@@ -27,3 +27,11 @@ Fourteen mounted component cases exercise ownership and rejection boundaries. Th
 Production registration omits the optional test runner. Local discovery/confirmation now defaults to the existing bounded execFile command runner, matching the local container transport. An explicit injected runner still takes precedence; SSH requests retain their own profile transport. Three production-shaped registration cases cover successful empty discovery, real command failure reported as unreachable, and injected-runner precedence. Together with14 ownership and7 browser cases,24 focused checks pass. The earlier rebuilt26081239 browser exposed the missing default before any daemon command; its genuine capture is retained as pre-repair evidence. The saved-record release check additionally requires a matching adopted record in the store, because fresh previews already use the adopted origin marker.
 
 Bounded rebuilt verification atdb18561c694015c0be4de15a9867eb4c5d562eab: build.bat /s passes with source digest146294ec3f2f140aa865f0a455c348456988468a0ab15f1a76f6d485da84e43a. Actual local discovery reaches the unavailable daemon. English/dark browser geometry at1280x752 and800x600 CSS, CDP scale2, passes two validated version1 receipts and independent pixel review. The minimum dialog top is64px below a40px caption, footer actions remain within the viewport and the full failure detail is reachable by scrolling. The original promoted capture is in README and both evidence inventories. Four recorded process identities, listener and named desktop are absent after normal close. Real candidate adoption, review-dialog rendering, other languages/themes/scales and physical DPI remain pending.
+
+## 廣東話
+
+候選容器清單只屬於產生佢嘅主機。轉主機、關閉視窗或者重新搜尋，舊結果就失效，唔可以借用另一部主機嘅身分去選取。每次開啟或更換審核對象，都會重設四項權限同 RCON 輸入。同步操作鎖防止重複採納，亦防止採納同釋放同時進行。只有已保存嘅採納記錄先可以釋放。
+
+後端回覆就算遲到，都唔可以關閉新審核、顯示舊對象嘅錯誤，或者替換新選擇。關閉介面唔代表取消後端操作。搜尋失敗亦唔會扮成成功但冇結果；載入狀態會結束，顯示有限度嘅說明。本機路線冇提供測試 runner 時，會用真正受限嘅指令 runner，SSH 仍然經保存嘅主機設定。
+
+二十四個針對性檢查通過。db18561c 嘅精確建置同真實隱藏介面證據顯示，本機搜尋確實到達無法連線嘅 daemon；兩個英文深色視窗尺寸嘅版面收據通過，完整說明可以捲動閱讀。正常關閉後四個記錄中嘅程序、偵錯監聽同隱藏桌面都已不存在。真正採納容器、審核視窗、其他語言／主題／比例同實體 DPI 驗收仍然待完成。

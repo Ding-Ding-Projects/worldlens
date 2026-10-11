@@ -25,6 +25,14 @@ export const mcserverHosting: Article = {
             title: "Behaviour",
             blocks: [
                 {
+                    kind: "callout",
+                    tone: "warning",
+                    title: "SSH process target is still being connected",
+                    content: [
+                        "The Linux SSH-process lifecycle foundation verifies saved ownership, executable, working directory, exact JVM arguments and a stable invocation. Eighteen controlled lifecycle cases pass. Forced termination remains unsupported until it can be bound atomically to the reviewed process. Installation, files, persisted registry records, an invocation-bound authenticated console, creator controls and live systemd/Minecraft acceptance remain pending. This internal foundation does not add a usable fourth target yet. Linux SSH 程序管理基礎已有十八個受控測試；檔案、記錄、控制台、建立介面同真實主機驗收仍未接好，唔代表第四個目標已可用。",
+                    ],
+                },
+                {
                     kind: "paragraph",
                     content: [
                         "New server creates a new local or SSH container; adopting an existing container is a separate flow. Guided images follow the selected Java requirement and are resolved to a registry digest before creation. Velocity uses the proxy image and /server; ordinary servers use /data. Fabric game and loader versions are chosen separately, and Forge, NeoForge, Paper and Purpur retain their selected build identity. 新增伺服器會建立新容器，唔會送去採用現有容器流程。映像先查摘要，版本同載入器各自分清楚。",
