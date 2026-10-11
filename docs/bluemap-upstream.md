@@ -134,6 +134,8 @@ record and rebuilds the jars rather than trusting the ones already there.
 
 ## Related
 
+The JavaScript CLI stages its distributable viewer from `vendor/BlueMap-Material/common/webapp/dist`, matching the maintained engine lineage. Its build requires a nonempty `index.html` and JavaScript/CSS assets. Missing assets stop the build before any existing CLI viewer output is replaced. The official `vendor/BlueMap` checkout remains the release-comparison reference. Two focused staging checks cover copying the maintained bundle and rejecting missing assets; a complete root build is still required for distribution acceptance.
+
 - [Fetching a Java runtime for itself](./java-runtime-provisioning.md), which is the other half
   of "what does it take to run the engine at all".
 - [Running the engine on this computer, or in a container](./docker-and-local.md), for what the

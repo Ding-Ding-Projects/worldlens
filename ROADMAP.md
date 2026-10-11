@@ -6,6 +6,7 @@
 - [ ] Retain historical Java channels: 46 focused catalogue/grouping cases pass; built wizard acceptance remains pending.
 - [x] Repair portable acquisition release tags and root layouts with six focused tests.
 - [ ] Finish root builds, exact installer production and current real GUI evidence.
+- [ ] Verify CLI viewer distribution from the maintained fork: staging and missing-asset checks pass; exact root retry pending.
 - [ ] Integrate verified BlueMap v5.29 while preserving the Material viewer and legacy decoder.
 - [ ] Implement SSH-process hosting, Bedrock and version-bound server controls.
 - [ ] Complete every applicable feature workflow and per-surface acceptance.
