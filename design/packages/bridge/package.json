@@ -17,8 +17,5 @@
         "build": "tsc -p tsconfig.json",
         "typecheck": "tsc -p tsconfig.json --noEmit",
         "test": "vitest run"
-    },
-    "devDependencies": {
-        "@worldlens/app": "workspace:*"
     }
 }

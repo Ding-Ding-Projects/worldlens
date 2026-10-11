@@ -2,6 +2,8 @@
 
 ## 2026-10-11 all-feature and BlueMap continuation
 
+Root candidate 132e2f35 passed BlueMap CLI compilation and receipt preparation, then stopped on ERR_PNPM_TASK_CYCLE (app -> bridge -> app). The bridge source has no app import and explicitly keeps that dependency direction out of its contract. The unused reverse development dependency and its lockfile importer are removed; ten bridge checks pass. Exact root retry remains required. A bounded forge audit identified five editable historical comments needing publication-boundary correction, so the wider audit is still incomplete.
+
 The live release-tag check now selects v5.29-9-g5294ba3e. The regenerated changelog presentation and publication checker pass: 415 files, 119 externally supplied terms, 139 reviewed exact-position homonyms/identifiers. All 18 checker tests pass, including a generated-output red/green regression and historical command/meaning preservation. This is a bounded source/publication check, not a complete historical forge or shipped-package audit. The exact root build retry and all-feature runtime acceptance remain pending.
 
 Preserved implementation candidate 1fbeeab91465cfee131f3147a33dc1073c24b397 is on the task branch. The public-documentation wording correction is separately verified on main f4fc1421. Worldlens then compiled the fork CLI, but the root run stopped before the workspace build because two task-generated Kotlin session files dirtied the official reference submodule. Both exact files were moved to a task-owned temporary preservation directory and SHA-256 read back, with no tracked source discarded. The run also exposed a missing v5.29 tag in the fork checkout, causing a 5.23-115 label despite the correct source commit.
