@@ -10,7 +10,7 @@
       "reason": "Applies only to the maintainer instruction repository."
     },
     {
-      "id": "uh-single-file-editions",
+      "id": "instruction-single-file-editions",
       "reason": "Applies only to the maintainer instruction repository."
     },
     {
@@ -1106,7 +1106,7 @@
     {
       "id": "logo-customization",
       "title": "application logo customization",
-      "requirement": "Every user-facing application and GitHub Pages ships several project-appropriate logo presets plus a local custom-image upload, with truthful empty, loading, invalid, converted, replace, reset, and conversion poke-guy states that join scheduled settings, appearance export, local history, palette teleport, and per-element editing. Custom images are decoded locally in an isolated bounded decoder that verifies the real bytes and rejects malformed, animated, or decompression-bomb input without partial application, and they never leave the machine. The editor offers crop, fit, focal point, safe area, and a background through the infinite colour picker, while conversion emits only verified consumable variants, reports any loss before activation, keeps the prior logo after a bug or failure, and never rewrites installed identity.",
+      "requirement": "Every user-facing application and GitHub Pages ships several project-appropriate logo presets plus a local custom-image upload, with truthful empty, loading, invalid, converted, replace, reset, and conversion error states that join scheduled settings, appearance export, local history, palette teleport, and per-element editing. Custom images are decoded locally in an isolated bounded decoder that verifies the real bytes and rejects malformed, animated, or decompression-bomb input without partial application, and they never leave the machine. The editor offers crop, fit, focal point, safe area, and a background through the infinite colour picker, while conversion emits only verified consumable variants, reports any loss before activation, keeps the prior logo after a bug or failure, and never rewrites installed identity.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -3620,8 +3620,8 @@
               "design/packages/app/src/main/index.ts"
             ],
             "consumer": "The initial native caption mounts the metadata consumer before navigation. The build records an update event once and freezes it into desktop and hosted bundles.",
-            "limitation": "Source checks pass, including absent/invalid/source-only provenance and initial-caption regressions. Exact rebuilt native layout, all language/theme/scale tuples and other surface consumers remain pending.",
-            "sourceCommit": "6620f9874075abf75504252b2c3f4ccc48e687c7"
+            "limitation": "Exact root build and 24 focused setup/provenance checks pass. Forty-eight source-bound layout receipts and independently inspected native captures cover dark first-run and light home, English/Cantonese/bilingual, 1280 x 752 and 800 x 600 CSS viewports, and four CDP scale values. Physical DPI, light first-run, date localization and other surface consumers remain pending; bounded caption evidence is not full-contract acceptance.",
+            "sourceCommit": "e9cad90a383667fe25354b472e64a2076730aa49"
           }
         },
         "hosted-workspace": {
@@ -3724,7 +3724,7 @@
     {
       "id": "product-evidence",
       "title": "Real screenshots wherever a surface is described",
-      "requirement": "Every README and GitHub Pages carries real screenshots of every surface that has one, the main screen, each destination, settings, editors, dialogs, empty and poke-guy states, the narrow layout, and both themes, grouped under collapsible headings with alt text naming what each shows. They come from the real built artifact through the project's own harness at a known commit, never from mockups, and documentation articles and interface-changing release notes follow the same rule. Visual tasks retain inspected, provenance-bound screenshots in the repository's evidence folder, and a surface that cannot be captured yet says so where the image would go; after a UI remake or interface-changing delivery, refresh every current presentation screenshot and reference across application, GitHub Pages, README, documentation, wiki, gallery and download surfaces from inspected genuine source/hash-bound rebuilt states/configurations, preserving historical originals and provenance without false current claims. Every application also carries image-generation-authored workflow diagrams in its README and GitHub Pages, with existing missing diagrams inventoried and backfilled and multiple diagrams or illustrations where needed. planning mode shows generated diagrams in chat before the completed plan, while every GitHub Pages supplies accessible animated diagrams with selectable workflow steps, access modes, or relevant configuration, pause and replay, reduced-motion support, and clearly labelled illustrative behavior; static README images link to that active equivalent and never substitute for real screenshots.",
+      "requirement": "Every README and GitHub Pages carries real screenshots of every surface that has one, the main screen, each destination, settings, editors, dialogs, empty and error states, the narrow layout, and both themes, grouped under collapsible headings with alt text naming what each shows. They come from the real built artifact through the project's own harness at a known commit, never from mockups, and documentation articles and interface-changing release notes follow the same rule. Visual tasks retain inspected, provenance-bound screenshots in the repository's evidence folder, and a surface that cannot be captured yet says so where the image would go; after a UI remake or interface-changing delivery, refresh every current presentation screenshot and reference across application, GitHub Pages, README, documentation, wiki, gallery and download surfaces from inspected genuine source/hash-bound rebuilt states/configurations, preserving historical originals and provenance without false current claims. Every application also carries image-generation-authored workflow diagrams in its README and GitHub Pages, with existing missing diagrams inventoried and backfilled and multiple diagrams or illustrations where needed. planning mode shows generated diagrams in chat before the completed plan, while every GitHub Pages supplies accessible animated diagrams with selectable workflow steps, access modes, or relevant configuration, pause and replay, reduced-motion support, and clearly labelled illustrative behavior; static README images link to that active equivalent and never substitute for real screenshots.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -3937,7 +3937,7 @@
       "reviewState": "partial-source-mapping"
     },
     {
-      "id": "cheap-jor-matrix",
+      "id": "clipping-matrix",
       "title": "layout clipping defect matrix for every built surface",
       "requirement": "Every surface built from the Material Designer route receives a mandatory layout clipping defect matrix through the `diagnose-built-ui-layout` skill and the cheap Lowlevel headless route, bound to the exact source commit and built-lap-sap hash. It covers the normal and minimum supported viewport, English, Cantonese, and bilingual modes, light and dark themes, and 100, 125, 150, and 200% scales, from roughly 320 px upward for a GitHub Pages. Source inspection, a mock, or a design preview never satisfies it.",
       "surfaces": {
@@ -3982,7 +3982,7 @@
       "reviewState": "pending-review"
     },
     {
-      "id": "public-huishot-gallery",
+      "id": "public-screenshot-gallery",
       "title": "Public screenshot gallery at usage limit reached",
       "requirement": "At each usage limit reached pass one `gpt-6-luna` implementation subagent creates or updates a dedicated public repository and public GitHub Pages carrying every reviewed, publishable, genuine screenshot of the current project, while the source repository stays private. Pixels, captions, metadata, and file names are reviewed, private vocabulary and private details are excluded, and capture dates come only from validated provenance. Public visibility, the live GitHub Pages, and each image are verified separately from the source push.",
       "surfaces": {
@@ -4072,7 +4072,7 @@
       "reviewState": "pending-review"
     },
     {
-      "id": "deen-wah-site",
+      "id": "mobile-site",
       "title": "A mobile-friendly GitHub Pages",
       "requirement": "Every GitHub Pages is responsive from roughly 320 px upward with a proper viewport meta tag, no sideways body scroll, wide content scrolling inside its own container, readable reflowing text, and touch targets that meet the platform minimum with safe separation. Vertical tab strips collapse, and anchored popovers, the appearance editor, the colour picker, and the palette stay inside the viewport and scroll internally. Menu filter fields stay typable with an on-screen keyboard raised, and every hover-only affordance gets a tap equivalent.",
       "surfaces": {
@@ -4344,7 +4344,7 @@
     {
       "id": "vocabulary-unlock-boundary",
       "title": "private vocabulary only after authentication",
-      "requirement": "On every GitHub Pages or other website that uses the private vocabulary, all unauthenticated HTML, metadata, API poke-guy text, accessible names, registration and sign-in copy, and pre-authentication assets use ordinary language, and the private vocabulary unlocks only after authentication succeeds, with Slop Machine alone public. A current request naming one exact term and one exact private surface authorizes only that literal on that surface, never any public, unauthenticated, exported, logged, or synchronized content.",
+      "requirement": "On every GitHub Pages or other website that uses the private vocabulary, all unauthenticated HTML, metadata, API error text, accessible names, registration and sign-in copy, and pre-authentication assets use ordinary language, and the private vocabulary unlocks only after authentication succeeds, with only the documented public-safe exception. A current request naming one exact term and one exact private surface authorizes only that literal on that surface, never any public, unauthenticated, exported, logged, or synchronized content.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -5700,7 +5700,7 @@
       "reviewState": "pending-review"
     },
     {
-      "id": "wiki-day-teet-hui-sync",
+      "id": "wiki-pages-sync",
       "title": "Wiki and GitHub Pages source kept current",
       "requirement": "Every project-changing task updates the GitHub wiki and any existing GitHub Pages source. Public repository applications create the mandatory GitHub Pages when the host supports it; private repositories are exempt from mandatory GitHub Pages creation and may retain an optional private surface. Public application GitHub Pages sites contain complete articles and wiki content directly, with verified internal navigation; optional source links never substitute for content. Publishing either one never sets off an endless loop of base repository pushes.",
       "surfaces": {
@@ -6021,7 +6021,7 @@
       "reviewState": "excluded-with-reason"
     },
     {
-      "id": "uh-single-file-editions",
+      "id": "instruction-single-file-editions",
       "title": "Single-file editions of the global-memory repository",
       "requirement": "`memory/UH_PROMPT.md` is the prompt edition, at most 5,000 characters in one fenced block, preserving every dictionary alias and refreshed in every task that changes a rule, term, route, or closeout duty. `memory/UH_FULL.md` is the capped full edition under 500,000 bytes for one Pastebin paste, and `memory/UH_PRO_MAX.md` with its manifest is the complete uncapped portable edition. Both generated editions are rebuilt whenever an included source changes and pass `--check`.",
       "surfaces": {

@@ -358,6 +358,24 @@
       "interactionReceiptSha256": "3e7051a1995f8da340249f8b997db933f046f989a5c2f595c3fbf4622a4affdb",
       "inspectionStatus": "inspected",
       "capturedAt": "2026-10-11T12:21:40.134Z"
+    },
+    {
+      "scale": 1.5,
+      "id": "front-provenance-e9cad90a",
+      "interactionProofId": "initial-caption-above-first-run-overlay",
+      "active": true,
+      "inspectionStatus": "inspected",
+      "screen": "Initial desktop caption and first-run setup",
+      "viewportHeight": 752,
+      "interactionReceiptSha256": "396721984917a964b6eb3a473f7812bbb2800eb0ca4043ef8e0b259c980e97ae",
+      "theme": "dark",
+      "state": "first-run-welcome-caption-visible",
+      "artifactSha256": "8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac",
+      "capturedAt": "2026-10-11T12:56:20.625Z",
+      "captureSha256": "a6985bd24ae1f6b6d39caa39956d47281b4860d6db33a8f480143dafc555df0d",
+      "viewportWidth": 1280,
+      "sourceCommit": "e9cad90a383667fe25354b472e64a2076730aa49",
+      "path": "docs/screenshots/front-provenance-e9cad90a.png"
     }
   ]
 }

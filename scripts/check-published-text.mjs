@@ -64,6 +64,8 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PUBLISHED = Object.freeze([
   Object.freeze({ path: "CHANGELOG.md" }),
   Object.freeze({ path: "README.md" }),
+  Object.freeze({ path: "docs/contracts/feature-delivery-inventory.json" }),
+  Object.freeze({ path: "scripts/check-feature-delivery-inventory.mjs" }),
   Object.freeze({
     path: "design/packages/ui/src/components/changelog/changelogData.generated.ts",
   }),

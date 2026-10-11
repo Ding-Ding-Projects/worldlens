@@ -29,6 +29,38 @@ function scratch() {
   return mkdtempSync(join(tmpdir(), "published-text-"));
 }
 
+test("default publication checks reject private text in the feature inventory and its required id list", () => {
+  for (const relativePath of [
+    "docs/contracts/feature-delivery-inventory.json",
+    "scripts/check-feature-delivery-inventory.mjs",
+  ]) {
+    const directory = scratch();
+    try {
+      const script = join(directory, "scanner.mjs");
+      const source = readFileSync(new URL("./check-published-text.mjs", import.meta.url), "utf8");
+      const anchor = 'const ROOT = fileURLToPath(new URL("..", import.meta.url));';
+      assert.ok(source.includes(anchor));
+      writeFileSync(script, source.replace(anchor, () => `const ROOT = ${JSON.stringify(directory)};`));
+      const terms = join(directory, "terms.json");
+      writeFileSync(terms, JSON.stringify(["zorb"]));
+      const target = join(directory, relativePath);
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, JSON.stringify({ id: "zorb", requirement: "Public feature contract" }));
+      const run = () => spawnSync(process.execPath, [script], {
+        encoding: "utf8",
+        env: { ...process.env, WORLDLENS_VOCABULARY_TERMS: terms },
+      });
+      const red = run();
+      assert.equal(red.status, 1, `${relativePath} must be checked without explicit path arguments`);
+      assert.match(red.stderr, /internal shorthand/u);
+      writeFileSync(target, JSON.stringify({ id: "public-feature", requirement: "Public feature contract" }));
+      assert.equal(run().status, 0);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }
+});
+
 test("generated changelog text fails the publication check until its presentation is corrected", () => {
   const directory = scratch();
   try {

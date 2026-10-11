@@ -13,7 +13,9 @@
 - [x] Verify CLI viewer distribution from the maintained fork through focused staging checks and the exact root build at 82727748.
 - [ ] Integrate verified BlueMap v5.29 while preserving the Material viewer and legacy decoder.
 - [ ] Implement SSH-process hosting, Bedrock and version-bound server controls.
-- [ ] Verify initial-caption version/update provenance: source and negative regressions pass; fixed-input type check, exact root build and native acceptance pending.
+- [x] Verify the bounded initial native-caption increment at e9cad90a: exact root build, 24 setup/provenance checks, 48 inspected/validated dark-setup and light-home tuples, promoted genuine initial capture and owned teardown.
+- [ ] Complete caption physical DPI, light first-run, date localization and hosted/documentation/embedded-viewer consumers.
+- [x] Include the public feature JSON and required-ID list in the default publication scan; observe omission regression red, restore byte-exactly and pass all 24 publication/inventory checks.
 - [ ] Complete every applicable feature workflow and per-surface acceptance.
 - [ ] Integrate completed units into main, verify remote delivery and retain unfinished owned work.
 

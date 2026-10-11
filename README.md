@@ -9,6 +9,12 @@ Minecraft 3D map renderer and web viewer.
 
 The [complete feature delivery inventory](docs/contracts/feature-delivery-inventory.md) tracks 105 canonical requirements across five scopes. Current completion remains pending, including SSH-process hosting, Bedrock management, version-bound server controls and current built-interface evidence. Java catalogue discovery now retains release, snapshot, historical beta and historical alpha channels; discovery does not establish that Mojang published a dedicated server for every entry or that every historical runtime works.
 
+### Current initial-caption evidence
+
+![Initial Worldlens version and update timestamp visible above first-run setup, English dark theme](docs/screenshots/front-provenance-e9cad90a.png)
+
+Genuine hidden native capture at source e9cad90a383667fe25354b472e64a2076730aa49, captured 10/11/2026 12:56:20. The initial version and recorded update time stay visible above setup. Forty-eight separately inspected caption tuples cover dark setup and light home, three language modes, normal/minimum CSS sizes and four CDP scale values. Emulated scales do not establish physical Windows DPI acceptance. Full feature, installer and other-surface acceptance remain pending.
+
 ### Current historical-version workflow evidence
 
 ![Historical alpha server versions with complete availability reasons, English dark theme](docs/screenshots/server-alpha-layout-82727748.png)
