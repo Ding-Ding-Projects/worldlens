@@ -376,6 +376,24 @@
       "viewportWidth": 1280,
       "sourceCommit": "e9cad90a383667fe25354b472e64a2076730aa49",
       "path": "docs/screenshots/front-provenance-e9cad90a.png"
+    },
+    {
+      "captureSha256": "a3b4a5a9d4f0e4c16d7a55f4781c3eebc01e9a7293a90d0544dcaca4fc034920",
+      "state": "bilingual-light-home-caption",
+      "capturedAt": "2026-10-11T13:31:03.583Z",
+      "interactionProofId": "caption-localized-dates-same-recorded-instant",
+      "artifactSha256": "8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac",
+      "active": true,
+      "scale": 2,
+      "viewportHeight": 600,
+      "screen": "Localized initial desktop caption and home",
+      "viewportWidth": 800,
+      "inspectionStatus": "inspected",
+      "id": "front-date-language-e0efd139",
+      "interactionReceiptSha256": "e1e943475d6d1c764c149c09e513edb62e0476fb3a56f7ad387ee0e28c97606f",
+      "theme": "light",
+      "sourceCommit": "e0efd1395eb45341b7c34a494af1b419f920c919",
+      "path": "docs/screenshots/front-date-language-e0efd139.png"
     }
   ]
 }

@@ -3620,8 +3620,8 @@
               "design/packages/app/src/main/index.ts"
             ],
             "consumer": "The initial native caption mounts the metadata consumer before navigation. The build records an update event once and freezes it into desktop and hosted bundles.",
-            "limitation": "Exact root build and 24 focused setup/provenance checks pass. Forty-eight source-bound layout receipts and independently inspected native captures cover dark first-run and light home, English/Cantonese/bilingual, 1280 x 752 and 800 x 600 CSS viewports, and four CDP scale values. Physical DPI, light first-run, date localization and other surface consumers remain pending; bounded caption evidence is not full-contract acceptance.",
-            "sourceCommit": "e9cad90a383667fe25354b472e64a2076730aa49"
+            "limitation": "Exact root build, fixed-source GUI type check and 37 caption/catalogue/voice checks pass. Forty-eight validated and independently inspected dark-setup/light-home tuples cover three language modes, two CSS sizes and four CDP scales, with localized dates for the same canonical instant and zero caption overflow/occlusion. Physical DPI beyond native150, light first-run, other consumers and full-contract acceptance remain pending.",
+            "sourceCommit": "e0efd1395eb45341b7c34a494af1b419f920c919"
           }
         },
         "hosted-workspace": {

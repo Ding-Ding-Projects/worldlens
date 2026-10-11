@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 265,
+  "expectedTargetCount": 266,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -710,6 +710,26 @@
       "expectedCount": 1,
       "notGradedBecause": "Point-in-time caption acceptance at exact source e9cad90a. This is not whole-interface or later-source acceptance.",
       "uiSourceDigestNote": "Root source digest 0c5da3f543ba70acbda9048adce8b48527e9f8d6c6b4e0b2e848b031e8f4b98c. Genuine PNG SHA-256 a6985bd24ae1f6b6d39caa39956d47281b4860d6db33a8f480143dafc555df0d. The separate 48-tuple caption matrix covers dark setup and light home, three language modes, normal/minimum CSS sizes and CDP scale emulation. Physical DPI, setup-light and other consumers remain separate acceptance gaps."
+    },
+    {
+      "authority": "Validated source-bound hidden native CDP layout observation",
+      "captureTimes": {
+        "docs/screenshots/front-date-language-e0efd139.png": "2026-10-11T13:31:03.583Z"
+      },
+      "expectedCount": 1,
+      "capturedFromInterfaceSource": false,
+      "sourceCommits": {
+        "docs/screenshots/front-date-language-e0efd139.png": "e0efd1395eb45341b7c34a494af1b419f920c919"
+      },
+      "replacementPolicy": "Preserve original bytes and recorded source/capture identity. Later builds require separately dated captures.",
+      "id": "localized-caption-layout-20261011",
+      "targets": [
+        "docs/screenshots/front-date-language-e0efd139.png"
+      ],
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "uiSourceDigestNote": "Root source digest 1d05eeca3f510beeced189aa5ee2fe9a368a5ba2978df5d58ccd063094737678; genuine PNG SHA-256 a3b4a5a9d4f0e4c16d7a55f4781c3eebc01e9a7293a90d0544dcaca4fc034920. Bilingual light home, 800 x 600 CSS pixels and CDP scale 2, raw PNG1600 x1200. The independently reviewed 48-tuple caption matrix remains separate from physical Windows DPI, installer and other-surface acceptance.",
+      "notGradedBecause": "Point-in-time localized-caption acceptance at exact source e0efd139, not whole-interface or later-source acceptance.",
+      "command": "Rebuild e0efd1395eb45341b7c34a494af1b419f920c919 with build.bat /s; use a cheap Lowlevel hidden desktop, fresh isolated profile and exact process identity. Complete onboarding with download declined, select light theme and bilingual language through settings, then observe home at 800 x 600 CSS pixels with CDP scale 2."
     }
   ]
 }
