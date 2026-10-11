@@ -848,7 +848,12 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             let result: Answer<InstanceStatus>;
             try { result = await host.status(id); }
             catch { result = fail("The status request did not complete; the server state is unknown.", "unreachable"); }
-            if (request === statusRequests.get(id) && result.ok && result.value) statuses[id] = result.value;
+            if (request === statusRequests.get(id)) {
+                statuses[id] = result.ok && result.value ? result.value : {
+                    state: "unknown", running: false, startedAt: null, exitCode: null,
+                    checkedAt: new Date().toISOString(),
+                };
+            }
             return result;
         },
 

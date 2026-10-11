@@ -153,7 +153,7 @@ describe("createServerStore with a host", () => {
         await store.probe("survival");
         await store.refreshStatus("survival");
         expect(store.capabilitiesFor("survival")).toBeNull();
-        expect(store.statuses.survival).toBeUndefined();
+        expect(store.statuses.survival).toMatchObject({ state: "unknown", running: false, exitCode: null });
     });
     it("does not let older requests restore permissions or running state after a newer failure", async () => {
         const host = fakeHost();
@@ -173,7 +173,7 @@ describe("createServerStore with a host", () => {
         resolveStatus(oldStatus);
         await Promise.all(first);
         expect(store.capabilitiesFor("survival")).toBeNull();
-        expect(store.statuses.survival).toBeUndefined();
+        expect(store.statuses.survival).toMatchObject({ state: "unknown", running: false, exitCode: null });
     });
 
     it("runningCount reflects cached statuses", async () => {
