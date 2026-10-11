@@ -306,6 +306,10 @@ export const MENU_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const MENU_FIXED = {
+    "frontBuild.version": { en: "Version {version}", yue: "版本 {version}" },
+    "frontBuild.versionUnavailable": { en: "Version unavailable", yue: "版本資料未能提供" },
+    "frontBuild.updated": { en: "Updated {timestamp}", yue: "更新於 {timestamp}" },
+    "frontBuild.updatedUnavailable": { en: "Updated time unavailable", yue: "更新時間未能提供" },
     /* The Maps page's own list of renders this computer has made. Kept apart from the map
      * list above it, so the two headings have to say which is which. */
     "maps.rendered": { en: "Rendered on this computer", yue: "喺呢部電腦 render 過" },

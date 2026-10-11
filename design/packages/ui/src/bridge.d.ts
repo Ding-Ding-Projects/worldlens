@@ -971,7 +971,12 @@ interface WorldlensBridge {
      * `null` when the build could not establish one - which is a real answer, not a failure,
      * and must be rendered as "not recorded" rather than filled in from the current clock.
      */
-    getBuildProvenance?: () => Promise<{ version: string; builtAt: string | null }>;
+    getBuildProvenance?: () => Promise<{
+        version: string;
+        builtAt: string | null;
+        updatedAt?: string | null;
+        timestampOrigin?: "build" | "release";
+    }>;
 
     /** How this copy is running. Absent on a shell too old to have been asked. */
     getDeployment?: () => Promise<{

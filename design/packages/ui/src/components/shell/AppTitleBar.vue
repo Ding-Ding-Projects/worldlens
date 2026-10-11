@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted } from "vue";
+import { onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiClose, mdiWindowMaximize, mdiWindowMinimize, mdiWindowRestore } from "@mdi/js";
 import { VBtn, VIcon } from "vuetify/components";
 import { createWindowControls, resolveWindowBridge, type WindowBridge } from "./windowControls.js";
+import FrontBuildProvenance from "./FrontBuildProvenance.vue";
 
 /**
  * The application's own title bar.
@@ -63,15 +64,30 @@ const controls = createWindowControls(
  * gets a map that begins under the chrome rather than behind it.
  */
 const BAR_HEIGHT = "40px";
+const titleBar = ref<HTMLElement | null>(null);
+let heightObserver: ResizeObserver | null = null;
 
 onMounted(() => {
     if (controls.available) {
         document.documentElement.style.setProperty("--mb-titlebar-height", BAR_HEIGHT);
+        if (titleBar.value && typeof ResizeObserver !== "undefined") {
+            heightObserver = new ResizeObserver(() => {
+                const height = titleBar.value?.getBoundingClientRect().height;
+                if (height && Number.isFinite(height)) {
+                    document.documentElement.style.setProperty(
+                        "--mb-titlebar-height",
+                        `${height}px`,
+                    );
+                }
+            });
+            heightObserver.observe(titleBar.value);
+        }
     }
     void controls.start();
 });
 
 onBeforeUnmount(() => {
+    heightObserver?.disconnect();
     document.documentElement.style.removeProperty("--mb-titlebar-height");
     controls.stop();
 });
@@ -87,7 +103,7 @@ onBeforeUnmount(() => {
         {{ t("window.skipToMain", "Skip to main content") }}
     </a>
 
-    <header v-if="controls.available" class="mb-titlebar" role="banner">
+    <header v-if="controls.available" ref="titleBar" class="mb-titlebar" role="banner">
         <!--
             The drag region carries the identity and the empty space. It is not a button and
             takes no focus: double-clicking it maximises the window, which is the operating
@@ -97,6 +113,7 @@ onBeforeUnmount(() => {
         <div class="mb-titlebar-drag">
             <img class="mb-titlebar-logo" :src="LOGO_URL" alt="" />
             <span class="mb-titlebar-title">{{ props.title }}</span>
+            <FrontBuildProvenance />
         </div>
 
         <div class="mb-titlebar-controls">
@@ -189,7 +206,7 @@ onBeforeUnmount(() => {
 .mb-titlebar {
     display: flex;
     align-items: stretch;
-    height: var(--mb-titlebar-height, 40px);
+    min-height: 40px;
     background: rgb(var(--v-theme-surface-light, var(--v-theme-surface)));
     color: rgb(var(--v-theme-on-surface));
     border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);

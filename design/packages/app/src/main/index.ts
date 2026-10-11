@@ -569,6 +569,8 @@ function registerIpc(): void {
     ipcMain.handle("app:deployment", () => ({ hosted: false }));
     ipcMain.handle("app:buildProvenance", () => ({
         version: app.getVersion(),
+        updatedAt: typeof __WORLDLENS_UPDATED_AT__ === "string" ? __WORLDLENS_UPDATED_AT__ : null,
+        timestampOrigin: "build",
         // typeof, not a bare read, for the same reason the hosted route uses one.
         builtAt: typeof __WORLDLENS_BUILT_AT__ === "string" ? __WORLDLENS_BUILT_AT__ : null,
         // A time says when this was built; only the commit says which source it came

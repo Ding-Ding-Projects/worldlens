@@ -2560,7 +2560,12 @@ interface WorldlensBridge {
      * a source export with no git history has no provenance to read - and the About
      * surface renders it as "not recorded" rather than substituting the current clock.
      */
-    getBuildProvenance(): Promise<{ version: string; builtAt: string | null }>;
+    getBuildProvenance(): Promise<{
+        version: string;
+        builtAt: string | null;
+        updatedAt?: string | null;
+        timestampOrigin?: "build" | "release";
+    }>;
 
     /**
      * How this copy is running. `hosted` is false on a desktop; a hosted deployment adds the

@@ -84,6 +84,8 @@ export function registerHostedHandlers(
     // reached dist/hosted/index.js as free identifiers and thrown on first read.
     ipcMain.handle("app:buildProvenance", () => ({
         version: process.env["WORLDLENS_VERSION"] ?? "0.0.0-hosted",
+        updatedAt: typeof __WORLDLENS_UPDATED_AT__ === "string" ? __WORLDLENS_UPDATED_AT__ : null,
+        timestampOrigin: "build",
         // typeof, not a bare read: a module the runner treats as external is never
         // transformed, and then the identifier throws rather than being null.
         builtAt: typeof __WORLDLENS_BUILT_AT__ === "string" ? __WORLDLENS_BUILT_AT__ : null,

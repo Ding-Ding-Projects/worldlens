@@ -211,6 +211,19 @@ export function resolveBuildTimestamp(env, runGit = defaultGitCommitterDate) {
     return fromGit === null ? null : fromGit;
 }
 
+/** Record this build event once, separately from the historical source timestamp. */
+export function resolveVersionUpdatedAt(env, buildClock = () => new Date().toISOString()) {
+    const declared = env[BUILD_TIMESTAMP_VARIABLE]?.trim();
+    if (declared) return resolveBuildTimestamp(env, () => null);
+    const recorded = buildClock();
+    if (typeof recorded !== "string" ||
+        !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(recorded) ||
+        !Number.isFinite(Date.parse(recorded)) || new Date(recorded).toISOString() !== recorded) {
+        throw new Error("The build event requires a canonical UTC timestamp.");
+    }
+    return recorded;
+}
+
 /**
  * The commit this build came from, or null.
  *
@@ -323,6 +336,7 @@ export function resolveBuildRepository(env) {
  * prerequisites, so the image was failing on missing inputs for outputs nobody wanted.
  */
 async function main() {
+    const versionUpdatedAt = resolveVersionUpdatedAt(process.env);
     const hostedOnly = process.argv.includes("--hosted-only");
     const repositories = resolveBuildRepositories(process.env);
     if (
@@ -360,6 +374,7 @@ async function main() {
                 __WORLDLENS_REPOSITORY__: JSON.stringify(repositories.current),
                 __WORLDLENS_LEGACY_REPOSITORY__: JSON.stringify(repositories.legacy),
                 __WORLDLENS_BUILT_AT__: JSON.stringify(resolveBuildTimestamp(process.env)),
+                __WORLDLENS_UPDATED_AT__: JSON.stringify(versionUpdatedAt),
                 __WORLDLENS_SOURCE_COMMIT__: JSON.stringify(resolveBuildCommit(process.env)),
             },
         });
@@ -428,6 +443,7 @@ async function main() {
         // could: there was nothing to answer with.
         define: {
             __WORLDLENS_BUILT_AT__: JSON.stringify(resolveBuildTimestamp(process.env)),
+            __WORLDLENS_UPDATED_AT__: JSON.stringify(versionUpdatedAt),
             __WORLDLENS_SOURCE_COMMIT__: JSON.stringify(resolveBuildCommit(process.env)),
         },
         banner: { js: nodeBuiltinRequireShimBanner },
