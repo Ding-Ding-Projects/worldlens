@@ -212,7 +212,7 @@ function choose(candidate: AdoptionCandidate): void {
 </script>
 
 <template>
-    <VDialog v-model="open" max-width="640" scrollable>
+    <VDialog v-model="open" class="wl-adoptbrowser-dialog" max-width="640" scrollable>
         <VCard>
             <VCardTitle>{{ t("mcserver.adoptBrowser.title", "Adopt an existing container") }}</VCardTitle>
             <VCardText>
@@ -354,6 +354,10 @@ function choose(candidate: AdoptionCandidate): void {
 </template>
 
 <style scoped>
+.wl-adoptbrowser-dialog :deep(.v-overlay__content) {
+    margin-top: calc(24px + var(--mb-titlebar-height, 40px));
+    max-height: calc(100% - 48px - var(--mb-titlebar-height, 40px));
+}
 .wl-adoptbrowser__blurb {
     color: rgb(var(--v-theme-on-surface-variant));
     margin-bottom: 12px;

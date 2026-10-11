@@ -962,3 +962,11 @@ it from the interface.
 - [ ] Remove the three unregistered physical linked checkout directories; retained because the
       robot rejected recursive deletion with `Filename too long`.
 - [ ] Remove the retained stash only after byte-for-byte redundancy is proven.
+
+## Adoption and inventory correspondence verification (2026-10-11)
+
+- [x] Validate24 focused ownership/browser/production-runner cases and corrected GUI type checking.
+- [x] Verify exact root build and real unavailable-daemon discovery at447b9641; retain captures and identity-based owned teardown.
+- [x] Reject stale Markdown companion correspondence, regenerate from JSON and pass26 publication/inventory checks.
+- [ ] Verify caption reservation for both adoption dialogs in the rebuilt minimum/normal interface; the earlier overlap capture remains pre-repair evidence.
+- [ ] Complete real-container adoption and remaining language/theme/scale acceptance.

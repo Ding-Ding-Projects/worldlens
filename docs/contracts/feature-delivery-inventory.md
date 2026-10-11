@@ -1,128 +1,128 @@
 # Feature delivery inventory draft
 
-Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. This is an independent-review draft, not current runtime acceptance.
+Generated from `feature-delivery-inventory.json`. Run `node scripts/check-feature-delivery-inventory.mjs --write-markdown` after changing that ledger. The independent required-ID list remains in the checker.
 
-All 105 canonical identifiers are present. Each row carries five surface assessments in the companion JSON. Unknown implementation coverage remains pending review.
+Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation and acceptance inventory; no all-feature completion claim.
 
-| Identifier | Requirement | Source mapping | Review state |
-| --- | --- | --- | --- |
-| `language` | Language modes | `design/packages/ui/src/components/setup/LanguageSettingsRow.vue` | partial-source-mapping |
-| `funny-emoji` | Funny-level sliders and the dialog emoji switch | Not yet mapped | pending-review |
-| `personal-vocabulary` | Local personal-vocabulary JSON upload | `design/packages/site/src/settings/personalVocabulary.ts` | partial-source-mapping |
-| `school-mode` | Universal School mode | `design/packages/ui/src/components/setup/SchoolModeSettingsRow.vue`, `design/packages/site/src/settings/schoolMode.ts` | partial-source-mapping |
-| `narration` | Spoken narrator and voice pickers | `design/packages/ui/src/components/runtimeSettings/narrator.ts` | partial-source-mapping |
-| `scheduled-settings` | Scheduled and external settings sources | `design/packages/ui/src/components/runtimeSettings/schedule.ts` | partial-source-mapping |
-| `display-name` | Renaming the application | `design/packages/ui/src/components/settings/ProductDisplayNameRow.vue` | partial-source-mapping |
-| `adhd-modes` | ADHD modes | `design/packages/ui/src/components/runtimeSettings/completeness.ts` | partial-source-mapping |
-| `dim-sum` | Dim sum surprise | Not yet mapped | pending-review |
-| `dim-sum-photo-source` | Public dim-sum photo source | Not yet mapped | pending-review |
-| `material-design` | Material Design 3 conformance | Not yet mapped | pending-review |
-| `workflow-navigation` | Workflow navigation and window chrome | Not yet mapped | pending-review |
-| `motion` | Material Design 3 motion with a complete reduced-motion path | Not yet mapped | pending-review |
-| `appearance-editor` | Per-element appearance editor | Not yet mapped | pending-review |
-| `color-picker` | Infinite colour picker and translator | Not yet mapped | pending-review |
-| `logo-customization` | application logo customization | Not yet mapped | pending-review |
-| `overlay-panels` | Overlays and panels | Not yet mapped | pending-review |
-| `collapse-filters` | Collapsible filters and statistics | Not yet mapped | pending-review |
-| `accessibility-sizing` | Accessibility, sizing, and layout without layout clipping defect | Not yet mapped | pending-review |
-| `functional-ui` | Functional UI and truthful empty states | Not yet mapped | pending-review |
-| `tabs` | Browser-style tabbed navigation | `design/packages/ui/src/components/tabs/TabbedNavigation.vue`, `design/packages/ui/src/components/tabs/TabStrip.vue` | partial-source-mapping |
-| `regex-search` | Regex builder on every search surface | `design/packages/ui/src/components/config/regexPolicy.test.ts` | partial-source-mapping |
-| `command-palette` | `Ctrl+Shift+F` command palette | Not yet mapped | pending-review |
-| `context-menus` | A context menu on every element | Not yet mapped | pending-review |
-| `menu-shortcuts` | Context menus show working shortcuts | Not yet mapped | pending-review |
-| `rich-controls` | Rich controls wherever a value is shown | Not yet mapped | pending-review |
-| `guided-forms` | Guided forms | Not yet mapped | pending-review |
-| `settings-explanations` | Settings that explain themselves | Not yet mapped | pending-review |
-| `blank-editors` | Presets for blank-slate editors | Not yet mapped | pending-review |
-| `super-confirmation` | Two-key super confirmation | Not yet mapped | pending-review |
-| `element-locks` | Toy locks on every element | Not yet mapped | pending-review |
-| `support-tickets` | Support Tickets recovery desk | Not yet mapped | pending-review |
-| `unlock-ladder` | The unlock ladder | Not yet mapped | pending-review |
-| `authenticator` | Built-in authenticator | Not yet mapped | pending-review |
-| `qr-pairing` | QR pairing for OTP registration | Not yet mapped | pending-review |
-| `honest-monetization` | Free by default, honest when paid, never nagging | Not yet mapped | pending-review |
-| `local-history` | Local version history | `design/packages/ui/src/components/history/HistoryPanel.vue`, `design/packages/ui/src/components/history/historyRestore.ts` | partial-source-mapping |
-| `exports` | Export everything, in every format | Not yet mapped | pending-review |
-| `bulk-actions` | Bulk actions everywhere | Not yet mapped | pending-review |
-| `changelog` | Changelog viewer | Not yet mapped | pending-review |
-| `offline-docs` | Offline documentation browser in every application | `design/packages/ui/src/components/docs/DocsPage.vue` | partial-source-mapping |
-| `rendered-provider-text` | Provider-authored text is rendered | Not yet mapped | pending-review |
-| `notifications` | Non-blocking notifications and their centre | `design/packages/ui/src/components/notifications/noticeBulk.ts` | partial-source-mapping |
-| `file-converter` | Universal local file converter | `design/packages/ui/src/components/converter/ConverterScreen.vue`, `docs/contracts/file-converter-ollama-completeness.md` | partial-source-mapping |
-| `minecraft-server-manager` | Full Minecraft server creator and manager | `design/packages/ui/src/components/mcserver/ServerListScreen.vue`, `design/packages/ui/src/components/mcserver/serverModel.ts`, `design/packages/ui/src/components/mcserver/serverPropertiesFields.ts` | partial-source-mapping |
-| `ollama-suite` | Universal local Ollama suite manager | `design/packages/ui/src/components/ollama/OllamaScreen.vue`, `docs/contracts/file-converter-ollama-completeness.md` | partial-source-mapping |
-| `external-editor` | External editor and VS Code hand-off | Not yet mapped | pending-review |
-| `download-handoff` | Browser-extension download hand-off surfaces | Not yet mapped | pending-review |
-| `forge-publishing` | Publishing to a forge | Not yet mapped | pending-review |
-| `progress-recovery` | Progress where it started, recovery where it broke | Not yet mapped | pending-review |
-| `completeness-parity` | Per-surface completeness inventory and parity | `design/packages/ui/src/components/runtimeSettings/completeness.ts`, `docs/contracts/file-converter-ollama-completeness.md` | partial-source-mapping |
-| `front-provenance` | Front-screen version and updated-at provenance | Not yet mapped | pending-review |
-| `product-evidence` | Real screenshots wherever a surface is described | `docs/screenshots/evidence-inventory.json` | partial-source-mapping |
-| `screen-recording` | committed screen recording | Not yet mapped | pending-review |
-| `design-reference-parity` | Checked-in design-reference parity | Not yet mapped | pending-review |
-| `design-folder` | Design surfaces live in the repository | `design/HANDOFF.md`, `redesign/HANDOFF.md` | partial-source-mapping |
-| `cheap-jor-matrix` | layout clipping defect matrix for every built surface | Not yet mapped | pending-review |
-| `public-huishot-gallery` | Public screenshot gallery at usage limit reached | Not yet mapped | pending-review |
-| `landing-site` | A Material Design 3 GitHub Pages carrying every feature | Not yet mapped | pending-review |
-| `deen-wah-site` | A mobile-friendly GitHub Pages | Not yet mapped | pending-review |
-| `installer-download-button` | Verified installer download on Home | Not yet mapped | pending-review |
-| `feature-articles` | One detailed article per feature on the GitHub Pages | Not yet mapped | pending-review |
-| `vendored-fonts` | Complete, scripted font vendoring | Not yet mapped | pending-review |
-| `shared-link-embed` | A real picture when a link is pasted into Discord | Not yet mapped | pending-review |
-| `homepage-link` | The GitHub Pages linked from the repository | Not yet mapped | pending-review |
-| `vocabulary-unlock-boundary` | private vocabulary only after authentication | Not yet mapped | pending-review |
-| `status-hub` | Status Hub registration and status surface | `design/packages/ui/src/components/runtimeSettings/completeness.ts` | partial-source-mapping |
-| `discord-status-bridge` | Discord status bridge | Not yet mapped | pending-review |
-| `panic-webhooks` | Verified panic dispatch | Not yet mapped | pending-review |
-| `tidbyt-displays` | Tidbyt status frames | Not yet mapped | pending-review |
-| `build-entrypoints` | Root `build.bat` and `build-installer.bat` | `build.bat`, `build-installer.bat` | partial-source-mapping |
-| `fresh-build-run-command` | One fresh Microsoft Windows build-and-run command | Not yet mapped | pending-review |
-| `dependency-fetcher` | One-click dependency or prerequisite fetcher | Not yet mapped | pending-review |
-| `bundled-dependencies` | Every application bundles its dependencies and prerequisites | Not yet mapped | pending-review |
-| `squirrel-installer` | Genuine Squirrel.Windows installers | Not yet mapped | pending-review |
-| `self-signing` | Required-format self-signing only | Not yet mapped | pending-review |
-| `auto-updates` | Chrome-style automatic updates | Not yet mapped | pending-review |
-| `app-icon` | Original logo and packaged icon | Not yet mapped | pending-review |
-| `release-workflow` | A real release on every push | Not yet mapped | pending-review |
-| `release-timing` | End-to-end workflow timing in release notes | Not yet mapped | pending-review |
-| `release-line-counts` | Line counts counted by GitHub Actions | Not yet mapped | pending-review |
-| `release-dim-sum-photo` | A dim-sum photo on every release | Not yet mapped | pending-review |
-| `dim-sum-code-names` | Dim sum release code names | Not yet mapped | pending-review |
-| `ci-bootstrap` | GitHub Actions dependency or prerequisite bootstrap and safe outputs | Not yet mapped | pending-review |
-| `runner-selection` | Live GitHub Actions runner selection | Not yet mapped | pending-review |
-| `encrypted-public-builder` | Encrypted public builder for private repositories | Not yet mapped | excluded-with-reason |
-| `tabbed-readme` | A tabbed README, not a scroll | Not yet mapped | pending-review |
-| `human-time-estimate` | How long a human would have taken | Not yet mapped | pending-review |
-| `sanitized-instruction-copy` | Sanitized instruction mirror | Not yet mapped | pending-review |
-| `agents-md-vocabulary-block` | Sanitized vocabulary-discipline block in `AGENTS.md` | `AGENTS.md` | partial-source-mapping |
-| `vocabulary-hash-lock` | Vocabulary hash lock | Not yet mapped | pending-review |
-| `roadmap-checklist` | `ROADMAP.md` checklist | `ROADMAP.md` | partial-source-mapping |
-| `feature-docs` | One Markdown file per feature | `docs/site/universal-contracts.md` | partial-source-mapping |
-| `postman-collections` | Postman collections for HTTP APIs | Not yet mapped | pending-review |
-| `wiki-day-teet-hui-sync` | Wiki and GitHub Pages source kept current | Not yet mapped | pending-review |
-| `handoff-record` | `HANDOFF.md` and the GitHub handoff section | `HANDOFF.md` | partial-source-mapping |
-| `closeout-prompt` | pushed `CLOSEOUT_PROMPT.md` | Not yet mapped | pending-review |
-| `discussion-records` | Discussions as the running record | Not yet mapped | pending-review |
-| `project-board` | GitHub Project linked to the repository | Not yet mapped | pending-review |
-| `operational-skill` | repository operational skill | Not yet mapped | pending-review |
-| `readme-prompt-banner` | README opens with the prompt banner | Not yet mapped | excluded-with-reason |
-| `uh-single-file-editions` | Single-file editions of the global-memory repository | Not yet mapped | excluded-with-reason |
-| `project-profile` | Project memory folders | Not yet mapped | excluded-with-reason |
-| `roblox-model-catalogue` | Every shared Roblox model, meaningfully used | Not yet mapped | excluded-with-reason |
-| `roblox-visual-realism` | Roblox visual realism | Not yet mapped | excluded-with-reason |
+105 canonical identifiers are tracked across 5 separately assessed scopes. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.
 
-## Explicit exclusions
+| Identifier | Requirement | Scopes with recorded source mapping | Source paths | Review state |
+| --- | --- | --- | --- | --- |
+| `language` | Language modes | desktop, documentation-site | `design/packages/ui/src/components/setup/LanguageSettingsRow.vue`, `design/packages/ui/src/i18n.ts`, `design/packages/site/src/i18n/I18n.ts`, `design/packages/site/src/settings/page.ts` | partial-source-mapping |
+| `funny-emoji` | Funny-level sliders and the dialog emoji switch | desktop, documentation-site | `design/packages/ui/src/i18n.ts`, `design/packages/ui/src/components/setup/SetupLanguagePanel.vue`, `design/packages/site/src/i18n/I18n.ts`, `design/packages/site/src/settings/schema.ts` | pending-review |
+| `personal-vocabulary` | Local personal-vocabulary JSON upload | desktop, hosted-workspace, documentation-site, embedded-bluemap-viewer | `design/packages/site/src/settings/personalVocabulary.ts`, `design/packages/ui/src/components/vocabulary/VocabularyUploadRow.vue`, `design/packages/ui/src/components/vocabulary/vocabularyStore.ts`, `design/packages/ui/src/components/vocabulary/vocabularySchema.ts`, `design/packages/ui/src/components/settings/AppSettings.vue`, `design/packages/site/src/settings/page.ts`, `design/packages/site/src/main.ts`, `design/packages/viewer/src/materialShell.ts`, `design/packages/viewer/src/materialShellPresentation.ts` | partial-source-mapping |
+| `school-mode` | Universal School mode | desktop, documentation-site | `design/packages/ui/src/components/setup/SchoolModeSettingsRow.vue`, `design/packages/site/src/settings/schoolMode.ts`, `design/packages/ui/src/components/setup/schoolMode.ts`, `design/packages/site/src/settings/schoolModePanel.ts` | partial-source-mapping |
+| `narration` | Spoken narrator and voice pickers | desktop, documentation-site | `design/packages/ui/src/components/runtimeSettings/narrator.ts`, `design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue`, `design/packages/site/src/settings/schema.ts`, `design/packages/site/src/settings/page.ts`, `design/packages/site/src/main.ts` | partial-source-mapping |
+| `scheduled-settings` | Scheduled and external settings sources | desktop, documentation-site | `design/packages/ui/src/components/runtimeSettings/schedule.ts`, `design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue`, `design/packages/site/src/settings/schedule.ts`, `design/packages/site/src/settings/schedulePanel.ts`, `design/packages/site/src/settings/page.ts` | partial-source-mapping |
+| `display-name` | Renaming the application | desktop, documentation-site | `design/packages/ui/src/components/settings/ProductDisplayNameRow.vue`, `design/packages/ui/src/stores/productName.ts`, `design/packages/site/src/identity/productIdentity.ts`, `design/packages/site/src/settings/page.ts` | partial-source-mapping |
+| `adhd-modes` | ADHD modes | desktop, documentation-site | `design/packages/ui/src/components/runtimeSettings/completeness.ts`, `design/packages/ui/src/components/runtimeSettings/model.ts`, `design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue`, `design/packages/site/src/settings/schema.ts`, `design/packages/site/src/settings/page.ts` | partial-source-mapping |
+| `dim-sum` | Dim sum surprise | desktop, documentation-site | `design/packages/ui/src/components/dimsum/dimSumSurprise.ts`, `design/packages/ui/src/components/dimsum/DimSumSurprise.vue`, `design/packages/site/src/dimsum/index.ts`, `design/packages/site/src/main.ts` | pending-review |
+| `dim-sum-photo-source` | Public dim-sum photo source | desktop, documentation-site | `design/packages/ui/src/components/dimsum/dimSumCatalog.ts`, `design/packages/site/scripts/fetch-dim-sum-pool.mjs`, `design/packages/site/src/dimsum/pool.ts`, `design/packages/site/package.json` | pending-review |
+| `material-design` | Material Design 3 conformance | desktop, documentation-site | `design/packages/ui/src/styles/md3.scss`, `design/packages/ui/src/App.vue`, `design/packages/site/src/universal/siteContracts.ts`, `design/packages/site/src/appearance/controller.ts` | pending-review |
+| `workflow-navigation` | Workflow navigation and window chrome | desktop, documentation-site | `design/packages/ui/src/App.vue`, `design/packages/ui/src/components/home/HomeScreen.vue`, `design/packages/ui/src/components/home/HomeDashboard.vue`, `design/packages/site/src/main.ts`, `design/packages/site/src/content/home.ts` | pending-review |
+| `motion` | Material Design 3 motion with a complete reduced-motion path | desktop, documentation-site | `design/packages/ui/src/styles/motion.scss`, `design/packages/ui/src/motion.test.ts`, `design/packages/site/src/shell/shell.css`, `design/packages/site/src/settings/settings.css` | pending-review |
+| `appearance-editor` | Per-element appearance editor | desktop, documentation-site | `design/packages/ui/src/components/appearance/AppearanceTarget.vue`, `design/packages/ui/src/components/appearance/TypographyEditor.vue`, `design/packages/ui/src/components/appearance/useAppearance.ts`, `design/packages/site/src/appearance/editor/appearanceEditor.ts`, `design/packages/site/src/appearance/editor/contextMenu.ts`, `design/packages/site/src/appearance/editor/coverage.ts` | pending-review |
+| `color-picker` | Infinite colour picker and translator | desktop, documentation-site | `design/packages/ui/src/components/appearance/InfiniteColorPicker.vue`, `design/packages/ui/src/components/appearance/colorSpaces.ts`, `design/packages/ui/src/components/appearance/rainbow.ts`, `design/packages/site/src/appearance/color/picker.ts`, `design/packages/site/src/appearance/color/spaces.ts`, `design/packages/site/src/appearance/color/representations.ts` | pending-review |
+| `logo-customization` | application logo customization | desktop, documentation-site | `design/packages/ui/src/components/appLogo/AppLogoRow.vue`, `design/packages/ui/src/components/appLogo/logoValidation.ts`, `design/packages/ui/src/components/appLogo/logoStore.ts`, `design/packages/site/src/appearance/customLogo.ts` | pending-review |
+| `overlay-panels` | Overlays and panels | desktop, documentation-site | `design/packages/ui/src/components/config/ConfigSuperConfirm.vue`, `design/packages/ui/src/components/appearance/AppearanceEditor.vue`, `design/packages/site/src/platform/Overlay.ts`, `design/packages/site/src/appearance/editor/contextMenu.ts` | pending-review |
+| `collapse-filters` | Collapsible filters and statistics | desktop, documentation-site | `design/packages/ui/src/App.vue`, `design/packages/ui/src/components/worldrepo/ownerFilter.ts`, `design/packages/site/src/search/index.ts`, `design/packages/site/src/main.ts` | pending-review |
+| `accessibility-sizing` | Accessibility, sizing, and layout without layout clipping defect | desktop, documentation-site | `design/packages/ui/src/components/shell/AppTitleBar.vue`, `design/packages/ui/src/components/mcserver/CreateServerWizard.vue`, `design/packages/site/src/platform/Overlay.ts`, `design/packages/site/src/platform/PanelGeometry.ts` | pending-review |
+| `functional-ui` | Functional UI and truthful empty states | desktop, documentation-site | `design/packages/ui/src/components/pages/PagesScreen.vue`, `design/packages/ui/src/components/config/ConfigScreen.vue`, `design/packages/site/src/main.ts`, `design/packages/site/src/appearance/presetsPanel.ts` | pending-review |
+| `tabs` | Browser-style tabbed navigation | desktop, documentation-site | `design/packages/ui/src/components/tabs/TabbedNavigation.vue`, `design/packages/ui/src/components/tabs/TabStrip.vue`, `design/packages/site/src/main.ts`, `design/packages/site/src/search/tabSearch.ts` | partial-source-mapping |
+| `regex-search` | Regex builder on every search surface | desktop, documentation-site | `design/packages/ui/src/components/config/regexPolicy.test.ts`, `design/packages/ui/src/components/config/ConfigSearchField.vue`, `design/packages/ui/src/components/config/ConfigRegexBuilder.vue`, `design/packages/site/src/search/builderPanel.ts`, `design/packages/site/src/search/tabSearch.ts` | partial-source-mapping |
+| `command-palette` | `Ctrl+Shift+F` command palette | desktop, hosted-workspace, documentation-site, embedded-bluemap-viewer | `design/packages/ui/src/components/palette/CommandPalette.vue`, `design/packages/ui/src/components/palette/PaletteRow.vue`, `design/packages/ui/src/components/palette/featureDirectoryInventory.ts`, `design/packages/ui/src/App.vue`, `design/packages/site/src/shell/commandPalette.ts`, `design/packages/site/src/main.ts`, `design/packages/viewer/src/materialShell.ts`, `design/packages/viewer/src/materialShellPresentation.ts` | pending-review |
+| `context-menus` | A context menu on every element | desktop, hosted-workspace, documentation-site, embedded-bluemap-viewer | `design/packages/ui/src/components/appearance/AppearanceTarget.vue`, `design/packages/ui/src/components/menuSearch/menuCoverage.test.ts`, `design/packages/site/src/appearance/editor/contextMenu.ts`, `design/packages/site/src/main.ts`, `design/packages/viewer/src/materialShell.ts`, `design/packages/viewer/src/materialShellPresentation.ts`, `design/packages/viewer/src/controls/map/MapControls.ts`, `design/packages/viewer/src/controls/freeflight/FreeFlightControls.ts` | pending-review |
+| `menu-shortcuts` | Context menus show working shortcuts | None recorded | Not yet mapped | pending-review |
+| `rich-controls` | Rich controls wherever a value is shown | desktop, hosted-workspace, documentation-site, embedded-bluemap-viewer | `design/packages/ui/src/components/palette/PaletteRow.vue`, `design/packages/ui/src/components/palette/paletteCatalog.ts`, `design/packages/ui/src/components/config/ConfigControl.vue`, `design/packages/site/src/shell/commandPalette.ts`, `design/packages/site/src/settings/page.ts`, `design/packages/viewer/src/materialShell.ts`, `design/packages/viewer/src/materialShellPresentation.ts` | pending-review |
+| `guided-forms` | Guided forms | desktop, documentation-site | `design/packages/ui/src/components/config/explainField.ts`, `design/packages/ui/src/components/PathField.vue`, `design/packages/ui/src/components/mcserver/CreateServerWizard.vue`, `design/packages/site/src/settings/page.ts`, `design/packages/site/src/settings/schedulePanel.ts` | pending-review |
+| `settings-explanations` | Settings that explain themselves | desktop, hosted-workspace, documentation-site, embedded-bluemap-viewer | `design/packages/ui/src/components/config/explainField.ts`, `design/packages/ui/src/components/config/configExplainCoverage.test.ts`, `design/packages/ui/src/components/settings/settingsSections.ts`, `design/packages/site/src/settings/explanationCoverage.ts`, `design/packages/site/src/settings/explanationCoverage.test.ts`, `design/packages/site/src/settings/provenance.ts`, `design/packages/viewer/src/materialShell.ts`, `design/packages/viewer/src/materialShellPresentation.ts` | pending-review |
+| `blank-editors` | Presets for blank-slate editors | desktop, documentation-site | `design/packages/ui/src/components/config/ConfigScreen.vue`, `design/packages/ui/src/components/appearance/AppearanceEditor.vue`, `design/packages/site/src/appearance/presetsPanel.ts` | pending-review |
+| `super-confirmation` | Two-key super confirmation | desktop, documentation-site | `design/packages/ui/src/components/menu/SettingsMenu.vue`, `design/packages/ui/src/components/menu/MenuSuperConfirm.vue`, `design/packages/ui/src/components/confirm/superConfirmGate.ts`, `design/packages/site/src/settings/confirm.ts`, `design/packages/site/src/appearance/presetsPanel.ts` | pending-review |
+| `element-locks` | Toy locks on every element | desktop, documentation-site | `design/packages/ui/src/components/locks/LockWizard.vue`, `design/packages/ui/src/components/locks/useLocks.ts`, `design/packages/ui/src/components/locks/lockStore.ts`, `design/packages/site/src/universal/siteContracts.ts` | pending-review |
+| `support-tickets` | Support Tickets recovery desk | desktop, documentation-site | `design/packages/ui/src/components/locks/SupportTickets.vue`, `design/packages/ui/src/App.vue`, `design/packages/site/src/universal/siteContracts.ts` | pending-review |
+| `unlock-ladder` | The unlock ladder | desktop, documentation-site | `design/packages/ui/src/components/locks/UnlockPrompt.vue`, `design/packages/ui/src/components/locks/lockModel.ts`, `design/packages/site/src/universal/siteContracts.ts` | pending-review |
+| `authenticator` | Built-in authenticator | desktop, documentation-site | `design/packages/ui/src/components/authenticator/AuthenticatorScreen.vue`, `design/packages/ui/src/components/authenticator/authenticatorStore.ts`, `design/packages/ui/src/App.vue`, `design/packages/site/src/universal/siteContracts.ts` | pending-review |
+| `qr-pairing` | QR pairing for OTP registration | None recorded | Not yet mapped | pending-review |
+| `honest-monetization` | Free by default, honest when paid, never nagging | None recorded | Not yet mapped | pending-review |
+| `local-history` | Local version history | desktop, documentation-site | `design/packages/ui/src/components/history/HistoryPanel.vue`, `design/packages/ui/src/components/history/historyRestore.ts`, `design/packages/site/src/settings/settingsHistory.ts`, `design/packages/site/src/settings/settingsHistoryPanel.ts`, `design/packages/site/src/settings/page.ts`, `design/packages/site/src/universal/siteContracts.ts` | partial-source-mapping |
+| `exports` | Export everything, in every format | desktop, documentation-site | `design/packages/ui/src/components/pages/StaticExportCard.vue`, `design/packages/ui/src/components/eula/eulaExport.ts`, `design/packages/site/src/settings/exportFormats.ts`, `design/packages/site/src/appearance/presetsPanel.ts` | pending-review |
+| `bulk-actions` | Bulk actions everywhere | desktop, documentation-site | `design/packages/ui/src/components/tabs/TabGroupMenu.vue`, `design/packages/ui/src/components/tabs/TabBulkClose.vue`, `design/packages/site/src/appearance/presetsPanel.ts`, `design/packages/site/src/main.ts` | pending-review |
+| `changelog` | Changelog viewer | desktop, documentation-site | `design/packages/ui/src/components/changelog/ChangelogViewer.vue`, `design/packages/ui/src/components/changelog/changelogModel.ts`, `design/packages/site/src/content/changelogView.ts`, `design/packages/site/src/content/changelogParser.ts`, `design/packages/site/src/content/changelog.ts` | pending-review |
+| `offline-docs` | Offline documentation browser in every application | desktop, documentation-site | `design/packages/ui/src/components/docs/DocsPage.vue`, `design/packages/ui/src/App.vue`, `design/packages/site/src/content/articles/index.ts`, `design/packages/site/src/main.ts` | partial-source-mapping |
+| `rendered-provider-text` | Provider-authored text is rendered | None recorded | Not yet mapped | pending-review |
+| `notifications` | Non-blocking notifications and their centre | desktop, documentation-site | `design/packages/ui/src/components/notifications/noticeBulk.ts`, `design/packages/ui/src/components/notifications/NotificationCentre.vue`, `design/packages/ui/src/components/config/ConfigNotifications.vue`, `design/packages/site/src/notifications/Notifications.ts`, `design/packages/site/src/main.ts` | partial-source-mapping |
+| `file-converter` | Universal local file converter | desktop, documentation-site | `design/packages/ui/src/components/converter/ConverterScreen.vue`, `docs/contracts/file-converter-ollama-completeness.md`, `design/packages/ui/src/components/converter/converterBridge.ts`, `design/packages/app/src/main/converter/registry.ts`, `design/packages/site/src/settings/fileConversion.ts`, `design/packages/site/src/content/articles/file-converter.ts` | partial-source-mapping |
+| `minecraft-server-manager` | Full Minecraft server creator and manager | desktop | `design/packages/ui/src/components/mcserver/ServerListScreen.vue`, `design/packages/ui/src/components/mcserver/serverModel.ts`, `design/packages/ui/src/components/mcserver/serverPropertiesFields.ts`, `design/packages/ui/src/components/mcserver/AdoptionBrowser.vue`, `design/packages/ui/src/components/mcserver/AdoptionReviewDialog.vue`, `design/packages/ui/src/components/mcserver/adoptionOwnership.test.ts`, `design/packages/app/src/main/mcserver/ipc.ts`, `design/packages/app/src/main/mcserver/adoptionDefaultRunner.test.ts`, `docs/server-management/adoption-ownership.md` | partial-source-mapping |
+| `ollama-suite` | Universal local Ollama suite manager | desktop, documentation-site | `design/packages/ui/src/components/ollama/OllamaScreen.vue`, `docs/contracts/file-converter-ollama-completeness.md`, `design/packages/ui/src/components/ollama/ollamaStore.ts`, `design/packages/app/src/main/ollama/client.ts`, `design/packages/site/src/universal/siteContracts.ts`, `design/packages/site/src/main.ts` | partial-source-mapping |
+| `external-editor` | External editor and VS Code hand-off | None recorded | Not yet mapped | pending-review |
+| `download-handoff` | Browser-extension download hand-off surfaces | desktop, documentation-site | `design/packages/ui/src/components/browserExtension/BrowserExtensionScreen.vue`, `design/packages/ui/src/components/browserExtension/DownloadingDialog.vue`, `design/packages/ui/src/components/browserExtension/DownloadCompleteNotice.vue`, `design/packages/site/src/main.ts`, `design/packages/site/src/content/articles/release-downloads.ts` | pending-review |
+| `forge-publishing` | Publishing to a forge | desktop, documentation-site | `design/packages/ui/src/components/pages/PagesScreen.vue`, `design/packages/ui/src/components/github/GhCliAccountsList.vue`, `design/packages/ui/src/components/github/ghCliAccountsStore.ts`, `design/packages/site/src/content/articles/publishing-to-pages.ts` | pending-review |
+| `progress-recovery` | Progress where it started, recovery where it broke | desktop, documentation-site | `design/packages/ui/src/components/pages/PagesScreen.vue`, `design/packages/ui/src/components/world/RenderRunPanel.vue`, `design/packages/ui/src/components/progress/RenderProgressDetail.vue`, `design/packages/site/src/appearance/presetsPanel.ts` | pending-review |
+| `completeness-parity` | Per-surface completeness inventory and parity | desktop, documentation-site | `design/packages/ui/src/components/runtimeSettings/completeness.ts`, `docs/contracts/file-converter-ollama-completeness.md`, `docs/contracts/feature-delivery-inventory.json`, `scripts/check-feature-delivery-inventory.mjs`, `design/packages/site/src/policy/siteUniversalInventory.ts`, `scripts/check-webapp-parity.mjs` | partial-source-mapping |
+| `front-provenance` | Front-screen version and updated-at provenance | desktop, hosted-workspace, documentation-site, embedded-bluemap-viewer | `design/packages/ui/src/components/home/HomeScreen.vue`, `design/packages/ui/src/components/home/HomeDashboard.vue`, `design/packages/ui/src/App.vue`, `design/packages/site/src/main.ts`, `design/packages/site/src/settings/provenance.ts`, `design/packages/viewer/src/materialShell.ts`, `design/packages/viewer/src/materialShellPresentation.ts`, `design/packages/ui/src/components/shell/FrontBuildProvenance.vue`, `design/packages/ui/src/components/shell/AppTitleBar.vue`, `design/packages/app/build.mjs`, `design/packages/app/src/main/index.ts` | pending-review |
+| `product-evidence` | Real screenshots wherever a surface is described | desktop, documentation-site | `docs/screenshots/evidence-inventory.json`, `docs/screenshots/promoted-evidence.json`, `design/packages/site/src/content/captures.ts`, `design/packages/site/src/main.ts` | partial-source-mapping |
+| `screen-recording` | committed screen recording | None recorded | Not yet mapped | pending-review |
+| `design-reference-parity` | Checked-in design-reference parity | None recorded | Not yet mapped | pending-review |
+| `design-folder` | Design surfaces live in the repository | None recorded | `design/HANDOFF.md`, `redesign/HANDOFF.md` | partial-source-mapping |
+| `clipping-matrix` | layout clipping defect matrix for every built surface | None recorded | Not yet mapped | pending-review |
+| `public-screenshot-gallery` | Public screenshot gallery at usage limit reached | None recorded | Not yet mapped | pending-review |
+| `landing-site` | A Material Design 3 GitHub Pages carrying every feature | None recorded | Not yet mapped | pending-review |
+| `mobile-site` | A mobile-friendly GitHub Pages | None recorded | Not yet mapped | pending-review |
+| `installer-download-button` | Verified installer download on Home | None recorded | Not yet mapped | pending-review |
+| `feature-articles` | One detailed article per feature on the GitHub Pages | None recorded | Not yet mapped | pending-review |
+| `vendored-fonts` | Complete, scripted font vendoring | None recorded | Not yet mapped | pending-review |
+| `shared-link-embed` | A real picture when a link is pasted into Discord | None recorded | Not yet mapped | pending-review |
+| `homepage-link` | The GitHub Pages linked from the repository | None recorded | Not yet mapped | pending-review |
+| `vocabulary-unlock-boundary` | private vocabulary only after authentication | None recorded | Not yet mapped | pending-review |
+| `status-hub` | Status Hub registration and status surface | None recorded | `design/packages/ui/src/components/runtimeSettings/completeness.ts` | partial-source-mapping |
+| `discord-status-bridge` | Discord status bridge | None recorded | Not yet mapped | pending-review |
+| `panic-webhooks` | Verified panic dispatch | None recorded | Not yet mapped | pending-review |
+| `tidbyt-displays` | Tidbyt status frames | None recorded | Not yet mapped | pending-review |
+| `build-entrypoints` | Root `build.bat` and `build-installer.bat` | None recorded | `build.bat`, `build-installer.bat` | partial-source-mapping |
+| `fresh-build-run-command` | One fresh Microsoft Windows build-and-run command | None recorded | Not yet mapped | pending-review |
+| `dependency-fetcher` | One-click dependency or prerequisite fetcher | None recorded | Not yet mapped | pending-review |
+| `bundled-dependencies` | Every application bundles its dependencies and prerequisites | None recorded | Not yet mapped | pending-review |
+| `squirrel-installer` | Genuine Squirrel.Windows installers | None recorded | Not yet mapped | pending-review |
+| `self-signing` | Required-format self-signing only | None recorded | Not yet mapped | pending-review |
+| `auto-updates` | Chrome-style automatic updates | None recorded | Not yet mapped | pending-review |
+| `app-icon` | Original logo and packaged icon | None recorded | Not yet mapped | pending-review |
+| `release-workflow` | A real release on every push | None recorded | Not yet mapped | pending-review |
+| `release-timing` | End-to-end workflow timing in release notes | None recorded | Not yet mapped | pending-review |
+| `release-line-counts` | Line counts counted by GitHub Actions | None recorded | Not yet mapped | pending-review |
+| `release-dim-sum-photo` | A dim-sum photo on every release | None recorded | Not yet mapped | pending-review |
+| `dim-sum-code-names` | Dim sum release code names | desktop, documentation-site | `scripts/pick-dim-sum.mjs`, `design/packages/ui/src/components/changelog/ChangelogDateFilter.vue`, `design/packages/site/src/content/articles/release-pipeline.ts`, `design/packages/site/src/main.ts` | pending-review |
+| `ci-bootstrap` | GitHub Actions dependency or prerequisite bootstrap and safe outputs | None recorded | Not yet mapped | pending-review |
+| `runner-selection` | Live GitHub Actions runner selection | None recorded | Not yet mapped | pending-review |
+| `encrypted-public-builder` | Encrypted public builder for private repositories | None recorded | Not yet mapped | excluded-with-reason |
+| `tabbed-readme` | A tabbed README, not a scroll | None recorded | Not yet mapped | pending-review |
+| `human-time-estimate` | How long a human would have taken | None recorded | Not yet mapped | pending-review |
+| `sanitized-instruction-copy` | Sanitized instruction mirror | None recorded | Not yet mapped | pending-review |
+| `agents-md-vocabulary-block` | Sanitized vocabulary-discipline block in `AGENTS.md` | None recorded | `AGENTS.md` | partial-source-mapping |
+| `vocabulary-hash-lock` | Vocabulary hash lock | None recorded | Not yet mapped | pending-review |
+| `roadmap-checklist` | `ROADMAP.md` checklist | None recorded | `ROADMAP.md` | partial-source-mapping |
+| `feature-docs` | One Markdown file per feature | None recorded | `docs/site/universal-contracts.md` | partial-source-mapping |
+| `postman-collections` | Postman collections for HTTP APIs | None recorded | Not yet mapped | pending-review |
+| `wiki-pages-sync` | Wiki and GitHub Pages source kept current | None recorded | Not yet mapped | pending-review |
+| `handoff-record` | `HANDOFF.md` and the GitHub handoff section | None recorded | `HANDOFF.md` | partial-source-mapping |
+| `closeout-prompt` | pushed `CLOSEOUT_PROMPT.md` | None recorded | Not yet mapped | pending-review |
+| `discussion-records` | Discussions as the running record | None recorded | Not yet mapped | pending-review |
+| `project-board` | GitHub Project linked to the repository | None recorded | Not yet mapped | pending-review |
+| `operational-skill` | repository operational skill | None recorded | Not yet mapped | pending-review |
+| `readme-prompt-banner` | README opens with the prompt banner | None recorded | Not yet mapped | excluded-with-reason |
+| `instruction-single-file-editions` | Single-file editions of the global-memory repository | None recorded | Not yet mapped | excluded-with-reason |
+| `project-profile` | Project memory folders | None recorded | Not yet mapped | excluded-with-reason |
+| `roblox-model-catalogue` | Every shared Roblox model, meaningfully used | None recorded | Not yet mapped | excluded-with-reason |
+| `roblox-visual-realism` | Roblox visual realism | None recorded | Not yet mapped | excluded-with-reason |
+
+## Exclusions
 
 - `readme-prompt-banner`: Applies only to the maintainer instruction repository.
-- `uh-single-file-editions`: Applies only to the maintainer instruction repository.
+- `instruction-single-file-editions`: Applies only to the maintainer instruction repository.
 - `project-profile`: Maintainer project profiles belong to the instruction repository, not this public product.
 - `roblox-model-catalogue`: Worldlens is not a Roblox game or Studio project.
 - `roblox-visual-realism`: Worldlens is not a Roblox game or Studio project.
 - `encrypted-public-builder`: Worldlens is already public; this requirement concerns encrypted builds of private repositories.
 
-## Acceptance boundaries
+## Verification
 
-Run `node scripts/check-feature-delivery-inventory.mjs` to validate the required 105 IDs, all five scopes and repository evidence paths. Its structural success does not establish delivery. Run it with `--require-complete` for the completion gate; pending requirements must fail. The independent required-ID list and negative fixtures reject omitted rows, duplicate IDs, missing scopes, unsupported completion labels and verification claims without source-bound evidence.
-
-No builds, tests, captures, deployments or live-server operations were performed to create this draft. Existing documentation and test files establish source presence only. Each surface needs its own implementation, localization, persistence, focused checks, interaction and current capture evidence before acceptance. Browser surfaces require a supported authenticated local mediation route for capabilities unavailable to the browser itself.
+The checker compares this complete companion with the JSON and separately validates all required IDs and surface assessments. A valid inventory may still be incomplete. Use `--require-complete` to reject pending acceptance; never convert missing proof into a verified label.

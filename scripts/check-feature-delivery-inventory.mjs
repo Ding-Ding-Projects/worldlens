@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -120,6 +120,35 @@ export const SURFACES = Object.freeze([
   "repository-deliverables",
 ]);
 
+export function renderMarkdownInventory(document) {
+  const cell = (value) => String(value).replaceAll("|", "\\|").replace(/[\r\n]+/gu, " ");
+  const rows = document.features.map((feature) => {
+    const mapped = SURFACES.filter((surface) => feature.surfaces[surface].sourceMapping);
+    const paths = [...new Set([
+      ...(feature.sourceEvidence ?? []).map((evidence) => evidence.path),
+      ...mapped.flatMap((surface) => feature.surfaces[surface].sourceMapping.paths ?? []),
+    ])];
+    return `| \`${cell(feature.id)}\` | ${cell(feature.title)} | ${mapped.join(", ") || "None recorded"} | ${paths.map((path) => `\`${cell(path)}\``).join(", ") || "Not yet mapped"} | ${cell(feature.reviewState ?? "pending-review")} |`;
+  });
+  return [
+    "# Feature delivery inventory draft", "",
+    "Generated from `feature-delivery-inventory.json`. Run `node scripts/check-feature-delivery-inventory.mjs --write-markdown` after changing that ledger. The independent required-ID list remains in the checker.", "",
+    `Baseline: \`${document.baseline}\`. ${cell(document.status)}.`, "",
+    `${document.features.length} canonical identifiers are tracked across ${SURFACES.length} separately assessed scopes. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.`, "",
+    "| Identifier | Requirement | Scopes with recorded source mapping | Source paths | Review state |",
+    "| --- | --- | --- | --- | --- |", ...rows, "",
+    "## Exclusions", "",
+    ...document.exclusions.map((entry) => `- \`${cell(entry.id)}\`: ${cell(entry.reason)}`), "",
+    "## Verification", "",
+    "The checker compares this complete companion with the JSON and separately validates all required IDs and surface assessments. A valid inventory may still be incomplete. Use `--require-complete` to reject pending acceptance; never convert missing proof into a verified label.", "",
+  ].join("\n");
+}
+
+export function validateMarkdownInventory(document, markdown) {
+  return markdown.replaceAll("\r\n", "\n") === renderMarkdownInventory(document)
+    ? [] : ["Markdown feature companion differs from the JSON inventory; regenerate it before delivery"];
+}
+
 export function validateInventory(document, options = {}) {
   const failures = [];
   const pending = [];
@@ -231,17 +260,18 @@ if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
 ) {
-  const result = validateInventory(
-    JSON.parse(
+  const document = JSON.parse(
       readFileSync(
         resolve(root, "docs/contracts/feature-delivery-inventory.json"),
         "utf8",
       ),
-    ),
-    {
+    );
+  const markdownPath = resolve(root, "docs/contracts/feature-delivery-inventory.md");
+  if (process.argv.includes("--write-markdown")) writeFileSync(markdownPath, renderMarkdownInventory(document));
+  const result = validateInventory(document, {
       requireComplete: process.argv.includes("--require-complete"),
-    },
-  );
+    });
+  result.failures.push(...validateMarkdownInventory(document, readFileSync(markdownPath, "utf8")));
   for (const failure of result.failures) process.stderr.write(`${failure}\n`);
   process.stdout.write(
     `Feature inventory: ${REQUIRED_IDS.length} required IDs, ${SURFACES.length} scopes, ${result.pending.length} pending surface requirements, ${result.failures.length} validation failures\n`,

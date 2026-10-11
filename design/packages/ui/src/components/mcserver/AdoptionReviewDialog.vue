@@ -205,7 +205,7 @@ async function confirmRelease(): Promise<void> {
 </script>
 
 <template>
-    <VDialog v-model="open" max-width="560" persistent>
+    <VDialog v-model="open" class="wl-adoptreview-dialog" max-width="560" scrollable persistent>
         <VCard v-if="record">
             <VCardTitle>{{ t("mcserver.adopt.title", "Review before adopting") }}</VCardTitle>
             <VCardText>
@@ -361,6 +361,10 @@ async function confirmRelease(): Promise<void> {
 </template>
 
 <style scoped>
+.wl-adoptreview-dialog :deep(.v-overlay__content) {
+    margin-top: calc(24px + var(--mb-titlebar-height, 40px));
+    max-height: calc(100% - 48px - var(--mb-titlebar-height, 40px));
+}
 .wl-mcserver-adopt__noMatch {
     color: rgb(var(--v-theme-on-surface-variant));
     font-size: 0.875rem;

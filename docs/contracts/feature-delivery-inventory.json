@@ -3166,7 +3166,20 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/mcserver/AdoptionBrowser.vue",
+              "design/packages/ui/src/components/mcserver/AdoptionReviewDialog.vue",
+              "design/packages/ui/src/components/mcserver/adoptionOwnership.test.ts",
+              "design/packages/app/src/main/mcserver/ipc.ts",
+              "design/packages/app/src/main/mcserver/adoptionDefaultRunner.test.ts",
+              "docs/server-management/adoption-ownership.md"
+            ],
+            "consumer": "Mounted server list, adoption discovery/review and production local execution.",
+            "limitation": "Ownership and production local-runner repairs pass24 focused checks, GUI type checking and exact root builds. Native discovery reaches the absent local daemon and reports unreachable; real candidate adoption remains pending. Minimum dialog caption overlap was observed; its layout repair awaits rebuilt verification. SSH-process, Bedrock, complete version-bound controls and full per-target acceptance remain incomplete.",
+            "sourceCommit": "447b96411ca5af4db2c272af44e63b7e47117455"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",

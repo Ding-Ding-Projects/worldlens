@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
-import { validateInventory } from "./check-feature-delivery-inventory.mjs";
+import { renderMarkdownInventory, validateInventory, validateMarkdownInventory } from "./check-feature-delivery-inventory.mjs";
 
 const read = () =>
   JSON.parse(
@@ -13,6 +13,26 @@ const read = () =>
       "utf8",
     ),
   );
+test("the checked-in Markdown companion exactly corresponds to the JSON", () => {
+  const markdown = readFileSync(new URL("../docs/contracts/feature-delivery-inventory.md", import.meta.url), "utf8");
+  assert.deepEqual(validateMarkdownInventory(read(), markdown), []);
+});
+test("missing rows, obsolete IDs and stale mapping summaries fail correspondence", () => {
+  const document = read();
+  const markdown = renderMarkdownInventory(document);
+  const frontRow = markdown.split("\n").find((line) => line.startsWith("| `front-provenance` |"));
+  assert.ok(frontRow?.includes("FrontBuildProvenance.vue"));
+  for (const mutation of [
+    markdown.replace(/^\| `language` \|.*\n/mu, ""),
+    markdown.replace("`mobile-site`", "`obsolete-inventory-id`"),
+    markdown.replace(frontRow, "| `front-provenance` | Front provenance | None recorded | Not yet mapped | pending-review |"),
+    markdown.replace("- `instruction-single-file-editions`:", "- `obsolete-exclusion`:") ,
+  ]) {
+    assert.notEqual(mutation, markdown);
+    assert.equal(validateMarkdownInventory(document, mutation).length, 1);
+  }
+  assert.deepEqual(validateMarkdownInventory(document, markdown), []);
+});
 test("the current inventory is structurally valid but not complete", () => {
   assert.deepEqual(validateInventory(read()).failures, []);
   assert.ok(
