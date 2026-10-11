@@ -20,7 +20,112 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
-_No changes have been committed since `v1.0.2040`._
+### Documentation
+
+- Use ordinary terminology in public handoff and roadmap prose - [`f4fc1421db`](https://github.com/Ding-Ding-Projects/worldlens/commit/f4fc1421db5008cca565fbdb67effd9cda714269)
+- Preserve historical version discovery and complete feature acceptance inventory - [`4e685f09c8`](https://github.com/Ding-Ding-Projects/worldlens/commit/4e685f09c88893de5d118d0a35e0158e56ec3fd7)
+- Use ordinary terminology in public handoff and roadmap prose - [`d229bf5a40`](https://github.com/Ding-Ding-Projects/worldlens/commit/d229bf5a4034ba0478211413ded8549aaa00ca2e)
+
+### Elsewhere in the repository
+
+- Merge branch 'main' into task/worldlens-all-features-20261011 - [`1fbeeab914`](https://github.com/Ding-Ding-Projects/worldlens/commit/1fbeeab91465cfee131f3147a33dc1073c24b397) _(summary of 2 commits, also listed here)_
+
+## 1.0.2064 - 2026-10-05
+
+Tagged at [`11cd248f9a`](https://github.com/Ding-Ding-Projects/worldlens/commit/11cd248f9a13c6547474a0cfe168b2958751be60).
+
+### Build, release and tooling
+
+- Validate screenshot plan provenance and archive compact captures - [`11cd248f9a`](https://github.com/Ding-Ding-Projects/worldlens/commit/11cd248f9a13c6547474a0cfe168b2958751be60)
+
+## 1.0.2061 - 2026-10-01
+
+Tagged at [`abec229c79`](https://github.com/Ding-Ding-Projects/worldlens/commit/abec229c799cd7a0e02835fd6ebbed1b1009c75b).
+
+### Interface
+
+- Merge verified HTTP repairs into the handoff branch - [`ff2759c399`](https://github.com/Ding-Ding-Projects/worldlens/commit/ff2759c399f4ce9fcd7c9b688618036ad4a619a6) _(summary of 154 commits, also listed here)_
+
+### Server, CLI and configuration
+
+- Merge pull request #178 from Ding-Ding-Projects/codex/bug-audit-handoff-2026-09-04 - [`abec229c79`](https://github.com/Ding-Ding-Projects/worldlens/commit/abec229c799cd7a0e02835fd6ebbed1b1009c75b) _(summary of 4 commits, also listed here)_
+- Fix static HTTP path confinement and stream cleanup - [`877991f4f7`](https://github.com/Ding-Ding-Projects/worldlens/commit/877991f4f7653c3aef19c1467b4150b0c9df6f6e)
+
+### Build, release and tooling
+
+- chore: hand off reproduced HTTP bugs and audit backlog to Codex - [`1dcf314bd0`](https://github.com/Ding-Ding-Projects/worldlens/commit/1dcf314bd097d07e14e054417b94f14620508ecc)
+
+## 1.0.2056 - 2026-10-01
+
+Tagged at [`92bf5c8c7b`](https://github.com/Ding-Ding-Projects/worldlens/commit/92bf5c8c7b286a74fa07baa70915c056970851bb).
+
+### Build, release and tooling
+
+- Preserve stashed extension of the private-terms check script - [`58869cba95`](https://github.com/Ding-Ding-Projects/worldlens/commit/58869cba957ceb5c26f8625a0541565c06ebbe84)
+
+### Elsewhere in the repository
+
+- Merge preserve/stash-1 into main - [`92bf5c8c7b`](https://github.com/Ding-Ding-Projects/worldlens/commit/92bf5c8c7b286a74fa07baa70915c056970851bb) _(summary of 2 commits, also listed here)_
+
+## 1.0.2050 - 2026-09-18
+
+Tagged at [`9aed3f866a`](https://github.com/Ding-Ding-Projects/worldlens/commit/9aed3f866a1ca96ebea243338436d1e85febf58d).
+
+### Documentation
+
+- Refresh final main reference in handoff records - [`9aed3f866a`](https://github.com/Ding-Ding-Projects/worldlens/commit/9aed3f866a1ca96ebea243338436d1e85febf58d)
+
+## 1.0.2049 - 2026-09-18
+
+Tagged at [`7c36a0e819`](https://github.com/Ding-Ding-Projects/worldlens/commit/7c36a0e819b41576184f93e5e73fd1b87b3ca56c).
+
+### Documentation
+
+- Record safe ref cleanup and retained directories - [`7c36a0e819`](https://github.com/Ding-Ding-Projects/worldlens/commit/7c36a0e819b41576184f93e5e73fd1b87b3ca56c)
+
+## 1.0.2048 - 2026-09-18
+
+Tagged at [`19bd81fa75`](https://github.com/Ding-Ding-Projects/worldlens/commit/19bd81fa75cac421247b6d406c90d5335346cb36).
+
+### Documentation
+
+- Record archive integrity and remote ancestry proof - [`19bd81fa75`](https://github.com/Ding-Ding-Projects/worldlens/commit/19bd81fa75cac421247b6d406c90d5335346cb36)
+
+## 1.0.2047 - 2026-09-18
+
+Tagged at [`4f046fc8f5`](https://github.com/Ding-Ding-Projects/worldlens/commit/4f046fc8f51741396817df155e64c06ee73e5778).
+
+### Interface
+
+- Merge whole-file private-terms scanning into current guard - [`6dee01f7d8`](https://github.com/Ding-Ding-Projects/worldlens/commit/6dee01f7d86b3fca5519171c0f76adf4363d22c3) _(summary of 2 commits, also listed here)_
+- Scan the whole file for private terms, not one line at a time - [`6ff5b62d7d`](https://github.com/Ding-Ding-Projects/worldlens/commit/6ff5b62d7d8ef681c45fd96804e0149b1b744552)
+
+### Desktop shell
+
+- Restore consent flow while selecting collected archives - [`4f046fc8f5`](https://github.com/Ding-Ding-Projects/worldlens/commit/4f046fc8f51741396817df155e64c06ee73e5778)
+- Merge archive collection fallback into current chunker actions - [`43868f3730`](https://github.com/Ding-Ding-Projects/worldlens/commit/43868f3730cfbb7b1642c027de1946108ee95e5b) _(summary of 2 commits, also listed here)_
+- Collect the archive the artifact actually contains, not a guessed name - [`df23924411`](https://github.com/Ding-Ding-Projects/worldlens/commit/df2392441114e8a6a1d6da5e427f62368106e639)
+
+### Build, release and tooling
+
+- Match the private-terms guard across a wrapped line, not one line at a time - [`f27ac3bddc`](https://github.com/Ding-Ding-Projects/worldlens/commit/f27ac3bddce8d2cc72ec3b0559f9894b16a20bd2)
+
+### Documentation
+
+- Document linked checkout reconciliation and archive plan - [`d97c187e36`](https://github.com/Ding-Ding-Projects/worldlens/commit/d97c187e36c71e7b121da204b3b022985a043025)
+
+### Elsewhere in the repository
+
+- Merge wrapped-line guard coverage into the whole-file scanner - [`48f74d341e`](https://github.com/Ding-Ding-Projects/worldlens/commit/48f74d341ec3ff9fee35874df527c0035217efb1) _(summary of 2 commits, also listed here)_
+
+## 1.0.2042 - 2026-09-10
+
+Tagged at [`c80f370ba6`](https://github.com/Ding-Ding-Projects/worldlens/commit/c80f370ba66eb806bf32867ba56da9bc18f1169b).
+
+### Documentation
+
+- State the agent conversation-vocabulary rule in AGENTS.md - [`c80f370ba6`](https://github.com/Ding-Ding-Projects/worldlens/commit/c80f370ba66eb806bf32867ba56da9bc18f1169b)
+- Record the four owner-reported fixes, the review round and the capture debt in the handoff - [`a9673c6f3c`](https://github.com/Ding-Ding-Projects/worldlens/commit/a9673c6f3c4af1b74a16a8fec78e6798dd744a66)
 
 ## 1.0.2040 - 2026-09-05
 

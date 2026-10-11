@@ -222,6 +222,629 @@
       "line": 25,
       "column": 20,
       "why": "the ordinary memory sense: Java heap sizing, -Xmx and the like"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 344,
+      "column": 58,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 346,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 348,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 351,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 355,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 358,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 361,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 363,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 365,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 373,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 378,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 381,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 389,
+      "column": 139,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 403,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 412,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 414,
+      "column": 42,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 4257,
+      "column": 30,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "CHANGELOG.md",
+      "line": 4258,
+      "column": 34,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 8,
+      "column": 33,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1143,
+      "column": 82,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1164,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1176,
+      "column": 2301,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1185,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1206,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1247,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1268,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1299,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1321,
+      "column": 149,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1330,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1351,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1392,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1404,
+      "column": 2456,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1423,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1454,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1475,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1526,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1547,
+      "column": 66,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 1659,
+      "column": 163,
+      "why": "exact historical branch identifier, retained for source provenance"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 3081,
+      "column": 1533,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 3081,
+      "column": 1543,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 3081,
+      "column": 3575,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 3081,
+      "column": 3584,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 7806,
+      "column": 942,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 7806,
+      "column": 1884,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 13940,
+      "column": 2453,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 13940,
+      "column": 3845,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 17332,
+      "column": 54,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 17333,
+      "column": 163,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 17342,
+      "column": 58,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 17343,
+      "column": 115,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 17343,
+      "column": 157,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 17343,
+      "column": 392,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 17803,
+      "column": 847,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 17803,
+      "column": 1180,
+      "why": "ordinary false-alarm idiom, not a session identity"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 17803,
+      "column": 1913,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 18395,
+      "column": 992,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 18415,
+      "column": 659,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 18465,
+      "column": 37,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 18465,
+      "column": 533,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 18955,
+      "column": 525,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 18975,
+      "column": 31,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 18975,
+      "column": 670,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 19095,
+      "column": 1271,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 19095,
+      "column": 2041,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 19149,
+      "column": 914,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 19149,
+      "column": 1441,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 19149,
+      "column": 2010,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/ui/src/components/changelog/changelogData.generated.ts",
+      "line": 20919,
+      "column": 1060,
+      "why": "ordinary false-alarm idiom, not a session identity"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 391,
+      "column": 1,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 399,
+      "column": 32,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 411,
+      "column": 1,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 440,
+      "column": 77,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 441,
+      "column": 82,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 457,
+      "column": 39,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 723,
+      "column": 421,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 743,
+      "column": 46,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 950,
+      "column": 37,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 952,
+      "column": 21,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 958,
+      "column": 33,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 968,
+      "column": 63,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 968,
+      "column": 119,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 974,
+      "column": 113,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 1098,
+      "column": 524,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/bedrock-worlds.md",
+      "line": 1106,
+      "column": 72,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/contracts/feature-delivery-inventory.md",
+      "line": 66,
+      "column": 11,
+      "why": "exact canonical contract identifier used as a mapping key"
+    },
+    {
+      "file": "docs/contracts/feature-delivery-inventory.md",
+      "line": 103,
+      "column": 18,
+      "why": "exact canonical contract identifier used as a mapping key"
+    },
+    {
+      "file": "docs/evidence/fixtures-2026-09-04.md",
+      "line": 189,
+      "column": 1,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/evidence/fixtures-2026-09-04.md",
+      "line": 191,
+      "column": 26,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "docs/evidence/fixtures-2026-09-04.md",
+      "line": 191,
+      "column": 76,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/site/src/content/articles/bedrock-worlds.ts",
+      "line": 187,
+      "column": 93,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "design/packages/site/src/content/articles/bedrock-worlds.ts",
+      "line": 188,
+      "column": 43,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "fe4f265613bb5c19f4256c986bf910aa3fab483e body",
+      "line": 29,
+      "column": 24,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "fe4f265613bb5c19f4256c986bf910aa3fab483e body",
+      "line": 29,
+      "column": 34,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "fe4f265613bb5c19f4256c986bf910aa3fab483e body",
+      "line": 79,
+      "column": 12,
+      "why": "ordinary memory allocation terminology, verified in its surrounding explanation"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "fe4f265613bb5c19f4256c986bf910aa3fab483e body",
+      "line": 79,
+      "column": 21,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "8c718cd3df50f555ba195185c38c650e356d0a9b body",
+      "line": 16,
+      "column": 31,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "8c718cd3df50f555ba195185c38c650e356d0a9b body",
+      "line": 34,
+      "column": 21,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "09c326be6e72b92d9263a5fd586128ba91e997a9 body",
+      "line": 13,
+      "column": 47,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "09c326be6e72b92d9263a5fd586128ba91e997a9 body",
+      "line": 18,
+      "column": 8,
+      "why": "ordinary false-alarm idiom, not a session identity"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "09c326be6e72b92d9263a5fd586128ba91e997a9 body",
+      "line": 33,
+      "column": 5,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "3e2d60da4ace9f7426374c5b1eab5cd37e1d2727 body",
+      "line": 19,
+      "column": 39,
+      "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "file": "scripts/changelog-overrides.json",
+      "where": "3e2d60da4ace9f7426374c5b1eab5cd37e1d2727 body",
+      "line": 35,
+      "column": 5,
+      "why": "exact shell command spelling, verified against the historical command"
     }
   ]
 }

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { canonicalWorldIdentity } from "./projectIdentity.js";
 
 describe("canonicalWorldIdentity", () => {
-    it("treats case and slash style as the same Deen No path", () => {
+    it("treats case and slash style as the same Windows path", () => {
         expect(canonicalWorldIdentity("c:/Saves/World\\")).toBe(canonicalWorldIdentity("C:\\saves\\world"));
     });
 

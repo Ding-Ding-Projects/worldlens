@@ -25,6 +25,10 @@ commit.
 
 ## How the app knows which BlueMap it has
 
+`scripts/bluemap-source.json` pins the reviewed official release tag and peeled commit. Bootstrap fetches only that tag from the official repository when absent, verifies its identity and ancestry, and requires the exact tag selected by Gradle's version derivation. It preserves conflicting refs and stops rather than overwriting them. Each fetch has a 60-second timeout. A stamp without that release provenance is stale even if its source commit still matches.
+
+Local CLI staging requires the source commit, official release commit, version, byte count and SHA-256 written after the root build. It rejects stale, incorrectly labelled or changed bytes, writes the structured packaging manifest and passes the same physical JAR validator as downloaded workflow output. A raw JAR without provenance cannot acquire a source identity from its filename.
+
 It cannot know from the jar. Upstream's build derives its version string from `git describe` and
 writes it into the archive name, so `cli-5.22-27-shadow.jar` says `5.22-27` on the tin. That is
 a label. It says nothing about which commit produced the file, it is trivially wrong for a jar

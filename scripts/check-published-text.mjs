@@ -83,6 +83,10 @@ const PUBLISHED = Object.freeze([
  * Keyed by exact position, so an edit that moves a line re-flags it. That is correct: the
  * review was of that occurrence, not of the word.
  */
+function publicationHitKey(hit) {
+  return `${hit.file}:${hit.where ? `${hit.where}:` : ""}${hit.line}:${hit.column}`;
+}
+
 function allowlist() {
   try {
     const parsed = JSON.parse(
@@ -90,7 +94,7 @@ function allowlist() {
     );
     return new Set(
       (parsed.entries ?? []).map(
-        (entry) => `${entry.file}:${entry.line}:${entry.column}`,
+        publicationHitKey,
       ),
     );
   } catch {
@@ -99,35 +103,7 @@ function allowlist() {
   }
 }
 
-/**
- * The two files generated from commit history.
- *
- * Issue #168 is explicit that the residue in these cannot be fixed: editing the generated
- * file is not a fix, because the next regeneration restores it from history and the drift
- * then looks like a generator bug; and fixing it at the source means rewriting published
- * history and force-pushing, which invalidates every clone, every commit link in an issue
- * or release note, and every recorded SHA in docs/release-ledger.json.
- *
- * So a hit here is counted and named as accepted residue rather than failing the run. If it
- * failed, the steady state of this check would be red, and a check whose normal state is red
- * is a check everyone learns to scroll past -- which is how the workflow linter in #167 went
- * two weeks without anybody reading it.
- */
-const GENERATED_FROM_HISTORY = Object.freeze([
-  "CHANGELOG.md",
-  "design/packages/ui/src/components/changelog/changelogData.generated.ts",
-]);
-
-/**
- * The hand-written replacement text that feeds those two generated files.
- *
- * `scripts/changelog-overrides.json` gives one historical commit a neutral subject and body,
- * and `publicText()` in `build-changelog.mjs` substitutes them before anything else, so an
- * override is copied byte-for-byte into CHANGELOG.md and into the in-app changelog data. That
- * makes it published text, and the accepted-residue reasoning above does not cover it: an
- * override body was authored by hand for the express purpose of being publishable, so a term
- * in one is a one-line edit rather than the history rewrite that reasoning exists to avoid.
- */
+/** Historical wording is repaired through presentation overrides without rewriting commits. */
 const OVERRIDES_PATH = "scripts/changelog-overrides.json";
 
 /** Where the terms file might be, most explicit first. */
@@ -367,8 +343,8 @@ function main() {
     ? scanOverrides(join(ROOT, OVERRIDES_PATH), terms)
     : [];
   const hits = scan(files, terms)
-    .filter((hit) => !reviewed.has(`${hit.file}:${hit.line}:${hit.column}`))
-    .concat(overrideHits);
+    .concat(overrideHits)
+    .filter((hit) => !reviewed.has(publicationHitKey(hit)));
   if (hits.length === 0) {
     process.stdout.write(
       `check-published-text: clean - ${files.length + (scanTheOverrides ? 1 : 0)} file(s) checked against ${terms.length} terms` +
@@ -377,10 +353,7 @@ function main() {
     );
     return;
   }
-  const residue = hits.filter((hit) => GENERATED_FROM_HISTORY.includes(hit.file));
-  const actionable = hits.filter(
-    (hit) => !GENERATED_FROM_HISTORY.includes(hit.file),
-  );
+  const actionable = hits;
   for (const hit of actionable) {
     // The term itself is withheld unless --show. Printing it would put it in a terminal,
     // a CI log or a pasted bug report, which is the publication this exists to prevent.
@@ -388,12 +361,6 @@ function main() {
       `${hit.file}:${hit.line}:${hit.column}: internal shorthand` +
         (hit.where ? ` in ${hit.where}` : "") +
         `${show ? ` (${hit.term})` : ""}\n`,
-    );
-  }
-  if (residue.length > 0) {
-    process.stdout.write(
-      `check-published-text: ${residue.length} accepted hit(s) in text generated from commit ` +
-        "history, which issue #168 records as unfixable without rewriting published history.\n",
     );
   }
   if (actionable.length === 0) {
@@ -411,6 +378,8 @@ function main() {
 }
 
 export {
+  publicationHitKey,
+  allowlist,
   OVERRIDES_PATH,
   PUBLISHED,
   matcher,

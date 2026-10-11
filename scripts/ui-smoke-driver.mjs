@@ -47,7 +47,7 @@ function parse(argv) {
   return args;
 }
 function lowlevel(tool, params) {
-  if (!existsSync(cli)) fail(`Cheap Version CLI is missing at ${cli}`);
+  if (!existsSync(cli)) fail(`lowlevel-computer-use-cheap CLI is missing at ${cli}`);
   const raw = execFileSync(cli, [tool, "--json", JSON.stringify(params ?? {})], { encoding: "utf8", maxBuffer: 8 * 1024 * 1024 });
   const value = JSON.parse(raw);
   if (value.ok !== true) fail(`${tool} failed: ${value.error || "unknown error"}`);

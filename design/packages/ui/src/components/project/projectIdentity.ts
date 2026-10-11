@@ -1,4 +1,4 @@
-/** Conservative identity for a world path on Deen No. */
+/** Conservative identity for a world path on Windows. */
 export function canonicalWorldIdentity(value: string): string {
     const trimmed = value.trim().replace(/\//g, "\\");
     const unc = trimmed.startsWith("\\\\");

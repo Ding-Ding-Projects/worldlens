@@ -131,6 +131,13 @@ jobs:
         with:
           validate-wrappers: true
 
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Provision the reviewed official release tag
+        run: node scripts/bluemap-release-tag.mjs
+
       - name: Resolve the upstream version
         id: upstream
         shell: bash
@@ -142,11 +149,6 @@ jobs:
           # it finds no tags, so a checkout that lost them does not fail: it quietly
           # builds jars named bluemap-0.0-paper.jar and publishes them. That is invisible
           # until somebody downloads one, so it is caught here instead, before the build.
-          if [ -z "$(git tag)" ]; then
-            echo "The vendored checkout arrived without tags. Fetching them."
-            git fetch --tags --force origin
-          fi
-
           tag=$(git describe --tags --abbrev=0 2>/dev/null || true)
           if [ -z "$tag" ]; then
             echo "::error::${BLUEMAP_SOURCE} has no tags, so Gradle would stamp every jar as version 0.0. The submodule needs a full-history checkout."
@@ -205,9 +207,6 @@ jobs:
           :sponge:shadowJar
 
       # The staging and description scripts are dependency-free, so no install step.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: 22
 
       # Copies each implementation's shadow jar out of the vendored build tree and fails
       # if any of the seven is absent. Same command that stages them on a workstation,

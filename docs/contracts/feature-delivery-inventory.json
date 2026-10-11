@@ -33,7 +33,7 @@
   "knownGaps": [
     {
       "id": "minecraft-server-manager",
-      "details": "The baseline transport union has no native SSH-process variant. Historical alpha/beta entries are filtered before distribution inspection. The property descriptor list is fixed rather than version-bound; Bedrock is absent from the inspected flavour unions."
+      "details": "SSH-process hosting, Bedrock and version-bound descriptors remain missing from the inspected baseline workflows. Historical Java alpha/beta discovery has source repairs with 46 focused checks; current built wizard and historical runtime acceptance remain pending."
     },
     {
       "id": "completeness-parity",
@@ -147,28 +147,69 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/vocabulary/VocabularyUploadRow.vue",
+              "design/packages/ui/src/components/vocabulary/vocabularyStore.ts",
+              "design/packages/ui/src/components/vocabulary/vocabularySchema.ts",
+              "design/packages/ui/src/components/settings/AppSettings.vue"
+            ],
+            "consumer": "AppSettings mounts VocabularyUploadRow and indexes upload/replace/clear state. vocabularyStore uses desktop app-data bridge or browser localStorage fallback.",
+            "limitation": "Cache validation, text-boundary coverage and each visible state require independent interaction proof.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/vocabulary/VocabularyUploadRow.vue",
+              "design/packages/ui/src/components/vocabulary/vocabularyStore.ts",
+              "design/packages/ui/src/components/vocabulary/vocabularySchema.ts",
+              "design/packages/ui/src/components/settings/AppSettings.vue"
+            ],
+            "consumer": "AppSettings mounts VocabularyUploadRow and indexes upload/replace/clear state. vocabularyStore uses desktop app-data bridge or browser localStorage fallback.",
+            "limitation": "Cache validation, text-boundary coverage and each visible state require independent interaction proof.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/personalVocabulary.ts",
+              "design/packages/site/src/settings/page.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "main.ts constructs PersonalVocabulary and installs the text transform; settings/page.ts mounts createVocabularyPanel.",
+            "limitation": "Current rendered empty/load/replace/clear states, persistence and exclusion from exports remain pending.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/viewer/src/materialShell.ts",
+              "design/packages/viewer/src/materialShellPresentation.ts"
+            ],
+            "consumer": "Inspected settings construction at materialShell.ts:342 and message-style controls from :503. These construct theme, density, language and tone controls.",
+            "limitation": "The inspected settings-construction workflow contains no vocabulary file input or upload consumer. Broader module integration remains pending review.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "repository-deliverables": {
           "applicability": "supporting-deliverable",
@@ -183,6 +224,46 @@
           "path": "design/packages/site/src/settings/personalVocabulary.ts",
           "baseline": "11cd248f9a13c6547474a0cfe168b2958751be60",
           "status": "source-present; behavior and completeness require review"
+        },
+        {
+          "path": "design/packages/ui/src/components/vocabulary/VocabularyUploadRow.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/vocabulary/vocabularyStore.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/vocabulary/vocabularySchema.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/settings/AppSettings.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/settings/page.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/main.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShell.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShellPresentation.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
         }
       ],
       "focusedInventory": null,
@@ -1105,28 +1186,68 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/palette/CommandPalette.vue",
+              "design/packages/ui/src/components/palette/PaletteRow.vue",
+              "design/packages/ui/src/components/palette/featureDirectoryInventory.ts",
+              "design/packages/ui/src/App.vue"
+            ],
+            "consumer": "App.vue owns shortcut/open state and live directory entries for tabs, documentation and appearance; rows expose actionable entries.",
+            "limitation": "Exact-element focus, locked-element handling and all rich result types need current interaction proof.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/palette/CommandPalette.vue",
+              "design/packages/ui/src/components/palette/PaletteRow.vue",
+              "design/packages/ui/src/components/palette/featureDirectoryInventory.ts",
+              "design/packages/ui/src/App.vue"
+            ],
+            "consumer": "App.vue owns shortcut/open state and live directory entries for tabs, documentation and appearance; rows expose actionable entries.",
+            "limitation": "Exact-element focus, locked-element handling and all rich result types need current interaction proof.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/shell/commandPalette.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "main.ts creates/appends the shell palette; commands include setting, page, appearance and command kinds with inline controls.",
+            "limitation": "Teleport target accuracy and keyboard/lock behavior need current live acceptance.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/viewer/src/materialShell.ts",
+              "design/packages/viewer/src/materialShellPresentation.ts"
+            ],
+            "consumer": "materialShell.ts:361 constructs a command dialog with search and regex builder and wires open/close actions.",
+            "limitation": "The constructor explicitly sets aria-modal=true. Canonical non-modal/bounded interaction and rich setting results need reconciliation; presence alone is not acceptance.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "repository-deliverables": {
           "applicability": "supporting-deliverable",
@@ -1136,7 +1257,48 @@
           "captureAcceptance": "not-a-capture-verdict"
         }
       },
-      "sourceEvidence": [],
+      "sourceEvidence": [
+        {
+          "path": "design/packages/ui/src/components/palette/CommandPalette.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/palette/PaletteRow.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/palette/featureDirectoryInventory.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/App.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/shell/commandPalette.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/main.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShell.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShellPresentation.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        }
+      ],
       "focusedInventory": null,
       "reviewState": "pending-review"
     },
@@ -1150,28 +1312,66 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/appearance/AppearanceTarget.vue",
+              "design/packages/ui/src/components/menuSearch/menuCoverage.test.ts"
+            ],
+            "consumer": "AppearanceTarget binds contextmenu at its wrapped root; focused coverage tests inventory named menu surfaces.",
+            "limitation": "Wrapper presence does not establish registration of every rendered element.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/appearance/AppearanceTarget.vue",
+              "design/packages/ui/src/components/menuSearch/menuCoverage.test.ts"
+            ],
+            "consumer": "AppearanceTarget binds contextmenu at its wrapped root; focused coverage tests inventory named menu surfaces.",
+            "limitation": "Wrapper presence does not establish registration of every rendered element.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/appearance/editor/contextMenu.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Site appearance context-menu implementation and registration path.",
+            "limitation": "All-element registration, menu search and keyboard parity require a complete surface inventory.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/viewer/src/materialShell.ts",
+              "design/packages/viewer/src/materialShellPresentation.ts",
+              "design/packages/viewer/src/controls/map/MapControls.ts",
+              "design/packages/viewer/src/controls/freeflight/FreeFlightControls.ts"
+            ],
+            "consumer": "MapControls and FreeFlightControls attach contextmenu handlers; material shell owns bounded menus.",
+            "limitation": "Map interaction handlers do not prove context menus for every element; keyboard and search coverage require separate mapping.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "repository-deliverables": {
           "applicability": "supporting-deliverable",
@@ -1181,7 +1381,48 @@
           "captureAcceptance": "not-a-capture-verdict"
         }
       },
-      "sourceEvidence": [],
+      "sourceEvidence": [
+        {
+          "path": "design/packages/ui/src/components/appearance/AppearanceTarget.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/menuSearch/menuCoverage.test.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/appearance/editor/contextMenu.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/main.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShell.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShellPresentation.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/controls/map/MapControls.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/controls/freeflight/FreeFlightControls.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        }
+      ],
       "focusedInventory": null,
       "reviewState": "pending-review"
     },
@@ -1240,28 +1481,66 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/palette/PaletteRow.vue",
+              "design/packages/ui/src/components/palette/paletteCatalog.ts",
+              "design/packages/ui/src/components/config/ConfigControl.vue"
+            ],
+            "consumer": "Palette rows and configuration controls provide typed editable values through their action models.",
+            "limitation": "Every displayed adjustable value still needs a hand-written consumer/control mapping.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/palette/PaletteRow.vue",
+              "design/packages/ui/src/components/palette/paletteCatalog.ts",
+              "design/packages/ui/src/components/config/ConfigControl.vue"
+            ],
+            "consumer": "Palette rows and configuration controls provide typed editable values through their action models.",
+            "limitation": "Every displayed adjustable value still needs a hand-written consumer/control mapping.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/shell/commandPalette.ts",
+              "design/packages/site/src/settings/page.ts"
+            ],
+            "consumer": "Command palette entries support typed SettingControl rows calling control.set, including toggle and numeric controls.",
+            "limitation": "Complete visible-value coverage is not established by supported control types.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/viewer/src/materialShell.ts",
+              "design/packages/viewer/src/materialShellPresentation.ts"
+            ],
+            "consumer": "Theme selectors, density ranges, coordinate numeric inputs and map tool forms are constructed in materialShell.ts.",
+            "limitation": "Dedicated controls exist; universal editable-value and palette control parity are not established.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "repository-deliverables": {
           "applicability": "supporting-deliverable",
@@ -1271,7 +1550,43 @@
           "captureAcceptance": "not-a-capture-verdict"
         }
       },
-      "sourceEvidence": [],
+      "sourceEvidence": [
+        {
+          "path": "design/packages/ui/src/components/palette/PaletteRow.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/palette/paletteCatalog.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/config/ConfigControl.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/shell/commandPalette.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/settings/page.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShell.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShellPresentation.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        }
+      ],
       "focusedInventory": null,
       "reviewState": "pending-review"
     },
@@ -1330,28 +1645,67 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/config/explainField.ts",
+              "design/packages/ui/src/components/config/configExplainCoverage.test.ts",
+              "design/packages/ui/src/components/settings/settingsSections.ts"
+            ],
+            "consumer": "Configuration field explanations and settings section metadata provide guided help; focused coverage protects known configuration fields.",
+            "limitation": "The existing configuration inventory does not by itself establish every settings surface and nested editor.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/config/explainField.ts",
+              "design/packages/ui/src/components/config/configExplainCoverage.test.ts",
+              "design/packages/ui/src/components/settings/settingsSections.ts"
+            ],
+            "consumer": "Configuration field explanations and settings section metadata provide guided help; focused coverage protects known configuration fields.",
+            "limitation": "The existing configuration inventory does not by itself establish every settings surface and nested editor.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/explanationCoverage.ts",
+              "design/packages/site/src/settings/explanationCoverage.test.ts",
+              "design/packages/site/src/settings/provenance.ts"
+            ],
+            "consumer": "Settings explanation inventory and provenanceLine helper support setting-level guidance/default provenance.",
+            "limitation": "Setting provenanceLine is not front-screen application build provenance.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/viewer/src/materialShell.ts",
+              "design/packages/viewer/src/materialShellPresentation.ts"
+            ],
+            "consumer": "materialShellPresentation provides setting descriptions; density controls explain spacing effects.",
+            "limitation": "Complete five-level guidance, defaults, provenance and contextual help for all controls remain pending mapping.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "repository-deliverables": {
           "applicability": "supporting-deliverable",
@@ -1361,7 +1715,48 @@
           "captureAcceptance": "not-a-capture-verdict"
         }
       },
-      "sourceEvidence": [],
+      "sourceEvidence": [
+        {
+          "path": "design/packages/ui/src/components/config/explainField.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/config/configExplainCoverage.test.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/settings/settingsSections.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/settings/explanationCoverage.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/settings/explanationCoverage.test.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/settings/provenance.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShell.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShellPresentation.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        }
+      ],
       "focusedInventory": null,
       "reviewState": "pending-review"
     },
@@ -2482,28 +2877,66 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/home/HomeScreen.vue",
+              "design/packages/ui/src/components/home/HomeDashboard.vue",
+              "design/packages/ui/src/App.vue"
+            ],
+            "consumer": "Inspected shell/home modules; an authoritative front-screen build version and timestamp consumer was not identified in this bounded read.",
+            "limitation": "Pending mapping, not a confirmed absence. Trace generated build metadata to the rendered initial screen before accepting.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/home/HomeScreen.vue",
+              "design/packages/ui/src/components/home/HomeDashboard.vue",
+              "design/packages/ui/src/App.vue"
+            ],
+            "consumer": "Inspected shell/home modules; an authoritative front-screen build version and timestamp consumer was not identified in this bounded read.",
+            "limitation": "Pending mapping, not a confirmed absence. Trace generated build metadata to the rendered initial screen before accepting.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/main.ts",
+              "design/packages/site/src/settings/provenance.ts"
+            ],
+            "consumer": "Bounded source read did not identify authoritative front-screen build/timestamp rendering. Setting provenance exists separately.",
+            "limitation": "Pending mapping; do not infer absence from search results.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/viewer/src/materialShell.ts",
+              "design/packages/viewer/src/materialShellPresentation.ts"
+            ],
+            "consumer": "Inspected shell construction and presentation dictionary; no authoritative initial-screen build timestamp consumer identified.",
+            "limitation": "Pending mapping, not confirmed absence.",
+            "sourceCommit": "1fbeeab91465cfee131f3147a33dc1073c24b397"
+          }
         },
         "repository-deliverables": {
           "applicability": "supporting-deliverable",
@@ -2513,7 +2946,43 @@
           "captureAcceptance": "not-a-capture-verdict"
         }
       },
-      "sourceEvidence": [],
+      "sourceEvidence": [
+        {
+          "path": "design/packages/ui/src/components/home/HomeScreen.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/components/home/HomeDashboard.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/ui/src/App.vue",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/main.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/site/src/settings/provenance.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShell.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        },
+        {
+          "path": "design/packages/viewer/src/materialShellPresentation.ts",
+          "baseline": "1fbeeab91465cfee131f3147a33dc1073c24b397",
+          "status": "source-present; interaction and universal coverage unverified"
+        }
+      ],
       "focusedInventory": null,
       "reviewState": "pending-review"
     },

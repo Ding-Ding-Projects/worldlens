@@ -1,9 +1,11 @@
+import { spawnSync } from "node:child_process";
+import { stageLocalJavaEngine } from "./stage-local-java-engine.mjs";
+import { BLUEMAP_SOURCE_PATH, validateStagedJavaEngine } from "./staged-java-engine.mjs";
 import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { verifyJarFile } from "./jar-verifier.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appRoot = resolve(here, "..");
@@ -276,180 +278,65 @@ export async function stageRenderEngines(
 }
 
 async function resolveJavaArtifact(requireJava) {
-    const stagedManifestPath = join(jarDirectory, "manifest.json");
+    const release = JSON.parse(
+        await readFile(join(repositoryRoot, "scripts", "bluemap-source.json"), "utf8"),
+    );
+    const head = spawnSync(
+        "git",
+        ["-C", join(repositoryRoot, BLUEMAP_SOURCE_PATH), "rev-parse", "HEAD"],
+        { encoding: "utf8", shell: false },
+    );
+    const expectedCommit = head.status === 0 ? head.stdout.trim() : null;
+    let stagedError;
     try {
-        const stagedManifest = JSON.parse(await readFile(stagedManifestPath, "utf8"));
-        const cli = Array.isArray(stagedManifest.jars)
-            ? stagedManifest.jars.find((jar) => jar?.implementation === "cli")
-            : null;
-        if (typeof cli?.fileName === "string") {
-            const candidate = stagedJarPath(cli.fileName);
-            const actual = await verifiedJarMetadata(candidate);
-            if (typeof cli.size !== "number" || cli.size !== actual.size) {
-                throw new Error(`staged CLI jar size differs from manifest: ${candidate}`);
-            }
-            if (typeof cli.sha256 !== "string" || cli.sha256.toLowerCase() !== actual.sha256) {
-                throw new Error(`staged CLI jar digest differs from manifest: ${candidate}`);
-            }
-            if (typeof cli.version !== "string" || cli.version.length === 0) {
-                throw new Error(`staged CLI jar version is missing from manifest: ${candidate}`);
-            }
-            return {
-                version: cli.version,
-                artifact: { fileName: cli.fileName, ...actual, source: "staged" },
-            };
+        if (!/^[a-f0-9]{40}$/u.test(expectedCommit ?? ""))
+            throw new Error("The selected BlueMap source commit is unavailable.");
+        const staged = await validateStagedJavaEngine(jarDirectory, { expectedCommit });
+        const releaseVersion = release.releaseTag.slice(1);
+        if (!(
+            staged.source.version === releaseVersion ||
+            staged.source.version.startsWith(`${releaseVersion}-`)
+        )) {
+            throw new Error("Staged BlueMap version does not match the reviewed official release.");
         }
+        return {
+            version: staged.source.version,
+            artifact: {
+                fileName: staged.cli.fileName,
+                size: staged.cli.size,
+                sha256: staged.cli.sha256,
+                source: "staged",
+            },
+        };
     } catch (error) {
-        // A local Gradle result below is authoritative when the staging manifest is
-        // absent or stale. If neither source is usable, the final error names both.
-        var stagedError = error;
+        stagedError = error;
     }
-
-    const rawStaged = await newestJar(jarDirectory);
-    if (rawStaged !== null) {
-        const actual = await verifiedJarMetadata(rawStaged.path);
-        await writeCliManifest({
-            version: rawStaged.version,
-            fileName: rawStaged.fileName,
-            size: actual.size,
-            sha256: actual.sha256,
-            source: "staged",
+    try {
+        const staged = await stageLocalJavaEngine({
+            gradleDirectory: gradleJarDirectory,
+            stagingDirectory: jarDirectory,
+            expectedCommit,
+            releaseCommit: release.releaseCommit,
+            releaseTag: release.releaseTag,
         });
         return {
-            version: rawStaged.version,
-            artifact: { fileName: rawStaged.fileName, ...actual, source: "staged" },
+            version: staged.source.version,
+            artifact: {
+                fileName: staged.cli.fileName,
+                size: staged.cli.size,
+                sha256: staged.cli.sha256,
+                source: "gradle",
+            },
         };
-    }
-
-    const gradle = await newestGradleCliJar();
-    if (gradle !== null) {
-        await mkdir(jarDirectory, { recursive: true });
-        const destination = join(jarDirectory, gradle.fileName);
-        await cp(gradle.path, destination, { force: true });
-        const actual = await verifiedJarMetadata(destination);
-        let staged = { jars: [] };
-        try {
-            staged = JSON.parse(await readFile(stagedManifestPath, "utf8"));
-        } catch {
-            // A fresh local build may not have run tools/build-jars.mjs yet.
-        }
-        const jars = Array.isArray(staged.jars)
-            ? staged.jars.filter((jar) => jar?.implementation !== "cli")
-            : [];
-        jars.push({
-            implementation: "cli",
-            version: gradle.version,
-            fileName: gradle.fileName,
-            size: actual.size,
-            sha256: actual.sha256,
-            source: "gradle",
-        });
-        await writeFile(
-            stagedManifestPath,
-            `${JSON.stringify({ ...staged, source: "vendor/BlueMap-Material", jars }, null, 4)}\n`,
-            "utf8",
-        );
-        return {
-            version: gradle.version,
-            artifact: { fileName: gradle.fileName, ...actual, source: "gradle" },
-        };
-    }
-
-    if (!requireJava) {
-        return { version: null, artifact: null };
-    }
-    const detail = stagedError instanceof Error ? ` Staging error: ${stagedError.message}` : "";
-    throw new Error(
-        `No verified BlueMap CLI jar is available for packaging. Looked in ${jarDirectory} and ${gradleJarDirectory}.${detail} ` +
-            "Run node scripts/bootstrap.mjs or node tools/build-jars.mjs --only cli before packaging.",
-    );
-}
-
-async function writeCliManifest(cli) {
-    const manifestPath = join(jarDirectory, "manifest.json");
-    let current = { jars: [] };
-    try {
-        current = JSON.parse(await readFile(manifestPath, "utf8"));
-    } catch {
-        // CI's downloaded asset intentionally has no build-jars manifest.
-    }
-    const jars = Array.isArray(current.jars)
-        ? current.jars.filter((jar) => jar?.implementation !== "cli")
-        : [];
-    jars.push(cli);
-    await writeFile(
-        manifestPath,
-        `${JSON.stringify({ ...current, source: current.source ?? "staged render-engine input", jars }, null, 4)}\n`,
-        "utf8",
-    );
-}
-
-async function newestJar(directory) {
-    let entries;
-    try {
-        entries = await readdir(directory, { withFileTypes: true });
-    } catch {
-        return null;
-    }
-    const candidates = [];
-    for (const entry of entries) {
-        const shadow = /^cli-(.+)-shadow\.jar$/.exec(entry.name);
-        const released = /^bluemap-(.+)-cli\.jar$/.exec(entry.name);
-        if (!entry.isFile() || (shadow === null && released === null)) continue;
-        const path = join(directory, entry.name);
-        const info = await stat(path);
-        candidates.push({
-            path,
-            fileName: entry.name,
-            version: (shadow ?? released)[1],
-            mtimeMs: info.mtimeMs,
-        });
-    }
-    candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
-    return candidates[0] ?? null;
-}
-
-function stagedJarPath(fileName) {
-    if (basename(fileName) !== fileName)
-        throw new Error(`staged CLI jar path contains traversal: ${fileName}`);
-    const candidate = resolve(jarDirectory, fileName);
-    if (!candidate.startsWith(`${resolve(jarDirectory)}${sep}`))
-        throw new Error(`staged CLI jar path escapes staging: ${fileName}`);
-    return candidate;
-}
-
-async function newestGradleCliJar() {
-    let entries;
-    try {
-        entries = await readdir(gradleJarDirectory, { withFileTypes: true });
-    } catch {
-        return null;
-    }
-    const candidates = [];
-    for (const entry of entries) {
-        const shadow = /^cli-(.+)-shadow\.jar$/.exec(entry.name);
-        const released = /^bluemap-(.+)-cli\.jar$/.exec(entry.name);
-        if (!entry.isFile() || (shadow === null && released === null)) continue;
-        const path = join(gradleJarDirectory, entry.name);
-        const info = await stat(path);
-        candidates.push({
-            path,
-            fileName: entry.name,
-            version: (shadow ?? released)[1],
-            mtimeMs: info.mtimeMs,
-        });
-    }
-    candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
-    return candidates[0] ?? null;
-}
-
-async function verifiedJarMetadata(path) {
-    const descriptor = await verifyJarFile(path, { root: resolve(jarDirectory) });
-    if (!descriptor.ok)
+    } catch (error) {
+        if (!requireJava) return { version: null, artifact: null };
         throw new Error(
-            `BlueMap CLI jar is not a valid JAR archive: ${path} (${descriptor.reason})`,
+            "No source-bound BlueMap CLI is available. Run the root build entrypoint. Staged input: " +
+                String(stagedError) +
+                ". Local input: " +
+                String(error),
         );
-    return { size: descriptor.size, sha256: descriptor.sha256 };
+    }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

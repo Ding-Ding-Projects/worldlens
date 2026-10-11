@@ -7,6 +7,8 @@
 A from-scratch TypeScript port of [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap), the
 Minecraft 3D map renderer and web viewer.
 
+The [complete feature delivery inventory](docs/contracts/feature-delivery-inventory.md) tracks 105 canonical requirements across five scopes. Current completion remains pending, including SSH-process hosting, Bedrock management, version-bound server controls and current built-interface evidence. Java catalogue discovery now retains release, snapshot, historical beta and historical alpha channels; discovery does not establish that Mojang published a dedicated server for every entry or that every historical runtime works.
+
 **There are three ways to run it, from one codebase.**
 
 - **Install the desktop application.** Material Design 3, Electron, renders local Minecraft

@@ -188,6 +188,30 @@ test("jars stamped with a different commit are stale, and name that commit", () 
   assert.equal(state.stampCommit, "old");
 });
 
+test("verified release-tag provenance is required even when the source commit is unchanged", () => {
+  const directory = temporaryDirectory();
+  const stampFile = join(directory, JAR_STAMP_NAME);
+  const options = {
+    jarDirectory: directory,
+    stampFile,
+    sourceCommit: "aaa",
+    releaseCommit: "bbb",
+    hasJar: () => true,
+  };
+  writeStamp(directory, JSON.stringify({ commit: "aaa", version: "5.23-115" }));
+  assert.equal(jarBuildState(options).reason, "stale-release-tag");
+  writeStamp(
+    directory,
+    JSON.stringify({ commit: "aaa", releaseCommit: "ccc" }),
+  );
+  assert.equal(jarBuildState(options).fresh, false);
+  writeStamp(
+    directory,
+    JSON.stringify({ commit: "aaa", releaseCommit: "bbb" }),
+  );
+  assert.equal(jarBuildState(options).fresh, true);
+});
+
 test("a matching stamp never outvotes a missing jar", () => {
   const directory = temporaryDirectory();
   writeStamp(directory, JSON.stringify({ commit: "aaa", builtAt: "now" }));
@@ -260,7 +284,11 @@ test("the java probe keeps looking past an old java on PATH", () => {
     candidates: [
       { command: "java", from: "PATH", major: 21 },
       { command: "/jdk25/bin/java", from: "JAVA_HOME", major: 25 },
-      { command: "/provisioned/bin/java", from: "the provisioned JDK", major: 25 },
+      {
+        command: "/provisioned/bin/java",
+        from: "the provisioned JDK",
+        major: 25,
+      },
     ],
     requiredMajor: 25,
     readMajor: (candidate) => {
@@ -277,7 +305,10 @@ test("the java probe keeps looking past an old java on PATH", () => {
 
 test("a machine with nothing new enough is told which java it does have", () => {
   const best = selectJavaCandidate({
-    candidates: [{ command: "java", from: "PATH", major: 17 }, { command: "/jdk21/bin/java", from: "JAVA_HOME", major: 21 }],
+    candidates: [
+      { command: "java", from: "PATH", major: 17 },
+      { command: "/jdk21/bin/java", from: "JAVA_HOME", major: 21 },
+    ],
     requiredMajor: 25,
     readMajor: (candidate) => candidate.major,
   });
@@ -327,7 +358,10 @@ test("only a real gh banner is read as a gh version", () => {
   // Something else on PATH under the same name. Reading a version out of this would let the
   // step report gh as installed while every later gh call fails.
   assert.equal(parseGhVersion("git version 2.51.0"), null);
-  assert.equal(parseGhVersion("'gh' is not recognized as an internal or external command"), null);
+  assert.equal(
+    parseGhVersion("'gh' is not recognized as an internal or external command"),
+    null,
+  );
   assert.equal(parseGhVersion(""), null);
   assert.equal(parseGhVersion(undefined), null);
 });
@@ -336,7 +370,11 @@ test("the first candidate that is actually gh wins, and a shim is skipped", () =
   const found = selectGhCandidate({
     candidates: [
       { command: "gh", from: "PATH", output: "not a program" },
-      { command: "C:\Program Files\GitHub CLI\gh.exe", from: "ProgramFiles", output: "gh version 2.96.0 (2026-07-11)" },
+      {
+        command: "C:\Program Files\GitHub CLI\gh.exe",
+        from: "ProgramFiles",
+        output: "gh version 2.96.0 (2026-07-11)",
+      },
     ],
     readVersion: (candidate) => parseGhVersion(candidate.output),
   });
@@ -346,7 +384,10 @@ test("the first candidate that is actually gh wins, and a shim is skipped", () =
 
   // Nothing anywhere is null, which is the "install it" state rather than a version of "".
   assert.equal(
-    selectGhCandidate({ candidates: [{ command: "gh" }], readVersion: () => null }),
+    selectGhCandidate({
+      candidates: [{ command: "gh" }],
+      readVersion: () => null,
+    }),
     null,
   );
 });
@@ -356,7 +397,9 @@ test("signed out and not installed are never reported as each other", () => {
   assert.equal(
     classifyGhAuthStatus({
       started: true,
-      output: JSON.stringify({ hosts: { "github.com": [{ login: "someone", active: true }] } }),
+      output: JSON.stringify({
+        hosts: { "github.com": [{ login: "someone", active: true }] },
+      }),
     }),
     "authenticated",
   );
@@ -364,18 +407,39 @@ test("signed out and not installed are never reported as each other", () => {
   // Nobody signed in. This route answers exit code 0 with an empty host map, which is exactly
   // why it is used: the plain-text form exits non-zero here and cannot be told apart from a
   // command that broke.
-  assert.equal(classifyGhAuthStatus({ started: true, output: JSON.stringify({ hosts: {} }) }), "unauthenticated");
   assert.equal(
-    classifyGhAuthStatus({ started: true, output: JSON.stringify({ hosts: { "github.com": [] } }) }),
+    classifyGhAuthStatus({
+      started: true,
+      output: JSON.stringify({ hosts: {} }),
+    }),
+    "unauthenticated",
+  );
+  assert.equal(
+    classifyGhAuthStatus({
+      started: true,
+      output: JSON.stringify({ hosts: { "github.com": [] } }),
+    }),
     "unauthenticated",
   );
 
   // A gh too old to understand --json prints usage text. That is a third state with a third fix,
   // so it must not be read as either of the two real answers.
   assert.equal(
-    classifyGhAuthStatus({ started: true, output: "unknown flag: --json\n\nUsage:  gh auth status\n" }),
+    classifyGhAuthStatus({
+      started: true,
+      output: "unknown flag: --json\n\nUsage:  gh auth status\n",
+    }),
     "unreadable",
   );
-  assert.equal(classifyGhAuthStatus({ started: true, output: JSON.stringify({ hosts: [] }) }), "unreadable");
-  assert.equal(classifyGhAuthStatus({ started: false, output: "" }), "unreadable");
+  assert.equal(
+    classifyGhAuthStatus({
+      started: true,
+      output: JSON.stringify({ hosts: [] }),
+    }),
+    "unreadable",
+  );
+  assert.equal(
+    classifyGhAuthStatus({ started: false, output: "" }),
+    "unreadable",
+  );
 });

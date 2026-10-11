@@ -36,6 +36,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ensureBlueMapReleaseTag } from "./bluemap-release-tag.mjs";
 
 import {
   JAR_STAMP_NAME,
@@ -49,6 +50,7 @@ import {
   selectJavaCandidate,
   resetDirectory,
   shadowJarVersion,
+  sha256File,
   shortCommit,
   verifyElectronArchive,
 } from "./bootstrap-helpers.mjs";
@@ -480,6 +482,23 @@ function bluemapJars() {
     };
   }
 
+  const release = JSON.parse(
+    readFileSync(join(repoRoot, "scripts", "bluemap-source.json"), "utf8"),
+  );
+  const tag = ensureBlueMapReleaseTag({
+    ...release,
+    checkOnly,
+    runGit: (args) =>
+      spawnSync("git", ["-C", vendorRoot, ...args], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        shell: false,
+        timeout: 60_000,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+      }),
+  });
+  if (!tag.ok) return tag;
+
   const cliJar = join(vendorRoot, "implementations", "cli", "build", "libs");
   const stampFile = join(cliJar, JAR_STAMP_NAME);
   const built = () => hasShadowJar(cliJar);
@@ -510,6 +529,7 @@ function bluemapJars() {
     jarDirectory: cliJar,
     stampFile,
     sourceCommit,
+    releaseCommit: release.releaseCommit,
   });
 
   if (state.fresh) {
@@ -518,6 +538,8 @@ function bluemapJars() {
       detail: `BlueMap CLI jar already built from ${sourceLabel}`,
     };
   }
+  if (state.reason === "stale-release-tag")
+    log("  rebuilding BlueMap CLI with verified release-tag provenance");
   if (checkOnly) {
     // A stale jar and an absent jar are different problems with different fixes, so
     // the check-only report names which one it found instead of collapsing both into
@@ -591,6 +613,12 @@ function bluemapJars() {
   // The stamp is written only after the jar has been verified present, so a failed or
   // interrupted build can never leave behind a claim that the jars match the source.
   const version = shadowJarVersion(cliJar);
+  if (version === null)
+    return {
+      ok: false,
+      detail: "Built BlueMap CLI has no versioned shadow JAR.",
+    };
+  const builtJarPath = join(cliJar, `cli-${version}-shadow.jar`);
   writeFileSync(
     stampFile,
     `${JSON.stringify(
@@ -599,6 +627,9 @@ function bluemapJars() {
         // read back as no provenance at all, which is exactly what this build has, and both
         // this script and the application's own settings screen say so in those words.
         ...(sourceCommit === null ? {} : { commit: sourceCommit }),
+        releaseCommit: release.releaseCommit,
+        sha256: sha256File(builtJarPath),
+        size: statSync(builtJarPath).size,
         ...(version === null ? {} : { version }),
         builtAt: new Date().toISOString(),
       },

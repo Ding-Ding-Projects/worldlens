@@ -161,7 +161,9 @@ export function selectJavaCandidate({ candidates, requiredMajor, readMajor }) {
  * version invented for it from whatever digits it happened to emit.
  */
 export function parseGhVersion(output) {
-  const match = /\bgh version\s+(\d+\.\d+(?:\.\d+)?)/i.exec(String(output ?? ""));
+  const match = /\bgh version\s+(\d+\.\d+(?:\.\d+)?)/i.exec(
+    String(output ?? ""),
+  );
   return match === null ? null : match[1];
 }
 
@@ -257,7 +259,9 @@ export function parseHeadCommit(result) {
   const first = String(result.stdout ?? "")
     .trim()
     .split(/\s+/)[0];
-  return typeof first === "string" && /^[0-9a-f]{40}$/i.test(first) ? first : null;
+  return typeof first === "string" && /^[0-9a-f]{40}$/i.test(first)
+    ? first
+    : null;
 }
 
 /**
@@ -300,6 +304,7 @@ export function jarBuildState({
   jarDirectory,
   stampFile,
   sourceCommit,
+  releaseCommit,
   hasJar = hasShadowJar,
 }) {
   if (!hasJar(jarDirectory)) {
@@ -311,6 +316,13 @@ export function jarBuildState({
   }
   if (stamp.commit !== sourceCommit) {
     return { fresh: false, reason: "stale", stampCommit: stamp.commit };
+  }
+  if (releaseCommit !== undefined && stamp.releaseCommit !== releaseCommit) {
+    return {
+      fresh: false,
+      reason: "stale-release-tag",
+      stampCommit: stamp.commit,
+    };
   }
   return { fresh: true, reason: "fresh", stampCommit: stamp.commit };
 }

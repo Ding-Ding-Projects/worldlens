@@ -9,7 +9,7 @@ import { SETTINGS_SECTIONS } from "./settingsSections.js";
  * this surface is: every seam anchored to a whole line, so a commented-out call or
  * a renamed symbol that merely contains the right substring cannot pass this.
  *
- * Each check is watched failing once (see the pig's report) before being trusted.
+ * Each check is watched failing once (see the independent review report) before being trusted.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));

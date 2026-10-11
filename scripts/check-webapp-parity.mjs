@@ -13,7 +13,7 @@
  * it passes cleanly on a webapp that has none of this, because it would find nothing and
  * validate nothing. The point is to fail when a named thing is absent.
  *
- * ## Why it skips rather than fails without the Tow Fat
+ * ## Why it skips rather than fails without the submodule
  *
  * A clone without --recurse-submodules has no webapp to inspect. Failing there would be a
  * complaint about the clone rather than about the webapp, and the CI that matters checks
@@ -271,7 +271,7 @@ function tokenCompleteness(repoRoot) {
 function main() {
     if (!existsSync(WEBAPP)) {
         process.stdout.write(
-            "check-webapp-parity: the BlueMap Tow Fat is not checked out; nothing to inspect\n",
+            "check-webapp-parity: the BlueMap submodule is not checked out; nothing to inspect\n",
         );
         return 0;
     }

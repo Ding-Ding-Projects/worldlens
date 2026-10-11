@@ -4,7 +4,8 @@
 // so this file names none of the real ones. That is the same reason the script itself
 // reads its terms from outside this repository: holding them is the leak.
 
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  publicationHitKey,
+  allowlist,
   OVERRIDES_PATH,
   matcher,
   readTerms,
@@ -25,6 +28,32 @@ const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 function scratch() {
   return mkdtempSync(join(tmpdir(), "published-text-"));
 }
+
+test("generated changelog text fails the publication check until its presentation is corrected", () => {
+  const directory = scratch();
+  try {
+    const script = join(directory, "scanner.mjs");
+    const source = readFileSync(new URL("./check-published-text.mjs", import.meta.url), "utf8");
+    const anchor = 'const ROOT = fileURLToPath(new URL("..", import.meta.url));';
+    assert.ok(source.includes(anchor));
+    writeFileSync(script, source.replace(anchor, () => `const ROOT = ${JSON.stringify(directory)};`));
+    const terms = join(directory, "terms.json");
+    writeFileSync(terms, JSON.stringify(["zorb"]));
+    const changelog = join(directory, "CHANGELOG.md");
+    writeFileSync(changelog, "Historical zorb wording\n");
+    const run = () => spawnSync(process.execPath, [script], { encoding: "utf8", env: { ...process.env, WORLDLENS_VOCABULARY_TERMS: terms } });
+    const red = run();
+    assert.equal(red.status, 1);
+    assert.match(red.stderr, /CHANGELOG\.md:1:/u);
+    assert.doesNotMatch(red.stdout, /accepted hit/u);
+    writeFileSync(changelog, "Historical neutral presentation\n");
+    const green = run();
+    assert.equal(green.status, 0);
+    assert.match(green.stdout, /clean/u);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test("reads the dictionary shape, splitting variants and dropping terms too short to signal", () => {
   const dir = scratch();
@@ -257,7 +286,9 @@ test("this repository's own changelog overrides carry no internal shorthand", ()
   }
   if (terms === null) return;
 
-  const hits = scanOverrides(join(REPO_ROOT, OVERRIDES_PATH), terms);
+  const reviewed = allowlist();
+  const hits = scanOverrides(join(REPO_ROOT, OVERRIDES_PATH), terms)
+    .filter((hit) => !reviewed.has(publicationHitKey(hit)));
   // The term itself is never in the message: printing it here would put it in a terminal
   // and a CI log, which is the publication this whole guard exists to prevent.
   assert.deepEqual(
@@ -285,4 +316,18 @@ test("an explicit path in the environment wins over the sibling repository", () 
     if (previous === undefined) delete process.env.WORLDLENS_VOCABULARY_TERMS;
     else process.env.WORLDLENS_VOCABULARY_TERMS = previous;
   }
+});
+
+test("review keys distinguish historical fields at the same position", () => {
+  assert.notEqual(publicationHitKey({ file: "overrides.json", where: "aaa body", line: 1, column: 1 }), publicationHitKey({ file: "overrides.json", where: "bbb body", line: 1, column: 1 }));
+});
+
+test("historical presentation preserves commands and false-positive meaning", () => {
+  const overrides = JSON.parse(readFileSync(join(REPO_ROOT, OVERRIDES_PATH), "utf8"));
+  for (const sha of ["213112f86bbdb1c3cdba68a500bf8e6efc702ffb", "d56989d353c53db141a6f7ec6a046fe568c6dbee", "fc084e8b8d17e86bf3c082de208f9e5d36e168b2"]) {
+    assert.match(overrides[sha].body, /false alarms/u);
+    assert.doesNotMatch(overrides[sha].body, /colliding Codex session/u);
+  }
+  assert.match(overrides["fe4f265613bb5c19f4256c986bf910aa3fab483e"].body, /git cat-file/u);
+  assert.match(overrides["8c718cd3df50f555ba195185c38c650e356d0a9b"].body, /exec cat/u);
 });
