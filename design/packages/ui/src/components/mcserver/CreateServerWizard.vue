@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, reactive, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     VAlert,
@@ -125,6 +125,11 @@ const wikiStates = ref<Record<string, WikiArticleState>>({});
 const expandedFamilies = ref<Record<string, boolean>>({});
 const MAX_RENDERED_VERSION_ROWS = 500;
 const versionPage = ref(0);
+const versionDescriptionPrefix = useId();
+
+function versionDetailsId(version: string, field: "metadata" | "availability"): string {
+    return `${versionDescriptionPrefix}-${version}-${field}`;
+}
 
 function familyStorageKey(): string {
     return `worldlens.mcserver.version-families.v1:${flavour.value}`;
@@ -1599,47 +1604,72 @@ const canAdvance = computed(() => {
                                         class="wl-mcserver-wizard__version-row-wrap"
                                         data-test="version-entry"
                                     >
-                                        <VBtn
-                                            variant="text"
-                                            class="wl-mcserver-wizard__version-row"
-                                            :disabled="
-                                                entry.availability === 'missing-server-artifact'
-                                            "
-                                            :title="entry.availabilityReason ?? undefined"
-                                            :class="{
-                                                'wl-mcserver-wizard__version-row--selected':
-                                                    minecraftVersion === entry.version,
-                                            }"
-                                            :aria-label="entry.version"
-                                            @click="selectVersion(entry.version)"
-                                        >
-                                            <span>{{ entry.version }}</span>
-                                            <span class="text-caption text-medium-emphasis">
-                                                {{
-                                                    t(
-                                                        "mcserver.wizard.needsJava",
-                                                        { n: entry.javaFeature },
-                                                        "Needs Java {n}",
-                                                    )
-                                                }}
-                                                <template v-if="releaseDateLabel(entry.releasedAt)">
-                                                    &#183; {{ releaseDateLabel(entry.releasedAt) }}
-                                                </template>
-                                            </span>
-                                            <span
+                                        <div class="wl-mcserver-wizard__version-details">
+                                            <VBtn
+                                                variant="text"
+                                                class="wl-mcserver-wizard__version-row"
+                                                :disabled="
+                                                    entry.availability === 'missing-server-artifact'
+                                                "
+                                                :title="entry.availabilityReason ?? undefined"
+                                                :class="{
+                                                    'wl-mcserver-wizard__version-row--selected':
+                                                        minecraftVersion === entry.version,
+                                                }"
+                                                :aria-label="entry.version"
+                                                :aria-describedby="
+                                                    versionDetailsId(entry.version, 'metadata') +
+                                                    (entry.availability ===
+                                                    'missing-server-artifact'
+                                                        ? ' ' +
+                                                          versionDetailsId(
+                                                              entry.version,
+                                                              'availability',
+                                                          )
+                                                        : '')
+                                                "
+                                                @click="selectVersion(entry.version)"
+                                            >
+                                                <span>{{ entry.version }}</span>
+                                                <span
+                                                    :id="
+                                                        versionDetailsId(entry.version, 'metadata')
+                                                    "
+                                                    class="text-caption text-medium-emphasis"
+                                                >
+                                                    {{
+                                                        t(
+                                                            "mcserver.wizard.needsJava",
+                                                            { n: entry.javaFeature },
+                                                            "Needs Java {n}",
+                                                        )
+                                                    }}
+                                                    <template
+                                                        v-if="releaseDateLabel(entry.releasedAt)"
+                                                    >
+                                                        &#183;
+                                                        {{ releaseDateLabel(entry.releasedAt) }}
+                                                    </template>
+                                                </span>
+                                            </VBtn>
+                                            <p
                                                 v-if="
                                                     entry.availability === 'missing-server-artifact'
                                                 "
-                                                class="text-caption text-error"
+                                                :id="
+                                                    versionDetailsId(entry.version, 'availability')
+                                                "
+                                                class="wl-mcserver-wizard__version-reason text-caption text-error"
                                             >
                                                 {{
+                                                    entry.availabilityReason ??
                                                     t(
                                                         "mcserver.wizard.missingServerArtifact",
                                                         "Server download unavailable",
                                                     )
                                                 }}
-                                            </span>
-                                        </VBtn>
+                                            </p>
+                                        </div>
                                         <a
                                             v-if="wikiUrlFor(entry.version)"
                                             :href="wikiUrlFor(entry.version) ?? undefined"
@@ -2564,10 +2594,12 @@ const canAdvance = computed(() => {
     flex-direction: column;
     gap: 2px;
     padding-inline-start: 12px;
+    container: server-version-family / inline-size;
 }
 .wl-mcserver-wizard__version-row-wrap {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 180px);
+    align-items: start;
     gap: 8px;
     min-height: 48px;
 }
@@ -2583,9 +2615,10 @@ const canAdvance = computed(() => {
     justify-content: space-between;
     align-items: center;
     gap: 8px;
-    flex: 1 1 auto;
     min-width: 0;
     min-height: 48px;
+    height: auto;
+    width: 100%;
     padding: 6px 8px;
     border-radius: 6px;
     background: transparent;
@@ -2593,15 +2626,44 @@ const canAdvance = computed(() => {
     cursor: pointer;
     text-align: left;
 }
+.wl-mcserver-wizard__version-details {
+    min-width: 0;
+}
+.wl-mcserver-wizard__version-reason {
+    margin: 0;
+    padding: 4px 8px 8px;
+    overflow-wrap: anywhere;
+}
+.wl-mcserver-wizard__version-row :deep(.v-btn__content) {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    width: 100%;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: start;
+}
 .wl-mcserver-wizard__wiki-action {
     display: inline-flex;
     align-items: center;
     gap: 4px;
     min-height: 48px;
     min-width: 48px;
+    max-width: 100%;
     padding-inline: 8px;
     color: rgb(var(--v-theme-primary));
     text-decoration: none;
+    overflow-wrap: anywhere;
+}
+@container server-version-family (max-width: 520px) {
+    .wl-mcserver-wizard__version-row-wrap {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .wl-mcserver-wizard__wiki-action {
+        justify-self: start;
+    }
 }
 .wl-mcserver-wizard__wiki-action:hover,
 .wl-mcserver-wizard__wiki-action:focus-visible {

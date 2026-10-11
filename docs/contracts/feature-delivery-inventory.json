@@ -33,7 +33,7 @@
   "knownGaps": [
     {
       "id": "minecraft-server-manager",
-      "details": "SSH-process hosting, Bedrock and version-bound descriptors remain missing from the inspected baseline workflows. Historical Java alpha/beta discovery has source repairs with 46 focused checks; current built wizard and historical runtime acceptance remain pending."
+      "details": "SSH-process hosting, Bedrock and version-bound descriptors remain missing from the inspected workflows. The historical-family pagination repair passed the exact root build and hidden native interaction at a629c31c, rendering all 35 alpha entries on page two. A separately measured version-reason overlap has a source repair with 46 focused checks; rebuilt layout acceptance and historical server runtime acceptance remain pending."
     },
     {
       "id": "completeness-parity",
@@ -51,7 +51,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/i18n.ts",
+              "design/packages/ui/src/components/setup/LanguageSettingsRow.vue"
+            ],
+            "consumer": "Language store and settings row supply language choices.",
+            "limitation": "Complete rendered-string coverage and all three presentation modes remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -65,7 +74,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/i18n/I18n.ts",
+              "design/packages/site/src/settings/page.ts"
+            ],
+            "consumer": "Site translation controller and settings page supply language choices.",
+            "limitation": "Complete rendered-string coverage and all three presentation modes remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -102,7 +120,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/i18n.ts",
+              "design/packages/ui/src/components/setup/SetupLanguagePanel.vue"
+            ],
+            "consumer": "Desktop translation and setup controls own tone preferences.",
+            "limitation": "Independent reset, every message category and accessible-name exclusion require further mapping.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -116,7 +143,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/i18n/I18n.ts",
+              "design/packages/site/src/settings/schema.ts"
+            ],
+            "consumer": "Site translation and settings schema own tone preferences.",
+            "limitation": "Independent reset, every message category and accessible-name exclusion require further mapping.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -279,7 +315,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/setup/schoolMode.ts",
+              "design/packages/ui/src/components/setup/SchoolModeSettingsRow.vue"
+            ],
+            "consumer": "Desktop state adapter distinguishes shared host state from local fallback.",
+            "limitation": "Shared-state propagation and browser mediation boundaries require separate acceptance.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -293,7 +338,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/schoolMode.ts",
+              "design/packages/site/src/settings/schoolModePanel.ts"
+            ],
+            "consumer": "Visitor-local mode controller and panel apply suppression.",
+            "limitation": "Shared-state propagation and browser mediation boundaries require separate acceptance.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -335,7 +389,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/runtimeSettings/narrator.ts",
+              "design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue"
+            ],
+            "consumer": "Narration controller enumerates voices and resolves language-compatible choices.",
+            "limitation": "Voice availability, queue behavior and full narration interaction remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -349,7 +412,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/schema.ts",
+              "design/packages/site/src/settings/page.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Unknown: inspected site settings and shell do not establish a speech consumer.",
+            "limitation": "Voice availability, queue behavior and full narration interaction remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -386,7 +459,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/runtimeSettings/schedule.ts",
+              "design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue"
+            ],
+            "consumer": "Runtime panel and schedule evaluator own scheduled values.",
+            "limitation": "Cross-midnight, external-source, persistence and interrupted-operation behavior remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -400,7 +482,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/schedule.ts",
+              "design/packages/site/src/settings/schedulePanel.ts",
+              "design/packages/site/src/settings/page.ts"
+            ],
+            "consumer": "Settings page constructs the site schedule panel and evaluator.",
+            "limitation": "Cross-midnight, external-source, persistence and interrupted-operation behavior remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -437,7 +529,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/stores/productName.ts",
+              "design/packages/ui/src/components/settings/ProductDisplayNameRow.vue"
+            ],
+            "consumer": "Product-name store and settings row own the desktop display label.",
+            "limitation": "All rendered-name consumers and unchanged storage/package identity require further review.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -451,7 +552,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/identity/productIdentity.ts",
+              "design/packages/site/src/settings/page.ts"
+            ],
+            "consumer": "ProductIdentity and settings bridge own the visitor-facing label.",
+            "limitation": "All rendered-name consumers and unchanged storage/package identity require further review.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -488,7 +598,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/runtimeSettings/model.ts",
+              "design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue"
+            ],
+            "consumer": "Runtime accommodation model and panel expose focus and related modes.",
+            "limitation": "Combined modes, restoration of hidden work and full consumer coverage remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -502,7 +621,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/schema.ts",
+              "design/packages/site/src/settings/page.ts"
+            ],
+            "consumer": "Unknown: focus-ring settings do not establish attention-mode workflows.",
+            "limitation": "Combined modes, restoration of hidden work and full consumer coverage remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -539,7 +667,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/dimsum/dimSumSurprise.ts",
+              "design/packages/ui/src/components/dimsum/DimSumSurprise.vue"
+            ],
+            "consumer": "Desktop surprise policy and component control the startup draw.",
+            "limitation": "Site routine checks visibility and open dialogs but does not itself accept first-run, update, error or active-task context.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -553,7 +690,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/dimsum/index.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Site shell invokes the surprise routine outside school mode.",
+            "limitation": "Site routine checks visibility and open dialogs but does not itself accept first-run, update, error or active-task context.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -584,7 +730,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/dimsum/dimSumCatalog.ts"
+            ],
+            "consumer": "Desktop catalogue reads authoritative public metadata with a last-good local cache.",
+            "limitation": "Public catalogue and cache source exist; release-image integrity and offline behavior remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -598,7 +752,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/scripts/fetch-dim-sum-pool.mjs",
+              "design/packages/site/src/dimsum/pool.ts",
+              "design/packages/site/package.json"
+            ],
+            "consumer": "Partial: build helper downloads and downscales photos into a generated pool consumed as bundled assets.",
+            "limitation": "Site photo bundling differs from the required public-asset URL or private application-cache consumer route.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -629,7 +793,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/styles/md3.scss",
+              "design/packages/ui/src/App.vue"
+            ],
+            "consumer": "Desktop design tokens and component shell establish styling infrastructure.",
+            "limitation": "Styling infrastructure does not prove registered genuine primitives for every rendered element.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -643,7 +816,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/universal/siteContracts.ts",
+              "design/packages/site/src/appearance/controller.ts"
+            ],
+            "consumer": "Site appearance controller and universal controls establish styling infrastructure.",
+            "limitation": "Styling infrastructure does not prove registered genuine primitives for every rendered element.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -674,7 +856,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/App.vue",
+              "design/packages/ui/src/components/home/HomeScreen.vue",
+              "design/packages/ui/src/components/home/HomeDashboard.vue"
+            ],
+            "consumer": "Desktop shell mounts productive destinations and contextual workspace views.",
+            "limitation": "Every affordance, contextual action and current presentation reference still needs acceptance.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -688,7 +880,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/main.ts",
+              "design/packages/site/src/content/home.ts"
+            ],
+            "consumer": "Site shell and home content connect navigation and documentation destinations.",
+            "limitation": "Every affordance, contextual action and current presentation reference still needs acceptance.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -719,7 +920,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/styles/motion.scss",
+              "design/packages/ui/src/motion.test.ts"
+            ],
+            "consumer": "Desktop motion rules define transitions and reduced-motion behavior.",
+            "limitation": "Source rules do not establish exhaustive animation coverage or built reduced-motion parity.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -733,7 +943,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/shell/shell.css",
+              "design/packages/site/src/settings/settings.css"
+            ],
+            "consumer": "Site shell and settings styles include motion and reduced-motion paths.",
+            "limitation": "Source rules do not establish exhaustive animation coverage or built reduced-motion parity.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -764,7 +983,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/appearance/AppearanceTarget.vue",
+              "design/packages/ui/src/components/appearance/TypographyEditor.vue",
+              "design/packages/ui/src/components/appearance/useAppearance.ts"
+            ],
+            "consumer": "Desktop target wrapper connects contextual appearance editing to registered state.",
+            "limitation": "Every target, nested editor state and editor internals require inventory reconciliation.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -778,7 +1007,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/appearance/editor/appearanceEditor.ts",
+              "design/packages/site/src/appearance/editor/contextMenu.ts",
+              "design/packages/site/src/appearance/editor/coverage.ts"
+            ],
+            "consumer": "Site editor, context-menu handler and coverage module connect editable targets.",
+            "limitation": "Every target, nested editor state and editor internals require inventory reconciliation.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -809,7 +1048,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/appearance/InfiniteColorPicker.vue",
+              "design/packages/ui/src/components/appearance/colorSpaces.ts",
+              "design/packages/ui/src/components/appearance/rainbow.ts"
+            ],
+            "consumer": "Desktop picker binds color-space conversion and rainbow state.",
+            "limitation": "Round trips, sentinel behavior, persistence and reduced-motion rendering remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -823,7 +1072,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/appearance/color/picker.ts",
+              "design/packages/site/src/appearance/color/spaces.ts",
+              "design/packages/site/src/appearance/color/representations.ts"
+            ],
+            "consumer": "Site picker binds conversions and alternate representations.",
+            "limitation": "Round trips, sentinel behavior, persistence and reduced-motion rendering remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -854,7 +1113,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/appLogo/AppLogoRow.vue",
+              "design/packages/ui/src/components/appLogo/logoValidation.ts",
+              "design/packages/ui/src/components/appLogo/logoStore.ts"
+            ],
+            "consumer": "Desktop logo row uses byte validation and local logo state.",
+            "limitation": "Packaged rendering, bounds rejection, rollback and identity preservation remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -868,7 +1137,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/appearance/customLogo.ts"
+            ],
+            "consumer": "Site custom-logo module validates image bytes and stores visitor-local presentation.",
+            "limitation": "Packaged rendering, bounds rejection, rollback and identity preservation remain unverified.",
+            "sourceCommit": "a629c31c823155c9974b3b50fd849fcc330c684b"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",

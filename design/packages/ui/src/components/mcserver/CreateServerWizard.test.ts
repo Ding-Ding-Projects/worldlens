@@ -339,21 +339,92 @@ describe("CreateServerWizard", () => {
 
         const entries = alpha?.querySelectorAll('[data-test="version-entry"]');
         expect(entries).toHaveLength(35);
-        expect(document.querySelector(".wl-mcserver-wizard__version-pages [aria-live='polite']")?.textContent?.trim())
-            .toBe("2 / 2");
-        expect(document.querySelectorAll('[data-test="version-entry"]').length).toBeLessThanOrEqual(500);
+        expect(
+            document
+                .querySelector(".wl-mcserver-wizard__version-pages [aria-live='polite']")
+                ?.textContent?.trim(),
+        ).toBe("2 / 2");
+        expect(document.querySelectorAll('[data-test="version-entry"]').length).toBeLessThanOrEqual(
+            500,
+        );
         alpha?.querySelector<HTMLButtonElement>('button[aria-label="a1.2.0"]')?.click();
         await flushAll();
         expect(vm.minecraftVersion).toBe("a1.2.0");
         toggle?.click();
         await flushAll();
         expect(alpha?.querySelectorAll('[data-test="version-entry"]')).toHaveLength(0);
-        document.querySelector<HTMLButtonElement>(".wl-mcserver-wizard__version-pages button:first-of-type")?.click();
+        document
+            .querySelector<HTMLButtonElement>(
+                ".wl-mcserver-wizard__version-pages button:first-of-type",
+            )
+            ?.click();
         await flushAll();
-        expect(document.querySelector(".wl-mcserver-wizard__version-pages [aria-live='polite']")?.textContent?.trim())
-            .toBe("1 / 2");
+        expect(
+            document
+                .querySelector(".wl-mcserver-wizard__version-pages [aria-live='polite']")
+                ?.textContent?.trim(),
+        ).toBe("1 / 2");
         expect(document.querySelectorAll('[data-test="version-entry"]').length).toBe(500);
         expect(vm.minecraftVersion).toBe("a1.2.0");
+    });
+
+    it("shows the complete unavailable reason beside a disabled historical version", async () => {
+        localStorage.removeItem("worldlens.mcserver.version-families.v1:vanilla");
+        const reason =
+            "The publisher retained this version identity but supplied no dedicated server distribution.";
+        const snapshot: CatalogueSnapshot = {
+            flavours: [
+                {
+                    flavour: "vanilla",
+                    complete: true,
+                    versions: [
+                        {
+                            version: "a1.2.6",
+                            stability: "old_alpha",
+                            javaFeature: 8,
+                            downloadUrl: null,
+                            sha256: null,
+                            releasedAt: "2010-12-02T00:00:00Z",
+                            availability: "missing-server-artifact",
+                            availabilityReason: reason,
+                        },
+                    ],
+                },
+            ],
+            fetchedAt: "2026-08-23T00:00:00Z",
+            stale: false,
+            completeness: "complete",
+            failures: [],
+        };
+        const host = catalogueHost();
+        const wrapper = mountWizard({
+            ...host,
+            catalogue: { ...host.catalogue!, list: async () => ok(snapshot) },
+        });
+        await flushAll();
+        const vm = wrapper.vm as unknown as WizardVm & { flavour: string };
+        vm.flavour = "vanilla";
+        vm.step = "version";
+        await flushAll();
+        const entry = document.querySelector('[data-test="version-entry"]');
+        expect(
+            entry?.querySelector<HTMLButtonElement>(".wl-mcserver-wizard__version-row")?.disabled,
+        ).toBe(true);
+        expect(entry?.querySelector(".wl-mcserver-wizard__version-reason")?.textContent).toContain(
+            reason,
+        );
+        const button = entry?.querySelector(".wl-mcserver-wizard__version-row");
+        const descriptions = button?.getAttribute("aria-describedby")?.split(" ") ?? [];
+        expect(descriptions).toHaveLength(2);
+        expect(
+            descriptions.map((id) => document.getElementById(id)?.textContent).join(" "),
+        ).toContain(reason);
+        expect(
+            entry?.querySelector(".wl-mcserver-wizard__version-reason")?.closest("button"),
+        ).toBeNull();
+        expect(
+            entry?.querySelector(".wl-mcserver-wizard__wiki-action")?.getAttribute("href"),
+        ).toContain("a1.2.6");
     });
 
     it("reveals a searched exact version and keeps its direct Minecraft Wiki link", async () => {

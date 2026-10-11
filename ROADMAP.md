@@ -6,7 +6,8 @@
 - [ ] Retain historical Java channels: 46 focused catalogue/grouping cases pass; built wizard acceptance remains pending.
 - [x] Repair portable acquisition release tags and root layouts with six focused tests.
 - [x] Pass exact root build and receipt verification at dfb4aaef; verify credential-free hidden desktop startup and unauthenticated HTTP 403.
-- [ ] Verify the historical-family pagination repair in a rebuilt GUI: the focused regression reproduced zero alpha rows, and all 45 wizard/model cases now pass.
+- [x] Verify historical-family pagination at a629c31c in the rebuilt hidden GUI: all 35 alpha rows rendered on page two; genuine captures retained pending promotion.
+- [ ] Verify the version-row layout repair in the rebuilt GUI: measured overlap is retained in a validated receipt; wrapping, narrow stacking and accessible full reasons pass 46 focused checks.
 - [ ] Finish root builds, exact installer production and current real GUI evidence.
 - [ ] Verify CLI viewer distribution from the maintained fork: staging and missing-asset checks pass; exact root retry pending.
 - [ ] Integrate verified BlueMap v5.29 while preserving the Material viewer and legacy decoder.
