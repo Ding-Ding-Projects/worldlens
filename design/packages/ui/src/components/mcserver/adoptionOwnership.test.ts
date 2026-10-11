@@ -3,6 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
+import { ref } from "vue";
 import { VBtn, VSelect, VSwitch } from "vuetify/components";
 import AdoptionBrowser from "./AdoptionBrowser.vue";
 import AdoptionReviewDialog from "./AdoptionReviewDialog.vue";
@@ -60,6 +61,7 @@ function candidate(id: string): AdoptionCandidate {
 
 function store() {
     return {
+        servers: ref<readonly ServerRecord[]>([{ ...record("a"), origin: "adopted" }]),
         probe: vi.fn().mockResolvedValue({ ok: false }),
         capabilitiesFor: () => null,
         adoptConfirm: vi.fn<(request: unknown) => Promise<Answer<ServerRecord>>>()
@@ -87,6 +89,15 @@ function render(component: unknown, props: Record<string, unknown>, supplied = s
 }
 
 describe("adoption review ownership", () => {
+    it("does not offer release for an unsaved preview already marked adopted", async () => {
+        const supplied = store();
+        supplied.servers.value = [];
+        const { wrapper } = render(AdoptionReviewDialog,
+            { modelValue: true, record: { ...record("preview"), origin: "adopted" }, containerId: "preview" }, supplied);
+        await flushPromises();
+        expect(wrapper.findComponent(ConfigSuperConfirm).exists()).toBe(false);
+        expect(adoptRelease).not.toHaveBeenCalled();
+    });
     it.each(["failure", "rejection"])("ignores a late release %s from a previous review", async (outcome) => {
         let reject!: (reason: Error) => void;
         const pending = deferred<Answer<void>>();

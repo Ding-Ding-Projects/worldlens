@@ -110,7 +110,7 @@ export const mcserverHosting: Article = {
                         "wiring into a runtime claim.",
                         " Each opening or candidate/host change resets all four permissions and clears RCON input. ",
                         "Discovery results stay bound to their original host. Adoption and release share a single ",
-                        "in-flight lock, and late responses cannot alter a newer review. Thirteen mounted ownership ",
+                        "in-flight lock, and late responses cannot alter a newer review. Fourteen mounted ownership ",
                         "regressions pass with controlled stores; current rebuilt and live-container acceptance remains pending.",
                     ],
                 },

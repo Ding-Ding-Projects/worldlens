@@ -765,10 +765,7 @@ export function registerMcServerHandlers(
         hostId: unknown,
     ): Promise<Answer<{ runner: CommandRunner; hostId: string | null }>> {
         if (hostId === undefined || hostId === null || hostId === "") {
-            const runner = options.factory?.runner;
-            return runner === undefined
-                ? fail("unsupported", "Adoption needs a Docker command runner in this build.")
-                : ok({ runner, hostId: null });
+            return ok({ runner: options.factory?.runner ?? execFileCommandRunner, hostId: null });
         }
         if (!isRecordId(hostId))
             return fail("invalid-request", "That SSH host profile id is not valid.");

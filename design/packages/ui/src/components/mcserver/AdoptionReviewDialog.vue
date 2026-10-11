@@ -99,6 +99,8 @@ onBeforeUnmount(() => { reviewGeneration++; });
 
 const capabilities = computed(() => (props.record ? store.capabilitiesFor(props.record.id) : null));
 const hasBlockers = computed(() => (props.blockers?.length ?? 0) > 0);
+const hasSavedAdoption = computed(() => props.record?.origin === "adopted" &&
+    store.servers.value.some((server) => server.id === props.record?.id && server.origin === "adopted"));
 
 /**
  * A real container can carry many mounts and published ports, and the discovery evidence
@@ -181,7 +183,7 @@ async function confirm(): Promise<void> {
 
 const releasing = ref(false);
 async function confirmRelease(): Promise<void> {
-    if (submitting.value || releasing.value || !props.modelValue || props.record?.origin !== "adopted") return;
+    if (submitting.value || releasing.value || !props.modelValue || !hasSavedAdoption.value || !props.record) return;
     const generation = reviewGeneration;
     const id = props.record.id;
     submitting.value = true;
@@ -337,7 +339,7 @@ async function confirmRelease(): Promise<void> {
             </VCardActions>
 
             <VDivider />
-            <VCardText v-if="record.origin === 'adopted'">
+            <VCardText v-if="hasSavedAdoption">
                 <ConfigSuperConfirm
                     :key="record.id"
                     :disabled="submitting || probing"
