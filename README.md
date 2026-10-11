@@ -9,6 +9,11 @@ Minecraft 3D map renderer and web viewer.
 
 The [complete feature delivery inventory](docs/contracts/feature-delivery-inventory.md) tracks 105 canonical requirements across five scopes. Current completion remains pending, including SSH-process hosting, Bedrock management, version-bound server controls and current built-interface evidence. Java catalogue discovery now retains release, snapshot, historical beta and historical alpha channels; discovery does not establish that Mojang published a dedicated server for every entry or that every historical runtime works.
 
+### Current adoption-browser evidence
+
+![Worldlens existing-container discovery with visible caption and actions at minimum size](docs/screenshots/adoption-unavailable-db18561c.png)
+
+Genuine hidden native capture at source `db18561c694015c0be4de15a9867eb4c5d562eab`, captured 2026-10-11T14:20:56.502Z (UTC). Local discovery reaches Docker and reports the unavailable daemon. At800x600 CSS pixels the version/update caption and actions stay visible, and the body scrolls. Two validated layout receipts and independent pixel review cover English/dark at normal and minimum sizes, CDP scale2. Real candidate adoption, other languages/themes, the review dialog and physical DPI remain pending.
 ### Current localized-caption evidence
 
 ![Bilingual Worldlens caption with English and Cantonese update dates, light theme at minimum size](docs/screenshots/front-date-language-e0efd139.png)

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 266,
+  "expectedTargetCount": 267,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -730,6 +730,26 @@
       "uiSourceDigestNote": "Root source digest 1d05eeca3f510beeced189aa5ee2fe9a368a5ba2978df5d58ccd063094737678; genuine PNG SHA-256 a3b4a5a9d4f0e4c16d7a55f4781c3eebc01e9a7293a90d0544dcaca4fc034920. Bilingual light home, 800 x 600 CSS pixels and CDP scale 2, raw PNG1600 x1200. The independently reviewed 48-tuple caption matrix remains separate from physical Windows DPI, installer and other-surface acceptance.",
       "notGradedBecause": "Point-in-time localized-caption acceptance at exact source e0efd139, not whole-interface or later-source acceptance.",
       "command": "Rebuild e0efd1395eb45341b7c34a494af1b419f920c919 with build.bat /s; use a cheap Lowlevel hidden desktop, fresh isolated profile and exact process identity. Complete onboarding with download declined, select light theme and bilingual language through settings, then observe home at 800 x 600 CSS pixels with CDP scale 2."
+    },
+    {
+      "id": "adoption-layout-20261011",
+      "authority": "Validated source-bound hidden native CDP layout observation",
+      "command": "Rebuild db18561c694015c0be4de15a9867eb4c5d562eab with build.bat /s; launch through cheap Lowlevel on a fresh hidden desktop and isolated profile, decline optional downloads, open Host Server and existing-container discovery, then measure800x600 CSS at CDP scale2.",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "replacementPolicy": "Retain original bytes and source identity. Later builds require separate source-bound captures.",
+      "expectedCount": 1,
+      "targets": [
+        "docs/screenshots/adoption-unavailable-db18561c.png"
+      ],
+      "sourceCommits": {
+        "docs/screenshots/adoption-unavailable-db18561c.png": "db18561c694015c0be4de15a9867eb4c5d562eab"
+      },
+      "captureTimes": {
+        "docs/screenshots/adoption-unavailable-db18561c.png": "2026-10-11T14:20:56.502Z"
+      },
+      "capturedFromInterfaceSource": false,
+      "notGradedBecause": "Bounded English dark-theme unavailable-daemon browser observation at an exact source, not whole-interface, successful adoption or later-source acceptance.",
+      "uiSourceDigestNote": "Root source digest146294ec3f2f140aa865f0a455c348456988468a0ab15f1a76f6d485da84e43a. Two version1 layout receipts validate at1280x752 and800x600 CSS, CDP scale2. Native physical scale150%; the emulation is not physical DPI acceptance. Caption clear, footer visible and body scrolling independently reviewed; other languages/themes, review dialog and real adoption remain pending."
     }
   ]
 }

@@ -394,6 +394,24 @@
       "theme": "light",
       "sourceCommit": "e0efd1395eb45341b7c34a494af1b419f920c919",
       "path": "docs/screenshots/front-date-language-e0efd139.png"
+    },
+    {
+      "id": "adoption-unavailable-db18561c",
+      "active": true,
+      "path": "docs/screenshots/adoption-unavailable-db18561c.png",
+      "sourceCommit": "db18561c694015c0be4de15a9867eb4c5d562eab",
+      "artifactSha256": "8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac",
+      "captureSha256": "5523e2c4a3888d60d490e6c1556bf543f91d0b36e28e19ffd9eec2ddf79f1c38",
+      "screen": "Existing-container discovery with unavailable local daemon",
+      "state": "unavailable-daemon-caption-visible-minimum",
+      "theme": "dark",
+      "viewportWidth": 800,
+      "viewportHeight": 600,
+      "scale": 2,
+      "interactionProofId": "adoption-browser-caption-clear-scroll-and-visible-actions",
+      "interactionReceiptSha256": "30a83326aebdfe910f68699ab8b52037a8440b8b6592311da6cfba632a5bdf45",
+      "inspectionStatus": "inspected",
+      "capturedAt": "2026-10-11T14:20:56.502Z"
     }
   ]
 }

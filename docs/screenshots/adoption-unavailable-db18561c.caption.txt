@@ -1,0 +1,1 @@
+Actual existing-container discovery at sourcedb18561c694015c0be4de15a9867eb4c5d562eab, captured2026-10-11T14:20:56.502Z UTC. English dark,800x600 CSS, CDP scale2; PNG1600x1200. Local Docker daemon unavailable, zero candidates. Caption and actions remain visible; body scrolls. Not proof of successful adoption, other language/theme tuples, physical DPI or full feature acceptance.
