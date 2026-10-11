@@ -340,6 +340,24 @@
       "interactionProofId": "scripts/worldlens-lowlevel-existing-public-pages-render.json:lowlevel-public-pages-render-retry",
       "interactionReceiptSha256": "63e4ef01dde72e55d5ec9d7713a40c9fd948e20ec50c1750803b3660d164fd81",
       "inspectionStatus": "inspected"
+    },
+    {
+      "id": "server-alpha-layout-82727748",
+      "active": true,
+      "path": "docs/screenshots/server-alpha-layout-82727748.png",
+      "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4",
+      "artifactSha256": "8d205e25b40da3ada4a08c92f32bfbd8e8d38edb4bfe443deea77fc9de685bac",
+      "captureSha256": "2ab117f36c324805809d51b942d4f3f9a596b1edf69bc5fe142171045443e2df",
+      "screen": "Historical alpha server version selection",
+      "state": "expanded-historical-alpha-page-two",
+      "theme": "dark",
+      "viewportWidth": 1280,
+      "viewportHeight": 752,
+      "scale": 1.5,
+      "interactionProofId": "historical-alpha-expanded-and-layout-measured",
+      "interactionReceiptSha256": "3e7051a1995f8da340249f8b997db933f046f989a5c2f595c3fbf4622a4affdb",
+      "inspectionStatus": "inspected",
+      "capturedAt": "2026-10-11T12:21:40.134Z"
     }
   ]
 }

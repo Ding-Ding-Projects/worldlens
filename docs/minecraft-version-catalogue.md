@@ -25,7 +25,7 @@ Rows with no published server artifact stay visible but disabled with the exact 
 The pagination regression uses 510 earlier release entries and 35 historical alpha entries.
 It first reproduced an empty expanded alpha section, then passed after page navigation was
 wired to expansion. All 45 focused wizard/model checks pass. The exact root build and hidden
-GUI at `dfb4aaef` showed the original defect; rebuilt acceptance of this repair remains pending.
+GUI at `dfb4aaef` showed the original defect; rebuilt pagination acceptance passed at a629c31c and 82727748, rendering all 35 historical-alpha rows on page two. Complete unavailable reasons and independent Wiki actions passed source-bound layout checks at three English dark-theme viewport tuples at 150% scale. Other language/theme/scale tuples and historical server execution remain pending.
 
 ## Configuration and persistence
 

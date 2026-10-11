@@ -9,6 +9,12 @@ Minecraft 3D map renderer and web viewer.
 
 The [complete feature delivery inventory](docs/contracts/feature-delivery-inventory.md) tracks 105 canonical requirements across five scopes. Current completion remains pending, including SSH-process hosting, Bedrock management, version-bound server controls and current built-interface evidence. Java catalogue discovery now retains release, snapshot, historical beta and historical alpha channels; discovery does not establish that Mojang published a dedicated server for every entry or that every historical runtime works.
 
+### Current historical-version workflow evidence
+
+![Historical alpha server versions with complete availability reasons, English dark theme](docs/screenshots/server-alpha-layout-82727748.png)
+
+Captured from the exact root build at `82727748029d3b1c140d052924a775ac52de52a4` on 2026-10-11 (UTC), at 1280 × 752 CSS pixels and 150% scale. All 35 alpha entries rendered on page two; complete unavailable-server reasons remain readable beside independent Wiki actions. Measured English dark-theme layouts also passed at 800 × 600 and 640 × 600 emulated CSS viewports. Other language, theme and scale tuples, historical server execution and full-feature acceptance remain pending. Earlier presentation images retain their historical source and dates.
+
 **There are three ways to run it, from one codebase.**
 
 - **Install the desktop application.** Material Design 3, Electron, renders local Minecraft

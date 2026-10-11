@@ -33,7 +33,7 @@
   "knownGaps": [
     {
       "id": "minecraft-server-manager",
-      "details": "SSH-process hosting, Bedrock and version-bound descriptors remain missing from the inspected workflows. The historical-family pagination repair passed the exact root build and hidden native interaction at a629c31c, rendering all 35 alpha entries on page two. A separately measured version-reason overlap has a source repair with 46 focused checks; rebuilt layout acceptance and historical server runtime acceptance remain pending."
+      "details": "SSH-process hosting, Bedrock and version-bound descriptors remain missing from the inspected workflows. Historical-family pagination and complete availability-reason layout passed exact root build and hidden native interaction at 82727748. All 35 alpha entries rendered on page two. English dark-theme geometry receipts passed at 1280 x 752, 800 x 600 and 640 x 600 CSS viewports at 150% scale. Other language/theme/scale tuples and historical server execution remain pending."
     },
     {
       "id": "completeness-parity",
@@ -1356,7 +1356,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/tabs/TabbedNavigation.vue",
+              "design/packages/ui/src/components/tabs/TabStrip.vue"
+            ],
+            "consumer": "Desktop tab navigation and strip consume tab model state.",
+            "limitation": "Four isolated searches, groups, bulk-close exclusions and restart persistence require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -1370,7 +1379,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/main.ts",
+              "design/packages/site/src/search/tabSearch.ts"
+            ],
+            "consumer": "Site shell and tab-search consumer support browser-style navigation.",
+            "limitation": "Four isolated searches, groups, bulk-close exclusions and restart persistence require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -1412,7 +1430,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/config/ConfigSearchField.vue",
+              "design/packages/ui/src/components/config/ConfigRegexBuilder.vue",
+              "design/packages/ui/src/components/config/regexPolicy.test.ts"
+            ],
+            "consumer": "Desktop search field and anchored builder share regex logic and source coverage policy.",
+            "limitation": "Every search field, isolated state and adversarial runtime boundary require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -1426,7 +1454,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/search/builderPanel.ts",
+              "design/packages/site/src/search/tabSearch.ts"
+            ],
+            "consumer": "Site builder panel and tab-search module provide explicit regex entry points.",
+            "limitation": "Every search field, isolated state and adversarial runtime boundary require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -1877,7 +1914,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/config/explainField.ts",
+              "design/packages/ui/src/components/PathField.vue",
+              "design/packages/ui/src/components/mcserver/CreateServerWizard.vue"
+            ],
+            "consumer": "Desktop explanation helpers, path picker and server wizard provide guided entry routes.",
+            "limitation": "Examples do not establish guidance, recommended defaults and direct-route parity for every form.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -1891,7 +1938,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/page.ts",
+              "design/packages/site/src/settings/schedulePanel.ts"
+            ],
+            "consumer": "Site settings and schedule panel provide structured forms.",
+            "limitation": "Examples do not establish guidance, recommended defaults and direct-route parity for every form.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2137,7 +2193,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/locks/LockWizard.vue",
+              "design/packages/ui/src/components/locks/useLocks.ts",
+              "design/packages/ui/src/components/locks/lockStore.ts"
+            ],
+            "consumer": "Desktop lock wizard and shared lock store supply target locking.",
+            "limitation": "Every target and shortcut route needs coverage; browser storage is not an operating-system credential vault.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2151,7 +2217,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/universal/siteContracts.ts"
+            ],
+            "consumer": "Universal site view creates target-bound local lock controls.",
+            "limitation": "Every target and shortcut route needs coverage; browser storage is not an operating-system credential vault.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2182,7 +2256,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/locks/SupportTickets.vue",
+              "design/packages/ui/src/App.vue"
+            ],
+            "consumer": "Desktop shell mounts SupportTickets with the lock-data-folder action.",
+            "limitation": "All recovery entry routes, local disclosure, filters, export and bulk actions remain unverified.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2196,7 +2279,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/universal/siteContracts.ts"
+            ],
+            "consumer": "Universal view maintains ticket records and recovery controls.",
+            "limitation": "All recovery entry routes, local disclosure, filters, export and bulk actions remain unverified.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2227,7 +2318,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/locks/UnlockPrompt.vue",
+              "design/packages/ui/src/components/locks/lockModel.ts"
+            ],
+            "consumer": "Unlock prompt and lock model provide the inspected recovery entry boundary; full ladder consumer mapping is pending.",
+            "limitation": "Single-use authoritative grading, waiting-budget behavior and all challenge stages require further review.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2241,7 +2341,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/universal/siteContracts.ts"
+            ],
+            "consumer": "Universal view stores ladder state and a ladder-machine snapshot in visitor state.",
+            "limitation": "Single-use authoritative grading, waiting-budget behavior and all challenge stages require further review.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2272,7 +2380,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/authenticator/AuthenticatorScreen.vue",
+              "design/packages/ui/src/components/authenticator/authenticatorStore.ts",
+              "design/packages/ui/src/App.vue"
+            ],
+            "consumer": "Desktop shell mounts the authenticator screen backed by its store.",
+            "limitation": "Algorithm vectors, timing, secret storage, QR confirmation and export omissions require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2286,7 +2404,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/universal/siteContracts.ts"
+            ],
+            "consumer": "Universal view renders local authenticator registration and code controls.",
+            "limitation": "Algorithm vectors, timing, secret storage, QR confirmation and export omissions require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2407,7 +2533,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/history/HistoryPanel.vue",
+              "design/packages/ui/src/components/history/historyRestore.ts"
+            ],
+            "consumer": "Desktop history panel consumes restoration and history state.",
+            "limitation": "Complete user-managed record coverage, append-only restoration, date/action filtering and persistence require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2421,7 +2556,18 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/settingsHistory.ts",
+              "design/packages/site/src/settings/settingsHistoryPanel.ts",
+              "design/packages/site/src/settings/page.ts",
+              "design/packages/site/src/universal/siteContracts.ts"
+            ],
+            "consumer": "Settings page mounts the history panel; universal view separately renders contract-history records.",
+            "limitation": "The universal view renders state.history.slice(0, 30); complete record coverage and navigation beyond that subset need review.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2553,7 +2699,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/changelog/ChangelogViewer.vue",
+              "design/packages/ui/src/components/changelog/changelogModel.ts"
+            ],
+            "consumer": "Desktop changelog viewer consumes structured generated history through its model.",
+            "limitation": "Commit-link validity, current inventory, date filtering and complete source-bound history require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2567,7 +2722,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/content/changelogView.ts",
+              "design/packages/site/src/content/changelogParser.ts",
+              "design/packages/site/src/content/changelog.ts"
+            ],
+            "consumer": "Site changelog view consumes parsed published changelog content.",
+            "limitation": "Commit-link validity, current inventory, date filtering and complete source-bound history require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2598,7 +2763,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/docs/DocsPage.vue",
+              "design/packages/ui/src/App.vue"
+            ],
+            "consumer": "Desktop shell mounts the bundled documentation browser.",
+            "limitation": "Bundled inventory completeness, internal links, offline assets and wiki parity require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2612,7 +2786,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/content/articles/index.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Site article registry and shell provide article navigation.",
+            "limitation": "Bundled inventory completeness, internal links, offline assets and wiki parity require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2694,7 +2877,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/notifications/NotificationCentre.vue",
+              "design/packages/ui/src/components/notifications/noticeBulk.ts",
+              "design/packages/ui/src/components/config/ConfigNotifications.vue"
+            ],
+            "consumer": "Desktop notification components and bulk model own notice presentation and selection.",
+            "limitation": "Persistent warning behavior, nonblocking presentation, search and bulk action scope require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2708,7 +2901,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/notifications/Notifications.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Site notification service is available to shell consumers.",
+            "limitation": "Persistent warning behavior, nonblocking presentation, search and bulk action scope require acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2745,7 +2947,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/converter/ConverterScreen.vue",
+              "design/packages/ui/src/components/converter/converterBridge.ts",
+              "design/packages/app/src/main/converter/registry.ts"
+            ],
+            "consumer": "Desktop converter screen invokes the typed main-process converter bridge.",
+            "limitation": "Bundled adapter coverage, output validation and durable queue behavior require separate acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2759,7 +2971,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/fileConversion.ts",
+              "design/packages/site/src/content/articles/file-converter.ts"
+            ],
+            "consumer": "Site conversion implementation and article exist; complete conversion-screen consumer mapping is pending.",
+            "limitation": "Bundled adapter coverage, output validation and durable queue behavior require separate acceptance.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2862,7 +3083,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/ollama/OllamaScreen.vue",
+              "design/packages/ui/src/components/ollama/ollamaStore.ts",
+              "design/packages/app/src/main/ollama/client.ts"
+            ],
+            "consumer": "Desktop local-model screen consumes the model store and main-process client.",
+            "limitation": "Official catalogue refresh, live service, attachments and launch rollback remain unverified.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2876,7 +3107,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/universal/siteContracts.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Unknown: the inspected universal view and site shell do not establish a complete locally mediated model manager.",
+            "limitation": "Official catalogue refresh, live service, attachments and launch rollback remain unverified.",
+            "sourceCommit": "82727748029d3b1c140d052924a775ac52de52a4"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",

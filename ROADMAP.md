@@ -7,9 +7,10 @@
 - [x] Repair portable acquisition release tags and root layouts with six focused tests.
 - [x] Pass exact root build and receipt verification at dfb4aaef; verify credential-free hidden desktop startup and unauthenticated HTTP 403.
 - [x] Verify historical-family pagination at a629c31c in the rebuilt hidden GUI: all 35 alpha rows rendered on page two; genuine captures retained pending promotion.
-- [ ] Verify the version-row layout repair in the rebuilt GUI: measured overlap is retained in a validated receipt; wrapping, narrow stacking and accessible full reasons pass 46 focused checks.
+- [x] Verify version-row overlap repair at 82727748: exact root build, 46 focused checks, genuine promoted capture and three English dark-theme geometry tuples at 150% scale.
+- [ ] Complete remaining language, theme and scale tuples for the server version wizard.
 - [ ] Finish root builds, exact installer production and current real GUI evidence.
-- [ ] Verify CLI viewer distribution from the maintained fork: staging and missing-asset checks pass; exact root retry pending.
+- [x] Verify CLI viewer distribution from the maintained fork through focused staging checks and the exact root build at 82727748.
 - [ ] Integrate verified BlueMap v5.29 while preserving the Material viewer and legacy decoder.
 - [ ] Implement SSH-process hosting, Bedrock and version-bound server controls.
 - [ ] Complete every applicable feature workflow and per-surface acceptance.
