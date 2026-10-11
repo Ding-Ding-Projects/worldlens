@@ -3,6 +3,8 @@
 Rendering can run on this machine or in Docker, and the choice is the user's. The app's embedded
 HTTP server serves completed maps; it does not promise a separate local `-w` web server.
 
+The desktop renderer authenticates to its exact loopback server through an authorization header installed at the network layer. Its startup URL contains no session credential. Requests without valid authorization still receive HTTP 403. This keeps diagnostics and navigation URLs free of the startup credential without making the local server public. The focused HTTP suite passes 17 checks on the current host, with one symlink case skipped; the rebuilt desktop startup is verified separately.
+
 - **Local** — the BlueMap engine runs as a program on this computer, on the Java runtime the
   app found or installed. This is the default and nothing needs to be installed for it beyond
   what the app already manages.

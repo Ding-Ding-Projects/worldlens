@@ -442,10 +442,9 @@ function hardenSession(baseUrl: string): void {
         callback(allowed.includes(permission));
     });
 
-    // The embedded server rejects every unauthenticated request with 403. Only the
-    // main frame URL carries `?token=`, so without this the renderer's own bundle
-    // requests (`/assets/*.js`, `/assets/*.css`, and every later fetch and
-    // EventSource) are refused and the window stays blank. Attaching the token as a
+    // The embedded server rejects every unauthenticated request with 403. The
+    // main frame, bundle requests (`/assets/*.js`, `/assets/*.css`), later fetches and
+    // EventSource requests all need authentication. Attaching the token as a
     // Bearer header here covers every resource type at the network layer, and keeps
     // it out of the URLs that end up in the DOM.
     session.defaultSession.webRequest.onBeforeSendHeaders(
@@ -2353,7 +2352,7 @@ async function createWindow(): Promise<void> {
 
     window.once("ready-to-show", () => window.show());
     try {
-        await window.loadURL(`${baseUrl}/?token=${authToken}`);
+        await window.loadURL(`${baseUrl}/`);
     } catch (error) {
         await recoverWindow(
             "renderer",
