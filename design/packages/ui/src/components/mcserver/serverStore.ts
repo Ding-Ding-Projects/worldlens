@@ -403,6 +403,23 @@ export interface WebConsoleStatus {
     readonly hasPassword: boolean;
 }
 
+export interface SshReadinessRequest {
+    readonly hostId: string;
+    readonly parentDirectory: string;
+    readonly javaPath: string;
+    readonly memoryMb: number;
+    readonly port: number;
+    readonly flavour: string;
+    readonly version: string;
+}
+export interface SshReadinessResult {
+    readonly request: SshReadinessRequest;
+    readonly checkedAt: string;
+    readonly requiredJavaFeature: number | null;
+    readonly installationAvailable: false;
+    readonly checks: readonly { readonly id: string; readonly state: "ready" | "blocked" | "unknown"; readonly reason: string; readonly observed?: string | number }[];
+}
+
 export interface HostProfileRecord {
     readonly hostId: string;
     readonly target: {
@@ -608,6 +625,7 @@ export interface McServerHost {
             fingerprint: string,
         ): Promise<Answer<{ ok: boolean; message: string }>>;
     };
+    readonly sshProcessPreflight?: (request: SshReadinessRequest) => Promise<Answer<SshReadinessResult>>;
 }
 
 export interface ServerStore {
@@ -642,6 +660,8 @@ export interface ServerStore {
     readonly canCreateLocalDocker: boolean;
     readonly hasAdopt: boolean;
     readonly hasHostProfiles: boolean;
+    readonly hasSshReadiness: boolean;
+    sshProcessPreflight(request: SshReadinessRequest): Promise<Answer<SshReadinessResult>>;
 
     readonly hostProfiles: {
         list(): Promise<Answer<readonly HostProfileRecord[]>>;
@@ -736,6 +756,8 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         canCreateLocalDocker: host?.createCapabilities?.localDocker === true,
         hasAdopt: host?.adopt !== undefined,
         hasHostProfiles: host?.hostProfiles !== undefined,
+        hasSshReadiness: host?.sshProcessPreflight !== undefined,
+        sshProcessPreflight: (request) => host?.sshProcessPreflight?.(request) ?? Promise.resolve(notWired("SSH process readiness")),
 
         hostProfiles: {
             async list() {

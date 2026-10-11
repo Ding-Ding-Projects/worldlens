@@ -38,6 +38,7 @@ import { releaseAdoption } from "./adopt/release.js";
 import { listWorlds } from "./adopt/worlds.js";
 import { createServerBackup, listServerBackups, restoreServerBackup } from "./adopt/backups.js";
 import { createTransport, type FactoryDeps } from "./transport/factory.js";
+import { inspectSshProcessHost, parseSshProcessPreflightRequest } from "./transport/sshProcessPreflight.js";
 import {
     createLocalDockerServer,
     createLocalServer,
@@ -46,6 +47,7 @@ import {
 import type { FetchBinary } from "./install.js";
 import {
     listCatalogue,
+    cachedServerJavaFeature,
     refreshCatalogue,
     FLAVOUR_IDS,
     type FetchText,
@@ -184,6 +186,7 @@ export const MCSERVER_CHANNELS = {
     syntheticWorldStatus: "mcserver:worldgen:status",
     syntheticWorldCancel: "mcserver:worldgen:cancel",
     hostProfilesList: "mcserver:hostProfiles:list",
+    sshProcessPreflight: "mcserver:sshProcess:preflight",
     hostProfileGet: "mcserver:hostProfiles:get",
     hostProfileSave: "mcserver:hostProfiles:save",
     hostProfileForget: "mcserver:hostProfiles:forget",
@@ -892,6 +895,18 @@ export function registerMcServerHandlers(
         [MCSERVER_CHANNELS.list]: async () => registry.list(),
 
         [MCSERVER_CHANNELS.hostProfilesList]: async () => hostProfiles.list(),
+
+        [MCSERVER_CHANNELS.sshProcessPreflight]: async (_event: never, input: unknown) => {
+            const request = parseSshProcessPreflightRequest(input);
+            if (request === null) return fail("invalid-request", "The SSH readiness settings are invalid.");
+            const profile = await hostProfiles.get(request.hostId);
+            if (!profile.ok) return profile;
+            const ssh = hostProfiles.sshHost(request.hostId);
+            if (ssh === null) return fail("not-found", "That saved SSH host profile is unavailable.");
+            return inspectSshProcessHost({ request, ssh,
+                requiredJavaFeature: await cachedServerJavaFeature(options.dataFolder, request.flavour, request.version),
+                ...(options.factory?.runner === undefined ? {} : { runner: options.factory.runner }) });
+        },
 
         [MCSERVER_CHANNELS.hostProfileGet]: async (_event: never, hostId: unknown) => {
             if (!isRecordId(hostId))

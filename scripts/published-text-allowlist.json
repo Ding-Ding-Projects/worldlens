@@ -1283,6 +1283,30 @@
       "line": 2749,
       "column": 53,
       "why": "Exact category schema property or local category identifier in the production renderer, not conversation prose."
+    },
+    {
+      "file": "design/packages/app/src/main/mcserver/transport/sshProcessPreflight.test.ts",
+      "line": 28,
+      "column": 12,
+      "why": "Exact POSIX command name used to read the kernel memory report; not conversation prose."
+    },
+    {
+      "file": "design/packages/app/src/main/mcserver/transport/sshProcessPreflight.test.ts",
+      "line": 79,
+      "column": 34,
+      "why": "Exact POSIX command name used to read the kernel memory report; not conversation prose."
+    },
+    {
+      "file": "design/packages/app/src/main/mcserver/transport/sshProcessPreflight.test.ts",
+      "line": 89,
+      "column": 34,
+      "why": "Exact POSIX command name used to read the kernel memory report; not conversation prose."
+    },
+    {
+      "file": "design/packages/app/src/main/mcserver/transport/sshProcessPreflight.ts",
+      "line": 126,
+      "column": 39,
+      "why": "Exact POSIX command name used to read the kernel memory report; not conversation prose."
     }
   ]
 }

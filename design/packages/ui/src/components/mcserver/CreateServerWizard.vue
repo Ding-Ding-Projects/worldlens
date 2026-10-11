@@ -27,6 +27,7 @@ import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } fro
 import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import SearchableOptionPicker from "./SearchableOptionPicker.vue";
+import SshProcessReadiness from "./SshProcessReadiness.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     releaseDateLabel,
@@ -531,7 +532,7 @@ watch(whereItRuns, (value) => {
     if (value === "local-docker" && dockerAvailability.available === null) {
         void probeDocker();
     }
-    if (value === "ssh-docker" && hostProfiles.value.length === 0) {
+    if ((value === "ssh-docker" || value === "ssh-process") && hostProfiles.value.length === 0) {
         void loadHostProfiles();
     }
 });
@@ -886,6 +887,7 @@ const dockerContainerError = computed(() =>
 
 const canCreate = computed(
     () =>
+        whereItRuns.value !== "ssh-process" &&
         idError.value === null &&
         nameError.value === null &&
         memoryError.value === null &&
@@ -898,6 +900,7 @@ const canCreate = computed(
 );
 
 function transportRef(): TransportRef {
+    if (whereItRuns.value === "ssh-process") throw new Error("Remote process installation is not available.");
     if (whereItRuns.value === "local-docker") {
         return {
             kind: "local-docker",
@@ -1162,6 +1165,7 @@ const canAdvanceFromModLoader = computed(
             validateModsDirectory(modsDirectory.value) === null),
 );
 const canAdvanceFromRuntime = computed(() => {
+    if (whereItRuns.value === "ssh-process") return false;
     // The server folder field lives on THIS step, so this step is where a missing one has
     // to stop you. It used to let you straight past and the resources step refused to
     // advance instead - with the folder field nowhere on screen and nothing saying why,
@@ -1215,6 +1219,7 @@ const advanceBlockedReason = computed<string | null>(() => {
                 : (validateModsDirectory(modsDirectory.value) ??
                       t("mcserver.wizard.pickModLoader", "Choose a loader version first."));
         case "runtime":
+            if (whereItRuns.value === "ssh-process") return t("mcserver.readiness.installPending", "Host inspection is available here. Remote process installation is not available yet, so creation cannot continue.");
             if (folderError.value !== null) return folderError.value;
             if (javaNotRequired.value && dockerImageError.value !== null)
                 return dockerImageError.value;
@@ -1919,7 +1924,7 @@ const canAdvance = computed(() => {
                         >
                             <VRadio
                                 :value="option.id"
-                                :label="option.name"
+                                :label="option.id === 'ssh-process' ? t('mcserver.readiness.option', option.name) : option.name"
                                 :disabled="
                                     option.id === 'local-docker' && !store.canCreateLocalDocker
                                 "
@@ -1927,7 +1932,7 @@ const canAdvance = computed(() => {
                             <div
                                 class="text-caption text-medium-emphasis wl-mcserver-wizard__runtime-desc"
                             >
-                                {{ option.description }}
+                                {{ option.id === 'ssh-process' ? t('mcserver.readiness.optionDescription', option.description) : option.description }}
                             </div>
                             <div
                                 v-if="option.id === 'local-docker' && !store.canCreateLocalDocker"
@@ -2052,7 +2057,7 @@ const canAdvance = computed(() => {
                         />
                     </template>
 
-                    <template v-else-if="whereItRuns === 'ssh-docker'">
+                    <template v-else-if="whereItRuns === 'ssh-docker' || whereItRuns === 'ssh-process'">
                         <ConfigSearchField
                             v-if="hostProfiles.length > 0"
                             v-model="hostProfileQuery"
@@ -2083,7 +2088,7 @@ const canAdvance = computed(() => {
                             :label="t('mcserver.wizard.sshHost', 'SSH host profile')"
                             :loading="hostProfileLoading"
                             :hint="
-                                t(
+                                whereItRuns === 'ssh-process' ? t('mcserver.readiness.hostHint', 'Choose the saved host to inspect. Only its existing parent folder will be checked.') : t(
                                     'mcserver.wizard.sshCreateHostHint',
                                     'Choose a saved profile with a digest-pinned Minecraft server image and an absolute server parent folder. Create makes a new container and a unique data folder on that host.',
                                 )
@@ -2115,7 +2120,7 @@ const canAdvance = computed(() => {
                             </template>
                         </VSelect>
                         <VAlert
-                            v-if="selectedHostProfile"
+                            v-if="selectedHostProfile && whereItRuns === 'ssh-docker'"
                             type="info"
                             variant="tonal"
                             data-test="ssh-create-plan"
@@ -2124,6 +2129,8 @@ const canAdvance = computed(() => {
                             {{ selectedHostProfile.target.workDir }}
                             <p v-if="dockerImageError">{{ dockerImageError }}</p>
                         </VAlert>
+                        <SshProcessReadiness v-if="whereItRuns === 'ssh-process'" :host-id="sshHost"
+                            :parent-directory="selectedHostProfile?.target.workDir ?? ''" :flavour="flavour" :version="minecraftVersion" />
                         <VAlert v-if="hostProfileFailure" type="warning" variant="tonal">{{
                             hostProfileFailure
                         }}</VAlert>

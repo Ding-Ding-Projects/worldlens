@@ -244,6 +244,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "mcserver:save",
     "mcserver:start",
     "mcserver:status",
+    "mcserver:sshProcess:preflight",
     "mcserver:stop",
     "mcserver:suggestFolder",
     "mcserver:webconsole:bind",

@@ -257,7 +257,7 @@ export function memorySliderMax(totalMachineMb: number): number {
     return Math.max(1024, totalMachineMb - reserve);
 }
 
-export type WhereItRuns = "local-process" | "local-docker" | "ssh-docker" | "aws";
+export type WhereItRuns = "local-process" | "local-docker" | "ssh-process" | "ssh-docker" | "aws";
 
 export interface RuntimeOption {
     readonly id: WhereItRuns;
@@ -281,6 +281,11 @@ export const RUNTIME_OPTIONS: readonly RuntimeOption[] = [
         id: "ssh-docker",
         name: "Remote container (SSH)",
         description: "Runs on another machine you reach over SSH, inside Docker there.",
+    },
+    {
+        id: "ssh-process",
+        name: "Remote process (SSH): readiness",
+        description: "Inspect a Linux host for process hosting. Installation is not available yet.",
     },
     {
         id: "aws",

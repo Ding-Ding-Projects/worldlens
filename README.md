@@ -13,6 +13,8 @@ The [production server-article report](docs/site/production-server-articles.md) 
 
 The [SSH-process foundation](docs/server-management/ssh-process-lifecycle.md) now has persisted installation identity, production transport/IPC routing and bounded capability/status refresh. The exact root build and hidden native unavailable-host observation passed at `f1d51b2d`: the saved record shows Unknown and disables lifecycle actions at normal and minimum sizes. Creation, files, authenticated console and live target acceptance are still pending; the creation wizard does not offer the incomplete target. Captures remain unpromoted because temporary-profile cleanup is incomplete.
 
+The following recovery-branch increment adds typed SSH readiness inspection and a wizard inspection panel, but remains unfinished: the production host resolver does not yet forward the new method, so its real inspection button remains unavailable. Focused checks and type checks pass; the exact root build, production-resolver regression and native acceptance have not run for this increment. It must not be treated as delivered server creation.
+
 ### Current adoption-browser evidence
 
 ![Worldlens existing-container discovery with visible caption and actions at minimum size](docs/screenshots/adoption-unavailable-db18561c.png)

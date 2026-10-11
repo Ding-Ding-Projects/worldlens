@@ -1,5 +1,15 @@
 # Continuation handoff
 
+## Current preservation boundary
+
+Account allowance was verified at 6% remaining. Stop new implementation. The active goal remains incomplete; no blocked-state streak or completion is fabricated.
+
+Main and its remote contain verified transport/refresh delivery 4bf568c8abd37bd3eccfe5790b44a301cda6b3c5. The newer SSH readiness increment is being preserved only on task/worldlens-all-features-20261011. It contains typed Linux preflight, cache-only Java requirement lookup, IPC/bridge methods, a bilingual wizard inspection panel and tests. Eighteen readiness/IPC, ten bridge and twenty-nine mounted cases pass; full main-process and UI type checks also pass.
+
+Known blocking defect in the unfinished increment: design/packages/ui/src/components/mcserver/useServers.ts does not forward sshProcessPreflight into the production McServerHost. Direct-injection mounted tests missed this seam, so the real Check action remains unavailable. Add optional forwarding after isFunction validation and a regression through the real resolver, store and mounted panel. Then perform deliberate negative checks, exact build.bat /s and hidden native wizard verification. No newer root build or native acceptance exists, and this increment must not be merged into main before those checks.
+
+No server installation, host mutation or live remote connection was performed. Creation remains explicitly unavailable. Preserve the current source branch, all private evidence and retained profiles. The single final gallery lane is assessing existing publishable captures; new incomplete-cleanup captures are excluded. Its independent result does not complete the product goal.
+
 Objective: finish Worldlens and its maintained BlueMap integration, including every canonical feature requirement and rich Minecraft management for local Windows process, local Docker, SSH process and SSH Docker. The active goal has no numerical token cap. Latest user direction: continue and include all required features.
 
 Verified source: f1d51b2dd46c7f193d1e5a5e8474bc2e3961b5ab on task/worldlens-all-features-20261011. This documentation update accompanies its integration. Previous delivered main: e760be540cb4e390ce09406dfa6689e851f54bd7. Read back actual refs before continuing; the chat handoff records the final integration result.

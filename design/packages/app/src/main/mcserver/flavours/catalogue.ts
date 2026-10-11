@@ -1174,6 +1174,13 @@ export async function refreshCatalogue(
  * when a cache is present and still fresh, so listing versions in the ordinary case never
  * touches the network at all.
  */
+/** Read a selected entry's recorded Java requirement without refreshing or guessing. */
+export async function cachedServerJavaFeature(dataDir: string, flavour: string, version: string): Promise<number | null> {
+    const cached = await readCache(dataDir);
+    return cached?.flavours.find((entry) => entry.flavour === flavour)?.versions
+        .find((entry) => entry.version === version)?.javaFeature ?? null;
+}
+
 export async function listCatalogue(options: CatalogueOptions): Promise<Answer<CatalogueSnapshot>> {
     const now = options.now ?? (() => new Date().toISOString());
     const cached = await readCache(options.dataDir);

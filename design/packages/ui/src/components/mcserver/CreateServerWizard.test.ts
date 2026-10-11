@@ -124,6 +124,19 @@ async function flushAll(): Promise<void> {
 }
 
 describe("CreateServerWizard", () => {
+    it("offers SSH process inspection without enabling an unfinished installer", async () => {
+        const wrapper = mountWizard();
+        const vm = wrapper.vm as unknown as { step: string; whereItRuns: string; canAdvance: boolean; canCreate: boolean; advanceBlockedReason: string };
+        vm.step = "runtime";
+        vm.whereItRuns = "ssh-process";
+        await flushAll();
+        expect(document.body.textContent).toContain("Remote process (SSH): readiness");
+        expect(document.body.querySelector('[data-test="ssh-process-readiness"]')).not.toBeNull();
+        expect(vm.canAdvance).toBe(false);
+        expect(vm.canCreate).toBe(false);
+        expect(vm.advanceBlockedReason).toContain("installation is not available yet");
+        wrapper.unmount();
+    });
     function catalogueHost(
         failures: readonly { flavour: "vanilla" | "paper"; reason: string }[] = [],
     ): McServerHost {
