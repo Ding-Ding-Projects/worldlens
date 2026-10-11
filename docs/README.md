@@ -12,6 +12,8 @@ because two copies of one explanation drift apart and only one of them gets edit
 
 ## Issue #67 receipt
 
+Server-management ownership details are indexed in [Server management](./server-management/README.md).
+
 Run `32292039976` completed all `361/361` shards and all `12/12` merge groups successfully. The
 receipt then failed during job setup because one `setup-node` commit pin was invalid. The final
 merge, low-resolution output, Pages publication, and cleanup steps were skipped. The workflow

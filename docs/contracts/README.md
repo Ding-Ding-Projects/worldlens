@@ -7,3 +7,5 @@ Hand-written per-surface inventories live here. Each row names implementation, f
 - [Complete feature delivery inventory](./feature-delivery-inventory.md): all 105 canonical ids, five separate surface scopes, explicit applicability and pending current runtime/capture acceptance. The JSON is an incomplete delivery ledger, not evidence that every capability ships.
 
 - [Front-screen version and update provenance](front-screen-provenance.md): native caption source, recorded build events and explicit unavailable states.
+
+- [Server adoption ownership](../server-management/adoption-ownership.md): host-bound results, fresh permissions and operation isolation; built/runtime acceptance remains pending.

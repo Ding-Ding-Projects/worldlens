@@ -18,6 +18,7 @@
 - [ ] Complete caption physical DPI, light first-run and hosted/documentation/embedded-viewer consumers.
 - [x] Include the public feature JSON and required-ID list in the default publication scan; observe omission regression red, restore byte-exactly and pass all 24 publication/inventory checks.
 - [ ] Complete every applicable feature workflow and per-surface acceptance.
+- [ ] Verify adoption ownership in the exact rebuilt interface and an isolated container: 13 mounted cases pass; consent, request identity, re-entry and late-result isolation are repaired in source.
 - [ ] Integrate completed units into main, verify remote delivery and retain unfinished owned work.
 
 ## Evidence refresh (2026-09-05)
@@ -335,12 +336,7 @@ is ever configured by typing a command or editing a file by hand.
       browse-and-link only, exactly as scoped - it has no sanctioned download API.
 - [x] Adoption's read-only discovery, scoring and four-switch consent review dialog are
       built and tested (`adopt/`, `AdoptionReviewDialog.vue`).
-- [ ] **Adoption is not reachable from the interface.** `ServerListScreen.vue`'s "Adopt an
-      existing server" button emits an `adopt` event that nothing listens for at any of its
-      three mount sites in `App.vue`, `AdoptionReviewDialog.vue` is not mounted anywhere
-      outside its own tests, and there is no screen that browses candidate containers to
-      adopt in the first place. This is the one genuinely broken surface in the whole
-      feature, not merely an unverified one.
+- [ ] ~~Adoption is not reachable from the interface.~~ Superseded source diagnosis: all three owners mount the discovery/review flow. Exact rebuilt and isolated-host acceptance remains pending; see the current adoption ownership article.
 - [x] A locally hosted, password-protected web management console (`webconsole/`), reachable
       from the same panel that hosts the desktop console, with scrypt password hashing,
       hashed sessions, lockout and the unlock ladder.
@@ -361,8 +357,8 @@ implemented, tested and pushed. All of it is exercised against fakes and in-memo
 transports: nothing in this feature has been exercised against a real Docker daemon, a real
 SSH host, a real `java -jar` process or a real AWS account, and no capture exists from a
 packaged build. The tests prove the modules; they do not prove the feature runs. Two things
-are not merely unproven but genuinely unreachable today: the adoption button opens no dialog,
-and the AWS hosting target has no interface at all.
+were recorded as unreachable in this historical assessment: the adoption button opened no dialog,
+and AWS had no interface. Current source now wires both flows; their live-host acceptance remains pending.
 
 ### Records reconciliation (2026-08-22)
 

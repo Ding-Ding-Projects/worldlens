@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from "vue";
+import { computed, onBeforeUnmount, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     VAlert,
@@ -52,6 +52,8 @@ const open = computed<boolean>({
 
 const probing = ref(false);
 const failure = ref<string | null>(null);
+const submitting = ref(false);
+let reviewGeneration = 0;
 
 const consent = reactive({
     configWrite: false,
@@ -67,17 +69,33 @@ const rconMapping = computed(() => {
 });
 
 watch(
-    () => [props.modelValue, props.record?.id] as const,
+    () => [props.modelValue, props.record?.id, props.containerId, props.hostId] as const,
     async ([isOpen, id]) => {
+        const generation = ++reviewGeneration;
+        Object.assign(consent, {
+            configWrite: false, lifecycle: false, pluginInstall: false, consoleWrite: false,
+        });
+        failure.value = null;
+        rconPassword.value = "";
+        rconPort.value = "";
+        probing.value = false;
         if (isOpen && typeof id === "string") {
             rconPort.value = String(props.ports?.find((port) => port.container === 25_575)?.host ?? "");
-            rconPassword.value = "";
             probing.value = true;
-            await store.probe(id);
-            probing.value = false;
+            try {
+                await store.probe(id);
+            } catch {
+                if (generation === reviewGeneration) {
+                    failure.value = t("mcserver.adopt.unreachable", "This server could not be reached, so nothing here can be confirmed yet.");
+                }
+            } finally {
+                if (generation === reviewGeneration) probing.value = false;
+            }
         }
     },
+    { immediate: true },
 );
+onBeforeUnmount(() => { reviewGeneration++; });
 
 const capabilities = computed(() => (props.record ? store.capabilitiesFor(props.record.id) : null));
 const hasBlockers = computed(() => (props.blockers?.length ?? 0) > 0);
@@ -116,14 +134,16 @@ const reviewSummary = computed(() =>
 );
 
 async function confirm(): Promise<void> {
-    if (!props.record) return;
+    if (submitting.value || probing.value || !props.modelValue || !props.record || hasBlockers.value) return;
+    const generation = reviewGeneration;
+    const selectedRecord = props.record;
     failure.value = null;
     if (!props.containerId) {
         failure.value = t("mcserver.adopt.noContainer", "No container was selected for adoption.");
         return;
     }
     const request = {
-        id: props.record.id,
+        id: selectedRecord.id,
         containerId: props.containerId,
         consent: { ...consent },
         ...(props.hostId === undefined ? {} : { hostId: props.hostId }),
@@ -139,23 +159,46 @@ async function confirm(): Promise<void> {
         failure.value = t("mcserver.adopt.rconConsent", "Enable console commands before saving an RCON password.");
         return;
     }
-    const result = await store.adoptConfirm(request);
-    if (result.ok) {
-        rconPassword.value = "";
-        emit("confirmed", result.value ?? props.record);
-        open.value = false;
-    } else {
-        failure.value = result.failure?.message ?? t("mcserver.adopt.saveFailed", "Could not save this server.");
+    submitting.value = true;
+    try {
+        const result = await store.adoptConfirm(request);
+        if (generation !== reviewGeneration || !props.modelValue) return;
+        if (result.ok) {
+            rconPassword.value = "";
+            emit("confirmed", result.value ?? selectedRecord);
+            open.value = false;
+        } else {
+            failure.value = result.failure?.message ?? t("mcserver.adopt.saveFailed", "Could not save this server.");
+        }
+    } catch {
+        if (generation === reviewGeneration && props.modelValue) {
+            failure.value = t("mcserver.adopt.saveFailed", "Could not save this server.");
+        }
+    } finally {
+        submitting.value = false;
     }
 }
 
 const releasing = ref(false);
 async function confirmRelease(): Promise<void> {
-    if (!props.record) return;
+    if (submitting.value || releasing.value || !props.modelValue || props.record?.origin !== "adopted") return;
+    const generation = reviewGeneration;
+    const id = props.record.id;
+    submitting.value = true;
     releasing.value = true;
-    const result = await adoptRelease(props.record.id, { restoreSnapshot: false });
-    releasing.value = false;
-    if (!result.ok) failure.value = result.failure?.message ?? t("mcserver.adopt.releaseFailed", "Could not release this adoption.");
+    failure.value = null;
+    try {
+        const result = await adoptRelease(id, { restoreSnapshot: false });
+        if (generation !== reviewGeneration || !props.modelValue) return;
+        if (!result.ok) failure.value = result.failure?.message ?? t("mcserver.adopt.releaseFailed", "Could not release this adoption.");
+    } catch {
+        if (generation === reviewGeneration && props.modelValue) {
+            failure.value = t("mcserver.adopt.releaseFailed", "Could not release this adoption.");
+        }
+    } finally {
+        releasing.value = false;
+        submitting.value = false;
+    }
 }
 </script>
 
@@ -234,17 +277,17 @@ async function confirmRelease(): Promise<void> {
 
                 <VDivider class="my-3" />
                 <div class="text-subtitle-2 mb-1">{{ t("mcserver.adopt.consentTitle", "What this app may do") }}</div>
-                <VSwitch v-model="consent.configWrite" :label="t('mcserver.adopt.consentConfig', 'Write its configuration files')" hide-details density="compact" />
-                <VSwitch v-model="consent.lifecycle" :label="t('mcserver.adopt.consentLifecycle', 'Start and stop it')" hide-details density="compact" />
-                <VSwitch v-model="consent.pluginInstall" :label="t('mcserver.adopt.consentPlugins', 'Install and remove plugins')" hide-details density="compact" />
-                <VSwitch v-model="consent.consoleWrite" :label="t('mcserver.adopt.consentConsole', 'Send console commands')" hide-details density="compact" />
+                <VSwitch v-model="consent.configWrite" :disabled="submitting" :label="t('mcserver.adopt.consentConfig', 'Write its configuration files')" hide-details density="compact" />
+                <VSwitch v-model="consent.lifecycle" :disabled="submitting" :label="t('mcserver.adopt.consentLifecycle', 'Start and stop it')" hide-details density="compact" />
+                <VSwitch v-model="consent.pluginInstall" :disabled="submitting" :label="t('mcserver.adopt.consentPlugins', 'Install and remove plugins')" hide-details density="compact" />
+                <VSwitch v-model="consent.consoleWrite" :disabled="submitting" :label="t('mcserver.adopt.consentConsole', 'Send console commands')" hide-details density="compact" />
 
                 <div class="text-subtitle-2 mt-3">{{ t("mcserver.adopt.rconTitle", "Remote RCON configuration") }}</div>
                 <div class="text-body-2 mb-2">{{ t("mcserver.adopt.rconDisclosure", "Optional. The password is written only to this computer's credential vault and is never returned to the interface or logs.") }}</div>
                 <div v-if="rconMapping" class="text-body-2 mb-2">Published RCON host port -> container port: {{ rconMapping }}</div>
                 <div class="wl-mcserver-adopt__rcon-fields">
-                    <VTextField v-model="rconPort" type="number" min="1" max="65535" :label="t('mcserver.adopt.rconPort', 'RCON port')" />
-                    <VTextField v-model="rconPassword" type="password" autocomplete="new-password" :label="t('mcserver.adopt.rconPassword', 'RCON password')" />
+                    <VTextField v-model="rconPort" :disabled="submitting" type="number" min="1" max="65535" :label="t('mcserver.adopt.rconPort', 'RCON port')" />
+                    <VTextField v-model="rconPassword" :disabled="submitting" type="password" autocomplete="new-password" :label="t('mcserver.adopt.rconPassword', 'RCON password')" />
                 </div>
 
                 <VAlert v-if="probing" type="info" variant="tonal" class="mt-3">
@@ -287,15 +330,17 @@ async function confirmRelease(): Promise<void> {
                 </VAlert>
             </VCardText>
             <VCardActions>
-                <VBtn variant="text" @click="open = false">{{ t("common.cancel", "Cancel") }}</VBtn>
-                <VBtn color="primary" variant="tonal" :disabled="probing || !containerId || hasBlockers" @click="confirm">
+                <VBtn variant="text" :disabled="submitting" @click="open = false">{{ t("common.cancel", "Cancel") }}</VBtn>
+                <VBtn color="primary" variant="tonal" :loading="submitting" :disabled="submitting || probing || !containerId || hasBlockers" @click="confirm">
                     {{ t("mcserver.adopt.confirm", "Adopt") }}
                 </VBtn>
             </VCardActions>
 
             <VDivider />
-            <VCardText>
+            <VCardText v-if="record.origin === 'adopted'">
                 <ConfigSuperConfirm
+                    :key="record.id"
+                    :disabled="submitting || probing"
                     :title="t('mcserver.adopt.releaseTitle', 'Release this adoption')"
                     :action="
                         t(

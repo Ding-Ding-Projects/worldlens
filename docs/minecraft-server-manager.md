@@ -62,32 +62,26 @@ the server's own log. Attaching a session is not the same thing as the server's 
 session is a follower that can be dropped and re-established, and detaching it stops the
 follower without touching the server.
 
-### Adoption exists in the backend and is not reachable from the interface today
+### Adoption uses explicit discovery and per-container review
 
-A server WorldLens did not create — one somebody points this app at after the fact — is meant
-to be **adopted**, never silently claimed. Discovery is read-only: it inspects a container,
-its mounts and its logs, scores how confident the match is, and starts, stops or writes
-nothing while doing it. Taking one over is meant to be an explicit, per-container decision
-with four independent permissions (control it, change its files, install plugins, send it
-commands), reviewed in an `AdoptionReviewDialog` before the server is added to the list at
-all.
+All three server-list owners in `App.vue` handle the adoption action. `AdoptionBrowser.vue`
+lists candidates on the selected local or saved SSH Docker host, then opens
+`AdoptionReviewDialog.vue` for the selected container. Discovery is read-only. Confirmation
+re-discovers the exact container in the backend, checks its fingerprint and permitted mount
+scope, and records the server only after those checks succeed.
 
-That dialog, and the discovery logic behind it, are built and tested — but **the button that
-is supposed to open it does nothing.** `ServerListScreen.vue` emits an `adopt` event when its
-"Adopt an existing server" control is clicked; nowhere the screen is mounted (all three sites
-in `App.vue`) listens for that event, and `AdoptionReviewDialog.vue` is not mounted anywhere
-in the application outside its own tests. There is also no browser screen that lists
-candidate containers for adoption to review in the first place. Clicking the button today is
-a dead end: nothing opens, nothing happens, and no error is shown either. This is a known gap
-tracked in the project's issue tracker, not a documented user-facing capability, and it should
-not be described as working until the button is wired to the dialog and a discovery screen
-exists to feed it.
+Every opening or candidate/host change resets all four permissions to off and clears RCON
+input. Discovery results remain bound to the host that produced them. A closed or superseded
+request cannot replace the current list or review. Adoption and release share a single
+in-flight operation lock; repeated confirmation cannot submit another mutation. Release is
+offered only for an existing adopted record and forgets its registration without deleting
+its container or files. Closing a review does not roll back a backend mutation already sent.
 
-Forgetting a server (removing it from this app's own list) is unaffected by that gap and is
-always available, including for a server that was manually adopted by hand-editing the
-registry: it never touches the container or folder itself, and goes through the same two-key
-super-confirmation gate every other destructive action in this app uses, saying plainly that
-nothing on disk or in Docker is deleted.
+Renderer regressions cover permission resets, repeated activation, out-of-order discovery,
+late success/failure/rejection, and failed host-profile loading. These are mounted component
+tests with controlled stores, not proof of a live Docker or SSH adoption. Exact rebuilt
+interaction and isolated-container runtime acceptance for this ownership increment remain
+pending. See [adoption ownership](./server-management/adoption-ownership.md).
 
 ### A server can also live on infrastructure this app provisions
 

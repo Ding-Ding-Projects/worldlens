@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiCubeOutline, mdiRefresh } from "@mdi/js";
 import {
@@ -62,6 +62,9 @@ const failure = ref<{ readonly message: string; readonly detail: string | null }
 /** Distinguishes "zero candidates" from "we have not looked yet", which read identically otherwise. */
 const attempted = ref(false);
 const selectedHostId = ref<string | null>(props.hostId ?? null);
+const resultHostId = ref<string | null | undefined>(undefined);
+let discoveryGeneration = 0;
+let profileGeneration = 0;
 const profiles = ref<readonly HostProfileRecord[]>([]);
 const profileQuery = ref("");
 const profileRegex = ref(false);
@@ -72,49 +75,93 @@ const profileMatcher = computed(() => createSettingMatcher(profileQuery.value, p
 const profileItems = computed(() => profiles.value.filter((profile) => profileMatcher.value.test(`${profile.hostId} ${profile.target.label} ${profile.target.user}@${profile.target.host}`)));
 
 async function loadProfiles(): Promise<void> {
+    const generation = ++profileGeneration;
     if (props.hostId !== undefined && props.hostId !== null) {
         selectedHostId.value = props.hostId;
+        profileLoading.value = false;
+        profileFailure.value = null;
         return;
     }
     profileLoading.value = true;
     profileFailure.value = null;
-    const result = await store.hostProfiles.list();
-    if (result.ok) profiles.value = result.value ?? [];
-    else profileFailure.value = result.failure?.message ?? t("mcserver.adoptBrowser.profileFailure", "SSH host profiles could not be loaded.");
-    profileLoading.value = false;
+    try {
+        const result = await store.hostProfiles.list();
+        if (generation !== profileGeneration || !props.modelValue) return;
+        if (result.ok) profiles.value = result.value ?? [];
+        else profileFailure.value = result.failure?.message ?? t("mcserver.adoptBrowser.profileFailure", "SSH host profiles could not be loaded.");
+    } catch {
+        if (generation === profileGeneration && props.modelValue) {
+            profileFailure.value = t("mcserver.adoptBrowser.profileFailure", "SSH host profiles could not be loaded.");
+        }
+    } finally {
+        if (generation === profileGeneration) profileLoading.value = false;
+    }
 }
 
 async function discover(): Promise<void> {
+    if (!props.modelValue) return;
+    const generation = ++discoveryGeneration;
+    const hostId = selectedHostId.value;
     discovering.value = true;
     failure.value = null;
-    const result = await store.adoptDiscover(selectedHostId.value);
-    if (result.ok) {
-        candidates.value = result.value ?? [];
-    } else {
-        // A failed discovery must not leave a stale list behind it, or the previous run's
-        // containers would be offered as though this run had found them.
-        candidates.value = [];
-        failure.value = {
-            message: result.failure?.message ?? t("mcserver.adoptBrowser.unknownFailure", "Discovery failed for an unrecorded reason."),
-            detail: result.failure?.detail ?? null,
-        };
+    candidates.value = [];
+    resultHostId.value = undefined;
+    attempted.value = false;
+    try {
+        const result = await store.adoptDiscover(hostId);
+        if (generation !== discoveryGeneration || !props.modelValue || hostId !== selectedHostId.value) return;
+        if (result.ok) {
+            candidates.value = result.value ?? [];
+            resultHostId.value = hostId;
+        } else {
+            failure.value = {
+                message: result.failure?.message ?? t("mcserver.adoptBrowser.unknownFailure", "Discovery failed for an unrecorded reason."),
+                detail: result.failure?.detail ?? null,
+            };
+        }
+        attempted.value = true;
+    } catch {
+        if (generation === discoveryGeneration && props.modelValue && hostId === selectedHostId.value) {
+            failure.value = { message: t("mcserver.adoptBrowser.unknownFailure", "Discovery failed for an unrecorded reason."), detail: null };
+            attempted.value = true;
+        }
+    } finally {
+        if (generation === discoveryGeneration) discovering.value = false;
     }
-    attempted.value = true;
+}
+
+function invalidateDiscovery(): void {
+    discoveryGeneration++;
+    candidates.value = [];
+    resultHostId.value = undefined;
+    failure.value = null;
+    attempted.value = false;
     discovering.value = false;
 }
 
 // Discovery is per-opening, not per-mount: containers appear and disappear on the machine
 // while this dialog is closed, so a list cached from the last opening would be fiction.
 watch(
-    () => props.modelValue,
-    (isOpen) => {
+    () => [props.modelValue, props.hostId] as const,
+    ([isOpen]) => {
         if (isOpen) {
+            const changedHost = selectedHostId.value !== (props.hostId ?? null);
+            selectedHostId.value = props.hostId ?? null;
             void loadProfiles();
-            void discover();
+            if (!changedHost) void discover();
+        } else {
+            invalidateDiscovery();
+            profileGeneration++;
+            profileLoading.value = false;
         }
     },
     { immediate: true },
 );
+watch(selectedHostId, () => {
+    invalidateDiscovery();
+    if (props.modelValue) void discover();
+});
+onBeforeUnmount(() => { discoveryGeneration++; profileGeneration++; });
 
 const query = ref("");
 const useRegex = ref(false);
@@ -157,7 +204,9 @@ function guessLabel(candidate: AdoptionCandidate): string | null {
 }
 
 function choose(candidate: AdoptionCandidate): void {
-    emit("picked", candidate, selectedHostId.value);
+    if (!props.modelValue || discovering.value || resultHostId.value === undefined ||
+        resultHostId.value !== selectedHostId.value || !candidates.value.includes(candidate)) return;
+    emit("picked", candidate, resultHostId.value);
     open.value = false;
 }
 </script>

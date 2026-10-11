@@ -108,6 +108,10 @@ export const mcserverHosting: Article = {
                         ". Candidate containers are listed before the review dialog. Packaged interaction and ",
                         "a real remote daemon remain pending evidence, so this article does not turn source ",
                         "wiring into a runtime claim.",
+                        " Each opening or candidate/host change resets all four permissions and clears RCON input. ",
+                        "Discovery results stay bound to their original host. Adoption and release share a single ",
+                        "in-flight lock, and late responses cannot alter a newer review. Thirteen mounted ownership ",
+                        "regressions pass with controlled stores; current rebuilt and live-container acceptance remains pending.",
                     ],
                 },
                 {
