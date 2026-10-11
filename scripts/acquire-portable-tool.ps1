@@ -17,7 +17,8 @@ $entry = $manifest.portable.$Tool
 $asset = if ($architecture -eq "arm64") { $entry.assetArm64 } else { $entry.assetX64 }
 $expected = ([string]$entry.sha256.$architecture).ToLowerInvariant()
 $version = [string]$entry.version
-$base = if ($Tool -eq "node") { "https://nodejs.org/dist/v$version" } elseif ($Tool -eq "git") { "https://github.com/git-for-windows/git/releases/download/v$version.windows.3" } else { "https://github.com/cli/cli/releases/download/v$version" }
+if ($Tool -eq "git" -and [string]$entry.releaseTag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+\.windows\.[0-9]+$') { throw "Invalid official Git release tag in toolchain manifest." }
+$base = if ($Tool -eq "node") { "https://nodejs.org/dist/v$version" } elseif ($Tool -eq "git") { "https://github.com/git-for-windows/git/releases/download/$($entry.releaseTag)" } else { "https://github.com/cli/cli/releases/download/v$version" }
 $url = "$base/$asset"
 $toolchain = Join-Path $env:LOCALAPPDATA "worldlens-toolchain"
 $archive = Join-Path $env:TEMP "worldlens-$Tool-$PID.zip"
@@ -26,6 +27,7 @@ $destination = Join-Path $toolchain $Tool
 $rollback = Join-Path $toolchain ".$Tool-rollback-$PID"
 
 if ($DryRun) {
+    Write-Output "Verified source selection: $url"
     $destinationState = if (Test-Path -LiteralPath $destination) { "warm" } else { "cold" }
     Write-Output "DRY RUN: $Tool uses the $destinationState user-scoped destination and a verified staging swap."
     exit 0
@@ -42,7 +44,8 @@ try {
     if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
     if ($TestFixture) {
-        $root = New-Item -ItemType Directory -Force -Path (Join-Path $staging "fixture")
+        $fixturePath = if ($Tool -eq "node") { Join-Path $staging "fixture" } else { $staging }
+        $root = New-Item -ItemType Directory -Force -Path $fixturePath
         if ($Tool -eq "node") { New-Item -ItemType File -Force -Path (Join-Path $root.FullName "node.exe") | Out-Null }
         elseif ($Tool -eq "git") { New-Item -ItemType Directory -Force -Path (Join-Path $root.FullName "cmd") | Out-Null; New-Item -ItemType File -Force -Path (Join-Path $root.FullName "cmd\git.exe") | Out-Null }
         else { New-Item -ItemType Directory -Force -Path (Join-Path $root.FullName "bin") | Out-Null; New-Item -ItemType File -Force -Path (Join-Path $root.FullName "bin\gh.exe") | Out-Null }
@@ -53,13 +56,18 @@ try {
         $actual = Get-PortableArchiveSha256 $archive
         if ($actual -ne $expected) { throw "$Tool SHA-256 mismatch: expected $expected, received $actual." }
         Expand-VerifiedPortableArchive $archive $staging $expected
-        if ($Tool -eq "node") {
-            $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "node.exe") } | Select-Object -First 1
-        } elseif ($Tool -eq "git") {
-            $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "cmd\git.exe") } | Select-Object -First 1
-        } else {
-            $root = Get-ChildItem -LiteralPath $staging -Directory | Where-Object { Test-Path (Join-Path $_.FullName "bin\gh.exe") } | Select-Object -First 1
-        }
+    }
+    $executableRelative = switch ($Tool) {
+        "node" { "node.exe" }
+        "git" { "cmd\git.exe" }
+        "gh" { "bin\gh.exe" }
+    }
+    $root = if (Test-Path -LiteralPath (Join-Path $staging $executableRelative)) {
+        Get-Item -LiteralPath $staging
+    } else {
+        Get-ChildItem -LiteralPath $staging -Directory |
+            Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName $executableRelative) } |
+            Select-Object -First 1
     }
     if ($null -eq $root) { throw "$Tool archive did not contain its expected executable layout." }
     if (Test-Path -LiteralPath $rollback) { Remove-Item -LiteralPath $rollback -Recurse -Force }

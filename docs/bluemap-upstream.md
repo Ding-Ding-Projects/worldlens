@@ -5,10 +5,9 @@ is somebody else's program, and this document is about what that means in practi
 program comes from, how you can tell which version of it is sitting on your disk, how the app
 decides whether it has fallen behind, and who moves it forward.
 
-The short version is that the engine is BlueMap's own source code, vendored at a fixed commit,
-compiled unmodified, and never advanced without somebody deciding to advance it.
+The engine is the maintained BlueMap fork with the Material Design 3 viewer, vendored at a fixed commit. A separate official source pin tracks release freshness. Neither pin advances automatically.
 
-## The jars are upstream's code, built here
+## The jars preserve the Material viewer
 
 `vendor/BlueMap` is a git submodule of
 [BlueMap-Minecraft/BlueMap](https://github.com/BlueMap-Minecraft/BlueMap), pinned to one commit.
@@ -16,11 +15,9 @@ A submodule pin is a commit hash, not a branch, so a fresh clone of this reposit
 in its history gets exactly the BlueMap source that was current when that commit was made. It
 does not drift, and it cannot be moved by anything happening upstream.
 
-`scripts/bootstrap.mjs` compiles that source with BlueMap's own Gradle wrapper, from the
-submodule, with no patches applied. There is no fork, no vendored diff, and no local
-modification to review, which is deliberate: a rendering engine everybody else can reproduce
-from upstream is a rendering engine whose bugs are upstream's bugs, reportable upstream, and
-fixed by upstream. A patched one would be ours forever.
+`vendor/BlueMap` is the official release comparison and schema reference. The compiled source is `vendor/BlueMap-Material`, pinned to [Ding-Ding-Projects/BlueMap](https://github.com/Ding-Ding-Projects/BlueMap). That fork retains the Material Design 3 viewer and legacy decoder while merging official releases. The current integration tracks official v5.29. Local bootstrap, renderer staging and workflow packaging select this same fork path; the official comparison pin is not substituted for it.
+
+`scripts/bootstrap.mjs` invokes the fork's Gradle wrapper for `:cli:shadowJar`, using two workers, a 1536 MiB Gradle memory limit, in-process Kotlin compilation and configure-on-demand. This limits the requested Gradle resources without promising a total host-memory bound. The local CLI build and the workflow's seven adapter builds have separate acceptance records.
 
 `.github/workflows/build-jars.yml` builds all seven implementations from that same submodule, so
 what CI publishes and what a local bootstrap produces come from the same source at the same

@@ -82,7 +82,7 @@ export interface ProbeResult {
 export type CatalogueFlavourId =
     "vanilla" | "paper" | "velocity" | "purpur" | "spigot" | "fabric" | "forge" | "neoforge";
 
-export type VersionStability = "release" | "snapshot";
+export type VersionStability = "release" | "snapshot" | "old_beta" | "old_alpha";
 export type WikiArticleState = "verified" | "unavailable" | "offline-unverified";
 
 export interface CatalogueVersionEntry {

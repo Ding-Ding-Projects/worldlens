@@ -19,7 +19,7 @@ import type { CatalogueVersionEntry } from "./serverStore.js";
 
 function entry(
     version: string,
-    stability: "release" | "snapshot" = "release",
+    stability: CatalogueVersionEntry["stability"] = "release",
 ): CatalogueVersionEntry {
     return {
         version,
@@ -71,6 +71,25 @@ describe("mod-loader profile helpers", () => {
 });
 
 describe("groupVersions", () => {
+    it("retains historical channels and their unavailable exact versions", () => {
+        const historical = [entry("b1.7.3", "old_beta"), entry("a1.2.6", "old_alpha")];
+        const groups = groupVersions([entry("1.21.4"), ...historical]);
+        expect(groups.map((group) => group.stability)).toEqual([
+            "release",
+            "old_beta",
+            "old_alpha",
+        ]);
+        expect(groups.flatMap((group) => group.versions)).toHaveLength(3);
+        expect(
+            groups
+                .slice(1)
+                .flatMap((group) => group.families)
+                .every((family) => !family.recommended),
+        ).toBe(true);
+        expect(
+            filterVersions(historical, "old_beta", false).map((version) => version.version),
+        ).toEqual(["b1.7.3"]);
+    });
     it("splits release and snapshot, releases first", () => {
         const groups = groupVersions([entry("1.21.1"), entry("25w01a", "snapshot")]);
         expect(groups.map((g) => g.stability)).toEqual(["release", "snapshot"]);

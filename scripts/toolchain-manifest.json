@@ -12,9 +12,18 @@
     "provenance": "exact-version-and-executable-probe",
     "digestAvailable": false,
     "portablePreferredWhenDigestRequired": true,
-    "node": { "id": "OpenJS.NodeJS.LTS", "version": "24.19.0" },
-    "git": { "id": "Git.Git", "version": "2.55.0.3" },
-    "gh": { "id": "GitHub.cli", "version": "2.98.0" }
+    "node": {
+      "id": "OpenJS.NodeJS.LTS",
+      "version": "24.19.0"
+    },
+    "git": {
+      "id": "Git.Git",
+      "version": "2.55.0.3"
+    },
+    "gh": {
+      "id": "GitHub.cli",
+      "version": "2.98.0"
+    }
   },
   "portable": {
     "node": {
@@ -33,7 +42,8 @@
       "sha256": {
         "x64": "f48e2d2dc74a24454adc6d8fd0ac25bf9c2386f19cfb06202b9465aaad4f9f05",
         "arm64": "f7748965d5068e81ad93ca1923650db6742d6e22332b1ae7567a841c59f6bde5"
-      }
+      },
+      "releaseTag": "v2.55.0.windows.3"
     },
     "gh": {
       "version": "2.97.0",

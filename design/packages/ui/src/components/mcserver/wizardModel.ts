@@ -5,7 +5,7 @@
  */
 
 import type { ServerFlavour } from "./serverModel.js";
-import type { CatalogueFlavourId, CatalogueVersionEntry } from "./serverStore.js";
+import type { CatalogueFlavourId, CatalogueVersionEntry, VersionStability } from "./serverStore.js";
 
 export const MOD_LOADER_FLAVOURS = ["fabric", "forge", "neoforge"] as const;
 export type ModLoaderFlavour = (typeof MOD_LOADER_FLAVOURS)[number];
@@ -117,7 +117,7 @@ export function flavourCard(id: ServerFlavour): FlavourCard | undefined {
 }
 
 export interface VersionGroup {
-    readonly stability: "release" | "snapshot";
+    readonly stability: VersionStability;
     /** Family rows preserve the exact version entries while keeping large catalogues bounded. */
     readonly families: readonly VersionFamily[];
     /** Compatibility view for callers that only need a flat list. */
@@ -127,7 +127,7 @@ export interface VersionGroup {
 export interface VersionFamily {
     readonly key: string;
     readonly label: string;
-    readonly stability: "release" | "snapshot";
+    readonly stability: VersionStability;
     readonly family: string;
     readonly versions: readonly CatalogueVersionEntry[];
     readonly count: number;
@@ -154,10 +154,14 @@ export function versionFamily(version: string): string {
 export function groupVersions(versions: readonly CatalogueVersionEntry[]): readonly VersionGroup[] {
     const releases = versions.filter((v) => v.stability === "release");
     const snapshots = versions.filter((v) => v.stability === "snapshot");
+    const betas = versions.filter((v) => v.stability === "old_beta");
+    const alphas = versions.filter((v) => v.stability === "old_alpha");
     const groups: VersionGroup[] = [];
     for (const [stability, entries] of [
         ["release", releases],
         ["snapshot", snapshots],
+        ["old_beta", betas],
+        ["old_alpha", alphas],
     ] as const) {
         if (entries.length === 0) continue;
         const grouped = new Map<string, CatalogueVersionEntry[]>();

@@ -4,11 +4,11 @@
 
 The New server wizard reads Java Edition version identity from Mojang's canonical
 `version_manifest_v2.json` at the main-process boundary. It keeps every manifest entry whose
-type is `release` or `snapshot`, including older releases and snapshots, and does not silently
+type is `release`, `snapshot`, `old_beta` or `old_alpha`, including historical development versions, and does not silently
 replace a large manifest with a newest-25 sample. Each exact entry keeps its published release
 time, Java requirement, and server download when Mojang published one.
 
-The version step separates releases and snapshots, then groups exact rows into collapsible
+The version step separates releases, snapshots, historical beta and historical alpha, then groups exact rows into collapsible
 families such as `1.21.x`, `1.20.x`, `26.3 snapshots`, and year-based weekly snapshot families.
 Family counts are counts of the exact entries in that family. The newest release family is marked
 Recommended, and the newest exact entry is shown in the family header. Search filters exact rows
@@ -80,3 +80,7 @@ Suggested articles: [Minecraft server manager](./minecraft-server-manager.md),
 [Minecraft server configuration](./mcserver-config.md),
 [Minecraft server transport](./mcserver-transport.md), and
 [Java runtime provisioning](./java-runtime-provisioning.md).
+
+## Historical discovery acceptance
+
+Historical alpha/beta rows are inspected through their exact official metadata, not excluded by channel. Missing dedicated server downloads remain visible and disabled. Invalid or unknown channels and duplicate ids make the refresh partial while retaining the previous flavour catalogue as stale. This does not prove historical JVM compatibility or runtime support. Focused catalogue/grouping tests pass; current built-GUI interaction and captures remain pending.

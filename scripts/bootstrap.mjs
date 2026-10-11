@@ -55,7 +55,7 @@ import {
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const designRoot = join(repoRoot, "design");
-const vendorRoot = join(repoRoot, "vendor", "BlueMap");
+const vendorRoot = join(repoRoot, "vendor", "BlueMap-Material");
 const gradleHome = join(repoRoot, "tools", "oracle", ".gradle");
 
 const args = new Set(process.argv.slice(2));
@@ -146,10 +146,15 @@ function nodeDependencies() {
       };
     }
     const lockAfter = existsSync(lockfile) ? readFileSync(lockfile) : null;
-    if (lockBefore === null || lockAfter === null || !lockBefore.equals(lockAfter)) {
+    if (
+      lockBefore === null ||
+      lockAfter === null ||
+      !lockBefore.equals(lockAfter)
+    ) {
       return {
         ok: false,
-        detail: "pnpm install changed or failed to preserve design/pnpm-lock.yaml",
+        detail:
+          "pnpm install changed or failed to preserve design/pnpm-lock.yaml",
       };
     }
   }
@@ -181,22 +186,22 @@ function pinnedPnpmVersion() {
 
 function runPinnedPnpm(pnpmArgs, options = {}) {
   const pnpmCli = process.env.WORLDLENS_PNPM_CLI;
-  if (typeof pnpmCli !== "string" || pnpmCli.length === 0 || !existsSync(pnpmCli)) {
+  if (
+    typeof pnpmCli !== "string" ||
+    pnpmCli.length === 0 ||
+    !existsSync(pnpmCli)
+  ) {
     throw new Error(
       "WORLDLENS_PNPM_CLI is missing or does not point to the committed verified pnpm package",
     );
   }
   const { quiet = false, ...spawnOptions } = options;
-  return spawnSync(
-    process.execPath,
-    [pnpmCli, ...pnpmArgs],
-    {
-      stdio: quiet ? "pipe" : "inherit",
-      encoding: "utf8",
-      shell: false,
-      ...spawnOptions,
-    },
-  );
+  return spawnSync(process.execPath, [pnpmCli, ...pnpmArgs], {
+    stdio: quiet ? "pipe" : "inherit",
+    encoding: "utf8",
+    shell: false,
+    ...spawnOptions,
+  });
 }
 
 /**
@@ -471,7 +476,7 @@ function bluemapJars() {
     return {
       ok: false,
       detail:
-        "vendor/BlueMap is not checked out. Run: git submodule update --init --recursive",
+        "vendor/BlueMap-Material is not checked out. Run: git submodule update --init --recursive",
     };
   }
 
@@ -499,7 +504,7 @@ function bluemapJars() {
    */
   const sourceLabel =
     sourceCommit === null
-      ? "an unreadable source revision (git could not resolve vendor/BlueMap)"
+      ? "an unreadable source revision (git could not resolve vendor/BlueMap-Material)"
       : shortCommit(sourceCommit);
   const state = jarBuildState({
     jarDirectory: cliJar,
@@ -555,8 +560,20 @@ function bluemapJars() {
           ":cli:shadowJar",
           "--no-daemon",
           "--console=plain",
+          "--max-workers=2",
+          "-Dorg.gradle.jvmargs=-Xmx1536m",
+          "-Pkotlin.compiler.execution.strategy=in-process",
+          "--configure-on-demand",
         ]
-      : [":cli:shadowJar", "--no-daemon", "--console=plain"];
+      : [
+          ":cli:shadowJar",
+          "--no-daemon",
+          "--console=plain",
+          "--max-workers=2",
+          "-Dorg.gradle.jvmargs=-Xmx1536m",
+          "-Pkotlin.compiler.execution.strategy=in-process",
+          "--configure-on-demand",
+        ];
   const build = run(wrapper, wrapperArgs, {
     cwd: vendorRoot,
     env: { ...process.env, GRADLE_USER_HOME: gradleHome },
@@ -688,7 +705,8 @@ function ghCandidates() {
       process.env["ProgramFiles"],
       process.env["ProgramFiles(x86)"],
     ]) {
-      if (root) candidates.push({ command: join(root, "GitHub CLI", exe), from: root });
+      if (root)
+        candidates.push({ command: join(root, "GitHub CLI", exe), from: root });
     }
     if (process.env.LOCALAPPDATA) {
       candidates.push({
@@ -757,7 +775,8 @@ function installGhCli() {
 function githubCli() {
   const found = selectGhCandidate({
     candidates: ghCandidates(),
-    readVersion: (candidate) => parseGhVersion(capture(candidate.command, ["--version"])),
+    readVersion: (candidate) =>
+      parseGhVersion(capture(candidate.command, ["--version"])),
   });
 
   if (found === null) {
@@ -786,7 +805,8 @@ function githubCli() {
     // fresh install is found through the install locations rather than through PATH on this run.
     const installed = selectGhCandidate({
       candidates: ghCandidates(),
-      readVersion: (candidate) => parseGhVersion(capture(candidate.command, ["--version"])),
+      readVersion: (candidate) =>
+        parseGhVersion(capture(candidate.command, ["--version"])),
     });
     if (installed === null) {
       return {
@@ -822,7 +842,9 @@ function ghAuthenticationState(found, provenance) {
     };
   }
   if (state === "unauthenticated") {
-    log("  gh is installed but nobody is signed in. In your own terminal, run:");
+    log(
+      "  gh is installed but nobody is signed in. In your own terminal, run:",
+    );
     log(`    ${GH_LOGIN_COMMAND}`);
     return {
       ok: true,

@@ -28,6 +28,7 @@ const VANILLA_MANIFEST = JSON.stringify({
             releaseTime: "2024-11-06T09:00:00+00:00",
         },
         { id: "b1.7.3", type: "old_beta", url: "https://example.test/b1.7.3.json" },
+        { id: "a1.2.6", type: "old_alpha", url: "https://example.test/a1.2.6.json" },
     ],
 });
 
@@ -131,6 +132,8 @@ const ALL_ROUTES: Record<string, string> = {
     "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json": VANILLA_MANIFEST,
     "https://example.test/1.21.4.json": VANILLA_DETAIL,
     "https://example.test/24w45a.json": VANILLA_SNAPSHOT_DETAIL,
+    "https://example.test/b1.7.3.json": JSON.stringify({ downloads: {} }),
+    "https://example.test/a1.2.6.json": JSON.stringify({ downloads: {} }),
     "https://fill.papermc.io/v3/projects/paper/versions/1.21.3/builds": PAPER_BUILDS,
     "https://fill.papermc.io/v3/projects/paper/versions/1.21.4/builds": PAPER_BUILDS,
     "https://fill.papermc.io/v3/projects/paper": PAPER_PROJECT,
@@ -155,6 +158,40 @@ describe("refreshCatalogue", () => {
     afterEach(async () => {
         await rm(dir, { recursive: true, force: true });
     });
+
+    it.each(["unknown-channel", "duplicate-id"])(
+        "preserves the last catalogue when the manifest contains %s",
+        async (problem) => {
+            const first = await refreshCatalogue({
+                dataDir: dir,
+                fetchText: fakeFetch(ALL_ROUTES),
+            });
+            expect(first.ok).toBe(true);
+            const manifest = JSON.parse(VANILLA_MANIFEST);
+            if (problem === "unknown-channel") manifest.versions[0].type = "unrecognized";
+            else manifest.versions.push(manifest.versions[0]);
+            const answer = await refreshCatalogue({
+                dataDir: dir,
+                fetchText: fakeFetch({
+                    ...ALL_ROUTES,
+                    "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json":
+                        JSON.stringify(manifest),
+                }),
+            });
+            expect(answer.ok).toBe(true);
+            if (!answer.ok) return;
+            expect(answer.value.completeness).toBe("partial");
+            const vanilla = answer.value.flavours.find((entry) => entry.flavour === "vanilla");
+            expect(vanilla?.stale).toBe(true);
+            expect(vanilla?.versions.map((entry) => entry.version)).toEqual([
+                "1.21.4",
+                "24w45a",
+                "b1.7.3",
+                "a1.2.6",
+            ]);
+            expect(answer.value.failures.some((entry) => entry.flavour === "vanilla")).toBe(true);
+        },
+    );
 
     it("fetches every flavour from its real API shape and caches the result", async () => {
         const result = await refreshCatalogue({
@@ -189,6 +226,16 @@ describe("refreshCatalogue", () => {
                 sha256: null,
                 releasedAt: "2024-11-06T09:00:00+00:00",
             },
+            ...["b1.7.3", "a1.2.6"].map((version, index) => ({
+                version,
+                stability: index === 0 ? "old_beta" : "old_alpha",
+                javaFeature: 8,
+                downloadUrl: null,
+                sha256: null,
+                releasedAt: null,
+                availability: "missing-server-artifact",
+                availabilityReason: "Mojang published no server download for this exact version.",
+            })),
         ]);
 
         const paper = result.value.flavours.find((f) => f.flavour === "paper");

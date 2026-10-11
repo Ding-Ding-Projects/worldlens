@@ -19,7 +19,7 @@ const jarDirectory = join(repositoryRoot, "tools", "oracle", "out", "jars");
 const gradleJarDirectory = join(
     repositoryRoot,
     "vendor",
-    "BlueMap",
+    "BlueMap-Material",
     "implementations",
     "cli",
     "build",

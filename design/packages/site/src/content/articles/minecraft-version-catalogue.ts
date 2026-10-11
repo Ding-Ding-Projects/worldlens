@@ -5,11 +5,11 @@ export const minecraftVersionCatalogue: Article = {
     id: "minecraft-version-catalogue",
     title: "The complete Minecraft version catalogue",
     summary:
-        "A paginated Mojang-backed catalogue that keeps every release and snapshot, groups exact rows into families, and remains useful with a stale cache.",
+        "A paginated Mojang-backed catalogue that keeps releases, snapshots, historical beta and historical alpha entries, groups exact rows into families, and remains useful with a stale cache.",
     category: "application",
     status: "ported-unverified",
     statusNote:
-        "Complete release and snapshot retention, family grouping, pagination, cache validation and Wiki links have focused proof. The final integrated packaged wizard capture remains pending.",
+        "All four Java channel types, family grouping, pagination, cache validation and Wiki links have focused proof. The final integrated packaged wizard capture remains pending. Versions without an official dedicated-server download remain visible and unavailable.",
     sections: [
         {
             id: "behaviour",
@@ -18,7 +18,7 @@ export const minecraftVersionCatalogue: Article = {
                 {
                     kind: "list",
                     items: [
-                        "The wizard reads Mojang's canonical manifest through the main process and keeps every release and snapshot entry.",
+                        "The wizard reads Mojang's canonical manifest through the main process and keeps every release, snapshot, historical beta and historical alpha entry.",
                         "Exact rows are grouped into collapsible stability and family sections, with counts derived from the rows rather than typed into labels.",
                         "The renderer shows 500 rows per page while search and cache retain the complete catalogue.",
                         "Rows without a published server download remain visible and disabled with the exact reason and a Wiki link built from the version name.",

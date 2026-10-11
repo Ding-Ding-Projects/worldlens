@@ -1,5 +1,12 @@
 # Handoff
 
+## 2026-10-11 all-feature and BlueMap continuation
+
+The current task requires every applicable canonical feature across the desktop, hosted workspace, documentation website and embedded viewer. The new inventory tracks all 105 ids with explicit scope decisions and pending implementation/runtime/capture evidence. It does not mark source presence as complete behavior. Historical Java channel discovery and typed renderer grouping are implemented; 46 focused tests pass. The portable acquisition release tag/root-layout repair passes six focused tests. Full root build, UI evidence, SSH-process hosting, Bedrock/version-bound configuration and the broader inventory remain unfinished.
+
+BlueMap official v5.29 has been merged into the Material Design 3 candidate while retaining its six contributions. The fork candidate and its bounded build are tracked separately. Earlier root builds failed during acquisition or were interrupted under measured host memory pressure; no successful build or installer is claimed. No production servers or user profiles were changed.
+
+
 ## 2026-09-05: large-world proof, Chunker round trip, downloader, settings, integration
 
 Integration branch `integrate/puppies` (base `main` at `365fb3be`) carries every lane of this

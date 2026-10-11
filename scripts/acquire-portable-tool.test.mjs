@@ -84,3 +84,28 @@ test("a forced replacement failure restores the old tool and a later run recover
     rmSync(localAppData, { recursive: true, force: true });
   }
 });
+
+test("Git package version resolves to its separately published official release tag", () => {
+  const localAppData = mkdtempSync(join(tmpdir(), "worldlens-git-release-"));
+  try {
+    const result = spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Tool", "git", "-DryRun"], {
+      cwd: root, encoding: "utf8", env: { ...process.env, LOCALAPPDATA: localAppData },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(result.stdout.includes("https://github.com/git-for-windows/git/releases/download/v2.55.0.windows.3/MinGit-2.55.0.3-64-bit.zip"));
+    assert.ok(!result.stdout.includes("v2.55.0.3.windows.3"));
+  } finally { rmSync(localAppData, { recursive: true, force: true }); }
+});
+
+for (const [tool, executable] of [["git", "cmd"], ["gh", "bin"]]) test("official " + tool + " root layout is selected and promoted without a wrapper directory", () => {
+  const localAppData = mkdtempSync(join(tmpdir(), "worldlens-mingit-root-"));
+  try {
+    const temp = join(localAppData, "temp"); mkdirSync(temp, { recursive: true });
+    const result = spawnSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script, "-Tool", tool, "-TestFixture"], {
+      cwd: root, encoding: "utf8", env: { ...process.env, LOCALAPPDATA: localAppData, TEMP: temp, TMP: temp },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(readFileSync(join(localAppData, "worldlens-toolchain", tool, executable, tool + ".exe"), "utf8"), "");
+    assert.deepEqual(readdirSync(join(localAppData, "worldlens-toolchain")), [tool]);
+  } finally { rmSync(localAppData, { recursive: true, force: true }); }
+});

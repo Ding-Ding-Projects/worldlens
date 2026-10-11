@@ -42,7 +42,7 @@ export const FLAVOUR_IDS: readonly FlavourId[] = [
     "neoforge",
 ];
 
-export type VersionStability = "release" | "snapshot";
+export type VersionStability = "release" | "snapshot" | "old_beta" | "old_alpha";
 export type WikiArticleState = "verified" | "unavailable" | "offline-unverified";
 
 export interface VersionEntry {
@@ -229,7 +229,11 @@ function validateCachedFlavours(value: unknown): FlavourCatalogue[] | null {
                 return null;
             if (seenVersions.has(rawVersion.version)) return null;
             seenVersions.add(rawVersion.version);
-            if (rawVersion.stability !== "release" && rawVersion.stability !== "snapshot")
+            if (
+                !["release", "snapshot", "old_beta", "old_alpha"].includes(
+                    String(rawVersion.stability),
+                )
+            )
                 return null;
             if (
                 typeof rawVersion.javaFeature !== "number" ||
@@ -344,9 +348,8 @@ interface FetchFlavourResult {
 }
 
 /**
- * The manifest lists every version Mojang has ever shipped, and this app only cares about
- * the ones that actually have a server jar - a release or snapshot - so `old_alpha` and
- * `old_beta` entries are skipped before a single per-version fetch is made.
+ * Preserve every official channel, including historical alpha and beta entries.
+ * Server availability comes from the exact detail document, never from the channel.
  */
 async function fetchVanillaVersions(
     fetchText: FetchText,
@@ -360,14 +363,22 @@ async function fetchVanillaVersions(
         throw new Error("Mojang's version manifest did not contain a versions array.");
     }
     const manifest = rawManifest as unknown as VanillaManifest;
-    const candidates = manifest.versions.filter((entry) => {
-        if (!isRecord(entry)) return false;
-        return (
-            (entry.type === "release" || entry.type === "snapshot") &&
-            typeof entry.id === "string" &&
-            entry.id.length > 0 &&
-            entry.id.length <= 64
-        );
+    const seenIds = new Set<string>();
+    const candidates = manifest.versions.map((entry) => {
+        if (
+            !isRecord(entry) ||
+            typeof entry.id !== "string" ||
+            entry.id.length === 0 ||
+            entry.id.length > 64 ||
+            !["release", "snapshot", "old_beta", "old_alpha"].includes(String(entry.type))
+        )
+            throw new Error(
+                "Mojang's version manifest contained an invalid or unknown channel entry.",
+            );
+        if (seenIds.has(entry.id))
+            throw new Error("Mojang's version manifest repeated a version id.");
+        seenIds.add(entry.id);
+        return entry as unknown as VanillaManifestEntry;
     });
 
     /**
@@ -413,7 +424,7 @@ async function fetchVanillaVersions(
                 : httpsUrl(server.url, `Server download URL for ${candidate.id}`);
         return {
             version: candidate.id,
-            stability: candidate.type === "release" ? "release" : "snapshot",
+            stability: candidate.type as VersionStability,
             javaFeature,
             downloadUrl,
             // Mojang publishes SHA-1 here, not SHA-256. Recording an invented SHA-256

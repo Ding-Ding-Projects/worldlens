@@ -1,5 +1,12 @@
 # Handoff
 
+## 2026-10-11 all-feature and BlueMap continuation
+
+The current task requires every applicable canonical feature across the desktop, hosted workspace, documentation website and embedded viewer. The new inventory tracks all 105 ids with explicit scope decisions and pending implementation/runtime/capture evidence. It does not mark source presence as complete behavior. Historical Java channel discovery and typed renderer grouping are implemented; 46 focused tests pass. The portable acquisition release tag/root-layout repair passes six focused tests. Full root build, UI evidence, SSH-process hosting, Bedrock/version-bound configuration and the broader inventory remain unfinished.
+
+BlueMap official v5.29 has been merged into the Material Design 3 candidate while retaining its six contributions. The fork candidate and its bounded build are tracked separately. Earlier root builds failed during acquisition or were interrupted under measured host memory pressure; no successful build or installer is claimed. No production servers or user profiles were changed.
+
+
 ## 2026-10-02: HTTP static files escape the web root and active streams can stall shutdown
 
 On main at `92bf5c8c7b286a74fa07baa70915c056970851bb`, deterministic loopback HTTP fixtures reproduced four findings from the 2026-09-04 audit on Windows with Node 24.19.0: encoded sibling traversal and an outside directory junction returned a synthetic outside-root marker; removing a file between stat and open crashed an isolated child on an unhandled `ReadStream` error; cancelling a large file response left its descriptor open; and `HttpServer.close()` stayed pending while an event stream remained open.

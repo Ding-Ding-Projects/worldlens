@@ -1521,7 +1521,14 @@ const canAdvance = computed(() => {
                                 {{
                                     group.stability === "release"
                                         ? t("mcserver.wizard.releases", "Releases")
-                                        : t("mcserver.wizard.snapshots", "Snapshots")
+                                        : group.stability === "snapshot"
+                                          ? t("mcserver.wizard.snapshots", "Snapshots")
+                                          : group.stability === "old_beta"
+                                            ? t("mcserver.wizard.historicalBeta", "Historical beta")
+                                            : t(
+                                                  "mcserver.wizard.historicalAlpha",
+                                                  "Historical alpha",
+                                              )
                                 }}
                             </div>
                             <section
@@ -1662,7 +1669,7 @@ const canAdvance = computed(() => {
                                 size="small"
                                 variant="text"
                                 :disabled="versionPage === 0"
-                                aria-controls="mcserver-version-families-release mcserver-version-families-snapshot"
+                                aria-controls="mcserver-version-families-release mcserver-version-families-snapshot mcserver-version-families-old_beta mcserver-version-families-old_alpha"
                                 @click="versionPage -= 1"
                             >
                                 {{ t("common.previous", "Previous") }}
@@ -1674,7 +1681,7 @@ const canAdvance = computed(() => {
                                 size="small"
                                 variant="text"
                                 :disabled="versionPage + 1 >= versionPageCount"
-                                aria-controls="mcserver-version-families-release mcserver-version-families-snapshot"
+                                aria-controls="mcserver-version-families-release mcserver-version-families-snapshot mcserver-version-families-old_beta mcserver-version-families-old_alpha"
                                 @click="versionPage += 1"
                             >
                                 {{ t("common.next", "Next") }}

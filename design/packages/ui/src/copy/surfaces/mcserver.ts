@@ -52,6 +52,8 @@ export const MCSERVER_VOICED = {
 } as const;
 
 export const MCSERVER_FIXED = {
+    "mcserver.wizard.historicalBeta": { en: "Historical beta", yue: "歷史 Beta 版本" },
+    "mcserver.wizard.historicalAlpha": { en: "Historical alpha", yue: "歷史 Alpha 版本" },
     "mcserver.wizard.recommended": { en: "Recommended", yue: "推薦" },
     "mcserver.wizard.toggleFamily": {
         en: "{family}, {n} exact versions",

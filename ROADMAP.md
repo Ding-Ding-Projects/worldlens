@@ -1,5 +1,16 @@
 # Roadmap
 
+## Complete feature and BlueMap continuation (2026-10-11)
+
+- [x] Track all 105 canonical feature ids across five surface scopes without claiming unknown coverage.
+- [ ] Retain historical Java channels: 46 focused catalogue/grouping cases pass; built wizard acceptance remains pending.
+- [x] Repair portable acquisition release tags and root layouts with six focused tests.
+- [ ] Finish root builds, exact installer production and current real GUI evidence.
+- [ ] Integrate verified BlueMap v5.29 while preserving the Material viewer and legacy decoder.
+- [ ] Implement SSH-process hosting, Bedrock and version-bound server controls.
+- [ ] Complete every applicable feature workflow and per-surface acceptance.
+- [ ] Integrate completed units into main, verify remote delivery and retain unfinished owned work.
+
 ## Evidence refresh (2026-09-05)
 
 - [x] Chunker Actions screen exposes all ten `chunk-world.yml` dispatch inputs, guarded by `scripts/check-chunker-ui-inventory.mjs` (`28294f9d`).
