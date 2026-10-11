@@ -9,6 +9,8 @@ Minecraft 3D map renderer and web viewer.
 
 The [complete feature delivery inventory](docs/contracts/feature-delivery-inventory.md) tracks 105 canonical requirements across five scopes. Current completion remains pending, including SSH-process hosting, Bedrock management, version-bound server controls and current built-interface evidence. Java catalogue discovery now retains release, snapshot, historical beta and historical alpha channels; discovery does not establish that Mojang published a dedicated server for every entry or that every historical runtime works.
 
+The [production server-article report](docs/site/production-server-articles.md) records the current 62-article assembly and focused desktop/mobile verification of the initial binding repair. Complete cleanup, live documentation/wiki navigation and all-surface acceptance remain pending.
+
 ### Current adoption-browser evidence
 
 ![Worldlens existing-container discovery with visible caption and actions at minimum size](docs/screenshots/adoption-unavailable-db18561c.png)

@@ -5,6 +5,7 @@ as a bag of static pages.
 
 | Article | What it covers |
 |---|---|
+| [Production server articles](production-server-articles.md) | Current Markdown article assembly, initial binding repair and focused built-output verification with explicit cleanup limits. |
 | [Material Design 3 Expressive Pages rewrite](material-design-3-pages.md) | Ground-up shell architecture, M3 tokens and components, responsive navigation, accessibility, persistence, offline delivery and verification. |
 | [Action walkthrough animations](action-walkthroughs.md) | The complete twelve-animation inventory, capture provenance, finite playback, reduced-motion stills, lazy loading, file budgets and regeneration. |
 | [Pages feature parity](../pages-feature-parity.md) | The hand-written shared-feature inventory and the browser-platform boundaries that keep it honest. |

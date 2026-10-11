@@ -19,6 +19,7 @@
 - [ ] Complete caption physical DPI, light first-run and hosted/documentation/embedded-viewer consumers.
 - [x] Include the public feature JSON and required-ID list in the default publication scan; observe omission regression red, restore byte-exactly and pass all 24 publication/inventory checks.
 - [ ] Complete every applicable feature workflow and per-surface acceptance.
+- [ ] Complete production-documentation acceptance: source assembly and hydration repair passed focused built-output checks at 167b70d5 for desktop and emulated mobile; temporary-profile cleanup, full links/wiki and remaining display tuples are pending. See docs/site/production-server-articles.md.
 - [ ] Verify adoption ownership in the exact rebuilt interface and an isolated container: 13 mounted cases pass; consent, request identity, re-entry and late-result isolation are repaired in source.
 - [ ] Integrate completed units into main, verify remote delivery and retain unfinished owned work.
 
