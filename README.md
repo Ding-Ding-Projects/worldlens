@@ -11,6 +11,8 @@ The [complete feature delivery inventory](docs/contracts/feature-delivery-invent
 
 The [production server-article report](docs/site/production-server-articles.md) records the current 62-article assembly and focused desktop/mobile verification of the initial binding repair. Complete cleanup, live documentation/wiki navigation and all-surface acceptance remain pending.
 
+The [SSH-process foundation](docs/server-management/ssh-process-lifecycle.md) now has persisted installation identity and production transport/IPC routing. Creation, files, authenticated console and live target acceptance are still pending; the creation wizard does not offer the incomplete target.
+
 ### Current adoption-browser evidence
 
 ![Worldlens existing-container discovery with visible caption and actions at minimum size](docs/screenshots/adoption-unavailable-db18561c.png)

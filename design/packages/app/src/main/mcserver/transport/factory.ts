@@ -11,6 +11,7 @@
 import { createLocalDockerTransport } from "./localDocker.js";
 import { createLocalProcessTransport } from "./localProcess.js";
 import { createSshDockerTransport } from "./sshDocker.js";
+import { createSshProcessTransport } from "./sshProcess.js";
 import { createAwsTransport } from "../aws/transport.js";
 import type { SshOptionsInput } from "../../remote/ssh.js";
 import type { CommandRunner } from "../../runtime/command.js";
@@ -55,6 +56,16 @@ export function createTransport(
     deps: FactoryDeps = {},
 ): Answer<ServerTransport> {
     switch (ref.kind) {
+        case "ssh-process": {
+            const ssh = deps.sshHost?.(ref.hostId) ?? null;
+            if (ssh === null) return fail("not-found", "The SSH profile for this process installation is no longer available.");
+            return createSshProcessTransport({
+                ref, ssh,
+                ...(deps.runner === undefined ? {} : { runner: deps.runner }),
+                ...(deps.now === undefined ? {} : { now: deps.now }),
+                ...(deps.capabilities === undefined ? {} : { capabilities: deps.capabilities }),
+            });
+        }
         case "local-process": {
             const runtime = deps.localRuntime?.(ref.serverDir) ?? null;
             if (runtime === null) {

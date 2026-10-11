@@ -32,6 +32,7 @@ import type { CommandRunner } from "../../runtime/command.js";
  */
 export type TransportRef =
     | { readonly kind: "local-process"; readonly serverDir: string }
+    | SshProcessRef
     | { readonly kind: "local-docker"; readonly containerRef: string; readonly serverDir: string }
     | {
           readonly kind: "ssh-docker";
@@ -58,6 +59,18 @@ export type TransportRef =
 
 export type TransportKind = TransportRef["kind"];
 
+/** An installed remote process keeps its launch identity across application restarts. */
+export interface SshProcessRef {
+    readonly kind: "ssh-process";
+    readonly hostId: string;
+    readonly serverId: string;
+    readonly ownerId: string;
+    readonly serverDir: string;
+    readonly javaPath: string;
+    readonly jarPath: string;
+    readonly memoryMb: number;
+}
+
 /**
  * Every transport discriminant, as values rather than as a type.
  *
@@ -69,6 +82,7 @@ export type TransportKind = TransportRef["kind"];
  */
 export const TRANSPORT_KINDS = [
     "local-process",
+    "ssh-process",
     "local-docker",
     "ssh-docker",
     "aws",
@@ -186,6 +200,9 @@ export interface TransportCapabilities {
     readonly canCreate: boolean;
     /** May start, stop and restart. */
     readonly canLifecycle: boolean;
+    /** Optional individual operations when the full lifecycle is unavailable. */
+    readonly canStart?: boolean;
+    readonly canStop?: boolean;
     /** May write files under the server root. */
     readonly canWriteFiles: boolean;
     /** Optional narrower capability flags for adopted transports. Omitted means the

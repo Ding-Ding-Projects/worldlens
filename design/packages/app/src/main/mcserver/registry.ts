@@ -20,6 +20,7 @@ import { dirname, join } from "node:path";
 
 import { atomicWriteTextFile } from "../storage/atomicReplace.js";
 import { fail, ok, type Answer, type TransportRef } from "./transport/types.js";
+import { sshProcessIdentity } from "./transport/sshProcessLifecycle.js";
 
 export const REGISTRY_FILE = "minecraft-servers.v1.json";
 export const REGISTRY_VERSION = 1;
@@ -173,6 +174,11 @@ function validRef(value: unknown): value is TransportRef {
     const ref = value as Record<string, unknown>;
     if (!isString(ref.serverDir)) return false;
     switch (ref.kind) {
+        case "ssh-process":
+            return hasExactKeys(ref, ["kind", "hostId", "serverId", "ownerId", "serverDir", "javaPath", "jarPath", "memoryMb"]) &&
+                [ref.hostId, ref.serverId, ref.ownerId, ref.javaPath, ref.jarPath].every((item) => isString(item, 2048)) &&
+                typeof ref.memoryMb === "number" &&
+                sshProcessIdentity(ref as unknown as Extract<TransportRef, { kind: "ssh-process" }>).ok;
         case "local-process":
             return hasExactKeys(ref, ["kind", "serverDir"]);
         case "local-docker":
@@ -272,6 +278,8 @@ export function parseRecord(value: unknown): ServerRecord | null {
     const writeScope = raw.writeScope as string[];
     const localRuntime = parseLocalRuntime(raw.localRuntime);
     if (localRuntime === undefined) return null;
+    if (raw.ref.kind === "ssh-process" &&
+        (raw.ref.serverId !== raw.id || localRuntime !== null || origin !== "created")) return null;
 
     return {
         id: raw.id,

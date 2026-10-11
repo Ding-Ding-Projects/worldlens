@@ -661,7 +661,7 @@ export function registerMcServerHandlers(
         }
 
         let sshHost = options.factory?.sshHost;
-        if (sshHost === undefined && found.value.ref.kind === "ssh-docker") {
+        if (sshHost === undefined && (found.value.ref.kind === "ssh-docker" || found.value.ref.kind === "ssh-process")) {
             // Load first so the store's synchronous factory lookup has a warm, validated
             // cache. A missing profile remains a typed not-found answer from the factory.
             await hostProfiles.get(found.value.ref.hostId);
@@ -718,6 +718,8 @@ export function registerMcServerHandlers(
         if (found.value.rconPort === null) {
             return fail("invalid-request", "This server has no RCON port configured yet.");
         }
+        if (found.value.ref.kind === "ssh-process")
+            return fail("unsupported", "The SSH process console is not connected to a verified server invocation yet.");
         if (!found.value.hasRconSecret) {
             return fail(
                 "invalid-request",
@@ -989,7 +991,9 @@ export function registerMcServerHandlers(
 
         [MCSERVER_CHANNELS.probe]: async (_event: never, id: unknown) => {
             const opened = await open(id);
-            return opened.ok ? opened.value.transport.probe() : opened;
+            if (!opened.ok) return opened;
+            const result = await opened.value.transport.probe();
+            return result.ok ? ok({ ...result.value, capabilities: opened.value.transport.capabilities }) : result;
         },
 
         [MCSERVER_CHANNELS.status]: async (_event: never, id: unknown) => {

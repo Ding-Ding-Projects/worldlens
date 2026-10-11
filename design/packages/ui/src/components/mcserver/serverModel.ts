@@ -41,6 +41,9 @@ export type ServerOrigin = "created" | "adopted";
 
 export type TransportRef =
     | { readonly kind: "local-process"; readonly serverDir: string }
+    | { readonly kind: "ssh-process"; readonly hostId: string; readonly serverId: string;
+        readonly ownerId: string; readonly serverDir: string; readonly javaPath: string;
+        readonly jarPath: string; readonly memoryMb: number }
     | { readonly kind: "local-docker"; readonly containerRef: string; readonly serverDir: string }
     | {
           readonly kind: "ssh-docker";
@@ -86,6 +89,8 @@ export interface InstanceStatus {
 export interface TransportCapabilities {
     readonly canCreate: boolean;
     readonly canLifecycle: boolean;
+    readonly canStart?: boolean;
+    readonly canStop?: boolean;
     readonly canWriteFiles: boolean;
     readonly canDestroy: boolean;
     readonly console: "stdin" | "exec-helper" | "rcon" | "none";
@@ -123,6 +128,8 @@ export function transportSummary(record: ServerRecord): string {
     switch (record.ref.kind) {
         case "local-process":
             return "This computer";
+        case "ssh-process":
+            return "A remote host, as a process";
         case "local-docker":
             return "This computer, in a container";
         case "ssh-docker":
@@ -158,14 +165,18 @@ export function flavourName(flavour: ServerFlavour): string {
  */
 export function lifecycleBlockReason(
     record: ServerRecord,
-    capabilities: { readonly canLifecycle: boolean } | null,
+    capabilities: { readonly canLifecycle: boolean; readonly canStart?: boolean; readonly canStop?: boolean } | null,
     action: "start" | "stop",
     state: InstanceState | null,
 ): string | null {
     if (capabilities === null) {
         return "The host for this server could not be reached, so its state is unknown.";
     }
-    if (!capabilities.canLifecycle) {
+    const available = action === "start" ? capabilities.canStart ?? capabilities.canLifecycle
+        : capabilities.canStop ?? capabilities.canLifecycle;
+    if (!available) {
+        if (record.ref.kind === "ssh-process" && action === "stop")
+            return "Stopping this remote process requires an authenticated console bound to its invocation.";
         return record.origin === "adopted"
             ? "This server was adopted, not created here, and this app was not given permission to start or stop it."
             : "This transport cannot start or stop servers.";

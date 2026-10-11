@@ -64,6 +64,12 @@ describe("flavourName", () => {
 });
 
 describe("lifecycleBlockReason", () => {
+    it("uses individual start and stop capabilities for a partially available transport", () => {
+        const caps = { canLifecycle: false, canStart: true, canStop: false };
+        expect(lifecycleBlockReason(record(), caps, "start", "exited")).toBeNull();
+        expect(lifecycleBlockReason(record(), caps, "stop", "running")).not.toBeNull();
+        expect(lifecycleBlockReason(record(), { canLifecycle: true, canStart: false }, "start", "exited")).not.toBeNull();
+    });
     it("blocks with no capabilities", () => {
         expect(lifecycleBlockReason(record(), null, "start", null)).not.toBeNull();
     });

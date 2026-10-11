@@ -1,7 +1,7 @@
 # Server management
 
 - [Adoption ownership](adoption-ownership.md): per-container permissions, host-bound discovery and asynchronous operation isolation.
-- [SSH process lifecycle foundation](ssh-process-lifecycle.md): durable ownership and bounded shutdown observation, with remaining transport and GUI integration explicit.
+- [SSH process lifecycle foundation](ssh-process-lifecycle.md): durable ownership, persisted installation records, production transport routing and bounded shutdown observation, with remaining creation, console and GUI acceptance explicit.
 - [Server manager](../minecraft-server-manager.md)
 - [SSH host profiles](../mcserver-host-profiles.md)
 
