@@ -9,6 +9,7 @@ test('explicit build provenance wins without reading the fallback clock', () => 
 });
 test('invalid declared or recorded instants stop the build', () => {
  assert.throws(() => resolveVersionUpdatedAt({WORLDLENS_BUILD_TIMESTAMP:'not a date'}));
+ assert.throws(() => resolveVersionUpdatedAt({WORLDLENS_BUILD_TIMESTAMP:'2026-02-30T00:00:00Z'}));
  assert.throws(() => resolveVersionUpdatedAt({}, () => '2026-02-30T00:00:00.000Z'));
  assert.throws(() => resolveVersionUpdatedAt({}, () => 'not a date'));
 });

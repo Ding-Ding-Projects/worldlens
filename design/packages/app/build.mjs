@@ -214,7 +214,16 @@ export function resolveBuildTimestamp(env, runGit = defaultGitCommitterDate) {
 /** Record this build event once, separately from the historical source timestamp. */
 export function resolveVersionUpdatedAt(env, buildClock = () => new Date().toISOString()) {
     const declared = env[BUILD_TIMESTAMP_VARIABLE]?.trim();
-    if (declared) return resolveBuildTimestamp(env, () => null);
+    if (declared) {
+        if (!/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,3})?Z$/.test(declared)) {
+            throw new Error("The declared build event requires a UTC ISO timestamp.");
+        }
+        const normalized = resolveBuildTimestamp(env, () => null);
+        const expected = declared.replace(/(?:\.(\d{1,3}))?Z$/, (_match, fraction = "") =>
+            `.${fraction.padEnd(3, "0")}Z`);
+        if (normalized !== expected) throw new Error("The declared build event has invalid calendar fields.");
+        return normalized;
+    }
     const recorded = buildClock();
     if (typeof recorded !== "string" ||
         !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/.test(recorded) ||
