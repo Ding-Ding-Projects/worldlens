@@ -847,19 +847,19 @@
       "why": "exact shell command spelling, verified against the historical command"
     },
     {
-      "line": 15,
+      "line": 17,
       "file": "HANDOFF.md",
       "column": 735,
       "why": "Ordinary JavaScript memory allocation terminology, not private prose."
     },
     {
-      "line": 50,
+      "line": 52,
       "file": "HANDOFF.md",
       "column": 31,
       "why": "Exact preserved historical branch reference, not newly authored presentation."
     },
     {
-      "line": 96,
+      "line": 98,
       "file": "HANDOFF.md",
       "column": 87,
       "why": "Exact preserved historical branch reference, not newly authored presentation."

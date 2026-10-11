@@ -22,7 +22,7 @@ describe("production local adoption runner", () => {
             ? { ok: false, exitCode: 1, stdout: "", stderr: "Fixture daemon unavailable", spawnError: null }
             : { ok: true, exitCode: 0, stdout: "", stderr: "", spawnError: null };
         vi.mocked(execFileCommandRunner).mockReset().mockResolvedValue(output);
-        const registration = registerMcServerHandlers(ipc, { dataFolder: folder });
+        const registration = registerMcServerHandlers(ipc, { dataFolder: folder, safeStorage: { isEncryptionAvailable: () => false, encryptString: () => { throw new Error("Unavailable in this fixture"); }, decryptString: () => { throw new Error("Unavailable in this fixture"); } } });
         try {
             const result = await handlers.get(MCSERVER_CHANNELS.adoptDiscover)!({} as never) as {
                 ok: boolean; value?: readonly unknown[]; failure?: { code: string; message: string };
@@ -48,7 +48,7 @@ describe("production local adoption runner", () => {
         };
         const injected = vi.fn<CommandRunner>().mockResolvedValue({ ok: true, exitCode: 0, stdout: "", stderr: "", spawnError: null });
         vi.mocked(execFileCommandRunner).mockReset();
-        const registration = registerMcServerHandlers(ipc, { dataFolder: folder, factory: { runner: injected } });
+        const registration = registerMcServerHandlers(ipc, { dataFolder: folder, safeStorage: { isEncryptionAvailable: () => false, encryptString: () => { throw new Error("Unavailable in this fixture"); }, decryptString: () => { throw new Error("Unavailable in this fixture"); } }, factory: { runner: injected } });
         try {
             await handlers.get(MCSERVER_CHANNELS.adoptDiscover)!({} as never);
             expect(injected).toHaveBeenCalledOnce();
