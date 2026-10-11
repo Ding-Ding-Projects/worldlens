@@ -1717,3 +1717,5 @@ They are no longer registered by Git and were clean during the pre-removal inven
 proven. The temporary archive response file is also retained outside the repository because its
 deletion command was rejected. No active, user-owned, load-bearing, unmerged, undewed, or
 ownership-uncertain work was removed.
+
+Publication follow-up: the default scan now also includes HANDOFF.md, CLOSEOUT_PROMPT.md, ROADMAP.md and the scanner/regression source. Seven wider-scan matches were individually reviewed as ordinary memory terminology or exact command/historical-ref literals, recorded at exact positions without publishing the private dictionary. The default scan passes over 423 files against 119 externally supplied terms with 146 reviewed occurrences. All 24 focused publication/inventory tests pass. This does not replace the outstanding historical package/privacy audit.

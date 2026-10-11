@@ -31,6 +31,9 @@ function scratch() {
 
 test("default publication checks reject private text in the feature inventory and its required id list", () => {
   for (const relativePath of [
+    "HANDOFF.md",
+    "CLOSEOUT_PROMPT.md",
+    "ROADMAP.md",
     "docs/contracts/feature-delivery-inventory.json",
     "scripts/check-feature-delivery-inventory.mjs",
   ]) {

@@ -64,6 +64,11 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PUBLISHED = Object.freeze([
   Object.freeze({ path: "CHANGELOG.md" }),
   Object.freeze({ path: "README.md" }),
+  Object.freeze({ path: "HANDOFF.md" }),
+  Object.freeze({ path: "CLOSEOUT_PROMPT.md" }),
+  Object.freeze({ path: "ROADMAP.md" }),
+  Object.freeze({ path: "scripts/check-published-text.mjs" }),
+  Object.freeze({ path: "scripts/check-published-text.test.mjs" }),
   Object.freeze({ path: "docs/contracts/feature-delivery-inventory.json" }),
   Object.freeze({ path: "scripts/check-feature-delivery-inventory.mjs" }),
   Object.freeze({

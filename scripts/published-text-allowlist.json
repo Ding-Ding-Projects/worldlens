@@ -845,6 +845,48 @@
       "line": 35,
       "column": 5,
       "why": "exact shell command spelling, verified against the historical command"
+    },
+    {
+      "line": 15,
+      "file": "HANDOFF.md",
+      "column": 735,
+      "why": "Ordinary JavaScript memory allocation terminology, not private prose."
+    },
+    {
+      "line": 50,
+      "file": "HANDOFF.md",
+      "column": 31,
+      "why": "Exact preserved historical branch reference, not newly authored presentation."
+    },
+    {
+      "line": 96,
+      "file": "HANDOFF.md",
+      "column": 87,
+      "why": "Exact preserved historical branch reference, not newly authored presentation."
+    },
+    {
+      "line": 86,
+      "file": "scripts/check-published-text.mjs",
+      "column": 61,
+      "why": "Ordinary memory allocation terminology in a documented false-positive example."
+    },
+    {
+      "line": 86,
+      "file": "scripts/check-published-text.mjs",
+      "column": 72,
+      "why": "Exact Git command in a documented false-positive example."
+    },
+    {
+      "line": 366,
+      "file": "scripts/check-published-text.test.mjs",
+      "column": 81,
+      "why": "Exact Git command preserved by a historical-output regression."
+    },
+    {
+      "line": 367,
+      "file": "scripts/check-published-text.test.mjs",
+      "column": 82,
+      "why": "Exact shell command preserved by a historical-output regression."
     }
   ]
 }
