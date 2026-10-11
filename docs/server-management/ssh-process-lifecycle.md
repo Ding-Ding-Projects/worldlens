@@ -16,6 +16,8 @@ The registered `ssh-process` transport persists its host ID, server ID, owner UU
 
 The factory resolves the exact saved host profile, with no local fallback. The production IPC path warms that profile store and publishes the resolved transport's actual capabilities. Start is independently available when permitted; stop, console, creation and file operations remain unavailable and return explicit unsupported results. The UI model consumes individual start/stop capabilities instead of claiming that one available operation proves the entire lifecycle. The RCON path also rejects this target until it can bind the console to the verified remote invocation.
 
+The server list requests capabilities and status in batches of four records. Each new observation clears the old cached result; an unreachable host cannot retain a stale permission grant or running indicator. Request generations prevent older responses, including responses arriving after a record is forgotten, from restoring obsolete state. A failed probe leaves lifecycle actions unavailable with the existing explanatory text.
+
 Installation and file operations, authenticated console integration and the creation workflow remain unfinished. The creation wizard does not offer this incomplete target. Windows SSH hosts and hosts without the required systemd user service remain unsupported by this route. There is no new HTTP endpoint or Postman collection.
 
 ## Verification

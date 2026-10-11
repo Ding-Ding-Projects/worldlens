@@ -7,7 +7,7 @@
  */
 
 import { beforeAll, describe, expect, it } from "vitest";
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import ServerListScreen from "./ServerListScreen.vue";
@@ -109,6 +109,22 @@ function mountScreen(host: McServerHost | null, attach = false) {
 }
 
 describe("ServerListScreen", () => {
+    it.each([true, false])("loads real capabilities before enabling the permitted lifecycle control: available=%s", async (available) => {
+        const host = fakeHost([record("survival", "Survival")]);
+        host.status = async () => ok({ state: "exited", running: false, startedAt: null, exitCode: 0, checkedAt: "now" });
+        host.probe = async () => { if (!available) throw new Error("Disconnected"); return ok({ reachable: true, runtimeVersion: null, message: "", checkedAt: "now",
+            capabilities: { canCreate: false, canLifecycle: false, canStart: true, canStop: false,
+                canWriteFiles: false, canDestroy: false, console: "none" } }); };
+        const { wrapper } = mountScreen(host);
+        try {
+            await flushPromises();
+            const controls = wrapper.findAll(".wl-mcserver-card__actions button");
+            expect(controls.find((button) => button.text() === "Start")).toBeDefined();
+            expect(controls.find((button) => button.text() === "Stop")).toBeDefined();
+            expect(controls.find((button) => button.text() === "Start")?.attributes("disabled") === undefined).toBe(available);
+            expect(controls.find((button) => button.text() === "Stop")?.attributes("disabled")).toBeDefined();
+        } finally { wrapper.unmount(); }
+    });
     it("says plainly that this build cannot reach a server host", () => {
         const { wrapper } = mountScreen(null);
         expect(wrapper.text()).toContain("This build cannot reach a Minecraft server host");

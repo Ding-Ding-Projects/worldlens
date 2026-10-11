@@ -113,8 +113,10 @@ onMounted(() => {
 
 async function refreshAll(): Promise<void> {
     await store.load();
-    for (const server of store.servers.value) {
-        void store.refreshStatus(server.id);
+    const records = [...store.servers.value];
+    for (let offset = 0; offset < records.length; offset += 4) {
+        await Promise.allSettled(records.slice(offset, offset + 4).flatMap((server) =>
+            [store.probe(server.id), store.refreshStatus(server.id)]));
     }
 }
 

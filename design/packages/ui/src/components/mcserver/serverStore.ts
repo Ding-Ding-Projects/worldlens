@@ -701,6 +701,13 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
     const failure = ref<string | null>(null);
     const statuses = reactive<Record<string, InstanceStatus | undefined>>({});
     const probes = reactive<Record<string, ProbeResult | undefined>>({});
+    const probeRequests = new Map<string, number>();
+    const statusRequests = new Map<string, number>();
+    function nextRequest(requests: Map<string, number>, id: string): number {
+        const next = (requests.get(id) ?? 0) + 1;
+        requests.set(id, next);
+        return next;
+    }
 
     function noHost<T>(): Answer<T> {
         return fail(
@@ -815,6 +822,8 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             const result = await host.forget(id);
             if (result.ok) {
                 servers.value = servers.value.filter((server) => server.id !== id);
+                nextRequest(probeRequests, id);
+                nextRequest(statusRequests, id);
                 delete statuses[id];
                 delete probes[id];
             }
@@ -823,15 +832,23 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
 
         async probe(id): Promise<Answer<ProbeResult>> {
             if (host === null) return noHost();
-            const result = await host.probe(id);
-            if (result.ok && result.value) probes[id] = result.value;
+            const request = nextRequest(probeRequests, id);
+            delete probes[id];
+            let result: Answer<ProbeResult>;
+            try { result = await host.probe(id); }
+            catch { result = fail("The host probe did not complete; its capabilities are unknown.", "unreachable"); }
+            if (request === probeRequests.get(id) && result.ok && result.value) probes[id] = result.value;
             return result;
         },
 
         async refreshStatus(id): Promise<Answer<InstanceStatus>> {
             if (host === null) return noHost();
-            const result = await host.status(id);
-            if (result.ok && result.value) statuses[id] = result.value;
+            const request = nextRequest(statusRequests, id);
+            delete statuses[id];
+            let result: Answer<InstanceStatus>;
+            try { result = await host.status(id); }
+            catch { result = fail("The status request did not complete; the server state is unknown.", "unreachable"); }
+            if (request === statusRequests.get(id) && result.ok && result.value) statuses[id] = result.value;
             return result;
         },
 

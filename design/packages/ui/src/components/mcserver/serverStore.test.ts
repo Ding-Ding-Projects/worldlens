@@ -142,6 +142,39 @@ describe("createServerStore with a host", () => {
         await store.probe("survival");
         expect(store.capabilitiesFor("survival")?.canLifecycle).toBe(true);
     });
+    it("clears cached permission and running state when fresh observations fail", async () => {
+        const host = fakeHost();
+        const store = createServerStore({ host });
+        await store.probe("survival");
+        await store.refreshStatus("survival");
+        const unavailable = { ok: false, failure: { code: "unreachable", message: "Offline", detail: null } } as const;
+        host.probe = async () => unavailable;
+        host.status = async () => unavailable;
+        await store.probe("survival");
+        await store.refreshStatus("survival");
+        expect(store.capabilitiesFor("survival")).toBeNull();
+        expect(store.statuses.survival).toBeUndefined();
+    });
+    it("does not let older requests restore permissions or running state after a newer failure", async () => {
+        const host = fakeHost();
+        const oldProbe = await host.probe("survival");
+        const oldStatus = await host.status("survival");
+        let resolveProbe!: (value: typeof oldProbe) => void;
+        let resolveStatus!: (value: typeof oldStatus) => void;
+        host.probe = () => new Promise((resolve) => { resolveProbe = resolve; });
+        host.status = () => new Promise((resolve) => { resolveStatus = resolve; });
+        const store = createServerStore({ host });
+        const first = [store.probe("survival"), store.refreshStatus("survival")];
+        host.probe = async () => { throw new Error("Disconnected"); };
+        host.status = async () => { throw new Error("Disconnected"); };
+        await store.probe("survival");
+        await store.refreshStatus("survival");
+        resolveProbe(oldProbe);
+        resolveStatus(oldStatus);
+        await Promise.all(first);
+        expect(store.capabilitiesFor("survival")).toBeNull();
+        expect(store.statuses.survival).toBeUndefined();
+    });
 
     it("runningCount reflects cached statuses", async () => {
         const store = createServerStore({ host: fakeHost() });
