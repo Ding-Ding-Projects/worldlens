@@ -107,4 +107,4 @@ if (notImported.length > 0 || notListed.length > 0) {
     process.exit(1);
 }
 
-process.stdout.write(`Article bundle complete: ${onDisk.length} articles on disk, all bundled.\n`);
+process.stdout.write(`TypeScript article catalogue: ${onDisk.length} modules present and listed; production archive inclusion is checked separately.\n`);

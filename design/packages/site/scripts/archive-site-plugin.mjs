@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
+import { loadServerArticles, SERVER_ARTICLES } from "./server-articles.mjs";
 
 const VIRTUAL_ID = "virtual:worldlens-archive-runtime";
 const RESOLVED_VIRTUAL_ID = `\0${VIRTUAL_ID}`;
@@ -189,7 +190,7 @@ function validateArticleBlock(block, label) {
     throw new Error(`${label}.t has unsupported block type ${JSON.stringify(block.t)}`);
 }
 
-function validateArticleCatalog(articleCatalog) {
+function validateArticleCatalog(articleCatalog, expectedCount = EXPECTED_ARTICLE_COUNT) {
     assertRecord(articleCatalog, "Canonical archive article catalog");
     assertExactKeys(articleCatalog, ["articles", "count"], "Canonical archive article catalog");
     if (!Number.isInteger(articleCatalog.count) || articleCatalog.count < 0) {
@@ -203,9 +204,9 @@ function validateArticleCatalog(articleCatalog) {
             `Canonical archive article count mismatch: declared ${articleCatalog.count}, found ${articleCatalog.articles.length}`,
         );
     }
-    if (articleCatalog.count !== EXPECTED_ARTICLE_COUNT) {
+    if (articleCatalog.count !== expectedCount) {
         throw new Error(
-            `Canonical archive must contain exactly ${EXPECTED_ARTICLE_COUNT} articles; found ${articleCatalog.count}`,
+            `Canonical archive must contain exactly ${expectedCount} articles; found ${articleCatalog.count}`,
         );
     }
 
@@ -408,6 +409,14 @@ function canonicalLogic(indexSource, articles, screenshots) {
     return logic;
 }
 
+export function mergeServerArticleCatalog(articleCatalog, currentServerArticles) {
+    validateArticleCatalog(articleCatalog);
+    const articles = [...articleCatalog.articles, ...currentServerArticles];
+    const merged = { count: articles.length, articles };
+    validateArticleCatalog(merged, EXPECTED_ARTICLE_COUNT + SERVER_ARTICLES.length);
+    return merged;
+}
+
 export function buildCanonicalRuntime(packageRoot) {
     const archiveRoot = resolve(packageRoot, "archive");
     const indexSource = readFileSync(resolve(packageRoot, "index.html"), "utf8").replace(
@@ -421,11 +430,11 @@ export function buildCanonicalRuntime(packageRoot) {
     const articleCatalog = JSON.parse(
         readFileSync(resolve(archiveRoot, "content", "articles.json"), "utf8"),
     );
-    validateArticleCatalog(articleCatalog);
+    const merged = mergeServerArticleCatalog(articleCatalog, loadServerArticles(packageRoot));
 
     const logic = canonicalLogic(
         indexSource,
-        articleCatalog.articles,
+        merged.articles,
         buildScreenshotCatalog(packageRoot),
     );
     let runtime = supportSource;

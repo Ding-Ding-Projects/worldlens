@@ -87,3 +87,15 @@ recorded only after the exact commit is deployed and read back.
 - [Appearance editors](../appearance-editors.md)
 - [Regex builder](../regex-builder.md)
 
+
+## Current server articles in the production archive
+
+The production entry uses archive-site-plugin.mjs and its 59-entry archive catalogue. Membership in the older TypeScript article list alone does not prove production inclusion. server-articles.mjs reads three current Markdown sources directly: docs/mcserver-hosting.md, docs/server-management/adoption-ownership.md and docs/server-management/ssh-process-lifecycle.md. The merged runtime contains 62 articles and preserves the original 59 entries unchanged.
+
+Titles and headings become article and outline data. Fenced code and table rows use the existing safe code block consumer; ordered and unordered groups use real list blocks. Other text uses the existing text-only paragraph consumer. Inline Markdown links remain literal text, so full link and anchor parity is still pending. Missing sources, invalid initial titles, unclosed fences, missing merged entries and duplicate IDs/titles fail assembly. No raw HTML or new network API is introduced.
+
+Four focused Node cases cover production inclusion, content/block structure, preservation of all 59 originals and rejection of incomplete or duplicate merged catalogues. A deliberate missing-current-article mutation was observed red before byte-exact restoration returned green. Independent bounded source review is dry. Rebuilt geometry, keyboard/accessibility, article navigation and live delivery remain pending; source inclusion is not evidence of those outcomes.
+
+### 廣東話
+
+正式網站實際用 archive pipeline；舊 TypeScript 清單有篇文章，唔代表正式輸出真係有。新接駁直接讀三篇現行 Markdown，保留原本五十九篇，合共六十二篇。表格各行同程式碼保留分行，清單用真正列表，其他內容維持安全文字渲染。缺檔、標題／圍欄格式錯誤、漏文章或者重複身分都會令組裝失敗。行內 Markdown 連結仍係文字，完整連結、導覽、版面同已部署網站驗收未完成。
