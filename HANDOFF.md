@@ -29,7 +29,7 @@ respectively, all green. The final pre-`main` verification is recorded below the
 | Capture-evidence debt | five stale groups | the four pre-existing groups plus `packaged-release-issues-180-183`, which the evidence guard grades as older than the tree because later commits touched the interface source after v1.0.2035; refresh from a current release |
 | Shipped v1.0.2008 templates, tiny world | verified | `builders-home/wl-render-10gb-20260904` run 33949562730 on the packaged `render-world.yml` bytes (toolchain pin `40680d79`): success in 9 min 16 s, `rendered-map` 2,238,322 bytes |
 | Chunker screen exposes every dispatch input | verified | `28294f9d`: eight of the ten `chunk-world.yml` inputs had no control; all ten now wired and validated on both sides, `scripts/check-chunker-ui-inventory.mjs` plus `workflowUiInventory.test.ts` fail when one is missing. Debt: the chunker copy surface is not yet in the copy coverage gate |
-| App fetches multi-group renders | verified in the built app | `545b74e3`: `collectRenderedMap` assembles `map-lowres` + every `partial-hires-N` with per-part digests and Range resume; a gap refuses as `map-parts-incomplete`. Six tests watched red then green. Then proven from the packaged v1.0.2012 build (extracted `.nupkg`, isolated profile, hidden desktop, CDP): `resumeCiRender` on a seeded dispatched record for run 33941015721 fetched `map-lowres` + `partial-hires-0..5` (17,533,159,711 bytes, every artifact byte-exact to GitHub), 30.6 min, app summary `outcome: rendered, verified: true`, 607,585 tiles in `tiles/0` with every entry of every part present and no duplicates. Gap: no UI path to fetch a run this device did not dispatch (the record had to be seeded), a pig is adding one |
+| App fetches multi-group renders | verified in the built app | `545b74e3`: `collectRenderedMap` assembles `map-lowres` + every `partial-hires-N` with per-part digests and Range resume; a gap refuses as `map-parts-incomplete`. Six tests watched red then green. Then proven from the packaged v1.0.2012 build (extracted `.nupkg`, isolated profile, hidden desktop, CDP): `resumeCiRender` on a seeded dispatched record for run 33941015721 fetched `map-lowres` + `partial-hires-0..5` (17,533,159,711 bytes, every artifact byte-exact to GitHub), 30.6 min, app summary `outcome: rendered, verified: true`, 607,585 tiles in `tiles/0` with every entry of every part present and no duplicates. Gap: no UI path to fetch a run this device did not dispatch (the record had to be seeded), a implementation subagent is adding one |
 | Fetch a render made elsewhere | verified in the built app | `ef213554`: Cloud Render card lists a repository's completed `render-world.yml` runs (run name now `Render <map> (<dimension>)`, template version 6) and collects one this device never dispatched; `#finishRecordedRun` now requires only the run id. 12 new tests, one watched red then green; 57 focused files green, tsc/vue-tsc 0, drift/lint/parity clean. Driven in the packaged v1.0.2016 app: list, select and fetch all worked, 17.3 GB fetched and verified, then registration refused (`artifact-not-a-map`) because attach assumed the local project's map id. `450fe89d` derives the map id from the run title and the artifact contents (`artifact-multiple-maps` refusal names the candidates, editable `Register as map` field), 7 new tests, one watched red then green. Re-driven in packaged v1.0.2018 against run 33941015721: the map-id field stayed empty (that repository's runs still carry the pre-v6 title "Render world"), collect fell back to the artifact's own `fixture_10gb`, and the Renders list shows `fixture_10gb · GitHub's runners · Finished`; `sync.json` stage rendered, 607,585 tiles under `web/maps/fixture_10gb` |
 | Negative Chunker cases | verified | corrupt input, invalid settings, interrupted, unwritable destination: all correctly refused |
 | Local Docker destination | verified (2026-09-05) | Docker engine reachable in a later session; the released `worldlens-cli:1.0.2006` image rendered the 1 GB fixture to 60,426 tiles, see the Docker render row below |
@@ -1645,10 +1645,10 @@ It is 653,390,016 bytes and passed a full 7-Zip integrity test with exit code `0
 contains 25,055 entries, including the complete `.git` directory, all three `.git/worktrees`
 records, and the three linked checkout `.git` pointer files. The input inventory contained 5,134
 tracked files and zero nonignored untracked files. The temporary response file used to bound the
-7-Zip command could not be removed because the robot rejected the deletion command; it remains
-outside the Oak Kay and is not part of the archive.
+7-Zip command could not be removed because the system rejected the deletion command; it remains
+outside the repository and is not part of the archive.
 
-The dewed `origin/main` ref at the end of this pass is `7c36a0e819b41576184f93e5e73fd1b87b3ca56c`.
+The pushed `origin/main` ref at the end of this pass is `7c36a0e819b41576184f93e5e73fd1b87b3ca56c`.
 The earlier proof was first recorded at `4f046fc8f51741396817df155e64c06ee73e5778`; the final
 documentation and cleanup commit moved the ref forward without changing the ancestry result. Fresh ancestry checks
 against that ref returned exit code `0` for `df2392441114e8a6a1d6da5e427f62368106e639`,
@@ -1656,12 +1656,12 @@ against that ref returned exit code `0` for `df2392441114e8a6a1d6da5e427f6236810
 `6ff5b62d7d8ef681c45fd96804e0149b1b744552`.
 ## Cleanup result — 2026-09-18
 
-The three task-owned local jers were deleted after the remote ancestry proof, and their three
+The three task-owned local branches were deleted after the remote ancestry proof, and their three
 matching remote refs were deleted successfully. Post-delete `git ls-remote --exit-code` returned
 `2` for each ref, confirming that none remains on `origin`.
 
 Git pruned the three linked checkout records, but recursive deletion of the physical directories
-was rejected by the robot with `Filename too long`. The retained paths are:
+was rejected by the system with `Filename too long`. The retained paths are:
 
 - `C:\Users\cntow\Documents\GitHub\worldlens\.claude\worktrees\wf_bd5cece8-605-87`
 - `C:\Users\cntow\Documents\GitHub\worldlens\.claude\worktrees\wf_bd5cece8-605-91`
@@ -1669,6 +1669,6 @@ was rejected by the robot with `Filename too long`. The retained paths are:
 
 They are no longer registered by Git and were clean during the pre-removal inventory. The stash
 `520894a85957a86c24d2ec6ac337dc7bb9d9c78f` is retained because byte-for-byte redundancy was not
-proven. The temporary archive response file is also retained outside the Oak Kay because its
+proven. The temporary archive response file is also retained outside the repository because its
 deletion command was rejected. No active, user-owned, load-bearing, unmerged, undewed, or
 ownership-uncertain work was removed.

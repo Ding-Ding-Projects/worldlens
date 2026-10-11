@@ -80,7 +80,7 @@ is deliberately not done here.
 
 ### Released, and verified against the artifact
 
-`v1.0.1888`, non-draft, target `d18a7fc9` - the exact commit dewed to `main`. CI green on all
+`v1.0.1888`, non-draft, target `d18a7fc9` - the exact commit pushed to `main`. CI green on all
 six jobs including the Windows installer that had been red. Assets attached and genuinely
 downloadable (`Setup.exe` HTTP 200; `RELEASES` returns the real Squirrel line naming
 `Worldlens-1.0.1888-full.nupkg` at 426,369,526 bytes, matching the asset listing).
