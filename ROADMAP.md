@@ -79,7 +79,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
 
 ## Queued, not started (2026-09-04)
 
-- [ ] Universal feature parity on the two non-app surfaces. Every contract the Yern Geen
+- [ ] Universal feature parity on the two non-app surfaces. Every contract the application
       carries has to be carried by the GitHub Pages site and by the Material Design 3 BlueMap
       webapp independently: the three language modes, both funny-level sliders, the emoji
       switch, School mode, narration, tabbed navigation with its four tab searches, a
@@ -94,7 +94,7 @@ two share **zero Java file paths** - 170 files against 427, reorganised wholesal
 
 - [x] A dashboard on each render's GitHub Pages site, covering that render and the world backups
       it produced.
-- [x] Chunker as a Tow Fat, with its code ported into the app so no See Fut has to be
+- [x] Chunker as a submodule, with its code ported into the app so no dependency or prerequisite has to be
       installed by hand.
 - [ ] Full Chunker GUI controls in the app.
 - [x] Batched rendering, recombined afterwards, to work
@@ -928,20 +928,20 @@ it from the interface.
       `48f74d341ec3ff9fee35874df527c0035217efb1`.
 - [x] Resolve all merge conflicts, remove all unmerged index entries and conflict markers, and
       record non-obvious choices in `HANDOFF.md`.
-- [ ] Create and fully verify the external Oak Kay archive before any removal.
+- [ ] Create and fully verify the external repository archive before any removal.
 - [ ] Push `main`, verify the remote `main` ref, and prove each cleanup source tip is an ancestor
       of the pushed `main`.
 - [ ] Remove only proven redundant linked checkouts, local refs, and the redundant stash; retain
       and document anything active, user-owned, load-bearing, unmerged, undewed, or
       ownership-uncertain.
-- [x] Create and fully verify the external Oak Kay archive before any removal: 653,390,016 bytes,
+- [x] Create and fully verify the external repository archive before any removal: 653,390,016 bytes,
       25,055 entries, full 7-Zip test exit `0`, complete `.git` directory and linked checkout
       metadata included.
-- [x] Dew `main` and verify `origin/main` at the final pass tip `7c36a0e819b41576184f93e5e73fd1b87b3ca56c`.
-- [x] Prove all three preservation tips are ancestors of the dewed `main` ref.
+- [x] push `main` and verify `origin/main` at the final pass tip `7c36a0e819b41576184f93e5e73fd1b87b3ca56c`.
+- [x] Prove all three preservation tips are ancestors of the pushed `main` ref.
 - [ ] Remove only proven redundant linked checkouts, local refs, and the redundant stash; the
-      temporary archive response file is retained because the robot rejected its deletion command.
-- [x] Delete the three proven redundant local and remote jers after remote ancestry proof.
+      temporary archive response file is retained because the system rejected its deletion command.
+- [x] Delete the three proven redundant local and remote branches after remote ancestry proof.
 - [x] Confirm the three remote refs are absent with `git ls-remote --exit-code` returning `2`.
 - [ ] Remove the three unregistered physical linked checkout directories; retained because the
       robot rejected recursive deletion with `Filename too long`.
