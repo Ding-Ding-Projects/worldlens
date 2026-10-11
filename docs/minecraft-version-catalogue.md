@@ -18,7 +18,14 @@ or expanded preference.
 The list renders 500 exact rows per page. A large catalogue remains complete in the cache and
 search, while the UI avoids mounting thousands of controls at once. The page controls state the
 filtered count, and moving to the next page reveals older matching rows instead of hiding them.
+Opening a family whose entries are outside the current page moves to the page containing its
+first entry. Family headers remain discoverable without opening an empty paginated section.
 Rows with no published server artifact stay visible but disabled with the exact reason.
+
+The pagination regression uses 510 earlier release entries and 35 historical alpha entries.
+It first reproduced an empty expanded alpha section, then passed after page navigation was
+wired to expansion. All 45 focused wizard/model checks pass. The exact root build and hidden
+GUI at `dfb4aaef` showed the original defect; rebuilt acceptance of this repair remains pending.
 
 ## Configuration and persistence
 

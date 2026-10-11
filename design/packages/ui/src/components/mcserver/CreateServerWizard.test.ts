@@ -292,6 +292,70 @@ describe("CreateServerWizard", () => {
         expect(document.body.textContent).toContain("Catalogue refreshed 2026-08-23T00:00:00Z");
     });
 
+    it("moves to the page containing an expanded historical family", async () => {
+        localStorage.removeItem("worldlens.mcserver.version-families.v1:vanilla");
+        const versions: CatalogueVersionEntry[] = [
+            ...Array.from({ length: 510 }, (_, index) => ({
+                version: `1.21.${index}`,
+                stability: "release" as const,
+                javaFeature: 21,
+                downloadUrl: null,
+                sha256: null,
+                releasedAt: "2026-01-01T00:00:00Z",
+            })),
+            ...Array.from({ length: 35 }, (_, index) => ({
+                version: `a1.2.${index}`,
+                stability: "old_alpha" as const,
+                javaFeature: 8,
+                downloadUrl: null,
+                sha256: null,
+                releasedAt: "2010-01-01T00:00:00Z",
+            })),
+        ];
+        const snapshot: CatalogueSnapshot = {
+            flavours: [{ flavour: "vanilla", versions, complete: true }],
+            fetchedAt: "2026-08-23T00:00:00Z",
+            stale: false,
+            completeness: "complete",
+            failures: [],
+        };
+        const host = catalogueHost();
+        const wrapper = mountWizard({
+            ...host,
+            catalogue: { ...host.catalogue!, list: async () => ok(snapshot) },
+        });
+        await flushAll();
+        const vm = wrapper.vm as unknown as WizardVm & { flavour: string };
+        vm.flavour = "vanilla";
+        vm.step = "version";
+        await flushAll();
+
+        const alpha = document.querySelector("#mcserver-version-families-old_alpha");
+        const toggle = alpha?.querySelector<HTMLButtonElement>(".wl-mcserver-wizard__family-row");
+        expect(toggle).not.toBeNull();
+        expect(alpha?.querySelectorAll('[data-test="version-entry"]')).toHaveLength(0);
+        toggle?.click();
+        await flushAll();
+
+        const entries = alpha?.querySelectorAll('[data-test="version-entry"]');
+        expect(entries).toHaveLength(35);
+        expect(document.querySelector(".wl-mcserver-wizard__version-pages [aria-live='polite']")?.textContent?.trim())
+            .toBe("2 / 2");
+        expect(document.querySelectorAll('[data-test="version-entry"]').length).toBeLessThanOrEqual(500);
+        alpha?.querySelector<HTMLButtonElement>('button[aria-label="a1.2.0"]')?.click();
+        await flushAll();
+        expect(vm.minecraftVersion).toBe("a1.2.0");
+        toggle?.click();
+        await flushAll();
+        expect(alpha?.querySelectorAll('[data-test="version-entry"]')).toHaveLength(0);
+        document.querySelector<HTMLButtonElement>(".wl-mcserver-wizard__version-pages button:first-of-type")?.click();
+        await flushAll();
+        expect(document.querySelector(".wl-mcserver-wizard__version-pages [aria-live='polite']")?.textContent?.trim())
+            .toBe("1 / 2");
+        expect(document.querySelectorAll('[data-test="version-entry"]').length).toBe(500);
+        expect(vm.minecraftVersion).toBe("a1.2.0");
+    });
+
     it("reveals a searched exact version and keeps its direct Minecraft Wiki link", async () => {
         mountWizard(catalogueHost());
         await flushAll();

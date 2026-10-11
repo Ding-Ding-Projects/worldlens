@@ -169,9 +169,29 @@ function familyIsExpanded(stability: string, family: string): boolean {
 
 function toggleFamily(stability: string, family: string): void {
     const key = familyKey(stability, family);
+    const expanding = !familyIsExpanded(stability, family);
+    if (expanding) {
+        const first = versionPage.value * MAX_RENDERED_VERSION_ROWS;
+        let offset = 0;
+        for (const candidate of versionGroups.value.flatMap((group) => group.families)) {
+            if (candidate.stability === stability && candidate.family === family) {
+                const end = offset + candidate.versions.length;
+                if (
+                    candidate.versions.length > 0 &&
+                    (end <= first || offset >= first + MAX_RENDERED_VERSION_ROWS)
+                ) {
+                    // Headers remain discoverable across pages. Opening one must
+                    // reveal its entries rather than an empty paginated subset.
+                    versionPage.value = Math.floor(offset / MAX_RENDERED_VERSION_ROWS);
+                }
+                break;
+            }
+            offset += candidate.versions.length;
+        }
+    }
     expandedFamilies.value = {
         ...expandedFamilies.value,
-        [key]: !familyIsExpanded(stability, family),
+        [key]: expanding,
     };
 }
 
