@@ -1,5 +1,8 @@
 # Handoff
 
+Exact root build passed at ede318b124b894c8176762b868c943abfa0832aa, source digest aee3cb46451ae4ceba932cd764bd4da912a00acefc3dc73e9d68fb1764bf05af. The fresh native initial screen rendered Version 1.0.0 and recorded update event 2026-10-11T12:46:53.018Z, localized with seconds and EDT. However the setup overlay covered the right end of that line: caption bottom 40 CSS pixels, dialog top 24, native hit testing resolved to setup-card header. Independent pixel/source review confirmed this separate occlusion. Eight English dark-theme emulation tuples were retained as diagnostic observations, not passing full front-screen acceptance. Normal close left four recorded owned processes and the debug listener absent. The source repair reserves the measured caption height in the setup overlay and constrains its content/footer to the remaining viewport. Rebuilt native validation is next. Additional reviewed consumer mappings retain all 495 pending acceptance requirements. The full goal remains unfinished.
+
+
 Root candidate 6620f987 stopped at the existing documentation-gallery completeness check because the newly promoted PNG lacked its separate evidence-inventory group. The exact historical-source group, genuine caption, source digest/hash and validated capture time are now registered. The gallery reports 239 PNGs, 13 categories and 10 passing negative mutations; the publication scan passes. The GUI type check passed with 3072 MiB at 0033110e, and the later change touches only build-event timestamp validation and its focused tests. Invalid explicit calendar dates reproduced red before the UTC round-trip repair and now pass all three build-event checks. Exact root retry and native provenance acceptance remain pending.
 
 

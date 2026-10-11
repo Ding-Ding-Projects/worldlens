@@ -1176,7 +1176,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/config/ConfigSuperConfirm.vue",
+              "design/packages/ui/src/components/appearance/AppearanceEditor.vue"
+            ],
+            "consumer": "Configuration confirmation and appearance editor expose anchored interactive surfaces.",
+            "limitation": "Universal viewport bounds, keyboard geometry, persisted sizes and reset behavior are not established. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -1190,7 +1199,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/platform/Overlay.ts",
+              "design/packages/site/src/appearance/editor/contextMenu.ts"
+            ],
+            "consumer": "Appearance context menu uses the shared anchored overlay infrastructure with viewport positioning and focus restoration.",
+            "limitation": "Individual overlay geometry persistence and every localized minimum-width state remain unverified. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -1221,7 +1239,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/App.vue",
+              "design/packages/ui/src/components/worldrepo/ownerFilter.ts"
+            ],
+            "consumer": "Application shell owns collapsed disclosure state and the world repository has a concrete owner-filter model.",
+            "limitation": "A consumer connecting every filter to persisted collapse and visible active-filter disclosure is not established. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -1235,7 +1262,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/search/index.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Documentation search module and main renderer own searchable article navigation.",
+            "limitation": "Persistent collapsible filter rows and active-filter disclosure consumers remain unknown. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -1266,7 +1302,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/shell/AppTitleBar.vue",
+              "design/packages/ui/src/components/mcserver/CreateServerWizard.vue"
+            ],
+            "consumer": "Title bar and server wizard provide concrete responsive desktop controls and accessible descriptions.",
+            "limitation": "Keyboard, screen-reader, contrast and all supported viewport and scale combinations remain pending acceptance. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -1280,7 +1325,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/platform/Overlay.ts",
+              "design/packages/site/src/platform/PanelGeometry.ts"
+            ],
+            "consumer": "Shared overlays and panel geometry provide bounded positioning and geometry infrastructure.",
+            "limitation": "Infrastructure does not establish every site control, narrow layout or assistive-technology result. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -1311,7 +1365,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/pages/PagesScreen.vue",
+              "design/packages/ui/src/components/config/ConfigScreen.vue"
+            ],
+            "consumer": "Publishing invokes real actions and configuration editing distinguishes defaults from existing files.",
+            "limitation": "Every small affordance and append-only restorable discard consumer remains unestablished. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -1325,7 +1388,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/main.ts",
+              "design/packages/site/src/appearance/presetsPanel.ts"
+            ],
+            "consumer": "Main navigation and preset controls perform concrete browser actions with local status results.",
+            "limitation": "Every displayed affordance and durable discard-history behavior require independent mapping and acceptance. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2103,7 +2175,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/config/ConfigScreen.vue",
+              "design/packages/ui/src/components/appearance/AppearanceEditor.vue"
+            ],
+            "consumer": "Configuration editor explicitly starts from BlueMap defaults when no existing configuration is available; appearance editing is a separate consumer.",
+            "limitation": "All blank editors, preset/reset identity and recorded undo are not established. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2117,7 +2198,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/appearance/presetsPanel.ts"
+            ],
+            "consumer": "Appearance preset panel saves, replaces and imports named presets.",
+            "limitation": "Saving existing overrides does not establish first-run starter presets or exact reset-to-default parity. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2148,7 +2237,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/menu/SettingsMenu.vue",
+              "design/packages/ui/src/components/menu/MenuSuperConfirm.vue",
+              "design/packages/ui/src/components/confirm/superConfirmGate.ts"
+            ],
+            "consumer": "Settings menu mounts the native confirmation component backed by the shared confirmation gate.",
+            "limitation": "This mapping does not establish that every destructive action uses the gate or verify keyboard and reduced-motion behavior. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2162,7 +2261,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/confirm.ts",
+              "design/packages/site/src/appearance/presetsPanel.ts"
+            ],
+            "consumer": "Preset destructive operations invoke the site confirmation function.",
+            "limitation": "All destructive consumers and complete two-key, slider and cancellation behavior require independent acceptance. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2609,7 +2717,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/pages/StaticExportCard.vue",
+              "design/packages/ui/src/components/eula/eulaExport.ts"
+            ],
+            "consumer": "Static map export card and EULA export serializer provide concrete export consumers.",
+            "limitation": "Coverage is limited to these mapped data types; universal format selection, archive options and round trips are not established. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2623,7 +2740,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/settings/exportFormats.ts",
+              "design/packages/site/src/appearance/presetsPanel.ts"
+            ],
+            "consumer": "Settings serialization defines format-specific loss descriptions; the preset panel exports selected presets.",
+            "limitation": "An exhaustive exportable-data inventory and every format round trip remain unestablished. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -2654,7 +2780,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/tabs/TabGroupMenu.vue",
+              "design/packages/ui/src/components/tabs/TabBulkClose.vue"
+            ],
+            "consumer": "Tab group menu mounts bulk-close planning and review controls.",
+            "limitation": "Every collection, inverse selection, skipped-item reporting and undo coverage are not established. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -2668,7 +2803,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/appearance/presetsPanel.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Preset selection supports select all, selected deletion and selected export; notification rendering also contains bulk selection actions.",
+            "limitation": "Shift selection, inverse selection and all collection action coverage remain unestablished. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -3203,7 +3347,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/browserExtension/BrowserExtensionScreen.vue",
+              "design/packages/ui/src/components/browserExtension/DownloadingDialog.vue",
+              "design/packages/ui/src/components/browserExtension/DownloadCompleteNotice.vue"
+            ],
+            "consumer": "Browser extension screen mounts distinct active-download and completion surfaces.",
+            "limitation": "Installed-extension initiation, real transfer controls and always-on-top behavior require runtime acceptance. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -3217,7 +3371,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/main.ts",
+              "design/packages/site/src/content/articles/release-downloads.ts"
+            ],
+            "consumer": "Home rendering exposes a verified-release installer link and release-download documentation.",
+            "limitation": "This is ordinary release downloading; an extension capture handoff consumer on the documentation site is unknown. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -3248,7 +3411,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/pages/PagesScreen.vue",
+              "design/packages/ui/src/components/github/GhCliAccountsList.vue",
+              "design/packages/ui/src/components/github/ghCliAccountsStore.ts"
+            ],
+            "consumer": "Map publication screen invokes publishing and exposes publication status; the account list has a dedicated account store.",
+            "limitation": "Account selection propagation, credential isolation and alternative copy publication routes are not established by this mapping. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -3262,7 +3435,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/content/articles/publishing-to-pages.ts"
+            ],
+            "consumer": "Documentation describes the desktop publication workflow.",
+            "limitation": "No documentation-site forge mutation consumer is established; an article is not a publishing workflow. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -3293,7 +3474,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/pages/PagesScreen.vue",
+              "design/packages/ui/src/components/world/RenderRunPanel.vue",
+              "design/packages/ui/src/components/progress/RenderProgressDetail.vue"
+            ],
+            "consumer": "Publishing rows expose progress and interrupted-publication continuation; render panels mount real progress details.",
+            "limitation": "Universal handler re-entry protection and contextual recovery restrictions are not established. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -3307,7 +3498,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/appearance/presetsPanel.ts"
+            ],
+            "consumer": "Preset import and bulk operations maintain local status text beside their controls.",
+            "limitation": "A general long-operation recovery consumer is unknown; local status text does not establish durable recovery. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -3338,7 +3537,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "docs/contracts/feature-delivery-inventory.json",
+              "scripts/check-feature-delivery-inventory.mjs"
+            ],
+            "consumer": "Canonical-feature inventory and its validator represent desktop delivery obligations.",
+            "limitation": "Inventory presence does not establish implemented consumers, negative-regression execution or runtime completeness. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -3352,7 +3560,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/policy/siteUniversalInventory.ts",
+              "scripts/check-webapp-parity.mjs"
+            ],
+            "consumer": "Handwritten site inventory and web parity checker represent site contract coverage.",
+            "limitation": "Historical inventory assertions are not current-source runtime or capture acceptance. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -3514,7 +3731,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "docs/screenshots/evidence-inventory.json",
+              "docs/screenshots/promoted-evidence.json"
+            ],
+            "consumer": "Repository evidence inventories retain desktop capture references and promotion records.",
+            "limitation": "No capture bytes, current-source freshness or complete surface coverage were accepted in this source mapping. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -3528,7 +3754,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/content/captures.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Documentation capture content is consumed by the main screenshot presentation.",
+            "limitation": "Complete current image coverage and delivered image provenance require separate inspection and live acceptance. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",
@@ -4898,7 +5133,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "scripts/pick-dim-sum.mjs",
+              "design/packages/ui/src/components/changelog/ChangelogDateFilter.vue"
+            ],
+            "consumer": "Release naming script resolves catalog-backed names and rejects reused selections; changelog has a concrete viewer filter.",
+            "limitation": "The release name reaching every version, About and changelog row is not established. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -4912,7 +5156,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/site/src/content/articles/release-pipeline.ts",
+              "design/packages/site/src/main.ts"
+            ],
+            "consumer": "Release pipeline article explains catalog naming; main renderer presents release information.",
+            "limitation": "Exact name and photo consumption by the live release section remains unestablished. Source mapping only; implementation completeness, runtime and capture acceptance remain pending.",
+            "sourceCommit": "0033110ebc25f35f8b2df1e14fddda441e496aad"
+          }
         },
         "embedded-bluemap-viewer": {
           "applicability": "applicable",

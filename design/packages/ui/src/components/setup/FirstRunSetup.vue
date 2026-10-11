@@ -267,6 +267,15 @@ function onStorageInput(value: string): void {
 </template>
 
 <style>
+.mb-setup-dialog.v-overlay {
+    inset-block-start: var(--mb-titlebar-height, 0px);
+    block-size: calc(100% - var(--mb-titlebar-height, 0px));
+}
+
+.mb-setup-dialog .v-overlay__content {
+    max-height: calc(100dvh - var(--mb-titlebar-height, 0px) - 48px);
+}
+
 .mb-setup-card {
     display: flex;
     flex-direction: column;
