@@ -2,7 +2,7 @@
 
 ## Current state
 
-The full Worldlens and maintained BlueMap feature goal remains active and incomplete, with no numerical goal token cap. New implementation stopped at the account allowance preservation boundary. The latest verified allowance was 4% remaining; no completion or blocked-state streak is inferred from it.
+The full Worldlens and maintained BlueMap feature goal remains active and incomplete, with no numerical goal token cap. New implementation stopped at the account allowance preservation boundary. The latest verified allowance is 2% remaining. The same allowance boundary has now been observed in two consecutive goal turns, counting the original preservation turn. The goal remains active because the three-turn blocked-state threshold has not been met. No new implementation, build or deployment began in this continuation.
 
 Worldlens main and remote main are 4bf568c8abd37bd3eccfe5790b44a301cda6b3c5. The recovery branch task/worldlens-all-features-20261011 contains newer unfinished source at 467911f9542a006a3cdb0a50c0801cc7a537fc91. This final handoff commit changes documentation only. Read back refs before continuing. Keep the unfinished source off main until its required repair and verification finish.
 
