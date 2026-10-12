@@ -1,5 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 
+import {
+    createServerStore,
+    type Answer,
+    type SshReadinessRequest,
+    type SshReadinessResult,
+} from "./serverStore.js";
+
 import { resolveServerHost } from "./useServers.js";
 
 /**
@@ -65,4 +72,42 @@ describe("the host carries every optional method the bridge offers", () => {
         const host = resolveServerHost(bridgeWith());
         expect(host?.suggestFolder).toBeUndefined();
     });
+});
+
+describe("SSH readiness host forwarding", () => {
+    const request: SshReadinessRequest = {
+        hostId: "host-one",
+        parentDirectory: "/srv/servers",
+        javaPath: "/usr/bin/java",
+        memoryMb: 2048,
+        port: 25565,
+        flavour: "vanilla",
+        version: "1.21.4",
+    };
+
+    it("preserves function identity and delegates through the resolved store", async () => {
+        const response: Answer<SshReadinessResult> = {
+            ok: false,
+            failure: { code: "unsupported", message: "not observed", detail: null },
+        };
+        const sshProcessPreflight = vi.fn().mockResolvedValue(response);
+        const host = resolveServerHost(bridgeWith({ sshProcessPreflight }));
+        expect(host?.sshProcessPreflight).toBe(sshProcessPreflight);
+        const store = createServerStore({ host });
+        expect(store.hasSshReadiness).toBe(true);
+        expect(await store.sshProcessPreflight(request)).toBe(response);
+        expect(sshProcessPreflight).toHaveBeenCalledExactlyOnceWith(request);
+    });
+
+    it.each([undefined, null, false, 1, "check", {}, []].map((value) => ({ value })))(
+        "omits non-function readiness $value without rejecting the legacy host",
+        async ({ value: sshProcessPreflight }) => {
+            const host = resolveServerHost(bridgeWith({ sshProcessPreflight }));
+            expect(host).not.toBeNull();
+            expect(host).not.toHaveProperty("sshProcessPreflight");
+            const store = createServerStore({ host });
+            expect(store.hasSshReadiness).toBe(false);
+            expect((await store.sshProcessPreflight(request)).ok).toBe(false);
+        },
+    );
 });

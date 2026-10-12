@@ -185,6 +185,13 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
                   },
               }
             : {}),
+        ...(isFunction(api["sshProcessPreflight"])
+            ? {
+                  sshProcessPreflight: api["sshProcessPreflight"] as NonNullable<
+                      McServerHost["sshProcessPreflight"]
+                  >,
+              }
+            : {}),
         ...(isFunction(api["create"])
             ? { create: api["create"] as NonNullable<McServerHost["create"]> }
             : {}),

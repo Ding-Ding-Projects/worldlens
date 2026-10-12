@@ -1,5 +1,19 @@
 # Continuation handoff
 
+## Readiness forwarding repair, 2026-10-12
+
+The continuation candidate now forwards `sshProcessPreflight` through the production host resolver only when it is a function. The mounted readiness tests use the real resolver and store; legacy hosts keep their existing functionality with readiness unavailable. The missing-forwarder regression produced six failures before repair. Removing the function guard also failed all seven malformed-method cases. The app and UI dependency builds, 115 selected tests and both full type checks pass; this is source-level verification, not native acceptance.
+
+The entire readiness unit remains off main. The exact source-bound `build.bat /s`, its receipts, genuine native wizard Check-control interaction and layout evidence still require a compatible Windows executor. This Linux environment has no `cmd.exe` or `powershell.exe`, and the repository provides no `build.sh`. No live SSH host was contacted, no remote installation was enabled, no screenshot evidence was refreshed, and no release or deployment is claimed. Do not extract only the forwarding line onto main, which lacks the prerequisite readiness API and consumer contracts.
+
+### 廣東話
+
+今次候選版本只會喺 `sshProcessPreflight` 真係函式時，先經正式主機解析器轉交。掛載測試已經行真正解析器同 store；舊主機仍然可用，只係準備檢查維持不可用。修補前六個回歸測試失敗；移除函式檢查亦令七個無效方法案例失敗。相依套件建置、一百一十五個限定測試同兩個完整型別檢查通過，唔等於原生介面驗收。
+
+整組準備檢查仍然未合併到 main。精確根目錄建置、收據、真正精靈 Check 操作同畫面驗收仍然要有相容 Windows 環境先做到。冇連接真 SSH 主機、冇開放安裝、冇更新截圖證據，亦冇發布。
+
+## Historical preservation record
+
 ## Current state
 
 The full Worldlens and maintained BlueMap feature goal remains incomplete, with no numerical goal token cap. New implementation stopped at the account allowance preservation boundary. The latest verified allowance is 1% remaining. The same boundary has persisted across three consecutive goal turns, counting the original preservation turn. All recoverable source is preserved and no verification process remains active. The blocked-state audit threshold is satisfied. After preservation, the attempted blocked transition was rejected because the goal service reported no goal for this thread. Immediate readback returned goal: null. A saved blocked status is therefore unconfirmed; do not create a replacement goal or reset prior accounting to hide this service-state change. Resume only after the allowance boundary changes, and revalidate current refs and ownership before implementation. No new implementation, build or deployment began in this continuation.

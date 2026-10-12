@@ -847,19 +847,19 @@
       "why": "exact shell command spelling, verified against the historical command"
     },
     {
-      "line": 19,
+      "line": 33,
       "file": "HANDOFF.md",
       "column": 735,
       "why": "Ordinary JavaScript memory allocation terminology, not private prose."
     },
     {
-      "line": 54,
+      "line": 68,
       "file": "HANDOFF.md",
       "column": 31,
       "why": "Exact preserved historical branch reference, not newly authored presentation."
     },
     {
-      "line": 100,
+      "line": 114,
       "file": "HANDOFF.md",
       "column": 87,
       "why": "Exact preserved historical branch reference, not newly authored presentation."
@@ -1307,6 +1307,54 @@
       "line": 126,
       "column": 39,
       "why": "Exact POSIX command name used to read the kernel memory report; not conversation prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1159,
+      "column": 7,
+      "why": "Existing exact category collection identifier or persisted category-state key; unchanged technical spelling, not private prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1307,
+      "column": 108,
+      "why": "Existing exact category collection identifier or persisted category-state key; unchanged technical spelling, not private prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1385,
+      "column": 62,
+      "why": "Existing exact category collection identifier or persisted category-state key; unchanged technical spelling, not private prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1778,
+      "column": 9,
+      "why": "Existing exact category collection identifier or persisted category-state key; unchanged technical spelling, not private prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1885,
+      "column": 25,
+      "why": "Existing exact category collection identifier or persisted category-state key; unchanged technical spelling, not private prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1886,
+      "column": 14,
+      "why": "Existing exact category collection identifier or persisted category-state key; unchanged technical spelling, not private prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1894,
+      "column": 22,
+      "why": "Existing exact category collection identifier or persisted category-state key; unchanged technical spelling, not private prose."
+    },
+    {
+      "file": "design/packages/site/index.html",
+      "line": 1894,
+      "column": 31,
+      "why": "Existing exact category collection identifier or persisted category-state key; unchanged technical spelling, not private prose."
     }
   ]
 }

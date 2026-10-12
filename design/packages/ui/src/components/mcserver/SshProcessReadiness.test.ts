@@ -4,7 +4,7 @@ import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import SshProcessReadiness from "./SshProcessReadiness.vue";
-import { SERVER_STORE } from "./useServers.js";
+import { SERVER_STORE, resolveServerHost } from "./useServers.js";
 import { createServerStore, type Answer, type McServerHost, type SshReadinessRequest, type SshReadinessResult } from "./serverStore.js";
 import { MCSERVER_FIXED } from "../../copy/surfaces/mcserver.js";
 
@@ -20,7 +20,14 @@ const answer = (request: SshReadinessRequest): Answer<SshReadinessResult> => ({ 
     checks: ids.map((id) => ({ id, state: "ready", reason: "not-observed", observed: 21 })),
 } });
 function setup(check?: NonNullable<McServerHost["sshProcessPreflight"]>, language: "en" | "yue" = "en") {
-    const store = createServerStore({ host: { ...(check ? { sshProcessPreflight: check } : {}) } as McServerHost });
+    const fn = vi.fn().mockResolvedValue({ ok: true, value: null });
+    const host = resolveServerHost({ worldlens: { mcserver: {
+        list: fn, get: fn, save: fn, forget: fn, probe: fn, status: fn,
+        start: fn, stop: fn, logTail: fn, files: { list: fn, read: fn, write: fn },
+        ...(check ? { sshProcessPreflight: check } : {}),
+    } } });
+    expect(host).not.toBeNull();
+    const store = createServerStore({ host });
     const messages = Object.fromEntries(Object.entries(MCSERVER_FIXED).map(([key, value]) => [key, value[language]]));
     const wrapper = mount(SshProcessReadiness, {
         props: { hostId: "host-one", parentDirectory: "/srv/servers", flavour: "vanilla", version: "1.21.4" },
@@ -31,7 +38,7 @@ function setup(check?: NonNullable<McServerHost["sshProcessPreflight"]>, languag
     return wrapper;
 }
 describe("SSH readiness controls", () => {
-    it("sends typed settings through the real store and renders all check results", async () => {
+    it("sends typed settings through the real resolver and store and renders all check results", async () => {
         const check = vi.fn(async (request: SshReadinessRequest) => answer(request));
         const wrapper = setup(check);
         await wrapper.get('[data-test="ssh-memory"] input').setValue("4096");
