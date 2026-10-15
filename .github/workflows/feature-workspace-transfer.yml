@@ -9,37 +9,48 @@ permissions:
   contents: read
 
 jobs:
-  workspace:
-    name: Transfer committed public source for local development
-    runs-on: windows-2022
+  development-tools:
+    name: Prepare pinned public tools for local verification
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - name: Read the exact task revision
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           submodules: false
           persist-credentials: false
-      - name: Create and verify the development bundle
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa
+        with:
+          package_json_file: design/package.json
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 22
+      - name: Install exactly the committed development dependency graph
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+      - name: Package only installed public development tools
+        working-directory: design
         shell: bash
         env:
           SOURCE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          git --version
-          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
-          mkdir -p "$RUNNER_TEMP/worldlens-source-transfer"
-          git update-ref refs/heads/source-transfer "$SOURCE_COMMIT"
-          git bundle create "$RUNNER_TEMP/worldlens-source-transfer/worldlens-source.bundle" refs/heads/source-transfer
-          git bundle verify "$RUNNER_TEMP/worldlens-source-transfer/worldlens-source.bundle"
-          printf '%s\n' "$SOURCE_COMMIT" > "$RUNNER_TEMP/worldlens-source-transfer/source-commit.txt"
-          cd "$RUNNER_TEMP/worldlens-source-transfer"
-          sha256sum worldlens-source.bundle > SHA256SUMS
-      - name: Retain the bounded development transfer
+          mkdir -p "$RUNNER_TEMP/worldlens-development-tools"
+          mapfile -d '' trees < <(find packages tools -mindepth 2 -maxdepth 2 -type d -name node_modules -print0)
+          tar --exclude='*/node_modules/electron/dist' --exclude='*/node_modules/.cache' -czf "$RUNNER_TEMP/worldlens-development-tools/toolchain.tar.gz" node_modules "${trees[@]}"
+          cp pnpm-lock.yaml "$RUNNER_TEMP/worldlens-development-tools/pnpm-lock.yaml"
+          printf '%s\n' "$SOURCE_COMMIT" > "$RUNNER_TEMP/worldlens-development-tools/source-commit.txt"
+          node --version > "$RUNNER_TEMP/worldlens-development-tools/node-version.txt"
+          pnpm --version > "$RUNNER_TEMP/worldlens-development-tools/pnpm-version.txt"
+          cd "$RUNNER_TEMP/worldlens-development-tools"
+          sha256sum toolchain.tar.gz pnpm-lock.yaml > SHA256SUMS
+          test "$(stat -c %s toolchain.tar.gz)" -lt 536870912
+      - name: Retain local-verification tools separately from release outputs
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: worldlens-source-transfer-${{ github.sha }}
-          path: ${{ runner.temp }}/worldlens-source-transfer/
+          name: worldlens-development-tools-${{ github.sha }}
+          path: ${{ runner.temp }}/worldlens-development-tools/
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
