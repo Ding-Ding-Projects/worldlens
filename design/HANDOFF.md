@@ -1,5 +1,15 @@
 # Handoff
 
+## 2026-10-15 plain-language continuation summary
+
+Worldlens can now check whether a saved Linux SSH host has the prerequisites for a future Java-process server. This is a read-only check, not an installer. In New server, choose a release and Remote process (readiness only), select a saved host and set proposed memory and port. The eight observations use strict SSH trust, one deadline and typed reason codes. Changing inputs clears old results. Next and Create stay disabled even after all observations pass.
+
+The exact release must exist in the validated cached Vanilla catalogue. The check never refreshes that cache or changes the host, ownership records, trust or services. See `docs/server-management/ssh-process-readiness.md` for commands, resource thresholds and boundaries. Java probing disables HotSpot performance data; administrator-controlled executables and runtime logging remain trusted.
+
+The nine selected transport/bridge/wizard/store/panel/IPC/wiring/copy/model files passed 169 tests. Documentation/site content passed 93 tests, and the build-helper/staging and feature-inventory suites passed 15 tests. Application, UI and site type checks and focused lint passed. The initial broader build stopped at the absent maintained BlueMap viewer bundle; building that pinned source before workspace consumers repaired the ordering and the complete Linux workspace build passed. Docker now builds the same maintained source, with its runtime acceptance pending. This Linux environment cannot establish the Windows root build, installer or native UI acceptance. No remote installation, live SSH server, current native capture or release acceptance is claimed. The current inventory contains 107 IDs and 505 pending surface requirements.
+
+Next: finish real target and Windows verification for this readiness unit, then implement an ownership-preserving remote installer and invocation-bound console. Bedrock, version-bound rich controls and the wider feature inventory remain unfinished.
+
 ## 2026-10-11 all-feature and BlueMap continuation
 
 The current task requires every applicable canonical feature across the desktop, hosted workspace, documentation website and embedded viewer. The new inventory tracks all 105 ids with explicit scope decisions and pending implementation/runtime/capture evidence. It does not mark source presence as complete behavior. Historical Java channel discovery and typed renderer grouping are implemented; 46 focused tests pass. The portable acquisition release tag/root-layout repair passes six focused tests. Full root build, UI evidence, SSH-process hosting, Bedrock/version-bound configuration and the broader inventory remain unfinished.

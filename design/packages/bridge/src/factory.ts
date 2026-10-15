@@ -207,6 +207,10 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                 trust: (hostId: unknown, fingerprint: unknown) =>
                     transport.invoke("mcserver:hostProfiles:trust", hostId, fingerprint),
             },
+            creation: {
+                sshProcessPreflight: (request: unknown) =>
+                    transport.invoke("mcserver:creation:sshProcess:preflight", request),
+            },
             backup: {
                 create: (id: unknown, request: unknown) =>
                     transport.invoke("mcserver:backup:create", id, request),

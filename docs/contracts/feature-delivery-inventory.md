@@ -4,7 +4,7 @@ Generated from `feature-delivery-inventory.json`. Run `node scripts/check-featur
 
 Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation and acceptance inventory; no all-feature completion claim.
 
-105 canonical identifiers are tracked across 5 separately assessed scopes. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.
+107 canonical identifiers are tracked across 5 separately assessed scopes. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.
 
 | Identifier | Requirement | Scopes with recorded source mapping | Source paths | Review state |
 | --- | --- | --- | --- | --- |
@@ -113,6 +113,8 @@ Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation 
 | `project-profile` | Project memory folders | None recorded | Not yet mapped | excluded-with-reason |
 | `roblox-model-catalogue` | Every shared Roblox model, meaningfully used | None recorded | Not yet mapped | excluded-with-reason |
 | `roblox-visual-realism` | Roblox visual realism | None recorded | Not yet mapped | excluded-with-reason |
+| `onboarding-wizard` | Practical in-application onboarding | None recorded | Not yet mapped | pending-review |
+| `info-icon-guidance` | Per-control contextual information | None recorded | Not yet mapped | pending-review |
 
 ## Exclusions
 

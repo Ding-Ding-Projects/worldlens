@@ -220,6 +220,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "mcserver:forget",
     "mcserver:get",
     "mcserver:hostProfiles:forget",
+    "mcserver:creation:sshProcess:preflight",
     "mcserver:hostProfiles:get",
     "mcserver:hostProfiles:list",
     "mcserver:hostProfiles:save",

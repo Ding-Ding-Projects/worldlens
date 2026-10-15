@@ -31,6 +31,8 @@ export const REQUIRED_IDS = Object.freeze([
   "local-history",
   "notifications",
   "guided-forms",
+  "onboarding-wizard",
+  "info-icon-guidance",
   "rich-controls",
   "regex-search",
   "command-palette",

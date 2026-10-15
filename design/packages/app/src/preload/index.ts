@@ -2695,6 +2695,9 @@ interface WorldlensBridge {
             scan(hostId: string): Promise<unknown>;
             trust(hostId: string, fingerprint: string): Promise<unknown>;
         };
+        creation: {
+            sshProcessPreflight(request: import("@worldlens/shared").SshProcessPreflightRequest): Promise<unknown>;
+        };
         backup: {
             create(
                 id: string,

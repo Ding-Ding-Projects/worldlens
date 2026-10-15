@@ -33,7 +33,7 @@
   "knownGaps": [
     {
       "id": "minecraft-server-manager",
-      "details": "SSH-process hosting, Bedrock and version-bound descriptors remain missing from the inspected workflows. Historical-family pagination and complete availability-reason layout passed exact root build and hidden native interaction at 82727748. All 35 alpha entries rendered on page two. English dark-theme geometry receipts passed at 1280 x 752, 800 x 600 and 640 x 600 CSS viewports at 150% scale. Other language/theme/scale tuples and historical server execution remain pending."
+      "details": "SSH-process hosting, Bedrock and version-bound descriptors remain missing from the inspected workflows. Historical-family pagination and complete availability-reason layout passed exact root build and hidden native interaction at 82727748. All 35 alpha entries rendered on page two. English dark-theme geometry receipts passed at 1280 x 752, 800 x 600 and 640 x 600 CSS viewports at 150% scale. Other language/theme/scale tuples and historical server execution remain pending. Read-only SSH-process readiness now has a typed saved-profile API and guided host/memory/port controls with strict trust, bounded observations and invalidation; installation stays unavailable. Live target, native Windows and full layout acceptance for this increment remain pending."
     },
     {
       "id": "completeness-parity",
@@ -6219,6 +6219,96 @@
       "sourceEvidence": [],
       "focusedInventory": null,
       "reviewState": "excluded-with-reason"
+    },
+    {
+      "id": "onboarding-wizard",
+      "title": "Practical in-application onboarding",
+      "requirement": "Every application provides a practical first-run setup wizard that performs real setup actions, shows progress and truthful results, supports Back and Next, saves and resumes progress, allows optional steps to be skipped where appropriate, remains keyboard accessible and localized, and opens the productive workspace after completion. A marketing or documentation website does not substitute for this workflow.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, tests and evidence support the applicable surface requirement.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "not-a-runtime-verdict",
+          "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": null,
+      "reviewState": "pending-review"
+    },
+    {
+      "id": "info-icon-guidance",
+      "title": "Per-control contextual information",
+      "requirement": "Every eligible interactive control provides a localized accessible Material Design information icon for its collapsed guide, bound to that exact control. Opening the guide explains purpose, choices, defaults, effects, examples, validation and recovery, with a working control-specific playground and Reset where supported. Direct editing and guided actions share validation and permissions; missing guidance and inert examples remain acceptance gaps.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, tests and evidence support the applicable surface requirement.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "not-a-runtime-verdict",
+          "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": null,
+      "reviewState": "pending-review"
     }
   ]
 }

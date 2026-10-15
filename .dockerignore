@@ -1,6 +1,6 @@
 # Keeps the Docker build context for design/packages/cli/Dockerfile small. The
 # Dockerfile COPYs only the specific paths it needs (design/package.json,
-# design/packages, design/tools, vendor/BlueMap/common/webapp/dist); everything
+# design/packages, design/tools, vendor/BlueMap-Material/common/webapp/dist); everything
 # below would otherwise still be walked and hashed into the build context,
 # which is real, measured cost — a first build here spent about 50 seconds
 # just transferring context before this file existed, dominated by node_modules
@@ -16,13 +16,17 @@ design/tools/*/dist/
 # bundle into the context would let a warm machine build a different image from the
 # one a clean checkout builds, which is exactly the difference this file's own
 # reproducibility depends on. The build stage produces dist/ itself.
-vendor/BlueMap/common/webapp/dist/
+vendor/BlueMap-Material/common/webapp/dist/
 
 # The Java oracle harness's own downloaded toolchain and Gradle state
 # (gigabyte-scale; see the matching entries in .gitignore).
 tools/oracle/.gradle/
 tools/oracle/jdk/
 tools/oracle/out/
+vendor/BlueMap-Material/**/build/
+vendor/BlueMap-Material/.gradle/
+vendor/BlueMap-Material/**/node_modules/
+vendor/BlueMap/common/webapp/dist/
 vendor/BlueMap/**/build/
 vendor/BlueMap/.gradle/
 vendor/BlueMap/**/node_modules/
