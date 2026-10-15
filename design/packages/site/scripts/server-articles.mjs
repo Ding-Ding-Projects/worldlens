@@ -7,6 +7,8 @@ export const SERVER_ARTICLES = Object.freeze([
     { id: "mcserver-hosting", path: "docs/mcserver-hosting.md" },
     { id: "mcserver-adoption-ownership", path: "docs/server-management/adoption-ownership.md" },
     { id: "mcserver-ssh-process-lifecycle", path: "docs/server-management/ssh-process-lifecycle.md" },
+    { id: "mcserver-ssh-process-readiness", path: "docs/server-management/ssh-process-readiness.md" },
+    { id: "maintained-viewer-build", path: "docs/build/maintained-viewer.md" },
 ]);
 
 /** Preserve complete Markdown text in the archive's safe text-only block model.
