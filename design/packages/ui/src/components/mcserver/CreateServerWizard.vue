@@ -534,7 +534,7 @@ watch(whereItRuns, (value) => {
     if (value === "local-docker" && dockerAvailability.available === null) {
         void probeDocker();
     }
-    if (value === "ssh-docker" && hostProfiles.value.length === 0) {
+    if ((value === "ssh-docker" || value === "ssh-process") && hostProfiles.value.length === 0) {
         void loadHostProfiles();
     }
 });

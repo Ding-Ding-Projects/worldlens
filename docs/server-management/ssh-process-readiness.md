@@ -31,7 +31,19 @@ Remote accounts, their selected executable and their startup configuration remai
 
 Focused source tests cover strict request shapes, exact catalogue membership, malformed Java versions, host-key classifications, supervisor and path prerequisites, resource parsing, unknown states, cancellation, deadlines, profile changes, bridge forwarding, mounted controls and late-result isolation. The readiness route does not establish remote installation, invocation-bound console, full server management or all-feature acceptance.
 
-This continuation ran on Linux. The Windows root `build.bat` and `build-installer.bat`, live SSH/Minecraft acceptance, native Windows captures and the complete layout matrix remain unverified. The initial broad build encountered the absent pinned BlueMap viewer bundle. After the build-order repair described in [maintained viewer builds](../build/maintained-viewer.md), the complete workspace build passed. That Linux workspace result does not establish Windows installer or live-host acceptance.
+The initial continuation ran on Linux. At that point, Windows packaging, live SSH/Minecraft acceptance, native Windows captures and the complete layout matrix were unverified. Subsequent controlled SSH and packaging results appear below; Minecraft execution, interactive Windows and the full layout matrix remain pending. The initial broad build encountered the absent pinned BlueMap viewer bundle. After the build-order repair described in [maintained viewer builds](../build/maintained-viewer.md), the complete workspace build passed. That Linux workspace result does not establish Windows installer or live-host acceptance.
+
+## Linux SSH acceptance on 2026-10-15
+
+Five opt-in cases passed against an isolated Ubuntu 24.04 container with real systemd, OpenSSH and Java 21. The production profile store, validated cache reader and default command runner observed all eight prerequisites, refused unknown trust and an unauthorized identity, refused a missing parent without creating it, and detected a real occupied TCP port. Local trust/profile/catalogue bytes and existing remote content were preserved; every result kept `canCreate: false`.
+
+Run `node scripts/acceptance/ssh-process/run.mjs` from the repository root on Linux. [Fixture instructions](../../scripts/acceptance/ssh-process/README.md) describe the privileged private-cgroup container, loopback-only binding, generated fixture keys and verified teardown. The catalogue is synthetic and schema-valid. This establishes controlled Linux SSH backend behaviour, not wizard interaction, Windows, deployment-host acceptance, installation, Minecraft execution or console support. The receipt records the starting commit and exact acceptance-input hashes, including dirty-source state.
+
+The rebuilt Linux Electron application also exercised the call through its real preload bridge and main-process IPC: all eight checks passed, creation remained disabled, and no page exceptions were observed. The renderer URL contained no query credential. That IPC observation did not exercise wizard clicks; the subsequent wizard check below did. [Evidence receipt](../evidence/linux-ssh-readiness-20261015.json) separates backend, native IPC and remaining limits.
+
+Linux wizard acceptance on 2026-10-15 passed in the rebuilt Electron application at 1280×800, English/dark: saved profile selection, eight readiness results, disabled Next, report invalidation after a port edit and occupied-port refusal. This exposed and fixed a profile-loading defect when choosing remote process directly; both remote targets have regression coverage (30 selected UI tests pass). No page exceptions were observed. This is one controlled desktop tuple, not Windows, deployment-host, installation or console acceptance.
+
+CI run 38799594959 passed at 8b6a6a3 and published v1.0.2073, including Windows packaging. Interactive Windows acceptance remains pending.
 
 ## 廣東話
 
@@ -45,4 +57,12 @@ This continuation ran on Linux. The Windows root `build.bat` and `build-installe
 
 即使全部檢查通過，下一步同建立仍然停用。結果只係當時觀察，唔係預留資源或者安裝許可。冇接受 EULA、下載、安裝 Java、建立資料夾、服務、擁有權或者伺服器記錄，亦冇開服關服或者修改信任設定。金鑰變咗唔會提供直接接受替代金鑰嘅按鈕。原始 SSH 診斷同憑證路徑唔會送入介面。
 
-遠端帳戶、執行檔同啟動設定仍屬信任範圍，唔代表已隔離惡意 Java，亦唔會阻止作業系統審計或者管理員預先設定嘅日誌。權限、記憶體、空間同連接埠隨時會變，將來真正安裝要重新核對。針對性測試涵蓋輸入、版本、金鑰、資源、逾時、主機設定變更、橋接同實際掛載介面。今次喺 Linux 驗證，Windows 根目錄建置同安裝入口、真實 SSH/Minecraft、Windows 原生畫面同完整尺寸矩陣仍然未驗證；大範圍邏輯建置停喺欠缺已固定 BlueMap viewer bundle，唔會當成全綠。
+遠端帳戶、執行檔同啟動設定仍屬信任範圍，唔代表已隔離惡意 Java，亦唔會阻止作業系統審計或者管理員預先設定嘅日誌。權限、記憶體、空間同連接埠隨時會變，將來真正安裝要重新核對。針對性測試涵蓋輸入、版本、金鑰、資源、逾時、主機設定變更、橋接同實際掛載介面。最初 Linux 驗證遇到欠缺已固定 BlueMap viewer bundle；修正建置次序後完整 workspace build 通過。其後受控 SSH 同 Windows 包裝結果見下文；Minecraft 執行、Windows 互動同完整畫面矩陣仍待驗證。
+
+2026-10-15 五項 Linux SSH 實際後端檢查通過：八項準備條件、未知主機信任、未授權金鑰、欠缺資料夾同被佔用連接埠。用真實 systemd、OpenSSH 同 Java 21，但 catalogue 係測試資料；本機信任／profile／cache 同既有遠端內容保持不變，仍然唔會啟用建立。fixture 清理已確認；唔代表原生介面、Windows、實際部署主機、安裝開服或者 console 驗收。
+
+重建 Linux Electron 亦經真實 preload bridge 同 main-process IPC 通過八項檢查，建立仍停用，觀察期間冇頁面例外，renderer URL 冇 query 憑證。嗰次 IPC 觀察未做精靈逐步點擊；其後精靈驗收見下文，收據分開記錄後端、原生 IPC、精靈同限制。
+
+2026-10-15 重建 Linux Electron 精靈驗收通過：1280×800 英文深色畫面，可選已儲存主機、顯示八項結果，下一步維持停用，改連接埠會清除舊結果，並拒絕已佔用連接埠。直接選遠端程序時未載入 profile 嘅問題已修正，兩種遠端目標都有回歸測試，30 項介面測試通過，冇觀察到頁面例外。只代表一組受控畫面，唔代表 Windows、部署主機、安裝或者 console 驗收。
+
+CI run 38799594959 已通過，並由 8b6a6a3 發佈 v1.0.2073，包括 Windows 安裝包建置；Windows 互動驗收仍未完成。

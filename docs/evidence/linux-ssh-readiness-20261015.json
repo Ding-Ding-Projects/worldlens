@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "kind": "controlled Linux SSH readiness acceptance",
+  "backend": {
+    "startedAt": "2026-10-15T20:18:04.494Z",
+    "sourceCommit": "8b6a6a318ad48ce398fd3558b3d31541c00604ec",
+    "imageId": "sha256:20ca044b8b30bbca428cf4cea6e080ef95134f4d0b62656b079bd4df84863b3a",
+    "result": "passed",
+    "cleanup": "owned container, image tag and fixture keys removed",
+    "limits": "Real loopback SSH backend only; synthetic cached catalogue; no desktop UI, remote installation, Minecraft launch or Windows acceptance.",
+    "sourceTreeClean": false,
+    "acceptanceFilesSha256": {
+      "scripts/acceptance/ssh-process/Dockerfile": "6745374fd96b04b2a5d24a20ea811a5c721815cde10ac411434d9ea2fab4aa8a",
+      "scripts/acceptance/ssh-process/run.mjs": "cc2f32a11b96d1adf66e55a4c6b908d0c9ee3538c096554f064f3fdc919ed4da",
+      "design/packages/app/src/main/mcserver/sshProcessPreflight.realNetwork.test.ts": "94181f8d71a10700642530613083b24b64f3d722f13389266c734d3b869135d4",
+      "design/packages/app/src/main/mcserver/sshProcessPreflight.ts": "1f12626ef604dc8e03ce05938b9541153744f5ce9d3bbb1cd6759be532736fc9"
+    },
+    "finishedAt": "2026-10-15T20:18:21.667Z"
+  },
+  "nativeIpc": {
+    "kind": "Linux Electron preload-to-main IPC acceptance",
+    "builtSourceCommit": "8b6a6a318ad48ce398fd3558b3d31541c00604ec",
+    "observedAt": "2026-10-15T20:20:24.257Z",
+    "platform": "linux",
+    "windowCount": 1,
+    "credentialFreeRendererUrl": true,
+    "pageErrors": [],
+    "limits": "Synthetic catalogue and disposable SSH target. Calls exercised through the actual preload bridge. No wizard click-through, installer, Minecraft launch, console or Windows acceptance."
+  },
+  "nativeReadiness": {
+    "ready": true,
+    "canCreate": false,
+    "checks": [
+      {
+        "stage": "ssh",
+        "state": "passed",
+        "code": "ready"
+      },
+      {
+        "stage": "platform",
+        "state": "passed",
+        "code": "ready"
+      },
+      {
+        "stage": "supervisor",
+        "state": "passed",
+        "code": "ready"
+      },
+      {
+        "stage": "directory",
+        "state": "passed",
+        "code": "ready"
+      },
+      {
+        "stage": "java",
+        "state": "passed",
+        "code": "ready"
+      },
+      {
+        "stage": "memory",
+        "state": "passed",
+        "code": "ready"
+      },
+      {
+        "stage": "disk",
+        "state": "passed",
+        "code": "ready"
+      },
+      {
+        "stage": "port",
+        "state": "passed",
+        "code": "ready"
+      }
+    ]
+  },
+  "nativeBundleSha256": "6c0740390705d09fa101aa6f397a5963b6992cf642c1216d69e7da8ab4540d04",
+  "fullFeatureAcceptance": false,
+  "nativeWizard": {
+    "observedAt": "2026-10-15T20:32:46.697Z",
+    "platform": "Linux Electron on isolated Xvfb",
+    "sourceTreeClean": false,
+    "baseCommit": "8b6a6a318ad48ce398fd3558b3d31541c00604ec",
+    "viewport": {
+      "width": 1280,
+      "height": 800,
+      "deviceScaleFactor": 1
+    },
+    "steps": [
+      "owned profile; first-run completed with download declined in an earlier attempt",
+      "Host Server navigation",
+      "New server",
+      "Vanilla",
+      "1.21.4",
+      "Remote process",
+      "saved fixture host",
+      "512 MB and free port",
+      "eight checks rendered",
+      "Next disabled",
+      "port change clears report",
+      "occupied port refused",
+      "Next remains disabled"
+    ],
+    "pageErrors": [],
+    "limits": "One English dark desktop tuple; synthetic catalogue and owned real SSH target. No installation or Minecraft process.",
+    "sourceFilesSha256": {
+      "design/packages/ui/src/components/mcserver/CreateServerWizard.vue": "77343dfe9ca8398a41d3396b085b716fc81269220f0244e97b1bd3ebb20de793"
+    },
+    "cleanup": "Owned native acceptance container stopped, removed and absence verified; generated fixture keys removed. Final Xvfb process reaped. Earlier exited Xvfb entries remain pending host-init reaping."
+  }
+}

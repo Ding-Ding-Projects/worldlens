@@ -19,6 +19,7 @@ import {
     type CatalogueVersionEntry,
     type CatalogueSnapshot,
     type JavaResolution,
+    type HostProfileRecord,
     type McServerHost,
 } from "./serverStore.js";
 import type { ServerRecord } from "./serverModel.js";
@@ -124,16 +125,79 @@ async function flushAll(): Promise<void> {
 }
 
 describe("CreateServerWizard", () => {
+    it.each(["ssh-process", "ssh-docker"])(
+        "loads saved profiles when selecting %s directly",
+        async (runtime) => {
+            const profile: HostProfileRecord = {
+                hostId: "fixture-host",
+                createdAt: "created",
+                updatedAt: "updated",
+                target: {
+                    id: "fixture-host",
+                    label: "Fixture host",
+                    host: "fixture.example",
+                    port: 22,
+                    user: "fixture",
+                    identityFile: null,
+                    workDir: "/srv/worldlens",
+                    image: "unused",
+                    docker: "docker",
+                    keepRemoteFiles: false,
+                },
+            };
+            const list = vi.fn(async () => ok([profile]));
+            const unused = async (): Promise<never> => {
+                throw new Error("Unexpected profile mutation");
+            };
+            const host: McServerHost = {
+                ...fakeHost(),
+                hostProfiles: {
+                    list,
+                    get: unused,
+                    save: unused,
+                    forget: unused,
+                    scan: unused,
+                    trust: unused,
+                },
+            };
+            const wrapper = mountWizard(host);
+            try {
+                const vm = wrapper.vm as unknown as {
+                    step: string;
+                    whereItRuns: string;
+                    hostProfiles: readonly HostProfileRecord[];
+                };
+                vm.step = "runtime";
+                vm.whereItRuns = runtime;
+                await flushAll();
+                expect(list).toHaveBeenCalledTimes(1);
+                expect(vm.hostProfiles).toEqual([profile]);
+                expect(document.body.textContent).not.toContain(
+                    "No SSH host profiles are saved yet",
+                );
+            } finally {
+                wrapper.unmount();
+            }
+        },
+    );
     it("keeps the SSH-process route in readiness-only mode, with Next blocked", async () => {
         const wrapper = mountWizard();
-        const vm = wrapper.vm as unknown as { step: string; whereItRuns: string; minecraftVersion: string };
+        const vm = wrapper.vm as unknown as {
+            step: string;
+            whereItRuns: string;
+            minecraftVersion: string;
+        };
         vm.step = "runtime";
         vm.minecraftVersion = "1.21.4";
         vm.whereItRuns = "ssh-process";
         await flushAll();
         expect(document.querySelector('[data-test="ssh-process-readiness"]')).not.toBeNull();
-        expect(document.querySelector('[data-test="ssh-process-install-unavailable"]')).not.toBeNull();
-        const next = [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Next");
+        expect(
+            document.querySelector('[data-test="ssh-process-install-unavailable"]'),
+        ).not.toBeNull();
+        const next = [...document.querySelectorAll<HTMLButtonElement>("button")].find(
+            (button) => button.textContent?.trim() === "Next",
+        );
         expect(next).toBeDefined();
         expect(next?.disabled).toBe(true);
         wrapper.unmount();

@@ -978,4 +978,12 @@ it from the interface.
 
 ## 2026-10-15 CI continuation
 
-CI run `38795524338` at `e9a64e3` passed workspace, container and seven Java-artifact builds, but Windows packaging and test-world generation omitted required submodules and failed before compilation. Their checkouts now fetch pinned submodules at depth 1 with credential persistence disabled. Local workflow integrity and drift checks pass; corrected remote results and interactive Windows/live SSH acceptance remain pending. See `docs/build/maintained-viewer.md`.
+CI run `38795524338` at `e9a64e3` passed workspace, container and seven Java-artifact builds, but Windows packaging and test-world generation omitted required submodules and failed before compilation. Their checkouts now fetch pinned submodules at depth 1 with credential persistence disabled. Local workflow integrity and drift checks pass; corrected run 38799594959 succeeded and published v1.0.2073; interactive Windows and deployment-host acceptance remain pending. See `docs/build/maintained-viewer.md`.
+
+Linux continuation: the user selected Linux for current acceptance. Five real loopback SSH backend cases pass with the actual profile/cache/command path; verified fixture teardown is implemented. Deployment-host acceptance, remote installation and invocation-bound console remain incomplete. See docs/server-management/ssh-process-readiness.md and scripts/acceptance/ssh-process/README.md.
+
+CI outcome: run 38799594959 succeeded at 8b6a6a318ad48ce398fd3558b3d31541c00604ec, including Windows installer production, generated-world rendering and release publication. Release v1.0.2073 is published (not draft) from that exact commit. This does not establish interactive Windows acceptance.
+
+Linux wizard acceptance on 2026-10-15 passed in the rebuilt Electron application at 1280×800, English/dark: saved profile selection, eight readiness results, disabled Next, report invalidation after a port edit and occupied-port refusal. This exposed and fixed a profile-loading defect when choosing remote process directly; both remote targets have regression coverage (30 selected UI tests pass). No page exceptions were observed. This is one controlled desktop tuple, not Windows, deployment-host, installation or console acceptance.
+
+2026-10-15 重建 Linux Electron 精靈驗收通過：1280×800 英文深色畫面，可選已儲存主機、顯示八項結果，下一步維持停用，改連接埠會清除舊結果，並拒絕已佔用連接埠。直接選遠端程序時未載入 profile 嘅問題已修正，兩種遠端目標都有回歸測試，30 項介面測試通過，冇觀察到頁面例外。只代表一組受控畫面，唔代表 Windows、部署主機、安裝或者 console 驗收。
