@@ -46,6 +46,7 @@ import {
 import type { FetchBinary } from "./install.js";
 import {
     listCatalogue,
+    readCachedCatalogue,
     refreshCatalogue,
     FLAVOUR_IDS,
     type FetchText,
@@ -117,6 +118,7 @@ import {
 import { recordedFor, scanHostKeys, trustHostKey } from "../remote/hostkey.js";
 import { openSshRconTunnel, type SshRconTunnel } from "./rcon/sshTunnel.js";
 import { sshCommandRunner } from "../remote/ssh.js";
+import { preflightSshProcessCreation } from "./sshProcessPreflight.js";
 import type { BackupProgress } from "./transport/types.js";
 
 export const MCSERVER_CHANNELS = {
@@ -152,6 +154,7 @@ export const MCSERVER_CHANNELS = {
     configDescribe: "mcserver:config:describe",
     configApply: "mcserver:config:apply",
     create: "mcserver:create",
+    sshProcessPreflight: "mcserver:creation:sshProcess:preflight",
     rconTest: "mcserver:rcon:test",
     rconConfigure: "mcserver:rcon:configure",
     consoleOpen: "mcserver:console:open",
@@ -474,6 +477,7 @@ export function registerMcServerHandlers(
             ...(options.now === undefined ? {} : { now: options.now }),
         });
     const now = options.now ?? (() => new Date().toISOString());
+    let sshProcessPreflightPending = false;
     const docker = options.docker ?? "docker";
 
     function isConsentBody(value: unknown): value is Partial<AdoptionConsent> {
@@ -892,6 +896,21 @@ export function registerMcServerHandlers(
         [MCSERVER_CHANNELS.list]: async () => registry.list(),
 
         [MCSERVER_CHANNELS.hostProfilesList]: async () => hostProfiles.list(),
+
+        [MCSERVER_CHANNELS.sshProcessPreflight]: async (_event: never, request: unknown) => {
+            if (sshProcessPreflightPending) return fail("busy", "An SSH-process readiness check is already pending. Wait for its bounded observation to finish.");
+            sshProcessPreflightPending = true;
+            try {
+                return await preflightSshProcessCreation(request, {
+                    hostProfiles,
+                    readCatalogue: () => readCachedCatalogue(options.dataFolder),
+                    ...(options.factory?.runner === undefined ? {} : { runner: options.factory.runner }),
+                    ...(options.ssh === undefined ? {} : { ssh: options.ssh }),
+                });
+            } finally {
+                sshProcessPreflightPending = false;
+            }
+        },
 
         [MCSERVER_CHANNELS.hostProfileGet]: async (_event: never, hostId: unknown) => {
             if (!isRecordId(hostId))

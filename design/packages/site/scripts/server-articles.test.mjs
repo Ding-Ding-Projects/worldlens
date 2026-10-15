@@ -9,7 +9,7 @@ import { buildCanonicalRuntime, canonicalArchiveSitePlugin, mergeServerArticleCa
 const root = fileURLToPath(new URL("..", import.meta.url));
 test("production runtime includes each independently required current server article", () => {
     const articles = loadServerArticles(root);
-    assert.deepEqual(articles.map((article) => article.id), ["mcserver-hosting", "mcserver-adoption-ownership", "mcserver-ssh-process-lifecycle"]);
+    assert.deepEqual(articles.map((article) => article.id), ["mcserver-hosting", "mcserver-adoption-ownership", "mcserver-ssh-process-lifecycle", "mcserver-ssh-process-readiness", "maintained-viewer-build"]);
     const runtime = buildCanonicalRuntime(root);
     for (const article of articles) assert.ok(runtime.includes(JSON.stringify(article)), `${article.id} is missing from production runtime`);
     assert.ok(runtime.includes("Forced termination is unsupported"));
@@ -31,9 +31,9 @@ test("all 59 originals survive and incomplete or duplicate merged catalogues fai
     const archive = JSON.parse(readFileSync(resolve(root, "archive/content/articles.json"), "utf8"));
     const current = loadServerArticles(root);
     const merged = mergeServerArticleCatalog(archive, current);
-    assert.equal(merged.count, 62);
+    assert.equal(merged.count, 64);
     assert.deepEqual(merged.articles.slice(0, 59), archive.articles);
-    assert.throws(() => mergeServerArticleCatalog(archive, current.slice(1)), /exactly 62/u);
+    assert.throws(() => mergeServerArticleCatalog(archive, current.slice(1)), /exactly 64/u);
     assert.throws(() => mergeServerArticleCatalog(archive, [{ ...current[0], id: archive.articles[0].id }, ...current.slice(1)]), /id duplicates/u);
     assert.throws(() => mergeServerArticleCatalog(archive, [{ ...current[0], title: archive.articles[0].title }, ...current.slice(1)]), /title duplicates/u);
     assert.throws(() => mergeServerArticleCatalog(archive, [{ ...current[0], sourcePath: "../private.md" }, ...current.slice(1)]), /safe documentation path/u);

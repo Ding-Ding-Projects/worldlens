@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "scope": "Source and Linux workspace verification only; full goal incomplete",
+  "baseCommit": "4bf568c8abd37bd3eccfe5790b44a301cda6b3c5",
+  "sourceInputsSha256": "6d6d6576b64c86601c32cafae33ee8ce1954cf4e49f9dc7c63f458af9e2210a7",
+  "sourceInputs": [
+    "design/package.json",
+    "design/packages/app/src/main/mcserver/flavours/catalogue.ts",
+    "design/packages/app/src/main/mcserver/ipc.ts",
+    "design/packages/app/src/main/mcserver/sshProcessPreflight.test.ts",
+    "design/packages/app/src/main/mcserver/sshProcessPreflight.ts",
+    "design/packages/app/src/preload/index.ts",
+    "design/packages/bridge/src/channels.ts",
+    "design/packages/bridge/src/factory.test.ts",
+    "design/packages/bridge/src/factory.ts",
+    "design/packages/shared/src/index.ts",
+    "design/packages/shared/src/sshProcessReadiness.ts",
+    "design/packages/site/src/content/articles/embedded-server.ts",
+    "design/packages/site/src/content/articles/mcserver-hosting.ts",
+    "design/packages/site/src/content/home.ts",
+    "design/packages/ui/src/bridge.d.ts",
+    "design/packages/ui/src/components/mcserver/CreateServerWizard.test.ts",
+    "design/packages/ui/src/components/mcserver/CreateServerWizard.vue",
+    "design/packages/ui/src/components/mcserver/SshProcessReadinessPanel.test.ts",
+    "design/packages/ui/src/components/mcserver/SshProcessReadinessPanel.vue",
+    "design/packages/ui/src/components/mcserver/serverStore.ts",
+    "design/packages/ui/src/components/mcserver/useServers.ts",
+    "design/packages/ui/src/components/mcserver/wizardModel.ts",
+    "design/packages/ui/src/copy/surfaces/mcserver.ts",
+    "docs/contracts/feature-delivery-inventory.json",
+    "scripts/build-maintained-webapp.mjs",
+    "scripts/build-maintained-webapp.test.mjs",
+    "scripts/check-feature-delivery-inventory.mjs",
+    "scripts/published-text-allowlist.json"
+  ],
+  "maintainedViewerCommit": "5294ba3ec94b614e1daf1bfc3ef327f799f7ef04",
+  "checks": {
+    "focusedFeatureTests": {
+      "files": 9,
+      "passed": 169
+    },
+    "contentTests": {
+      "files": 10,
+      "passed": 93
+    },
+    "buildStagingInventoryTests": {
+      "passed": 15
+    },
+    "applicationUiSiteTypecheck": "passed",
+    "focusedLint": "passed",
+    "completeLinuxWorkspaceBuild": "passed",
+    "independentSourceReview": "no remaining introduced findings in inspected paths",
+    "publicationScan": "passed for all 41 changed/new files with reviewed technical and historical literals",
+    "publicationGuardTests": "passed"
+  },
+  "featureInventory": {
+    "identities": 107,
+    "scopes": 5,
+    "pendingSurfaceRequirements": 505,
+    "structuralValidation": "passed",
+    "completionValidation": "correctly failed",
+    "newIdentityOmissionMutations": "both failed before restoration"
+  },
+  "unverified": [
+    "Windows root build.bat",
+    "Windows build-installer.bat",
+    "live SSH/Minecraft target",
+    "Docker image/runtime",
+    "native captures and complete layout matrix",
+    "current remote CI and release acceptance"
+  ],
+  "canCreateSshProcess": false
+}

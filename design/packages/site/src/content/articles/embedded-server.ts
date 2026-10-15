@@ -200,7 +200,7 @@ export const embeddedServer: Article = {
                     tone: "note",
                     title: "What has not been verified",
                     content:
-                        "Canonical path checks and stream cleanup assume the configured web tree is trusted against concurrent replacement while a request is being resolved. Path fuzzing and packaged Windows UI verification have not been run for this change.",
+                        "Canonical path checks and stream cleanup assume the configured web tree is trusted against concurrent replacement while a request is being resolved. Path fuzzing and packaged Windows UI verification remain unverified for this change.",
                 },
             ],
         },

@@ -54,3 +54,7 @@ export {
     schemeToCustomProperties,
 } from "./colorRoles.js";
 export type { ColorRole, ColorScheme, SchemeName } from "./colorRoles.js";
+export type {
+    SshProcessPreflightRequest, SshProcessPreflightReport,
+    SshProcessReadinessStage, SshProcessReadinessCheck,
+} from "./sshProcessReadiness.js";

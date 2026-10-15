@@ -124,6 +124,20 @@ async function flushAll(): Promise<void> {
 }
 
 describe("CreateServerWizard", () => {
+    it("keeps the SSH-process route in readiness-only mode, with Next blocked", async () => {
+        const wrapper = mountWizard();
+        const vm = wrapper.vm as unknown as { step: string; whereItRuns: string; minecraftVersion: string };
+        vm.step = "runtime";
+        vm.minecraftVersion = "1.21.4";
+        vm.whereItRuns = "ssh-process";
+        await flushAll();
+        expect(document.querySelector('[data-test="ssh-process-readiness"]')).not.toBeNull();
+        expect(document.querySelector('[data-test="ssh-process-install-unavailable"]')).not.toBeNull();
+        const next = [...document.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Next");
+        expect(next).toBeDefined();
+        expect(next?.disabled).toBe(true);
+        wrapper.unmount();
+    });
     function catalogueHost(
         failures: readonly { flavour: "vanilla" | "paper"; reason: string }[] = [],
     ): McServerHost {

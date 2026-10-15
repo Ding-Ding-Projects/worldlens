@@ -20,6 +20,7 @@
  */
 
 import { computed, reactive, ref, shallowRef, type ComputedRef, type Ref } from "vue";
+import type { SshProcessPreflightRequest, SshProcessPreflightReport } from "@worldlens/shared";
 
 import type {
     InstanceStatus,
@@ -437,6 +438,9 @@ export interface HostProfileScan {
 /** What the Electron bridge's `mcserver` namespace looks like, from the renderer's side. */
 export interface McServerHost {
     readonly name: string;
+    readonly creation?: {
+        sshProcessPreflight(request: SshProcessPreflightRequest): Promise<Answer<SshProcessPreflightReport>>;
+    };
     list(): Promise<Answer<readonly ServerRecord[]>>;
     get(id: string): Promise<Answer<ServerRecord>>;
     save(record: ServerMetadataUpdate): Promise<Answer<ServerRecord>>;
@@ -642,6 +646,8 @@ export interface ServerStore {
     readonly canCreateLocalDocker: boolean;
     readonly hasAdopt: boolean;
     readonly hasHostProfiles: boolean;
+    readonly hasSshProcessPreflight: boolean;
+    sshProcessPreflight(request: SshProcessPreflightRequest): Promise<Answer<SshProcessPreflightReport>>;
 
     readonly hostProfiles: {
         list(): Promise<Answer<readonly HostProfileRecord[]>>;
@@ -736,6 +742,11 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         canCreateLocalDocker: host?.createCapabilities?.localDocker === true,
         hasAdopt: host?.adopt !== undefined,
         hasHostProfiles: host?.hostProfiles !== undefined,
+        hasSshProcessPreflight: host?.creation?.sshProcessPreflight !== undefined,
+        async sshProcessPreflight(request) {
+            if (host?.creation?.sshProcessPreflight === undefined) return notWired("SSH process readiness");
+            return host.creation.sshProcessPreflight(request);
+        },
 
         hostProfiles: {
             async list() {

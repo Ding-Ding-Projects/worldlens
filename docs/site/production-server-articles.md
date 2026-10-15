@@ -1,14 +1,15 @@
 # Production server articles
 
-The production documentation renderer reads the three current server articles directly from
-`docs/mcserver-hosting.md`, `docs/server-management/adoption-ownership.md` and
-`docs/server-management/ssh-process-lifecycle.md`. The archive plugin combines them with the
-59 preserved articles, giving 62 entries. Missing sources, duplicate identifiers and duplicate
+The production documentation renderer reads five current articles directly from
+`docs/mcserver-hosting.md`, `docs/server-management/adoption-ownership.md`,
+`docs/server-management/ssh-process-lifecycle.md`, `docs/server-management/ssh-process-readiness.md`
+and `docs/build/maintained-viewer.md`. The archive plugin combines them with the
+59 preserved articles, giving 64 entries. Missing sources, duplicate identifiers and duplicate
 titles fail the build. The TypeScript article catalogue is not the production entry point.
 
 Paragraphs, headings, fenced code and lists are rendered as text and structured blocks. Table
 rows are preserved in code blocks. Inline Markdown links remain literal text; complete link,
-anchor and wiki navigation is still pending. Each of the three current articles carries its
+anchor and wiki navigation is still pending. Each of the five current articles carries its
 actual source path. The shared article sidebar no longer invents a verification result, update
 date or revision, and no longer presents unrelated historical images as article evidence.
 
@@ -16,6 +17,19 @@ Dynamic image sources and SVG paths are inert in the initial HTML. The runtime b
 initialization, avoiding placeholder image requests and invalid SVG parsing. Other content
 security restrictions remain in place. Framing restrictions require an HTTP response header;
 the static HTML does not claim to enforce them through an ignored meta directive.
+
+## Production homepage and delivery correction on 2026-10-15
+
+The deployed homepage is the archive template in `design/packages/site/index.html`, not
+`src/content/home.ts`. Both representations now describe read-only SSH readiness and its limits.
+The production article inventory explicitly includes the readiness and maintained-viewer guides;
+a source catalogue update alone does not establish production delivery.
+
+Six assembly/conversion/negative tests and the production build passed. Focused fresh-context
+Linux Chromium observations at 1280x900 and 390x844 showed the notice with no document-width
+overflow. Both new guide routes displayed the intended heading and actual source path, with
+zero observed page exceptions. These are built-output observations, not complete accessibility,
+native Windows, live deployment or full language/theme/scale acceptance.
 
 ## Verification on 2026-10-11
 
@@ -47,7 +61,12 @@ live deployment, complete documentation/wiki navigation and installer acceptance
 
 ## 廣東話
 
-正式文件畫面而家直接讀取三篇伺服器文章，再同原有 59 篇合併，一共 62 篇。
+正式文件畫面而家直接讀取五篇現行文章，再同原有 59 篇合併，一共 64 篇。
+2026-10-15 補返 SSH 準備檢查同維護版檢視器建置指南；正式首頁用 archive 範本，
+單改 home.ts 唔會更新正式首頁，所以兩個位置都要更新。六項文章組裝檢查同正式建置通過；
+Linux Chromium 喺 1280x900 同 390x844 顯示到提示而冇文件闊度溢出，兩篇新文章都
+顯示到標題同來源路徑，觀察期間冇頁面例外。呢啲唔代表原生 Windows、正式部署或者
+完整語言／主題／比例驗收。
 共用側欄唔會再憑空聲稱驗證成功或者填入舊日期。實際重建後，桌面同模擬手機畫面
 都顯示到新文章，亦冇再出現範本圖片 404 或 SVG 解析錯誤。圖片放大、Esc 關閉同
 焦點返回亦已實際檢查。臨時瀏覽器設定檔刪除被自動審批拒絕，所以完整清理仍未完成；

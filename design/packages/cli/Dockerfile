@@ -4,7 +4,7 @@
 #
 # Build from the REPOSITORY ROOT (one level above `design/`), not from this
 # directory — the build needs both the pnpm workspace (`design/`) and the
-# vendored upstream webapp bundle (`vendor/BlueMap/common/webapp/dist`, the
+# vendored upstream webapp bundle (`vendor/BlueMap-Material/common/webapp/dist`, the
 # same MIT-licensed static bundle `bluemap-cli -g` itself would otherwise need
 # to be told about at run time; see `packages/cli/scripts/copy-webapp.mjs`):
 #
@@ -87,16 +87,16 @@ COPY design/tools ./design/tools
 # package.json; the rest of the directory is the Vite project it compiles. The
 # upstream project's own node_modules is excluded by .dockerignore and would be
 # wrong to reuse anyway, since it was installed for a different platform.
-COPY vendor/BlueMap/common/webapp/package.json vendor/BlueMap/common/webapp/package-lock.json ./vendor/BlueMap/common/webapp/
-RUN --mount=type=cache,target=/root/.npm     cd ./vendor/BlueMap/common/webapp && npm ci --no-audit --no-fund
+COPY vendor/BlueMap-Material/common/webapp/package.json vendor/BlueMap-Material/common/webapp/package-lock.json ./vendor/BlueMap-Material/common/webapp/
+RUN --mount=type=cache,target=/root/.npm     cd ./vendor/BlueMap-Material/common/webapp && npm ci --no-audit --no-fund
 
-COPY vendor/BlueMap/common/webapp ./vendor/BlueMap/common/webapp
-RUN cd ./vendor/BlueMap/common/webapp && npm run build
+COPY vendor/BlueMap-Material/common/webapp ./vendor/BlueMap-Material/common/webapp
+RUN cd ./vendor/BlueMap-Material/common/webapp && npm run build
 
 # Prove the build produced a real bundle rather than an empty directory, here, where
 # the failure names its own cause. Without this, a webapp build that silently emitted
 # nothing would surface much later as a container serving 404s for its own viewer.
-RUN test -f ./vendor/BlueMap/common/webapp/dist/index.html     && test -d ./vendor/BlueMap/common/webapp/dist/assets
+RUN test -f ./vendor/BlueMap-Material/common/webapp/dist/index.html     && test -d ./vendor/BlueMap-Material/common/webapp/dist/assets
 
 # --filter "@worldlens/cli..." installs the CLI and everything it
 # actually depends on — never the Electron desktop app, the UI package, or

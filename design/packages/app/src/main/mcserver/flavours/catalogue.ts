@@ -1040,7 +1040,8 @@ async function fetchNeoForgeVersions(fetchText: FetchText, limit: number): Promi
         }));
 }
 
-async function readCache(dataDir: string): Promise<CatalogueSnapshot | null> {
+/** Read only: never refreshes the catalogue or writes a cache during host readiness. */
+export async function readCachedCatalogue(dataDir: string): Promise<CatalogueSnapshot | null> {
     try {
         const bytes = await readFile(cacheFile(dataDir));
         if (bytes.byteLength > MAX_CACHE_BYTES) return null;
@@ -1130,7 +1131,7 @@ export async function refreshCatalogue(
         );
     }
 
-    const previous = await readCache(options.dataDir);
+    const previous = await readCachedCatalogue(options.dataDir);
     const previousById = new Map(previous?.flavours.map((entry) => [entry.flavour, entry]) ?? []);
     const merged = FLAVOUR_IDS.map((id) => {
         const fetched = flavours.find((entry) => entry.flavour === id);
@@ -1176,7 +1177,7 @@ export async function refreshCatalogue(
  */
 export async function listCatalogue(options: CatalogueOptions): Promise<Answer<CatalogueSnapshot>> {
     const now = options.now ?? (() => new Date().toISOString());
-    const cached = await readCache(options.dataDir);
+    const cached = await readCachedCatalogue(options.dataDir);
     if (cached !== null) {
         const withAge = withStaleness(cached, now);
         const missingFlavour = FLAVOUR_IDS.some(

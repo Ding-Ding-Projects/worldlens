@@ -950,6 +950,7 @@ interface RuntimeStatusHubResult {
 }
 
 interface WorldlensBridge {
+    readonly mcserver?: Omit<import("./components/mcserver/serverStore.js").McServerHost, "name">;
     dialog: {
         pickFile(options: {
             readonly title: string;

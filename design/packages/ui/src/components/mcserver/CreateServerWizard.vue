@@ -25,6 +25,7 @@ import {
 } from "vuetify/components";
 import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
 import PathField from "../PathField.vue";
+import SshProcessReadinessPanel from "./SshProcessReadinessPanel.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import SearchableOptionPicker from "./SearchableOptionPicker.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
@@ -472,7 +473,9 @@ const awsAvailable = computed(() => {
     const bridge = (globalThis as { worldlens?: { mcserver?: { aws?: unknown } } }).worldlens;
     return bridge?.mcserver?.aws !== undefined && bridge.mcserver.aws !== null;
 });
-const runtimeOptionsForWizard = computed(() => runtimeOptions(awsAvailable.value));
+const runtimeOptionsForWizard = computed(() => runtimeOptions(awsAvailable.value).map((option) =>
+    option.id === "ssh-process" ? { ...option, name: t("mcserver.sshReadiness.runtime"),
+        description: t("mcserver.sshReadiness.explanation") } : option));
 
 interface RuntimeAvailability {
     checking: boolean;
@@ -1162,6 +1165,7 @@ const canAdvanceFromModLoader = computed(
             validateModsDirectory(modsDirectory.value) === null),
 );
 const canAdvanceFromRuntime = computed(() => {
+    if (whereItRuns.value === "ssh-process") return false;
     // The server folder field lives on THIS step, so this step is where a missing one has
     // to stop you. It used to let you straight past and the resources step refused to
     // advance instead - with the folder field nowhere on screen and nothing saying why,
@@ -1215,6 +1219,7 @@ const advanceBlockedReason = computed<string | null>(() => {
                 : (validateModsDirectory(modsDirectory.value) ??
                       t("mcserver.wizard.pickModLoader", "Choose a loader version first."));
         case "runtime":
+            if (whereItRuns.value === "ssh-process") return t("mcserver.sshReadiness.installUnavailable");
             if (folderError.value !== null) return folderError.value;
             if (javaNotRequired.value && dockerImageError.value !== null)
                 return dockerImageError.value;
@@ -2052,7 +2057,7 @@ const canAdvance = computed(() => {
                         />
                     </template>
 
-                    <template v-else-if="whereItRuns === 'ssh-docker'">
+                    <template v-else-if="whereItRuns === 'ssh-docker' || whereItRuns === 'ssh-process'">
                         <ConfigSearchField
                             v-if="hostProfiles.length > 0"
                             v-model="hostProfileQuery"
@@ -2084,8 +2089,10 @@ const canAdvance = computed(() => {
                             :loading="hostProfileLoading"
                             :hint="
                                 t(
-                                    'mcserver.wizard.sshCreateHostHint',
-                                    'Choose a saved profile with a digest-pinned Minecraft server image and an absolute server parent folder. Create makes a new container and a unique data folder on that host.',
+                                    whereItRuns === 'ssh-process' ? 'mcserver.sshReadiness.explanation' : 'mcserver.wizard.sshCreateHostHint',
+                                    whereItRuns === 'ssh-process'
+                                        ? 'Choose a saved host profile. Readiness checks inspect that host without creating a server.'
+                                        : 'Choose a saved profile with a digest-pinned Minecraft server image and an absolute server parent folder. Create makes a new container and a unique data folder on that host.',
                                 )
                             "
                             persistent-hint
@@ -2115,7 +2122,7 @@ const canAdvance = computed(() => {
                             </template>
                         </VSelect>
                         <VAlert
-                            v-if="selectedHostProfile"
+                            v-if="selectedHostProfile && whereItRuns === 'ssh-docker'"
                             type="info"
                             variant="tonal"
                             data-test="ssh-create-plan"
@@ -2124,6 +2131,11 @@ const canAdvance = computed(() => {
                             {{ selectedHostProfile.target.workDir }}
                             <p v-if="dockerImageError">{{ dockerImageError }}</p>
                         </VAlert>
+                        <SshProcessReadinessPanel
+                            v-if="whereItRuns === 'ssh-process'"
+                            :host-id="sshHost"
+                            :minecraft-version="minecraftVersion.split('#', 1)[0] ?? ''"
+                        />
                         <VAlert v-if="hostProfileFailure" type="warning" variant="tonal">{{
                             hostProfileFailure
                         }}</VAlert>

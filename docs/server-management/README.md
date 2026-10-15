@@ -1,5 +1,7 @@
 # Server management
 
+- [Read-only SSH-process readiness](ssh-process-readiness.md): saved-host prerequisites, bounded observations and a guided route that keeps installation unavailable.
+
 - [Adoption ownership](adoption-ownership.md): per-container permissions, host-bound discovery and asynchronous operation isolation.
 - [SSH process lifecycle foundation](ssh-process-lifecycle.md): durable ownership, persisted installation records, production transport routing and bounded shutdown observation, with remaining creation, console and GUI acceptance explicit.
 - [Server manager](../minecraft-server-manager.md)

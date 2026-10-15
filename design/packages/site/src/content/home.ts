@@ -73,6 +73,14 @@ export const home: HomeContent = {
         {
             kind: "callout",
             tone: "note",
+            title: "SSH-process readiness, with installation still pending",
+            content: [
+                "The server wizard now offers a read-only saved-host readiness route with proposed memory and port controls. Strict SSH trust, Linux service-manager, folder, Java and resource observations do not install or start a server; Next and Create stay disabled. Native Windows and live SSH acceptance for this increment remain pending. The delivery inventory now tracks 107 requirements, including practical onboarding and per-control information guidance; that is a requirements count, not a completion claim. SSH 程序新增唯讀準備檢查，可以揀已儲存主機、記憶體同連接埠，但唔會安裝或者開服，下一步同建立仍停用。今次原生 Windows 同真實 SSH 驗收待完成；107 項係要求數量，唔係完成數量。",
+            ],
+        },
+        {
+            kind: "callout",
+            tone: "note",
             title: "1.0 is out, and here is exactly what that claims",
             content: [
                 "The Material Design 3 shell rewrite is complete and closed against its acceptance ",

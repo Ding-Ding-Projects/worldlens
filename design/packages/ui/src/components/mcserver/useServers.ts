@@ -131,6 +131,7 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
         createCapabilities !== null &&
         typeof createCapabilities["localDocker"] === "boolean";
     const hostProfilesApi = api["hostProfiles"] as Record<string, unknown> | undefined;
+    const creationApi = api["creation"] as Record<string, unknown> | undefined;
     const hostProfilesReady =
         typeof hostProfilesApi === "object" &&
         hostProfilesApi !== null &&
@@ -143,6 +144,8 @@ export function resolveServerHost(bridge: unknown = globalThis): McServerHost | 
 
     return {
         name: "Electron shell",
+        ...(creationApi !== null && typeof creationApi === "object" && isFunction(creationApi["sshProcessPreflight"])
+            ? { creation: creationApi as unknown as NonNullable<McServerHost["creation"]> } : {}),
         list: api["list"] as McServerHost["list"],
         get: api["get"] as McServerHost["get"],
         save: api["save"] as McServerHost["save"],

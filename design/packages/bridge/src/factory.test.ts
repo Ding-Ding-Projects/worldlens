@@ -145,6 +145,11 @@ describe("the object the factory builds", () => {
                 "mcserver:hostProfiles:get",
             ],
             [
+                () => (bridge as never as { mcserver: { creation: { sshProcessPreflight(request: unknown): Promise<unknown> } } })
+                    .mcserver.creation.sshProcessPreflight({ hostId: "host-1", minecraftVersion: "1.21.4", memoryMb: 2048, port: 25565 }),
+                "mcserver:creation:sshProcess:preflight",
+            ],
+            [
                 () =>
                     (
                         bridge as never as {

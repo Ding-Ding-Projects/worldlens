@@ -29,7 +29,7 @@ export const mcserverHosting: Article = {
                     tone: "warning",
                     title: "SSH process target is still being connected",
                     content: [
-                        "The Linux SSH-process lifecycle foundation verifies saved ownership, executable, working directory, exact JVM arguments and a stable invocation. Eighteen controlled lifecycle cases pass. Forced termination remains unsupported until it can be bound atomically to the reviewed process. Installation, files, persisted registry records, an invocation-bound authenticated console, creator controls and live systemd/Minecraft acceptance remain pending. This internal foundation does not add a usable fourth target yet. Linux SSH 程序管理基礎已有十八個受控測試；檔案、記錄、控制台、建立介面同真實主機驗收仍未接好，唔代表第四個目標已可用。",
+                        "The Linux SSH-process transport persists installation identity and verifies saved ownership, executable, working directory, exact JVM arguments and a stable invocation. The creator now has a readiness-only route with saved-host selection, proposed memory/port controls and bounded prerequisite observations. It always leaves Next and Create disabled. Installation, files, an invocation-bound authenticated console and live systemd/Minecraft acceptance remain pending; forced termination is unsupported. This does not add a fully usable fourth target yet. Linux SSH 程序已保存安裝身份同核對程序；建立介面新增唯讀準備檢查，可以揀已儲存主機、記憶體同連接埠，但下一步同建立仍停用。安裝、檔案、認證控制台同真實主機驗收未完成，唔代表第四個目標已可用。",
                     ],
                 },
                 {

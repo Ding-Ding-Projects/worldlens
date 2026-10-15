@@ -2,7 +2,7 @@
 
 ## Complete feature and BlueMap continuation (2026-10-11)
 
-- [x] Track all 105 canonical feature ids across five surface scopes without claiming unknown coverage.
+- [x] Track all 107 current canonical feature ids across five surface scopes, including practical onboarding and per-control information guidance, without claiming unknown coverage.
 - [ ] Retain historical Java channels: 46 focused catalogue/grouping cases pass; built wizard acceptance remains pending.
 - [x] Repair portable acquisition release tags and root layouts with six focused tests.
 - [x] Pass exact root build and receipt verification at dfb4aaef; verify credential-free hidden desktop startup and unauthenticated HTTP 403.
@@ -13,6 +13,8 @@
 - [x] Verify CLI viewer distribution from the maintained fork through focused staging checks and the exact root build at 82727748.
 - [ ] Integrate verified BlueMap v5.29 while preserving the Material viewer and legacy decoder.
 - [ ] Implement SSH-process hosting, Bedrock and version-bound server controls.
+- [x] Implement the bounded read-only SSH-process readiness API and guided saved-host/memory/port controls, with focused source verification. No creation capability is granted.
+- [ ] Verify readiness on real SSH hosts and the rebuilt Windows application across the complete language/theme/scale matrix; implement the separate remote installer and invocation-bound console.
 - [ ] Finish SSH-process integration: persisted created-installation records, factory/IPC routing, capability publication and bounded refresh are implemented. The exact root build and UI type check pass at f1d51b2d; a hidden native fixture shows Unknown and disabled lifecycle actions at 1280x752 and 800x600, English/dark, CDP scale 1.5. Installation, files, authenticated console, creator and live systemd/Minecraft acceptance remain pending; forced termination is unsupported, other display tuples are unverified and captures remain unpromoted.
 - [x] Verify the bounded initial native-caption increment at e9cad90a: exact root build, 24 setup/provenance checks, 48 inspected/validated dark-setup and light-home tuples, promoted genuine initial capture and owned teardown.
 - [x] Verify independent English/Cantonese/bilingual date formatting at e0efd139: two red/green regressions, 37 focused checks, exact root build/type check and 48 rebuilt inspected/validated tuples.
