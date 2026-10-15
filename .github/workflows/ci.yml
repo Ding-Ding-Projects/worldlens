@@ -113,8 +113,11 @@ jobs:
     if: always() && needs.jars.result == 'success'
     runs-on: windows-2022
     steps:
+      # Workspace builds require the pinned maintained viewer source.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          submodules: true
+          fetch-depth: 1
           persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the
@@ -538,8 +541,11 @@ jobs:
     if: always() && needs.jars.result == 'success'
     runs-on: ubuntu-24.04
     steps:
+      # Workspace builds require the pinned maintained viewer source.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
+          submodules: true
+          fetch-depth: 1
           persist-credentials: false
 
       # Version pinned via design/package.json's own `packageManager` field - see the

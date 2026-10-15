@@ -1535,6 +1535,48 @@
       "line": 224,
       "column": 47,
       "why": "literal executable identifier or ordinary memory-allocation terminology in an existing review reason"
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "line": 620,
+      "column": 11,
+      "why": "Literal POSIX file-concatenation command in the reviewed workflow; it copies or prints build output."
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "line": 632,
+      "column": 11,
+      "why": "Literal POSIX file-concatenation command in the reviewed workflow; it copies or prints build output."
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "line": 943,
+      "column": 13,
+      "why": "Literal POSIX file-concatenation command in the reviewed workflow; it copies or prints build output."
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "line": 972,
+      "column": 13,
+      "why": "Literal POSIX file-concatenation command in the reviewed workflow; it copies or prints build output."
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "line": 1027,
+      "column": 13,
+      "why": "Literal POSIX file-concatenation command in the reviewed workflow; it copies or prints build output."
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "line": 1057,
+      "column": 13,
+      "why": "Literal POSIX file-concatenation command in the reviewed workflow; it copies or prints build output."
+    },
+    {
+      "file": ".github/workflows/ci.yml",
+      "line": 1165,
+      "column": 15,
+      "why": "Literal POSIX file-concatenation command in the reviewed workflow; it copies or prints build output."
     }
   ]
 }

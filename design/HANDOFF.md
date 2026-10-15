@@ -5822,3 +5822,8 @@ Verification for this candidate:
   unavailable for these Vue files because no matching configuration is supplied; Vite compiled
   them successfully.
 - `git diff --check` and the public vocabulary scan are clean. No push, merge, or cleanup was done.
+
+
+## 2026-10-15 CI continuation
+
+CI run `38795524338` at `e9a64e3` passed workspace, container and seven Java-artifact builds, but Windows packaging and test-world generation omitted required submodules and failed before compilation. Their checkouts now fetch pinned submodules at depth 1 with credential persistence disabled. Local workflow integrity and drift checks pass; corrected remote results and interactive Windows/live SSH acceptance remain pending. See `docs/build/maintained-viewer.md`.

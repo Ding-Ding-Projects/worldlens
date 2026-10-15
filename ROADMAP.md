@@ -974,3 +974,8 @@ it from the interface.
 - [x] Reject stale Markdown companion correspondence, regenerate from JSON and pass26 publication/inventory checks.
 - [ ] Verify caption reservation for both adoption dialogs in the rebuilt minimum/normal interface; the earlier overlap capture remains pre-repair evidence.
 - [ ] Complete real-container adoption and remaining language/theme/scale acceptance.
+
+
+## 2026-10-15 CI continuation
+
+CI run `38795524338` at `e9a64e3` passed workspace, container and seven Java-artifact builds, but Windows packaging and test-world generation omitted required submodules and failed before compilation. Their checkouts now fetch pinned submodules at depth 1 with credential persistence disabled. Local workflow integrity and drift checks pass; corrected remote results and interactive Windows/live SSH acceptance remain pending. See `docs/build/maintained-viewer.md`.

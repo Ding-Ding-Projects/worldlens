@@ -8,6 +8,12 @@ The helper stops on missing source or lockfile, a spawn error, signal, nonzero i
 
 The CLI Dockerfile builds from that same maintained source instead of the upstream reference. Its context excludes both source trees' warm dependencies, Gradle outputs and viewer build outputs. The image builds its own viewer before the filtered CLI workspace build. No production container was launched by this repair.
 
+## CI checkout inputs
+
+CI run `38795524338` at `e9a64e3` passed the workspace, container-image and seven Java-artifact jobs. Windows packaging and test-world generation both stopped before compilation because their independent checkouts omitted the maintained viewer submodule. Release publication was skipped. The two checkout steps now fetch pinned submodules at depth 1, matching the successful workspace job, while keeping credential persistence disabled. No source pin, build guard or release dependency was relaxed.
+
+The workflow security/integrity and repository-drift checks pass locally. The corrected remote run remains the authority for Windows packaging and generated-world results; those results do not establish interactive native application or live SSH acceptance.
+
 ## Verification and limits
 
 The original failure reproduced locally and in CI run `38790625328`: the CLI required a maintained viewer bundle before that bundle existed. The pinned maintained viewer and complete workspace build passed locally after the repair. Eight helper/staging cases cover build order, dependency/build failures, absent outputs, stale-output preservation and the Windows invocation shape. Windows execution, Docker image/runtime acceptance and current remote CI remain separate verdicts. The Linux workspace command does not substitute for the Windows root `build.bat` or installer entrypoint.
@@ -19,3 +25,5 @@ workspace 嘅 build 會先用固定 npm lockfile 安裝同建置 `vendor/BlueMap
 Dockerfile 而家亦建置同一份 maintained source，再建置 CLI。context 排除兩份來源嘅舊依賴、Gradle 同 viewer 輸出，唔會靠某部電腦之前留低嘅 bundle。Windows 只用固定 npm 參數經 command shell 執行，路徑經 cwd 傳入。
 
 原本欠缺 viewer bundle 嘅問題喺本機同 CI `38790625328` 都重現。修正次序之後，固定 viewer 同完整 workspace 本機建置通過，八個針對性測試涵蓋次序、失敗、缺少輸出、保留舊輸出同 Windows 呼叫形狀。真正 Windows、Docker 同最新遠端 CI 仍須分開驗證，Linux workspace 結果唔可以代替根目錄 Windows 建置同安裝入口。
+
+CI `38795524338` 嘅 workspace、容器映像同七份 Java 輸出成功，但 Windows 封裝同測試世界工作各自 checkout 時漏咗 maintained viewer submodule，所以編譯前就停止，release 冇發佈。兩個 checkout 而家用 depth 1 取得固定 submodule，仍然停用憑證保留；冇放寬來源版本、建置檢查或者 release 依賴。本機 workflow 安全／完整性同 repository 一致性檢查通過，修正後遠端結果仍須確認，亦唔代表真實 SSH 同原生介面驗收。

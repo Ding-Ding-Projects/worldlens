@@ -9,7 +9,7 @@ Minecraft 3D map renderer and web viewer.
 
 The [complete feature delivery inventory](docs/contracts/feature-delivery-inventory.md) tracks 107 canonical requirements across five scopes. Current completion remains pending, including SSH-process hosting, Bedrock management, version-bound server controls and current built-interface evidence. Java catalogue discovery now retains release, snapshot, historical beta and historical alpha channels; discovery does not establish that Mojang published a dedicated server for every entry or that every historical runtime works.
 
-The [production server-article report](docs/site/production-server-articles.md) records the current 62-article assembly and focused desktop/mobile verification of the initial binding repair. Complete cleanup, live documentation/wiki navigation and all-surface acceptance remain pending.
+The [production server-article report](docs/site/production-server-articles.md) records the current 64-article assembly and focused desktop/mobile verification of the initial binding repair. Complete cleanup, live documentation/wiki navigation and all-surface acceptance remain pending.
 
 The [SSH-process foundation](docs/server-management/ssh-process-lifecycle.md) has persisted installation identity, production transport/IPC routing and bounded capability/status refresh. The creation wizard now offers a [readiness-only route](docs/server-management/ssh-process-readiness.md) with saved-host selection, memory/port controls and bounded SSH, supervisor, directory, Java and capacity checks. It never enables installation or Create. The earlier exact root build and hidden native unavailable-host observation passed at `f1d51b2d`; this new increment has separate source verification. Creation, files, authenticated console, live target acceptance and current native captures remain pending. Historical captures remain unpromoted because temporary-profile cleanup is incomplete.
 
@@ -1467,3 +1467,8 @@ proof remain pending.
 佢淨係下載 `rendered-map`，而 multi-group output 其實會出 `map-lowres` 同 `partial-hires-*`。
 所以 receipt 寫咗 `hiresTileCount=0` 同 `metadata=false`；conditional artifact download source
 fix、最後 low-res、Pages 同 cleanup proof 仲未完成。
+
+
+### Build input correction (2026-10-15)
+
+CI run `38795524338` at `e9a64e3` passed workspace, container and seven Java-artifact builds, but Windows packaging and test-world generation omitted required submodules and failed before compilation. Their checkouts now fetch pinned submodules at depth 1 with credential persistence disabled. Local workflow integrity and drift checks pass; corrected remote results and interactive Windows/live SSH acceptance remain pending. See `docs/build/maintained-viewer.md`.
