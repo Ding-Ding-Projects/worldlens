@@ -133,3 +133,83 @@ it("retains previous wording when browser storage refuses removal", async () => 
     expect((await store.clearVocabulary()).ok).toBe(false);
     expect(store.vocabularyStore.entries).toEqual({ Open: "Launch" });
 });
+
+it("hydrates the desktop cache despite an early invalid file selection", async () => {
+    let hydrate!: (value: unknown) => void;
+    Object.defineProperty(window, "worldlens", {
+        configurable: true,
+        value: {
+            vocabulary: {
+                read: () =>
+                    new Promise((resolve) => {
+                        hydrate = resolve;
+                    }),
+            },
+        },
+    });
+    const store = await import("./vocabularyStore.js");
+    const selected = store.beginVocabularyImport();
+    expect((await store.loadVocabularyFile("invalid", selected)).ok).toBe(false);
+    hydrate({ status: "loaded", entries: { Open: "Launch" } });
+    await vi.waitFor(() => expect(store.vocabularyStore.entries).toEqual({ Open: "Launch" }));
+});
+
+it("reconciles an already persisted load despite a newer invalid selection", async () => {
+    let finish!: (value: unknown) => void;
+    const load = vi.fn(
+        () =>
+            new Promise((resolve) => {
+                finish = resolve;
+            }),
+    );
+    Object.defineProperty(window, "worldlens", {
+        configurable: true,
+        value: {
+            vocabulary: {
+                read: async () => ({ status: "loaded", entries: { Open: "Original" } }),
+                load,
+            },
+        },
+    });
+    const store = await import("./vocabularyStore.js");
+    const pending = store.loadVocabularyFile(payload);
+    await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());
+    expect((await store.loadVocabularyFile("invalid")).ok).toBe(false);
+    finish({ ok: true, status: "loaded", entries: { Open: "Launch" } });
+    expect((await pending).reason).toBe("superseded");
+    expect(store.vocabularyStore.entries).toEqual({ Open: "Launch" });
+});
+
+it("failed clear reconciles the durable load snapshot and ignores its delayed older reply", async () => {
+    let finish!: (value: unknown) => void;
+    const load = vi.fn(
+        () =>
+            new Promise((resolve) => {
+                finish = resolve;
+            }),
+    );
+    Object.defineProperty(window, "worldlens", {
+        configurable: true,
+        value: {
+            vocabulary: {
+                read: async () => ({ status: "loaded", entries: { Open: "Original" } }),
+                load,
+                clear: async () => ({
+                    ok: false,
+                    status: "loaded",
+                    entries: { Open: "Launch" },
+                    reason: "clear-failed",
+                }),
+            },
+        },
+    });
+    const store = await import("./vocabularyStore.js");
+    const pending = store.loadVocabularyFile(payload);
+    await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());
+    expect((await store.clearVocabulary()).ok).toBe(false);
+    expect(store.vocabularyStore.entries).toEqual({ Open: "Launch" });
+    finish({ ok: true, status: "loaded", entries: { Open: "Launch" } });
+    await pending;
+    expect(store.vocabularyStore.entries).toEqual({ Open: "Launch" });
+    expect(store.vocabularyStore.persistenceError).toBe("clear-failed");
+});

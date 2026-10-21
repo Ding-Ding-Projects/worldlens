@@ -72,7 +72,23 @@ export const vocabularyStore = reactive<VocabularyState>(readCache());
 const hostVocabulary = typeof window === "undefined" ? undefined : window.worldlens?.vocabulary;
 
 let persisting = true;
+// File-read intent and acknowledged host state are separate clocks. An invalid new
+// selection cancels old reads, but cannot undo a host write already in progress.
 let revision = 0;
+let operation = 0;
+let observedOperation = 0;
+function reconcileSnapshot(
+    id: number,
+    snapshot: Pick<VocabularyState, "status" | "entries" | "metadata">,
+    error?: string,
+): void {
+    if (id < observedOperation) return;
+    observedOperation = id;
+    vocabularyStore.status = snapshot.status;
+    vocabularyStore.entries = snapshot.entries;
+    vocabularyStore.metadata = snapshot.metadata;
+    vocabularyStore.persistenceError = error;
+}
 let ready: Promise<void> = Promise.resolve();
 
 /** Desktop startup reads the app-data cache through the main-process bridge. Browser and
@@ -80,18 +96,17 @@ let ready: Promise<void> = Promise.resolve();
 export function initialiseVocabularyStore(): void {
     if (hostVocabulary === undefined) return;
     persisting = false;
-    const started = revision;
     ready = hostVocabulary
         .read()
         .then((snapshot) => {
-            if (started !== revision) return;
+            if (observedOperation !== 0) return;
             vocabularyStore.status = snapshot.status;
             vocabularyStore.entries = snapshot.entries;
             vocabularyStore.metadata = snapshot.metadata;
             vocabularyStore.persistenceError = undefined;
         })
         .catch(() => {
-            if (started !== revision) return;
+            if (observedOperation !== 0) return;
             vocabularyStore.status = "cache-unreadable";
             vocabularyStore.entries = {};
             vocabularyStore.persistenceError = "cache-unreadable";
@@ -157,58 +172,42 @@ export async function loadVocabularyFile(
     if (!validated.ok) return { ok: false, reason: validated.reason };
     await ready;
     if (started !== revision) return { ok: false, reason: "superseded" };
+    const id = ++operation;
     try {
         if (hostVocabulary !== undefined) {
             const result = await hostVocabulary.load(bytes);
+            // Even a failed host operation returns its authoritative durable snapshot.
+            reconcileSnapshot(id, result, result.ok ? undefined : "write-failed");
             if (started !== revision) return { ok: false, reason: "superseded" };
-            if (!result.ok) {
-                vocabularyStore.persistenceError = "write-failed";
-                return { ok: false, reason: "write-failed" };
-            }
-            vocabularyStore.status = result.status;
-            vocabularyStore.entries = result.entries;
-            vocabularyStore.metadata = result.metadata;
+            if (!result.ok) return { ok: false, reason: "write-failed" };
         } else {
-            // Persist before publishing entries or reporting success, including quota errors.
             if (persisting)
                 localStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(validated.payload));
-            vocabularyStore.status = "loaded";
-            vocabularyStore.entries = validated.payload.entries;
+            reconcileSnapshot(id, { status: "loaded", entries: validated.payload.entries });
         }
-        vocabularyStore.persistenceError = undefined;
         return { ok: true };
     } catch {
-        if (started !== revision) return { ok: false, reason: "superseded" };
-        vocabularyStore.persistenceError = "write-failed";
-        return { ok: false, reason: "write-failed" };
+        if (id >= observedOperation) vocabularyStore.persistenceError = "write-failed";
+        return { ok: false, reason: started === revision ? "write-failed" : "superseded" };
     }
 }
 
-/** Clear only after persistence acknowledges removal; failure retains active wording. */
+/** Clear cancels pending reads; only an acknowledged removal changes durable state. */
 export async function clearVocabulary(): Promise<VocabularyLoadResult> {
-    // Invalidate every pending load immediately, including one awaiting startup hydration.
-    const started = ++revision;
+    ++revision;
     await ready;
-    if (started !== revision) return { ok: false, reason: "superseded" };
+    const id = ++operation;
     try {
         if (hostVocabulary !== undefined) {
             const result = await hostVocabulary.clear();
-            if (started !== revision) return { ok: false, reason: "superseded" };
-            if (!result.ok) {
-                vocabularyStore.persistenceError = "clear-failed";
-                return { ok: false, reason: "clear-failed" };
-            }
-        } else if (persisting) {
-            localStorage.removeItem(VOCABULARY_STORAGE_KEY);
+            reconcileSnapshot(id, result, result.ok ? undefined : "clear-failed");
+            return result.ok ? { ok: true } : { ok: false, reason: "clear-failed" };
         }
-        vocabularyStore.status = "no-file";
-        vocabularyStore.entries = {};
-        vocabularyStore.metadata = undefined;
-        vocabularyStore.persistenceError = undefined;
+        if (persisting) localStorage.removeItem(VOCABULARY_STORAGE_KEY);
+        reconcileSnapshot(id, { status: "no-file", entries: {} });
         return { ok: true };
     } catch {
-        if (started !== revision) return { ok: false, reason: "superseded" };
-        vocabularyStore.persistenceError = "clear-failed";
+        if (id >= observedOperation) vocabularyStore.persistenceError = "clear-failed";
         return { ok: false, reason: "clear-failed" };
     }
 }
