@@ -28,6 +28,10 @@
     {
       "id": "encrypted-public-builder",
       "reason": "Worldlens is already public; this requirement concerns encrypted builds of private repositories."
+    },
+    {
+      "id": "private-documentation-package",
+      "reason": "Worldlens is a public repository. The private-only documentation packaging exception is not applicable; the separate universal documentation-companion obligation remains required."
     }
   ],
   "knownGaps": [
@@ -38,6 +42,14 @@
     {
       "id": "completeness-parity",
       "details": "Existing focused runtime-settings and converter/model inventories are partial inventories. They retain pending captures, live-service checks and integration checks."
+    },
+    {
+      "id": "vocabulary-drop-apply",
+      "details": "The requirement was absent from the previous ledger. A window-wide import implementation is in progress; current built interaction, sound and persistence proof remains pending."
+    },
+    {
+      "id": "documentation-companion",
+      "details": "The universal additional documentation companion and the dedicated build GUI are independent delivery obligations, not completed by the existing hosted product bundle."
     }
   ],
   "features": [
@@ -113,7 +125,7 @@
     {
       "id": "funny-emoji",
       "title": "Funny-level sliders and the dialog emoji switch",
-      "requirement": "Two independent persisted funny-level sliders, one for English and one for Cantonese, run from 1 (fully serious) to 5 (maximum playfulness), ship at 5, and reset independently. They are wired to the copy of every message category, poke-guy, destructive, financial, security, and accessibility copy included, change voice and never facts, and are disclosed at first run and in the setting itself. A persisted **Show emojis in dialogs and message boxes** switch adds one relevant non-semantic emoji per dialog and never puts emoji in buttons, labels, or accessible names.",
+      "requirement": "Two independent persisted funny-level sliders, one for English and one for Cantonese, run from 1 (fully serious) to 5 (maximum playfulness), ship at 5, and reset independently. They are wired to the copy of every message category, error, destructive, financial, security, and accessibility copy included, change voice and never facts, and are disclosed at first run and in the setting itself. A persisted **Show emojis in dialogs and message boxes** switch adds one relevant non-semantic emoji per dialog and never puts emoji in buttons, labels, or accessible names.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -306,6 +318,51 @@
       "reviewState": "partial-source-mapping"
     },
     {
+      "id": "vocabulary-drop-apply",
+      "title": "Window-wide personal-vocabulary import",
+      "requirement": "Every application accepts a personal-vocabulary JSON dropped anywhere on its window through the same bounded validator and persistence route as Settings. Invalid files change nothing. Only a completely applied and successfully saved import starts a nonblocking three-second celebration and the system tada cue. The headline comes only from the imported replacement for the ordinary phrase private vocabulary, or a localized neutral fallback. Invalid imports play the invalid-input cue once. Respect mute, volume, quiet hours, reduced motion, polite announcements, restricted mode, local-only handling and original wording on clear.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "The application requires the complete window-wide workflow and current built interaction proof.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "The hosted application shares the interface; persistence and sound capability need separate proof.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, focused tests and source-bound evidence support the application workflow.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": null,
+      "reviewState": "pending-review"
+    },
+    {
       "id": "school-mode",
       "title": "Universal School mode",
       "requirement": "One shared, user-renamable School mode switch lives in the shared local application-data record, so turning it on anywhere turns it on everywhere, live and without a restart, and after a rename only the chosen name appears. While it is on, surfaces force English and treat Cantonese, bilingual, funny levels, personal vocabulary, and every dim-sum capability as not installed, omitting their controls, routes, results, and references rather than disabling them, and the unlock ladder starts at the sums. Turning it off needs the one shared locally verified PIN, password, or passkey choice, and the control says plainly that this is a user-experience lock that deleting the shared record resets, not a security boundary.",
@@ -382,7 +439,7 @@
     {
       "id": "narration",
       "title": "Spoken narrator and voice pickers",
-      "requirement": "Every user-facing application ships a spoken narrator for its events, off by default and enabled only by the person using it, narrating English, Cantonese, or Both strictly serialized, with a Hong Kong Cantonese voice for the Cantonese track. Each narrated language has its own voice picker listing the voices the machine actually has, with **Choose automatically** as the shipped default, the stable voice identity persisted, late enumeration handled, the voice really in effect stated beneath it, and adjustable rate and pitch. Narration is debounced, rate-limited per category, one utterance at a time, never suppresses spoken poke-guy facts, and yields to an active screen reader.",
+      "requirement": "Every user-facing application ships a spoken narrator for its events, off by default and enabled only by the person using it, narrating English, Cantonese, or Both strictly serialized, with a Hong Kong Cantonese voice for the Cantonese track. Each narrated language has its own voice picker listing the voices the machine actually has, with **Choose automatically** as the shipped default, the stable voice identity persisted, late enumeration handled, the voice really in effect stated beneath it, and adjustable rate and pitch. Narration is debounced, rate-limited per category, one utterance at a time, never suppresses spoken error facts, and yields to an active screen reader.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -1495,7 +1552,7 @@
     {
       "id": "regex-search",
       "title": "Regex builder on every search surface",
-      "requirement": "Every project includes a super-advanced regex workbench for construction, explanation, testing, profiling, and debugging against its real engine, inside its natural primary interface. Every search bar, settings or properties surface, page, panel, list, table, tree, gallery, history, notification centre, editor section, dropdown, and context menu has its own local search with its own adjacent anchored builder, owning isolated query, pattern, flags, validation, mode, history, and snippets, with plain text as the default. Evaluation stays local, bounded, time-limited, and safe against catastrophic backtracking, and a hand-written per-surface search inventory keeps a missing field from disappearing.",
+      "requirement": "Every project includes a super-advanced regex workbench for construction, explanation, testing, profiling, and debugging against its real engine, inside its natural primary interface. Every search bar, settings or properties surface, page, panel, list, table, tree, gallery, history, notification centre, editor section, dropdown, and context menu has its own local search with its own adjacent anchored builder, owning isolated query, pattern, flags, validation, mode, history, and snippets, with plain text as the default. Evaluation stays local, bounded, time-limited, and safe against catastrophic backtracking, and a hand-written per-surface search inventory keeps a missing field from disappearing. The builder must deliver the complete documented RegexBuddy feature set, including construction, analysis, flavor/version comparison and conversion, debugging, benchmarking, code/templates, collections, safe file search, integration and preferences; a shallow tester does not establish parity.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -2969,7 +3026,7 @@
     {
       "id": "rendered-provider-text",
       "title": "Provider-authored text is rendered",
-      "requirement": "Release notes, GitHub poke-guy and pull-request bodies, commit messages, and README previews display as the Markdown they are, through one shared isolated renderer that never runs with the application's own privileges. The renderer carries an emoji map, a base reference for relative links, and an accessible region label, and an empty source shows an honest \"no notes were provided\" state.",
+      "requirement": "Release notes, GitHub issue and pull-request bodies, commit messages, and README previews display as the Markdown they are, through one shared isolated renderer that never runs with the application's own privileges. The renderer carries an emoji map, a base reference for relative links, and an accessible region label, and an empty source shows an honest \"no notes were provided\" state.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -3014,7 +3071,7 @@
     {
       "id": "notifications",
       "title": "Non-blocking notifications and their centre",
-      "requirement": "Informational, success, progress, and non-decision poke-guy messages appear as non-blocking toasts anchored in a bottom corner, auto-dismissing except bugs or failures and warnings, stacking without overlap, and carrying optional actions, while modal dialogs are reserved for real decisions. A notification centre or history keeps dismissed notifications reviewable, searchable, and bulk-manageable. Every notification is localized, focusable, announced, contrast-safe, and dismissible through an adequate target.",
+      "requirement": "Informational, success, progress, and non-decision error messages appear as non-blocking toasts anchored in a bottom corner, auto-dismissing except bugs or failures and warnings, stacking without overlap, and carrying optional actions, while modal dialogs are reserved for real decisions. A notification centre or history keeps dismissed notifications reviewable, searchable, and bulk-manageable. Every notification is localized, focusable, announced, contrast-safe, and dismissible through an adequate target.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -3550,7 +3607,7 @@
     {
       "id": "completeness-parity",
       "title": "Per-surface completeness inventory and parity",
-      "requirement": "Every user-facing application and GitHub Pages implements every canonical feature independently, with no delegation to a sibling, a shared GitHub Pages, a future release, a hidden route, or a placeholder. Each project keeps a hand-written per-surface completeness inventory naming every canonical feature with links to implementation, documentation article, localized copy, persistence, focused gate, built-lap-sap interaction proof, and real screenshot evidence, and a project-changing task fails closed on any absent, stale, or unproven row. An executable negative-regression gate removes one asserted item at a time with exact boundaries and must turn red, then green, and release-grade shutdown adds the hand-written deep audit and the per-click screenshot ledger.",
+      "requirement": "Every user-facing application and GitHub Pages implements every canonical feature independently, with no delegation to a sibling, a shared GitHub Pages, a future release, a hidden route, or a placeholder. Each project keeps a hand-written per-surface completeness inventory naming every canonical feature with links to implementation, documentation article, localized copy, persistence, focused gate, built-artifact interaction proof, and real screenshot evidence, and a project-changing task fails closed on any absent, stale, or unproven row. An executable negative-regression gate removes one asserted item at a time with exact boundaries and must turn red, then green, and release-grade shutdown adds the hand-written deep audit and the per-click screenshot ledger.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -3959,7 +4016,7 @@
     {
       "id": "clipping-matrix",
       "title": "layout clipping defect matrix for every built surface",
-      "requirement": "Every surface built from the Material Designer route receives a mandatory layout clipping defect matrix through the `diagnose-built-ui-layout` skill and the cheap Lowlevel headless route, bound to the exact source commit and built-lap-sap hash. It covers the normal and minimum supported viewport, English, Cantonese, and bilingual modes, light and dark themes, and 100, 125, 150, and 200% scales, from roughly 320 px upward for a GitHub Pages. Source inspection, a mock, or a design preview never satisfies it.",
+      "requirement": "Every surface built from the Material Designer route receives a mandatory layout clipping defect matrix through the `diagnose-built-ui-layout` skill and the cheap Lowlevel headless route, bound to the exact source commit and built-artifact hash. It covers the normal and minimum supported viewport, English, Cantonese, and bilingual modes, light and dark themes, and 100, 125, 150, and 200% scales, from roughly 320 px upward for a GitHub Pages. Source inspection, a mock, or a design preview never satisfies it.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -4184,7 +4241,7 @@
     {
       "id": "feature-articles",
       "title": "One detailed article per feature on the GitHub Pages",
-      "requirement": "The documentation lives on the GitHub Pages, not only in the repository: every feature has its own detailed article covering behaviour, configuration, poke-guy modes, security, and verification, ending with suggested articles so no reader hits a dead end. Articles and the GitHub Pages itself are updated in the same project-changing task that changes the behaviour, and long pages use navigable sections rather than one long scroll.",
+      "requirement": "The documentation lives on the GitHub Pages, not only in the repository: every feature has its own detailed article covering behaviour, configuration, failure modes, security, and verification, ending with suggested articles so no reader hits a dead end. Articles and the GitHub Pages itself are updated in the same project-changing task that changes the behaviour, and long pages use navigable sections rather than one long scroll. The deployed documentation also embeds complete wiki content with working internal routes; external source links do not substitute for the content.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -4876,7 +4933,7 @@
     {
       "id": "auto-updates",
       "title": "Chrome-style automatic updates",
-      "requirement": "Every installed user-facing application checks for updates at startup and on a bounded background schedule, validates the unsigned Squirrel feed metadata and package hashes over HTTPS without interrupting work, stages the update, and shows a persistent non-blocking ready banner with the exact version, a release-note link, an unsigned-lap-sap warning, **Restart to install update**, and **Later**. Restart happens only on the person's choice with unsaved-work protection. The updater is on by default with a visible state and a manual **Check for updates** command, and an update bug or failure is never hidden behind a spinner.",
+      "requirement": "Every installed user-facing application checks for updates at startup and on a bounded background schedule, validates the unsigned Squirrel feed metadata and package hashes over HTTPS without interrupting work, stages the update, and shows a persistent non-blocking ready banner with the exact version, a release-note link, an unsigned-artifact warning, **Restart to install update**, and **Later**. Restart happens only on the person's choice with unsaved-work protection. The updater is on by default with a visible state and a manual **Check for updates** command, and an update bug or failure is never hidden behind a spinner.",
       "surfaces": {
         "desktop": {
           "applicability": "applicable",
@@ -5626,7 +5683,7 @@
     {
       "id": "feature-docs",
       "title": "One Markdown file per feature",
-      "requirement": "Every feature's explanation lives in its own Markdown file below a categorized documentation folder whose `README.md` indexes it, covering behaviour, configuration, poke-guy modes, security, and verification. The README, the documentation, `ROADMAP.md`, and `HANDOFF.md` stay accurate for the work, and any missing file is created.",
+      "requirement": "Every feature's explanation lives in its own Markdown file below a categorized documentation folder whose `README.md` indexes it, covering behaviour, configuration, failure modes, security, and verification. The README, the documentation, `ROADMAP.md`, and `HANDOFF.md` stay accurate for the work, and any missing file is created.",
       "surfaces": {
         "desktop": {
           "applicability": "not-directly-rendered",
@@ -6304,6 +6361,188 @@
           "implementation": "pending-review",
           "runtimeAcceptance": "not-a-runtime-verdict",
           "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": null,
+      "reviewState": "pending-review"
+    },
+    {
+      "id": "private-documentation-package",
+      "title": "Private-repository documentation package",
+      "requirement": "Private repositories deliver their complete offline documentation and wiki through a packaged desktop companion, preserving privacy and working internal navigation. This conditional format does not remove the universal companion obligation for public repositories.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens is a public repository. The private-only documentation packaging exception is not applicable; the separate universal documentation-companion obligation remains required.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "hosted-workspace": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens is a public repository. The private-only documentation packaging exception is not applicable; the separate universal documentation-companion obligation remains required.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "documentation-site": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens is a public repository. The private-only documentation packaging exception is not applicable; the separate universal documentation-companion obligation remains required.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens is a public repository. The private-only documentation packaging exception is not applicable; the separate universal documentation-companion obligation remains required.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens is a public repository. The private-only documentation packaging exception is not applicable; the separate universal documentation-companion obligation remains required.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": null,
+      "reviewState": "excluded-with-reason"
+    }
+  ],
+  "deliveryObligations": [
+    {
+      "id": "documentation-companion",
+      "title": "Additional documentation companion",
+      "requirement": "Retain the public GitHub Pages website and additionally deliver its complete documentation and wiki in either a source-bound single portable desktop executable or a container-hosted companion. Verify working internal navigation, current content, privacy and the actual released format independently from the product application.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "hosted-workspace": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "The existing public website remains required; the additional companion and full offline content/navigation require implementation and acceptance.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "A reproducible build, normal release, exact source/version binding and downloaded companion verification are required.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": null,
+      "reviewState": "pending-review"
+    },
+    {
+      "id": "build-gui-companion",
+      "title": "Portable build GUI companion",
+      "requirement": "Provide a tailored build GUI executing the exact root build.bat, build-installer.bat and supported run route with validated controls, progress, actual child results, cancellation and recovery. Acquire supported missing prerequisites automatically through trusted verified routes, preserve existing installations and leave native elevation to the operator. Release and verify a single portable executable bound to the source/version.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "This is a distinct developer companion with real entrypoint actions, not a command catalogue.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "documentation-site": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Build, release and one-file launch proof remain required.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": null,
+      "reviewState": "pending-review"
+    },
+    {
+      "id": "hosted-deployment-tools",
+      "title": "Container deployment and setup tools",
+      "requirement": "For a container-hosted delivery, publish an immutable source-bound image, consume it from tracked Compose configuration, and provide root host.bat detached and interactive-log modes with a keyboard selector. The log view supports follow, service switching and safe exit preserving containers. A tailored portable setup wizard performs real configuration, pull, start and bounded health/LAN URL verification while preserving authentication and data.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "The existing hosted Dockerfile is not proof of published image, Compose, host.bat, live log controls or tailored setup wizard.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "This delivery format has no direct behavior on this surface.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Image publication, setup packaging, supported-host interaction and real health/LAN proof remain unverified.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
         }
       },
       "sourceEvidence": [],

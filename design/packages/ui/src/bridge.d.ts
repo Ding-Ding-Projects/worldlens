@@ -999,6 +999,7 @@ interface WorldlensBridge {
     schoolMode?: SharedSchoolModeBridge;
     runtimeSettings?: RuntimeSettingsBridge;
     vocabulary?: {
+        outcomeSound?(cue: "success" | "invalid"): Promise<{ readonly available: boolean; readonly dataUrl?: string }>;
         read(): Promise<{
             readonly status: "no-file" | "loaded" | "cache-unreadable";
             readonly entries: Readonly<Record<string, string>>;

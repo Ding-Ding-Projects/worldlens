@@ -1,5 +1,17 @@
 # Roadmap
 
+## Current feature delivery, 2026-10-21
+
+- [x] Track 109 feature requirements plus three independently checked delivery obligations; ten positive/negative inventory checks pass. This is ledger validation only.
+- [x] Include nested documentation Markdown with distinct path identities and category-relative internal navigation; 32 focused source tests pass, current built interaction remains pending.
+- [ ] Verify and integrate window-wide personal-vocabulary import, successful-save feedback, outcome audio, restricted-mode behavior and Settings fallback.
+- [ ] Deliver and verify the additional complete documentation/wiki companion while retaining the public website.
+- [ ] Deliver and verify the portable build GUI with real root entrypoint execution, progress, cancellation and recovery.
+- [ ] Complete container image/Compose/host.bat/log-view/setup-wizard delivery and native health/LAN acceptance.
+- [ ] Finish SSH-process hosting, Bedrock, version-bound rich controls and remaining per-surface implementation/runtime/capture acceptance.
+
+以上勾選只證明要求清單同檢查已更新；匯入流程、文件伴隨程式、編譯介面、容器部署同逐介面實際驗收仍待完成。
+
 ## Discoverability and rich command results — 2026-08-24
 
 - [x] Extend the existing `Ctrl+Shift+F` palette with local favourites, bounded recent

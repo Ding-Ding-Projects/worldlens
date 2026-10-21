@@ -1,5 +1,19 @@
 # Handoff
 
+## 2026-10-21 feature-contract reconciliation in progress
+
+The initial application UI and hosted backend built from baseline `daf5bade870f14c5add1804e363b9600f83c7c12`, and its hosted Home screen loaded on loopback. Later source changes have not yet passed a complete root build. This establishes a browser-hosted launch, not native installer or world-rendering acceptance. No world folder, Docker socket, SSH or forge credential was granted to this local instance.
+
+The ledger now contains 109 feature requirements plus three independently required delivery obligations. Window-wide personal-vocabulary import and private-only documentation packaging were previously absent; the latter is explicitly excluded for this public repository without excluding the universal additional documentation companion. The documentation companion, portable build GUI and container deployment tools remain pending. The complete mode reports 514 pending surface requirements; structural validation passing is not completion. Ten inventory tests pass, including independent omission tests and a check that verified catalogue rows cannot conceal pending companions.
+
+Window-wide personal-vocabulary import source is integrated locally with persistence-gated success, reduced-motion and screen-reader feedback. Host sound-file access and durable store ordering have 20 focused tests passing with the related UI ordering tests. These are source checks, not built interaction or audible playback evidence. Current built import interaction, native audio, documentation companion, build GUI, container setup, server-manager gaps and wider runtime/capture acceptance remain unfinished.
+
+The exact root `build.bat /s` bootstrap acquired its supported toolchain and built the pinned Java renderer, then exited nonzero because the source-receipt step requires a clean working tree. It did not establish a successful current product build. The nested documentation bundle now preserves category-relative article identities and internal links; 32 focused tests pass. Four string-control-byte repairs retain equivalent TypeScript escapes; 90 existing tests pass across fingerprinting, compression and lock behavior. Companion design received independent approval at `9c57394d`; the inactive host foundation remains under independent review. Packaging, native execution, full wiki embedding, source publication checks and wider acceptance remain pending.
+
+## 廣東話：2026-10-21 要求對照進行中
+
+應用程式介面同 hosted 後端成功編譯，loopback 首頁亦成功開到，但唔代表原生安裝程式或者世界渲染已驗收。清單而家記錄 109 項功能要求，另加三項獨立交付責任；完整驗收仍有 514 項介面要求待完成。十項清單測試通過，包括移走必要項目同隱藏伴隨程式要求會失敗嘅檢查。全視窗個人詞彙匯入仍然整緊，原生聲效、文件伴隨程式、編譯介面、容器設定同其他實際操作驗收都未完成。
+
 ## 2026-10-15 plain-language continuation summary
 
 Worldlens can now check whether a saved Linux SSH host has the prerequisites for a future Java-process server. This is a read-only check, not an installer. In New server, choose a release and Remote process (readiness only), select a saved host and set proposed memory and port. The eight observations use strict SSH trust, one deadline and typed reason codes. Changing inputs clears old results. Next and Create stay disabled even after all observations pass.
@@ -2275,6 +2289,15 @@ superseded them; `docs/cloud-runners.md` now carries the current inventory and r
 boundary.
 
 ## Plain-language summary (start here)
+
+
+**Current continuation, 2026-10-21.** The product is now Worldlens, formerly Material BlueMap. The initial hosted build from `daf5bade870f14c5add1804e363b9600f83c7c12` opened its Home screen on loopback. Current source adds window-wide personal-wording import and one shared bounded validator, nested documentation navigation, and an inactive companion build-host foundation. Independent source reviews have checked the validator and repaired host ownership/privacy paths. Current compiled integration and native interaction remain unverified.
+
+The ledger lists 109 requirements plus three additional delivery obligations. It still reports 514 pending surface requirements. A source test passing does not finish those requirements. The exact root build reached the source-receipt step and failed because changes were not yet committed. The full publication scan also reached its aggregate byte limit while reading the pinned Chunker source. Both must be resolved before current build or delivery claims. No new release or deployment is claimed.
+
+Next: finish the bounded publication scan, preserve the reviewed source, run the exact root build, exercise the built import and documentation workflows, and finish the actual companion interfaces/packages. Complete offline wiki preparation, container hosting tools, server-management gaps and the remaining per-surface acceptance are still open. The older summary below is retained as dated history; its release, issue-board and build statements describe August and are not current status.
+
+### Historical summary, 2026-08-05
 
 This section is written in short, plain sentences on purpose. It defines every term it
 uses. Read it first. Everything after it is a dated log written by people who were there;

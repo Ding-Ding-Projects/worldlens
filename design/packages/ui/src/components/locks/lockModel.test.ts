@@ -275,7 +275,7 @@ describe("the list", () => {
         expect(text).toContain("Font size");
         expect(text).toContain("settings");
         expect(text).toContain("password");
-        expect(text).not.toContain(locks[0]!.verifier?.derived ?? " ");
+        expect(text).not.toContain(locks[0]!.verifier?.derived ?? "\x00");
     });
 
     it("gathers a subtree without letting a prefix claim its neighbour", async () => {

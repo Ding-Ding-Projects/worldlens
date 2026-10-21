@@ -1,5 +1,5 @@
 /**
- * The completeness guard: everything `docs/*.md` has on disk, right now, is in the bundle.
+ * The completeness guard: everything the recursive documentation tree has on disk, right now, is in the bundle.
  *
  * `docsContent.ts` builds its list from `import.meta.glob`, which is exactly the mechanism this
  * test does not trust blindly - a glob pattern with one wrong `../` bundles nothing and no type
@@ -9,6 +9,7 @@
  */
 
 import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
@@ -18,8 +19,11 @@ import { idFromFile } from "./docsModel.js";
 /** `docs/` at the top of the repository, resolved independently of the glob under test. */
 const DOCS_DIRECTORY = fileURLToPath(new URL("../../../../../../docs", import.meta.url));
 
-function realMarkdownFiles(): readonly string[] {
-    return readdirSync(DOCS_DIRECTORY).filter((name) => name.toLowerCase().endsWith(".md"));
+function realMarkdownFiles(directory = DOCS_DIRECTORY, prefix = ""): readonly string[] {
+    return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+        if (entry.isDirectory()) return realMarkdownFiles(join(directory, entry.name), `${prefix}${entry.name}/`);
+        return entry.isFile() && entry.name.toLowerCase().endsWith(".md") ? [`${prefix}${entry.name}`] : [];
+    });
 }
 
 describe("the docs bundle is complete", () => {
@@ -58,5 +62,6 @@ describe("the docs bundle is complete", () => {
         for (const id of ["command-palette", "large-worlds", "readme", "bluemapgui-parity"]) {
             expect(DOCS_ARTICLE_IDS.has(id)).toBe(true);
         }
+        expect(DOCS_ARTICLE_IDS.has("contracts/feature-delivery-inventory")).toBe(true);
     });
 });

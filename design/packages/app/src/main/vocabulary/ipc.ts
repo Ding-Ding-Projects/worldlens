@@ -1,10 +1,12 @@
 import type { IpcMain } from "electron";
 import { VocabularyStore, type VocabularyResult, type VocabularySnapshot } from "./store.js";
+import { readVocabularyOutcomeSound } from "./outcomeSound.js";
 
 export const VOCABULARY_CHANNELS = {
     read: "vocabulary:read",
     load: "vocabulary:load",
     clear: "vocabulary:clear",
+    outcomeSound: "vocabulary:outcomeSound",
 } as const;
 
 export function registerVocabularyHandlers(
@@ -15,5 +17,6 @@ export function registerVocabularyHandlers(
     ipcMain.handle(VOCABULARY_CHANNELS.read, (): Promise<VocabularySnapshot> => store.read());
     ipcMain.handle(VOCABULARY_CHANNELS.load, (_event, raw: unknown): Promise<VocabularyResult> => store.load(raw));
     ipcMain.handle(VOCABULARY_CHANNELS.clear, (): Promise<VocabularyResult> => store.clear());
+    ipcMain.handle(VOCABULARY_CHANNELS.outcomeSound, (_event, cue: unknown) => readVocabularyOutcomeSound(cue));
     return { store, dispose: () => Object.values(VOCABULARY_CHANNELS).forEach((channel) => ipcMain.removeHandler(channel)) };
 }

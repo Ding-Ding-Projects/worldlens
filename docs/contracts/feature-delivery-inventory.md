@@ -4,13 +4,14 @@ Generated from `feature-delivery-inventory.json`. Run `node scripts/check-featur
 
 Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation and acceptance inventory; no all-feature completion claim.
 
-107 canonical identifiers are tracked across 5 separately assessed scopes. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.
+109 feature requirements and 3 additional delivery obligations are tracked across 5 separately assessed scopes. Public identifiers retain ordinary technical wording. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.
 
 | Identifier | Requirement | Scopes with recorded source mapping | Source paths | Review state |
 | --- | --- | --- | --- | --- |
 | `language` | Language modes | desktop, documentation-site | `design/packages/ui/src/components/setup/LanguageSettingsRow.vue`, `design/packages/ui/src/i18n.ts`, `design/packages/site/src/i18n/I18n.ts`, `design/packages/site/src/settings/page.ts` | partial-source-mapping |
 | `funny-emoji` | Funny-level sliders and the dialog emoji switch | desktop, documentation-site | `design/packages/ui/src/i18n.ts`, `design/packages/ui/src/components/setup/SetupLanguagePanel.vue`, `design/packages/site/src/i18n/I18n.ts`, `design/packages/site/src/settings/schema.ts` | pending-review |
 | `personal-vocabulary` | Local personal-vocabulary JSON upload | desktop, hosted-workspace, documentation-site, embedded-bluemap-viewer | `design/packages/site/src/settings/personalVocabulary.ts`, `design/packages/ui/src/components/vocabulary/VocabularyUploadRow.vue`, `design/packages/ui/src/components/vocabulary/vocabularyStore.ts`, `design/packages/ui/src/components/vocabulary/vocabularySchema.ts`, `design/packages/ui/src/components/settings/AppSettings.vue`, `design/packages/site/src/settings/page.ts`, `design/packages/site/src/main.ts`, `design/packages/viewer/src/materialShell.ts`, `design/packages/viewer/src/materialShellPresentation.ts` | partial-source-mapping |
+| `vocabulary-drop-apply` | Window-wide personal-vocabulary import | None recorded | Not yet mapped | pending-review |
 | `school-mode` | Universal School mode | desktop, documentation-site | `design/packages/ui/src/components/setup/SchoolModeSettingsRow.vue`, `design/packages/site/src/settings/schoolMode.ts`, `design/packages/ui/src/components/setup/schoolMode.ts`, `design/packages/site/src/settings/schoolModePanel.ts` | partial-source-mapping |
 | `narration` | Spoken narrator and voice pickers | desktop, documentation-site | `design/packages/ui/src/components/runtimeSettings/narrator.ts`, `design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue`, `design/packages/site/src/settings/schema.ts`, `design/packages/site/src/settings/page.ts`, `design/packages/site/src/main.ts` | partial-source-mapping |
 | `scheduled-settings` | Scheduled and external settings sources | desktop, documentation-site | `design/packages/ui/src/components/runtimeSettings/schedule.ts`, `design/packages/ui/src/components/runtimeSettings/RuntimeSettingsPanel.vue`, `design/packages/site/src/settings/schedule.ts`, `design/packages/site/src/settings/schedulePanel.ts`, `design/packages/site/src/settings/page.ts` | partial-source-mapping |
@@ -115,6 +116,10 @@ Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation 
 | `roblox-visual-realism` | Roblox visual realism | None recorded | Not yet mapped | excluded-with-reason |
 | `onboarding-wizard` | Practical in-application onboarding | None recorded | Not yet mapped | pending-review |
 | `info-icon-guidance` | Per-control contextual information | None recorded | Not yet mapped | pending-review |
+| `private-documentation-package` | Private-repository documentation package | None recorded | Not yet mapped | excluded-with-reason |
+| `documentation-companion` | Additional documentation companion | None recorded | Not yet mapped | pending-review |
+| `build-gui-companion` | Portable build GUI companion | None recorded | Not yet mapped | pending-review |
+| `hosted-deployment-tools` | Container deployment and setup tools | None recorded | Not yet mapped | pending-review |
 
 ## Exclusions
 
@@ -124,6 +129,7 @@ Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation 
 - `roblox-model-catalogue`: Worldlens is not a Roblox game or Studio project.
 - `roblox-visual-realism`: Worldlens is not a Roblox game or Studio project.
 - `encrypted-public-builder`: Worldlens is already public; this requirement concerns encrypted builds of private repositories.
+- `private-documentation-package`: Worldlens is a public repository. The private-only documentation packaging exception is not applicable; the separate universal documentation-companion obligation remains required.
 
 ## Verification
 

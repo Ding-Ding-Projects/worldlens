@@ -50,6 +50,38 @@ test("a missing required feature is rejected", () => {
     ),
   );
 });
+test("new import and private packaging obligations cannot disappear from the ledger", () => {
+  for (const id of ["vocabulary-drop-apply", "private-documentation-package"]) {
+    const document = read();
+    document.features = document.features.filter((feature) => feature.id !== id);
+    assert.ok(validateInventory(document).failures.includes(`Missing required feature: ${id}`));
+  }
+});
+test("delivery obligations outside the catalogue are independently required", () => {
+  for (const id of ["documentation-companion", "build-gui-companion", "hosted-deployment-tools"]) {
+    const document = read();
+    document.deliveryObligations = document.deliveryObligations.filter((feature) => feature.id !== id);
+    assert.ok(validateInventory(document).failures.includes(`Missing required feature: ${id}`));
+  }
+  const document = read();
+  delete document.deliveryObligations;
+  assert.ok(validateInventory(document).failures.includes("Missing additional delivery obligations"));
+});
+test("a verified catalogue cannot conceal pending delivery companions", () => {
+  const document = read();
+  for (const feature of document.features) {
+    for (const state of Object.values(feature.surfaces)) {
+      if (state.applicability === "not-applicable") continue;
+      state.implementation = state.runtimeAcceptance = state.captureAcceptance = "verified";
+      state.acceptanceEvidence = [{
+        path: "README.md", sourceCommit: "a".repeat(40), sha256: "b".repeat(64),
+      }];
+    }
+  }
+  const result = validateInventory(document, { requireComplete: true });
+  assert.deepEqual(result.pending.map((label) => label.split("/")[0]).filter((id, index, all) => all.indexOf(id) === index), ["documentation-companion", "build-gui-companion", "hosted-deployment-tools"]);
+  assert.ok(result.failures.some((value) => value.includes("remain incomplete")));
+});
 test("duplicate IDs and missing surface scopes are rejected", () => {
   const document = read();
   document.features[1].id = document.features[0].id;

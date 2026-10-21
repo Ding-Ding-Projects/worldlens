@@ -324,6 +324,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
         vocabulary: {
+            outcomeSound: (cue: unknown) => transport.invoke("vocabulary:outcomeSound", cue),
             read: () => transport.invoke("vocabulary:read"),
             load: (raw: unknown) => transport.invoke("vocabulary:load", raw),
             clear: () => transport.invoke("vocabulary:clear"),

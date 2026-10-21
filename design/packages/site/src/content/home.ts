@@ -75,7 +75,7 @@ export const home: HomeContent = {
             tone: "note",
             title: "SSH-process readiness, with installation still pending",
             content: [
-                "The server wizard now offers a read-only saved-host readiness route with proposed memory and port controls. Strict SSH trust, Linux service-manager, folder, Java and resource observations do not install or start a server; Next and Create stay disabled. Controlled Linux SSH and native Electron wizard checks pass; Windows and deployment-host acceptance remain pending. The delivery inventory now tracks 107 requirements, including practical onboarding and per-control information guidance; that is a requirements count, not a completion claim. SSH 程序新增唯讀準備檢查，可以揀已儲存主機、記憶體同連接埠，但唔會安裝或者開服，下一步同建立仍停用。Linux SSH 同原生 Electron 精靈受控檢查通過，Windows 同部署主機驗收待完成；107 項係要求數量，唔係完成數量。",
+                "The server wizard offers a read-only saved-host readiness route with proposed memory and port controls. Strict SSH trust, Linux service-manager, folder, Java and resource observations do not install or start a server; Next and Create stay disabled. Controlled Linux SSH and native Electron wizard checks pass; Windows and deployment-host acceptance remain pending. The delivery inventory tracks 109 feature requirements and three additional delivery obligations: documentation companion, portable build GUI and container deployment tools. These counts describe requirements, not completed workflows. SSH 程序提供唯讀準備檢查，可以揀已儲存主機、記憶體同連接埠，但唔會安裝或者開服，下一步同建立仍停用。受控 Linux SSH 同原生桌面精靈檢查通過，Windows 同部署主機驗收待完成。清單記錄 109 項功能要求，另加文件伴隨程式、可攜式編譯介面同容器部署工具三項交付責任；呢啲係要求數量，唔係已完成功能數量。",
             ],
         },
         {

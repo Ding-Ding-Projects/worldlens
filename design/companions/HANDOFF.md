@@ -1,7 +1,7 @@
 # Companion implementation handoff
 
 Design candidate only. Preserve the productive application, root scripts, existing Squirrel
-installer, and public website. Independent review is required before implementation. This change
+installer, and public website. Independent design review approved reference `9c57394d065577ed7a41005d765702627c979943`. This change
 adds no package, runtime entrypoint, release asset, build configuration, or executable behavior.
 
 ## Proposed deliverables and build route
@@ -97,3 +97,7 @@ three distinct intents. Setup preferences reuses the existing language/tone cont
 its saved values, and resume shows saved progress plus changed-source recovery. Top-level identity
 is the resolved common Git root; linked worktrees are internal checkout/run contexts. Independent
 re-review remains pending; source-only compilation is not runtime proof.
+
+## Independent design review result, 2026-10-21
+
+A separate reviewer approved reference `9c57394d065577ed7a41005d765702627c979943` after checking the three closing intents, saved setup preferences/review/resume states, and common-root workspace identity. Earlier pending-review statements above are preserved as revision history. This approval covers design decisions and reference anatomy only. Native execution, process-tree cancellation, cross-process ownership, offline inventory, packaging and the complete layout matrix remain unverified. The separately implemented host foundation is inactive until its IPC and GUI integration are explicitly completed.

@@ -186,4 +186,19 @@ describe("resolveInternalLink", () => {
     it("does not resolve a link into a subdirectory", () => {
         expect(resolveInternalLink("sub/command-palette.md", knownIds)).toBeNull();
     });
+
+    it("keeps nested category indexes distinct and resolves links from their source directory", () => {
+        const nested = new Set(["readme", "category/readme", "category/topic", "other/topic"]);
+        expect(resolveInternalLink("README.md", nested, "category/topic.md")).toEqual({ id: "category/readme", hash: "" });
+        expect(resolveInternalLink("../other/topic.md#details", nested, "category/topic.md")).toEqual({ id: "other/topic", hash: "#details" });
+        expect(resolveInternalLink("#details", nested, "category/topic.md")).toEqual({ id: "category/topic", hash: "#details" });
+    });
+
+    it("rejects encoded escapes, malformed encodings and active URL schemes", () => {
+        const nested = new Set(["readme", "category/topic"]);
+        for (const href of ["%2e%2e/%2e%2e/README.md", "//example.com/README.md", "javascript:topic.md", "%ZZ.md", "%2fREADME.md", "topic.md?query", "..%5cREADME.md"]) {
+            expect(resolveInternalLink(href, nested, "category/topic.md")).toBeNull();
+        }
+        expect(resolveInternalLink("%74opic.md", nested, "category/README.md")).toEqual({ id: "category/topic", hash: "" });
+    });
 });

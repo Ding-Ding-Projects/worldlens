@@ -2874,6 +2874,7 @@ interface WorldlensBridge {
         };
     };
     vocabulary: {
+        outcomeSound(cue: "success" | "invalid"): Promise<{ readonly available: boolean; readonly dataUrl?: string }>;
         read(): Promise<VocabularySnapshot>;
         load(raw: string): Promise<VocabularyResult>;
         clear(): Promise<VocabularyResult>;

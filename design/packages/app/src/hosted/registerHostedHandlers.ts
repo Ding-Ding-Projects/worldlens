@@ -1,5 +1,6 @@
 import type { IpcMain } from "electron";
 import { registerEulaHandlers } from "../main/eula/ipc.js";
+import { readVocabularyOutcomeSound } from "../main/vocabulary/outcomeSound.js";
 import { registerGalleryHandlers } from "../main/gallery/ipc.js";
 import { registerHistoryHandlers } from "../main/history/ipc.js";
 import { registerStructureHandlers } from "../main/structures/discoverIpc.js";
@@ -69,6 +70,7 @@ export function registerHostedHandlers(
     options: HostedHandlerOptions,
 ): void {
     const ipcMain = context.ipcMain as unknown as IpcMain;
+    ipcMain.handle("vocabulary:outcomeSound", (_event, cue: unknown) => readVocabularyOutcomeSound(cue));
 
     // Its own version, which the About surface asks for on every load.
     ipcMain.handle("app:version", () => process.env["WORLDLENS_VERSION"] ?? "0.0.0-hosted");

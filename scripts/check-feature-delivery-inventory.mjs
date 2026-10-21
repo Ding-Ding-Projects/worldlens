@@ -9,6 +9,8 @@ export const REQUIRED_IDS = Object.freeze([
   "language",
   "funny-emoji",
   "personal-vocabulary",
+  "vocabulary-drop-apply",
+  "private-documentation-package",
   "school-mode",
   "narration",
   "scheduled-settings",
@@ -114,6 +116,14 @@ export const REQUIRED_IDS = Object.freeze([
   "roblox-model-catalogue",
   "roblox-visual-realism",
 ]);
+// Required delivery contracts also exist outside the feature catalogue. Keep this
+// independent list so omission of an entire companion cannot pass the checker.
+export const REQUIRED_DELIVERY_IDS = Object.freeze([
+  "documentation-companion",
+  "build-gui-companion",
+  "hosted-deployment-tools",
+]);
+const ALL_REQUIRED_IDS = Object.freeze([...REQUIRED_IDS, ...REQUIRED_DELIVERY_IDS]);
 export const SURFACES = Object.freeze([
   "desktop",
   "hosted-workspace",
@@ -124,7 +134,7 @@ export const SURFACES = Object.freeze([
 
 export function renderMarkdownInventory(document) {
   const cell = (value) => String(value).replaceAll("|", "\\|").replace(/[\r\n]+/gu, " ");
-  const rows = document.features.map((feature) => {
+  const rows = [...document.features, ...(document.deliveryObligations ?? [])].map((feature) => {
     const mapped = SURFACES.filter((surface) => feature.surfaces[surface].sourceMapping);
     const paths = [...new Set([
       ...(feature.sourceEvidence ?? []).map((evidence) => evidence.path),
@@ -136,7 +146,7 @@ export function renderMarkdownInventory(document) {
     "# Feature delivery inventory draft", "",
     "Generated from `feature-delivery-inventory.json`. Run `node scripts/check-feature-delivery-inventory.mjs --write-markdown` after changing that ledger. The independent required-ID list remains in the checker.", "",
     `Baseline: \`${document.baseline}\`. ${cell(document.status)}.`, "",
-    `${document.features.length} canonical identifiers are tracked across ${SURFACES.length} separately assessed scopes. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.`, "",
+    `${document.features.length} feature requirements and ${(document.deliveryObligations ?? []).length} additional delivery obligations are tracked across ${SURFACES.length} separately assessed scopes. Public identifiers retain ordinary technical wording. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.`, "",
     "| Identifier | Requirement | Scopes with recorded source mapping | Source paths | Review state |",
     "| --- | --- | --- | --- | --- |", ...rows, "",
     "## Exclusions", "",
@@ -174,8 +184,10 @@ export function validateInventory(document, options = {}) {
     return { failures: ["Unsupported or missing inventory schema"], pending };
   }
   const seen = new Set();
-  for (const feature of document.features) {
-    if (!REQUIRED_IDS.includes(feature.id) || seen.has(feature.id))
+  if (!Array.isArray(document.deliveryObligations))
+    failures.push("Missing additional delivery obligations");
+  for (const feature of [...document.features, ...(document.deliveryObligations ?? [])]) {
+    if (!ALL_REQUIRED_IDS.includes(feature.id) || seen.has(feature.id))
       failures.push(`Unknown or duplicate feature: ${feature.id}`);
     seen.add(feature.id);
     if (!feature.title?.trim() || !feature.requirement?.trim())
@@ -249,7 +261,7 @@ export function validateInventory(document, options = {}) {
       }
     }
   }
-  for (const id of REQUIRED_IDS)
+  for (const id of ALL_REQUIRED_IDS)
     if (!seen.has(id)) failures.push(`Missing required feature: ${id}`);
   if (document.status === "complete" && pending.length)
     failures.push("Complete status contradicts pending acceptance");
@@ -276,7 +288,7 @@ if (
   result.failures.push(...validateMarkdownInventory(document, readFileSync(markdownPath, "utf8")));
   for (const failure of result.failures) process.stderr.write(`${failure}\n`);
   process.stdout.write(
-    `Feature inventory: ${REQUIRED_IDS.length} required IDs, ${SURFACES.length} scopes, ${result.pending.length} pending surface requirements, ${result.failures.length} validation failures\n`,
+    `Feature inventory: ${REQUIRED_IDS.length} required IDs, ${REQUIRED_DELIVERY_IDS.length} additional delivery obligations, ${SURFACES.length} scopes, ${result.pending.length} pending surface requirements, ${result.failures.length} validation failures\n`,
   );
   process.exitCode = result.failures.length ? 1 : 0;
 }

@@ -17,14 +17,14 @@
 
 import { type DocsArticle, buildArticle, idFromFile } from "./docsModel.js";
 
-const modules = import.meta.glob("../../../../../../docs/*.md", {
+const modules = import.meta.glob("../../../../../../docs/**/*.md", {
     eager: true,
     query: "?raw",
     import: "default",
 }) as Record<string, string>;
 
 function fileOf(path: string): string {
-    return path.slice(path.lastIndexOf("/") + 1);
+    return path.slice(path.indexOf("/docs/") + "/docs/".length);
 }
 
 /** Every bundled article, in the order `import.meta.glob` returned its keys (alphabetical). */

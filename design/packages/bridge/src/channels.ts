@@ -390,6 +390,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "vocabulary:clear",
     "vocabulary:load",
     "vocabulary:read",
+    "vocabulary:outcomeSound",
     "window:close",
     "window:isMaximized",
     "window:minimize",

@@ -1,33 +1,33 @@
-# Continuation handoff
+# Worldlens continuation, 2026-10-21
 
-Objective: continue Worldlens and all applicable required features. Full delivery remains incomplete: 107 inventory IDs, 505 pending surface requirements. Read actual local and remote refs; this document does not invent its own commit SHA.
+## Objective
 
-## Current verified increment (2026-10-15)
+Clone and launch Worldlens, implement the missing required features across the productive application and documentation website, and synchronize the maintainer's full shared guidance. The work remains in progress.
 
-The user selected Linux for acceptance. Read-only SSH readiness remains separate from installation: strict saved-host trust, exact cached Vanilla release lookup, Linux/systemd/user-manager/lingering, existing canonical writable parent, Java, memory, storage and port observations. A 30-second total deadline, bounded diagnostics, changed-profile detection and renderer stale-result isolation remain enforced. Creation and Next stay disabled.
+## Verified baseline and current source
 
-Five real SSH backend cases pass against a disposable Ubuntu 24.04/systemd/OpenSSH/Java 21 fixture: eight successful observations, unknown trust, unauthorized key, missing parent without creation and occupied port. Local profile/trust/catalogue bytes and existing remote content are preserved. The repeatable harness captures container identity before startup and verifies owned teardown. Source hashes and dirty-tree state are retained in docs/evidence/linux-ssh-readiness-20261015.json.
+- The initial UI and hosted backend built from `daf5bade870f14c5add1804e363b9600f83c7c12`, and its Home screen loaded on loopback without world folders or external service credentials.
+- Local `main` includes personal-wording drop and persistence fixes, reviewed companion design, publication wording repairs and shared validator commit `c7d2bbcfcc857cc0df5f61b62224ff958b17e672`.
+- Additional staged source includes fixed system outcome-sound access, durable store ordering tests, nested documentation navigation, a reviewed inactive companion build host, and the expanded feature ledger.
+- The ledger contains 109 required IDs and three additional delivery obligations, with 514 pending surface requirements. Its ten positive/negative tests pass.
+- The shared validator has 61 focused tests and an independent ten-case review. Companion-host repairs have 19 focused tests and independent reproduction of both corrected boundaries. Nested documentation and related configuration checks pass 49 tests. These results establish source-level behavior only.
 
-The rebuilt Linux Electron application passed real preload/main IPC checks and subsequent wizard interaction at 1280×800, English/dark. Saved profile selection, eight displayed observations, disabled Next, port-edit result invalidation and occupied-port refusal passed with zero observed page exceptions. This exposed a real defect: selecting remote process directly did not load saved profiles. The watcher now loads them for both SSH targets; 30 selected UI tests pass, including two direct-selection regression cases. Application/UI type checks and production builds pass. Independent review found no remaining introduced finding in inspected paths.
+## Pending verification and delivery
 
-The native fixture container was stopped, removed and absence verified; generated keys were removed. The final owned Xvfb process was reaped. Earlier exited Xvfb entries remain pending host-init reaping; do not claim every historical process entry disappeared. Diagnostic captures remain local and are not promoted to the full presentation matrix.
+The exact root `build.bat /s` acquired the supported toolchain and built the pinned Java renderer, then exited nonzero because the source-receipt step requires a clean tree. Current integrated compilation, built import interactions, native sound, installer and portable companion execution remain pending.
 
-## CI and documentation
+The complete publication scan stopped at its 256 MiB aggregate limit while reading the pinned Chunker dependency, whose tracked content is approximately 1.2 GB. Bounded streaming and exact-blob analysis reuse are being prepared; no skipped source or passing publication verdict is claimed. Source has not been pushed during this task.
 
-Requested CI run 38795524338 at e9a64e306c6e9d8902f6275af50674996aac8368 failed in Windows packaging and test-world generation because those independent checkout steps omitted the pinned viewer submodule. Repair 8b6a6a318ad48ce398fd3558b3d31541c00604ec enables submodules with depth 1 and retains disabled credential persistence. CI run 38799594959 succeeded at that exact commit. Release v1.0.2073 is published, including Windows packaging; interactive Windows acceptance remains unverified.
+Offline documentation preparation is also incomplete. The first pinned-source inventory contained 143 documentation articles, five wiki Markdown files, 144 local assets and 158 diagnostics. Source-binding and duplicate-anchor corrections are under review. The complete articles, assets and navigation must pass before a guide bundle can be delivered.
 
-The production site uses design/packages/site/index.html, not home.ts alone. Both carry current scoped acceptance status. Its explicit article inventory contains 64 articles (59 archive plus five current guides). All 916 site tests across 78 files, site typecheck and production build passed for this increment. Publication vocabulary checks pass. Read the new integration CI/Pages result before claiming this increment deployed.
+Additional unfinished work includes the actual companion interfaces and portable packaging, container hosting and setup tools, SSH-process server installation, Bedrock/version-bound controls, and the remaining per-surface implementation and acceptance evidence. Existing public documentation hosting remains required.
 
-## Next work and limits
+## Next safe steps
 
-Implement ownership-preserving remote installation, then an authenticated console bound to the reviewed systemd invocation. Revalidate prerequisites at installation time; preserve existing directories, ownership, credentials, host trust and explicit EULA consent. Do not enable Create from readiness alone. Existing lifecycle/transport code supports ownership-checked start for pre-existing application-owned records, not an installer or console. Forced termination remains unsupported.
+1. Finish the bounded full-source publication scan and preserve the reviewed milestone through the authorized repository workflow.
+2. Run the exact root build against committed source, then verify the compiled shared export and productive UI workflows.
+3. Exercise valid, invalid, repeated and cleared personal-wording imports, reduced motion, accessibility announcements, persistence, mute and native audio on the supported host.
+4. Finish the complete offline documentation inventory, companion interfaces, cancellation/recovery ownership, packaging and normal release evidence.
+5. Continue the explicit pending feature inventory. Keep each implementation, source test, built interaction and published result separate.
 
-Controlled loopback SSH and a synthetic cached catalogue do not establish deployment-host acceptance, real Minecraft installation/launch, Windows interaction or the full display matrix. Bedrock, version-bound rich controls, onboarding, per-control guidance and broader inventory delivery remain incomplete.
-
-Discussion 187 and Projects mutations were rejected with Resource not accessible by integration. Status Hub authentication is unavailable; no Hub/Tidbyt delivery is claimed. Preserve unrelated retained branches, profiles and evidence. Verify actual default-branch, wiki, issue and hosted workflow readback before reporting external delivery.
-
-References: docs/server-management/ssh-process-readiness.md, docs/server-management/ssh-process-lifecycle.md, scripts/acceptance/ssh-process/README.md, docs/evidence/linux-ssh-readiness-20261015.json, docs/build/maintained-viewer.md and design/HANDOFF.md.
-
-## 廣東話
-
-今次按使用者選擇做 Linux 驗收。五項真實 SSH 後端測試同原生 Electron 精靈操作通過，直接選遠端程序未載入已儲存主機嘅問題已修正；下一步同建立仍停用。CI 38799594959 全部通過，8b6a6a3 已發佈 v1.0.2073，但唔代表 Windows 互動驗收完成。下一步係保留擁有權嘅遠端安裝，再接駁綁定指定程序 invocation 嘅認證 console。107 項清單仍有 505 項介面要求待完成；受控 fixture、單一畫面同合成 catalogue 唔可以當成全部功能交付。
+The final commit and remote verification for this continuation record are pending. Preserve active work and existing data; do not remove an unmerged or unpublished recovery state.

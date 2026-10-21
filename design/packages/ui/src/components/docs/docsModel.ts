@@ -344,27 +344,30 @@ export interface ResolvedDocsLink {
 }
 
 /**
- * A same-directory relative Markdown link: `foo.md`, `./foo.md`, `foo.md#anchor`. Nothing with a
- * `/` in it (`../scripts/README.md`, `sub/foo.md`) matches, on purpose: every hand-written
- * cross-link between these articles is same-directory, and the one link in this repository's
- * documentation that is not - `docs/large-worlds.md`'s `../scripts/README.md` - points outside
- * `docs/` entirely and was never going to resolve to a bundled article regardless of how eagerly
- * this pattern tried to read it as one.
- */
-const INTERNAL_LINK = /^\.?\/?([a-z0-9][a-z0-9_-]*)\.md(#.*)?$/i;
-
-/**
- * Resolves a link found inside a rendered article to a bundled article, or `null` when the link
- * is not a same-directory Markdown link, or is one but does not name a bundled article (a typo,
- * or a filename this build genuinely does not carry).
+ * Resolve a relative Markdown destination within the complete documentation tree.
+ * Source-relative paths preserve category indexes without allowing an escape from docs/.
  */
 export function resolveInternalLink(
     href: string,
     knownIds: ReadonlySet<string>,
+    sourceFile = "README.md",
 ): ResolvedDocsLink | null {
-    const match = INTERNAL_LINK.exec(href);
-    if (match === null) return null;
-    const id = (match[1] ?? "").toLowerCase();
+    if (!href || /[\u0000-\u001f\\]/u.test(href) || href.startsWith("/") || /^[a-z][a-z\d+.-]*:/iu.test(href)) return null;
+    const hashIndex = href.indexOf("#");
+    const rawPath = hashIndex < 0 ? href : href.slice(0, hashIndex);
+    const hash = hashIndex < 0 ? "" : href.slice(hashIndex);
+    let target: string;
+    try { target = decodeURIComponent(rawPath); } catch { return null; }
+    if (/[\u0000-\u001f\\?#:]/u.test(target) || target.startsWith("/")) return null;
+    const parts = sourceFile.split("/").slice(0, -1);
+    if (!target) target = sourceFile.split("/").at(-1) ?? "";
+    if (!/\.md$/iu.test(target)) return null;
+    for (const part of target.split("/")) {
+        if (!part || part === ".") continue;
+        if (part === "..") { if (!parts.length) return null; parts.pop(); }
+        else parts.push(part);
+    }
+    const id = idFromFile(parts.join("/"));
     if (!knownIds.has(id)) return null;
-    return { id, hash: match[2] ?? "" };
+    return { id, hash };
 }

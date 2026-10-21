@@ -7,7 +7,7 @@
 A from-scratch TypeScript port of [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap), the
 Minecraft 3D map renderer and web viewer.
 
-The [complete feature delivery inventory](docs/contracts/feature-delivery-inventory.md) tracks 107 canonical requirements across five scopes. Current completion remains pending, including SSH-process hosting, Bedrock management, version-bound server controls and current built-interface evidence. Java catalogue discovery now retains release, snapshot, historical beta and historical alpha channels; discovery does not establish that Mojang published a dedicated server for every entry or that every historical runtime works.
+The [complete feature delivery inventory](docs/contracts/feature-delivery-inventory.md) tracks 109 feature requirements and three additional delivery obligations across five scopes. The additional obligations cover the documentation companion, portable build GUI and container deployment tools. Current completion remains pending, including SSH-process hosting, Bedrock management, version-bound server controls and current built-interface evidence. A structurally valid ledger does not establish that these workflows ship. Java catalogue discovery now retains release, snapshot, historical beta and historical alpha channels; discovery does not establish that Mojang published a dedicated server for every entry or that every historical runtime works.
 
 The [production server-article report](docs/site/production-server-articles.md) records the current 64-article assembly and focused desktop/mobile verification of the initial binding repair. Complete cleanup, live documentation/wiki navigation and all-surface acceptance remain pending.
 

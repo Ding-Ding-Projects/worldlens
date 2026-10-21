@@ -172,12 +172,12 @@ function categoryLabel(id: DocsCategoryId): string {
 /* Rendering an article, and resolving its links                              */
 /* -------------------------------------------------------------------------- */
 
-function decorateArticle(html: string): string {
+function decorateArticle(html: string, sourceFile: string): string {
     const template = document.createElement("template");
     template.innerHTML = html;
     for (const anchor of Array.from(template.content.querySelectorAll("a[href]"))) {
         const href = anchor.getAttribute("href") ?? "";
-        if (resolveInternalLink(href, DOCS_ARTICLE_IDS) !== null) {
+        if (resolveInternalLink(href, DOCS_ARTICLE_IDS, sourceFile) !== null) {
             anchor.setAttribute("data-docs-internal", "true");
             continue;
         }
@@ -190,7 +190,7 @@ function decorateArticle(html: string): string {
 const renderedArticle = computed(() => {
     const article = selectedArticle.value;
     if (article === null) return "";
-    return decorateArticle(renderMarkdown(article.markdown));
+    return decorateArticle(renderMarkdown(article.markdown), article.file);
 });
 
 /**
@@ -203,7 +203,7 @@ function onArticleClick(event: MouseEvent): void {
     const anchor = origin.closest<HTMLAnchorElement>("a[data-docs-internal]");
     if (anchor === null) return;
     const href = anchor.getAttribute("href") ?? "";
-    const resolved = resolveInternalLink(href, DOCS_ARTICLE_IDS);
+    const resolved = resolveInternalLink(href, DOCS_ARTICLE_IDS, selectedArticle.value?.file);
     if (resolved === null) return;
     event.preventDefault();
     openArticle(resolved.id, resolved.hash);
@@ -214,7 +214,8 @@ const articleBody = ref<HTMLElement | null>(null);
 watch([selectedArticle, renderedArticle], async () => {
     if (pendingHash.value.length <= 1) return;
     await nextTick();
-    const id = pendingHash.value.slice(1);
+    let id = pendingHash.value.slice(1);
+    try { id = decodeURIComponent(id); } catch { /* Preserve a malformed literal fragment. */ }
     const target = articleBody.value?.querySelector(`#${CSS.escape(id)}`);
     target?.scrollIntoView({ block: "start" });
 });
