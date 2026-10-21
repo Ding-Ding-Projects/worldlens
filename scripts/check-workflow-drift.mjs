@@ -119,8 +119,8 @@ function lineOf(text, index) {
  */
 function chunkerVersionDrift(repoRoot) {
     const workflowPath = join(WORKFLOW_DIR, "chunk-world.yml");
-    const towFat = join(repoRoot, "vendor/Chunker");
-    if (!existsSync(workflowPath) || !existsSync(join(towFat, ".git"))) return [];
+    const submodulePath = join(repoRoot, "vendor/Chunker");
+    if (!existsSync(workflowPath) || !existsSync(join(submodulePath, ".git"))) return [];
 
     const workflow = readFileSync(workflowPath, "utf8").replace(/\r\n/g, "\n");
     const tagMatch = /CHUNKER_TAG:\s*(\S+)/.exec(workflow);
@@ -129,7 +129,7 @@ function chunkerVersionDrift(repoRoot) {
 
     const read = (args) => {
         try {
-            return execFileSync("git", args, { cwd: towFat, encoding: "utf8" }).trim();
+            return execFileSync("git", args, { cwd: submodulePath, encoding: "utf8" }).trim();
         } catch {
             return null;
         }

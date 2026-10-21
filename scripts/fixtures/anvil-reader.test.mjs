@@ -1,5 +1,5 @@
 // Focused tests for the fixture comparison's own reading and comparison logic.
-// Bilingual note (poke-guy hunting note, not shipped anywhere public): this proves the
+// Regression coverage: this proves the
 // comparator on tiny synthetic worlds before it is trusted on gigabyte-scale ones.
 import test from "node:test";
 import assert from "node:assert/strict";

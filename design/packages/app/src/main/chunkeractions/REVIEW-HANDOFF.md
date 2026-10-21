@@ -44,8 +44,8 @@ pass is recorded first.
   editor's own scoped style already used `min-width:0;max-width:100%;overflow-wrap:anywhere` (the
   house pattern for avoiding clipping at 320px) and a theme token (`rgb(var(--v-theme-outline))`)
   rather than a hardcoded hex, so no changes were needed there. `node scripts/check-webapp-parity.mjs`
-  stays green (it inspects the BlueMap-vendored webapp, not this surface, and reports "the BlueMap Tow
-  Fat is not checked out" in this worktree -- expected, not a false pass this lane manufactured). The
+  stays green (it inspects the BlueMap-vendored webapp, not this surface, and reports that the BlueMap
+  submodule is not checked out in this worktree, so its parity result is unverified). The
   new/renamed labels are exposed as visible button text or `aria-label` (the per-key "Remove override
   {key}" and per-item "Remove item {n}" now carry the dynamic value in both the visible text and, for
   the override row, the `aria-label`), and the `size="small"` `VBtn` usage matches the pre-existing

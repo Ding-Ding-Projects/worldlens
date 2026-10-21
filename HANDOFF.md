@@ -1691,13 +1691,14 @@ the final `main` content is compared against the stash payload. No active, user-
 load-bearing, unmerged, undewed, or ownership-uncertain item is eligible for removal.
 
 External archive creation and linked-checkout removal remain pending. The archive must be created
-under the current user's OneDrive-backed `OakKayBackups/worldlens/zips` directory, verified with a
+in the owner's private external archive directory, verified with a
 full 7-Zip integrity test, and checked for the expected Git administrative directory and
 tracked/untracked inventory before any linked checkout, local ref, or redundant stash is removed.
 ## Archive and remote proof — 2026-09-18
 
 The required external archive is
-`C:\Users\cntow\OneDrive\OakKayBackups\worldlens\zips\worldlens-20260918T173607Z.7z`.
+`worldlens-20260918T173607Z.7z`, stored in the owner's private external archive directory.
+The exact recovery location is retained in the private operational record.
 It is 653,390,016 bytes and passed a full 7-Zip integrity test with exit code `0`. The archive
 contains 25,055 entries, including the complete `.git` directory, all three `.git/worktrees`
 records, and the three linked checkout `.git` pointer files. The input inventory contained 5,134

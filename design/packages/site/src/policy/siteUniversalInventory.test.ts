@@ -9,11 +9,11 @@ describe("site universal inventory", () => {
     it("keeps every canonical row explicit", () => {
         expect(() => assertSiteUniversalInventory()).not.toThrow();
         expect(SITE_UNIVERSAL_INVENTORY.length).toBeGreaterThanOrEqual(10);
-        const oakKay = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
+        const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../../..");
         for (const row of SITE_UNIVERSAL_INVENTORY) {
-            expect(existsSync(resolve(oakKay, row.implementation))).toBe(true);
-            expect(existsSync(resolve(oakKay, row.tests))).toBe(true);
-            expect(existsSync(resolve(oakKay, row.capture.path))).toBe(true);
+            expect(existsSync(resolve(repositoryRoot, row.implementation))).toBe(true);
+            expect(existsSync(resolve(repositoryRoot, row.tests))).toBe(true);
+            expect(existsSync(resolve(repositoryRoot, row.capture.path))).toBe(true);
         }
     });
 

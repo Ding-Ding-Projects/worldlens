@@ -149,7 +149,7 @@ async function caseInterruptedMidConversion(options) {
 /** Case 4 (best-effort): a destination with essentially no free space. */
 async function caseStorageExhaustion(options) {
     // A genuine size-limited volume (subst'd drive, tmpfs) needs elevated/privileged
-    // setup this pig's lane does not have on this host. Best-effort substitute that is
+    // setup unavailable to this test process on this host. Best-effort substitute that is
     // still a real, honest test: point the output at a path whose parent does not exist
     // and is not creatable (a file, not a directory, sitting where a directory is
     // needed), which exercises the same "cannot write output" failure path.

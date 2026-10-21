@@ -964,7 +964,7 @@ it from the interface.
 - [x] Delete the three proven redundant local and remote branches after remote ancestry proof.
 - [x] Confirm the three remote refs are absent with `git ls-remote --exit-code` returning `2`.
 - [ ] Remove the three unregistered physical linked checkout directories; retained because the
-      robot rejected recursive deletion with `Filename too long`.
+      execution platform rejected recursive deletion with `Filename too long`.
 - [ ] Remove the retained stash only after byte-for-byte redundancy is proven.
 
 ## Adoption and inventory correspondence verification (2026-10-11)
