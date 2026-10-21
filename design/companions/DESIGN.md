@@ -137,3 +137,49 @@ level extremes, reduced motion and keyboard/screen-reader passes. Track source, 
 reference and built routes, tuple, component audit, actual raw captures, comparison/diff and
 reviewed deviations. All evidence paths remain absent until genuine built captures exist. No
 reference preview, source parse or layout assumption is production proof.
+
+## Review revision: concrete state anatomy and setup
+
+The reference now renders distinct source chooser, verified-completion fixture, interrupted/
+failed recovery, owned-run cancellation dialog, settings, restricted settings, palette/new-tab
+catalogue, full-text result list and internal guide-navigation layouts. They are visual fixtures,
+not real completed operations. `sourceVerified`, `candidateValid` and `wizardStepVerified` default
+to false; a host must explicitly supply verified fixture results. Choose-source always disables
+Build. Build installer additionally requires valid candidate input. Running states disable new
+build starts. Restricted reference forces English and omits language/personal-wording controls.
+The production state machine must enforce the same rules in the host, not only the buttons.
+
+Both companions start with a practical three-stage setup: (1) Build selects and validates root
+scripts and checkout identity; Guide validates the bundled article/wiki/asset manifest and opens
+a real first article. (2) Apply optional language, reading, appearance and accessibility choices;
+Skip affects only this stage. (3) Review real outcomes and enter the productive workspace. Back
+retains inputs; Next never accepts an unchecked required step. Save and continue later persists
+versioned progress locally. Resume rechecks source/manifest identity and returns to the first
+invalid required step if it changed. Setup remains a New tab destination. Persist no private
+payload, credentials or source file metadata beyond their authorized dedicated stores.
+
+The reference exposes setup-source, setup-preferences, setup-review and setup-resume separately.
+Its host receives explicit verify/back/next/skip/save/open intents; implementation must connect
+these to actual checks and stored preferences, never increment a step merely to simulate success.
+Open workspace requires all mandatory results, and completion creates the first useful workbench
+or article tab instead of a marketing or command-catalogue screen.
+
+## Workspace identity and New tab
+
+Each Build workspace owns one validated checkout identity: normalized final filesystem root,
+resolved repository worktree identity and Git common-directory identity, with commit/dirty state
+observed separately. Drive-letter case, separator differences and junction aliases must resolve
+to the same final path before comparison. A linked worktree remains a distinct checkout identity;
+sharing a common repository alone must not combine two build outputs or run histories. Re-selecting
+an already-open identity focuses its existing workspace and selected tab, preserving drafts,
+installer ordinal, logs, running operation and wizard progress. A different checkout opens a new
+workspace; it never retargets an in-flight operation. Failure to resolve identity leaves a visible
+unverified source state, never a guessed duplicate or destructive replacement.
+
+New tab opens the explicit `companionDestinations` catalogue. Every companion destination appears
+there; results may focus an existing singleton destination or open an independent article/run tab
+according to its documented multiplicity. Opening/focusing never closes another tab, discards
+searches, overwrites article position or replaces candidate drafts. The palette shares the
+catalogue plus contextual actions; it is not a replacement for the workbench. Restricted mode
+filters prohibited descendants from both catalogue and search. Contextual destinations retain
+workspace/run/article identity in their route rather than relying on global mutable selection.

@@ -85,3 +85,9 @@ verification, package proof, independent review or publication is claimed.
 Source-only check: `node design/companions/check-reference.mjs` parses the Vue SFC and compiles
 its template through the existing Vue compiler. Passed on 2026-10-21. This does not establish
 runtime wiring, screen geometry, three-language completeness, portable packaging or parity.
+
+Independent review revision: architecture/action boundaries were suitable, but the first visual
+handoff lacked distinct state anatomy, setup and workspace/tab identity. The revised SFC and
+inventory add these explicitly; re-review is pending. Source-only compilation does not resolve
+that review gate. Fixtures default to unverified actions, and production must validate them again
+at its host boundary. No implementation is authorized by this revision alone.

@@ -1,6 +1,45 @@
 /** Explicit design inventory, not a production capability or capture receipt. */
 export const companionStates = [
     {
+        surface: "shared",
+        id: "setup-source",
+        purpose:
+            "First-run source selection or bundled-content verification; required check gates Next.",
+    },
+    {
+        surface: "shared",
+        id: "setup-preferences",
+        purpose: "Optional real accessibility/language preferences, Back/Next and explicit Skip.",
+    },
+    {
+        surface: "shared",
+        id: "setup-review",
+        purpose:
+            "Review actual check results and saved choices; open productive workspace only after required success.",
+    },
+    {
+        surface: "shared",
+        id: "setup-resume",
+        purpose:
+            "Restore saved wizard step, revalidate changed source and continue without losing choices.",
+    },
+    {
+        surface: "shared",
+        id: "new-tab",
+        purpose: "Complete searchable destination catalogue preserving all existing tab drafts.",
+    },
+    {
+        surface: "build",
+        id: "cancel-confirm",
+        purpose:
+            "Explicit owned-process cancellation with Return as safe default and no unrelated termination.",
+    },
+    {
+        surface: "guide",
+        id: "guide-navigation",
+        purpose: "Internal contents, article/wiki routes, related content, back and forward.",
+    },
+    {
         surface: "build",
         id: "choose-source",
         purpose:
@@ -164,3 +203,23 @@ export const referenceMatrix = {
     evidence: null,
     reviewVerdict: "pending-independent-review",
 } as const;
+
+/** Complete companion navigation catalogue; productive application destinations are separate. */
+export const companionDestinations = [
+    { surface: "build", id: "workbench", en: "Build workbench", yue: "建置工作區" },
+    { surface: "build", id: "runs", en: "Runs and recovery", yue: "執行同恢復" },
+    { surface: "build", id: "artifacts", en: "Artifacts and receipts", yue: "產物同驗證記錄" },
+    { surface: "build", id: "diagnostics", en: "Diagnostics", yue: "診斷" },
+    { surface: "guide", id: "home", en: "Continue learning", yue: "繼續學習" },
+    { surface: "guide", id: "categories", en: "Task categories", yue: "任務分類" },
+    { surface: "guide", id: "articles", en: "All articles", yue: "全部文章" },
+    { surface: "guide", id: "wiki", en: "Complete wiki", yue: "完整 wiki" },
+    { surface: "guide", id: "search-results", en: "Search documentation", yue: "搜尋文件" },
+    { surface: "guide", id: "walkthrough", en: "Guided walkthroughs", yue: "引導教學" },
+    { surface: "shared", id: "source", en: "Source and version", yue: "來源同版本" },
+    { surface: "shared", id: "history", en: "History", yue: "歷史" },
+    { surface: "shared", id: "notifications", en: "Notifications", yue: "通知" },
+    { surface: "shared", id: "settings", en: "Settings", yue: "設定" },
+    { surface: "shared", id: "accessibility", en: "Accessibility tools", yue: "無障礙工具" },
+    { surface: "shared", id: "setup-source", en: "Workspace setup", yue: "工作區設定精靈" },
+] as const;
