@@ -169,3 +169,30 @@ for (const [href,code] of [['https://example.org/a.png','remote-asset'],['../out
         const result=await prepare(); assert.equal(result.ok,false); assert.ok(result.diagnostics.some(d=>d.code===code));
     }));
 }
+
+function memorySource(entries) {
+    const bytes = new Map(Object.entries(entries).map(([name, value]) => [name, Buffer.from(value)]));
+    return { files: [...bytes.keys()], size: name => bytes.get(name).length, read: name => bytes.get(name) };
+}
+for (const [label, markup, entries] of [
+    ['leading scheme space', '<a href=" javascript:alert(1).md">Go</a>', {' javascript:alert(1).md':'# Target'}],
+    ['leading authority space', '<img src=" //example.org/a.png" alt="Example">', {' /example.org/a.png':Buffer.from([1,2,3])}],
+    ['trailing link space', '<a href="target.md ">Go</a>', {'target.md ':'# Target'}],
+    ['trailing image space', '<img src="image.png " alt="Example">', {'image.png ':Buffer.from([1,2,3])}],
+]) test('rejects URL edge whitespace before classification: '+label, async () => {
+    const result = await prepareContent({docsRoot:resolve('unused-docs'),wikiRoot:resolve('unused-wiki'),
+        docsRevision:'fixture-docs',wikiRevision:'fixture-wiki',marked,
+        sources:{docs:memorySource({'Home.md':'# Home\n\n'+markup,...entries}),wiki:memorySource({})}});
+    assert.equal(result.ok,false);
+    assert.ok(result.diagnostics.some(d=>d.code==='unsafe-url'));
+    assert.equal(result.manifest.assets.length,0);
+    assert.equal(result.manifest.articles.find(a=>a.path==='Home.md').links[0].target,undefined);
+});
+test('preserves safe interior spaces in HTML article and image URLs', () => fixture(async ({docsRoot,prepare}) => {
+    await writeFile(join(docsRoot,'Home.md'),'# Home\n\n<a href="notes with spaces.md">Notes</a><img src="example image.png" alt="Example">');
+    await writeFile(join(docsRoot,'notes with spaces.md'),'# Notes');
+    await writeFile(join(docsRoot,'example image.png'),Buffer.from([1,2,3]));
+    const result=await prepare(); assert.equal(result.ok,true);
+    assert.equal(result.manifest.articles.find(a=>a.path==='Home.md').links[0].target,'/docs/notes%20with%20spaces');
+    assert.equal(result.manifest.articles.find(a=>a.path==='Home.md').links[1].target,'/assets/docs/example%20image.png');
+}));

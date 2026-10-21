@@ -141,6 +141,11 @@ export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRev
     for (const article of articles) {
         for (const link of article.links) {
             const href = link.href;
+            // Browsers trim edge ASCII whitespace before interpreting a URL scheme.
+            // Reject it before classification so a matching filename cannot disguise one.
+            if (/^[\u0009-\u000d\u0020]|[\u0009-\u000d\u0020]$/.test(href)) {
+                diagnostics.push({ route: article.route, code: 'unsafe-url' }); continue;
+            }
             if (/^(?:https?:|mailto:)/i.test(href)) {
                 if (link.type === 'image') diagnostics.push({ route: article.route, code: 'remote-asset', href });
                 else article.externalLinks.push({ ...link, label: link.label + ' (external)', requiresActivation: true });

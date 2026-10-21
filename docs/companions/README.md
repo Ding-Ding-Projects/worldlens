@@ -27,7 +27,9 @@ fetch resources directly from article text. The HTML subset explicitly allows `d
 escapes in attributes, executable/event attributes, styles, unknown attributes and unsupported
 elements are rejected rather than stripped. Images require alt text. Tags and nesting are
 bounded, containers must balance, and explicit IDs must be unique. HTML links and images use
-the same route, anchor, traversal and offline-asset checks as Markdown. Comments accept only
+the same route, anchor, traversal and offline-asset checks as Markdown. Leading or trailing
+ASCII whitespace in URLs is rejected before scheme or local-path classification; interior
+spaces in valid article and asset paths remain supported. Comments accept only
 plain comment text. SVG and other active asset
 formats require a separately reviewed offline adapter. Wiki-specific double-bracket links are
 reported as unsupported rather than silently omitted.
