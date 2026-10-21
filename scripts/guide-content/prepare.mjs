@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import { htmlState, inspectHtml } from './html-policy.mjs';
 
 export const WIKI_REVISION = '0b66c19306add3a090fc70ad08f1d785b49794f7';
 const LIMITS = { files: 10000, articleBytes: 4 * 1024 * 1024, totalBytes: 512 * 1024 * 1024 };
@@ -107,6 +108,7 @@ export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRev
             const article = { kind, path: name, route: destination, revision: kind === 'wiki' ? wikiRevision : docsRevision,
                 sha256: hash(bytes), title: name.replace(/\.md$/i, ''), text, anchors: [], links: [], externalLinks: [], sourceLinks: [] };
             const used = new Set();
+            const html = htmlState();
             const tokens = marked.lexer(text, { gfm: true });
             marked.walkTokens(tokens, token => {
                 if (token.type === 'heading') {
@@ -119,10 +121,19 @@ export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRev
                 }
                 if (token.type === 'text' && /\[\[[^]*?\]\]/.test(token.text)) diagnostics.push({ route: destination, code: 'unsupported-wiki-link' });
                 if (token.type === 'image' || token.type === 'link') article.links.push({ href: token.href, type: token.type, label: token.text });
-                if (token.type === 'html' && !/^\s*(?:<!--[^]*?-->|<br\s*\/?\s*>|<hr\s*\/?\s*>|<\/?(?:details|summary)\s*>)\s*$/i.test(token.text)) {
-                    diagnostics.push({ route: destination, code: 'unsupported-html' });
+                if (token.type === 'html') {
+                    const checked = inspectHtml(token.text, html);
+                    if (!checked.ok) diagnostics.push({ route: destination, code: 'unsupported-html' });
+                    else {
+                        article.links.push(...checked.links);
+                        for (const id of checked.anchors) {
+                            if (used.has(id)) diagnostics.push({ route: destination, code: 'duplicate-anchor' });
+                            used.add(id); article.anchors.push(id);
+                        }
+                    }
                 }
             });
+            if (html.stack.length) diagnostics.push({ route: destination, code: 'unclosed-html' });
             articles.push(article); routes.set(key, article);
         }
     }

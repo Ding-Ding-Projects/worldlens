@@ -20,8 +20,15 @@ escaping paths, route collisions, remote images and unsupported embedded HTML pr
 bundle. External ordinary links are labeled separately and require deliberate activation in the
 future renderer. Markdown remains untrusted: the eventual application must use its existing
 sanitized renderer and resolve navigation/assets through the manifest, never execute raw HTML or
-fetch resources directly from article text. Inline HTML beyond comments, line breaks, horizontal
-rules and simple details/summary containers is currently unsupported. SVG and other active asset
+fetch resources directly from article text. The HTML subset explicitly allows `details`, `summary`, `b`, `strong`, `em`, `i`, `code`,
+`kbd`, `br`, `hr`, `span`, `p`, `a` and `img`. Global attributes are only `id` and `title`;
+`details` additionally accepts `open`, `a` accepts `href`, and `img` accepts `src`, `alt`,
+`width` and `height`. Values must be quoted, except the boolean `open` attribute. Entity
+escapes in attributes, executable/event attributes, styles, unknown attributes and unsupported
+elements are rejected rather than stripped. Images require alt text. Tags and nesting are
+bounded, containers must balance, and explicit IDs must be unique. HTML links and images use
+the same route, anchor, traversal and offline-asset checks as Markdown. Comments accept only
+plain comment text. SVG and other active asset
 formats require a separately reviewed offline adapter. Wiki-specific double-bracket links are
 reported as unsupported rather than silently omitted.
 

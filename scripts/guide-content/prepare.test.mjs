@@ -139,3 +139,33 @@ test('CLI ignores replacement refs and inherited object/config routing', async (
         }
     });
 });
+test('supports actual article disclosure and keyboard markup without changing text', () => fixture(async ({docsRoot,prepare}) => {
+    const text='# Guide\n<details>\n<summary><b>Contents</b></summary>\n\nPress <kbd>Enter</kbd> and read <code>example</code>.\n\n</details>\n';
+    await writeFile(join(docsRoot,'Home.md'),text);
+    const result=await prepare(); assert.equal(result.ok,true); assert.equal(result.manifest.articles[0].text,text);
+}));
+test('accounts for allowlisted HTML links, explicit anchors and image bytes', () => fixture(async ({docsRoot,prepare}) => {
+    await writeFile(join(docsRoot,'Home.md'),'# Home\n\n<p id="detail"><a href="#detail">Details</a><img src="image.png" alt="Sample" width="10"></p>');
+    await writeFile(join(docsRoot,'image.png'),Buffer.from([1,2,3]));
+    const result=await prepare(); assert.equal(result.ok,true);
+    assert.ok(result.manifest.articles[0].anchors.includes('detail'));
+    assert.equal(result.manifest.articles[0].links[0].target,'/docs/Home#detail');
+    assert.equal(result.manifest.assets[0].base64,'AQID');
+}));
+for (const markup of [
+    '<script>alert(1)</script>', '<img src="image.png" alt="Sample" onerror="alert(1)">',
+    '<p style="background:url(https://example.org)">Text</p>', '<svg><a href="https://example.org">Text</a></svg>',
+    '<a href="java&#115;cript:alert(1)">Text</a>', '<a href=javascript:alert(1)>Text</a>',
+    '<!--><script>alert(1)</script>-->', '<details onclick="alert(1)">Text</details>',
+    '<img src="image.png" srcset="https://example.org/a.png 2x" alt="Sample">',
+]) test('rejects unsafe HTML '+markup.slice(0,35), () => fixture(async ({docsRoot,prepare}) => {
+    await writeFile(join(docsRoot,'Home.md'),'# Home\n\n'+markup);
+    const result=await prepare(); assert.equal(result.ok,false);
+    assert.ok(result.diagnostics.some(d=>d.code==='unsupported-html'));
+}));
+for (const [href,code] of [['https://example.org/a.png','remote-asset'],['../outside.png','unsafe-path'],['missing.png','missing-or-unsafe-asset']]) {
+    test('retains HTML asset blocker '+code, () => fixture(async ({docsRoot,prepare}) => {
+        await writeFile(join(docsRoot,'Home.md'),'# Home\n\n<img src="'+href+'" alt="Sample">');
+        const result=await prepare(); assert.equal(result.ok,false); assert.ok(result.diagnostics.some(d=>d.code===code));
+    }));
+}
