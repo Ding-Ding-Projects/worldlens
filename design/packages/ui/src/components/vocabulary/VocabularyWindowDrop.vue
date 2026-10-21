@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { loadVocabularyFile, vocabularyStore } from "./vocabularyStore.js";
+import { beginVocabularyImport, loadVocabularyFile, vocabularyStore } from "./vocabularyStore.js";
 import { playVocabularyOutcome } from "./vocabularySounds.js";
 import { VOCABULARY_MAX_BYTES } from "./vocabularySchema.js";
 
@@ -41,6 +41,7 @@ async function onDrop(event: DragEvent): Promise<void> {
     event.stopImmediatePropagation();
     if (props.restricted) return;
     const current = ++request;
+    const generation = beginVocabularyImport();
     dismiss();
     const file = files[0];
     let ok = false;
@@ -48,7 +49,9 @@ async function onDrop(event: DragEvent): Promise<void> {
         try {
             const bytes = await file.text();
             if (current !== request || props.restricted) return;
-            ok = (await loadVocabularyFile(bytes)).ok;
+            const result = await loadVocabularyFile(bytes, generation);
+            if (result.reason === "superseded") return;
+            ok = result.ok;
         } catch {
             /* Report only generic copy; never expose file metadata or payload. */
         }
@@ -66,7 +69,8 @@ async function onDrop(event: DragEvent): Promise<void> {
     }
     emit("outcome", ok);
     void playVocabularyOutcome(ok);
-    timer = setTimeout(dismiss, ok ? 3400 : 8000);
+    if (ok) timer = setTimeout(dismiss, 3400);
+    else refusal.value = ""; // The application notification centre owns error dismissal.
 }
 onMounted(() => window.addEventListener("drop", onDrop, true));
 onUnmounted(() => {

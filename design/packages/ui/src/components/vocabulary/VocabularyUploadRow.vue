@@ -13,7 +13,12 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiClose, mdiUpload } from "@mdi/js";
 import { VAlert, VBtn, VSlider, VSwitch } from "vuetify/components";
-import { clearVocabulary, loadVocabularyFile, vocabularyStore } from "./vocabularyStore.js";
+import {
+    beginVocabularyImport,
+    clearVocabulary,
+    loadVocabularyFile,
+    vocabularyStore,
+} from "./vocabularyStore.js";
 import { VOCABULARY_MAX_BYTES, type VocabularyRejectionReason } from "./vocabularySchema.js";
 
 import { playVocabularyOutcome, vocabularySounds } from "./vocabularySounds.js";
@@ -95,6 +100,12 @@ const statusMessage = computed(() => {
             "That file was not applied: {reason} Nothing already on screen was changed.",
         );
     }
+    if (vocabularyStore.persistenceError === "clear-failed") {
+        return t(
+            "vocabulary.upload.clearFailed",
+            "The saved vocabulary could not be cleared. Your previous wording remains active; try again.",
+        );
+    }
     if (vocabularyStore.status === "cache-unreadable") {
         return t(
             "vocabulary.upload.cacheUnreadable",
@@ -145,6 +156,7 @@ async function onFileChosen(event: Event): Promise<void> {
     // fires a change event the second time, which browsers otherwise suppress.
     input.value = "";
     if (file === undefined) return;
+    const generation = beginVocabularyImport();
 
     if (file.size > VOCABULARY_MAX_BYTES) {
         rejection.value = "too-large";
@@ -161,7 +173,8 @@ async function onFileChosen(event: Event): Promise<void> {
         return;
     }
 
-    const result = await loadVocabularyFile(bytes);
+    const result = await loadVocabularyFile(bytes, generation);
+    if (result.reason === "superseded") return;
     void playVocabularyOutcome(result.ok);
     if (!result.ok) {
         rejection.value = (result.reason ?? "malformed-json") as VocabularyRejectionReason;
@@ -170,9 +183,10 @@ async function onFileChosen(event: Event): Promise<void> {
     rejection.value = null;
 }
 
-function onClear(): void {
-    clearVocabulary();
+async function onClear(): Promise<void> {
     rejection.value = null;
+    const result = await clearVocabulary();
+    if (!result.ok && result.reason !== "superseded") void playVocabularyOutcome(false);
 }
 </script>
 

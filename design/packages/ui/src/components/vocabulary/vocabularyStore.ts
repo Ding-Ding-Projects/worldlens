@@ -143,13 +143,20 @@ export interface VocabularyLoadResult {
  * store's entries with it. A rejected file never applies partially: the store's prior
  * state - loaded or empty - is left exactly as it was.
  */
-export async function loadVocabularyFile(bytes: string): Promise<VocabularyLoadResult> {
+/** Claim an import before reading bytes so Clear and replacements cancel delayed file reads. */
+export function beginVocabularyImport(): number {
+    return ++revision;
+}
+
+export async function loadVocabularyFile(
+    bytes: string,
+    started = beginVocabularyImport(),
+): Promise<VocabularyLoadResult> {
+    if (started !== revision) return { ok: false, reason: "superseded" };
     const validated = validateVocabularyPayload(bytes);
     if (!validated.ok) return { ok: false, reason: validated.reason };
-    const waitingRevision = revision;
     await ready;
-    if (waitingRevision !== revision) return { ok: false, reason: "superseded" };
-    const started = ++revision;
+    if (started !== revision) return { ok: false, reason: "superseded" };
     try {
         if (hostVocabulary !== undefined) {
             const result = await hostVocabulary.load(bytes);
@@ -171,33 +178,37 @@ export async function loadVocabularyFile(bytes: string): Promise<VocabularyLoadR
         vocabularyStore.persistenceError = undefined;
         return { ok: true };
     } catch {
+        if (started !== revision) return { ok: false, reason: "superseded" };
         vocabularyStore.persistenceError = "write-failed";
         return { ok: false, reason: "write-failed" };
     }
 }
 
-/**
- * Purges the cache and restores original wording immediately. This is the one path back
- * to "no-file" from either "loaded" or "cache-unreadable" - clearing a corrupt cache is
- * the recovery for the unreadable state too, since there is no way to repair bytes the
- * store could not parse in the first place.
- */
-export function clearVocabulary(): void {
-    revision += 1;
-    vocabularyStore.status = "no-file";
-    vocabularyStore.entries = {};
-    vocabularyStore.metadata = undefined;
-    vocabularyStore.persistenceError = undefined;
-    if (hostVocabulary !== undefined) {
-        void hostVocabulary.clear().catch(() => {
-            vocabularyStore.persistenceError = "clear-failed";
-        });
-        return;
-    }
-    if (!persisting) return;
+/** Clear only after persistence acknowledges removal; failure retains active wording. */
+export async function clearVocabulary(): Promise<VocabularyLoadResult> {
+    // Invalidate every pending load immediately, including one awaiting startup hydration.
+    const started = ++revision;
+    await ready;
+    if (started !== revision) return { ok: false, reason: "superseded" };
     try {
-        localStorage.removeItem(VOCABULARY_STORAGE_KEY);
+        if (hostVocabulary !== undefined) {
+            const result = await hostVocabulary.clear();
+            if (started !== revision) return { ok: false, reason: "superseded" };
+            if (!result.ok) {
+                vocabularyStore.persistenceError = "clear-failed";
+                return { ok: false, reason: "clear-failed" };
+            }
+        } else if (persisting) {
+            localStorage.removeItem(VOCABULARY_STORAGE_KEY);
+        }
+        vocabularyStore.status = "no-file";
+        vocabularyStore.entries = {};
+        vocabularyStore.metadata = undefined;
+        vocabularyStore.persistenceError = undefined;
+        return { ok: true };
     } catch {
-        // Nothing to recover to; the in-memory state is already correct.
+        if (started !== revision) return { ok: false, reason: "superseded" };
+        vocabularyStore.persistenceError = "clear-failed";
+        return { ok: false, reason: "clear-failed" };
     }
 }

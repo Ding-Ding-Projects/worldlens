@@ -80,6 +80,10 @@ export const VOCABULARY_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const VOCABULARY_FIXED = {
+    "vocabulary.upload.clearFailed": {
+        en: "The saved vocabulary could not be cleared. Your previous wording remains active; try again.",
+        yue: "已儲存嘅詞彙清除唔到。原有字眼仍然生效；請再試。",
+    },
     "vocabulary.reason.unknown": {
         en: "the file does not match the expected format",
         yue: "個檔案唔符合預期格式",

@@ -120,3 +120,12 @@ sound played. Sound preferences contain no vocabulary content or source metadata
 設定列提供會記住選擇嘅詞彙結果音效靜音同音量控制。桌面主機支援時，儲存成功會播放本機
 作業系統成功音效，拒絕會播放錯誤音效。安靜時段唔會播放。冇音效嘅主機仍然顯示結果；
 播放失敗唔會阻止載入，亦唔會聲稱已播放。音效設定唔包含詞彙內容或者來源資料。
+
+Clear waits for confirmed local removal. If removal fails, the previous wording remains active
+and Settings explains the failure. Clear also cancels pending file reads and imports; an older
+drop cannot restore wording after Clear or overwrite a newer Settings upload. Drop errors remain
+in the application notification centre until dismissed.
+
+清除會等本機確認刪除成功。如果失敗，原有字眼仍然生效，設定會解釋失敗原因。
+清除亦會取消未完成嘅檔案讀取同匯入；舊拖放唔會喺清除之後還原字眼，亦唔會蓋過較新嘅設定上載。
+拖放錯誤會留喺程式通知中心，直到使用者關閉。

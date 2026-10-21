@@ -1847,6 +1847,10 @@ function openProject(world: string): void {
  * flow: this only proves the path is a world and carries it to that flow. Empty and mixed
  * drops are reported through the normal non-blocking notice queue instead of a browser alert.
  */
+function onVocabularyOutcome(success: boolean): void {
+    if (!success) raiseNotice("error", t("vocabulary.drop.refused", "The file was not applied. Drop one valid personal-vocabulary JSON file, up to 256 KiB, and ensure local storage is available. Your previous wording remains active."));
+}
+
 async function onWorldDrop(event: DragEvent): Promise<void> {
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length === 0) {
@@ -2520,7 +2524,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
 <template>
     <v-app class="mb-app" @dragover.prevent @drop.prevent="onWorldDrop">
-        <VocabularyWindowDrop :restricted="schoolMode.enabled.value" />
+        <VocabularyWindowDrop :restricted="schoolMode.enabled.value" @outcome="onVocabularyOutcome" />
         <!--
             Covers the whole app shell so a structure or schematic can be dropped from
             anywhere, not only from whichever page happens to be open. It does not render
