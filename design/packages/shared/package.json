@@ -13,5 +13,16 @@
     },
     "dependencies": {
         "@worldlens/design-system": "workspace:*"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./vocabulary": {
+            "types": "./dist/vocabulary.d.ts",
+            "import": "./dist/vocabulary.js"
+        },
+        "./dist/*": "./dist/*"
     }
 }

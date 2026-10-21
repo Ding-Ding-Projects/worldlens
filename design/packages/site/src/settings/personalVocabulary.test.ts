@@ -19,7 +19,6 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { Preferences } from "../platform/Preferences.js";
 import {
-    MAX_VOCABULARY_ENTRIES,
     PersonalVocabulary,
     VOCABULARY_SCHEMA_VERSION,
 } from "./personalVocabulary.js";
@@ -118,27 +117,26 @@ describe("PersonalVocabulary", () => {
     it("refuses a file it cannot safely use, naming which refusal it was", () => {
         expect(vocabulary.load("not json at all").ok).toBe(false);
         expect(vocabulary.load("not json at all")).toEqual({ ok: false, reason: "not-json" });
-        // An object with no schema version is a version refusal, not a shape one: the loader
-        // checks the version first so an older file gets a message about its age.
-        expect(vocabulary.load('{"from":"a","to":"b"}')).toEqual({ ok: false, reason: "unknown-version" });
+        // Unexpected fields reject the entire object before inspecting its version.
+        expect(vocabulary.load('{"from":"a","to":"b"}')).toEqual({ ok: false, reason: "wrong-shape" });
         // A bare array is the shape this file used to be, and is now refused outright.
         expect(vocabulary.load("[]")).toEqual({ ok: false, reason: "wrong-shape" });
-        // Empty means the right shape carrying nothing, which is a different mistake.
-        expect(vocabulary.load(file([]))).toEqual({ ok: false, reason: "empty" });
+        // An empty valid mapping restores ordinary wording without an arbitrary count rule.
+        expect(vocabulary.load(file([]))).toEqual({ ok: true, count: 0 });
         expect(vocabulary.load(file([["", "x"]]))).toEqual({ ok: false, reason: "wrong-shape" });
         expect(vocabulary.load(JSON.stringify(["nope"]))).toEqual({ ok: false, reason: "wrong-shape" });
     });
 
     it("bounds the file before parsing it, so a hostile file cannot stall the page", () => {
-        expect(vocabulary.load("x".repeat(200_000))).toEqual({ ok: false, reason: "too-large" });
+        expect(vocabulary.load("x".repeat(262_145))).toEqual({ ok: false, reason: "too-large" });
     });
 
-    it("bounds how many replacements it will apply", () => {
-        const many = Array.from({ length: MAX_VOCABULARY_ENTRIES + 1 }, (_unused, index) => [
+    it("accepts more than the former entry-count ceiling within the byte bound", () => {
+        const many = Array.from({ length: 5000 }, (_unused, index) => [
             `term${index}`,
             `other${index}`,
         ] as const);
-        expect(vocabulary.load(file(many))).toEqual({ ok: false, reason: "too-many" });
+        expect(vocabulary.load(file(many))).toEqual({ ok: true, count: 5000 });
     });
 
     /*

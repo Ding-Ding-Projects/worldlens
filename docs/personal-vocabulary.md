@@ -25,16 +25,20 @@ or undocumented shapes.
 
 - a hard byte ceiling
 - a supported schema version, with an unknown version refused rather than guessed at
-- maximum nesting depth and entry count
+- maximum nesting depth
 - bounded key and value lengths
 - string-only replacement values
 - no duplicate keys, no unsafe object keys, no control characters, and no unexpected fields
 
-The current bounds are 256 KiB of UTF-8 input, depth 2, 4,096 entries, 160 characters per key,
-and 1,000 characters per replacement. These limits apply before the candidate replaces an
+The current bounds are 256 KiB of UTF-8 input, depth 8, no separate entry-count ceiling, 160 Unicode code points per key,
+and 1,000 Unicode code points per replacement. These limits apply before the candidate replaces an
 existing valid cache, so an over-limit or malformed file cannot partially change active wording.
 
-Each refusal names the exact bound that was broken rather than saying the file is invalid.
+The desktop renderer, privileged persistence service and documentation settings share the pure
+`@worldlens/shared/vocabulary` validator. Raw nesting is bounded before duplicate-key scanning,
+including nested data hidden by a later duplicate property. Empty mappings are valid; total
+UTF-8 bytes, rather than a separate entry-count ceiling, bound the number of entries.
+The documentation surface translates rejection codes into its existing localized messages.
 
 The cache is revalidated on every load and fails closed to the original wording when it is
 missing, corrupt, stale or unsupported.

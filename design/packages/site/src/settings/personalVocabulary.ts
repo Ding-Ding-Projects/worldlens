@@ -1,58 +1,11 @@
-/**
- * The mechanism for a visitor-supplied private vocabulary, and nothing else.
- *
- * The governing rule is unusual and worth stating plainly, because it shapes every decision
- * in this file: personal vocabulary exists **only** when the visitor supplies an explicit
- * private file, and until they do, the site must expose **no vocabulary feature at all** — not
- * a disabled control, not an empty list, not a menu entry that explains what a vocabulary
- * would be. So `installed` is the gate every surface asks first, and a `false` there means the
- * surfaces render as though this module had never been written.
- *
- * The second rule is why this file contains no vocabulary. This repository is public, and no
- * term, mapping, template, example or schema document may be committed to it. What is
- * committed here is only the transport and the safety rails: bounded parsing, validation,
- * whole-token replacement, and the exclusions that keep replacement away from anything a
- * machine has to read literally. The visitor's file supplies the content, it is held in this
- * browser and nowhere else, and it is deliberately unreachable from the settings export —
- * `SettingsStore.snapshot()` walks the declared settings, and this is not one of them, so a
- * visitor sharing an export file cannot leak their vocabulary by accident.
- *
- * Replacement happens at the user-facing text boundary and reaches accessible names, because
- * a vocabulary that renamed the visible label and left the screen-reader name saying something
- * else would make the site say two different things at once. It stops at commands, URLs,
- * identifiers, code, file paths and factual external records, which stay verbatim. That
- * exclusion is not politeness: a rewritten command is a command that fails, and a rewritten
- * path points at a file that does not exist.
- */
-
+import { validateVocabularyPayload, VOCABULARY_MAX_BYTES, VOCABULARY_SCHEMA_VERSION } from "@worldlens/shared/vocabulary";
 import type { Preferences } from "../platform/Preferences.js";
 
 const RECORD_KEY = "vocabulary.record";
 
-/**
- * A ceiling on the supplied file, enforced before parsing rather than after.
- *
- * `JSON.parse` on a hostile or accidentally enormous file is a main-thread stall the visitor
- * experiences as a frozen page, and there is no useful vocabulary that needs more than this.
- * Checking the length first means the worst case is a refusal, not a hang.
- */
-export const MAX_VOCABULARY_BYTES = 64 * 1024;
+export { VOCABULARY_SCHEMA_VERSION };
+export const MAX_VOCABULARY_BYTES = VOCABULARY_MAX_BYTES;
 
-/** A ceiling on the number of replacements, for the same reason the byte ceiling exists. */
-export const MAX_VOCABULARY_ENTRIES = 500;
-export const VOCABULARY_SCHEMA_VERSION = 1 as const;
-export const MAX_VOCABULARY_DEPTH = 2;
-
-/** A ceiling on one term, chosen so a "term" cannot smuggle in a paragraph of markup. */
-export const MAX_TERM_LENGTH = 120;
-
-/**
- * One replacement, in the only shape this module accepts.
- *
- * Deliberately the minimum that can express a substitution — a source token and what it
- * becomes. Anything richer would be a schema, and a schema is one of the things that must not
- * be committed to a public repository.
- */
 interface VocabularyEntry {
     readonly from: string;
     readonly to: string;
@@ -94,87 +47,14 @@ function isLiteralToken(token: string): boolean {
     );
 }
 
-const UNSAFE_KEYS = new Set(["__proto__", "prototype", "constructor"]);
-const CONTROL_CHARACTER = /[\u0000-\u001F\u007F-\u009F]/u;
-
-function hasDuplicateJsonObjectKey(source: string): boolean {
-    let cursor = 0;
-    let duplicate = false;
-    const skip = (): void => { while (/\s/u.test(source[cursor] ?? "")) cursor += 1; };
-    const stringValue = (): string => {
-        const start = cursor++;
-        while (cursor < source.length) {
-            const c = source[cursor++];
-            if (c === "\\") cursor += 1;
-            else if (c === '"') return JSON.parse(source.slice(start, cursor)) as string;
-        }
-        return "";
-    };
-    const scan = (): void => {
-        skip();
-        const c = source[cursor];
-        if (c === "{") {
-            cursor += 1; const keys = new Set<string>(); skip();
-            if (source[cursor] === "}") { cursor += 1; return; }
-            while (cursor < source.length) {
-                skip(); const key = stringValue(); if (keys.has(key)) duplicate = true; keys.add(key);
-                skip(); cursor += 1; scan(); skip();
-                if (source[cursor] === "}") { cursor += 1; return; } cursor += 1;
-            }
-            return;
-        }
-        if (c === "[") {
-            cursor += 1; skip(); if (source[cursor] === "]") { cursor += 1; return; }
-            while (cursor < source.length) { scan(); skip(); if (source[cursor] === "]") { cursor += 1; return; } cursor += 1; }
-            return;
-        }
-        if (c === '"') { stringValue(); return; }
-        while (cursor < source.length && !/[\s,}\]]/u.test(source[cursor] as string)) cursor += 1;
-    };
-    scan();
-    return duplicate;
-}
-
-function exceedsDepth(value: unknown): boolean {
-    const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
-    while (pending.length > 0) {
-        const current = pending.pop() as { value: unknown; depth: number };
-        if (current.value === null || typeof current.value !== "object") continue;
-        const depth = current.depth + 1;
-        if (depth > MAX_VOCABULARY_DEPTH) return true;
-        for (const child of Object.values(current.value as Record<string, unknown>)) pending.push({ value: child, depth });
-    }
-    return false;
-}
-
-function validate(parsed: unknown): readonly VocabularyEntry[] | null {
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
-    const record = parsed as Record<string, unknown>;
-    if (record.schemaVersion !== VOCABULARY_SCHEMA_VERSION) return null;
-    if (typeof record.entries !== "object" || record.entries === null || Array.isArray(record.entries)) return null;
-    const entries: VocabularyEntry[] = [];
-    for (const [from, rawTo] of Object.entries(record.entries as Record<string, unknown>)) {
-        if (UNSAFE_KEYS.has(from) || from.trim() === "" || from.length > MAX_TERM_LENGTH) return null;
-        if (CONTROL_CHARACTER.test(from) || typeof rawTo !== "string" || rawTo.length > MAX_TERM_LENGTH) return null;
-        if (CONTROL_CHARACTER.test(rawTo)) return null;
-        entries.push({ from: from.trim(), to: rawTo });
-    }
-    return entries;
-}
-
 function validateText(text: string): VocabularyLoad {
-    if (text.length > MAX_VOCABULARY_BYTES) return { ok: false, reason: "too-large" };
-    let parsed: unknown;
-    try { parsed = JSON.parse(text); } catch { return { ok: false, reason: "not-json" }; }
-    if (hasDuplicateJsonObjectKey(text)) return { ok: false, reason: "duplicate-key" };
-    if (exceedsDepth(parsed)) return { ok: false, reason: "too-deeply-nested" };
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return { ok: false, reason: "wrong-shape" };
-    if ((parsed as Record<string, unknown>).schemaVersion !== VOCABULARY_SCHEMA_VERSION) return { ok: false, reason: "unknown-version" };
-    const entries = validate(parsed);
-    if (entries === null) return { ok: false, reason: "wrong-shape" };
-    if (entries.length === 0) return { ok: false, reason: "empty" };
-    if (entries.length > MAX_VOCABULARY_ENTRIES) return { ok: false, reason: "too-many" };
-    return { ok: true, count: entries.length };
+    const result = validateVocabularyPayload(text);
+    if (result.ok) return { ok: true, count: Object.keys(result.payload.entries).length };
+    const reason = result.reason;
+    if (reason === "malformed-json") return { ok: false, reason: "not-json" };
+    if (reason === "missing-schema-version" || reason === "unknown-schema-version") return { ok: false, reason: "unknown-version" };
+    if (reason === "too-large" || reason === "duplicate-key" || reason === "unsafe-key" || reason === "too-deeply-nested") return { ok: false, reason };
+    return { ok: false, reason: "wrong-shape" };
 }
 
 export type VocabularyListener = () => void;
@@ -268,7 +148,8 @@ export class PersonalVocabulary {
 
     private entries(): readonly VocabularyEntry[] {
         if (this.compiled === null) {
-            this.compiled = this.prefs.readJson(RECORD_KEY, (value) => validate(value) ?? undefined) ?? [];
+            const result = validateVocabularyPayload(this.prefs.read(RECORD_KEY, ""));
+            this.compiled = result.ok ? Object.entries(result.payload.entries).map(([from, to]) => ({ from, to })) : [];
         }
         return this.compiled;
     }
