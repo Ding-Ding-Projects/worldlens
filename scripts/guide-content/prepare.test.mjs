@@ -1,0 +1,75 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtemp, mkdir, writeFile, rm, symlink, readFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+import { prepareContent, writeOutsideCheckout } from './prepare.mjs';
+const require = createRequire(resolve(process.env.GUIDE_TOOLCHAIN_ROOT || '.', 'design/packages/viewer/package.json'));
+const { marked } = require('marked');
+async function fixture(run) {
+    const root = await mkdtemp(join(tmpdir(), 'guide-content-'));
+    const docsRoot = join(root, 'repo', 'docs'), wikiRoot = join(root, 'wiki');
+    await mkdir(docsRoot, {recursive:true}); await mkdir(wikiRoot);
+    const prepare = () => prepareContent({docsRoot, wikiRoot, docsRevision:'fixture-docs', wikiRevision:'fixture-wiki', marked});
+    try { await run({root, docsRoot, wikiRoot, prepare}); } finally { await rm(root, {recursive:true, force:true}); }
+}
+test('retains complete nested content, reference images, duplicate headings and distinct routes deterministically', () => fixture(async ({docsRoot,wikiRoot,prepare}) => {
+    await mkdir(join(docsRoot,'nested'));
+    await writeFile(join(docsRoot,'Home.md'), '# Home\n\n[Article](nested/Article.md#section-1)\n[External](https://example.org/)\n');
+    await writeFile(join(docsRoot,'nested/Article.md'), '# Article\n## Section\n## Section\n\nFull final paragraph.\n![image][pic]\n\n[pic]: ../image.png\n');
+    await writeFile(join(docsRoot,'image.png'), Buffer.from([1,2,3]));
+    await writeFile(join(wikiRoot,'Home.md'), '# Wiki\n[Self](Home)\n');
+    const first=await prepare(), second=await prepare();
+    assert.equal(first.ok,true); assert.deepEqual(first,second);
+    assert.equal(first.manifest.articles.length,3);
+    assert.deepEqual(first.manifest.articles[1].anchors,['article','section','section-1']);
+    assert.match(first.manifest.articles[1].text,/Full final paragraph/);
+    assert.equal(first.manifest.articles[0].links[0].target,'/docs/nested/Article#section-1');
+    assert.equal(first.manifest.articles[0].externalLinks[0].requiresActivation,true);
+    assert.equal(first.manifest.articles[2].route,'/wiki/Home');
+    assert.equal(first.manifest.assets[0].base64,'AQID');
+}));
+for (const [label, text, code] of [
+    ['missing image','![missing](missing.png)','missing-or-unsafe-asset'],
+    ['external image','![remote](https://example.org/image.png)','remote-asset'],
+    ['external protocol image','![remote](//example.org/image.png)','unsafe-url'],
+    ['traversal','![outside](../outside.png)','unsafe-path'],
+    ['encoded traversal','![outside](%2e%2e/outside.png)','unsafe-path'],
+    ['missing article','[missing](missing.md)','missing-article'],
+    ['missing anchor','[missing](#absent)','missing-anchor'],
+    ['active HTML','<iframe src="https://example.org/"></iframe>','unsupported-html'],
+    ['active asset','![active](image.svg)','unsupported-asset'],
+]) test('rejects '+label, () => fixture(async ({docsRoot,prepare}) => {
+    await writeFile(join(docsRoot,'Home.md'),'# Home\n\n'+text);
+    await writeFile(join(docsRoot,'image.svg'),'<svg/>');
+    const result=await prepare(); assert.equal(result.ok,false); assert.ok(result.diagnostics.some(d=>d.code===code));
+}));
+test('rejects symlinks and case-folded route collisions', () => fixture(async ({docsRoot,root,prepare}) => {
+    await writeFile(join(root,'outside.md'),'# Outside');
+    await symlink(join(root,'outside.md'),join(docsRoot,'linked.md'));
+    await assert.rejects(prepare,/symlink/);
+    await rm(join(docsRoot,'linked.md'));
+    await writeFile(join(docsRoot,'Home.md'),'# First'); await writeFile(join(docsRoot,'home.md'),'# Second');
+    await assert.rejects(prepare,/colliding-routes/);
+}));
+test('ignores link-looking code and refuses output within either source or an existing destination', () => fixture(async ({root,docsRoot,wikiRoot,prepare}) => {
+    await writeFile(join(docsRoot,'Home.md'),'# Home\n\n```md\n![example](missing.png)\n```');
+    assert.equal((await prepare()).ok,true);
+    await assert.rejects(writeOutsideCheckout(join(docsRoot,'bundle.json'),{},join(root,'repo'),wikiRoot),/outside/);
+    await assert.rejects(writeOutsideCheckout(join(wikiRoot,'bundle.json'),{},join(root,'repo'),wikiRoot),/outside/);
+    const output=join(root,'bundle.json'); await writeOutsideCheckout(output,{ok:true},join(root,'repo'),wikiRoot);
+    assert.equal(JSON.parse(await readFile(output,'utf8')).ok,true);
+    await assert.rejects(writeOutsideCheckout(output,{},join(root,'repo'),wikiRoot),/EEXIST/);
+}));
+test('rejects oversized articles before reading their payload and rejects malformed UTF-8', () => fixture(async ({docsRoot,prepare}) => {
+    await writeFile(join(docsRoot,'Home.md'),'x'.repeat(4*1024*1024+1));
+    await assert.rejects(prepare,/byte-limit/);
+    await writeFile(join(docsRoot,'Home.md'),Buffer.from([0xff]));
+    await assert.rejects(prepare,/encoded data/);
+}));
+test('reports unsupported wiki syntax rather than losing navigation', () => fixture(async ({wikiRoot,prepare}) => {
+    await writeFile(join(wikiRoot,'Home.md'),'# Home\n[[Other page]]');
+    const result=await prepare(); assert.equal(result.ok,false);
+    assert.ok(result.diagnostics.some(d=>d.code==='unsupported-wiki-link'));
+}));
