@@ -44,23 +44,42 @@ async function inventory(root) {
     return files;
 }
 
+/** Read immutable tracked blobs only; working files, ignored files and symlinks are never inputs. */
+function objectSource(repository, revision, prefix = '') {
+    if (!/^[a-f0-9]{40}$/.test(revision)) throw new Error('full-source-revision-required');
+    const output = execFileSync('git', ['-C', repository, 'ls-tree', '-r', '-z', '-l', revision, ...(prefix ? ['--', prefix] : [])], { encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 });
+    const entries = new Map();
+    for (const record of output.split('\0').filter(Boolean)) {
+        const match = /^(\d+) (\w+) ([a-f0-9]+)\s+(\d+|-)\t([^]*)$/.exec(record);
+        if (!match || !['100644','100755'].includes(match[1]) || match[2] !== 'blob') throw new Error('unsupported-source-mode');
+        const name = prefix ? match[5].slice(prefix.length + 1) : match[5];
+        entries.set(name, { oid: match[3], size: Number(match[4]) });
+    }
+    if (entries.size > LIMITS.files) throw new Error('file-limit');
+    return {
+        files: [...entries.keys()].sort((a,b)=>a.localeCompare(b,'en')),
+        size(name) { if (!entries.has(name)) throw new Error('untracked-source'); return entries.get(name).size; },
+        read(name) { if (!entries.has(name)) throw new Error('untracked-source'); return execFileSync('git', ['-C', repository, 'cat-file', 'blob', entries.get(name).oid], { maxBuffer: LIMITS.totalBytes }); },
+    };
+}
+
 /** Lexer is supplied from the project's already-declared marked dependency. */
-export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRevision, marked }) {
+export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRevision, marked, sources }) {
     const roots = { docs: resolve(docsRoot), wiki: resolve(wikiRoot) };
     const articles = [], assets = new Map(), diagnostics = [];
     const routes = new Map();
     let totalBytes = 0;
     const read = async (kind, name, article = false) => {
-        const file = await safeFile(roots[kind], name);
-        const size = (await lstat(file)).size;
+        const file = sources ? null : await safeFile(roots[kind], name);
+        const size = sources ? sources[kind].size(name) : (await lstat(file)).size;
         if (totalBytes + size > LIMITS.totalBytes || (article && size > LIMITS.articleBytes)) throw new Error('byte-limit');
-        const bytes = await readFile(file);
+        const bytes = sources ? sources[kind].read(name) : await readFile(file);
         totalBytes += bytes.length;
         if (totalBytes > LIMITS.totalBytes || (article && bytes.length > LIMITS.articleBytes)) throw new Error('byte-limit');
         return bytes;
     };
     for (const kind of ['docs', 'wiki']) {
-        for (const name of await inventory(roots[kind])) {
+        for (const name of sources ? sources[kind].files : await inventory(roots[kind])) {
             if (!/\.md$/i.test(name)) continue;
             const bytes = await read(kind, name, true);
             const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
@@ -69,13 +88,15 @@ export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRev
             if (routes.has(key)) throw new Error('colliding-routes');
             const article = { kind, path: name, route: destination, revision: kind === 'wiki' ? wikiRevision : docsRevision,
                 sha256: hash(bytes), title: name.replace(/\.md$/i, ''), text, anchors: [], links: [], externalLinks: [], sourceLinks: [] };
-            const used = new Map();
+            const used = new Set();
             const tokens = marked.lexer(text, { gfm: true });
             marked.walkTokens(tokens, token => {
                 if (token.type === 'heading') {
                     const plain = token.text.replace(/<[^>]*>/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '');
-                    const base = slug(plain), seen = used.get(base) || 0;
-                    used.set(base, seen + 1); article.anchors.push(seen ? base + '-' + seen : base);
+                    const base = slug(plain);
+                    let id = base, suffix = 0;
+                    while (used.has(id)) id = base + '-' + (++suffix);
+                    used.add(id); article.anchors.push(id);
                     if (token.depth === 1 && article.title === name.replace(/\.md$/i, '')) article.title = plain;
                 }
                 if (token.type === 'text' && /\[\[[^]*?\]\]/.test(token.text)) diagnostics.push({ route: destination, code: 'unsupported-wiki-link' });
@@ -126,7 +147,7 @@ export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRev
             } catch (error) { if (error.message === 'byte-limit') throw error; diagnostics.push({ route: article.route, code: error.message === 'unsupported-asset' ? error.message : 'missing-or-unsafe-asset', target }); }
         }
         article.sourceLinks.push({ label: 'Source (external)', href: article.kind === 'wiki'
-            ? 'https://github.com/Ding-Ding-Projects/worldlens/wiki/' + encodeURIComponent(article.path.replace(/\.md$/i, ''))
+            ? 'https://github.com/Ding-Ding-Projects/worldlens/wiki/' + encodeURIComponent(article.path.replace(/\.md$/i, '')) + '/' + encodeURIComponent(wikiRevision)
             : 'https://github.com/Ding-Ding-Projects/worldlens/blob/' + encodeURIComponent(docsRevision) + '/docs/' + article.path.split('/').map(encodeURIComponent).join('/'), requiresActivation: true });
     }
     const manifest = { schemaVersion: 1, purpose: 'offline-content-preparation', revisions: { docs: docsRevision, wiki: wikiRevision },
@@ -141,17 +162,19 @@ export async function writeOutsideCheckout(file, value, repositoryRoot, wikiRoot
 }
 
 async function main(args) {
-    const allowed = new Set(['--repository', '--wiki', '--toolchain', '--report', '--output']);
+    const allowed = new Set(['--repository', '--wiki', '--toolchain', '--report', '--output', '--wiki-revision']);
     const options = {};
     for (let i=0;i<args.length;i+=2) { if (!allowed.has(args[i]) || !args[i+1] || options[args[i]]) throw new Error('invalid-arguments'); options[args[i]]=args[i+1]; }
     if (!options['--repository'] || !options['--wiki'] || !options['--report']) throw new Error('repository-wiki-and-report-required');
     const repository = resolve(options['--repository']), wiki = resolve(options['--wiki']);
-    if (git(wiki, ['rev-parse', 'HEAD']) !== WIKI_REVISION || git(wiki, ['status', '--porcelain', '--untracked-files=all', '--ignored=matching'])) throw new Error('wiki-source-not-pinned-clean');
+    const wikiRevision = options['--wiki-revision'] || WIKI_REVISION;
+    const docsRevision = git(repository, ['rev-parse', 'HEAD']);
+    const sources = { docs: objectSource(repository, docsRevision, 'docs'), wiki: objectSource(wiki, wikiRevision) };
     const require = createRequire(resolve(options['--toolchain'] || repository, 'design/packages/viewer/package.json'));
     const marked = require('marked').marked;
-    const result = await prepareContent({ docsRoot: resolve(repository, 'docs'), wikiRoot: wiki, docsRevision: git(repository,['rev-parse','HEAD']), wikiRevision: WIKI_REVISION, marked });
+    const result = await prepareContent({ docsRoot: resolve(repository, 'docs'), wikiRoot: wiki, docsRevision, wikiRevision, marked, sources });
     const report = { schemaVersion: 1, purpose: 'content-inventory-only', ok: result.ok, summary: result.summary, revisions: result.manifest.revisions,
-        docsWorkingTreeModified: Boolean(git(repository,['status','--porcelain','--','docs'])), contentHash: hash(JSON.stringify(result.manifest)), articles: result.manifest.articles.map(({kind,path,route,sha256,anchors})=>({kind,path,route,sha256,anchors})), diagnostics: result.diagnostics };
+        sourceMode: 'committed-object-tree', contentHash: hash(JSON.stringify(result.manifest)), articles: result.manifest.articles.map(({kind,path,route,sha256,anchors})=>({kind,path,route,sha256,anchors})), diagnostics: result.diagnostics };
     await writeOutsideCheckout(options['--report'], report, repository, wiki);
     if (result.ok && options['--output']) await writeOutsideCheckout(options['--output'], result.manifest, repository, wiki);
     console.log(JSON.stringify({ ok: result.ok, ...result.summary, diagnostics: result.diagnostics.length, bundleWritten: result.ok && Boolean(options['--output']) }));

@@ -73,3 +73,41 @@ test('reports unsupported wiki syntax rather than losing navigation', () => fixt
     const result=await prepare(); assert.equal(result.ok,false);
     assert.ok(result.diagnostics.some(d=>d.code==='unsupported-wiki-link'));
 }));
+test('allocates heading ids globally across natural and generated suffixes', () => fixture(async ({docsRoot,prepare}) => {
+    await writeFile(join(docsRoot,'Home.md'),'# A\n## A\n## A-1\n## A\n');
+    const result=await prepare();
+    assert.equal(result.ok,true);
+    assert.deepEqual(result.manifest.articles[0].anchors,['a','a-1','a-1-1','a-2']);
+}));
+test('CLI bundles only tracked committed bytes despite dirty, untracked and ignored documentation', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process');
+    await fixture(async ({root,docsRoot,wikiRoot}) => {
+        const repository=join(root,'repo');
+        const git=(cwd,args)=>execFileSync('git',['-C',cwd,...args],{encoding:'utf8'}).trim();
+        for (const cwd of [repository,wikiRoot]) {
+            git(cwd,['init','-q']); git(cwd,['config','user.name','Fixture']); git(cwd,['config','user.email','fixture@example.invalid']);
+        }
+        await writeFile(join(docsRoot,'Home.md'),'# Original\nCommitted text.\n![image](image.png)');
+        await writeFile(join(docsRoot,'image.png'),Buffer.from([1,2,3]));
+        await writeFile(join(repository,'.gitignore'),'docs/ignored.md\n');
+        await writeFile(join(wikiRoot,'Home.md'),'# Wiki\nPinned text.');
+        for (const cwd of [repository,wikiRoot]) { git(cwd,['add','.']); git(cwd,['commit','-qm','Fixture']); }
+        const docsRevision=git(repository,['rev-parse','HEAD']), wikiRevision=git(wikiRoot,['rev-parse','HEAD']);
+        await writeFile(join(docsRoot,'Home.md'),'# Changed\nUncommitted text.');
+        await writeFile(join(docsRoot,'image.png'),Buffer.from([4,5,6]));
+        await writeFile(join(wikiRoot,'Home.md'),'# Modified wiki');
+        await writeFile(join(docsRoot,'untracked.md'),'# Untracked');
+        await writeFile(join(docsRoot,'ignored.md'),'# Ignored');
+        const output=join(root,'bundle.json'), report=join(root,'report.json');
+        const result=spawnSync(process.execPath,[resolve('scripts/guide-content/prepare.mjs'),'--repository',repository,'--wiki',wikiRoot,'--wiki-revision',wikiRevision,'--toolchain',resolve(process.env.GUIDE_TOOLCHAIN_ROOT||'.'),'--report',report,'--output',output],{encoding:'utf8'});
+        assert.equal(result.status,0,result.stderr);
+        const bundle=JSON.parse(await readFile(output,'utf8'));
+        assert.equal(bundle.revisions.docs,docsRevision);
+        assert.equal(bundle.articles.filter(a=>a.kind==='docs').length,1);
+        assert.equal(bundle.articles[0].text,'# Original\nCommitted text.\n![image](image.png)');
+        assert.equal(bundle.articles[0].revision,docsRevision);
+        assert.equal(bundle.assets[0].base64,'AQID');
+        assert.equal(bundle.articles.find(a=>a.kind==='wiki').text,'# Wiki\nPinned text.');
+        assert.ok(bundle.articles.find(a=>a.kind==='wiki').sourceLinks[0].href.endsWith('/'+wikiRevision));
+    });
+});

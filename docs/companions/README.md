@@ -8,7 +8,8 @@ asset bytes form a deterministic JSON manifest. It does not execute article cont
 
 Run `node scripts/guide-content/prepare.mjs --repository <checkout> --wiki <wiki-checkout>
 --report <external-report.json> --output <external-bundle.json>` as one command. The wiki must be
-clean at revision `0b66c19306add3a090fc70ad08f1d785b49794f7`. The helper uses the existing `marked`
+available at revision `0b66c19306add3a090fc70ad08f1d785b49794f7`. The explicit
+`--wiki-revision <full-commit-sha>` option selects another reviewed immutable snapshot. The helper uses the existing `marked`
 dependency declared by the viewer package; `--toolchain <checkout>` can select an already installed
 toolchain from another checkout. It installs nothing, performs no network requests, and never
 substitutes for the root build or installer scripts. Both output paths must have existing parents
@@ -25,8 +26,12 @@ formats require a separately reviewed offline adapter. Wiki-specific double-brac
 reported as unsupported rather than silently omitted.
 
 Bounds are 10,000 source files per root, 4 MiB per article and 512 MiB of total retained input.
-The source revision and content hashes identify actual inputs; the report also records whether
-tracked documentation differs from the selected commit. A successful preparation still requires
+The CLI reads only tracked blobs from the documentation HEAD object tree and selected wiki
+object tree. Changed working files, ignored files and untracked files never enter the bundle,
+including referenced assets. Symlinks and submodule entries in either source tree are rejected.
+Source revisions, source links and content hashes therefore refer to the same immutable bytes.
+Heading identifiers are allocated uniquely across the complete article, including collisions
+between naturally suffixed headings and generated suffixes. A successful preparation still requires
 publication review before any wiki snapshot or generated content enters tracked public source.
 The existing public website remains unchanged.
 
