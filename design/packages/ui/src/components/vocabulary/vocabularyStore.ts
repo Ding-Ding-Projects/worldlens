@@ -44,7 +44,9 @@ export type VocabularyStatus =
 interface VocabularyState {
     status: VocabularyStatus;
     entries: Readonly<Record<string, string>>;
-    metadata?: { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string } | undefined;
+    metadata?:
+        | { readonly revision: number; readonly sourceDigest: string; readonly loadedAt: string }
+        | undefined;
     persistenceError?: string | undefined;
 }
 
@@ -60,7 +62,8 @@ function readCache(): VocabularyState {
     if (raw === null) return { status: "no-file", entries: {} };
 
     const validated = validateVocabularyPayload(raw);
-    if (!validated.ok) return { status: "cache-unreadable", entries: {}, persistenceError: "cache-unreadable" };
+    if (!validated.ok)
+        return { status: "cache-unreadable", entries: {}, persistenceError: "cache-unreadable" };
     return { status: "loaded", entries: validated.payload.entries };
 }
 
@@ -69,22 +72,30 @@ export const vocabularyStore = reactive<VocabularyState>(readCache());
 const hostVocabulary = typeof window === "undefined" ? undefined : window.worldlens?.vocabulary;
 
 let persisting = true;
+let revision = 0;
+let ready: Promise<void> = Promise.resolve();
 
 /** Desktop startup reads the app-data cache through the main-process bridge. Browser and
  * static-site hosts keep the existing localStorage fallback, with no network route. */
 export function initialiseVocabularyStore(): void {
     if (hostVocabulary === undefined) return;
     persisting = false;
-    void hostVocabulary.read().then((snapshot) => {
-        vocabularyStore.status = snapshot.status;
-        vocabularyStore.entries = snapshot.entries;
-        vocabularyStore.metadata = snapshot.metadata;
-        vocabularyStore.persistenceError = undefined;
-    }).catch(() => {
-        vocabularyStore.status = "cache-unreadable";
-        vocabularyStore.entries = {};
-        vocabularyStore.persistenceError = "cache-unreadable";
-    });
+    const started = revision;
+    ready = hostVocabulary
+        .read()
+        .then((snapshot) => {
+            if (started !== revision) return;
+            vocabularyStore.status = snapshot.status;
+            vocabularyStore.entries = snapshot.entries;
+            vocabularyStore.metadata = snapshot.metadata;
+            vocabularyStore.persistenceError = undefined;
+        })
+        .catch(() => {
+            if (started !== revision) return;
+            vocabularyStore.status = "cache-unreadable";
+            vocabularyStore.entries = {};
+            vocabularyStore.persistenceError = "cache-unreadable";
+        });
 }
 
 initialiseVocabularyStore();
@@ -132,31 +143,37 @@ export interface VocabularyLoadResult {
  * store's entries with it. A rejected file never applies partially: the store's prior
  * state - loaded or empty - is left exactly as it was.
  */
-export function loadVocabularyFile(bytes: string): VocabularyLoadResult {
+export async function loadVocabularyFile(bytes: string): Promise<VocabularyLoadResult> {
     const validated = validateVocabularyPayload(bytes);
     if (!validated.ok) return { ok: false, reason: validated.reason };
-
-    if (hostVocabulary !== undefined) {
-        void hostVocabulary.load(bytes).then((result) => {
-            if (result.ok) {
-                vocabularyStore.status = result.status;
-                vocabularyStore.entries = result.entries;
-                vocabularyStore.metadata = result.metadata;
-                vocabularyStore.persistenceError = undefined;
-            } else {
-                vocabularyStore.status = result.status;
-                vocabularyStore.entries = result.entries;
-                vocabularyStore.metadata = result.metadata;
-                vocabularyStore.persistenceError = result.reason ?? "write-failed";
+    const waitingRevision = revision;
+    await ready;
+    if (waitingRevision !== revision) return { ok: false, reason: "superseded" };
+    const started = ++revision;
+    try {
+        if (hostVocabulary !== undefined) {
+            const result = await hostVocabulary.load(bytes);
+            if (started !== revision) return { ok: false, reason: "superseded" };
+            if (!result.ok) {
+                vocabularyStore.persistenceError = "write-failed";
+                return { ok: false, reason: "write-failed" };
             }
-        }).catch(() => {
-            vocabularyStore.persistenceError = "write-failed";
-        });
-    } else {
-        vocabularyStore.status = "loaded";
-        vocabularyStore.entries = validated.payload.entries;
+            vocabularyStore.status = result.status;
+            vocabularyStore.entries = result.entries;
+            vocabularyStore.metadata = result.metadata;
+        } else {
+            // Persist before publishing entries or reporting success, including quota errors.
+            if (persisting)
+                localStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(validated.payload));
+            vocabularyStore.status = "loaded";
+            vocabularyStore.entries = validated.payload.entries;
+        }
+        vocabularyStore.persistenceError = undefined;
+        return { ok: true };
+    } catch {
+        vocabularyStore.persistenceError = "write-failed";
+        return { ok: false, reason: "write-failed" };
     }
-    return { ok: true };
 }
 
 /**
@@ -166,6 +183,7 @@ export function loadVocabularyFile(bytes: string): VocabularyLoadResult {
  * store could not parse in the first place.
  */
 export function clearVocabulary(): void {
+    revision += 1;
     vocabularyStore.status = "no-file";
     vocabularyStore.entries = {};
     vocabularyStore.metadata = undefined;

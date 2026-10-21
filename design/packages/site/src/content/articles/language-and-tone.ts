@@ -13,6 +13,14 @@ export const languageAndTone: Article = {
 
     sections: [
         {
+            id: "personal-vocabulary-drop",
+            title: "Personal wording from a local file",
+            blocks: [{ kind: "paragraph", content: [
+                "Drop one personal-vocabulary JSON file anywhere in the application window, or use the accessible Settings upload. Both validate the whole file and wait for local persistence before applying it; rejection or a failed write keeps the previous wording. A successful drop announces a non-blocking headline for about three seconds, using only the imported display-name entry or a neutral localized fallback. Reduced motion keeps it static. Settings offers persisted outcome-sound mute and volume controls; supported desktop hosts use local operating-system sounds, while quiet hours and restricted mode suppress playback. Restricted mode also suppresses vocabulary drops. Clearing restores original wording. No file metadata or vocabulary content enters exports or history.",
+                "可以喺程式任何位置拖入一個個人詞彙 JSON 檔案，或者用設定嘅無障礙上載。兩條路線都完整驗證並等本機儲存成功；拒絕或者寫入失敗會保留原有字眼。拖入成功會顯示約三秒、唔阻擋操作嘅標題，只用輸入檔案嘅名稱項目或者中性本地化字眼。減少動態效果時保持靜態。設定會記住音效靜音同音量；支援嘅桌面主機用本機系統音效，安靜時段同限制模式會停止播放。限制模式亦停用詞彙拖放。清除會還原字眼。匯出同歷史唔會包含檔案資料或者詞彙內容。",
+            ] }],
+        },
+        {
             id: "behaviour",
             title: "Behaviour",
             blocks: [

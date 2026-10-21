@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import VocabularyWindowDrop from "./components/vocabulary/VocabularyWindowDrop.vue";
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { i18nModule, loadLanguage, setLanguage } from "./i18n.js";
@@ -2519,6 +2520,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
 <template>
     <v-app class="mb-app" @dragover.prevent @drop.prevent="onWorldDrop">
+        <VocabularyWindowDrop :restricted="schoolMode.enabled.value" />
         <!--
             Covers the whole app shell so a structure or schematic can be dropped from
             anywhere, not only from whichever page happens to be open. It does not render

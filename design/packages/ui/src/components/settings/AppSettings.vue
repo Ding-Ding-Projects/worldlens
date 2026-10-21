@@ -527,6 +527,8 @@ const sections = computed<SettingsSectionText[]>(() => {
                 t("vocabulary.upload.chooseFile", "Choose a vocabulary file..."),
                 t("vocabulary.upload.replaceFile", "Replace the vocabulary file..."),
                 t("vocabulary.upload.clear", "Clear"),
+                t("vocabulary.sound.mute", "Mute vocabulary outcome sounds"),
+                t("vocabulary.sound.volume", "Vocabulary sound volume"),
             ],
         },
         // Which mark is active right now - shipped preset id or "custom" plus its format -

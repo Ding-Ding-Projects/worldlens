@@ -80,6 +80,29 @@ export const VOCABULARY_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const VOCABULARY_FIXED = {
+    "vocabulary.reason.unknown": {
+        en: "the file does not match the expected format",
+        yue: "個檔案唔符合預期格式",
+    },
+    "vocabulary.sound.mute": { en: "Mute vocabulary outcome sounds", yue: "靜音詞彙操作結果音效" },
+    "vocabulary.sound.volume": { en: "Vocabulary sound volume", yue: "詞彙音效音量" },
+    "vocabulary.sound.availability": {
+        en: "Uses local operating-system sounds when available. Quiet hours and restricted mode suppress playback.",
+        yue: "有提供時會用本機作業系統音效。安靜時段同限制模式會停止播放。",
+    },
+    "vocabulary.drop.applied": { en: "Personal wording applied", yue: "已套用個人字眼" },
+    "vocabulary.drop.refused": {
+        en: "The file was not applied. Drop one valid personal-vocabulary JSON file, up to 256 KiB, and ensure local storage is available. Your previous wording remains active.",
+        yue: "冇套用個檔案。請拖入一個有效嘅個人詞彙 JSON 檔案，最大 256 KiB，並確保本機儲存可用。原有字眼仍然生效。",
+    },
+    "vocabulary.reason.write-failed": {
+        en: "the file could not be saved locally",
+        yue: "個檔案儲存唔到喺本機",
+    },
+    "vocabulary.upload.saveFailed": {
+        en: "The new vocabulary could not be saved. The last valid cached vocabulary remains active; try again or clear it.",
+        yue: "新詞彙儲存唔到。上一個有效嘅詞彙仍然生效；請再試或者清除。",
+    },
     "vocabulary.upload.chooseFile": {
         en: "Choose a vocabulary file...",
         yue: "揀一個詞彙檔案…",
@@ -175,7 +198,11 @@ export const VOCABULARY_FIXED = {
 
 export const VOCABULARY_FACTS = {
     "vocabulary.upload.description": {
-        en: ["local JSON file", "Nothing is sent anywhere", "nothing changes until you supply a file"],
+        en: [
+            "local JSON file",
+            "Nothing is sent anywhere",
+            "nothing changes until you supply a file",
+        ],
         yue: ["JSON 檔案", "乜嘢都唔會傳去邊度", "未上載檔案之前乜都唔會變"],
     },
     "vocabulary.upload.noFile": {

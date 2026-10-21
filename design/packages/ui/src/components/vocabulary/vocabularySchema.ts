@@ -71,7 +71,8 @@ export type VocabularyRejectionReason =
     | "value-not-a-string"
     | "value-too-long"
     /** Not a validation outcome: the chosen file's bytes could not be read from disk. */
-    | "read-failed";
+    | "read-failed"
+    | "write-failed";
 
 export interface VocabularyValidationFailure {
     readonly ok: false;

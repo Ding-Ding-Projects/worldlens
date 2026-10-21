@@ -12,9 +12,11 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiClose, mdiUpload } from "@mdi/js";
-import { VAlert, VBtn } from "vuetify/components";
+import { VAlert, VBtn, VSlider, VSwitch } from "vuetify/components";
 import { clearVocabulary, loadVocabularyFile, vocabularyStore } from "./vocabularyStore.js";
-import type { VocabularyRejectionReason } from "./vocabularySchema.js";
+import { VOCABULARY_MAX_BYTES, type VocabularyRejectionReason } from "./vocabularySchema.js";
+
+import { playVocabularyOutcome, vocabularySounds } from "./vocabularySounds.js";
 
 const { t } = useI18n();
 
@@ -69,13 +71,12 @@ function reasonText(reason: VocabularyRejectionReason): string {
             return t("vocabulary.reason.value-not-a-string", "value not a string");
         case "value-too-long":
             return t("vocabulary.reason.value-too-long", "value too long");
+        case "write-failed":
+            return t("vocabulary.reason.write-failed", "the file could not be saved locally");
         case "read-failed":
             return t("vocabulary.reason.read-failed", "read failed");
         default:
-            return t(
-                "vocabulary.reason.unknown",
-                "the file does not match the expected format",
-            );
+            return t("vocabulary.reason.unknown", "the file does not match the expected format");
     }
 }
 
@@ -102,7 +103,7 @@ const statusMessage = computed(() => {
     }
     if (vocabularyStore.persistenceError !== undefined) {
         return t(
-            "vocabulary.upload.cacheUnreadable",
+            "vocabulary.upload.saveFailed",
             "The new vocabulary could not be saved. The last valid cached vocabulary remains active; try again or clear it.",
         );
     }
@@ -145,15 +146,23 @@ async function onFileChosen(event: Event): Promise<void> {
     input.value = "";
     if (file === undefined) return;
 
+    if (file.size > VOCABULARY_MAX_BYTES) {
+        rejection.value = "too-large";
+        void playVocabularyOutcome(false);
+        return;
+    }
+
     let bytes: string;
     try {
         bytes = await file.text();
     } catch {
         rejection.value = "read-failed";
+        void playVocabularyOutcome(false);
         return;
     }
 
-    const result = loadVocabularyFile(bytes);
+    const result = await loadVocabularyFile(bytes);
+    void playVocabularyOutcome(result.ok);
     if (!result.ok) {
         rejection.value = (result.reason ?? "malformed-json") as VocabularyRejectionReason;
         return;
@@ -181,6 +190,28 @@ function onClear(): void {
             {{ statusMessage }}
         </VAlert>
 
+        <VSwitch
+            v-model="vocabularySounds.muted"
+            :label="t('vocabulary.sound.mute', 'Mute vocabulary outcome sounds')"
+            hide-details
+        />
+        <VSlider
+            v-model="vocabularySounds.volume"
+            :min="0"
+            :max="1"
+            :step="0.05"
+            :label="t('vocabulary.sound.volume', 'Vocabulary sound volume')"
+            thumb-label
+            hide-details
+        />
+        <p class="mb-vocabulary-row__description">
+            {{
+                t(
+                    "vocabulary.sound.availability",
+                    "Uses local operating-system sounds when available. Quiet hours and restricted mode suppress playback.",
+                )
+            }}
+        </p>
         <div class="mb-vocabulary-row__actions">
             <VBtn :prepend-icon="mdiUpload" size="small" variant="tonal" @click="openPicker">
                 {{ pickLabel }}
