@@ -91,3 +91,9 @@ handoff lacked distinct state anatomy, setup and workspace/tab identity. The rev
 inventory add these explicitly; re-review is pending. Source-only compilation does not resolve
 that review gate. Fixtures default to unverified actions, and production must validate them again
 at its host boundary. No implementation is authorized by this revision alone.
+
+Final review revision: close-active-run now exposes Keep running, Cancel and close, and Return as
+three distinct intents. Setup preferences reuses the existing language/tone control; review reads
+its saved values, and resume shows saved progress plus changed-source recovery. Top-level identity
+is the resolved common Git root; linked worktrees are internal checkout/run contexts. Independent
+re-review remains pending; source-only compilation is not runtime proof.

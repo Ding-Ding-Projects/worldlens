@@ -26,6 +26,8 @@ import {
     VSwitch,
     VDialog,
 } from "vuetify/components";
+import SetupLanguagePanel from "../../packages/ui/src/components/setup/SetupLanguagePanel.vue";
+import { useSetupI18n } from "../../packages/ui/src/components/setup/setupI18n.js";
 import { companionDestinations } from "../state-inventory.js";
 const props = withDefaults(
     defineProps<{
@@ -36,6 +38,8 @@ const props = withDefaults(
         sourceVerified?: boolean;
         candidateValid?: boolean;
         wizardStepVerified?: boolean;
+        resumeSourceChanged?: boolean;
+        resumedStep?: number;
     }>(),
     {
         language: "en",
@@ -43,6 +47,8 @@ const props = withDefaults(
         sourceVerified: false,
         candidateValid: false,
         wizardStepVerified: false,
+        resumeSourceChanged: false,
+        resumedStep: 2,
     },
 );
 const emit = defineEmits<{ intent: [action: string] }>();
@@ -52,6 +58,7 @@ const label = (en: string, yue: string): string =>
         : props.language === "yue"
           ? yue
           : `${en} · ${yue}`;
+const sharedPreferences = useSetupI18n();
 const query = ref("");
 const soundMuted = ref(false);
 const reducedMotion = ref(false);
@@ -134,69 +141,137 @@ const documents = [
 
                 <VCard v-if="setup" variant="outlined">
                     <VCardTitle>{{ label("Set up your workspace", "設定工作區") }}</VCardTitle>
-                    <VCardText>
-                        <VChip>{{
-                            label("Saved locally · resume any time", "本機儲存 · 隨時繼續")
-                        }}</VChip>
+                    <VCardText v-if="state === 'setup-preferences'">
+                        <VAlert type="info" variant="tonal" class="mb-3">{{
+                            label(
+                                "Optional preferences are saved by the same controls used in Settings.",
+                                "可選偏好由設定入面同一組控制儲存。",
+                            )
+                        }}</VAlert>
+                        <SetupLanguagePanel />
+                        <VSwitch
+                            v-model="reducedMotion"
+                            :label="
+                                label('Reduce motion in this preview', '減少呢個預覽嘅動態效果')
+                            "
+                        />
+                        <VBtn min-height="44" @click="emit('intent', 'accessibility')">{{
+                            label("Open shared accessibility tools", "開啟共用無障礙工具")
+                        }}</VBtn>
+                    </VCardText>
+                    <VCardText v-else-if="state === 'setup-review'">
                         <VList>
                             <VListItem
-                                :title="label('1. Choose and verify source', '1. 選擇並驗證來源')"
+                                :title="label('Saved language', '已儲存語言')"
+                                :subtitle="sharedPreferences.mode.value"
+                            />
+                            <VListItem
+                                :title="label('Saved English tone level', '已儲存英文語調級別')"
+                                :subtitle="String(sharedPreferences.funnyEn.value)"
+                            />
+                            <VListItem
+                                :title="label('Saved Cantonese tone level', '已儲存廣東話語調級別')"
+                                :subtitle="String(sharedPreferences.funnyYue.value)"
+                            />
+                            <VListItem
+                                :title="label('Required source checks', '必要來源檢查')"
                                 :subtitle="
-                                    surface === 'build'
+                                    wizardStepVerified
                                         ? label(
-                                              'Locate root scripts and inspect checkout identity.',
-                                              '尋找根目錄指令碼並核對原始碼身分。',
+                                              'Passed in the supplied fixture',
+                                              '已喺提供嘅狀態示例通過',
                                           )
                                         : label(
-                                              'Verify the bundled documentation and wiki manifest.',
-                                              '驗證隨附文件同 wiki 清單。',
+                                              'Incomplete; return to source verification',
+                                              '未完成；返回來源驗證',
                                           )
                                 "
                             />
                             <VListItem
-                                :title="
-                                    label(
-                                        '2. Choose reading and accessibility preferences',
-                                        '2. 選擇閱讀同無障礙偏好',
-                                    )
-                                "
+                                :title="label('Next destination', '下一個目的地')"
                                 :subtitle="
-                                    label(
-                                        'Optional; you can change these in Settings.',
-                                        '可選；之後可以喺設定更改。',
-                                    )
-                                "
-                            />
-                            <VListItem
-                                :title="
-                                    label(
-                                        '3. Review observed results and open workspace',
-                                        '3. 檢查實際結果並開啟工作區',
-                                    )
+                                    surface === 'build'
+                                        ? label('Build workbench', '建置工作區')
+                                        : label(
+                                              'First complete documentation article',
+                                              '第一篇完整文件文章',
+                                          )
                                 "
                             />
                         </VList>
+                        <VAlert v-if="!wizardStepVerified" type="warning" variant="tonal">{{
+                            label(
+                                "The workspace cannot open until required source checks pass.",
+                                "必要來源檢查通過之前唔可以開啟工作區。",
+                            )
+                        }}</VAlert>
+                    </VCardText>
+                    <VCardText v-else-if="state === 'setup-resume'">
+                        <VChip
+                            >{{ label("Saved progress", "已儲存進度") }}: {{ resumedStep }} /
+                            3</VChip
+                        >
+                        <VProgressLinear
+                            :model-value="(resumedStep / 3) * 100"
+                            :aria-label="label('Saved setup progress', '已儲存設定進度')"
+                            class="my-3"
+                        />
+                        <VAlert :type="resumeSourceChanged ? 'warning' : 'info'" variant="tonal">{{
+                            resumeSourceChanged
+                                ? label(
+                                      "The selected source changed since setup was saved. Your preferences remain saved; repeat required source checks.",
+                                      "來源同上次儲存時唔同。偏好仍然保留；請重新執行必要來源檢查。",
+                                  )
+                                : label(
+                                      "Saved choices are available. Revalidate the source before continuing from the saved step.",
+                                      "已儲存選擇仍然可用。從已儲存步驟繼續前請再驗證來源。",
+                                  )
+                        }}</VAlert>
+                        <VBtn
+                            min-height="44"
+                            class="mt-3"
+                            @click="
+                                emit(
+                                    'intent',
+                                    resumeSourceChanged
+                                        ? 'setup-recheck-changed-source'
+                                        : 'setup-revalidate-resume',
+                                )
+                            "
+                            >{{ label("Revalidate and resume", "重新驗證並繼續") }}</VBtn
+                        >
+                    </VCardText>
+                    <VCardText v-else>
+                        <VChip>{{
+                            label(
+                                "Step 1 of 3 · source verification",
+                                "第 1 步，共 3 步 · 來源驗證",
+                            )
+                        }}</VChip>
                         <VAlert
                             :type="wizardStepVerified ? 'success' : 'warning'"
                             variant="tonal"
+                            class="my-3"
                             >{{
                                 wizardStepVerified
                                     ? label(
                                           "Required source checks passed in this reference fixture.",
                                           "呢個參考狀態嘅必要來源檢查已通過。",
                                       )
-                                    : label(
-                                          "Source verification is incomplete. Run the check to continue.",
-                                          "來源驗證未完成。請執行檢查先繼續。",
-                                      )
+                                    : surface === "build"
+                                      ? label(
+                                            "Select a repository and verify both root build scripts.",
+                                            "選擇儲存庫並驗證兩個根目錄建置指令碼。",
+                                        )
+                                      : label(
+                                            "Verify complete bundled documentation, wiki and assets.",
+                                            "驗證完整隨附文件、wiki 同資源。",
+                                        )
                             }}</VAlert
                         >
-                        <VBtn
-                            min-height="44"
-                            class="mt-3"
-                            @click="emit('intent', 'setup-verify')"
-                            >{{ label("Verify source", "驗證來源") }}</VBtn
-                        >
+                        <VBtn min-height="44" @click="emit('intent', 'setup-verify')">{{
+                            label("Verify source", "驗證來源")
+                        }}</VBtn>
                     </VCardText>
                     <VCardActions class="flex-wrap ga-2">
                         <VBtn min-height="44" @click="emit('intent', 'setup-back')">{{
@@ -215,7 +290,10 @@ const documents = [
                             color="primary"
                             variant="flat"
                             min-height="44"
-                            :disabled="!wizardStepVerified"
+                            :disabled="
+                                !wizardStepVerified ||
+                                (state === 'setup-resume' && resumeSourceChanged)
+                            "
                             @click="
                                 emit(
                                     'intent',
@@ -328,8 +406,8 @@ const documents = [
                             <VCardText
                                 ><VChip>98fb083e</VChip><VDivider class="my-3" />{{
                                     label(
-                                        "One checkout identity per workspace",
-                                        "每個工作區對應一個原始碼身分",
+                                        "One repository identity per workspace",
+                                        "每個工作區對應一個儲存庫身分",
                                     )
                                 }}</VCardText
                             >
@@ -575,23 +653,51 @@ const documents = [
                     max-width="560"
                     persistent
                 >
-                    <VCard
-                        ><VCardTitle>{{ label("Cancel this build?", "取消呢次建置？") }}</VCardTitle
-                        ><VCardText>{{
-                            label(
-                                "Only this workspace’s owned process tree will stop. Partial outputs remain ineligible. Other workspaces keep running.",
-                                "只會停止呢個工作區擁有嘅程序樹。部分產物不可交付。其他工作區繼續執行。",
-                            )
-                        }}</VCardText
-                        ><VCardActions class="flex-wrap ga-2"
-                            ><VBtn min-height="44" @click="emit('intent', 'return-to-run')">{{
-                                label("Return to build", "返回建置")
-                            }}</VBtn
-                            ><VBtn min-height="44" @click="emit('intent', 'cancel-owned-run')">{{
-                                label("Cancel owned build", "取消本工作區建置")
-                            }}</VBtn></VCardActions
-                        ></VCard
-                    >
+                    <VCard>
+                        <VCardTitle>{{
+                            state === "close-active-run"
+                                ? label("A build is still running", "建置仍然執行緊")
+                                : label("Cancel this build?", "取消呢次建置？")
+                        }}</VCardTitle>
+                        <VCardText>{{
+                            state === "close-active-run"
+                                ? label(
+                                      "Keep the owned build running in the background, cancel it before closing, or return. Closing never silently terminates work.",
+                                      "可以保留本工作區建置喺背景執行、先取消再關閉，或者返回。關閉唔會靜靜終止工作。",
+                                  )
+                                : label(
+                                      "Only this run’s owned process tree will stop. Partial outputs remain ineligible.",
+                                      "只會停止呢次執行擁有嘅程序樹。部分產物不可交付。",
+                                  )
+                        }}</VCardText>
+                        <VCardActions class="flex-wrap ga-2">
+                            <VBtn min-height="44" @click="emit('intent', 'return-to-run')">{{
+                                label("Return", "返回")
+                            }}</VBtn>
+                            <VBtn
+                                v-if="state === 'close-active-run'"
+                                min-height="44"
+                                @click="emit('intent', 'keep-running-close-window')"
+                                >{{ label("Keep running", "繼續執行") }}</VBtn
+                            >
+                            <VBtn
+                                min-height="44"
+                                @click="
+                                    emit(
+                                        'intent',
+                                        state === 'close-active-run'
+                                            ? 'cancel-and-close'
+                                            : 'cancel-owned-run',
+                                    )
+                                "
+                                >{{
+                                    state === "close-active-run"
+                                        ? label("Cancel and close", "取消並關閉")
+                                        : label("Cancel owned build", "取消本工作區建置")
+                                }}</VBtn
+                            >
+                        </VCardActions>
+                    </VCard>
                 </VDialog>
             </VContainer></VMain
         >

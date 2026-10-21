@@ -166,15 +166,20 @@ or article tab instead of a marketing or command-catalogue screen.
 
 ## Workspace identity and New tab
 
-Each Build workspace owns one validated checkout identity: normalized final filesystem root,
-resolved repository worktree identity and Git common-directory identity, with commit/dirty state
-observed separately. Drive-letter case, separator differences and junction aliases must resolve
-to the same final path before comparison. A linked worktree remains a distinct checkout identity;
-sharing a common repository alone must not combine two build outputs or run histories. Re-selecting
-an already-open identity focuses its existing workspace and selected tab, preserving drafts,
-installer ordinal, logs, running operation and wizard progress. A different checkout opens a new
-workspace; it never retargets an in-flight operation. Failure to resolve identity leaves a visible
-unverified source state, never a guessed duplicate or destructive replacement.
+Each top-level Build workspace owns one stable repository identity derived from the normalized
+final Git common-directory root. Resolve drive-letter case, separators and junction aliases before
+comparison. Linked worktrees with that same common root belong to the same top-level workspace;
+selecting another one focuses that workspace and selects an internal checkout context, never
+creates another top-level workspace automatically. A separately cloned repository with a distinct
+common root is a distinct local identity even if its remote URL happens to match.
+
+Inside the workspace, each checkout context retains its normalized root, worktree identity,
+commit/dirty observations, installer draft and selected run. Each run freezes its own checkout,
+source commit, validated arguments and output receipt. Changing checkout context never retargets
+a running process, combines outputs or overwrites another context's drafts. Re-selecting an open
+repository focuses its existing workspace/tab; re-selecting an open checkout restores its internal
+context. Only a genuinely new repository identity creates a new top-level workspace. Unresolved
+identity stays visibly unverified rather than guessed or destructively replacing existing state.
 
 New tab opens the explicit `companionDestinations` catalogue. Every companion destination appears
 there; results may focus an existing singleton destination or open an independent article/run tab
@@ -183,3 +188,19 @@ searches, overwrites article position or replaces candidate drafts. The palette 
 catalogue plus contextual actions; it is not a replacement for the workbench. Restricted mode
 filters prohibited descendants from both catalogue and search. Contextual destinations retain
 workspace/run/article identity in their route rather than relying on global mutable selection.
+
+## Final review corrections
+
+The close-active-run reference has three independent intents: Keep running closes only the window
+while the owned background run remains observable; Cancel and close requests cancellation and
+waits for observed child termination before closing; Return preserves the current window and run.
+The simpler cancel-confirm state retains only Return and Cancel owned build. Neither action may
+terminate another checkout's run or unrelated process.
+
+Setup preferences mounts the existing SetupLanguagePanel and its real shared language/tone store,
+with access to shared accessibility tools. The preview must run in its isolated profile because
+these existing controls persist real preferences. Review reads that same store for saved language
+and both tone values, plus the supplied required-check result and actual next destination. Resume
+shows the saved step and changed-source recovery explicitly; a changed source disables progression
+until revalidation updates its result. The reduced-motion switch is explicitly preview-local,
+not a claim that production settings wiring exists.
