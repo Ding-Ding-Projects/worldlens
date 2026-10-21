@@ -2,6 +2,7 @@ import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 const LIMITS = {files:10000,totalBytes:512*1024*1024};
 /** All object reads use the same isolated, offline configuration and bounded process. */
 function gitBytes(root, args, maxBuffer = 16 * 1024 * 1024) {
@@ -23,12 +24,31 @@ function gitBytes(root, args, maxBuffer = 16 * 1024 * 1024) {
 export const git = (root, args) => gitBytes(root, args).toString('utf8').trim();
 /** Read immutable tracked blobs only; working files, ignored files and symlinks are never inputs. */
 export function objectSource(repository, revision, prefix = '', rooted = false) {
+    const root = resolve(repository);
+    if (realpathSync(root) !== root) throw new Error('real-source-root-required');
+    if (git(root,['rev-parse','--is-bare-repository']) !== 'false' ||
+        resolve(git(root,['rev-parse','--show-toplevel'])) !== root ||
+        git(root,['rev-parse','--show-prefix']) !== '') throw new Error('exact-repository-root-required');
+    return objectDatabaseSource(git(root,['rev-parse','--absolute-git-dir']), revision, prefix, rooted);
+}
+
+/** Explicit object databases support pinned submodules without consulting their working HEAD. */
+export function objectDatabaseSource(directory, revision, prefix = '', rooted = false) {
+    const database = resolve(directory);
+    if (realpathSync(database) !== database) throw new Error('real-source-root-required');
+    const command = args => ['--git-dir=' + database, ...args];
+    if (resolve(git(database,command(['rev-parse','--absolute-git-dir']))) !== database) throw new Error('exact-object-database-required');
     if (!/^[a-f0-9]{40}$/.test(revision)) throw new Error('full-source-revision-required');
-    const output = gitBytes(repository, ['ls-tree', '-r', ...(rooted ? ['-t'] : []), '-z', '-l', revision, ...(prefix ? ['--', prefix] : [])]).toString('utf8');
+    if (prefix && (prefix.startsWith('/') || prefix.split('/').some(part => !part || part === '.' || part === '..') || /[\\\u0000-\u001f\u007f:*?\[\]]/.test(prefix))) throw new Error('invalid-source-prefix');
+    const output = gitBytes(database, command(['--literal-pathspecs','ls-tree', '--full-tree', '-r', ...(rooted ? ['-t'] : []), '-z', '-l', revision, ...(prefix ? ['--', prefix] : [])])).toString('utf8');
     const entries = new Map();
     for (const record of output.split('\0').filter(Boolean)) {
         const match = /^(\d+) (\w+) ([a-f0-9]+)\s+(\d+|-)\t([^]*)$/.exec(record);
         if (!match || (!rooted && (!['100644','100755'].includes(match[1]) || match[2] !== 'blob'))) throw new Error('unsupported-source-mode');
+        if (prefix && !match[5].startsWith(prefix + '/')) {
+            if (rooted && match[5] === prefix && match[2] === 'tree') continue;
+            throw new Error('source-prefix-mismatch');
+        }
         const name = prefix ? match[5].slice(prefix.length + 1) : match[5];
         entries.set(name, { oid: match[3], size: Number(match[4]), mode: match[1], type: match[2] });
     }
@@ -37,7 +57,7 @@ export function objectSource(repository, revision, prefix = '', rooted = false) 
         entry(name) { return entries.get(name.replace(/\/$/, '')); },
         files: [...entries.keys()].sort((a,b)=>a.localeCompare(b,'en')),
         size(name) { if (!entries.has(name)) throw new Error('untracked-source'); if (!['100644','100755'].includes(entries.get(name).mode)) throw new Error('unsupported-source-mode'); return entries.get(name).size; },
-        read(name) { if (!entries.has(name)) throw new Error('untracked-source'); return gitBytes(repository, ['cat-file', 'blob', entries.get(name).oid], LIMITS.totalBytes); },
+        read(name) { if (!entries.has(name)) throw new Error('untracked-source'); if (!['100644','100755'].includes(entries.get(name).mode)) throw new Error('unsupported-source-mode'); return gitBytes(database, command(['cat-file', 'blob', entries.get(name).oid]), LIMITS.totalBytes); },
     };
 }
 

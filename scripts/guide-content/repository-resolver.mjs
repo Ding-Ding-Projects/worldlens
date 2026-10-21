@@ -1,6 +1,6 @@
 /** Immutable repository metadata and the explicitly reviewed historical-image adapter. */
 import { resolve } from 'node:path';
-import { objectSource, git } from './immutable-source.mjs';
+import { objectSource, objectDatabaseSource, git } from './immutable-source.mjs';
 const ORIGIN = 'https://github.com/Ding-Ding-Projects/worldlens';
 const images = [
     ['82139b484903d81997e11306292983dbd55a608f','docs/screenshots/pages-parity-appearance-414x844-bilingual.png','881aaaaf6f31255ac46c6d76cb3a7275df7cb8bc'],
@@ -24,7 +24,7 @@ export function createRepositoryResolver(repository, revision) {
                 const configured = git(repository,['config','--blob',revision+':.gitmodules','--get-all','submodule.vendor/BlueMap.url']);
                 if (configured !== 'https://github.com/BlueMap-Minecraft/BlueMap') throw new Error('unreviewed-source-origin');
                 const admin = resolve(repository, git(repository,['rev-parse','--git-common-dir']), 'modules/vendor/BlueMap');
-                const nested = objectSource(admin, pin.oid, '', true);
+                const nested = objectDatabaseSource(admin, pin.oid, '', true);
                 sourcePath = path.slice('vendor/BlueMap/'.length);
                 entry = nested.entry(sourcePath); sourceRevision = pin.oid;
                 origin = 'https://github.com/BlueMap-Minecraft/BlueMap';

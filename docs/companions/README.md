@@ -62,6 +62,10 @@ problems in these articles remain diagnostics. Optional code, data and directory
 carry pinned object identities and explicitly labeled external source links requiring
 connectivity. The reviewed BlueMap source reference uses the parent tree's submodule pin and
 local object database, never the checked-out submodule revision. Missing objects are failures.
+Source roots must be exact real repository roots: nested directories and symlink aliases
+are rejected. Object listings use full-tree paths, and subsequent blob reads use the same
+explicit object database. The separate submodule adapter accepts an exact real object-database
+directory rather than treating its administrative directory as a documentation root.
 
 Exactly three reviewed historical wiki image URLs have an offline adapter in
 `scripts/guide-content/repository-resolver.mjs`. Their full revisions, paths and blob identities

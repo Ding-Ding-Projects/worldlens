@@ -57,9 +57,10 @@ test('reviewed historical images resolve only to their exact locally pinned blob
 test('source references use the parent submodule pin rather than its current HEAD',()=>fixture(async({root,write,command,save})=>{
  await write('docs/Home.md','# Home');
  await write('.gitmodules','[submodule "vendor/BlueMap"]\npath = vendor/BlueMap\nurl = https://github.com/BlueMap-Minecraft/BlueMap\n');save();
- const nested=join(root,'.git/modules/vendor/BlueMap');await mkdir(nested,{recursive:true});
+ const admin=join(root,'.git/modules/vendor/BlueMap');
+ const nested=join(root,'.git/fixture-worktree');await mkdir(nested,{recursive:true});await mkdir(join(admin,'..'),{recursive:true});
  const sub=(...args)=>execFileSync('git',args,{cwd:nested,encoding:'utf8'}).trim();
- sub('init','-q');sub('config','user.name','Fixture');sub('config','user.email','fixture@example.invalid');
+ sub('init','-q','--separate-git-dir='+admin);sub('config','user.name','Fixture');sub('config','user.email','fixture@example.invalid');
  await writeFile(join(nested,'example.ts'),'export const original = true;');sub('add','.');sub('commit','-qm','Original');
  const pin=sub('rev-parse','HEAD'),blob=sub('rev-parse','HEAD:example.ts');
  await writeFile(join(nested,'example.ts'),'export const replacement = true;');sub('add','.');sub('commit','-qm','Replacement');
@@ -74,4 +75,24 @@ test('source references use the parent submodule pin rather than its current HEA
  command('commit','-qm','Restore origin');
  command('update-index','--cacheinfo','160000,'+'1'.repeat(40)+',vendor/BlueMap');command('commit','-qm','Unavailable pin');
  assert.throws(()=>createRepositoryResolver(root,command('rev-parse','HEAD')).reference('vendor/BlueMap/example.ts'));
+}));
+test('object source rejects nested and symlink roots instead of relabeling their documentation',()=>fixture(async({root,write,save})=>{
+ await write('docs/Home.md','# Root');await write('nested/docs/Home.md','# Nested');const revision=save();
+ assert.equal(objectSource(root,revision,'docs').read('Home.md').toString(),'# Root');
+ assert.throws(()=>objectSource(join(root,'nested'),revision,'docs'),/exact-repository-root-required/);
+ const alias=join(root,'alias');await symlink(root,alias);
+ assert.throws(()=>objectSource(alias,revision,'docs'),/real-source-root-required/);
+}));
+test('CLI rejects nested and symlink roots without emitting a report or bundle',()=>fixture(async({root,write,save})=>{
+ const {spawnSync}=await import('node:child_process');const {access}=await import('node:fs/promises');
+ await write('docs/Home.md','# Root');await write('nested/docs/Home.md','# Nested');const revision=save();
+ const alias=join(root,'alias');await symlink(root,alias);
+ const outputs=await mkdtemp(join(tmpdir(),'guide-root-output-'));
+ try {
+ for(const [label,path] of [['nested',join(root,'nested')],['symlink',alias]]){
+  const report=join(outputs,label+'-report.json'),output=join(outputs,label+'-bundle.json');
+  const result=spawnSync(process.execPath,[resolve('scripts/guide-content/prepare.mjs'),'--repository',path,'--wiki',root,'--wiki-revision',revision,'--toolchain',resolve(process.env.GUIDE_TOOLCHAIN_ROOT||'.'),'--report',report,'--output',output],{encoding:'utf8'});
+  assert.equal(result.status,1);await assert.rejects(access(report));await assert.rejects(access(output));
+ }
+ } finally { await rm(outputs,{recursive:true,force:true}); }
 }));
