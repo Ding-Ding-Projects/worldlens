@@ -72,3 +72,14 @@ Exactly three reviewed historical wiki image URLs have an offline adapter in
 must match locally available objects. The manifest retains their original source URLs and
 identities beside the bundled bytes. No network acquisition occurs; other external images
 remain unsupported. These historical images are not evidence of a current application build.
+
+Heading preparation follows the documented per-space fragment rule: each ASCII space becomes
+one hyphen after punctuation removal, while inline formatting contributes its text. Unicode
+letters, numbers and combining marks are retained. Unique IDs are allocated across the article,
+including natural suffix collisions. The manifest records each heading's assigned ID and a
+compatibility mapping for the existing viewer's whitespace-collapsing IDs. Internal links using
+an unambiguous compatibility ID normalize to the assigned ID. A fragment that could select two
+different headings produces `ambiguous-anchor`, never a guessed destination. The companion
+renderer must apply these explicit assignments; the existing product viewer is unchanged and
+its collapsing behavior is not proof of companion navigation. These rules implement the bounded
+heading cases tested here, not a claim of complete Markdown-renderer parity.

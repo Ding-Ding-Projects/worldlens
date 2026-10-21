@@ -196,3 +196,16 @@ test('preserves safe interior spaces in HTML article and image URLs', () => fixt
     assert.equal(result.manifest.articles.find(a=>a.path==='Home.md').links[0].target,'/docs/notes%20with%20spaces');
     assert.equal(result.manifest.articles.find(a=>a.path==='Home.md').links[1].target,'/assets/docs/example%20image.png');
 }));
+test('normalizes unambiguous legacy fragments to assigned per-space heading IDs',()=>fixture(async({docsRoot,prepare})=>{
+ await writeFile(join(docsRoot,'Home.md'),'# Home\n\n[Current](#code--details) [Legacy](#code-details)\n\n## `code` \u2014 details\n');
+ const result=await prepare();assert.equal(result.ok,true);
+ const article=result.manifest.articles[0];assert.equal(article.headings[1].id,'code--details');
+ assert.equal(article.anchorAliases['code-details'],'code--details');
+ assert.deepEqual(article.links.map(link=>link.target),['/docs/Home#code--details','/docs/Home#code--details']);
+}));
+test('rejects a fragment ambiguous between a primary heading and another legacy heading',()=>fixture(async({docsRoot,prepare})=>{
+ await writeFile(join(docsRoot,'Home.md'),'# Home\n\n[Ambiguous](#a-b)\n\n## A  B\n## A B\n');
+ const result=await prepare();assert.equal(result.ok,false);
+ assert.ok(result.diagnostics.some(d=>d.code==='ambiguous-anchor'));
+ assert.equal(result.manifest.articles[0].links[0].target,undefined);
+}));

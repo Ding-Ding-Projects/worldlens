@@ -6,13 +6,13 @@ import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { objectSource, git } from './immutable-source.mjs';
 import { createRepositoryResolver } from './repository-resolver.mjs';
+import { headingText, headingSlug, legacyHeadingSlug, uniqueHeadingId, headingAliases, ambiguousHeadingAliases } from './heading-anchors.mjs';
 import { htmlState, inspectHtml } from './html-policy.mjs';
 
 export const WIKI_REVISION = '0b66c19306add3a090fc70ad08f1d785b49794f7';
 const LIMITS = { files: 10000, articleBytes: 4 * 1024 * 1024, totalBytes: 512 * 1024 * 1024 };
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const inside = (root, file) => { const p = relative(root, file); return p === '' || (!p.startsWith('..' + sep) && p !== '..' && !p.startsWith(sep)); };
-const slug = text => text.toLowerCase().trim().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s+/g, '-').replace(/^-+|-+$/g, '') || 'section';
 const route = (kind, file) => '/' + kind + '/' + file.replace(/\.md$/i, '').split('/').map(encodeURIComponent).join('/');
 
 async function safeFile(root, name) {
@@ -87,17 +87,18 @@ export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRev
             if (routes.has(key)) throw new Error('colliding-routes');
             const article = { kind, path: name, route: destination, revision: kind === 'wiki' ? wikiRevision : docsRevision,
                 oid: sources?.[kind]?.entry?.(name)?.oid,
-                sha256: hash(bytes), title: name.replace(/\.md$/i, ''), text, anchors: [], links: [], externalLinks: [], sourceLinks: [] };
-            const used = new Set();
+                sha256: hash(bytes), title: name.replace(/\.md$/i, ''), text, anchors: [], headings: [], anchorAliases: {}, links: [], externalLinks: [], sourceLinks: [] };
+            const used = new Set(), legacyUsed = new Set();
             const html = htmlState();
             const tokens = marked.lexer(text, { gfm: true });
             marked.walkTokens(tokens, token => {
                 if (token.type === 'heading') {
-                    const plain = token.text.replace(/<[^>]*>/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '');
-                    const base = slug(plain);
-                    let id = base, suffix = 0;
-                    while (used.has(id)) id = base + '-' + (++suffix);
-                    used.add(id); article.anchors.push(id);
+                    const plain = headingText(token.tokens || [{type:'text',text:token.text}]);
+                    const id = uniqueHeadingId(headingSlug(plain),used);
+                    const legacyPlain = token.text.replace(/<[^>]*>/g, '').replace(/\[([^\]]+)\]\([^)]*\)/g, '$1').replace(/[*_`~]/g, '');
+                    const legacyId = uniqueHeadingId(legacyHeadingSlug(legacyPlain),legacyUsed);
+                    article.anchors.push(id);
+                    article.headings.push({id,legacyId,depth:token.depth,text:plain});
                     if (token.depth === 1 && article.title === name.replace(/\.md$/i, '')) article.title = plain;
                 }
                 if (token.type === 'text' && /\[\[[^]*?\]\]/.test(token.text)) diagnostics.push({ route: destination, code: 'unsupported-wiki-link' });
@@ -115,6 +116,8 @@ export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRev
                 }
             });
             if (html.stack.length) diagnostics.push({ route: destination, code: 'unclosed-html' });
+            article.anchorAliases = headingAliases(article.headings,article.anchors);
+            article.ambiguousAnchors = ambiguousHeadingAliases(article.headings,article.anchors);
             articles.push(article); routes.set(key, article);
             if (repositoryResolver && kind !== 'wiki') for (const link of article.links) {
                 if (link.type !== 'link' || /^[\u0009-\u000d\u0020]|[\u0009-\u000d\u0020]$/.test(link.href) || /^[a-z][a-z0-9+.-]*:/i.test(link.href) || link.href.startsWith('//')) continue;
@@ -161,6 +164,10 @@ export async function prepareContent({ docsRoot, wikiRoot, docsRevision, wikiRev
             let destination = byPath.get(targetKind + '/' + target);
             if (!destination && !extname(target)) destination = byPath.get(targetKind + '/' + target + '.md') || byPath.get(targetKind + '/' + target + '/README.md');
             if (destination && link.type === 'link') {
+                if (anchor && destination.ambiguousAnchors.includes(anchor)) {
+                    diagnostics.push({route:article.route,code:'ambiguous-anchor',target:destination.route,anchor}); continue;
+                }
+                if (anchor && Object.hasOwn(destination.anchorAliases,anchor)) anchor = destination.anchorAliases[anchor];
                 if (anchor && !destination.anchors.includes(anchor)) diagnostics.push({ route: article.route, code: 'missing-anchor', target: destination.route, anchor });
                 link.target = destination.route + (anchor ? '#' + encodeURIComponent(anchor) : '');
                 continue;
