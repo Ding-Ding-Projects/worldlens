@@ -21,6 +21,8 @@ export function createRepositoryResolver(repository, revision) {
             if (!entry && path.startsWith('vendor/BlueMap/')) {
                 const pin = source.entry('vendor/BlueMap');
                 if (!pin || pin.mode !== '160000') throw new Error('missing-source-reference');
+                const configured = git(repository,['config','--blob',revision+':.gitmodules','--get-all','submodule.vendor/BlueMap.url']);
+                if (configured !== 'https://github.com/BlueMap-Minecraft/BlueMap') throw new Error('unreviewed-source-origin');
                 const admin = resolve(repository, git(repository,['rev-parse','--git-common-dir']), 'modules/vendor/BlueMap');
                 const nested = objectSource(admin, pin.oid, '', true);
                 sourcePath = path.slice('vendor/BlueMap/'.length);

@@ -54,3 +54,24 @@ test('reviewed historical images resolve only to their exact locally pinned blob
  const resolver=createRepositoryResolver(root,git(root,['rev-parse','HEAD']));
  for(const [url,pin] of HISTORICAL_IMAGES){const image=resolver.historicalImage(url);assert.equal(image.oid,pin.oid);assert.equal(image.revision,pin.revision);assert.equal(image.read().length,image.size);}
 });
+test('source references use the parent submodule pin rather than its current HEAD',()=>fixture(async({root,write,command,save})=>{
+ await write('docs/Home.md','# Home');
+ await write('.gitmodules','[submodule "vendor/BlueMap"]\npath = vendor/BlueMap\nurl = https://github.com/BlueMap-Minecraft/BlueMap\n');save();
+ const nested=join(root,'.git/modules/vendor/BlueMap');await mkdir(nested,{recursive:true});
+ const sub=(...args)=>execFileSync('git',args,{cwd:nested,encoding:'utf8'}).trim();
+ sub('init','-q');sub('config','user.name','Fixture');sub('config','user.email','fixture@example.invalid');
+ await writeFile(join(nested,'example.ts'),'export const original = true;');sub('add','.');sub('commit','-qm','Original');
+ const pin=sub('rev-parse','HEAD'),blob=sub('rev-parse','HEAD:example.ts');
+ await writeFile(join(nested,'example.ts'),'export const replacement = true;');sub('add','.');sub('commit','-qm','Replacement');
+ command('update-index','--add','--cacheinfo','160000,'+pin+',vendor/BlueMap');command('commit','-qm','Pin');
+ const resolver=createRepositoryResolver(root,command('rev-parse','HEAD'));
+ const reference=resolver.reference('vendor/BlueMap/example.ts');
+ assert.equal(reference.revision,pin);assert.equal(reference.oid,blob);assert.ok(reference.href.includes('/'+pin+'/'));
+ await write('.gitmodules','[submodule "vendor/BlueMap"]\npath = vendor/BlueMap\nurl = https://example.org/unreviewed\n');
+ command('add','.gitmodules');command('commit','-qm','Different origin');
+ assert.throws(()=>createRepositoryResolver(root,command('rev-parse','HEAD')).reference('vendor/BlueMap/example.ts'),/unreviewed-source-origin/);
+ command('checkout','HEAD~1','--','.gitmodules');
+ command('commit','-qm','Restore origin');
+ command('update-index','--cacheinfo','160000,'+'1'.repeat(40)+',vendor/BlueMap');command('commit','-qm','Unavailable pin');
+ assert.throws(()=>createRepositoryResolver(root,command('rev-parse','HEAD')).reference('vendor/BlueMap/example.ts'));
+}));
