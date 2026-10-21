@@ -54,3 +54,17 @@ assets, missing targets, traversal, symlinks, collisions and output protection. 
 inventory reports are kept outside the checkout, because their content has not passed publication
 review. Current offline content completeness, rendered navigation, accessibility, packaging,
 one-file launch and release delivery remain unverified.
+
+Repository-relative links may leave `docs/` but must remain within the pinned repository
+root. Referenced Markdown is retained in full under `/supplemental/`, recursively and with
+cycle deduplication; its links, anchors, HTML and assets receive the same validation. New
+problems in these articles remain diagnostics. Optional code, data and directory references
+carry pinned object identities and explicitly labeled external source links requiring
+connectivity. The reviewed BlueMap source reference uses the parent tree's submodule pin and
+local object database, never the checked-out submodule revision. Missing objects are failures.
+
+Exactly three reviewed historical wiki image URLs have an offline adapter in
+`scripts/guide-content/repository-resolver.mjs`. Their full revisions, paths and blob identities
+must match locally available objects. The manifest retains their original source URLs and
+identities beside the bundled bytes. No network acquisition occurs; other external images
+remain unsupported. These historical images are not evidence of a current application build.

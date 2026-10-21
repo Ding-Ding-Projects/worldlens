@@ -20,7 +20,7 @@ asking anybody to know which one it is before they start.
 - [The three ways in](#the-three-ways-in)
 - [The refusal a running container earns](#the-refusal-a-running-container-earns)
 - [Local daemon, or one reached over SSH](#local-daemon-or-one-reached-over-ssh)
-- [What is incremental, and what is not](#what-is-incremental-and-not)
+- [What is incremental, and what is not](#what-is-incremental-and-what-is-not)
 - [A cheap change check, and where it does and does not reach](#a-cheap-change-check-and-where-it-does-and-does-not-reach)
 - [Using it in the desktop application](#using-it-in-the-desktop-application)
 - [Failure modes](#failure-modes)

@@ -331,7 +331,7 @@ every local render and the viewer cannot tell the two apart.
 
 A world large enough to need more than one merge group publishes its map as `map-lowres`
 plus one `partial-hires-N` per group instead of the single `rendered-map` artifact (see
-["Two waves, one merge"](#two-waves-one-merge) above). The app's fetch step recognises both
+["Merging a map too large for one runner"](resumable-renders.md#merging-a-map-too-large-for-one-runner)). The app's fetch step recognises both
 shapes: it lists the run's artifacts, and when there is no `rendered-map` but there is a
 `map-lowres`, it downloads and verifies `map-lowres` and every `partial-hires-N` the same way
 it verifies a single artifact, then unpacks `map-lowres` first and each `partial-hires-N` into

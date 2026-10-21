@@ -437,7 +437,7 @@ What has **not** been verified, stated plainly:
   only opens Downloads and asks the person to fetch the release by hand; see
   [Restoring](#restoring) above.
 - The interoperability claim is checked at the level of the pointer grammar only. See
-  [what has actually been verified](#what-has-actually-been-verified-about-the-interoperability).
+  [what has actually been verified](#what-has-actually-been-verified-format-conformance-only-permanently).
   Nobody has restored a backup made here through Desktop Material's own restore path, or the other
   way round.
 - The largest archive packed in a test — including the live one — is a few megabytes. The Zip64
