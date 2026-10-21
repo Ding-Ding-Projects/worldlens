@@ -111,3 +111,31 @@ test('CLI bundles only tracked committed bytes despite dirty, untracked and igno
         assert.ok(bundle.articles.find(a=>a.kind==='wiki').sourceLinks[0].href.endsWith('/'+wikiRevision));
     });
 });
+test('CLI ignores replacement refs and inherited object/config routing', async () => {
+    const { execFileSync, spawnSync } = await import('node:child_process');
+    await fixture(async ({root,docsRoot,wikiRoot}) => {
+        const repository=join(root,'repo');
+        const git=(cwd,args)=>execFileSync('git',['-C',cwd,...args],{encoding:'utf8'}).trim();
+        for (const cwd of [repository,wikiRoot]) {
+            git(cwd,['init','-q']); git(cwd,['config','user.name','Fixture']); git(cwd,['config','user.email','fixture@example.invalid']);
+        }
+        await writeFile(join(docsRoot,'Home.md'),'# Original');
+        await writeFile(join(wikiRoot,'Home.md'),'# Wiki');
+        for (const cwd of [repository,wikiRoot]) { git(cwd,['add','.']); git(cwd,['commit','-qm','Original']); }
+        const original=git(repository,['rev-parse','HEAD']), wikiRevision=git(wikiRoot,['rev-parse','HEAD']);
+        await writeFile(join(docsRoot,'Home.md'),'# Replacement');
+        git(repository,['add','.']); git(repository,['commit','-qm','Replacement']);
+        const replacement=git(repository,['rev-parse','HEAD']);
+        git(repository,['update-ref','HEAD',original]); git(repository,['replace',original,replacement]);
+        for (const contaminated of [false,true]) {
+            const output=join(root,`replacement-${contaminated}.json`), report=join(root,`replacement-report-${contaminated}.json`);
+            const env={...process.env};
+            if(contaminated) Object.assign(env,{GIT_DIR:join(root,'absent'),GIT_WORK_TREE:wikiRoot,GIT_OBJECT_DIRECTORY:join(root,'absent'),GIT_ALTERNATE_OBJECT_DIRECTORIES:join(root,'absent'),GIT_CONFIG_COUNT:'1',GIT_CONFIG_KEY_0:'core.repositoryformatversion',GIT_CONFIG_VALUE_0:'99',GIT_CONFIG_PARAMETERS:"'core.repositoryformatversion=99'",GIT_NO_REPLACE_OBJECTS:'0',GIT_NO_LAZY_FETCH:'0'});
+            const result=spawnSync(process.execPath,[resolve('scripts/guide-content/prepare.mjs'),'--repository',repository,'--wiki',wikiRoot,'--wiki-revision',wikiRevision,'--toolchain',resolve(process.env.GUIDE_TOOLCHAIN_ROOT||'.'),'--report',report,'--output',output],{encoding:'utf8',env});
+            assert.equal(result.status,0,result.stderr);
+            const bundle=JSON.parse(await readFile(output,'utf8'));
+            assert.equal(bundle.revisions.docs,original);
+            assert.equal(bundle.articles.find(a=>a.kind==='docs').text,'# Original');
+        }
+    });
+});

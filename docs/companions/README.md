@@ -29,7 +29,10 @@ Bounds are 10,000 source files per root, 4 MiB per article and 512 MiB of total 
 The CLI reads only tracked blobs from the documentation HEAD object tree and selected wiki
 object tree. Changed working files, ignored files and untracked files never enter the bundle,
 including referenced assets. Symlinks and submodule entries in either source tree are rejected.
-Source revisions, source links and content hashes therefore refer to the same immutable bytes.
+Every Git read disables replacement refs and lazy fetch, discards inherited Git object/config
+routing overrides, disables global/system configuration and transport protocols, and uses a
+15-second timeout with bounded output. Missing objects fail rather than fetching. Source
+revisions, source links and content hashes therefore refer to the same immutable bytes.
 Heading identifiers are allocated uniquely across the complete article, including collisions
 between naturally suffixed headings and generated suffixes. A successful preparation still requires
 publication review before any wiki snapshot or generated content enters tracked public source.
