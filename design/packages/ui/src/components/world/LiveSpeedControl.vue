@@ -72,24 +72,38 @@ let adaptiveRequest = 0;
 async function refreshAdaptive(): Promise<void> {
     clearTimeout(adaptiveTimer);
     const request = ++adaptiveRequest;
+    const renderId = props.run.renderId.value;
     let value: AdaptiveSpeedState;
     try { value = await props.run.getAdaptiveSpeed(); }
     catch { value = { enabled: false, level: null, reason: "unavailable" }; }
-    if (disposed || request !== adaptiveRequest) return;
+    if (disposed || request !== adaptiveRequest || renderId !== props.run.renderId.value) return;
     adaptive.value = value;
     if (adaptive.value.enabled) adaptiveTimer = setTimeout(() => void refreshAdaptive(), 5000);
 }
 async function toggleAdaptive(value: unknown): Promise<void> {
-    if (adaptivePending.value) return;
+    if (adaptivePending.value || pendingLevel.value !== null) return;
     adaptivePending.value = true;
-    ++adaptiveRequest;
+    const request = ++adaptiveRequest;
+    const renderId = props.run.renderId.value;
     clearTimeout(adaptiveTimer);
-    try { adaptive.value = await props.run.setAdaptiveSpeed(value === true); }
-    catch { adaptive.value = { enabled: false, level: null, reason: "unavailable" }; }
-    finally { adaptivePending.value = false; }
-    if (adaptive.value.enabled && !disposed) adaptiveTimer = setTimeout(() => void refreshAdaptive(), 5000);
+    let result: AdaptiveSpeedState;
+    try { result = await props.run.setAdaptiveSpeed(value === true); }
+    catch { result = { enabled: false, level: null, reason: "unavailable" }; }
+    if (disposed || request !== adaptiveRequest || renderId !== props.run.renderId.value) return;
+    adaptivePending.value = false;
+    adaptive.value = result;
+    if (result.enabled) {
+        // An accepted automatic choice supersedes the manual live result and restart offer.
+        lastOutcome.value = null;
+        adaptiveTimer = setTimeout(() => void refreshAdaptive(), 5000);
+    }
 }
-watch(() => props.run.renderId.value, () => { clearTimeout(adaptiveTimer); void refreshAdaptive(); }, { immediate: true });
+watch(() => props.run.renderId.value, () => {
+    clearTimeout(adaptiveTimer);
+    adaptivePending.value = false;
+    lastOutcome.value = null;
+    void refreshAdaptive();
+}, { immediate: true });
 onUnmounted(() => { disposed = true; clearTimeout(adaptiveTimer); });
 
 function routeWord(value: SpeedAdjustmentResult["route"]): string {
@@ -137,6 +151,9 @@ function levelLabel(level: SpeedLevelNumber): string {
 async function chooseLevel(level: SpeedLevelNumber): Promise<void> {
     if (isDisabled.value || pendingLevel.value !== null) return;
     pendingLevel.value = level;
+    ++adaptiveRequest;
+    adaptivePending.value = false;
+    clearTimeout(adaptiveTimer);
     let result: SpeedAdjustmentResult | null = null;
     try {
         result = await props.run.adjustSpeed(level);
@@ -169,7 +186,7 @@ async function restartNow(): Promise<void> {
                 <h3 class="mb-livespeed__title">{{ t("liveSpeed.title", "Adjust speed") }}</h3>
             </div>
 
-            <v-switch :model-value="adaptive.enabled" :disabled="isDisabled || adaptivePending" :label="t('liveSpeed.dynamic.title')" @update:model-value="toggleAdaptive" />
+            <v-switch :model-value="adaptive.enabled" :disabled="isDisabled || adaptivePending || pendingLevel !== null" :label="t('liveSpeed.dynamic.title')" @update:model-value="toggleAdaptive" />
             <p>{{ t("liveSpeed.dynamic.description") }}</p>
             <p role="status" aria-live="polite">{{ t(`liveSpeed.dynamic.${adaptive.reason}`) }}<span v-if="adaptive.level !== null"> · {{ levelLabel(adaptive.level) }}</span></p>
             <p v-if="isDisabled" class="mb-livespeed__disabled" role="status">
