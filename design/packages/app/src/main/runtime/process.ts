@@ -87,6 +87,8 @@ export interface EngineProcessOptions {
     readonly stopContainer?: (name: string) => Promise<void>;
     readonly runner?: CommandRunner;
     readonly graceMs?: number;
+    readonly onCancellationUnconfirmed?: (message: string) => void;
+    readonly wslCancelRetryMs?: number;
 }
 
 /**
@@ -100,6 +102,7 @@ export class EngineProcess {
     private readonly options: EngineProcessOptions;
     private child: EngineChildProcess | null = null;
     private cancelRequested = false;
+    private wslCancellationInFlight = false;
     private killTimer: NodeJS.Timeout | null = null;
     private finished = false;
 
@@ -181,7 +184,7 @@ export class EngineProcess {
      * register?" is answered by clicking again.
      */
     cancel(): void {
-        if (this.cancelRequested) return;
+        if (this.cancelRequested && (this.options.launch.wsl === undefined || this.wslCancellationInFlight)) return;
         this.cancelRequested = true;
 
         const name = this.options.launch.containerName;
@@ -198,9 +201,8 @@ export class EngineProcess {
 
         if (this.options.launch.wsl !== undefined) {
             // Do not kill wsl.exe first: that can leave the JVM alive inside Linux.
-            void stopWsl(this.options.launch.wsl, this.options.runner).then(() => {
-                if (!this.finished && child.exitCode === null) child.kill("SIGINT");
-            }).catch((error: unknown) => this.record(describe(error)));
+            this.wslCancellationInFlight = true;
+            void this.cancelWsl();
             return;
         }
         child.kill("SIGINT");
@@ -210,6 +212,39 @@ export class EngineProcess {
         }, this.options.graceMs ?? CANCEL_GRACE_MS);
         // Never hold the event loop open on behalf of a process that is already dying.
         this.killTimer.unref?.();
+    }
+
+    private async cancelWsl(): Promise<void> {
+        const control = this.options.launch.wsl;
+        if (control === undefined) return;
+        try {
+            for (let attempt = 1; attempt <= 3 && !this.finished; attempt += 1) {
+                try {
+                    await stopWsl(control, this.options.runner);
+                    // Linux owns the JVM. Await the real close event, never manufacture
+                    // a terminal result by killing its Windows launcher.
+                    if (!this.finished) {
+                        this.killTimer = setTimeout(() => {
+                            if (!this.finished) this.cancellationUnconfirmed("WSL stop returned, but the render has not exited. Cancellation is not confirmed. You can retry Cancel.");
+                        }, this.options.graceMs ?? CANCEL_GRACE_MS);
+                        this.killTimer.unref?.();
+                    }
+                    return;
+                } catch (error) {
+                    this.record(describe(error));
+                    if (attempt === 3) {
+                        if (!this.finished) this.cancellationUnconfirmed("WSL cancellation could not be confirmed after three attempts. The render may still be running. You can retry Cancel.");
+                    } else {
+                        await new Promise((resolve) => setTimeout(resolve, this.options.wslCancelRetryMs ?? 250));
+                    }
+                }
+            }
+        } finally { this.wslCancellationInFlight = false; }
+    }
+
+    private cancellationUnconfirmed(message: string): void {
+        this.record(message);
+        this.options.onCancellationUnconfirmed?.(message);
     }
 
     /** True once cancellation has been asked for. */

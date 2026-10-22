@@ -375,6 +375,7 @@ export interface RenderEngineProvisionEvent {
  * banner telling them something went wrong.
  */
 export type RenderEvent =
+    | { readonly type: "cancellation-unconfirmed"; readonly renderId: string; readonly message: string; readonly at: string }
     | {
           readonly type: "preview-ready";
           readonly renderId: string;
@@ -1284,6 +1285,7 @@ export class RenderOrchestrator {
                   : new EngineProcess({
                         launch,
                         onSignal,
+                        onCancellationUnconfirmed: (message) => this.emit({ type: "cancellation-unconfirmed", renderId, message, at: this.timestamp() }),
                         ...(this.options.spawnEngine === undefined
                             ? {}
                             : { spawn: this.options.spawnEngine }),

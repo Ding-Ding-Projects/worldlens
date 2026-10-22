@@ -34,8 +34,10 @@ it("verifies the Linux archive before extracting in the selected user's private 
     expect(downloads.download).toHaveBeenCalledWith(
         expect.objectContaining({ sha256: "a".repeat(64), expectedSize: 100 }),
     );
-    const extraction = runner.mock.calls.find((call) => call[1].includes("worldlens-java"))!;
+    const extraction = runner.mock.calls.find((call) => call[1].includes("worldlens-java-supervisor"))!;
     expect(extraction[1]).toContain("/home/render-user/.local/share/worldlens/java");
+    expect(extraction[1].join(" ")).toContain("flock -n 9");
+    expect(extraction[1].join(" ")).toContain("timeout --signal=TERM --kill-after=5s 100s");
     expect(extraction[1].slice(0, 3)).toEqual(["--distribution", "Ubuntu", "--exec"]);
     expect(result).toEqual({
         distribution: "Ubuntu",
@@ -57,3 +59,19 @@ it("does nothing when preparation has already been cancelled", async () => {
     ).rejects.toThrow();
     expect(runner).not.toHaveBeenCalled();
 });
+
+
+it.each([[75, "holds the setup lock"], [124, "stopped extraction"], [null, "state is unconfirmed"], [137, "state is unconfirmed"]] as const)(
+    "reports installation outcome %s without claiming an installed runtime", async (exitCode, message) => {
+        downloads.resolve.mockResolvedValue({ url: "https://example.invalid/java.tar.gz", sha256: "a".repeat(64), size: 100 });
+        downloads.download.mockResolvedValue({ path: "C:\\cache\\java.tar.gz" });
+        const runner = vi.fn<CommandRunner>(async (_cmd, args) => {
+            if (args.includes("uname")) return ok("x86_64");
+            if (args.includes("wslpath")) return ok("/mnt/c/cache/java.tar.gz");
+            if (args.includes('printf "%s" "$HOME"')) return ok("/home/render-user");
+            return { ...ok(), ok: false, exitCode };
+        });
+        await expect(ensureWslJava({ distribution: "Ubuntu", cacheDir: "C:\\cache", runner })).rejects.toThrow(message);
+        expect(runner.mock.calls.some((call) => call[1].includes("-version"))).toBe(false);
+    },
+);

@@ -102,6 +102,7 @@ export interface EngineDescription {
 }
 
 export type RenderEvent =
+    | { type: "cancellation-unconfirmed"; renderId: string; message: string; at: string }
     | { type: "preview-ready"; renderId: string; dataRoot: string; at: string }
     | {
           type: "started";

@@ -1223,6 +1223,10 @@ export function createRenderRun(
                 lastProgressAtMs.value = at;
                 break;
             }
+            case "cancellation-unconfirmed":
+                cancelling.value = false;
+                append("WARNING", event.message, event.at);
+                break;
             case "log":
                 append(event.level, event.message, event.at);
                 break;

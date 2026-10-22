@@ -24,6 +24,10 @@ export interface EnsureWslJavaOptions {
 const INSTALL =
     'set -eu; archive=$1; base=$2; digest=$3; nonce=$4; final="$base/$digest"; staging="$base/staging-$nonce"; mkdir -p "$base"; if test ! -d "$final"; then mkdir "$staging"; tar -xzf "$archive" -C "$staging" --strip-components=1; test -x "$staging/bin/java"; "$staging/bin/java" -version; mv -T "$staging" "$final"; fi; test -x "$final/bin/java"; ln -s "$final" "$base/link-$nonce"; mv -Tf "$base/link-$nonce" "$base/current"';
 
+// The Linux supervisor owns the deadline and process group. The lock is inherited
+// by extraction children, so a lost Windows connection cannot overlap another install.
+const INSTALL_SUPERVISOR = 'set -eu; base=$1; script=$2; shift 2; mkdir -p "$base"; exec 9>"$base/setup.lock"; flock -n 9 || exit 75; exec timeout --signal=TERM --kill-after=5s 100s sh -c "$script" worldlens-java "$@"';
+
 export async function ensureWslJava(options: EnsureWslJavaOptions): Promise<WslEngineContext> {
     const runner = options.runner ?? execFileCommandRunner;
     const args = ["--distribution", options.distribution, "--exec"];
@@ -73,16 +77,18 @@ export async function ensureWslJava(options: EnsureWslJavaOptions): Promise<WslE
         received: null,
         total: null,
     });
-    // Once extraction starts it is allowed to settle atomically. Aborting wsl.exe could
-    // orphan tar; cancellation is checked immediately afterwards, before rendering.
+    // Linux enforces the operation deadline before the transport deadline. Cancellation
+    // waits for this bounded settlement, then is checked before a render can start.
     const result = await runner(
         "wsl.exe",
         [
             ...args,
             "sh",
             "-c",
+            INSTALL_SUPERVISOR,
+            "worldlens-java-supervisor",
+            `${home}/.local/share/worldlens/java`,
             INSTALL,
-            "worldlens-java",
             linuxArchive,
             `${home}/.local/share/worldlens/java`,
             release.sha256,
@@ -90,8 +96,12 @@ export async function ensureWslJava(options: EnsureWslJavaOptions): Promise<WslE
         ],
         { timeoutMs: 120_000 },
     );
-    if (!result.ok)
+    if (!result.ok) {
+        if (result.exitCode === 75) throw new Error("Another WSL Java installation still holds the setup lock. Retry after it settles.");
+        if (result.exitCode === 124) throw new Error("The Linux Java setup supervisor reached its deadline and stopped extraction. Staging data was retained; retry setup.");
+        if (result.exitCode === null || result.exitCode === 137) throw new Error("WSL Java installation state is unconfirmed. Its Linux setup lock prevents overlapping extraction. Check the selected distribution before retrying.");
         throw new Error(`WSL Java setup failed: ${result.stderr.trim() || result.stdout.trim()}`);
+    }
     options.signal?.throwIfAborted();
     const executable = `${home}/.local/share/worldlens/java/${release.sha256}/bin/java`;
     const check = await runner("wsl.exe", [...args, executable, "-version"], { timeoutMs: 20_000 });
