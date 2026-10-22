@@ -3,15 +3,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { EventEmitter } from "node:events";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
     MCSERVER_CHANNELS,
+    isMissingBundledServerJava,
     registerMcServerHandlers,
     safeContainerServerDir,
     type IpcMainLike,
     type McServerIpc,
 } from "./ipc.js";
+import * as javaDiscovery from "../java/discovery.js";
+import * as transportFactory from "./transport/factory.js";
 import type { ServerRecord } from "./registry.js";
 import type { SafeStorageLike } from "./rcon/secret.js";
 import type { CommandOutput, CommandRunner } from "../runtime/command.js";
@@ -182,6 +185,61 @@ describe("registerMcServerHandlers", () => {
         };
         expect(answer.failure?.message ?? "").not.toMatch(/no Java runtime chosen yet/);
         expect(answer.ok).toBe(true);
+    });
+
+    it("retains local process ownership across IPC requests and metadata edits", async () => {
+        const factory = vi.spyOn(transportFactory, "createTransport").mockImplementation((ref) => {
+            let running = false;
+            return { ok: true, value: {
+                ref, capabilities: { canCreate: true, canLifecycle: true, canWriteFiles: true, canDestroy: true, console: "stdin" },
+                start: async () => { running = true; return { ok: true, value: undefined }; },
+                stop: async () => { running = false; return { ok: true, value: undefined }; },
+                status: async () => ({ ok: true, value: { state: running ? "running" : "absent", running, startedAt: null, exitCode: null, checkedAt: "now" } }),
+            } as never };
+        });
+        try {
+            await registered.registry.put({ ...RECORD, id: "local", ref: { kind: "local-process", serverDir: dir }, localRuntime: { javaPath: "java", jarPath: "server.jar", memoryMb: 1024 } });
+            await Promise.all([invoke(MCSERVER_CHANNELS.start, "local"), invoke(MCSERVER_CHANNELS.start, "local")]);
+            await invoke(MCSERVER_CHANNELS.save, { id: "local", name: "Renamed", flavour: "paper", minecraftVersion: "1.21.4" });
+            expect(await invoke(MCSERVER_CHANNELS.status, "local")).toMatchObject({ ok: true, value: { running: true } });
+            expect(await invoke(MCSERVER_CHANNELS.forget, "local")).toMatchObject({ ok: false, failure: { code: "busy" } });
+            expect(factory).toHaveBeenCalledTimes(1);
+            await invoke(MCSERVER_CHANNELS.stop, "local", { graceful: true });
+            expect(await invoke(MCSERVER_CHANNELS.status, "local")).toMatchObject({ ok: true, value: { running: false } });
+            expect(await invoke(MCSERVER_CHANNELS.forget, "local")).toMatchObject({ ok: true });
+        } finally { factory.mockRestore(); }
+    });
+
+    it("serializes forgetting against a concurrent start before opening the record", async () => {
+        await registered.registry.put({ ...RECORD, id: "local", ref: { kind: "local-process", serverDir: dir }, localRuntime: { javaPath: "java", jarPath: "server.jar", memoryMb: 1024 } });
+        const remove = registered.registry.remove.bind(registered.registry);
+        let release!: () => void;
+        let entered!: () => void;
+        const removing = new Promise<void>(resolve => { entered = resolve; });
+        const barrier = new Promise<void>(resolve => { release = resolve; });
+        const spy = vi.spyOn(registered.registry, "remove").mockImplementation(async id => { entered(); await barrier; return remove(id); });
+        const factory = vi.spyOn(transportFactory, "createTransport");
+        try {
+            const forgotten = invoke(MCSERVER_CHANNELS.forget, "local");
+            await removing;
+            const started = invoke(MCSERVER_CHANNELS.start, "local");
+            release();
+            expect(await forgotten).toMatchObject({ ok: true });
+            expect(await started).toMatchObject({ ok: false, failure: { code: "not-found" } });
+            expect(factory).not.toHaveBeenCalled();
+        } finally { release(); spy.mockRestore(); factory.mockRestore(); }
+    });
+
+    it("repairs a retired bundled Java path without changing the saved server launch settings", async () => {
+        if (!process.env.LOCALAPPDATA) return;
+        const old = join(process.env.LOCALAPPDATA, "Worldlens", "app-0.0.0", "resources", "bundled", "java", "bin", "java.exe");
+        const discovery = vi.spyOn(javaDiscovery, "discoverJava").mockResolvedValue({ installation: { executable: "verified-managed-java", source: "bundled" }, rejected: [], required: 21 } as never);
+        try {
+            await registered.registry.put({ ...RECORD, id: "retired", ref: { kind: "local-process", serverDir: dir }, localRuntime: { javaPath: old, jarPath: "original-server.jar", memoryMb: 3072, argsFile: "original-args.txt" } });
+            expect(await invoke(MCSERVER_CHANNELS.status, "retired")).toMatchObject({ ok: true });
+            expect(await registered.registry.get("retired")).toMatchObject({ ok: true, value: { localRuntime: { javaPath: "verified-managed-java", jarPath: "original-server.jar", memoryMb: 3072, argsFile: "original-args.txt" } } });
+            expect(discovery).toHaveBeenCalledWith(expect.objectContaining({ env: {}, required: 21 }));
+        } finally { discovery.mockRestore(); }
     });
 
     it("removes every channel on dispose", () => {
@@ -711,5 +769,15 @@ describe("registerMcServerHandlers - catalogue, java and create channels", () =>
         })) as { ok: boolean; failure: { code: string } };
         expect(answer.ok).toBe(false);
         expect(answer.failure.code).toBe("not-found");
+    });
+});
+
+describe("retired bundled server Java recognition", () => {
+    it("recognizes only a missing runtime beneath this installation owner", () => {
+        const root = "C:\\fixture-appdata";
+        expect(isMissingBundledServerJava(root + "\\Worldlens\\app-1.0.1893\\resources\\bundled\\java\\bin\\java.exe", root)).toBe(true);
+        expect(isMissingBundledServerJava("C:\\custom\\java.exe", root)).toBe(false);
+        expect(isMissingBundledServerJava(root + "\\OtherApp\\app-1.0.1893\\resources\\bundled\\java\\bin\\java.exe", root)).toBe(false);
+        expect(isMissingBundledServerJava(root + "\\Worldlens\\app-custom\\resources\\bundled\\java\\bin\\java.exe", root)).toBe(false);
     });
 });

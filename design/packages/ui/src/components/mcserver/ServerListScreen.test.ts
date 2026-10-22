@@ -6,7 +6,7 @@
  * cards; and selecting servers surfaces the bulk action bar with the real selected count.
  */
 
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -124,6 +124,54 @@ describe("ServerListScreen", () => {
             expect(controls.find((button) => button.text() === "Start")?.attributes("disabled") === undefined).toBe(available);
             expect(controls.find((button) => button.text() === "Stop")?.attributes("disabled")).toBeDefined();
         } finally { wrapper.unmount(); }
+    });
+    it("shows the actionable start failure without losing the server list", async () => {
+        const host = fakeHost([record("survival", "Survival")]);
+        host.status = async () => ok({ state: "exited", running: false, startedAt: null, exitCode: 1, checkedAt: "now" });
+        host.probe = async () => ok({ reachable: true, runtimeVersion: null, message: "", checkedAt: "now", capabilities: { canCreate: true, canLifecycle: true, canWriteFiles: true, canDestroy: true, console: "stdin" } });
+        host.start = async () => ({ ok: false, failure: { code: "not-found", message: "Java executable is missing", detail: "Choose an available runtime." } });
+        const { wrapper } = mountScreen(host);
+        try {
+            await flushPromises();
+            await wrapper.findAll(".wl-mcserver-card__actions button").find(b => b.text() === "Start")!.trigger("click");
+            await flushPromises();
+            expect(wrapper.text()).toContain("Java executable is missing");
+            expect(wrapper.text()).toContain("Choose an available runtime.");
+            expect(wrapper.text()).toContain("Survival");
+        } finally { wrapper.unmount(); }
+    });
+    it("refreshes a late process exit without overlapping polls and stops after unmount", async () => {
+        vi.useFakeTimers();
+        const host = fakeHost([record("survival", "Survival")]);
+        let reads = 0;
+        host.status = async () => { reads++; return ok({ state: reads === 1 ? "running" : "exited", running: reads === 1, startedAt: null, exitCode: reads === 1 ? null : 1, checkedAt: "now" }); };
+        const { wrapper } = mountScreen(host);
+        try {
+            await flushPromises();
+            await vi.advanceTimersByTimeAsync(2000);
+            expect(wrapper.text()).toContain("exited (code 1)");
+            expect(reads).toBe(2);
+            wrapper.unmount();
+            await vi.advanceTimersByTimeAsync(6000);
+            expect(reads).toBe(2);
+        } finally { wrapper.unmount(); vi.useRealTimers(); }
+    });
+    it("retries a transient unknown status and observes the recovered exit", async () => {
+        vi.useFakeTimers();
+        const host = fakeHost([record("survival", "Survival")]);
+        let reads = 0;
+        host.status = async () => {
+            reads++;
+            if (reads === 2) throw new Error("Temporary disconnect");
+            return ok({ state: reads === 1 ? "running" : "exited", running: reads === 1, startedAt: null, exitCode: reads === 1 ? null : 1, checkedAt: "now" });
+        };
+        const { wrapper } = mountScreen(host);
+        try {
+            await flushPromises();
+            await vi.advanceTimersByTimeAsync(4000);
+            expect(reads).toBe(3);
+            expect(wrapper.text()).toContain("exited (code 1)");
+        } finally { wrapper.unmount(); vi.useRealTimers(); }
     });
     it("says plainly that this build cannot reach a server host", () => {
         const { wrapper } = mountScreen(null);

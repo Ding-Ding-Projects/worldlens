@@ -127,6 +127,14 @@ export const MCSERVER_FIXED = {
         yue: "冇符合嘅 loader 版本。",
     },
     "mcserver.wizard.noWorldTypes": { en: "No matching world types.", yue: "冇符合嘅世界類型。" },
+    "mcserver.lifecycle.exited": {
+        en: "Server {name} exited (code {code}). Open its console or logs for details.",
+        yue: "伺服器 {name} 已退出（代碼 {code}）。請開啟主控台或記錄查看詳情。",
+    },
+    "mcserver.lifecycle.incomplete": {
+        en: "The server operation did not complete. Check its status and try again.",
+        yue: "伺服器操作未完成。請查看狀態後再試。",
+    },
 } satisfies Record<string, FixedString>;
 
 export const MCSERVER_FACTS = {

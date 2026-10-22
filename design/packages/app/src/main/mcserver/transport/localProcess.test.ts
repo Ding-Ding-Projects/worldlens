@@ -28,6 +28,7 @@ class FakeChild extends EventEmitter {
 
     constructor() {
         super();
+        queueMicrotask(() => this.emit("spawn"));
         this.stdin.on("data", (chunk: Buffer) => {
             this.written += chunk.toString("utf8");
         });
@@ -238,6 +239,7 @@ describe("createLocalProcessTransport lifecycle", () => {
             memoryMb: 4096,
             spawnProcess: ((_command: string, args: readonly string[]) => {
                 spawnArgs = args;
+                queueMicrotask(() => child.emit("spawn"));
                 return child;
             }) as never,
         });
@@ -245,6 +247,23 @@ describe("createLocalProcessTransport lifecycle", () => {
 
     afterEach(async () => {
         await rm(dir, { recursive: true, force: true });
+    });
+
+    it("returns asynchronous spawn errors instead of reporting a running server", async () => {
+        const pending = transport.start();
+        expect(child.listenerCount("error")).toBeGreaterThan(0);
+        child.emit("error", Object.assign(new Error("spawn java ENOENT"), { code: "ENOENT" }));
+        expect(await pending).toMatchObject({ ok: false, failure: { code: "not-found" } });
+        expect(await transport.status()).toMatchObject({ ok: true, value: { running: false } });
+    });
+
+    it("reports a rapid JVM exit with its bounded startup stderr", async () => {
+        const pending = transport.start();
+        child.emit("spawn");
+        child.stderr.write("Unable to access jarfile server.jar\n");
+        child.exit(1);
+        expect(await pending).toMatchObject({ ok: false, failure: { code: "command-failed", detail: expect.stringContaining("Unable to access jarfile") } });
+        expect(await transport.status()).toMatchObject({ ok: true, value: { running: false, exitCode: 1 } });
     });
 
     it("reports not running before it is started", async () => {
