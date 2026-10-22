@@ -633,6 +633,18 @@ export function registerMcServerHandlers(
      * would hand the renderer a path check that had quietly forgotten what the user
      * consented to on an adopted container.
      */
+    const localTransports = new Map<string, ServerTransport>();
+    const lifecycleLocks = new Map<string, Promise<unknown>>();
+    async function lifecycleExclusive<T>(id: unknown, action: () => Promise<Answer<T>>): Promise<Answer<T>> {
+        if (!isRecordId(id)) return fail("invalid-request", "That is not a server name this app can use.");
+        const previous = lifecycleLocks.get(id) ?? Promise.resolve();
+        const operation = previous.catch(() => {}).then(action);
+        lifecycleLocks.set(id, operation);
+        try { return await operation; }
+        finally { if (lifecycleLocks.get(id) === operation) lifecycleLocks.delete(id); }
+    }
+
+
     async function open(id: unknown): Promise<
         Answer<{
             record: ServerRecord;
@@ -671,6 +683,8 @@ export function registerMcServerHandlers(
             await hostProfiles.get(found.value.ref.hostId);
             sshHost = (hostId) => hostProfiles.sshHost(hostId);
         }
+        const retained = found.value.ref.kind === "local-process" ? localTransports.get(id) : undefined;
+        if (retained !== undefined) return ok({ record: found.value, transport: retained, adoption: adoptionRecord });
         const built = createTransport(found.value.ref, {
             // The same `known_hosts` the remote-render side writes, so a host key trusted
             // once is trusted everywhere in this app - and never the user's own file, which
@@ -694,6 +708,7 @@ export function registerMcServerHandlers(
                   }),
         });
         if (!built.ok) return built;
+        if (found.value.ref.kind === "local-process") localTransports.set(id, built.value);
         return {
             ok: true,
             value: { record: found.value, transport: built.value, adoption: adoptionRecord },
@@ -1001,12 +1016,18 @@ export function registerMcServerHandlers(
             return registry.updateMetadata(value);
         },
 
-        [MCSERVER_CHANNELS.forget]: async (_event: never, id: unknown) => {
+        [MCSERVER_CHANNELS.forget]: async (_event: never, id: unknown) => lifecycleExclusive(id, async () => {
             if (!isRecordId(id))
                 return fail("invalid-request", "That is not a server name this app can use.");
-            // Forgetting, never deleting. The container or folder is untouched.
-            return registry.remove(id);
-        },
+            const retained = localTransports.get(id);
+            if (retained !== undefined) {
+                const state = await retained.status();
+                if (!state.ok || state.value.running) return fail("busy", "Stop this server before forgetting it.");
+            }
+            const removed = await registry.remove(id);
+            if (removed.ok) localTransports.delete(id as string);
+            return removed;
+        }),
 
         [MCSERVER_CHANNELS.probe]: async (_event: never, id: unknown) => {
             const opened = await open(id);
@@ -1020,12 +1041,12 @@ export function registerMcServerHandlers(
             return opened.ok ? opened.value.transport.status() : opened;
         },
 
-        [MCSERVER_CHANNELS.start]: async (_event: never, id: unknown) => {
+        [MCSERVER_CHANNELS.start]: async (_event: never, id: unknown) => lifecycleExclusive(id, async () => {
             const opened = await open(id);
             return opened.ok ? opened.value.transport.start() : opened;
-        },
+        }),
 
-        [MCSERVER_CHANNELS.stop]: async (_event: never, id: unknown, request: unknown) => {
+        [MCSERVER_CHANNELS.stop]: async (_event: never, id: unknown, request: unknown) => lifecycleExclusive(id, async () => {
             const opened = await open(id);
             if (!opened.ok) return opened;
             const options_ =
@@ -1043,7 +1064,7 @@ export function registerMcServerHandlers(
                     ? options_.timeoutMs
                     : 60_000;
             return opened.value.transport.stop({ graceful, timeoutMs });
-        },
+        }),
 
         [MCSERVER_CHANNELS.fileList]: async (_event: never, id: unknown, dir: unknown) => {
             if (!isPath(dir)) return fail("invalid-request", "That folder name cannot be used.");

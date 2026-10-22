@@ -117,6 +117,18 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
     let child: ChildProcess | null = null;
     let startedAt: string | null = null;
     let lastExitCode: number | null = null;
+    let starting: Promise<Answer<void>> | null = null;
+    const recentLines: ConsoleLine[] = [];
+    const lineListeners = new Set<(line: ConsoleLine) => void>();
+    function recordOutput(stream: ConsoleLine["stream"], data: Buffer): void {
+        for (const text of data.toString("utf8").split(/\r?\n/)) {
+            if (!text) continue;
+            const line = { stream, text: text.slice(0, 4096), at: now() };
+            recentLines.push(line);
+            if (recentLines.length > 100) recentLines.shift();
+            for (const listener of lineListeners) listener(line);
+        }
+    }
 
     async function probe(): Promise<Answer<TransportHealth>> {
         try {
@@ -148,6 +160,7 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
     }
 
     async function start(): Promise<Answer<void>> {
+        if (starting !== null) return starting;
         if (child !== null && child.exitCode === null) {
             // Already running is not a failure worth shouting about, but it must not
             // silently spawn a second JVM onto the same world folder - two servers writing
@@ -169,13 +182,32 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
                 windowsHide: true,
             });
             child = spawned;
-            startedAt = now();
+            startedAt = null;
             lastExitCode = null;
-            spawned.on("exit", (code) => {
-                lastExitCode = code;
-                startedAt = null;
+            recentLines.length = 0;
+            spawned.stdout?.on("data", (data: Buffer) => recordOutput("stdout", data));
+            spawned.stderr?.on("data", (data: Buffer) => recordOutput("stderr", data));
+            starting = new Promise<Answer<void>>((resolve) => {
+                let settled = false;
+                let startupTimer: ReturnType<typeof setTimeout> | undefined;
+                const finish = (answer: Answer<void>): void => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(startupTimer);
+                    resolve(answer);
+                };
+                spawned.once("spawn", () => { if (!settled && child === spawned) { startedAt = now(); startupTimer = setTimeout(() => finish(ok(undefined)), 500); } });
+                spawned.on("error", (error) => {
+                    if (child === spawned) { child = null; startedAt = null; lastExitCode = -1; }
+                    finish(fromNodeError(error, "the Java runtime or server folder"));
+                });
+                spawned.on("exit", (code) => {
+                    if (child === spawned) { child = null; lastExitCode = code; startedAt = null; }
+                    finish(fail("command-failed", "The Java process exited before starting.", recentLines.map(line => line.text).join("\n").slice(-8192)));
+                });
             });
-            return ok(undefined);
+            try { return await starting; }
+            finally { starting = null; }
         } catch (error) {
             return fromNodeError(error, "the Java runtime");
         }
@@ -235,30 +267,23 @@ export function createLocalProcessTransport(options: LocalProcessOptions): Serve
         }
         void attachOptions;
 
-        const queue: ConsoleLine[] = [];
+        const queue: ConsoleLine[] = [...recentLines];
         let push: (() => void) | null = null;
         let done = false;
         let exit: ConsoleExit = { reason: "detached", followerExitCode: null };
 
-        const emit = (stream: ConsoleLine["stream"], text: string): void => {
-            for (const line of text.split(/\r?\n/)) {
-                if (line === "") continue;
-                queue.push({ stream, text: line, at: now() });
-            }
+        const onLine = (line: ConsoleLine): void => {
+            queue.push(line);
+            if (queue.length > 1000) queue.shift();
             push?.();
         };
-
-        const onOut = (data: Buffer): void => emit("stdout", data.toString("utf8"));
-        const onErr = (data: Buffer): void => emit("stderr", data.toString("utf8"));
-        running.stdout?.on("data", onOut);
-        running.stderr?.on("data", onErr);
+        lineListeners.add(onLine);
 
         const finish = (reason: ConsoleExit["reason"], code: number | null): void => {
             if (done) return;
             done = true;
             exit = { reason, followerExitCode: code };
-            running.stdout?.off("data", onOut);
-            running.stderr?.off("data", onErr);
+            lineListeners.delete(onLine);
             push?.();
         };
         running.once("exit", (code) => finish("stream-ended", code));

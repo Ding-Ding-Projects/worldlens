@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiCubeOutline,
@@ -59,6 +59,7 @@ const flags = ref("i");
 const sort = ref<ServerSort>("name");
 const selected = ref<readonly string[]>([]);
 const bulkBusy = ref(false);
+const lifecycleErrors = ref<string[]>([]);
 const serverControlRefs = new Map<string, HTMLElement>();
 
 function setServerControlRef(element: unknown, id: string): void {
@@ -107,9 +108,28 @@ async function focusReturnedServer(id: string | null | undefined): Promise<void>
     document.querySelector<HTMLElement>("[data-server-control]")?.focus();
 }
 
+let statusTimer: ReturnType<typeof setTimeout> | undefined;
+let disposed = false;
+async function pollRunning(): Promise<void> {
+    try {
+        for (const server of store.servers.value) {
+            if (disposed) return;
+            if (!store.statuses[server.id]?.running) continue;
+            const answer = await store.refreshStatus(server.id);
+            if (disposed) return;
+            if (answer.ok && answer.value?.state === "exited") {
+                lifecycleErrors.value.push(t("mcserver.lifecycle.exited", { name: server.name, code: answer.value.exitCode ?? "unknown" }, { default: "Server {name} exited (code {code}). Open its console or logs for details." }));
+            }
+        }
+    } finally {
+        if (!disposed) statusTimer = setTimeout(() => { void pollRunning(); }, 2000);
+    }
+}
 onMounted(() => {
     void refreshAll();
+    statusTimer = setTimeout(() => { void pollRunning(); }, 2000);
 });
+onUnmounted(() => { disposed = true; clearTimeout(statusTimer); });
 
 async function refreshAll(): Promise<void> {
     await store.load();
@@ -159,62 +179,89 @@ const selectedRecords = computed<readonly ServerRecord[]>(() =>
 );
 
 async function bulkStart(): Promise<void> {
+    lifecycleErrors.value = [];
     bulkBusy.value = true;
-    for (const record of selectedRecords.value) {
-        if (
-            lifecycleBlockReason(
-                record,
-                store.capabilitiesFor(record.id),
-                "start",
-                store.statuses[record.id]?.state ?? null,
-            ) === null
-        ) {
-            await store.start(record.id);
+    try {
+        for (const record of selectedRecords.value) {
+            if (
+                lifecycleBlockReason(
+                    record,
+                    store.capabilitiesFor(record.id),
+                    "start",
+                    store.statuses[record.id]?.state ?? null,
+                ) === null
+            ) {
+                await lifecycle(record.id, "start");
+            }
         }
-    }
-    await refreshAll();
-    bulkBusy.value = false;
+        await refreshAll();
+    } finally { bulkBusy.value = false; }
 }
 
 async function bulkStop(): Promise<void> {
+    lifecycleErrors.value = [];
     bulkBusy.value = true;
-    for (const record of selectedRecords.value) {
-        if (
-            lifecycleBlockReason(
-                record,
-                store.capabilitiesFor(record.id),
-                "stop",
-                store.statuses[record.id]?.state ?? null,
-            ) === null
-        ) {
-            await store.stop(record.id, { graceful: true });
+    try {
+        for (const record of selectedRecords.value) {
+            if (
+                lifecycleBlockReason(
+                    record,
+                    store.capabilitiesFor(record.id),
+                    "stop",
+                    store.statuses[record.id]?.state ?? null,
+                ) === null
+            ) {
+                await lifecycle(record.id, "stop");
+            }
         }
-    }
-    await refreshAll();
-    bulkBusy.value = false;
+        await refreshAll();
+    } finally { bulkBusy.value = false; }
 }
 
 async function bulkForget(): Promise<void> {
+    lifecycleErrors.value = [];
     bulkBusy.value = true;
-    for (const record of selectedRecords.value) {
-        await store.forget(record.id);
-    }
-    selected.value = [];
-    bulkBusy.value = false;
+    try {
+        const retained: string[] = [];
+        for (const record of selectedRecords.value) {
+            try {
+                const result = await store.forget(record.id);
+                if (!result.ok) {
+                    retained.push(record.id);
+                    lifecycleErrors.value.push(`${record.name}: ${result.failure?.message ?? t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.")}`);
+                }
+            } catch {
+                retained.push(record.id);
+                lifecycleErrors.value.push(t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again."));
+            }
+        }
+        selected.value = retained;
+    } finally { bulkBusy.value = false; }
 }
 
+async function lifecycle(id: string, action: "start" | "stop"): Promise<void> {
+    try {
+        const result = action === "start" ? await store.start(id) : await store.stop(id, { graceful: true });
+        if (!result.ok) lifecycleErrors.value.push(`${id}: ${result.failure?.message ?? t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.")}${result.failure?.detail ? ` ${result.failure.detail}` : ""}`);
+    } catch {
+        lifecycleErrors.value.push(t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again."));
+    }
+}
 async function startOne(id: string): Promise<void> {
-    await store.start(id);
+    lifecycleErrors.value = [];
+    await lifecycle(id, "start");
     await store.refreshStatus(id);
 }
 async function stopOne(id: string): Promise<void> {
-    await store.stop(id, { graceful: true });
+    lifecycleErrors.value = [];
+    await lifecycle(id, "stop");
     await store.refreshStatus(id);
 }
 </script>
 
 <template>
     <div class="wl-mcserver-list">
+        <VAlert v-if="lifecycleErrors.length" type="error" role="alert" closable @click:close="lifecycleErrors = []">{{ lifecycleErrors.join(" · ") }}</VAlert>
         <div class="wl-mcserver-list__header">
             <div class="text-h6" data-test="mcserver-list-heading" tabindex="-1">
                 {{ t("mcserver.list.title", "Minecraft servers") }}
