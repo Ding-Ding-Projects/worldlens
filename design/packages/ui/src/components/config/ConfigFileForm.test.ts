@@ -7,6 +7,7 @@ import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
 import { generateConfigSet } from "@worldlens/config";
 import ConfigFileForm from "./ConfigFileForm.vue";
+import ConfigSearchField from "./ConfigSearchField.vue";
 import { loadWorkspace } from "./configWorkspace.js";
 
 beforeAll(() => {
@@ -120,6 +121,22 @@ describe("the raw-source disclosure", () => {
 });
 
 describe("the first complete descriptor view", () => {
+    it("can expand the visible group after filtering changes panel indices", async () => {
+        const view = mountForm();
+        await nextTick();
+        await view.get("[data-collapse-groups]").trigger("click");
+        await view.findAll(".v-expansion-panel-title")[1]!.trigger("click");
+        const file = view.props("file");
+        const secondGroup = file.descriptor.groups.filter((group) => file.descriptor.fields.some((field) => field.group === group.id))[1]!;
+        const target = file.descriptor.fields.find((field) => field.group === secondGroup.id)!;
+        view.findComponent(ConfigSearchField).vm.$emit("update:modelValue", target.label);
+        await nextTick();
+        expect(view.findAll(".v-expansion-panel")).toHaveLength(1);
+        expect(view.get("[data-expand-groups]").attributes("disabled")).toBeUndefined();
+        await view.get("[data-expand-groups]").trigger("click");
+        expect(view.findAll(".v-expansion-panel--active")).toHaveLength(1);
+        view.unmount();
+    });
     it("collapses and reopens every group without removing advanced settings", async () => {
         const view = mountForm();
         await nextTick();

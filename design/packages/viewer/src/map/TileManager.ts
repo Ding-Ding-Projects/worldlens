@@ -110,6 +110,22 @@ export class TileManager {
         this.removeAllTiles();
     }
 
+    /** Refresh existing and previously empty tiles without moving the camera. */
+    async refreshVisibleTiles(): Promise<void> {
+        if (this.unloaded) return;
+        this.tileLoader.revalidatedUrls ??= new Set();
+        const entries = [...this.tiles.entries()];
+        let next = 0;
+        const worker = async (): Promise<void> => {
+            while (!this.unloaded && next < entries.length) {
+                const [key, tile] = entries[next++]!;
+                if (tile.loading || this.tiles.get(key) !== tile) continue;
+                await tile.load(this.tileLoader, true).catch(() => {});
+            }
+        };
+        await Promise.all(Array.from({ length: Math.min(4, entries.length) }, worker));
+    }
+
     removeFarTiles(): void {
         this.tiles.forEach((tile, hash, map) => {
             if (

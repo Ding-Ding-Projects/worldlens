@@ -5,6 +5,8 @@ import { activeProfile, profileDataRoot } from "../stores/profiles.js";
 import { blueMapApp, mapCommandPoint, setBlueMapApp } from "../stores/bluemap.js";
 import { schoolModeRestriction, useSchoolMode } from "./setup/index.js";
 import CommandBuilder from "./mcserver/CommandBuilder.vue";
+import { followLivePreview } from "./world/livePreview.js";
+import { resolveWorldBridge } from "./world/worldBridge.js";
 
 /**
  * Owns the viewer's lifecycle and nothing else.
@@ -14,6 +16,8 @@ import CommandBuilder from "./mcserver/CommandBuilder.vue";
  * and a per-component mirror of `appState` desynchronises the moment two of them write.
  */
 const error = ref<string | null>(null);
+let stopLivePreview = () => {};
+let disposed = false;
 const schoolMode = useSchoolMode();
 
 /**
@@ -64,12 +68,23 @@ onMounted(async () => {
         });
         setBlueMapApp(app);
         await app.load();
+        if (disposed) { app.dispose(); return; }
+        stopLivePreview = followLivePreview(profileDataRoot(profile), resolveWorldBridge(), async () => {
+            const map = app.mapViewer.map;
+            if (disposed || map === null) return;
+            for (const manager of [map.hiresTileManager, ...(map.lowresTileManager ?? [])]) {
+                if (disposed || app.mapViewer.map !== map) return;
+                await manager?.refreshVisibleTiles();
+            }
+        });
     } catch (e) {
         error.value = String(e);
     }
 });
 
 onUnmounted(() => {
+    disposed = true;
+    stopLivePreview();
     blueMapApp.value?.dispose();
     setBlueMapApp(null);
     const container = document.getElementById("map-container");
