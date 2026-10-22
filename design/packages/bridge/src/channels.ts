@@ -318,6 +318,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "remote:trustHostKey",
     "remote:validate",
     "render:active",
+    "render:preview",
     "render:adjustSpeed",
     "render:cancel",
     "render:dismissResume",

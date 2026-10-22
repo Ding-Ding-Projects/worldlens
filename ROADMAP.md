@@ -7,6 +7,9 @@
 - [x] Preserve every configuration control while improving workspace identity, save guidance and group navigation.
 - [x] Synchronize the maintained BlueMap branch with upstream master through `51c05400`.
 - [ ] Verify the rebuilt desktop interactions and configuration layout across supported presentation settings.
+- [x] Preserve active rendering on normal window close, with tray reopening and a taskbar fallback.
+- [ ] Verify close/reopen continuity against the built desktop application.
+- [ ] Add and verify rendering through an installed WSL distribution.
 
 ## Complete feature and BlueMap continuation (2026-10-11)
 

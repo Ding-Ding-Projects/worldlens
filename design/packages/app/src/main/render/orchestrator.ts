@@ -589,6 +589,10 @@ export class RenderOrchestrator {
     }
 
     /** Renders are keyed by id; this is what is in flight right now. */
+    hasActiveWork(): boolean {
+        return this.running.size > 0 || this.pending.size > 0 || this.previewOwners.size > 0;
+    }
+
     activeRenderIds(): string[] {
         return [
             ...new Set([

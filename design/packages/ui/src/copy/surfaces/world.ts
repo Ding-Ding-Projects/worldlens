@@ -2013,6 +2013,10 @@ export const WORLD_VOICED = {
 /* -------------------------------------------------------------------------- */
 
 export const WORLD_FIXED = {
+    "world.run.backgroundClose": {
+        en: "Closing this window keeps rendering in the background. Reopen Worldlens from its tray icon or shortcut to return to progress. Stop the render here before quitting if you want it to end.",
+        yue: "關閉呢個視窗後，繪圖會喺背景繼續。由系統匣圖示或捷徑重新打開 Worldlens，就可以返嚟睇進度。如果想結束繪圖，請先喺呢度停止，再結束程式。",
+    },
     "world.run.viewLiveProgress": { en: "View live progress", yue: "睇即時繪圖進度" },
     "world.run.liveProgressNote": {
         en: "Open the map while rendering continues. Tiles appear as they are saved; the map may be empty while the engine prepares its first tiles. SSH maps become available after their files are fetched back.",

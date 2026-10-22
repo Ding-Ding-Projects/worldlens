@@ -10,6 +10,7 @@ import {
     shell,
 } from "electron";
 import type { MessageBoxOptions } from "electron";
+import { protectBackgroundRender } from "./renderBackground.js";
 import {
     acceptDownload,
     completeFirstRun,
@@ -2094,6 +2095,12 @@ async function createWindow(): Promise<void> {
         },
     });
 
+    protectBackgroundRender(window, {
+        hasWork: () => (renderIpc?.orchestrator.hasActiveWork() ?? false) ||
+            (remoteIpc?.orchestrator?.activeRenderIds().length ?? 0) > 0,
+        icon: brandAsset("worldlens.ico"),
+        dataDir: app.getPath("userData"),
+    });
     const windowRecovery = new SingleFlight<void>();
     const recoverWindow = (
         category: StartupCategory,

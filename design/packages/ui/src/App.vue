@@ -2349,7 +2349,15 @@ function openConfig(screen: PaletteConfigTarget = null): void {
     // The host is focused so Escape works from the first keystroke. Left alone, focus stays
     // on the button the surface has just covered, and the key that closes this only works
     // once the user has clicked something inside it.
-    void nextTick(() => configHost.value?.focus());
+    void nextTick(() => {
+        const host = configHost.value;
+        host?.focus({ preventScroll: true });
+        if (screen !== null && typeof screen === "object") return;
+        if (host !== null) host.scrollTop = 0;
+        globalThis.requestAnimationFrame?.(() => {
+            if (configOpen.value && configHost.value === host && host !== null) host.scrollTop = 0;
+        });
+    });
 }
 
 const configClosePromptOpen = ref(false);

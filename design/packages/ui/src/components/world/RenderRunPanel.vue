@@ -187,6 +187,9 @@ function openMap(): void {
 
         <v-card-text>
             <template v-if="run.active.value">
+                <p class="mb-world-run__note" role="status">
+                    {{ t("world.run.backgroundClose", "Closing this window keeps rendering in the background. Reopen Worldlens from its tray icon or shortcut to return to progress. Stop the render here before quitting if you want it to end.") }}
+                </p>
                 <div
                     v-if="run.engineProvisioning.value"
                     class="mb-world-run__engine-provision"
