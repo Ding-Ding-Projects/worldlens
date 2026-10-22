@@ -326,6 +326,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "render:list",
     "render:resume",
     "render:runtimeModes",
+    "render:wsl",
     "render:setStorageDirectory",
     "render:start",
     "render:storageDirectory",

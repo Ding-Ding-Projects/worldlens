@@ -11,6 +11,8 @@ import {
     VRadio,
     VRadioGroup,
 } from "vuetify/components";
+import WslRuntimePicker from "./WslRuntimePicker.vue";
+import type { WslReport } from "./remoteBridge.js";
 import DockerStateNote from "./DockerStateNote.vue";
 import RemotePreflightPanel from "./RemotePreflightPanel.vue";
 import RemoteTargetEditor from "./RemoteTargetEditor.vue";
@@ -88,6 +90,7 @@ const props = withDefaults(
 );
 
 const emit = defineEmits<{
+    "update:wsl-distribution": [value: string | null];
     "update:location": [value: RunLocation];
     /** The machine a remote render would use, or null. The shell hands this to the router. */
     "update:target": [value: RemoteTarget | null];
@@ -107,6 +110,7 @@ const storage = props.storage;
 /* -- Docker on this machine ------------------------------------------------ */
 
 const dockerNote = ref<DockerNote | null>(null);
+const wslReport = ref<WslReport | null>(null);
 const probing = ref(false);
 
 async function probeDocker(): Promise<void> {
@@ -286,6 +290,8 @@ const places = computed<readonly RunPlace[]>(() =>
         {
             canRenderLocally: props.canRenderLocally,
             canRenderInDocker: renderModes.value.includes("docker"),
+            canRenderInWsl: renderModes.value.includes("wsl"),
+            wsl: wslReport.value,
             docker: dockerNote.value,
             canRenderRemotely: remote !== null,
             hasTarget: selected.value !== null,
@@ -305,7 +311,7 @@ const choiceLine = computed(() =>
 );
 
 function pick(value: unknown): void {
-    if (value === "local" || value === "docker" || value === "remote") {
+    if (value === "local" || value === "docker" || value === "wsl" || value === "remote") {
         emit("update:location", value);
     }
 }
@@ -437,6 +443,9 @@ defineExpose({
                 }}
             </v-alert>
 
+            <WslRuntimePicker v-if="renderModes.includes('wsl')" :runtime="runtime"
+                @report="(value: WslReport) => (wslReport = value)"
+                @selected="(value: string | null) => emit('update:wsl-distribution', value)" />
             <p class="mb-run-location__choiceLine" role="status">{{ choiceLine }}</p>
 
             <!-- Docker's five states, each said differently. -->

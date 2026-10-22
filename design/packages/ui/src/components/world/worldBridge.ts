@@ -54,7 +54,8 @@ export interface RenderRequest {
     /** Concrete project engine choice; absent preserves legacy callers. */
     readonly engine?: "upstream-java" | "typescript";
     /** Where to run the engine. Absent means on this computer. */
-    readonly runtime?: "local" | "docker";
+    readonly runtime?: "local" | "docker" | "wsl";
+    readonly wslDistribution?: string;
     readonly renderId?: string;
     readonly force?: boolean;
     readonly fixEdges?: boolean;
@@ -226,7 +227,7 @@ export interface RenderSummary {
      * reason every other type on this bridge is: this package compiles and runs in three
      * places and only one of them has a preload.
      */
-    readonly runtime?: "local" | "docker" | null;
+    readonly runtime?: "local" | "docker" | "wsl" | null;
     readonly maps: readonly { id: string; name: string; world: string; dimension: string }[];
     readonly startedAt: string;
     readonly finishedAt: string | null;

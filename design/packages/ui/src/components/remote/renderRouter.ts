@@ -46,6 +46,7 @@ import type { RunLocation } from "./runtimeChoice.js";
 /** What the router asks, at the moment a render is started rather than when it was built. */
 export interface RenderRoute {
     readonly location: RunLocation;
+    readonly wslDistribution?: string | null;
     /** The machine, when the location is `remote`. Null otherwise. */
     readonly target: RemoteTarget | null;
     /** Bytes the render is expected to need there, for the preflight's disk check. */
@@ -135,6 +136,10 @@ export function createRenderRouter(
             // made choosing Docker render locally anyway - the choice was made, shown as
             // made, and then dropped on the way to the main process, which is worse than
             // not offering it.
+            if (chosen.location === "wsl") {
+                return await base.startRender({ ...request, runtime: "wsl",
+                    ...(chosen.wslDistribution == null ? {} : { wslDistribution: chosen.wslDistribution }) });
+            }
             if (chosen.location === "docker") {
                 return await base.startRender({ ...request, runtime: "docker" });
             }

@@ -63,6 +63,15 @@ const JAVA: EnsureJavaResult = {
 };
 
 describe("upstreamJavaEngine", () => {
+    it("uses the selected Linux Java identity without provisioning Windows Java", async () => {
+        javaModule.resolveCliJar.mockReturnValue(JAR);
+        const result = await upstreamJavaEngine({ dataDir: "/data" })("upstream-java", undefined, undefined,
+            { distribution: "Ubuntu", javaVersion: "25.0.2", javaExecutable: "/home/user/.local/share/worldlens/java/current/bin/java" });
+        expect(result.javaVersion).toBe("25.0.2");
+        expect(result.javaExecutable).toContain("worldlens/java");
+        expect(javaModule.ensureJava).not.toHaveBeenCalled();
+    });
+
     beforeEach(() => {
         javaModule.resolveCliJar.mockReset();
         javaModule.ensureJava.mockReset();

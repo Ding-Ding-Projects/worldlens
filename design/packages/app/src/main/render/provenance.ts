@@ -210,7 +210,7 @@ export async function readRenderRecord(path: string): Promise<RenderRecord | nul
 /** Anything that is not one of the two known runtimes reads as "not recorded". */
 function readRuntime(value: unknown): RuntimeMode | null | undefined {
     if (value === undefined) return undefined;
-    return value === "local" || value === "docker" ? value : null;
+    return value === "local" || value === "docker" || value === "wsl" ? value : null;
 }
 
 function isOutcome(value: string | null): value is RenderOutcome {

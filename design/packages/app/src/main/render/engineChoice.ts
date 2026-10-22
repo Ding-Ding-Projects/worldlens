@@ -63,8 +63,9 @@ export function engineCapability(id: RenderEngineId): RenderEngineCapability {
  */
 export function unsupportedEngineRoute(
     id: RenderEngineId,
-    route: "local" | "docker" | "cli" | "restart",
+    route: "local" | "docker" | "wsl" | "cli" | "restart",
 ): string | null {
+    if (route === "wsl") return id === "upstream-java" ? null : "WSL rendering requires the Java engine. The project engine was not changed.";
     const capability = engineCapability(id);
     const supported =
         route === "local"

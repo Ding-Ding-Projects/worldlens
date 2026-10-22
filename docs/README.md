@@ -1,5 +1,7 @@
 # Feature documentation
 
+- [Rendering with WSL](./wsl-rendering.md): installed distribution selection, verified user-scoped Java setup, paths, progress and cancellation.
+
 One document per feature. Each covers behaviour, configuration, failure modes, security
 considerations and verification, in that order, so a reader who has read one knows where to look
 in the next.

@@ -57,7 +57,7 @@ export interface FinishedRenderPromotion {
         readonly version: string;
         readonly source: RenderRecord["engineSource"] | null;
         readonly javaVersion: string | null;
-        readonly runtime: "local" | "docker" | null;
+        readonly runtime: "local" | "docker" | "wsl" | null;
     };
     readonly provenance: {
         readonly recordFile: string;
@@ -865,7 +865,7 @@ function isPromotion(value: unknown): value is FinishedRenderPromotion {
             engine.source === "managed") &&
         (engine.javaVersion === null || typeof engine.javaVersion === "string") &&
         (engine.javaVersion === null || engine.javaVersion.length <= 128) &&
-        (engine.runtime === null || engine.runtime === "local" || engine.runtime === "docker") &&
+        (engine.runtime === null || engine.runtime === "local" || engine.runtime === "docker" || engine.runtime === "wsl") &&
         provenance !== null &&
         typeof provenance.recordFile === "string" &&
         typeof provenance.sessionFile === "string" &&

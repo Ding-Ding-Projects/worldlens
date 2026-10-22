@@ -1287,6 +1287,16 @@ export const REMOTE_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const REMOTE_FIXED = {
+    "remote.wsl.title": { en: "In WSL on this computer", yue: "喺呢部電腦嘅 WSL 執行" },
+    "remote.wsl.summary": { en: "Run the Java engine in an installed Linux distribution. Output stays on this computer and appears in the same live map.", yue: "喺已安裝嘅 Linux 發行版執行 Java 引擎。輸出留喺呢部電腦，同一張即時地圖會顯示結果。" },
+    "remote.wsl.unchecked": { en: "Select a distribution and check its Java runtime below.", yue: "喺下面揀發行版，再檢查 Java 執行環境。" },
+    "remote.wsl.choice": { en: "This render will run in the selected WSL distribution. Missing Java or distribution stops the render; no fallback is used.", yue: "今次會喺揀咗嘅 WSL 發行版執行。未能設定 Java 或缺少發行版就會停止，唔會自動轉用其他環境。" },
+    "remote.wsl.distribution": { en: "Linux distribution", yue: "Linux 發行版" },
+    "remote.wsl.check": { en: "Check WSL and Java", yue: "檢查 WSL 同 Java" },
+    "remote.wsl.unsupported": { en: "This build cannot check WSL.", yue: "呢個版本未能檢查 WSL。" },
+    "remote.wsl.speed": { en: "Live speed changes are unavailable for WSL. Set render threads before starting.", yue: "WSL 未支援即時調速。請喺開始前設定渲染執行緒數目。" },
+    "remote.wsl.requirement": { en: "Uses an existing distribution. A missing Java 25 runtime is downloaded, verified and installed only in the Worldlens user directory when rendering starts. No system Java, PATH or distribution settings are changed.", yue: "使用現有發行版。開始渲染時，如缺少 Java 25，會下載、驗證同安裝到 Worldlens 專用使用者目錄。唔會更改系統 Java、PATH 或發行版設定。" },
+
     /* Docker's note: the disclosure that shows Docker's own words, unedited. */
     "remote.docker.nextLabel": { en: "Next:", yue: "下一步：" },
     "remote.docker.hideDetail": { en: "Hide what Docker said", yue: "收埋 Docker 講嘅嘢" },

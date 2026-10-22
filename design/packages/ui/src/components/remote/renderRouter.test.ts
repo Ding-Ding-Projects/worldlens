@@ -393,3 +393,14 @@ describe("the chosen place actually reaches the main process", () => {
         expect((base.started[0] as { runtime?: string }).runtime).toBe("local");
     });
 });
+
+
+it("forwards WSL and the exact distribution through the normal progress and cancellation channel", async () => {
+    const base = fakeBase();
+    const router = createRenderRouter(base.bridge, null, () => ({ location: "wsl", target: null, wslDistribution: "Ubuntu" }))!;
+    await router.startRender({ maps: [{ id: "overworld", world: "C:/world" }] });
+    expect(base.started[0]).toMatchObject({ runtime: "wsl", wslDistribution: "Ubuntu" });
+    await router.cancelRender("local-1");
+    expect(base.cancelled).toEqual(["local-1"]);
+    router.dispose();
+});

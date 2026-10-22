@@ -21,6 +21,7 @@ import type { IpcMainInvokeEvent } from "electron";
 import { hasAcceptedDownload } from "../consent.js";
 import type { RepairEvidence } from "../repair/evidence.js";
 import { ContainerHandoffStore } from "../runtime/handoff.js";
+import { probeWsl } from "../runtime/wsl.js";
 import type { RuntimeMode } from "../runtime/plan.js";
 import { LocalMapHandler } from "./LocalMapHandler.js";
 import { RENDER_RUNTIME_MODES, RenderOrchestrator } from "./orchestrator.js";
@@ -83,6 +84,7 @@ export interface RenderIpcOptions {
             readonly received: number | null;
             readonly total: number | null;
         }) => void,
+        wsl?: import("../runtime/wsl.js").WslEngineContext,
     ) => Promise<ResolvedEngine>;
     readonly mounts: LocalMapHandler;
     readonly appVersion?: string | null;
@@ -254,7 +256,8 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
      * do anything. A surface that reads the first as the second offers a choice that
      * renders locally anyway, which is worse than offering nothing.
      */
-    ipcMain.handle("render:runtimeModes", (): readonly RuntimeMode[] => RENDER_RUNTIME_MODES);
+    ipcMain.handle("render:runtimeModes", (): readonly RuntimeMode[] => process.platform === "win32" ? RENDER_RUNTIME_MODES : RENDER_RUNTIME_MODES.filter((mode) => mode !== "wsl"));
+    ipcMain.handle("render:wsl", async (_event: IpcMainInvokeEvent, distribution?: string) => await probeWsl(distribution));
 
     ipcMain.handle("render:cancel", (_event: IpcMainInvokeEvent, renderId: string) => {
         return typeof renderId === "string" && orchestrator.cancel(renderId);
@@ -452,6 +455,7 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
 const RENDER_CHANNELS = [
     "render:start",
     "render:runtimeModes",
+    "render:wsl",
     "render:cancel",
     "render:adjustSpeed",
     "render:active",

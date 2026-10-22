@@ -65,6 +65,7 @@ export interface WriteEngineConfigOptions {
     readonly maps: readonly EngineMapRequest[];
     readonly acceptDownload: boolean;
     readonly renderThreads?: number;
+    readonly renderThreadPriority?: number;
     readonly metrics?: boolean;
     /** Present for the web-server role; omitted leaves upstream's server disabled. */
     readonly webServer?: EngineWebServerSettings;
@@ -94,6 +95,7 @@ function coreConf(options: WriteEngineConfigOptions): string {
         `accept-download: ${options.acceptDownload ? "true" : "false"}`,
         `data: ${hoconString(options.engineDataDir)}`,
         `render-thread-count: ${String(threads)}`,
+        `render-thread-priority: ${String(options.renderThreadPriority ?? 5)}`,
         "scan-for-mod-resources: true",
         `metrics: ${options.metrics === true ? "true" : "false"}`,
         "log: {",
@@ -246,6 +248,9 @@ export async function writeEngineConfig(
     // The same validation the local path uses, so a bad map id or an unparseable body is
     // refused identically in both modes rather than only in the one that has a test.
     validateMaps(options.maps);
+    if (options.renderThreadPriority !== undefined && (!Number.isInteger(options.renderThreadPriority)
+        || options.renderThreadPriority < 1 || options.renderThreadPriority > 10))
+        throw new Error("Render thread priority must be an integer between 1 and 10.");
 
     const storageRoot = engineStorageRoot(options.engineWebRoot);
     const mapsDir = join(options.hostConfigDir, "maps");

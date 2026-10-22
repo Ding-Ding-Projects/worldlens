@@ -24,6 +24,7 @@
  * with this process letting go rather than waiting forever.
  */
 
+import { stopWsl } from "./wsl.js";
 import { spawn as nodeSpawn } from "node:child_process";
 import type { ChildProcessByStdio } from "node:child_process";
 import type { Readable } from "node:stream";
@@ -195,6 +196,13 @@ export class EngineProcess {
         const child = this.child;
         if (child === null || this.finished || child.exitCode !== null) return;
 
+        if (this.options.launch.wsl !== undefined) {
+            // Do not kill wsl.exe first: that can leave the JVM alive inside Linux.
+            void stopWsl(this.options.launch.wsl, this.options.runner).then(() => {
+                if (!this.finished && child.exitCode === null) child.kill("SIGINT");
+            }).catch((error: unknown) => this.record(describe(error)));
+            return;
+        }
         child.kill("SIGINT");
 
         this.killTimer = setTimeout(() => {

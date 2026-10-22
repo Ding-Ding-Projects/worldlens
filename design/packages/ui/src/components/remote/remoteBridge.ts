@@ -62,7 +62,16 @@ export interface DockerSummary {
 }
 
 /** Where a render can run, as the main process names it. */
-export type RuntimeMode = "local" | "docker";
+export interface WslReport {
+    readonly available: boolean;
+    readonly distributions: readonly string[];
+    readonly selected: string | null;
+    readonly ready: boolean;
+    readonly javaVersion: string | null;
+    readonly javaExecutable?: string | null;
+    readonly message: string;
+}
+export type RuntimeMode = "local" | "docker" | "wsl";
 
 export interface RuntimeModeSummary {
     readonly id: RuntimeMode;
@@ -272,6 +281,7 @@ export interface RemoteBridge {
 }
 
 export interface RuntimeBridge {
+    wslRuntime?(distribution?: string): Promise<WslReport>;
     /** What Docker is doing on this computer, in five distinguishable states. */
     dockerRuntime(): Promise<DockerSummary>;
     /** Where a render can run, and whether each place can take one right now. */
@@ -305,6 +315,7 @@ type Host = Partial<{
     activeRemoteRenders: () => Promise<readonly string[]>;
     browseRemoteDirectory: (target: unknown, path: string) => Promise<unknown>;
     dockerRuntime: () => Promise<unknown>;
+    wslRuntime: (distribution?: string) => Promise<unknown>;
     runtimeModes: () => Promise<unknown>;
     renderRuntimeModes: () => Promise<unknown>;
 }>;
@@ -427,7 +438,7 @@ async function readRenderModes(found: Host): Promise<readonly RuntimeMode[]> {
         return ["local"];
     }
     if (!Array.isArray(answer)) return ["local"];
-    const modes = answer.filter((mode): mode is RuntimeMode => mode === "local" || mode === "docker");
+    const modes = answer.filter((mode): mode is RuntimeMode => mode === "local" || mode === "docker" || mode === "wsl");
     // Local is always in the list. A build that renders at all renders locally, and an
     // empty list would present a wizard whose last button has nowhere to send the work.
     return modes.includes("local") ? modes : ["local", ...modes];
@@ -475,6 +486,7 @@ export function resolveRuntimeBridge(): RuntimeBridge | null {
             }
             return (await probeModes()) as RuntimeModesSummary;
         },
+        ...(isFunction(found.wslRuntime) ? { wslRuntime: async (distribution?: string) => await found.wslRuntime!(distribution) as WslReport } : {}),
         renderModes: () => readRenderModes(found),
         canProbeDocker,
     };

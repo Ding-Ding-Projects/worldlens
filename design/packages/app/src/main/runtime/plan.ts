@@ -43,7 +43,7 @@ import {
     type MountSourceOptions,
 } from "./mounts.js";
 
-export type RuntimeMode = "local" | "docker";
+export type RuntimeMode = "local" | "docker" | "wsl";
 
 /** What the engine is being started for. */
 export type RuntimeRole = "render" | "web-server";
@@ -71,6 +71,7 @@ export const DOCKER_STOP_GRACE_SECONDS = 8;
 
 export interface EngineLaunch {
     readonly mode: RuntimeMode;
+    readonly wsl?: import("./wsl.js").WslControl;
     readonly role: RuntimeRole;
     /** The binary to spawn: the JVM locally, `docker` otherwise. */
     readonly command: string;
