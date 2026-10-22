@@ -5,7 +5,7 @@ export const liveRenderSpeed: Article = {
     id: "live-render-speed",
     title: "Adjusting a render while it runs",
     summary:
-        "A live 1-5 control for real process priority or Docker CPU quota, throughput evidence beside it, and an explicit restart that carries both deferred thread fields through the packaged bridge.",
+        "A live 1-5 control for process priority or Docker CPU quota, optional dynamic scheduling bounded to levels 1-3, and an explicit restart for deferred worker settings.",
     category: "application",
     status: "shipped",
     statusNote:
@@ -19,7 +19,7 @@ export const liveRenderSpeed: Article = {
                     kind: "list",
                     items: [
                         "A local render changes the live JVM process priority and reads the granted priority back instead of assuming the operating system accepted it.",
-                        "A Docker render changes the running container's CPU quota. GitHub-runner and SSH routes are disabled with their exact reason rather than left clickable and inert.",
+                        "A Docker render changes the running container's CPU quota. GitHub-runner, SSH and WSL routes are disabled with their exact reason rather than left clickable and inert.",
                         "Throughput reports recent percentage-points per minute from the engine's real progress samples.",
                         "Restart at this level cancels, waits for the render to end, then relaunches with both render-thread-count and render-thread-priority from the selected level.",
                     ],
@@ -86,6 +86,7 @@ export const liveRenderSpeed: Article = {
         },
     ],
     suggested: [
+        { articleId: "render-controls-and-server-startup", reason: "Current live-map, dynamic-mode, close/reopen, WSL and server-startup workflows with bounded native evidence." },
         { articleId: "render-console", reason: "The live progress and log surface beside this control." },
         { articleId: "docker-and-local", reason: "How the two adjustable routes are launched." },
         { articleId: "remote-render", reason: "Why the SSH route does not yet expose this live lever." },
