@@ -8,3 +8,5 @@
 - [SSH host profiles](../mcserver-host-profiles.md)
 
 No additional HTTP API is introduced by these renderer ownership changes; a separate Postman collection is not applicable to this category increment.
+
+- [Local startup and diagnostics](startup.md): retained process ownership, visible launch/exit results and retired bundled-Java recovery.

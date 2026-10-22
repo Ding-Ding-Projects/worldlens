@@ -210,3 +210,8 @@ also includes all fourteen files in its searchable committed-evidence gallery.
 ### 截圖（Captures）
 
 `screenshots/` 放咗 commit 咗入呢個 repository 嘅圖片，網站同好幾份文檔都會引用。啲圖係由 project 自己嘅 harness 喺打包咗嘅應用程式度影嘅；入面冇任何 mockup 或者人手執過嘅圖。
+
+## Rendering and configuration
+
+- [Rendering workflows](rendering/README.md)
+- [Configuration workspace](configuration/README.md)

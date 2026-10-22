@@ -760,33 +760,13 @@ Screenshots section._
 </details>
 
 <details>
-<summary><b>The options editor</b> - all eight tabs of BlueMap's own configuration</summary>
+<summary><b>Configuration workspace</b>: clear identity, save guidance and all eight tabs</summary>
 
-<img src="docs/screenshots/config-screen.png" alt="The options editor as it opens: eight tabs down the side, BlueMap's own generated defaults filling the page because the throwaway capture profile has no config folder on disk, and a search across every setting" width="900">
+![Current configuration workspace with unsaved defaults, save guidance and eight tabs, English light theme](docs/screenshots/config-workspace-ae1df096.png)
 
-Captured 2026-08-15 against the current build, so this is not a historical image: the generated
-options inventory it shows carries all **155 settings**, including `client-decompression`.
+The built editor identifies unsaved defaults or the open folder, keeps save guidance visible, and explains the active tab. All existing tabs and advanced fields remain. Group controls expand or collapse navigation without removing features. This genuine native capture is bound to source ae1df096, a 1280 by 800 logical viewport, 100% application zoom and actual 144 DPI. Further current workflow captures are being verified.
 
-|                                                                                                                                                                        |                                                                                                                                                      |                                                                                                                                       |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| <img src="docs/screenshots/config-tab-core.png" alt="The options editor on its Core tab, holding the settings that apply to every map rather than to one of them" width="280">                                                                  | <img src="docs/screenshots/config-tab-maps.png" alt="The options editor on its Maps tab, with the map configurations listed down the side and the selected map's own settings beside them" width="280">                                                | <img src="docs/screenshots/config-tab-storages.png" alt="The options editor on its Storages tab, which decides where rendered tiles are written, on disk or into a database" width="280">                         |
-| Core                                                                                                                                                                   | Maps                                                                                                                                                 | Storages                                                                                                                              |
-| <img src="docs/screenshots/config-tab-web-app.png" alt="The options editor on its Web app tab, holding what a visitor to the finished map sees and where the web app is generated" width="280">                                                            | <img src="docs/screenshots/config-tab-web-server.png" alt="The options editor on its Web server tab, holding the built-in server's port, bind address and access log" width="280">                                    | <img src="docs/screenshots/config-tab-server-plugin.png" alt="The options editor on its Server plugin tab, holding live player markers and the settings only a server plugin ever uses" width="280">               |
-| Web app                                                                                                                                                                | Web server                                                                                                                                           | Server plugin                                                                                                                         |
-| <img src="docs/screenshots/config-tab-run.png" alt="The Run tab of the options editor, showing the command-line flags a render is started with" width="280">           | <img src="docs/screenshots/config-search.png" alt="The options editor's search, which reaches every setting on all of the tabs at once" width="280"> | <img src="docs/screenshots/config-regex-builder.png" alt="The regex builder anchored to the options editor's search bar" width="280"> |
-| Run                                                                                                                                                                    | The search across every tab                                                                                                                          | Its regex builder                                                                                                                     |
-| <img src="docs/screenshots/config-tab-history.png" alt="The History tab of the options editor, which lists the saved revisions of the open config folder" width="280"> |                                                                                                                                                      |                                                                                                                                       |
-| History                                                                                                                                                                |                                                                                                                                                      |                                                                                                                                       |
-
-Deleting a map's configuration is guarded the same way any destructive action is, and the gate
-names what would actually go before it asks.
-
-<img src="docs/screenshots/config-delete-gate.png" alt="The confirmation that guards deleting a map's configuration, naming the file that would go, the map id whose tiles stop being served, and that already-rendered tiles are not deleted, above two key switches, a slider and an emergency exit" width="420">
-
-These captures show the editor holding BlueMap's own generated defaults, which is what it opens
-on when this machine has no config folder to carry on from - it says so in a notice across the
-top. Every setting, tab and control in them is real, live and savable; what is absent is a folder
-read off the machine, not the ability to write one.
+[Configuration guide](docs/configuration/usability.md) · [Historical editor captures](docs/screenshots/archive/config-editor-before-20261022.md)
 
 </details>
 

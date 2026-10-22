@@ -412,6 +412,23 @@
       "interactionReceiptSha256": "30a83326aebdfe910f68699ab8b52037a8440b8b6592311da6cfba632a5bdf45",
       "inspectionStatus": "inspected",
       "capturedAt": "2026-10-11T14:20:56.502Z"
+    },
+    {
+      "id": "config-workspace-ae1df096",
+      "active": true,
+      "path": "docs/screenshots/config-workspace-ae1df096.png",
+      "sourceCommit": "ae1df0963c8c1c2a5e3d186811dbdedb2cbd9d43",
+      "artifactSha256": "ddce56c614b747b2223a5bad07ce9375a134cf6cbdf8fae522796b2da1ede969",
+      "captureSha256": "5e34ebe4181ef1bded87d0dc04d2c12d3346ba1ebc6cccbe4ef466f8b06dde2c",
+      "screen": "Configuration workspace",
+      "state": "unsaved-defaults",
+      "theme": "light",
+      "viewportWidth": 1280,
+      "viewportHeight": 800,
+      "scale": 1.5,
+      "interactionProofId": "config-native-open-language-theme",
+      "interactionReceiptSha256": "e5a16066504c7371dbb606e8110308f14bd2800ad103050b9fdf6d7a5c66e4a2",
+      "inspectionStatus": "inspected"
     }
   ]
 }

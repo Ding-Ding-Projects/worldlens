@@ -26,7 +26,8 @@ const INSTALL =
 
 // The Linux supervisor owns the deadline and process group. The lock is inherited
 // by extraction children, so a lost Windows connection cannot overlap another install.
-const INSTALL_SUPERVISOR = 'set -eu; base=$1; script=$2; shift 2; mkdir -p "$base"; exec 9>"$base/setup.lock"; flock -n 9 || exit 75; exec timeout --signal=TERM --kill-after=5s 100s sh -c "$script" worldlens-java "$@"';
+const INSTALL_SUPERVISOR =
+    'set -eu; base=$1; script=$2; shift 2; mkdir -p "$base"; exec 9>"$base/setup.lock"; flock -n 9 || exit 75; exec timeout --signal=TERM --kill-after=5s 100s sh -c "$script" worldlens-java "$@"';
 
 export async function ensureWslJava(options: EnsureWslJavaOptions): Promise<WslEngineContext> {
     const runner = options.runner ?? execFileCommandRunner;
@@ -97,9 +98,18 @@ export async function ensureWslJava(options: EnsureWslJavaOptions): Promise<WslE
         { timeoutMs: 120_000 },
     );
     if (!result.ok) {
-        if (result.exitCode === 75) throw new Error("Another WSL Java installation still holds the setup lock. Retry after it settles.");
-        if (result.exitCode === 124) throw new Error("The Linux Java setup supervisor reached its deadline and stopped extraction. Staging data was retained; retry setup.");
-        if (result.exitCode === null || result.exitCode === 137) throw new Error("WSL Java installation state is unconfirmed. Its Linux setup lock prevents overlapping extraction. Check the selected distribution before retrying.");
+        if (result.exitCode === 75)
+            throw new Error(
+                "Another WSL Java installation still holds the setup lock. Retry after it settles.",
+            );
+        if (result.exitCode === 124)
+            throw new Error(
+                "The Linux Java setup supervisor reached its deadline and stopped extraction. Staging data was retained; retry setup.",
+            );
+        if (result.exitCode === null || result.exitCode === 137)
+            throw new Error(
+                "WSL Java installation state is unconfirmed. Its Linux setup lock prevents overlapping extraction. Check the selected distribution before retrying.",
+            );
         throw new Error(`WSL Java setup failed: ${result.stderr.trim() || result.stdout.trim()}`);
     }
     options.signal?.throwIfAborted();

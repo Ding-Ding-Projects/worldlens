@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 267,
+  "expectedTargetCount": 268,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -700,7 +700,7 @@
       "targets": [
         "docs/screenshots/front-provenance-e9cad90a.png"
       ],
-      "command": "Rebuild e9cad90a383667fe25354b472e64a2076730aa49 with build.bat /s; launch on a cheap Lowlevel hidden desktop with an isolated profile and exact process identity, then observe the initial English dark-theme welcome state at 1280 x 752 CSS pixels and native 150% scale.",
+      "command": "Rebuild e9cad90a383667fe25354b472e64a2076730aa49 with build.bat /s; launch on a cheap Lowlevel hidden desktop with an isolated profile and exact process identity, then use read-only CDP assertions to observe the initial English dark-theme welcome state at 1280 x 752 CSS pixels and native 150% scale.",
       "captureTimes": {
         "docs/screenshots/front-provenance-e9cad90a.png": "2026-10-11T12:56:20.625Z"
       },
@@ -750,6 +750,25 @@
       "capturedFromInterfaceSource": false,
       "notGradedBecause": "Bounded English dark-theme unavailable-daemon browser observation at an exact source, not whole-interface, successful adoption or later-source acceptance.",
       "uiSourceDigestNote": "Root source digest146294ec3f2f140aa865f0a455c348456988468a0ab15f1a76f6d485da84e43a. Two version1 layout receipts validate at1280x752 and800x600 CSS, CDP scale2. Native physical scale150%; the emulation is not physical DPI acceptance. Caption clear, footer visible and body scrolling independently reviewed; other languages/themes, review dialog and real adoption remain pending."
+    },
+    {
+      "id": "config-usability-20261022",
+      "authority": ".claude/skills/run-worldlens/driver.mjs",
+      "command": "Build with build.bat --silent; use cheap Lowlevel hidden-desktop native input through .claude/skills/run-worldlens/driver.mjs with read-only CDP assertions and an isolated owned profile.",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "expectedCount": 1,
+      "targets": [
+        "docs/screenshots/config-workspace-ae1df096.png"
+      ],
+      "sourceCommits": {
+        "docs/screenshots/config-workspace-ae1df096.png": "ae1df0963c8c1c2a5e3d186811dbdedb2cbd9d43"
+      },
+      "captureTimes": {
+        "docs/screenshots/config-workspace-ae1df096.png": "2026-10-22T20:19:05.34Z"
+      },
+      "capturedFromInterfaceSource": false,
+      "notGradedBecause": "One current configuration state, not complete field, screen-reader or installation acceptance.",
+      "proofNote": "Exact native window, source/build hashes, capture timing, pixel review and owned normal-close teardown retained in the private task receipt."
     }
   ]
 }
