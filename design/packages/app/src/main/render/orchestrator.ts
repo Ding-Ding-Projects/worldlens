@@ -49,6 +49,8 @@
 
 import { mkdir, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
+import { ensureWslJava } from "../runtime/wslJava.js";
+import { probeWsl, planWslLaunch, wslPath, type WslEngineContext } from "../runtime/wsl.js";
 import { writeEngineConfig } from "../runtime/config.js";
 import { dockerUsable, probeDocker } from "../runtime/docker.js";
 import type { DockerReport, ProbeDockerOptions } from "../runtime/docker.js";
@@ -129,7 +131,7 @@ export interface ResolvedEngine {
  * as this build's capability offers a choice that renders locally anyway, which is worse
  * than not offering it - the person believes they chose.
  */
-export const RENDER_RUNTIME_MODES: readonly RuntimeMode[] = ["local", "docker"];
+export const RENDER_RUNTIME_MODES: readonly RuntimeMode[] = ["local", "docker", "wsl"];
 
 export interface RenderRequest {
     readonly maps: readonly RenderMapRequest[];
@@ -144,6 +146,7 @@ export interface RenderRequest {
      * `docker` is honoured or refused, never approximated. See the note at the top.
      */
     readonly runtime?: RuntimeMode;
+    readonly wslDistribution?: string;
     /** Defaults to a stable id derived from the first map's world folder. */
     readonly renderId?: string;
     /** `-f`: re-render everything rather than only what changed since last time. */
@@ -236,7 +239,8 @@ export type SpeedAdjustmentReason =
     | "process-exited"
     | "container-stopped"
     | "not-running"
-    | "invalid-level";
+    | "invalid-level"
+    | "unsupported-route";
 
 /**
  * What one live speed-adjustment request did, and what it did not.
@@ -371,6 +375,7 @@ export interface RenderEngineProvisionEvent {
  * banner telling them something went wrong.
  */
 export type RenderEvent =
+    | { readonly type: "cancellation-unconfirmed"; readonly renderId: string; readonly message: string; readonly at: string }
     | {
           readonly type: "preview-ready";
           readonly renderId: string;
@@ -434,6 +439,7 @@ export interface RenderOrchestratorOptions {
             readonly received: number | null;
             readonly total: number | null;
         }) => void,
+        wsl?: WslEngineContext,
     ) => Promise<ResolvedEngine>;
     /** Where a finished render is mounted for the viewer. */
     readonly mounts?: LocalMapHandler;
@@ -668,6 +674,10 @@ export class RenderOrchestrator {
             };
         }
 
+        if (running.mode === "wsl") return {
+            ok: false, renderId, level, route: "unsupported", appliedNow: false, needsRestart: false,
+            reason: "unsupported-route", message: "Live speed adjustment is not available for WSL renders. Set render threads before starting.", detail: null,
+        };
         if (running.mode === "docker")
             return await this.adjustDockerSpeed(running, renderId, level);
         return this.adjustLocalSpeed(running, renderId, level);
@@ -962,11 +972,25 @@ export class RenderOrchestrator {
             }
         }
 
+        let wsl: WslEngineContext | undefined;
         const provisionAbort = new AbortController();
         const pendingRender = { controller: provisionAbort, token, visible: false };
         this.pending.set(renderId, pendingRender);
         let engine: ResolvedEngine;
         try {
+            if (mode === "wsl") {
+                pendingRender.visible = true;
+                this.emit({ type: "engine-provisioning", renderId, stage: "checking",
+                    message: "Checking the selected WSL distribution and Java runtime.", received: null, total: null, at: this.timestamp() });
+                const report = await probeWsl(request.wslDistribution);
+                if (report.selected === null || !report.distributions.includes(report.selected))
+                    throw new Error(report.message);
+                wsl = report.ready && report.javaVersion !== null && report.javaExecutable !== null
+                    ? { distribution: report.selected, javaVersion: report.javaVersion, javaExecutable: report.javaExecutable }
+                    : await ensureWslJava({ distribution: report.selected, cacheDir: join(this.storageDir(), "runtime-cache", "wsl-java"),
+                        signal: provisionAbort.signal,
+                        onProgress: (progress) => this.emit({ type: "engine-provisioning", renderId, ...progress, at: this.timestamp() }) });
+            }
             engine = await this.options.resolveEngine(
                 requestedEngine,
                 provisionAbort.signal,
@@ -982,6 +1006,7 @@ export class RenderOrchestrator {
                         at: this.timestamp(),
                     });
                 },
+                wsl,
             );
         } catch (error) {
             this.pending.delete(renderId);
@@ -1051,6 +1076,17 @@ export class RenderOrchestrator {
             }
         }
 
+        if (wsl !== undefined) {
+            try {
+                launch = await planWslLaunch({ role: "render", distribution: wsl.distribution, javaExecutable: wsl.javaExecutable,
+                    cwd: workspace.root, configDir: workspace.configDir, jarPath: engine.enginePath as string,
+                    ...(request.jvmArgs === undefined ? {} : { jvmArgs: request.jvmArgs }),
+                    ...(request.force === undefined ? {} : { force: request.force }),
+                    ...(request.fixEdges === undefined ? {} : { fixEdges: request.fixEdges }) });
+            } catch (error) {
+                return this.fail(renderId, failures.invalidRequest(describe(error)), null);
+            }
+        }
         try {
             await mkdir(workspace.root, { recursive: true });
             if (launch === null) {
@@ -1068,6 +1104,19 @@ export class RenderOrchestrator {
                         ? {}
                         : { renderThreadPriority: request.renderThreadPriority }),
                 });
+            } else if (wsl !== undefined) {
+                await mkdir(workspace.dataDir, { recursive: true });
+                await mkdir(workspace.storageRoot, { recursive: true });
+                await writeEngineConfig({ hostConfigDir: workspace.configDir,
+                    engineDataDir: await wslPath(workspace.dataDir, wsl.distribution),
+                    engineWebRoot: await wslPath(workspace.webRoot, wsl.distribution),
+                    maps: await Promise.all(request.maps.map(async (map) => ({ ...map,
+                        world: await wslPath(map.world, wsl.distribution) }))),
+                    acceptDownload: true, createEngineDirectories: false,
+                    ...(request.metrics === undefined ? {} : { metrics: request.metrics }),
+                    ...(request.renderThreads === undefined ? {} : { renderThreads: request.renderThreads }),
+                    ...(request.renderThreadPriority === undefined ? {} : { renderThreadPriority: request.renderThreadPriority }),
+                });
             } else {
                 await this.writeContainerConfig(workspace, request);
             }
@@ -1079,7 +1128,8 @@ export class RenderOrchestrator {
             );
         }
 
-        const description = describeEngineFor(engine, mode);
+        const baseDescription = describeEngineFor(engine, mode);
+        const description = wsl === undefined ? baseDescription : { ...baseDescription, label: `${baseDescription.label} in WSL (${wsl.distribution})` };
         const startedAt = this.timestamp();
         let record = this.newRecord(renderId, engine, request, startedAt, mode, description);
         await this.saveRecord(workspace, record);
@@ -1088,10 +1138,11 @@ export class RenderOrchestrator {
         await this.options.sessions?.start({
             renderId,
             maps: request.maps,
-            configDir: launch === null ? workspace.configDir : workspace.containerConfigDir,
+            configDir: launch?.hostConfigDir ?? workspace.configDir,
             // Recorded so that carrying this render on later carries it on in the same
             // place rather than quietly moving it. See `resume.ts`.
             runtime: mode,
+            ...(wsl === undefined ? {} : { wslDistribution: wsl.distribution }),
             outputRoot: workspace.webRoot,
             engine: engine.engine,
             engineVersion: engine.engineVersion,
@@ -1238,6 +1289,7 @@ export class RenderOrchestrator {
                   : new EngineProcess({
                         launch,
                         onSignal,
+                        onCancellationUnconfirmed: (message) => this.emit({ type: "cancellation-unconfirmed", renderId, message, at: this.timestamp() }),
                         ...(this.options.spawnEngine === undefined
                             ? {}
                             : { spawn: this.options.spawnEngine }),
@@ -1715,7 +1767,7 @@ export function classifyRunFailure(
  */
 function runtimeModeOf(value: RuntimeMode | undefined): RuntimeMode | null {
     if (value === undefined) return DEFAULT_RUNTIME_MODE;
-    return value === "local" || value === "docker" ? value : null;
+    return value === "local" || value === "docker" || value === "wsl" ? value : null;
 }
 
 /**

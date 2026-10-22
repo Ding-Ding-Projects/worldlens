@@ -57,7 +57,7 @@
  */
 
 /** Which of the four ways a render is running. `null` when nothing has said. */
-export type ProgressRoute = "local" | "docker" | "remote" | "actions";
+export type ProgressRoute = "local" | "docker" | "wsl" | "remote" | "actions";
 
 /**
  * A phrase held as a key, a fallback and its values rather than as a sentence.

@@ -33,9 +33,9 @@
 import type { Translate } from "../world/worldFolder.js";
 import type { DockerNote } from "./dockerStates.js";
 
-export type RunLocation = "local" | "docker" | "remote";
+export type RunLocation = "local" | "docker" | "wsl" | "remote";
 
-export const RUN_LOCATIONS: readonly RunLocation[] = ["local", "docker", "remote"];
+export const RUN_LOCATIONS: readonly RunLocation[] = ["local", "docker", "wsl", "remote"];
 
 /** Local, always, unless somebody chooses otherwise. Matches `DEFAULT_RUNTIME_MODE`. */
 export const DEFAULT_RUN_LOCATION: RunLocation = "local";
@@ -62,6 +62,8 @@ export interface RunPlace {
 }
 
 export interface RunPlaceInput {
+    readonly canRenderInWsl?: boolean;
+    readonly wsl?: import("./remoteBridge.js").WslReport | null;
     /** True when the ordinary local render path exists in this build. */
     readonly canRenderLocally: boolean;
     /** True when this build's `startRender` genuinely honours a Docker choice. */
@@ -83,7 +85,13 @@ export interface RunPlaceInput {
  * screen the next time it is probed instead of at the next launch.
  */
 export function runPlaces(input: RunPlaceInput, t: Translate): readonly RunPlace[] {
-    return [localPlace(input, t), dockerPlace(input, t), remotePlace(input, t)];
+    return [localPlace(input, t), dockerPlace(input, t), ...(input.canRenderInWsl === true ? [{
+        id: "wsl" as const, title: t("remote.wsl.title", "In WSL on this computer"),
+        summary: t("remote.wsl.summary", "Run the Java engine in an installed Linux distribution. Output stays on this computer and appears in the same live map."),
+        state: input.wsl?.ready ? "ready" as const : "needs-setup" as const,
+        reason: input.wsl?.message ?? t("remote.wsl.unchecked", "Select a distribution and check its Java runtime below."),
+        selectable: true,
+    }] : []), remotePlace(input, t)];
 }
 
 function localPlace(input: RunPlaceInput, t: Translate): RunPlace {
@@ -211,6 +219,7 @@ export function effectiveLocation(
     chosen: RunLocation,
     places: readonly RunPlace[],
 ): RunLocation {
+    if (chosen === "wsl") return chosen;
     const place = places.find((candidate) => candidate.id === chosen);
     return place !== undefined && place.selectable ? chosen : DEFAULT_RUN_LOCATION;
 }
@@ -224,6 +233,8 @@ export function describeChoice(
     switch (location) {
         case "local":
             return t("remote.choice.local", "This render will run on this computer, as an ordinary program.");
+        case "wsl":
+            return t("remote.wsl.choice", "This render will run in the selected WSL distribution. Missing Java or distribution stops the render; no fallback is used.");
         case "docker":
             return t(
                 "remote.choice.docker",

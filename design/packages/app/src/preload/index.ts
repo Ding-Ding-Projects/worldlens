@@ -3729,7 +3729,8 @@ interface WorldlensBridge {
      * `render:runtimeModes` handler, and a literal here would be a second place that answer
      * could drift from the first.
      */
-    renderRuntimeModes(): Promise<readonly ("local" | "docker")[]>;
+    renderRuntimeModes(): Promise<readonly ("local" | "docker" | "wsl")[]>;
+    wslRuntime(distribution?: string): Promise<unknown>;
 
     revealPath(path: string): Promise<RevealResult>;
     /** Those folders, read fresh, so a storage directory somebody moved is the one allowed. */

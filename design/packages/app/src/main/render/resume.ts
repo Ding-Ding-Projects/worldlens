@@ -265,6 +265,7 @@ export function resumeRequestFor(session: RenderSession): RenderRequest {
         // Absent on a session written before the field existed, and absent means local,
         // which is what those renders were.
         ...(session.runtime === undefined ? {} : { runtime: session.runtime }),
+        ...(session.wslDistribution === undefined ? {} : { wslDistribution: session.wslDistribution }),
     };
 }
 

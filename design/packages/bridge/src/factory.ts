@@ -834,6 +834,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         },
 
         renderRuntimeModes: () => transport.invoke("render:runtimeModes"),
+        wslRuntime: (distribution?: string) => transport.invoke("render:wsl", distribution),
 
         revealPath: (path: unknown) => transport.invoke("files:reveal", path),
         revealRoots: () => transport.invoke("files:revealRoots"),

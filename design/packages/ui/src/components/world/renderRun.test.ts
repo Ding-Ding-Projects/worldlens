@@ -1219,3 +1219,19 @@ describe("restartWithLevel: the explicit choice that changes the next JVM's thre
         run.dispose();
     });
 });
+
+
+it("keeps an unconfirmed WSL stop active and makes Cancel retryable", async () => {
+    const fake = fakeBridge(OK);
+    const run = createRenderRun(fake.bridge);
+    void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
+    fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+    expect(await run.cancel()).toBe(true);
+    fake.emit({ type: "cancellation-unconfirmed", renderId: "world-abc", message: "Cancellation is not confirmed. Retry Cancel.", at: "t1" });
+    expect(run.cancelling.value).toBe(false);
+    expect(run.state.value).toBe("running");
+    expect(run.active.value).toBe(true);
+    expect(await run.cancel()).toBe(true);
+    expect(fake.bridge.cancelRender).toHaveBeenCalledTimes(2);
+    run.dispose();
+});

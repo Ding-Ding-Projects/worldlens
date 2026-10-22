@@ -213,10 +213,12 @@ provideSettingsOpener((target) => emit("settings", target));
  */
 const remote = props.remoteBridge === undefined ? resolveRemoteBridge() : props.remoteBridge;
 const runLocation = ref<RunLocation>("local");
+const wslDistribution = ref<string | null>(null);
 const runTarget = ref<RemoteTarget | null>(null);
 
 const router = createRenderRouter(bridge, remote, () => ({
     location: runLocation.value,
+    wslDistribution: wslDistribution.value,
     target: runTarget.value,
 }));
 
@@ -715,6 +717,7 @@ async function resume(renderId: string): Promise<void> {
             :location="runLocation"
             :can-open-ci="canOpenCi"
             @update:location="(value: RunLocation) => (runLocation = value)"
+            @update:wsl-distribution="(value: string | null) => (wslDistribution = value)"
             @update:target="(value: RemoteTarget | null) => (runTarget = value)"
             @open-ci="emit('openCiRender')"
         />

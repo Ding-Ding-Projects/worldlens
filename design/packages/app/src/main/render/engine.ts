@@ -69,11 +69,13 @@ export function upstreamJavaEngine(
     engine?: RenderEngineId,
     signal?: AbortSignal,
     onProgress?: (progress: EngineProvisionProgress) => void,
+    wsl?: import("../runtime/wsl.js").WslEngineContext,
 ) => Promise<ResolvedEngine> {
     return async (
         engine: RenderEngineId = "upstream-java",
         signal = options.signal,
         onProgress = options.onEngineProvisionProgress,
+        wsl?: import("../runtime/wsl.js").WslEngineContext,
     ): Promise<ResolvedEngine> => {
         if (engine !== "upstream-java") {
             throw new EngineUnavailableError(
@@ -158,6 +160,11 @@ export function upstreamJavaEngine(
             if (discrepancy !== null) console.warn(`[render-engine] ${discrepancy}`);
         }
 
+        if (wsl !== undefined) {
+            return { engine: "upstream-java", engineVersion: jar.version,
+                engineSource: managedRepair?.source ?? jar.source, launch: "java-cli",
+                enginePath: jar.path, javaExecutable: wsl.javaExecutable, javaVersion: wsl.javaVersion };
+        }
         let java;
         try {
             java = await ensureJava({

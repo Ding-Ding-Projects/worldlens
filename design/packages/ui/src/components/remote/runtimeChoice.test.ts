@@ -152,3 +152,13 @@ describe("the line that says where this render is going", () => {
         expect(describeChoice("docker", null, t)).toMatch(/same cores, same disk/i);
     });
 });
+
+
+describe("WSL selection", () => {
+    it("keeps an explicit WSL choice while Java still needs setup", () => {
+        const places = runPlaces({ ...everything, canRenderInWsl: true, wsl: null }, t);
+        expect(places.find((entry) => entry.id === "wsl")).toMatchObject({ selectable: true, state: "needs-setup" });
+        expect(effectiveLocation("wsl", places)).toBe("wsl");
+        expect(describeChoice("wsl", null, t)).toContain("WSL");
+    });
+});

@@ -141,6 +141,7 @@ export interface RenderSession {
      * itself local.
      */
     readonly runtime?: RuntimeMode;
+    readonly wslDistribution?: string;
     /** `<workspace>/web`, the root the tiles and `rstate` live under. */
     readonly outputRoot: string;
     /**
@@ -242,6 +243,7 @@ export interface NewSessionInput {
     readonly configDir: string;
     /** Omitted means local, exactly as it does on a render request. */
     readonly runtime?: RuntimeMode;
+    readonly wslDistribution?: string;
     readonly outputRoot: string;
     readonly engine: RenderEngineId;
     readonly engineVersion: string;
@@ -266,6 +268,7 @@ export function newRenderSession(input: NewSessionInput): RenderSession {
         })),
         configDir: input.configDir,
         ...(input.runtime === undefined ? {} : { runtime: input.runtime }),
+        ...(input.wslDistribution === undefined ? {} : { wslDistribution: input.wslDistribution }),
         outputRoot: input.outputRoot,
         configHash: renderConfigFingerprint(input.maps),
         engine: input.engine,
@@ -423,9 +426,10 @@ export async function readRenderSession(path: string): Promise<RenderSession | n
         configDir,
         // Anything other than the two known modes reads as absent, which is local - never
         // as a mode this application would then be unable to resume in.
-        ...(parsed.runtime === "docker" || parsed.runtime === "local"
+        ...(parsed.runtime === "docker" || parsed.runtime === "local" || parsed.runtime === "wsl"
             ? { runtime: parsed.runtime }
             : {}),
+        ...(typeof parsed.wslDistribution === "string" ? { wslDistribution: parsed.wslDistribution } : {}),
         outputRoot,
         configHash,
         engine,

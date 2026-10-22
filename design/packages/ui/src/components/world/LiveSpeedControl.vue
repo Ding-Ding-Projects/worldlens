@@ -43,12 +43,13 @@ const { t } = useI18n();
 
 const route = computed(() => props.run.progress.value.route);
 
-type DisabledReason = "actions" | "remote" | "unknown";
+type DisabledReason = "actions" | "remote" | "wsl" | "unknown";
 
 const disabledReason = computed<DisabledReason | null>(() => {
     const current = route.value;
     if (current === "actions") return "actions";
     if (current === "remote") return "remote";
+    if (current === "wsl") return "wsl";
     if (current === "local" || current === "docker") return null;
     // `null` (nobody has said yet) reads the same as an unrecognised value: nothing here
     // can be safely adjusted, and the reason is that this build does not know where the
@@ -152,7 +153,9 @@ async function restartNow(): Promise<void> {
                                 "liveSpeed.disabled.remote",
                                 "This render is running on another computer over SSH, and live speed changes are not wired for that route yet.",
                             )
-                          : t(
+                          : disabledReason === "wsl"
+                            ? t("remote.wsl.speed", "Live speed changes are unavailable for WSL. Set render threads before starting.")
+                            : t(
                                 "liveSpeed.disabled.unknown",
                                 "This build does not yet know where this render is running, so there is nothing here it can adjust safely.",
                             )

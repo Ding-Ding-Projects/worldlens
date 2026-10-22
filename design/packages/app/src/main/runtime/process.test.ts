@@ -1,6 +1,10 @@
 import { EventEmitter } from "node:events";
 import { Readable } from "node:stream";
-import { describe, expect, it } from "vitest";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import type { CommandRunner } from "./command.js";
+import { describe, expect, it, vi } from "vitest";
 import { EngineProcess, type EngineChildProcess, type SpawnEngine } from "./process.js";
 import { planDockerLaunch, planLocalLaunch, type EngineLaunch } from "./plan.js";
 import type { RenderSignal } from "../render/progress.js";
@@ -238,5 +242,46 @@ describe("cancelling", () => {
         run.cancel();
         const result = await finished;
         expect(result.cancelled).toBe(true);
+    });
+});
+
+
+describe("WSL cancellation recovery", () => {
+    it("retries a rejected stop and waits for actual exit without killing the launcher", async () => {
+        const root = await mkdtemp(join(tmpdir(), "wsl-cancel-"));
+        try {
+            const child = fakeChild({ closes: false });
+            const runner = vi.fn<CommandRunner>().mockRejectedValueOnce(new Error("temporary transport failure"))
+                .mockImplementationOnce(async () => {
+                    child.emit("close", 143, null);
+                    return { ok: true, exitCode: 0, stdout: "", stderr: "", spawnError: null };
+                });
+            const run = new EngineProcess({ launch: { ...LOCAL, mode: "wsl", wsl: { distribution: "Ubuntu", token: "owned", pidFile: "/owned/pid", hostCancelFile: join(root, "cancel") } },
+                spawn: () => child, runner, wslCancelRetryMs: 0 });
+            const finished = run.start(); run.cancel();
+            const result = await finished;
+            expect(runner).toHaveBeenCalledTimes(2);
+            expect(child.killed).toEqual([]);
+            expect(result.cancelled).toBe(true);
+        } finally { await rm(root, { recursive: true, force: true }); }
+    });
+    it("reports exhausted attempts without ending the live render and permits a later Cancel", async () => {
+        const root = await mkdtemp(join(tmpdir(), "wsl-cancel-"));
+        try {
+            const child = fakeChild({ closes: false });
+            const runner = vi.fn<CommandRunner>().mockRejectedValue(new Error("transport unavailable"));
+            let notify!: (message: string) => void;
+            const unconfirmed = new Promise<string>((resolve) => { notify = resolve; });
+            const run = new EngineProcess({ launch: { ...LOCAL, mode: "wsl", wsl: { distribution: "Ubuntu", token: "owned", pidFile: "/owned/pid", hostCancelFile: join(root, "cancel") } },
+                spawn: () => child, runner, wslCancelRetryMs: 0, onCancellationUnconfirmed: notify });
+            let terminal = false;
+            const finished = run.start().then((result) => { terminal = true; return result; });
+            run.cancel();
+            expect(await unconfirmed).toContain("not be confirmed");
+            expect(runner).toHaveBeenCalledTimes(3); expect(terminal).toBe(false); expect(child.killed).toEqual([]);
+            runner.mockImplementation(async () => { child.emit("close", 143, null); return { ok: true, exitCode: 0, stdout: "", stderr: "", spawnError: null }; });
+            run.cancel();
+            expect((await finished).cancelled).toBe(true); expect(runner).toHaveBeenCalledTimes(4);
+        } finally { await rm(root, { recursive: true, force: true }); }
     });
 });
