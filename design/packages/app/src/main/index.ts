@@ -8,6 +8,7 @@ import {
     clipboard,
     dialog,
     shell,
+    powerMonitor,
 } from "electron";
 import type { MessageBoxOptions } from "electron";
 import { protectBackgroundRender } from "./renderBackground.js";
@@ -914,6 +915,7 @@ function startRendering(): RenderIpc {
             : javaResolver(choice, signal, onProgress, wsl);
 
     const render = installRenderIpc({
+        idleSeconds: () => powerMonitor.getSystemIdleTime(),
         storageDir,
         defaultStorageDir: storageDir,
         environment: { home: app.getPath("home"), appData: process.env.APPDATA },

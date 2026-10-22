@@ -69,6 +69,7 @@ export interface RenderSummary {
 }
 
 export interface RenderIpcOptions {
+    readonly idleSeconds?: () => number;
     /** Where renders are written. Already absolute and token-expanded. */
     readonly storageDir: string;
     /** The default, shown to somebody choosing a folder in setup. */
@@ -213,6 +214,7 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         });
 
     const orchestrator = new RenderOrchestrator({
+        ...(options.idleSeconds === undefined ? {} : { idleSeconds: options.idleSeconds }),
         storageDir: () => storageDir,
         // Read through the existing module, every time, and never asked here. The
         // question was answered once at first launch; a render that finds it missing
