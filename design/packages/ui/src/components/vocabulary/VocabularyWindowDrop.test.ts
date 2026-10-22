@@ -159,6 +159,9 @@ it("keeps the window feedback click-through under the application chrome rule, b
         global: { plugins: [createI18n({ legacy: false, locale: "en", messages: {} })] },
     });
     wrappers.push(wrapper);
+    // Vue Test Utils adds its own mount host; production renders the live region
+    // directly under the Vuetify wrapper, so reproduce that selector boundary.
+    wrap.append(wrapper.element);
     const feedback = () => wrapper.get(".mb-vocabulary-feedback").element;
     try {
         expect(getComputedStyle(feedback()).pointerEvents).toBe("none");
