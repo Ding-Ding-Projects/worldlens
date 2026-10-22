@@ -161,10 +161,10 @@ function stubBridge(): void {
     };
 }
 
-async function mountWith(component: unknown, props: Record<string, unknown>) {
+async function mountWith(component: unknown, props: Record<string, unknown>, host = fakeHost()) {
     const i18n = createI18n({ legacy: false, locale: "en", messages: { en: {} } });
     const vuetify = createVuetify();
-    const store = createServerStore({ host: fakeHost() });
+    const store = createServerStore({ host });
     await store.load();
     return mount(component as never, {
         props: props as never,
@@ -207,6 +207,31 @@ describe("mcserver panels mount against a real store and bridge", () => {
         await flushPromises();
         expect(wrapper.text()).toContain("Test Server");
         expect(wrapper.text()).toContain("Web console");
+    });
+
+    it("refreshes management after a late exit, enables Start, and reports launch failure", async () => {
+        vi.useFakeTimers();
+        const host = fakeHost();
+        let reads = 0;
+        host.status = async () => ({ ok: true, value: { state: ++reads === 1 ? "running" : "exited", running: reads === 1, startedAt: null, exitCode: reads === 1 ? null : 1, checkedAt: "now" } });
+        host.start = async () => ({ ok: false, failure: { code: "command-failed", message: "Unable to access jarfile", detail: "Check the configured server archive." } });
+        const wrapper = await mountWith(WebConsolePanel, { serverId: "srv-1" }, host);
+        try {
+            await flushPromises();
+            const start = wrapper.findAll(".wl-mcserver-panel__actions button").find(b => b.text() === "Start")!;
+            expect(start.attributes("disabled")).toBeDefined();
+            await vi.advanceTimersByTimeAsync(2000);
+            expect(start.attributes("disabled")).toBeUndefined();
+            expect(wrapper.text()).toContain("exited (code 1)");
+            await start.trigger("click");
+            await flushPromises();
+            expect(wrapper.text()).toContain("Unable to access jarfile");
+            expect(wrapper.text()).toContain("Check the configured server archive.");
+            wrapper.unmount();
+            const last = reads;
+            await vi.advanceTimersByTimeAsync(6000);
+            expect(reads).toBe(last);
+        } finally { wrapper.unmount(); vi.useRealTimers(); }
     });
 
     it("offers a non-destructive back action without forgetting the server", async () => {

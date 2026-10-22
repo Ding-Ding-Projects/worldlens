@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArrowLeft, mdiLan, mdiLock, mdiPlay, mdiStop } from "@mdi/js";
 import {
@@ -55,12 +55,49 @@ watch(
     { immediate: true },
 );
 
+const lifecycleFailure = ref<string | null>(null);
+const lifecycleBusy = ref(false);
+let statusTimer: ReturnType<typeof setTimeout> | undefined;
+let disposed = false;
+let monitored = false;
+let unknownAttempts = 0;
 async function refresh(): Promise<void> {
-    await store.probe(props.serverId);
-    await store.refreshStatus(props.serverId);
+    const id = props.serverId;
+    await store.probe(id);
+    if (disposed || id !== props.serverId) return;
+    await store.refreshStatus(id);
 }
-onMounted(refresh);
-watch(() => props.serverId, refresh);
+async function pollStatus(): Promise<void> {
+    const id = props.serverId;
+    try {
+        if (store.statuses[id]?.running) { monitored = true; unknownAttempts = 0; }
+        if (!monitored || lifecycleBusy.value) return;
+        const answer = await store.refreshStatus(id);
+        if (disposed || id !== props.serverId) return;
+        if (!answer.ok || answer.value?.state === "unknown") {
+            if (++unknownAttempts >= 3) monitored = false;
+            return;
+        }
+        unknownAttempts = 0;
+        monitored = answer.value?.running === true;
+        if (answer.value?.state === "exited") {
+            lifecycleFailure.value = t("mcserver.lifecycle.exited", { name: store.get(id)?.name ?? id, code: answer.value.exitCode ?? "unknown" }, { default: "Server {name} exited (code {code}). Open its console or logs for details." });
+        }
+    } finally {
+        if (!disposed) statusTimer = setTimeout(() => { void pollStatus(); }, 2000);
+    }
+}
+onMounted(() => {
+    void refresh();
+    statusTimer = setTimeout(() => { void pollStatus(); }, 2000);
+});
+onUnmounted(() => { disposed = true; clearTimeout(statusTimer); });
+watch(() => props.serverId, () => {
+    monitored = false;
+    unknownAttempts = 0;
+    lifecycleFailure.value = null;
+    void refresh();
+});
 
 const server = computed(() => store.get(props.serverId));
 const status = computed(() => store.statuses[props.serverId] ?? null);
@@ -87,18 +124,29 @@ const stopReason = computed(() =>
         : null,
 );
 
-async function start(): Promise<void> {
-    await store.start(props.serverId);
-    await refresh();
+async function lifecycle(action: "start" | "stop" | "forget"): Promise<void> {
+    if (lifecycleBusy.value) return;
+    lifecycleBusy.value = true;
+    lifecycleFailure.value = null;
+    const id = props.serverId;
+    try {
+        const result = action === "start" ? await store.start(id)
+            : action === "stop" ? await store.stop(id, { graceful: true }) : await store.forget(id);
+        if (disposed || id !== props.serverId) return;
+        if (!result.ok) {
+            lifecycleFailure.value = `${result.failure?.message ?? t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.")}${result.failure?.detail ? ` ${result.failure.detail}` : ""}`;
+        } else if (action === "forget") {
+            emit("forgotten");
+            return;
+        }
+        await refresh();
+    } catch {
+        if (!disposed && id === props.serverId) lifecycleFailure.value = t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.");
+    } finally { lifecycleBusy.value = false; }
 }
-async function stop(): Promise<void> {
-    await store.stop(props.serverId, { graceful: true });
-    await refresh();
-}
-async function confirmForget(): Promise<void> {
-    const result = await store.forget(props.serverId);
-    if (result.ok) emit("forgotten");
-}
+async function start(): Promise<void> { await lifecycle("start"); }
+async function stop(): Promise<void> { await lifecycle("stop"); }
+async function confirmForget(): Promise<void> { await lifecycle("forget"); }
 
 // --- Web console ---
 const webStatus = ref<WebConsoleStatus | null>(null);
@@ -193,12 +241,13 @@ async function setPassword(): Promise<void> {
             }}
         </VAlert>
 
+        <VAlert v-if="lifecycleFailure" type="error" role="alert" closable @click:close="lifecycleFailure = null">{{ lifecycleFailure }}</VAlert>
         <div class="wl-mcserver-panel__actions">
             <VBtn
                 :prepend-icon="mdiPlay"
                 color="primary"
                 variant="tonal"
-                :disabled="!!startReason"
+                :disabled="lifecycleBusy || !!startReason"
                 :title="startReason ?? undefined"
                 @click="start"
             >
@@ -207,7 +256,7 @@ async function setPassword(): Promise<void> {
             <VBtn
                 :prepend-icon="mdiStop"
                 variant="tonal"
-                :disabled="!!stopReason"
+                :disabled="lifecycleBusy || !!stopReason"
                 :title="stopReason ?? undefined"
                 @click="stop"
             >
