@@ -110,13 +110,25 @@ async function focusReturnedServer(id: string | null | undefined): Promise<void>
 
 let statusTimer: ReturnType<typeof setTimeout> | undefined;
 let disposed = false;
+const monitored = new Map<string, number>();
 async function pollRunning(): Promise<void> {
     try {
+        const ids = new Set(store.servers.value.map(server => server.id));
+        for (const id of monitored.keys()) if (!ids.has(id)) monitored.delete(id);
         for (const server of store.servers.value) {
             if (disposed) return;
-            if (!store.statuses[server.id]?.running) continue;
+            if (store.statuses[server.id]?.running) monitored.set(server.id, 0);
+            if (!monitored.has(server.id)) continue;
             const answer = await store.refreshStatus(server.id);
             if (disposed) return;
+            if (!answer.ok || answer.value?.state === "unknown") {
+                const attempts = (monitored.get(server.id) ?? 0) + 1;
+                if (attempts >= 3) monitored.delete(server.id);
+                else monitored.set(server.id, attempts);
+                continue;
+            }
+            if (answer.value?.running) monitored.set(server.id, 0);
+            else monitored.delete(server.id);
             if (answer.ok && answer.value?.state === "exited") {
                 lifecycleErrors.value.push(t("mcserver.lifecycle.exited", { name: server.name, code: answer.value.exitCode ?? "unknown" }, { default: "Server {name} exited (code {code}). Open its console or logs for details." }));
             }
@@ -261,7 +273,7 @@ async function stopOne(id: string): Promise<void> {
 
 <template>
     <div class="wl-mcserver-list">
-        <VAlert v-if="lifecycleErrors.length" type="error" role="alert" closable @click:close="lifecycleErrors = []">{{ lifecycleErrors.join(" · ") }}</VAlert>
+        <VAlert v-if="lifecycleErrors.length" type="error" role="alert" closable @click:close="lifecycleErrors = []">{{ lifecycleErrors.join("; ") }}</VAlert>
         <div class="wl-mcserver-list__header">
             <div class="text-h6" data-test="mcserver-list-heading" tabindex="-1">
                 {{ t("mcserver.list.title", "Minecraft servers") }}

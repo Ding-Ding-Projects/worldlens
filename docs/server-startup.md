@@ -9,3 +9,7 @@ While the list is mounted, running servers receive non-overlapping status refres
 ## Verification
 
 Focused regressions cover independent IPC calls, concurrent starts, metadata edits, active-record retention, asynchronous spawn errors and visible start errors. Real Java startup, protocol readiness and graceful shutdown still require runtime acceptance against an explicitly selected server.
+
+## Retired bundled runtime recovery
+
+A missing Java path under the current user's Worldlens versioned installation is rediscovered from the current bundled or provisioned managed runtime, with its Java requirement checked. Custom executable paths are preserved. The saved server archive, loader arguments and memory setting stay unchanged. A missing server archive or occupied port remains an actionable startup failure; this repair never downloads a replacement server, accepts its EULA or changes its port.

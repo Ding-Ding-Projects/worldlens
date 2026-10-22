@@ -12,7 +12,7 @@
  */
 
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, win32 } from "node:path";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
@@ -452,6 +452,12 @@ function readAwsTeardownTarget(request: unknown): AwsTeardownTarget | null {
     };
 }
 
+export function isMissingBundledServerJava(executable: string, localAppData = process.env.LOCALAPPDATA): boolean {
+    if (!localAppData || existsSync(executable)) return false;
+    const relative = win32.relative(win32.join(localAppData, "Worldlens"), executable);
+    return /^app-\d+\.\d+\.\d+(?:[-+][a-z0-9.-]+)?\\resources\\bundled\\java\\bin\\java\.exe$/i.test(relative);
+}
+
 export function registerMcServerHandlers(
     ipcMain: IpcMainLike,
     options: McServerIpcOptions,
@@ -601,12 +607,15 @@ export function registerMcServerHandlers(
      * found, which the factory then reports honestly.
      */
     async function resolveLocalRuntime(record: ServerRecord): Promise<LocalRuntimeRecord | null> {
-        if (record.localRuntime !== null) return record.localRuntime;
+        const saved = record.localRuntime;
+        const repairBundled = saved !== null && isMissingBundledServerJava(saved.javaPath);
+        if (saved !== null && !repairBundled) return saved;
         if (record.ref.kind !== "local-process") return null;
 
         const requirement = requiredJavaFeature(record.minecraftVersion ?? "");
         const discovery = await discoverJava({
             dataDir: options.dataFolder,
+            ...(repairBundled ? { env: {} } : {}),
             required: requirement.known ? requirement.feature : REQUIRED_JAVA_FEATURE,
             ...(options.resourcesPath === undefined || options.resourcesPath === null
                 ? {}
@@ -616,8 +625,9 @@ export function registerMcServerHandlers(
 
         const repaired: LocalRuntimeRecord = {
             javaPath: discovery.installation.executable,
-            jarPath: join(record.ref.serverDir, "server.jar"),
-            memoryMb: DEFAULT_LOCAL_MEMORY_MB,
+            jarPath: saved?.jarPath ?? join(record.ref.serverDir, "server.jar"),
+            memoryMb: saved?.memoryMb ?? DEFAULT_LOCAL_MEMORY_MB,
+            ...(saved?.argsFile === undefined ? {} : { argsFile: saved.argsFile }),
         };
         // Write it back so the next open is a plain read and the repair is visible in the
         // record rather than being redone silently on every call.

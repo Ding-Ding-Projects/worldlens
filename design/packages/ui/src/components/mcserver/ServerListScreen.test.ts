@@ -156,6 +156,23 @@ describe("ServerListScreen", () => {
             expect(reads).toBe(2);
         } finally { wrapper.unmount(); vi.useRealTimers(); }
     });
+    it("retries a transient unknown status and observes the recovered exit", async () => {
+        vi.useFakeTimers();
+        const host = fakeHost([record("survival", "Survival")]);
+        let reads = 0;
+        host.status = async () => {
+            reads++;
+            if (reads === 2) throw new Error("Temporary disconnect");
+            return ok({ state: reads === 1 ? "running" : "exited", running: reads === 1, startedAt: null, exitCode: reads === 1 ? null : 1, checkedAt: "now" });
+        };
+        const { wrapper } = mountScreen(host);
+        try {
+            await flushPromises();
+            await vi.advanceTimersByTimeAsync(4000);
+            expect(reads).toBe(3);
+            expect(wrapper.text()).toContain("exited (code 1)");
+        } finally { wrapper.unmount(); vi.useRealTimers(); }
+    });
     it("says plainly that this build cannot reach a server host", () => {
         const { wrapper } = mountScreen(null);
         expect(wrapper.text()).toContain("This build cannot reach a Minecraft server host");
