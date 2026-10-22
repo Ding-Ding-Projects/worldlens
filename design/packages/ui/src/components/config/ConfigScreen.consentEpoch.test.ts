@@ -80,6 +80,20 @@ async function settle(): Promise<void> {
 }
 
 describe("the options editor and the consent record", () => {
+    it("identifies browser preview and explains unavailable saving without hover", async () => {
+        wrapper = mount(ConfigScreen, {
+            props: { host: null, initialScreen: "maps" },
+            global: { plugins: [vuetify, i18n] },
+        });
+        await settle();
+        expect(wrapper.get("[data-config-identity]").text()).toBe("Browser preview");
+        expect(wrapper.get("[data-config-save-reason]").text()).not.toBe("");
+        expect(wrapper.get("[data-config-guidance]").text()).toContain("One screen per map");
+        await wrapper.setProps({ initialScreen: "history" });
+        await settle();
+        expect(wrapper.get("[data-config-guidance]").text()).toContain("Review saved versions");
+    });
+
     it("re-reads the recorded answer when the settings surface closes", async () => {
         // `host: null` is this component's documented "there is deliberately no host" value,
         // so the mount does no file work and the consent read is the behaviour under test.

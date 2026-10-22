@@ -323,6 +323,15 @@ async function copyText(): Promise<void> {
                 }}
             </p>
 
+            <div v-if="groups.length > 0" class="mb-config-form__group-actions">
+                <v-btn variant="text" size="small" :disabled="openPanels.length === allPanels.length" data-expand-groups @click="openPanels = [...allPanels]">
+                    {{ t("config.form.expandAll", "Expand all groups") }}
+                </v-btn>
+                <v-btn variant="text" size="small" :disabled="openPanels.length === 0" data-collapse-groups @click="openPanels = []">
+                    {{ t("config.form.collapseAll", "Collapse all groups") }}
+                </v-btn>
+            </div>
+
             <v-expansion-panels
                 v-model="openPanels"
                 multiple
@@ -472,6 +481,25 @@ async function copyText(): Promise<void> {
 .mb-config-form__panels {
     border-radius: 12px;
     overflow: hidden;
+}
+
+.mb-config-form__group-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-block-end: 8px;
+}
+
+.mb-config-form__group-actions .v-btn {
+    max-width: 100%;
+    height: auto;
+    min-height: 36px;
+    padding-block: 8px;
+}
+
+.mb-config-form__group-actions .v-btn__content {
+    white-space: normal;
+    overflow-wrap: anywhere;
 }
 
 .mb-config-form__group {

@@ -120,6 +120,21 @@ describe("the raw-source disclosure", () => {
 });
 
 describe("the first complete descriptor view", () => {
+    it("collapses and reopens every group without removing advanced settings", async () => {
+        const view = mountForm();
+        await nextTick();
+        const groups = () => view.findAll(".v-expansion-panel--active");
+        const count = groups().length;
+        expect(count).toBeGreaterThan(0);
+        await view.get("[data-collapse-groups]").trigger("click");
+        expect(groups()).toHaveLength(0);
+        expect(view.get("[data-collapse-groups]").attributes("disabled")).toBeDefined();
+        await view.get("[data-expand-groups]").trigger("click");
+        expect(groups()).toHaveLength(count);
+        expect(view.findAll("[data-field-path]")).toHaveLength(view.props("file").descriptor.fields.length);
+        view.unmount();
+    });
+
     it("shows every FieldMeta row, including advanced rows, before a person changes a filter", async () => {
         const view = mountForm();
         await nextTick();

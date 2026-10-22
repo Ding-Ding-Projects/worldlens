@@ -176,6 +176,34 @@ function timedRun(mapIds: string[] = ["survival"]) {
 }
 
 describe("what the panel says, rendered", () => {
+    it("opens a live map when metadata is ready without waiting for completion", async () => {
+        const { fake, run } = startedRun();
+        fake.emit({
+            type: "preview-ready",
+            renderId: "world-abc",
+            at: "t0",
+            dataRoot: "/local/world-abc",
+        });
+        const wrapper = render(run);
+        const button = wrapper
+            .findAll("button")
+            .find((entry) => entry.text() === "View live progress")!;
+        expect(button.attributes("disabled")).toBeUndefined();
+        await button.trigger("click");
+        expect(wrapper.emitted("open")).toEqual([["/local/world-abc", ["survival"]]]);
+        expect(run.active.value).toBe(true);
+        wrapper.unmount();
+    });
+
+    it("keeps live preview unavailable until the backend supplies an output route", () => {
+        const { run } = startedRun();
+        const wrapper = render(run);
+        const button = wrapper
+            .findAll("button")
+            .find((entry) => entry.text() === "View live progress")!;
+        expect(button.attributes("disabled")).toBeDefined();
+        wrapper.unmount();
+    });
     it("shows engine repair progress and byte counts before the render starts", () => {
         const fake = fakeBridge();
         const run = createRenderRun(fake.bridge);

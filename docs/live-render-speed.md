@@ -1,5 +1,18 @@
 # Adjusting a render's speed while it runs
 
+The desktop render router forwards the live-speed capability to the local or Docker
+backend. Changing the destination picker after launch does not retarget an existing
+render. SSH live-speed adjustment remains unavailable.
+
+## View the map during rendering
+
+Use **View live progress** beside an active render to open its local output while the
+engine continues. The button becomes available after the engine has written its map
+settings and texture metadata. An empty output folder is not offered as a ready map.
+Only saved tiles are visible. SSH output becomes available after collection instead.
+Opening the viewer does not cancel or restart the render. Failed or cancelled output
+is not retained as a completed map mount.
+
 ## Behaviour
 
 Every render already carries a novice 1-5 "Speed" dial, set before a render starts (see

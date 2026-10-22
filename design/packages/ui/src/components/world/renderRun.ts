@@ -1141,8 +1141,12 @@ export function createRenderRun(
         lastEventAtMs.value = at;
 
         switch (event.type) {
+            case "preview-ready":
+                dataRoot.value = event.dataRoot;
+                break;
             case "started":
                 state.value = "running";
+                dataRoot.value = event.dataRoot ?? null;
                 engineProvisioning.value = null;
                 engine.value = event.engine;
                 mapIds.value = event.mapIds;

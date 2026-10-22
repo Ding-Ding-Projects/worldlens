@@ -35,11 +35,21 @@ const localResult: RenderResult = {
     renderId: "local-1",
     dataRoot: "C:/maps/local",
     mapIds: ["overworld"],
-    engine: { id: "upstream-java", label: "BlueMap 5.11 (Java)", version: "5.11", javaVersion: "25" },
+    engine: {
+        id: "upstream-java",
+        label: "BlueMap 5.11 (Java)",
+        version: "5.11",
+        javaVersion: "25",
+    },
     durationMs: 1000,
 };
 
-function fakeBase(): { bridge: WorldBridge; emit: (event: RenderEvent) => void; started: unknown[]; cancelled: string[] } {
+function fakeBase(): {
+    bridge: WorldBridge;
+    emit: (event: RenderEvent) => void;
+    started: unknown[];
+    cancelled: string[];
+} {
     const listeners: ((event: RenderEvent) => void)[] = [];
     const started: unknown[] = [];
     const cancelled: string[] = [];
@@ -62,7 +72,10 @@ function fakeBase(): { bridge: WorldBridge; emit: (event: RenderEvent) => void; 
             renderEngine: async () => null,
             activeRenders: async () => [],
             interruptedRenders: async () => [],
-            resumeRender: async () => ({ started: false, refusal: { ok: false, renderId: "", code: "no-session", message: "" } }),
+            resumeRender: async () => ({
+                started: false,
+                refusal: { ok: false, renderId: "", code: "no-session", message: "" },
+            }),
             dismissResume: async () => false,
             onRenderEvent: (listener) => {
                 listeners.push(listener);
@@ -87,7 +100,11 @@ function fakeRemote(answer: RemoteRenderResult): {
         started,
         cancelled,
         bridge: {
-            validateRemoteTarget: async () => ({ ok: true, target, summary: "renderer@build.lan:22" }),
+            validateRemoteTarget: async () => ({
+                ok: true,
+                target,
+                summary: "renderer@build.lan:22",
+            }),
             describeRemoteTarget: async () => ({ ok: false, message: "not asked here" }),
             remotePreflight: async () => {
                 throw new Error("not asked here");
@@ -102,7 +119,12 @@ function fakeRemote(answer: RemoteRenderResult): {
                 return true;
             },
             activeRemoteRenders: async () => [],
-            browseRemoteDirectory: async () => ({ ok: false, code: "remote-failed", message: "not asked here", detail: null }),
+            browseRemoteDirectory: async () => ({
+                ok: false,
+                code: "remote-failed",
+                message: "not asked here",
+                detail: null,
+            }),
             canDescribe: true,
             canTrustHostKey: true,
             canCancel: true,
@@ -136,7 +158,9 @@ describe("choosing where a render goes", () => {
     it("sends a remote choice to the remote channel, with the machine attached", async () => {
         const { made, remote, base } = router({ location: "remote", target });
 
-        const result = await made.startRender({ maps: [{ id: "overworld", world: "C:/saves/world" }] });
+        const result = await made.startRender({
+            maps: [{ id: "overworld", world: "C:/saves/world" }],
+        });
 
         expect(remote.started).toHaveLength(1);
         expect(base.started).toHaveLength(0);
@@ -210,7 +234,12 @@ describe("stopping one", () => {
         const failed: RemoteRenderResult = {
             ok: false,
             renderId: "remote-2",
-            failure: { code: "render-failed", message: "the container stopped", detail: null, exitCode: 1 },
+            failure: {
+                code: "render-failed",
+                message: "the container stopped",
+                detail: null,
+                exitCode: 1,
+            },
         };
         const { made, remote } = router({ location: "remote", target }, failed);
         await made.startRender({ maps: [{ id: "a", world: "C:/w" }] });
@@ -286,19 +315,27 @@ describe("what the router leaves alone", () => {
     it("passes every other method straight through", async () => {
         const base = fakeBase();
         const seen = vi.spyOn(base.bridge, "listRenders");
-        const made = createRenderRouter(base.bridge, null, () => ({ location: "local", target: null }));
+        const made = createRenderRouter(base.bridge, null, () => ({
+            location: "local",
+            target: null,
+        }));
 
         await made?.listRenders();
         expect(seen).toHaveBeenCalled();
     });
 
     it("is nothing at all when there is no bridge to wrap", () => {
-        expect(createRenderRouter(null, null, () => ({ location: "local", target: null }))).toBeNull();
+        expect(
+            createRenderRouter(null, null, () => ({ location: "local", target: null })),
+        ).toBeNull();
     });
 
     it("stops listening when it is disposed", () => {
         const base = fakeBase();
-        const made = createRenderRouter(base.bridge, null, () => ({ location: "local", target: null }));
+        const made = createRenderRouter(base.bridge, null, () => ({
+            location: "local",
+            target: null,
+        }));
 
         made?.dispose();
         // Nothing to assert beyond it not throwing; the listener list is private, and the
@@ -308,6 +345,34 @@ describe("what the router leaves alone", () => {
 });
 
 describe("the chosen place actually reaches the main process", () => {
+    it.each(["local", "docker"] as const)(
+        "forwards live speed on the %s route",
+        async (location) => {
+            const base = fakeBase();
+            const result = {
+                ok: true,
+                renderId: "local-1",
+                level: 2 as const,
+                route: "local" as const,
+                appliedNow: true,
+                needsRestart: true,
+                reason: "applied" as const,
+                message: "applied",
+                detail: null,
+            };
+            base.bridge.adjustRenderSpeed = vi.fn(async () => result);
+            const made = createRenderRouter(base.bridge, null, () => ({ location, target: null }))!;
+            expect(await made.adjustRenderSpeed!("local-1", 2)).toBe(result);
+            expect(base.bridge.adjustRenderSpeed).toHaveBeenCalledWith("local-1", 2);
+            made.dispose();
+        },
+    );
+
+    it("preserves a missing speed capability rather than inventing success", () => {
+        const { made } = router({ location: "local", target: null });
+        expect(made.adjustRenderSpeed).toBeUndefined();
+        made.dispose();
+    });
     // This is the whole point of the router, and it was quietly not happening: the choice
     // was made, shown as made, and dropped on the way out, so picking a container rendered
     // on this machine anyway. A test that only exercised the remote branch could not see it.

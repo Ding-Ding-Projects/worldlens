@@ -905,6 +905,20 @@ export const CONFIGEDITOR_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const CONFIGEDITOR_FIXED = {
+    "config.workspace.title": { en: "Configuration", yue: "設定檔" },
+    "config.workspace.preview": { en: "Browser preview", yue: "瀏覽器預覽" },
+    "config.workspace.defaults": { en: "Unsaved defaults", yue: "未儲存嘅預設設定" },
+    "config.workspace.editHint": { en: "Review the settings below. Changes stay in this editor until you save.", yue: "檢查下面嘅設定。儲存之前，修改只會留喺呢個編輯器入面。" },
+    "config.guide.core": { en: "Folders, render threads, update timing and the debug log.", yue: "設定資料夾、渲染執行緒、更新時間同除錯記錄。" },
+    "config.guide.maps": { en: "One screen per map: world, bounds, lighting, tiles and markers.", yue: "每張地圖都有獨立設定：世界、範圍、光線、圖塊同標記。" },
+    "config.guide.storages": { en: "Where rendered tiles are written, on disk or into a database.", yue: "選擇渲染圖塊儲存喺磁碟定資料庫。" },
+    "config.guide.webapp": { en: "What a visitor sees, and where the web app is generated.", yue: "設定訪客見到嘅內容，同網頁應用程式嘅產生位置。" },
+    "config.guide.webserver": { en: "The built-in server: port, bind address and access log.", yue: "設定內置伺服器嘅連接埠、綁定位址同存取記錄。" },
+    "config.guide.plugin": { en: "Live player markers and the settings only a server plugin uses.", yue: "設定即時玩家標記，同只供伺服器外掛使用嘅選項。" },
+    "config.guide.run": { en: "The command-line flags a render, a marker update or the web server is started with.", yue: "設定渲染、更新標記或啟動網頁伺服器所用嘅命令列選項。" },
+    "config.guide.history": { en: "Review saved versions and restore earlier configuration changes.", yue: "檢查已儲存版本，還原之前嘅設定修改。" },
+    "config.form.expandAll": { en: "Expand all groups", yue: "展開全部群組" },
+    "config.form.collapseAll": { en: "Collapse all groups", yue: "收起全部群組" },
     "config.field.sourceAuthored": {
         en: "Docs: BlueMap source-derived explanation",
         yue: "文件：由 BlueMap 原始碼推導嘅解釋",

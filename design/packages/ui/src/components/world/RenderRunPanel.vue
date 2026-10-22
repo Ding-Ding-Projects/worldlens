@@ -235,6 +235,26 @@ function openMap(): void {
                 <LiveSpeedControl :run="run" />
 
                 <v-btn
+                    :prepend-icon="mdiMapSearchOutline"
+                    :disabled="run.dataRoot.value === null"
+                    color="primary"
+                    variant="tonal"
+                    size="small"
+                    class="mt-2 mr-2"
+                    @click="openMap"
+                >
+                    {{ t("world.run.viewLiveProgress", "View live progress") }}
+                </v-btn>
+                <p class="mb-world-run__note">
+                    {{
+                        t(
+                            "world.run.liveProgressNote",
+                            "Open the map while rendering continues. Tiles appear as they are saved; the map may be empty while the engine prepares its first tiles. SSH maps become available after their files are fetched back.",
+                        )
+                    }}
+                </p>
+
+                <v-btn
                     :prepend-icon="mdiStopCircleOutline"
                     :disabled="run.cancelling.value"
                     color="error"

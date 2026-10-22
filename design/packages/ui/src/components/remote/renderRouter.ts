@@ -98,10 +98,7 @@ export function createRenderRouter(
         };
     }
 
-    function asRenderResult(
-        answer: RemoteRenderResult,
-        target: RemoteTarget | null,
-    ): RenderResult {
+    function asRenderResult(answer: RemoteRenderResult, target: RemoteTarget | null): RenderResult {
         if (!answer.ok) {
             // `RemoteFailure` extends `RenderFailure`, so the failure banner, its detail
             // disclosure and its exit code all work with no special case. `settings` is
@@ -151,7 +148,9 @@ export function createRenderRouter(
             const answer = await remote.startRemoteRender({
                 ...request,
                 target,
-                ...(chosen.requiredBytes === undefined ? {} : { requiredBytes: chosen.requiredBytes }),
+                ...(chosen.requiredBytes === undefined
+                    ? {}
+                    : { requiredBytes: chosen.requiredBytes }),
             });
             const result = asRenderResult(answer, target);
             // Recorded even for a failure, so a render that failed *there* is cancelled
@@ -168,6 +167,26 @@ export function createRenderRouter(
         },
 
         listRenders: () => base.listRenders(),
+        ...(base.adjustRenderSpeed === undefined
+            ? {}
+            : {
+                  async adjustRenderSpeed(renderId, level) {
+                      if (remoteIds.has(renderId)) {
+                          return {
+                              ok: false,
+                              renderId,
+                              level,
+                              route: "unsupported" as const,
+                              appliedNow: false,
+                              needsRestart: false,
+                              reason: "not-running" as const,
+                              message: "Live speed adjustment is not available for SSH renders.",
+                              detail: null,
+                          };
+                      }
+                      return await base.adjustRenderSpeed!(renderId, level);
+                  },
+              }),
         renderEngine: (renderId) => base.renderEngine(renderId),
         activeRenders: () => base.activeRenders(),
         interruptedRenders: () => base.interruptedRenders(),

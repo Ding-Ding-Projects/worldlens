@@ -101,7 +101,15 @@ export interface EngineDescription {
 }
 
 export type RenderEvent =
-    | { type: "started"; renderId: string; mapIds: string[]; engine: EngineDescription; at: string }
+    | { type: "preview-ready"; renderId: string; dataRoot: string; at: string }
+    | {
+          type: "started";
+          renderId: string;
+          mapIds: string[];
+          engine: EngineDescription;
+          at: string;
+          dataRoot?: string;
+      }
     | { type: "phase"; renderId: string; phase: string; at: string }
     | { type: "progress"; renderId: string; phase: string; task: RenderTaskProgress; at: string }
     | {

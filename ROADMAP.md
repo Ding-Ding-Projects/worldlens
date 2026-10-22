@@ -1,5 +1,13 @@
 # Roadmap
 
+## Live render controls and configuration usability, 2026-10-22
+
+- [x] Restore live-speed forwarding through the desktop render router, with focused regression tests.
+- [x] Add metadata-ready live-map navigation without stopping an active render.
+- [x] Preserve every configuration control while improving workspace identity, save guidance and group navigation.
+- [x] Synchronize the maintained BlueMap branch with upstream master through `51c05400`.
+- [ ] Verify the rebuilt desktop interactions and configuration layout across supported presentation settings.
+
 ## Complete feature and BlueMap continuation (2026-10-11)
 
 - [x] Track all 107 current canonical feature ids across five surface scopes, including practical onboarding and per-control information guidance, without claiming unknown coverage.

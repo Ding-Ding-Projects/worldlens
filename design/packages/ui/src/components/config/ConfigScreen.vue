@@ -184,6 +184,20 @@ const activeScreen = computed<ScreenId | "history">(
     () => (tabsNav.value?.activePage?.id as ScreenId | "history" | undefined) ?? props.initialScreen,
 );
 
+const screenGuidance = computed(() => {
+    if (activeScreen.value === "history") {
+        return t("config.guide.history", "Review saved versions and restore earlier configuration changes.");
+    }
+    const screen = SCREENS.find((candidate) => candidate.id === activeScreen.value);
+    return screen === undefined ? "" : t(`config.guide.${screen.id}`, screen.description);
+});
+const workspaceIdentity = computed(() =>
+    workspace.value?.folder ??
+    (host === null
+        ? t("config.workspace.preview", "Browser preview")
+        : t("config.workspace.defaults", "Unsaved defaults")),
+);
+
 /**
  * `initialScreen` is not merely a seed: `App.vue` recomputes it on every palette jump
  * (`pendingConfigScreen ?? 'core'`) and expects this screen to follow, exactly as the
@@ -614,6 +628,11 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 
 <template>
     <div class="mb-config-screen">
+        <header class="mb-config-screen__identity">
+            <h1>{{ t("config.workspace.title", "Configuration") }}</h1>
+            <p class="mb-config-screen__folder" data-config-identity>{{ workspaceIdentity }}</p>
+            <p class="mb-config-screen__note">{{ t("config.workspace.editHint", "Review the settings below. Changes stay in this editor until you save.") }}</p>
+        </header>
         <v-toolbar density="comfortable" color="transparent" class="mb-config-screen__bar">
             <v-btn :prepend-icon="mdiFolderOpenOutline" :disabled="host === null || busy" variant="tonal" size="small" @click="openFolder">
                 {{ t("config.shell.open", "Open or import a config folder") }}
@@ -664,6 +683,8 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 <v-tooltip v-if="saveReason" activator="parent" location="bottom" :text="saveReason" />
             </v-btn>
         </v-toolbar>
+
+        <p v-if="saveReason" class="mb-config-screen__note" role="status" data-config-save-reason>{{ saveReason }}</p>
 
         <v-progress-linear v-if="busy" indeterminate color="primary" />
 
@@ -726,6 +747,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
                 sets" was cut in half. A restored workspace's own placement still wins - this
                 is a default, not a policy.
             -->
+            <p class="mb-config-screen__guidance" data-config-guidance>{{ screenGuidance }}</p>
             <TabbedNavigation
                 closeless
                 ref="tabsNav"
@@ -905,6 +927,33 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
     padding: 12px 16px 24px;
     max-width: 1200px;
     margin-inline: auto;
+}
+
+.mb-config-screen__identity {
+    padding: 16px;
+    border-radius: 16px;
+    background: rgba(var(--v-theme-primary), 0.04);
+    min-width: 0;
+}
+
+.mb-config-screen__identity h1 {
+    font-size: 1.5rem;
+    line-height: 1.3;
+    font-weight: 500;
+    margin-block-end: 8px;
+}
+
+.mb-config-screen__folder {
+    overflow-wrap: anywhere;
+    font-size: 0.875rem;
+    margin-block-end: 4px;
+}
+
+.mb-config-screen__guidance {
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin-block: 8px 0;
+    overflow-wrap: anywhere;
 }
 
 /*

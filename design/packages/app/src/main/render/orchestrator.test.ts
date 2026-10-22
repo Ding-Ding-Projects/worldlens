@@ -875,6 +875,42 @@ describe("cancellation", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("adjustSpeed - local route", () => {
+    it("offers live preview only after output metadata exists and retires it on cancellation", async () => {
+        const script = await fakeCli({
+            lines: ["[12:36:13 INFO] Start updating 1 maps ..."],
+            sleepMs: 60_000,
+        });
+        const mounts = new LocalMapHandler();
+        const events: RenderEvent[] = [];
+        const orchestrator = new RenderOrchestrator({
+            storageDir,
+            mounts,
+            hasConsent: () => true,
+            resolveEngine: async () => ENGINE,
+            spawn: spawnScript(script, []),
+            onEvent: (event) => events.push(event),
+        });
+        const running = orchestrator.render(request({ renderId: "live-preview" }));
+        await waitUntil(() => orchestrator.activeRenderIds().includes("live-preview"));
+        expect(events.some((event) => event.type === "preview-ready")).toBe(false);
+        const web = join(storageDir, "live-preview", "web");
+        await mkdir(join(web, "maps", "overworld"), { recursive: true });
+        await writeFile(join(web, "settings.json"), '{"maps":["overworld"]}');
+        await writeFile(join(web, "maps", "overworld", "settings.json"), "{}");
+        await writeFile(join(web, "maps", "overworld", "textures.json"), "[]");
+        try {
+            await waitUntil(() => events.some((event) => event.type === "preview-ready"));
+            expect(mounts.getMount("live-preview")).not.toBeNull();
+            expect(events.find((event) => event.type === "preview-ready")).toMatchObject({
+                dataRoot: "/local/live-preview",
+            });
+        } finally {
+            orchestrator.cancel("live-preview");
+            await running;
+        }
+        expect(mounts.getMount("live-preview")).toBeNull();
+    }, 10_000);
+
     it("applies each level's exact documented OS priority to the render's own live pid, immediately", async () => {
         const script = await fakeCli({
             lines: [

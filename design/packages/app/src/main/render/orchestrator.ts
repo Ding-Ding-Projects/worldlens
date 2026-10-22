@@ -282,6 +282,7 @@ export interface RenderStartedEvent {
     readonly type: "started";
     readonly renderId: string;
     readonly mapIds: readonly string[];
+    readonly dataRoot?: string;
     readonly engine: EngineDescription;
     readonly at: string;
 }
@@ -370,6 +371,12 @@ export interface RenderEngineProvisionEvent {
  * banner telling them something went wrong.
  */
 export type RenderEvent =
+    | {
+          readonly type: "preview-ready";
+          readonly renderId: string;
+          readonly dataRoot: string;
+          readonly at: string;
+      }
     | RenderStartedEvent
     | RenderPhaseEvent
     | RenderProgressEvent
@@ -559,6 +566,8 @@ export class EngineUnavailableError extends Error {
 export class RenderOrchestrator {
     private readonly options: RenderOrchestratorOptions;
     private readonly running = new Map<string, RunningRender>();
+    private readonly previewOwners = new Map<symbol, string>();
+    private readonly previewTimers = new Map<symbol, ReturnType<typeof setInterval>>();
     private readonly pending = new Map<
         string,
         { readonly controller: AbortController; readonly token: symbol; visible: boolean }
@@ -821,9 +830,17 @@ export class RenderOrchestrator {
      */
     async render(request: RenderRequest): Promise<RenderResult> {
         const token = Symbol("render-lifecycle");
+        let outcome: RenderResult | null = null;
         try {
-            return await this.renderInternal(request, token);
+            outcome = await this.renderInternal(request, token);
+            return outcome;
         } finally {
+            const previewId = this.previewOwners.get(token);
+            if (previewId !== undefined && !outcome?.ok)
+                this.options.mounts?.removeMount(previewId);
+            clearInterval(this.previewTimers.get(token));
+            this.previewTimers.delete(token);
+            this.previewOwners.delete(token);
             for (const [renderId, pending] of this.pending)
                 if (pending.token === token) this.pending.delete(renderId);
         }
@@ -886,7 +903,7 @@ export class RenderOrchestrator {
             return this.fail(renderId, failures.consentRequired(), null);
         }
 
-        if (this.running.has(renderId)) {
+        if (this.running.has(renderId) || [...this.previewOwners.values()].includes(renderId)) {
             return this.fail(renderId, failures.alreadyRunning(renderId), null);
         }
         if (this.pending.has(renderId)) {
@@ -1075,6 +1092,8 @@ export class RenderOrchestrator {
             startedAt,
         });
 
+        this.mount(workspace, record);
+        this.previewOwners.set(token, renderId);
         this.emit({
             type: "started",
             renderId,
@@ -1082,6 +1101,43 @@ export class RenderOrchestrator {
             engine: description,
             at: startedAt,
         });
+        // The viewer loads metadata once. Do not offer a half-created output route.
+        let checkingPreview = false;
+        const previewTimer = setInterval(() => {
+            if (checkingPreview || !this.running.has(renderId)) return;
+            checkingPreview = true;
+            void Promise.all([
+                stat(join(workspace.webRoot, "settings.json")),
+                ...request.maps.flatMap((map) => [
+                    stat(join(workspace.webRoot, "maps", map.id, "settings.json")),
+                    stat(join(workspace.webRoot, "maps", map.id, "textures.json.gz")).catch(() =>
+                        stat(join(workspace.webRoot, "maps", map.id, "textures.json")),
+                    ),
+                ]),
+            ])
+                .then((files) => {
+                    if (
+                        !files.every((file) => file.isFile() && file.size > 0) ||
+                        !this.previewOwners.has(token)
+                    )
+                        return;
+                    clearInterval(previewTimer);
+                    this.previewTimers.delete(token);
+                    this.emit({
+                        type: "preview-ready",
+                        renderId,
+                        dataRoot: LocalMapHandler.dataRoot(renderId),
+                        at: this.timestamp(),
+                    });
+                })
+                .catch(() => {
+                    /* Metadata is still being prepared. */
+                })
+                .finally(() => {
+                    checkingPreview = false;
+                });
+        }, 500);
+        this.previewTimers.set(token, previewTimer);
 
         /**
          * One signal handler, shared. This is where "the interface cannot tell" is
