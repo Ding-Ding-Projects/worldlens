@@ -171,6 +171,10 @@ export function createRenderRouter(
             return await base.cancelRender(renderId);
         },
 
+        setAdaptiveRenderSpeed: (id, enabled) => remoteIds.has(id) || !base.setAdaptiveRenderSpeed
+            ? Promise.resolve({ enabled: false, level: null, reason: "unavailable" }) : base.setAdaptiveRenderSpeed(id, enabled),
+        getAdaptiveRenderSpeed: (id) => remoteIds.has(id) || !base.getAdaptiveRenderSpeed
+            ? Promise.resolve({ enabled: false, level: null, reason: "unavailable" }) : base.getAdaptiveRenderSpeed(id),
         listRenders: () => base.listRenders(),
         renderPreview: (renderId) =>
             remoteIds.has(renderId)

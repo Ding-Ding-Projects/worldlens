@@ -167,6 +167,12 @@ export type SpeedLevelNumber = 1 | 2 | 3 | 4 | 5;
  * once: a local priority change lands immediately, and the thread count and thread priority
  * baked into this render's launch still do not move until the render is restarted.
  */
+export interface AdaptiveSpeedState {
+    enabled: boolean;
+    level: SpeedLevelNumber | null;
+    reason: "off" | "sampling" | "pressure" | "idle" | "light" | "steady" | "unavailable" | "apply-failed";
+}
+
 export interface SpeedAdjustmentResult {
     readonly ok: boolean;
     readonly renderId: string;
@@ -258,6 +264,8 @@ export interface WorldBridge {
      * would report, so `renderRun.ts`'s own `adjustSpeed` never has to branch on whether
      * this method exists versus whether it merely refused.
      */
+    setAdaptiveRenderSpeed?(renderId: string, enabled: boolean): Promise<AdaptiveSpeedState>;
+    getAdaptiveRenderSpeed?(renderId: string): Promise<AdaptiveSpeedState>;
     adjustRenderSpeed?(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult>;
     renderPreview?(renderId: string): Promise<{ dataRoot: string; mapIds: string[] } | null>;
     listRenders(): Promise<readonly RenderSummary[]>;
@@ -356,6 +364,8 @@ export function resolveWorldBridge(): WorldBridge | null {
         cancelRender: (renderId) => complete.cancelRender(renderId),
         // Required by the packaged bridge probe above. A stale preload now fails the bridge
         // resolution loudly instead of disguising a missing IPC seam as an unsupported route.
+        ...(typeof complete.setAdaptiveRenderSpeed === "function" ? { setAdaptiveRenderSpeed: (id: string, enabled: boolean) => complete.setAdaptiveRenderSpeed!(id, enabled) } : {}),
+        ...(typeof complete.getAdaptiveRenderSpeed === "function" ? { getAdaptiveRenderSpeed: (id: string) => complete.getAdaptiveRenderSpeed!(id) } : {}),
         adjustRenderSpeed: (renderId, level) => complete.adjustRenderSpeed!(renderId, level),
         renderPreview: (renderId) =>
             isFunction(host.renderPreview)

@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, ref, watch, onUnmounted } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiRestart, mdiSpeedometer } from "@mdi/js";
-import { VBtn, VCard, VCardText, VChip, VIcon } from "vuetify/components";
+import { VBtn, VCard, VCardText, VChip, VIcon, VSwitch } from "vuetify/components";
 import { matchThreadCount } from "../config/speedLevels.js";
 import type { ThreadCountMatch } from "../config/speedLevels.js";
 import { raiseNotice } from "../../stores/notices.js";
 import { RenderThroughput } from "../progress/index.js";
 import type { RenderRun } from "./renderRun.js";
-import type { SpeedAdjustmentResult, SpeedLevelNumber } from "./worldBridge.js";
+import type { AdaptiveSpeedState, SpeedAdjustmentResult, SpeedLevelNumber } from "./worldBridge.js";
 
 /**
  * The 1-5 speed dial, drawn beside a render that is **already running**.
@@ -65,6 +65,48 @@ const pendingLevel = ref<SpeedLevelNumber | null>(null);
 const lastOutcome = ref<SpeedAdjustmentResult | null>(null);
 const restarting = ref(false);
 
+const adaptive = ref<AdaptiveSpeedState>({ enabled: false, level: null, reason: "off" });
+const adaptivePending = ref(false);
+let adaptiveTimer: ReturnType<typeof setTimeout> | undefined;
+let disposed = false;
+let adaptiveRequest = 0;
+async function refreshAdaptive(): Promise<void> {
+    clearTimeout(adaptiveTimer);
+    const request = ++adaptiveRequest;
+    const renderId = props.run.renderId.value;
+    let value: AdaptiveSpeedState;
+    try { value = await props.run.getAdaptiveSpeed(); }
+    catch { value = { enabled: false, level: null, reason: "unavailable" }; }
+    if (disposed || request !== adaptiveRequest || renderId !== props.run.renderId.value) return;
+    adaptive.value = value;
+    if (adaptive.value.enabled) adaptiveTimer = setTimeout(() => void refreshAdaptive(), 5000);
+}
+async function toggleAdaptive(value: unknown): Promise<void> {
+    if (adaptivePending.value || pendingLevel.value !== null) return;
+    adaptivePending.value = true;
+    const request = ++adaptiveRequest;
+    const renderId = props.run.renderId.value;
+    clearTimeout(adaptiveTimer);
+    let result: AdaptiveSpeedState;
+    try { result = await props.run.setAdaptiveSpeed(value === true); }
+    catch { result = { enabled: false, level: null, reason: "unavailable" }; }
+    if (disposed || request !== adaptiveRequest || renderId !== props.run.renderId.value) return;
+    adaptivePending.value = false;
+    adaptive.value = result;
+    if (result.enabled) {
+        // An accepted automatic choice supersedes the manual live result and restart offer.
+        lastOutcome.value = null;
+        adaptiveTimer = setTimeout(() => void refreshAdaptive(), 5000);
+    }
+}
+watch(() => props.run.renderId.value, () => {
+    clearTimeout(adaptiveTimer);
+    adaptivePending.value = false;
+    lastOutcome.value = null;
+    void refreshAdaptive();
+}, { immediate: true });
+onUnmounted(() => { disposed = true; clearTimeout(adaptiveTimer); });
+
 function routeWord(value: SpeedAdjustmentResult["route"]): string {
     switch (value) {
         case "local":
@@ -110,9 +152,13 @@ function levelLabel(level: SpeedLevelNumber): string {
 async function chooseLevel(level: SpeedLevelNumber): Promise<void> {
     if (isDisabled.value || pendingLevel.value !== null) return;
     pendingLevel.value = level;
+    ++adaptiveRequest;
+    adaptivePending.value = false;
+    clearTimeout(adaptiveTimer);
     let result: SpeedAdjustmentResult | null = null;
     try {
         result = await props.run.adjustSpeed(level);
+        await refreshAdaptive();
     } finally {
         pendingLevel.value = null;
     }
@@ -141,6 +187,9 @@ async function restartNow(): Promise<void> {
                 <h3 class="mb-livespeed__title">{{ t("liveSpeed.title", "Adjust speed") }}</h3>
             </div>
 
+            <v-switch :model-value="adaptive.enabled" :disabled="isDisabled || adaptivePending || pendingLevel !== null" :label="t('liveSpeed.dynamic.title')" @update:model-value="toggleAdaptive" />
+            <p>{{ t("liveSpeed.dynamic.description") }}</p>
+            <p role="status" aria-live="polite">{{ t(`liveSpeed.dynamic.${adaptive.reason}`) }}<span v-if="adaptive.level !== null"> · {{ levelLabel(adaptive.level) }}</span></p>
             <p v-if="isDisabled" class="mb-livespeed__disabled" role="status">
                 {{
                     disabledReason === "actions"

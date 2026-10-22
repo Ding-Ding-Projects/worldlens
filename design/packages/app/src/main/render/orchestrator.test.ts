@@ -1208,3 +1208,26 @@ describe("mountExisting", () => {
         expect(await orchestrator.mountExisting("never-existed")).toBeNull();
     }, 20_000);
 });
+
+
+describe("dynamic mode lifecycle", () => {
+    it("belongs to one live render, yields to manual selection and stops on cancellation", async () => {
+        const script = await fakeCli({ lines: ["[12:36:13 INFO] Start updating 1 maps ..."], sleepMs: 60_000 });
+        let priority = 0;
+        const orchestrator = new RenderOrchestrator({
+            storageDir, hasConsent: () => true, resolveEngine: async () => ENGINE,
+            spawn: spawnScript(script, []), idleSeconds: () => 120,
+            priorityControl: { setPriority: (_pid, value) => { priority = value; }, getPriority: () => priority },
+        });
+        expect(orchestrator.setAdaptiveSpeed("missing", true).reason).toBe("unavailable");
+        const running = orchestrator.render(request({ renderId: "dynamic-live" }));
+        await waitUntil(() => orchestrator.activeRenderIds().includes("dynamic-live"));
+        try {
+            expect(orchestrator.setAdaptiveSpeed("dynamic-live", true).enabled).toBe(true);
+            await orchestrator.adjustSpeed("dynamic-live", 2);
+            expect(orchestrator.getAdaptiveSpeed("dynamic-live").enabled).toBe(false);
+            expect(orchestrator.setAdaptiveSpeed("dynamic-live", true).enabled).toBe(true);
+        } finally { orchestrator.cancel("dynamic-live"); await running; }
+        expect(orchestrator.getAdaptiveSpeed("dynamic-live")).toEqual({ enabled: false, level: null, reason: "off" });
+    });
+});

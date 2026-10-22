@@ -284,6 +284,10 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         },
     );
 
+    ipcMain.handle("render:adaptiveSet", (_event: IpcMainInvokeEvent, id: unknown, enabled: unknown) =>
+        orchestrator.setAdaptiveSpeed(typeof id === "string" ? id : "", enabled === true));
+    ipcMain.handle("render:adaptiveGet", (_event: IpcMainInvokeEvent, id: unknown) =>
+        orchestrator.getAdaptiveSpeed(typeof id === "string" ? id : ""));
     ipcMain.handle("render:active", () => orchestrator.activeRenderIds());
     ipcMain.handle("render:preview", (_event: IpcMainInvokeEvent, renderId: unknown) =>
         typeof renderId === "string" ? orchestrator.livePreview(renderId) : null,
@@ -458,6 +462,8 @@ const RENDER_CHANNELS = [
     "render:wsl",
     "render:cancel",
     "render:adjustSpeed",
+    "render:adaptiveSet",
+    "render:adaptiveGet",
     "render:active",
     "render:preview",
     "render:interrupted",

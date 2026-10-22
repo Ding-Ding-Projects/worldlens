@@ -1,3 +1,6 @@
+import { getPriority } from "node:os";
+import { localPriorityForLevel } from "../runtime/speedControl.js";
+import { AdaptiveSpeedController, createHostPressureSampler, type AdaptiveState } from "../runtime/adaptiveSpeed.js";
 /**
  * Rendering a world, from a request to a map the viewer can open.
  *
@@ -412,6 +415,7 @@ export interface RenderFailureResult {
 export type RenderResult = RenderSuccess | RenderFailureResult;
 
 export interface RenderOrchestratorOptions {
+    readonly idleSeconds?: () => number;
     /**
      * Absolute directory renders are written under, already token-expanded.
      *
@@ -571,6 +575,8 @@ export class EngineUnavailableError extends Error {
 
 export class RenderOrchestrator {
     private readonly options: RenderOrchestratorOptions;
+    private readonly speedQueues = new Map<string, Promise<unknown>>();
+    private readonly adaptive = new Map<string, AdaptiveSpeedController>();
     private readonly running = new Map<string, RunningRender>();
     private readonly previewOwners = new Map<symbol, string>();
     private readonly previewTimers = new Map<symbol, ReturnType<typeof setInterval>>();
@@ -618,6 +624,7 @@ export class RenderOrchestrator {
      * needs to acknowledge the click immediately.
      */
     cancel(renderId: string): boolean {
+        this.stopAdaptiveSpeed(renderId);
         const running = this.running.get(renderId);
         if (running === undefined) {
             const pending = this.pending.get(renderId);
@@ -644,7 +651,51 @@ export class RenderOrchestrator {
      * daemon's cgroup quota for a live container name. Neither writes a single byte this
      * render's own resumability depends on.
      */
-    async adjustSpeed(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult> {
+    getAdaptiveSpeed(renderId: string): AdaptiveState {
+        return this.adaptive.get(renderId)?.snapshot() ?? { enabled: false, level: null, reason: "off" };
+    }
+
+    private stopAdaptiveSpeed(renderId: string): void {
+        this.adaptive.get(renderId)?.stop();
+        this.adaptive.delete(renderId);
+    }
+
+    setAdaptiveSpeed(renderId: string, enabled: boolean): AdaptiveState {
+        if (!enabled) { this.stopAdaptiveSpeed(renderId); return this.getAdaptiveSpeed(renderId); }
+        const running = this.running.get(renderId);
+        if (!running || !["local", "docker"].includes(running.mode) || !this.options.idleSeconds)
+            return { enabled: false, level: null, reason: "unavailable" };
+        if (this.adaptive.has(renderId)) return this.getAdaptiveSpeed(renderId);
+        const controller = new AdaptiveSpeedController({
+            sample: createHostPressureSampler(this.options.idleSeconds),
+            apply: async (level) => {
+                if (this.running.get(renderId) !== running) return false;
+                const result = await this.adjustSpeed(renderId, level, true);
+                if (!result.appliedNow || result.reason !== "applied") return false;
+                if (running.mode === "local") {
+                    const pid = running.run.pid();
+                    if (pid === null) return false;
+                    try { return (this.options.priorityControl?.getPriority ?? getPriority)(pid) === localPriorityForLevel(level).priority; }
+                    catch { return false; }
+                }
+                return true;
+            },
+        });
+        this.adaptive.set(renderId, controller);
+        controller.start();
+        return controller.snapshot();
+    }
+
+    async adjustSpeed(renderId: string, level: SpeedLevelNumber, automatic = false): Promise<SpeedAdjustmentResult> {
+        if (!automatic && isSpeedLevel(level)) this.stopAdaptiveSpeed(renderId);
+        const previous = this.speedQueues.get(renderId) ?? Promise.resolve();
+        const operation = previous.catch(() => undefined).then(() => this.applySpeed(renderId, level));
+        this.speedQueues.set(renderId, operation);
+        try { return await operation; }
+        finally { if (this.speedQueues.get(renderId) === operation) this.speedQueues.delete(renderId); }
+    }
+
+    private async applySpeed(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult> {
         if (!isSpeedLevel(level)) {
             return {
                 ok: false,
@@ -1320,6 +1371,7 @@ export class RenderOrchestrator {
         try {
             result = await run.start();
         } finally {
+            this.stopAdaptiveSpeed(renderId);
             this.running.delete(renderId);
             // Cleared in a `finally` for the same reason it was written early: whichever
             // way the run ended - finished, failed, cancelled, crashed - the container is

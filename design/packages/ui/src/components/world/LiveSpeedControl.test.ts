@@ -11,13 +11,13 @@
 
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { defineComponent, h } from "vue";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
-import { VApp, VBtn } from "vuetify/components";
+import { VApp, VBtn, VSwitch } from "vuetify/components";
 import LiveSpeedControl from "./LiveSpeedControl.vue";
 import { createRenderRun } from "./renderRun.js";
-import type { RenderEvent, RenderResult, SpeedAdjustmentResult, WorldBridge } from "./worldBridge.js";
+import type { AdaptiveSpeedState, RenderEvent, RenderResult, SpeedAdjustmentResult, WorldBridge } from "./worldBridge.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -251,4 +251,76 @@ describe("a render on the local route", () => {
         expect(wrapper.text()).toContain("could not be applied");
         expect(wrapper.text()).not.toContain("effective immediately");
     });
+});
+
+
+describe("dynamic rendering controls", () => {
+    it("sends explicit opt-in and shows measured state from the bridge", async () => {
+        const { run, fake } = runningOn("local");
+        fake.bridge.getAdaptiveRenderSpeed = vi.fn(async () => ({ enabled: false, level: null, reason: "off" as const }));
+        fake.bridge.setAdaptiveRenderSpeed = vi.fn(async () => ({ enabled: true, level: 1 as const, reason: "pressure" as const }));
+        const wrapper = mountControl(run);
+        await flushPromises();
+        wrapper.findComponent(VSwitch).vm.$emit("update:modelValue", true);
+        await flushPromises();
+        expect(fake.bridge.setAdaptiveRenderSpeed).toHaveBeenCalledWith("world-abc", true);
+        expect(wrapper.text()).toContain("liveSpeed.dynamic.pressure");
+        wrapper.unmount();
+    });
+    it("reports missing dynamic support without claiming activation", async () => {
+        const { run } = runningOn("local");
+        const wrapper = mountControl(run); await flushPromises();
+        wrapper.findComponent(VSwitch).vm.$emit("update:modelValue", true);
+        await flushPromises();
+        expect(wrapper.text()).toContain("liveSpeed.dynamic.unavailable");
+        expect(wrapper.findComponent(VSwitch).props("modelValue")).toBe(false);
+        wrapper.unmount();
+    });
+});
+
+
+describe("dynamic reply ownership", () => {
+    for (const change of ["manual", "render-id"] as const) {
+        it(`ignores a delayed enable reply after a newer ${change} choice`, async () => {
+            const { run, fake } = runningOn("local");
+            let resolveEnable!: (state: AdaptiveSpeedState) => void;
+            fake.bridge.getAdaptiveRenderSpeed = vi.fn(async () => ({ enabled: false, level: null, reason: "off" as const }));
+            fake.bridge.setAdaptiveRenderSpeed = vi.fn(() => new Promise<AdaptiveSpeedState>(resolve => { resolveEnable = resolve; }));
+            const wrapper = mountControl(run);
+            const timeout = vi.spyOn(globalThis, "setTimeout");
+            try {
+                await flushPromises();
+                wrapper.findComponent(VSwitch).vm.$emit("update:modelValue", true);
+                await flushPromises();
+                if (change === "manual") await levelButton(wrapper, "2 · Light").trigger("click");
+                else run.renderId.value = "replacement-render";
+                await flushPromises();
+                expect(wrapper.findComponent(VSwitch).props("modelValue")).toBe(false);
+                timeout.mockClear();
+                resolveEnable({ enabled: true, level: 3, reason: "idle" });
+                await flushPromises();
+                expect(wrapper.findComponent(VSwitch).props("modelValue")).toBe(false);
+                expect(wrapper.text()).not.toContain("liveSpeed.dynamic.idle");
+                expect(timeout.mock.calls.filter(call => call[1] === 5000)).toHaveLength(0);
+            } finally { wrapper.unmount(); timeout.mockRestore(); }
+        });
+    }
+});
+
+
+it("retires the previous manual outcome when dynamic mode takes control", async () => {
+    const { run, fake } = runningOn("local");
+    fake.bridge.getAdaptiveRenderSpeed = vi.fn(async () => ({ enabled: false, level: null, reason: "off" as const }));
+    fake.bridge.setAdaptiveRenderSpeed = vi.fn(async () => ({ enabled: true, level: 1 as const, reason: "pressure" as const }));
+    const wrapper = mountControl(run);
+    try {
+        await levelButton(wrapper, "5 · Fastest").trigger("click"); await flushPromises();
+        expect(levelButton(wrapper, "5 · Fastest").attributes("aria-pressed")).toBe("true");
+        expect(wrapper.text()).toContain("Level 5 is now applied");
+        wrapper.findComponent(VSwitch).vm.$emit("update:modelValue", true); await flushPromises();
+        expect(levelButton(wrapper, "5 · Fastest").attributes("aria-pressed")).not.toBe("true");
+        expect(wrapper.text()).not.toContain("Level 5 is now applied");
+        expect(wrapper.text()).toContain("liveSpeed.dynamic.pressure");
+        expect(wrapper.find(".mb-livespeed__restart").exists()).toBe(false);
+    } finally { wrapper.unmount(); }
 });
