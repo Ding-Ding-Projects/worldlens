@@ -55,6 +55,7 @@ import { tabbedShell } from "./tabbed-shell.js";
 import { projectEditor } from "./project-editor.js";
 import { projectCanvas } from "./project-canvas.js";
 import { liveRenderSpeed } from "./live-render-speed.js";
+import { renderControlsAndServerStartup } from "./render-controls-and-server-startup.js";
 import { appearanceEditor } from "./appearance-editor.js";
 import { destructiveActionGate } from "./destructive-action-gate.js";
 import { languageAndTone } from "./language-and-tone.js";
@@ -115,6 +116,7 @@ export const articles: readonly Article[] = [
     notificationCentre,
     renderConsole,
     liveRenderSpeed,
+    renderControlsAndServerStartup,
     changelogViewer,
     appearanceEditor,
     destructiveActionGate,
