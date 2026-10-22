@@ -3041,6 +3041,7 @@ interface WorldlensBridge {
      * including when the render has already finished or its container has already stopped.
      */
     adjustRenderSpeed(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult>;
+    renderPreview(renderId: string): Promise<{ dataRoot: string; mapIds: string[] } | null>;
 
     /** Render ids in flight right now. */
     activeRenders(): Promise<string[]>;

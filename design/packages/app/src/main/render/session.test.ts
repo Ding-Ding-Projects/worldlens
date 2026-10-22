@@ -271,8 +271,12 @@ describe("RenderSessionStore", () => {
         expect((await readRenderSession(sessionFile(storageDir, "r")))?.progress?.percent).toBe(30);
     });
 
-    it("marks a completed render completed", async () => {
-        const store = new RenderSessionStore({ storageDir, instanceId: "instance-a" });
+    it("preserves the render finish time when verification completes later", async () => {
+        const store = new RenderSessionStore({
+            storageDir,
+            instanceId: "instance-a",
+            now: () => new Date("2026-08-03T10:01:00.000Z"),
+        });
         await store.start({
             renderId: "r",
             maps: [{ id: "overworld", world: join(root, "world") }],
@@ -283,12 +287,13 @@ describe("RenderSessionStore", () => {
             javaVersion: null,
             startedAt: "2026-08-03T10:00:00.000Z",
         });
-        await store.complete("r");
+        await store.complete("r", "2026-08-03T10:00:01.000Z");
 
         const stored = await readRenderSession(sessionFile(storageDir, "r"));
         expect(stored?.status).toBe("completed");
         expect(stored?.reason).toBeNull();
-        expect(stored?.endedAt).not.toBeNull();
+        expect(stored?.endedAt).toBe("2026-08-03T10:00:01.000Z");
+        expect(stored?.updatedAt).toBe("2026-08-03T10:01:00.000Z");
     });
 
     it("lists sessions newest first and ignores directories without one", async () => {

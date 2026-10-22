@@ -282,6 +282,9 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
     );
 
     ipcMain.handle("render:active", () => orchestrator.activeRenderIds());
+    ipcMain.handle("render:preview", (_event: IpcMainInvokeEvent, renderId: unknown) =>
+        typeof renderId === "string" ? orchestrator.livePreview(renderId) : null,
+    );
 
     /**
      * Renders that were cut off, and how far each got.
@@ -452,6 +455,7 @@ const RENDER_CHANNELS = [
     "render:cancel",
     "render:adjustSpeed",
     "render:active",
+    "render:preview",
     "render:interrupted",
     "render:resume",
     "render:dismissResume",

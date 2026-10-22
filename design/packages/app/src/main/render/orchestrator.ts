@@ -568,6 +568,11 @@ export class RenderOrchestrator {
     private readonly running = new Map<string, RunningRender>();
     private readonly previewOwners = new Map<symbol, string>();
     private readonly previewTimers = new Map<symbol, ReturnType<typeof setInterval>>();
+    private readonly readyPreviews = new Map<string, { dataRoot: string; mapIds: string[] }>();
+
+    livePreview(renderId: string): { dataRoot: string; mapIds: string[] } | null {
+        return this.readyPreviews.get(renderId) ?? null;
+    }
     private readonly pending = new Map<
         string,
         { readonly controller: AbortController; readonly token: symbol; visible: boolean }
@@ -841,6 +846,7 @@ export class RenderOrchestrator {
             clearInterval(this.previewTimers.get(token));
             this.previewTimers.delete(token);
             this.previewOwners.delete(token);
+            if (previewId !== undefined) this.readyPreviews.delete(previewId);
             for (const [renderId, pending] of this.pending)
                 if (pending.token === token) this.pending.delete(renderId);
         }
@@ -1123,6 +1129,10 @@ export class RenderOrchestrator {
                         return;
                     clearInterval(previewTimer);
                     this.previewTimers.delete(token);
+                    this.readyPreviews.set(renderId, {
+                        dataRoot: LocalMapHandler.dataRoot(renderId),
+                        mapIds: request.maps.map((map) => map.id),
+                    });
                     this.emit({
                         type: "preview-ready",
                         renderId,
@@ -1315,7 +1325,7 @@ export class RenderOrchestrator {
         if (outputManifest !== undefined && outputManifest !== null)
             record = { ...record, outputManifest };
         await this.saveRecord(workspace, record);
-        await this.options.sessions?.complete(renderId);
+        await this.options.sessions?.complete(renderId, finishedAt);
         const promotion = await this.options.promoteFinished?.(renderId, request.projectId ?? null);
         if (promotion?.failure !== null && promotion?.failure !== undefined) {
             const detail = `${promotion.failure.reason}: ${promotion.failure.detail}`;

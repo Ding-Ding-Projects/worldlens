@@ -30,10 +30,17 @@ import type { ProgressRoute } from "../progress/progressModel.js";
  * does: a stub that ignored argument two would report a duration correctly here
  * while the panel rendered "seconds" with no number in front of it.
  */
-const t: Translate = (_key: string, second: string | Readonly<Record<string, unknown>>, third?: string): string =>
+const t: Translate = (
+    _key: string,
+    second: string | Readonly<Record<string, unknown>>,
+    third?: string,
+): string =>
     typeof second === "string"
         ? second
-        : Object.entries(second).reduce((text, [name, value]) => text.split(`{${name}}`).join(String(value)), third ?? "");
+        : Object.entries(second).reduce(
+              (text, [name, value]) => text.split(`{${name}}`).join(String(value)),
+              third ?? "",
+          );
 
 const ENGINE: EngineDescription = {
     id: "upstream-java",
@@ -59,7 +66,9 @@ const RECORD: RenderSummary = {
     outcome: "finished",
     engine: "BlueMap engine (Java) 5.22-27 on Java 25.0.3",
     engineId: "upstream-java",
-    maps: [{ id: "survival", name: "Survival", world: "/srv/world", dimension: "minecraft:overworld" }],
+    maps: [
+        { id: "survival", name: "Survival", world: "/srv/world", dimension: "minecraft:overworld" },
+    ],
     startedAt: "2026-08-03T09:14:00.000Z",
     finishedAt: "2026-08-03T09:18:14.000Z",
     durationMs: 254_000,
@@ -101,7 +110,10 @@ function fakeBridge(
         renderEngine: async () => options.record ?? null,
         activeRenders: async () => [],
         interruptedRenders: async () => [],
-        resumeRender: async () => ({ started: false, refusal: { ok: false, renderId: "x", code: "no-session", message: "" } }),
+        resumeRender: async () => ({
+            started: false,
+            refusal: { ok: false, renderId: "x", code: "no-session", message: "" },
+        }),
         dismissResume: async () => true,
         onRenderEvent: (listener) => {
             listeners.push(listener);
@@ -146,7 +158,13 @@ describe("watching a render", () => {
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
         expect(run.state.value).toBe("starting");
 
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
 
         expect(run.renderId.value).toBe("world-abc");
         expect(run.state.value).toBe("running");
@@ -159,12 +177,25 @@ describe("watching a render", () => {
         const run = createRenderRun(fake.bridge);
 
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         fake.emit({
             type: "progress",
             renderId: "someone-else",
             phase: "rendering",
-            task: { kind: "map", mapId: "other", description: "other", percent: 99, etaSeconds: 1, etaText: null },
+            task: {
+                kind: "map",
+                mapId: "other",
+                description: "other",
+                percent: 99,
+                etaSeconds: 1,
+                etaText: null,
+            },
             at: "t1",
         });
 
@@ -177,14 +208,27 @@ describe("watching a render", () => {
         const run = createRenderRun(fake.bridge);
 
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         expect(run.indeterminate.value).toBe(true);
 
         fake.emit({
             type: "progress",
             renderId: "world-abc",
             phase: "rendering",
-            task: { kind: "map", mapId: "survival", description: "survival", percent: 8.535, etaSeconds: 240, etaText: "4m" },
+            task: {
+                kind: "map",
+                mapId: "survival",
+                description: "survival",
+                percent: 8.535,
+                etaSeconds: 240,
+                etaText: "4m",
+            },
             at: "t1",
         });
 
@@ -202,9 +246,21 @@ describe("watching a render", () => {
         const run = createRenderRun(fake.bridge);
 
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         for (let line = 0; line < LOG_LIMIT + 58; line++) {
-            fake.emit({ type: "log", renderId: "world-abc", level: "info", message: `line ${line}`, at: "t" });
+            fake.emit({
+                type: "log",
+                renderId: "world-abc",
+                level: "info",
+                message: `line ${line}`,
+                at: "t",
+            });
         }
 
         expect(run.log.value).toHaveLength(LOG_LIMIT);
@@ -235,7 +291,11 @@ describe("watching a render", () => {
     });
 
     it("shows a cancellation as a cancellation rather than as a failure", async () => {
-        const cancelled: RenderResult = { ok: false, renderId: "world-abc", failure: failure("cancelled") };
+        const cancelled: RenderResult = {
+            ok: false,
+            renderId: "world-abc",
+            failure: failure("cancelled"),
+        };
         const fake = fakeBridge(cancelled, { resolveNow: true });
         const run = createRenderRun(fake.bridge);
 
@@ -274,7 +334,13 @@ describe("watching a render", () => {
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
         expect(await run.cancel()).toBe(false);
 
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         expect(await run.cancel()).toBe(true);
         expect(fake.bridge.cancelRender).toHaveBeenCalledWith("world-abc");
         expect(run.cancelling.value).toBe(true);
@@ -290,7 +356,14 @@ describe("watching a render", () => {
             type: "progress",
             renderId: "world-abc",
             phase: "rendering",
-            task: { kind: "map", mapId: "survival", description: "survival", percent: 42, etaSeconds: null, etaText: null },
+            task: {
+                kind: "map",
+                mapId: "survival",
+                description: "survival",
+                percent: 42,
+                etaSeconds: null,
+                etaText: null,
+            },
             at: "t1",
         });
 
@@ -326,7 +399,13 @@ describe("watching a render", () => {
         const run = createRenderRun(fake.bridge);
 
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         expect(run.provenance.value).toBeNull();
 
         fake.emit({
@@ -344,8 +423,15 @@ describe("watching a render", () => {
     });
 
     it("reads it for a render that failed too, because that one also ran on something", async () => {
-        const failed: RenderResult = { ok: false, renderId: "world-abc", failure: failure("cli-failed") };
-        const fake = fakeBridge(failed, { resolveNow: true, record: { ...RECORD, outcome: "failed" } });
+        const failed: RenderResult = {
+            ok: false,
+            renderId: "world-abc",
+            failure: failure("cli-failed"),
+        };
+        const fake = fakeBridge(failed, {
+            resolveNow: true,
+            record: { ...RECORD, outcome: "failed" },
+        });
         const run = createRenderRun(fake.bridge);
 
         await run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
@@ -383,7 +469,13 @@ describe("watching a render", () => {
         const run = createRenderRun(fake.bridge);
 
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
 
         run.reset();
         expect(run.state.value).toBe("running");
@@ -402,7 +494,9 @@ describe("watching a render", () => {
 describe("the run's own status lines", () => {
     /** The keys of the app's own lines, in the order they were written. */
     function narrative(run: ReturnType<typeof createRenderRun>): string[] {
-        return run.log.value.filter((line) => line.origin === "app").map((line) => line.text?.key ?? "");
+        return run.log.value
+            .filter((line) => line.origin === "app")
+            .map((line) => line.text?.key ?? "");
     }
 
     it("brackets the engine's output with starting, running and stopped", async () => {
@@ -410,8 +504,20 @@ describe("the run's own status lines", () => {
         const run = createRenderRun(fake.bridge);
 
         const started = run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
-        fake.emit({ type: "log", renderId: "world-abc", level: "INFO", message: "Loading resources...", at: "t1" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
+        fake.emit({
+            type: "log",
+            renderId: "world-abc",
+            level: "INFO",
+            message: "Loading resources...",
+            at: "t1",
+        });
         await started;
 
         expect(narrative(run)).toEqual([
@@ -446,7 +552,13 @@ describe("the run's own status lines", () => {
         const run = createRenderRun(fake.bridge);
 
         const started = run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         fake.emit({
             type: "finished",
             renderId: "world-abc",
@@ -458,13 +570,19 @@ describe("the run's own status lines", () => {
         });
         await started;
 
-        const closings = narrative(run).filter((key) => key.startsWith("world.console.signal.stopped"));
+        const closings = narrative(run).filter((key) =>
+            key.startsWith("world.console.signal.stopped"),
+        );
         expect(closings).toHaveLength(1);
         run.dispose();
     });
 
     it("names a cancellation as one, and says the tiles are kept", async () => {
-        const cancelled: RenderResult = { ok: false, renderId: "world-abc", failure: failure("cancelled") };
+        const cancelled: RenderResult = {
+            ok: false,
+            renderId: "world-abc",
+            failure: failure("cancelled"),
+        };
         const fake = fakeBridge(cancelled, { resolveNow: true });
         const run = createRenderRun(fake.bridge);
 
@@ -492,7 +610,13 @@ describe("advice beside the engine's line", () => {
         const fake = fakeBridge(OK);
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         return { fake, run };
     }
 
@@ -517,7 +641,9 @@ describe("advice beside the engine's line", () => {
             log(fake, `updating map 'overworld': ${tick}.0% (ETA: 47 seconds)`);
         }
 
-        const tips = run.log.value.flatMap((line) => line.annotations).filter((a) => a.kind === "render-threads");
+        const tips = run.log.value
+            .flatMap((line) => line.annotations)
+            .filter((a) => a.kind === "render-threads");
         expect(tips).toHaveLength(1);
         run.dispose();
     });
@@ -527,7 +653,13 @@ describe("advice beside the engine's line", () => {
         const run = createRenderRun(fake.bridge);
 
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         log(fake, "updating map 'overworld': 5.0% (ETA: 47 seconds)");
         fake.finish();
         await Promise.resolve();
@@ -537,10 +669,18 @@ describe("advice beside the engine's line", () => {
         expect(run.logDropped.value).toBe(0);
 
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         log(fake, "updating map 'overworld': 5.0% (ETA: 47 seconds)");
 
-        expect(run.log.value.at(-1)?.annotations.map((advice) => advice.kind)).toEqual(["render-threads"]);
+        expect(run.log.value.at(-1)?.annotations.map((advice) => advice.kind)).toEqual([
+            "render-threads",
+        ]);
         run.dispose();
     });
 
@@ -580,7 +720,10 @@ describe("what a failure means", () => {
     });
 
     it("offers the provisioning path for a missing runtime instead of a stack trace", () => {
-        const advice = adviseOnFailure(failure("java-unavailable", { detail: "searched 4 locations" }), t);
+        const advice = adviseOnFailure(
+            failure("java-unavailable", { detail: "searched 4 locations" }),
+            t,
+        );
 
         expect(advice.kind).toBe("java");
         expect(advice.remedy.settings?.anchor).toBe("java-runtime");
@@ -588,7 +731,13 @@ describe("what a failure means", () => {
     });
 
     it("keeps the engine's own sentence rather than replacing it", () => {
-        const advice = adviseOnFailure(failure("cli-failed", { message: "The BlueMap engine exited with code 1.", exitCode: 1 }), t);
+        const advice = adviseOnFailure(
+            failure("cli-failed", {
+                message: "The BlueMap engine exited with code 1.",
+                exitCode: 1,
+            }),
+            t,
+        );
 
         expect(advice.message).toBe("The BlueMap engine exited with code 1.");
     });
@@ -604,7 +753,9 @@ describe("what a failure means", () => {
 describe("wording", () => {
     it("names every phase the engine goes through", () => {
         expect(phaseLabel("rendering", t)).toBe("Rendering tiles");
-        expect(phaseLabel("downloading-resources", t)).toBe("Downloading the Minecraft client files");
+        expect(phaseLabel("downloading-resources", t)).toBe(
+            "Downloading the Minecraft client files",
+        );
         expect(phaseLabel(null, t)).toBe("");
         // An unknown phase is shown as it arrives rather than hidden.
         expect(phaseLabel("something-new", t)).toBe("something-new");
@@ -690,7 +841,9 @@ describe("the tile-count gap, said out loud rather than left silent", () => {
         const fake = fakeBridge(OK);
         const run = createRenderRun(fake.bridge);
 
-        expect(run.progress.value.notes.some((note) => note.key === "progress.note.noTileCounts")).toBe(false);
+        expect(
+            run.progress.value.notes.some((note) => note.key === "progress.note.noTileCounts"),
+        ).toBe(false);
         run.dispose();
     });
 
@@ -698,7 +851,13 @@ describe("the tile-count gap, said out loud rather than left silent", () => {
         const fake = fakeBridge(OK);
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
 
         fake.emit({
             type: "progress",
@@ -717,7 +876,9 @@ describe("the tile-count gap, said out loud rather than left silent", () => {
 
         const task = run.progress.value.levels.find((level) => level.id === "task");
         expect(task?.count ?? null).toBeNull();
-        expect(run.progress.value.notes.some((note) => note.key === "progress.note.noTileCounts")).toBe(true);
+        expect(
+            run.progress.value.notes.some((note) => note.key === "progress.note.noTileCounts"),
+        ).toBe(true);
         run.dispose();
     });
 
@@ -725,7 +886,13 @@ describe("the tile-count gap, said out loud rather than left silent", () => {
         const fake = fakeBridge(OK);
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
 
         fake.emit({
             type: "progress",
@@ -742,7 +909,9 @@ describe("the tile-count gap, said out loud rather than left silent", () => {
             at: "t1",
         });
 
-        expect(run.progress.value.notes.some((note) => note.key === "progress.note.noTileCounts")).toBe(true);
+        expect(
+            run.progress.value.notes.some((note) => note.key === "progress.note.noTileCounts"),
+        ).toBe(true);
         run.dispose();
     });
 });
@@ -752,7 +921,13 @@ describe("real bytes for what went up, an honest gap for what comes back", () =>
         const fake = fakeBridge(OK);
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "2026-01-01T00:00:00.000Z" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "2026-01-01T00:00:00.000Z",
+        });
 
         fake.emit({
             type: "transfer",
@@ -780,7 +955,9 @@ describe("real bytes for what went up, an honest gap for what comes back", () =>
         expect(run.progress.value.transfers[0]?.bytesPerSecond).toBe(500);
 
         // The upload leg now has real bytes, so it earns no "unknown" note.
-        expect(run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes")).toBe(false);
+        expect(
+            run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes"),
+        ).toBe(false);
         run.dispose();
     });
 
@@ -791,7 +968,13 @@ describe("real bytes for what went up, an honest gap for what comes back", () =>
         const fake = fakeBridge(OK);
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
 
         fake.emit({
             type: "progress",
@@ -809,7 +992,9 @@ describe("real bytes for what went up, an honest gap for what comes back", () =>
         });
 
         expect(run.progress.value.transfers).toEqual([]);
-        expect(run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes")).toBe(false);
+        expect(
+            run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes"),
+        ).toBe(false);
         run.dispose();
     });
 
@@ -817,7 +1002,13 @@ describe("real bytes for what went up, an honest gap for what comes back", () =>
         const fake = fakeBridge(OK);
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
 
         fake.emit({
             type: "progress",
@@ -835,7 +1026,9 @@ describe("real bytes for what went up, an honest gap for what comes back", () =>
         });
 
         expect(run.progress.value.transfers).toEqual([]);
-        expect(run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes")).toBe(true);
+        expect(
+            run.progress.value.notes.some((note) => note.key === "progress.note.stagedNotBytes"),
+        ).toBe(true);
         run.dispose();
     });
 });
@@ -869,6 +1062,21 @@ describe("renderThreads: the one raw fact a live control can name honestly", () 
 });
 
 describe("adjustSpeed: reaching the main process about a live render", () => {
+    it("restores ready preview metadata when joining a render after its readiness event", async () => {
+        const fake = fakeBridge(OK, { resolveNow: false });
+        fake.bridge.renderPreview = async () => ({
+            dataRoot: "/local/already-running",
+            mapIds: ["overworld"],
+        });
+        const run = createRenderRun(fake.bridge);
+        run.expect("already-running");
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(run.dataRoot.value).toBe("/local/already-running");
+        expect(run.mapIds.value).toEqual(["overworld"]);
+        expect(run.active.value).toBe(true);
+        run.dispose();
+    });
     it("does nothing and reports null when no render has an id yet", async () => {
         const fake = fakeBridge(OK, { resolveNow: false });
         const run = createRenderRun(fake.bridge);
@@ -882,7 +1090,13 @@ describe("adjustSpeed: reaching the main process about a live render", () => {
         const fake = fakeBridge(OK, { resolveNow: false });
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
 
         const result = await run.adjustSpeed(2);
         expect(fake.bridge.adjustRenderSpeed).toHaveBeenCalledWith("world-abc", 2);
@@ -906,7 +1120,13 @@ describe("adjustSpeed: reaching the main process about a live render", () => {
         fake.bridge.adjustRenderSpeed = vi.fn(async () => blocked);
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
 
         const result = await run.adjustSpeed(5);
         expect(result).toEqual(blocked);
@@ -920,7 +1140,13 @@ describe("adjustSpeed: reaching the main process about a live render", () => {
         });
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
 
         const result = await run.adjustSpeed(3);
         expect(result?.ok).toBe(false);
@@ -949,7 +1175,13 @@ describe("restartWithLevel: the explicit choice that changes the next JVM's thre
         const fake = fakeBridge(OK, { resolveNow: false });
         const run = createRenderRun(fake.bridge);
         void run.start({ maps: [{ id: "survival", world: "/srv/world" }] });
-        fake.emit({ type: "started", renderId: "world-abc", mapIds: ["survival"], engine: ENGINE, at: "t0" });
+        fake.emit({
+            type: "started",
+            renderId: "world-abc",
+            mapIds: ["survival"],
+            engine: ENGINE,
+            at: "t0",
+        });
         expect(run.active.value).toBe(true);
 
         const restarted = run.restartWithLevel(1);

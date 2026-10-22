@@ -904,11 +904,16 @@ describe("adjustSpeed - local route", () => {
             expect(events.find((event) => event.type === "preview-ready")).toMatchObject({
                 dataRoot: "/local/live-preview",
             });
+            expect(orchestrator.livePreview("live-preview")).toEqual({
+                dataRoot: "/local/live-preview",
+                mapIds: ["overworld"],
+            });
         } finally {
             orchestrator.cancel("live-preview");
             await running;
         }
         expect(mounts.getMount("live-preview")).toBeNull();
+        expect(orchestrator.livePreview("live-preview")).toBeNull();
     }, 10_000);
 
     it("applies each level's exact documented OS priority to the render's own live pid, immediately", async () => {

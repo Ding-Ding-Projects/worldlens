@@ -1301,6 +1301,17 @@ export function createRenderRun(
         if (active.value) return;
         reset();
         renderId.value = id;
+        void bridge
+            ?.renderPreview?.(id)
+            .then((preview) => {
+                if (preview !== null && renderId.value === id && active.value) {
+                    dataRoot.value = preview.dataRoot;
+                    mapIds.value = preview.mapIds;
+                }
+            })
+            .catch(() => {
+                /* A later readiness event can still enable the map. */
+            });
         restoreHistory(id);
         state.value = "starting";
         // The clock starts when this surface starts watching, which is honest about what it

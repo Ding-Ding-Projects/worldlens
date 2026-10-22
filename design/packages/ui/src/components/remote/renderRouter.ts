@@ -167,6 +167,10 @@ export function createRenderRouter(
         },
 
         listRenders: () => base.listRenders(),
+        renderPreview: (renderId) =>
+            remoteIds.has(renderId)
+                ? Promise.resolve(null)
+                : (base.renderPreview?.(renderId) ?? Promise.resolve(null)),
         ...(base.adjustRenderSpeed === undefined
             ? {}
             : {

@@ -257,6 +257,7 @@ export interface WorldBridge {
      * this method exists versus whether it merely refused.
      */
     adjustRenderSpeed?(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult>;
+    renderPreview?(renderId: string): Promise<{ dataRoot: string; mapIds: string[] } | null>;
     listRenders(): Promise<readonly RenderSummary[]>;
     renderEngine(renderId: string): Promise<RenderSummary | null>;
     /**
@@ -354,6 +355,10 @@ export function resolveWorldBridge(): WorldBridge | null {
         // Required by the packaged bridge probe above. A stale preload now fails the bridge
         // resolution loudly instead of disguising a missing IPC seam as an unsupported route.
         adjustRenderSpeed: (renderId, level) => complete.adjustRenderSpeed!(renderId, level),
+        renderPreview: (renderId) =>
+            isFunction(host.renderPreview)
+                ? complete.renderPreview!(renderId)
+                : Promise.resolve(null),
         listRenders: () => complete.listRenders(),
         renderEngine: (renderId) =>
             isFunction(host.renderEngine) ? complete.renderEngine(renderId) : Promise.resolve(null),

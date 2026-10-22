@@ -57,6 +57,12 @@ function methodPaths(value: unknown, prefix = ""): string[] {
 }
 
 describe("the object the factory builds", () => {
+    it("requests the current preview snapshot for a late-opened render", async () => {
+        const { transport, log } = recordingTransport();
+        const bridge = createWorldlensBridge<{ renderPreview(id: string): Promise<unknown> }>(transport);
+        await bridge.renderPreview("render-late");
+        expect(log.invoked).toEqual([{ channel: "render:preview", args: ["render-late"] }]);
+    });
     it("carries the whole bridge rather than whichever half survived the move", () => {
         const { transport } = recordingTransport();
         const bridge = createWorldlensBridge<Record<string, unknown>>(transport);

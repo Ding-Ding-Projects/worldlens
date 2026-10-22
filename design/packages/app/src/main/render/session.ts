@@ -580,8 +580,8 @@ export class RenderSessionStore {
     }
 
     /** The render produced a map. Nothing is offered for a completed session. */
-    async complete(renderId: string): Promise<void> {
-        await this.end(renderId, "completed", null, null);
+    async complete(renderId: string, finishedAt?: string): Promise<void> {
+        await this.end(renderId, "completed", null, null, finishedAt);
     }
 
     /**
@@ -640,13 +640,21 @@ export class RenderSessionStore {
         status: RenderSessionStatus,
         reason: RenderInterruptionReason | null,
         detail: string | null,
+        finishedAt?: string,
     ): Promise<void> {
         const session = this.live.get(renderId) ?? (await this.read(renderId));
         if (session === null || session === undefined) return;
         const at = this.timestamp();
         this.live.delete(renderId);
         this.lastProgressWrite.delete(renderId);
-        await this.save({ ...session, status, reason, detail, endedAt: at, updatedAt: at });
+        await this.save({
+            ...session,
+            status,
+            reason,
+            detail,
+            endedAt: finishedAt ?? at,
+            updatedAt: at,
+        });
     }
 
     private async save(session: RenderSession): Promise<void> {

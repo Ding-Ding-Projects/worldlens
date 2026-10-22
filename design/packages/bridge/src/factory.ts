@@ -404,6 +404,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
 
         startRender: (request: unknown) => transport.invoke("render:start", request),
         cancelRender: (renderId: unknown) => transport.invoke("render:cancel", renderId),
+        renderPreview: (renderId: unknown) => transport.invoke("render:preview", renderId),
         adjustRenderSpeed: (renderId: unknown, level: unknown) =>
             transport.invoke("render:adjustSpeed", renderId, level),
         activeRenders: () => transport.invoke("render:active"),
