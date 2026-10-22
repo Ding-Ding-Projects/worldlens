@@ -735,7 +735,7 @@ export const home: HomeContent = {
                     body: "English, playful Hong Kong Cantonese and a bilingual mode, with an independent funny level per language from fully professional to maximum playfulness. The level styles every message including errors, and a test proves that no level stops naming the file, the path or the count.",
                     status: "shipped",
                     statusNote:
-                        "The store, both sliders, the settings row and the catalogue are on the default branch with five test files in CI. The catalogue answers roughly a hundred keys today; every other key still renders its English fallback, which the article states plainly.",
+                        "Personal wording drop announcements leave buttons clickable before, during and after feedback. The store, both sliders, the settings row and the catalogue are on the default branch with five test files in CI. The catalogue answers roughly a hundred keys today; every other key still renders its English fallback, which the article states plainly.",
                     articleId: "language-and-tone",
                     reading: [
                         { label: "docs/language-and-tone.md", href: LANGUAGE_AND_TONE_DOC_URL },

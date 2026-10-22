@@ -1,5 +1,21 @@
 # Handoff
 
+## 2026-10-22 window-wide click interception
+
+The vocabulary feedback live region filled the window even when empty. The global
+`#app .v-application__wrap > *` chrome rule overrode its scoped pointer policy, so
+Chrome computed `pointer-events: auto` and hit the invisible region over Home and
+every other button. A specific global exception keeps this decorative region
+click-through without changing interactive chrome or map dragging. The concurrent
+`a3c9b7c7` fix reached main while this regression was being verified; it is retained
+without a duplicate inline override. A regression
+mounts it under the real chrome rule and checks idle, headline and dismissed states;
+it failed with `auto` before the fix. The vocabulary suite passes 30 tests. Chrome
+verified New map, repeated project Cancel, Settings Close and navigation with Settings
+open. The built production UI also passed Settings search, New map, browser Back/Forward
+and a subsequent Home click. The complete workspace build and UI/site type checks pass.
+Packaged Electron acceptance is not claimed.
+
 ## 2026-10-21 feature-contract reconciliation in progress
 
 The initial application UI and hosted backend built from baseline `daf5bade870f14c5add1804e363b9600f83c7c12`, and its hosted Home screen loaded on loopback. Later source changes have not yet passed a complete root build. This establishes a browser-hosted launch, not native installer or world-rendering acceptance. No world folder, Docker socket, SSH or forge credential was granted to this local instance.

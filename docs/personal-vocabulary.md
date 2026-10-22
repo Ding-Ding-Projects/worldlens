@@ -133,3 +133,8 @@ in the application notification centre until dismissed.
 清除會等本機確認刪除成功。如果失敗，原有字眼仍然生效，設定會解釋失敗原因。
 清除亦會取消未完成嘅檔案讀取同匯入；舊拖放唔會喺清除之後還原字眼，亦唔會蓋過較新嘅設定上載。
 拖放錯誤會留喺程式通知中心，直到使用者關閉。
+
+The full-window announcement stays click-through even while empty, while showing a headline,
+and after it disappears. Home, navigation and Settings remain clickable throughout.
+
+全視窗提示喺空白、顯示標題同消失之後都唔會擋住點擊。首頁、導航同設定按鈕全程都撳得。

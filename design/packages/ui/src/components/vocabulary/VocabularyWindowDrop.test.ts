@@ -2,8 +2,15 @@
 import { mount, flushPromises } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { afterEach, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath, URL as NodeURL } from "node:url";
 import VocabularyWindowDrop from "./VocabularyWindowDrop.vue";
 import { clearVocabulary, vocabularyStore } from "./vocabularyStore.js";
+
+const globalStyles = readFileSync(
+    fileURLToPath(new NodeURL("../../styles/global.scss", import.meta.url)),
+    "utf8",
+);
 
 const wrappers: ReturnType<typeof mount>[] = [];
 afterEach(async () => {
@@ -127,4 +134,47 @@ it("a Settings import supersedes an earlier delayed drop", async () => {
     await flushPromises();
     expect(vocabularyStore.entries).toEqual({ Open: "Launch" });
     expect(wrapper.emitted("outcome")).toBeUndefined();
+});
+
+it("keeps the window feedback click-through under the application chrome rule, before and after a drop", async () => {
+    vi.useFakeTimers();
+    // jsdom does not hit-test, so exercise the computed pointer policy at the actual
+    // shell boundary and cover physical hit targets separately in Chrome.
+    const style = document.createElement("style");
+    const chromeRules = globalStyles.match(
+        /#app \.v-application__wrap > (?:\*|\.mb-vocabulary-feedback)\s*\{[^}]*\}/g,
+    );
+    expect(chromeRules?.length).toBeGreaterThan(0);
+    style.textContent = chromeRules!.join("\n");
+    document.head.append(style);
+    const shell = document.createElement("div");
+    shell.id = "app";
+    const wrap = document.createElement("div");
+    wrap.className = "v-application__wrap";
+    shell.append(wrap);
+    document.body.append(shell);
+    const wrapper = mount(VocabularyWindowDrop, {
+        props: { restricted: false },
+        attachTo: wrap,
+        global: { plugins: [createI18n({ legacy: false, locale: "en", messages: {} })] },
+    });
+    wrappers.push(wrapper);
+    const feedback = () => wrapper.get(".mb-vocabulary-feedback").element;
+    try {
+        expect(getComputedStyle(feedback()).pointerEvents).toBe("none");
+        drop(JSON.stringify({ schemaVersion: 1, entries: { Open: "Launch" } }));
+        await flushPromises();
+        expect(wrapper.find(".mb-vocabulary-feedback__headline").exists()).toBe(true);
+        expect(getComputedStyle(feedback()).pointerEvents).toBe("none");
+        expect(
+            getComputedStyle(wrapper.get(".mb-vocabulary-feedback__headline").element)
+                .pointerEvents,
+        ).toBe("none");
+        await vi.advanceTimersByTimeAsync(3400);
+        expect(wrapper.text()).toBe("");
+        expect(getComputedStyle(feedback()).pointerEvents).toBe("none");
+    } finally {
+        shell.remove();
+        style.remove();
+    }
 });
