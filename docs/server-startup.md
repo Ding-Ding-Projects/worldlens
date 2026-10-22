@@ -4,7 +4,7 @@ Local server commands retain one process transport for each saved server through
 
 Start waits for the operating system spawn result and observes the first 500 milliseconds for an early exit. Missing executables or unavailable working directories return an actionable error instead of an unhandled process event. A successful spawn means a process was launched, not that Minecraft finished loading. Check console output and server readiness before connecting. The transport keeps up to 100 recent lines, each capped at 4096 characters, so opening the console after launch retains early diagnostics.
 
-While the list is mounted, running servers receive non-overlapping status refreshes every two seconds; a later exit appears with its exit code. Unmounting stops further refreshes. Single and bulk lifecycle failures appear in a dismissible alert without replacing the server list. No existing server EULA, Java installation or server configuration is changed by this repair.
+While the list or selected server management panel is mounted, running servers receive non-overlapping status refreshes every two seconds; a later exit appears with its exit code. Unmounting stops further refreshes. Single and bulk lifecycle failures appear in a dismissible alert without replacing the server list. No existing server EULA, Java installation or server configuration is changed by this repair.
 
 ## Verification
 
