@@ -1759,3 +1759,16 @@ CI outcome: run 38799594959 succeeded at 8b6a6a318ad48ce398fd3558b3d31541c00604e
 Linux wizard acceptance on 2026-10-15 passed in the rebuilt Electron application at 1280×800, English/dark: saved profile selection, eight readiness results, disabled Next, report invalidation after a port edit and occupied-port refusal. This exposed and fixed a profile-loading defect when choosing remote process directly; both remote targets have regression coverage (30 selected UI tests pass). No page exceptions were observed. This is one controlled desktop tuple, not Windows, deployment-host, installation or console acceptance.
 
 2026-10-15 重建 Linux Electron 精靈驗收通過：1280×800 英文深色畫面，可選已儲存主機、顯示八項結果，下一步維持停用，改連接埠會清除舊結果，並拒絕已佔用連接埠。直接選遠端程序時未載入 profile 嘅問題已修正，兩種遠端目標都有回歸測試，30 項介面測試通過，冇觀察到頁面例外。只代表一組受控畫面，唔代表 Windows、部署主機、安裝或者 console 驗收。
+# Current render and server repairs, 2026-10-22
+
+The desktop interaction repair, live scheduling bridge, metadata-ready live preview,
+visible-tile refresh, configuration guidance and normal-close render protection are
+on main. The maintained BlueMap fork is synchronized through upstream `51c05400` and
+pinned at `fcfea026`.
+
+WSL rendering and its reviewed cancellation/setup recovery corrections are integrated.
+The main resolver forwards the selected distribution's verified Java identity. The
+integrated application type check and 80 focused WSL/process/render-state checks passed.
+The exact root build and native WSL acceptance are still pending. Adaptive scheduling
+and local-server lifecycle repairs remain isolated in active task branches.
+

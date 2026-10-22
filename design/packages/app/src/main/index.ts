@@ -907,10 +907,11 @@ function startRendering(): RenderIpc {
             readonly received: number | null;
             readonly total: number | null;
         }) => void,
+        wsl?: import("./runtime/wsl.js").WslEngineContext,
     ) =>
         choice === "typescript"
             ? typescriptResolver(choice)
-            : javaResolver(choice, signal, onProgress);
+            : javaResolver(choice, signal, onProgress, wsl);
 
     const render = installRenderIpc({
         storageDir,

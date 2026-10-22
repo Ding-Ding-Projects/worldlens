@@ -10,6 +10,9 @@
 - [x] Preserve active rendering on normal window close, with tray reopening and a taskbar fallback.
 - [ ] Verify close/reopen continuity against the built desktop application.
 - [ ] Add and verify rendering through an installed WSL distribution.
+- [ ] Verify integrated WSL selection, managed Linux Java, rendering and cancellation in the built desktop application (80 integrated focused checks passed).
+- [ ] Integrate and verify opt-in adaptive rendering, including manual override and terminal cleanup.
+- [ ] Repair and verify local Minecraft server lifecycle ownership, launch diagnostics and visible status updates.
 
 ## Complete feature and BlueMap continuation (2026-10-11)
 
