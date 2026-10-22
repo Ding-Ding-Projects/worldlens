@@ -87,6 +87,12 @@ body {
     pointer-events: auto;
 }
 
+/* The full-window feedback live region is decorative, including while empty.
+   Override the direct-child rule above so it never intercepts application input. */
+#app .v-application__wrap > .mb-vocabulary-feedback {
+    pointer-events: none;
+}
+
 /* v-main is the map viewport: it must stay click-through, so its floating children
    opt in individually with .mb-interactive. .v-overlay-container needs no rule here,
    Vuetify already ships pointer-events:none on it with the scrim and content set to auto.
