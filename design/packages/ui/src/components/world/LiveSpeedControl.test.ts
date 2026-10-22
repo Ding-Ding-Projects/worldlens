@@ -11,10 +11,10 @@
 
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { defineComponent, h } from "vue";
-import { mount } from "@vue/test-utils";
+import { mount, flushPromises } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
-import { VApp, VBtn } from "vuetify/components";
+import { VApp, VBtn, VSwitch } from "vuetify/components";
 import LiveSpeedControl from "./LiveSpeedControl.vue";
 import { createRenderRun } from "./renderRun.js";
 import type { RenderEvent, RenderResult, SpeedAdjustmentResult, WorldBridge } from "./worldBridge.js";
@@ -250,5 +250,30 @@ describe("a render on the local route", () => {
 
         expect(wrapper.text()).toContain("could not be applied");
         expect(wrapper.text()).not.toContain("effective immediately");
+    });
+});
+
+
+describe("dynamic rendering controls", () => {
+    it("sends explicit opt-in and shows measured state from the bridge", async () => {
+        const { run, fake } = runningOn("local");
+        fake.bridge.getAdaptiveRenderSpeed = vi.fn(async () => ({ enabled: false, level: null, reason: "off" as const }));
+        fake.bridge.setAdaptiveRenderSpeed = vi.fn(async () => ({ enabled: true, level: 1 as const, reason: "pressure" as const }));
+        const wrapper = mountControl(run);
+        await flushPromises();
+        wrapper.findComponent(VSwitch).vm.$emit("update:modelValue", true);
+        await flushPromises();
+        expect(fake.bridge.setAdaptiveRenderSpeed).toHaveBeenCalledWith("world-abc", true);
+        expect(wrapper.text()).toContain("liveSpeed.dynamic.pressure");
+        wrapper.unmount();
+    });
+    it("reports missing dynamic support without claiming activation", async () => {
+        const { run } = runningOn("local");
+        const wrapper = mountControl(run); await flushPromises();
+        wrapper.findComponent(VSwitch).vm.$emit("update:modelValue", true);
+        await flushPromises();
+        expect(wrapper.text()).toContain("liveSpeed.dynamic.unavailable");
+        expect(wrapper.findComponent(VSwitch).props("modelValue")).toBe(false);
+        wrapper.unmount();
     });
 });

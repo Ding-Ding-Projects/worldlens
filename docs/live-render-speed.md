@@ -274,3 +274,26 @@ Live 調整唔讀唔寫任何 config 或者 session 紀錄。Local 路線只改�
 - [Renders that survive being interrupted](./resumable-renders.md)——點解 restart 唔會蝕任何已畫嘅 tile。
 - [Rendering a world in GitHub Actions](./render-in-actions.md)——點解嗰條路線冇槓桿畀呢個控制項掂。
 - [Rendering on a remote host](./remote-render.md)——呢個控制項暫時未調整嘅 SSH-over-Docker 路線，同點解。
+
+
+## Dynamic mode
+
+The running-render speed panel offers an explicit Dynamic mode toggle for local processes
+and local containers. It applies only to the current render. The controller samples CPU
+counter deltas, available memory, timer responsiveness and operating-system idle duration
+every five seconds. It does not collect process names, input contents or activity history.
+Remote and unsupported runtime routes report unavailable.
+
+Two consecutive pressure samples lower scheduling to level 1. Four stable recovery samples
+restore level 3 when idle for at least one minute or when CPU use is light; intermediate
+workload uses level 2. Changes have a twenty-second cooldown. Idle CPU saturation alone
+never counts as pressure because rendering itself may occupy the CPU. Low memory or poor
+responsiveness still causes backoff while idle. These are conservative scheduling decisions,
+not guaranteed throughput gains, and they never raise priority above normal automatically.
+
+Manual level selection turns Dynamic mode off. In-flight changes are serialized so the
+manual request wins. The selected live mode remains with that render while its panel is
+closed and reopened; it is not silently enabled for future renders. Completion, cancellation
+and failure stop its owned timer. Thread counts and engine thread priorities remain fixed
+until an explicitly requested restart. If host measurements or adjustment verification are
+unavailable, the panel shows that state rather than claiming success.

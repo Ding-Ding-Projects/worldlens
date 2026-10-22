@@ -319,6 +319,8 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "remote:validate",
     "render:active",
     "render:preview",
+    "render:adaptiveSet",
+    "render:adaptiveGet",
     "render:adjustSpeed",
     "render:cancel",
     "render:dismissResume",

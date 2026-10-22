@@ -1,3 +1,4 @@
+import type { AdaptiveSpeedState } from "./worldBridge.js";
 /**
  * One render, watched from the interface.
  *
@@ -541,6 +542,8 @@ export interface RenderRun {
      * genuinely change right now. `null` when there is no render to address at all -
      * never a guessed-at result the interface would have to treat as real.
      */
+    setAdaptiveSpeed(enabled: boolean): Promise<AdaptiveSpeedState>;
+    getAdaptiveSpeed(): Promise<AdaptiveSpeedState>;
     adjustSpeed(level: SpeedLevelNumber): Promise<SpeedAdjustmentResult | null>;
     /**
      * Restarts this render at a chosen level, so the thread count baked into its launch
@@ -1517,6 +1520,14 @@ export function createRenderRun(
         settle,
         cancel,
         deleteHistory,
+        async setAdaptiveSpeed(enabled) {
+            if (!renderId.value || !bridge?.setAdaptiveRenderSpeed) return { enabled: false, level: null, reason: "unavailable" };
+            return bridge.setAdaptiveRenderSpeed(renderId.value, enabled);
+        },
+        async getAdaptiveSpeed() {
+            if (!renderId.value || !bridge?.getAdaptiveRenderSpeed) return { enabled: false, level: null, reason: "unavailable" };
+            return bridge.getAdaptiveRenderSpeed(renderId.value);
+        },
         adjustSpeed,
         restartWithLevel,
         reset,

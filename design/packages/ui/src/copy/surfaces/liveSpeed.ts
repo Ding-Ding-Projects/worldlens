@@ -234,6 +234,16 @@ export const LIVESPEED_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const LIVESPEED_FIXED = {
+    "liveSpeed.dynamic.title": { en: "Dynamic mode", yue: "動態模式" },
+    "liveSpeed.dynamic.description": { en: "Automatically eases scheduling under pressure and restores balanced speed when idle or lightly loaded. Choosing a manual level turns it off. Thread counts still require a restart. Applies to this render only.", yue: "機器繁忙時自動降低排程優先權，閒置或負載較低時恢復平衡速度。手動揀等級會關閉動態模式。執行緒數量仍然要重新啟動先會改。只適用於今次算圖。" },
+    "liveSpeed.dynamic.off": { en: "Dynamic mode is off.", yue: "動態模式已關閉。" },
+    "liveSpeed.dynamic.sampling": { en: "Measuring responsiveness and available capacity.", yue: "量度緊反應速度同可用資源。" },
+    "liveSpeed.dynamic.pressure": { en: "Easing rendering to protect responsiveness or memory headroom.", yue: "降低算圖負載，留返反應速度或記憶體空間。" },
+    "liveSpeed.dynamic.idle": { en: "Computer is idle; balanced scheduling restored.", yue: "電腦閒置，已恢復平衡排程。" },
+    "liveSpeed.dynamic.light": { en: "Workload is light; balanced scheduling restored.", yue: "負載較低，已恢復平衡排程。" },
+    "liveSpeed.dynamic.steady": { en: "Keeping a light scheduling level while you work.", yue: "你工作期間維持較低排程等級。" },
+    "liveSpeed.dynamic.unavailable": { en: "Dynamic control or its measurements are unavailable for this render.", yue: "呢次算圖未能使用動態控制或量度功能。" },
+    "liveSpeed.dynamic.apply-failed": { en: "The requested scheduling change could not be verified.", yue: "未能確認要求嘅排程調整。" },
     "liveSpeed.title": { en: "Adjust speed", yue: "即時調速" },
     "liveSpeed.pickerLabel": { en: "Live speed, level 1 to 5", yue: "即時速度，1 至 5 級" },
     "liveSpeed.restartButton": { en: "Restart at this level", yue: "用呢個等級重新啟動" },

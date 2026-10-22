@@ -398,6 +398,12 @@ export type SpeedLevelNumber = 1 | 2 | 3 | 4 | 5;
  * own doc comment for why `appliedNow` and `needsRestart` are two separate booleans rather
  * than one the interface would have to infer from `route` or `reason`.
  */
+export interface AdaptiveSpeedState {
+    enabled: boolean;
+    level: SpeedLevelNumber | null;
+    reason: "off" | "sampling" | "pressure" | "idle" | "light" | "steady" | "unavailable" | "apply-failed";
+}
+
 export interface SpeedAdjustmentResult {
     ok: boolean;
     renderId: string;
@@ -3040,6 +3046,8 @@ interface WorldlensBridge {
      * when part of the requested level only takes effect on the next render. Never rejects,
      * including when the render has already finished or its container has already stopped.
      */
+    setAdaptiveRenderSpeed?(renderId: string, enabled: boolean): Promise<AdaptiveSpeedState>;
+    getAdaptiveRenderSpeed?(renderId: string): Promise<AdaptiveSpeedState>;
     adjustRenderSpeed(renderId: string, level: SpeedLevelNumber): Promise<SpeedAdjustmentResult>;
     renderPreview(renderId: string): Promise<{ dataRoot: string; mapIds: string[] } | null>;
 
