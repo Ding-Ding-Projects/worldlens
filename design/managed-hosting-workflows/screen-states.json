@@ -1,0 +1,347 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "49d009b5ad685022abbb47dcff00b43305589ba8",
+  "viewerSourceCommit": "fcfea026",
+  "referenceFile": "WorkflowReference.vue",
+  "referenceRouteStatus": "not-mounted",
+  "productionRouteStatus": "pending",
+  "evidenceStatus": "unverified",
+  "languages": [
+    "en",
+    "yue",
+    "bilingual"
+  ],
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "displayScales": [
+    100,
+    125,
+    150,
+    200
+  ],
+  "desktopViewports": [
+    {
+      "height": 900,
+      "width": 1440
+    },
+    {
+      "height": 600,
+      "width": 800
+    }
+  ],
+  "hostedViewports": [
+    {
+      "height": 800,
+      "width": 1280
+    },
+    {
+      "height": 740,
+      "width": 320
+    }
+  ],
+  "screenStates": [
+    {
+      "id": "projects",
+      "states": [
+        "ready",
+        "empty",
+        "offline",
+        "error"
+      ],
+      "entrypoints": "ProjectsScreen new-project card; Home; World",
+      "nextScreen": "generation",
+      "action": "Open one shared generation coordinator; preserve existing-world action",
+      "referenceSelector": {
+        "screen": "projects",
+        "state": "ready",
+        "language": "en"
+      },
+      "referenceAddress": "pending-reference-host",
+      "runtimeAddress": "pending-production-route",
+      "focus": "Retain origin and restore focus after sheet/dialog close",
+      "keyboard": "Tab controls; arrow-key list/tab navigation; Enter confirms; Escape cancels current interaction",
+      "layout": "one-column at minimum width; wrap actions; scroll body",
+      "rawReferenceCapture": null,
+      "rawRuntimeCapture": null,
+      "comparison": null,
+      "visualDiff": null,
+      "intentionalDeviations": [],
+      "verification": "unverified"
+    },
+    {
+      "id": "generation",
+      "states": [
+        "ready",
+        "review",
+        "pending",
+        "reconnecting",
+        "late-exit",
+        "stdin-fallback",
+        "project-persistence-failed",
+        "canceled",
+        "retained"
+      ],
+      "entrypoints": "Generate and start project",
+      "nextScreen": "world",
+      "action": "Validate capabilities and consent; run owned server; save/probe world; persist/read project; open workspace",
+      "referenceSelector": {
+        "screen": "generation",
+        "state": "ready",
+        "language": "en"
+      },
+      "referenceAddress": "pending-reference-host",
+      "runtimeAddress": "pending-production-route",
+      "focus": "Retain origin and restore focus after sheet/dialog close",
+      "keyboard": "Tab controls; arrow-key list/tab navigation; Enter confirms; Escape cancels current interaction",
+      "layout": "one-column at minimum width; wrap actions; scroll body",
+      "rawReferenceCapture": null,
+      "rawRuntimeCapture": null,
+      "comparison": null,
+      "visualDiff": null,
+      "intentionalDeviations": [],
+      "verification": "unverified",
+      "detailedReferenceFile": "TaskStateReference.vue"
+    },
+    {
+      "id": "configuration",
+      "states": [
+        "ready",
+        "conflict",
+        "compare",
+        "pending",
+        "offline",
+        "error",
+        "saved"
+      ],
+      "entrypoints": "Project Configuration",
+      "nextScreen": "configuration",
+      "action": "Describe typed values; review changes; apply expected revision; preserve unknown fields and draft",
+      "referenceSelector": {
+        "screen": "configuration",
+        "state": "ready",
+        "language": "en"
+      },
+      "referenceAddress": "pending-reference-host",
+      "runtimeAddress": "pending-production-route",
+      "focus": "Retain origin and restore focus after sheet/dialog close",
+      "keyboard": "Tab controls; arrow-key list/tab navigation; Enter confirms; Escape cancels current interaction",
+      "layout": "one-column at minimum width; wrap actions; scroll body",
+      "rawReferenceCapture": null,
+      "rawRuntimeCapture": null,
+      "comparison": null,
+      "visualDiff": null,
+      "intentionalDeviations": [],
+      "verification": "unverified",
+      "detailedReferenceFile": "TaskStateReference.vue"
+    },
+    {
+      "id": "access",
+      "states": [
+        "ready",
+        "prepared",
+        "provisioned",
+        "verified",
+        "error",
+        "canceled"
+      ],
+      "entrypoints": "Before a new render; Project Access",
+      "nextScreen": "renders",
+      "action": "Prepare protected local reference; bootstrap destination separately; verify sign-in",
+      "referenceSelector": {
+        "screen": "access",
+        "state": "ready",
+        "language": "en"
+      },
+      "referenceAddress": "pending-reference-host",
+      "runtimeAddress": "pending-production-route",
+      "focus": "Retain origin and restore focus after sheet/dialog close",
+      "keyboard": "Tab controls; arrow-key list/tab navigation; Enter confirms; Escape cancels current interaction",
+      "layout": "one-column at minimum width; wrap actions; scroll body",
+      "rawReferenceCapture": null,
+      "rawRuntimeCapture": null,
+      "comparison": null,
+      "visualDiff": null,
+      "intentionalDeviations": [],
+      "verification": "unverified",
+      "detailedReferenceFile": "TaskStateReference.vue"
+    },
+    {
+      "id": "renders",
+      "states": [
+        "empty",
+        "partial",
+        "engine-finished",
+        "verifying",
+        "retained",
+        "verification-failed"
+      ],
+      "entrypoints": "Project Renders; Which render picker",
+      "nextScreen": "map",
+      "action": "Select real run; open internally; distinguish engine completion from verification and retention",
+      "referenceSelector": {
+        "screen": "renders",
+        "state": "ready",
+        "language": "en"
+      },
+      "referenceAddress": "pending-reference-host",
+      "runtimeAddress": "pending-production-route",
+      "focus": "Retain origin and restore focus after sheet/dialog close",
+      "keyboard": "Tab controls; arrow-key list/tab navigation; Enter confirms; Escape cancels current interaction",
+      "layout": "one-column at minimum width; wrap actions; scroll body",
+      "rawReferenceCapture": null,
+      "rawRuntimeCapture": null,
+      "comparison": null,
+      "visualDiff": null,
+      "intentionalDeviations": [],
+      "verification": "unverified",
+      "detailedReferenceFile": "TaskStateReference.vue"
+    },
+    {
+      "id": "map",
+      "states": [
+        "ready",
+        "partial",
+        "blank",
+        "drawing",
+        "conflict",
+        "offline",
+        "saved"
+      ],
+      "entrypoints": "Open map; running render preview",
+      "nextScreen": "map",
+      "action": "Show actual canvas; diagnose resources; fit terrain; draw and save annotations; pick typed command operands",
+      "referenceSelector": {
+        "screen": "map",
+        "state": "ready",
+        "language": "en"
+      },
+      "referenceAddress": "pending-reference-host",
+      "runtimeAddress": "pending-production-route",
+      "focus": "Retain origin and restore focus after sheet/dialog close",
+      "keyboard": "Tab controls; arrow-key list/tab navigation; Enter confirms; Escape cancels current interaction",
+      "layout": "one-column at minimum width; wrap actions; scroll body",
+      "rawReferenceCapture": null,
+      "rawRuntimeCapture": null,
+      "comparison": null,
+      "visualDiff": null,
+      "intentionalDeviations": [],
+      "verification": "unverified",
+      "detailedReferenceFile": "TaskStateReference.vue"
+    },
+    {
+      "id": "hosting",
+      "states": [
+        "ready",
+        "built",
+        "saved",
+        "signed-in",
+        "upload-review",
+        "uploaded",
+        "verified",
+        "error",
+        "canceled"
+      ],
+      "entrypoints": "Project Hosting from verified render",
+      "nextScreen": "hosting",
+      "action": "Separate native/container export, build/save/login/reviewed upload and real deployment health",
+      "referenceSelector": {
+        "screen": "hosting",
+        "state": "ready",
+        "language": "en"
+      },
+      "referenceAddress": "pending-reference-host",
+      "runtimeAddress": "pending-production-route",
+      "focus": "Retain origin and restore focus after sheet/dialog close",
+      "keyboard": "Tab controls; arrow-key list/tab navigation; Enter confirms; Escape cancels current interaction",
+      "layout": "one-column at minimum width; wrap actions; scroll body",
+      "rawReferenceCapture": null,
+      "rawRuntimeCapture": null,
+      "comparison": null,
+      "visualDiff": null,
+      "intentionalDeviations": [],
+      "verification": "unverified",
+      "detailedReferenceFile": "TaskStateReference.vue"
+    },
+    {
+      "id": "bots",
+      "states": [
+        "ready",
+        "incompatible",
+        "deploying",
+        "connected",
+        "navigating",
+        "offline",
+        "stopped"
+      ],
+      "entrypoints": "Project Bots; map Bots tool",
+      "nextScreen": "bots",
+      "action": "Independently select compatible Mineflayer or Baritone profile, deploy, connect, navigate and cancel",
+      "referenceSelector": {
+        "screen": "bots",
+        "state": "ready",
+        "language": "en"
+      },
+      "referenceAddress": "pending-reference-host",
+      "runtimeAddress": "pending-production-route",
+      "focus": "Retain origin and restore focus after sheet/dialog close",
+      "keyboard": "Tab controls; arrow-key list/tab navigation; Enter confirms; Escape cancels current interaction",
+      "layout": "one-column at minimum width; wrap actions; scroll body",
+      "rawReferenceCapture": null,
+      "rawRuntimeCapture": null,
+      "comparison": null,
+      "visualDiff": null,
+      "intentionalDeviations": [],
+      "verification": "unverified",
+      "detailedReferenceFile": "TaskStateReference.vue"
+    }
+  ],
+  "componentProvenance": {
+    "reused": [
+      "ConfigSearchField.vue",
+      "ConfigField.vue",
+      "MarkerStudio.vue"
+    ],
+    "installedManifestVersion": "^3.13.0",
+    "productionAudit": "pending",
+    "retainedInfrastructure": [
+      "Three.js canvas",
+      "map geometry",
+      "tile loader"
+    ],
+    "source": "vuetify/components",
+    "referenceImports": [
+      "VAlert",
+      "VBtn",
+      "VCard",
+      "VCardActions",
+      "VCardText",
+      "VCardTitle",
+      "VChip",
+      "VCol",
+      "VContainer",
+      "VDialog",
+      "VDivider",
+      "VList",
+      "VListItem",
+      "VProgressLinear",
+      "VRow",
+      "VSelect",
+      "VSwitch",
+      "VTextField",
+      "VToolbar",
+      "VToolbarTitle"
+    ]
+  },
+  "globalStateRules": {
+    "offline": "Retain local drafts, distinguish lost observation from stopped process",
+    "conflict": "Keep draft, compare current revision before reapply",
+    "error": "Exact operation and safe retry, never inferred rollback",
+    "empty": "Name next productive action",
+    "pending": "Keep progress and safe cancel at origin",
+    "canceled": "Report completed effects and resumable state"
+  },
+  "guidanceCoverage": "per-control production inventory pending",
+  "regexParity": "full topic ledger and engine-bound runtime evidence pending"
+}
