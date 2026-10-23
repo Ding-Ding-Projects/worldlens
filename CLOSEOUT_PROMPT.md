@@ -16,6 +16,14 @@ Recorded in HANDOFF.md under the dated section for this integration. Focused per
 
 `main` is `23ad4a01`. The world generator dialog's GitHub Actions runner is real for the synthetic engine: `worldgen.yml` run 40026980431 generated `gui-test-world` from the dialog's own configuration document, compiled 961 tiles, published the prerelease `world-gui-test-world-40026980431`, and chained `render-world.yml` run 40027085151, which rendered and verified the same 961 tiles. The exact numbers are in HANDOFF.md's dated section. Remaining here: the vanilla-server engine has no runner on GitHub Actions and is refused by design; the dialog's dispatch is unit-tested but has not been exercised from the packaged Windows application; following a dispatched run and downloading its artifacts from the dialog (`await-workflow-completion`, `download-artifact`) stay unwired and the plan preview says so. The GitHub CLI device sign-in in the Linux container was offered and not approved, so nothing was stored.
 
+## Closeout state (2026-10-23, 22:00 UTC)
+
+`main` is `21983936`, read back from the remote; CI run 2126 on it is green and release v1.0.2126 is published. The world prerelease exposed a release-job defect on `23ad4a01` (CI run 2123 failed because the nomination lookup counted `world-gui-test-world-40026980431` as the application's release); `5d8848a6` restricts the lookup to `v<major>.<minor>.<run>` tags and re-reviews the lint fingerprints. Run 2125 on `5d8848a6` published v1.0.2125 and then shows cancelled, superseded by the next push.
+
+Cleanup candidates, each proven an ancestor of the remote `main`: the branches `ai/feature/20261023-worldgen-workflow` (`23ad4a01`) and `ai/feature/20261023-managed-workflow-integration` (`f4103ab9`), their local copies, and one scratch worktree detached at `49d009b5`. Nothing was deleted: the required verified archive could not be written because this container has no archive destination. The eight 2026-10-22/23 lane branches and the older retained branches were created by earlier work and stay retained. The `world-gui-test-world-40026980431` prerelease is the generated world's source and stays published.
+
+The GitHub CLI device sign-in was offered five times and not approved before each code expired; no credential is stored in the container.
+
 ## Remaining work by area
 
 - Managed hosting: root runtime bundling and acquisition, trusted TLS and host resolution, central registration, actual native/WSL/container deployment, registry sign-in and upload, LAN proof.
