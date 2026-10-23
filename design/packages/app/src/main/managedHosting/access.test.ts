@@ -14,7 +14,7 @@ test("salted verification accepts only the correct password", async () => {
 });
 test("protected preparation exposes only a reference and bootstrap is consumed across restart", async () => {
     const root = await mkdtemp(join(tmpdir(), "access-")); roots.push(root);
-    const protection = { isEncryptionAvailable: () => true, encryptString: (value: string) => Buffer.from(value).map(byte => byte ^ 0x5a), decryptString: (value: Buffer) => Buffer.from(value).map(byte => byte ^ 0x5a).toString() };
+    const protection = { isEncryptionAvailable: () => true, encryptString: (value: string) => Buffer.from(Buffer.from(value).map(byte => byte ^ 0x5a)), decryptString: (value: Buffer) => Buffer.from(Buffer.from(value).map(byte => byte ^ 0x5a)).toString() };
     const store = new ProtectedAccessStore(root, protection);
     const result = await store.prepare("admin", "test-only-password-1234");
     expect(Object.keys(result).sort()).toEqual(["reference", "state", "username"]);

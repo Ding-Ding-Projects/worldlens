@@ -52,7 +52,7 @@ function inferScalar(key: string, value: unknown, siblingEnum: readonly string[]
  * plugin config, for instance) - when every sibling value is drawn from a small closed set,
  * the field is offered as a select with those values as options rather than free text.
  */
-export function inferField(key: string, value: unknown, siblings: readonly unknown[] = []): InferredField {
+export function inferField(key: string, value: unknown, _siblings: readonly unknown[] = []): InferredField {
     if (Array.isArray(value) && value.every((item) => typeof item !== "object" || item === null)) {
         return { control: { kind: "list", item: inferScalar(key, value[0] ?? "", undefined), itemLabel: key, unique: false }, guessed: true };
     }

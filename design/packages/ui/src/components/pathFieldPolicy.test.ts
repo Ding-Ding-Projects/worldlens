@@ -282,6 +282,12 @@ function fieldIdentity(field: { readonly key: string | null; readonly tag: strin
     return field.key ?? field.tag.slice(0, 60);
 }
 const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
+    "components/mcserver/GenerationProjectDialog.vue::<VTextField\n                        v-model=\"worldName\"\n    ": {
+        reason: "not-a-location",
+        note:
+            "The name of the world folder the generated server will create inside its own server " +
+            "directory. A folder being named, not an existing place on any disk to browse to.",
+    },
     "components/cirender/CloudRenderConfigWizard.vue::cirender.cloudConfig.projectName": {
         reason: "not-a-location",
         note:

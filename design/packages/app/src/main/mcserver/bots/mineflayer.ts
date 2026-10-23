@@ -54,9 +54,9 @@ export interface ProtectedAccount {
     onMsaCode?: (data: unknown) => void;
 }
 interface Events {
-    on(event: string, listener: (...args: any[]) => void): unknown;
-    once(event: string, listener: (...args: any[]) => void): unknown;
-    removeListener(event: string, listener: (...args: any[]) => void): unknown;
+    on(event: string, listener: (...args: never[]) => void): unknown;
+    once(event: string, listener: (...args: never[]) => void): unknown;
+    removeListener(event: string, listener: (...args: never[]) => void): unknown;
 }
 export interface MineflayerBot extends Events {
     version: string;

@@ -14,7 +14,7 @@ function privateLan(hostname: string): boolean {
 /** Health and intended-LAN reachability are separate from authenticated account verification. */
 export async function verifyManagedHostHealth(origin: string, fetcher: Fetch = fetch, expected?: { operationId: string; contextFingerprint: string }): Promise<{ healthy: true; lanVerified: boolean; origin: string }> {
     const url = checkedOrigin(origin);
-    const response = await fetcher(new URL("/health", url), { redirect: "error", signal: AbortSignal.timeout(10000), cache: "no-store" });
+    const response = await fetcher(new URL("/health", url), { redirect: "error", signal: AbortSignal.timeout(10000) });
     if (!response.ok) throw new Error("The host health endpoint did not succeed.");
     const body = await response.text(); if (body.length > 4096) throw new Error("The host health response is invalid.");
     const value = JSON.parse(body) as { ready?: unknown; authentication?: unknown; operationId?: unknown; contextFingerprint?: unknown };
@@ -35,7 +35,7 @@ export async function verifyManagedHostAccess(origin: string, username: string, 
     if (!response.ok) throw new Error("Administrator verification did not succeed.");
     const cookie = response.headers.get("set-cookie")?.split(";")[0];
     if (!cookie?.startsWith("worldlens_session=")) throw new Error("Administrator verification did not establish a session.");
-    const readback = await fetcher(new URL("/bridge/managed-session", url), { redirect: "error", signal: AbortSignal.timeout(10000), headers: { cookie }, cache: "no-store" });
+    const readback = await fetcher(new URL("/bridge/managed-session", url), { redirect: "error", signal: AbortSignal.timeout(10000), headers: { cookie } });
     const body = await readback.text(); if (body.length > 4096) throw new Error("Administrator readback is invalid.");
     const status = JSON.parse(body) as { signedIn?: unknown; state?: unknown };
     if (!readback.ok || status.signedIn !== true || status.state !== "verified") throw new Error("Administrator session could not be read back.");

@@ -14,7 +14,7 @@ async function setup(authorized = true) {
     const calls: string[] = []; const facts = vi.fn(async () => { throw new Error("No runtime configured for this test."); });
     const registration = registerManagedHostingIpc({ handle: (channel, listener) => { handlers.set(channel, listener); }, removeHandler: channel => { handlers.delete(channel); } }, {
         dataFolder: root, storageDir: () => join(root, "renders"), authorizeSender: () => authorized,
-        safeStorage: { isEncryptionAvailable: () => true, encryptString: value => Buffer.from(value).map(byte => byte ^ 0x5a), decryptString: value => Buffer.from(value).map(byte => byte ^ 0x5a).toString() },
+        safeStorage: { isEncryptionAvailable: () => true, encryptString: value => Buffer.from(Buffer.from(value).map(byte => byte ^ 0x5a)), decryptString: value => Buffer.from(Buffer.from(value).map(byte => byte ^ 0x5a)).toString() },
         buildFacts: facts, resolveHost: async () => { throw new Error("No host configured."); },
         deviceSignIn: async onChallenge => { calls.push("device"); onChallenge({ verificationUrl: "https://login.docker.com/activate", userCode: "TEST-CODE" }); },
     });

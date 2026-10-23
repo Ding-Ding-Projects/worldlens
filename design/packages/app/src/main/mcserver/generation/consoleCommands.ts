@@ -14,7 +14,7 @@ export async function executeGenerationCommands(commands:readonly string[],child
         const acknowledged=new RegExp(`Game ?rule ${name} (?:is now set to|is currently set to|is)[:\\s]+${value}(?:\\s|$)`,'i');
         await new Promise<void>((resolve,reject)=>{
             let buffer='';
-            const finish=(error?:Error)=>{clearTimeout(timer);clearInterval(cancellation);child.stdout?.off('data',data);child.stderr?.off('data',data);child.off('exit',exit);child.stdin?.off('error',errorHandler);error?reject(error):resolve();};
+            const finish=(error?:Error)=>{clearTimeout(timer);clearInterval(cancellation);child.stdout?.off('data',data);child.stderr?.off('data',data);child.off('exit',exit);child.stdin?.off('error',errorHandler);if(error)reject(error);else resolve();};
             const data=(chunk:Buffer)=>{buffer=(buffer+chunk.toString('utf8')).slice(-32768);if(acknowledged.test(buffer)) finish(); else if(/Unknown or incomplete command|Unknown game ?rule|Incorrect argument|Invalid value/i.test(buffer)) finish(new Error('The server rejected the requested generation rule.'));};
             const exit=()=>finish(new Error('The server exited before acknowledging the generation rule.'));
             const errorHandler=(error:Error)=>finish(error);

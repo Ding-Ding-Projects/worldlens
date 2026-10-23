@@ -46,7 +46,9 @@ describe("AwsProvisionPanel is reachable from a server's detail surface", () => 
         // The union grows as the panel grows a tab, so this asserts the shape and this
         // member rather than one frozen spelling of every member. Pinning the whole union
         // meant adding an unrelated tab turned the test red while nothing was broken.
-        const declaration = /const tab = ref<((?:"[a-z]+"(?: \| )?)+)>\("console"\);/.exec(
+        // The initial value may sit on its own line once the union grows past the formatter's
+        // width, so whitespace around it is allowed; the union itself is still read exactly.
+        const declaration = /const tab = ref<((?:"[a-z]+"(?: \| )?)+)>\(\s*"console",?\s*\);/.exec(
             PANEL_CODE,
         );
         expect(declaration).not.toBeNull();

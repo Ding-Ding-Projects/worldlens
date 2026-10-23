@@ -82,7 +82,7 @@ import {
 import type { CommandRunner } from "../runtime/command.js";
 import { acquireRenderWorkspaceLease } from "./workspaceLease.js";
 import { resolveRenderMaps } from "./mapIdentity.js";
-import { writeRenderConfig, validateMaps, InvalidRenderRequestError } from "./config.js";
+import { writeRenderConfig, InvalidRenderRequestError } from "./config.js";
 import type { RenderMapRequest } from "./config.js";
 import * as failures from "./failure.js";
 import type { RenderFailure } from "./failure.js";

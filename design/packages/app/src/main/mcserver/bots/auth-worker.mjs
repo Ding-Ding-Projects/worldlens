@@ -8,7 +8,8 @@ process.on("message", async (message) => {
     if (message?.kind === "stored") {
         const waiter = waiters.get(message.id);
         waiters.delete(message.id);
-        message.ok ? waiter?.resolve() : waiter?.reject(new Error("Protected persistence failed."));
+        if (message.ok) waiter?.resolve();
+        else waiter?.reject(new Error("Protected persistence failed."));
         return;
     }
     if (message?.kind !== "start") return;

@@ -282,6 +282,15 @@ interface OverlayEntry {
 
 const REGISTRY: readonly OverlayEntry[] = [
     {
+        file: "components/MapView.vue",
+        surface:
+            "The map's right-click context menu, anchored at the pointer through :target, offering " +
+            "the drawing and command actions for the clicked position.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
         file: "components/shell/AppRail.vue",
         surface:
             "The rail's own 'More' overflow menu, listing job shortcuts that do not fit the " +

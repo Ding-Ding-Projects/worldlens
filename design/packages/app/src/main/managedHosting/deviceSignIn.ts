@@ -17,7 +17,7 @@ export async function startDockerDeviceSignIn(onChallenge: (challenge: RegistryD
         const child = spawn("docker", ["login"], { shell: false, windowsHide: true, stdio: ["pipe", "pipe", "pipe"], ...(signal ? { signal } : {}) });
         let output = ""; let displayed = false; let settled = false;
         const timer = setTimeout(() => { child.kill(); finish(new Error("Registry sign-in expired. Start a new sign-in.")); }, 10 * 60 * 1000);
-        const finish = (error?: Error): void => { if (settled) return; settled = true; clearTimeout(timer); output = ""; error ? reject(error) : resolve(); };
+        const finish = (error?: Error): void => { if (settled) return; settled = true; clearTimeout(timer); output = ""; if (error) reject(error); else resolve(); };
         const receive = (chunk: Buffer): void => {
             output = (output + chunk.toString("utf8")).slice(-8192);
             const match = /(?:confirmation code|one-time device confirmation code)\s*(?:is|:)\s*([A-Z0-9]{4}-[A-Z0-9]{4})/iu.exec(output);

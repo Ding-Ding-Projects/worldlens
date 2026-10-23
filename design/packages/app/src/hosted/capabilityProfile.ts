@@ -224,6 +224,14 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
     ),
     runtime: optIn("docker-socket", "Probing the Docker daemon needs its socket."),
 
+    managedHosting: refused(
+        "Hosting another map from inside a hosted deployment would reach the Docker daemon, the " +
+            "render storage and the operating-system credential store of the machine this " +
+            "container runs on. It is a desktop operation about the operator's own machine, and " +
+            "every step of it spawns processes a container cannot own.",
+        "Export, build and publish the map from the desktop application; this deployment is the result of that work, not the place to do it.",
+    ),
+
     // Genuinely meaningless here, each for its own reason rather than a shared one.
     clipboard: refused(
         "The clipboard belongs to the computer running the browser, not to the server.",

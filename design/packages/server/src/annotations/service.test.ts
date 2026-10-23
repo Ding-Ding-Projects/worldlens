@@ -12,6 +12,9 @@ test("real HTTP boundary requires sign-in and same-origin edits with revision pr
     const access = new ManagedHostedAccess(null, async () => undefined);
     const salt = "a".repeat(64);
     await access.provision({ username: "admin", verifier: { algorithm: "scrypt-v1", salt, digest: scryptSync("test-password-1234", salt, 64, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }).toString("hex") } });
+    // Assigned after the server has an address, because the service needs the exact origin the
+    // server ended up listening on; the request handler above only dereferences it per request.
+    // eslint-disable-next-line prefer-const
     let service: ManagedAnnotationService;
     const server = createServer((req, res) => { void service.handle(req, res).then(handled => { if (!handled) { res.writeHead(404); res.end(); } }); });
     server.listen(0, "127.0.0.1"); await once(server, "listening");

@@ -192,6 +192,16 @@ interface DestructiveFile {
  * Ordered by path so the diff of adding one reads as an addition rather than a reshuffle.
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
+    "components/mcserver/ServerConfigEditor.vue": {
+        count: 1,
+        destroys: "nothing on disk: the unsaved draft of one server configuration file, on the person's own request",
+        standing: "buffer",
+        note:
+            "discardServerConfigDraft throws away edits that exist only in this editor's draft store " +
+            "and reloads the file as the server has it. The button says exactly that, 'Discard draft " +
+            "and reload', the file itself is never written, and a saved file is unaffected; applying a " +
+            "draft to disk goes through the hash-checked apply path, which is where a real write happens.",
+    },
     "bridge.d.ts": {
         count: 5,
         destroys:

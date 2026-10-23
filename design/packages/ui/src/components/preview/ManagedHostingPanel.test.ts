@@ -27,10 +27,12 @@ describe("immutable image upload review", () => {
             props: { renderId: "render-one" },
             global: { renderStubDefaultSlot: true },
         });
+        // Path inputs are PathField (a text field with a browse button); the rest stay VTextField.
         const field = (label: string) =>
-            wrapper
-                .findAllComponents({ name: "VTextField" })
-                .find((item) => item.props("label") === label)!;
+            [
+                ...wrapper.findAllComponents({ name: "VTextField" }),
+                ...wrapper.findAllComponents({ name: "PathField" }),
+            ].find((item) => item.props("label") === label)!;
         const button = (label: string) =>
             wrapper.findAllComponents({ name: "VBtn" }).find((item) => item.text() === label)!;
         field("New export folder").vm.$emit("update:modelValue", "C:/export-one");

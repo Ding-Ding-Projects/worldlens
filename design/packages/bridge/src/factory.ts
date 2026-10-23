@@ -198,6 +198,18 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                 status: () => transport.invoke("mcserver:worldgen:status"),
                 cancel: () => transport.invoke("mcserver:worldgen:cancel"),
             },
+            bots: {
+                profiles: (request: unknown) => transport.invoke("mcserver:bots:profiles", request),
+                accounts: () => transport.invoke("mcserver:bots:accounts"),
+                prepareAccount: (request: unknown) =>
+                    transport.invoke("mcserver:bots:prepareAccount", request),
+                deploy: (request: unknown) => transport.invoke("mcserver:bots:deploy", request),
+                stop: (request: unknown) => transport.invoke("mcserver:bots:stop", request),
+                reconnect: (request: unknown) => transport.invoke("mcserver:bots:reconnect", request),
+                status: (request: unknown) => transport.invoke("mcserver:bots:status", request),
+                navigate: (request: unknown) => transport.invoke("mcserver:bots:navigate", request),
+                cancel: (request: unknown) => transport.invoke("mcserver:bots:cancel", request),
+            },
             generation: {
                 run: (request: unknown) => transport.invoke("mcserver:generation:run", request),
                 read: (id: unknown) => transport.invoke("mcserver:generation:read", id),

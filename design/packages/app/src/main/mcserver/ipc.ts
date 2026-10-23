@@ -100,6 +100,7 @@ import { startWebConsoleServer, type WebConsoleServerHandle } from "./webconsole
 import { discoverJava } from "../java/discovery.js";
 import { provisionJava } from "../java/provision.js";
 import { applyConfigChanges, describeConfigFile } from "./config/describe.js";
+import { discoverConfigFiles } from "./config/discover.js";
 import type { JavaRunner } from "../java/probe.js";
 import { REQUIRED_JAVA_FEATURE } from "../java/version.js";
 import { execFileCommandRunner, type CommandRunner } from "../runtime/command.js";
@@ -151,6 +152,7 @@ export const MCSERVER_CHANNELS = {
     catalogueWikiVerify: "mcserver:catalogue:wikiVerify",
     javaResolve: "mcserver:java:resolve",
     javaProvision: "mcserver:java:provision",
+    configDiscover: "mcserver:config:discover",
     configDescribe: "mcserver:config:describe",
     configApply: "mcserver:config:apply",
     create: "mcserver:create",
@@ -1629,6 +1631,15 @@ export function registerMcServerHandlers(
          * one schema and showed a text box for everything else. This is the seam that was
          * missing rather than a new capability.
          */
+        [MCSERVER_CHANNELS.configDiscover]: async (_event: never, id: unknown) => {
+            // Bounded recursive discovery over the same transport describe/apply use, so the
+            // configuration editor's file list is read from the server's folder itself rather
+            // than from a hand-kept list of known file names.
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            return discoverConfigFiles(opened.value.transport);
+        },
+
         [MCSERVER_CHANNELS.configDescribe]: async (_event: never, id: unknown, path: unknown) => {
             if (!isPath(path)) return fail("invalid-request", "That file name cannot be used.");
             const opened = await open(id);

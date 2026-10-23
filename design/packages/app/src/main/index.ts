@@ -67,6 +67,10 @@ import {
 } from "./schoolMode/index.js";
 import { registerLockHandlers, type LockIpc } from "./locks/ipc.js";
 import { registerMcServerHandlers, type McServerIpc } from "./mcserver/ipc.js";
+import { registerGenerationIpc } from "./mcserver/generation/register.js";
+import { registerBotIpc } from "./mcserver/bots/wiring.js";
+import { registerManagedHostingIpc } from "./managedHosting/register.js";
+import { managedHostingBuildFacts, unconfiguredHostResolver } from "./managedHosting/wiring.js";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import {
@@ -505,6 +509,9 @@ let ipcRegistered = false;
 let schoolModeIpc: SchoolModeIpc | null = null;
 let lockIpc: LockIpc | null = null;
 let mcServerIpc: McServerIpc | null = null;
+let generationIpc: { dispose(): void } | null = null;
+let botIpc: { dispose(): void } | null = null;
+let managedHostingIpc: { dispose(): void } | null = null;
 let converterIpc: ConverterIpc | null = null;
 let ollamaIpc: OllamaIpc | null = null;
 let runtimeSettingsIpc: RuntimeSettingsIpc | null = null;
@@ -641,6 +648,18 @@ function registerIpc(): void {
         },
     });
     app.on("will-quit", () => mcServerIpc?.dispose());
+
+    // Server generation and the bot workflow share the server registry above. Both registrars
+    // validate in the main process and answer with explicit unavailable states where this build
+    // carries no connection, account or client; the renderer shows the reason instead of a gap.
+    generationIpc = registerGenerationIpc(ipcMain, {
+        dataFolder: app.getPath("userData"),
+        resourcesPath: app.isPackaged ? process.resourcesPath : null,
+        registry: mcServerIpc.registry,
+    });
+    app.on("will-quit", () => generationIpc?.dispose());
+    botIpc = registerBotIpc(ipcMain, { registry: mcServerIpc.registry });
+    app.on("will-quit", () => botIpc?.dispose());
 
     // Local conversion and Ollama are registered even when their bundled dependencies are
     // unavailable. The renderer receives a complete catalogue with disabled reasons instead
@@ -946,6 +965,32 @@ function startRendering(): RenderIpc {
         });
     });
     renderIpc = render;
+
+    // Managed map hosting starts from a verified render in this storage, so it is registered
+    // here, where the render storage directory is known. Build facts come from the build itself;
+    // deployment stays an explicit unavailable state until a hosting origin and TLS files can be
+    // configured (see `managedHosting/wiring.ts`).
+    managedHostingIpc ??= registerManagedHostingIpc(ipcMain, {
+        dataFolder: app.getPath("userData"),
+        safeStorage,
+        storageDir: () => render.storageDirectory(),
+        buildFacts: managedHostingBuildFacts({
+            sourceCommit:
+                typeof __WORLDLENS_SOURCE_COMMIT__ === "string" ? __WORLDLENS_SOURCE_COMMIT__ : null,
+            runtimeBundlePath: path.join(dirname, "..", "managed-host.mjs"),
+        }),
+        resolveHost: unconfiguredHostResolver(),
+        authorizeSender: (event) => {
+            const sender = (event as Electron.IpcMainInvokeEvent).sender;
+            const frame = (event as Electron.IpcMainInvokeEvent).senderFrame;
+            return !sender.isDestroyed() && sender.getURL().startsWith("file:") && (!frame || frame === sender.mainFrame);
+        },
+        sendDeviceChallenge: (event, challenge) => {
+            const sender = (event as Electron.IpcMainInvokeEvent).sender;
+            if (!sender.isDestroyed()) sender.send("managedHosting:deviceChallenge", challenge);
+        },
+    });
+    app.on("will-quit", () => managedHostingIpc?.dispose());
     return render;
 }
 

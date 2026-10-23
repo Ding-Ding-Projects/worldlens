@@ -14,6 +14,7 @@ import {
     VExpansionPanelTitle,
     VExpansionPanelText,
 } from "vuetify/components";
+import PathField from "../PathField.vue";
 import { hostingBridge, preparedAccess } from "./managedHostingBridge.js";
 import { workflowText as text } from "../mcserver/workflowText.js";
 const props = defineProps<{ renderId: string }>();
@@ -250,8 +251,10 @@ function safeUrl(url: string | undefined): string | undefined {
                     v-model="target"
                     :items="targets"
                     :label="text('Hosting format', '託管格式')"
-                /><VTextField
+                /><PathField
                     v-model="destination"
+                    field="export folder"
+                    semantic="folder"
                     :label="text('New export folder', '新匯出資料夾')"
                 />
             </div>
@@ -278,8 +281,10 @@ function safeUrl(url: string | undefined): string | undefined {
                             >{{ text("Build image", "建立映像") }}</VBtn
                         >
                         <p v-if="image">{{ image.imageId }}</p>
-                        <VTextField
+                        <PathField
                             v-model="archivePath"
+                            field="image archive file"
+                            semantic="file"
                             :label="text('New image archive path', '新映像封存檔路徑')"
                         /><VBtn
                             :disabled="
