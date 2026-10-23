@@ -80,6 +80,8 @@ import {
     type SpeedLevelNumber,
 } from "../runtime/speedControl.js";
 import type { CommandRunner } from "../runtime/command.js";
+import { acquireRenderWorkspaceLease } from "./workspaceLease.js";
+import { resolveRenderMaps } from "./mapIdentity.js";
 import { writeRenderConfig, validateMaps, InvalidRenderRequestError } from "./config.js";
 import type { RenderMapRequest } from "./config.js";
 import * as failures from "./failure.js";
@@ -577,6 +579,7 @@ export class RenderOrchestrator {
     private readonly options: RenderOrchestratorOptions;
     private readonly speedQueues = new Map<string, Promise<unknown>>();
     private readonly adaptive = new Map<string, AdaptiveSpeedController>();
+    private readonly workspaceLeases = new Map<symbol, () => Promise<void>>();
     private readonly running = new Map<string, RunningRender>();
     private readonly previewOwners = new Map<symbol, string>();
     private readonly previewTimers = new Map<symbol, ReturnType<typeof setInterval>>();
@@ -914,6 +917,9 @@ export class RenderOrchestrator {
             if (previewId !== undefined) this.readyPreviews.delete(previewId);
             for (const [renderId, pending] of this.pending)
                 if (pending.token === token) this.pending.delete(renderId);
+            const releaseWorkspace = this.workspaceLeases.get(token);
+            this.workspaceLeases.delete(token);
+            await releaseWorkspace?.();
         }
     }
 
@@ -931,7 +937,7 @@ export class RenderOrchestrator {
 
         let renderId = request.renderId ?? "";
         try {
-            validateMaps(request.maps);
+            request = { ...request, maps: resolveRenderMaps(request.maps, request.engine ?? "upstream-java") };
         } catch (error) {
             const message =
                 error instanceof InvalidRenderRequestError ? error.message : describe(error);
@@ -1138,6 +1144,12 @@ export class RenderOrchestrator {
                 return this.fail(renderId, failures.invalidRequest(describe(error)), null);
             }
         }
+        try {
+            this.workspaceLeases.set(token, await acquireRenderWorkspaceLease(this.storageDir(), renderId));
+        } catch {
+            return this.fail(renderId, failures.alreadyRunning(renderId), null);
+        }
+
         try {
             await mkdir(workspace.root, { recursive: true });
             if (launch === null) {

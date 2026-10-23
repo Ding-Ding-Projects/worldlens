@@ -3,6 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RenderPromotionStore, verifyFinishedRender } from "./promotion.js";
+import { inspectLegacyMapIdentity, recoverLegacyMapIdentity } from "./mapIdentityRecovery.js";
 import { renderConfigFingerprint } from "./session.js";
 import { buildCompletedOutputManifest } from "./outputManifest.js";
 import { renderWorkspace } from "./workspace.js";
@@ -413,4 +414,90 @@ describe("RenderPromotionStore", () => {
             if (!(error instanceof Error) || !/ENOENT|not found/i.test(error.message)) throw error;
         }
     }, 180_000);
+});
+
+
+describe("legacy identity inspection", () => {
+    async function legacyFixture() {
+        const { root, renderId } = await fixture();
+        const workspace = renderWorkspace(root, renderId);
+        const record = JSON.parse(await readFile(workspace.recordFile, "utf8"));
+        const sessionPath = join(workspace.root, "session.json");
+        const session = JSON.parse(await readFile(sessionPath, "utf8"));
+        record.maps[0].id = "over-world";
+        session.maps[0].id = "over-world";
+        session.configHash = renderConfigFingerprint(session.maps);
+        await writeFile(workspace.recordFile, JSON.stringify(record));
+        await writeFile(sessionPath, JSON.stringify(session));
+        await mkdir(join(workspace.configDir, "maps"), { recursive: true });
+        await writeFile(join(workspace.configDir, "maps", "over-world.conf"),
+            'world: "C:/world"\ndimension: "minecraft:overworld"\nname: "Overworld"');
+        const { rename } = await import("node:fs/promises");
+        await rename(join(workspace.storageRoot, "overworld"), join(workspace.storageRoot, "over_world"));
+        await writeFile(join(workspace.webRoot, "settings.json"), JSON.stringify({ maps: ["over_world"] }));
+        return { workspace, sessionPath };
+    }
+    it("derives a hashed correction without rewriting originals or timestamps", async () => {
+        const { workspace, sessionPath } = await legacyFixture();
+        const original = await readFile(workspace.recordFile, "utf8");
+        const session = await readFile(sessionPath, "utf8");
+        const proposal = await inspectLegacyMapIdentity(workspace);
+        expect(proposal.record.maps[0]?.id).toBe("over_world");
+        expect(proposal.record.finishedAt).toBe(JSON.parse(original).finishedAt);
+        expect(proposal.originalRecordSha256).toMatch(/^[a-f0-9]{64}$/);
+        expect(await readFile(workspace.recordFile, "utf8")).toBe(original);
+        expect(await readFile(sessionPath, "utf8")).toBe(session);
+        expect((await verifyFinishedRender(workspace)).failure).not.toBeNull();
+    });
+    it("preserves original metadata and uses the unchanged promotion verifier after applying", async () => {
+        const { workspace } = await legacyFixture();
+        const original = await readFile(workspace.recordFile, "utf8");
+        const proposal = await inspectLegacyMapIdentity(workspace);
+        const result = await recoverLegacyMapIdentity(workspace, {
+            expectedRecordSha256: proposal.originalRecordSha256,
+            expectedSessionSha256: proposal.originalSessionSha256,
+            expectedOutputFingerprint: proposal.outputManifest.payloadFingerprint,
+            sourceCommit: null, projectId: "project-id-unchanged",
+        });
+        expect(result.failure).toBeNull();
+        expect(result.promotion?.mapIds).toEqual(["over_world"]);
+        expect(result.promotion?.projectId).toBe("project-id-unchanged");
+        expect(await readFile(join(result.backupDirectory, "render.json"), "utf8")).toBe(original);
+    });
+    it("rejects WSL recovery without a retained path mapping", async () => {
+        const { workspace, sessionPath } = await legacyFixture();
+        for (const path of [workspace.recordFile, sessionPath]) {
+            const metadata = JSON.parse(await readFile(path, "utf8"));
+            metadata.runtime = "wsl";
+            await writeFile(path, JSON.stringify(metadata));
+        }
+        await expect(inspectLegacyMapIdentity(workspace)).rejects.toThrow("WSL recovery unavailable");
+    });
+    it("holds an exclusive workspace lease against concurrent recovery and releases it", async () => {
+        const { workspace } = await legacyFixture();
+        const { acquireRenderWorkspaceLease } = await import("./workspaceLease.js");
+        const { dirname } = await import("node:path");
+        const release = await acquireRenderWorkspaceLease(dirname(workspace.root), workspace.renderId);
+        const proposal = await inspectLegacyMapIdentity(workspace);
+        const options = { expectedRecordSha256: proposal.originalRecordSha256,
+            expectedSessionSha256: proposal.originalSessionSha256,
+            expectedOutputFingerprint: proposal.outputManifest.payloadFingerprint, sourceCommit: null, projectId: null };
+        await expect(recoverLegacyMapIdentity(workspace, options)).rejects.toMatchObject({ code: "EEXIST" });
+        await release();
+        expect((await recoverLegacyMapIdentity(workspace, options)).failure).toBeNull();
+    });
+    it("rejects stale reviewed metadata before any recovery write", async () => {
+        const { workspace } = await legacyFixture();
+        await expect(recoverLegacyMapIdentity(workspace, {
+            expectedRecordSha256: "0".repeat(64), expectedSessionSha256: "0".repeat(64), expectedOutputFingerprint: "0".repeat(64), sourceCommit: null, projectId: null,
+        })).rejects.toThrow("changed since review");
+    });
+    it("rejects output IDs unrelated to source and mismatched source dimensions", async () => {
+        const { workspace } = await legacyFixture();
+        await writeFile(join(workspace.webRoot, "settings.json"), JSON.stringify({ maps: ["arbitrary"] }));
+        await expect(inspectLegacyMapIdentity(workspace)).rejects.toThrow("map set");
+        await writeFile(join(workspace.configDir, "maps", "over-world.conf"),
+            'world: "C:/world"\ndimension: "minecraft:the_nether"\nname: "Overworld"');
+        await expect(inspectLegacyMapIdentity(workspace)).rejects.toThrow("configuration identity");
+    });
 });
