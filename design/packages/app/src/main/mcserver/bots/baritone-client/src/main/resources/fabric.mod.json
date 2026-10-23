@@ -1,0 +1,1 @@
+{"schemaVersion":1,"id":"worldlens_bot_bridge","version":"1.0.0","name":"Worldlens Bot Bridge","environment":"client","entrypoints":{"client":["org.worldlens.bot.WorldlensBotBridge"]},"depends":{"fabricloader":"0.16.9","minecraft":"1.21.4","java":">=21","baritone":"*"}}
