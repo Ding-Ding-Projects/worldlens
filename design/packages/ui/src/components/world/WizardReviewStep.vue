@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AccessPreparationPanel from "../preview/AccessPreparationPanel.vue";
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiChevronDown, mdiChevronUp, mdiContentCopy, mdiInformationOutline } from "@mdi/js";
@@ -157,7 +158,10 @@ async function copyConfig(): Promise<void> {
 
 <template>
     <section class="mb-world-step" :aria-label="t('world.wizard.step.review', 'Review')">
-        <h3 class="mb-world-step__title">{{ t("world.review.title", "What is about to happen") }}</h3>
+        <AccessPreparationPanel />
+        <h3 class="mb-world-step__title">
+            {{ t("world.review.title", "What is about to happen") }}
+        </h3>
 
         <v-card variant="tonal" class="mb-world-review__card">
             <v-card-title class="mb-world-review__head">
@@ -171,7 +175,8 @@ async function copyConfig(): Promise<void> {
 
                     <dt>{{ t("world.review.dimensionLabel", "Dimension") }}</dt>
                     <dd>
-                        {{ dimensionLabel }} <span class="mb-world-review__key">{{ dimensionKey }}</span>
+                        {{ dimensionLabel }}
+                        <span class="mb-world-review__key">{{ dimensionKey }}</span>
                         <GlossaryTerm term="dimension" />
                     </dd>
 
@@ -186,7 +191,8 @@ async function copyConfig(): Promise<void> {
                         <dd>
                             <ul class="mb-world-review__extraMaps">
                                 <li v-for="row in extraMapRows" :key="row.key">
-                                    {{ row.label }} <span class="mb-world-review__key">{{ row.id }}</span>
+                                    {{ row.label }}
+                                    <span class="mb-world-review__key">{{ row.id }}</span>
                                     <span class="mb-world-review__key">{{ row.world }}</span>
                                 </li>
                             </ul>
@@ -225,7 +231,13 @@ async function copyConfig(): Promise<void> {
             what is missing and points at the setting, rather than putting a licence
             in front of somebody who is five steps into a wizard.
         -->
-        <v-alert v-if="!consentAccepted" type="warning" density="compact" variant="tonal" class="mt-3">
+        <v-alert
+            v-if="!consentAccepted"
+            type="warning"
+            density="compact"
+            variant="tonal"
+            class="mt-3"
+        >
             {{
                 t(
                     "world.review.consentMissing",
@@ -276,7 +288,9 @@ async function copyConfig(): Promise<void> {
                 persistent-hint
                 color="primary"
                 density="compact"
-                @update:model-value="(value: boolean | null) => change({ fixEdges: value === true })"
+                @update:model-value="
+                    (value: boolean | null) => change({ fixEdges: value === true })
+                "
             />
             <v-checkbox
                 :model-value="run.metrics"
@@ -310,13 +324,20 @@ async function copyConfig(): Promise<void> {
             />
         </div>
 
-        <h4 class="mb-world-review__subtitle">{{ t("world.review.changesTitle", "Settings you changed") }}</h4>
+        <h4 class="mb-world-review__subtitle">
+            {{ t("world.review.changesTitle", "Settings you changed") }}
+        </h4>
         <p class="mb-world-review__reachesHint">
             <GlossaryTerm term="reaches" />
         </p>
 
         <p v-if="reaching.length === 0 && carried.length === 0" class="mb-world-step__blurb">
-            {{ t("world.review.noChanges", "None. Everything is at BlueMap's own default for this dimension.") }}
+            {{
+                t(
+                    "world.review.noChanges",
+                    "None. Everything is at BlueMap's own default for this dimension.",
+                )
+            }}
         </p>
 
         <template v-else>
@@ -350,7 +371,12 @@ async function copyConfig(): Promise<void> {
                     <strong>{{ entry.field.label }}</strong>
                     <span class="mb-world-review__key">{{ entry.field.path }}</span>
                     <span>{{ describeValue(entry.to) }}</span>
-                    <v-chip v-if="entry.invalidatesTiles" size="x-small" color="warning" variant="tonal">
+                    <v-chip
+                        v-if="entry.invalidatesTiles"
+                        size="x-small"
+                        color="warning"
+                        variant="tonal"
+                    >
                         {{ t("world.review.reRender", "Re-render") }}
                     </v-chip>
                 </li>
@@ -399,7 +425,13 @@ async function copyConfig(): Promise<void> {
                             : t("world.review.showConfig", "Show the map config this produces")
                     }}
                 </v-btn>
-                <v-btn :prepend-icon="mdiContentCopy" variant="text" size="small" density="comfortable" @click="copyConfig">
+                <v-btn
+                    :prepend-icon="mdiContentCopy"
+                    variant="text"
+                    size="small"
+                    density="comfortable"
+                    @click="copyConfig"
+                >
                     {{ t("world.review.copy", "Copy") }}
                 </v-btn>
             </v-card-title>

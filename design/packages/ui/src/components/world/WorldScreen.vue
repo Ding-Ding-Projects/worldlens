@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GenerationEntry from "../mcserver/GenerationEntry.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiMapPlus, mdiProgressClock } from "@mdi/js";
@@ -566,6 +567,7 @@ async function resume(renderId: string): Promise<void> {
 
 <template>
     <div class="mb-world-screen">
+        <GenerationEntry />
         <v-card class="mb-world-screen__card" variant="tonal">
             <v-card-text class="d-flex align-center justify-space-between ga-3 flex-wrap">
                 <span>{{ t("world.screen.generator", "Need a deterministic test world?") }}</span>
@@ -746,8 +748,17 @@ async function resume(renderId: string): Promise<void> {
                     creates a second model, and the wizard below stays mounted rather than being
                     torn down, so switching half way through keeps every answer already given.
                 -->
-                <div class="mb-world-screen__modes" role="group" :aria-label="t('world.screen.modeLabel', 'Creation view')">
-                    <v-btn-toggle v-model="creationMode" mandatory density="compact" variant="outlined">
+                <div
+                    class="mb-world-screen__modes"
+                    role="group"
+                    :aria-label="t('world.screen.modeLabel', 'Creation view')"
+                >
+                    <v-btn-toggle
+                        v-model="creationMode"
+                        mandatory
+                        density="compact"
+                        variant="outlined"
+                    >
                         <v-btn value="wizard" size="small" data-test="creation-mode-wizard">
                             {{ t("world.screen.modeWizard", "Steps") }}
                         </v-btn>

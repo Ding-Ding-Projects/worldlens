@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GenerationProjectDialog from "./components/mcserver/GenerationProjectDialog.vue";
 import VocabularyWindowDrop from "./components/vocabulary/VocabularyWindowDrop.vue";
 import { computed, nextTick, onMounted, onUnmounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
@@ -945,29 +946,29 @@ const RAIL_JOB_SHORTCUT_LABELS = computed<Record<(typeof RAIL_JOB_SHORTCUT_IDS)[
     }),
 );
 
-const railJobShortcuts = computed<{ id: string; icon: string; label: string; shortLabel: string }[]>(
-    () => {
-        const byId = new Map(pages.value.map((page) => [page.id, page]));
-        return RAIL_JOB_SHORTCUT_IDS.flatMap((id) => {
-            const page = byId.get(id);
-            // A shortcut whose job this build cannot host (capability-gated out) is dropped
-            // rather than shown pointing nowhere - the same rule `WorkPane.vue` already applies
-            // to the tab itself, so a rail shortcut can never outlive the job it opens.
-            // `page.icon` is nullable on `TabPage` in general; every entry named above sets
-            // one, so the fallback never fires.
-            return page === undefined
-                ? []
-                : [
-                      {
-                          id: page.id,
-                          icon: page.icon ?? "",
-                          label: page.label,
-                          shortLabel: RAIL_JOB_SHORTCUT_LABELS.value[id],
-                      },
-                  ];
-        });
-    },
-);
+const railJobShortcuts = computed<
+    { id: string; icon: string; label: string; shortLabel: string }[]
+>(() => {
+    const byId = new Map(pages.value.map((page) => [page.id, page]));
+    return RAIL_JOB_SHORTCUT_IDS.flatMap((id) => {
+        const page = byId.get(id);
+        // A shortcut whose job this build cannot host (capability-gated out) is dropped
+        // rather than shown pointing nowhere - the same rule `WorkPane.vue` already applies
+        // to the tab itself, so a rail shortcut can never outlive the job it opens.
+        // `page.icon` is nullable on `TabPage` in general; every entry named above sets
+        // one, so the fallback never fires.
+        return page === undefined
+            ? []
+            : [
+                  {
+                      id: page.id,
+                      icon: page.icon ?? "",
+                      label: page.label,
+                      shortLabel: RAIL_JOB_SHORTCUT_LABELS.value[id],
+                  },
+              ];
+    });
+});
 
 /**
  * How a brand-new workspace is arranged, and why it is not twelve flat tabs.
@@ -1753,7 +1754,39 @@ function revealBackupRestore(where: {
 function openRenderedMap(dataRoot: string, mapIds: readonly string[]): void {
     const label = mapIds.length > 0 ? mapIds.join(", ") : t("world.rendered", "Rendered map");
     const profile = addLocalMap(dataRoot, label);
+    if (mapIds.length === 1 && mapIds[0]) profile.mapId = mapIds[0];
+    const renderId = /^\/local\/([^/]+)$/.exec(dataRoot)?.[1];
+    const contextReader = (
+        globalThis as unknown as {
+            worldlens?: {
+                renderContext?: (
+                    id: string,
+                ) => Promise<{
+                    projectId?: string;
+                    serverId?: string;
+                    mapId?: string;
+                    dimension?: string;
+                }>;
+            };
+        }
+    ).worldlens?.renderContext;
+    if (renderId && contextReader)
+        void contextReader(decodeURIComponent(renderId))
+            .then((context) => {
+                const current = profilesStore.profiles.find(
+                    (entry) => entry.id === profile.id && entry.dataRoot === dataRoot,
+                );
+                if (!current) return;
+                for (const key of ["projectId", "serverId", "mapId", "dimension"] as const) {
+                    const value = context[key];
+                    if (typeof value === "string" && value.length > 0) current[key] = value;
+                }
+            })
+            .catch(() => {
+                /* Missing context never invents an authenticated server identity. */
+            });
     profilesStore.activeId = profile.id;
+    shell.select("map");
     // A render of any kind - local, CI, structure or a dropped file - just became a real,
     // openable map. Every render path already funnels through this one function, which makes
     // it the honest place for "you made your first map" rather than a check re-implemented at
@@ -1848,7 +1881,14 @@ function openProject(world: string): void {
  * drops are reported through the normal non-blocking notice queue instead of a browser alert.
  */
 function onVocabularyOutcome(success: boolean): void {
-    if (!success) raiseNotice("error", t("vocabulary.drop.refused", "The file was not applied. Drop one valid personal-vocabulary JSON file, up to 256 KiB, and ensure local storage is available. Your previous wording remains active."));
+    if (!success)
+        raiseNotice(
+            "error",
+            t(
+                "vocabulary.drop.refused",
+                "The file was not applied. Drop one valid personal-vocabulary JSON file, up to 256 KiB, and ensure local storage is available. Your previous wording remains active.",
+            ),
+        );
 }
 
 async function onWorldDrop(event: DragEvent): Promise<void> {
@@ -2531,8 +2571,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 </script>
 
 <template>
+    <GenerationProjectDialog @open-project="openProject" />
     <v-app class="mb-app" @dragover.prevent @drop.prevent="onWorldDrop">
-        <VocabularyWindowDrop :restricted="schoolMode.enabled.value" @outcome="onVocabularyOutcome" />
+        <VocabularyWindowDrop
+            :restricted="schoolMode.enabled.value"
+            @outcome="onVocabularyOutcome"
+        />
         <!--
             Covers the whole app shell so a structure or schematic can be dropped from
             anywhere, not only from whichever page happens to be open. It does not render
@@ -2917,7 +2961,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #preview>
                     <div class="mb-world-host mb-interactive">
                         <div class="mb-shell-centre">
-                            <PreviewScreen />
+                            <PreviewScreen @open-map="onLocalRenderOpened" />
                         </div>
                     </div>
                 </template>
@@ -3527,7 +3571,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #preview>
                                 <div class="mb-world-host mb-interactive">
                                     <div class="mb-shell-centre">
-                                        <PreviewScreen />
+                                        <PreviewScreen @open-map="onLocalRenderOpened" />
                                     </div>
                                 </div>
                             </template>

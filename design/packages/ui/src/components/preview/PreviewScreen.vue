@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AccessPreparationPanel from "./AccessPreparationPanel.vue";
+import ManagedHostingPanel from "./ManagedHostingPanel.vue";
 import { computed, onBeforeUnmount, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -11,6 +13,9 @@ import {
     mdiStop,
 } from "@mdi/js";
 import { VAlert, VBtn, VCheckbox, VChip, VIcon, VSelect, VTextField } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
+import { workflowText as text } from "../mcserver/workflowText.js";
 import { raiseNotice } from "../../stores/notices.js";
 import { createPreviewHost } from "./previewHost.js";
 import { resolvePreviewBridge } from "./previewBridge.js";
@@ -42,6 +47,10 @@ const props = withDefaults(
     {},
 );
 
+const emit = defineEmits<{ openMap: [dataRoot: string, mapIds: readonly string[]] }>();
+const renderQuery = ref("");
+const renderRegex = ref(false);
+const renderFlags = ref("i");
 const { t } = useI18n();
 
 const bridge = props.bridge === undefined ? resolvePreviewBridge() : props.bridge;
@@ -57,7 +66,8 @@ const networkExplainId = useId();
 
 const disabledReason = computed<string | null>(() => {
     if (host.status.value.running) return null;
-    if (host.selectedRenderId.value === "") return t("preview.noRenders", "No renders on this computer yet.");
+    if (host.selectedRenderId.value === "")
+        return t("preview.noRenders", "No renders on this computer yet.");
     if (host.checkingAvailability.value) return t("preview.checkingAvailability", "Checking...");
     const availability = host.availability.value;
     if (availability === null || availability.ok) return null;
@@ -116,11 +126,18 @@ function announce(event: PreviewEvent): void {
             ),
         );
     } else if (event.type === "stopped") {
-        raiseNotice("info", t("preview.notice.stopped", "Stopped hosting. The address no longer answers."));
+        raiseNotice(
+            "info",
+            t("preview.notice.stopped", "Stopped hosting. The address no longer answers."),
+        );
     } else {
         raiseNotice(
             "error",
-            t("preview.notice.failed", { reason: event.reason }, "Could not start hosting: {reason}"),
+            t(
+                "preview.notice.failed",
+                { reason: event.reason },
+                "Could not start hosting: {reason}",
+            ),
         );
     }
 }
@@ -131,14 +148,15 @@ watch(host.lastEvent, (event) => {
 
 watch(host.startFailure, (reason) => {
     if (reason !== null) {
-        raiseNotice("error", t("preview.notice.failed", { reason }, "Could not start hosting: {reason}"));
+        raiseNotice(
+            "error",
+            t("preview.notice.failed", { reason }, "Could not start hosting: {reason}"),
+        );
     }
 });
 
 const networkValueLabel = computed(() =>
-    host.allowNetwork.value
-        ? t("preview.network.on", "on")
-        : t("preview.network.off", "off"),
+    host.allowNetwork.value ? t("preview.network.on", "on") : t("preview.network.off", "off"),
 );
 
 const provenanceText = computed(() => {
@@ -156,16 +174,52 @@ const provenanceText = computed(() => {
     );
 });
 
+const renderStateText = computed(() => {
+    const selected = host.renders.value.find(
+        (entry) => entry.renderId === host.selectedRenderId.value,
+    );
+    if (selected?.running)
+        return text(
+            "Partial live render. Tiles may still be missing.",
+            "即時部分繪製，可能尚有缺少的區塊。",
+        );
+    if (selected?.verification === "verified")
+        return text("Completed output verified and retained.", "完成的輸出已驗證並保留。");
+    if (selected?.verification === "verifying")
+        return text(
+            "Engine finished; output verification is in progress.",
+            "引擎已完成，正在驗證輸出。",
+        );
+    if (selected?.verification === "failed")
+        return text(
+            "Output verification failed. Export remains unavailable.",
+            "輸出驗證失敗，暫時無法匯出。",
+        );
+    return text(
+        "Render is not currently observed running. Completion requires retained-output verification.",
+        "目前未觀察到繪製運行中。完成狀態須以保留輸出驗證。",
+    );
+});
 const renderItems = computed(() =>
-    host.renders.value.map((entry) => ({
-        title: entry.running ? `${entry.label} (${t("preview.renderActive.yes", "Still rendering")})` : entry.label,
-        value: entry.renderId,
-    })),
+    host.renders.value
+        .filter((entry) =>
+            createSettingMatcher(renderQuery.value, renderRegex.value, renderFlags.value).test(
+                `${entry.renderId} ${entry.label}`,
+            ),
+        )
+        .map((entry) => ({
+            title: entry.running
+                ? `${entry.label} (${t("preview.renderActive.yes", "Still rendering")})`
+                : entry.label,
+            value: entry.renderId,
+        })),
 );
 </script>
 
 <template>
     <div class="mb-preview">
+        <AccessPreparationPanel />
+        <ManagedHostingPanel :render-id="host.selectedRenderId.value" />
         <!--
             The page's own header rather than a card wrapping the whole screen.
 
@@ -209,10 +263,19 @@ const renderItems = computed(() =>
 
         <div class="mb-preview__body">
             <v-alert v-if="!host.available" type="warning" variant="tonal" density="comfortable">
-                {{ t("preview.unsupported", "The desktop application is what hosts a render live.") }}
+                {{
+                    t("preview.unsupported", "The desktop application is what hosts a render live.")
+                }}
             </v-alert>
 
             <template v-else>
+                <ConfigSearchField
+                    v-model="renderQuery"
+                    v-model:regex="renderRegex"
+                    v-model:flags="renderFlags"
+                    :label="text('Search renders', '搜尋繪製記錄')"
+                    :sample="host.renders.value.map((entry) => entry.label).join('\n')"
+                />
                 <v-select
                     v-model="host.selectedRenderId.value"
                     :items="renderItems"
@@ -234,23 +297,36 @@ const renderItems = computed(() =>
                         density="comfortable"
                         hide-details="auto"
                         color="primary"
-                        @update:model-value="(value: boolean | null) => host.setAllowNetwork(value === true)"
+                        @update:model-value="
+                            (value: boolean | null) => host.setAllowNetwork(value === true)
+                        "
                     >
                         <template #label>
-                            <span>{{ t("preview.network.label", "Also allow other devices on this network") }}</span>
+                            <span>{{
+                                t(
+                                    "preview.network.label",
+                                    "Also allow other devices on this network",
+                                )
+                            }}</span>
                         </template>
                     </v-checkbox>
                     <v-btn
                         :icon="mdiInformationOutline"
                         size="small"
                         variant="text"
-                        :aria-label="t('preview.network.label', 'Also allow other devices on this network')"
+                        :aria-label="
+                            t('preview.network.label', 'Also allow other devices on this network')
+                        "
                         :aria-expanded="networkExplainOpen"
                         :aria-controls="networkExplainId"
                         @click="networkExplainOpen = !networkExplainOpen"
                     />
                 </div>
-                <div v-if="networkExplainOpen" :id="networkExplainId" class="mb-preview__explainBox">
+                <div
+                    v-if="networkExplainOpen"
+                    :id="networkExplainId"
+                    class="mb-preview__explainBox"
+                >
                     <p class="mb-meta mb-preview__consequence">
                         <v-icon :icon="mdiLan" size="16" />
                         {{
@@ -264,8 +340,14 @@ const renderItems = computed(() =>
                     <p class="mb-meta mb-preview__bindAddress">
                         {{
                             host.allowNetwork.value
-                                ? t("preview.bindAddress.network", "Every device on this network (0.0.0.0)")
-                                : t("preview.bindAddress.loopback", "This computer only (127.0.0.1)")
+                                ? t(
+                                      "preview.bindAddress.network",
+                                      "Every device on this network (0.0.0.0)",
+                                  )
+                                : t(
+                                      "preview.bindAddress.loopback",
+                                      "This computer only (127.0.0.1)",
+                                  )
                         }}
                     </p>
                 </div>
@@ -281,6 +363,19 @@ const renderItems = computed(() =>
                 </v-chip>
 
                 <div class="mb-preview__actions">
+                    <VBtn
+                        color="primary"
+                        :disabled="!host.selectedRenderId.value || !host.availability.value?.ok"
+                        @click="
+                            emit(
+                                'openMap',
+                                `/local/${encodeURIComponent(host.selectedRenderId.value)}`,
+                                [],
+                            )
+                        "
+                        >{{ text("Open map inside Worldlens", "在 Worldlens 內開啟地圖") }}</VBtn
+                    >
+                    <p role="status">{{ renderStateText }}</p>
                     <v-btn
                         v-if="!host.status.value.running"
                         :prepend-icon="mdiPlay"
@@ -307,8 +402,17 @@ const renderItems = computed(() =>
                     </span>
                 </div>
 
-                <div v-if="host.status.value.running" class="mb-preview__running" role="status" aria-live="polite">
-                    <v-chip :color="host.status.value.renderActive ? 'warning' : 'success'" size="small" variant="tonal">
+                <div
+                    v-if="host.status.value.running"
+                    class="mb-preview__running"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <v-chip
+                        :color="host.status.value.renderActive ? 'warning' : 'success'"
+                        size="small"
+                        variant="tonal"
+                    >
                         {{ t("preview.status.running", "Live") }}
                         -
                         {{
@@ -347,7 +451,13 @@ const renderItems = computed(() =>
                     density="comfortable"
                     role="alert"
                 >
-                    {{ t("preview.notice.failed", { reason: host.startFailure.value }, "Could not start hosting: {reason}") }}
+                    {{
+                        t(
+                            "preview.notice.failed",
+                            { reason: host.startFailure.value },
+                            "Could not start hosting: {reason}",
+                        )
+                    }}
                 </v-alert>
                 <v-alert
                     v-if="host.rendersFailure.value !== null"

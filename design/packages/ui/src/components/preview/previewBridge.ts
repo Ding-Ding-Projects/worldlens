@@ -7,10 +7,15 @@
 
 export type PreviewAvailability =
     | { readonly ok: true }
-    | { readonly ok: false; readonly code: "on-github-runners" | "not-found"; readonly reason: string };
+    | {
+          readonly ok: false;
+          readonly code: "on-github-runners" | "not-found";
+          readonly reason: string;
+      };
 
 /** One render this computer knows about, shaped for a picker rather than for a details view. */
 export interface PreviewRenderOption {
+    readonly verification?: "verified" | "failed" | "verifying" | "unknown";
     readonly renderId: string;
     /** The render id plus its map names, when known - what a person actually recognises. */
     readonly label: string;
@@ -19,7 +24,13 @@ export interface PreviewRenderOption {
 }
 
 export type PreviewStartAnswer =
-    | { readonly ok: true; readonly renderId: string; readonly url: string; readonly host: string; readonly port: number }
+    | {
+          readonly ok: true;
+          readonly renderId: string;
+          readonly url: string;
+          readonly host: string;
+          readonly port: number;
+      }
     | { readonly ok: false; readonly reason: string };
 
 export interface PreviewStatus {
@@ -41,7 +52,12 @@ export type PreviewEvent =
           readonly at: string;
       }
     | { readonly type: "stopped"; readonly renderId: string; readonly at: string }
-    | { readonly type: "failed"; readonly renderId: string; readonly reason: string; readonly at: string };
+    | {
+          readonly type: "failed";
+          readonly renderId: string;
+          readonly reason: string;
+          readonly at: string;
+      };
 
 export interface PreviewNetworkReadout {
     readonly allowNetwork: boolean;
@@ -67,6 +83,7 @@ export interface PreviewBridge {
 }
 
 interface RawRenderSummary {
+    readonly verification?: unknown;
     readonly renderId?: unknown;
     readonly maps?: unknown;
 }
@@ -76,7 +93,10 @@ type Host = Partial<{
     listRenders: () => Promise<readonly RawRenderSummary[]>;
     activeRenders: () => Promise<readonly string[]>;
     previewAvailability: (renderId: string) => Promise<PreviewAvailability>;
-    startPreview: (request: { renderId: string; allowNetwork?: boolean }) => Promise<PreviewStartAnswer>;
+    startPreview: (request: {
+        renderId: string;
+        allowNetwork?: boolean;
+    }) => Promise<PreviewStartAnswer>;
     stopPreview: () => Promise<boolean>;
     previewStatus: () => Promise<PreviewStatus>;
     openPreviewInBrowser: () => Promise<boolean>;
@@ -101,7 +121,10 @@ function mapLabel(entry: unknown): string {
 function labelFor(summary: RawRenderSummary): string {
     const id = typeof summary.renderId === "string" ? summary.renderId : "";
     const maps = Array.isArray(summary.maps)
-        ? summary.maps.map(mapLabel).filter((name) => name.length > 0).join(", ")
+        ? summary.maps
+              .map(mapLabel)
+              .filter((name) => name.length > 0)
+              .join(", ")
         : "";
     return maps.length > 0 ? `${id} (${maps})` : id;
 }
@@ -147,6 +170,15 @@ export function resolvePreviewBridge(): PreviewBridge | null {
                     renderId: summary.renderId,
                     label: labelFor(summary),
                     running: activeSet.has(summary.renderId),
+                    ...(["verified", "failed", "verifying", "unknown"].includes(
+                        String(summary.verification),
+                    )
+                        ? {
+                              verification: summary.verification as NonNullable<
+                                  PreviewRenderOption["verification"]
+                              >,
+                          }
+                        : {}),
                 });
             }
             return options;
@@ -165,7 +197,9 @@ export function resolvePreviewBridge(): PreviewBridge | null {
         },
         setNetworkDefault: (allowNetwork) => {
             const call = host.setPreviewNetworkDefault;
-            return isFunction(call) ? call(allowNetwork) : Promise.resolve(UNSUPPORTED_NETWORK_READOUT);
+            return isFunction(call)
+                ? call(allowNetwork)
+                : Promise.resolve(UNSUPPORTED_NETWORK_READOUT);
         },
         onEvent: (listener) => onPreviewEvent(listener),
     };

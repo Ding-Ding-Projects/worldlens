@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import GenerationEntry from "../mcserver/GenerationEntry.vue";
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import {
@@ -146,7 +147,12 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                 other two are outlined so they read as options rather than competing primaries.
             -->
             <div class="wl-dash__actions">
-                <button type="button" class="wl-action wl-action--primary mb-interactive" @click="emit('newMap')">
+                <GenerationEntry />
+                <button
+                    type="button"
+                    class="wl-action wl-action--primary mb-interactive"
+                    @click="emit('newMap')"
+                >
                     <v-icon :icon="mdiMapPlus" size="20" />
                     <span>{{ t("shell.home.dashboard.newMap", "New map") }}</span>
                 </button>
@@ -180,7 +186,11 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 
             <!-- Real content, only once there is some. -->
             <div v-else class="wl-dash__content">
-                <section v-if="runningRows.length > 0" class="wl-panel" aria-labelledby="wl-dash-progress-title">
+                <section
+                    v-if="runningRows.length > 0"
+                    class="wl-panel"
+                    aria-labelledby="wl-dash-progress-title"
+                >
                     <h2 id="wl-dash-progress-title" class="wl-panel__title">
                         {{ t("shell.home.dashboard.inProgress", "In progress") }}
                     </h2>
@@ -205,7 +215,10 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                                 >
                                     <span
                                         class="wl-render-row__fill"
-                                        :class="{ 'wl-render-row__fill--indeterminate': displayPercent(row.percent) === null }"
+                                        :class="{
+                                            'wl-render-row__fill--indeterminate':
+                                                displayPercent(row.percent) === null,
+                                        }"
                                         :style="
                                             displayPercent(row.percent) !== null
                                                 ? { inlineSize: `${displayPercent(row.percent)}%` }
@@ -248,7 +261,9 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                                 </span>
                                 <span class="wl-profile-row__text">
                                     <span class="wl-profile-row__title">{{ profile.name }}</span>
-                                    <span class="wl-profile-row__meta">{{ profileMeta(profile) }}</span>
+                                    <span class="wl-profile-row__meta">{{
+                                        profileMeta(profile)
+                                    }}</span>
                                 </span>
                                 <v-icon :icon="mdiChevronRight" size="18" />
                             </button>
@@ -266,7 +281,9 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                 </section>
 
                 <section
-                    v-if="runningRows.length === 0 && savedProfiles.length === 0 && projectCount > 0"
+                    v-if="
+                        runningRows.length === 0 && savedProfiles.length === 0 && projectCount > 0
+                    "
                     class="wl-panel"
                     aria-labelledby="wl-dash-drafts-title"
                 >

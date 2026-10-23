@@ -2,11 +2,28 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiContentCopy, mdiDownload, mdiHammerWrench, mdiRefresh, mdiSend } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VChip, VMenu, VList, VListItem, VTextField } from "vuetify/components";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardText,
+    VChip,
+    VMenu,
+    VList,
+    VListItem,
+    VTextField,
+} from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import CommandBuilder from "./CommandBuilder.vue";
 import { useServerStore } from "./useServers.js";
-import { consoleClose, consoleOpen, consoleSend, onConsoleLine, rconTest, type RconTestResult } from "./mcserverBridge.js";
+import {
+    consoleClose,
+    consoleOpen,
+    consoleSend,
+    onConsoleLine,
+    rconTest,
+    type RconTestResult,
+} from "./mcserverBridge.js";
 import type { ConsoleLine } from "./serverStore.js";
 
 /**
@@ -42,32 +59,75 @@ const history = ref<string[]>([]);
 const historyIndex = ref<number | null>(null);
 const sending = ref(false);
 
-const COMMON_COMMANDS = ["say", "stop", "save-all", "whitelist", "op", "deop", "kick", "ban", "gamemode", "difficulty", "time set", "weather"];
+const COMMON_COMMANDS = [
+    "say",
+    "stop",
+    "save-all",
+    "whitelist",
+    "op",
+    "deop",
+    "kick",
+    "ban",
+    "gamemode",
+    "difficulty",
+    "time set",
+    "weather",
+];
 
 let unsubscribe: (() => void) | null = null;
+let sessionGeneration = 0;
+let disposed = false;
 
 async function fillFromTail(): Promise<void> {
-    const result = await store.logTail(props.serverId, 500);
+    const observedId = props.serverId;
+    const result = await store.logTail(observedId, 500);
+    if (disposed || observedId !== props.serverId) return;
     if (result.ok) {
         lines.value = [...(result.value ?? [])];
         failure.value = null;
     } else {
-        failure.value = result.failure?.message ?? t("mcserver.console.readFailed", "The log could not be read.");
+        failure.value =
+            result.failure?.message ??
+            t("mcserver.console.readFailed", "The log could not be read.");
     }
 }
 
 async function openSession(): Promise<void> {
+    if (disposed) return;
+    const generation = ++sessionGeneration;
+    const serverId = props.serverId;
+    const previous = sessionId.value;
+    sessionId.value = null;
     opening.value = true;
-    const result = await consoleOpen(props.serverId, 500);
-    if (result.ok && result.value) {
-        sessionId.value = result.value.sessionId;
+    try {
+        if (previous) await consoleClose(serverId, previous);
+        const result = await consoleOpen(serverId, 500);
+        if (disposed || generation !== sessionGeneration || serverId !== props.serverId) {
+            if (result.ok && result.value) await consoleClose(serverId, result.value.sessionId);
+            return;
+        }
+        if (result.ok && result.value) {
+            sessionId.value = result.value.sessionId;
+            failure.value = null;
+        } else
+            failure.value =
+                result.failure?.message ??
+                t("mcserver.console.noSession", "No console session is open yet.");
+    } catch {
+        if (generation === sessionGeneration)
+            failure.value = t("mcserver.console.noSession", "No console session is open yet.");
+    } finally {
+        if (generation === sessionGeneration) opening.value = false;
     }
-    opening.value = false;
 }
 
 async function refreshRcon(): Promise<void> {
-    const result = await rconTest(props.serverId);
-    rcon.value = result.ok ? (result.value ?? null) : { ok: false, latencyMs: null, message: result.failure?.message ?? "" };
+    const observedId = props.serverId;
+    const result = await rconTest(observedId);
+    if (disposed || observedId !== props.serverId) return;
+    rcon.value = result.ok
+        ? (result.value ?? null)
+        : { ok: false, latencyMs: null, message: result.failure?.message ?? "" };
 }
 
 async function scrollIfFollowing(): Promise<void> {
@@ -79,8 +139,9 @@ async function scrollIfFollowing(): Promise<void> {
 
 onMounted(async () => {
     await fillFromTail();
+    if (disposed) return;
     unsubscribe = onConsoleLine((forSessionId, event) => {
-        if (sessionId.value !== null && forSessionId !== sessionId.value) return;
+        if (sessionId.value === null || forSessionId !== sessionId.value) return;
         lines.value = [...lines.value, event];
         void scrollIfFollowing();
     });
@@ -89,18 +150,33 @@ onMounted(async () => {
     void scrollIfFollowing();
 });
 onBeforeUnmount(() => {
+    disposed = true;
+    ++sessionGeneration;
     if (unsubscribe) unsubscribe();
     if (sessionId.value !== null) void consoleClose(props.serverId, sessionId.value);
 });
 watch(
     () => props.serverId,
-    async () => {
-        if (sessionId.value !== null) await consoleClose(props.serverId, sessionId.value);
+    async (_current, previous) => {
+        ++sessionGeneration;
+        if (sessionId.value !== null) await consoleClose(previous, sessionId.value);
         sessionId.value = null;
         history.value = [];
         await fillFromTail();
         await openSession();
         await refreshRcon();
+    },
+);
+
+// A new attempt owns a new console session. Observation loss never invents a stopped state.
+watch(
+    () => {
+        const status = store.statuses[props.serverId] as
+            ((typeof store.statuses)[string] & { attemptId?: string }) | undefined;
+        return status?.running ? `${status.attemptId ?? status.startedAt ?? "running"}` : null;
+    },
+    (attempt, previous) => {
+        if (attempt !== null && attempt !== previous) void openSession();
     },
 );
 
@@ -129,7 +205,8 @@ function colourFor(stream: ConsoleLine["stream"]): string {
 }
 
 const sendReason = computed<string | null>(() => {
-    if (sessionId.value === null) return t("mcserver.console.noSession", "No console session is open yet.");
+    if (sessionId.value === null)
+        return t("mcserver.console.noSession", "No console session is open yet.");
     return null;
 });
 
@@ -139,22 +216,30 @@ function useBuiltCommand(text: string): void {
 
 async function send(): Promise<void> {
     const text = command.value.trim();
-    if (text === "" || sessionId.value === null) return;
+    if (text === "" || sessionId.value === null || sending.value) return;
+    const ownedServer = props.serverId;
+    const ownedSession = sessionId.value;
     sending.value = true;
-    const result = await consoleSend(props.serverId, sessionId.value, text);
+    const result = await consoleSend(ownedServer, ownedSession, text);
     sending.value = false;
+    if (ownedServer !== props.serverId || ownedSession !== sessionId.value) return;
     if (result.ok) {
         history.value = [...history.value, text];
         historyIndex.value = null;
         command.value = "";
     } else {
-        failure.value = result.failure?.message ?? t("mcserver.console.sendFailed", "The command could not be sent.");
+        failure.value =
+            result.failure?.message ??
+            t("mcserver.console.sendFailed", "The command could not be sent.");
     }
 }
 
 function historyUp(): void {
     if (history.value.length === 0) return;
-    const next = historyIndex.value === null ? history.value.length - 1 : Math.max(0, historyIndex.value - 1);
+    const next =
+        historyIndex.value === null
+            ? history.value.length - 1
+            : Math.max(0, historyIndex.value - 1);
     historyIndex.value = next;
     command.value = history.value[next] ?? "";
 }
@@ -178,7 +263,9 @@ const completions = computed(() => {
 
 async function copyTranscript(): Promise<void> {
     try {
-        await navigator.clipboard.writeText(filteredLines.value.map((l) => `[${l.stream}] ${l.text}`).join("\n"));
+        await navigator.clipboard.writeText(
+            filteredLines.value.map((l) => `[${l.stream}] ${l.text}`).join("\n"),
+        );
     } catch {
         // Clipboard access can be refused by the platform; nothing more useful to do here.
     }
@@ -213,7 +300,11 @@ function exportTranscript(): void {
                     </VBtn>
                 </template>
                 <VList>
-                    <VListItem v-for="level in (['all', 'stdout', 'stderr', 'app'] as const)" :key="level" @click="levelFilter = level">
+                    <VListItem
+                        v-for="level in ['all', 'stdout', 'stderr', 'app'] as const"
+                        :key="level"
+                        @click="levelFilter = level"
+                    >
                         {{ level }}
                     </VListItem>
                 </VList>
@@ -221,24 +312,43 @@ function exportTranscript(): void {
             <VBtn :prepend-icon="mdiRefresh" variant="text" size="small" @click="fillFromTail">
                 {{ t("mcserver.console.refresh", "Refresh") }}
             </VBtn>
-            <VBtn :prepend-icon="mdiContentCopy" variant="text" size="small" @click="copyTranscript">
+            <VBtn
+                :prepend-icon="mdiContentCopy"
+                variant="text"
+                size="small"
+                @click="copyTranscript"
+            >
                 {{ t("mcserver.console.copy", "Copy") }}
             </VBtn>
             <VBtn :prepend-icon="mdiDownload" variant="text" size="small" @click="exportTranscript">
                 {{ t("mcserver.console.export", "Export") }}
             </VBtn>
-            <VBtn variant="text" size="small" :color="follow ? 'primary' : undefined" @click="follow = !follow">
-                {{ follow ? t("mcserver.console.following", "Following") : t("mcserver.console.paused", "Paused") }}
+            <VBtn
+                variant="text"
+                size="small"
+                :color="follow ? 'primary' : undefined"
+                @click="follow = !follow"
+            >
+                {{
+                    follow
+                        ? t("mcserver.console.following", "Following")
+                        : t("mcserver.console.paused", "Paused")
+                }}
             </VBtn>
-            <VBtn :prepend-icon="mdiHammerWrench" variant="text" size="small" @click="builderOpen = true">
+            <VBtn
+                :prepend-icon="mdiHammerWrench"
+                variant="text"
+                size="small"
+                @click="builderOpen = true"
+            >
                 {{ t("mcserver.console.openCommandBuilder", "Command builder") }}
             </VBtn>
-            <VChip
-                size="small"
-                :color="rcon?.ok ? 'success' : 'warning'"
-                :title="rcon?.message"
-            >
-                {{ rcon?.ok ? t("mcserver.console.rconUp", "RCON reachable") : t("mcserver.console.rconDown", "RCON not reachable") }}
+            <VChip size="small" :color="rcon?.ok ? 'success' : 'warning'" :title="rcon?.message">
+                {{
+                    rcon?.ok
+                        ? t("mcserver.console.rconUp", "RCON reachable")
+                        : t("mcserver.console.rconDown", "RCON not reachable")
+                }}
             </VChip>
         </div>
         <VAlert v-if="failure" type="warning" variant="tonal" class="mb-2">{{ failure }}</VAlert>
@@ -247,8 +357,14 @@ function exportTranscript(): void {
                 <div v-if="filteredLines.length === 0" class="text-medium-emphasis">
                     {{ t("mcserver.console.empty", "No log lines yet.") }}
                 </div>
-                <div v-for="(line, index) in filteredLines" :key="index" class="wl-mcserver-console__line">
-                    <VChip size="x-small" :color="colourFor(line.stream)" variant="text">{{ line.stream }}</VChip>
+                <div
+                    v-for="(line, index) in filteredLines"
+                    :key="index"
+                    class="wl-mcserver-console__line"
+                >
+                    <VChip size="x-small" :color="colourFor(line.stream)" variant="text">{{
+                        line.stream
+                    }}</VChip>
                     {{ line.text }}
                 </div>
             </VCardText>
@@ -265,7 +381,9 @@ function exportTranscript(): void {
                 autocomplete="off"
                 @keydown.up.prevent="historyUp"
                 @keydown.down.prevent="historyDown"
-                @keydown.tab.prevent="completions.length > 0 && (command = completions[0] ?? command)"
+                @keydown.tab.prevent="
+                    completions.length > 0 && (command = completions[0] ?? command)
+                "
             />
             <VBtn
                 type="submit"
@@ -278,10 +396,17 @@ function exportTranscript(): void {
                 {{ t("mcserver.console.send", "Send") }}
             </VBtn>
         </form>
-        <div v-if="completions.length > 0" class="wl-mcserver-console__completions text-caption text-medium-emphasis">
+        <div
+            v-if="completions.length > 0"
+            class="wl-mcserver-console__completions text-caption text-medium-emphasis"
+        >
             {{ completions.join(", ") }}
         </div>
-        <CommandBuilder v-model="builderOpen" :server-id="serverId" @use-command="useBuiltCommand" />
+        <CommandBuilder
+            v-model="builderOpen"
+            :server-id="serverId"
+            @use-command="useBuiltCommand"
+        />
     </div>
 </template>
 

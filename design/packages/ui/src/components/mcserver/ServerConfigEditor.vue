@@ -1,44 +1,36 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
-import { useI18n } from "vue-i18n";
-import { mdiContentSave, mdiRestore } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VChip, VDivider, VSelect, VSwitch, VTextarea } from "vuetify/components";
+import { computed, onMounted, onBeforeUnmount, ref, watch } from "vue";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardText,
+    VChip,
+    VSelect,
+    VSwitch,
+    VTextarea,
+    VExpansionPanels,
+    VExpansionPanel,
+    VExpansionPanelTitle,
+    VExpansionPanelText,
+} from "vuetify/components";
 import type { Control, PlainValue } from "@worldlens/config";
 import ConfigControl from "../config/ConfigControl.vue";
+import RecursiveValueEditor from "../config/RecursiveValueEditor.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import { useServerStore } from "./useServers.js";
 import { writeBlockReason } from "./serverModel.js";
-import { serverPropertiesFields, SERVER_PROPERTIES_GROUPS } from "./serverPropertiesFields.js";
-import type { FileEntry } from "./serverStore.js";
-
-/**
- * A file picker across every configuration file this server keeps, with `server.properties`
- * rendered as real typed controls (grouped, searchable, diffable) through the same
- * `ConfigControl.vue` the appearance and BlueMap editors use. Every other file - YAML/JSON
- * config, `ops.json`, `eula.txt`, a plugin's own config - has no shared schema here yet, so
- * it gets an honest raw text editor rather than a fake typed one.
- */
+import { workflowText as text } from "./workflowText.js";
+import {
+    serverConfigDraftKey,
+    storeServerConfigDraft,
+    readServerConfigDraft,
+    discardServerConfigDraft,
+} from "./serverConfigDrafts.js";
 const props = defineProps<{ serverId: string }>();
-
-const { t } = useI18n();
 const store = useServerStore();
-
-const WELL_KNOWN = ["server.properties", "bukkit.yml", "spigot.yml", "paper-global.yml", "paper-world-defaults.yml", "purpur.yml", "velocity.toml", "ops.json", "whitelist.json", "eula.txt"];
-const SCHEMA_FILES = new Set(["paper-global.yml", "paper-world-defaults.yml", "spigot.yml", "bukkit.yml", "purpur.yml", "velocity.toml"]);
-
-const entries = ref<FileEntry[]>([]);
-const selected = ref<string>("server.properties");
-const rawText = ref("");
-const originalHash = ref<string | null>(null);
-const loading = ref(false);
-const failure = ref<string | null>(null);
-const saved = ref(false);
-const query = ref("");
-const useRegex = ref(false);
-const flags = ref("i");
-const changedOnly = ref(false);
-
-interface DescribedField {
+interface Field {
     path: readonly string[];
     key: string;
     control: Control;
@@ -48,388 +40,471 @@ interface DescribedField {
     value: unknown;
     readOnlyReason: string | null;
 }
-const describedFields = ref<DescribedField[]>([]);
-const describedOriginal = ref<Record<string, unknown>>({});
-const describedValues = ref<Record<string, unknown>>({});
-const describedHash = ref<string | null>(null);
-const schemaLoaded = ref(false);
-
-// server.properties structured state
-const props1 = ref<Record<string, string>>({});
-const propsOriginal = ref<Record<string, string>>({});
-
-function parseProperties(text: string): Record<string, string> {
-    const out: Record<string, string> = {};
-    for (const line of text.split(/\r?\n/)) {
-        const trimmed = line.trim();
-        if (trimmed === "" || trimmed.startsWith("#")) continue;
-        const index = trimmed.indexOf("=");
-        if (index === -1) continue;
-        out[trimmed.slice(0, index)] = trimmed.slice(index + 1);
-    }
-    return out;
+interface Description {
+    fields: Field[];
+    hash: string;
+    unreadable: boolean;
 }
-function serializeProperties(values: Record<string, string>): string {
-    return Object.entries(values)
-        .map(([key, value]) => `${key}=${value}`)
-        .join("\n");
-}
-
-const isProperties = computed(() => selected.value === "server.properties");
-const isSchemaFile = computed(() => SCHEMA_FILES.has(selected.value.toLowerCase()));
-
-function configBridge(): { describe: (id: string, path: string) => Promise<unknown>; apply: (id: string, path: string, body: unknown) => Promise<unknown> } | null {
-    const host = (globalThis as { worldlens?: { mcserver?: { config?: unknown } } }).worldlens?.mcserver;
-    const config = host?.config as { describe?: unknown; apply?: unknown } | undefined;
-    return typeof config?.describe === "function" && typeof config.apply === "function"
-        ? { describe: config.describe as (id: string, path: string) => Promise<unknown>, apply: config.apply as (id: string, path: string, body: unknown) => Promise<unknown> }
-        : null;
-}
-
-interface BridgeAnswer {
+interface Answer<T> {
     ok: boolean;
-    value?: { fields?: unknown; unreadable?: boolean; hash?: unknown };
-    failure?: { code?: string; message?: string };
+    value?: T;
+    failure?: { code: string; message: string };
 }
-
-function answerValue(result: unknown): BridgeAnswer {
-    return result && typeof result === "object" ? (result as BridgeAnswer) : { ok: false };
+interface Bridge {
+    describe(id: string, path: string): Promise<Answer<Description>>;
+    apply(id: string, path: string, body: unknown): Promise<Answer<{ hash: string }>>;
+    discover?(id: string): Promise<
+        Answer<{
+            files: string[];
+            unavailable: { path: string; message: string }[];
+            truncated: boolean;
+        }>
+    >;
 }
-
-function controlValue(field: DescribedField): PlainValue {
-    const value = describedValues.value[field.key];
-    if (value === null || value === undefined) return null;
-    if (field.control?.kind === "switch") return value === true || value === "true";
-    if (field.control?.kind === "number" || field.control?.kind === "slider") return typeof value === "number" ? value : Number(value);
-    return typeof value === "string" ? value : String(value);
+function bridge(): Bridge | null {
+    const api = (globalThis as unknown as { worldlens?: { mcserver?: { config?: Bridge } } })
+        .worldlens?.mcserver?.config;
+    return typeof api?.describe === "function" && typeof api.apply === "function" ? api : null;
 }
-
-function setDescribedValue(key: string, value: PlainValue): void {
-    describedValues.value = { ...describedValues.value, [key]: value };
-}
-
-const describedChangedFields = computed(() => describedFields.value.filter((field) => JSON.stringify(describedValues.value[field.key]) !== JSON.stringify(describedOriginal.value[field.key])));
-const describedChangedKeys = computed(() => describedChangedFields.value.map((field) => field.key));
-const describedGroups = computed(() => {
-    const groups = new Map<string, DescribedField[]>();
-    for (const field of describedFields.value) groups.set(field.group, [...(groups.get(field.group) ?? []), field]);
-    return [...groups.entries()];
-});
-
-async function listFiles(): Promise<void> {
-    const result = await store.files.list(props.serverId, ".");
-    if (result.ok) {
-        entries.value = (result.value ?? []).filter((e) => e.kind === "file").slice(0, 200) as FileEntry[];
-    }
-}
-
-async function loadSelected(): Promise<void> {
-    loading.value = true;
-    failure.value = null;
-    saved.value = false;
-    describedFields.value = [];
-    describedOriginal.value = {};
-    describedValues.value = {};
-    describedHash.value = null;
-    schemaLoaded.value = false;
-
-    if (isSchemaFile.value) {
-        const bridge = configBridge();
-        if (bridge) {
-            try {
-                const described = answerValue(await bridge.describe(props.serverId, selected.value));
-                if (described.ok && described.value && Array.isArray(described.value.fields) && described.value.unreadable !== true) {
-                    describedFields.value = described.value.fields as DescribedField[];
-                    const values = Object.fromEntries(describedFields.value.map((field) => [field.key, field.value]));
-                    describedOriginal.value = values;
-                    describedValues.value = { ...values };
-                    describedHash.value = typeof described.value.hash === "string" ? described.value.hash : null;
-                    originalHash.value = describedHash.value;
-                    schemaLoaded.value = true;
-                    loading.value = false;
-                    return;
-                }
-            } catch {
-                // An older shell may expose no config bridge (or a partial one). Raw text remains usable.
-            }
-        }
-    }
-
-    const result = await store.files.read(props.serverId, selected.value);
-    if (result.ok && result.value) {
-        const text = new TextDecoder().decode(result.value.bytes);
-        originalHash.value = result.value.hash;
-        rawText.value = text;
-        if (isProperties.value) {
-            props1.value = parseProperties(text);
-            propsOriginal.value = { ...props1.value };
-        }
-    } else if (result.ok === false && result.failure?.code === "not-found") {
-        rawText.value = "";
-        originalHash.value = null;
-        props1.value = {};
-        propsOriginal.value = {};
-    } else {
-        failure.value = result.failure?.message ?? t("mcserver.config.readFailed", "This file could not be read.");
-    }
-    loading.value = false;
-}
-
-onMounted(async () => {
-    await listFiles();
-    await loadSelected();
-});
-watch(() => props.serverId, async () => {
-    await listFiles();
-    await loadSelected();
-});
-watch(selected, loadSelected);
-
-const capabilities = computed(() => store.capabilitiesFor(props.serverId));
-const server = computed(() => store.get(props.serverId));
-const blockReason = computed(() => (server.value ? writeBlockReason(server.value, capabilities.value) : null));
-
-const fileOptions = computed(() => {
-    const names = new Set(WELL_KNOWN);
-    for (const e of entries.value) if (/\.(yml|yaml|json|txt|properties)$/i.test(e.name)) names.add(e.name);
-    return [...names];
-});
-
-const fieldsFiltered = computed(() => {
-    let list = serverPropertiesFields;
-    if (query.value.trim() !== "") {
-        if (useRegex.value) {
-            try {
-                const pattern = new RegExp(query.value, flags.value);
-                list = list.filter((f) => pattern.test(f.key) || pattern.test(f.label));
-            } catch {
-                list = [];
-            }
-        } else {
-            const needle = query.value.toLowerCase();
-            list = list.filter((f) => f.key.toLowerCase().includes(needle) || f.label.toLowerCase().includes(needle));
-        }
-    }
-    if (changedOnly.value) {
-        list = list.filter((f) => props1.value[f.key] !== propsOriginal.value[f.key]);
-    }
-    return list;
-});
-
-const groupedFields = computed(() => {
-    const byGroup = new Map<string, typeof serverPropertiesFields extends readonly (infer T)[] ? T[] : never>();
-    for (const group of SERVER_PROPERTIES_GROUPS) byGroup.set(group, []);
-    for (const field of fieldsFiltered.value) {
-        const bucket = byGroup.get(field.group) ?? [];
-        bucket.push(field);
-        byGroup.set(field.group, bucket);
-    }
-    return [...byGroup.entries()].filter(([, list]) => list.length > 0);
-});
-
-function toControlValue(key: string, control: (typeof serverPropertiesFields)[number]["control"]): PlainValue {
-    const raw = props1.value[key];
-    if (raw === undefined) return null;
-    if (control.kind === "switch") return raw === "true";
-    if (control.kind === "number") return Number(raw);
-    return raw;
-}
-function setValue(key: string, value: PlainValue): void {
-    props1.value = { ...props1.value, [key]: String(value ?? "") };
-}
-function revertField(key: string): void {
-    if (propsOriginal.value[key] === undefined) {
-        const { [key]: _removed, ...rest } = props1.value;
-        props1.value = rest;
-    } else {
-        props1.value = { ...props1.value, [key]: propsOriginal.value[key] };
-    }
-}
-const changedKeys = computed(() => serverPropertiesFields.filter((f) => props1.value[f.key] !== propsOriginal.value[f.key]).map((f) => f.key));
-
-const diffText = computed(() =>
-    changedKeys.value
-        .map((key) => `${key}: ${propsOriginal.value[key] ?? "(unset)"} -> ${props1.value[key] ?? "(unset)"}`)
-        .join("\n"),
+const recordTemplates: Record<string, Record<string, unknown>> = {
+    "ops.json": { uuid: "", name: "", level: 4, bypassesPlayerLimit: false },
+    "whitelist.json": { uuid: "", name: "" },
+    "banned-players.json": {
+        uuid: "",
+        name: "",
+        created: "",
+        source: "",
+        expires: "forever",
+        reason: "",
+    },
+    "banned-ips.json": { ip: "", created: "", source: "", expires: "forever", reason: "" },
+};
+const selectedRecordTemplate = computed(
+    () => recordTemplates[selected.value.split("/").pop() ?? ""],
 );
-
-async function save(): Promise<void> {
-    saved.value = false;
-    if (schemaLoaded.value) {
-        const bridge = configBridge();
-        if (!bridge || !describedHash.value) {
-            schemaLoaded.value = false;
-            await loadSelected();
-            return;
-        }
-        const changes = describedChangedFields.value
-            .map((field) => ({ path: field.path, value: describedValues.value[field.key] }));
-        const result = answerValue(await bridge.apply(props.serverId, selected.value, { expectedHash: describedHash.value, changes }));
-        if (result.ok && result.value) {
-            describedHash.value = typeof result.value.hash === "string" ? result.value.hash : describedHash.value;
-            describedOriginal.value = { ...describedValues.value };
-            originalHash.value = describedHash.value;
-            saved.value = true;
-        } else if (result.failure?.code === "stale-document" || result.failure?.code === "stale") {
-            failure.value = t("mcserver.config.stale", "This file changed on disk since it was opened. Reload before saving.");
-        } else {
-            failure.value = result.failure?.message ?? t("mcserver.config.saveFailed", "Could not save.");
-        }
+const known = [
+    "server.properties",
+    "eula.txt",
+    "ops.json",
+    "whitelist.json",
+    "banned-players.json",
+    "banned-ips.json",
+    "bukkit.yml",
+    "spigot.yml",
+    "config/paper-global.yml",
+    "config/paper-world-defaults.yml",
+    "purpur.yml",
+    "velocity.toml",
+];
+const files = ref([...known]);
+const selected = ref("server.properties");
+const fields = ref<Field[]>([]);
+const values = ref<Record<string, unknown>>({});
+const original = ref<Record<string, unknown>>({});
+const hash = ref<string | null>(null);
+const loading = ref(false);
+const saving = ref(false);
+const failure = ref("");
+const inventoryNotice = ref("");
+const saved = ref(false);
+const conflict = ref(false);
+const raw = ref("");
+const rawLoaded = ref(false);
+const rawMode = ref(false);
+const fileQuery = ref("");
+const fileRegex = ref(false);
+const fileFlags = ref("i");
+const query = ref("");
+const regex = ref(false);
+const flags = ref("i");
+const changedOnly = ref(false);
+let generation = 0;
+const copy = (v: unknown): unknown => JSON.parse(JSON.stringify(v ?? null));
+const changed = computed(() =>
+    fields.value.filter(
+        (field) =>
+            JSON.stringify(values.value[field.key]) !== JSON.stringify(original.value[field.key]),
+    ),
+);
+const fileOptions = computed(() => {
+    const matcher = createSettingMatcher(fileQuery.value, fileRegex.value, fileFlags.value);
+    return files.value.filter((name) => matcher.test(name));
+});
+const groups = computed(() => {
+    const matcher = createSettingMatcher(query.value, regex.value, flags.value);
+    const out = new Map<string, Field[]>();
+    for (const field of fields.value) {
+        if (
+            !matcher.test(`${field.key} ${field.label} ${field.help ?? ""}`) ||
+            (changedOnly.value && !changed.value.includes(field))
+        )
+            continue;
+        out.set(field.group, [...(out.get(field.group) ?? []), field]);
+    }
+    return [...out];
+});
+const blockReason = computed(() => {
+    const server = store.get(props.serverId);
+    return server
+        ? writeBlockReason(server, store.capabilitiesFor(props.serverId))
+        : text("Server unavailable.", "伺服器不可用。");
+});
+async function discover(): Promise<void> {
+    const id = props.serverId;
+    const api = bridge();
+    if (!api?.discover) {
+        inventoryNotice.value = text(
+            "Recursive discovery is unavailable in this build. Known files remain accessible.",
+            "此版本未提供遞迴搜尋。仍可開啟已知檔案。",
+        );
         return;
     }
-    const text = isProperties.value ? serializeProperties(props1.value) : rawText.value;
-    const result = await store.files.write(props.serverId, selected.value, { text, expectedHash: originalHash.value });
-    if (result.ok && result.value) {
-        originalHash.value = result.value.hash;
-        if (isProperties.value) propsOriginal.value = { ...props1.value };
-        saved.value = true;
-    } else if (result.ok === false && result.failure?.code === "stale") {
-        failure.value = t("mcserver.config.stale", "This file changed on disk since it was opened. Reload before saving.");
-    } else {
-        failure.value = result.failure?.message ?? t("mcserver.config.saveFailed", "Could not save.");
+    try {
+        const result = await api.discover(id);
+        if (id !== props.serverId) return;
+        if (result.ok && result.value) {
+            files.value = [...new Set([...known, ...result.value.files])];
+            inventoryNotice.value =
+                result.value.truncated || result.value.unavailable.length
+                    ? text("Some directories could not be fully scanned.", "部分目錄未能完整搜尋。")
+                    : "";
+        } else
+            inventoryNotice.value =
+                result.failure?.message ??
+                text("File inventory unavailable.", "無法取得檔案清單。");
+    } catch {
+        inventoryNotice.value = text("File inventory unavailable.", "無法取得檔案清單。");
     }
 }
+interface Draft {
+    fields: Field[];
+    values: Record<string, unknown>;
+    original: Record<string, unknown>;
+    hash: string | null;
+    raw: string;
+    rawLoaded: boolean;
+    rawMode: boolean;
+    conflict: boolean;
+    failure: string;
+}
+let loadedKey: string | null = null;
+function retainDraft(): void {
+    if (!loadedKey || loading.value) return;
+    storeServerConfigDraft(loadedKey, {
+        fields: fields.value,
+        values: values.value,
+        original: original.value,
+        hash: hash.value,
+        raw: raw.value,
+        rawLoaded: rawLoaded.value,
+        rawMode: rawMode.value,
+        conflict: conflict.value,
+        failure: failure.value,
+    } satisfies Draft);
+}
+async function load(discard = false): Promise<void> {
+    retainDraft();
+    const turn = ++generation;
+    const id = props.serverId,
+        path = selected.value;
+    const nextKey = serverConfigDraftKey(id, path);
+    if (discard) discardServerConfigDraft(nextKey);
+    const draft = readServerConfigDraft<Draft>(nextKey);
+    loadedKey = null;
+    if (draft) {
+        fields.value = draft.fields;
+        values.value = draft.values;
+        original.value = draft.original;
+        hash.value = draft.hash;
+        raw.value = draft.raw;
+        rawLoaded.value = draft.rawLoaded;
+        rawMode.value = draft.rawMode;
+        conflict.value = draft.conflict;
+        failure.value = draft.failure;
+        saved.value = false;
+        loading.value = false;
+        loadedKey = nextKey;
+        return;
+    }
+    loading.value = true;
+    failure.value = "";
+    saved.value = false;
+    conflict.value = false;
+    rawLoaded.value = false;
+    rawMode.value = false;
+    fields.value = [];
+    hash.value = null;
+    try {
+        const api = bridge();
+        if (!api) {
+            failure.value = text(
+                "Structured configuration is unavailable in this build.",
+                "此版本未提供結構化設定。",
+            );
+            return;
+        }
+        const result = await api.describe(id, path);
+        if (turn !== generation) return;
+        if (!result.ok || !result.value || result.value.unreadable) {
+            failure.value =
+                result.failure?.message ??
+                text(
+                    "This file could not be described. The original file has not changed.",
+                    "無法讀取此檔案的結構，原檔案保持不變。",
+                );
+            return;
+        }
+        fields.value = result.value.fields;
+        values.value = Object.fromEntries(
+            fields.value.map((field) => [field.key, copy(field.value)]),
+        );
+        original.value = Object.fromEntries(
+            fields.value.map((field) => [field.key, copy(field.value)]),
+        );
+        hash.value = result.value.hash;
+        loadedKey = nextKey;
+    } catch {
+        if (turn === generation)
+            failure.value = text("Configuration observation is unavailable.", "無法取得設定狀態。");
+    } finally {
+        if (turn === generation) loading.value = false;
+    }
+}
+async function loadRaw(): Promise<void> {
+    if (rawLoaded.value) return;
+    const turn = generation;
+    const result = await store.files.read(props.serverId, selected.value);
+    if (turn !== generation) return;
+    if (result.ok && result.value) {
+        raw.value = new TextDecoder().decode(result.value.bytes);
+        rawLoaded.value = true;
+    } else
+        failure.value =
+            result.failure?.message ?? text("Could not read raw source.", "無法讀取原始內容。");
+}
+async function save(): Promise<void> {
+    if (saving.value || loading.value || blockReason.value || hash.value === null || conflict.value)
+        return;
+    const turn = generation,
+        id = props.serverId,
+        path = selected.value;
+    const submitted = copy(values.value) as Record<string, unknown>;
+    saving.value = true;
+    failure.value = "";
+    saved.value = false;
+    try {
+        const result = rawMode.value
+            ? await store.files.write(id, path, { text: raw.value, expectedHash: hash.value })
+            : await bridge()!.apply(id, path, {
+                  expectedHash: hash.value,
+                  changes: changed.value.map((field) => ({
+                      path: field.path,
+                      value: submitted[field.key],
+                  })),
+              });
+        if (turn !== generation) return;
+        if (result.ok) {
+            await load(true);
+            saved.value = true;
+        } else {
+            conflict.value = ["stale-document", "stale", "conflict"].includes(
+                result.failure?.code ?? "",
+            );
+            failure.value =
+                result.failure?.message ??
+                text(
+                    "Save did not complete. Your draft is retained.",
+                    "儲存未完成，草稿仍然保留。",
+                );
+        }
+    } catch {
+        if (turn === generation)
+            failure.value = text(
+                "Save did not complete. Your draft is retained.",
+                "儲存未完成，草稿仍然保留。",
+            );
+    } finally {
+        saving.value = false;
+    }
+}
+function reset(): void {
+    values.value = Object.fromEntries(
+        Object.entries(original.value).map(([key, value]) => [key, copy(value)]),
+    );
+}
+function scalar(field: Field): PlainValue {
+    return values.value[field.key] as PlainValue;
+}
+function complex(field: Field): boolean {
+    const value = values.value[field.key];
+    return value === null || typeof value === "object";
+}
+onMounted(() => {
+    void discover();
+    void load();
+});
+watch(
+    () => props.serverId,
+    () => {
+        files.value = [...known];
+        void discover();
+        void load();
+    },
+);
+watch(selected, () => void load());
+onBeforeUnmount(() => {
+    retainDraft();
+    ++generation;
+});
 </script>
-
 <template>
-    <div class="wl-mcserver-config">
-        <div class="wl-mcserver-config__picker">
-            <VSelect
-                v-model="selected"
-                :items="fileOptions"
-                :label="t('mcserver.config.file', 'Configuration file')"
-                density="compact"
+    <div class="server-config">
+        <ConfigSearchField
+            v-model="fileQuery"
+            v-model:regex="fileRegex"
+            v-model:flags="fileFlags"
+            :label="text('Search configuration files', '搜尋設定檔案')"
+            :sample="files.join('\n')"
+        />
+        <VSelect
+            v-model="selected"
+            :items="fileOptions"
+            :label="text('Configuration file', '設定檔案')"
+            :disabled="saving"
+        />
+        <VAlert v-if="inventoryNotice" type="info" variant="tonal">{{ inventoryNotice }}</VAlert>
+        <VAlert v-if="blockReason" type="warning" variant="tonal">{{ blockReason }}</VAlert>
+        <VAlert v-if="failure" type="error" variant="tonal" role="status">{{ failure }}</VAlert>
+        <VAlert v-if="conflict" type="warning" variant="tonal">{{
+            text(
+                "The source changed. Your draft is retained. Review it before explicitly reloading; no automatic overwrite is allowed.",
+                "原檔案已變更。草稿仍然保留，請檢視後才重新載入；不會自動覆寫。",
+            )
+        }}</VAlert>
+        <VAlert v-if="saved" type="success" variant="tonal" role="status">{{
+            text("Saved and read back.", "已儲存並重新讀取。")
+        }}</VAlert>
+        <div class="toolbar">
+            <ConfigSearchField
+                v-model="query"
+                v-model:regex="regex"
+                v-model:flags="flags"
+                :label="text('Search settings', '搜尋設定')"
+                :sample="fields.map((field) => field.key).join('\n')"
+            />
+            <VSwitch
+                v-model="changedOnly"
+                :label="text('Changed only', '只顯示改動')"
                 hide-details
             />
+            <VChip>{{ changed.length }} {{ text("changed", "項改動") }}</VChip>
         </div>
-
-        <VAlert v-if="blockReason" type="info" variant="tonal" class="mb-3">{{ blockReason }}</VAlert>
-        <VAlert v-if="failure" type="warning" variant="tonal" class="mb-3">{{ failure }}</VAlert>
-        <VAlert v-if="saved" type="success" variant="tonal" class="mb-3">{{ t("mcserver.config.saved", "Saved.") }}</VAlert>
-
-        <template v-if="isProperties && !loading">
-            <div class="wl-mcserver-config__toolbar">
-                <ConfigSearchField
-                    v-model="query"
-                    v-model:regex="useRegex"
-                    v-model:flags="flags"
-                    :label="t('mcserver.config.search', 'Search settings')"
-                    :sample="serverPropertiesFields.map((f) => f.key).join(' ')"
-                    class="wl-mcserver-config__search"
-                />
-                <VSwitch v-model="changedOnly" :label="t('mcserver.config.changedOnly', 'Changed only')" hide-details density="compact" />
-                <VChip v-if="changedKeys.length > 0" size="small" color="primary" variant="tonal">
-                    {{ t("mcserver.config.changedCount", { n: changedKeys.length }, "{n} changed") }}
-                </VChip>
-            </div>
-
-            <VCard v-for="[group, fields] in groupedFields" :key="group" variant="outlined" class="mb-3">
-                <VCardText>
-                    <div class="text-subtitle-2 mb-2">{{ group }}</div>
-                    <div v-for="field in fields" :key="field.key" class="wl-mcserver-config__row">
-                        <ConfigControl
-                            :control="field.control"
-                            :model-value="toControlValue(field.key, field.control)"
-                            :label="field.label"
-                            :disabled="!!blockReason"
-                            @update:model-value="(v) => setValue(field.key, v)"
-                        />
-                        <VBtn
-                            v-if="props1[field.key] !== propsOriginal[field.key]"
-                            :icon="mdiRestore"
-                            size="x-small"
-                            variant="text"
-                            :title="t('mcserver.config.revert', 'Revert this field')"
-                            :aria-label="t('mcserver.config.revertAria', { label: field.label }, 'Revert {label}')"
-                            @click="revertField(field.key)"
-                        />
-                    </div>
-                </VCardText>
-            </VCard>
-
-            <VCard v-if="changedKeys.length > 0" variant="tonal" class="mb-3">
-                <VCardText>
-                    <div class="text-subtitle-2 mb-1">{{ t("mcserver.config.diff", "Changes to be saved") }}</div>
-                    <pre class="wl-mcserver-config__diff">{{ diffText }}</pre>
-                </VCardText>
-            </VCard>
-        </template>
-
-        <template v-else-if="schemaLoaded && !loading">
-            <VCard v-for="[group, fields] in describedGroups" :key="group" variant="outlined" class="mb-3">
-                <VCardText>
-                    <div class="text-subtitle-2 mb-2">{{ group }}</div>
-                    <div v-for="field in fields" :key="field.key" class="wl-mcserver-config__row">
-                        <ConfigControl
-                            :control="field.control"
-                            :model-value="controlValue(field)"
-                            :label="field.label"
-                            :disabled="!!blockReason || !!field.readOnlyReason"
-                            :error="field.readOnlyReason"
-                            @update:model-value="(v) => setDescribedValue(field.key, v)"
-                        />
-                    </div>
-                </VCardText>
-            </VCard>
-            <VAlert v-if="describedChangedKeys.length > 0" type="info" variant="tonal" class="mb-3">
-                {{ t("mcserver.config.changedCount", { n: describedChangedKeys.length }, "{n} changed") }}
-            </VAlert>
-        </template>
-
-        <VTextarea
-            v-else-if="!loading"
-            v-model="rawText"
-            :label="selected"
-            rows="20"
-            :disabled="!!blockReason"
-            class="wl-mcserver-config__raw"
-        />
-
-        <VDivider class="my-3" />
-        <VBtn
-            color="primary"
-            variant="tonal"
-            :prepend-icon="mdiContentSave"
-            :disabled="!!blockReason || loading"
-            :title="blockReason ?? undefined"
-            @click="save"
+        <VCard v-for="[group, items] in groups" :key="group" variant="outlined">
+            <VCardText
+                ><h3>{{ group }}</h3>
+                <div v-for="field in items" :key="field.key" class="field">
+                    <RecursiveValueEditor
+                        v-if="complex(field)"
+                        v-model="values[field.key]"
+                        :label="field.label"
+                        v-bind="
+                            selectedRecordTemplate && Array.isArray(values[field.key])
+                                ? { recordTemplate: selectedRecordTemplate }
+                                : {}
+                        "
+                        :disabled="!!blockReason || !!field.readOnlyReason || saving || rawMode"
+                    />
+                    <ConfigControl
+                        v-else
+                        :control="field.control"
+                        :model-value="scalar(field)"
+                        :label="field.label"
+                        :disabled="!!blockReason || !!field.readOnlyReason || saving || rawMode"
+                        @update:model-value="values[field.key] = $event"
+                    />
+                    <p v-if="field.help">{{ field.help }}</p>
+                    <p v-if="field.readOnlyReason" role="status">{{ field.readOnlyReason }}</p>
+                    <VBtn
+                        v-if="changed.includes(field)"
+                        variant="text"
+                        :disabled="saving"
+                        @click="values[field.key] = copy(original[field.key])"
+                        >{{ text("Reset field", "重設欄位") }}</VBtn
+                    >
+                </div></VCardText
+            >
+        </VCard>
+        <VExpansionPanels
+            ><VExpansionPanel
+                ><VExpansionPanelTitle>{{
+                    text("Review changes", "檢視改動")
+                }}</VExpansionPanelTitle
+                ><VExpansionPanelText
+                    ><div v-for="field in changed" :key="field.key">
+                        <strong>{{ field.label }}</strong>
+                        <pre
+                            >{{ JSON.stringify(original[field.key], null, 2) }} → {{
+                                JSON.stringify(values[field.key], null, 2)
+                            }}</pre>
+                    </div></VExpansionPanelText
+                ></VExpansionPanel
+            ></VExpansionPanels
         >
-            {{ t("mcserver.config.save", "Save") }}
-        </VBtn>
+        <VExpansionPanels @update:model-value="loadRaw"
+            ><VExpansionPanel
+                ><VExpansionPanelTitle>{{
+                    text("Advanced source editor", "進階原始碼編輯器")
+                }}</VExpansionPanelTitle
+                ><VExpansionPanelText
+                    ><VSwitch
+                        v-model="rawMode"
+                        :disabled="!rawLoaded || changed.length > 0 || saving"
+                        :label="
+                            text('Edit raw source instead of structured values', '改用原始碼編輯')
+                        " /><VTextarea
+                        v-model="raw"
+                        :readonly="!rawMode"
+                        :label="selected"
+                        rows="12" /></VExpansionPanelText></VExpansionPanel
+        ></VExpansionPanels>
+        <div class="toolbar">
+            <VBtn
+                color="primary"
+                :loading="saving"
+                :disabled="!!blockReason || loading || conflict || hash === null"
+                @click="save"
+                >{{ text("Save changes", "儲存改動") }}</VBtn
+            ><VBtn :disabled="saving || loading" @click="reset">{{
+                text("Reset draft", "重設草稿")
+            }}</VBtn
+            ><VBtn :disabled="saving || loading" @click="load(true)">{{
+                text("Discard draft and reload", "放棄草稿並重新載入")
+            }}</VBtn>
+        </div>
     </div>
 </template>
-
 <style scoped>
-.wl-mcserver-config__picker {
-    max-width: 320px;
-    margin-bottom: 12px;
-}
-.wl-mcserver-config__toolbar {
-    display: flex;
+.server-config {
+    display: grid;
     gap: 12px;
-    align-items: center;
-    margin-bottom: 12px;
-    flex-wrap: wrap;
+    min-width: 0;
+    white-space: pre-line;
 }
-.wl-mcserver-config__search {
-    flex: 1 1 260px;
-}
-.wl-mcserver-config__row {
+.toolbar {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: 4px;
-    margin-bottom: 8px;
+    gap: 12px;
 }
-.wl-mcserver-config__row > :first-child {
-    flex: 1 1 auto;
+.toolbar > :first-child {
+    flex: 1 1 220px;
 }
-.wl-mcserver-config__diff {
-    font-family: monospace;
-    font-size: 12px;
+.field {
+    margin-block: 12px;
+    min-width: 0;
+}
+pre {
     white-space: pre-wrap;
-}
-.wl-mcserver-config__raw :deep(textarea) {
-    font-family: monospace;
-    font-size: 12px;
+    overflow-wrap: anywhere;
 }
 </style>
