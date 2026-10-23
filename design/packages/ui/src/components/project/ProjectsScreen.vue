@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AccessPreparationPanel from "../preview/AccessPreparationPanel.vue";
+import GenerationEntry from "../mcserver/GenerationEntry.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiFolderOpenOutline } from "@mdi/js";
@@ -180,7 +182,9 @@ const projectPagesState = ref<ProjectPagesState>("off");
 const pagesFailure = ref<string | null>(null);
 const publicationGeneration = ref(0);
 const renderContextGeneration = ref(0);
-const verifiedRenders = ref<Record<string, { world: string; projectId: string; renderId: string; projectSnapshot: string }>>({});
+const verifiedRenders = ref<
+    Record<string, { world: string; projectId: string; renderId: string; projectSnapshot: string }>
+>({});
 
 async function loadRenderModes(): Promise<void> {
     if (runtime === null) return;
@@ -314,7 +318,8 @@ const renderContextKey = computed(() =>
 const currentVerifiedRender = computed(() => {
     if (renderContextKey.value === null || openProject.value === null) return null;
     const record = verifiedRenders.value[renderContextKey.value];
-    return record !== undefined && record.projectSnapshot === renderAffectingProjectSnapshot(openProject.value)
+    return record !== undefined &&
+        record.projectSnapshot === renderAffectingProjectSnapshot(openProject.value)
         ? record
         : null;
 });
@@ -326,7 +331,8 @@ const shellPagesState = computed<ProjectPagesState>(() => {
         record.key === renderContextKey.value &&
         openProject.value !== null &&
         record.projectSnapshot === renderAffectingProjectSnapshot(openProject.value) &&
-        (currentVerifiedRender.value === null || record.renderId === currentVerifiedRender.value.renderId)
+        (currentVerifiedRender.value === null ||
+            record.renderId === currentVerifiedRender.value.renderId)
     ) {
         return record.state;
     }
@@ -345,11 +351,7 @@ function resetRenderDestination(previousKey: string | null): void {
     preflightContextGeneration.value = null;
 }
 
-watch(
-    renderContextKey,
-    (_next, previous) => resetRenderDestination(previous),
-    { flush: "sync" },
-);
+watch(renderContextKey, (_next, previous) => resetRenderDestination(previous), { flush: "sync" });
 
 watch(
     () => (openProject.value === null ? null : renderAffectingProjectSnapshot(openProject.value)),
@@ -496,7 +498,8 @@ async function open(world: string): Promise<void> {
         openWorld.value = world;
         openProject.value = answer.project;
         savedProject.value = answer.project;
-        projectPagesState.value = projectHostingRoute(answer.project) === "github-pages" ? "published" : "off";
+        projectPagesState.value =
+            projectHostingRoute(answer.project) === "github-pages" ? "published" : "off";
         pagesFailure.value = null;
     } catch (error) {
         openFailure.value = error instanceof Error ? error.message : String(error);
@@ -803,7 +806,8 @@ function chooseDestination(destination: RenderDestinationId): void {
             return;
         case "github-actions":
             renderLocation.value = "local";
-            if (openProject.value !== null) setProjectRenderRoute(openProject.value, "github-actions");
+            if (openProject.value !== null)
+                setProjectRenderRoute(openProject.value, "github-actions");
             if (openWorld.value !== null) emit("cloudRender", openWorld.value);
             return;
         case "import-project":
@@ -1072,7 +1076,11 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
         }
         return;
     }
-    if (currentVerifiedRender.value === null || openWorld.value === null || openProject.value === null) {
+    if (
+        currentVerifiedRender.value === null ||
+        openWorld.value === null ||
+        openProject.value === null
+    ) {
         projectPagesState.value = "failed";
         pagesFailure.value = "Pages setup needs a verified finished render for this project first.";
         return;
@@ -1120,6 +1128,8 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
         would put the project's dirty state, its save path and its render in two places.
     -->
     <div class="mb-projects-screen" :class="{ 'mb-projects-screen--editing': editorOpen }">
+        <GenerationEntry />
+        <AccessPreparationPanel />
         <!--
             The render outlives the editor being closed, so it sits above both rather than
             inside either. It renders nothing at all while no render has been started.
@@ -1185,19 +1195,23 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
             :pages-failure="pagesFailure"
             @update:project="(value) => (openProject = value)"
             @update:render-location="(value: RunLocation) => (renderLocation = value)"
-            @update:render-target="(value: RemoteTarget | null) => {
-                renderTarget = value
-                remotePreflightPassed = false
-                preflightTargetId = null
-                preflightContextKey = null
-                preflightContextGeneration = null
-            }"
-            @update:render-preflight="(value: boolean) => {
-                remotePreflightPassed = value
-                preflightTargetId = value ? renderTarget?.id ?? null : null
-                preflightContextKey = value ? renderContextKey : null
-                preflightContextGeneration = value ? renderContextGeneration : null
-            }"
+            @update:render-target="
+                (value: RemoteTarget | null) => {
+                    renderTarget = value;
+                    remotePreflightPassed = false;
+                    preflightTargetId = null;
+                    preflightContextKey = null;
+                    preflightContextGeneration = null;
+                }
+            "
+            @update:render-preflight="
+                (value: boolean) => {
+                    remotePreflightPassed = value;
+                    preflightTargetId = value ? (renderTarget?.id ?? null) : null;
+                    preflightContextKey = value ? renderContextKey : null;
+                    preflightContextGeneration = value ? renderContextGeneration : null;
+                }
+            "
             @destination="chooseDestination"
             @pages-toggle="handlePagesToggle"
             @save="save"

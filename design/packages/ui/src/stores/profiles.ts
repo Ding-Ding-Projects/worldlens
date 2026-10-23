@@ -2,6 +2,10 @@ import { reactive, watch } from "vue";
 import { simpleHistorySaveFn } from "../components/history/simpleHistoryHost.js";
 
 export interface ServerProfile {
+    projectId?: string;
+    serverId?: string;
+    mapId?: string;
+    dimension?: string;
     id: string;
     name: string;
     /** Base URL as entered by the user (remote BlueMap instance root). Empty for a local map. */
@@ -86,7 +90,10 @@ function syncToBridge(): void {
  * than throwing, so this is a plain no-op on every build that cannot keep a history at all.
  */
 function recordProfilesHistory(): void {
-    const save = simpleHistorySaveFn(typeof window === "undefined" ? null : window.worldlens, "profilesHistory");
+    const save = simpleHistorySaveFn(
+        typeof window === "undefined" ? null : window.worldlens,
+        "profilesHistory",
+    );
     if (save === null) return;
     void save({
         version: 1,

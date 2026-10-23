@@ -14,6 +14,8 @@ import {
     VWindowItem,
 } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import BotWorkflowPanel from "./BotWorkflowPanel.vue";
+import { workflowText as text } from "./workflowText.js";
 import ServerConsole from "./ServerConsole.vue";
 import ServerConfigEditor from "./ServerConfigEditor.vue";
 import PluginManager from "./PluginManager.vue";
@@ -40,13 +42,15 @@ import {
  */
 const props = defineProps<{
     serverId: string;
-    initialTab?: "console" | "config" | "plugins" | "players" | "web" | "backups" | "aws";
+    initialTab?: "console" | "config" | "plugins" | "players" | "web" | "backups" | "aws" | "bots";
 }>();
 const emit = defineEmits<{ forgotten: []; back: [] }>();
 
 const { t } = useI18n();
 const store = useServerStore();
-const tab = ref<"console" | "config" | "plugins" | "players" | "web" | "backups" | "aws">("console");
+const tab = ref<"console" | "config" | "plugins" | "players" | "web" | "backups" | "aws" | "bots">(
+    "console",
+);
 watch(
     () => props.initialTab,
     (value) => {
@@ -70,34 +74,55 @@ async function refresh(): Promise<void> {
 async function pollStatus(): Promise<void> {
     const id = props.serverId;
     try {
-        if (store.statuses[id]?.running) { monitored = true; unknownAttempts = 0; }
-        if (!monitored || lifecycleBusy.value) return;
+        if (store.statuses[id]?.running) {
+            monitored = true;
+            unknownAttempts = 0;
+        }
+        if (lifecycleBusy.value) return;
         const answer = await store.refreshStatus(id);
         if (disposed || id !== props.serverId) return;
         if (!answer.ok || answer.value?.state === "unknown") {
-            if (++unknownAttempts >= 3) monitored = false;
+            ++unknownAttempts;
             return;
         }
         unknownAttempts = 0;
         monitored = answer.value?.running === true;
         if (answer.value?.state === "exited") {
-            lifecycleFailure.value = t("mcserver.lifecycle.exited", { name: store.get(id)?.name ?? id, code: answer.value.exitCode ?? "unknown" }, { default: "Server {name} exited (code {code}). Open its console or logs for details." });
+            lifecycleFailure.value = t(
+                "mcserver.lifecycle.exited",
+                { name: store.get(id)?.name ?? id, code: answer.value.exitCode ?? "unknown" },
+                {
+                    default:
+                        "Server {name} exited (code {code}). Open its console or logs for details.",
+                },
+            );
         }
     } finally {
-        if (!disposed) statusTimer = setTimeout(() => { void pollStatus(); }, 2000);
+        if (!disposed)
+            statusTimer = setTimeout(() => {
+                void pollStatus();
+            }, 2000);
     }
 }
 onMounted(() => {
     void refresh();
-    statusTimer = setTimeout(() => { void pollStatus(); }, 2000);
+    statusTimer = setTimeout(() => {
+        void pollStatus();
+    }, 2000);
 });
-onUnmounted(() => { disposed = true; clearTimeout(statusTimer); });
-watch(() => props.serverId, () => {
-    monitored = false;
-    unknownAttempts = 0;
-    lifecycleFailure.value = null;
-    void refresh();
+onUnmounted(() => {
+    disposed = true;
+    clearTimeout(statusTimer);
 });
+watch(
+    () => props.serverId,
+    () => {
+        monitored = false;
+        unknownAttempts = 0;
+        lifecycleFailure.value = null;
+        void refresh();
+    },
+);
 
 const server = computed(() => store.get(props.serverId));
 const status = computed(() => store.statuses[props.serverId] ?? null);
@@ -130,8 +155,12 @@ async function lifecycle(action: "start" | "stop" | "forget"): Promise<void> {
     lifecycleFailure.value = null;
     const id = props.serverId;
     try {
-        const result = action === "start" ? await store.start(id)
-            : action === "stop" ? await store.stop(id, { graceful: true }) : await store.forget(id);
+        const result =
+            action === "start"
+                ? await store.start(id)
+                : action === "stop"
+                  ? await store.stop(id, { graceful: true })
+                  : await store.forget(id);
         if (disposed || id !== props.serverId) return;
         if (!result.ok) {
             lifecycleFailure.value = `${result.failure?.message ?? t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.")}${result.failure?.detail ? ` ${result.failure.detail}` : ""}`;
@@ -141,12 +170,24 @@ async function lifecycle(action: "start" | "stop" | "forget"): Promise<void> {
         }
         await refresh();
     } catch {
-        if (!disposed && id === props.serverId) lifecycleFailure.value = t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.");
-    } finally { lifecycleBusy.value = false; }
+        if (!disposed && id === props.serverId)
+            lifecycleFailure.value = t(
+                "mcserver.lifecycle.incomplete",
+                "The server operation did not complete. Check its status and try again.",
+            );
+    } finally {
+        lifecycleBusy.value = false;
+    }
 }
-async function start(): Promise<void> { await lifecycle("start"); }
-async function stop(): Promise<void> { await lifecycle("stop"); }
-async function confirmForget(): Promise<void> { await lifecycle("forget"); }
+async function start(): Promise<void> {
+    await lifecycle("start");
+}
+async function stop(): Promise<void> {
+    await lifecycle("stop");
+}
+async function confirmForget(): Promise<void> {
+    await lifecycle("forget");
+}
 
 // --- Web console ---
 const webStatus = ref<WebConsoleStatus | null>(null);
@@ -241,7 +282,14 @@ async function setPassword(): Promise<void> {
             }}
         </VAlert>
 
-        <VAlert v-if="lifecycleFailure" type="error" role="alert" closable @click:close="lifecycleFailure = null">{{ lifecycleFailure }}</VAlert>
+        <VAlert
+            v-if="lifecycleFailure"
+            type="error"
+            role="alert"
+            closable
+            @click:close="lifecycleFailure = null"
+            >{{ lifecycleFailure }}</VAlert
+        >
         <div class="wl-mcserver-panel__actions">
             <VBtn
                 :prepend-icon="mdiPlay"
@@ -265,6 +313,7 @@ async function setPassword(): Promise<void> {
         </div>
 
         <VTabs v-model="tab" class="mt-4">
+            <VTab value="bots">{{ text("Bots", "機械人") }}</VTab>
             <VTab value="console">{{ t("mcserver.panel.tabConsole", "Console") }}</VTab>
             <VTab value="config">{{ t("mcserver.panel.tabConfig", "Configuration") }}</VTab>
             <VTab value="plugins">{{ t("mcserver.panel.tabPlugins", "Plugins") }}</VTab>
@@ -274,6 +323,7 @@ async function setPassword(): Promise<void> {
             <VTab value="aws">{{ t("mcserver.panel.tabAws", "AWS hosting") }}</VTab>
         </VTabs>
         <VWindow v-model="tab">
+            <VWindowItem value="bots"><BotWorkflowPanel :server-id="server.id" /></VWindowItem>
             <VWindowItem value="console"><ServerConsole :server-id="server.id" /></VWindowItem>
             <VWindowItem value="config"><ServerConfigEditor :server-id="server.id" /></VWindowItem>
             <VWindowItem value="plugins"><PluginManager :server-id="server.id" /></VWindowItem>

@@ -439,7 +439,9 @@ export interface HostProfileScan {
 export interface McServerHost {
     readonly name: string;
     readonly creation?: {
-        sshProcessPreflight(request: SshProcessPreflightRequest): Promise<Answer<SshProcessPreflightReport>>;
+        sshProcessPreflight(
+            request: SshProcessPreflightRequest,
+        ): Promise<Answer<SshProcessPreflightReport>>;
     };
     list(): Promise<Answer<readonly ServerRecord[]>>;
     get(id: string): Promise<Answer<ServerRecord>>;
@@ -647,7 +649,9 @@ export interface ServerStore {
     readonly hasAdopt: boolean;
     readonly hasHostProfiles: boolean;
     readonly hasSshProcessPreflight: boolean;
-    sshProcessPreflight(request: SshProcessPreflightRequest): Promise<Answer<SshProcessPreflightReport>>;
+    sshProcessPreflight(
+        request: SshProcessPreflightRequest,
+    ): Promise<Answer<SshProcessPreflightReport>>;
 
     readonly hostProfiles: {
         list(): Promise<Answer<readonly HostProfileRecord[]>>;
@@ -744,7 +748,8 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
         hasHostProfiles: host?.hostProfiles !== undefined,
         hasSshProcessPreflight: host?.creation?.sshProcessPreflight !== undefined,
         async sshProcessPreflight(request) {
-            if (host?.creation?.sshProcessPreflight === undefined) return notWired("SSH process readiness");
+            if (host?.creation?.sshProcessPreflight === undefined)
+                return notWired("SSH process readiness");
             return host.creation.sshProcessPreflight(request);
         },
 
@@ -846,24 +851,43 @@ export function createServerStore(options: ServerStoreOptions = {}): ServerStore
             const request = nextRequest(probeRequests, id);
             delete probes[id];
             let result: Answer<ProbeResult>;
-            try { result = await host.probe(id); }
-            catch { result = fail("The host probe did not complete; its capabilities are unknown.", "unreachable"); }
-            if (request === probeRequests.get(id) && result.ok && result.value) probes[id] = result.value;
+            try {
+                result = await host.probe(id);
+            } catch {
+                result = fail(
+                    "The host probe did not complete; its capabilities are unknown.",
+                    "unreachable",
+                );
+            }
+            if (request === probeRequests.get(id) && result.ok && result.value)
+                probes[id] = result.value;
             return result;
         },
 
         async refreshStatus(id): Promise<Answer<InstanceStatus>> {
             if (host === null) return noHost();
             const request = nextRequest(statusRequests, id);
-            delete statuses[id];
+            // Keep the last observed attempt while refreshing, avoiding a false stopped transition.
             let result: Answer<InstanceStatus>;
-            try { result = await host.status(id); }
-            catch { result = fail("The status request did not complete; the server state is unknown.", "unreachable"); }
+            try {
+                result = await host.status(id);
+            } catch {
+                result = fail(
+                    "The status request did not complete; the server state is unknown.",
+                    "unreachable",
+                );
+            }
             if (request === statusRequests.get(id)) {
-                statuses[id] = result.ok && result.value ? result.value : {
-                    state: "unknown", running: false, startedAt: null, exitCode: null,
-                    checkedAt: new Date().toISOString(),
-                };
+                statuses[id] =
+                    result.ok && result.value
+                        ? result.value
+                        : {
+                              state: "unknown",
+                              running: false,
+                              startedAt: null,
+                              exitCode: null,
+                              checkedAt: new Date().toISOString(),
+                          };
             }
             return result;
         },
