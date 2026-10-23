@@ -836,8 +836,13 @@ jobs:
             exit 1
           fi
           gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" > release-inventory-pages.json
+          # Only a release in this job's own `v<major>.<minor>.<run>` schema nominates a
+          # commit. Other workflows publish releases that target a commit too - worldgen.yml
+          # attaches a generated world to a `world-<name>-<run>` prerelease - and one of those
+          # on the same commit is a world, not this application's release; counting it here
+          # made the next step reject the nomination as outside the schema.
           mapfile -t existing_tags < <(
-            jq -r --arg sha "$GITHUB_SHA" '.[][] | select(.draft == false and .target_commitish == $sha) | .tag_name' release-inventory-pages.json
+            jq -r --arg sha "$GITHUB_SHA" '.[][] | select(.draft == false and .target_commitish == $sha and (.tag_name | test("^v[0-9]+\\.[0-9]+\\.[0-9]+$"))) | .tag_name' release-inventory-pages.json
           )
           if [ "${#existing_tags[@]}" -gt 1 ]; then
             echo "::error::commit $GITHUB_SHA already has ${#existing_tags[@]} releases; refusing to add another"

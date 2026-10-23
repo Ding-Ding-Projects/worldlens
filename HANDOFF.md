@@ -35,6 +35,17 @@ is in the bridge inventory, the preload type and the hosted capability profile (
   holding 3,969 chunks over blocks 0..1023, planned one shard in one wave, and checked disk
   (about 3 GiB needed, 84 GiB free). One shard rendered, the merge verified 961 of 961 hires tiles byte for byte with none missing or unexpected, `settings.json` and `textures.json` present and the lowres pyramid built at every level (16, 4 and 4 tiles), and the `rendered-map` artifact (33,966,961 bytes, 1,033 files) plus `webapp` were uploaded. The run completed successfully at 21:35 UTC, about six and a half minutes after the chain job started it.
 
+## The red release job this proof exposed, and its repair
+
+CI run 2123 on `main` `23ad4a01` failed in its release job: the world prerelease above targets
+that same commit, the "Resolve release tag" step counted any non-draft release on the commit as the
+application's nomination, and the next step rejected `world-gui-test-world-40026980431` as outside
+the `v<major>.<minor>.<run>` schema. Every other job of run 2123 passed; no application release
+exists for `23ad4a01`. The lookup now accepts only tags in the release schema, with the watched
+step and release job fingerprints re-reviewed in `scripts/lint-workflows.mjs`. Any other workflow
+that publishes a release on a `main` commit (a chunker conversion with `artifact-and-release`, for
+example) would have tripped the same check.
+
 ## Verification on the tree
 
 Typecheck passes for shared, bridge, app, ui and site. Tests: 22 shared config, 8 runner inventory,

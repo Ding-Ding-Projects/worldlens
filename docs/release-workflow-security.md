@@ -100,7 +100,9 @@ never present a missing local check as publication evidence.
 Pushes on `main` nominate publication automatically; manual dispatch must explicitly retain its
 publish input. The serialized publisher checks existing published releases by exact commit SHA, so
 one intended commit is nominated at most once and an existing exact target is verified rather than
-published again.
+published again. Only a release whose tag is in this job's own `v<major>.<minor>.<run>` schema
+counts as that nomination: a world prerelease that `worldgen.yml` attached to the same commit is a
+world, not the application's release, and is ignored by the lookup.
 
 Tag-triggered runs keep the same build, packaging and publication-only contract, but
 the **Verify generated changelog is current** step runs only when `github.ref_type != 'tag'`. A
@@ -222,7 +224,7 @@ repository 七條可執行 workflow 入面全部 117 個 external action invocat
 
 所有可執行 workflow 都用明確、受支援嘅 hosted-runner label(`ubuntu-24.04` 或者 `windows-2022`);mutable 嘅 `*-latest`、self-hosted、由 expression derive 嘅同不明嘅 label,由 `cloudRunnerPolicy.test.ts` 入面人手寫嘅 job inventory 拒絕。
 
-workflow 預設 `contents: read`;只有 release job 攞到 `contents: write`。每條可執行 workflow 入面每個 checkout 都設 `persist-credentials: false`,包括 release checkout。catalog API 可以用設定咗嘅 token 換 rate limit,但公開 asset 下載永遠唔會收到 token。release job 精確依賴三個 artifact-producing jobs：`package`、`jars` 同 `test-world`。`package` 同 `test-world` job 各自 build workspace；`check` 係獨立嘅 build job，冇 uploaded artifact，亦唔係 release dependency。冇任何 test、lint、typecheck、static-analysis、accessibility 或 screenshot/capture job 會落入呢條 dependency chain。有人明確要求本機 check 嗰陣，佢會喺 Actions 之外獨立行，結果係 local evidence，唔係 release gate。release notes 會清楚講明呢條界線，唔會將冇行過嘅 local check 當成 publication evidence。push 上 `main` 會自動提名發佈;manual dispatch 就要明確保留佢個 publish input。serialized 嘅 publisher 用確切 commit SHA 檢查已發佈嘅 release,所以一個目標 commit 最多被提名一次,已存在嘅確切 target 係被驗證而唔係再發佈一次。
+workflow 預設 `contents: read`;只有 release job 攞到 `contents: write`。每條可執行 workflow 入面每個 checkout 都設 `persist-credentials: false`,包括 release checkout。catalog API 可以用設定咗嘅 token 換 rate limit,但公開 asset 下載永遠唔會收到 token。release job 精確依賴三個 artifact-producing jobs：`package`、`jars` 同 `test-world`。`package` 同 `test-world` job 各自 build workspace；`check` 係獨立嘅 build job，冇 uploaded artifact，亦唔係 release dependency。冇任何 test、lint、typecheck、static-analysis、accessibility 或 screenshot/capture job 會落入呢條 dependency chain。有人明確要求本機 check 嗰陣，佢會喺 Actions 之外獨立行，結果係 local evidence，唔係 release gate。release notes 會清楚講明呢條界線，唔會將冇行過嘅 local check 當成 publication evidence。push 上 `main` 會自動提名發佈;manual dispatch 就要明確保留佢個 publish input。serialized 嘅 publisher 用確切 commit SHA 檢查已發佈嘅 release,所以一個目標 commit 最多被提名一次,已存在嘅確切 target 係被驗證而唔係再發佈一次。只有 tag 符合呢個 job 自己 `v<major>.<minor>.<run>` schema 嘅 release 先算係提名:`worldgen.yml` 掛喺同一個 commit 上面嘅世界 prerelease 係一個世界，唔係 application 嘅 release，lookup 會略過佢。
 
 tag 觸發嘅 run 仍然冇資格行只准 `main` 嘅 publisher。依家個 workflow 喺任何 ref 都遵守
 build、package、publish-only 嘅合約，亦都唔會行

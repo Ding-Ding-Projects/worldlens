@@ -114,9 +114,15 @@ const WATCHED_SCRIPT_STEPS = Object.freeze({
 
 const WATCHED_STEP_FINGERPRINTS = Object.freeze({
   ".github/workflows/ci.yml": Object.freeze({
+    // Reviewed 2026-10-23: the nomination lookup now counts only releases in the job's own
+    // `v<major>.<minor>.<run>` schema. worldgen.yml publishes a generated world as a
+    // `world-<name>-<run>` prerelease targeting the commit it ran on, and the lookup took
+    // that for the application's own release, so "Verify nominated release already exists"
+    // rejected it as outside the schema and run 2123 on main failed. The GH_TOKEN chain and
+    // the `$GITHUB_SHA` data-use line are unchanged; only the jq filter grew the tag test.
     "Resolve release tag": Object.freeze({
       env: "73dc8da2d166a44852cc6016f1152bfbb40706a31aeade8422c602454a532e00",
-      run: "754209609f12a8d39dbfc09010466b2d389199635af113823c3920e93c42930b",
+      run: "0e0d39f9bd7f2f011463f418f3f7c45dc3ce5aadf71cc60740a7f52fc1a3501c",
     }),
     "Verify nominated release already exists": Object.freeze({
       env: "bde2f7ec293d68cdde52cc85c8a1369117aa6f23bde05ef2c0c5aec0068bac25",
@@ -167,8 +173,12 @@ const WATCHED_STEP_FINGERPRINTS = Object.freeze({
 // also drifted from the job's actual committed bytes, independently of the "No lint and no
 // timeout" changes (the `release` job itself is untouched by this pass - `needs:` is still
 // exactly `[package, jars, test-world]`). Recomputed from the real current job block.
+//
+// Re-reviewed 2026-10-23 with the "Resolve release tag" schema filter above; the eligibility
+// expression, draft-first publication, manifest readback, token chain and unsigned warning
+// are unchanged. Recomputed from the committed job block.
 const RELEASE_JOB_FINGERPRINT =
-  "d0c3602ecefb56b7a5d7c0a4a13d9c36f58c1906d75e7718db768e6b06d9ccb4";
+  "ffb308083a5ff0501ad35803c837bb6e684304971b4cbbe91e09155bb8dacb83";
 
 // The counts are exact rather than a floor because a new use of an external action is
 // precisely the thing somebody should have to look at: an action that runs in this
