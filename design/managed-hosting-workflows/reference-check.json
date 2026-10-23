@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "49d009b5ad685022abbb47dcff00b43305589ba8",
+  "recordedAt": "2026-10-23T00:54:46.8457389Z",
+  "compiler": "@vue/compiler-sfc",
+  "compilerVersion": "3.5.40",
+  "checks": [
+    "SFC parse",
+    "script compilation",
+    "template compilation"
+  ],
+  "result": "passed",
+  "unverified": [
+    "TypeScript project integration",
+    "mounted interaction",
+    "layout",
+    "production runtime"
+  ],
+  "files": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "9b6981ff228120c74dad6aed7ecaa1cfcbbc6940bb2d16635a692a4e473bb07f"
+    },
+    {
+      "path": "HANDOFF.md",
+      "sha256": "e384dc729f158f6fdf9ec4313f5745e026a3b131cebb2f2ac77f6f989aee0fe8"
+    },
+    {
+      "path": "WorkflowReference.vue",
+      "sha256": "f7777e7e7becebf65bdbd31967c8e8dca526d487d5cf5594b8aff6692167264e"
+    },
+    {
+      "path": "TaskStateReference.vue",
+      "sha256": "9aac3c4674b7d5fe8159c6e7a3cbdcea063b35d2dbba494a522677052763884e"
+    },
+    {
+      "path": "screen-states.json",
+      "sha256": "9cefb1a1e3618c62285f930cd06bff3cff64b5501da6e2d7ff005116a93a2977"
+    },
+    {
+      "path": "check-reference.mjs",
+      "sha256": "7750eccfab6e0f562b5db0caf28f6cdf3fbc1e5f17ecbd97ae89848d0b2f8689"
+    }
+  ]
+}
