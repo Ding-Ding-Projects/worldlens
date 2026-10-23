@@ -74,7 +74,7 @@
  *   test can assert on what was logged instead of only on side effects.
  */
 
-import type { BmMap, RenderManager } from "@worldlens/engine";
+import type { BmMap, RegionWatchLivenessReporter, RenderManager } from "@worldlens/engine";
 import { WatchService, WorldRegionUpdateTask } from "@worldlens/engine";
 import type { Vector2i } from "@worldlens/shared";
 
@@ -145,6 +145,7 @@ export class MapUpdateService {
     private started = false;
     private closed = false;
     private runLoopPromise: Promise<void> | null = null;
+    private unsubscribeArmFailure: (() => void) | null = null;
 
     constructor(renderManager: RenderManager, map: BmMap, options: MapUpdateServiceOptions = {}) {
         this.renderManager = renderManager;
@@ -178,6 +179,30 @@ export class MapUpdateService {
         if (this.started) throw new Error("MapUpdateService is already running!");
         this.started = true;
         this.runLoopPromise = this.runLoop();
+        this.watchArmFailure();
+    }
+
+    /**
+     * Issue #176: a polling watcher can become ready and then never deliver, which leaves
+     * `runLoop` healthy and waiting forever, so the "stopped unexpectedly" warning in its
+     * `finally` never fires. The watch-service proves itself live after `ready` and reports
+     * exhaustion through `onArmFailure`; this turns that into the one visible warning the
+     * silent case never had. The loop is deliberately left running: a later re-created
+     * watch-service is not this class's decision, and exiting here would make a mute watcher
+     * look like a closed one.
+     */
+    private watchArmFailure(): void {
+        const reporter = this.watchService as Partial<RegionWatchLivenessReporter>;
+        if (typeof reporter.onArmFailure !== "function") return;
+        this.unsubscribeArmFailure = reporter.onArmFailure((liveness) => {
+            if (this.closed) return;
+            this.onWarn(
+                `Region-file watch-service for map '${this.map.getId()}' never armed: its polling ` +
+                    `watcher reported nothing after ${liveness.rearmCount} re-arm attempt(s). ` +
+                    `(This map will not update automatically from region-file changes until it is ` +
+                    `re-opened or the server restarts)`,
+            );
+        });
     }
 
     /** upstream: `run()` */
@@ -294,6 +319,8 @@ export class MapUpdateService {
     async close(): Promise<void> {
         if (this.closed) return;
         this.closed = true;
+        this.unsubscribeArmFailure?.();
+        this.unsubscribeArmFailure = null;
 
         for (const timer of this.scheduledUpdates.values()) clearTimeout(timer);
         this.scheduledUpdates.clear();

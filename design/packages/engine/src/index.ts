@@ -363,7 +363,13 @@ export { MCAEntityChunk, MCA_ENTITY_CHUNK_TOKEN } from "./world/mca/entity/chunk
 export { MCAEntityChunkLoader } from "./world/mca/entity/chunk/MCAEntityChunkLoader.js";
 export { MCAWorld, ANVIL } from "./world/mca/MCAWorld.js";
 export { ChunkGrid } from "./world/mca/ChunkGrid.js";
-export { MCAWorldRegionWatchService } from "./world/mca/MCAWorldRegionWatchService.js";
+export {
+    MCAWorldRegionWatchService,
+    RegionWatchArmFailedError,
+    type MCAWorldRegionWatchServiceOptions,
+    type RegionWatchLiveness,
+    type RegionWatchLivenessReporter,
+} from "./world/mca/MCAWorldRegionWatchService.js";
 export {
     BlockStateDeserializer,
     BLOCK_STATE_TOKEN,

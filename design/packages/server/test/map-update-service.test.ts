@@ -553,3 +553,81 @@ describe("MapUpdateService: over a real worldgen-generated world (issue #40's ow
         await service.close();
     });
 });
+
+describe("MapUpdateService: a watcher that never arms is reported, not waited on silently (issue #176)", () => {
+    it("turns the watch-service's arm failure into one onWarn and keeps the loop alive", async () => {
+        const warnings: string[] = [];
+        let armFailureListener: ((liveness: unknown) => void) | null = null;
+        let unsubscribed = false;
+        let takeCalls = 0;
+        let rejectParkedTake: ((error: Error) => void) | null = null;
+
+        const muteWatchService = {
+            poll: (() => null) as unknown as WatchService<Vector2i>["poll"],
+            take: () => {
+                takeCalls += 1;
+                // alive and mute: nothing ever resolves this, exactly like #176's instrumented
+                // loop; only close() settles it, the way the real service rejects its waiters
+                return new Promise<Vector2i[]>((_resolve, reject) => {
+                    rejectParkedTake = reject;
+                });
+            },
+            close: async () => {
+                rejectParkedTake?.(new WatchService.ClosedException());
+            },
+            getLiveness: () => ({ state: "failed", polling: true, rearmCount: 3, lastEventAt: null, probe: "missed" }),
+            onArmFailure: (listener: (liveness: unknown) => void) => {
+                armFailureListener = listener;
+                return () => {
+                    unsubscribed = true;
+                };
+            },
+        };
+
+        const map = await buildMapOverRegionFolder(
+            join(root, "region"),
+            () => muteWatchService as unknown as WatchService<Vector2i>,
+        );
+        const service = new MapUpdateService(new RenderManager(), map, {
+            onWarn: (message) => warnings.push(message),
+        });
+
+        service.start();
+        await waitForCondition(() => armFailureListener !== null);
+        expect(warnings).toEqual([]);
+
+        armFailureListener!({ state: "failed", polling: true, rearmCount: 3, lastEventAt: null, probe: "missed" });
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0]).toContain("overworld");
+        expect(warnings[0]).toContain("never armed");
+        expect(warnings[0]).toContain("3 re-arm attempt(s)");
+
+        // the loop did not exit on the verdict: it is still parked in its one take()
+        expect(takeCalls).toBe(1);
+        await service.close();
+        expect(unsubscribed).toBe(true);
+    });
+
+    it("a watch-service without the liveness seam behaves exactly as before", async () => {
+        const warnings: string[] = [];
+        let rejectParkedTake: ((error: Error) => void) | null = null;
+        const plainWatchService: WatchService<Vector2i> = {
+            poll: (() => null) as unknown as WatchService<Vector2i>["poll"],
+            take: () =>
+                new Promise<Vector2i[]>((_resolve, reject) => {
+                    rejectParkedTake = reject;
+                }),
+            close: async () => {
+                rejectParkedTake?.(new WatchService.ClosedException());
+            },
+        };
+        const map = await buildMapOverRegionFolder(join(root, "region"), () => plainWatchService);
+        const service = new MapUpdateService(new RenderManager(), map, {
+            onWarn: (message) => warnings.push(message),
+        });
+        service.start();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        await service.close();
+        expect(warnings).toEqual([]);
+    });
+});
