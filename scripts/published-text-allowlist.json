@@ -1577,6 +1577,18 @@
       "line": 1165,
       "column": 15,
       "why": "Literal POSIX file-concatenation command in the reviewed workflow; it copies or prints build output."
+    },
+    {
+      "file": "HANDOFF.md",
+      "line": 130,
+      "column": 31,
+      "why": "a historical integration branch name quoted as an exact identifier in a dated handoff record; the branch is gone and the record is not rewritten"
+    },
+    {
+      "file": "HANDOFF.md",
+      "line": 176,
+      "column": 87,
+      "why": "a historical integration branch name quoted as an exact identifier in a dated handoff record; the branch is gone and the record is not rewritten"
     }
   ]
 }

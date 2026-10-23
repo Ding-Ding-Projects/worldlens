@@ -37,7 +37,7 @@ Full workspace build passes (20 packages, with the `ui` memory limit raised). Fu
 typecheck passes (20 packages). Vitest over the whole workspace: 1,110 test files, 13,871 tests;
 1,097 files and 13,815 tests pass, 7 files and 46 tests are skipped, and 6 files with 10 tests fail,
 of which two files (`worldlensIdentityResiduals`, `notificationPolicy`) failed only on a changelog
-regeneration that this shallow clone cannot perform correctly and that was dropped before the dew;
+regeneration that this shallow clone cannot perform correctly and that was dropped before the push;
 rerun after the drop, both pass and the generated changelog's own test keeps its one pre-existing
 trailer failure. The three remaining failing files predate this branch and fail on `main` for the
 same reasons: `cirender/cloudConfig.test.ts` passes a Windows path that is not absolute on Linux,
