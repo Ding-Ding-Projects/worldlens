@@ -1431,6 +1431,9 @@ The GitHub issue board is not at zero open issues as of this writing: issue **#6
 open. The list below mixes that tracked item with older untracked follow-ups; each item is
 named so it is not lost between passes.
 
+Update 2026-10-23: #64 and #67 are closed on GitHub. Their entries below are kept as the record
+of what was open when this pass ended, not as current work.
+
 - **Issue #64 — finish the running-process proof for `RenderManager.saveRenderTaskQueue`/
   `.loadRenderTaskQueue`.** The engine remains the format owner (queue schema version 1), and
   `packages/server/src/render/RenderQueuePersistence.ts` now provides the process policy:
@@ -1528,7 +1531,7 @@ remembers to run the harness. Tracked as
 - [ ] Record a terminal green main run, the published release, and the resulting terminal green
       tag-triggered run at the same commit.
 
-## Issue #67 — exact two-wave dispatch record (open, 2026-08-19)
+## Issue #67 — exact two-wave dispatch record (opened 2026-08-19, closed; record retained)
 
 - Wave 1 completed **256/256** shards.
 - Wave 2 completed **7/105** shards; **98** were cancelled in flight.

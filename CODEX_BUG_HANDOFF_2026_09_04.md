@@ -4,6 +4,8 @@
 
 **Handoff only: no application fixes are included.** Keep the PR in draft until repairs and verification are complete. Do not merge this report as evidence that the product has been repaired.
 
+**Status 2026-10-23:** F1 to F4 were repaired and verified by PR #178 (merged 2026-10-02: the six-case audit passes 6/6 and the server package's 101 tests pass). Their acceptance boxes below are checked; the backlog triage and the remaining-audit items stay open as written.
+
 Audited repository: `Ding-Ding-Projects/worldlens`.
 Audited `main`: `b782521f7d059ec908fee79d316f664d7dfa3353`.
 Root tree: `965cdb5760717e820c789accb613afee87ab38b9`.
@@ -53,11 +55,11 @@ The handler decodes a URL pathname, joins and normalizes it, then checks `filePa
 
 **Repair acceptance:**
 
-- [ ] Check containment by path components after normalization, not a bare string prefix; account for the root-directory case and Windows separators/drives.
-- [ ] Apply containment to the canonical root and final file target, including directory `index.html` resolution and links/junctions. Decide and document link behavior; do not reintroduce an escape through a second lookup.
-- [ ] Return a deliberate client error or not-found response without disclosing outside content.
-- [ ] Cover encoded separators, sibling prefixes, in-root files, outside symlinks/junctions, normal directories, HEAD and Unicode paths. Preserve authenticated routing.
-- [ ] Review the stat/open boundary as well as lexical validation. A canonical-path check alone is not proof against every concurrent link replacement.
+- [x] Check containment by path components after normalization, not a bare string prefix; account for the root-directory case and Windows separators/drives.
+- [x] Apply containment to the canonical root and final file target, including directory `index.html` resolution and links/junctions. Decide and document link behavior; do not reintroduce an escape through a second lookup.
+- [x] Return a deliberate client error or not-found response without disclosing outside content.
+- [x] Cover encoded separators, sibling prefixes, in-root files, outside symlinks/junctions, normal directories, HEAD and Unicode paths. Preserve authenticated routing.
+- [x] Review the stat/open boundary as well as lexical validation. A canonical-path check alone is not proof against every concurrent link replacement.
 
 ## F2 — P2: a static-file read error can terminate the server process
 
@@ -69,10 +71,10 @@ The handler decodes a URL pathname, joins and normalizes it, then checks `filePa
 
 **Repair acceptance:**
 
-- [ ] Handle open/read failures and settle the request without an uncaught event or process termination.
-- [ ] Use lifecycle-aware stream handling; handle errors differently before and after headers are sent, without writing a second status line.
-- [ ] Keep the server usable for a subsequent normal request, as the child test requires.
-- [ ] Cover missing-after-stat, read refusal/error, client cancellation and partial transfers. Do not install a global exception-swallowing handler as a substitute.
+- [x] Handle open/read failures and settle the request without an uncaught event or process termination.
+- [x] Use lifecycle-aware stream handling; handle errors differently before and after headers are sent, without writing a second status line.
+- [x] Keep the server usable for a subsequent normal request, as the child test requires.
+- [x] Cover missing-after-stat, read refusal/error, client cancellation and partial transfers. Do not install a global exception-swallowing handler as a substitute.
 
 ## F3 — P2: cancelled static downloads leave their source file open
 
@@ -84,9 +86,9 @@ The response closing resolves `handle`, but the source ReadStream is not destroy
 
 **Repair acceptance:**
 
-- [ ] Ensure completion, response close, client abort and read errors release the source stream and its descriptor exactly once.
-- [ ] Test repeated cancellations and normal full downloads; observe source close/resource release, not only resolution of the handler promise.
-- [ ] Repair alongside F2 where sensible, but retain separate regression cases for crash containment and cancellation cleanup.
+- [x] Ensure completion, response close, client abort and read errors release the source stream and its descriptor exactly once.
+- [x] Test repeated cancellations and normal full downloads; observe source close/resource release, not only resolution of the handler promise.
+- [x] Repair alongside F2 where sensible, but retain separate regression cases for crash containment and cancellation cleanup.
 
 ## F4 — P2: HTTP shutdown waits indefinitely for an active stream
 
@@ -100,10 +102,10 @@ The existing [live-endpoint shutdown case](https://github.com/Ding-Ding-Projects
 
 **Repair acceptance:**
 
-- [ ] Define bounded shutdown: stop accepting new connections, then terminate/drain active responses with an explicit policy before awaiting a callback they can indefinitely block.
-- [ ] Verify active SSE and active static/proxy transfers, no-client shutdown and listener/timer cleanup.
-- [ ] Inspect real app/CLI/hosted call order so resources owned by other handlers are also stopped.
-- [ ] The harness uses one second as a diagnostic deadline. A deliberately documented graceful deadline may require adjusting the test, but not removing the active-stream assertion or accepting indefinite waiting.
+- [x] Define bounded shutdown: stop accepting new connections, then terminate/drain active responses with an explicit policy before awaiting a callback they can indefinitely block.
+- [x] Verify active SSE and active static/proxy transfers, no-client shutdown and listener/timer cleanup.
+- [x] Inspect real app/CLI/hosted call order so resources owned by other handlers are also stopped.
+- [x] The harness uses one second as a diagnostic deadline. A deliberately documented graceful deadline may require adjusting the test, but not removing the active-stream assertion or accepting indefinite waiting.
 
 ## Additional source-review lead — validate before counting as reproduced
 
@@ -186,7 +188,7 @@ pnpm published-text:check
 
 Run commands independently so a first failure does not hide the remaining baseline. Preserve logs and distinguish pre-existing failures from regressions. UI fixes also require the documented Windows packaged/headless proof; do not fabricate screenshots or substitute a mock bridge for real runtime evidence. Where an external prerequisite is unavailable, name it and leave the associated acceptance item open.
 
-- [ ] F1–F4 reproduced against the repair checkout, repaired, and verified with permanent regression coverage.
+- [x] F1–F4 reproduced against the repair checkout, repaired, and verified with permanent regression coverage (PR #178, merged 2026-10-02).
 - [ ] Force-strategy lead validated or rejected with a concrete test.
 - [ ] #175/#171, #176 and #166 revalidated with current evidence; fixes or explicit remaining blockers recorded.
 - [ ] Remaining audit areas have an honest coverage/result ledger, not an unsupported “all bugs fixed” claim.

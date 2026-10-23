@@ -11,7 +11,7 @@
 - [ ] Verify close/reopen continuity against the built desktop application.
 - [ ] Add and verify rendering through an installed WSL distribution.
 - [ ] Verify integrated WSL selection, managed Linux Java, rendering and cancellation in the built desktop application (80 integrated focused checks passed).
-- [ ] Integrate and verify opt-in adaptive rendering, including manual override and terminal cleanup.
+- [x] Integrate and verify opt-in adaptive rendering, including manual override and terminal cleanup (integrated into `main` 2026-10-23 at `f4103ab9`; manual override and idle/pressure behaviour observed per the 2026-10-22 record).
 - [ ] Repair and verify local Minecraft server lifecycle ownership, launch diagnostics and visible status updates.
 
 ## Complete feature and BlueMap continuation (2026-10-11)
@@ -25,7 +25,7 @@
 - [ ] Complete remaining language, theme and scale tuples for the server version wizard.
 - [ ] Finish root builds, exact installer production and current real GUI evidence.
 - [x] Verify CLI viewer distribution from the maintained fork through focused staging checks and the exact root build at 82727748.
-- [ ] Integrate verified BlueMap v5.29 while preserving the Material viewer and legacy decoder.
+- [x] Integrate verified BlueMap v5.29 while preserving the Material viewer and legacy decoder (submodule at `fcfea026`, built as upstream 5.29-22 in release v1.0.2119, 2026-10-23).
 - [ ] Implement SSH-process hosting, Bedrock and version-bound server controls.
 - [x] Implement the bounded read-only SSH-process readiness API and guided saved-host/memory/port controls, with focused source verification. No creation capability is granted.
 - [ ] Verify readiness on real SSH hosts and the rebuilt Windows application across the complete language/theme/scale matrix; implement the separate remote installer and invocation-bound console.
@@ -37,7 +37,7 @@
 - [ ] Complete every applicable feature workflow and per-surface acceptance.
 - [ ] Complete production-documentation acceptance: source assembly and hydration repair passed focused built-output checks at 167b70d5 for desktop and emulated mobile; temporary-profile cleanup, full links/wiki and remaining display tuples are pending. See docs/site/production-server-articles.md.
 - [ ] Verify adoption ownership in the exact rebuilt interface and an isolated container: 13 mounted cases pass; consent, request identity, re-entry and late-result isolation are repaired in source.
-- [ ] Integrate completed units into main, verify remote delivery and retain unfinished owned work.
+- [x] Integrate completed units into main, verify remote delivery and retain unfinished owned work (`main` at `f4103ab9`, CI run 2119 and Pages run 1037 green, release v1.0.2119 published, 2026-10-23; the retained branches are listed in HANDOFF.md).
 
 ## Evidence refresh (2026-09-05)
 

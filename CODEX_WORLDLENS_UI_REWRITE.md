@@ -4,6 +4,7 @@
 > **Design reference:** `Material Design 3 Electron Rewrite.zip`  
 > **Approved target:** `Worldlens.dc.html` and the accompanying `HANDOFF.md` inside that archive  
 > **Document purpose:** an implementation order for Codex, not a design proposal and not a request for a second plan
+> **Status (2026-10-23):** executed. The shell rewrite shipped on 2026-08-08 (`design/HANDOFF.md`); this file is kept as the execution record.
 
 This specification is intentionally self-contained. Execute the rewrite end to end in the current checkout while preserving the repository's existing behavior, data formats, security boundaries, and tests. The uploaded prototype defines the new information architecture, shell geometry, and interaction presentation. The current repository defines what the product actually does.
 

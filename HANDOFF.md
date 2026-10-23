@@ -519,10 +519,11 @@ signing anything.
 
 ### Open
 
-- #168 internal shorthand in published commit messages, which needs history rewriting to remove
-- #169 container images carry no commit stamp, so a stale image is indistinguishable from a current one
-- #170 the hosted surfaces need their captures registered once #171 is unblocked
 - #171 the capture matrix cannot complete
+
+Closed since this section was written (checked on GitHub, 2026-10-23): #168 (2026-09-03), #169, and
+#170 (2026-10-23, the committed capture harness and inventory group exist). Their lines are removed
+here; the issue records remain the history.
 
 ### 廣東話同步
 

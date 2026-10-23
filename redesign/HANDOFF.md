@@ -1,6 +1,6 @@
 # Worldlens UI rewrite — handoff
 
-**Status:** design approved, not yet implemented. This file is the spec Codex works from.
+**Status:** implemented. The shell rewrite phases 1 to 4 shipped on 2026-08-08 (see `design/HANDOFF.md`); this file is kept as the design record Codex worked from.
 **Prototype:** `Worldlens.dc.html` (open it in a browser; it is clickable).
 **Rejected alternatives, kept for reference:** `ShellB-Atlas.dc.html`, `ShellC-Workbench.dc.html`.
 **Target repo:** `design/packages/ui` (Vue 3 + Vuetify 3, `md3` blueprint). Electron shell unchanged.
