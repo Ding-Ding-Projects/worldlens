@@ -53,11 +53,15 @@ export interface ProtectedAccount {
     profilesFolder?: string;
     onMsaCode?: (data: unknown) => void;
 }
+/* eslint-disable @typescript-eslint/no-explicit-any -- Node's EventEmitter types its listeners as
+   (...args: any[]) => void; a narrower or wider parameter type here breaks assignability in one
+   direction or the other (unknown[] rejects typed listeners, never[] rejects EventEmitter itself). */
 interface Events {
-    on(event: string, listener: (...args: never[]) => void): unknown;
-    once(event: string, listener: (...args: never[]) => void): unknown;
-    removeListener(event: string, listener: (...args: never[]) => void): unknown;
+    on(event: string, listener: (...args: any[]) => void): unknown;
+    once(event: string, listener: (...args: any[]) => void): unknown;
+    removeListener(event: string, listener: (...args: any[]) => void): unknown;
 }
+/* eslint-enable @typescript-eslint/no-explicit-any */
 export interface MineflayerBot extends Events {
     version: string;
     entity?: { position: { x: number; y: number; z: number } };
