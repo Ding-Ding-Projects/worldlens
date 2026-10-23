@@ -1,0 +1,12 @@
+{
+    "schemaVersion": 1,
+    "reviewedAt": "2026-10-23T01:02:25Z",
+    "sources": [
+        { "project": "PrismarineJS/mineflayer", "revision": "7b4bb8d2b56be9cdb832474af873acd37e609746", "path": "docs/README.md", "url": "https://github.com/PrismarineJS/mineflayer/blob/7b4bb8d2b56be9cdb832474af873acd37e609746/docs/README.md", "fact": "Documented version support ends at 26.1; installed runtime must also declare the exact selected version." },
+        { "project": "cabaletta/baritone", "revision": "3c8f944fe39302e12e80b2ac64f16b9b81182439", "path": "gradle.properties", "url": "https://github.com/cabaletta/baritone/blob/3c8f944fe39302e12e80b2ac64f16b9b81182439/gradle.properties", "fact": "Minecraft 1.21.4, Java 21 and Fabric Loader 0.16.9 for the selected bridge profile." },
+        { "project": "cabaletta/baritone", "release": "v1.13.1", "url": "https://github.com/cabaletta/baritone/releases/tag/v1.13.1", "asset": "baritone-api-fabric-1.13.1.jar", "sha256": "bfb79c3cdb8fe1f7697999b1f9c7f08ea29775f3b69d48ad90c387690ee67b05", "fact": "Official release body states Minecraft 1.21.4; downloaded bytes must match the release asset digest." },
+        { "project": "PrismarineJS/minecraft-data", "revision": "1df9432c07c81b47326e4fb1e06d3c8d723bf4aa", "path": "data/pc/1.21.4/proto.yml", "url": "https://github.com/PrismarineJS/minecraft-data/blob/1df9432c07c81b47326e4fb1e06d3c8d723bf4aa/data/pc/1.21.4/proto.yml", "fact": "Decoded declare_commands node flags, child and redirect indexes, parser properties and root index." }
+    ],
+    "runtimeAcceptance": "not-run"
+}
+
