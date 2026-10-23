@@ -1,3 +1,71 @@
+# Managed workflow integration, 2026-10-23
+
+The eight preserved 2026-10-22/23 branches are merged into `ai/feature/20261023-managed-workflow-integration`
+from `49d009b5`: managed hosting, typed configuration and generation coordinator, discovered commands
+and bots, render identity and workspace leases, map drawing and discovered command controls, the
+managed workflow design references, the productive generation and hosting UI, and the parent wiring
+checkpoint. The only merge conflict was `CLOSEOUT_PROMPT.md`, now one consolidated continuation.
+
+The parent checkpoint's continuous integration run 2115 failed because `buildManagedMapHost` bundled
+`../server/src/annotations/hostEntry.ts` from a branch that did not carry it. After the merge the
+bundle builds (`dist/managed-host.mjs`). The three lane registrars that nothing called are now wired
+from the main entry: `registerGenerationIpc` and `registerBotIpc` beside the server registry, and
+`registerManagedHostingIpc` beside the render storage. `mcserver:config:discover` has a main-process
+handler. Where this build cannot supply a live input, the handlers answer with the exact reason:
+hosting deployment has no origin/TLS configuration surface, bots have no protected account store or
+game-protocol connection, and a development build without a recorded source commit cannot export a
+hosting context. Nothing is reported as available that cannot run.
+
+Repairs in the same branch: #184 (`e84f6c3e` cherry-picked; short-height rail keeps More, compact
+labelled rows, bounded menu, focus restore) and #176 (a polling region watcher proves itself live
+with a self-probe after `ready`, re-arms a mute watcher up to three times, then reports `failed`
+through `getLiveness()`/`onArmFailure()`, which `MapUpdateService` turns into one visible warning
+while its loop stays alive). The `ui` package's vite build and vue-tsc typecheck exceeded Node's default
+old-space memory limit on the merged tree, so both scripts raise that limit to 4 GB. Four app type errors from the merged
+lanes were fixed (Buffer typing in two hosting tests, an unsupported `cache` fetch option, and
+per-lane vitest configs excluded from the app tsconfig).
+
+Documentation: six new feature documents (`managed-hosting.md`, `server-generation.md`,
+`server-configuration-editor.md`, `bots-and-commands.md`, `map-drawing-and-commands.md`,
+`render-identity.md`), indexed in `docs/README.md` and `docsModel.ts`, with six matching site
+articles reachable from the existing server, hosted-mode and Java render path articles. Redirect
+stubs and the rail repair record are named exemptions in the docs index guard with their reasons.
+
+## Verification on the integrated tree
+
+Full workspace build passes (20 packages, with the `ui` memory limit raised). Full workspace
+typecheck passes (20 packages). Vitest over the whole workspace: 1,110 test files, 13,871 tests;
+1,097 files and 13,815 tests pass, 7 files and 46 tests are skipped, and 6 files with 10 tests fail,
+of which two files (`worldlensIdentityResiduals`, `notificationPolicy`) failed only on a changelog
+regeneration that this shallow clone cannot perform correctly and that was dropped before the dew;
+rerun after the drop, both pass and the generated changelog's own test keeps its one pre-existing
+trailer failure. The three remaining failing files predate this branch and fail on `main` for the
+same reasons: `cirender/cloudConfig.test.ts` passes a Windows path that is not absolute on Linux,
+`java/staging.test.ts` pins strings the staging script no longer contains, and
+`runtimeSettings/completeness.test.ts` lists 38 inventory paths that have moved. ESLint reports the
+same 22 errors in the same 11 files as `main`; the nine the merged lanes introduced are fixed.
+`workflows:check` is clean (8 workflows, 134 pinned actions). `published-text:check` passes after
+rewording two memory-limit sentences and allowlisting two historical branch identifiers.
+`check-feature-delivery-inventory` passes (109 required IDs, 514 pending surface requirements).
+The rail Chromium proof passes 96 geometry and 5 focus cases; the 12 watcher and 10 map update
+service tests pass. `screenshots:check` and `format:check` are red exactly as on `main`.
+
+Baseline on `main` `49d009b5` in the same container, for comparison: typecheck fails on build order
+(`wharf` before `dockhand` is built), 41 failed tests in 362 files (almost all unresolved
+`@worldlens/*` imports from unbuilt packages), 22 ESLint errors in 11 files, 2,112 prettier
+warnings, and `screenshots:check` stops on three historical capture commits that are not in the
+clone. None of these were introduced here and none were altered except where this branch touched a
+file.
+
+## Not verified here
+
+Exact root `build.bat /s`, native WSL render acceptance, hidden-desktop captures (the twelve planned
+configuration scenes, the remaining language/theme/size/zoom tuples, the seven stale older image
+groups), the management exit/restart native proof, the installed-update application, any real Docker
+build or registry operation, any real generation run, any real bot or game-protocol connection, and
+the packaged Windows application. All of these need the physical Windows host; this branch was
+prepared in a Linux container. PR #188 was closed as superseded; its branch is retained.
+
 # Handoff
 
 ## Current continuation (2026-10-15)
@@ -24,7 +92,7 @@ Exact root build passed at ede318b124b894c8176762b868c943abfa0832aa, source dige
 Root candidate 6620f987 stopped at the existing documentation-gallery completeness check because the newly promoted PNG lacked its separate evidence-inventory group. The exact historical-source group, genuine caption, source digest/hash and validated capture time are now registered. The gallery reports 239 PNGs, 13 categories and 10 passing negative mutations; the publication scan passes. The GUI type check passed with 3072 MiB at 0033110e, and the later change touches only build-event timestamp validation and its focused tests. Invalid explicit calendar dates reproduced red before the UTC round-trip repair and now pass all three build-event checks. Exact root retry and native provenance acceptance remain pending.
 
 
-Pending next unit: the desktop initial caption now renders version and update-event provenance through the existing metadata channel. build.mjs records the actual build event once, independent of the legacy source-commit timestamp, and freezes it into desktop/hosted bundles. The renderer accepts only canonical timestamps with explicit build/release origin; missing, invalid, source-only and unclassified metadata remain unavailable. Sixteen caption/component checks and three build-event checks pass. Both timestamp-origin and initial-caption-consumer negative regressions were observed red, restored byte-exactly, and their four selected cases returned green. The first broad GUI type check exceeded its default approximately 2 GB heap and is not a passing verdict. The final bridge declaration is synchronized; a fixed-input 3072 MiB retry, exact root build and native front-screen acceptance remain pending. This unit is preserved as unfinished until those checks complete.
+Pending next unit: the desktop initial caption now renders version and update-event provenance through the existing metadata channel. build.mjs records the actual build event once, independent of the legacy source-commit timestamp, and freezes it into desktop/hosted bundles. The renderer accepts only canonical timestamps with explicit build/release origin; missing, invalid, source-only and unclassified metadata remain unavailable. Sixteen caption/component checks and three build-event checks pass. Both timestamp-origin and initial-caption-consumer negative regressions were observed red, restored byte-exactly, and their four selected cases returned green. The first broad GUI type check exceeded its default approximately 2 GB old-space memory limit and is not a passing verdict. The final bridge declaration is synchronized; a fixed-input 3072 MiB retry, exact root build and native front-screen acceptance remain pending. This unit is preserved as unfinished until those checks complete.
 
 
 Latest verified delivery: main and the preservation branch contain 82727748029d3b1c140d052924a775ac52de52a4. Exact build.bat /s passed, source digest 2a303218906a935c55e40a70d2e6d0edd3d1a14fa7ca603232a99654f2c2fec1. Fresh hidden native interaction rendered all 35 historical-alpha rows and showed complete unavailable reasons without the measured Wiki overlap. Three validated version-1 layout receipts cover 1280 x 752, 800 x 600 and 640 x 600 CSS viewports, English dark theme at 150% scale. The representative genuine PNG passed evidence-promotion validation and is linked in README with its original source and capture date. Normal Cancel and Close left all four recorded owned processes, debugging listener and named desktop absent. Other language/theme/scale tuples remain unverified. Additional feature consumer mappings retain all 495 pending acceptance requirements; source mapping does not prove feature completion. The active all-feature goal, SSH-process target, Bedrock/version-bound controls, installer, full current-presentation refresh and broader runtime acceptance remain unfinished. Retain the task branch and private evidence. No new release or production deployment is claimed.
