@@ -460,6 +460,10 @@ export const javaRenderPath: Article = {
 
     suggested: [
         {
+            articleId: "render-identity",
+            reason: "How this engine's map-id normalisation is resolved before a render writes anything, and the lease that keeps two renders apart.",
+        },
+        {
             articleId: "first-run-consent",
             reason: "The decision this path checks before it does anything. Read it to see why a render never asks.",
         },

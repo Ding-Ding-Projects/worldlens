@@ -140,6 +140,10 @@ export const APPLICATION_ORDER: readonly string[] = [
     "mcserver-web-console.md",
     "mcserver-aws.md",
     "mcserver-hosting.md",
+    "server-generation.md",
+    "server-configuration-editor.md",
+    "bots-and-commands.md",
+    "managed-hosting.md",
 ];
 
 /**
@@ -150,7 +154,7 @@ export const APPLICATION_ORDER: readonly string[] = [
  * is a completely different thing from a pin on a map. A category that collected both would tell
  * a reader nothing about where to look.
  */
-export const MARKERS_ORDER: readonly string[] = ["marker-studio.md"];
+export const MARKERS_ORDER: readonly string[] = ["marker-studio.md", "map-drawing-and-commands.md"];
 
 /**
  * The same, for the "Rendering" table.
@@ -192,6 +196,7 @@ export const RENDERING_ORDER: readonly string[] = [
     "render-engine-choice.md",
     "static-map-export.md",
     "threejs-upgrade.md",
+    "render-identity.md",
 ];
 
 /**

@@ -279,6 +279,22 @@ export const mcserverHosting: Article = {
 
     suggested: [
         {
+            articleId: "map-drawing-and-commands",
+            reason: "Drawing the points and regions a server command needs directly on the map.",
+        },
+        {
+            articleId: "bots-and-commands",
+            reason: "Commands built from the server's own declared graph, and the bot workflow this build reports as unavailable, with its reason.",
+        },
+        {
+            articleId: "server-configuration-editor",
+            reason: "Every file of a created server, described as typed fields and applied against the exact version it was read at.",
+        },
+        {
+            articleId: "server-generation",
+            reason: "Generate a fresh world and project from a server this wizard creates, through one main-process coordinator.",
+        },
+        {
             articleId: "backups",
             reason: "The same server registry a rendered map and its world can be backed up from.",
         },

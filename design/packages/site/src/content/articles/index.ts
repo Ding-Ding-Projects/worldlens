@@ -88,6 +88,12 @@ import { mcserverHostProfiles } from "./mcserver-host-profiles.js";
 import { minecraftVersionCatalogue } from "./minecraft-version-catalogue.js";
 import { creativeStudio } from "./creative-studio.js";
 import { uiSmokePlanning } from "./ui-smoke-planning.js";
+import { managedHosting } from "./managed-hosting.js";
+import { serverGeneration } from "./server-generation.js";
+import { serverConfigurationEditor } from "./server-configuration-editor.js";
+import { botsAndCommands } from "./bots-and-commands.js";
+import { mapDrawingAndCommands } from "./map-drawing-and-commands.js";
+import { renderIdentity } from "./render-identity.js";
 
 export const articles: readonly Article[] = [
     glossary,
@@ -159,6 +165,12 @@ export const articles: readonly Article[] = [
     contractAppearanceEditors,
     contractLocalization,
     contractSuperConfirmation,
+    managedHosting,
+    serverGeneration,
+    serverConfigurationEditor,
+    botsAndCommands,
+    mapDrawingAndCommands,
+    renderIdentity,
 ];
 
 /** Category order for grouped rendering, so the list reads the same way every time. */

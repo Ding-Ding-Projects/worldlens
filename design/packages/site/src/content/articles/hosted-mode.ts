@@ -194,6 +194,10 @@ export const hostedMode: Article = {
 
     suggested: [
         {
+            articleId: "managed-hosting",
+            reason: "Hosting one verified render as an exported context and image, behind protected administrator access.",
+        },
+        {
             articleId: "mount-browser",
             reason: "The folder picker built for this: browsing the mounted folders instead of typing a path.",
         },

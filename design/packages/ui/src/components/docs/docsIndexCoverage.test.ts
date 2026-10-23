@@ -180,6 +180,22 @@ const CATEGORY_EXEMPT: Readonly<Record<string, string>> = {
         "application's components beside a hand-transcribed M3 reference -- which ships to nobody " +
         "and appears in no user-facing surface. The design system it measures against is already " +
         "indexed under 'The application' as design-system.md.",
+    "background-rendering.md":
+        "A redirect stub kept so older links keep resolving: its one sentence points at the " +
+        "complete guide under docs/rendering/background.md, which the in-app browser bundles " +
+        "from its own folder. Indexing the stub beside the guide would list one subject twice.",
+    "server-startup.md":
+        "A redirect stub for the same reason: it points at docs/server-management/startup.md, " +
+        "the complete local server startup and diagnostics guide, which is indexed from the " +
+        "server-management folder's own README rather than from the root tables.",
+    "wsl-rendering.md":
+        "A redirect stub pointing at docs/rendering/wsl.md, the complete WSL rendering guide. " +
+        "The root README already links the guide in its opening list; the stub exists only so " +
+        "the earlier root-level link does not break.",
+    "rail-navigation-repair.md":
+        "A dated repair record for issues #184 and #185: what the short-height rail fix changed, " +
+        "the geometry and focus proof that was run, and what it does not claim. It describes one " +
+        "repair pass, not a feature a reader can use, so it belongs beside the issues it cites.",
 };
 
 /* -------------------------------------------------------------------------- */
