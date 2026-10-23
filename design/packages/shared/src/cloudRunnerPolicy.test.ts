@@ -45,6 +45,7 @@ const WORKFLOWS = [
     "render-shard-wave.yml",
     "render-world.yml",
     "scheduled-render.yml",
+    "worldgen.yml",
 ] as const;
 
 /**
@@ -125,6 +126,15 @@ const WORKFLOW_JOBS: readonly WorkflowJob[] = [
     { workflow: "render-world.yml", job: "receipt", runner: "ubuntu-24.04", tools: [] },
     { workflow: "render-world.yml", job: "publish", runner: "ubuntu-24.04", tools: [] },
     { workflow: "scheduled-render.yml", job: "check", runner: "ubuntu-24.04", tools: ["gh"] },
+    // worldgen.yml generates a world from the configuration the desktop application exports.
+    // `generate` builds and runs this repository's own generator and needs nothing preinstalled;
+    // the other three reach the GitHub API through gh: `render` downloads the BlueMap CLI jar
+    // from the latest green ci.yml run, `publish` creates the prerelease render-world.yml reads,
+    // and `chain-render` dispatches that workflow.
+    { workflow: "worldgen.yml", job: "generate", runner: "ubuntu-24.04", tools: [] },
+    { workflow: "worldgen.yml", job: "render", runner: "ubuntu-24.04", tools: ["gh"] },
+    { workflow: "worldgen.yml", job: "publish", runner: "ubuntu-24.04", tools: ["gh"] },
+    { workflow: "worldgen.yml", job: "chain-render", runner: "ubuntu-24.04", tools: ["gh"] },
 ];
 
 function workflowText(name: string): string {

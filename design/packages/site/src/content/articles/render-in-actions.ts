@@ -376,6 +376,10 @@ export const renderInActions: Article = {
 
     suggested: [
         {
+            articleId: "world-generation-in-actions",
+            reason: "Generating the world on a runner too, from the dialog's configuration, and handing it straight to this pipeline.",
+        },
+        {
             articleId: "publishing-to-pages",
             reason: "The other end of the same job: publishing a map this computer rendered, from the application, to a real address anybody can open.",
         },

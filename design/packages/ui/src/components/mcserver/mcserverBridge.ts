@@ -225,6 +225,39 @@ function bridge(root: unknown = globalThis): RawBridge["mcserver"] | undefined {
     return (root as { worldlens?: RawBridge }).worldlens?.mcserver;
 }
 
+/** What the main process reports once GitHub has accepted a worldgen.yml dispatch. */
+export interface WorldgenDispatchReceipt {
+    readonly repository: string;
+    readonly workflowFile: string;
+    readonly ref: string;
+    readonly dispatchedAt: string;
+    readonly inputs: Readonly<Record<string, string>>;
+    readonly runsUrl: string;
+}
+
+export interface WorldgenDispatchRequest {
+    readonly accountId?: string;
+    readonly owner: string;
+    readonly repo: string;
+    /** The document `buildWorldGenerationConfig` from @worldlens/shared produced. */
+    readonly config: unknown;
+    readonly options: { readonly render: boolean; readonly publish: "artifact" | "release-asset"; readonly dispatchRender: boolean };
+}
+
+/**
+ * Starts worldgen.yml in a repository through the main process. The answer is a dispatch
+ * receipt, not a world: the run is followed on GitHub, and only its artifacts prove the
+ * world exists. A shell without the `worldgenActions` namespace answers `unavailable`.
+ */
+export function dispatchGenerationWorkflow(
+    request: WorldgenDispatchRequest,
+    root: unknown = globalThis,
+): Promise<Answer<WorldgenDispatchReceipt>> {
+    const host = (root as { worldlens?: { worldgenActions?: { dispatch?(request: unknown): Promise<unknown> } } }).worldlens;
+    const dispatch = host?.worldgenActions?.dispatch;
+    return call(dispatch ? () => dispatch(request) : undefined);
+}
+
 export function rconTest(id: string, root: unknown = globalThis): Promise<Answer<RconTestResult>> {
     const b = bridge(root);
     return call(b?.rconTest ? () => b.rconTest!(id) : undefined);

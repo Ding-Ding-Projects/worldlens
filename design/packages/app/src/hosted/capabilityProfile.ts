@@ -192,6 +192,10 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
         "github",
         "Uploading a world and dispatching a conversion needs GitHub credentials to upload it and run the workflow.",
     ),
+    worldgenActions: optIn(
+        "github",
+        "Dispatching a world generation on GitHub Actions needs GitHub credentials to start the workflow.",
+    ),
     dashboard: optIn("ssh", "Polling other hosts needs SSH material."),
     dockerhosting: optIn(
         "docker-socket",

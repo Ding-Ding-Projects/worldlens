@@ -1,0 +1,390 @@
+name: Generate world
+run-name: Generate ${{ fromJSON(inputs.generation-config || '{}').worldName || github.run_id }}
+
+# Generates a Minecraft world on GitHub's runners from the configuration the desktop
+# application's world generator exports, and optionally compiles a map of it.
+#
+# The application builds the `generation-config` document (design/packages/shared/src/
+# worldGenerationConfig.ts) from what a person chose in the dialog and dispatches this
+# workflow with it. The same module validates the document here before anything is
+# generated, so a field the dialog accepts cannot be refused on the runner, or the other way
+# round, without the disagreement showing up in one place.
+#
+# Only the synthetic engine - this repository's own `@worldlens/worldgen` Anvil writer, the
+# one ci.yml's test-world job already uses - runs here. A document naming the vanilla-server
+# engine is refused with a message rather than approximated: nothing in this file launches a
+# Minecraft server, and the receipt a run writes must never imply Mojang's generator produced
+# the terrain.
+#
+# Four jobs, three of them optional:
+#   generate      always: validate, build the generator, write the world, verify it, zip it.
+#   render        `render`: compile a map with the BlueMap CLI jar the last green ci.yml run
+#                 on `main` built, exactly as ci.yml's test-world job renders.
+#   publish       `publish: release-asset`: attach the zip to a prerelease, which is the form
+#                 render-world.yml's `release-asset` world source reads.
+#   chain-render  `dispatch-render`: start render-world.yml against that asset. A
+#                 `workflow_dispatch` fired with the workflow token is one of the two events
+#                 GitHub lets a token-authored action start, so no personal token is needed.
+#
+# No value from the input is interpolated into shell text. The document crosses into the
+# `generate` job as an environment variable, is validated by scripts/worldgen-config.mjs, and
+# every later step reads the names it needs from that step's outputs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      generation-config:
+        description: The generation configuration JSON the application exports (version 1)
+        type: string
+        required: true
+      render:
+        description: Compile a map of the generated world in this run (BlueMap CLI, overworld)
+        type: boolean
+        default: true
+      publish:
+        description: Where the world zip goes besides the run artifact
+        type: choice
+        default: artifact
+        options:
+          - artifact
+          - release-asset
+      dispatch-render:
+        description: After publishing a release asset, dispatch render-world.yml against it
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worldgen-${{ fromJSON(inputs.generation-config || '{}').worldName || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    name: Generate the world
+    runs-on: ubuntu-24.04
+    outputs:
+      world-name: ${{ steps.config.outputs.world-name }}
+      seed: ${{ steps.config.outputs.seed }}
+      size: ${{ steps.config.outputs.size }}
+      format: ${{ steps.config.outputs.format }}
+      archive: ${{ steps.package.outputs.archive }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      # Version pinned via design/package.json's own `packageManager` field, exactly as
+      # ci.yml does.
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          package_json_file: design/package.json
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      # Only the generator and what it imports. The full workspace build needs the vendored
+      # BlueMap submodule and several minutes; none of that is needed to write a world.
+      - name: Install and build the generator
+        working-directory: design
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm --filter @worldlens/design-system --filter @worldlens/shared --filter @worldlens/nbt --filter @worldlens/worldgen run build
+
+      - name: Validate the generation configuration
+        id: config
+        env:
+          GENERATION_CONFIG: ${{ inputs.generation-config }}
+        run: |
+          set -euo pipefail
+          node scripts/worldgen-config.mjs --env GENERATION_CONFIG \
+            --write "$GITHUB_WORKSPACE/generation-config.json" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Generate the world
+        env:
+          WORLD_NAME: ${{ steps.config.outputs.world-name }}
+          SEED: ${{ steps.config.outputs.seed }}
+          SIZE: ${{ steps.config.outputs.size }}
+          FORMAT: ${{ steps.config.outputs.format }}
+        run: |
+          set -euo pipefail
+          echo "Generating $WORLD_NAME: ${SIZE}x${SIZE} blocks, seed $SEED, format $FORMAT"
+          node design/packages/worldgen/dist/cli.js \
+            --seed "$SEED" --size "$SIZE" --format "$FORMAT" --name "$WORLD_NAME" \
+            --out "$GITHUB_WORKSPACE/world" --no-zip --quiet \
+            > "$GITHUB_WORKSPACE/generation-summary.json"
+          cat "$GITHUB_WORKSPACE/generation-summary.json"
+
+      # The same two facts render-world.yml's planner checks before it renders anything: a
+      # level.dat, and at least one region file. A run that produced neither fails here with
+      # the listing, not later in a renderer with a bare "no world".
+      - name: Verify the world
+        env:
+          WORLD_NAME: ${{ steps.config.outputs.world-name }}
+        run: |
+          set -euo pipefail
+          world="$GITHUB_WORKSPACE/world/$WORLD_NAME"
+          if [ ! -f "$world/level.dat" ]; then
+            echo "::error::The generator wrote no level.dat at $world"
+            ls -la "$GITHUB_WORKSPACE/world" || true
+            exit 1
+          fi
+          regions=$(find "$world/region" -maxdepth 1 -name '*.mca' | wc -l)
+          if [ "$regions" -lt 1 ]; then
+            echo "::error::The generator wrote no region files under $world/region"
+            exit 1
+          fi
+          echo "level.dat present, $regions region file(s), $(du -sh "$world" | cut -f1) on disk"
+
+      - name: Package the world
+        id: package
+        env:
+          WORLD_NAME: ${{ steps.config.outputs.world-name }}
+        run: |
+          set -euo pipefail
+          archive="$WORLD_NAME.zip"
+          cd "$GITHUB_WORKSPACE/world"
+          zip -qr "$GITHUB_WORKSPACE/$archive" "$WORLD_NAME"
+          cd "$GITHUB_WORKSPACE"
+          sha256sum "$archive" > SHA256SUMS
+          echo "archive=$archive" >> "$GITHUB_OUTPUT"
+          ls -la "$archive" SHA256SUMS
+
+      # What was asked for, what was written, and by which commit and run. The config is the
+      # application's document verbatim after validation; the summary is the generator's own.
+      - name: Write the generation receipt
+        env:
+          ARCHIVE: ${{ steps.package.outputs.archive }}
+        run: |
+          set -euo pipefail
+          node -e '
+            const { readFileSync, writeFileSync } = require("node:fs");
+            const config = JSON.parse(readFileSync("generation-config.json", "utf8"));
+            const summary = JSON.parse(readFileSync("generation-summary.json", "utf8"));
+            const sums = readFileSync("SHA256SUMS", "utf8").trim();
+            const receipt = {
+              version: 1,
+              generator: "@worldlens/worldgen synthetic Anvil writer (this repository), run on GitHub Actions",
+              engine: config.engine,
+              config,
+              world: {
+                name: summary.name,
+                seed: summary.seed,
+                size: summary.size,
+                format: summary.format,
+                dataVersion: summary.dataVersion,
+                versionName: summary.versionName,
+                chunkCount: summary.chunkCount,
+                regionFiles: summary.regionFiles.length,
+                bytes: summary.worldBytes,
+                spawn: summary.spawn,
+              },
+              archive: { name: process.env.ARCHIVE, sha256: sums.split(/\s+/)[0] },
+              repository: process.env.GITHUB_REPOSITORY,
+              commit: process.env.GITHUB_SHA,
+              run: { id: Number(process.env.GITHUB_RUN_ID), attempt: Number(process.env.GITHUB_RUN_ATTEMPT) },
+              generatedAt: new Date().toISOString(),
+            };
+            writeFileSync("generation-receipt.json", JSON.stringify(receipt, null, 2) + "\n");
+            console.log(JSON.stringify(receipt, null, 2));
+          '
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: generated-world
+          path: |
+            ${{ steps.package.outputs.archive }}
+            SHA256SUMS
+            generation-config.json
+            generation-receipt.json
+          if-no-files-found: error
+          retention-days: 30
+
+  render:
+    name: Compile a map
+    needs: [generate]
+    if: inputs.render
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+        with:
+          distribution: temurin
+          java-version: 25
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: generated-world
+          path: world-in
+
+      # The renderer is the BlueMap CLI jar the last green ci.yml run on `main` built from
+      # the vendored source - the same jar the release ships - rather than a second build of
+      # it here. If that artifact has expired, this says so and stops; nothing is downloaded
+      # from anywhere else.
+      - name: Fetch the BlueMap CLI jar from the latest green CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          run_id=$(gh api "repos/$GH_REPO/actions/workflows/ci.yml/runs?branch=main&status=success&per_page=1" --jq '.workflow_runs[0].id // empty')
+          if [ -z "$run_id" ]; then
+            echo "::error::No successful ci.yml run on main was found, so there is no built BlueMap CLI jar to render with."
+            exit 1
+          fi
+          echo "Using the bluemap-jar-cli artifact of ci.yml run $run_id"
+          gh run download "$run_id" -n bluemap-jar-cli -D jar
+          ls -la jar
+
+      - name: Unpack the world
+        env:
+          ARCHIVE: ${{ needs.generate.outputs.archive }}
+        run: |
+          set -euo pipefail
+          unzip -q "world-in/$ARCHIVE" -d world
+          ls -la world
+
+      # Exactly ci.yml's test-world render: generate the config set, point the overworld map
+      # at the world, switch the other dimensions off, render and export the webapp.
+      - name: Render it with the Java engine
+        id: render
+        env:
+          WORLD_NAME: ${{ needs.generate.outputs.world-name }}
+        run: |
+          set -euo pipefail
+          jar=$(find "$GITHUB_WORKSPACE/jar" -name '*.jar' | head -1)
+          world="$GITHUB_WORKSPACE/world/$WORLD_NAME"
+          config="$GITHUB_WORKSPACE/render-config"
+          out="$GITHUB_WORKSPACE/render-out"
+          mkdir -p "$out"
+          java -jar "$jar" -c "$config" || true
+          sed -i 's/^accept-download: false/accept-download: true/' "$config/core.conf"
+          sed -i "s|^world: .*|world: \"$world\"|" "$config/maps/overworld.conf"
+          mv "$config/maps/nether.conf" "$config/maps/nether.conf.off"
+          mv "$config/maps/end.conf" "$config/maps/end.conf.off"
+          cd "$out"
+          java -jar "$jar" -c "$config" -r -g
+          tiles=$(find "$out/web/maps" -name '*.prbm*' | wc -l)
+          echo "tiles=$tiles" >> "$GITHUB_OUTPUT"
+          if [ "$tiles" -lt 1 ]; then
+            echo "::error::The render produced no hires tiles"
+            exit 1
+          fi
+          du -sh "$out/web"
+
+      - name: Record what rendered it
+        env:
+          TILES: ${{ steps.render.outputs.tiles }}
+          WORLD_NAME: ${{ needs.generate.outputs.world-name }}
+          SEED: ${{ needs.generate.outputs.seed }}
+          SIZE: ${{ needs.generate.outputs.size }}
+        run: |
+          set -euo pipefail
+          node -e '
+            const { writeFileSync } = require("node:fs");
+            const provenance = {
+              renderer: "upstream BlueMap Java engine, built from the vendored source by ci.yml",
+              world: { name: process.env.WORLD_NAME, seed: Number(process.env.SEED), size: Number(process.env.SIZE) },
+              hiresTiles: Number(process.env.TILES),
+              commit: process.env.GITHUB_SHA,
+              run: Number(process.env.GITHUB_RUN_ID),
+            };
+            writeFileSync("render-out/provenance.json", JSON.stringify(provenance, null, 2) + "\n");
+            console.log(JSON.stringify(provenance, null, 2));
+          '
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: generated-map
+          path: |
+            render-out/web
+            render-out/provenance.json
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish the world as a release asset
+    needs: [generate]
+    if: inputs.publish == 'release-asset'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: generated-world
+          path: world-out
+
+      # A prerelease per generated world, named after the world and the run so two runs never
+      # fight over one tag. render-world.yml reads it as `<tag>/<archive>` with
+      # world-source=release-asset; the SHA256SUMS beside it is the file that workflow verifies.
+      - name: Create the prerelease
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          WORLD_NAME: ${{ needs.generate.outputs.world-name }}
+          ARCHIVE: ${{ needs.generate.outputs.archive }}
+          SEED: ${{ needs.generate.outputs.seed }}
+          SIZE: ${{ needs.generate.outputs.size }}
+          FORMAT: ${{ needs.generate.outputs.format }}
+        run: |
+          set -euo pipefail
+          tag="world-$WORLD_NAME-$GITHUB_RUN_ID"
+          {
+            echo "Generated world **$WORLD_NAME**: ${SIZE}x${SIZE} blocks, seed $SEED, chunk format $FORMAT."
+            echo
+            echo "Synthetic terrain from this repository's own generator, written on GitHub Actions by run $GITHUB_RUN_ID at commit $GITHUB_SHA from the configuration the desktop application exported (attached as generation-config.json; the receipt is generation-receipt.json)."
+            echo
+            echo "This is not Minecraft-accurate terrain. It exists to be rendered: dispatch render-world.yml with world-source release-asset and world \`$tag/$ARCHIVE\`."
+          } > notes.md
+          gh release create "$tag" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Generated world $WORLD_NAME (run $GITHUB_RUN_ID)" \
+            --notes-file notes.md \
+            "world-out/$ARCHIVE" world-out/SHA256SUMS world-out/generation-config.json world-out/generation-receipt.json
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Published $tag with $ARCHIVE"
+
+  chain-render:
+    name: Dispatch the map render
+    needs: [generate, publish]
+    if: inputs.dispatch-render && inputs.publish == 'release-asset'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      # render-world.yml's own inputs, as documented in that file: the asset as "tag/archive"
+      # in this repository, the overworld, the world's name as both map id and display name,
+      # and the artifact output. Everything else keeps that workflow's defaults.
+      - name: Start render-world.yml against the published asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ needs.publish.outputs.tag }}
+          ARCHIVE: ${{ needs.generate.outputs.archive }}
+          WORLD_NAME: ${{ needs.generate.outputs.world-name }}
+        run: |
+          set -euo pipefail
+          gh workflow run render-world.yml --ref "$GITHUB_REF_NAME" \
+            -f world-source=release-asset \
+            -f world="$TAG/$ARCHIVE" \
+            -f world-repository="" \
+            -f dimension=minecraft:overworld \
+            -f map-id="$WORLD_NAME" \
+            -f map-name="$WORLD_NAME" \
+            -f output=artifact
+          echo "Dispatched render-world.yml for $TAG/$ARCHIVE as map '$WORLD_NAME'." | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "Follow it at https://github.com/$GH_REPO/actions/workflows/render-world.yml" | tee -a "$GITHUB_STEP_SUMMARY"

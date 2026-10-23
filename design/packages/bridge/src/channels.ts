@@ -466,6 +466,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "worldsource:ssh:survey",
     "worldsource:ssh:trustHostKey",
     "worldsource:ssh:validate",
+    "worldgenActions:dispatch",
 ] as const);
 
 /** Push channels the renderer subscribes to, reached through `transport.on`. */

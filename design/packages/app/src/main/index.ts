@@ -108,6 +108,7 @@ import { DOWNLOAD_EVENT_CHANNEL } from "./download/ipc.js";
 import { RENDER_EVENT_CHANNEL } from "./render/ipc.js";
 import { installCiRenderIpc } from "./cirender/ipc.js";
 import { installChunkerActionsIpc } from "./chunkeractions/ipc.js";
+import { installWorldgenActionsIpc } from "./worldgenactions/ipc.js";
 import type { CiRenderIpc } from "./cirender/ipc.js";
 import {
     installPagesIpc,
@@ -1510,6 +1511,9 @@ function startCiRenders(render: RenderIpc, github: GhCliIpc): CiRenderIpc {
     if (ciRenderIpc !== null) return ciRenderIpc;
     installChunkerActionsIpc({ ipcMain, account: github.broker.account,
         dataDir: () => app.getPath("userData"), packaged: app.isPackaged, resourcesDir: process.resourcesPath });
+    // The world generator's GitHub Actions runner: one dispatch of worldgen.yml through the
+    // same account lease, nothing uploaded, nothing collected here.
+    installWorldgenActionsIpc({ ipcMain, account: github.broker.account });
     ciRenderIpc = installCiRenderIpc({
         ipcMain,
         storageDir: () => render.storageDirectory(),

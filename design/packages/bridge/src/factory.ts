@@ -1065,6 +1065,9 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             collect: (id: unknown) => transport.invoke("chunkerActions:collect", id),
             cancel: (id: unknown) => transport.invoke("chunkerActions:cancel", id),
         },
+        worldgenActions: {
+            dispatch: (request: unknown) => transport.invoke("worldgenActions:dispatch", request),
+        },
         bedrock: {
             detect: (folder: unknown, sizeBytes: unknown) =>
                 transport.invoke("bedrock:detect", folder, sizeBytes ?? null),

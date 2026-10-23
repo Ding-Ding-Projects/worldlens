@@ -171,6 +171,7 @@ export const RENDERING_ORDER: readonly string[] = [
     "docker-and-local.md",
     "automatic-repair.md",
     "render-in-actions.md",
+    "world-generation-in-actions.md",
     "cloud-runners.md",
     "release-workflow-security.md",
     "published-text-check.md",

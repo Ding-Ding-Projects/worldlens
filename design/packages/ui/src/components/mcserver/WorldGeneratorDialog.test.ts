@@ -208,4 +208,66 @@ describe("WorldGeneratorDialog", () => {
             expect(dialogText()).toContain("files must bring the receipts");
         } finally { wrapper.unmount(); }
     });
+    it("sends the exact generation configuration to worldgen.yml when the GitHub Actions runner is chosen", async () => {
+        const dispatch = vi.fn(async (request: { config: unknown }) => ({
+            ok: true,
+            value: { repository: "owner/name", workflowFile: "worldgen.yml", ref: "main", dispatchedAt: "2026-10-23T10:00:00.000Z", inputs: { "generation-config": JSON.stringify(request.config) }, runsUrl: "https://github.com/owner/name/actions/workflows/worldgen.yml" },
+        }));
+        vi.stubGlobal("worldlens", { worldgenActions: { dispatch } });
+        const wrapper = mountDialog();
+        try {
+            const radios = wrapper.findAllComponents({ name: "VRadio" });
+            const github = radios.find((radio) => radio.props("label") === "GitHub Actions")!;
+            github.find("input").element.click();
+            await flushPromises();
+            expect(dialogText()).toContain("Generation configuration sent to GitHub Actions");
+            const preview = document.querySelector('[data-test="worldgen-config-preview"]')!;
+            const shown = JSON.parse(preview.textContent ?? "{}");
+            // The defaults of the dialog, as the document the runner validates: twice the
+            // 500-block radius, the modern format when no version is chosen, the synthetic engine.
+            expect(shown).toMatchObject({ version: 1, engine: "synthetic", size: 1000, worldName: "generated-world", format: "1.20.4", outputMode: "zip" });
+
+            const seed = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Seed")!;
+            seed.vm.$emit("update:modelValue", "20261023");
+            const repository = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Repository (owner/name)")!;
+            repository.vm.$emit("update:modelValue", "owner/name");
+            await flushPromises();
+            const start = dialogButtons().find((button) => button.textContent?.trim() === "Start on GitHub Actions")!;
+            expect(start.disabled).toBe(false);
+            start.click();
+            await flushPromises();
+            expect(dispatch).toHaveBeenCalledTimes(1);
+            const request = dispatch.mock.calls[0]![0] as { owner: string; repo: string; config: Record<string, unknown>; options: unknown };
+            expect(request.owner).toBe("owner");
+            expect(request.repo).toBe("name");
+            expect(request.options).toEqual({ render: true, publish: "artifact", dispatchRender: false });
+            expect(request.config).toMatchObject({ version: 1, engine: "synthetic", seed: 20261023, size: 1000, worldName: "generated-world", format: "1.20.4" });
+            expect(dialogText()).toContain("Dispatched worldgen.yml on main of owner/name");
+            expect(dialogText()).toContain("https://github.com/owner/name/actions/workflows/worldgen.yml");
+        } finally { wrapper.unmount(); }
+    });
+
+    it("refuses to start on GitHub Actions without a repository and shows the main process's refusal", async () => {
+        const dispatch = vi.fn(async () => ({ ok: false, failure: { code: "call-failed", message: "Sign in from GitHub accounts, then select that account here.", detail: null } }));
+        vi.stubGlobal("worldlens", { worldgenActions: { dispatch } });
+        const wrapper = mountDialog();
+        try {
+            const github = wrapper.findAllComponents({ name: "VRadio" }).find((radio) => radio.props("label") === "GitHub Actions")!;
+            github.find("input").element.click();
+            await flushPromises();
+            const start = () => dialogButtons().find((button) => button.textContent?.trim() === "Start on GitHub Actions")!;
+            expect(start().disabled).toBe(true);
+            const repository = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Repository (owner/name)")!;
+            repository.vm.$emit("update:modelValue", "not a slug");
+            await flushPromises();
+            expect(dialogText()).toContain("Must be owner/name.");
+            expect(start().disabled).toBe(true);
+            repository.vm.$emit("update:modelValue", "owner/name");
+            await flushPromises();
+            start().click();
+            await flushPromises();
+            expect(dispatch).toHaveBeenCalledTimes(1);
+            expect(dialogText()).toContain("Sign in from GitHub accounts");
+        } finally { wrapper.unmount(); }
+    });
 });

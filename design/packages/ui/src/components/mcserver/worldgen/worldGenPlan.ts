@@ -149,7 +149,6 @@ export interface GenerationPlan {
  */
 export const UNWIRED_STEP_KINDS: readonly GenerationStepKind[] = [
     "launch-server",
-    "dispatch-github-workflow",
     "await-world-ready",
     "run-console-commands",
     "pregenerate-chunks",
@@ -231,8 +230,8 @@ export function buildGenerationPlan(
     } else {
         steps.push({
             kind: "dispatch-github-workflow",
-            description: `Dispatch a workflow in ${runner.repoSlug} (${runner.workflowFile}) that runs the same server-jar steps on a GitHub Actions runner.`,
-            reuses: "cirender/gh.ts, cirender/schedule.ts, cirender/workflowTemplates.ts",
+            description: `Dispatch ${runner.workflowFile} in ${runner.repoSlug} with the generation configuration; the run generates the world on a GitHub Actions runner.`,
+            reuses: "worldgenactions/ipc.ts over cirender/transport.ts (dispatchWorkflow)",
         });
     }
 

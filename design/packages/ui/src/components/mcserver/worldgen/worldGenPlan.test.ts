@@ -179,7 +179,8 @@ describe("buildGenerationPlan", () => {
         expect(createStep?.reuses).toBe("mcserver/create.ts");
         const planGithub = buildGenerationPlan(withVersion(), github);
         const dispatchStep = planGithub.steps.find((s) => s.kind === "dispatch-github-workflow");
-        expect(dispatchStep?.reuses).toContain("cirender/gh.ts");
+        expect(dispatchStep?.reuses).toContain("worldgenactions/ipc.ts");
+        expect(dispatchStep?.reuses).toContain("cirender/transport.ts");
     });
 
     it("includes run-console-commands only when there is something to send", () => {
@@ -210,7 +211,6 @@ describe("buildGenerationPlan", () => {
         // named in UNWIRED_STEP_KINDS so the UI can render the boundary truthfully.
         const executionKinds: readonly string[] = [
             "launch-server",
-            "dispatch-github-workflow",
             "await-world-ready",
             "run-console-commands",
             "pregenerate-chunks",
@@ -222,6 +222,14 @@ describe("buildGenerationPlan", () => {
         for (const kind of executionKinds) {
             expect(UNWIRED_STEP_KINDS).toContain(kind);
         }
+    });
+
+    it("does NOT list dispatch-github-workflow as unwired: worldgenactions/ipc.ts dispatches worldgen.yml for real", () => {
+        expect(UNWIRED_STEP_KINDS).not.toContain("dispatch-github-workflow");
+        // The steps after the dispatch still are: nothing in this build follows the run or
+        // downloads its artifact, and the plan preview must keep saying so.
+        expect(UNWIRED_STEP_KINDS).toContain("await-workflow-completion");
+        expect(UNWIRED_STEP_KINDS).toContain("download-artifact");
     });
 
     it("does NOT list create-server or write-server-properties as unwired (those genuinely exist)", () => {

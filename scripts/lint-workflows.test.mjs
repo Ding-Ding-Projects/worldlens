@@ -287,10 +287,11 @@ for (const [lineEnding, workflow] of [
 // in CI" policy still holds and still accounts for the 128 -> 127 step before it.
 //
 // A bare total is a weak guard: it says the number changed, never which use is new, and the
-// only way to clear it is to type a different number. It is kept because it is cheap and it
+// only way to clear it is to type a different number. 134 -> 142 when worldgen.yml
+// arrived with eight pinned uses (checkout, pnpm, node, java, two uploads, two downloads). It is kept because it is cheap and it
 // does force somebody to look; actionDependencyProblems above is what actually holds the
 // line, because it checks every use against its reviewed SHA rather than counting.
-test("all 134 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
+test("all 142 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
   const inventoryFiles = Object.keys(ACTION_INVENTORIES).sort();
   const workflowFiles = readdirSync(inRoot(".github/workflows"))
     .filter((name) => /\.ya?ml$/i.test(name))
@@ -311,7 +312,7 @@ test("all 134 actions in every executable workflow are SHA-pinned and checkouts 
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    134,
+    142,
   );
   // 10, not 6: the container-image job added docker/setup-qemu-action,
   // docker/setup-buildx-action, docker/login-action and docker/build-push-action, each

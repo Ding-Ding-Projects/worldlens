@@ -425,6 +425,33 @@ const SCHEDULED_RENDER_PINNED_ACTIONS = Object.freeze({
   }),
 });
 
+const WORLDGEN_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+  "actions/setup-java": Object.freeze({
+    sha: "cf277c60eb25467037889841efdb72551f06f6c3",
+    count: 1,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 2,
+  }),
+  "actions/download-artifact": Object.freeze({
+    sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
+    count: 2,
+  }),
+});
+
 const ACTION_INVENTORIES = Object.freeze({
   ".github/workflows/ci.yml": PINNED_ACTIONS,
   ".github/workflows/build-jars.yml": BUILD_JARS_PINNED_ACTIONS,
@@ -435,6 +462,7 @@ const ACTION_INVENTORIES = Object.freeze({
   ".github/workflows/render-shard-wave.yml": RENDER_SHARD_WAVE_PINNED_ACTIONS,
   ".github/workflows/render-world.yml": RENDER_WORLD_PINNED_ACTIONS,
   ".github/workflows/scheduled-render.yml": SCHEDULED_RENDER_PINNED_ACTIONS,
+  ".github/workflows/worldgen.yml": WORLDGEN_PINNED_ACTIONS,
 });
 
 const SUPPORTED_HOSTED_RUNNERS = new Set(["ubuntu-24.04", "windows-2022"]);

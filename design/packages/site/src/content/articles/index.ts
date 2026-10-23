@@ -94,6 +94,7 @@ import { serverConfigurationEditor } from "./server-configuration-editor.js";
 import { botsAndCommands } from "./bots-and-commands.js";
 import { mapDrawingAndCommands } from "./map-drawing-and-commands.js";
 import { renderIdentity } from "./render-identity.js";
+import { worldGenerationInActions } from "./world-generation-in-actions.js";
 
 export const articles: readonly Article[] = [
     glossary,
@@ -171,6 +172,7 @@ export const articles: readonly Article[] = [
     botsAndCommands,
     mapDrawingAndCommands,
     renderIdentity,
+    worldGenerationInActions,
 ];
 
 /** Category order for grouped rendering, so the list reads the same way every time. */

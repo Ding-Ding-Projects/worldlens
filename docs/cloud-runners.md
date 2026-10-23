@@ -26,13 +26,14 @@ the project's ordinary declared setup:
   committed SHA-256 digest, and uses shellcheck already present on hosted Ubuntu.
 
 The hand-written inventory in
-`design/packages/shared/src/cloudRunnerPolicy.test.ts` names every workflow and all 36 jobs.
-Twenty-three executable jobs declare their expected hosted label; thirteen reusable call jobs
-declare their exact checked-in target.
+`design/packages/shared/src/cloudRunnerPolicy.test.ts` names every workflow and all 30 jobs.
+Twenty-nine executable jobs declare their expected hosted label; the one reusable call job
+(`ci.yml` jars) declares its exact checked-in target.
 
-The same inventory declares the tools each job needs but does not install. Ten jobs declare `gh`:
-`chunk-world.yml` plan and assemble, `ci.yml` release, every job in `render-private-world.yml`,
-`render-world.yml` plan, and `scheduled-render.yml` check. `gh` is the one dependency nothing in a
+The same inventory declares the tools each job needs but does not install. Thirteen jobs declare
+`gh`: `chunk-world.yml` plan and assemble, `ci.yml` release, every job in `render-private-world.yml`,
+`render-world.yml` plan, `scheduled-render.yml` check, and `worldgen.yml` render, publish and
+chain-render. `gh` is the one dependency nothing in a
 workflow installs, because it arrives preinstalled on the standard hosted images, which is exactly
 what makes it easy to depend on without noticing. A local checkout gets it from
 `node scripts/bootstrap.mjs`, which installs it user-scoped and reports separately whether anybody
@@ -112,12 +113,12 @@ Runner 嘅選擇就寫喺 `.github/workflows/` 入面每個可執行 job 隔籬�
   並用 hosted Ubuntu 上面本身已經有嘅 shellcheck。
 
 `design/packages/shared/src/cloudRunnerPolicy.test.ts` 入面有一份人手寫嘅清單，
-指名咗每一個 workflow 同全部 36 個 job。其中 23 個可執行 job 宣告咗佢哋預期嘅 hosted label；
-13 個可重用呼叫 job 宣告咗佢哋確實嘅已 check in 目標。
+指名咗每一個 workflow 同全部 30 個 job。其中 29 個可執行 job 宣告咗佢哋預期嘅 hosted label；
+唯一一個可重用呼叫 job（`ci.yml` 嘅 jars）宣告咗佢確實嘅已 check in 目標。
 
-同一份清單仲會宣告每個 job 需要、但自己唔會安裝嘅工具。有 10 個 job 宣告咗 `gh`：
+同一份清單仲會宣告每個 job 需要、但自己唔會安裝嘅工具。有 13 個 job 宣告咗 `gh`：
 `chunk-world.yml` 嘅 plan 同 assemble、`ci.yml` 嘅 release、`render-private-world.yml` 全部 job、
-`render-world.yml` 嘅 plan，同 `scheduled-render.yml` 嘅 check。`gh` 係唯一一個冇任何 workflow
+`render-world.yml` 嘅 plan、`scheduled-render.yml` 嘅 check，同 `worldgen.yml` 嘅 render、publish 同 chain-render。`gh` 係唯一一個冇任何 workflow
 會去安裝嘅依賴，因為標準 hosted image 本身已經預裝咗佢，而正正就係咁，先至最易喺唔為意之下
 就用咗佢。本機 checkout 就靠 `node scripts/bootstrap.mjs` 攞返佢：佢會以 user scope 裝好，
 再分開講清楚究竟有冇人登入咗。

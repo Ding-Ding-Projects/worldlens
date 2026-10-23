@@ -3390,6 +3390,10 @@ interface WorldlensBridge {
         collect(id: string): Promise<unknown>;
         cancel(id: string): Promise<unknown>;
     };
+    /** Generating a world on GitHub Actions from the dialog's configuration. See worldgenactions/ipc.ts. */
+    worldgenActions: {
+        dispatch(request: unknown): Promise<unknown>;
+    };
     bedrock: BedrockBridge;
 
     /** Diagnosing and repairing a failed render or web server. See {@link RepairBridge}. */

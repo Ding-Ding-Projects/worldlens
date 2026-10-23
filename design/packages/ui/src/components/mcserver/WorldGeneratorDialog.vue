@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, onUnmounted } from "vue";
+import { computed, reactive, ref, onUnmounted, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     VAlert,
@@ -51,7 +51,18 @@ import {
     UNWIRED_STEP_KINDS,
     type WorldGenRunner,
 } from "./worldgen/worldGenPlan.js";
-import { generateSyntheticWorld, syntheticWorldStatus, cancelSyntheticWorld, type SyntheticWorldResult } from "./mcserverBridge.js";
+import {
+    generateSyntheticWorld,
+    syntheticWorldStatus,
+    cancelSyntheticWorld,
+    dispatchGenerationWorkflow,
+    type SyntheticWorldResult,
+    type WorldgenDispatchReceipt,
+} from "./mcserverBridge.js";
+import { buildWorldGenerationConfig } from "@worldlens/shared";
+import GhEntityPicker from "../github/GhEntityPicker.vue";
+import { createGhCliAccountsStore, defaultGhCliAccountId } from "../github/ghCliAccountsStore.js";
+import { resolveCiRenderBridge } from "../cirender/ciRenderBridge.js";
 
 /**
  * The world-generator wizard: every setting a world can be generated with, chosen
@@ -120,6 +131,20 @@ const { t } = useI18n({
             runner: "Where to run",
             runnerLocal: "This computer",
             runnerGithub: "GitHub Actions",
+            runnerGithubExplain: "The configuration below is sent to worldgen.yml in the chosen repository as one workflow_dispatch. The run generates the world with the built-in generator and compiles a map of it; follow it on GitHub and download its artifacts there.",
+            githubAccount: "Run as account",
+            githubAccountSearch: "Search accounts",
+            githubAccountSelected: "Selected account",
+            githubAccountEmpty: "Sign in from GitHub accounts in Settings, or leave the default account.",
+            githubAccountNoMatch: "No matching account",
+            githubRepository: "Repository (owner/name)",
+            githubRepositoryHint: "Must carry .github/workflows/worldgen.yml on its default branch.",
+            githubRepositoryInvalid: "Must be owner/name.",
+            githubPublish: "Also publish the world as a release asset and compile the map with render-world.yml",
+            configPreview: "Generation configuration sent to GitHub Actions",
+            dispatchStart: "Start on GitHub Actions",
+            dispatchStarting: "Starting…",
+            dispatched: "Dispatched {file} on {ref} of {repository} at {at}. Follow the run and download the generated world and map from:",
             previewPlan: "Preview plan",
             cancel: "Cancel",
             planTitle: "Generation plan",
@@ -165,6 +190,20 @@ const { t } = useI18n({
             runner: "喺邊度跑",
             runnerLocal: "呢部電腦",
             runnerGithub: "GitHub Actions",
+            runnerGithubExplain: "下面嘅設定會以一次 workflow_dispatch 送去揀好嗰個 repository 嘅 worldgen.yml。嗰次 run 會用內置生成器整世界、再編一張地圖；去 GitHub 跟進，喺嗰邊下載 artifacts。",
+            githubAccount: "用邊個帳戶跑",
+            githubAccountSearch: "搵帳戶",
+            githubAccountSelected: "已揀帳戶",
+            githubAccountEmpty: "去設定嘅 GitHub 帳戶登入，或者用預設帳戶。",
+            githubAccountNoMatch: "冇相符帳戶",
+            githubRepository: "Repository（owner/name）",
+            githubRepositoryHint: "預設分支上面要有 .github/workflows/worldgen.yml。",
+            githubRepositoryInvalid: "要係 owner/name。",
+            githubPublish: "同時將世界發佈做 release asset，再用 render-world.yml 編地圖",
+            configPreview: "送去 GitHub Actions 嘅生成設定",
+            dispatchStart: "喺 GitHub Actions 開始",
+            dispatchStarting: "開始中…",
+            dispatched: "已經喺 {at} 向 {repository} 嘅 {ref} 派發 {file}。去呢度跟進，兼下載生成好嘅世界同地圖：",
             previewPlan: "預覽計劃",
             cancel: "取消",
             planTitle: "生成計劃",
@@ -214,6 +253,81 @@ async function stopGeneration(): Promise<void> {
     if (!result.ok) generationError.value = result.failure?.message ?? "";
 }
 const generationError = ref<string | null>(null);
+
+// -- GitHub Actions runner ------------------------------------------------
+// The account picker lists what the GitHub CLI knows; the repository is typed as owner/name,
+// prefilled with the first writable repository the signed-in account owns when that list
+// can be read. Nothing here talks to GitHub: the main process dispatches.
+const accounts = createGhCliAccountsStore();
+const ci = resolveCiRenderBridge();
+const accountId = ref<string | null>(null);
+const repositorySlug = ref("");
+const publishRelease = ref(false);
+const dispatching = ref(false);
+const dispatched = ref<WorldgenDispatchReceipt | null>(null);
+const dispatchError = ref<string | null>(null);
+const REPOSITORY_SLUG = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}\/[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
+const repositoryInvalid = computed(() => repositorySlug.value.trim() !== "" && !REPOSITORY_SLUG.test(repositorySlug.value.trim()));
+const accountItems = computed(() => accounts.accounts.value.map((entry) => ({ title: `${entry.login} (${entry.host})`, value: entry.id, props: { disabled: !entry.healthy } })));
+async function prefillRepository(): Promise<void> {
+    if (repositorySlug.value.trim() !== "") return;
+    const answer = await ci?.listExistingRepositories?.(accountId.value ?? undefined);
+    const first = answer?.ok ? answer.value.find((entry) => entry.canWrite) : undefined;
+    if (first && repositorySlug.value.trim() === "") repositorySlug.value = first.fullName;
+}
+let accountsLoaded = false;
+watch(runnerKind, async (kind) => {
+    if (kind !== "github-actions" || accountsLoaded) return;
+    accountsLoaded = true;
+    try {
+        await accounts.load();
+        accountId.value = defaultGhCliAccountId(accounts.accounts.value);
+    } catch {
+        // No account list is not an error here: the main process still has its default account.
+    }
+    await prefillRepository();
+});
+/** The exact document the runner validates; shown read-only so what is sent is visible. */
+const generationConfig = computed(() =>
+    buildWorldGenerationConfig({
+        engine: engineId.value,
+        seed: resolveSeedPreview(settings.seedInput) ?? 0,
+        worldName: settings.worldName,
+        pregenerationRadius: Math.trunc(settings.pregenerationRadius),
+        version: settings.version,
+        outputMode: settings.outputMode,
+        flavour: settings.flavour,
+        worldType: settings.worldType,
+        generateStructures: settings.generateStructures,
+        dimensions: { overworld: true, nether: settings.dimensions.nether, end: settings.dimensions.end },
+    }),
+);
+const generationConfigJson = computed(() => JSON.stringify(generationConfig.value, null, 2));
+const canDispatch = computed(() =>
+    runnerKind.value === "github-actions" && engineId.value === "synthetic" && !dispatching.value &&
+    REPOSITORY_SLUG.test(repositorySlug.value.trim()) &&
+    /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/.test(settings.worldName.trim()) &&
+    Number.isSafeInteger(resolveSeedPreview(settings.seedInput) ?? 0) &&
+    Number.isFinite(settings.pregenerationRadius) && settings.pregenerationRadius >= 8 && settings.pregenerationRadius <= 20_000);
+async function onDispatch(): Promise<void> {
+    if (!canDispatch.value) return;
+    dispatching.value = true;
+    dispatchError.value = null;
+    dispatched.value = null;
+    const resolvedSeed = resolveSeedPreview(settings.seedInput) ?? rollRandomSeed();
+    settings.seedInput = String(resolvedSeed);
+    const [owner, repo] = repositorySlug.value.trim().split("/") as [string, string];
+    const answer = await dispatchGenerationWorkflow({
+        ...(accountId.value ? { accountId: accountId.value } : {}),
+        owner,
+        repo,
+        config: generationConfig.value,
+        options: { render: true, publish: publishRelease.value ? "release-asset" : "artifact", dispatchRender: publishRelease.value },
+    });
+    dispatching.value = false;
+    if (!answer.ok || answer.value === undefined) { dispatchError.value = answer.failure?.message ?? ""; return; }
+    dispatched.value = answer.value;
+}
 
 const validation = computed(() => validateWorldGenSettings(settings));
 const canGenerate = computed(() => engineId.value !== "synthetic" ? validation.value.ok :
@@ -273,7 +387,7 @@ const pregenEstimate = computed(() => estimatePregeneration(settings.pregenerati
 const runner = computed<WorldGenRunner>(() =>
     runnerKind.value === "local"
         ? { kind: "local" }
-        : { kind: "github-actions", repoSlug: "owner/repo", workflowFile: "worldgen.yml" },
+        : { kind: "github-actions", repoSlug: repositorySlug.value.trim() || "owner/name", workflowFile: "worldgen.yml" },
 );
 const plan = computed(() => buildGenerationPlan(settings, runner.value, engineId.value));
 
@@ -529,8 +643,44 @@ function onClose(): void {
                 <div class="text-subtitle-2 mb-2">{{ t("runner") }}</div>
                 <VRadioGroup v-model="runnerKind" density="compact" hide-details inline class="mb-4">
                     <VRadio value="local" :label="t('runnerLocal')" />
-                    <VRadio value="github-actions" :disabled="engineId === 'synthetic'" :label="t('runnerGithub')" />
+                    <VRadio value="github-actions" :label="t('runnerGithub')" />
                 </VRadioGroup>
+                <div v-if="runnerKind === 'github-actions' && engineId === 'synthetic'" class="mb-4" data-test="worldgen-github-runner">
+                    <p class="text-body-2 mb-3">{{ t("runnerGithubExplain") }}</p>
+                    <GhEntityPicker
+                        v-if="accountItems.length > 0"
+                        v-model="accountId"
+                        :items="accountItems"
+                        data-test-base="worldgen-github-account"
+                        :search-label="t('githubAccountSearch')"
+                        :select-label="t('githubAccount')"
+                        :selected-label="t('githubAccountSelected')"
+                        :empty-message="t('githubAccountEmpty')"
+                        :no-match-message="t('githubAccountNoMatch')"
+                        @update:model-value="prefillRepository"
+                    />
+                    <VTextField
+                        v-model="repositorySlug"
+                        density="compact"
+                        variant="outlined"
+                        :label="t('githubRepository')"
+                        placeholder="owner/name"
+                        :hint="t('githubRepositoryHint')"
+                        persistent-hint
+                        :error-messages="repositoryInvalid ? [t('githubRepositoryInvalid')] : []"
+                        data-test="worldgen-github-repository"
+                    />
+                    <VSwitch v-model="publishRelease" density="compact" hide-details :label="t('githubPublish')" data-test="worldgen-github-publish" />
+                    <div class="text-subtitle-2 mt-3 mb-1">{{ t("configPreview") }}</div>
+                    <pre class="worldgen-config-preview" data-test="worldgen-config-preview" tabindex="0">{{ generationConfigJson }}</pre>
+                    <VAlert v-if="dispatchError !== null" type="error" variant="tonal" density="compact" class="mt-3" data-test="worldgen-dispatch-error">
+                        {{ dispatchError }}
+                    </VAlert>
+                    <VAlert v-if="dispatched !== null" type="success" variant="tonal" density="compact" class="mt-3" data-test="worldgen-dispatched">
+                        {{ t("dispatched", { file: dispatched.workflowFile, ref: dispatched.ref, repository: dispatched.repository, at: dispatched.dispatchedAt }) }}
+                        <a :href="dispatched.runsUrl" target="_blank" rel="noopener noreferrer">{{ dispatched.runsUrl }}</a>
+                    </VAlert>
+                </div>
 
                 <!-- Plan preview -->
                 <div v-if="showPlan">
@@ -561,7 +711,18 @@ function onClose(): void {
             <VCardActions>
                 <VBtn v-if="generating && targetBytes !== null" variant="text" @click="stopGeneration">{{ tx('worldgen.measured.stop') }}</VBtn>
                 <VBtn v-else variant="text" :disabled="generating" @click="onClose">{{ t("cancel") }}</VBtn>
-                <VBtn color="primary" variant="flat" :loading="generating" :disabled="!canGenerate || generating" @click="onGenerate">
+                <VBtn
+                    v-if="runnerKind === 'github-actions' && engineId === 'synthetic'"
+                    color="primary"
+                    variant="flat"
+                    :loading="dispatching"
+                    :disabled="!canDispatch"
+                    data-test="worldgen-dispatch"
+                    @click="onDispatch"
+                >
+                    {{ t(dispatching ? "dispatchStarting" : "dispatchStart") }}
+                </VBtn>
+                <VBtn v-else color="primary" variant="flat" :loading="generating" :disabled="!canGenerate || generating" @click="onGenerate">
                     {{ tx(generating ? 'worldgen.measured.generating' : 'worldgen.measured.generate') }}
                 </VBtn>
                 <VBtn color="primary" variant="tonal" :disabled="!validation.ok" @click="onPreviewPlan">
@@ -571,3 +732,17 @@ function onClose(): void {
         </VCard>
     </VDialog>
 </template>
+
+<style scoped>
+.worldgen-config-preview {
+    max-height: 16rem;
+    overflow: auto;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    background: rgb(var(--v-theme-surface-variant));
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    white-space: pre;
+}
+</style>
