@@ -14,6 +14,8 @@ import {
 import { markerDisplayLabel } from "./markerFilter.js";
 import { useMarkerI18n } from "./i18nHelpers.js";
 import type { AnyMarkerData } from "./markerTypes.js";
+import { activeProfile } from "../../stores/profiles.js";
+import { mapCommandPlayer, mapCommandPoint } from "../../stores/bluemap.js";
 
 const STEVE_HEAD = "assets/steve.png";
 
@@ -99,6 +101,19 @@ const liveState = computed(() => {
 });
 
 const goToLabel = computed(() => tx("markers.goToMarker", "Go to {name}", { name: label.value }));
+const canCommand = computed(() => {
+    const profile = activeProfile() as (ReturnType<typeof activeProfile> & { serverId?: string; dimension?: string }) | null;
+    return isPlayer.value && !!profile?.serverId && !!props.marker.playerUuid
+        && !!props.marker.dimension && profile.dimension === props.marker.dimension && props.marker.stale !== true
+        && props.marker.freshness !== "stale";
+});
+function commandPlayer() {
+    if (!canCommand.value || !props.marker.playerUuid || !props.marker.dimension) return;
+    const observed = typeof props.marker.observedAt === "number" ? props.marker.observedAt : typeof props.marker.observedAt === "string" ? Date.parse(props.marker.observedAt) : NaN;
+    if (!Number.isFinite(observed) || Date.now() - observed > 15_000 || observed > Date.now() + 5_000) return;
+    mapCommandPlayer.value = { uuid: props.marker.playerUuid, name: label.value, dimension: props.marker.dimension };
+    mapCommandPoint.value = { ...position.value };
+}
 </script>
 
 <template>
@@ -108,6 +123,7 @@ const goToLabel = computed(() => tx("markers.goToMarker", "Go to {name}", { name
         :link="clickable"
         :disabled="!clickable || props.busy"
         @click="clickable && !props.busy ? emit('activate', props.marker, false) : undefined"
+        @contextmenu.prevent="commandPlayer"
     >
         <v-tooltip activator="parent" :text="props.marker.id" location="bottom" open-delay="700" />
 
@@ -159,6 +175,7 @@ const goToLabel = computed(() => tx("markers.goToMarker", "Go to {name}", { name
                     :aria-label="tx('markers.locatingPlayer', 'Looking for the player')"
                 />
                 <template v-else>
+                    <v-btn v-if="isPlayer" :disabled="!canCommand" variant="tonal" @click.stop="commandPlayer">{{ t('markers.commands', 'Commands') }}</v-btn>
                     <v-btn
                         v-if="isPlayer"
                         icon

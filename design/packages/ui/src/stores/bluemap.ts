@@ -34,12 +34,27 @@ export const blueMapApp: ShallowRef<BlueMapApp | null> = shallowRef(null);
  * plainly rather than silently assuming a send target.
  */
 export const mapCommandPoint: ShallowRef<{ x: number; y: number; z: number } | null> = shallowRef(null);
+/** Verified live-player identity selected for command composition, never immediate execution. */
+export const mapCommandPlayer = shallowRef<{ uuid: string; name: string; dimension: string } | null>(null);
 
 /** Coordinate currently reported by the map while a command builder is picking a corner. */
 export const mapPickPoint: ShallowRef<{ x: number; y: number; z: number } | null> = shallowRef(null);
 
 let mapPickEnabled = false;
 const mapPickPoints: { x: number; y: number; z: number }[] = [];
+let spatialPicker: { owner: symbol; accept: (point: { x: number; y: number; z: number }) => void } | null = null;
+
+/** A drawing tool temporarily owns terrain clicks; releasing an old tool cannot stop a new one. */
+export function acquireSpatialPicker(accept: (point: { x: number; y: number; z: number }) => void): () => void {
+    const owner = Symbol("spatial-picker");
+    spatialPicker = { owner, accept };
+    return () => {
+        if (spatialPicker?.owner === owner) {
+            spatialPicker = null;
+            blueMapApp.value?.setMapCoordinatePreview?.([]);
+        }
+    };
+}
 
 /** Replaces the live instance (or clears it). Called by MapView, which owns the lifecycle. */
 export function setBlueMapApp(instance: BlueMapApp | null): void {
@@ -50,6 +65,7 @@ export function setBlueMapApp(instance: BlueMapApp | null): void {
     // here - the object is present and the method is not - so the call itself is optional.
     blueMapApp.value?.setMapCoordinatePreview?.([]);
     blueMapApp.value = instance;
+    spatialPicker = null;
     // The shell is optional on this instance: a test double, and an embedding host that
         // supplies its own chrome, both hand over an app with no material shell at all.
         // Assigning through it unconditionally threw for every one of them, which read as the
@@ -61,6 +77,7 @@ export function setBlueMapApp(instance: BlueMapApp | null): void {
     }
     if (instance) {
         instance.onMapCoordinatePick = (point: { x: number; y: number; z: number }) => {
+            if (spatialPicker) { spatialPicker.accept(point); return; }
             if (mapPickEnabled) {
                 mapPickPoints.push(point);
                 if (mapPickPoints.length > 2) mapPickPoints.splice(0, mapPickPoints.length - 2);

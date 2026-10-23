@@ -16,6 +16,11 @@ import { mdiContentCopy, mdiMapMarkerPlusOutline, mdiPencilOutline } from "@mdi/
 
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import MarkerSearchField from "./MarkerSearchField.vue";
+import SpatialPicker from "./SpatialPicker.vue";
+import { activeProfile } from "../../stores/profiles.js";
+import { annotationClient, AnnotationRevisionConflict } from "./annotationClient.js";
+import type { SpatialSelection } from "./spatialSelection.js";
+import type { MarkerPosition } from "./markerStudio.js";
 import { compileSearchPattern, includesCI, type SearchMode } from "./markerFilter.js";
 import {
     DEFAULT_MARKER_COLOUR,
@@ -74,6 +79,56 @@ const props = withDefaults(
 const emit = defineEmits<{ markerCreated: [id: string] }>();
 
 const { t } = useI18n();
+const identity = computed(() => {
+    const profile = activeProfile() as (ReturnType<typeof activeProfile> & { projectId?: string; dimension?: string }) | null;
+    return { projectId: profile?.projectId ?? profile?.id ?? "", mapId: props.mapId, dimension: profile?.dimension ?? props.mapId };
+});
+const sharedRevision = ref<number | null>(null);
+const sharedBusy = ref(false);
+const sharedMessage = ref("");
+const sharedConflict = ref(false);
+async function sharedOperation(save: boolean): Promise<void> {
+    if (sharedBusy.value || !identity.value.projectId) return;
+    const boundIdentity = { ...identity.value };
+    sharedBusy.value = true;
+    try {
+        const client = annotationClient(boundIdentity);
+        const result = save && sharedRevision.value !== null
+            ? await client.save(sharedRevision.value, all.value)
+            : await client.read();
+        if (JSON.stringify(identity.value) !== JSON.stringify(boundIdentity)) return;
+        sharedRevision.value = result.revision;
+        sharedConflict.value = false;
+        if (!save) {
+            const collisions = result.annotations.filter(remote => {
+                const local = all.value.find(marker => marker.id === remote.id);
+                return local && JSON.stringify(local) !== JSON.stringify(remote);
+            });
+            if (collisions.length) {
+                sharedConflict.value = true;
+                sharedMessage.value = `${collisions.length} shared markers differ from local markers. Export your local markers before resolving the differences. Nothing was overwritten.`;
+                return;
+            }
+            const incoming = JSON.stringify({ marker: "worldlens-marker-studio", version: 1, mapId: props.mapId, markers: result.annotations });
+            const imported = importMarkers(incoming, props.mapId, identity.value);
+            if (imported.errors.length) throw new Error(imported.errors.join(" "));
+        }
+        sharedMessage.value = save ? `Shared revision ${result.revision} saved.` : `Shared revision ${result.revision} loaded. Local drafts retained.`;
+    } catch (error) {
+        sharedConflict.value = error instanceof AnnotationRevisionConflict;
+        sharedMessage.value = error instanceof Error ? error.message : String(error);
+    } finally { sharedBusy.value = false; }
+}
+function useGeometry(selection: SpatialSelection, geometry: MarkerPosition[]): void {
+    if (!geometry[0]) return;
+    draft.value.position = { ...geometry[0] };
+    draft.value.kind = selection.kind === "point" ? "poi" : selection.kind === "path" ? "line" : "shape";
+    draft.value.points = selection.kind === "point" ? undefined : geometry;
+    pointsText.value = selection.kind === "point" ? "" : JSON.stringify(geometry, null, 2);
+}
+function extrusionHeight(key: string, value: unknown): void {
+    draft.value.extra = { ...draft.value.extra, [key]: Number(value) };
+}
 
 const query = ref("");
 /** The shared marker search's own vocabulary, so the field and this agree on what a mode is. */
@@ -99,10 +154,10 @@ const matcher = computed<{ test: (text: string) => boolean; error: string | null
 });
 
 const listed = computed(() =>
-    markersFor(props.mapId).value.filter((marker) => matcher.value.test(markerSearchText(marker))),
+    markersFor(props.mapId, identity.value.projectId ? identity.value : undefined).value.filter((marker) => matcher.value.test(markerSearchText(marker))),
 );
 
-const all = computed(() => markersFor(props.mapId).value);
+const all = computed(() => markersFor(props.mapId, identity.value.projectId ? identity.value : undefined).value);
 
 const corpus = computed(() => all.value.map(markerSearchText).join("\n"));
 
@@ -131,6 +186,9 @@ const kindItems: readonly { value: StudioMarkerKind; title: string }[] = [
     { value: "shape", title: "Shape" },
     { value: "extrude", title: "Extrude" },
 ];
+watch(() => draft.value.kind, kind => {
+    if (kind === "extrude") draft.value.extra = { shapeMinY: draft.value.position.y, shapeMaxY: draft.value.position.y + 8, ...draft.value.extra };
+});
 
 /**
  * The message for one field, or null.
@@ -152,6 +210,8 @@ function startNew(): void {
     problems.value = [];
     formOpen.value = true;
 }
+function startArea(): void { startNew(); draft.value.kind = "shape"; }
+defineExpose({ startNew, startArea });
 
 function startEdit(marker: StudioMarker): void {
     editing.value = marker.id;
@@ -177,7 +237,7 @@ function save(): void {
     }
     const result =
         editingId === null
-            ? addMarker(props.mapId, draft.value)
+            ? addMarker(props.mapId, draft.value, identity.value.projectId ? identity.value : undefined)
             : updateMarker(editingId, draft.value);
     if (result.ok) {
         formOpen.value = false;
@@ -201,7 +261,7 @@ watch(
 );
 
 function downloadExport(): void {
-    const blob = new Blob([exportMarkers(props.mapId)], { type: "application/json" });
+    const blob = new Blob([exportMarkers(props.mapId, identity.value.projectId ? identity.value : undefined)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -214,7 +274,7 @@ async function importFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-    const result = importMarkers(await file.text(), props.mapId);
+    const result = importMarkers(await file.text(), props.mapId, identity.value.projectId ? identity.value : undefined);
     if (result.errors.length) problems.value = [{ field: "geometry", message: result.errors.join(" ") }];
     input.value = "";
 }
@@ -253,7 +313,13 @@ function selectNone(): void {
 
 watch(() => props.mapId, () => {
     selected.value = new Set();
+    formOpen.value = false;
+    sharedRevision.value = null;
+    sharedMessage.value = "";
     setMarkerPreview(null);
+});
+watch(() => identity.value.projectId + "\0" + identity.value.dimension, () => {
+    sharedRevision.value = null; sharedMessage.value = ""; sharedConflict.value = false; formOpen.value = false;
 });
 
 const removedCount = ref<number | null>(null);
@@ -285,11 +351,15 @@ function positionText(marker: StudioMarker): string {
                 {{ t("markers.studio.add", "Add a marker") }}
             </VBtn>
             <VBtn size="small" variant="text" @click="downloadExport">Export</VBtn>
+            <VBtn size="small" variant="tonal" :loading="sharedBusy" @click="sharedOperation(false)">{{ t('markers.shared.load', 'Load shared markers') }}</VBtn>
+            <VBtn size="small" variant="tonal" :disabled="sharedRevision === null || sharedBusy || sharedConflict" @click="sharedOperation(true)">{{ t('markers.shared.save', 'Save shared revision') }}</VBtn>
             <label class="mb-marker-studio__import">
                 <VBtn size="small" variant="text" tag="span">Import</VBtn>
                 <input type="file" accept="application/json,.json" @change="importFile" />
             </label>
         </div>
+
+        <VAlert v-if="sharedMessage" variant="tonal" :type="sharedConflict ? 'warning' : 'info'" class="my-2" role="status">{{ sharedMessage }}</VAlert>
 
         <p class="mb-marker-studio__lede">
             {{
@@ -320,6 +390,7 @@ function positionText(marker: StudioMarker): string {
 
         <!-- The form: one panel for both making and editing, because they are one thing. -->
         <div v-if="formOpen" class="mb-marker-studio__form" data-test="marker-form">
+            <SpatialPicker :identity="identity" @apply="useGeometry" />
             <VTextField
                 v-model="draft.label"
                 :label="t('markers.studio.label', 'Name')"
@@ -354,6 +425,10 @@ function positionText(marker: StudioMarker): string {
                 />
             </div>
             <VSelect v-model="draft.kind" :items="kindItems" item-title="title" item-value="value" label="Marker type" density="compact" data-test="marker-kind" />
+            <div v-if="draft.kind === 'extrude'" class="d-flex ga-2 flex-wrap">
+                <VTextField :model-value="draft.extra?.shapeMinY ?? draft.position.y" type="number" label="Minimum Y" @update:model-value="extrusionHeight('shapeMinY', $event)" />
+                <VTextField :model-value="draft.extra?.shapeMaxY ?? draft.position.y + 8" type="number" label="Maximum Y" @update:model-value="extrusionHeight('shapeMaxY', $event)" />
+            </div>
             <VTextarea v-if="draft.kind !== 'poi'" v-model="pointsText" label="Geometry points (JSON)" rows="3" density="compact" data-test="marker-points" />
             <p
                 v-if="problemFor('position')"

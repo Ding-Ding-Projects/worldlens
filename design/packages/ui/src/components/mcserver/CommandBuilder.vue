@@ -25,6 +25,7 @@ import {
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import CoordinateField from "./CoordinateField.vue";
+import CommandBuilderDiscovered from "./CommandBuilderDiscovered.vue";
 import TargetSelectorField from "./TargetSelectorField.vue";
 import {
     ATTRIBUTE_IDS,
@@ -85,6 +86,8 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean]; "use-command":
 const { t } = useI18n();
 
 const open = computed<boolean>({ get: () => props.modelValue, set: (v) => emit("update:modelValue", v) });
+const spatialPicking = ref(false);
+const cancelSpatialPick = ref(0);
 
 const ID_LISTS: Partial<Record<FieldKind, readonly string[]>> = {
     itemId: ITEM_IDS,
@@ -273,7 +276,7 @@ const replayText = ref<string | null>(null);
 </script>
 
 <template>
-    <VDialog v-model="open" max-width="900" persistent scrollable>
+    <VDialog v-model="open" max-width="900" persistent scrollable :scrim="!spatialPicking" :retain-focus="!spatialPicking" :content-props="{ style: spatialPicking ? 'opacity:0; pointer-events:none' : '' }">
         <VCard class="wl-mcserver-cmdbuilder">
             <VCardTitle class="d-flex align-center">
                 <span>{{ t("mcserver.commandBuilder.title", "Minecraft command builder") }}</span>
@@ -281,6 +284,8 @@ const replayText = ref<string | null>(null);
             </VCardTitle>
             <VDivider />
             <VCardText style="max-height: 70vh">
+                <CommandBuilderDiscovered v-if="serverId" :server-id="serverId" :cancel-pick="cancelSpatialPick" @picking="spatialPicking = $event" />
+                <template v-else>
                 <VAlert v-if="!serverId" type="info" variant="tonal" density="compact" class="mb-3">
                     {{ t("mcserver.commandBuilder.noServerBanner", "No managed server is connected here, so this command can be composed and copied but not sent. Open the command builder from a server's console to send it directly.") }}
                 </VAlert>
@@ -622,9 +627,10 @@ const replayText = ref<string | null>(null);
                         <VBtn size="small" variant="text" @click="replayText = null">{{ t("common.dismiss", "Dismiss") }}</VBtn>
                     </div>
                 </VAlert>
+                </template>
             </VCardText>
             <VDivider />
-            <VCardActions>
+            <VCardActions v-if="!serverId">
                 <VBtn variant="text" @click="open = false">{{ t("common.cancel", "Cancel") }}</VBtn>
                 <VBtn :prepend-icon="mdiContentCopy" variant="text" :disabled="!finalResult.text" @click="copyCommand">{{ t("mcserver.commandBuilder.copy", "Copy") }}</VBtn>
                 <VBtn color="primary" variant="tonal" :prepend-icon="mdiSend" :disabled="!!sendReason" :title="sendReason ?? undefined" @click="useCommand">
@@ -633,6 +639,11 @@ const replayText = ref<string | null>(null);
             </VCardActions>
         </VCard>
     </VDialog>
+    <Teleport to="body">
+        <VCard v-if="spatialPicking && open" style="position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:10020; max-width:calc(100vw - 24px)" role="status">
+            <VCardText>{{ t('mcserver.commandBuilder.pickDestination', 'Select a destination on the map. This does not execute the command.') }}<VBtn @click="cancelSpatialPick++">{{ t('common.cancel', 'Cancel') }}</VBtn></VCardText>
+        </VCard>
+    </Teleport>
 </template>
 
 <style scoped>

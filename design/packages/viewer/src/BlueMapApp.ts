@@ -165,6 +165,8 @@ export class BlueMapApp {
 
     /** Host callback used by command builders that are waiting for a map coordinate. */
     onMapCoordinatePick: ((point: { x: number; y: number; z: number }) => void) | null = null;
+    /** An embedding application may own accessible framework-based context controls. */
+    onMapContextMenu: ((detail: import("./MapViewer").MapInteractionEventDetail) => boolean) | null = null;
 
     allowRemoteInjection: (kind: "script" | "style", url: string) => boolean;
     dataRoot: string;
@@ -551,9 +553,10 @@ export class BlueMapApp {
             const marker = new ShapeMarker(`command-pick-${index}`);
             marker.updateFromData({
                 position: point,
-                shape: [{ x: -1, z: -1 }, { x: 1, z: -1 }, { x: 1, z: 1 }, { x: -1, z: 1 }],
-                fillColor: { r: 255, g: 193, b: 7, a: 80 },
-                borderColor: { r: 255, g: 193, b: 7, a: 255 },
+                shape: [{ x: point.x - 1, z: point.z - 1 }, { x: point.x + 1, z: point.z - 1 }, { x: point.x + 1, z: point.z + 1 }, { x: point.x - 1, z: point.z + 1 }],
+                shapeY: point.y,
+                fillColor: { r: 255, g: 193, b: 7, a: 0.32 },
+                borderColor: { r: 255, g: 193, b: 7, a: 1 },
                 depthTest: false,
                 listed: false,
             });
@@ -1142,6 +1145,7 @@ export class BlueMapApp {
         }
 
         if (detail.data.contextMenu) {
+            if (this.onMapContextMenu?.(detail as unknown as import("./MapViewer").MapInteractionEventDetail)) return;
             const context = detail.data;
             this.materialShell.openContextMenu(
                 detail as unknown as import("./MapViewer").MapInteractionEventDetail,

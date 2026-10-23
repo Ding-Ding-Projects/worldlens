@@ -119,17 +119,21 @@ export function setMarkerPreview(preview: StudioMarker | null): void {
 }
 
 /** Every marker belonging to one map, newest first. */
-export function markersFor(mapId: string): ComputedRef<readonly StudioMarker[]> {
+export interface MarkerScope { projectId: string; dimension: string }
+export function markerInScope(marker: StudioMarker, scope: MarkerScope): boolean {
+    return marker.extra?.worldlensProjectId === scope.projectId && marker.extra?.worldlensDimension === scope.dimension;
+}
+export function markersFor(mapId: string, scope?: MarkerScope): ComputedRef<readonly StudioMarker[]> {
     return computed(() =>
         markerStudioStore.markers
-            .filter((marker) => marker.mapId === mapId)
+            .filter((marker) => marker.mapId === mapId && (!scope || markerInScope(marker, scope)))
             .slice()
             .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     );
 }
 
-export function addMarker(mapId: string, draft: MarkerDraft): MarkerResult {
-    const made = createMarker(mapId, draft);
+export function addMarker(mapId: string, draft: MarkerDraft, scope?: MarkerScope): MarkerResult {
+    const made = createMarker(mapId, scope ? { ...draft, extra: { ...draft.extra, worldlensProjectId: scope.projectId, worldlensDimension: scope.dimension } } : draft);
     if (made.ok) { markerStudioStore.markers.push(made.marker); recordMarkerMutation("created", markerStudioStore.markers); }
     return made;
 }
@@ -207,14 +211,18 @@ export function markerCorpus(mapId: string): string {
 }
 
 /** Complete map-scoped export; the envelope is versioned by the pure model. */
-export function exportMarkers(mapId: string): string {
-    return exportStudioMarkers(mapId, markerStudioStore.markers.filter((marker) => marker.mapId === mapId));
+export function exportMarkers(mapId: string, scope?: MarkerScope): string {
+    return exportStudioMarkers(mapId, markerStudioStore.markers.filter((marker) => marker.mapId === mapId && (!scope || markerInScope(marker, scope))));
 }
 
 /** Import is additive and id-safe: an incoming id already present is not overwritten. */
-export function importMarkers(raw: string, mapId: string): { markers: StudioMarker[]; errors: string[] } {
+export function importMarkers(raw: string, mapId: string, scope?: MarkerScope): { markers: StudioMarker[]; errors: string[] } {
     if (markerStudioStore.failure !== null) return { markers: [], errors: ["The marker store could not be read; nothing was written."] };
     const result = importStudioMarkers(raw, mapId);
+    if (scope && result.errors.length === 0) {
+        if (result.markers.some(marker => marker.extra?.worldlensProjectId !== undefined && !markerInScope(marker, scope))) return { markers: [], errors: ["This document belongs to another project or dimension."] };
+        for (const marker of result.markers) marker.extra = { ...marker.extra, worldlensProjectId: scope.projectId, worldlensDimension: scope.dimension };
+    }
     if (result.errors.length === 0) {
         const ids = new Set(markerStudioStore.markers.map((marker) => marker.id));
         markerStudioStore.markers.push(...result.markers.filter((marker) => !ids.has(marker.id)));
