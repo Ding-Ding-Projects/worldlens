@@ -12,6 +12,10 @@ The parent checkpoint failed its continuous integration run (2115) because the m
 
 Recorded in HANDOFF.md under the dated section for this integration. Focused per-branch results remain as recorded in each branch's own checkpoint commit; they do not prove the integrated tree. Only checks actually run on the integrated tree count here.
 
+## World generation on GitHub Actions (added 2026-10-23)
+
+`main` is `23ad4a01`. The world generator dialog's GitHub Actions runner is real for the synthetic engine: `worldgen.yml` run 40026980431 generated `gui-test-world` from the dialog's own configuration document, compiled 961 tiles, published the prerelease `world-gui-test-world-40026980431`, and chained `render-world.yml` run 40027085151, which rendered and verified the same 961 tiles. The exact numbers are in HANDOFF.md's dated section. Remaining here: the vanilla-server engine has no runner on GitHub Actions and is refused by design; the dialog's dispatch is unit-tested but has not been exercised from the packaged Windows application; following a dispatched run and downloading its artifacts from the dialog (`await-workflow-completion`, `download-artifact`) stay unwired and the plan preview says so. The GitHub CLI device sign-in in the Linux container was offered and not approved, so nothing was stored.
+
 ## Remaining work by area
 
 - Managed hosting: root runtime bundling and acquisition, trusted TLS and host resolution, central registration, actual native/WSL/container deployment, registry sign-in and upload, LAN proof.

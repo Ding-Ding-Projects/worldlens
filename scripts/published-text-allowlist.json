@@ -847,19 +847,19 @@
       "why": "exact shell command spelling, verified against the historical command"
     },
     {
-      "line": 21,
+      "line": 149,
       "file": "HANDOFF.md",
       "column": 735,
       "why": "Ordinary JavaScript memory allocation terminology, not private prose."
     },
     {
-      "line": 56,
+      "line": 184,
       "file": "HANDOFF.md",
       "column": 31,
       "why": "Exact preserved historical branch reference, not newly authored presentation."
     },
     {
-      "line": 102,
+      "line": 230,
       "file": "HANDOFF.md",
       "column": 87,
       "why": "Exact preserved historical branch reference, not newly authored presentation."
@@ -1316,19 +1316,19 @@
     },
     {
       "file": "HANDOFF.md",
-      "line": 27,
+      "line": 155,
       "column": 735,
       "why": "ordinary JVM memory-allocation terminology"
     },
     {
       "file": "HANDOFF.md",
-      "line": 62,
+      "line": 190,
       "column": 31,
       "why": "literal historical version-control ref identifier"
     },
     {
       "file": "HANDOFF.md",
-      "line": 108,
+      "line": 236,
       "column": 87,
       "why": "literal historical version-control ref identifier"
     },
@@ -1580,13 +1580,13 @@
     },
     {
       "file": "HANDOFF.md",
-      "line": 130,
+      "line": 258,
       "column": 31,
       "why": "a historical integration branch name quoted as an exact identifier in a dated handoff record; the branch is gone and the record is not rewritten"
     },
     {
       "file": "HANDOFF.md",
-      "line": 176,
+      "line": 304,
       "column": 87,
       "why": "a historical integration branch name quoted as an exact identifier in a dated handoff record; the branch is gone and the record is not rewritten"
     }

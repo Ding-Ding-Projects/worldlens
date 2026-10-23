@@ -1,3 +1,57 @@
+# World generation on GitHub Actions from the dialog's configuration, 2026-10-23
+
+The world generator's GitHub Actions runner is real for the built-in synthetic engine. `main` is
+`23ad4a01` (`795241f3` the feature, `23ad4a01` the record check-offs), fast-forwarded from
+`ai/feature/20261023-worldgen-workflow` after CI runs 2121 and 2122 were green on it.
+
+What landed: `design/packages/shared/src/worldGenerationConfig.ts` builds and validates the one
+JSON document (version 1) the dialog exports; `.github/workflows/worldgen.yml` generates, verifies,
+packages and renders a world from it and can publish it as a prerelease asset and dispatch
+`render-world.yml`; `scripts/worldgen-config.mjs` validates the document on the runner through the
+built shared module; `WorldGeneratorDialog.vue` shows the document read-only, takes an account and
+repository, and starts the workflow through `worldgenActions:dispatch`
+(`design/packages/app/src/main/worldgenactions/ipc.ts`, over the CI render transport); the channel
+is in the bridge inventory, the preload type and the hosted capability profile (`github` opt-in);
+`dispatch-github-workflow` left `UNWIRED_STEP_KINDS`. The workflow is pinned in
+`scripts/lint-workflows.mjs` (142 actions over 9 workflows) and named in the cloud runner inventory
+(30 jobs). `docs/world-generation-in-actions.md` and the matching site article document it.
+
+## Live proof on GitHub
+
+- `worldgen.yml` run 40026980431 (`main` `23ad4a01`), dispatched with the document the dialog's
+  defaults produce for seed 20261023 and world name `gui-test-world`: 1000x1000 blocks, format
+  1.20.4. All four jobs succeeded: generate (3,969 chunks, 4 region files, 16,290,367 bytes,
+  spawn 500/66/488; `gui-test-world.zip` 8,152,060 bytes, SHA-256
+  `531f1b0a4bb9daf4963982b974781b6ab7af433258e49dab7ab35192532f3dda`), publish (prerelease
+  `world-gui-test-world-40026980431` with the zip, `SHA256SUMS`, `generation-config.json` and
+  `generation-receipt.json`), dispatch (started `render-world.yml`), and the in-run map compile
+  (961 hires tiles with the BlueMap CLI jar from ci.yml run 2123, `generated-map` artifact 34,300,364 bytes beside `generated-world` 8,149,016 bytes; the run took about four minutes end to end).
+- Independent check in this container: the published zip's SHA-256 matches `SHA256SUMS`, it holds
+  `level.dat` and `region/r.0.0.mca`, `r.0.1.mca`, `r.1.0.mca`, `r.1.1.mca` (16 MiB), and the
+  receipt's `config` is byte-identical to the document that was dispatched.
+- `render-world.yml` run 40027085151 (run 21), started by the chain job with
+  `world-source=release-asset`, `world=world-gui-test-world-40026980431/gui-test-world.zip`,
+  `map-id=gui-test-world`: the plan job downloaded the asset, verified it, measured 4 region files
+  holding 3,969 chunks over blocks 0..1023, planned one shard in one wave, and checked disk
+  (about 3 GiB needed, 84 GiB free). One shard rendered, the merge verified 961 of 961 hires tiles byte for byte with none missing or unexpected, `settings.json` and `textures.json` present and the lowres pyramid built at every level (16, 4 and 4 tiles), and the `rendered-map` artifact (33,966,961 bytes, 1,033 files) plus `webapp` were uploaded. The run completed successfully at 21:35 UTC, about six and a half minutes after the chain job started it.
+
+## Verification on the tree
+
+Typecheck passes for shared, bridge, app, ui and site. Tests: 22 shared config, 8 runner inventory,
+10 dispatch IPC, 8 hosted policy, 12 dialog (two new for the GitHub runner), the plan and docs index
+suites, 55 site content, 6 handoff and roadmap guards, 33 workflow lint and 3 drift tests pass;
+`node --test scripts/worldgen-config.test.mjs` passes 3. `workflows:check`, `workflows:drift`,
+`published-text:check`, ESLint and Prettier on the touched files pass. The generate steps also ran
+locally against a dialog-built 64-block document and produced `level.dat` and a region file.
+
+## Not verified here
+
+The vanilla-server engine on GitHub Actions (refused by design), the packaged Windows dialog
+dispatching for real (the dispatch path is unit-tested; this container has no GitHub CLI account),
+and every native Windows item already listed above. The GitHub CLI device sign-in was offered four
+times during this pass and not approved within its 15-minute windows; dispatch and verification
+went through the GitHub connector and the public API instead.
+
 # Managed workflow integration, 2026-10-23
 
 The eight preserved 2026-10-22/23 branches are merged into `ai/feature/20261023-managed-workflow-integration`
