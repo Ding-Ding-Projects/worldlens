@@ -1,13 +1,23 @@
-# Worldlens rendering, server and current-gallery continuation
+# Source preservation checkpoint
 
-Authorized scope: fix desktop input interception and live render speed; synchronize maintained BlueMap; provide live map progress, friendlier complete configuration, installed-distribution WSL, normal-close render continuity, adaptive speed, and local Minecraft server startup. Latest request adds more current configuration screenshots in the README and deployed documentation gallery.
+Owner request: preserve and push current work immediately. The wider implementation remains incomplete.
 
-Main now includes all implementation lanes, the reviewed management-panel exit refresh, and the complete render/server wiki guide in the article catalogue. BlueMap remains pinned at fcfea026, synchronized through upstream 51c05400. Retired bundled-Java recovery preserves custom paths; local lifecycle ownership survives separate requests and Start/Forget races. Dynamic scheduling uses real host measurements, levels 1–3 and manual override. WSL live scheduling remains explicitly unavailable.
+Repository: Ding-Ding-Projects/worldlens
+Branch: codex/worldlens-map-workspace-20261022
+Baseline: 49d009b5ad685022abbb47dcff00b43305589ba8
 
-Verified source checks include integrated WSL80, adaptive64, server80, management21 mounted checks and application/UI type checks. Latest formatted-runtime/management focused pass:28 checks. The combined ae1df096 root build passed. Real Ubuntu completion/promotion and separate owned-process cancellation passed. Actual adaptive idle3/pressure1/manual2-off were observed. Correct desktop-attached native queries confirmed normal close hides and reopening shows the same rendering process. A real isolated Paper26.3 fixture reached Done, returned protocol777 status and stopped gracefully with exit0. Existing server worlds, EULA choices and ports were preserved.
+## Preserved scope
 
-The configuration matrix has17 validated tuples with zero observed console/page errors and exact source/build binding;31 language/theme/size/zoom tuples remain. Actual physical DPI stayed144. A fresh representative English-light capture passed promotion with real before/after capture timestamps, immutable bundle copy, pixel/privacy review and owned normal-close teardown. README now shows it and preserves the prior config gallery in a historical archive. The site gallery includes the exact new PNG through the complete inventory. Twelve current useful control/workflow scenes are planned for the next built candidate, covering all eight tabs, group controls, search, regex and bilingual minimum layout.
+Preserve map drawing and discovered command controls. Owned changes are frozen at this checkpoint.
 
-Next: complete exact root build for this candidate; drive the final management exit/restart state; capture and inspect the twelve current config scenes; promote raw bytes into README and deployed gallery; finish missing config tuples without repeating unchanged ones; verify final source CI/release/downloads and normal matching installed update. Update the task issue/wiki/handoff and prove main remote SHA. Archive the full nonignored repository/admin state and ignored announcement variants before task-owned cleanup. Retain all incomplete or ownership-uncertain work. Never claim spawn alone is server readiness, change a custom Java selection, accept another EULA, terminate a WSL distribution or alter host power/login state.
+## Verification
 
-Broad screenshot freshness check remains red for seven pre-existing older interface groups (162 images). New promotion proof, complete image inventory and publication scan pass. Do not replace historical digests or claim broad current-interface acceptance. The missing recapture-command CDP label was restored from its existing authority metadata without changing historical image bytes or identity.
+27 focused tests passed in five files, viewer typecheck passed, UI typecheck passed before the last small live-player changes and whitespace checks passed. Full integrated build, deployment, release and installed-update proof are not claimed.
+
+## Remaining work
+
+Served materialShell conversion, remaining maintained viewer controls, advanced parser editors, complete localization, conflict-resolution/migration UX, geometry precision, integrated build and actual terrain/interaction evidence remain unfinished.
+
+## Resume
+
+Reconcile the current default branch without discarding work, finish missing consumers and verification, and integrate only completed work. Preserve current data and authentication. This checkpoint does not claim production completion.

@@ -58,7 +58,7 @@ export function markerProblems(draft: MarkerDraft): readonly MarkerProblem[] {
         if (!draft.points || draft.points.length < minimum || draft.points.length > 128 || draft.points.some((point) => ![point.x, point.y, point.z].every(Number.isFinite))) problems.push({ field: "geometry", message: `${draft.kind} markers need ${minimum} to 128 finite points.` });
         else if (draft.points.some((point) => point.y < MARKER_Y_MIN || point.y > MARKER_Y_MAX || Math.abs(point.x) > MARKER_XZ_LIMIT || Math.abs(point.z) > MARKER_XZ_LIMIT)) problems.push({ field: "geometry", message: "Geometry points must remain inside the world bounds." });
         else if ((draft.kind === "shape" || draft.kind === "extrude") && polygonArea(draft.points) === 0) problems.push({ field: "geometry", message: "Shape geometry must enclose a non-zero area." });
-        if (draft.kind === "extrude") {
+        if (draft.kind === "extrude" && Array.isArray(draft.points) && draft.points.length > 0) {
             const heights = draft.extra ?? {};
             const minY = typeof heights.shapeMinY === "number" ? heights.shapeMinY : Math.min(...draft.points!.map((point) => point.y));
             const maxY = typeof heights.shapeMaxY === "number" ? heights.shapeMaxY : Math.max(...draft.points!.map((point) => point.y));
@@ -86,8 +86,22 @@ export function draftFrom(marker: StudioMarker): MarkerDraft { return { label: m
 export function markerSearchText(marker: StudioMarker): string { return [marker.label, marker.detail, marker.kind ?? "poi", `${marker.position.x} ${marker.position.y} ${marker.position.z}`, ...(marker.points ?? []).map((point) => `${point.x} ${point.y} ${point.z}`)].join(" "); }
 export function filterStudioMarkers(markers: readonly StudioMarker[], query: string): StudioMarker[] { const needle = query.trim().toLocaleLowerCase(); return needle ? markers.filter((marker) => markerSearchText(marker).toLocaleLowerCase().includes(needle)) : [...markers]; }
 export function toViewerMarkerData(marker: StudioMarker): Record<string, unknown> {
-    const points = marker.points ?? []; const kind = marker.kind ?? "poi";
-    return { ...(marker.extra ?? {}), type: kind, position: { ...marker.position }, label: marker.label, detail: marker.detail || null, listed: true, sorting: marker.sorting ?? 0, ...(kind === "line" ? { line: points.map((point) => ({ ...point })) } : kind === "shape" ? { shape: points.map((point) => ({ x: point.x, z: point.z })) } : kind === "extrude" ? { shape: points.map((point) => ({ x: point.x, z: point.z })), shapeMinY: Math.min(...points.map((point) => point.y), marker.position.y), shapeMaxY: Math.max(...points.map((point) => point.y), marker.position.y) } : {}) };
+    const points = marker.points ?? [];
+    const kind = marker.kind ?? "poi";
+    const rgb = { r: parseInt(marker.colour.slice(1, 3), 16), g: parseInt(marker.colour.slice(3, 5), 16), b: parseInt(marker.colour.slice(5, 7), 16) };
+    const geometry = kind === "line" ? { line: points.map(point => ({ ...point })) }
+        : kind === "shape" ? { shape: points.map(point => ({ x: point.x, z: point.z })), shapeY: marker.position.y }
+        : kind === "extrude" ? {
+            shape: points.map(point => ({ x: point.x, z: point.z })),
+            shapeMinY: typeof marker.extra?.shapeMinY === "number" ? marker.extra.shapeMinY : Math.min(...points.map(point => point.y), marker.position.y),
+            shapeMaxY: typeof marker.extra?.shapeMaxY === "number" ? marker.extra.shapeMaxY : Math.max(...points.map(point => point.y), marker.position.y),
+        } : {};
+    return {
+        ...(marker.extra ?? {}), type: kind, position: { ...marker.position }, label: marker.label,
+        detail: marker.detail || null, listed: true, sorting: marker.sorting ?? 0,
+        lineColor: { ...rgb, a: 1 }, borderColor: { ...rgb, a: 1 }, fillColor: { ...rgb, a: 0.28 },
+        depthTest: false, ...geometry,
+    };
 }
 export function toMarkerSetData(markers: readonly StudioMarker[], mapId: string, preview: StudioMarker | null = null): { id: string; label: string; toggleable: boolean; defaultHidden: boolean; markers: Record<string, unknown> } { const entries: Record<string, unknown> = {}; for (const marker of markers.filter((entry) => entry.mapId === mapId && entry.visible)) entries[marker.id] = toViewerMarkerData(marker); if (preview?.mapId === mapId) entries[preview.id] = toViewerMarkerData(preview); return { id: MARKER_STUDIO_SET_ID, label: "My markers", toggleable: true, defaultHidden: false, markers: entries }; }
 

@@ -3,7 +3,8 @@ import type { ComputedRef } from "vue";
 import type { BlueMapApp, MarkerSetDataInput } from "@worldlens/viewer";
 
 import { MARKER_STUDIO_SET_ID, toMarkerSetData } from "./markerStudio.js";
-import { markerStudioStore } from "./markerStudioStore.js";
+import { markerStudioStore, markerInScope } from "./markerStudioStore.js";
+import { activeProfile } from "../../stores/profiles.js";
 
 /**
  * Keeps a studio marker set drawn on the running viewer, in step with the store.
@@ -27,7 +28,9 @@ export function useStudioMarkerLayer(
         const instance = app.value;
         if (instance === null) return;
 
-        const data = toMarkerSetData(markerStudioStore.markers, mapId.value, markerStudioStore.preview);
+        const profile = activeProfile() as (ReturnType<typeof activeProfile> & { projectId?: string; dimension?: string }) | null;
+        const scoped = profile ? markerStudioStore.markers.filter(marker => markerInScope(marker, { projectId: profile.projectId ?? profile.id, dimension: profile.dimension ?? mapId.value })) : markerStudioStore.markers;
+        const data = toMarkerSetData(scoped, mapId.value, markerStudioStore.preview);
         // `toMarkerSetData` builds the shape the viewer's own marker-set input expects; the
         // cast is here rather than widening that function's return type, because that
         // function is deliberately kept free of any import from the viewer package.
