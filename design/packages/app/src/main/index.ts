@@ -915,6 +915,7 @@ function startRendering(): RenderIpc {
             : javaResolver(choice, signal, onProgress, wsl);
 
     const render = installRenderIpc({
+        ...(mcServerIpc === null ? {} : { serverRegistry: mcServerIpc.registry }),
         idleSeconds: () => powerMonitor.getSystemIdleTime(),
         storageDir,
         defaultStorageDir: storageDir,

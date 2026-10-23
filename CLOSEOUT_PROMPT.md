@@ -1,13 +1,31 @@
-# Worldlens rendering, server and current-gallery continuation
+# Integration preservation checkpoint
 
-Authorized scope: fix desktop input interception and live render speed; synchronize maintained BlueMap; provide live map progress, friendlier complete configuration, installed-distribution WSL, normal-close render continuity, adaptive speed, and local Minecraft server startup. Latest request adds more current configuration screenshots in the README and deployed documentation gallery.
+Owner requested immediate source preservation. Implementation is incomplete and frozen for this checkpoint.
 
-Main now includes all implementation lanes, the reviewed management-panel exit refresh, and the complete render/server wiki guide in the article catalogue. BlueMap remains pinned at fcfea026, synchronized through upstream 51c05400. Retired bundled-Java recovery preserves custom paths; local lifecycle ownership survives separate requests and Start/Forget races. Dynamic scheduling uses real host measurements, levels 1–3 and manual override. WSL live scheduling remains explicitly unavailable.
+Repository: Ding-Ding-Projects/worldlens
+Branch: codex/worldlens-integration-preservation-20261023
+Baseline: 49d009b5ad685022abbb47dcff00b43305589ba8
 
-Verified source checks include integrated WSL80, adaptive64, server80, management21 mounted checks and application/UI type checks. Latest formatted-runtime/management focused pass:28 checks. The combined ae1df096 root build passed. Real Ubuntu completion/promotion and separate owned-process cancellation passed. Actual adaptive idle3/pressure1/manual2-off were observed. Correct desktop-attached native queries confirmed normal close hides and reopening shows the same rendering process. A real isolated Paper26.3 fixture reached Done, returned protocol777 status and stopped gracefully with exit0. Existing server worlds, EULA choices and ports were preserved.
+## Current state
 
-The configuration matrix has17 validated tuples with zero observed console/page errors and exact source/build binding;31 language/theme/size/zoom tuples remain. Actual physical DPI stayed144. A fresh representative English-light capture passed promotion with real before/after capture timestamps, immutable bundle copy, pixel/privacy review and owned normal-close teardown. README now shows it and preserves the prior config gallery in a historical archive. The site gallery includes the exact new PNG through the complete inventory. Twelve current useful control/workflow scenes are planned for the next built candidate, covering all eight tabs, group controls, search, regex and bilingual minimum layout.
+Parent changes add bridge channel/method declarations, typed preload generation methods, stored render-context resolution, a managed-host bundle build entry and exact Mineflayer dependency pins. Pinned package installation completed. This partial parent tree is not an integrated candidate and has not passed a new root build. Managed-host source and full handlers remain on the sibling implementation branches until integration.
 
-Next: complete exact root build for this candidate; drive the final management exit/restart state; capture and inspect the twelve current config scenes; promote raw bytes into README and deployed gallery; finish missing config tuples without repeating unchanged ones; verify final source CI/release/downloads and normal matching installed update. Update the task issue/wiki/handoff and prove main remote SHA. Archive the full nonignored repository/admin state and ignored announcement variants before task-owned cleanup. Retain all incomplete or ownership-uncertain work. Never claim spawn alone is server readiness, change a custom Java selection, accept another EULA, terminate a WSL distribution or alter host power/login state.
+## Preserved implementation branches
 
-Broad screenshot freshness check remains red for seven pre-existing older interface groups (162 images). New promotion proof, complete image inventory and publication scan pass. Do not replace historical digests or claim broad current-interface acceptance. The missing recapture-command CDP label was restored from its existing authority metadata without changing historical image bytes or identity.
+- codex/worldlens-gui-design-20261022 at 1cafc54de79b07d3e606812a8b3f479a9c273ae5
+- codex/worldlens-generation-config-20261022 at 68a3b481b95c80b8face18b46603dffd55e87852
+- codex/worldlens-managed-hosting-20261022 at e07fcb4db25d208b23ef13c8c0ea28f772798e90
+- codex/worldlens-commands-bots-20261022 at 6d75a45e2ca5d00ee49f61baa0a469e306deb748
+- codex/worldlens-workflow-gui-20261022 at d3e0769100ddeaabf6435e0b5ca865a7833b2760
+- codex/worldlens-map-workspace-20261022 at f5da0081822e42f406a14a972975a6f3f456c4f3
+- codex/worldlens-render-correctness-20261022 at 28db442da6c22093630145d25cdd5827c17de8a1
+
+Maintained BlueMap source is separately frozen on codex/managed-map-chrome-20261022. Its checkpoint and parent gitlink still require preservation after the active immutable privacy scans settle.
+
+## Verification and gaps
+
+The baseline exact build.bat passed. Focused implementation tests and type checks are recorded in each branch checkpoint; they do not prove this partial parent tree. Publication checks are pending. No new release, deployment, installation or completed runtime acceptance is claimed. Source whitespace warnings are recorded without delaying this owner-requested checkpoint.
+
+## Next steps
+
+Preserve all frozen branches and verify remote refs. Incorporate completed source semantically, finish main-owned generation/config/hosting/command/bot registrations, protected accounts, TLS/native/WSL runtime facts and Java bootstrap. Finish remaining viewer/parser/localization/conflict workflows. Run exact root build and installer entrypoints, genuine hidden runtime/terrain and workflow verification. Update documentation and issue handoff. Integrate completed work into the default branch only after its evidence is valid. Retain every incomplete branch and worktree.

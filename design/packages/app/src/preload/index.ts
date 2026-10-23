@@ -2655,6 +2655,7 @@ interface WorldlensBridge {
          * needs its own copy of a schema and no file has to fall back to a text box.
          */
         config: {
+            discover(id: string): Promise<unknown>;
             describe(id: string, path: string): Promise<unknown>;
             apply(
                 id: string,
@@ -2664,6 +2665,13 @@ interface WorldlensBridge {
                     changes: readonly { path: readonly string[]; value: unknown }[];
                 },
             ): Promise<unknown>;
+        };
+        generation: {
+            run(request: unknown): Promise<unknown>;
+            read(id: string): Promise<unknown>;
+            cancel(id: string): Promise<unknown>;
+            capabilities(target: unknown): Promise<unknown>;
+            onState(listener: (state: unknown) => void): () => void;
         };
         files: {
             list(id: string, dir: string): Promise<unknown>;
@@ -3090,6 +3098,7 @@ interface WorldlensBridge {
      * that rather than merely promise it.
      */
     renderEngine(renderId: string): Promise<RenderSummary | null>;
+    renderContext(renderId: string): Promise<{ projectId?: string; serverId?: string; mapId?: string; dimension?: string }>;
 
     /**
      * The real absolute folder maps are written to, and the default.
