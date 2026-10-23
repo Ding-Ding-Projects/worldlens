@@ -67,7 +67,7 @@ export interface OpaqueNode {
 
 export type DocumentNode = CommentNode | BlankNode | EntryNode | OpaqueNode;
 
-export type ConfigFileFormat = "properties" | "yaml" | "toml";
+export type ConfigFileFormat = "properties" | "yaml" | "toml" | "json";
 
 export interface ConfigDocument {
     readonly format: ConfigFileFormat;

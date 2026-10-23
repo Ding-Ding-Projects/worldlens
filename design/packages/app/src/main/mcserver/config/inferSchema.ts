@@ -9,7 +9,7 @@
  * was a deliberate design choice.
  */
 
-import type { Control } from "@worldlens/config";
+import type { Control, RecordTableColumn } from "@worldlens/config";
 
 export interface InferredField {
     readonly control: Control;
@@ -21,18 +21,16 @@ const PORT_KEY = /port$/i;
 const COLOR_HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const MINECRAFT_COLOR_CODE = /§[0-9a-fk-orA-FK-OR]/;
 
-function inferScalar(key: string, value: unknown, siblingEnum: readonly string[] | undefined): Control {
+function inferScalar(key: string, value: unknown, siblingEnum: readonly string[] | undefined): RecordTableColumn['control'] {
     if (typeof value === "boolean") return { kind: "switch" };
 
     if (typeof value === "number") {
         if (PORT_KEY.test(key)) return { kind: "number", integer: true, min: 1, max: 65535 };
         if (Number.isInteger(value)) {
-            // Widen generously around the observed value: an inferred bound is a fence
-            // against fat-fingering, not a claim about what the plugin actually accepts.
-            const magnitude = Math.max(64, Math.abs(value) * 4);
-            return { kind: "number", integer: true, min: -magnitude, max: magnitude };
+            // Observations cannot establish undocumented numerical bounds.
+            return { kind: "number", integer: true };
         }
-        return { kind: "number", integer: false, step: 0.1 };
+        return { kind: "number", integer: false };
     }
 
     if (typeof value === "string") {
@@ -59,15 +57,16 @@ export function inferField(key: string, value: unknown, siblings: readonly unkno
         return { control: { kind: "list", item: inferScalar(key, value[0] ?? "", undefined), itemLabel: key, unique: false }, guessed: true };
     }
     if (Array.isArray(value)) {
-        // Array of like objects: represented as a record table via key-value on the
-        // stringified rows, since `Control` has no dedicated "table of objects" kind and
-        // `key-value` is the closest structural fit among the twelve shipped kinds.
+        if (value.every((row): row is Record<string, unknown> => row !== null && typeof row === 'object' && !Array.isArray(row) && Object.values(row).every(child => child !== null && ['string','number','boolean'].includes(typeof child)))) {
+            const keys = [...new Set(value.flatMap(row => Object.keys(row)))];
+            return {control:{kind:'record-table',columns:keys.map(column => ({key:column,label:column,control:inferScalar(column,value.find(row => Object.hasOwn(row,column))?.[column],undefined)}))},guessed:true};
+        }
+        // Arbitrary recursive collections use the accompanying value-shape tree.
+        // A string mapping is retained only as a legacy renderer fallback.
         return { control: { kind: "key-value", keyLabel: "Index", valueLabel: "Value", secretKeys: [] }, guessed: true };
     }
 
-    const siblingStrings = siblings.filter((v): v is string => typeof v === "string");
-    const uniqueSiblings = Array.from(new Set(siblingStrings));
-    const siblingEnum = typeof value === "string" && uniqueSiblings.length > 1 && uniqueSiblings.length <= 8 ? uniqueSiblings : undefined;
+    const siblingEnum = undefined;
 
     return { control: inferScalar(key, value, siblingEnum), guessed: true };
 }

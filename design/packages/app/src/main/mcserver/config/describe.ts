@@ -18,6 +18,8 @@
  * There is no file for which the honest answer is a textarea.
  */
 
+import { describeValueShape, type ConfigValueShape } from "./valueShape.js";
+import { parseJson, setJsonValue } from "./parseJson.js";
 import { basename } from "node:path";
 
 import type { Control, FieldMeta } from "@worldlens/config";
@@ -57,6 +59,8 @@ export function fileKindFor(path: string): string {
 
 /** One key, as the renderer needs it: a control, a value, and why it is what it is. */
 export interface DescribedField {
+    /** Credential metadata for callers that must exclude vault-owned fields. */
+    readonly protected?: boolean;
     readonly path: readonly string[];
     /** Dotted, for search and for addressing a change. */
     readonly key: string;
@@ -65,6 +69,7 @@ export interface DescribedField {
     readonly help: string | null;
     readonly group: string;
     readonly value: unknown;
+    readonly valueShape?: ConfigValueShape;
     readonly state: ReconciledField["state"];
     /** True when the control was worked out from the value rather than hand-authored. */
     readonly guessed: boolean;
@@ -97,12 +102,14 @@ function describeReconciled(field: ReconciledField): DescribedField {
 
     return {
         path: field.path,
+        protected: meta?.secret === true,
         key,
         control,
         label: meta?.label ?? labelFor(field.path),
         help: meta?.doc ?? null,
         group: meta?.group ?? "Other settings",
         value: field.currentValue,
+        ...(field.currentValue !== undefined ? { valueShape: describeValueShape(field.currentValue) } : {}),
         state: field.state,
         guessed: field.inferred?.guessed === true,
         readOnlyReason: field.readOnlyReason ?? null,
@@ -132,6 +139,7 @@ function describeWithoutSchema(document: ConfigDocument): readonly DescribedFiel
             // navigable rather than one list of four hundred rows.
             group: entry.path.length > 1 ? entry.path.slice(0, -1).join(".") : "Settings",
             value: entry.value,
+            valueShape: describeValueShape(entry.value),
             state: "unknown" as const,
             guessed: true,
             readOnlyReason: entry.readOnlyReason ?? null,
@@ -144,7 +152,8 @@ function parseFor(format: ConfigFormat, text: string): ConfigDocument | null {
         const parsed = parseProperties(text);
         return parsed.ok ? parsed.value : null;
     }
-    if (format === "yaml" || format === "json") {
+    if (format === "json") { const parsed = parseJson(text); return parsed.ok ? parsed.value : null; }
+    if (format === "yaml") {
         const parsed = parseYaml(text);
         return parsed.ok ? parsed.value : null;
     }
@@ -206,6 +215,7 @@ export async function describeConfigFile(options: DescribeOptions): Promise<Answ
 export interface ConfigChange {
     readonly path: readonly string[];
     readonly value: unknown;
+    readonly valueShape?: ConfigValueShape;
 }
 
 export interface ApplyOptions {
@@ -246,7 +256,7 @@ export async function applyConfigChanges(options: ApplyOptions): Promise<Answer<
 
     for (const change of options.changes) {
         const applied =
-            format === "properties"
+            format === "json" ? setJsonValue(document, change.path, change.value, document.hash) : format === "properties"
                 ? setPropertiesValue(document, change.path.join("."), change.value, document.hash)
                 : format === "toml"
                   ? setTomlValue(document, change.path, change.value, document.hash)
