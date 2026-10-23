@@ -41,6 +41,8 @@
         "@worldlens/shared": "workspace:*",
         "@worldlens/worldgen": "workspace:*",
         "electron-store": "^10.1.0",
+        "mineflayer": "4.39.0",
+        "mineflayer-pathfinder": "2.4.5",
         "pdf-lib": "1.17.1",
         "yaml": "^2.6.1"
     }

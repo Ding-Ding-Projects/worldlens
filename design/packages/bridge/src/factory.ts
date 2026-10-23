@@ -167,6 +167,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             start: (id: unknown) => transport.invoke("mcserver:start", id),
             stop: (id: unknown, options: unknown) => transport.invoke("mcserver:stop", id, options),
             config: {
+                discover: (id: unknown) => transport.invoke("mcserver:config:discover", id),
                 describe: (id: unknown, path: unknown) =>
                     transport.invoke("mcserver:config:describe", id, path),
                 apply: (id: unknown, path: unknown, body: unknown) =>
@@ -196,6 +197,20 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                     transport.invoke("mcserver:worldgen:synthetic", request),
                 status: () => transport.invoke("mcserver:worldgen:status"),
                 cancel: () => transport.invoke("mcserver:worldgen:cancel"),
+            },
+            generation: {
+                run: (request: unknown) => transport.invoke("mcserver:generation:run", request),
+                read: (id: unknown) => transport.invoke("mcserver:generation:read", id),
+                cancel: (id: unknown) => transport.invoke("mcserver:generation:cancel", id),
+                capabilities: (target: unknown) => transport.invoke("mcserver:generation:capabilities", target),
+                onState: (listener: BridgeListener) => {
+                    const forward = (_event: unknown, payload: unknown): void => {
+                        if (payload !== null && typeof payload === "object" && "state" in payload)
+                            listener(payload.state);
+                    };
+                    transport.on("mcserver:generation:progress", forward);
+                    return () => transport.off("mcserver:generation:progress", forward);
+                },
             },
             hostProfiles: {
                 list: () => transport.invoke("mcserver:hostProfiles:list"),
@@ -416,6 +431,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             transport.invoke("render:resume", renderId, maps),
         dismissResume: (renderId: unknown) => transport.invoke("render:dismissResume", renderId),
         renderEngine: (renderId: unknown) => transport.invoke("render:engine", renderId),
+        renderContext: (renderId: unknown) => transport.invoke("render:context", renderId),
         mapStorageDirectory: () => transport.invoke("render:storageDirectory"),
         setMapStorageDirectory: (value: unknown) =>
             transport.invoke("render:setStorageDirectory", value),
@@ -1124,6 +1140,26 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
                 const forward = (_event: unknown, payload: unknown): void => listener(payload);
                 transport.on("ollama:runtimeProgress", forward);
                 return () => transport.off("ollama:runtimeProgress", forward);
+            },
+        },
+
+        managedHosting: {
+            access: {
+                prepare: (request: unknown) => transport.invoke("managedHosting:access:prepare", request),
+                read: (reference: unknown) => transport.invoke("managedHosting:access:read", reference),
+            },
+            exportContext: (request: unknown) => transport.invoke("managedHosting:export", request),
+            build: (request: unknown) => transport.invoke("managedHosting:build", request),
+            save: (request: unknown) => transport.invoke("managedHosting:save", request),
+            signIn: () => transport.invoke("managedHosting:signIn"),
+            signInStatus: () => transport.invoke("managedHosting:signInStatus"),
+            upload: (request: unknown) => transport.invoke("managedHosting:upload", request),
+            deploy: (request: unknown) => transport.invoke("managedHosting:deploy", request),
+            status: (operationId: unknown) => transport.invoke("managedHosting:status", operationId),
+            onDeviceChallenge: (listener: BridgeListener) => {
+                const forward = (_event: unknown, challenge: unknown): void => listener(challenge);
+                transport.on("managedHosting:deviceChallenge", forward);
+                return () => transport.off("managedHosting:deviceChallenge", forward);
             },
         },
 

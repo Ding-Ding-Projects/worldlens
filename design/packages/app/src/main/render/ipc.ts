@@ -41,6 +41,8 @@ import type { InterruptedRenderSummary, ResumeRefused } from "./resume.js";
 import { RenderSessionStore } from "./session.js";
 import { expandStorageDirectory, listRenderIds, renderWorkspace } from "./workspace.js";
 import { RenderPromotionStore, type FinishedRenderPromotion } from "./promotion.js";
+import { readManagedRenderContext } from "./context.js";
+import type { ServerRegistry } from "../mcserver/registry.js";
 
 /** The channel every progress, phase, log and outcome event arrives on. */
 export const RENDER_EVENT_CHANNEL = "render:event";
@@ -69,6 +71,7 @@ export interface RenderSummary {
 }
 
 export interface RenderIpcOptions {
+    readonly serverRegistry?: ServerRegistry;
     readonly idleSeconds?: () => number;
     /** Where renders are written. Already absolute and token-expanded. */
     readonly storageDir: string;
@@ -383,6 +386,8 @@ export function installRenderIpc(options: RenderIpcOptions): RenderIpc {
         const record = await readRenderRecord(renderWorkspace(storageDir, renderId).recordFile);
         return record === null ? null : toSummary(record, options.mounts);
     });
+    ipcMain.handle("render:context", (_event: IpcMainInvokeEvent, renderId: unknown) =>
+        readManagedRenderContext(storageDir, renderId, options.serverRegistry));
 
     // The real absolute path, which is what `mapStorage.ts` in the setup step says it
     // wants from the bridge: the renderer has no home directory, so it can only show a
@@ -475,6 +480,7 @@ const RENDER_CHANNELS = [
     "render:promotions",
     "render:claimPromotionNotification",
     "render:engine",
+    "render:context",
     "render:storageDirectory",
     "render:setStorageDirectory",
 ] as const;

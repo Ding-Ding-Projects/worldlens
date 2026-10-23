@@ -113,6 +113,20 @@ export function copyZstdWasmAsset(destDir) {
     cpSync(zstdWasmSrc, join(destDir, "zstd.wasm"));
 }
 
+/** The exported map host is self-contained and contains no prepared account data. */
+export async function buildManagedMapHost() {
+    await build({
+        entryPoints: ["../server/src/annotations/hostEntry.ts"],
+        outfile: "dist/managed-host.mjs",
+        bundle: true,
+        platform: "node",
+        format: "esm",
+        target: "node22",
+        banner: { js: nodeBuiltinRequireShimBanner },
+    });
+    assertHostedBundleIsElectronFree("dist/managed-host.mjs");
+}
+
 /**
  * The current and former repositories a build with no explicit override names.
  *
@@ -460,6 +474,8 @@ async function main() {
     });
 
     assertHostedBundleIsElectronFree("dist/hosted/index.js");
+
+    await buildManagedMapHost();
 
     console.log("app build done");
 }
