@@ -112,7 +112,7 @@ onUnmounted(() => {
     border-radius: 24px;
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
-    box-shadow: 0 8px 40px #0004;
+    box-shadow: var(--md-sys-elevation-shadow-level3);
     overflow-wrap: anywhere;
     text-align: center;
 }

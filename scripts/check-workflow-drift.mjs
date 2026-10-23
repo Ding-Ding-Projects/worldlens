@@ -117,7 +117,7 @@ function lineOf(text, index) {
  * skipped rather than reported: a fresh checkout without --recurse-submodules has nothing
  * to compare, and failing there would be a complaint about the clone rather than drift.
  */
-function chunkerVersionDrift(repoRoot) {
+export function chunkerVersionDrift(repoRoot) {
     const workflowPath = join(WORKFLOW_DIR, "chunk-world.yml");
     const submodulePath = join(repoRoot, "vendor/Chunker");
     if (!existsSync(workflowPath) || !existsSync(join(submodulePath, ".git"))) return [];

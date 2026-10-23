@@ -6,6 +6,59 @@ import type { SshProcessPreflightReport } from "@worldlens/shared";
 import { useServerStore } from "./useServers.js";
 
 const props = defineProps<{ hostId: string; minecraftVersion: string }>();
+
+/*
+ * The copy keys the report's codes map to, written out so each key has a visible call site:
+ * the copy catalogue guard (appCopy.test.ts) reads literal keys, and a key built only inside a
+ * template literal looks to it like a translation nobody uses. The fallback template literal
+ * below each lookup keeps an unexpected code readable rather than blank.
+ */
+const STAGE_KEYS: Readonly<Record<string, string>> = {
+    ssh: "mcserver.sshReadiness.stage.ssh",
+    platform: "mcserver.sshReadiness.stage.platform",
+    supervisor: "mcserver.sshReadiness.stage.supervisor",
+    directory: "mcserver.sshReadiness.stage.directory",
+    java: "mcserver.sshReadiness.stage.java",
+    memory: "mcserver.sshReadiness.stage.memory",
+    disk: "mcserver.sshReadiness.stage.disk",
+    port: "mcserver.sshReadiness.stage.port",
+};
+const STATE_KEYS: Readonly<Record<string, string>> = {
+    passed: "mcserver.sshReadiness.state.passed",
+    blocked: "mcserver.sshReadiness.state.blocked",
+    unknown: "mcserver.sshReadiness.state.unknown",
+};
+const REASON_KEYS: Readonly<Record<string, string>> = {
+    ready: "mcserver.sshReadiness.reason.ready",
+    "ssh-missing": "mcserver.sshReadiness.reason.sshMissing",
+    "host-key-changed": "mcserver.sshReadiness.reason.hostKeyChanged",
+    "host-key-unknown": "mcserver.sshReadiness.reason.hostKeyUnknown",
+    "auth-refused": "mcserver.sshReadiness.reason.authRefused",
+    unreachable: "mcserver.sshReadiness.reason.unreachable",
+    "remote-failed": "mcserver.sshReadiness.reason.remoteFailed",
+    "invalid-response": "mcserver.sshReadiness.reason.invalidResponse",
+    "linux-required": "mcserver.sshReadiness.reason.linuxRequired",
+    "systemd-254-required": "mcserver.sshReadiness.reason.systemd254Required",
+    "user-manager-unavailable": "mcserver.sshReadiness.reason.userManagerUnavailable",
+    "lingering-required": "mcserver.sshReadiness.reason.lingeringRequired",
+    "home-unavailable": "mcserver.sshReadiness.reason.homeUnavailable",
+    "unsafe-directory": "mcserver.sshReadiness.reason.unsafeDirectory",
+    "existing-canonical-directory-required":
+        "mcserver.sshReadiness.reason.existingCanonicalDirectoryRequired",
+    "writable-directory-required": "mcserver.sshReadiness.reason.writableDirectoryRequired",
+    "java-unavailable": "mcserver.sshReadiness.reason.javaUnavailable",
+    "java-unrecognized": "mcserver.sshReadiness.reason.javaUnrecognized",
+    "java-too-old": "mcserver.sshReadiness.reason.javaTooOld",
+    "memory-unavailable": "mcserver.sshReadiness.reason.memoryUnavailable",
+    "insufficient-memory": "mcserver.sshReadiness.reason.insufficientMemory",
+    "disk-unavailable": "mcserver.sshReadiness.reason.diskUnavailable",
+    "insufficient-disk": "mcserver.sshReadiness.reason.insufficientDisk",
+    "port-unavailable": "mcserver.sshReadiness.reason.portUnavailable",
+    "port-occupied": "mcserver.sshReadiness.reason.portOccupied",
+    cancelled: "mcserver.sshReadiness.reason.cancelled",
+    timeout: "mcserver.sshReadiness.reason.timeout",
+    "observation-failed": "mcserver.sshReadiness.reason.observationFailed",
+};
 const { t } = useI18n();
 const store = useServerStore();
 const memoryMb = ref(2048);
@@ -131,12 +184,14 @@ async function check(): Promise<void> {
                         )
                     }}
                 </p>
-                <p>{{ t("mcserver.sshReadiness.observedAt", { at: report.checkedAt }) }}</p>
+                <p>{{ t("mcserver.sshReadiness.observedAt", { at: report.checkedAt }, "Observed at {at}") }}</p>
                 <ol>
                     <li v-for="item in report.checks" :key="item.stage">
-                        <strong>{{ t(`mcserver.sshReadiness.stage.${item.stage}`) }}</strong
-                        >: {{ t(`mcserver.sshReadiness.state.${item.state}`) }}.
-                        {{ t(`mcserver.sshReadiness.reason.${item.code}`) }}
+                        <strong>{{
+                            t(STAGE_KEYS[item.stage] ?? `mcserver.sshReadiness.stage.${item.stage}`)
+                        }}</strong
+                        >: {{ t(STATE_KEYS[item.state] ?? `mcserver.sshReadiness.state.${item.state}`) }}.
+                        {{ t(REASON_KEYS[item.code] ?? `mcserver.sshReadiness.reason.${item.code}`) }}
                     </li>
                 </ol>
                 <dl>

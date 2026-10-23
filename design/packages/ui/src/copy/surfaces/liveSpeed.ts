@@ -243,7 +243,7 @@ export const LIVESPEED_FIXED = {
     "liveSpeed.dynamic.light": { en: "Workload is light; balanced scheduling restored.", yue: "負載較低，已恢復平衡排程。" },
     "liveSpeed.dynamic.steady": { en: "Keeping a light scheduling level while you work.", yue: "你工作期間維持較低排程等級。" },
     "liveSpeed.dynamic.unavailable": { en: "Dynamic control or its measurements are unavailable for this render.", yue: "呢次算圖未能使用動態控制或量度功能。" },
-    "liveSpeed.dynamic.apply-failed": { en: "The requested scheduling change could not be verified.", yue: "未能確認要求嘅排程調整。" },
+    "liveSpeed.dynamic.applyFailed": { en: "The requested scheduling change could not be verified.", yue: "未能確認要求嘅排程調整。" },
     "liveSpeed.title": { en: "Adjust speed", yue: "即時調速" },
     "liveSpeed.pickerLabel": { en: "Live speed, level 1 to 5", yue: "即時速度，1 至 5 級" },
     "liveSpeed.restartButton": { en: "Restart at this level", yue: "用呢個等級重新啟動" },

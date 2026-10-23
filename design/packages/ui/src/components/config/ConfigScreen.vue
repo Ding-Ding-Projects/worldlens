@@ -184,12 +184,24 @@ const activeScreen = computed<ScreenId | "history">(
     () => (tabsNav.value?.activePage?.id as ScreenId | "history" | undefined) ?? props.initialScreen,
 );
 
+/** One literal key per screen, so the copy catalogue guard can see each guide sentence is used. */
+const GUIDE_KEYS: Readonly<Record<string, string>> = {
+    core: "config.guide.core",
+    maps: "config.guide.maps",
+    storages: "config.guide.storages",
+    webapp: "config.guide.webapp",
+    webserver: "config.guide.webserver",
+    plugin: "config.guide.plugin",
+    run: "config.guide.run",
+};
 const screenGuidance = computed(() => {
     if (activeScreen.value === "history") {
         return t("config.guide.history", "Review saved versions and restore earlier configuration changes.");
     }
     const screen = SCREENS.find((candidate) => candidate.id === activeScreen.value);
-    return screen === undefined ? "" : t(`config.guide.${screen.id}`, screen.description);
+    return screen === undefined
+        ? ""
+        : t(GUIDE_KEYS[screen.id] ?? `config.guide.${screen.id}`, screen.description);
 });
 const workspaceIdentity = computed(() =>
     workspace.value?.folder ??

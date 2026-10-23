@@ -66,6 +66,17 @@ const lastOutcome = ref<SpeedAdjustmentResult | null>(null);
 const restarting = ref(false);
 
 const adaptive = ref<AdaptiveSpeedState>({ enabled: false, level: null, reason: "off" });
+/** One literal key per adaptive reason, so the copy catalogue guard sees each status sentence is used. */
+const ADAPTIVE_REASON_KEYS: Readonly<Record<AdaptiveSpeedState["reason"], string>> = {
+    off: "liveSpeed.dynamic.off",
+    sampling: "liveSpeed.dynamic.sampling",
+    pressure: "liveSpeed.dynamic.pressure",
+    idle: "liveSpeed.dynamic.idle",
+    light: "liveSpeed.dynamic.light",
+    steady: "liveSpeed.dynamic.steady",
+    unavailable: "liveSpeed.dynamic.unavailable",
+    "apply-failed": "liveSpeed.dynamic.applyFailed",
+};
 const adaptivePending = ref(false);
 let adaptiveTimer: ReturnType<typeof setTimeout> | undefined;
 let disposed = false;
@@ -189,7 +200,7 @@ async function restartNow(): Promise<void> {
 
             <v-switch :model-value="adaptive.enabled" :disabled="isDisabled || adaptivePending || pendingLevel !== null" :label="t('liveSpeed.dynamic.title')" @update:model-value="toggleAdaptive" />
             <p>{{ t("liveSpeed.dynamic.description") }}</p>
-            <p role="status" aria-live="polite">{{ t(`liveSpeed.dynamic.${adaptive.reason}`) }}<span v-if="adaptive.level !== null"> · {{ levelLabel(adaptive.level) }}</span></p>
+            <p role="status" aria-live="polite">{{ t(ADAPTIVE_REASON_KEYS[adaptive.reason]) }}<span v-if="adaptive.level !== null"> · {{ levelLabel(adaptive.level) }}</span></p>
             <p v-if="isDisabled" class="mb-livespeed__disabled" role="status">
                 {{
                     disabledReason === "actions"
