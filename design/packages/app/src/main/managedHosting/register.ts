@@ -83,7 +83,7 @@ export function registerManagedHostingIpc(ipc: ManagedHostingIpc, options: Manag
         "profile:readiness": async (_event, value) => {
             const row = record(value, ["profileId", "context", "target", "port"]);
             const context = await checkedContext(row.context);
-            await profiles.resolve(text(row.profileId), { context, target: target(row.target), port: Number(row.port) });
+            await profiles.resolve(text(row.profileId), { context, target: target(row.target), port: Number(row.port), excludedRoots: [resolve(text(row.context)), options.storageDir()] });
             return { state: "configured", health: "unverified", lanVerified: false, trust: "unverified" };
         },
         "access:prepare": async (_event, value) => { const row = record(value, ["username", "password"]); return access.prepare(text(row.username), text(row.password)); },
@@ -121,7 +121,7 @@ export function registerManagedHostingIpc(ipc: ManagedHostingIpc, options: Manag
         deploy: async (_event, value) => {
             const row = record(value, ["context", "target", "accessReference", "port", "profileId"]); const context = await checkedContext(row.context); const selected = target(row.target); const port = Number(row.port);
             if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Choose a host port from 1024 through 65535.");
-            const facts = row.profileId ? await profiles.resolve(text(row.profileId), { context, target: selected, port }) : await options.resolveHost({ context, target: selected, port });
+            const facts = row.profileId ? await profiles.resolve(text(row.profileId), { context, target: selected, port, excludedRoots: [resolve(text(row.context)), options.storageDir()] }) : await options.resolveHost({ context, target: selected, port });
             const origin = new URL(facts.origin); if (origin.origin !== facts.origin || origin.protocol !== "https:") throw new Error("Configure the exact HTTPS hosting origin and trusted TLS files first.");
             const identity = await verifyManagedMapContext(context);
             if (selected === "native-wsl") await verifyWslManagedContext(facts, identity, runner);

@@ -107,7 +107,13 @@ export class HostingProfileStore {
         const rows: unknown = JSON.parse(raw);
         if (!Array.isArray(rows) || rows.length > 100)
             throw new Error("Hosting profile storage is invalid.");
-        return rows.map(validateHostingProfile);
+        const profiles = rows.map(validateHostingProfile);
+        if (
+            profiles.some((profile) => !profile.id) ||
+            new Set(profiles.map((profile) => profile.id)).size !== profiles.length
+        )
+            throw new Error("Hosting profile identities are invalid.");
+        return profiles;
     }
     private mutate<T>(change: (rows: HostingProfile[]) => T): Promise<T> {
         const operation = this.pending
@@ -150,12 +156,21 @@ export class HostingProfileStore {
     }
     async resolve(
         id: string,
-        request: { context: string; target: ManagedHostTarget; port: number },
+        request: {
+            context: string;
+            target: ManagedHostTarget;
+            port: number;
+            excludedRoots?: string[];
+        },
     ): Promise<ManagedHostingHostFacts> {
         const profile = (await this.list()).find((row) => row.id === id);
         if (!profile || profile.target !== request.target || profile.port !== request.port)
             throw new Error("Choose a saved profile matching the target and port.");
         const context = await realpath(request.context);
+        const contexts = [
+            context,
+            ...(await Promise.all((request.excludedRoots ?? []).map((path) => realpath(path)))),
+        ];
         const tlsKey = await realpath(profile.tlsKey);
         const tlsCert = await realpath(profile.tlsCert);
         for (const path of [tlsKey, tlsCert]) {
@@ -163,7 +178,7 @@ export class HostingProfileStore {
             if (!file.isFile() || file.size > 1024 * 1024)
                 throw new Error("Choose a TLS file no larger than one megabyte.");
         }
-        if (contains(context, tlsKey) || contains(context, tlsCert))
+        if (contexts.some((root) => contains(root, tlsKey) || contains(root, tlsCert)))
             throw new Error("TLS files must stay outside the exported context.");
         const cert = new X509Certificate(await readFile(tlsCert));
         const host = new URL(profile.origin).hostname.replace(/^\[|\]$/gu, "");
@@ -184,8 +199,7 @@ export class HostingProfileStore {
             const dataRoot = await realpath(profile.dataRoot);
             if (
                 !(await stat(dataRoot)).isDirectory() ||
-                contains(context, dataRoot) ||
-                contains(dataRoot, context) ||
+                contexts.some((root) => contains(root, dataRoot) || contains(dataRoot, root)) ||
                 contains(dataRoot, tlsKey) ||
                 contains(dataRoot, tlsCert)
             )
@@ -218,6 +232,10 @@ export class HostingProfileStore {
             return linux;
         };
         const linuxContext = await convert(context);
+        const linuxContexts = [
+            linuxContext,
+            ...(await Promise.all(contexts.slice(1).map(convert))),
+        ];
         const linuxTlsKey = await convert(tlsKey);
         const linuxTlsCert = await convert(tlsCert);
         const check = await this.runner.run("wsl.exe", [
@@ -237,8 +255,9 @@ export class HostingProfileStore {
             check.code !== 0 ||
             !linuxDataRoot.startsWith("/") ||
             /[\r\n\0]/u.test(linuxDataRoot) ||
-            within(linuxContext, linuxDataRoot) ||
-            within(linuxDataRoot, linuxContext) ||
+            linuxContexts.some(
+                (root) => within(root, linuxDataRoot) || within(linuxDataRoot, root),
+            ) ||
             within(linuxDataRoot, linuxTlsKey) ||
             within(linuxDataRoot, linuxTlsCert)
         )

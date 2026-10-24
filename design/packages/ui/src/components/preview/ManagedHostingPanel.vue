@@ -22,6 +22,9 @@ import { workflowText as text } from "../mcserver/workflowText.js";
 const props = defineProps<{ renderId: string }>();
 const bridge = hostingBridge();
 const target = ref("native-windows");
+watch(target, (value) => {
+    if (profile.value && profile.value.target !== value) profile.value = null;
+});
 const destination = ref("");
 const localTag = ref("worldlens-map:local");
 const archivePath = ref("");

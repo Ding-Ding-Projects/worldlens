@@ -81,6 +81,14 @@ test.skipIf(!hasOpenSsl)(
             port: 8443,
         });
         expect(facts.origin).toBe(saved.origin);
+        await expect(
+            store.resolve(saved.id, {
+                context,
+                target: "native-windows",
+                port: 8443,
+                excludedRoots: [root],
+            }),
+        ).rejects.toThrow("outside the exported context");
         expect(facts).not.toHaveProperty("trust");
         await store.save({ ...saved, origin: "https://other.example:8443" });
         await expect(
