@@ -1906,3 +1906,12 @@ integrated application type check and 80 focused WSL/process/render-state checks
 The exact root build and native WSL acceptance are still pending. Adaptive scheduling
 and local-server lifecycle repairs remain isolated in active task branches.
 
+## Original-repository preservation closeout, 2026-10-23
+
+The original main contains the unfinished continuation snapshot ff5d17fe627782ef44e7ae7248c6d6c60b07b86b and Linux ZIP extraction repair 149ca9cd80371b5395e2f61a1482d7cdb57e5823, both read back from origin. The maintained viewer is preserved on its original master at cdaccf3653436db8cfc78ece21995b757a731dd8; the parent pin is updated here.
+
+The workspace CI failure used GNU tar for a Windows Node ZIP. The fix uses the existing unzip route for ZIP on Unix and retains native tar elsewhere. Real archive selection/extraction passed; focused hosting tests report 2 passed and 1 optional provenance integration test skipped. Replacement CI, complete root/native/package acceptance and installed update remain unverified.
+
+The current public source snapshot deliberately excludes legacy unpublished checkpoint history. That history remains locally preserved on codex/worldlens-local-recovery-20261023 and the source branches; do not transmit it. All incomplete checkouts and branches remain retained. Only the two previously documented merged integration branches are cleanup candidates after verified archive and remote ancestry proof. See CLOSEOUT_PROMPT.md and issue 186 for the current scope and next steps.
+
+The public evidence gallery serves its existing 15 reviewed images with matching hashes, and README links its exact home. Capture-time and runtime-provenance limitations remain disclosed. No new screenshot or completed-product claim was added.

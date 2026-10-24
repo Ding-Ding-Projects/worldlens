@@ -1,42 +1,32 @@
-# Worldlens managed workflow integration continuation
+# Worldlens preservation and cleanup handoff
 
-Authorized scope: integrate the preserved 2026-10-22/23 implementation branches into one integration branch, finish the wiring the parent checkpoint left open, repair the open navigation and watcher defects, update records and documentation, and deliver the proven result to the default branch. Native Windows acceptance stays a separately recorded gap.
+## Objective and latest owner direction
 
-## Integrated source
+Preserve the unfinished continuation in the original Worldlens repository and main branch, repair the observed CI failure, then delete only the previously identified safe cleanup candidates. No separate repository is used to preserve source.
 
-The integration branch `ai/feature/20261023-managed-workflow-integration` starts at `49d009b5` and merges, in order: managed hosting (`e07fcb4d`), typed configuration and generation coordinator (`68a3b481`), discovered commands and bots (`6d75a45e`), render identity and workspace leases (`28db442d`), map drawing and discovered command controls (`f5da0081`), reviewed managed workflow design references (`1cafc54d`), productive generation configuration and hosting UI (`d3e07691`), and the parent wiring checkpoint (`b7644a5e`). The only merge conflict was this file, which now replaces the seven per-branch checkpoints.
+## Verified source
 
-The parent checkpoint failed its continuous integration run (2115) because the managed-host bundle entry `../server/src/annotations/hostEntry.ts` lived only on the hosting branch. After the merge that entry resolves.
+- Original main source snapshot: ff5d17fe627782ef44e7ae7248c6d6c60b07b86b, read back from origin. Its tree exactly matches the integrated continuation source.
+- Linux ZIP repair: 149ca9cd80371b5395e2f61a1482d7cdb57e5823, read back from origin/main.
+- Maintained BlueMap default branch master: cdaccf3653436db8cfc78ece21995b757a731dd8, read back from its original origin. This handoff updates the parent pin to that source.
+- The unpublished earlier local history is retained on codex/worldlens-local-recovery-20261023 and its existing source branches. Do not transmit that legacy history. Resume public work from origin/main.
+
+## What is preserved
+
+Generation and workflow collection/recovery, protected bot accounts and connection-bound commands, hosting profiles and runtime acquisition, the Gradle batch-path repair, maintained viewer annotations and controls, and five previously uncommitted workflow integration edits. These are incomplete source checkpoints, not completed product acceptance.
 
 ## Verification
 
-Recorded in HANDOFF.md under the dated section for this integration. Focused per-branch results remain as recorded in each branch's own checkpoint commit; they do not prove the integrated tree. Only checks actually run on the integrated tree count here.
+CI run 40055043848 failed its workspace build because GNU tar cannot extract the pinned Windows Node ZIP. The repair selects the existing unzip route for ZIP on Unix while retaining native tar for Windows and tar.xz. A real ZIP reproduction returned GNU tar exit 2; the repaired route extracted the executable and license and excluded an unrelated sibling. Focused hosting tests: 2 passed, 1 optional provenance integration test skipped. Replacement CI remains pending at this record. No new root build, installer run, native UI capture, installed update or full runtime acceptance is claimed.
 
-## World generation on GitHub Actions (added 2026-10-23)
+An urgent publication review checked every previously unpublished text object. The two source candidates in the public snapshot were individually reviewed as ordinary technical content. Seven earlier local checkpoint blobs containing private wording were excluded from public ancestry. The complete local publication scanner did not produce a usable current verdict; retain its limitation rather than reporting it passed.
 
-`main` is `23ad4a01`. The world generator dialog's GitHub Actions runner is real for the synthetic engine: `worldgen.yml` run 40026980431 generated `gui-test-world` from the dialog's own configuration document, compiled 961 tiles, published the prerelease `world-gui-test-world-40026980431`, and chained `render-world.yml` run 40027085151, which rendered and verified the same 961 tiles. The exact numbers are in HANDOFF.md's dated section. Remaining here: the vanilla-server engine has no runner on GitHub Actions and is refused by design; the dialog's dispatch is unit-tested but has not been exercised from the packaged Windows application; following a dispatched run and downloading its artifacts from the dialog (`await-workflow-completion`, `download-artifact`) stay unwired and the plan preview says so. The GitHub CLI device sign-in in the Linux container was offered and not approved, so nothing was stored.
+## Evidence gallery
 
-## Closeout state (2026-10-23, 22:00 UTC)
+https://ding-ding-projects.github.io/worldlens-evidence/ is public. The existing 15 reviewed images, inventory and provenance article returned HTTP 200, and image SHA-256 digests matched the inventory. Capture times remain unavailable. Existing exclusions and source-receipt limitations remain disclosed. This handoff adds the direct README backlink.
 
-`main` is `21983936`, read back from the remote; CI run 2126 on it is green and release v1.0.2126 is published. The world prerelease exposed a release-job defect on `23ad4a01` (CI run 2123 failed because the nomination lookup counted `world-gui-test-world-40026980431` as the application's release); `5d8848a6` restricts the lookup to `v<major>.<minor>.<run>` tags and re-reviews the lint fingerprints. Run 2125 on `5d8848a6` published v1.0.2125 and then shows cancelled, superseded by the next push.
+## Cleanup and remaining work
 
-Cleanup candidates, each proven an ancestor of the remote `main`: the branches `ai/feature/20261023-worldgen-workflow` (`23ad4a01`) and `ai/feature/20261023-managed-workflow-integration` (`f4103ab9`), their local copies, and one scratch worktree detached at `49d009b5`. Nothing was deleted: the required verified archive could not be written because this container has no archive destination. The eight 2026-10-22/23 lane branches and the older retained branches were created by earlier work and stay retained. The `world-gui-test-world-40026980431` prerelease is the generated world's source and stays published.
+The proposed remote branch deletions are ai/feature/20261023-managed-workflow-integration and ai/feature/20261023-worldgen-workflow. Their tips must remain ancestors of verified origin/main, and the complete source plus Git administration archive must pass readback before deletion. Archive verification and deletion are pending at this record. Retain all ten local Worldlens checkouts, the maintained viewer checkout and every unfinished or uncertain branch. No stash exists in the inspected Worldlens or maintained viewer source.
 
-The GitHub CLI device sign-in was offered five times and not approved before each code expired; no credential is stored in the container.
-
-## Remaining work by area
-
-- Managed hosting: root runtime bundling and acquisition, trusted TLS and host resolution, central registration, actual native/WSL/container deployment, registry sign-in and upload, LAN proof.
-- Generation and configuration: downloaded-jar generation, historical and non-vanilla inventory adapters, Bedrock generation and runtime, unknown protected descriptor review, project `serverId` readback review.
-- Commands and bots: complex parser families, Java 21/Gradle bootstrap and actual Java compilation, runtime dependency and worker staging, Microsoft public-client configuration, real bot navigation.
-- Map workspace: served viewer shell conversion, remaining maintained viewer controls, advanced parser editors, complete localization, conflict-resolution and migration UX, geometry precision, actual terrain and interaction evidence.
-- Workflow UI and design references: mounted reference parity, real product behaviour, layout, accessibility and current screenshots.
-- Maintained BlueMap source: the viewer checkpoint on `codex/managed-map-chrome-20261022` and its parent gitlink still require preservation review.
-
-## Blocked on the physical Windows host
-
-Exact root `build.bat /s`, native WSL render acceptance, hidden-desktop captures (the twelve planned configuration scenes, the remaining language/theme/size/zoom tuples, the seven stale older image groups), management exit/restart native proof, and the installed-update application. None of these can be produced from a Linux container; the continuous integration Windows installer job supplies packaging proof only.
-
-## Resume
-
-Read HANDOFF.md first. Never claim spawn alone is server readiness, change a custom Java selection, accept another EULA, terminate a WSL distribution, alter host power or login state, or replace historical screenshot digests. Retain every incomplete or ownership-uncertain branch and worktree.
+Resume with the latest main CI result, then root build and packaged generation/hosting/bot/viewer acceptance. Keep the exact root build.bat and build-installer.bat entrypoints, existing data and credentials, safe native consent boundaries, and genuine evidence provenance. The broader feature inventory and issue 186 remain unfinished. Projects access lacks read:project; Status Hub enrollment is unavailable; no delivery to those surfaces is claimed.

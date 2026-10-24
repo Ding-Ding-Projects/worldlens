@@ -1001,3 +1001,12 @@ CI outcome: run 38799594959 succeeded at 8b6a6a318ad48ce398fd3558b3d31541c00604e
 Linux wizard acceptance on 2026-10-15 passed in the rebuilt Electron application at 1280×800, English/dark: saved profile selection, eight readiness results, disabled Next, report invalidation after a port edit and occupied-port refusal. This exposed and fixed a profile-loading defect when choosing remote process directly; both remote targets have regression coverage (30 selected UI tests pass). No page exceptions were observed. This is one controlled desktop tuple, not Windows, deployment-host, installation or console acceptance.
 
 2026-10-15 重建 Linux Electron 精靈驗收通過：1280×800 英文深色畫面，可選已儲存主機、顯示八項結果，下一步維持停用，改連接埠會清除舊結果，並拒絕已佔用連接埠。直接選遠端程序時未載入 profile 嘅問題已修正，兩種遠端目標都有回歸測試，30 項介面測試通過，冇觀察到頁面例外。只代表一組受控畫面，唔代表 Windows、部署主機、安裝或者 console 驗收。
+
+## Preservation closeout, 2026-10-23
+
+- [x] Preserve the current continuation source in the original repository main, with exact remote SHA readback.
+- [x] Repair ZIP extractor selection and verify the real archive regression (2 focused checks passed; 1 optional integration check skipped).
+- [x] Preserve maintained viewer source on its original default branch and link the reviewed public evidence gallery from README.
+- [ ] Verify the replacement main CI and installer results.
+- [ ] Verify the complete source/Git archive, then remove only the two documented merged integration branches.
+- [ ] Complete native generation, hosting, bot, viewer and packaged runtime acceptance; retain incomplete source branches and checkouts.
