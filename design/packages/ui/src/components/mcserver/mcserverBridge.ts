@@ -227,6 +227,7 @@ function bridge(root: unknown = globalThis): RawBridge["mcserver"] | undefined {
 
 /** What the main process reports once GitHub has accepted a worldgen.yml dispatch. */
 export interface WorldgenDispatchReceipt {
+    readonly operationId: string;
     readonly repository: string;
     readonly workflowFile: string;
     readonly ref: string;

@@ -3393,6 +3393,8 @@ interface WorldlensBridge {
     /** Generating a world on GitHub Actions from the dialog's configuration. See worldgenactions/ipc.ts. */
     worldgenActions: {
         dispatch(request: unknown): Promise<unknown>;
+        check(operationId: string): Promise<unknown>;
+        collect(operationId: string): Promise<unknown>;
     };
     bedrock: BedrockBridge;
 
