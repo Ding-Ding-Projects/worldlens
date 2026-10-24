@@ -39,8 +39,8 @@ destination, and sign-in verified against the running host.
 | Source commit | The build's recorded 40-character commit. A development build without one cannot export, and says so. |
 | Runtime bundle | `dist/managed-host.mjs`, hashed when first needed. |
 | Container base image | `node:22-slim` pinned to the manifest-list digest read from Docker Hub on 2026-10-23 (`REVIEWED_CONTAINER_BASE_IMAGE` in `managedHosting/wiring.ts`). Changing it is a review decision. |
-| Native runtimes | Staged Node binaries for Windows or Linux. Absent in this build, so the native targets report the matching runtime as unavailable. |
-| Hosting origin and TLS | Required for **Deploy**. This build has no settings surface for them yet, so deployment answers with an explicit unavailable state naming exactly that. |
+| Native runtimes | Staged Node binaries for Windows or Linux. A target reports unavailable whenever its matching verified runtime is absent. |
+| Hosting profile | Saved locally under `managed-hosting/profiles` in application data. Named profiles store target, exact HTTPS origin, host port, existing private data folder, local TLS certificate/key paths and selected WSL distribution. No account verifier or certificate bytes enter the profile. |
 
 Access verifiers live under `managed-hosting/access` in the app data folder, encrypted with the
 operating-system safe storage. Exported contexts are staged under `managed-hosting/contexts`.
@@ -54,22 +54,39 @@ operating-system safe storage. Exported contexts are staged under `managed-hosti
 - Registry sign-in requires a native Docker credential store; without one it stops before any
   prompt. A sign-in that is not confirmed within ten minutes expires and must be started again.
 - Upload is limited to Docker Hub and needs the confirmed destination; any other registry is refused.
-- Deployment to any target is unavailable in this build because no hosting origin and TLS files can
-  be configured. The other operations keep working.
+- Deployment requires a saved profile matching the selected target and port. Readiness rejects invalid or expired certificates, hostname mismatch, unusable TLS pairs and data folders overlapping context or TLS paths.
+- WSL resolves local context and TLS paths inside the selected distribution and verifies that the Linux data directory exists. A missing distribution or path remains unavailable.
 
 ## Security considerations
 
 Account preparation is consumed over standard input only, never as a process argument. Container
-deployment, when it becomes configurable, runs read-only with all capabilities dropped and
+deployment runs read-only with all capabilities dropped and
 `no-new-privileges`. Health and reachability checks are separate from account verification, and a
 reachable host is never reported as authenticated. Every hosting request must come from the
 application's own main frame.
 
+## Profile workflow
+
+In **Deploy and verify**, create or select a named profile. Choose a target, enter its exact HTTPS
+origin with the same port as **Host port**, select existing private storage and TLS files, then
+save. For WSL, enter an installed distribution and an existing absolute Linux data directory;
+TLS files remain selected through the local file picker and are mapped into that distribution.
+**Check readiness** validates the saved configuration against the current verified context.
+Editing a field or changing the context invalidates readiness. Deployment rechecks the saved
+profile before provisioning. Removing a profile removes only preferences, never data or a host.
+
+Readiness does not install trust, confirm client trust or claim LAN access. A deployment must still
+return its own health and reachability verdict. Profiles restore after restart; process handles,
+verified exported contexts and deployment observations remain session-owned and are not adopted
+from stale saved identifiers. Safe restart reattachment and in-flight deployment cancellation remain
+unfinished acceptance items. Device sign-in can be cancelled without exposing CLI output.
+**Stop this host** acts only on the current session's owned native Windows process or exact
+container, then observes exit. WSL stop remains unavailable because stopping a Windows wrapper
+does not prove that the Linux host stopped. Do not launch another host merely because an old observation is absent.
+
 ## Verification
 
-On the integrated tree: the hosting registrar's 4 request tests, the 2 protected-access tests, the
-5 build-facts and host-resolver tests, and the bridge channel inventory tests pass; the app and
-bridge packages typecheck. Not verified here: a real Docker build, save or upload, registry sign-in
+Focused checks cover registrar authorization and context identity, profile persistence and rejection, and GUI readiness invalidation including a late response after context change. Package-wide type checking remains incomplete in this continuation because generated workspace declarations are absent. Not verified here: a real Docker build, save or upload, registry sign-in
 against Docker Hub, any deployment, LAN reachability, and the packaged Windows application. Those
 remain open until a Windows host with Docker runs the packaged build.
 

@@ -102,13 +102,7 @@ export function managedHostingBuildFacts(
     };
 }
 
-/**
- * The host resolver this build ships: none. Deployment needs an HTTPS origin and trusted TLS
- * key/certificate files for the chosen host, and no settings surface collects those yet. The
- * registrar still answers every other hosting request (access preparation, export, image build,
- * save, registry sign-in and upload), so this is an explicit incomplete state rather than a
- * missing handler, and the message names exactly what is still missing.
- */
+/** Requests from older clients must select a saved profile before deployment. */
 export function unconfiguredHostResolver(): (request: {
     target: ManagedHostTarget;
     context: string;
@@ -116,7 +110,7 @@ export function unconfiguredHostResolver(): (request: {
 }) => Promise<ManagedHostingHostFacts> {
     return async (request) => {
         throw new ManagedHostingUnavailableError(
-            `Deploying to a ${request.target} host on port ${request.port} needs a configured HTTPS origin and trusted TLS key and certificate files, and this build has no hosting configuration surface for them yet. Export, image build, save, registry sign-in and upload remain available.`,
+            `Deploying to a ${request.target} host on port ${request.port} needs a configured HTTPS origin and trusted TLS key and certificate files, so select and check a saved hosting profile first. Export, image build, save, registry sign-in and upload remain available.`,
         );
     };
 }

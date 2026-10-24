@@ -41,7 +41,7 @@ test("preparation/read and guided sign-in have concrete consumers and independen
     const read = await invoke("access:read", prepared.value?.reference); expect(read.value?.state).toBe("prepared");
     expect((await invoke("signIn")).ok).toBe(true); await Promise.resolve();
     expect((await invoke("signInStatus")).value?.state).toBe("complete");
-    expect(handlers.size).toBe(10); registration.dispose(); expect(handlers.size).toBe(0);
+    expect(handlers.size).toBe(16); registration.dispose(); expect(handlers.size).toBe(0);
 });
 test("WSL bootstrap cannot trust a selected Linux path without matching reviewed bytes", async () => {
     const expected = { files: [{ path: "runtime/node", sha256: "a".repeat(64), bytes: 1 }], contextFingerprint: "b".repeat(64) } as ManagedMapExportReceipt;

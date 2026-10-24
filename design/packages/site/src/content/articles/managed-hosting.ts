@@ -9,7 +9,7 @@ export const managedHosting: Article = {
     category: "application",
     status: "ported-unverified",
     statusNote:
-        "The hosting registrar, protected access store, build-facts wiring and bridge inventory have focused proof on the integrated tree. No real Docker build, registry sign-in, deployment or packaged Windows flow has run, and deployment is an explicit unavailable state in this build.",
+        "The hosting registrar, protected access store, build-facts wiring and bridge inventory have focused proof on the integrated tree. No real Docker build, registry sign-in, deployment or packaged Windows flow has run, and deployment runtime acceptance remains unverified.",
     sections: [
         {
             id: "behaviour",
@@ -20,7 +20,7 @@ export const managedHosting: Article = {
                         "An exported context carries the map, the managed host runtime bundle, a health script and a generated Dockerfile, with a receipt over every file. Build, save, upload and deploy re-check the context against that receipt first.",
                         "Prepare access stores a salted memory-hard verifier and an opaque credential reference only. Prepared on this device, provisioned on the destination and sign-in verified stay three separate states.",
                         "Docker Hub sign-in uses the device flow. Only the one-time code and the fixed activation address reach the panel; CLI output is never shown or logged.",
-                        "Deploy needs a configured HTTPS origin and trusted TLS files. This build has no settings surface for them, so deployment answers with that exact reason while every other operation keeps working.",
+                        "Deploy uses a saved local profile with a matching HTTPS origin and port, private data folder, TLS files and selected native, WSL or container target. Readiness checks certificate identity and expiry, TLS compatibility and path separation. Trust and LAN health remain unverified until the running host is checked.",
                     ] },
             ],
         },
@@ -28,7 +28,7 @@ export const managedHosting: Article = {
             id: "configuration",
             title: "Configuration",
             blocks: [
-                { kind: "paragraph", content: "Inputs are resolved in the main process: the build's recorded 40-character source commit, dist/managed-host.mjs hashed on first use, and node:22-slim pinned to the manifest-list digest read from Docker Hub on 2026-10-23. Access verifiers live under managed-hosting/access in the app data folder, encrypted with the operating-system safe storage." },
+                { kind: "paragraph", content: "Inputs are resolved in the main process: the build's recorded 40-character source commit, dist/managed-host.mjs hashed on first use, and node:22-slim pinned to the manifest-list digest read from Docker Hub on 2026-10-23. Access verifiers live under managed-hosting/access in the app data folder, encrypted with the operating-system safe storage. Named hosting profiles persist separately under managed-hosting/profiles and contain paths and preferences only. WSL maps the local context and TLS paths inside the selected distribution. Editing a profile invalidates readiness. Removing it preserves hosts and data. Profile restoration does not reattach stale process handles; restart reattachment and deployment cancellation remain unfinished." },
             ],
         },
         {
@@ -40,7 +40,7 @@ export const managedHosting: Article = {
                         "A context not exported through this workflow, or whose files no longer match the receipt, is refused by every later operation.",
                         "Registry sign-in requires a native Docker credential store and expires after ten minutes without confirmation.",
                         "Upload accepts only a confirmed Docker Hub destination.",
-                        "Deployment to any target is unavailable until a hosting origin and TLS files can be configured.",
+                        "An unsaved or changed profile, mismatched target or port, unavailable WSL path, expired or mismatched certificate, or overlapping private storage prevents deployment.",
                     ] },
             ],
         },
@@ -48,7 +48,7 @@ export const managedHosting: Article = {
             id: "security",
             title: "Security considerations",
             blocks: [
-                { kind: "paragraph", content: "Account preparation is consumed over standard input only. Container deployment, when configurable, runs read-only with all capabilities dropped and no-new-privileges. Reachability and health are never reported as authentication, and every hosting request must come from the application's own main frame." },
+                { kind: "paragraph", content: "Account preparation is consumed over standard input only. Container deployment runs read-only with all capabilities dropped and no-new-privileges. Reachability and health are never reported as authentication, and every hosting request must come from the application's own main frame." },
             ],
         },
         {

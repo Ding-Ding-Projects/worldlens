@@ -9,7 +9,29 @@ export interface AccessReceipt {
     username: string;
     state: "prepared" | "provisioned" | "verified";
 }
+export interface HostingProfile {
+    id: string;
+    name: string;
+    target: "native-windows" | "native-wsl" | "container";
+    origin: string;
+    port: number;
+    dataRoot: string;
+    tlsCert: string;
+    tlsKey: string;
+    distribution: string;
+}
 export interface HostingBridge {
+    profiles?: {
+        list(): Promise<Answer<HostingProfile[]>>;
+        save(profile: HostingProfile): Promise<Answer<HostingProfile>>;
+        remove(id: string): Promise<Answer<{ removed: boolean }>>;
+        readiness(request: {
+            profileId: string;
+            context: string;
+            target: string;
+            port: number;
+        }): Promise<Answer<{ state: string; trust: string; health: string; lanVerified: boolean }>>;
+    };
     access?: {
         prepare(request: { username: string; password: string }): Promise<Answer<AccessReceipt>>;
         read(reference: string): Promise<Answer<AccessReceipt>>;
@@ -29,6 +51,10 @@ export interface HostingBridge {
         context: string;
     }): Promise<Answer<{ path: string; sha256: string; bytes: number }>>;
     signIn?(): Promise<Answer<{ state: string; verificationUrl?: string; userCode?: string }>>;
+    signInCancel?(): Promise<Answer<{ state: string }>>;
+    stop?(
+        id: string,
+    ): Promise<Answer<{ operationId: string; state: string; url?: string; health?: string }>>;
     signInStatus?(): Promise<
         Answer<{ state: string; verificationUrl?: string; userCode?: string }>
     >;
@@ -42,6 +68,7 @@ export interface HostingBridge {
         target: string;
         accessReference: string;
         port: number;
+        profileId?: string;
     }): Promise<Answer<{ operationId: string; state: string; url?: string; health?: string }>>;
     status?(
         id: string,
