@@ -28,7 +28,7 @@
  * cannot skip it by forgetting a step.
  */
 
-import { verifyHostingRuntime } from "./stage-hosting-runtime.mjs";
+import { assertHostingRuntimeProvenance } from "./stage-hosting-runtime.mjs";
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { readFile, stat } from "node:fs/promises";
@@ -118,7 +118,7 @@ export async function assertPackagedBundles(resourcesDirectory, options = {}) {
         log(`${name.padEnd(8)} ok  ${String(size).padStart(10)} bytes  ${file}`);
     }
 
-    if (manifest.hosting) verifyHostingRuntime(join(root, "bundled", "hosting"), { pins: manifest.hosting });
+    if (manifest.hosting) await assertHostingRuntimeProvenance(join(root, "bundled", "hosting"));
     return proved;
 }
 
