@@ -16,7 +16,11 @@ import { installAppVoice } from "../../copy/appVoice.js";
 import { setLanguageMode, setFunnyLevel } from "../setup/setupI18n.js";
 
 const voiceStops: (() => void)[] = [];
-beforeEach(() => { setLanguageMode("en"); setFunnyLevel("en", 1); setFunnyLevel("yue", 1); });
+beforeEach(() => {
+    setLanguageMode("en");
+    setFunnyLevel("en", 1);
+    setFunnyLevel("yue", 1);
+});
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -56,8 +60,22 @@ function mountDialog(open = true) {
         props: {
             modelValue: open,
             versions: [
-                { version: "1.21.4", stability: "release", javaFeature: 21, downloadUrl: null, sha256: null, releasedAt: null },
-                { version: "1.20.4", stability: "release", javaFeature: 17, downloadUrl: null, sha256: null, releasedAt: null },
+                {
+                    version: "1.21.4",
+                    stability: "release",
+                    javaFeature: 21,
+                    downloadUrl: null,
+                    sha256: null,
+                    releasedAt: null,
+                },
+                {
+                    version: "1.20.4",
+                    stability: "release",
+                    javaFeature: 17,
+                    downloadUrl: null,
+                    sha256: null,
+                    releasedAt: null,
+                },
             ],
         },
         global: { plugins: [i18n, vuetify] },
@@ -131,52 +149,99 @@ describe("WorldGeneratorDialog", () => {
 
     it("disables the preview-plan button while the version is unchosen", () => {
         const wrapper = mountDialog(true);
-        const previewButton = dialogButtons().find((b) => (b.textContent ?? "").includes("Preview plan"));
+        const previewButton = dialogButtons().find((b) =>
+            (b.textContent ?? "").includes("Preview plan"),
+        );
         expect(previewButton).toBeDefined();
         expect(previewButton?.disabled).toBe(true);
         wrapper.unmount();
     });
 
     it("sends exact decimal target bytes through Generate without an ignored server version", async () => {
-        const synthetic = vi.fn(async () => ({ ok: true, value: { bytes: 1_000_003_000, chunkCount: 100, worldFolder: "generated/world", seed: 123, zipPath: null, targetBytes: 1_000_000_000, overshootBytes: 3000, cancelled: false } }));
+        const synthetic = vi.fn(async () => ({
+            ok: true,
+            value: {
+                bytes: 1_000_003_000,
+                chunkCount: 100,
+                worldFolder: "generated/world",
+                seed: 123,
+                zipPath: null,
+                targetBytes: 1_000_000_000,
+                overshootBytes: 3000,
+                cancelled: false,
+            },
+        }));
         vi.stubGlobal("worldlens", { mcserver: { worldgen: { synthetic } } });
         const wrapper = mountDialog();
         try {
-            const destination = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Destination");
+            const destination = wrapper
+                .findAllComponents({ name: "VTextField" })
+                .find((field) => field.props("label") === "Destination");
             expect(destination).toBeDefined();
             destination!.vm.$emit("update:modelValue", "generated");
-            dialogButtons().find((button) => button.textContent?.includes("1 GB ("))!.click();
+            dialogButtons()
+                .find((button) => button.textContent?.includes("1 GB ("))!
+                .click();
             await wrapper.vm.$nextTick();
-            const generate = dialogButtons().find((button) => button.textContent?.trim() === "Generate")!;
+            const generate = dialogButtons().find(
+                (button) => button.textContent?.trim() === "Generate",
+            )!;
             expect(generate.disabled).toBe(false);
-            generate.click(); await flushPromises();
-            expect(synthetic).toHaveBeenCalledWith(expect.objectContaining({ targetBytes: 1_000_000_000, resume: false, outputMode: "folder", destination: "generated" }));
+            generate.click();
+            await flushPromises();
+            expect(synthetic).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    targetBytes: 1_000_000_000,
+                    resume: false,
+                    outputMode: "folder",
+                    destination: "generated",
+                }),
+            );
             expect(dialogText()).toContain("overshoot 3000 bytes");
-        } finally { wrapper.unmount(); }
+        } finally {
+            wrapper.unmount();
+        }
     });
 
     it("selects the exact ten-billion-byte target and exposes resume", async () => {
         const wrapper = mountDialog();
         try {
-            dialogButtons().find((button) => button.textContent?.includes("10 GB ("))!.click();
+            dialogButtons()
+                .find((button) => button.textContent?.includes("10 GB ("))!
+                .click();
             await wrapper.vm.$nextTick();
-            const target = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Minimum world bytes (decimal)");
+            const target = wrapper
+                .findAllComponents({ name: "VTextField" })
+                .find((field) => field.props("label") === "Minimum world bytes (decimal)");
             expect(target!.props("modelValue")).toBe(10_000_000_000);
             expect(dialogText()).toContain("Resume the existing generated world");
-        } finally { wrapper.unmount(); }
+        } finally {
+            wrapper.unmount();
+        }
     });
 
     it("requests cancellation when an active generator dialog is unmounted", async () => {
         let finish: ((value: unknown) => void) | undefined;
-        const synthetic = vi.fn(() => new Promise((resolve) => { finish = resolve; }));
+        const synthetic = vi.fn(
+            () =>
+                new Promise((resolve) => {
+                    finish = resolve;
+                }),
+        );
         const cancel = vi.fn(async () => ({ ok: true, value: { cancelling: true } }));
         vi.stubGlobal("worldlens", { mcserver: { worldgen: { synthetic, cancel } } });
         const wrapper = mountDialog();
-        const destination = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Destination")!;
+        const destination = wrapper
+            .findAllComponents({ name: "VTextField" })
+            .find((field) => field.props("label") === "Destination")!;
         destination.vm.$emit("update:modelValue", "generated");
-        dialogButtons().find((button) => button.textContent?.includes("1 GB ("))!.click();
+        dialogButtons()
+            .find((button) => button.textContent?.includes("1 GB ("))!
+            .click();
         await wrapper.vm.$nextTick();
-        dialogButtons().find((button) => button.textContent?.trim() === "Generate")!.click();
+        dialogButtons()
+            .find((button) => button.textContent?.trim() === "Generate")!
+            .click();
         await flushPromises();
         expect(synthetic).toHaveBeenCalledTimes(1);
         wrapper.unmount();
@@ -188,30 +253,45 @@ describe("WorldGeneratorDialog", () => {
     it("updates measured labels and prose live from language and funny-level settings", async () => {
         const wrapper = mountDialog();
         try {
-            dialogButtons().find((button) => button.textContent?.includes("10 GB ("))!.click();
+            dialogButtons()
+                .find((button) => button.textContent?.includes("10 GB ("))!
+                .click();
             await wrapper.vm.$nextTick();
             expect(dialogText()).toContain("Minimum world bytes (decimal)");
-            setLanguageMode("yue"); await wrapper.vm.$nextTick();
+            setLanguageMode("yue");
+            await wrapper.vm.$nextTick();
             expect(dialogText()).toContain("世界最少位元組數（十進制）");
             expect(dialogText()).not.toContain("Minimum world bytes (decimal)");
-            setLanguageMode("bilingual"); await wrapper.vm.$nextTick();
+            setLanguageMode("bilingual");
+            await wrapper.vm.$nextTick();
             expect(dialogText()).toContain("Minimum world bytes (decimal)");
             expect(dialogText()).toContain("世界最少位元組數（十進制）");
             expect(dialogText()).toContain("10,000,000,000");
             const serious = dialogText();
-            setFunnyLevel("en", 5); await wrapper.vm.$nextTick();
+            setFunnyLevel("en", 5);
+            await wrapper.vm.$nextTick();
             expect(dialogText()).not.toBe(serious);
             expect(dialogText()).toContain("files must bring the receipts");
             expect(dialogText()).not.toContain("正方形識講大話");
-            setFunnyLevel("yue", 5); await wrapper.vm.$nextTick();
+            setFunnyLevel("yue", 5);
+            await wrapper.vm.$nextTick();
             expect(dialogText()).toContain("正方形識講大話");
             expect(dialogText()).toContain("files must bring the receipts");
-        } finally { wrapper.unmount(); }
+        } finally {
+            wrapper.unmount();
+        }
     });
     it("sends the exact generation configuration to worldgen.yml when the GitHub Actions runner is chosen", async () => {
         const dispatch = vi.fn(async (request: { config: unknown }) => ({
             ok: true,
-            value: { repository: "owner/name", workflowFile: "worldgen.yml", ref: "main", dispatchedAt: "2026-10-23T10:00:00.000Z", inputs: { "generation-config": JSON.stringify(request.config) }, runsUrl: "https://github.com/owner/name/actions/workflows/worldgen.yml" },
+            value: {
+                repository: "owner/name",
+                workflowFile: "worldgen.yml",
+                ref: "main",
+                dispatchedAt: "2026-10-23T10:00:00.000Z",
+                inputs: { "generation-config": JSON.stringify(request.config) },
+                runsUrl: "https://github.com/owner/name/actions/workflows/worldgen.yml",
+            },
         }));
         vi.stubGlobal("worldlens", { worldgenActions: { dispatch } });
         const wrapper = mountDialog();
@@ -225,39 +305,86 @@ describe("WorldGeneratorDialog", () => {
             const shown = JSON.parse(preview.textContent ?? "{}");
             // The defaults of the dialog, as the document the runner validates: twice the
             // 500-block radius, the modern format when no version is chosen, the synthetic engine.
-            expect(shown).toMatchObject({ version: 1, engine: "synthetic", size: 1000, worldName: "generated-world", format: "1.20.4", outputMode: "zip" });
+            expect(shown).toMatchObject({
+                version: 1,
+                engine: "synthetic",
+                size: 1000,
+                worldName: "generated-world",
+                format: "1.20.4",
+                outputMode: "zip",
+            });
 
-            const seed = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Seed")!;
+            const seed = wrapper
+                .findAllComponents({ name: "VTextField" })
+                .find((field) => field.props("label") === "Seed")!;
             seed.vm.$emit("update:modelValue", "20261023");
-            const repository = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Repository (owner/name)")!;
+            const repository = wrapper
+                .findAllComponents({ name: "VTextField" })
+                .find((field) => field.props("label") === "Repository (owner/name)")!;
             repository.vm.$emit("update:modelValue", "owner/name");
             await flushPromises();
-            const start = dialogButtons().find((button) => button.textContent?.trim() === "Start on GitHub Actions")!;
+            const start = dialogButtons().find(
+                (button) => button.textContent?.trim() === "Start on GitHub Actions",
+            )!;
             expect(start.disabled).toBe(false);
             start.click();
             await flushPromises();
             expect(dispatch).toHaveBeenCalledTimes(1);
-            const request = dispatch.mock.calls[0]![0] as { owner: string; repo: string; config: Record<string, unknown>; options: unknown };
+            const request = dispatch.mock.calls[0]![0] as {
+                owner: string;
+                repo: string;
+                config: Record<string, unknown>;
+                options: unknown;
+            };
             expect(request.owner).toBe("owner");
             expect(request.repo).toBe("name");
-            expect(request.options).toEqual({ render: true, publish: "artifact", dispatchRender: false });
-            expect(request.config).toMatchObject({ version: 1, engine: "synthetic", seed: 20261023, size: 1000, worldName: "generated-world", format: "1.20.4" });
+            expect(request.options).toEqual({
+                render: true,
+                publish: "artifact",
+                dispatchRender: false,
+            });
+            expect(request.config).toMatchObject({
+                version: 1,
+                engine: "synthetic",
+                seed: 20261023,
+                size: 1000,
+                worldName: "generated-world",
+                format: "1.20.4",
+            });
             expect(dialogText()).toContain("Dispatched worldgen.yml on main of owner/name");
-            expect(dialogText()).toContain("https://github.com/owner/name/actions/workflows/worldgen.yml");
-        } finally { wrapper.unmount(); }
+            expect(dialogText()).toContain(
+                "https://github.com/owner/name/actions/workflows/worldgen.yml",
+            );
+        } finally {
+            wrapper.unmount();
+        }
     });
 
     it("refuses to start on GitHub Actions without a repository and shows the main process's refusal", async () => {
-        const dispatch = vi.fn(async () => ({ ok: false, failure: { code: "call-failed", message: "Sign in from GitHub accounts, then select that account here.", detail: null } }));
+        const dispatch = vi.fn(async () => ({
+            ok: false,
+            failure: {
+                code: "call-failed",
+                message: "Sign in from GitHub accounts, then select that account here.",
+                detail: null,
+            },
+        }));
         vi.stubGlobal("worldlens", { worldgenActions: { dispatch } });
         const wrapper = mountDialog();
         try {
-            const github = wrapper.findAllComponents({ name: "VRadio" }).find((radio) => radio.props("label") === "GitHub Actions")!;
+            const github = wrapper
+                .findAllComponents({ name: "VRadio" })
+                .find((radio) => radio.props("label") === "GitHub Actions")!;
             github.find("input").element.click();
             await flushPromises();
-            const start = () => dialogButtons().find((button) => button.textContent?.trim() === "Start on GitHub Actions")!;
+            const start = () =>
+                dialogButtons().find(
+                    (button) => button.textContent?.trim() === "Start on GitHub Actions",
+                )!;
             expect(start().disabled).toBe(true);
-            const repository = wrapper.findAllComponents({ name: "VTextField" }).find((field) => field.props("label") === "Repository (owner/name)")!;
+            const repository = wrapper
+                .findAllComponents({ name: "VTextField" })
+                .find((field) => field.props("label") === "Repository (owner/name)")!;
             repository.vm.$emit("update:modelValue", "not a slug");
             await flushPromises();
             expect(dialogText()).toContain("Must be owner/name.");
@@ -268,6 +395,63 @@ describe("WorldGeneratorDialog", () => {
             await flushPromises();
             expect(dispatch).toHaveBeenCalledTimes(1);
             expect(dialogText()).toContain("Sign in from GitHub accounts");
-        } finally { wrapper.unmount(); }
+        } finally {
+            wrapper.unmount();
+        }
+    });
+});
+
+describe("workflow collection controls", () => {
+    it("restores a recorded run and opens only its verified collected world", async () => {
+        const operationId = "12345678-1234-1234-1234-123456789abc";
+        localStorage.setItem("worldlens.worldgen.actions.operation.v1", operationId);
+        const receipt = {
+            operationId,
+            repository: "owner/repo",
+            workflowFile: "worldgen.yml",
+            ref: "main",
+            dispatchedAt: "2026-10-23T10:00:00Z",
+            inputs: {},
+            runsUrl: "https://github.com/owner/repo/actions/workflows/worldgen.yml",
+        };
+        const record = {
+            receipt,
+            run: {
+                id: 23,
+                status: "completed",
+                conclusion: "success",
+                htmlUrl: "https://github.com/owner/repo/actions/runs/23",
+            },
+            jobs: [],
+            worldFolder: null,
+        };
+        const check = vi.fn(async () => ({ ok: true, value: record }));
+        const collect = vi.fn(async () => ({
+            ok: true,
+            value: { ...record, worldFolder: "C:/owned/generated-world" },
+        }));
+        vi.stubGlobal("worldlens", { worldgenActions: { check, collect } });
+        const wrapper = mountDialog();
+        try {
+            await flushPromises();
+            const github = wrapper
+                .findAllComponents({ name: "VRadio" })
+                .find((radio) => radio.props("label") === "GitHub Actions")!;
+            github.find("input").element.click();
+            await flushPromises();
+            expect(check).toHaveBeenCalledWith(operationId);
+            expect(document.querySelector('[data-test="worldgen-open-world"]')).toBeNull();
+            (document.querySelector('[data-test="worldgen-collect"]') as HTMLButtonElement).click();
+            await flushPromises();
+            expect(collect).toHaveBeenCalledWith(operationId);
+            (
+                document.querySelector('[data-test="worldgen-open-world"]') as HTMLButtonElement
+            ).click();
+            await flushPromises();
+            expect(wrapper.emitted("openWorld")).toEqual([["C:/owned/generated-world"]]);
+        } finally {
+            wrapper.unmount();
+            localStorage.removeItem("worldlens.worldgen.actions.operation.v1");
+        }
     });
 });

@@ -122,3 +122,47 @@ describe("generation project coordinator entry", () => {
         wrapper.unmount();
     });
 });
+
+describe("restored generation observation", () => {
+    it("keeps active operations locked and cancellable after reopening", async () => {
+        localStorage.setItem(
+            "worldlens.generation.workflow.v1",
+            JSON.stringify({
+                id: "generation-restored",
+                version: "1.21.4",
+                request: { operationId: "generation-restored" },
+            }),
+        );
+        mocks.read.mockResolvedValue({
+            ok: true,
+            value: {
+                id: "generation-restored",
+                stage: "generating",
+                worldFolder: null,
+                projectPath: null,
+                message: "Running",
+            },
+        });
+        const wrapper = shallowMount(Dialog, { global: { renderStubDefaultSlot: true } });
+        await flushPromises();
+        expect(
+            wrapper
+                .findAllComponents({ name: "VBtn" })
+                .find((button) => button.text() === "Resume verified operation")!
+                .props("disabled"),
+        ).toBe(true);
+        expect(
+            wrapper
+                .findAllComponents({ name: "VBtn" })
+                .some((button) => button.text() === "Cancel safely"),
+        ).toBe(true);
+        expect(
+            wrapper
+                .findAllComponents({ name: "VBtn" })
+                .some((button) => button.text() === "New operation"),
+        ).toBe(false);
+        expect(mocks.run).not.toHaveBeenCalled();
+        expect(mocks.capabilities).not.toHaveBeenCalled();
+        wrapper.unmount();
+    });
+});

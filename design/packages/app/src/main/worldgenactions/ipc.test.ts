@@ -18,7 +18,7 @@ const config = buildWorldGenerationConfig({
     dimensions: { overworld: true, nether: false, end: false },
 });
 
-function install(account: unknown = async () => ({})) {
+function install(account: unknown = async () => ({}), trusted = true) {
     const handlers = new Map<string, (event: unknown, value: unknown) => Promise<unknown>>();
     const service = installWorldgenActionsIpc({
         ipcMain: {
@@ -27,6 +27,7 @@ function install(account: unknown = async () => ({})) {
             removeHandler: (name: string) => handlers.delete(name),
         } as unknown as IpcMain,
         account: account as never,
+        ...(trusted ? { isTrustedSender: () => true } : {}),
     });
     return {
         service,
@@ -85,6 +86,11 @@ describe("worldgen dispatch request", () => {
         [
             { owner: "owner", repo: "repo", config, options: { dispatchRender: true } },
             "release asset",
+        ],
+        [{ owner: "owner", repo: "repo", config, options: [] }, "must be an object"],
+        [
+            { owner: "owner", repo: "repo", config, destination: "unexpected" },
+            "Unknown generation dispatch field",
         ],
         [null, "Choose a repository"],
     ])("refuses %j", (value, message) => {
@@ -156,6 +162,22 @@ describe("worldgenActions:dispatch", () => {
         } finally {
             missing.service.dispose();
             vi.mocked(brokerCliTransport).mockReset();
+        }
+    });
+});
+
+describe("world generation sender boundary", () => {
+    it("rejects callers without the trusted application main frame", async () => {
+        const account = vi.fn(async () => ({}));
+        const context = install(account, false);
+        try {
+            expect(await context.dispatch({ owner: "owner", repo: "repo", config })).toMatchObject({
+                ok: false,
+                message: expect.stringContaining("application workspace"),
+            });
+            expect(account).not.toHaveBeenCalled();
+        } finally {
+            context.service.dispose();
         }
     });
 });

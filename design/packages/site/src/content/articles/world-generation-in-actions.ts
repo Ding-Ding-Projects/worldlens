@@ -7,10 +7,27 @@ export const worldGenerationInActions: Article = {
     summary:
         "The world generator dialog sends its configuration to worldgen.yml, which generates the world with the built-in generator on a GitHub runner, verifies and packages it, compiles a map, and can publish it for render-world.yml.",
     category: "delivery",
-    status: "shipped",
+    status: "ported-unverified",
     statusNote:
         "The document, the dispatch and the workflow have unit tests; whether a live dispatch generated and rendered a world is recorded with its run id in HANDOFF.md rather than claimed here.",
     sections: [
+        {
+            id: "follow-import",
+            title: "Follow and verify the imported world",
+            blocks: [
+                {
+                    kind: "paragraph",
+                    content:
+                        "The dialog retains the durable operation id, displays the run and jobs, and offers bounded observation plus manual refresh. Discovery requires the exact world title, workflow_dispatch event and creation within five minutes of dispatch; ambiguous matches are rejected. After success, collection verifies GitHub's outer archive digest, the inner archive digest and receipt binding to the exact configuration, repository, source commit and run. Safe extraction uses a fresh owned directory; measured chunks and the saved seed are read before Open imported world appears. Existing worlds are never overwritten. Closing the dialog stops observation only, not the remote workflow.",
+                },
+                {
+                    kind: "paragraph",
+                    content:
+                        "視窗保留操作編號，顯示工作流程及各項工作狀態，提供有限次自動觀察及手動更新。尋找結果要符合世界標題、事件及派發後五分鐘內時間，多個符合結果不會自動選擇。下載會核對外層及內層摘要，以及設定、儲存庫、提交及流程身份。解壓使用新的儲存目錄，讀回區塊及種子後才可開啟世界；不覆寫現有世界，關閉視窗不會取消遠端工作流程。",
+                },
+            ],
+        },
+
         {
             id: "behaviour",
             title: "Behaviour",
