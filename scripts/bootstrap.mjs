@@ -100,6 +100,23 @@ function run(command, commandArgs, options = {}) {
   return result;
 }
 
+/** Run a trusted batch path without applying native executable quoting to cmd syntax. */
+function runWindowsBatch(command, commandArgs, options = {}) {
+  // cmd expands percent expressions even inside quotes. Reject shell syntax rather
+  // than pretending arbitrary input can safely be escaped for a batch interpreter.
+  if (/["%!\r\n&|<>^]/u.test(command) ||
+      commandArgs.some((argument) => !/^[a-zA-Z0-9_:./=+\-]+$/.test(argument))) {
+    throw new Error("Unsafe Windows batch command or argument");
+  }
+  // /s removes the outer pair; the remaining pair protects a path containing spaces.
+  // Verbatim mode keeps Node from adding C-runtime backslash escapes to these quotes.
+  const commandLine = `""${command}" ${commandArgs.map((argument) => `"${argument}"`).join(" ")}"`;
+  return run("cmd.exe", ["/d", "/s", "/v:off", "/c", commandLine], {
+    ...options,
+    windowsVerbatimArguments: true,
+  });
+}
+
 /**
  * Runs a command and returns stdout **and** stderr together.
  *
@@ -563,43 +580,22 @@ function bluemapJars() {
   log(
     "  building the BlueMap CLI from vendored source (first run downloads Gradle)",
   );
-  const wrapper = process.platform === "win32" ? "cmd.exe" : "./gradlew";
-  const wrapperArgs =
-    process.platform === "win32"
-      ? [
-          "/d",
-          "/s",
-          "/c",
-          // The wrapper's absolute path, never the bare name and never a relative one with
-          // a backslash in a JS string. `cmd /c gradlew.bat` resolves a bare name against
-          // PATH, so with the wrapper sitting in `cwd` and not on PATH it reports "is not
-          // recognized as an internal or external command", which reads as a missing Gradle
-          // wrapper when the file is right there. Seen on a real machine where
-          // `vendor/BlueMap/gradlew.bat` existed and the build failed anyway. A relative
-          // ".\gradlew.bat" is the other trap: written with one backslash it is the escape
-          // sequence \g, and the argument silently becomes ".gradlew.bat".
-          join(vendorRoot, "gradlew.bat"),
-          ":cli:shadowJar",
-          "--no-daemon",
-          "--console=plain",
-          "--max-workers=2",
-          "-Dorg.gradle.jvmargs=-Xmx1536m",
-          "-Pkotlin.compiler.execution.strategy=in-process",
-          "--configure-on-demand",
-        ]
-      : [
-          ":cli:shadowJar",
-          "--no-daemon",
-          "--console=plain",
-          "--max-workers=2",
-          "-Dorg.gradle.jvmargs=-Xmx1536m",
-          "-Pkotlin.compiler.execution.strategy=in-process",
-          "--configure-on-demand",
-        ];
-  const build = run(wrapper, wrapperArgs, {
+  const gradleArgs = [
+    ":cli:shadowJar",
+    "--no-daemon",
+    "--console=plain",
+    "--max-workers=2",
+    "-Dorg.gradle.jvmargs=-Xmx1536m",
+    "-Pkotlin.compiler.execution.strategy=in-process",
+    "--configure-on-demand",
+  ];
+  const buildOptions = {
     cwd: vendorRoot,
     env: { ...process.env, GRADLE_USER_HOME: gradleHome },
-  });
+  };
+  const build = process.platform === "win32"
+    ? runWindowsBatch(join(vendorRoot, "gradlew.bat"), gradleArgs, buildOptions)
+    : run("./gradlew", gradleArgs, buildOptions);
   if (build.status !== 0)
     return { ok: false, detail: "gradle :cli:shadowJar failed" };
 
