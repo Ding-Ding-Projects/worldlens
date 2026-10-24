@@ -1,10 +1,30 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { verifyHostingRuntime, stageHostingRuntime, assertHostingRuntimeProvenance } from './stage-hosting-runtime.mjs';
+import { verifyHostingRuntime, stageHostingRuntime, assertHostingRuntimeProvenance, extractNodeRuntimeArchive } from './stage-hosting-runtime.mjs';
+test('runtime ZIP extraction selects the executable and license on Unix', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hosting ZIP '));
+    try {
+        const archive = join(root, 'runtime.zip');
+        // Three harmless files: the runtime, its license, and an excluded sibling.
+        writeFileSync(archive, Buffer.from('UEsDBBQAAAAIAIW1V10z0WgKEQAAAA8AAAAcAAAAbm9kZS1maXh0dXJlLXdpbi14NjQvTElDRU5TRUvLrCgpLUpVyMlMTs0rTgUAUEsDBBQAAAAIAIW1V12NyacLFAAAABIAAAAdAAAAbm9kZS1maXh0dXJlLXdpbi14NjQvbm9kZS5leGVLy6woKS1KVUitSE0uLUlMykkFAFBLAwQUAAAACACFtVddyUPjDxkAAAAXAAAAJAAAAG5vZGUtZml4dHVyZS13aW4teDY0L3VucmVxdWVzdGVkLnR4dMstLS5RKErNTczMUyjNS60oKUpMLklNAQBQSwECFAAUAAAACACFtVddM9FoChEAAAAPAAAAHAAAAAAAAAAAAAAAAAAAAAAAbm9kZS1maXh0dXJlLXdpbi14NjQvTElDRU5TRVBLAQIUABQAAAAIAIW1V12NyacLFAAAABIAAAAdAAAAAAAAAAAAAAAAAEsAAABub2RlLWZpeHR1cmUtd2luLXg2NC9ub2RlLmV4ZVBLAQIUABQAAAAIAIW1V13JQ+MPGQAAABcAAAAkAAAAAAAAAAAAAAAAAJoAAABub2RlLWZpeHR1cmUtd2luLXg2NC91bnJlcXVlc3RlZC50eHRQSwUGAAAAAAMAAwDnAAAA9QAAAAAA', 'base64'));
+        const output = join(root, 'extracted'); mkdirSync(output);
+        const unzip = process.platform === 'win32'
+            ? resolve(execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim(), '../../..', 'usr/bin/unzip.exe')
+            : 'unzip';
+        extractNodeRuntimeArchive(archive, output, 'node-fixture-win-x64', 'node.exe', {
+            platform: 'linux',
+            run(command, args) { assert.equal(command, 'unzip'); execFileSync(unzip, args); },
+        });
+        assert.equal(readFileSync(join(output, 'node-fixture-win-x64/node.exe'), 'utf8'), 'fixture executable');
+        assert.equal(readFileSync(join(output, 'node-fixture-win-x64/LICENSE'), 'utf8'), 'fixture license');
+        assert.equal(existsSync(join(output, 'node-fixture-win-x64/unrequested.txt')), false);
+    } finally { rmSync(root, { recursive: true, force: true }); }
+});
 test('hosting receipt verifies bytes and rejects missing and tampered runtime files', () => {
     const root = mkdtempSync(join(tmpdir(), 'hosting receipt '));
     try {

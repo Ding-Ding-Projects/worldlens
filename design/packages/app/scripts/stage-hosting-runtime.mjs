@@ -62,6 +62,16 @@ function licenseInventory(root, inventory, version) {
     licenses.push({ name: 'Node.js', version, license: 'See bundled upstream license inventory', files: ['node/win32-x64/LICENSE', 'node/linux-x64/LICENSE'] });
     return licenses;
 }
+/** GNU tar cannot read ZIP; use the ZIP extractor already used by bootstrap. */
+export function extractNodeRuntimeArchive(archive, extract, archiveRoot, executable, { platform = process.platform, run = execFileSync } = {}) {
+    const members = [`${archiveRoot}/${executable}`, `${archiveRoot}/LICENSE`];
+    if (archive.endsWith('.zip') && platform !== 'win32') {
+        run('unzip', ['-q', archive, ...members, '-d', extract]);
+    } else {
+        const tar = platform === 'win32' ? join(process.env.SystemRoot || 'C:/Windows', 'System32', 'tar.exe') : 'tar';
+        run(tar, ['-xf', archive, '-C', extract, ...members]);
+    }
+}
 /** Always derive from independently verified acquisition, never from an output receipt. */
 async function deriveRuntime(root, source, { offline = false } = {}) {
     const { manifest } = source;
@@ -72,7 +82,7 @@ async function deriveRuntime(root, source, { offline = false } = {}) {
         const extract = join(root, 'node', platform);
         mkdirSync(extract, { recursive: true });
         const archiveRoot = pin.asset.replace(/\.(zip|tar\.xz)$/, '');
-        execFileSync(process.platform === 'win32' ? join(process.env.SystemRoot || 'C:/Windows', 'System32', 'tar.exe') : 'tar', ['-xf', archive, '-C', extract, `${archiveRoot}/${pin.executable}`, `${archiveRoot}/LICENSE`]);
+        extractNodeRuntimeArchive(archive, extract, archiveRoot, pin.executable);
         const inner = join(extract, archiveRoot);
         if (!existsSync(join(inner, pin.executable))) throw new Error('Node archive has no executable');
         for (const name of readdirSync(inner)) renameSync(join(inner, name), join(extract, name));
