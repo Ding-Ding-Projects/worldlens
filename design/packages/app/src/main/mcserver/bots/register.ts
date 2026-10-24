@@ -84,9 +84,16 @@ export interface TrustedCommandBotTarget {
     authorizeAccount(reference: string): Promise<void>;
 }
 export interface CommandBotMainPorts {
+    dispose?(): void;
     protectedAccounts?: ProtectedBotAccounts;
     microsoftPublicClientId?: string;
-    resolveTarget(serverId: string): Promise<TrustedCommandBotTarget>;
+    resolveTarget(serverId: string, accountRef?: string): Promise<TrustedCommandBotTarget>;
+    bindSession?(
+        serverId: string,
+        accountRef: string,
+        session: MineflayerSession,
+        target: TrustedCommandBotTarget,
+    ): void;
     resolveAccount(reference: string): Promise<ProtectedAccount>;
     mineflayerRuntime?(navigation: boolean): MineflayerRuntime;
     baritoneClient(
@@ -210,6 +217,7 @@ export function registerCommandBotOperations(
     const deploy = async (
         request: CommandBotRequests["mcserver.bots.deploy"],
     ): Promise<BotStatus> => {
+        if (disposed) throw new Error("Backend is closed.");
         if (
             !["mineflayer", "baritone"].includes(request.engine) ||
             typeof request.navigation !== "boolean"
@@ -221,8 +229,8 @@ export function registerCommandBotOperations(
             ).length >= 16
         )
             throw new Error("Owned bot capacity reached.");
-        const target = await resolveTarget(request.serverId),
-            accountRef = id(request.accountRef);
+        const accountRef = id(request.accountRef);
+        const target = await ports.resolveTarget(id(request.serverId), accountRef);
         await target.authorizeAccount(accountRef);
         const profile: BotProfile = {
             id: randomUUID(),
@@ -244,11 +252,13 @@ export function registerCommandBotOperations(
             const client = await ports.baritoneClient(request.serverId, accountRef);
             session = new BaritoneSession(profile, client.installation, client.launcher);
         }
+        if (disposed) throw new Error("Backend is closed.");
         const unsubscribe = session.onStatus((status) => ports.onBotStatus?.(status));
         bots.set(profile.id, { session, unsubscribe, request: structuredClone(request) });
-        if (session instanceof MineflayerSession)
+        if (session instanceof MineflayerSession) {
+            ports.bindSession?.(request.serverId, accountRef, session, target);
             await session.start((reference) => ports.resolveAccount(reference));
-        else await session.start();
+        } else await session.start();
         return session.status;
     };
     register("mcserver.bots.deploy", deploy);
@@ -302,6 +312,7 @@ export function registerCommandBotOperations(
                 entry.unsubscribe();
             }
             bots.clear();
+            ports.dispose?.();
         },
     };
 }

@@ -35,6 +35,13 @@ interface Status {
     position: { kind: "point"; dimension: string; x: number; y: number; z: number } | null;
 }
 interface Api {
+    configuration?(): Promise<Answer<{ clientId: string }>>;
+    configure?(request: { clientId: string }): Promise<Answer<{ configured: true }>>;
+    signIn?(request: { accountRef: string }): Promise<Answer<{ state: string }>>;
+    devicePrompt?(request: {
+        accountRef: string;
+    }): Promise<Answer<{ verificationUri: string; userCode: string } | null>>;
+    cancelSignIn?(request: { accountRef: string }): Promise<Answer<unknown>>;
     profiles?(request: { serverId: string }): Promise<Answer<Capability[]> | Capability[]>;
     accounts?(): Promise<Answer<{ accountRef: string; label: string }[]>>;
     prepareAccount?(request: { provider: "microsoft" | "offline"; username: string }): Promise<
@@ -69,6 +76,10 @@ const capabilities = ref<Capability[]>([]);
 const accounts = ref<{ reference: string; label: string }[]>([]);
 const accountRef = ref("");
 const username = ref("");
+const clientId = ref("");
+const signingIn = ref(false);
+let signingInReference = "";
+let signInTimer: ReturnType<typeof setTimeout> | undefined;
 const navigation = ref(true);
 const provider = ref<"microsoft" | "offline">("microsoft");
 const challenge = ref<{ verificationUrl?: string; userCode?: string; state: string } | null>(null);
@@ -219,6 +230,63 @@ async function observe(): Promise<void> {
     }
 }
 
+function configureClient(): void {
+    if (api?.configure)
+        void invoke(
+            "configure",
+            () => api.configure!({ clientId: clientId.value }),
+            () => {
+                failure.value = "";
+            },
+        );
+}
+async function signIn(): Promise<void> {
+    if (!api?.signIn || !api.devicePrompt || !accountRef.value || signingIn.value) return;
+    const reference = accountRef.value;
+    signingInReference = reference;
+    const serial = generation;
+    signingIn.value = true;
+    challenge.value = null;
+    const poll = async (): Promise<void> => {
+        try {
+            const result = await api.devicePrompt!({ accountRef: reference });
+            if (serial === generation && signingIn.value && result.ok && result.value)
+                challenge.value = {
+                    verificationUrl: result.value.verificationUri,
+                    userCode: result.value.userCode,
+                    state: text("Waiting for Microsoft sign-in", "等候 Microsoft 登入"),
+                };
+        } catch {
+            /* The sign-in operation supplies the final result. */
+        }
+        if (serial === generation && signingIn.value)
+            signInTimer = setTimeout(() => void poll(), 1000);
+    };
+    void poll();
+    try {
+        const result = await api.signIn({ accountRef: reference });
+        if (serial === generation) {
+            challenge.value = null;
+            failure.value = result.ok
+                ? ""
+                : (result.failure?.message ?? text("Sign-in did not complete.", "登入未完成。"));
+        }
+    } catch {
+        if (serial === generation)
+            failure.value = text("Sign-in could not be completed.", "無法完成登入。");
+    } finally {
+        challenge.value = null;
+        signingIn.value = false;
+        clearTimeout(signInTimer);
+    }
+}
+function cancelSignIn(): void {
+    clearTimeout(signInTimer);
+    signingIn.value = false;
+    challenge.value = null;
+    if (signingInReference) void api?.cancelSignIn?.({ accountRef: signingInReference });
+    signingInReference = "";
+}
 function prepareAccount(): void {
     if (!api?.prepareAccount) return;
     challenge.value = null;
@@ -316,6 +384,9 @@ function approvedSignIn(url: string | undefined): boolean {
     }
 }
 onMounted(() => {
+    void api?.configuration?.().then((result) => {
+        if (!disposed && result.ok && result.value) clientId.value = result.value.clientId;
+    });
     void load();
     void observe();
 });
@@ -331,6 +402,7 @@ watch(
     },
 );
 onBeforeUnmount(() => {
+    cancelSignIn();
     disposed = true;
     generation++;
     cancelPick();
@@ -365,10 +437,27 @@ onBeforeUnmount(() => {
                     )
                 }}
             </p>
+            <VTextField
+                v-model="clientId"
+                :label="
+                    text('Registered Microsoft public client ID', '已註冊 Microsoft 公開用戶端 ID')
+                "
+                :hint="
+                    text(
+                        'Use your approved public application registration. No client secret is needed.',
+                        '使用已批准的公開應用程式註冊，毋須用戶端密碼。',
+                    )
+                "
+                persistent-hint
+                autocomplete="off"
+            />
+            <VBtn :disabled="!!busy || !clientId || !api?.configure" @click="configureClient">{{
+                text("Save client configuration", "儲存用戶端設定")
+            }}</VBtn>
             <div class="bot-grid">
                 <VSelect
                     v-model="provider"
-                    :items="['microsoft', 'offline']"
+                    :items="['microsoft']"
                     :label="text('Account provider', '帳戶類型')"
                 /><VTextField
                     v-model="username"
@@ -392,11 +481,19 @@ onBeforeUnmount(() => {
             </div>
             <VSelect
                 v-model="accountRef"
+                :disabled="signingIn"
                 :items="accounts"
                 item-title="label"
                 item-value="reference"
                 :label="text('Protected account', '受保護的帳戶')"
-            /><VSwitch v-model="navigation" :label="text('Enable navigation', '啟用導航')" />
+            />
+            <VBtn :disabled="!accountRef || signingIn || !api?.signIn" @click="signIn">{{
+                text("Sign in to selected account", "登入已選帳戶")
+            }}</VBtn>
+            <VBtn v-if="signingIn" @click="cancelSignIn">{{
+                text("Cancel sign-in", "取消登入")
+            }}</VBtn>
+            <VSwitch v-model="navigation" :label="text('Enable navigation', '啟用導航')" />
             <div class="bot-actions">
                 <VBtn
                     :disabled="

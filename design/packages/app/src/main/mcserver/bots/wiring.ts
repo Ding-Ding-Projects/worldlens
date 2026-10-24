@@ -1,4 +1,5 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
+import type { ProductionBotPorts } from "./production.js";
 import type { ServerRegistry } from "../registry.js";
 import { fail, ok, type Answer } from "../transport/types.js";
 import { loadMineflayerRuntime } from "./mineflayer.js";
@@ -16,6 +17,11 @@ import {
  * these are the channel names the bridge allowlist and the main process agree on.
  */
 export const BOT_CHANNELS = Object.freeze({
+    configuration: "mcserver:bots:configuration",
+    configure: "mcserver:bots:configure",
+    signIn: "mcserver:bots:signIn",
+    devicePrompt: "mcserver:bots:devicePrompt",
+    cancelSignIn: "mcserver:bots:cancelSignIn",
     profiles: "mcserver:bots:profiles",
     accounts: "mcserver:bots:accounts",
     prepareAccount: "mcserver:bots:prepareAccount",
@@ -32,16 +38,7 @@ export const CONNECTION_UNAVAILABLE_REASON =
     "and this build has no protected game account or protocol connection configured. The bot " +
     "workflow stays unavailable until that connection exists.";
 
-/**
- * The ports this build can honestly supply to the command/bot registrar: none of the live ones.
- *
- * A trusted command target is a real authenticated game-protocol principal with a current
- * `declare_commands` graph and a dispatch channel on that same connection; protected accounts
- * need the approved Microsoft public-client setup; the Baritone bridge needs the Java client
- * build. None of those exist in this build yet, so every port answers with the exact reason
- * instead of pretending. The registrar's own validation, capacity and preview logic still runs
- * in front of them, so a request that would have been refused anyway is refused the same way.
- */
+/** Explicit fallback when platform protected storage or production endpoint services cannot initialize. */
 export function unavailableBotPorts(registry: Pick<ServerRegistry, "get">): CommandBotMainPorts {
     return {
         resolveTarget: async (serverId) => {
@@ -105,8 +102,20 @@ function installedVersions(read: () => readonly string[]): readonly string[] {
 export function registerBotIpc(
     ipc: Pick<IpcMain, "handle" | "removeHandler">,
     options: BotIpcOptions,
-): { dispose(): void } {
+): {
+    dispose(): void;
+    discover(
+        request: CommandBotRequests["mcserver.commands.discover"],
+    ): Promise<Answer<CommandBotResults["mcserver.commands.discover"]>>;
+    preview(
+        request: CommandBotRequests["mcserver.commands.preview"],
+    ): Promise<Answer<CommandBotResults["mcserver.commands.preview"]>>;
+    execute(
+        request: CommandBotRequests["mcserver.commands.execute"],
+    ): Promise<Answer<CommandBotResults["mcserver.commands.execute"]>>;
+} {
     const ports = options.ports ?? unavailableBotPorts(options.registry);
+    const production = "configurePublicClient" in ports ? (ports as ProductionBotPorts) : null;
     const allowed = options.isTrustedSender ?? trusted;
     const versions =
         options.mineflayerVersions ?? (() => loadMineflayerRuntime(false).supportedVersions);
@@ -142,30 +151,70 @@ export function registerBotIpc(
         });
     };
 
+    handle(BOT_CHANNELS.configuration, async () =>
+        production
+            ? ok(await production.publicClientConfiguration())
+            : fail("unsupported", CONNECTION_UNAVAILABLE_REASON),
+    );
+    handle(BOT_CHANNELS.configure, async (request) => {
+        if (!production || !isObject(request) || typeof request.clientId !== "string")
+            return fail("invalid-request", "Enter a registered public client ID.");
+        try {
+            await production.configurePublicClient(request.clientId);
+            return ok({ configured: true });
+        } catch {
+            return fail("invalid-request", "The public client ID could not be saved.");
+        }
+    });
+    handle(BOT_CHANNELS.devicePrompt, async (request) => {
+        const reference = isObject(request) ? identifier(request.accountRef) : null;
+        return reference && production
+            ? ok(production.devicePrompt(reference))
+            : fail("invalid-request", "Choose a protected account.");
+    });
+    for (const [channel, method] of [
+        [BOT_CHANNELS.signIn, "mcserver.bots.accounts.signIn"],
+        [BOT_CHANNELS.cancelSignIn, "mcserver.bots.accounts.cancel"],
+    ] as const) {
+        handle(channel, async (request) => {
+            const reference = isObject(request) ? identifier(request.accountRef) : null;
+            if (!reference) return fail("invalid-request", "Choose a protected account.");
+            production?.clearDevicePrompt(reference);
+            try {
+                return await call(method, { accountRef: reference });
+            } finally {
+                production?.clearDevicePrompt(reference);
+            }
+        });
+    }
     handle(BOT_CHANNELS.profiles, async (request) => {
         const serverId = isObject(request) ? identifier(request.serverId) : null;
         if (serverId === null) return fail("invalid-request", "Choose a server first.");
         const found = await options.registry.get(serverId);
         if (!found.ok) return found;
-        // Describe what the installed runtime declares for this server's version, then mark
-        // every engine unavailable with the one reason that applies to all of them in this
-        // build: there is no connection to deploy over. A profile that reads as available
-        // while deploy can only fail would be the dishonest answer.
         const described = describeBotProfiles(
             found.value.minecraftVersion ?? "",
             installedVersions(versions),
         );
         const capabilities: BotCapability[] = described.map((capability) =>
-            capability.available
-                ? { ...capability, available: false, reason: CONNECTION_UNAVAILABLE_REASON }
+            capability.available &&
+            (!options.ports ||
+                (production && capability.engine === "baritone" && !production.baritoneAvailable))
+                ? {
+                      ...capability,
+                      available: false,
+                      reason:
+                          capability.engine === "baritone" && production
+                              ? "The managed Java client and approved launch route are not prepared."
+                              : CONNECTION_UNAVAILABLE_REASON,
+                  }
                 : capability,
         );
         return ok(capabilities);
     });
 
     handle(BOT_CHANNELS.accounts, async () => {
-        // No protected account store exists in this build, so the honest list is empty.
-        return ok([] as { accountRef: string; label: string }[]);
+        return ok((await ports.protectedAccounts?.list()) ?? []);
     });
 
     handle(BOT_CHANNELS.prepareAccount, async (request) => {
@@ -249,6 +298,9 @@ export function registerBotIpc(
     });
 
     return {
+        discover: (request) => call("mcserver.commands.discover", request),
+        preview: (request) => call("mcserver.commands.preview", request),
+        execute: (request) => call("mcserver.commands.execute", request),
         dispose() {
             registration.dispose();
             for (const channel of Object.values(BOT_CHANNELS)) ipc.removeHandler(channel);

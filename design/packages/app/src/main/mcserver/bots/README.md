@@ -30,9 +30,32 @@ The owning root `build.bat` must invoke `buildBaritoneBridge` from `baritone-cli
 
 `installBaritoneClient` checks the jar receipts, installs into the caller's explicitly owned client directory without overwriting existing mods and reads both installed digests back. `BaritoneSession` requires a protected launcher that launches this exact verified Fabric client. The launcher must resolve the protected account reference without putting authentication values in process arguments, logs or project files. Client startup alone never establishes connected state. Valid bridge world telemetry establishes connection; navigation acknowledgement and observed path state remain separate. Stop waits for actual child exit, and forced termination affects only the session's owned child.
 
-The protected launcher implementation, Java compilation, full client installation and real server/navigation acceptance still require integration and verification. The Node child protocol test verifies the controller only and is not evidence of a Java client or server connection.
+The protected launcher implementation is present in `launcher.ts`; Java compilation, full client installation and real server/navigation acceptance still require integration and verification. The Node child protocol test verifies the controller only and is not evidence of a Java client or server connection.
 
 ## Focused verification
 
 The self-contained tooling package in `commands/` keeps locked development dependencies, without junctions or changes to the application manifest. Run `npm ci --prefix commands`, then `npm test --prefix commands` and `npm run typecheck --prefix commands` from this directory. These checks do not replace the repository root build or installer entrypoints. Runtime, Java build, client authentication and actual server acceptance remain separate verdicts.
 
+
+## Production provider wiring
+
+Await `createProductionBotPorts` with the application's user-data directory, staged authentication
+worker path and a trusted endpoint resolver. An endpoint contains server ID, host, game port, exact
+version and distribution digest (or an explicit unknown marker). Never infer an endpoint from a
+label. Supply `preparedBaritone` and the approved hidden-client spawn only after actual preparation.
+Pass these ports to `registerBotIpc` and use its returned `discover`, `preview` and `execute`
+functions for command IPC so the same session registry owns discovery and dispatch.
+
+The trusted bot bridge exposes `configuration`, `configure`, `signIn`, `devicePrompt` and
+`cancelSignIn` beside the existing operations. Only the public application identifier is persisted
+in `bot-public-client.json`; the account store encrypts its records through OS-protected storage.
+Device challenges stay in memory, are bounded and expire; cancellation/completion clears them.
+The account picker returns only opaque references and labels.
+
+Packaging must retain `auth-worker.mjs` beside the configured worker path, with its pinned
+`prismarine-auth` dependency resolvable in the isolated child. The Java build emits
+`worldlens-baritone-client-1.0.0.jar`, `baritone-api-fabric-1.13.1.jar` and
+`baritone-build-receipt.json`; stage all three together. A staged file is not live account,
+client installation or navigation proof.
+
+`stageBotRuntimeAssets({ outputDirectory, bridgeDirectory? })` copies and reads back the authentication worker. When a bridge directory is supplied it requires the exact Java build receipt and verifies both jar hashes before copying. Omitting that directory stages only authentication and reports `baritoneStaged: false`; it never implies the Java client is available.

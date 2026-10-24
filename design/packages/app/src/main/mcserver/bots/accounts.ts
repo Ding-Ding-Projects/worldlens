@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { fork } from "node:child_process";
 import { randomUUID, createPrivateKey, createPublicKey } from "node:crypto";
-import { mkdir, readFile, writeFile, rename, rm } from "node:fs/promises";
+import { mkdir, readFile, writeFile, rename, rm, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ProtectedAccount } from "./mineflayer.js";
@@ -39,6 +39,7 @@ export class ProtectedBotAccounts {
     readonly #workerPath: string;
     readonly #active = new Map<string, Promise<JavaAccountSession>>();
     readonly #cancel = new Map<string, () => void>();
+    readonly #epochs = new Map<string, number>();
     constructor(
         prompt: (prompt: ProtectedDevicePrompt) => void,
         workerPath = fileURLToPath(new URL("./auth-worker.mjs", import.meta.url)),
@@ -89,6 +90,12 @@ export class ProtectedBotAccounts {
             account.schemaVersion !== 1 ||
             account.reference !== reference ||
             !account.caches ||
+            typeof account.caches !== "object" ||
+            Array.isArray(account.caches) ||
+            typeof account.label !== "string" ||
+            !account.label ||
+            account.label.length > 80 ||
+            /[\r\n\0]/u.test(account.label) ||
             !/^[a-f0-9-]{36}$/i.test(account.clientId)
         )
             throw new Error("Invalid protected account record.");
@@ -110,13 +117,35 @@ export class ProtectedBotAccounts {
         await this.#store({ schemaVersion: 1, reference, label, clientId, caches: {} });
         return { accountRef: reference, label };
     }
+    async list(): Promise<{ accountRef: string; label: string }[]> {
+        const directory = join(this.#runtime.app.getPath("userData"), "protected-bot-accounts");
+        let files: string[];
+        try {
+            files = await readdir(directory);
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+            throw error;
+        }
+        const accounts: { accountRef: string; label: string }[] = [];
+        for (const file of files
+            .filter((name) => /^[a-f0-9-]{36}\.bin$/.test(name))
+            .slice(0, 128)) {
+            try {
+                const record = await this.#read(file.slice(0, -4));
+                accounts.push({ accountRef: record.reference, label: record.label });
+            } catch {
+                /* Invalid or inaccessible records never expose their protected payload. */
+            }
+        }
+        return accounts;
+    }
     async authorize(reference: string): Promise<void> {
         await this.#read(reference);
     }
     async authenticate(reference: string): Promise<JavaAccountSession> {
         const previous = this.#active.get(reference);
         if (previous) return previous;
-        const attempt = this.#authenticate(reference);
+        const attempt = this.#authenticate(reference, this.#epochs.get(reference) ?? 0);
         this.#active.set(reference, attempt);
         try {
             return await attempt;
@@ -124,8 +153,10 @@ export class ProtectedBotAccounts {
             this.#active.delete(reference);
         }
     }
-    async #authenticate(reference: string): Promise<JavaAccountSession> {
+    async #authenticate(reference: string, epoch: number): Promise<JavaAccountSession> {
         const account = await this.#read(reference);
+        if ((this.#epochs.get(reference) ?? 0) !== epoch)
+            throw new Error("Protected sign-in was cancelled.");
         const environment: NodeJS.ProcessEnv = { ...process.env, ELECTRON_RUN_AS_NODE: "1" };
         delete environment.DEBUG;
         delete environment.NODE_OPTIONS;
@@ -198,7 +229,11 @@ export class ProtectedBotAccounts {
         });
     }
     cancelAuthentication(reference: string): void {
+        this.#epochs.set(reference, (this.#epochs.get(reference) ?? 0) + 1);
         this.#cancel.get(reference)?.();
+    }
+    cancelAllAuthentication(): void {
+        for (const reference of this.#active.keys()) this.cancelAuthentication(reference);
     }
     async mineflayerAccount(reference: string): Promise<ProtectedAccount> {
         await this.authorize(reference);
@@ -213,6 +248,7 @@ export class ProtectedBotAccounts {
                     availableProfile: [session.profile],
                 };
                 client.username = session.profile.name;
+                client.uuid = session.profile.id;
                 options.accessToken = session.accessToken;
                 options.haveCredentials = true;
                 if (session.certificates) {

@@ -60,6 +60,7 @@ describe("OS-protected account storage consumer", () => {
                 "11111111-2222-3333-4444-555555555555",
             );
             await accounts.authorize(created.accountRef);
+            expect(await accounts.list()).toEqual([created]);
             const files = await readdir(join(directory, "protected-bot-accounts"));
             expect(files).toEqual([created.accountRef + ".bin"]);
             expect(
