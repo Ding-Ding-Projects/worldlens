@@ -1,3 +1,4 @@
+import { HostingProfileStore } from "./profiles.js";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { join, resolve } from "node:path";
@@ -27,25 +28,29 @@ export interface ManagedHostingRegistrationOptions {
     authorizeSender: (event: unknown) => boolean;
     sendDeviceChallenge?: (event: unknown, challenge: RegistryDeviceChallenge) => void;
     runner?: ProcessRunner;
-    startProcess?: (command: string, args: readonly string[]) => Promise<{ hasExited(): boolean }>;
+    startProcess?: (command: string, args: readonly string[]) => Promise<{ hasExited(): boolean; stop?(): Promise<void> }>;
     deviceSignIn?: typeof startDockerDeviceSignIn;
     fetch?: typeof globalThis.fetch;
 }
-const channels = ["access:prepare", "access:read", "export", "build", "save", "signIn", "signInStatus", "upload", "deploy", "status"] as const;
+const channels = ["profile:list", "profile:save", "profile:remove", "profile:readiness", "access:prepare", "access:read", "export", "build", "save", "signIn", "signInStatus", "signInCancel", "upload", "deploy", "status", "stop"] as const;
 function record(value: unknown, keys: readonly string[]): Record<string, unknown> {
     if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).some(key => !keys.includes(key))) throw new Error("Invalid hosting request.");
     return value as Record<string, unknown>;
 }
 function text(value: unknown): string { if (typeof value !== "string" || !value.trim() || value.length > 4096 || value.includes("\0")) throw new Error("A valid hosting value is required."); return value; }
 function target(value: unknown): ManagedHostTarget { if (value !== "native-windows" && value !== "native-wsl" && value !== "container") throw new Error("Choose a supported hosting target."); return value; }
-async function startOwnedProcess(command: string, args: readonly string[]): Promise<{ hasExited(): boolean }> {
+async function startOwnedProcess(command: string, args: readonly string[]): Promise<{ hasExited(): boolean; stop?(): Promise<void> }> {
     return new Promise((resolveStart, reject) => {
         const child = spawn(command, [...args], { shell: false, windowsHide: true, stdio: "ignore" }); let exited = false;
         child.once("error", () => reject(new Error("The host process could not start."))); child.once("exit", () => { exited = true; });
-        child.once("spawn", () => resolveStart({ hasExited: () => exited }));
+        child.once("spawn", () => resolveStart({ hasExited: () => exited, stop: async () => {
+            if (exited) return;
+            child.kill();
+            await new Promise<void>((done) => { const timer = setTimeout(done, 3000); child.once("exit", () => { clearTimeout(timer); done(); }); });
+        } }));
     });
 }
-interface Deployment { operationId: string; contextFingerprint: string; state: "started" | "healthy" | "exited"; url: string; health: "unverified" | "verified"; lanVerified: boolean; process?: { hasExited(): boolean }; containerId?: string }
+interface Deployment { operationId: string; contextFingerprint: string; state: "started" | "healthy" | "exited"; url: string; health: "unverified" | "verified"; lanVerified: boolean; process?: { hasExited(): boolean; stop?(): Promise<void> }; containerId?: string }
 export async function verifyWslManagedContext(facts: ManagedHostingHostFacts, expected: ManagedMapExportReceipt, runner: ProcessRunner): Promise<void> {
     if (!facts.distribution || !facts.linuxContext || !facts.linuxContext.startsWith("/")) throw new Error("A verified Linux context is required.");
     const node = expected.files.find(file => file.path === "runtime/node"); if (!node) throw new Error("Verified Linux runtime is unavailable.");
@@ -59,6 +64,7 @@ export async function verifyWslManagedContext(facts: ManagedHostingHostFacts, ex
 /** Main resolves all provenance and runtime inputs. Renderer input never supplies proof. */
 export function registerManagedHostingIpc(ipc: ManagedHostingIpc, options: ManagedHostingRegistrationOptions): { dispose(): void } {
     const runner = options.runner ?? nodeProcessRunner(); const images = new ManagedImageOperations(runner);
+    const profiles = new HostingProfileStore(join(options.dataFolder, "managed-hosting", "profiles"), runner);
     const access = new ProtectedAccessStore(join(options.dataFolder, "managed-hosting", "access"), options.safeStorage);
     const ownedContexts = new Map<string, { staging: string; identity: ManagedMapExportReceipt }>(); const builtImages = new Map<string, string>(); const deployments = new Map<string, Deployment>();
     let signIn: { state: string; verificationUrl?: string; userCode?: string } = { state: "idle" };
@@ -71,6 +77,15 @@ export function registerManagedHostingIpc(ipc: ManagedHostingIpc, options: Manag
         return owned.staging;
     };
     const handlers: Record<string, (event: unknown, value: unknown) => Promise<unknown>> = {
+        "profile:list": async () => profiles.list(),
+        "profile:save": async (_event, value) => profiles.save(value),
+        "profile:remove": async (_event, value) => profiles.remove(text(value)),
+        "profile:readiness": async (_event, value) => {
+            const row = record(value, ["profileId", "context", "target", "port"]);
+            const context = await checkedContext(row.context);
+            await profiles.resolve(text(row.profileId), { context, target: target(row.target), port: Number(row.port), excludedRoots: [resolve(text(row.context)), options.storageDir()] });
+            return { state: "configured", health: "unverified", lanVerified: false, trust: "unverified" };
+        },
         "access:prepare": async (_event, value) => { const row = record(value, ["username", "password"]); return access.prepare(text(row.username), text(row.password)); },
         "access:read": async (_event, value) => access.read(text(value)),
         export: async (_event, value) => {
@@ -91,11 +106,12 @@ export function registerManagedHostingIpc(ipc: ManagedHostingIpc, options: Manag
         save: async (_event, value) => { const row = record(value, ["context", "imageId", "path"]); const context = await checkedContext(row.context); const id = text(row.imageId); if (builtImages.get(id) !== context) throw new Error("Choose an image built from this verified context."); return images.save(id, text(row.path), context); },
         signIn: async event => {
             if (signIn.state === "pending") return signIn;
-            signIn = { state: "pending" }; signInAbort = new AbortController();
-            void (options.deviceSignIn ?? startDockerDeviceSignIn)(challenge => { signIn = { state: "pending", ...challenge }; options.sendDeviceChallenge?.(event, challenge); }, signInAbort.signal).then(() => { signIn = { state: "complete" }; }, () => { signIn = { state: "failed" }; });
+            signIn = { state: "pending" }; signInAbort = new AbortController(); const attempt = signInAbort;
+            void (options.deviceSignIn ?? startDockerDeviceSignIn)(challenge => { if (attempt.signal.aborted || signInAbort !== attempt) return; signIn = { state: "pending", ...challenge }; options.sendDeviceChallenge?.(event, challenge); }, signInAbort.signal).then(() => { if (!attempt.signal.aborted && signInAbort === attempt) signIn = { state: "complete" }; }, () => { if (!attempt.signal.aborted && signInAbort === attempt) signIn = { state: "failed" }; });
             return signIn;
         },
         signInStatus: async () => ({ ...signIn }),
+        signInCancel: async () => { signInAbort?.abort(); signIn = { state: "cancelled" }; return { ...signIn }; },
         upload: async (_event, value) => {
             const row = record(value, ["imageId", "destination", "confirmed"]); const id = text(row.imageId); const context = builtImages.get(id); if (!context) throw new Error("Choose an image built from a verified hosting context."); await checkedContext(context);
             const destination = record(row.destination, ["registry", "namespace", "repository", "tag"]);
@@ -103,9 +119,9 @@ export function registerManagedHostingIpc(ipc: ManagedHostingIpc, options: Manag
             return images.upload(id, { registry: "docker.io", namespace: text(destination.namespace), repository: text(destination.repository), tag: text(destination.tag), confirmed: true });
         },
         deploy: async (_event, value) => {
-            const row = record(value, ["context", "target", "accessReference", "port"]); const context = await checkedContext(row.context); const selected = target(row.target); const port = Number(row.port);
+            const row = record(value, ["context", "target", "accessReference", "port", "profileId"]); const context = await checkedContext(row.context); const selected = target(row.target); const port = Number(row.port);
             if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Choose a host port from 1024 through 65535.");
-            const facts = await options.resolveHost({ context, target: selected, port });
+            const facts = row.profileId ? await profiles.resolve(text(row.profileId), { context, target: selected, port, excludedRoots: [resolve(text(row.context)), options.storageDir()] }) : await options.resolveHost({ context, target: selected, port });
             const origin = new URL(facts.origin); if (origin.origin !== facts.origin || origin.protocol !== "https:") throw new Error("Configure the exact HTTPS hosting origin and trusted TLS files first.");
             const identity = await verifyManagedMapContext(context);
             if (selected === "native-wsl") await verifyWslManagedContext(facts, identity, runner);
@@ -128,9 +144,19 @@ export function registerManagedHostingIpc(ipc: ManagedHostingIpc, options: Manag
                     command = "wsl.exe"; args = ["--distribution", facts.distribution, "--exec", facts.linuxContext + "/runtime/node", facts.linuxContext + "/managed-host.mjs", "--data-root", facts.linuxDataRoot, "--map-root", facts.linuxContext + "/map", "--origin", facts.origin, "--port", String(port), "--tls-key", facts.linuxTlsKey, "--tls-cert", facts.linuxTlsCert];
                 }
                 args.push("--operation-id", operationId, "--context-fingerprint", identity.contextFingerprint);
-                deployment.process = await (options.startProcess ?? startOwnedProcess)(command, args);
+                const process = await (options.startProcess ?? startOwnedProcess)(command, args);
+                deployment.process = selected === "native-wsl" ? { hasExited: () => process.hasExited() } : process;
             }
             deployments.set(operationId, deployment); return observe(deployment);
+        },
+        stop: async (_event, value) => {
+            const operation = deployments.get(text(value)); if (!operation) throw new Error("This host operation is unavailable in the current session.");
+            if (operation.containerId) {
+                const result = await runner.run("docker", ["stop", "--time", "10", operation.containerId]);
+                if (!result.started || result.code !== 0) throw new Error("The owned container did not confirm a stop.");
+            } else if (operation.process?.stop) await operation.process.stop();
+            else throw new Error("Stopping this process is unavailable; its state has not been changed.");
+            return observe(operation);
         },
         status: async (_event, value) => { const operation = deployments.get(text(value)); if (!operation) throw new Error("This host operation is unavailable in the current session."); return observe(operation); },
     };

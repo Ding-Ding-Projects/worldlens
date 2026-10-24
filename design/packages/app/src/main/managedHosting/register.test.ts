@@ -8,7 +8,7 @@ import type { ManagedMapExportReceipt } from "./exportContext.js";
 import type { ProcessRunner } from "../cirender/gh.js";
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))); });
-async function setup(authorized = true) {
+async function setup(authorized = true, deviceSignIn?: typeof import("./deviceSignIn.js").startDockerDeviceSignIn) {
     const root = await mkdtemp(join(tmpdir(), "hosting-register-")); roots.push(root);
     const handlers = new Map<string, (event: unknown, value?: unknown) => unknown>();
     const calls: string[] = []; const facts = vi.fn(async () => { throw new Error("No runtime configured for this test."); });
@@ -16,7 +16,7 @@ async function setup(authorized = true) {
         dataFolder: root, storageDir: () => join(root, "renders"), authorizeSender: () => authorized,
         safeStorage: { isEncryptionAvailable: () => true, encryptString: value => Buffer.from(Buffer.from(value).map(byte => byte ^ 0x5a)), decryptString: value => Buffer.from(Buffer.from(value).map(byte => byte ^ 0x5a)).toString() },
         buildFacts: facts, resolveHost: async () => { throw new Error("No host configured."); },
-        deviceSignIn: async onChallenge => { calls.push("device"); onChallenge({ verificationUrl: "https://login.docker.com/activate", userCode: "TEST-CODE" }); },
+        deviceSignIn: deviceSignIn ?? (async onChallenge => { calls.push("device"); onChallenge({ verificationUrl: "https://login.docker.com/activate", userCode: "TEST-CODE" }); }),
     });
     const invoke = (name: string, value?: unknown) => handlers.get("managedHosting:" + name)!({}, value) as Promise<{ ok: boolean; value?: Record<string, unknown>; failure?: { message: string } }>;
     return { handlers, registration, invoke, facts, calls };
@@ -41,7 +41,7 @@ test("preparation/read and guided sign-in have concrete consumers and independen
     const read = await invoke("access:read", prepared.value?.reference); expect(read.value?.state).toBe("prepared");
     expect((await invoke("signIn")).ok).toBe(true); await Promise.resolve();
     expect((await invoke("signInStatus")).value?.state).toBe("complete");
-    expect(handlers.size).toBe(10); registration.dispose(); expect(handlers.size).toBe(0);
+    expect(handlers.size).toBe(16); registration.dispose(); expect(handlers.size).toBe(0);
 });
 test("WSL bootstrap cannot trust a selected Linux path without matching reviewed bytes", async () => {
     const expected = { files: [{ path: "runtime/node", sha256: "a".repeat(64), bytes: 1 }], contextFingerprint: "b".repeat(64) } as ManagedMapExportReceipt;
@@ -52,4 +52,15 @@ test("WSL bootstrap cannot trust a selected Linux path without matching reviewed
     expect(calls).toHaveLength(2);
     const wrongBinary: ProcessRunner = { ...runner, async run() { return { started: true, code: 0, stdout: "0".repeat(64), stderr: "" }; } };
     await expect(verifyWslManagedContext(facts, expected, wrongBinary)).rejects.toThrow("runtime differs");
+});
+
+test("cancelled sign-in completion cannot overwrite a newer attempt and unknown hosts cannot be stopped", async () => {
+    const finish: (() => void)[] = [];
+    const { invoke } = await setup(true, async () => new Promise<void>(resolve => { finish.push(resolve); }));
+    await invoke("signIn"); expect((await invoke("signInCancel")).value?.state).toBe("cancelled");
+    await invoke("signIn"); finish[0]!(); await Promise.resolve(); await Promise.resolve();
+    expect((await invoke("signInStatus")).value?.state).toBe("pending");
+    finish[1]!(); await Promise.resolve(); await Promise.resolve();
+    expect((await invoke("signInStatus")).value?.state).toBe("complete");
+    expect((await invoke("stop", "unrelated-process")).ok).toBe(false);
 });

@@ -29,23 +29,31 @@ error text is discarded because it can carry account or server data.
 
 ## Configuration
 
-**What this build can honestly do.** The bot workflow channels are registered, so the panel receives
-real answers. Profiles are described from the server record's version and the installed Mineflayer
-runtime's declared versions, and every engine is reported unavailable with one reason: this build
-has no authenticated game-protocol connection and no protected game account store. Deploy, account
-preparation, discovery and execution answer with that same reason instead of a missing handler.
+The production provider uses the platform-protected account store and a main-owned endpoint
+resolver. Enter your registered Microsoft **public application client ID**, save it, prepare an
+account label, then select **Sign in to selected account**. The Microsoft device challenge is
+shown only in the trusted application window and expires. Cancellation clears the challenge.
+No client secret is requested. An application registration and a licensed account are required;
+the application does not invent either or imply consent.
 
-Enabling the workflow needs three pieces that do not exist yet: a protected account setup flow with
-a Microsoft public client id, a trusted command target that owns a live protocol connection and its
-command lock, and, for Baritone, the Java client bridge built by `build-bridge.mjs` after the Java
-21 and Gradle bootstrap.
+Deploy Mineflayer after sign-in. Its actual connection supplies the discovered command graph.
+The server endpoint is resolved from the registered transport rather than renderer input. Command
+execution is tied to the authenticated profile UUID and connection attempt. Changing the endpoint,
+reconnecting or selecting another connection invalidates an older preview. Navigation, cancellation,
+stop and reconnect operate on the owned session.
+
+Baritone additionally needs a prepared Java 21/Fabric client, the built bridge and verified official
+mod. The production provider accepts the genuine managed launcher only when those inputs and the
+approved hidden-desktop launch route are available. Java bridge compilation and first client download
+remain distinct operations with their own consent and verification; unavailable preparation is shown
+explicitly.
 
 ## Failure modes
 
 - A request for an unknown server returns the registry's own not-found answer.
 - A malformed request, an unsupported engine or a non-finite coordinate is refused as invalid before
   the registrar is reached.
-- A preview that expired or was already executed is refused; so is a sixth concurrent preview beyond
+- A preview that expired or was already executed is refused; so is a concurrent preview beyond
   the 128 outstanding limit, or a seventeenth live bot.
 - A reconnect whose client has not finished disconnecting within five seconds stays pending and says
   so.
@@ -60,10 +68,11 @@ application's own main frame as sender.
 
 ## Verification
 
-On the integrated tree: 23 focused command and bot tests in the lane's own tooling package, the 5
-bot wiring tests, and the bridge channel inventory tests pass; the app package typechecks. Not
-verified here, and not claimed: any real account, client, server connection, Java compilation or bot
-navigation.
+The focused command and bot suite contains 32 passing tests, including account-list protection,
+public-client configuration persistence, changed-endpoint/session rejection and same-principal
+command dispatch. The focused TypeScript check passes with the existing workspace dependencies.
+These are source checks, not live acceptance. Real Microsoft account consent, server connection,
+Java compilation, packaged worker loading and navigation have not been exercised in this change.
 
 ## Sources and suggested articles
 

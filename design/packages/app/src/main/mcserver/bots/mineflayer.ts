@@ -36,6 +36,7 @@ export interface BotStatus {
 export interface ProtocolLoginClient {
     session?: unknown;
     username?: string;
+    uuid?: string;
 }
 export interface ProtocolLoginOptions {
     accessToken?: string;
@@ -66,7 +67,7 @@ export interface MineflayerBot extends Events {
     version: string;
     entity?: { position: { x: number; y: number; z: number } };
     game?: { dimension: string };
-    _client: Events;
+    _client: Events & { uuid?: string };
     loadPlugin(plugin: unknown): void;
     quit(reason?: string): void;
     chat(message: string): void;
@@ -265,6 +266,7 @@ export class MineflayerSession {
                     this.#update({
                         commandGraph: discoverCommands(packet, {
                             ...this.#profile.target,
+                            principalId: bot._client.uuid ?? this.#profile.target.principalId,
                             connectionEpoch: this.#status.attempt,
                             executionDimension: bot.game?.dimension
                                 ? bot.game.dimension.includes(":")
@@ -310,6 +312,26 @@ export class MineflayerSession {
                         "Bot startup failed. Check runtime and protected account configuration.",
                 });
         }
+    }
+    /** Dispatch only on the connection and principal that supplied the reviewed graph. */
+    dispatchCommand(command: string, proof: CommandTarget): void {
+        const graph = this.#status.commandGraph;
+        if (!this.#bot || !graph || !["connected", "navigating"].includes(this.#status.state))
+            throw new Error("The command connection is not active.");
+        for (const field of [
+            "serverId",
+            "version",
+            "distributionSha256",
+            "connectionEpoch",
+            "principalId",
+            "permissionRevision",
+            "executionDimension",
+        ] as const)
+            if (graph.target[field] !== proof[field])
+                throw new Error("The command principal or connection changed.");
+        if (!command || /[\r\n\0]/u.test(command) || command.length > 32766)
+            throw new Error("Invalid command dispatch.");
+        this.#bot.chat(`/${command}`);
     }
     async navigate(point: PointOperand): Promise<void> {
         validateSpatial(point);

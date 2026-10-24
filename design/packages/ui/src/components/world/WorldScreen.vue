@@ -576,7 +576,7 @@ async function resume(renderId: string): Promise<void> {
                 </v-btn>
             </v-card-text>
         </v-card>
-        <WorldGeneratorDialog v-model="generatorOpen" />
+        <WorldGeneratorDialog v-model="generatorOpen" @open-world="emit('openProject', $event)" />
         <section
             v-if="runningElsewhere.length > 0"
             class="mb-world-screen__running"

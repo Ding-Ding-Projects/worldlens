@@ -19,5 +19,21 @@
         "version": "25.0.4.1+1-LTS",
         "sha256": "4c95451cea98556def2c54f7782933f52a26d4a36bd85e1d59f0364464828b07",
         "packagedPath": "bundled/java/bin/java.exe"
+    },
+    "hosting": {
+        "nodeVersion": "22.20.0",
+        "checksumSource": "https://nodejs.org/dist/v22.20.0/SHASUMS256.txt",
+        "platforms": {
+            "win32-x64": {
+                "asset": "node-v22.20.0-win-x64.zip",
+                "sha256": "bb819d6eb8f5bfda294bbc83a7e4ec6539da67c4233d54b0d655b9248b15e29d",
+                "executable": "node.exe"
+            },
+            "linux-x64": {
+                "asset": "node-v22.20.0-linux-x64.tar.xz",
+                "sha256": "00bbd05e306ea68b6e13e17360d0e2f680b493ef95f2fea1c4296ff7437530bc",
+                "executable": "bin/node"
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@ import { cpSync, mkdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { stageHostingRuntime } from "./scripts/stage-hosting-runtime.mjs";
 import { stageRenderEngines } from "./scripts/stage-render-engines.mjs";
 
 /**
@@ -378,6 +379,7 @@ async function main() {
     // after bootstrap or CI has supplied the artifact.
     if (!hostedOnly) {
         await stageRenderEngines(undefined, { requireJava: false });
+        await stageHostingRuntime();
 
         /** Main process: ESM (Electron ≥28 supports ESM entry points). */
         await build({

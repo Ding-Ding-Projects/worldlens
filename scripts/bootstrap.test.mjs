@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import {
   existsSync,
+  readFileSync,
   mkdtempSync,
   mkdirSync,
   rmSync,
@@ -442,4 +444,42 @@ test("signed out and not installed are never reported as each other", () => {
     classifyGhAuthStatus({ started: false, output: "" }),
     "unreadable",
   );
+});
+
+// Evaluate the production helper alone so importing the full bootstrap cannot
+// install tools or start an unrelated build during these focused process tests.
+const bootstrapSource = readFileSync(new URL("./bootstrap.mjs", import.meta.url), "utf8").replace(/\r\n/g, "\n");
+const batchHelperSource = bootstrapSource.slice(
+  bootstrapSource.indexOf("function runWindowsBatch("),
+  bootstrapSource.indexOf("/**\n * Runs a command and returns stdout"),
+);
+const loadBatchHelper = (run) => new Function("run", `${batchHelperSource}; return runWindowsBatch;`)(run);
+
+test("Windows batch invocation retains cmd quote boundaries and separate fixed arguments", () => {
+  let invocation;
+  const runBatch = loadBatchHelper((...args) => { invocation = args; return { status: 23 }; });
+  assert.equal(runBatch("C:\\build folder\\gradlew.bat", [":cli:shadowJar", "--no-daemon"]).status, 23);
+  assert.deepEqual(invocation, ["cmd.exe", ["/d", "/s", "/v:off", "/c", '\"\"C:\\build folder\\gradlew.bat\" ":cli:shadowJar\" \"--no-daemon\"\"'], { windowsVerbatimArguments: true }]);
+});
+
+test("Windows batch invocation rejects shell expansion and command injection before spawning", () => {
+  const runBatch = loadBatchHelper(() => assert.fail("unsafe input reached the process launcher"));
+  for (const command of ['C:\\%TEMP%\\gradlew.bat', 'C:\\bad!name\\gradlew.bat', 'C:\\bad&name\\gradlew.bat', 'bad\"name.bat', 'bad\nname.bat']) {
+    assert.throws(() => runBatch(command, ["--no-daemon"]), /Unsafe Windows batch/);
+  }
+  for (const argument of ["ok & echo injected", "%TEMP%", "!expanded!", '\"escape\"', "--flag\nwhoami"]) {
+    assert.throws(() => runBatch("C:\\build folder\\gradlew.bat", [argument]), /Unsafe Windows batch/);
+  }
+});
+
+test("a real Windows batch wrapper runs from a space-containing path and preserves exit status", { skip: process.platform !== "win32" }, () => {
+  const directory = join(temporaryDirectory(), "wrapper folder (space)");
+  mkdirSync(directory);
+  const wrapper = join(directory, "gradlew.bat");
+  writeFileSync(wrapper, '@echo off\r\nif not "%~1"==":cli:shadowJar" exit /b 91\r\nif not "%~2"=="--no-daemon" exit /b 92\r\necho wrapper-ran\r\nexit /b 23\r\n');
+  const runBatch = loadBatchHelper((command, args, options) => spawnSync(command, args, { encoding: "utf8", shell: false, ...options }));
+  const result = runBatch(wrapper, [":cli:shadowJar", "--no-daemon"], { cwd: directory });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 23, result.stderr);
+  assert.match(result.stdout, /wrapper-ran/);
 });

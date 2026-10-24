@@ -14,12 +14,17 @@ import {
     VExpansionPanelTitle,
     VExpansionPanelText,
 } from "vuetify/components";
+import HostingProfilePanel from "./HostingProfilePanel.vue";
+import type { HostingProfile } from "./managedHostingBridge.js";
 import PathField from "../PathField.vue";
 import { hostingBridge, preparedAccess } from "./managedHostingBridge.js";
 import { workflowText as text } from "../mcserver/workflowText.js";
 const props = defineProps<{ renderId: string }>();
 const bridge = hostingBridge();
 const target = ref("native-windows");
+watch(target, (value) => {
+    if (profile.value && profile.value.target !== value) profile.value = null;
+});
 const destination = ref("");
 const localTag = ref("worldlens-map:local");
 const archivePath = ref("");
@@ -27,7 +32,11 @@ const namespace = ref("");
 const repository = ref("worldlens-map");
 const tag = ref("latest");
 const confirmed = ref(false);
-const port = ref(8443);
+const profile = ref<HostingProfile | null>(null);
+function selectProfile(value: HostingProfile | null): void {
+    profile.value = value;
+    if (value) target.value = value.target;
+}
 const context = ref<{ path: string; fingerprint: string; renderId: string } | null>(null);
 const image = ref<{ imageId: string; contextFingerprint: string } | null>(null);
 const archive = ref<{ path: string; sha256: string; bytes: number } | null>(null);
@@ -167,6 +176,23 @@ function login(): void {
             (signIn.value = value),
     );
 }
+function cancelSignIn(): void {
+    if (!bridge?.signInCancel) return;
+    void action(
+        "cancel-sign-in",
+        () => bridge.signInCancel!(),
+        (value: { state: string }) => (signIn.value = value),
+    );
+}
+function stopHost(): void {
+    if (!deployment.value || !bridge?.stop) return;
+    void action(
+        "stop",
+        () => bridge.stop!(deployment.value!.operationId),
+        (value: { operationId: string; state: string; url?: string; health?: string }) =>
+            (deployment.value = value),
+    );
+}
 function loginStatus(): void {
     if (!bridge?.signInStatus) return;
     void action(
@@ -174,7 +200,9 @@ function loginStatus(): void {
         () => bridge.signInStatus!(),
         (value: { state: string; verificationUrl?: string; userCode?: string }) => {
             signIn.value =
-                value.state === "complete" || value.state === "failed"
+                value.state === "complete" ||
+                value.state === "failed" ||
+                value.state === "cancelled"
                     ? { state: value.state }
                     : value;
         },
@@ -201,7 +229,7 @@ function uploadImage(): void {
     );
 }
 function deploy(): void {
-    if (!context.value || !preparedAccess.value || !bridge?.deploy) return;
+    if (!context.value || !preparedAccess.value || !bridge?.deploy || !profile.value) return;
     void action(
         "deploy",
         () =>
@@ -209,7 +237,8 @@ function deploy(): void {
                 context: context.value!.path,
                 target: target.value,
                 accessReference: preparedAccess.value!.reference,
-                port: port.value,
+                port: profile.value!.port,
+                profileId: profile.value!.id,
             }),
         (value: { operationId: string; state: string; url?: string; health?: string }) =>
             (deployment.value = value),
@@ -315,6 +344,13 @@ function safeUrl(url: string | undefined): string | undefined {
                                 >{{ text("Refresh sign-in", "更新登入狀態") }}</VBtn
                             >
                         </div>
+                        <VBtn
+                            :disabled="
+                                !!busy || signIn?.state !== 'pending' || !bridge?.signInCancel
+                            "
+                            @click="cancelSignIn"
+                            >{{ text("Cancel sign-in", "取消登入") }}</VBtn
+                        >
                         <div v-if="signIn" aria-live="polite">
                             <p>{{ signIn.state }}</p>
                             <a
@@ -367,18 +403,20 @@ function safeUrl(url: string | undefined): string | undefined {
                     ><VExpansionPanelTitle>{{
                         text("Deploy and verify", "部署及驗證")
                     }}</VExpansionPanelTitle
-                    ><VExpansionPanelText
-                        ><VTextField
-                            v-model.number="port"
-                            type="number"
-                            min="1024"
-                            max="65535"
-                            :label="text('Host port', '主機連接埠')"
+                    ><VExpansionPanelText>
+                        <HostingProfilePanel
+                            :context="validContext ? (context?.path ?? '') : ''"
+                            :disabled="!!busy"
+                            @selected="selectProfile"
                         />
                         <div class="hosting-actions">
                             <VBtn
                                 :disabled="
-                                    !!busy || !validContext || !preparedAccess || !bridge?.deploy
+                                    !!busy ||
+                                    !validContext ||
+                                    !preparedAccess ||
+                                    !profile ||
+                                    !bridge?.deploy
                                 "
                                 @click="deploy"
                                 >{{ text("Deploy authenticated host", "部署需要登入的主機") }}</VBtn
@@ -388,6 +426,16 @@ function safeUrl(url: string | undefined): string | undefined {
                                 >{{ text("Verify host status", "驗證主機狀態") }}</VBtn
                             >
                         </div>
+                        <VBtn
+                            :disabled="
+                                !!busy ||
+                                !deployment ||
+                                deployment.state === 'exited' ||
+                                !bridge?.stop
+                            "
+                            @click="stopHost"
+                            >{{ text("Stop this host", "停止此主機") }}</VBtn
+                        >
                         <p v-if="deployment" role="status">
                             {{ deployment.state }} ·
                             {{ deployment.health ?? text("Health unknown", "健康狀態未知") }}

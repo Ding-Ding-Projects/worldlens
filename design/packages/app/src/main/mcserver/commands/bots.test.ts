@@ -46,6 +46,34 @@ describe("actual bot lifecycle observation", () => {
         (fixture.bot as unknown as EventEmitter).emit("end");
         expect(session.status.state).toBe("stopped");
     });
+    it("dispatches only on the declared principal and rejects ended or replaced connections", async () => {
+        const fixture = runtime();
+        const sent: string[] = [];
+        fixture.bot.chat = (value) => {
+            sent.push(value);
+        };
+        fixture.bot._client.uuid = "authenticated-profile-id";
+        const session = new MineflayerSession(profile, fixture.runtime);
+        await session.start(async () => ({ username: "TestBot", auth: "offline" }));
+        (fixture.bot as unknown as EventEmitter).emit("spawn");
+        (fixture.bot._client as EventEmitter).emit("declare_commands", {
+            rootIndex: 0,
+            nodes: [
+                { flags: 0, children: [1] },
+                { flags: 5, children: [], extraNodeData: { name: "list" } },
+            ],
+        });
+        const proof = session.status.commandGraph!.target;
+        expect(proof.principalId).toBe("authenticated-profile-id");
+        session.dispatchCommand("list", proof);
+        expect(sent).toEqual(["/list"]);
+        expect(() =>
+            session.dispatchCommand("list", { ...proof, connectionEpoch: "stale" }),
+        ).toThrow();
+        expect(() => session.dispatchCommand("list\nstop", proof)).toThrow();
+        (fixture.bot as unknown as EventEmitter).emit("end");
+        expect(() => session.dispatchCommand("list", proof)).toThrow();
+    });
     it("does not connect after a cancelled protected-account resolution", async () => {
         const fixture = runtime();
         const session = new MineflayerSession(profile, fixture.runtime);

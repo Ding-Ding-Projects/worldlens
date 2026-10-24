@@ -20,7 +20,7 @@ run-name: Generate ${{ fromJSON(inputs.generation-config || '{}').worldName || g
 #   generate      always: validate, build the generator, write the world, verify it, zip it.
 #   render        `render`: compile a map with the BlueMap CLI jar the last green ci.yml run
 #                 on `main` built, exactly as ci.yml's test-world job renders.
-#   publish       `publish: release-asset`: attach the zip to a prerelease, which is the form
+#   publish       `publish: release-asset`: attach the zip to a normal release, which is the form
 #                 render-world.yml's `release-asset` world source reads.
 #   chain-render  `dispatch-render`: start render-world.yml against that asset. A
 #                 `workflow_dispatch` fired with the workflow token is one of the two events
@@ -325,10 +325,10 @@ jobs:
           name: generated-world
           path: world-out
 
-      # A prerelease per generated world, named after the world and the run so two runs never
+      # A normal release per generated world, named after the world and the run so two runs never
       # fight over one tag. render-world.yml reads it as `<tag>/<archive>` with
       # world-source=release-asset; the SHA256SUMS beside it is the file that workflow verifies.
-      - name: Create the prerelease
+      - name: Create the release
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -349,7 +349,6 @@ jobs:
             echo "This is not Minecraft-accurate terrain. It exists to be rendered: dispatch render-world.yml with world-source release-asset and world \`$tag/$ARCHIVE\`."
           } > notes.md
           gh release create "$tag" \
-            --prerelease \
             --target "$GITHUB_SHA" \
             --title "Generated world $WORLD_NAME (run $GITHUB_RUN_ID)" \
             --notes-file notes.md \

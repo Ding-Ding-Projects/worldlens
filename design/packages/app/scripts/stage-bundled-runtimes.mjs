@@ -42,6 +42,7 @@
  *   node scripts/stage-bundled-runtimes.mjs --refresh   # print upstream's current pin
  */
 
+import { stageHostingRuntime, assertHostingRuntimeProvenance } from "./stage-hosting-runtime.mjs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
@@ -277,6 +278,7 @@ async function main() {
     }
 
     if (args.has("--check")) {
+        await assertHostingRuntimeProvenance(join(outRoot, "hosting"));
         const missing = report();
         if (missing > 0) {
             log("run without --check to stage them.");
@@ -312,6 +314,7 @@ async function main() {
     mkdirSync(chunkerOut, { recursive: true });
     copyFileSync(chunkerCache, chunkerJar);
     stageBuiltinConverterManifest();
+    await stageHostingRuntime();
 
     writeFileSync(
         join(outRoot, "manifest.json"),

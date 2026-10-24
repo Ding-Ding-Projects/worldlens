@@ -86,7 +86,12 @@ const filtered = computed(() => {
         matcher.test(`${field.key} ${field.label} ${field.category}`),
     );
 });
-const locked = computed(() => busy.value || request.value !== null);
+const activeStages = new Set(["creating-server", "generating", "inspecting", "creating-project"]);
+const observing = computed(
+    () => operation.value !== null && activeStages.has(operation.value.stage),
+);
+const running = computed(() => busy.value || observing.value);
+const locked = computed(() => running.value || request.value !== null);
 const canRun = computed(
     () =>
         !!bridge &&
@@ -99,7 +104,7 @@ const canRun = computed(
         !!name.value.trim() &&
         Number.isInteger(memory.value) &&
         memory.value >= 512 &&
-        !busy.value,
+        !running.value,
 );
 const key = "worldlens.generation.workflow.v1";
 function persist(): void {
@@ -171,8 +176,10 @@ async function descriptors(): Promise<void> {
 }
 async function refresh(): Promise<void> {
     if (!bridge) return;
+    const observedId = id.value;
     try {
-        const result = await bridge.read(id.value);
+        const result = await bridge.read(observedId);
+        if (observedId !== id.value || disposed) return;
         if (result.ok && result.value?.id === id.value) operation.value = result.value;
         else if (!result.ok)
             failure.value =
@@ -187,7 +194,7 @@ async function refresh(): Promise<void> {
 }
 async function poll(): Promise<void> {
     await refresh();
-    if (!disposed && busy.value) timer = setTimeout(() => void poll(), 1500);
+    if (!disposed && running.value) timer = setTimeout(() => void poll(), 1500);
 }
 async function run(): Promise<void> {
     if (!canRun.value) return;
@@ -238,6 +245,7 @@ async function run(): Promise<void> {
     } finally {
         busy.value = false;
         clearTimeout(timer);
+        if (!disposed && observing.value) timer = setTimeout(() => void poll(), 1500);
     }
 }
 async function cancel(): Promise<void> {
@@ -251,7 +259,7 @@ async function cancel(): Promise<void> {
     }
 }
 function newOperation(): void {
-    if (busy.value) return;
+    if (running.value) return;
     id.value = `generation-${Date.now().toString(36)}`;
     request.value = null;
     operation.value = null;
@@ -302,7 +310,8 @@ onMounted(async () => {
         if (state.id === id.value) operation.value = state;
     });
     await refresh();
-    await descriptors();
+    if (observing.value) void poll();
+    if (!locked.value) await descriptors();
 });
 watch([name, flavour, version, port, memory, seed, worldName], persist);
 watch([version, flavour, inventorySource], () => {
@@ -392,7 +401,9 @@ onBeforeUnmount(() => {
                                 v-model:regex="regex"
                                 v-model:flags="flags"
                                 :label="text('Search generation settings', '搜尋產生設定')"
-                                :sample="fields.map((field) => field.label).join('\n')"
+                                :sample="
+                                    fields.map((field: GenerationField) => field.label).join('\n')
+                                "
                             /><VAlert v-if="!fields.length" type="info">{{
                                 text(
                                     "No exact target inventory is available yet. Only the verified basic generation inputs will be sent.",
@@ -428,7 +439,7 @@ onBeforeUnmount(() => {
                 >
                 <VCheckbox
                     v-model="consent"
-                    :disabled="busy"
+                    :disabled="running"
                     :label="
                         text(
                             'Allow required server and Java downloads',
@@ -437,7 +448,7 @@ onBeforeUnmount(() => {
                     "
                 /><VCheckbox
                     v-model="eula"
-                    :disabled="busy"
+                    :disabled="running"
                     :label="
                         text(
                             'I accept the Minecraft EULA for this server',
@@ -451,7 +462,7 @@ onBeforeUnmount(() => {
                     <p v-if="operation.worldFolder">{{ operation.worldFolder }}</p>
                 </section>
                 <VProgressLinear
-                    v-if="busy"
+                    v-if="running"
                     indeterminate
                     :aria-label="text('Generation in progress', '正在產生世界')"
                 />
@@ -469,9 +480,9 @@ onBeforeUnmount(() => {
                         ? text("Resume verified operation", "繼續已記錄的操作")
                         : text("Generate and start project", "產生世界並建立專案")
                 }}</VBtn
-                ><VBtn v-if="busy" @click="cancel">{{ text("Cancel safely", "安全取消") }}</VBtn
+                ><VBtn v-if="running" @click="cancel">{{ text("Cancel safely", "安全取消") }}</VBtn
                 ><VBtn @click="refresh">{{ text("Refresh status", "更新狀態") }}</VBtn
-                ><VBtn v-if="request && !busy" @click="newOperation">{{
+                ><VBtn v-if="request && !running" @click="newOperation">{{
                     text("New operation", "新增操作")
                 }}</VBtn
                 ><VBtn @click="generationDialogOpen = false">{{

@@ -1513,7 +1513,7 @@ function startCiRenders(render: RenderIpc, github: GhCliIpc): CiRenderIpc {
         dataDir: () => app.getPath("userData"), packaged: app.isPackaged, resourcesDir: process.resourcesPath });
     // The world generator's GitHub Actions runner: one dispatch of worldgen.yml through the
     // same account lease, nothing uploaded, nothing collected here.
-    installWorldgenActionsIpc({ ipcMain, account: github.broker.account });
+    installWorldgenActionsIpc({ ipcMain, account: github.broker.account, dataDir: () => app.getPath("userData") });
     ciRenderIpc = installCiRenderIpc({
         ipcMain,
         storageDir: () => render.storageDirectory(),

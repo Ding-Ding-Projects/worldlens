@@ -200,6 +200,11 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
             bots: {
                 profiles: (request: unknown) => transport.invoke("mcserver:bots:profiles", request),
+                configuration: () => transport.invoke("mcserver:bots:configuration"),
+                configure: (request: unknown) => transport.invoke("mcserver:bots:configure", request),
+                signIn: (request: unknown) => transport.invoke("mcserver:bots:signIn", request),
+                devicePrompt: (request: unknown) => transport.invoke("mcserver:bots:devicePrompt", request),
+                cancelSignIn: (request: unknown) => transport.invoke("mcserver:bots:cancelSignIn", request),
                 accounts: () => transport.invoke("mcserver:bots:accounts"),
                 prepareAccount: (request: unknown) =>
                     transport.invoke("mcserver:bots:prepareAccount", request),
@@ -1067,6 +1072,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         },
         worldgenActions: {
             dispatch: (request: unknown) => transport.invoke("worldgenActions:dispatch", request),
+            check: (operationId: unknown) => transport.invoke("worldgenActions:check", operationId),
+            collect: (operationId: unknown) => transport.invoke("worldgenActions:collect", operationId),
         },
         bedrock: {
             detect: (folder: unknown, sizeBytes: unknown) =>
@@ -1159,6 +1166,12 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
         },
 
         managedHosting: {
+            profiles: {
+                list: () => transport.invoke("managedHosting:profile:list"),
+                save: (request: unknown) => transport.invoke("managedHosting:profile:save", request),
+                remove: (profileId: unknown) => transport.invoke("managedHosting:profile:remove", profileId),
+                readiness: (request: unknown) => transport.invoke("managedHosting:profile:readiness", request),
+            },
             access: {
                 prepare: (request: unknown) => transport.invoke("managedHosting:access:prepare", request),
                 read: (reference: unknown) => transport.invoke("managedHosting:access:read", reference),
@@ -1168,9 +1181,11 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             save: (request: unknown) => transport.invoke("managedHosting:save", request),
             signIn: () => transport.invoke("managedHosting:signIn"),
             signInStatus: () => transport.invoke("managedHosting:signInStatus"),
+            signInCancel: () => transport.invoke("managedHosting:signInCancel"),
             upload: (request: unknown) => transport.invoke("managedHosting:upload", request),
             deploy: (request: unknown) => transport.invoke("managedHosting:deploy", request),
             status: (operationId: unknown) => transport.invoke("managedHosting:status", operationId),
+            stop: (operationId: unknown) => transport.invoke("managedHosting:stop", operationId),
             onDeviceChallenge: (listener: BridgeListener) => {
                 const forward = (_event: unknown, challenge: unknown): void => listener(challenge);
                 transport.on("managedHosting:deviceChallenge", forward);

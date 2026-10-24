@@ -11,9 +11,13 @@
  * otherwise: the run is followed on GitHub, and its artifacts are what prove the world.
  *
  * Shaped after `chunkeractions/ipc.ts` deliberately, and much smaller: there is no upload
- * (the document is tiny and travels as the input itself) and no collection yet.
+ * (the document is tiny and travels as the input itself). Collection validates both archive
+ * digests and the generated receipt before importing a world into owned storage.
  */
-import type { IpcMain } from "electron";
+import type { IpcMain, IpcMainInvokeEvent } from "electron";
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import { worldgenCollection } from "./collection.js";
 import {
     WORLDGEN_WORKFLOW_FILE,
     parseWorldGenerationConfig,
@@ -25,7 +29,11 @@ import {
 import type { GhCliAccountProvider } from "../ghcli/credentialBroker.js";
 import { brokerCliTransport } from "../cirender/transport.js";
 
-export const WORLDGEN_ACTION_CHANNELS = ["worldgenActions:dispatch"] as const;
+export const WORLDGEN_ACTION_CHANNELS = [
+    "worldgenActions:dispatch",
+    "worldgenActions:check",
+    "worldgenActions:collect",
+] as const;
 
 export interface WorldgenDispatchRequest {
     readonly accountId?: string;
@@ -36,6 +44,7 @@ export interface WorldgenDispatchRequest {
 }
 
 export interface WorldgenDispatchReceipt {
+    readonly operationId: string;
     readonly repository: string;
     readonly workflowFile: string;
     readonly ref: string;
@@ -48,15 +57,23 @@ export interface WorldgenDispatchReceipt {
 interface Options {
     readonly ipcMain: IpcMain;
     readonly account: GhCliAccountProvider;
+    readonly dataDir?: () => string;
+    readonly isTrustedSender?: (event: IpcMainInvokeEvent) => boolean;
 }
 
 const NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,99}$/;
 const PUBLISH_MODES = ["artifact", "release-asset"] as const;
 
 export function requestOf(value: unknown): WorldgenDispatchRequest {
-    if (!value || typeof value !== "object")
+    if (!value || typeof value !== "object" || Array.isArray(value))
         throw new Error("Choose a repository and build a generation configuration first.");
     const r = value as Record<string, unknown>;
+    if (
+        Object.keys(r).some(
+            (key) => !["accountId", "owner", "repo", "config", "options"].includes(key),
+        )
+    )
+        throw new Error("Unknown generation dispatch field.");
     if (
         typeof r.owner !== "string" ||
         !NAME.test(r.owner) ||
@@ -75,8 +92,10 @@ export function requestOf(value: unknown): WorldgenDispatchRequest {
         );
     }
     const options = (r.options ?? {}) as Record<string, unknown>;
-    if (typeof options !== "object" || options === null)
+    if (typeof options !== "object" || options === null || Array.isArray(options))
         throw new Error("The dispatch options must be an object.");
+    if (Object.keys(options).some((key) => !["render", "publish", "dispatchRender"].includes(key)))
+        throw new Error("Unknown generation dispatch option.");
     const publish = options.publish ?? "artifact";
     if (!(PUBLISH_MODES as readonly unknown[]).includes(publish))
         throw new Error("'publish' must be artifact or release-asset.");
@@ -104,12 +123,37 @@ export function requestOf(value: unknown): WorldgenDispatchRequest {
 }
 
 export function installWorldgenActionsIpc(options: Options): { dispose(): void } {
+    const collection = worldgenCollection({
+        root: () => {
+            if (!options.dataDir)
+                throw new Error("Durable generation storage is unavailable in this build.");
+            return join(options.dataDir(), "worldgen-actions");
+        },
+        parseRequest: requestOf,
+        transport: async (request) => {
+            const lease = await options.account(request.accountId, "read");
+            if (!lease)
+                throw new Error(
+                    "Sign in to the recorded GitHub account before observing or collecting this run.",
+                );
+            return brokerCliTransport({ lease });
+        },
+    });
+    const trusted =
+        options.isTrustedSender ??
+        ((event: IpcMainInvokeEvent) =>
+            !!event.sender &&
+            !event.sender.isDestroyed() &&
+            event.sender.getURL().startsWith("file:") &&
+            (!event.senderFrame || event.senderFrame === event.sender.mainFrame));
     const handle = (
         name: (typeof WORLDGEN_ACTION_CHANNELS)[number],
         operation: (value: unknown) => Promise<unknown>,
     ) =>
         options.ipcMain.handle(name, async (_event, value: unknown) => {
             try {
+                if (!trusted(_event))
+                    throw new Error("World generation is restricted to the application workspace.");
                 return { ok: true, value: await operation(value) };
             } catch (error) {
                 return {
@@ -145,16 +189,23 @@ export function installWorldgenActionsIpc(options: Options): { dispose(): void }
         }
         const ref = await api.readDefaultBranch(r.owner, r.repo);
         const inputs = worldgenDispatchInputs(r.config, r.options);
+        const dispatchedAt = new Date().toISOString();
         await api.dispatchWorkflow(r.owner, r.repo, WORLDGEN_WORKFLOW_FILE, ref, inputs);
-        return {
+        const receipt: WorldgenDispatchReceipt = {
+            operationId: randomUUID(),
             repository: `${r.owner}/${r.repo}`,
             workflowFile: WORLDGEN_WORKFLOW_FILE,
             ref,
-            dispatchedAt: new Date().toISOString(),
+            dispatchedAt,
             inputs,
             runsUrl: `https://github.com/${r.owner}/${r.repo}/actions/workflows/${WORLDGEN_WORKFLOW_FILE}`,
         };
+        if (options.dataDir)
+            await collection.save({ receipt, request: r, run: null, jobs: [], worldFolder: null });
+        return receipt;
     });
+    handle("worldgenActions:check", (id) => collection.check(id));
+    handle("worldgenActions:collect", (id) => collection.collect(id));
 
     return {
         dispose() {

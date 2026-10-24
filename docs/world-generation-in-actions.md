@@ -95,3 +95,38 @@ string-only inputs and refuses a signed-out account or a repository without the 
 workflow itself is pinned in `scripts/lint-workflows.mjs` and named in the cloud runner
 inventory. Whether a real dispatch generated and rendered a world is recorded with its run id in
 `HANDOFF.md`, not claimed here.
+
+## Follow, download and import
+
+A successful dispatch records an operation id under the application's `worldgen-actions` storage.
+The dialog retains that id across reopening and can refresh the run and its jobs. Automatic
+observation is bounded to 60 checks, five seconds apart while the dialog remains open; manual
+refresh stays available. Closing the dialog does not cancel the remote workflow.
+
+Run discovery requires the exact generated-world title, a workflow_dispatch event and a creation
+time within five minutes of dispatch. More than one match is an explicit ambiguity, never an
+automatic choice. A missing match remains waiting, not completed.
+
+After a successful run, **Download and verify world** requires one unexpired `generated-world`
+artifact with GitHub's published SHA-256 digest. The download must match that digest before safe
+ZIP extraction. The included generation receipt must match the exact configuration, repository,
+source commit and run id. Its inner world ZIP must match its own SHA-256, and the extracted world
+must contain measured chunks and a readable level.dat with the submitted seed. Only then does
+**Open imported world** become available. Each attempt uses a fresh application-owned directory;
+existing worlds are never replaced, and interrupted files remain available for recovery.
+
+These paths have fixture-based positive and negative checks. A real GitHub dispatch, download,
+packaged dialog and map import remain separate runtime acceptance evidence.
+
+## 廣東話
+
+派發成功後會保存操作編號。重新開啟視窗可以更新工作流程及各項工作的真實狀態。
+自動觀察最多執行 60 次，每次相隔五秒，亦可手動更新；關閉視窗不會取消遠端工作流程。
+尋找流程時必須符合世界標題、workflow_dispatch 事件及派發後五分鐘內的時間。
+多個符合結果會明確停止自動選擇，沒有結果亦不會當作完成。
+
+流程成功後，下載按鈕會先驗證 GitHub 公布的壓縮檔 SHA-256，再安全解壓。
+收據必須符合提交設定、儲存庫、來源提交及流程編號，內層世界壓縮檔亦要符合自己的摘要。
+解壓後會量度真實區塊，並讀取 level.dat 核對種子；全部通過後才提供開啟匯入世界。
+每次嘗試使用新的應用程式儲存目錄，不覆寫現有世界，中斷的檔案會保留作恢復用途。
+這些檢查目前由測試資料驗證，真正線上派發、下載及原生介面操作仍需獨立驗收。
