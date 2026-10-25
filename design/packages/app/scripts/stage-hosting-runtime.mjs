@@ -97,7 +97,9 @@ async function deriveRuntime(root, source, { offline = false } = {}) {
     ].find(existsSync);
     if (!npm) throw new Error('The verified Node installation has no npm CLI');
     // npm validates cached/downloaded tarballs against the immutable reviewed lock.
-    execFileSync(process.execPath, [npm, 'ci', ...(offline ? ['--offline'] : []), '--omit=dev', '--ignore-scripts', '--no-audit', '--no-fund', '--cache', join(cache, 'npm'), '--prefix', bots], { stdio: 'inherit', timeout: 5 * 60 * 1000 });
+    // --no-bin-links: on Unix npm links node_modules/.bin entries as symlinks, which the
+    // symlink-free runtime inventory rejects. The bot worker only uses require().
+    execFileSync(process.execPath, [npm, 'ci', ...(offline ? ['--offline'] : []), '--omit=dev', '--ignore-scripts', '--no-bin-links', '--no-audit', '--no-fund', '--cache', join(cache, 'npm'), '--prefix', bots], { stdio: 'inherit', timeout: 5 * 60 * 1000 });
     writeFileSync(join(bots, 'auth-worker.mjs'), source.worker);
     if (hash(readFileSync(join(bots, 'auth-worker.mjs'))) !== hash(source.worker)) throw new Error('Staged worker differs from trusted source');
     const require = createRequire(join(bots, 'auth-worker.mjs'));
