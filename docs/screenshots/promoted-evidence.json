@@ -7,7 +7,7 @@
       "path": "docs/screenshots/bayville-pages-home.png",
       "sourceCommit": "d1d6335392a5a1f71782b5ab0f672c0824e41a4b",
       "artifactSha256": "ca17f7be07cbbb005d7f87febf9836b75d94fa4c18b3a3314cf88035bc339469",
-      "captureSha256": "1e791f0e222592d7b31d73600c27feba42acc164fe9196177f8615983406c0a3",
+      "captureSha256": "6a1c158ad97e293b5b69933f9e071d074c3c66f29a9ae648e290f9cb43ca75e5",
       "screen": "Live Worldlens documentation home published beside Bayville",
       "state": "published-home",
       "theme": "current",
@@ -15,8 +15,11 @@
       "viewportHeight": 800,
       "scale": 1,
       "interactionProofId": "live-pages:https://ding-ding-projects.github.io/worldlens-bayville-ui-public-20260819-01/",
-      "interactionReceiptSha256": "5c8f87ff71753517539f7d0ef42313b684ee37614c9cef900993c70f92e764d5",
-      "inspectionStatus": "inspected"
+      "interactionReceiptSha256": "29cbd56d7eac83525ef36e1a15d7e82b2a8fb7049d8d88f3ad0c502be146f93d",
+      "inspectionStatus": "inspected",
+      "capturedAt": "2026-10-27T20:55:00.880Z",
+      "route": "linux-container-headless-chromium",
+      "receiptPath": "docs/runtime-proof/live-pages-bayville-20261027.json"
     },
     {
       "id": "bayville-pages-map",
@@ -24,7 +27,7 @@
       "path": "docs/screenshots/bayville-pages-map.png",
       "sourceCommit": "d1d6335392a5a1f71782b5ab0f672c0824e41a4b",
       "artifactSha256": "fd3c4af2deaa54be1f7c98d07092ba4266327e40d33c53d1df9498217aff356b",
-      "captureSha256": "b16f58c7db9eef354700fa77e83caf27e893d71987c93b592a58d4e84a5d118e",
+      "captureSha256": "cae002779ab67adb5cd0e0df0692f986bedf46e08d22f845680c9e6bb097cfc6",
       "screen": "Live Bayville BlueMap published at the Pages map route",
       "state": "published-map",
       "theme": "current",
@@ -32,8 +35,11 @@
       "viewportHeight": 800,
       "scale": 1,
       "interactionProofId": "live-pages:https://ding-ding-projects.github.io/worldlens-bayville-ui-public-20260819-01/map/",
-      "interactionReceiptSha256": "aa6f05005b3305eeb1fa326748b2e9396b24e76f6c25eaaa431bd7f030b77d7b",
-      "inspectionStatus": "inspected"
+      "interactionReceiptSha256": "29cbd56d7eac83525ef36e1a15d7e82b2a8fb7049d8d88f3ad0c502be146f93d",
+      "inspectionStatus": "inspected",
+      "capturedAt": "2026-10-27T20:55:21.084Z",
+      "route": "linux-container-headless-chromium",
+      "receiptPath": "docs/runtime-proof/live-pages-bayville-20261027.json"
     },
     {
       "id": "lowlevel-adult-home",

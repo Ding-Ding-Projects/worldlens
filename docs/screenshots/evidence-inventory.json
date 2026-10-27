@@ -348,7 +348,13 @@
         "docs/screenshots/pages-published-by-the-app.png"
       ],
       "capturedFromInterfaceSource": false,
-      "notGradedBecause": "a capture of two published sites as they are actually served, so it records what is live rather than what this tree builds"
+      "notGradedBecause": "a capture of two published sites as they are actually served, so it records what is live rather than what this tree builds",
+      "renewals": {
+        "docs/screenshots/bayville-pages-home.png": "Renewed 2026-10-27 at Worldlens commit 157a721927644846b2a7196b12da515664cc2a36 through Playwright headless Chromium in a Linux cloud container (route linux-container-headless-chromium, receipt docs/runtime-proof/live-pages-bayville-20261027.json); the published site as served, 1280x800 CSS at scale 1, not the guest-Edge Lowlevel route the earlier capture used.",
+        "docs/screenshots/bayville-pages-map.png": "Renewed 2026-10-27 the same way, at the map route, after the live BlueMap viewer rendered the complete Bayville World v10.1 region; same receipt.",
+        "docs/screenshots/map-hosted-on-github-pages.png": "Not renewed: the probe world's Pages URL is recorded nowhere in this repository, and guessing a site is not evidence.",
+        "docs/screenshots/pages-published-by-the-app.png": "Not renewed: it records a publication the application performed; no such run exists in this container."
+      }
     },
     {
       "id": "consent-render",

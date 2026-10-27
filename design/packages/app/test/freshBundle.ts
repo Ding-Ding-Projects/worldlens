@@ -164,7 +164,12 @@ export default async function assertBuiltFromCurrentSource(): Promise<void> {
      * driven. A green packaging log proves a file was copied, never that the thing under test is
      * the thing that was built.
      */
-    const asar = join(packages, "app", "release", "win-unpacked", "resources", "app.asar");
+    // `win-unpacked` is what `electron-builder --dir` writes on Windows, the platform the
+    // product ships for. The same command on a Linux host writes `linux-unpacked`, and a
+    // capture run there is of that package, so the guard looks where the package actually is
+    // rather than reporting a Windows path as "never built" on a machine that cannot make one.
+    const unpacked = process.platform === "win32" ? "win-unpacked" : `${process.platform}-unpacked`;
+    const asar = join(packages, "app", "release", unpacked, "resources", "app.asar");
     const packaged = await newestUnder(dirname(asar), (name) => name === "app.asar");
     if (packaged === null) {
         complaints.push(

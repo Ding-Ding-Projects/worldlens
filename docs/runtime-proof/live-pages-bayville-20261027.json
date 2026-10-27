@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "route": "linux-container-headless-chromium",
+  "routeNote": "Playwright 1.63 headless Chromium in a Linux cloud container, through the container's HTTPS proxy, at a 1280x800 CSS viewport and scale 1, light colour scheme, waiting for network idle plus a settle delay; not the cheap-lowlevel-headless guest-Edge route the earlier records used, and not a Windows desktop. The pictures are of the published sites exactly as served at capture time.",
+  "worldlensCommit": "157a721927644846b2a7196b12da515664cc2a36",
+  "deploymentSourceCommit": "d1d6335392a5a1f71782b5ab0f672c0824e41a4b",
+  "writtenAt": "2026-10-27T21:01:16.613341Z",
+  "captures": [
+    {
+      "id": "bayville-pages-home",
+      "promotedPath": "docs/screenshots/bayville-pages-home.png",
+      "url": "https://ding-ding-projects.github.io/worldlens-bayville-ui-public-20260819-01/",
+      "finalUrl": "https://ding-ding-projects.github.io/worldlens-bayville-ui-public-20260819-01/#/",
+      "httpStatus": 200,
+      "title": "Worldlens documentation \u00b7 Minecraft worlds rendered into 3D maps",
+      "capturedAt": "2026-10-27T20:55:00.880Z",
+      "servedDocumentSha256": "ca17f7be07cbbb005d7f87febf9836b75d94fa4c18b3a3314cf88035bc339469",
+      "servedDocumentBytes": 105371,
+      "captureSha256": "6a1c158ad97e293b5b69933f9e071d074c3c66f29a9ae648e290f9cb43ca75e5",
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "pageErrors": []
+    },
+    {
+      "id": "bayville-pages-map",
+      "promotedPath": "docs/screenshots/bayville-pages-map.png",
+      "url": "https://ding-ding-projects.github.io/worldlens-bayville-ui-public-20260819-01/map/",
+      "finalUrl": "https://ding-ding-projects.github.io/worldlens-bayville-ui-public-20260819-01/map/#bayville_world_v10_1:0:0:0:1500:0:0:0:0:perspective",
+      "httpStatus": 200,
+      "title": "BlueMap - Bayville World v10.1",
+      "capturedAt": "2026-10-27T20:55:21.084Z",
+      "servedDocumentSha256": "fd3c4af2deaa54be1f7c98d07092ba4266327e40d33c53d1df9498217aff356b",
+      "servedDocumentBytes": 1650,
+      "captureSha256": "cae002779ab67adb5cd0e0df0692f986bedf46e08d22f845680c9e6bb097cfc6",
+      "width": 1280,
+      "height": 800,
+      "scale": 1,
+      "pageErrors": []
+    }
+  ]
+}

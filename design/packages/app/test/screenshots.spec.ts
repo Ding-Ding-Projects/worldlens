@@ -5809,7 +5809,12 @@ test("records what was captured", async () => {
     // comment can tell which build and which surface an image came from.
     const manifest = {
         capturedBy: "design/packages/app/test/screenshots.spec.ts",
-        method: "Playwright CDP attached to the exact Worldlens process launched on a cheap Lowlevel hidden desktop",
+        // The launcher states the route it used; this harness attaches over CDP either way and
+        // must not describe a desktop it did not see. The committed Windows launcher is the
+        // default because it is the only one that existed when this string was a constant.
+        method:
+            process.env.WORLDLENS_LAUNCH_ROUTE?.trim() ||
+            "Playwright CDP attached to the exact Worldlens process launched on a cheap Lowlevel hidden desktop",
         commit: CAPTURE_COMMIT,
         run: process.env.GITHUB_RUN_ID ?? "(local run)",
         captureMode: target.mode,
