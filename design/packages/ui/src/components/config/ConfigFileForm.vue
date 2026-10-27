@@ -447,21 +447,21 @@ async function copyText(): Promise<void> {
 }
 
 .mb-config-form__title {
-    font-size: 1.25rem;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 400;
     line-height: 1.3;
 }
 
 .mb-config-form__blurb,
 .mb-config-form__empty {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-config-form__path {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 
@@ -479,7 +479,7 @@ async function copyText(): Promise<void> {
 }
 
 .mb-config-form__panels {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     overflow: hidden;
 }
 
@@ -515,7 +515,7 @@ async function copyText(): Promise<void> {
 .mb-config-form__count {
     margin-inline-start: auto;
     margin-inline-end: 12px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -523,7 +523,7 @@ async function copyText(): Promise<void> {
 
 .mb-config-form__source {
     margin-block-start: 16px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-config-form__source-head {
@@ -548,7 +548,7 @@ async function copyText(): Promise<void> {
 .mb-config-form__pre,
 .mb-config-form__raw textarea {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
 }
 

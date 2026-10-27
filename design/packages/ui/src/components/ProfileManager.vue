@@ -688,7 +688,7 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
     min-block-size: 48px;
     min-inline-size: 0;
     padding: 6px 12px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     cursor: pointer;
 }
 
@@ -731,13 +731,13 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
  * row the user cannot tell apart from the next one.
  */
 .mb-profiles__name {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     line-height: 1.35;
     overflow-wrap: anywhere;
 }
 
 .mb-profiles__subtitle {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.3;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -755,9 +755,9 @@ function whatRemovalCosts(profile: ServerProfile): string[] {
 .mb-profiles__kbd {
     padding: 1px 6px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.3);
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

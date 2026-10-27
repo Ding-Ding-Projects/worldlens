@@ -1997,7 +1997,7 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor__pagesState {
     margin-block: 0 8px;
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
@@ -2066,11 +2066,11 @@ const renderButtonLabel = computed(() =>
     gap: 10px;
     flex-wrap: wrap;
     padding: 9px 11px;
-    border-radius: 9px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgb(var(--v-theme-surface-container));
     border: 1px solid rgb(var(--v-theme-outline-variant));
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.6;
     min-inline-size: 0;
     overflow-wrap: anywhere;
@@ -2148,7 +2148,7 @@ const renderButtonLabel = computed(() =>
     min-block-size: 44px;
     padding: 0;
     border: 0;
-    border-radius: 999px;
+    border-radius: var(--md-sys-shape-corner-full);
     background: transparent;
     color: inherit;
     cursor: pointer;
@@ -2168,7 +2168,7 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor__context {
     min-inline-size: 0;
     border: 1px solid rgba(var(--v-theme-on-surface), var(--v-border-opacity));
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-surface));
 }
 
@@ -2194,7 +2194,7 @@ const renderButtonLabel = computed(() =>
 
 .mb-project-editor__eyebrow {
     margin: 0;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 700;
     letter-spacing: 0.08em;
     line-height: 1.3;
@@ -2206,7 +2206,7 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor__context-note,
 .mb-project-editor__save-plan p {
     margin: 6px 0 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -2226,7 +2226,7 @@ const renderButtonLabel = computed(() =>
     min-block-size: 44px;
     padding: 8px 10px;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: transparent;
     color: rgb(var(--v-theme-on-surface));
     cursor: pointer;
@@ -2266,7 +2266,7 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor__navigator-label {
     min-inline-size: 0;
     overflow: hidden;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 650;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -2276,7 +2276,7 @@ const renderButtonLabel = computed(() =>
     align-self: start;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.625rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.3;
     white-space: nowrap;
 }
@@ -2284,7 +2284,7 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor__navigator-detail {
     grid-column: 1 / -1;
     min-inline-size: 0;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.3;
     overflow-wrap: anywhere;
     white-space: normal;
@@ -2302,7 +2302,7 @@ const renderButtonLabel = computed(() =>
     gap: 8px;
     margin: 10px 0 0;
     padding-inline-start: 18px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
 }
 
@@ -2316,7 +2316,7 @@ const renderButtonLabel = computed(() =>
     grid-template-columns: minmax(5rem, auto) minmax(0, 1fr);
     gap: 6px 10px;
     margin: 10px 0 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
 }
 
@@ -2336,11 +2336,11 @@ const renderButtonLabel = computed(() =>
     overflow-wrap: anywhere;
     white-space: pre-wrap;
     border: 1px solid rgba(var(--v-theme-on-surface), var(--v-border-opacity));
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-on-surface), 0.04);
     color: rgb(var(--v-theme-on-surface));
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.5;
 }
 
@@ -2352,7 +2352,7 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor__save-plan li {
     padding: 9px 10px;
     border: 1px solid rgba(var(--v-theme-on-surface), var(--v-border-opacity));
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-on-surface), 0.04);
 }
 
@@ -2360,7 +2360,7 @@ const renderButtonLabel = computed(() =>
     display: block;
     color: rgb(var(--v-theme-on-surface));
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     overflow-wrap: anywhere;
 }
 
@@ -2397,14 +2397,14 @@ const renderButtonLabel = computed(() =>
     gap: 8px;
     flex-wrap: wrap;
     margin-block-start: -4px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
     min-inline-size: 0;
 }
 
 .mb-project-editor__hint {
     margin-block-start: 6px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;

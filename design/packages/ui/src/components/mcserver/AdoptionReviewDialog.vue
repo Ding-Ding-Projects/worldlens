@@ -367,12 +367,12 @@ async function confirmRelease(): Promise<void> {
 }
 .wl-mcserver-adopt__noMatch {
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     margin: 4px 0 0 0;
 }
 .wl-mcserver-adopt__evidence {
     margin: 4px 0 0 20px;
     padding: 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 </style>

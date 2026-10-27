@@ -201,7 +201,7 @@ function update(index: number, value: PlainValue): void {
 }
 
 .mb-config-list__empty {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

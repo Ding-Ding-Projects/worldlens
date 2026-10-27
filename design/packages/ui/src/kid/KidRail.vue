@@ -158,13 +158,13 @@ const unreadLabel = computed(() =>
     display: grid;
     place-items: center;
 }
-.wl-kid-rail__big { width: 106px; min-height: 92px; font-size: 17px; gap: 2px; }
+.wl-kid-rail__big { width: 106px; min-height: 92px; font-size: var(--md-sys-typescale-body-large-size); gap: 2px; }
 .wl-kid-rail__small { width: 94px; min-height: var(--wl-kid-target-min); }
 .wl-kid-rail__big[aria-current="page"] { background: rgb(var(--v-theme-tertiary)); color: rgb(var(--v-theme-on-tertiary)); }
 .wl-kid-rail__badge {
     position: absolute; top: 6px; right: 10px; min-width: 26px; height: 26px; padding: 0 5px;
-    border-radius: 13px; background: rgb(var(--v-theme-tertiary)); color: rgb(var(--v-theme-on-tertiary));
-    font-size: 15px; line-height: 26px;
+    border-radius: var(--md-sys-shape-corner-medium); background: rgb(var(--v-theme-tertiary)); color: rgb(var(--v-theme-on-tertiary));
+    font-size: var(--md-sys-typescale-body-large-size); line-height: 26px;
 }
 .wl-kid-rail__badge--alert { background: rgb(var(--v-theme-error)); color: rgb(var(--v-theme-on-error)); }
 .wl-kid-rail__spacer { flex: 1; }
@@ -181,7 +181,7 @@ const unreadLabel = computed(() =>
  */
 @media (max-width: 860px) {
     .wl-kid-rail { width: 88px; gap: 6px; }
-    .wl-kid-rail__big { width: 80px; min-height: var(--wl-kid-target-min); font-size: 13px; padding: 6px 2px; }
+    .wl-kid-rail__big { width: 80px; min-height: var(--wl-kid-target-min); font-size: var(--md-sys-typescale-body-medium-size); padding: 6px 2px; }
     .wl-kid-rail__small { width: var(--wl-kid-target-min); min-height: var(--wl-kid-target-min); }
     .wl-kid-rail__badge { right: 4px; }
 }

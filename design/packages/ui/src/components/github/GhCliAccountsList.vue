@@ -1309,14 +1309,14 @@ async function checkAgain(): Promise<void> {
 
 .mb-ghcli__title {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 600;
     letter-spacing: 0.02em;
 }
 
 .mb-ghcli__note {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -1325,16 +1325,16 @@ async function checkAgain(): Promise<void> {
 
 .mb-ghcli__status,
 .mb-ghcli__report {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), 0.87);
 }
 
 .mb-ghcli__warning {
     margin: 0;
     padding: 8px 12px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgba(var(--v-theme-warning), 0.12);
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     text-wrap: pretty;
 }
@@ -1361,7 +1361,7 @@ async function checkAgain(): Promise<void> {
 
 .mb-ghcli__deviceLabel {
     flex-basis: 100%;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 600;
     letter-spacing: 0.04em;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -1369,10 +1369,10 @@ async function checkAgain(): Promise<void> {
 
 .mb-ghcli__deviceValue {
     padding: 6px 10px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgba(var(--v-theme-on-surface), 0.08);
     font-family: monospace;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 700;
     letter-spacing: 0.1em;
 }
@@ -1404,7 +1404,7 @@ async function checkAgain(): Promise<void> {
     gap: 8px;
     padding: 12px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgb(var(--v-theme-surface));
 }
 
@@ -1428,7 +1428,7 @@ async function checkAgain(): Promise<void> {
     display: flex;
     flex-direction: column;
     gap: 2px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     overflow-wrap: anywhere;
 }
@@ -1445,7 +1445,7 @@ async function checkAgain(): Promise<void> {
 
 .mb-ghcli__rowhost {
     border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     overflow: hidden;
 }
 
@@ -1460,7 +1460,7 @@ async function checkAgain(): Promise<void> {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     outline-offset: 2px;
 }
 
@@ -1492,7 +1492,7 @@ async function checkAgain(): Promise<void> {
 }
 
 .mb-ghcli__fact > dt {
-    font-size: 0.625rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -1501,7 +1501,7 @@ async function checkAgain(): Promise<void> {
 
 .mb-ghcli__fact > dd {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     overflow-wrap: anywhere;
 }
@@ -1518,7 +1518,7 @@ async function checkAgain(): Promise<void> {
 
 .mb-ghcli__scopeWarningText {
     margin: 0 0 4px 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-ghcli__addAccount {

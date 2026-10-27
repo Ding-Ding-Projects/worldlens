@@ -540,7 +540,7 @@ defineExpose({ summary });
 
 .mb-changelog-calendar__weekdays {
     margin-block-start: 8px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     text-align: center;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -555,11 +555,11 @@ defineExpose({ summary });
 .mb-changelog-calendar__day {
     min-height: 32px;
     min-width: 32px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     border: solid 1px transparent;
     background: transparent;
     color: rgb(var(--v-theme-on-surface));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     cursor: pointer;
     position: relative;
 }

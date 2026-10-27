@@ -385,7 +385,7 @@ async function create(): Promise<void> {
 
 .mb-lock-wizard__uri {
     font-family: var(--mb-font-mono, monospace);
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     /* An otpauth URI has no spaces, so it needs to be told it may break. */
     overflow-wrap: anywhere;
     margin-bottom: 0.75rem;

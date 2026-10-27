@@ -614,7 +614,7 @@ const cardLabel = computed(() =>
     overflow-y: auto;
     padding-inline-start: 18px;
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 11px;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 16px;
 }
 

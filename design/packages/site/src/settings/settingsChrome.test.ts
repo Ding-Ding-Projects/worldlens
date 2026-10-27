@@ -157,7 +157,7 @@ describe("settings card-wall layout", () => {
 
     it("gives section cards an asymmetric shape rather than one uniform radius", () => {
         expect(groupRuleSource).toMatch(
-            /border-radius:\s*var\(--md-sys-shape-corner-extra-small,\s*4px\)\s+20px\s+20px\s+var\(--md-sys-shape-corner-extra-small,\s*4px\);/,
+            /border-radius:\s*var\(--md-sys-shape-corner-extra-small,\s*4px\)\s+var\(--md-sys-shape-corner-large\)\s+var\(--md-sys-shape-corner-large\)\s+var\(--md-sys-shape-corner-extra-small,\s*4px\);/,
         );
     });
 

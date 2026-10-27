@@ -494,13 +494,13 @@ onBeforeUnmount(() => {
 }
 
 .mb-bedrock-note__explanation {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     margin: 4px 0 0;
 }
 
 .mb-bedrock-note__fidelity {
     margin: 8px 0 0 1.1em;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
@@ -513,7 +513,7 @@ onBeforeUnmount(() => {
     justify-content: space-between;
     align-items: center;
     margin-block-start: 4px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .mb-bedrock-note__actions {
@@ -525,7 +525,7 @@ onBeforeUnmount(() => {
 }
 
 .mb-bedrock-note__checking {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

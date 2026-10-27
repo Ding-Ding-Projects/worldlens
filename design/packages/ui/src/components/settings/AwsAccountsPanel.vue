@@ -312,7 +312,7 @@ function creditsAgeLabel(fetchedAt: string): string {
 
 .mb-aws-accounts__field {
     margin: 2px 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     overflow-wrap: anywhere;
 }
 
@@ -341,7 +341,7 @@ function creditsAgeLabel(fetchedAt: string): string {
 }
 
 .mb-aws-accounts__disabled-reason {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -361,11 +361,11 @@ function creditsAgeLabel(fetchedAt: string): string {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-aws-accounts__credits-age {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

@@ -14,7 +14,8 @@
         "precapture": "node ../../scripts/ensure-electron-binary.mjs"
     },
     "dependencies": {
-        "@worldlens/server": "workspace:*"
+        "@worldlens/server": "workspace:*",
+        "@worldlens/ui": "workspace:*"
     },
     "devDependencies": {
         "electron": "^37.10.3",

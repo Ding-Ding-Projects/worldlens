@@ -304,15 +304,31 @@ describe("the M3 token sheet publishes the whole system, not only the colour hal
         return match?.[1]?.replace(/\s+/g, " ").trim();
     }
 
-    it("publishes the M3 corner scale at the spec's own steps", () => {
+    it("publishes the M3 corner scale at the spec's own steps, under the spec's own names", () => {
         expect(token("--md-sys-shape-corner-none")).toBe("0px");
-        expect(token("--md-sys-shape-corner-xs")).toBe("4px");
-        expect(token("--md-sys-shape-corner-sm")).toBe("8px");
-        expect(token("--md-sys-shape-corner-md")).toBe("12px");
-        expect(token("--md-sys-shape-corner-lg")).toBe("16px");
-        expect(token("--md-sys-shape-corner-xl")).toBe("28px");
+        expect(token("--md-sys-shape-corner-extra-small")).toBe("4px");
+        expect(token("--md-sys-shape-corner-small")).toBe("8px");
+        expect(token("--md-sys-shape-corner-medium")).toBe("12px");
+        expect(token("--md-sys-shape-corner-large")).toBe("16px");
+        expect(token("--md-sys-shape-corner-extra-large")).toBe("28px");
         // 9999px and not 50%: 50% on a box wider than it is tall is an ellipse.
         expect(token("--md-sys-shape-corner-full")).toBe("9999px");
+    });
+
+    it("keeps the short spellings as aliases of the spec names, never as a second number", () => {
+        // `global.scss` re-points `.rounded-*` through the short names and every older
+        // consumer spends them; an alias declared with var() means a step still has exactly
+        // one value, and a short name that carried its own number would be the two-scales
+        // problem this sheet exists to end.
+        for (const [short, spec] of [
+            ["xs", "extra-small"],
+            ["sm", "small"],
+            ["md", "medium"],
+            ["lg", "large"],
+            ["xl", "extra-large"],
+        ]) {
+            expect(token(`--md-sys-shape-corner-${short}`)).toBe(`var(--md-sys-shape-corner-${spec})`);
+        }
     });
 
     it("publishes all fifteen type ramps with a size, a line height, a weight and a tracking", () => {

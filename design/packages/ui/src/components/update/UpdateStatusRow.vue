@@ -184,7 +184,7 @@ const newVersion = computed(() => props.state.readyVersion ?? props.state.newVer
 
 .mb-update-row__secondary {
     margin: 2px 0 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -198,7 +198,7 @@ const newVersion = computed(() => props.state.readyVersion ?? props.state.newVer
 }
 
 .mb-update-row__fact > dt {
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -207,7 +207,7 @@ const newVersion = computed(() => props.state.readyVersion ?? props.state.newVer
 
 .mb-update-row__fact > dd {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     overflow-wrap: anywhere;
 }
 
@@ -221,7 +221,7 @@ const newVersion = computed(() => props.state.readyVersion ?? props.state.newVer
 
 .mb-update-row__detail > pre {
     margin: 4px 0 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     white-space: pre-wrap;
     overflow-wrap: anywhere;
 }

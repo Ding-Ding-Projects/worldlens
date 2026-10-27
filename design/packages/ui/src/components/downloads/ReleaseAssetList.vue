@@ -170,14 +170,14 @@ function label(asset: AvailableAsset): string {
 }
 
 .mb-release-assets__title {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     line-height: 1.4;
 }
 
 .mb-release-assets__empty {
     margin-block-start: 6px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -204,7 +204,7 @@ function label(asset: AvailableAsset): string {
 
 .mb-release-assets__name {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     overflow-wrap: anywhere;
 }
 </style>

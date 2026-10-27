@@ -306,7 +306,7 @@ function levelSummary(level: SpeedLevel): string {
 
 <style>
 .mb-speed {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     margin-block-end: 16px;
 }
 
@@ -318,13 +318,13 @@ function levelSummary(level: SpeedLevel): string {
 }
 
 .mb-speed__title {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.3;
 }
 
 .mb-speed__blurb {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     margin-block-end: 12px;
@@ -367,7 +367,7 @@ function levelSummary(level: SpeedLevel): string {
 
 .mb-speed__state {
     margin-block-start: 10px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -382,7 +382,7 @@ function levelSummary(level: SpeedLevel): string {
 
 .mb-speed__table {
     margin-block-start: 4px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-speed__value {

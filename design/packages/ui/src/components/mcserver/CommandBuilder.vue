@@ -661,7 +661,7 @@ const replayText = ref<string | null>(null);
     max-height: 420px;
     overflow-y: auto;
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 .wl-mcserver-cmdbuilder__form {
     flex: 1 1 auto;
@@ -671,8 +671,8 @@ const replayText = ref<string | null>(null);
     display: block;
     padding: 8px 10px;
     background: rgba(var(--v-theme-on-surface), 0.06);
-    border-radius: 6px;
-    font-size: 13px;
+    border-radius: var(--md-sys-shape-corner-small);
+    font-size: var(--md-sys-typescale-body-medium-size);
     white-space: pre-wrap;
     word-break: break-word;
     margin-top: 4px;

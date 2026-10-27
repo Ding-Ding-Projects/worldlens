@@ -20,27 +20,27 @@ body {
        and chasing it component by component finds the symptom rather than the cause. */
     overflow-x: hidden;
     background: var(--md-sys-color-background, #0b0e11);
-    color: var(--md-sys-color-on-background, #e3e2e6);
+    color: var(--md-sys-color-on-background, #e1e2e8);
     font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    font-size: 15px;
+    font-size: var(--md-sys-typescale-body-large-size);
     line-height: 1.5;
 }
 
 .wharf-bar {
     padding: 20px 24px 12px;
-    border-bottom: 1px solid var(--md-sys-color-outline-variant, #43474e);
+    border-bottom: 1px solid var(--md-sys-color-outline-variant, #42474e);
 }
 
 .wharf-bar__title {
     margin: 0;
-    font-size: 22px;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 500;
 }
 
 .wharf-bar__subtitle {
     margin: 4px 0 0;
-    color: var(--md-sys-color-on-surface-variant, #c3c7cf);
-    font-size: 14px;
+    color: var(--md-sys-color-on-surface-variant, #c2c7cf);
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .wharf-main {
@@ -55,7 +55,7 @@ body {
 }
 
 .wharf-card {
-    background: var(--md-sys-color-surface-container, #1b1b1f);
+    background: var(--md-sys-color-surface-container, #1d2024);
     border-radius: var(--md-sys-shape-corner-large, 16px);
     box-shadow: var(--md-sys-elevation-shadow-level1, 0 1px 3px rgb(0 0 0 / 30%));
     padding: 20px;
@@ -63,7 +63,7 @@ body {
 
 .wharf-card h2 {
     margin: 0 0 12px;
-    font-size: 16px;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
@@ -81,8 +81,8 @@ body {
 }
 
 .wharf-field label {
-    color: var(--md-sys-color-on-surface-variant, #c3c7cf);
-    font-size: 13px;
+    color: var(--md-sys-color-on-surface-variant, #c2c7cf);
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .wharf-field input[type="text"],
@@ -92,9 +92,9 @@ body {
        driven on a touchscreen laptop and there is no reason for it not to be. */
     min-height: 44px;
     padding: 8px 12px;
-    border: 1px solid var(--md-sys-color-outline, #8d9199);
+    border: 1px solid var(--md-sys-color-outline, #8c9199);
     border-radius: var(--md-sys-shape-corner-extra-small, 4px);
-    background: var(--md-sys-color-surface, #111418);
+    background: var(--md-sys-color-surface, #101418);
     color: inherit;
     font: inherit;
     /* Without this a long digest-pinned image reference widens the grid column and pushes the
@@ -111,17 +111,17 @@ button {
     min-height: 44px;
     padding: 0 20px;
     border: none;
-    border-radius: var(--md-sys-shape-corner-full, 999px);
-    background: var(--md-sys-color-primary, #a6c8ff);
-    color: var(--md-sys-color-on-primary, #00325b);
+    border-radius: var(--md-sys-shape-corner-full, 9999px);
+    background: var(--md-sys-color-primary, #8fcdff);
+    color: var(--md-sys-color-on-primary, #003351);
     font: inherit;
     font-weight: 500;
     cursor: pointer;
 }
 
 button:disabled {
-    background: color-mix(in srgb, var(--md-sys-color-on-surface, #e3e2e6) 12%, transparent);
-    color: color-mix(in srgb, var(--md-sys-color-on-surface, #e3e2e6) 38%, transparent);
+    background: color-mix(in srgb, var(--md-sys-color-on-surface, #e1e2e8) 12%, transparent);
+    color: color-mix(in srgb, var(--md-sys-color-on-surface, #e1e2e8) 38%, transparent);
     cursor: default;
 }
 
@@ -130,15 +130,15 @@ input:focus-visible,
 select:focus-visible {
     /* Never removed, and never replaced with a colour change alone: a focus ring is how
        somebody driving this from the keyboard knows where they are. */
-    outline: 2px solid var(--md-sys-color-primary, #a6c8ff);
+    outline: 2px solid var(--md-sys-color-primary, #8fcdff);
     outline-offset: 2px;
 }
 
 .wharf-hint,
 .wharf-status {
     margin: 6px 0 12px;
-    color: var(--md-sys-color-on-surface-variant, #c3c7cf);
-    font-size: 13px;
+    color: var(--md-sys-color-on-surface-variant, #c2c7cf);
+    font-size: var(--md-sys-typescale-body-medium-size);
     /* A refused path or a digest has no spaces in it, and would otherwise run off the card. */
     overflow-wrap: anywhere;
 }
@@ -155,8 +155,8 @@ select:focus-visible {
 }
 
 .wharf-plan dt {
-    color: var(--md-sys-color-on-surface-variant, #c3c7cf);
-    font-size: 13px;
+    color: var(--md-sys-color-on-surface-variant, #c2c7cf);
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .wharf-plan dd {
@@ -171,7 +171,7 @@ select:focus-visible {
 }
 
 .wharf-ok {
-    color: var(--md-sys-color-primary, #a6c8ff);
+    color: var(--md-sys-color-primary, #8fcdff);
 }
 
 @media (prefers-reduced-motion: reduce) {

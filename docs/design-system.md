@@ -101,15 +101,36 @@ layer, which sits outside the Vue tree and so is reached by no component stylesh
 
 ### Shape
 
-| Token | Value | Spent on |
-|---|---|---|
-| `--md-sys-shape-corner-none` | 0px | Window caption buttons |
-| `--md-sys-shape-corner-xs` | 4px | `.rounded` |
-| `--md-sys-shape-corner-sm` | 8px | `.rounded-sm` |
-| `--md-sys-shape-corner-md` | 12px | Text fields and everything built from one |
-| `--md-sys-shape-corner-lg` | 16px | Cards, sheets, alerts, banners, lists, snackbars |
-| `--md-sys-shape-corner-xl` | 28px | Dialogs and menus, through the surfaces they contain |
-| `--md-sys-shape-corner-full` | 9999px | Buttons, chips, button groups |
+| Token | Alias | Value | Spent on |
+|---|---|---|---|
+| `--md-sys-shape-corner-none` | | 0px | Window caption buttons |
+| `--md-sys-shape-corner-extra-small` | `-xs` | 4px | `.rounded` |
+| `--md-sys-shape-corner-small` | `-sm` | 8px | `.rounded-sm` |
+| `--md-sys-shape-corner-medium` | `-md` | 12px | Text fields and everything built from one |
+| `--md-sys-shape-corner-large` | `-lg` | 16px | Cards, sheets, alerts, banners, lists, snackbars |
+| `--md-sys-shape-corner-extra-large` | `-xl` | 28px | Dialogs and menus, through the surfaces they contain |
+| `--md-sys-shape-corner-full` | | 9999px | Buttons, chips, button groups |
+
+The spec spellings are canonical and the short ones are aliases declared with `var()`, so there
+is still one value per step. Both exist because the sheet used to publish only the short names
+while the marker layer, the documentation site and Wharf all asked for the spec names: every one
+of those requests fell through to the hand-typed fallback beside it, which looked right on the day
+it was typed and tracked nothing afterwards.
+
+### The colour sheet
+
+`design/packages/design-system/src/colors.css` publishes every `--md-sys-color-<role>` for all
+three schemes - dark under `:root`, `[data-theme="dark"]` and `.v-theme--dark`, light and
+contrast under their own attribute and class - and is generated from `colors.ts` by
+`pnpm --filter @worldlens/design-system run colors:write`, with `colors:check` proving it current
+and `colors.css.test.ts` pinning it to the module. A surface without Vuetify links it beside
+`tokens.css`; Wharf does, and before it did, every colour in Wharf was its fallback. The desktop
+interface does not link it: Vuetify republishes the same roles live as `--v-theme-<role>`, and
+`markers.scss` maps the complete role set onto `--md-sys-color-<role>` from there, which is what
+lets the appearance editor's overrides reach the raw-DOM layers. `markers.colorRoles.test.ts`
+pins that map to `COLOR_ROLES` in both directions, because for a long time it carried only the
+slice the marker popups needed and the hosted sign-in prompt, which asked for `on-primary` and
+`error`, painted Material's baseline purple from its fallbacks instead.
 
 ### Type
 
@@ -159,14 +180,45 @@ State layers are `--md-sys-state-hover-opacity` 8%, `-focus-` 10%, `-pressed-` 1
 so every state overlay in the framework retunes from one place.
 
 Motion is the MD3 Expressive set: seven easings - `emphasized` and its decelerate/accelerate
-variants, `standard` and its two, and `linear` - and a twelve-step duration ladder,
+variants, `standard` and its two, and `linear` - and a sixteen-step duration ladder,
 `short1..4` at 50/100/150/200ms, `medium1..4` at 250/300/350/400ms, `long1..4` at
-450/500/550/600ms.
+450/500/550/600ms, `extra-long1..4` at 700/800/900/1000ms. The state block also carries the two
+disabled opacities, 38% for content and 12% for its container.
 
 **Reduced motion is absolute.** The kill switch at the bottom of `global.scss` is last in the
 file and uses `!important`, so it outranks any normal declaration regardless of which token
 fed it. A surface that animates through a Vue `<Transition>` rather than a CSS rule has to
 degrade itself as well, and is tested for it.
+
+## The check, and what it moved
+
+`scripts/check-design-tokens.mjs` is the rule above as a check: every surface - the desktop
+interface, the documentation site, Wharf, the md3-check and kid-check instruments and the render
+page - is scanned for a `border-radius`, `font-size`, `transition` or `animation` literal where a
+shape, type or motion token belongs, and for a `var(--md-sys-*, <fallback>)` whose fallback is
+not the token's own value. The step values are read from `tokens.css` and `colors.css` rather
+than carried in the script. `--fix` rewrites each literal to its token, and a literal that is
+data rather than chrome is declared with a `material-exempt: <reason>` comment, the same marker
+the colour purity check in `check-webapp-parity.mjs` honours. From `design/`,
+`pnpm design-tokens:check` runs the script's own tests and then the check.
+
+Its first run over the tree found 1,024 literals. 579 were already on the scale and only needed
+naming. 381 were not, and were moved to the nearest step - to the larger step when two were
+equally near, which is the accessible direction for type and the Material 3 direction for shape.
+The largest groups: 157 declarations at 0.8125rem (13px) became `body-medium`, 53 at 0.9375rem
+(15px) became `body-large`, 14 corners at 10px and 12 at 14px became `medium` and `large`. The 43
+fallbacks that disagreed with their token were corrected, among them every colour in the hosted
+sign-in prompt and in Wharf. Four long ambient animations - an indeterminate sweep, a mascot's
+idle bob, a one-shot celebration and an opt-in hue cycle - are longer than the ladder by design
+and are declared as such. The documentation site's two drifted tokens, a 999px pill against the
+system's 9999px and a `title-large` weight of 500 against the spec's 400, now match, and
+`tokens.parity.test.ts` holds every value both sheets declare equal. The ramp itself stays stock
+Material 3, as the type section says.
+
+What the check does not do: it does not judge a `box-shadow` (`overlaySurfaceTokens.test.ts`
+owns that for overlays), a `line-height`, a `padding` or a `gap`, so a spacing scale is still a
+number somebody typed; and the moved values were verified by the suites and by rendered
+overflow checks at the minimum window size, not by a new capture matrix.
 
 ## Component defaults
 

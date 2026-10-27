@@ -69,8 +69,8 @@ const shape = computed(() => {
 
 .mb-cb-menu__bar {
     transition:
-        transform 0.3s ease,
-        opacity 0.3s ease;
+        transform var(--md-sys-motion-duration-medium2) ease,
+        opacity var(--md-sys-motion-duration-medium2) ease;
 }
 
 .mb-cb-menu__bar--1 {

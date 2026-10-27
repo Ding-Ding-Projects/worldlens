@@ -447,7 +447,7 @@ const rowName = (row: TabGroupPickerRow): string =>
      * every row, the search field and the empty-state text render directly over the tab
      * strip with nothing behind them -- match AppearanceEditor.vue's root treatment.
      */
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
@@ -460,7 +460,7 @@ const rowName = (row: TabGroupPickerRow): string =>
 
 .mb-tab-group-picker__empty {
     padding: 4px 12px 8px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -476,7 +476,7 @@ const rowName = (row: TabGroupPickerRow): string =>
     align-items: center;
     gap: 8px;
     padding: 6px 10px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     cursor: pointer;
 }
 
@@ -502,12 +502,12 @@ const rowName = (row: TabGroupPickerRow): string =>
 
 .mb-tab-group-picker__count {
     margin-inline-start: auto;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-tab-group-picker__new-group {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-tab-group-picker__actions {

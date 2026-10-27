@@ -1216,13 +1216,13 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
 
 .mb-history__title {
     margin: 0;
-    font-size: 1.125rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
 .mb-history__subtitle {
     margin: 2px 0 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -1319,24 +1319,24 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
     align-items: baseline;
     margin: 0;
     padding: 6px 4px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     background: rgb(var(--v-theme-surface));
 }
 
 .mb-history__dayName {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-history__daySummary {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 400;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-history__count {
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-variant-numeric: tabular-nums;
 }
 
@@ -1358,7 +1358,7 @@ const canWrite = computed(() => host.value !== null && unavailable.value === nul
 .mb-history__inline,
 .mb-history__quiet {
     margin: 8px 0 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

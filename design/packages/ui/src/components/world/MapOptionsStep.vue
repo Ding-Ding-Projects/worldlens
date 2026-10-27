@@ -340,7 +340,7 @@ defineExpose({ revealField } satisfies MapOptionsStepExpose);
 }
 
 .mb-world-options__panels {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     overflow: hidden;
 }
 
@@ -358,7 +358,7 @@ defineExpose({ revealField } satisfies MapOptionsStepExpose);
 .mb-world-options__count {
     margin-inline-start: auto;
     margin-inline-end: 12px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -366,7 +366,7 @@ defineExpose({ revealField } satisfies MapOptionsStepExpose);
 
 .mb-world-options__carried {
     margin-block: -6px 10px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }

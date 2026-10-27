@@ -463,7 +463,7 @@ defineExpose({ focusRow });
 .mb-history-row:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: -2px;
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 .mb-history-row--current {
@@ -502,7 +502,7 @@ defineExpose({ focusRow });
     gap: 8px;
     align-items: center;
     margin: 2px 0 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -515,7 +515,7 @@ defineExpose({ focusRow });
     gap: 4px;
     align-items: center;
     margin: 4px 0 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-style: italic;
 }
 
@@ -551,7 +551,7 @@ defineExpose({ focusRow });
 .mb-history-row__files {
     margin: 0;
     padding: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     list-style: none;
 }
 
@@ -563,7 +563,7 @@ defineExpose({ focusRow });
     display: inline-block;
     min-width: 4.5rem;
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     text-transform: uppercase;
     opacity: 0.75;
 }
@@ -579,7 +579,7 @@ defineExpose({ focusRow });
 .mb-history-row__empty,
 .mb-history-row__problem {
     margin: 4px 0 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -588,6 +588,6 @@ defineExpose({ focusRow });
     gap: 8px;
     align-items: center;
     margin-block-start: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 </style>

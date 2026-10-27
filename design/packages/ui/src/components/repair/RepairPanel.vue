@@ -224,11 +224,11 @@ function subjectLabel(failure: FailureSummary): string {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-repair__note {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     margin: 4px 0 0;
 }
@@ -276,11 +276,11 @@ function subjectLabel(failure: FailureSummary): string {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-repair__at {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     opacity: 0.7;
 }
 
@@ -293,12 +293,12 @@ function subjectLabel(failure: FailureSummary): string {
 .mb-repair__diagnoses,
 .mb-repair__applied {
     margin: 8px 0 0 1.1em;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.6;
 }
 
 .mb-repair__result {
     margin-block-start: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 </style>

@@ -199,7 +199,7 @@ function toggleReveal(key: string): void {
 
 .mb-config-kv__empty,
 .mb-config-kv__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

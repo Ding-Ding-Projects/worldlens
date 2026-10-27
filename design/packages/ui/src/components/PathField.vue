@@ -323,11 +323,11 @@ async function browseFile(): Promise<void> {
 
 .mb-path-field__mono input {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-path-field__hint {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.3;
 }
 </style>

@@ -1419,7 +1419,7 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
 }
 
 .mb-projects-screen__create {
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-projects-screen__pick {
@@ -1435,7 +1435,7 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
 }
 
 .mb-projects-screen__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;

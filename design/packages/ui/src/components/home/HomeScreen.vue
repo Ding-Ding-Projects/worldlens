@@ -1214,7 +1214,7 @@ function clearSearch(): void {
 }
 
 .mb-home__title {
-    font-size: 1.25rem;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 500;
     margin-block: 4px 4px;
 }
@@ -1226,7 +1226,7 @@ function clearSearch(): void {
 }
 
 .mb-home__lede {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     line-height: 1.5;
     max-width: 52rem;
     margin: 0;
@@ -1240,13 +1240,13 @@ function clearSearch(): void {
 }
 
 .mb-home__count {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     margin: 0;
 }
 
 .mb-home__empty-line {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     margin-block-start: 16px;
 }
 
@@ -1258,7 +1258,7 @@ function clearSearch(): void {
 }
 
 .mb-home__section-title {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -1298,13 +1298,13 @@ function clearSearch(): void {
     flex-direction: column;
     gap: 12px;
     padding: 20px;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-primary-container));
     color: rgb(var(--v-theme-on-primary-container));
 }
 
 .mb-home__hero-eyebrow {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -1328,14 +1328,14 @@ function clearSearch(): void {
 }
 
 .mb-home__hero-title {
-    font-size: 1.375rem;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 500;
     line-height: 1.3;
     margin: 0;
 }
 
 .mb-home__hero-desc {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     line-height: 1.5;
     max-width: 46rem;
     margin-block: 6px 0;
@@ -1387,11 +1387,11 @@ function clearSearch(): void {
     width: 100%;
     padding: 10px 12px;
     border: 0;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgb(var(--v-theme-surface-container));
     color: rgb(var(--v-theme-on-surface));
     font: inherit;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 600;
     text-align: start;
     cursor: pointer;
@@ -1452,7 +1452,7 @@ function clearSearch(): void {
    specificity, so this wins over Vuetify's own flat-variant background rule. */
 .mb-home .mb-home__card {
     background: rgb(var(--v-theme-surface-container-low));
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-home .mb-home__card--support {
@@ -1466,20 +1466,20 @@ function clearSearch(): void {
 }
 
 .mb-home__card-title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin: 0;
 }
 
 .mb-home__card-desc {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     margin-block: 6px 8px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-home__card-blocked {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     margin-block-end: 8px;
 }
 

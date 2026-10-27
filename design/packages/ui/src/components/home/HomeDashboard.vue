@@ -351,7 +351,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 
 .wl-dash__overline {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -360,7 +360,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 
 .wl-dash__title {
     margin: 8px 0 24px;
-    font-size: 2rem;
+    font-size: var(--md-sys-typescale-headline-large-size);
     line-height: 40px;
     font-weight: 400;
     color: rgb(var(--v-theme-on-surface));
@@ -384,11 +384,11 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
     align-items: center;
     gap: 10px;
     padding-inline: 20px;
-    border-radius: var(--md-sys-shape-corner-full, 999px);
+    border-radius: var(--md-sys-shape-corner-full, 9999px);
     border: 1px solid rgb(var(--v-theme-outline-variant));
     background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
     color: rgb(var(--v-theme-on-surface));
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
@@ -442,7 +442,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 .wl-dash__welcome {
     margin: 24px 0 0;
     max-inline-size: 62ch;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     line-height: 22px;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
@@ -468,21 +468,21 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 
 .wl-panel__title {
     margin: 0 0 12px;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
 }
 
 .wl-panel__body {
     margin: 0 0 14px;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 21px;
     color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .wl-panel__overflow {
     margin: 10px 0 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
 }
 
@@ -505,7 +505,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
     gap: 14px;
     padding: 8px 10px;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: none;
     color: inherit;
     text-align: start;
@@ -534,7 +534,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 
 .wl-render-row__title,
 .wl-profile-row__title {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
@@ -542,7 +542,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 
 .wl-render-row__meta,
 .wl-profile-row__meta {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-on-surface-variant));
     overflow-wrap: anywhere;
 }
@@ -551,7 +551,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
     flex: 0 0 96px;
     inline-size: 96px;
     block-size: 6px;
-    border-radius: 999px;
+    border-radius: var(--md-sys-shape-corner-full);
     background: rgb(var(--v-theme-surface-variant));
     overflow: hidden;
 }
@@ -565,12 +565,13 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 .wl-render-row__fill {
     display: block;
     block-size: 100%;
-    border-radius: 999px;
+    border-radius: var(--md-sys-shape-corner-full);
     background: rgb(var(--v-theme-primary));
 }
 
 .wl-render-row__fill--indeterminate {
     inline-size: 40%;
+    /* material-exempt: an indeterminate sweep is a progress signal, not a transition; its period is longer than the motion ladder by design. */
     animation: wl-indeterminate 1.4s ease-in-out infinite;
 }
 
@@ -623,11 +624,11 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
     align-items: center;
     gap: 8px;
     padding-inline: 14px;
-    border-radius: var(--md-sys-shape-corner-full, 999px);
+    border-radius: var(--md-sys-shape-corner-full, 9999px);
     border: 1px solid rgb(var(--v-theme-outline-variant));
     background: none;
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     cursor: pointer;
     white-space: nowrap;
 }

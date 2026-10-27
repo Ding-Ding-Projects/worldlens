@@ -195,7 +195,7 @@ function openGlossary(): void {
 
 .mb-glossary-term__definition {
     margin: 0 0 6px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
 }
 

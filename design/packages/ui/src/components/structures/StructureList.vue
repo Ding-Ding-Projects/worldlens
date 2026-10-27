@@ -528,12 +528,12 @@ function isRendered(file: StructureFile): boolean {
 
 .mb-structure-list__title {
     margin: 0;
-    font-size: 1.05rem;
+    font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .mb-structure-list__empty {
     margin: 8px 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     opacity: 0.8;
 }
 
@@ -543,7 +543,7 @@ function isRendered(file: StructureFile): boolean {
 
 .mb-structure-list__namespace {
     margin: 0 0 4px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 600;
     text-transform: lowercase;
     opacity: 0.7;

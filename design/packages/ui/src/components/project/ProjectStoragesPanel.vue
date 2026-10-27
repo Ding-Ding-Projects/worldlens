@@ -468,7 +468,7 @@ function confirmRemoval(): void {
 }
 
 .mb-project-storages__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
@@ -503,7 +503,7 @@ function confirmRemoval(): void {
 }
 
 .mb-project-storages__create {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-project-storages__form {

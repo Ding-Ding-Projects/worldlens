@@ -389,7 +389,7 @@ watch(
     gap: 8px;
     flex-wrap: wrap;
     margin-block-end: 4px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.4;
 }
 
@@ -414,7 +414,7 @@ watch(
 
 .mb-progress__detail {
     margin-block-start: 4px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     overflow-wrap: anywhere;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -425,7 +425,7 @@ watch(
     gap: 16px;
     flex-wrap: wrap;
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .mb-progress__timing-pair {
@@ -452,7 +452,7 @@ watch(
     align-items: flex-start;
     gap: 6px;
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
 }
 
@@ -466,7 +466,7 @@ watch(
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.6;
 }
 
@@ -475,7 +475,7 @@ watch(
     align-items: center;
     gap: 8px;
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
@@ -484,7 +484,7 @@ watch(
     align-items: baseline;
     gap: 8px;
     margin-block: 6px 2px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
 }
 
@@ -503,7 +503,7 @@ watch(
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

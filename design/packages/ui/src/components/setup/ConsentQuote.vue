@@ -70,14 +70,14 @@ const showTranslation = computed(() => i18n.mode.value !== "en");
 .mb-setup-quote {
     margin: 0;
     padding: 12px 16px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     border-inline-start: 4px solid rgb(var(--v-theme-primary));
     background: rgba(var(--v-theme-primary), 0.08);
 }
 
 .mb-setup-quote__caption {
     margin-block-end: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     color: rgb(var(--v-theme-primary));
 }
@@ -92,7 +92,7 @@ const showTranslation = computed(() => i18n.mode.value !== "en");
 .mb-setup-quote__text p,
 .mb-setup-quote__translation p {
     margin: 0 0 4px;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
@@ -103,7 +103,7 @@ const showTranslation = computed(() => i18n.mode.value !== "en");
 
 .mb-setup-quote__translation-label {
     margin: 12px 0 4px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -129,6 +129,6 @@ const showTranslation = computed(() => i18n.mode.value !== "en");
 .mb-setup-link:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
 }
 </style>

@@ -100,7 +100,7 @@ const sample = computed(() => props.items.map((item) => item.label).join("\n"));
 }
 
 .mb-tabs-menu__label {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-tabs-menu__item--danger .mb-tabs-menu__label {
@@ -110,17 +110,17 @@ const sample = computed(() => props.items.map((item) => item.label).join("\n"));
 .mb-tabs-menu__keys {
     margin-inline-start: 16px;
     padding: 1px 6px;
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     white-space: nowrap;
 }
 
 .mb-tabs-menu__empty {
     padding: 8px 12px 12px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

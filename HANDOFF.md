@@ -1,3 +1,55 @@
+# Every interface surface on the design system, 2026-10-27
+
+The rule in `docs/design-system.md` - a component names a token, never a value - is now a
+check, and the tree passes it. `scripts/check-design-tokens.mjs` scans the desktop interface,
+the documentation site, Wharf, the md3-check and kid-check instruments and the render page for
+`border-radius`, `font-size`, `transition` and `animation` literals and for `var(--md-sys-*,
+<fallback>)` declarations whose fallback is not the token's value; `--fix` rewrites them;
+`pnpm design-tokens:check` from `design/` runs its node:test file and then the check.
+
+What the first run found and did: 1,024 findings across 206 files. 579 literals were already on
+the scale and were named; 381 were off-scale and moved to the nearest step, the larger on a tie
+(157 at 0.8125rem to `body-medium`, 53 at 0.9375rem to `body-large`, 14 corners at 10px to
+`medium`, 12 at 14px to `large`, the rest in the script's printed table); 43 fallbacks were
+corrected, among them every colour in the hosted sign-in prompt (it carried Material's baseline
+purple) and in Wharf; four long ambient animations are declared `material-exempt:` with their
+reasons.
+
+Design-system changes: the token sheet publishes the spec shape names as canonical with the
+short names as `var()` aliases, `extra-long1..4` durations, and the disabled content/container
+opacities; `colors.css` is generated from `colors.ts` (`colors:write`, `colors:check`,
+`colors.css.test.ts`) and exported as `@worldlens/design-system/colors.css`; the body-medium
+tracking is the exact 0.015625rem in the sheet and in `markers.scss`. The marker sheet now maps
+all 38 colour roles from the Vuetify theme (`markers.colorRoles.test.ts`). Wharf links
+`colors.css` and reads its window background from `DARK_SCHEME`; kid-check reads its from
+`KID_SCHEME` through the same deep import md3-check already makes, which adds `@worldlens/ui` to
+its dependencies and three lines to the lockfile. The site's `tokens.css` moves its pill to
+9999px and `title-large` weight to 400; `tokens.parity.test.ts` holds every shared token equal
+(typeface excepted) and `settingsChrome.test.ts` now expects the tokens for the asymmetric
+card. `check-webapp-parity.mjs` runs the purity rule without the upstream webapp submodule,
+covers Wharf and both instruments, and lost a dead `if (false)` block.
+
+Verification, in a Linux container, source and headless browser only:
+
+- `pnpm lint`: 22 errors, all in files this change does not touch (`app/src/main/*.test.ts`,
+  `chunkerConfigComposition.ts`, `javaResolution.test.ts`, `WorldDownloaderScreen.test.ts`);
+  pre-existing on `main`, left alone.
+- Typecheck green for ui (vue-tsc), site, wharf, kid-check, md3-check, render-actions and
+  design-system, after building their package graphs (`pnpm build` itself needs the
+  `vendor/BlueMap-Material` submodule, absent here).
+- Suites: design-system 3/3, md3-check 17/17, site 918/918 after the two test updates above,
+  `node --test scripts/check-design-tokens.test.mjs` 15/15; the ui suite is recorded in the
+  closing line of this section.
+- `node scripts/check-design-tokens.mjs`, `node scripts/check-webapp-parity.mjs` (7 surfaces
+  pure), `pnpm published-text:check` clean; `check:private-terms` skipped (no term file here).
+- Built ui and site driven in headless Chromium at 800×600 and 1440×900: no horizontal
+  overflow, no console errors, in dark and light for the site and dark for the ui (the ui's
+  stored theme choice was not applied by the init script, so its light theme was not driven).
+
+Not verified: the packaged Windows application, hidden-desktop captures, the capture matrix,
+Wharf and kid-check launched as Electron windows, `box-shadow`, `line-height`, `padding` and
+`gap` (outside the check's scope by design).
+
 # World generation on GitHub Actions from the dialog's configuration, 2026-10-23
 
 The world generator's GitHub Actions runner is real for the built-in synthetic engine. `main` is

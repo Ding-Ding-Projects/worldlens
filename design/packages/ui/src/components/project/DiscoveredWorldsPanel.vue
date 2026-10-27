@@ -913,7 +913,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
     align-items: center;
     gap: 16px;
     padding: 15px 18px;
-    border-radius: 14px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-surface-container));
     border: 1px solid rgb(var(--v-theme-outline-variant));
 }
@@ -947,7 +947,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 }
 
 .mb-discovered__mount-name {
-    font-size: 15px;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 22px;
     overflow-wrap: anywhere;
@@ -965,7 +965,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 
 .mb-discovered__mount-state {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 18px;
     color: rgb(var(--v-theme-warning));
     text-wrap: pretty;
@@ -993,7 +993,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 }
 
 .mb-discovered__bulkcount {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-variant-numeric: tabular-nums;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -1002,7 +1002,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     margin-block-start: 12px;
 }
 
@@ -1030,7 +1030,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
     /* Narrower than the 16px inside the option: the checkbox and the button are chrome. */
     gap: 12px;
     padding: 15px 18px;
-    border-radius: 14px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-surface-container));
     border: 1px solid rgb(var(--v-theme-outline-variant));
 }
@@ -1058,7 +1058,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
     /* The tile alone is 40px, so this only guards a row whose tile fails to load. */
     min-block-size: 40px;
     min-inline-size: 0;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     cursor: pointer;
 }
 
@@ -1099,7 +1099,7 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 }
 
 .mb-discovered__name {
-    font-size: 15px;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 22px;
     overflow-wrap: anywhere;
@@ -1118,9 +1118,9 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 .mb-discovered__kbd {
     padding: 1px 6px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.3);
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

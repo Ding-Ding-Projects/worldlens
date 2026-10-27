@@ -460,7 +460,7 @@ async function exportSelected(format: "json" | "markdown"): Promise<void> {
 }
 
 .mb-notice-bulk__status {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     display: flex;
     gap: 8px;
@@ -469,13 +469,13 @@ async function exportSelected(format: "json" | "markdown"): Promise<void> {
 
 .mb-notice-bulk__preview {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-notice-bulk__excluded {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

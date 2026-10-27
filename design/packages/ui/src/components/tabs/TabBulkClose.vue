@@ -59,12 +59,12 @@ function forward(plan: TabClosePlan, options: { closeUnsaved: boolean; keepEmpty
 }
 
 .mb-tabs-close__title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
 .mb-tabs-close__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

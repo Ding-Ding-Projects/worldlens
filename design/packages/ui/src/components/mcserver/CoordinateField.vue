@@ -67,7 +67,7 @@ const axisLabel = computed(() => ({ x: "X", y: "Y", z: "Z" }));
 <style scoped>
 .wl-mcserver-coord {
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     padding: 8px 12px 12px;
     margin: 0 0 8px;
 }

@@ -1,9 +1,12 @@
 export {
     COLOR_ROLES,
+    COLOR_ROLE_PROPERTY_PREFIX,
     COLOR_SCHEMES,
     CONTRAST_SCHEME,
     DARK_SCHEME,
     LIGHT_SCHEME,
+    SCHEME_SELECTORS,
+    colorSchemesToStylesheet,
     schemeToCustomProperties,
 } from "./colors.js";
 export type { ColorRole, ColorScheme, SchemeName } from "./colors.js";

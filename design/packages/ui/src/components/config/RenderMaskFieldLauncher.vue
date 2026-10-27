@@ -114,7 +114,7 @@ const documentationProvenance = computed(() =>
     padding: 12px;
     margin-block: 8px;
     border: 1px solid rgba(var(--v-theme-outline), 0.35);
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-surface-variant), 0.28);
 }
 
@@ -139,7 +139,7 @@ const documentationProvenance = computed(() =>
 .mb-render-mask-launcher__description,
 .mb-render-mask-launcher__state,
 .mb-render-mask-launcher__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -150,7 +150,7 @@ const documentationProvenance = computed(() =>
 
 .mb-render-mask-launcher__title {
     margin: 8px 0 2px;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 

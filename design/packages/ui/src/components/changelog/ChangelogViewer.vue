@@ -619,7 +619,7 @@ function dayLabel(iso: string): string {
 }
 
 .mb-changelog__title {
-    font-size: 1.125rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin-block: 4px 2px;
 }
@@ -628,7 +628,7 @@ function dayLabel(iso: string): string {
 .mb-changelog__count,
 .mb-changelog__notice,
 .mb-changelog__version-meta {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     margin-block: 2px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -654,7 +654,7 @@ function dayLabel(iso: string): string {
 
 .mb-changelog__empty {
     padding: 12px 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-changelog__clear {
@@ -666,7 +666,7 @@ function dayLabel(iso: string): string {
 }
 
 .mb-changelog__version-title {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin-block: 0 2px;
     display: flex;
@@ -676,13 +676,13 @@ function dayLabel(iso: string): string {
 }
 
 .mb-changelog__version-date {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 400;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-changelog__section {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     margin-block: 10px 2px;
 }
@@ -707,7 +707,7 @@ function dayLabel(iso: string): string {
 
 .mb-changelog__subject {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.4;
     overflow-wrap: anywhere;
 }
@@ -717,7 +717,7 @@ function dayLabel(iso: string): string {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -728,7 +728,7 @@ function dayLabel(iso: string): string {
 
 .mb-changelog__none {
     margin-block: 6px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-style: italic;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -738,7 +738,7 @@ function dayLabel(iso: string): string {
 }
 
 .mb-changelog__details summary {
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     cursor: pointer;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -746,10 +746,10 @@ function dayLabel(iso: string): string {
 .mb-changelog__details pre {
     margin-block: 4px;
     padding: 8px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgba(var(--v-theme-on-surface), 0.06);
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.5;
     /* Long bilingual bodies wrap rather than forcing the whole page sideways. */
     white-space: pre-wrap;

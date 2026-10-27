@@ -560,9 +560,9 @@ defineExpose({ load, currentPath, entries, shown, sort, activeIndex, goUp, goBac
     background: none;
     border: none;
     padding: 2px 6px;
-    border-radius: 6px;
+    border-radius: var(--md-sys-shape-corner-small);
     font: inherit;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgb(var(--v-theme-primary));
     cursor: pointer;
 }
@@ -580,7 +580,7 @@ defineExpose({ load, currentPath, entries, shown, sort, activeIndex, goUp, goBac
 
 .mb-remote-browse__crumbSep {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-remote-browse__pathField,
@@ -598,11 +598,11 @@ defineExpose({ load, currentPath, entries, shown, sort, activeIndex, goUp, goBac
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-remote-browse__empty {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -610,13 +610,13 @@ defineExpose({ load, currentPath, entries, shown, sort, activeIndex, goUp, goBac
     max-height: 360px;
     overflow-y: auto;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-remote-browse__grid {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-remote-browse__grid thead th {
@@ -693,8 +693,8 @@ defineExpose({ load, currentPath, entries, shown, sort, activeIndex, goUp, goBac
     align-items: center;
     gap: 3px;
     padding: 1px 6px;
-    border-radius: 999px;
-    font-size: 0.6875rem;
+    border-radius: var(--md-sys-shape-corner-full);
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 500;
     white-space: nowrap;
 }

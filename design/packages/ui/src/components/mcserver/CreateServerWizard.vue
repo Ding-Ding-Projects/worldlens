@@ -2632,7 +2632,7 @@ const canAdvance = computed(() => {
     height: auto;
     width: 100%;
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: transparent;
     border: 1px solid transparent;
     cursor: pointer;
@@ -2701,7 +2701,7 @@ const canAdvance = computed(() => {
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 4px 12px;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 .wl-mcserver-wizard__summary dt {
     color: rgb(var(--v-theme-on-surface-variant));
@@ -2710,6 +2710,6 @@ const canAdvance = computed(() => {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 </style>

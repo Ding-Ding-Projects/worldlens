@@ -478,7 +478,7 @@ function confirmDelete(): void {
 }
 
 .mb-config-storages__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -486,7 +486,7 @@ function confirmDelete(): void {
 .mb-config-storages__detail {
     margin-block-start: 6px;
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     white-space: pre-wrap;
     max-height: 12em;
     overflow: auto;

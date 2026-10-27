@@ -239,10 +239,10 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
     block-size: 32px;
     padding: 0 14px 0 10px;
     border: 0;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: none;
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     cursor: pointer;
 }
 
@@ -280,7 +280,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
 
 .wl-catalogue__title {
     margin: 0;
-    font-size: 1.875rem;
+    font-size: var(--md-sys-typescale-headline-large-size);
     line-height: 38px;
     font-weight: 400;
     color: rgb(var(--v-theme-on-surface));
@@ -290,7 +290,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
 .wl-catalogue__blurb {
     margin: 6px 0 0;
     max-inline-size: 68ch;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 21px;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
@@ -318,7 +318,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
  */
 .wl-group__name {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -334,7 +334,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
 
 .wl-group__count {
     flex: 0 0 auto;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
 }
 
@@ -370,7 +370,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
     block-size: 38px;
     display: grid;
     place-items: center;
-    border-radius: 11px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
     border: 1px solid rgb(var(--v-theme-outline-variant));
     color: rgb(var(--v-theme-on-surface-variant));
@@ -392,7 +392,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
 }
 
 .wl-row__label {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
@@ -402,7 +402,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
    sibling with wrapping allowed rather than an absolutely positioned suffix. */
 .wl-row__meta {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
 }
 
@@ -410,7 +410,7 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
     display: block;
     margin-block-start: 3px;
     max-inline-size: 78ch;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 19px;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
@@ -424,13 +424,13 @@ function segments(text: string): readonly { readonly text: string; readonly hit:
 .wl-row__hit {
     background: rgb(var(--v-theme-primary-container));
     color: rgb(var(--v-theme-on-primary-container));
-    border-radius: 3px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     padding-inline: 1px;
 }
 
 .wl-catalogue__empty {
     margin: 24px 0 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgb(var(--v-theme-on-surface-variant));
 }
 </style>

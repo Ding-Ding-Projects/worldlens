@@ -48,10 +48,12 @@ async function main() {
      * while every diff looked clean. Copying at build time means the only way they can
      * disagree is if one of them has not been built.
      */
-    cpSync(
-        createRequire(import.meta.url).resolve("@worldlens/design-system/tokens.css"),
-        "dist/renderer/tokens.css",
-    );
+    const designSystem = createRequire(import.meta.url);
+    cpSync(designSystem.resolve("@worldlens/design-system/tokens.css"), "dist/renderer/tokens.css");
+    // The colour roles too. Without this sheet every `var(--md-sys-color-*, #fallback)` in
+    // wharf.css rendered its fallback, so Wharf was painted entirely from literals that
+    // happened to be copied from the palette on one day and not the next.
+    cpSync(designSystem.resolve("@worldlens/design-system/colors.css"), "dist/renderer/colors.css");
 
     console.log("wharf build done");
 }

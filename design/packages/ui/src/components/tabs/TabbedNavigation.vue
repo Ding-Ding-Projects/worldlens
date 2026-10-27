@@ -915,7 +915,7 @@ html[dir="rtl"] .mb-tabs--right > * {
 
 .mb-tabs__empty-line,
 .mb-tabs__missing {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

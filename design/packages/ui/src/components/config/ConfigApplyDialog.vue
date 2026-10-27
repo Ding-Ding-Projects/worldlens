@@ -405,7 +405,7 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
 
 .mb-config-apply__folder {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     margin-block-end: 8px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     /* An absolute Windows path is backslash-separated, giving the browser no natural break
@@ -418,7 +418,7 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin-block: 12px 4px;
 }
@@ -430,17 +430,17 @@ const deletedPaths = computed<string[]>(() => [...props.plan.deletes]);
 .mb-config-apply__changes,
 .mb-config-apply__reasons {
     margin: 0 0 0 1.1em;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.6;
 }
 
 .mb-config-apply__changes code {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .mb-config-apply__blocked {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     margin-inline-end: 8px;
     color: rgb(var(--v-theme-error));
 }

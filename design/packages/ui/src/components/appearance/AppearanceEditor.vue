@@ -1284,7 +1284,7 @@ async function onFileChosen(event: Event): Promise<void> {
     overflow-y: auto;
     overflow-x: hidden;
     padding: 12px;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
@@ -1300,7 +1300,7 @@ async function onFileChosen(event: Event): Promise<void> {
 .mb-appearance-editor__title {
     flex: 1 1 auto;
     margin: 0;
-    font-size: 0.95rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
@@ -1365,7 +1365,7 @@ async function onFileChosen(event: Event): Promise<void> {
 .mb-appearance-editor__rowLabel {
     flex: 0 0 auto;
     inline-size: 140px;
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -1377,7 +1377,7 @@ async function onFileChosen(event: Event): Promise<void> {
 
 .mb-appearance-editor__hint {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

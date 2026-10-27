@@ -62,12 +62,12 @@ function open(featureName: string): void {
 
 <style scoped>
 .wl-kid-stickers { padding: 20px 24px 28px; overflow: auto; }
-.wl-kid-stickers h1 { margin: 0; font-size: 34px; font-weight: 800; }
-.wl-kid-stickers > p { margin: 8px 0 0; font-size: 16px; color: rgb(var(--v-theme-on-surface-variant)); }
+.wl-kid-stickers h1 { margin: 0; font-size: var(--md-sys-typescale-display-small-size); font-weight: 800; }
+.wl-kid-stickers > p { margin: 8px 0 0; font-size: var(--md-sys-typescale-body-large-size); color: rgb(var(--v-theme-on-surface-variant)); }
 .wl-kid-stickers ul { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
 .wl-kid-stickers button { width: 100%; min-height: 200px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 15px; border: 0; border-radius: var(--wl-kid-radius-lg); background: rgb(var(--v-theme-surface-container-lowest)); box-shadow: var(--wl-kid-press); font: inherit; cursor: pointer; }
-.wl-kid-stickers__icon { width: 88px; height: 88px; display: grid; place-items: center; border-radius: 44px; background: rgb(var(--v-theme-tertiary-container)); color: rgb(var(--v-theme-on-tertiary-container)); }
+.wl-kid-stickers__icon { width: 88px; height: 88px; display: grid; place-items: center; border-radius: var(--md-sys-shape-corner-full); background: rgb(var(--v-theme-tertiary-container)); color: rgb(var(--v-theme-on-tertiary-container)); }
 .wl-kid-stickers button.is-locked { opacity: 0.45; }
-.wl-kid-stickers strong { font-size: 21px; font-weight: 800; }
-.wl-kid-stickers em { font-style: normal; font-size: 15px; color: rgb(var(--v-theme-outline)); }
+.wl-kid-stickers strong { font-size: var(--md-sys-typescale-title-large-size); font-weight: 800; }
+.wl-kid-stickers em { font-style: normal; font-size: var(--md-sys-typescale-body-large-size); color: rgb(var(--v-theme-outline)); }
 </style>

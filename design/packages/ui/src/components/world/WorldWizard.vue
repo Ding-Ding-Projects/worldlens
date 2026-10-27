@@ -552,7 +552,7 @@ defineExpose({ wizard });
 
 .mb-world-wizard__mode {
     padding: 4px 4px 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -584,7 +584,7 @@ defineExpose({ wizard });
     margin-inline-end: 6px;
     border-radius: 50%;
     background: rgba(var(--v-theme-on-surface), 0.1);
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-variant-numeric: tabular-nums;
 }
 

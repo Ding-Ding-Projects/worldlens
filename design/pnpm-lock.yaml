@@ -227,6 +227,9 @@ importers:
       '@worldlens/server':
         specifier: workspace:*
         version: link:../server
+      '@worldlens/ui':
+        specifier: workspace:*
+        version: link:../ui
     devDependencies:
       '@playwright/test':
         specifier: ^1.50.0

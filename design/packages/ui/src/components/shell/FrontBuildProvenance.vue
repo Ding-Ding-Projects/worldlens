@@ -94,7 +94,7 @@ onMounted(async () => {
     justify-content: center;
     min-width: 0;
     padding-inline: 8px;
-    font-size: 14px;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 18px;
     overflow-wrap: anywhere;
 }

@@ -523,14 +523,14 @@ function chooseExport(id: string): void {
 }
 
 .mb-simple-history__title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin: 0;
 }
 
 .mb-simple-history__note,
 .mb-simple-history__repository {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     margin: 4px 0 0;
 }
@@ -545,7 +545,7 @@ function chooseExport(id: string): void {
     align-items: center;
     gap: 8px;
     margin-block-start: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-simple-history__alert {

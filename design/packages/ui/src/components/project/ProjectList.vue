@@ -883,7 +883,7 @@ function askToForget(world: string): void {
 }
 
 .mb-projects__bulkcount {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-variant-numeric: tabular-nums;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -923,7 +923,7 @@ function askToForget(world: string): void {
     /* Narrower than the 16px inside the option: the tick and the buttons are chrome. */
     gap: 12px;
     padding: 15px 18px;
-    border-radius: 14px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-surface-container));
     border: 1px solid rgb(var(--v-theme-outline-variant));
 }
@@ -951,7 +951,7 @@ function askToForget(world: string): void {
     /* The tile is 40px on its own; this only guards a row whose icon fails to render. */
     min-block-size: 40px;
     min-inline-size: 0;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     cursor: pointer;
 }
 
@@ -1013,7 +1013,7 @@ function askToForget(world: string): void {
  * break at, and a name that runs off the card is a row nobody can tell from the next one.
  */
 .mb-projects__name {
-    font-size: 15px;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 22px;
     overflow-wrap: anywhere;
@@ -1032,9 +1032,9 @@ function askToForget(world: string): void {
 .mb-projects__kbd {
     padding: 1px 6px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.3);
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

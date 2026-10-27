@@ -713,7 +713,7 @@ watch(() => shortcutSplit.value.showMore, (show) => {
      * reads as a smudge at 100% scale, and the weight is what keeps it legible against the pill
      * above it rather than looking like a caption that fell off something.
      */
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 500;
     letter-spacing: 0.04em;
     line-height: 1.25;
@@ -862,7 +862,7 @@ watch(() => shortcutSplit.value.showMore, (show) => {
 .wl-rail-more-menu__empty {
     padding: 8px 10px;
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .wl-rail-action {
@@ -877,7 +877,7 @@ watch(() => shortcutSplit.value.showMore, (show) => {
      * is exactly the floating-button shape this rewrite removed - the footer actions have to read
      * as part of the rail rather than as three FABs that happened to line up.
      */
-    border-radius: 14px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: none;
     cursor: pointer;
     color: rgb(var(--v-theme-on-surface-variant));
@@ -905,7 +905,7 @@ watch(() => shortcutSplit.value.showMore, (show) => {
     border-radius: var(--md-sys-shape-corner-full, 9999px);
     background: rgb(var(--v-theme-primary));
     color: rgb(var(--v-theme-on-primary));
-    font-size: 0.625rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 700;
     line-height: 16px;
 }

@@ -423,7 +423,7 @@ function exportTranscript(): void {
 }
 .wl-mcserver-console__log {
     font-family: monospace;
-    font-size: 12px;
+    font-size: var(--md-sys-typescale-body-small-size);
     max-height: 420px;
     overflow-y: auto;
     white-space: pre-wrap;

@@ -170,28 +170,29 @@ function rowLabel(row: { label: string; renderId: string }): string {
 .wl-kid-home__hero { display: flex; align-items: center; gap: 16px; padding: 18px 22px; border-radius: var(--wl-kid-radius-lg); background: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary)); }
 .wl-kid-home__mascot { width: 100px; height: 100px; flex: 0 0 auto; display: grid; place-items: center; border-radius: var(--wl-kid-radius-md); background: rgb(var(--v-theme-tertiary)); color: rgb(var(--v-theme-on-tertiary)); }
 @media (prefers-reduced-motion: no-preference) {
+    /* material-exempt: the mascot's idle bob is ambient character animation, slower than any transition on the ladder on purpose. */
     .wl-kid-home__mascot { animation: wl-kid-bob 2.6s ease-in-out infinite; }
     @keyframes wl-kid-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
 }
 .wl-kid-home__hero-copy { flex: 1; min-width: 0; }
-.wl-kid-home__hero-copy h1 { margin: 0; font-size: 36px; font-weight: 800; overflow-wrap: anywhere; }
-.wl-kid-home__hero-copy p { margin: 0; font-size: 20px; overflow-wrap: anywhere; }
+.wl-kid-home__hero-copy h1 { margin: 0; font-size: var(--md-sys-typescale-display-small-size); font-weight: 800; overflow-wrap: anywhere; }
+.wl-kid-home__hero-copy p { margin: 0; font-size: var(--md-sys-typescale-title-large-size); overflow-wrap: anywhere; }
 .wl-kid-home__go,
 .wl-kid-home__secondary { min-height: var(--wl-kid-target-min); border: 0; border-radius: var(--wl-kid-radius-full); font: inherit; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; }
-.wl-kid-home__go { min-height: 82px; padding: 0 34px; font-size: 30px; background: rgb(var(--v-theme-tertiary)); color: rgb(var(--v-theme-on-tertiary)); }
-.wl-kid-home__secondary { padding: 0 22px; font-size: 19px; background: rgb(var(--v-theme-surface-container-lowest)); color: rgb(var(--v-theme-secondary)); }
+.wl-kid-home__go { min-height: 82px; padding: 0 34px; font-size: var(--md-sys-typescale-headline-large-size); background: rgb(var(--v-theme-tertiary)); color: rgb(var(--v-theme-on-tertiary)); }
+.wl-kid-home__secondary { padding: 0 22px; font-size: var(--md-sys-typescale-title-large-size); background: rgb(var(--v-theme-surface-container-lowest)); color: rgb(var(--v-theme-secondary)); }
 .wl-kid-home__lands { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
 .wl-kid-home__land { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 168px; padding: 15px; border: 0; border-radius: var(--wl-kid-radius-lg); background: rgb(var(--v-theme-surface-container-lowest)); box-shadow: var(--wl-kid-press); font: inherit; text-align: left; cursor: pointer; }
-.wl-kid-home__land strong { font-size: 24px; font-weight: 800; overflow-wrap: anywhere; }
-.wl-kid-home__land em { font-style: normal; font-size: 15px; color: rgb(var(--v-theme-outline)); overflow-wrap: anywhere; }
-.wl-kid-home__count { font-size: 16px; font-weight: 800; color: rgb(var(--v-theme-primary)); }
+.wl-kid-home__land strong { font-size: var(--md-sys-typescale-headline-small-size); font-weight: 800; overflow-wrap: anywhere; }
+.wl-kid-home__land em { font-style: normal; font-size: var(--md-sys-typescale-body-large-size); color: rgb(var(--v-theme-outline)); overflow-wrap: anywhere; }
+.wl-kid-home__count { font-size: var(--md-sys-typescale-body-large-size); font-weight: 800; color: rgb(var(--v-theme-primary)); }
 .wl-kid-home__split { display: grid; grid-template-columns: 1.5fr 1fr; gap: 14px; margin-top: 16px; }
 .wl-kid-home__panel { padding: 16px 18px; border-radius: var(--wl-kid-radius-lg); background: rgb(var(--v-theme-surface-container-lowest)); box-shadow: var(--wl-kid-press); min-width: 0; }
-.wl-kid-home__panel h2 { margin: 0 0 11px; font-size: 24px; font-weight: 800; overflow-wrap: anywhere; }
+.wl-kid-home__panel h2 { margin: 0 0 11px; font-size: var(--md-sys-typescale-headline-small-size); font-weight: 800; overflow-wrap: anywhere; }
 .wl-kid-home__row { width: 100%; min-height: var(--wl-kid-target-min); display: flex; align-items: center; gap: 12px; margin-bottom: 9px; padding: 11px 13px; border: 0; border-radius: var(--wl-kid-radius-md); background: rgb(var(--v-theme-surface-container-high)); font: inherit; text-align: left; cursor: pointer; }
-.wl-kid-home__row strong { font-size: 21px; font-weight: 800; overflow-wrap: anywhere; }
-.wl-kid-home__row em { font-style: normal; font-size: 15px; color: rgb(var(--v-theme-outline)); overflow-wrap: anywhere; }
-.wl-kid-home__meta { margin-left: auto; font-family: var(--wl-kid-mono); font-size: 14px; color: rgb(var(--v-theme-outline)); }
+.wl-kid-home__row strong { font-size: var(--md-sys-typescale-title-large-size); font-weight: 800; overflow-wrap: anywhere; }
+.wl-kid-home__row em { font-style: normal; font-size: var(--md-sys-typescale-body-large-size); color: rgb(var(--v-theme-outline)); overflow-wrap: anywhere; }
+.wl-kid-home__meta { margin-left: auto; font-family: var(--wl-kid-mono); font-size: var(--md-sys-typescale-body-medium-size); color: rgb(var(--v-theme-outline)); }
 
 /*
  * Narrow-width reflow, at the same 860px measure `HomeCatalogues.vue`'s own hero/grid
@@ -224,15 +225,15 @@ function rowLabel(row: { label: string; renderId: string }): string {
     .wl-kid-home__hero { flex-direction: column; align-items: stretch; text-align: center; padding: 16px 18px; }
     .wl-kid-home__mascot { width: 76px; height: 76px; margin: 0 auto; }
     .wl-kid-home__hero-copy { text-align: center; }
-    .wl-kid-home__hero-copy h1 { font-size: 26px; }
-    .wl-kid-home__hero-copy p { font-size: 16px; }
+    .wl-kid-home__hero-copy h1 { font-size: var(--md-sys-typescale-headline-medium-size); }
+    .wl-kid-home__hero-copy p { font-size: var(--md-sys-typescale-body-large-size); }
     .wl-kid-home__go,
     .wl-kid-home__secondary { width: 100%; }
-    .wl-kid-home__go { min-height: 72px; font-size: 24px; padding: 0 20px; }
+    .wl-kid-home__go { min-height: 72px; font-size: var(--md-sys-typescale-headline-small-size); padding: 0 20px; }
     .wl-kid-home__lands { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .wl-kid-home__land { min-height: 132px; padding: 12px; }
-    .wl-kid-home__land strong { font-size: 19px; }
-    .wl-kid-home__land em { font-size: 13px; }
+    .wl-kid-home__land strong { font-size: var(--md-sys-typescale-title-large-size); }
+    .wl-kid-home__land em { font-size: var(--md-sys-typescale-body-medium-size); }
     .wl-kid-home__split { grid-template-columns: 1fr; }
 }
 </style>

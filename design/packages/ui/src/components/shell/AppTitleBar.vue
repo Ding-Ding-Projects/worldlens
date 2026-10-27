@@ -183,7 +183,7 @@ onBeforeUnmount(() => {
     border-radius: var(--md-sys-shape-corner-sm, 8px);
     background: rgb(var(--v-theme-inverse-surface, var(--v-theme-on-surface)));
     color: rgb(var(--v-theme-inverse-on-surface, var(--v-theme-surface)));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 600;
     text-decoration: none;
     transform: translateY(calc(-100% - 8px));
@@ -237,7 +237,7 @@ onBeforeUnmount(() => {
  * window buttons are the ones that must never be the thing that scrolls out of reach.
  */
 .mb-titlebar-title {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
     letter-spacing: 0.02em;
     color: rgba(var(--v-theme-on-surface), 0.85);

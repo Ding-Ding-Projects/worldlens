@@ -183,7 +183,7 @@ function onKeydown(event: KeyboardEvent): void {
     overflow: auto;
     padding: 10px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
     box-shadow: var(--md-sys-elevation-shadow-level3);
@@ -201,7 +201,7 @@ function onKeydown(event: KeyboardEvent): void {
     min-block-size: 40px;
     padding: 8px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: transparent;
     color: inherit;
     text-align: start;

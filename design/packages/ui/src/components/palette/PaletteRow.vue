@@ -343,7 +343,7 @@ function endEditing(): void {
     gap: 12px;
     width: 100%;
     padding: 8px 12px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     text-align: start;
     color: rgb(var(--v-theme-on-surface));
 }
@@ -390,14 +390,14 @@ function endEditing(): void {
 }
 
 .mb-palette-row__title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.3;
     overflow-wrap: anywhere;
 }
 
 .mb-palette-row__detail {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -405,7 +405,7 @@ function endEditing(): void {
 }
 
 .mb-palette-row__location {
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.35;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -436,7 +436,7 @@ function endEditing(): void {
 
 .mb-palette-row__related {
     padding: 0 48px 6px 44px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
 }
@@ -445,9 +445,9 @@ function endEditing(): void {
     flex: none;
     align-self: flex-start;
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: var(--md-sys-shape-corner-full);
     background: rgba(var(--v-theme-on-surface), 0.08);
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     letter-spacing: 0.02em;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     white-space: nowrap;

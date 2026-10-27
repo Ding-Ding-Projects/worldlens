@@ -293,11 +293,11 @@ function toggleDetail(stage: string): void {
 <style>
 .mb-remote-preflight {
     margin-block-start: 12px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-remote-preflight__title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     padding: 8px 12px 0;
     /*
      * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
@@ -313,7 +313,7 @@ function toggleDetail(stage: string): void {
 
 .mb-remote-preflight__blurb {
     margin-block-start: 4px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -344,13 +344,13 @@ function toggleDetail(stage: string): void {
 }
 
 .mb-remote-preflight__stage {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
 .mb-remote-preflight__state {
     margin-inline-start: 8px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 400;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -359,7 +359,7 @@ function toggleDetail(stage: string): void {
 
 .mb-remote-preflight__message {
     margin-block-start: 2px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     overflow-wrap: anywhere;
     text-wrap: pretty;
@@ -372,7 +372,7 @@ function toggleDetail(stage: string): void {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
 }
 
@@ -404,19 +404,19 @@ function toggleDetail(stage: string): void {
 }
 
 .mb-remote-preflight__keyType {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-remote-preflight__fingerprint {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     overflow-wrap: anywhere;
 }
 
 .mb-remote-preflight__passed {
     margin-block-start: 10px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
@@ -432,6 +432,6 @@ function toggleDetail(stage: string): void {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 </style>

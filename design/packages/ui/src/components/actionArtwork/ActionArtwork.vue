@@ -34,7 +34,7 @@ const semanticAlt = computed(() => props.alt.trim() || record.value.alt);
     margin: 0 0 16px;
     overflow: hidden;
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-surface-container));
     aspect-ratio: 16 / 7;
 }
@@ -50,7 +50,7 @@ const semanticAlt = computed(() => props.alt.trim() || record.value.alt);
 @media (max-width: 560px) {
     .mb-action-artwork {
         aspect-ratio: 4 / 3;
-        border-radius: 12px;
+        border-radius: var(--md-sys-shape-corner-medium);
     }
 }
 

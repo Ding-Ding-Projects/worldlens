@@ -122,7 +122,7 @@ const hits = computed(() =>
 
 .mb-eula-section__where {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -130,7 +130,7 @@ const hits = computed(() =>
 
 .mb-eula-section__heading {
     margin: 4px 0 0;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 600;
     line-height: 1.4;
     overflow-wrap: anywhere;
@@ -138,7 +138,7 @@ const hits = computed(() =>
 
 .mb-eula-section__hits {
     margin: 0 0 12px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -151,7 +151,7 @@ const hits = computed(() =>
 
 .mb-eula-section__paragraph {
     margin: 0 0 12px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     line-height: 1.6;
     /* `pre-wrap` so a line break inside a clause survives. A licence that renumbers its
        own sub-clauses because the renderer collapsed their line breaks is a licence
@@ -169,7 +169,7 @@ const hits = computed(() =>
        against a dark surface and is unreadable at the accent colours this app allows. */
     background: rgba(var(--v-theme-primary), 0.28);
     color: inherit;
-    border-radius: 3px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     padding-inline: 1px;
 }
 </style>

@@ -645,13 +645,13 @@ function positionText(marker: StudioMarker): string {
 .mb-marker-studio__title {
     flex: 1 1 auto;
     margin: 0;
-    font-size: 1.05rem;
+    font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .mb-marker-studio__lede,
 .mb-marker-studio__empty {
     margin: 8px 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     opacity: 0.8;
 }
 
@@ -659,7 +659,7 @@ function positionText(marker: StudioMarker): string {
     margin: 8px 0 12px;
     padding: 12px;
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-marker-studio__coord {

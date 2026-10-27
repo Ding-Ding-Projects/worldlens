@@ -160,7 +160,7 @@ function close(): void {
 .mb-color-field__label {
     flex: 0 0 auto;
     inline-size: 110px;
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -175,7 +175,7 @@ function close(): void {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 /* An unset colour is drawn as a hatch rather than as white, which would be a colour. */
@@ -198,7 +198,7 @@ function close(): void {
     max-block-size: min(70vh, 620px);
     overflow-y: auto;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));

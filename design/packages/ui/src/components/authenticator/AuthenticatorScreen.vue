@@ -719,14 +719,14 @@ onBeforeUnmount(() => {
 
 .mb-authenticator__code {
     font-family: var(--mb-font-mono, monospace);
-    font-size: 2rem;
+    font-size: var(--md-sys-typescale-headline-large-size);
     font-weight: 600;
     letter-spacing: 0.15em;
 }
 
 .mb-authenticator__nextCode {
     font-family: var(--mb-font-mono, monospace);
-    font-size: 1.25rem;
+    font-size: var(--md-sys-typescale-title-large-size);
     letter-spacing: 0.1em;
     color: rgb(var(--v-theme-on-surface-variant, 0 0 0));
 }

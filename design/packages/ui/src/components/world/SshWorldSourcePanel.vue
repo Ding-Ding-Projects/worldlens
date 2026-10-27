@@ -769,7 +769,7 @@ defineExpose({
 
 .mb-ssh-world__card {
     margin-block-start: 8px;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-ssh-world__card > .v-card-title {
@@ -781,7 +781,7 @@ defineExpose({
 
 .mb-ssh-world__blurb,
 .mb-ssh-world__disabled {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -789,7 +789,7 @@ defineExpose({
 
 .mb-ssh-world h4 {
     margin-block: 18px 8px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 600;
 }
 
@@ -825,7 +825,7 @@ defineExpose({
     margin-block: 8px;
     padding: 12px;
     border: 1px solid rgba(var(--v-theme-warning), 0.45);
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgb(var(--v-theme-surface));
 }
 
@@ -846,7 +846,7 @@ defineExpose({
     gap: 6px;
     margin-block-start: 12px;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgb(var(--v-theme-surface));
 }
 
@@ -859,6 +859,6 @@ defineExpose({
 .mb-ssh-world__browser {
     max-block-size: min(88vh, 760px);
     overflow: auto;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 </style>

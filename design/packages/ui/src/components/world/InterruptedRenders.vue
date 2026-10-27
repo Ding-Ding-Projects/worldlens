@@ -245,14 +245,14 @@ function when(iso: string | null): string {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
 .mb-world-resume__blurb,
 .mb-world-resume__line--muted,
 .mb-world-resume__recovery {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -268,7 +268,7 @@ function when(iso: string | null): string {
 
 .mb-world-resume__card {
     margin-block-start: 8px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-world-resume__head {
@@ -276,7 +276,7 @@ function when(iso: string | null): string {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     /*
      * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
      * white-space: nowrap` for a single-line block title. Flexing it (above) leaves
@@ -292,7 +292,7 @@ function when(iso: string | null): string {
 }
 
 .mb-world-resume__line {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 

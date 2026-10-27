@@ -138,7 +138,7 @@ defineExpose({ reveal, element: root });
 /* The outline itself is never animated away — it is the cue. Only its fade is. */
 @media (prefers-reduced-motion: no-preference) {
     .mb-setting {
-        transition: outline-color 240ms ease;
+        transition: outline-color var(--md-sys-motion-duration-medium1) ease;
     }
 }
 
@@ -155,9 +155,9 @@ defineExpose({ reveal, element: root });
 .mb-setting__title {
     margin: 0;
     font-size: var(--md-sys-typescale-title-medium-size, 1rem);
-    line-height: var(--md-sys-typescale-title-medium-line-height, 1.4);
+    line-height: var(--md-sys-typescale-title-medium-line-height, 1.5rem);
     font-weight: var(--md-sys-typescale-title-medium-weight, 500);
-    letter-spacing: var(--md-sys-typescale-title-medium-tracking, normal);
+    letter-spacing: var(--md-sys-typescale-title-medium-tracking, 0.009375rem);
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: break-word;
 }
@@ -165,9 +165,9 @@ defineExpose({ reveal, element: root });
 /* Body-medium: the M3 typescale role for supporting text under a title. */
 .mb-setting__description {
     margin: 0;
-    font-size: var(--md-sys-typescale-body-medium-size, 0.8125rem);
-    line-height: var(--md-sys-typescale-body-medium-line-height, 1.5);
-    letter-spacing: var(--md-sys-typescale-body-medium-tracking, normal);
+    font-size: var(--md-sys-typescale-body-medium-size, 0.875rem);
+    line-height: var(--md-sys-typescale-body-medium-line-height, 1.25rem);
+    letter-spacing: var(--md-sys-typescale-body-medium-tracking, 0.015625rem);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
 }
@@ -252,13 +252,13 @@ defineExpose({ reveal, element: root });
 
 .mb-setting__row-label {
     font-size: var(--md-sys-typescale-body-large-size, 1rem);
-    line-height: var(--md-sys-typescale-body-large-line-height, 1.5);
+    line-height: var(--md-sys-typescale-body-large-line-height, 1.5rem);
     color: rgb(var(--v-theme-on-surface));
 }
 
 .mb-setting__row-supporting {
-    font-size: var(--md-sys-typescale-body-medium-size, 0.8125rem);
-    line-height: var(--md-sys-typescale-body-medium-line-height, 1.4);
+    font-size: var(--md-sys-typescale-body-medium-size, 0.875rem);
+    line-height: var(--md-sys-typescale-body-medium-line-height, 1.25rem);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
 }
@@ -283,7 +283,7 @@ defineExpose({ reveal, element: root });
     background: rgb(var(--v-theme-on-surface));
     opacity: 0;
     pointer-events: none;
-    transition: opacity 120ms ease;
+    transition: opacity var(--md-sys-motion-duration-short2) ease;
 }
 
 @media (hover: hover) {

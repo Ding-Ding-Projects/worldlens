@@ -165,7 +165,7 @@ function reset(): void {
 
 .mb-setup-language__lead {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-setup-language__modes .v-selection-control-group {
@@ -183,7 +183,7 @@ function reset(): void {
 
 .mb-setup-language__slider-label {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     color: rgb(var(--v-theme-primary));
 }
@@ -203,13 +203,13 @@ function reset(): void {
 .mb-setup-language__level {
     margin: 0;
     margin-block-start: 20px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-setup-language__disclosure {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

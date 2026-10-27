@@ -327,7 +327,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 
 .wl-home__overline {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
     letter-spacing: 0.1em;
     text-transform: uppercase;
@@ -336,7 +336,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 
 .wl-home__title {
     margin: 8px 0 6px;
-    font-size: 2rem;
+    font-size: var(--md-sys-typescale-headline-large-size);
     line-height: 40px;
     font-weight: 400;
     color: rgb(var(--v-theme-on-surface));
@@ -345,7 +345,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 .wl-home__lede {
     margin: 0 0 20px;
     max-inline-size: 68ch;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 21px;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
@@ -408,7 +408,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 .wl-card__body:focus-visible {
     outline: 2px solid currentColor;
     outline-offset: 4px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .wl-hero__avatar {
@@ -432,7 +432,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 }
 
 .wl-hero__title {
-    font-size: 1.375rem;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 500;
     overflow-wrap: anywhere;
 }
@@ -440,7 +440,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 .wl-hero__blurb {
     margin-block-start: 4px;
     max-inline-size: 62ch;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 21px;
     opacity: 0.88;
     text-wrap: pretty;
@@ -454,9 +454,9 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 }
 
 .wl-chip {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     padding: 5px 11px;
-    border-radius: var(--md-sys-shape-corner-full, 999px);
+    border-radius: var(--md-sys-shape-corner-full, 9999px);
     border: 1px solid currentColor;
     opacity: 0.72;
 }
@@ -478,10 +478,10 @@ function countLabel(catalogue: ResolvedCatalogue): string {
     block-size: 44px;
     padding-inline: 26px;
     border: 0;
-    border-radius: 22px;
+    border-radius: var(--md-sys-shape-corner-extra-large);
     background: rgb(var(--v-theme-on-primary-container));
     color: rgb(var(--v-theme-primary-container));
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
@@ -494,10 +494,10 @@ function countLabel(catalogue: ResolvedCatalogue): string {
     block-size: 36px;
     padding-inline: 22px;
     border: 1px solid currentColor;
-    border-radius: 18px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: none;
     color: inherit;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     white-space: nowrap;
     cursor: pointer;
 }
@@ -582,7 +582,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 .wl-card__title {
     flex: 1 1 auto;
     min-inline-size: 0;
-    font-size: 1.0625rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
@@ -590,13 +590,13 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 
 .wl-card__count {
     flex: 0 0 auto;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
 }
 
 .wl-card__blurb {
     margin: 13px 0 14px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 20px;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
@@ -606,7 +606,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgb(var(--v-theme-on-surface-variant));
 }
 
@@ -628,7 +628,7 @@ function countLabel(catalogue: ResolvedCatalogue): string {
 
 .wl-home__empty {
     margin: 24px 0 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgb(var(--v-theme-on-surface-variant));
 }
 </style>

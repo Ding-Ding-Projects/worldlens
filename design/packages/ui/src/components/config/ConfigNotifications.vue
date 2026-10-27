@@ -198,7 +198,7 @@ function close(id: number): void {
  * too rather than only `background-color`.
  */
 .mb-config-notices .mb-config-notices__toast {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 
     /*
      * An overlay paints its own surface.
@@ -224,7 +224,7 @@ function close(id: number): void {
     display: flex;
     align-items: flex-start;
     gap: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
 }
 
@@ -257,7 +257,7 @@ function close(id: number): void {
 
 .mb-config-notices__detail {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     white-space: pre-wrap;
     max-height: 10em;
     overflow: auto;

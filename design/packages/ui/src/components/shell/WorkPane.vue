@@ -226,8 +226,8 @@ defineExpose({
  * simply grows to hold it.
  */
 .wl-work :deep(.mb-tabs-strip__group-head) {
-    border-radius: 6px;
-    font-size: 0.6875rem;
+    border-radius: var(--md-sys-shape-corner-small);
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 500;
     letter-spacing: 0.06em;
     text-transform: uppercase;

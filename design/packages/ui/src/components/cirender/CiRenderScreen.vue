@@ -3299,7 +3299,7 @@ onBeforeUnmount(() => {
  * two greys that were meant to match did not.
  */
 .ci-waves li {
-    font-size: 12px;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 18px;
     color: rgb(var(--v-theme-on-surface-variant));
 }
@@ -3308,7 +3308,7 @@ onBeforeUnmount(() => {
     white-space: pre-wrap;
     overflow-x: auto;
     max-height: 16rem;
-    font-size: 13px;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 19px;
 }
 

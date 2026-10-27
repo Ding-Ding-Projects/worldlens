@@ -609,12 +609,12 @@ function percentLabel(row: ActiveRenderRow): string {
 }
 
 .mb-renders__title {
-    font-size: 1.25rem;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 500;
 }
 
 .mb-renders__blurb {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     max-width: 60ch;
 }
@@ -631,7 +631,7 @@ function percentLabel(row: ActiveRenderRow): string {
 }
 
 .mb-renders__bulkstatus {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     margin-inline-start: 4px;
 }
@@ -641,7 +641,7 @@ function percentLabel(row: ActiveRenderRow): string {
     align-items: center;
     gap: 10px;
     padding: 24px 8px;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -689,7 +689,7 @@ function percentLabel(row: ActiveRenderRow): string {
 }
 
 .mb-renders__meta {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -701,7 +701,7 @@ function percentLabel(row: ActiveRenderRow): string {
 }
 
 .mb-renders__spin {
-    animation: mb-renders-spin 900ms linear infinite;
+    animation: mb-renders-spin var(--md-sys-motion-duration-extra-long3) linear infinite;
 }
 
 @keyframes mb-renders-spin {

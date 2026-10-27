@@ -162,7 +162,7 @@ function onPointerDown(event: PointerEvent): void {
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
     border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     box-shadow: var(--md-sys-elevation-shadow-level3);
     overflow: hidden;
 }
@@ -189,7 +189,7 @@ function onPointerDown(event: PointerEvent): void {
 
 .mb-canvas-node__title {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 600;
 }
 
@@ -198,10 +198,10 @@ function onPointerDown(event: PointerEvent): void {
     min-width: 22px;
     height: 22px;
     padding: 0 6px;
-    border-radius: 11px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgb(var(--v-theme-error));
     color: rgb(var(--v-theme-on-error));
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 22px;
     text-align: center;
 }
@@ -216,13 +216,13 @@ function onPointerDown(event: PointerEvent): void {
 
 .mb-canvas-node__summary {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-canvas-node__foot {
     padding: 6px 12px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     border-top: 1px solid rgba(var(--v-theme-on-surface), 0.08);
 }

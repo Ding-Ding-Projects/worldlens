@@ -217,4 +217,53 @@ export function schemeToCustomProperties(scheme: ColorScheme, prefix = "--bm"): 
     return COLOR_ROLES.map((role) => `${prefix}-${role}:${scheme[role]};`).join("");
 }
 
+/**
+ * The selectors each scheme answers to in the generated `colors.css`.
+ *
+ * One sheet has to serve three kinds of consumer: a Vuetify application, where the active
+ * theme is a `.v-theme--*` class on the application root; a plain page that sets
+ * `data-theme` on `<html>` the way the documentation site's theme controller does; and a
+ * surface that sets neither, which gets dark because dark is what a fresh install opens in.
+ * Listing the selectors here rather than in the generator keeps the stylesheet and the
+ * TypeScript contract in one file, so a test can pin one against the other.
+ */
+export const SCHEME_SELECTORS: Readonly<Record<SchemeName, readonly string[]>> = {
+    dark: [":root", '[data-theme="dark"]', ".v-theme--dark"],
+    light: ['[data-theme="light"]', ".v-theme--light"],
+    contrast: ['[data-theme="contrast"]', ".v-theme--contrast"],
+};
 
+/** The name under which every role is published by `colors.css`. */
+export const COLOR_ROLE_PROPERTY_PREFIX = "--md-sys-color";
+
+/**
+ * Every scheme as a complete stylesheet publishing `--md-sys-color-<role>` for all three
+ * themes, which is what `src/colors.css` holds and what a consumer without Vuetify (Wharf,
+ * or any surface that renders before a component library has mounted) links to get the
+ * product's real palette instead of a hand-typed fallback.
+ *
+ * Deterministic by construction - declaration order of the roles, scheme order of the
+ * selectors - so the committed file can be regenerated and compared byte for byte.
+ */
+export function colorSchemesToStylesheet(): string {
+    const header =
+        "/*\n" +
+        " * GENERATED from colors.ts by scripts/write-colors-css.mjs - do not edit.\n" +
+        " *\n" +
+        " * The complete Material Design 3 colour role set, one block per scheme, published as\n" +
+        " * `--md-sys-color-<role>`. A Vuetify application republishes the same roles from its\n" +
+        " * theme as `--v-theme-<role>` and need not link this; a surface with no component\n" +
+        " * library links it so the palette it paints from is this product's own.\n" +
+        " */\n";
+    const blocks = (Object.keys(COLOR_SCHEMES) as SchemeName[]).map((name) => {
+        const selectors = SCHEME_SELECTORS[name].join(",\n");
+        // Lower-case, which is how Prettier writes a hex colour, so the committed file is
+        // both what this emits and what the formatter leaves alone.
+        const declarations = COLOR_ROLES.map(
+            (role) =>
+                `    ${COLOR_ROLE_PROPERTY_PREFIX}-${role}: ${COLOR_SCHEMES[name][role].toLowerCase()};`,
+        ).join("\n");
+        return `${selectors} {\n${declarations}\n}\n`;
+    });
+    return header + "\n" + blocks.join("\n");
+}

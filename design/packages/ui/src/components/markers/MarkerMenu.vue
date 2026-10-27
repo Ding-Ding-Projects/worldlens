@@ -757,7 +757,7 @@ defineExpose({ back, atRoot, title: currentTitle, path: currentChain });
 }
 
 .mb-marker-menu__player-bulk { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.5rem 0.75rem; border-bottom: 1px solid rgba(var(--v-border-color), var(--v-border-opacity)); background: rgb(var(--v-theme-surface)); }
-.mb-marker-menu__player-count { margin-inline-end: auto; color: rgba(var(--v-theme-on-surface), 0.7); font-size: 0.8rem; }
+.mb-marker-menu__player-count { margin-inline-end: auto; color: rgba(var(--v-theme-on-surface), 0.7); font-size: var(--md-sys-typescale-body-small-size); }
 
 .mb-marker-menu__empty {
     padding: 1.5rem 1rem;

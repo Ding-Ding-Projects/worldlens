@@ -119,10 +119,10 @@ function dismiss(): void {
     padding: 20px 24px; border-radius: var(--wl-kid-radius-lg);
     background: rgb(var(--v-theme-tertiary-container)); color: rgb(var(--v-theme-on-tertiary-container));
 }
-.wl-kid-celebrate strong { font-size: 26px; }
-.wl-kid-celebrate button { min-height: var(--wl-kid-target-min); border: 0; border-radius: var(--wl-kid-radius-full); font: inherit; font-size: 20px; font-weight: 800; cursor: pointer; }
+.wl-kid-celebrate strong { font-size: var(--md-sys-typescale-headline-medium-size); }
+.wl-kid-celebrate button { min-height: var(--wl-kid-target-min); border: 0; border-radius: var(--wl-kid-radius-full); font: inherit; font-size: var(--md-sys-typescale-title-large-size); font-weight: 800; cursor: pointer; }
 @media (prefers-reduced-motion: no-preference) {
-    .wl-kid-celebrate--animate { animation: wl-kid-pop 0.4s ease-out; }
+    .wl-kid-celebrate--animate { animation: wl-kid-pop var(--md-sys-motion-duration-medium4) ease-out; }
     @keyframes wl-kid-pop { 0% { transform: scale(0.7); } 60% { transform: scale(1.06); } 100% { transform: scale(1); } }
 }
 </style>

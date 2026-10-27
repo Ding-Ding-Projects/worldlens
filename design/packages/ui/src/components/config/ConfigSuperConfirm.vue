@@ -284,27 +284,27 @@ function cancel(): void {
 }
 
 .mb-config-confirm__title {
-    font-size: 1.0625rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.3;
 }
 
 .mb-config-confirm__action {
     margin-block-start: 8px;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
 .mb-config-confirm__affected {
     margin: 8px 0 0 1.2em;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     overflow-wrap: anywhere;
 }
 
 .mb-config-confirm__step,
 .mb-config-confirm__status {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -338,19 +338,19 @@ function cancel(): void {
 }
 
 .mb-config-confirm__progress--live {
-    animation: mb-config-confirm-pulse 900ms ease-in-out infinite;
+    animation: mb-config-confirm-pulse var(--md-sys-motion-duration-extra-long3) ease-in-out infinite;
 }
 
 .mb-config-confirm--authorized {
-    animation: mb-config-confirm-flash 420ms ease-out;
+    animation: mb-config-confirm-flash var(--md-sys-motion-duration-medium4) ease-out;
 }
 
 .mb-config-confirm__tick {
-    animation: mb-config-confirm-pop 260ms ease-out;
+    animation: mb-config-confirm-pop var(--md-sys-motion-duration-medium1) ease-out;
 }
 
 .mb-config-confirm__label {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 

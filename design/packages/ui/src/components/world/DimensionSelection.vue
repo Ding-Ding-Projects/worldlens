@@ -236,14 +236,14 @@ function regionsLabel(dimension: WorldDimension): string {
 }
 
 .mb-dimension-select__title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.4;
 }
 
 .mb-dimension-select__blurb {
     margin-block-start: 4px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -283,7 +283,7 @@ function regionsLabel(dimension: WorldDimension): string {
 }
 
 .mb-dimension-select__reason {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     flex: 1 1 200px;

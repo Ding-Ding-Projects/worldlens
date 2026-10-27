@@ -463,7 +463,7 @@ watch(selectedDimension, (value) => {
     margin-inline-end: 6px;
     border-radius: 50%;
     background: rgba(var(--v-theme-on-surface), 0.1);
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-variant-numeric: tabular-nums;
 }
 
@@ -506,7 +506,7 @@ watch(selectedDimension, (value) => {
 
 .cloud-config-wizard__status {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 @media (max-width: 600px) {

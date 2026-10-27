@@ -804,11 +804,11 @@ function onKeydown(event: KeyboardEvent): void {
     margin-inline-start: 6px;
     padding: 1px 8px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
-    border-radius: 999px;
+    border-radius: var(--md-sys-shape-corner-full);
     background: rgba(var(--v-theme-surface-variant), 0.7);
     color: rgb(var(--v-theme-on-surface));
     font: inherit;
-    font-size: 0.7rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.6;
     cursor: pointer;
 }
@@ -839,7 +839,7 @@ function onKeydown(event: KeyboardEvent): void {
     max-block-size: min(60vh, 420px);
     overflow-y: auto;
     padding: 8px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
@@ -848,17 +848,17 @@ function onKeydown(event: KeyboardEvent): void {
 
 .mb-appearance-target__shortcut {
     padding: 1px 6px;
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
     font-family: inherit;
-    font-size: 0.7rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-appearance-target__empty {
     margin: 0;
     padding: 8px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

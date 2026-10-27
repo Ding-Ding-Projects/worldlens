@@ -374,14 +374,14 @@ watch([selectedArticle, renderedArticle], async () => {
 }
 
 .mb-docs__title {
-    font-size: 1.125rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin-block: 4px 2px;
 }
 
 .mb-docs__lede,
 .mb-docs__count {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     margin-block: 2px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -401,7 +401,7 @@ watch([selectedArticle, renderedArticle], async () => {
 }
 
 .mb-docs__empty-line {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-docs__clear {
@@ -420,7 +420,7 @@ watch([selectedArticle, renderedArticle], async () => {
 }
 
 .mb-docs__index-heading {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -429,7 +429,7 @@ watch([selectedArticle, renderedArticle], async () => {
 }
 
 .mb-docs__category-title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin-block-end: 4px;
 }
@@ -439,7 +439,7 @@ watch([selectedArticle, renderedArticle], async () => {
 }
 
 .mb-docs__article-title {
-    font-size: 1.375rem;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 500;
     margin-block: 12px 8px;
     outline: none;
@@ -451,7 +451,7 @@ watch([selectedArticle, renderedArticle], async () => {
 }
 
 .mb-docs__article-body {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.6;
     overflow-wrap: anywhere;
 }
@@ -473,16 +473,16 @@ watch([selectedArticle, renderedArticle], async () => {
 
 .mb-docs__article-body :deep(code) {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     background: rgba(var(--v-theme-on-surface), 0.08);
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     padding: 1px 4px;
 }
 
 .mb-docs__article-body :deep(pre) {
     overflow-x: auto;
     padding: 12px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgba(var(--v-theme-on-surface), 0.06);
 }
 

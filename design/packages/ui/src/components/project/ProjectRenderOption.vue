@@ -123,7 +123,7 @@ const emit = defineEmits<{ revert: [] }>();
 .mb-render-option__cost {
     margin-block-start: 6px;
     max-inline-size: 70ch;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
@@ -136,7 +136,7 @@ const emit = defineEmits<{ revert: [] }>();
     gap: 8px;
     flex-wrap: wrap;
     margin-block-start: 6px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.5;
     color: rgb(var(--v-theme-outline));
     min-inline-size: 0;

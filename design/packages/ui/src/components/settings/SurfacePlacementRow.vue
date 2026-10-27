@@ -172,7 +172,7 @@ defineExpose({ searchValues });
 }
 
 .mb-placement-row__name {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     overflow-wrap: anywhere;
 }
@@ -219,7 +219,7 @@ defineExpose({ searchValues });
 .mb-placement-row__empty,
 .mb-placement-row__count {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;

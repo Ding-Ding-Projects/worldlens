@@ -42,7 +42,7 @@ const school = useSchoolMode();
 
 .mb-setup-step__heading {
     margin: 0;
-    font-size: 1.5rem;
+    font-size: var(--md-sys-typescale-headline-small-size);
     font-weight: 400;
     line-height: 1.3;
     color: rgb(var(--v-theme-on-surface));

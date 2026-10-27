@@ -219,7 +219,7 @@ function switchMap(mapId: string): void {
 <style>
 .mb-maps-menu__heading {
     margin: 12px 0 4px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -273,7 +273,7 @@ function switchMap(mapId: string): void {
  * reveals, because a slightly-too-dark blue still looks like a perfectly plausible sky.
  */
 .mb-maps-menu__list .mb-maps-menu__sky {
-    font-size: 21px;
+    font-size: var(--md-sys-typescale-title-large-size);
     opacity: 1;
 }
 </style>

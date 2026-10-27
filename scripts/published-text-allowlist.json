@@ -853,13 +853,13 @@
       "why": "Ordinary JavaScript memory allocation terminology, not private prose."
     },
     {
-      "line": 195,
+      "line": 247,
       "file": "HANDOFF.md",
       "column": 31,
       "why": "Exact preserved historical branch reference, not newly authored presentation."
     },
     {
-      "line": 241,
+      "line": 293,
       "file": "HANDOFF.md",
       "column": 87,
       "why": "Exact preserved historical branch reference, not newly authored presentation."

@@ -97,7 +97,7 @@
     --md-sys-typescale-title-large-font: var(--md-ref-typeface-plain);
     --md-sys-typescale-title-large-size: 1.375rem;
     --md-sys-typescale-title-large-line-height: 1.75rem;
-    --md-sys-typescale-title-large-weight: 500;
+    --md-sys-typescale-title-large-weight: 400;
     --md-sys-typescale-title-large-tracking: 0;
 
     --md-sys-typescale-title-medium-font: var(--md-ref-typeface-plain);
@@ -168,7 +168,7 @@
     --md-sys-shape-corner-large-increased: 20px;
     --md-sys-shape-corner-extra-large: 28px;
     --md-sys-shape-corner-extra-large-increased: 32px;
-    --md-sys-shape-corner-full: 999px;
+    --md-sys-shape-corner-full: 9999px;
 
     /* ---- System: elevation --------------------------------------------------------- */
 

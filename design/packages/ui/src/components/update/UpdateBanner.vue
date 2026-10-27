@@ -266,13 +266,13 @@ function onNotes(): void {
 
 .mb-update-banner__body {
     margin: 4px 0 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     text-wrap: pretty;
 }
 
 .mb-update-banner__secondary {
     margin: 2px 0 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     opacity: 0.85;
     text-wrap: pretty;
@@ -287,7 +287,7 @@ function onNotes(): void {
 
 .mb-update-banner__progress-detail {
     margin: 6px 0 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-variant-numeric: tabular-nums;
     opacity: 0.9;
     text-wrap: pretty;

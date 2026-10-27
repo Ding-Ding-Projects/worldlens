@@ -98,7 +98,7 @@ const emit = defineEmits<{ action: [] }>();
  * the contrast theme, where every role is answered at maximum and 60% of it is not.
  */
 .mb-menu-option .mb-menu-option__icon {
-    font-size: 21px;
+    font-size: var(--md-sys-typescale-title-large-size);
     color: rgb(var(--v-theme-on-surface-variant));
     opacity: 1;
 }

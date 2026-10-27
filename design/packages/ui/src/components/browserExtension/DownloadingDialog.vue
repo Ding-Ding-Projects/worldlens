@@ -140,7 +140,7 @@ function onCancel(): void {
 
 .mb-download-fields dt {
     font-weight: 600;
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     opacity: 0.75;
 }
 

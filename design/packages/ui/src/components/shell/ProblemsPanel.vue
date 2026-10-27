@@ -143,7 +143,7 @@ const title = computed(() =>
 
 .wl-problems__title {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -183,7 +183,7 @@ const title = computed(() =>
 }
 
 .wl-problem__severity-word {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 600;
 }
 
@@ -198,20 +198,20 @@ const title = computed(() =>
 
 .wl-problem__source {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
     overflow-wrap: anywhere;
 }
 
 .wl-problem__message {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
 }
 
 .wl-problem__meaning {
     max-inline-size: 68ch;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
@@ -224,7 +224,7 @@ const title = computed(() =>
 .wl-problems__empty {
     margin: 0;
     padding: 12px 16px 20px;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgb(var(--v-theme-on-surface-variant));
 }
 </style>

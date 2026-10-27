@@ -615,7 +615,7 @@ function onActivate(item: PaletteItem): void {
 }
 
 .mb-palette .mb-palette__title {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     overflow-wrap: anywhere;
     white-space: normal;
@@ -636,7 +636,7 @@ function onActivate(item: PaletteItem): void {
 .mb-palette__group {
     margin: 12px 0 4px;
     padding-inline: 12px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -652,7 +652,7 @@ function onActivate(item: PaletteItem): void {
 .mb-palette__empty,
 .mb-palette__note {
     margin: 12px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -660,7 +660,7 @@ function onActivate(item: PaletteItem): void {
 
 .mb-palette__action-notice {
     margin: 8px 0 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -668,7 +668,7 @@ function onActivate(item: PaletteItem): void {
 .mb-palette__hint {
     margin: 0;
     padding: 8px 16px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
 }

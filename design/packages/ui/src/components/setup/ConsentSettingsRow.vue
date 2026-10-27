@@ -275,7 +275,7 @@ defineExpose({ highlight, reload: consent.load });
     flex-direction: column;
     gap: 12px;
     padding: 16px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-on-surface), 0.04);
 }
 
@@ -292,7 +292,7 @@ defineExpose({ highlight, reload: consent.load });
 
 @media (prefers-reduced-motion: no-preference) {
     .mb-consent-row {
-        transition: outline-color 200ms ease;
+        transition: outline-color var(--md-sys-motion-duration-short4) ease;
     }
 }
 
@@ -305,13 +305,13 @@ defineExpose({ highlight, reload: consent.load });
 
 .mb-consent-row__title {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
 }
 
 .mb-consent-row__lead {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -323,7 +323,7 @@ defineExpose({ highlight, reload: consent.load });
 }
 
 .mb-consent-row__fact > dt {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -332,7 +332,7 @@ defineExpose({ highlight, reload: consent.load });
 
 .mb-consent-row__fact > dd {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     overflow-wrap: anywhere;
 }
 

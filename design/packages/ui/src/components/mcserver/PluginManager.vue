@@ -354,7 +354,7 @@ function onDrop(event: DragEvent): void {
 }
 .wl-mcserver-plugins__drop {
     border: 1px dashed rgba(128, 128, 128, 0.4);
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     padding: 12px;
     text-align: center;
     margin-bottom: 12px;
@@ -364,7 +364,7 @@ function onDrop(event: DragEvent): void {
 }
 .wl-mcserver-plugins__empty {
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     margin: 8px 0;
 }
 .wl-mcserver-plugins__header {

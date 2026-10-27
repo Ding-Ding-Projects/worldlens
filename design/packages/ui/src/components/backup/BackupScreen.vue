@@ -1351,25 +1351,25 @@ defineExpose({
 }
 
 .mb-backup__title {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.3;
 }
 
 .mb-backup__blurb,
 .mb-backup__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
 }
 
 .mb-backup__blurb {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-backup__stepTitle {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
@@ -1420,7 +1420,7 @@ defineExpose({
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .mb-backup__alert,
@@ -1440,7 +1440,7 @@ defineExpose({
 
 .mb-backup__skipped {
     padding-inline-start: 18px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.6;
     overflow-wrap: anywhere;
 }
@@ -1450,7 +1450,7 @@ defineExpose({
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     /*
      * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;

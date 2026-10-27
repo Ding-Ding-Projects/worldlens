@@ -592,7 +592,7 @@ const storageOptions = computed(() => storageIds(props.workspace));
 .mb-config-maps__storages,
 .mb-config-maps__empty,
 .mb-config-maps__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

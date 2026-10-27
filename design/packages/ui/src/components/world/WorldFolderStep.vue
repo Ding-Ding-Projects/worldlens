@@ -425,20 +425,20 @@ function onDrop(event: DragEvent): void {
 
 <style>
 .mb-world-step__title {
-    font-size: 1.125rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.3;
 }
 
 .mb-world-step__blurb,
 .mb-world-step__fix {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-world-step__problem {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
@@ -459,7 +459,7 @@ function onDrop(event: DragEvent): void {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     margin-block-start: 12px;
 }
 
@@ -468,7 +468,7 @@ function onDrop(event: DragEvent): void {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-world-step__count {
@@ -485,8 +485,8 @@ function onDrop(event: DragEvent): void {
     padding: 12px;
     min-height: 48px;
     border: 1px dashed rgba(var(--v-theme-on-surface), 0.3);
-    border-radius: 8px;
-    font-size: 0.8125rem;
+    border-radius: var(--md-sys-shape-corner-small);
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
 }

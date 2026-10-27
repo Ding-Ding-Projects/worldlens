@@ -232,13 +232,13 @@ onMounted(async () => {
     margin-block: 8px;
     padding: 12px;
     border: 1px solid currentColor;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     overflow-wrap: anywhere;
 }
 
 .mb-startup-recovery__issue > span {
     display: block;
-    font-size: 0.78rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     opacity: 0.8;
 }
 

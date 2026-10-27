@@ -48,6 +48,10 @@ import { fileURLToPath } from "node:url";
 import { HttpServer } from "@worldlens/server/dist/http/HttpServer.js";
 import { StaticHandler } from "@worldlens/server/dist/http/StaticHandler.js";
 import { KidCheckSchoolModeStore } from "./schoolModeStore.js";
+// The same deep import into `@worldlens/ui`'s source that md3-check's one seam makes, and for
+// the same reason: the window's pre-paint colour has to be Kid Mode's own background, read from
+// the one place it is decided rather than copied here and left to drift.
+import { KID_SCHEME } from "@worldlens/ui/src/kid/kidTheme.js";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -240,7 +244,7 @@ async function createWindow(): Promise<void> {
         minWidth: 0,
         minHeight: 0,
         frame: false,
-        backgroundColor: "#072A4B",
+        backgroundColor: KID_SCHEME.background,
         webPreferences: {
             preload: path.join(dirname, "../preload/index.cjs"),
             contextIsolation: true,

@@ -18,6 +18,15 @@ The flow is: choose a machine, choose an image, choose the folder, see the plan,
 plan is not a preview somebody may skip — the Deploy button is disabled until one has been
 shown, and the plan is how it becomes usable.
 
+Wharf is painted from the shared design system and nothing else. Its build copies
+`tokens.css` and the generated `colors.css` out of `@worldlens/design-system` into the renderer,
+and `wharf.css` names a token for every colour, corner, type size and duration; the literal
+beside each colour role is the dark scheme's own value, held to it by
+`scripts/check-design-tokens.mjs`. Before the colour sheet existed every one of those fallbacks
+was what actually rendered, so Wharf looked like the product on the day the fallbacks were
+typed and drifted from it afterwards. The window's pre-paint background is `DARK_SCHEME.background`
+from the same package for the same reason.
+
 ## Configuration
 
 Nothing is configured in a file. Hosts, images and folders are chosen in the interface, and the

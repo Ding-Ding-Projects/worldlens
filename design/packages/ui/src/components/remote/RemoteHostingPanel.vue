@@ -330,11 +330,11 @@ defineExpose({ record, publish, refresh, removeHosting, canPublish, port, bindMo
 <style>
 .mb-hosting-panel {
     margin-block-end: 12px;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-hosting-panel__title {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     padding: 10px 14px 0;
     /*
      * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
@@ -384,13 +384,13 @@ defineExpose({ record, publish, refresh, removeHosting, canPublish, port, bindMo
 
 .mb-hosting-panel__url {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     overflow-wrap: anywhere;
 }
 
 .mb-hosting-panel__notes {
     margin: 0 0 0 1.2em;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

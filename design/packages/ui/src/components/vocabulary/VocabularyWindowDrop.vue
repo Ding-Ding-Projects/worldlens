@@ -109,7 +109,7 @@ onUnmounted(() => {
 .mb-vocabulary-feedback__refusal {
     max-inline-size: min(100%, 48rem);
     padding: 24px;
-    border-radius: 24px;
+    border-radius: var(--md-sys-shape-corner-extra-large);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
     box-shadow: var(--md-sys-elevation-shadow-level3);
@@ -119,6 +119,7 @@ onUnmounted(() => {
 .mb-vocabulary-feedback__headline {
     font-size: clamp(1.5rem, 5vw, 3rem);
     font-weight: 700;
+    /* material-exempt: a celebration that plays once; its length is content, not chrome motion. */
     animation: vocabulary-level-up 3.4s ease both;
 }
 @keyframes vocabulary-level-up {

@@ -73,7 +73,7 @@ defineExpose({
     min-height: var(--wl-kid-target-min);
     padding-inline: 14px;
     border-radius: var(--wl-kid-radius-md) var(--wl-kid-radius-md) 0 0;
-    font-size: 19px;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 800;
 }
 .wl-kid-jobs :deep(.mb-tab__close) {
@@ -87,7 +87,7 @@ defineExpose({
 }
 .wl-kid-jobs :deep(.mb-tab-group__header) {
     min-height: var(--wl-kid-target-min);
-    font-size: 16px;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 800;
 }
 </style>

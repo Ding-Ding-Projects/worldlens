@@ -139,7 +139,7 @@ const refusalLine = computed(() => {
 
 .mb-tabs-preview__line,
 .mb-tabs-preview__list {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

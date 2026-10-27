@@ -287,7 +287,7 @@ function commandPlayer() {
     overflow: visible;
     -webkit-line-clamp: unset;
     opacity: 1;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-variant-numeric: tabular-nums;
     color: rgba(var(--v-theme-on-surface), 0.7);
 }

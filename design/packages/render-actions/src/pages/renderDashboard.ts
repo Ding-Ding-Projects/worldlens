@@ -113,12 +113,12 @@ body {
   font: 400 16px/24px system-ui, sans-serif;
 }
 main { max-width: 900px; margin: 0 auto; }
-h1 { font-size: 24px; line-height: 32px; font-weight: 500; margin: 0 0 4px; }
-h2 { font-size: 16px; line-height: 24px; font-weight: 500; margin: 32px 0 8px; }
-.sub { color: var(--md-sys-color-on-surface-variant); font-size: 14px; line-height: 20px; }
+h1 { font-size: var(--md-sys-typescale-headline-small-size); line-height: 32px; font-weight: 500; margin: 0 0 4px; }
+h2 { font-size: var(--md-sys-typescale-body-large-size); line-height: 24px; font-weight: 500; margin: 32px 0 8px; }
+.sub { color: var(--md-sys-color-on-surface-variant); font-size: var(--md-sys-typescale-body-medium-size); line-height: 20px; }
 .card {
   background: var(--md-sys-color-surface-container);
-  border-radius: 12px;
+  border-radius: var(--md-sys-shape-corner-medium);
   padding: 16px;
   margin-top: 16px;
   /* Elevation level 1. A container at rest sits on the surface rather than being painted
@@ -127,7 +127,7 @@ h2 { font-size: 16px; line-height: 24px; font-weight: 500; margin: 32px 0 8px; }
               0 1px 3px 1px rgb(from var(--md-sys-color-shadow) r g b / 0.15);
 }
 dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 0; }
-dt { color: var(--md-sys-color-on-surface-variant); font-size: 14px; }
+dt { color: var(--md-sys-color-on-surface-variant); font-size: var(--md-sys-typescale-body-medium-size); }
 dd { margin: 0; overflow-wrap: anywhere; }
 a { color: var(--md-sys-color-primary); }
 a:focus-visible, .cta:focus-visible { outline: 3px solid var(--md-sys-color-primary); outline-offset: 2px; }
@@ -151,13 +151,13 @@ a:focus-visible, .cta:focus-visible { outline: 3px solid var(--md-sys-color-prim
   margin-top: 16px;
   padding: 10px 24px;
   min-height: 40px;
-  border-radius: 9999px;
+  border-radius: var(--md-sys-shape-corner-full);
   background: var(--md-sys-color-primary);
   color: var(--md-sys-color-on-primary);
   text-decoration: none;
   font-weight: 500;
   overflow: hidden;
-  transition: box-shadow 150ms cubic-bezier(0.2, 0, 0, 1);
+  transition: box-shadow var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-emphasized);
 }
 .cta::after {
   content: "";
@@ -172,7 +172,7 @@ a:focus-visible, .cta:focus-visible { outline: 3px solid var(--md-sys-color-prim
   z-index: -1;
   background: currentColor;
   opacity: 0;
-  transition: opacity 150ms cubic-bezier(0.2, 0, 0, 1);
+  transition: opacity var(--md-sys-motion-duration-short3) var(--md-sys-motion-easing-emphasized);
 }
 .cta:hover::before { opacity: 0.08; }
 .cta:focus-visible::before { opacity: 0.1; }
@@ -182,10 +182,10 @@ a:focus-visible, .cta:focus-visible { outline: 3px solid var(--md-sys-color-prim
   .cta, .cta::before { transition: none; }
 }
 .scroll { overflow-x: auto; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; }
+table { border-collapse: collapse; width: 100%; font-size: var(--md-sys-typescale-body-medium-size); }
 th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--md-sys-color-outline-variant); }
 th { color: var(--md-sys-color-on-surface-variant); font-weight: 500; }
-code { background: var(--md-sys-color-surface-container-high); border-radius: 4px; padding: 0 4px; }
+code { background: var(--md-sys-color-surface-container-high); border-radius: var(--md-sys-shape-corner-extra-small); padding: 0 4px; }
 `.trim();
 
 /** Renders the dashboard. Pure, so its output is a value a test can read. */

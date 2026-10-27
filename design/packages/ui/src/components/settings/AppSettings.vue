@@ -1431,7 +1431,7 @@ function onDrawer(value: boolean): void {
     background: rgb(var(--v-theme-on-surface));
     opacity: 0;
     pointer-events: none;
-    transition: opacity 120ms ease;
+    transition: opacity var(--md-sys-motion-duration-short2) ease;
 }
 
 @media (hover: hover) {
@@ -1451,7 +1451,7 @@ function onDrawer(value: boolean): void {
 
 .mb-settings__result-title {
     position: relative;
-    font-size: var(--md-sys-typescale-body-large-size, 0.8125rem);
+    font-size: var(--md-sys-typescale-body-large-size, 1rem);
     font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: break-word;
@@ -1459,7 +1459,7 @@ function onDrawer(value: boolean): void {
 
 .mb-settings__result-desc {
     position: relative;
-    font-size: var(--md-sys-typescale-body-medium-size, 0.75rem);
+    font-size: var(--md-sys-typescale-body-medium-size, 0.875rem);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: break-word;
     text-wrap: pretty;
@@ -1641,13 +1641,13 @@ function onDrawer(value: boolean): void {
 .mb-settings__body:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: -2px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-settings__empty {
     margin: 0;
     padding: 8px 10px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

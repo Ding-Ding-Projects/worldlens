@@ -1297,10 +1297,10 @@ function onClose(): void {
     max-height: 16rem;
     overflow: auto;
     padding: 0.75rem;
-    border-radius: 0.5rem;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgb(var(--v-theme-surface-variant));
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.4;
     white-space: pre;
 }

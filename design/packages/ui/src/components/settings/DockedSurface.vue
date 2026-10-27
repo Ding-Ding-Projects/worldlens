@@ -1072,7 +1072,7 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
 }
 
 .mb-docked--floating {
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.14);
 }
 
@@ -1121,7 +1121,7 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
     flex: 1 1 auto;
     min-inline-size: 0;
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.25;
     /* The longest bilingual label still wraps rather than pushing the buttons off. */
@@ -1139,7 +1139,7 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
 .mb-docked__adjustment {
     margin: 0;
     padding: 8px 16px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     background: rgba(var(--v-theme-primary), 0.08);
@@ -1195,7 +1195,7 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
     inline-size: min(320px, 92vw);
     max-block-size: min(60vh, 420px);
     overflow-y: auto;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
@@ -1208,7 +1208,7 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
 
 .mb-docked__menu-empty {
     padding: 8px 12px 12px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -1312,7 +1312,7 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
     inline-size: 28px;
     block-size: 28px;
     flex: 0 0 auto;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     cursor: move;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     touch-action: none;

@@ -954,7 +954,7 @@ onBeforeUnmount(() => {
 }
 
 .mb-ollama__heading {
-    font-size: 1.05rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 600;
     margin-block-end: 8px;
 }
@@ -984,14 +984,14 @@ onBeforeUnmount(() => {
 }
 
 .mb-ollama__not-commerce {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     margin-block-end: 8px;
 }
 
 .mb-ollama__empty {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-ollama__chat-layout {
@@ -1022,7 +1022,7 @@ onBeforeUnmount(() => {
     overflow-y: auto;
     padding: 8px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-ollama__chat-input {

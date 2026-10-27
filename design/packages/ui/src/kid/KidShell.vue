@@ -473,7 +473,7 @@ defineExpose({ ensureJob, revealJob, award, requestAdult });
     border-radius: var(--wl-kid-radius-full);
     font: inherit;
     font-weight: 800;
-    font-size: 18px;
+    font-size: var(--md-sys-typescale-body-large-size);
     cursor: pointer;
     flex: 0 0 auto;
 }
@@ -487,7 +487,7 @@ defineExpose({ ensureJob, revealJob, award, requestAdult });
  * the bar give room back to its neighbours before the row has to wrap at all; the cap keeps
  * it from ballooning past its original 240px on a wide window, where nothing needs the room.
  */
-.wl-kid__xp { flex: 1 1 80px; min-width: 48px; max-width: 240px; height: 18px; border-radius: 9px; background: rgb(var(--v-theme-surface-variant)); overflow: hidden; }
+.wl-kid__xp { flex: 1 1 80px; min-width: 48px; max-width: 240px; height: 18px; border-radius: var(--md-sys-shape-corner-small); background: rgb(var(--v-theme-surface-variant)); overflow: hidden; }
 .wl-kid__xp-fill { height: 100%; background: rgb(var(--v-theme-primary)); }
 .wl-kid__spacer { flex: 1 1 0; min-width: 0; }
 /* No rule of its own before this fix - a bare `<span>` with nothing to stop it running past

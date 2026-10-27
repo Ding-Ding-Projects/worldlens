@@ -187,7 +187,7 @@ defineExpose({ openAndFocus });
 
 .mb-render-mask-card__summary {
     margin: 0 0 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

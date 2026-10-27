@@ -446,7 +446,7 @@ async function copyConfig(): Promise<void> {
 <style>
 .mb-world-review__card {
     margin-block-start: 16px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-world-review__head {
@@ -455,7 +455,7 @@ async function copyConfig(): Promise<void> {
     gap: 8px;
     flex-wrap: wrap;
     row-gap: 4px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     padding: 4px 8px;
     /*
      * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
@@ -475,7 +475,7 @@ async function copyConfig(): Promise<void> {
 
 .mb-world-review__subtitle {
     margin-block-start: 20px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
@@ -488,7 +488,7 @@ async function copyConfig(): Promise<void> {
     grid-template-columns: minmax(110px, max-content) minmax(0, 1fr);
     gap: 4px 16px;
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
@@ -504,7 +504,7 @@ async function copyConfig(): Promise<void> {
 .mb-world-review__key {
     margin-inline: 6px;
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 
@@ -586,7 +586,7 @@ async function copyConfig(): Promise<void> {
 
 .mb-world-review__list {
     margin: 8px 0 0 1.2em;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.7;
 }
 
@@ -600,7 +600,7 @@ async function copyConfig(): Promise<void> {
     overflow: auto;
     white-space: pre;
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
 }
 </style>

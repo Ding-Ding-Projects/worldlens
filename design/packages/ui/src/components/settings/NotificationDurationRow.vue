@@ -125,7 +125,7 @@ function levelSummary(level: NoticeDurationLevel): string {
 
 .mb-notice-duration__summary {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;

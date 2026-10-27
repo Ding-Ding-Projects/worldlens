@@ -200,7 +200,7 @@ defineExpose({ pickFolder, pickProjectFile, validateAndUse, cancelTransferAndClo
 
 .mb-project-import__section h3 {
     margin-block-end: 6px;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .mb-project-import__actions {
@@ -211,6 +211,6 @@ defineExpose({ pickFolder, pickProjectFile, validateAndUse, cancelTransferAndClo
 
 .mb-project-import__reason {
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 </style>

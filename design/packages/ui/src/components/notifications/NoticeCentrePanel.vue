@@ -496,7 +496,7 @@ onBeforeUnmount(() => {
 }
 
 .mb-notice-centre__heading {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin: 0;
 }
@@ -544,7 +544,7 @@ onBeforeUnmount(() => {
 
 .mb-notice-centre__empty {
     padding: 16px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -579,7 +579,7 @@ onBeforeUnmount(() => {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -590,19 +590,19 @@ onBeforeUnmount(() => {
 }
 
 .mb-notice-centre__title {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
 .mb-notice-centre__message {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
     overflow-wrap: anywhere;
 }
 
 .mb-notice-centre__detail {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     white-space: pre-wrap;
     max-height: 10em;
     overflow: auto;
@@ -618,7 +618,7 @@ onBeforeUnmount(() => {
 
 .mb-notice-centre__showing,
 .mb-notice-centre__copied {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 

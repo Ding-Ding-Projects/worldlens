@@ -2055,21 +2055,21 @@ const tabCountLabel = computed(() =>
     min-block-size: 44px;
     padding: 6px 10px;
     border: 0;
-    border-radius: 8px 8px 0 0;
+    border-radius: var(--md-sys-shape-corner-small) var(--md-sys-shape-corner-small) 0 0;
     background: transparent;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     font: inherit;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.4;
     cursor: pointer;
-    transition: background-color 120ms ease;
+    transition: background-color var(--md-sys-motion-duration-short2) ease;
 }
 
 .mb-tabs-strip-row[data-placement="left"] .mb-tabs-strip__tab,
 .mb-tabs-strip-row[data-placement="right"] .mb-tabs-strip__tab {
     width: 100%;
     max-width: none;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-tabs-strip__tab--pinned {
@@ -2133,7 +2133,7 @@ const tabCountLabel = computed(() =>
 
 .mb-tabs-strip__group {
     padding-inline: 4px;
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-on-surface), 0.04);
 }
 
@@ -2149,7 +2149,7 @@ const tabCountLabel = computed(() =>
     min-width: 0;
     padding: 4px 6px;
     border: 0;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: transparent;
     color: inherit;
     font: inherit;
@@ -2182,7 +2182,7 @@ const tabCountLabel = computed(() =>
 }
 
 .mb-tabs-strip__count {
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     opacity: 0.7;
 }
 
@@ -2220,14 +2220,14 @@ const tabCountLabel = computed(() =>
 }
 
 .mb-tabs-strip__placement-title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
 }
 
 .mb-tabs-strip__placement-description,
 .mb-tabs-strip__placement-provenance {
     padding-block-start: 6px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
 }
 
@@ -2250,7 +2250,7 @@ const tabCountLabel = computed(() =>
 
 .mb-tabs-strip__sheet {
     background: rgb(var(--v-theme-surface));
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     box-shadow: var(--md-sys-elevation-shadow-level3);
     max-width: calc(100vw - 16px);
     max-height: min(calc(100vh - 24px), 640px);
@@ -2278,7 +2278,7 @@ const tabCountLabel = computed(() =>
 
 .mb-tabs-strip__menu-empty {
     padding: 8px 12px 12px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

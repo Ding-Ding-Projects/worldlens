@@ -112,7 +112,7 @@ function keydown(event: KeyboardEvent): void {
 .mb-runtime-picker__list button {
     min-block-size: 44px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.35);
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     padding: 8px 10px;
     background: rgb(var(--v-theme-surface));
     color: inherit;
@@ -125,7 +125,7 @@ function keydown(event: KeyboardEvent): void {
     gap: 4px;
     padding: 6px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.35);
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgb(var(--v-theme-surface));
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }

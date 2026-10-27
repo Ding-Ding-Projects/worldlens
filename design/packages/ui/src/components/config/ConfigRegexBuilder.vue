@@ -404,13 +404,13 @@ async function copy(value: string, what: string): Promise<void> {
 }
 
 .mb-config-regex__heading {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin-block-end: 2px;
 }
 
 .mb-config-regex__meta {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     margin-block: 4px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -432,7 +432,7 @@ async function copy(value: string, what: string): Promise<void> {
 }
 
 .mb-config-regex__row legend {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     letter-spacing: 0.05em;
     width: 100%;
     padding: 0;
@@ -442,7 +442,7 @@ async function copy(value: string, what: string): Promise<void> {
 .mb-config-regex__matches {
     margin: 4px 0 0 1.2em;
     padding: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     max-height: 9em;
     overflow-y: auto;
 }

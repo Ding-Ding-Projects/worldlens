@@ -1056,7 +1056,7 @@ function number(value: string, fallback: number): number {
 
 .mb-type-row__label {
     flex: 1 1 auto;
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
 }
 
@@ -1074,19 +1074,19 @@ function number(value: string, fallback: number): number {
 
 .mb-type-row__unsupported {
     margin: 0;
-    font-size: 0.72rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-warning));
 }
 
 .mb-type-row__note {
     margin: 0;
-    font-size: 0.72rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-type-editor__hint {
     margin: 0;
-    font-size: 0.72rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -1098,7 +1098,7 @@ function number(value: string, fallback: number): number {
 .mb-type-editor__fontIdentityStatus {
     flex: 1 1 100%;
     margin: 0;
-    font-size: 0.72rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
 }
@@ -1113,7 +1113,7 @@ function number(value: string, fallback: number): number {
     max-block-size: min(60vh, 480px);
     overflow-y: auto;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
@@ -1132,7 +1132,7 @@ function number(value: string, fallback: number): number {
     gap: 8px;
     inline-size: 100%;
     padding: 6px 8px;
-    border-radius: 6px;
+    border-radius: var(--md-sys-shape-corner-small);
     text-align: start;
 }
 
@@ -1151,7 +1151,7 @@ function number(value: string, fallback: number): number {
 
 .mb-type-editor__fontName {
     flex: 0 0 auto;
-    font-size: 0.85rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-type-editor__fontSample {
@@ -1159,7 +1159,7 @@ function number(value: string, fallback: number): number {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -1173,7 +1173,7 @@ function number(value: string, fallback: number): number {
 .mb-type-editor__axisTag {
     flex: 0 0 auto;
     inline-size: 140px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

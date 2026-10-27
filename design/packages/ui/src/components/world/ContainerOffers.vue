@@ -209,13 +209,13 @@ function dismiss(renderId: string): void {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
 .mb-container-offers__blurb,
 .mb-container-offers__line--muted {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -227,7 +227,7 @@ function dismiss(renderId: string): void {
 
 .mb-container-offers__card {
     margin-block-start: 8px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-container-offers__head {
@@ -235,7 +235,7 @@ function dismiss(renderId: string): void {
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     /*
      * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
      * white-space: nowrap` for a single-line block title. Flexing it (above) leaves
@@ -270,7 +270,7 @@ function dismiss(renderId: string): void {
 }
 
 .mb-container-offers__line {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 

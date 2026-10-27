@@ -268,7 +268,7 @@ function removeScore(index: number): void {
 <style scoped>
 .wl-mcserver-target {
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     padding: 8px 12px 12px;
     margin: 0 0 8px;
 }

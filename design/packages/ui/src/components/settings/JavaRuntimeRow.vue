@@ -281,7 +281,7 @@ function onDownload(): void {
     align-items: center;
     gap: 8px;
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -296,7 +296,7 @@ function onDownload(): void {
 }
 
 .mb-java-setting__fact > dt {
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -305,14 +305,14 @@ function onDownload(): void {
 
 .mb-java-setting__fact > dd {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     overflow-wrap: anywhere;
 }
 
 .mb-java-setting__rejections {
     margin: 0;
     padding-inline-start: 1.25rem;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.6;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;

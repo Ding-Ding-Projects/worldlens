@@ -155,7 +155,7 @@ function onReset(): void {
 
 .mb-download-concurrency__explanation {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -164,7 +164,7 @@ function onReset(): void {
 
 .mb-download-concurrency__note {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -173,7 +173,7 @@ function onReset(): void {
 
 .mb-download-concurrency__saved {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-primary));
 }
 

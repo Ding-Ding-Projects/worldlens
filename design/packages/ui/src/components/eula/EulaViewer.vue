@@ -597,18 +597,18 @@ defineExpose({ sections, activeSection, state: eula.state, exportItems });
     flex-direction: column;
     gap: 4px;
     padding: 12px 16px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     border-inline-start: 4px solid rgb(var(--v-theme-primary));
     background: rgba(var(--v-theme-primary), 0.08);
 }
 
 .mb-eula__source {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
 .mb-eula__when {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
 }
@@ -622,7 +622,7 @@ defineExpose({ sections, activeSection, state: eula.state, exportItems });
 }
 
 .mb-eula__navigation-note {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
 }
@@ -641,7 +641,7 @@ defineExpose({ sections, activeSection, state: eula.state, exportItems });
     flex: 1 1 auto;
     min-block-size: 0;
     overflow: auto;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-on-surface), 0.04);
 }
 
@@ -659,7 +659,7 @@ defineExpose({ sections, activeSection, state: eula.state, exportItems });
 .mb-eula__empty {
     margin: 0;
     padding: 16px;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -673,7 +673,7 @@ defineExpose({ sections, activeSection, state: eula.state, exportItems });
     inline-size: min(320px, 92vw);
     max-block-size: min(60vh, 420px);
     overflow-y: auto;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.16);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));

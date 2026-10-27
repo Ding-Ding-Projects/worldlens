@@ -195,7 +195,7 @@ async function start(): Promise<void> {
 
 .mb-remote-docker__line {
     margin-block-start: 4px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     text-wrap: pretty;
 }
@@ -211,7 +211,7 @@ async function start(): Promise<void> {
     white-space: pre-wrap;
     overflow-wrap: anywhere;
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
 }
 </style>

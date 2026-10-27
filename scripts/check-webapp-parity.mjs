@@ -54,6 +54,15 @@ const PURITY_SURFACES = [
         dir: join(repoRoot, "design/packages/render-actions/src/pages"),
         skip: [/\.test\.ts$/],
     },
+    { id: "wharf", dir: join(repoRoot, "design/packages/wharf/src"), skip: [/\.test\.ts$/] },
+    {
+        // The instrument's own chrome. Its hand-transcribed M3 reference sheet is the one
+        // file whose literals are the point, so it is skipped by name.
+        id: "md3-check instrument",
+        dir: join(repoRoot, "design/packages/md3-check/src"),
+        skip: [/m3Reference\.scss$/, /\.test\.ts$/],
+    },
+    { id: "kid-check instrument", dir: join(repoRoot, "design/packages/kid-check/src"), skip: [/\.test\.ts$/] },
 ];
 
 /**
@@ -269,30 +278,30 @@ function tokenCompleteness(repoRoot) {
 }
 
 function main() {
-    if (!existsSync(WEBAPP)) {
-        process.stdout.write(
-            "check-webapp-parity: the BlueMap submodule is not checked out; nothing to inspect\n",
-        );
-        return 0;
-    }
-
-    const files = walk(WEBAPP);
+    // The webapp contracts need the submodule; the purity rule over this repository's own
+    // surfaces does not, and used to be skipped with it. A clone without the submodule is
+    // exactly the clone a CI job or a fresh contributor has, so that was the rule being off
+    // wherever it was most needed.
+    const webappPresent = existsSync(WEBAPP);
+    const files = webappPresent ? walk(WEBAPP) : [];
     const problems = [];
 
-    for (const contract of CONTRACTS) {
-        let hits = 0;
-        for (const file of files) {
-            if (contract.pattern.test(readFileSync(file, "utf8"))) hits += 1;
+    if (webappPresent) {
+        for (const contract of CONTRACTS) {
+            let hits = 0;
+            for (const file of files) {
+                if (contract.pattern.test(readFileSync(file, "utf8"))) hits += 1;
+            }
+            if (hits < contract.minFiles) {
+                problems.push(
+                    `  ${contract.id}: ${contract.what}\n` +
+                        `    found in ${String(hits)} files, expected at least ${String(contract.minFiles)}`,
+                );
+            }
         }
-        if (hits < contract.minFiles) {
-            problems.push(
-                `  ${contract.id}: ${contract.what}\n` +
-                    `    found in ${String(hits)} files, expected at least ${String(contract.minFiles)}`,
-            );
-        }
-    }
 
-    problems.push(...tokenCompleteness(repoRoot));
+        problems.push(...tokenCompleteness(repoRoot));
+    }
 
     for (const surface of PURITY_SURFACES) {
         if (!existsSync(surface.dir)) continue;
@@ -308,17 +317,6 @@ function main() {
         }
     }
 
-    if (false) {
-        problems.push(
-            "  pure-material-design: a colour that is not a palette role, and is not declared as an exemption\n" +
-                `    ${stray.file}:${String(stray.line)}\n` +
-                `    ${stray.text}
-` +
-                `    If this is genuinely data rather than chrome, say so above it with ` +
-                `"${EXEMPT_MARKER} <reason>".`,
-        );
-    }
-
     if (problems.length > 0) {
         process.stderr.write(
             "The Material Design 3 webapp has lost part of its Material Design 3 layer:\n\n" +
@@ -330,8 +328,11 @@ function main() {
     }
 
     process.stdout.write(
-        `check-webapp-parity: ${String(CONTRACTS.length)} contracts present across ` +
-            `${String(files.length)} webapp files\n`,
+        webappPresent
+            ? `check-webapp-parity: ${String(CONTRACTS.length)} contracts present across ` +
+                  `${String(files.length)} webapp files; ${String(PURITY_SURFACES.length)} surfaces pure\n`
+            : `check-webapp-parity: the BlueMap submodule is not checked out; ` +
+                  `${String(PURITY_SURFACES.length)} surfaces pure\n`,
     );
     return 0;
 }

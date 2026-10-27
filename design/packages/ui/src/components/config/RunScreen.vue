@@ -243,13 +243,13 @@ async function copyCommand(): Promise<void> {
 
 <style>
 .mb-config-run__title {
-    font-size: 1.25rem;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 400;
 }
 
 .mb-config-run__blurb,
 .mb-config-run__doc {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -257,7 +257,7 @@ async function copyCommand(): Promise<void> {
 .mb-config-run__result,
 .mb-config-run__command {
     margin-block: 16px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-config-run__result-head {
@@ -266,7 +266,7 @@ async function copyCommand(): Promise<void> {
     gap: 8px;
     flex-wrap: wrap;
     row-gap: 4px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     /*
      * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
      * nowrap`, and turning it into a flex row clears none of the three: `text-overflow`
@@ -288,17 +288,17 @@ async function copyCommand(): Promise<void> {
 
 .mb-config-run__list {
     margin: 0 0 0 1.2em;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.6;
 }
 
 .mb-config-run__pre {
     margin: 0 0 8px;
     padding: 8px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgba(var(--v-theme-on-surface), 0.06);
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     overflow-x: auto;
     white-space: pre;
 }
@@ -308,7 +308,7 @@ async function copyCommand(): Promise<void> {
 }
 
 .mb-config-run__group-title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 

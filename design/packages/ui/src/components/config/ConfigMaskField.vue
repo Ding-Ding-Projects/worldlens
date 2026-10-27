@@ -801,7 +801,7 @@ function shapeSummary(row: ShapeRow): string {
 
 .mb-config-mask__extentLine {
     display: block;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     margin-block-start: 4px;
     opacity: 0.85;
 }
@@ -821,7 +821,7 @@ function shapeSummary(row: ShapeRow): string {
 }
 
 .mb-config-mask__card {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-config-mask__head {
@@ -834,7 +834,7 @@ function shapeSummary(row: ShapeRow): string {
 
 .mb-config-mask__summary {
     font-weight: 500;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-config-mask__actions {
@@ -854,7 +854,7 @@ function shapeSummary(row: ShapeRow): string {
 .mb-config-mask__layerNote {
     flex: 1 1 15rem;
     min-inline-size: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     margin: 2px 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -863,7 +863,7 @@ function shapeSummary(row: ShapeRow): string {
 .mb-config-mask__doc,
 .mb-config-mask__empty,
 .mb-config-mask__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     white-space: pre-line;
     margin-block: 4px 0;
@@ -876,7 +876,7 @@ function shapeSummary(row: ShapeRow): string {
     gap: 8px;
     flex-wrap: wrap;
     margin-block: 4px 0;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 </style>

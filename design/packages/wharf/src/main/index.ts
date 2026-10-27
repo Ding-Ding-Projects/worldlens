@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Fleet, type Destination, type DeploymentRequest } from "./fleet.js";
 import { stagingPathRefusal } from "@worldlens/dockhand";
+import { DARK_SCHEME } from "@worldlens/design-system/colors";
 
 /**
  * Wharf's main process.
@@ -31,7 +32,10 @@ function createWindow(): BrowserWindow {
         minWidth: 720,
         minHeight: 520,
         show: false,
-        backgroundColor: "#0B0E11",
+        // The dark scheme's own background, painted by Electron before the renderer's first
+        // frame; a literal here was the product's palette on the day it was typed and nothing
+        // kept it so.
+        backgroundColor: DARK_SCHEME.background,
         autoHideMenuBar: true,
         webPreferences: {
             preload: join(directory, "../preload/index.cjs"),

@@ -373,7 +373,7 @@ function fieldLabel(field: IssueReportField): string {
     margin-block-start: 8px;
     padding: 12px;
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-issue-report__field { margin-block-start: 10px; }

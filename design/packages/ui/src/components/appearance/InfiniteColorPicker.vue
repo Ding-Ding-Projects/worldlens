@@ -1005,13 +1005,13 @@ const gamutLabel = computed(() => {
 .mb-color-picker__title {
     flex: 1 1 auto;
     margin: 0;
-    font-size: 0.95rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
 .mb-color-picker__subtitle {
     margin: 0;
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -1024,7 +1024,7 @@ const gamutLabel = computed(() => {
     flex: 0 0 auto;
     inline-size: 28px;
     block-size: 28px;
-    border-radius: 6px;
+    border-radius: var(--md-sys-shape-corner-small);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
     background-color: currentcolor;
 }
@@ -1032,7 +1032,7 @@ const gamutLabel = computed(() => {
 .mb-color-picker__field {
     position: relative;
     block-size: 160px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
     touch-action: none;
     cursor: crosshair;
@@ -1073,7 +1073,7 @@ const gamutLabel = computed(() => {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .mb-color-picker__sliderLabel {
@@ -1085,7 +1085,7 @@ const gamutLabel = computed(() => {
 .mb-color-picker__slider input[type="range"] {
     flex: 1 1 auto;
     block-size: 16px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
     appearance: none;
 }
@@ -1149,7 +1149,7 @@ const gamutLabel = computed(() => {
 .mb-color-picker__recent {
     inline-size: 22px;
     block-size: 22px;
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
 }
 
@@ -1177,27 +1177,27 @@ const gamutLabel = computed(() => {
 .mb-color-picker__rowName {
     flex: 0 0 auto;
     inline-size: 116px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-color-picker__rowValue {
     flex: 1 1 auto;
     overflow-x: auto;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     white-space: nowrap;
 }
 
 .mb-color-picker__rowEmpty {
     flex: 1 1 auto;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-style: italic;
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 
 .mb-color-picker__hint {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -1206,6 +1206,6 @@ const gamutLabel = computed(() => {
 }
 
 .mb-color-picker__notice {
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 </style>

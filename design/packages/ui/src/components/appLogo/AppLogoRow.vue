@@ -564,7 +564,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
 
 .mb-applogo-row__identity-note {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -582,7 +582,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
 
 .mb-applogo-row__presets legend {
     width: 100%;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 600;
     padding: 0 0 4px;
 }
@@ -596,10 +596,10 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
     min-inline-size: 44px;
     min-block-size: 44px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: transparent;
     cursor: pointer;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
 }
 
 .mb-applogo-row__preset-tile--active {
@@ -639,7 +639,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
     gap: 8px;
     padding: 8px;
     border: 1px dashed rgba(var(--v-theme-on-surface), 0.3);
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-applogo-row__pending-preview {
@@ -671,7 +671,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
 .mb-applogo-row__focal legend,
 .mb-applogo-row__background legend {
     width: 100%;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 600;
     padding: 0 0 4px;
 }
@@ -684,7 +684,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .mb-applogo-row__previews {
@@ -695,13 +695,13 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
 
 .mb-applogo-row__safe-area-label {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 600;
 }
 
 .mb-applogo-row__safe-area-description {
     margin: 0;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -725,7 +725,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
     position: relative;
     overflow: hidden;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.2);
-    border-radius: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
 }
 
 .mb-applogo-row__safe-area {
@@ -740,7 +740,7 @@ function previewCaption(size: (typeof PREVIEW_SIZES)[number]): string {
 }
 
 .mb-applogo-row__preview figcaption {
-    font-size: 0.625rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-align: center;
 }

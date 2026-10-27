@@ -281,15 +281,15 @@ function onExit(): void {
 
 .mb-tutorial__highlight {
     position: fixed;
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     box-shadow:
         0 0 0 3px rgb(var(--v-theme-primary)),
         0 0 0 9999px rgba(var(--v-theme-on-surface), 0.35);
     transition:
-        top 0.15s ease,
-        left 0.15s ease,
-        width 0.15s ease,
-        height 0.15s ease;
+        top var(--md-sys-motion-duration-short3) ease,
+        left var(--md-sys-motion-duration-short3) ease,
+        width var(--md-sys-motion-duration-short3) ease,
+        height var(--md-sys-motion-duration-short3) ease;
     pointer-events: none;
 }
 
@@ -297,14 +297,14 @@ function onExit(): void {
     position: fixed;
     max-width: 22rem;
     padding: 14px 16px 12px;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
     box-shadow: var(--md-sys-elevation-shadow-level3);
     pointer-events: auto;
     transition:
-        top 0.15s ease,
-        left 0.15s ease;
+        top var(--md-sys-motion-duration-short3) ease,
+        left var(--md-sys-motion-duration-short3) ease;
 }
 
 .mb-tutorial__card:focus-visible {
@@ -321,7 +321,7 @@ function onExit(): void {
 
 .mb-tutorial__progress {
     margin: 0;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 600;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -352,14 +352,14 @@ function onExit(): void {
 
 .mb-tutorial__title {
     margin-block: 6px 4px;
-    font-size: 1.0625rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.3;
 }
 
 .mb-tutorial__body {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     text-wrap: pretty;
 }

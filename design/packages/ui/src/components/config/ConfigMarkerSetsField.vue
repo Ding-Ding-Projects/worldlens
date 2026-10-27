@@ -341,7 +341,7 @@ function commitMarkers(id: string, raw: string): void {
 
 <style>
 .mb-config-markers__panels {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     overflow: hidden;
 }
 
@@ -362,7 +362,7 @@ function commitMarkers(id: string, raw: string): void {
 .mb-config-markers__count {
     margin-inline-start: auto;
     margin-inline-end: 12px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     flex-shrink: 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -374,7 +374,7 @@ function commitMarkers(id: string, raw: string): void {
 }
 
 .mb-config-markers__doc {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     white-space: pre-line;
     margin-block-start: -6px;
@@ -387,13 +387,13 @@ function commitMarkers(id: string, raw: string): void {
     gap: 8px;
     flex-wrap: wrap;
     margin-block-start: -6px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 
 .mb-config-markers__raw textarea {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .mb-config-markers__add {
@@ -410,7 +410,7 @@ function commitMarkers(id: string, raw: string): void {
 
 .mb-config-markers__note,
 .mb-config-markers__empty {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

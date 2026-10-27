@@ -547,7 +547,7 @@ const renderItems = computed(() =>
     flex-direction: column;
     gap: 6px;
     padding: 12px 18px;
-    border-radius: 14px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-surface-container));
     border: 1px solid rgb(var(--v-theme-outline-variant));
 }

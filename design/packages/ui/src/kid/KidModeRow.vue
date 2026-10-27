@@ -109,5 +109,5 @@ const noLockConfigured = computed(
 .wl-kid-row { display: flex; flex-direction: column; gap: 14px; padding: 18px 0; }
 .wl-kid-row__option { display: flex; flex-direction: column; padding-block: 6px; }
 .wl-kid-row__option small { color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity)); }
-.wl-kid-row__note { font-size: 14px; color: rgb(var(--v-theme-outline)); margin: 0; }
+.wl-kid-row__note { font-size: var(--md-sys-typescale-body-medium-size); color: rgb(var(--v-theme-outline)); margin: 0; }
 </style>

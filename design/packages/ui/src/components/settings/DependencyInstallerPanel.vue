@@ -532,7 +532,7 @@ function exportLog(): void {
 <style scoped>
 .mb-deps {
     inline-size: 100%;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-deps__head {
@@ -555,7 +555,7 @@ function exportLog(): void {
 
 .mb-deps__blurb,
 .mb-deps__empty {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -573,7 +573,7 @@ function exportLog(): void {
 .mb-deps__elevationList {
     margin: 0;
     padding-inline-start: 1.25rem;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
@@ -586,7 +586,7 @@ function exportLog(): void {
 }
 
 .mb-deps__bulkcount {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-variant-numeric: tabular-nums;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -620,7 +620,7 @@ function exportLog(): void {
     min-block-size: 48px;
     min-inline-size: 0;
     padding: 6px 12px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-deps__text {
@@ -632,13 +632,13 @@ function exportLog(): void {
 }
 
 .mb-deps__name {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     line-height: 1.35;
     overflow-wrap: anywhere;
 }
 
 .mb-deps__subtitle {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.3;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;

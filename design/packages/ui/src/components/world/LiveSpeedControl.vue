@@ -346,7 +346,7 @@ async function restartNow(): Promise<void> {
 
 <style>
 .mb-livespeed {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     margin-block: 12px;
     min-inline-size: 0;
     max-inline-size: 100%;
@@ -361,7 +361,7 @@ async function restartNow(): Promise<void> {
 }
 
 .mb-livespeed__title {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.3;
     min-inline-size: 0;
@@ -370,7 +370,7 @@ async function restartNow(): Promise<void> {
 
 .mb-livespeed__blurb,
 .mb-livespeed__disabled {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     margin-block-end: 8px;
@@ -378,7 +378,7 @@ async function restartNow(): Promise<void> {
 }
 
 .mb-livespeed__current {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     margin-block-end: 10px;
     overflow-wrap: anywhere;
@@ -407,21 +407,21 @@ async function restartNow(): Promise<void> {
 
 .mb-livespeed__extremes {
     margin-block-start: 8px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-livespeed__outcome {
     margin-block-start: 10px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     line-height: 1.45;
 }
 
 .mb-livespeed__message {
     margin-block-start: 4px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     overflow-wrap: anywhere;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -429,7 +429,7 @@ async function restartNow(): Promise<void> {
 
 .mb-livespeed__deferred {
     margin-block-start: 8px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     font-style: italic;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -444,7 +444,7 @@ async function restartNow(): Promise<void> {
 
 .mb-livespeed__restartOffer {
     margin-block-start: 4px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;

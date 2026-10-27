@@ -10,6 +10,7 @@
     "files": [
         "dist",
         "src/tokens.css",
+        "src/colors.css",
         "README.md"
     ],
     "exports": {
@@ -29,6 +30,7 @@
             "require": "./dist/theme.js"
         },
         "./tokens.css": "./src/tokens.css",
+        "./colors.css": "./src/colors.css",
         "./package.json": "./package.json"
     },
     "sideEffects": [
@@ -37,7 +39,10 @@
     ],
     "scripts": {
         "build": "tsc -p tsconfig.json",
-        "typecheck": "tsc -p tsconfig.json --noEmit"
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "colors:write": "node --experimental-strip-types scripts/write-colors-css.mjs",
+        "colors:check": "node --experimental-strip-types scripts/write-colors-css.mjs --check",
+        "test": "vitest run --root ../.. --config vitest.config.ts packages/design-system"
     },
     "peerDependencies": {
         "vue": "^3.5.0",
@@ -56,4 +61,3 @@
         "design-system"
     ]
 }
-

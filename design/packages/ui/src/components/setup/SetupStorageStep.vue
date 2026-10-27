@@ -130,7 +130,7 @@ const errorMessage = computed(() => {
 
 .mb-setup-storage__hint {
     margin-block-start: -4px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

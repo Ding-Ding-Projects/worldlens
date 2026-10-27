@@ -59,12 +59,30 @@
      * which components get it.
      * ------------------------------------------------------------------------- */
     --md-sys-shape-corner-none: 0px;
-    --md-sys-shape-corner-xs: 4px;
-    --md-sys-shape-corner-sm: 8px;
-    --md-sys-shape-corner-md: 12px;
-    --md-sys-shape-corner-lg: 16px;
-    --md-sys-shape-corner-xl: 28px;
+    --md-sys-shape-corner-extra-small: 4px;
+    --md-sys-shape-corner-small: 8px;
+    --md-sys-shape-corner-medium: 12px;
+    --md-sys-shape-corner-large: 16px;
+    --md-sys-shape-corner-extra-large: 28px;
     --md-sys-shape-corner-full: 9999px;
+
+    /*
+     * The short spellings are aliases of the spec names above, kept because `global.scss`
+     * re-points Vuetify's `.rounded-xs/sm/md/lg/xl` utilities through them and because every
+     * consumer written before the spec names arrived spends them. They resolve through
+     * `var()` rather than repeating the number, so there is still exactly one value per step.
+     *
+     * The spec spellings are the canonical ones. `markers.scss`, the documentation site and
+     * Wharf all asked for `--md-sys-shape-corner-medium` and friends before this sheet
+     * published them, and every one of those requests fell through to its hand-typed fallback
+     * - a corner that looked right on the day it was typed and stopped tracking the system
+     * the moment it was. Publishing both spellings from one place is what ends that.
+     */
+    --md-sys-shape-corner-xs: var(--md-sys-shape-corner-extra-small);
+    --md-sys-shape-corner-sm: var(--md-sys-shape-corner-small);
+    --md-sys-shape-corner-md: var(--md-sys-shape-corner-medium);
+    --md-sys-shape-corner-lg: var(--md-sys-shape-corner-large);
+    --md-sys-shape-corner-xl: var(--md-sys-shape-corner-extra-large);
 
     /* ---------------------------------------------------------------------------
      * Type scale.
@@ -81,7 +99,7 @@
      * that is the dial's, and a second thing writing it is how the two end up fighting.
      *
      * Tracking is in rem for the same reason. The rem values are the spec's px figures over
-     * 16: 0.25px tracking is 0.0156rem, 0.5px is 0.03125rem, 0.1px is 0.00625rem.
+     * 16: 0.25px tracking is 0.015625rem, 0.5px is 0.03125rem, 0.1px is 0.00625rem.
      * ------------------------------------------------------------------------- */
     --md-sys-typescale-display-large-size: 3.5625rem;
     --md-sys-typescale-display-large-line-height: 4rem;
@@ -131,7 +149,7 @@
     --md-sys-typescale-body-medium-size: 0.875rem;
     --md-sys-typescale-body-medium-line-height: 1.25rem;
     --md-sys-typescale-body-medium-weight: 400;
-    --md-sys-typescale-body-medium-tracking: 0.0156rem;
+    --md-sys-typescale-body-medium-tracking: 0.015625rem;
     --md-sys-typescale-body-small-size: 0.75rem;
     --md-sys-typescale-body-small-line-height: 1rem;
     --md-sys-typescale-body-small-weight: 400;
@@ -209,6 +227,14 @@
     --md-sys-state-pressed-opacity: 10%;
     --md-sys-state-dragged-opacity: 16%;
 
+    /*
+     * The two disabled opacities, M3 spec: content at 38% and the container it sits in at
+     * 12%. The site declared these for itself and Wharf typed the percentages into a
+     * `color-mix()`; both now read them from here.
+     */
+    --md-sys-state-disabled-content-opacity: 38%;
+    --md-sys-state-disabled-container-opacity: 12%;
+
     /* ---------------------------------------------------------------------------
      * Motion.
      *
@@ -244,6 +270,10 @@
     --md-sys-motion-duration-long2: 500ms;
     --md-sys-motion-duration-long3: 550ms;
     --md-sys-motion-duration-long4: 600ms;
+    --md-sys-motion-duration-extra-long1: 700ms;
+    --md-sys-motion-duration-extra-long2: 800ms;
+    --md-sys-motion-duration-extra-long3: 900ms;
+    --md-sys-motion-duration-extra-long4: 1000ms;
 }
 
 

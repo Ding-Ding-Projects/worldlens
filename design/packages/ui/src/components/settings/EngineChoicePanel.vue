@@ -520,19 +520,19 @@ function descriptorText(descriptor: (typeof RENDER_ENGINE_DESCRIPTORS)[number]):
 .mb-engine-choice__eyebrow,
 .mb-engine-choice__label {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    font-size: 0.7rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     letter-spacing: 0.04em;
     text-transform: uppercase;
 }
 .mb-engine-choice__title {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
 }
 .mb-engine-choice__summary,
 .mb-engine-choice__provenance,
 .mb-engine-choice__version,
 .mb-engine-choice__status {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 .mb-engine-choice__picker {
@@ -560,7 +560,7 @@ function descriptorText(descriptor: (typeof RENDER_ENGINE_DESCRIPTORS)[number]):
 }
 .mb-engine-choice__facts dt {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    font-size: 0.68rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -580,7 +580,7 @@ function descriptorText(descriptor: (typeof RENDER_ENGINE_DESCRIPTORS)[number]):
 .mb-engine-choice__card ul {
     margin: 4px 0 8px;
     padding-inline-start: 1.2rem;
-    font-size: 0.78rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
 }
 .mb-engine-choice__import {

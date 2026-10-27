@@ -263,7 +263,7 @@ const summary = computed(() => {
 <style>
 .mb-history-readable__summary {
     margin: 0 0 6px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -280,13 +280,13 @@ const summary = computed(() => {
 
 .mb-history-readable__fileName {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
 .mb-history-readable__filePath {
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
 }
@@ -303,12 +303,12 @@ const summary = computed(() => {
     gap: 6px;
     align-items: center;
     padding: 2px 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-history-readable__key {
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     overflow-wrap: anywhere;
 }
 
@@ -333,7 +333,7 @@ const summary = computed(() => {
 
 .mb-history-readable__note,
 .mb-history-readable__quiet {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -343,7 +343,7 @@ const summary = computed(() => {
 
 .mb-history-readable__raw {
     margin-block-start: 6px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .mb-history-readable__raw summary {
@@ -366,10 +366,10 @@ const summary = computed(() => {
     margin: 4px 0 0;
     padding: 6px 8px;
     overflow: auto;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     background: rgba(var(--v-theme-on-surface), 0.04);
-    border-radius: 6px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-history-diff__body:focus-visible {

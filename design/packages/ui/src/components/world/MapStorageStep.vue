@@ -155,7 +155,7 @@ async function browse(): Promise<void> {
 }
 
 .mb-world-storage__subtitle {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin-block-end: 4px;
 }
@@ -165,7 +165,7 @@ async function browse(): Promise<void> {
     align-items: center;
     gap: 6px;
     margin-block-start: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

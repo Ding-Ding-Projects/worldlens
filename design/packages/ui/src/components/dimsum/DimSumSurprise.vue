@@ -189,7 +189,7 @@ const dismissAria = t("dimsum.dismiss.aria", {}, "Dismiss the dim sum surprise")
 
 .mb-dimsum-surprise__intro {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     opacity: 0.85;
 }
 

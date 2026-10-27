@@ -1184,7 +1184,7 @@ onUnmounted(() => {
     justify-content: space-between;
     gap: 10px;
     padding: 8px 10px;
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-on-surface), 0.04);
 }
 .mb-runtime-settings__result button {
@@ -1200,7 +1200,7 @@ onUnmounted(() => {
 .mb-runtime-settings__notice,
 .mb-runtime-settings__empty {
     display: block;
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 .mb-runtime-settings__tabs {
@@ -1214,7 +1214,7 @@ onUnmounted(() => {
     min-block-size: 44px;
     padding: 8px 12px;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-on-surface), 0.08);
     color: inherit;
     cursor: pointer;
@@ -1230,7 +1230,7 @@ onUnmounted(() => {
 }
 .mb-runtime-settings__panel h4 {
     margin: 0;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
 }
 .mb-runtime-settings__status-list {
     display: grid;
@@ -1242,7 +1242,7 @@ onUnmounted(() => {
     grid-template-columns: minmax(8rem, 0.35fr) minmax(0, 1fr);
     gap: 10px;
     padding: 8px;
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-on-surface), 0.04);
 }
 .mb-runtime-settings__status-list dt {
@@ -1263,25 +1263,25 @@ onUnmounted(() => {
     gap: 6px 10px;
     min-inline-size: 0;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.18);
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     padding: 8px;
 }
 .mb-runtime-settings__weekdays legend {
     padding-inline: 4px;
-    font-size: 0.8rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 .mb-runtime-settings__panel label {
     display: grid;
     gap: 5px;
     min-width: 0;
-    font-size: 0.85rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 .mb-runtime-settings__panel input:not([type="checkbox"]),
 .mb-runtime-settings__panel select {
     min-block-size: 42px;
     max-inline-size: 100%;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.35);
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     padding: 8px;
     background: rgb(var(--v-theme-surface));
     color: inherit;
@@ -1297,7 +1297,7 @@ onUnmounted(() => {
     align-items: start;
     gap: 10px !important;
     padding: 8px;
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-on-surface), 0.04);
 }
 .mb-runtime-settings__accommodation span {
@@ -1311,7 +1311,7 @@ onUnmounted(() => {
     display: grid;
     gap: 6px;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgba(var(--v-theme-primary), 0.14);
 }
 :global(html[data-runtime-low-stimulation="true"] *) {

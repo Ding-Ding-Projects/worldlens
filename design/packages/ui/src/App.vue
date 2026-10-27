@@ -4172,7 +4172,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 /* The memory console's absence sentence, sized to read as prose rather than as a heading. */
 .mb-memory-absent {
     max-inline-size: 60ch;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     text-wrap: pretty;
 }

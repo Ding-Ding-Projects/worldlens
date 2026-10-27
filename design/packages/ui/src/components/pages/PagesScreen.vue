@@ -1032,7 +1032,7 @@ onBeforeUnmount(() => {
     white-space: pre-wrap;
     overflow-x: auto;
     max-height: 12rem;
-    font-size: 13px;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 19px;
 }
 </style>

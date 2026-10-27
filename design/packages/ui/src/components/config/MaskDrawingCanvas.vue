@@ -1450,7 +1450,7 @@ const worldFraction = computed(() => {
 }
 
 .mb-mask-canvas__presetNote {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -1470,7 +1470,7 @@ const worldFraction = computed(() => {
     min-height: 320px;
     max-width: 100%;
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.15);
     background: rgba(var(--v-theme-on-surface), 0.03);
 }

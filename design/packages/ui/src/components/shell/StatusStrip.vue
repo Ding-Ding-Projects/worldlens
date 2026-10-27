@@ -199,7 +199,7 @@ const primaryAction = computed<"problems" | "renders" | null>(() => {
     min-block-size: 32px;
     background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
     border-block-end: 1px solid rgb(var(--v-theme-outline-variant));
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-on-surface-variant));
 }
 

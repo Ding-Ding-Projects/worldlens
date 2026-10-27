@@ -97,7 +97,7 @@ const rateText = computed(() => {
 <style>
 .mb-throughput {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     font-variant-numeric: tabular-nums;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));

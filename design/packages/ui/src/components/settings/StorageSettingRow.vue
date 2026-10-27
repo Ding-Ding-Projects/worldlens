@@ -252,7 +252,7 @@ function onSave(): void {
 
 .mb-storage-setting__note {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -261,7 +261,7 @@ function onSave(): void {
 
 .mb-storage-setting__saved {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-primary));
     overflow-wrap: anywhere;
 }
@@ -274,7 +274,7 @@ function onSave(): void {
 }
 
 .mb-storage-setting__fact > dt {
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -283,7 +283,7 @@ function onSave(): void {
 
 .mb-storage-setting__fact > dd {
     margin: 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     overflow-wrap: anywhere;
 }
 

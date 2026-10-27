@@ -119,8 +119,8 @@ onMounted(() => { void refresh(); void bridge?.addons.safeModeState().then((valu
 .mb-addon-manager__toolbar .v-text-field { flex: 1 1 220px; }
 .mb-addon-manager__description, .mb-addon-manager__capabilities { margin: 2px 0; }
 .mb-addon-manager__consent { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
-.mb-addon-manager__diagnostics { margin-top: 6px; font-size: .85rem; }
-.mb-addon-manager__capabilities { opacity: .72; font-size: .82rem; }
+.mb-addon-manager__diagnostics { margin-top: 6px; font-size: var(--md-sys-typescale-body-medium-size); }
+.mb-addon-manager__capabilities { opacity: .72; font-size: var(--md-sys-typescale-body-medium-size); }
 .mb-addon-manager__error { color: rgb(var(--v-theme-error)); }
 .mb-addon-manager__empty { opacity: .78; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }

@@ -249,11 +249,11 @@ async function unlock(): Promise<void> {
     border-radius: var(--wl-kid-radius-md); background: rgb(var(--v-theme-secondary-container));
     color: rgb(var(--v-theme-on-secondary-container));
 }
-.wl-kid-gate h1 { margin: 0 0 6px; font-size: 32px; font-weight: 800; }
-.wl-kid-gate > p { font-size: 17px; color: rgb(var(--v-theme-on-surface-variant)); }
-.wl-kid-gate__field { display: flex; flex-direction: column; gap: 6px; max-width: 420px; font-size: 17px; margin-block: 12px; }
-.wl-kid-gate__field input { min-height: var(--wl-kid-target-min); border: 3px solid rgb(var(--v-theme-outline-variant)); border-radius: var(--wl-kid-radius-md); padding: 0 16px; font: inherit; font-size: 24px; }
-.wl-kid-gate__go { min-height: var(--wl-kid-target-min); padding: 0 24px; border: 0; border-radius: var(--wl-kid-radius-full); background: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary)); font: inherit; font-size: 20px; font-weight: 800; cursor: pointer; }
+.wl-kid-gate h1 { margin: 0 0 6px; font-size: var(--md-sys-typescale-headline-large-size); font-weight: 800; }
+.wl-kid-gate > p { font-size: var(--md-sys-typescale-body-large-size); color: rgb(var(--v-theme-on-surface-variant)); }
+.wl-kid-gate__field { display: flex; flex-direction: column; gap: 6px; max-width: 420px; font-size: var(--md-sys-typescale-body-large-size); margin-block: 12px; }
+.wl-kid-gate__field input { min-height: var(--wl-kid-target-min); border: 3px solid rgb(var(--v-theme-outline-variant)); border-radius: var(--wl-kid-radius-md); padding: 0 16px; font: inherit; font-size: var(--md-sys-typescale-headline-small-size); }
+.wl-kid-gate__go { min-height: var(--wl-kid-target-min); padding: 0 24px; border: 0; border-radius: var(--wl-kid-radius-full); background: rgb(var(--v-theme-primary)); color: rgb(var(--v-theme-on-primary)); font: inherit; font-size: var(--md-sys-typescale-title-large-size); font-weight: 800; cursor: pointer; }
 .wl-kid-gate__go:disabled { opacity: 0.5; cursor: not-allowed; }
-.wl-kid-gate__honesty { margin-top: 18px; font-size: 14px; color: rgb(var(--v-theme-outline)); }
+.wl-kid-gate__honesty { margin-top: 18px; font-size: var(--md-sys-typescale-body-medium-size); color: rgb(var(--v-theme-outline)); }
 </style>

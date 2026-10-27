@@ -826,17 +826,17 @@ async function resume(renderId: string): Promise<void> {
 }
 
 .mb-world-screen__card {
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-world-screen__title {
-    font-size: 1.375rem;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 400;
     line-height: 1.3;
 }
 
 .mb-world-screen__blurb {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -854,12 +854,12 @@ async function resume(renderId: string): Promise<void> {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 
 .mb-world-screen__running-blurb {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -880,7 +880,7 @@ async function resume(renderId: string): Promise<void> {
 
 .mb-world-screen__running-id {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     overflow-wrap: anywhere;
 }
 </style>

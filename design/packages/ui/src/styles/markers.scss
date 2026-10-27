@@ -31,22 +31,54 @@
 .v-theme--dark,
 .v-theme--light,
 .v-theme--contrast {
+    /*
+     * Every role the design system publishes, in its declaration order, so a surface that
+     * reaches for `--md-sys-color-on-primary` or `--md-sys-color-error` gets this theme's
+     * value rather than whatever fallback it typed. The hosted sign-in prompt asked for
+     * both and got Material's baseline purple, because only the slice the marker layer
+     * itself needed was mapped here. `markers.colorRoles.test.ts` pins the list to
+     * `COLOR_ROLES` in both directions.
+     *
+     * `shadow` stays a literal, as the comment above says.
+     */
+    --md-sys-color-primary: rgb(var(--v-theme-primary));
+    --md-sys-color-on-primary: rgb(var(--v-theme-on-primary));
+    --md-sys-color-primary-container: rgb(var(--v-theme-primary-container));
+    --md-sys-color-on-primary-container: rgb(var(--v-theme-on-primary-container));
+    --md-sys-color-secondary: rgb(var(--v-theme-secondary));
+    --md-sys-color-on-secondary: rgb(var(--v-theme-on-secondary));
+    --md-sys-color-secondary-container: rgb(var(--v-theme-secondary-container));
+    --md-sys-color-on-secondary-container: rgb(var(--v-theme-on-secondary-container));
+    --md-sys-color-tertiary: rgb(var(--v-theme-tertiary));
+    --md-sys-color-on-tertiary: rgb(var(--v-theme-on-tertiary));
+    --md-sys-color-tertiary-container: rgb(var(--v-theme-tertiary-container));
+    --md-sys-color-on-tertiary-container: rgb(var(--v-theme-on-tertiary-container));
+    --md-sys-color-error: rgb(var(--v-theme-error));
+    --md-sys-color-on-error: rgb(var(--v-theme-on-error));
+    --md-sys-color-error-container: rgb(var(--v-theme-error-container));
+    --md-sys-color-on-error-container: rgb(var(--v-theme-on-error-container));
+    --md-sys-color-background: rgb(var(--v-theme-background));
+    --md-sys-color-on-background: rgb(var(--v-theme-on-background));
     --md-sys-color-surface: rgb(var(--v-theme-surface));
     --md-sys-color-on-surface: rgb(var(--v-theme-on-surface));
-    --md-sys-color-primary: rgb(var(--v-theme-primary));
-    --md-sys-color-surface-tint: rgb(var(--v-theme-surface-tint));
-    --md-sys-color-shadow: rgb(0 0 0);
-
-    --md-sys-color-on-surface-variant: rgb(var(--v-theme-on-surface-variant));
-    --md-sys-color-outline: rgb(var(--v-theme-outline));
-    --md-sys-color-outline-variant: rgb(var(--v-theme-outline-variant));
-
+    --md-sys-color-surface-dim: rgb(var(--v-theme-surface-dim));
+    --md-sys-color-surface-bright: rgb(var(--v-theme-surface-bright));
+    --md-sys-color-surface-light: rgb(var(--v-theme-surface-light));
+    --md-sys-color-surface-container-lowest: rgb(var(--v-theme-surface-container-lowest));
+    --md-sys-color-surface-container-low: rgb(var(--v-theme-surface-container-low));
     --md-sys-color-surface-container: rgb(var(--v-theme-surface-container));
     --md-sys-color-surface-container-high: rgb(var(--v-theme-surface-container-high));
     --md-sys-color-surface-container-highest: rgb(var(--v-theme-surface-container-highest));
-
+    --md-sys-color-surface-variant: rgb(var(--v-theme-surface-variant));
+    --md-sys-color-on-surface-variant: rgb(var(--v-theme-on-surface-variant));
+    --md-sys-color-outline: rgb(var(--v-theme-outline));
+    --md-sys-color-outline-variant: rgb(var(--v-theme-outline-variant));
     --md-sys-color-inverse-surface: rgb(var(--v-theme-inverse-surface));
     --md-sys-color-inverse-on-surface: rgb(var(--v-theme-inverse-on-surface));
+    --md-sys-color-inverse-primary: rgb(var(--v-theme-inverse-primary));
+    --md-sys-color-surface-tint: rgb(var(--v-theme-surface-tint));
+    --md-sys-color-scrim: rgb(var(--v-theme-scrim));
+    --md-sys-color-shadow: rgb(0 0 0);
 
     /*
      * Elevation is expressed as `filter: drop-shadow(...)` rather than `box-shadow`, because
@@ -83,7 +115,7 @@
 
     --md-sys-typescale-body-medium-size: 0.875rem;
     --md-sys-typescale-body-medium-line-height: 1.25rem;
-    --md-sys-typescale-body-medium-tracking: 0.0156rem;
+    --md-sys-typescale-body-medium-tracking: 0.015625rem;
     --md-sys-typescale-body-small-size: 0.75rem;
     --md-sys-typescale-body-small-line-height: 1rem;
     --md-sys-typescale-body-small-tracking: 0.025rem;

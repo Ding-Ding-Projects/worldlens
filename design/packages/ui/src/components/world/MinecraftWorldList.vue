@@ -715,7 +715,7 @@ function failureOf(folder: MinecraftFolder): string | null {
 }
 
 .mb-world-list__title {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.4;
 }
@@ -723,7 +723,7 @@ function failureOf(folder: MinecraftFolder): string | null {
 .mb-world-list__blurb,
 .mb-world-list__hint,
 .mb-world-list__empty {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -751,19 +751,19 @@ function failureOf(folder: MinecraftFolder): string | null {
 }
 
 .mb-world-list__mount-name {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
 .mb-world-list__mount-path {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     overflow-wrap: anywhere;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-world-list__mount-state {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgb(var(--v-theme-warning));
     text-wrap: pretty;
@@ -806,7 +806,7 @@ function failureOf(folder: MinecraftFolder): string | null {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     margin-block-start: 12px;
 }
 
@@ -827,7 +827,7 @@ function failureOf(folder: MinecraftFolder): string | null {
     flex-direction: column;
     gap: 2px;
     padding: 8px 10px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     cursor: pointer;
     min-height: 48px;
     justify-content: center;
@@ -855,7 +855,7 @@ function failureOf(folder: MinecraftFolder): string | null {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     line-height: 1.3;
 }
 
@@ -865,7 +865,7 @@ function failureOf(folder: MinecraftFolder): string | null {
 
 /* The requested small secondary line: the world's details, under its name. */
 .mb-world-list__details {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;

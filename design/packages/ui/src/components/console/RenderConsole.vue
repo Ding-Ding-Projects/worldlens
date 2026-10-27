@@ -1016,7 +1016,7 @@ function openSetting(target: SettingsTarget): void {
 }
 
 .mb-console__levels legend {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     letter-spacing: 0.04em;
     padding: 0;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -1026,7 +1026,7 @@ function openSetting(target: SettingsTarget): void {
     display: inline-block;
     inline-size: 8px;
     block-size: 8px;
-    border-radius: 2px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     margin-inline-end: 6px;
     background: currentcolor;
 }
@@ -1058,7 +1058,7 @@ function openSetting(target: SettingsTarget): void {
 }
 
 .mb-console__meta {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -1080,10 +1080,10 @@ function openSetting(target: SettingsTarget): void {
     list-style: none;
     overflow: auto;
     overscroll-behavior: contain;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgba(var(--v-theme-on-surface), 0.06);
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.55;
     user-select: text;
 }
@@ -1102,7 +1102,7 @@ function openSetting(target: SettingsTarget): void {
 }
 
 .mb-console__history-facts {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), 0.8);
 }
@@ -1121,7 +1121,7 @@ function openSetting(target: SettingsTarget): void {
 
 .mb-console__format-label {
     align-self: center;
-    font-size: 0.78rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), 0.72);
 }
 
@@ -1160,7 +1160,7 @@ function openSetting(target: SettingsTarget): void {
     margin-block: 2px 6px;
     padding: 4px 8px;
     border-inline-start: 3px solid currentcolor;
-    border-radius: 0 6px 6px 0;
+    border-radius: 0 var(--md-sys-shape-corner-small) var(--md-sys-shape-corner-small) 0;
     background: rgba(var(--v-theme-on-surface), 0.05);
     font-family: Roboto, system-ui, sans-serif;
     white-space: normal;

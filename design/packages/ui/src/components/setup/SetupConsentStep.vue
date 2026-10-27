@@ -85,7 +85,7 @@ const answered = computed(() => props.answer !== null);
 
 .mb-setup-outcomes__item > dt {
     margin-block-end: 4px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 600;
     letter-spacing: 0.05em;
     text-transform: uppercase;
@@ -94,6 +94,6 @@ const answered = computed(() => props.answer !== null);
 
 .mb-setup-outcomes__item > dd {
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 </style>

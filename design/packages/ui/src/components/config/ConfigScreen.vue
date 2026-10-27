@@ -943,13 +943,13 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 
 .mb-config-screen__identity {
     padding: 16px;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgba(var(--v-theme-primary), 0.04);
     min-width: 0;
 }
 
 .mb-config-screen__identity h1 {
-    font-size: 1.5rem;
+    font-size: var(--md-sys-typescale-headline-small-size);
     line-height: 1.3;
     font-weight: 500;
     margin-block-end: 8px;
@@ -957,12 +957,12 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 
 .mb-config-screen__folder {
     overflow-wrap: anywhere;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     margin-block-end: 4px;
 }
 
 .mb-config-screen__guidance {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     margin-block: 8px 0;
     overflow-wrap: anywhere;
@@ -996,7 +996,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 }
 
 .mb-config-screen__search {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-config-screen__results {
@@ -1011,7 +1011,7 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 
 .mb-config-screen__elsewhere {
     margin-inline-start: 8px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     font-style: italic;
 }
 
@@ -1021,27 +1021,27 @@ const jarPathValue = computed(() => props.jarPath ?? "bluemap-cli.jar");
 }
 
 .mb-config-screen__note {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-config-screen__intro {
     margin-block: 0 12px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-config-screen__welcome {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-config-screen__welcome-head {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     margin-block-end: 4px;
 }
 

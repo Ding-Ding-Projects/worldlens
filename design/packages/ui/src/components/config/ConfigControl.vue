@@ -677,18 +677,18 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
 
 .mb-config-control__tokens-label {
     flex-basis: 100%;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-config-control__tokens code {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
 }
 
 .mb-config-control__token-label {
     margin-inline-start: 6px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -716,7 +716,7 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
 
 .mb-config-control__reading {
     font-variant-numeric: tabular-nums;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     min-width: 5ch;
     text-align: end;
 }
@@ -726,24 +726,24 @@ const boundDirection = computed<"min" | "max">(() => (props.label.toLowerCase().
     align-items: center;
     gap: 4px;
     flex-wrap: wrap;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
 .mb-config-control__error {
     flex-basis: 100%;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-error));
 }
 
 .mb-config-control__mono input,
 .mb-config-control__mono textarea {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-config-control__unsupported {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 </style>

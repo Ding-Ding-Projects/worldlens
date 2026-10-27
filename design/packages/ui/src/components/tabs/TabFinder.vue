@@ -363,7 +363,7 @@ function isOpen(key: string): boolean {
 }
 
 .mb-tabs-finder__title {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     margin-block-end: 4px;
 }
@@ -438,7 +438,7 @@ function isOpen(key: string): boolean {
 }
 
 .mb-tabs-finder__empty {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     padding-block: 6px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));

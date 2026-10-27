@@ -359,7 +359,7 @@ watch(
        two folders with the same name. */
     flex: 1 1 100%;
     overflow-wrap: anywhere;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     opacity: 0.75;
 }
 

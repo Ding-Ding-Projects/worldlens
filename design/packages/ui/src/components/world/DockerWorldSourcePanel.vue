@@ -828,7 +828,7 @@ defineExpose({
     margin-block-start: 8px;
     max-block-size: min(80vh, 760px);
     overflow: auto;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-docker-world__card > .v-card-title {
@@ -840,14 +840,14 @@ defineExpose({
 
 .mb-docker-world h4 {
     margin-block: 18px 8px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 600;
 }
 
 .mb-docker-world__blurb,
 .mb-docker-world__disabled,
 .mb-docker-world__detail {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     overflow-wrap: anywhere;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -949,7 +949,7 @@ defineExpose({
     gap: 6px;
     margin-block-start: 12px;
     padding: 12px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     background: rgb(var(--v-theme-surface));
 }
 
@@ -957,7 +957,7 @@ defineExpose({
 .mb-docker-world__progress pre {
     overflow-wrap: anywhere;
     font-family: ui-monospace, "Cascadia Mono", monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
 }
 
 .mb-docker-world__progress pre {

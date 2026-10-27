@@ -32,6 +32,20 @@ and Windows reparse points (or POSIX symbolic links) before removing anything. S
 requires a regular, non-trivial ZIP/JAR with both a local-file header and an end-of-central-directory
 record; a zero-byte, tiny, stale or non-JAR file does not satisfy the check.
 
+## `check-design-tokens.mjs`
+
+Proves every interface surface - the desktop interface, the documentation site, Wharf, the
+md3-check and kid-check instruments and the render page - spends the design system's tokens
+rather than typing values: a `border-radius`, `font-size`, `transition` or `animation` literal
+where a shape, type or motion token belongs fails the check, and a `var(--md-sys-*, <fallback>)`
+whose fallback disagrees with its token fails as well. The step values are read from
+`design/packages/design-system/src/tokens.css` and `colors.css`, not carried in the script.
+`--fix` rewrites each literal to its token, moving an off-scale value to the nearest step and to
+the larger step on a tie, and prints every such move. `--list` prints one line per finding. A
+literal that is genuinely data rather than chrome is declared with a `material-exempt: <reason>`
+comment above it, the same marker `check-webapp-parity.mjs` honours for colour. From `design/`,
+`pnpm design-tokens:check` runs the script's own tests and then the check.
+
 ## `count-lines.mjs`
 
 Prints the line-count table that every release publishes. CI runs it at the tagged commit, so

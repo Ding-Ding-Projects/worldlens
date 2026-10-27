@@ -1,5 +1,18 @@
 # Roadmap
 
+## Every surface on the design system, 2026-10-27
+
+- [x] Publish the Material 3 spec shape names (`extra-small` … `extra-large`) from the design-system token sheet with the short names as aliases, plus `extra-long1..4` durations and the two disabled opacities.
+- [x] Generate and commit `colors.css` from `colors.ts` (every colour role, three schemes), link it from Wharf, and pin it with `colors:check` and a test.
+- [x] Map the complete colour role set in the desktop interface's marker sheet so no `--md-sys-color-*` request falls through to a fallback; pin it to `COLOR_ROLES` in both directions.
+- [x] Add `scripts/check-design-tokens.mjs` (`--list`, `--fix`) with its own node:test file and the `design-tokens:check` workspace script; it reads the scale from the sheets and honours `material-exempt:`.
+- [x] Rewrite every shape, type and motion literal on the desktop interface, the documentation site, Wharf, the md3-check and kid-check instruments and the render page to its token (1,024 findings: 579 named, 381 moved to the nearest step, 43 fallbacks corrected, 4 declared exemptions).
+- [x] Align the documentation site's drifted tokens (pill 9999px, `title-large` weight 400) and hold site-to-system parity with a test.
+- [x] Run the colour purity check without the upstream webapp submodule and extend it to Wharf and both instruments; read the Electron window backgrounds from the schemes instead of literals.
+- [x] Verify: workspace lint (22 pre-existing errors in untouched files), typecheck of ui, site, wharf, kid-check, md3-check, render-actions and design-system, the design-system, site and md3-check suites, and headless Chromium overflow checks of the built ui and site at 800×600 and 1440×900.
+- [ ] Verify the moved type and corner values in the packaged Windows application with the hidden-desktop capture route and refresh the capture matrix.
+- [ ] Decide whether `line-height`, `padding` and `gap` get a spacing scale and the same check.
+
 ## Live render controls and configuration usability, 2026-10-22
 
 - [x] Restore live-speed forwarding through the desktop render router, with focused regression tests.

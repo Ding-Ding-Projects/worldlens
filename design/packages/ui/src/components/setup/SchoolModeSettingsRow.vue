@@ -305,7 +305,7 @@ async function retrySharedRecord(): Promise<void> {
     gap: 10px;
     padding: 12px;
     border: 1px solid rgba(var(--v-theme-outline), 0.44);
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-surface-container-low));
 }
 
@@ -326,14 +326,14 @@ async function retrySharedRecord(): Promise<void> {
 }
 
 .mb-school-mode__heading h3 {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     line-height: 1.3;
 }
 
 .mb-school-mode__heading p,
 .mb-school-mode__lead {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
 }
 
@@ -341,10 +341,10 @@ async function retrySharedRecord(): Promise<void> {
 .mb-school-mode__error {
     padding: 8px 10px;
     border-inline-start: 3px solid rgb(var(--v-theme-error));
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgb(var(--v-theme-error-container));
     color: rgb(var(--v-theme-on-error-container));
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
 }
 

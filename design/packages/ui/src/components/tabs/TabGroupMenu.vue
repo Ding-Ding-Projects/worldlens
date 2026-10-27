@@ -310,7 +310,7 @@ function choose(id: string): void {
 }
 
 .mb-tabs-group-menu__title {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     margin-block-end: 4px;
 }

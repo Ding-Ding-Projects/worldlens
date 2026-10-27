@@ -563,14 +563,14 @@ defineExpose({
 <style>
 .mb-run-location {
     margin-block-end: 12px;
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-run-location__title {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     padding: 10px 14px 0;
     /*
      * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
@@ -589,7 +589,7 @@ defineExpose({
 
 .mb-run-location__blurb {
     margin-block-start: 6px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -607,19 +607,19 @@ defineExpose({
 }
 
 .mb-run-location__optionTitle {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
 .mb-run-location__optionSummary {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
 }
 
 .mb-run-location__optionReason {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgb(var(--v-theme-warning));
     text-wrap: pretty;
@@ -627,7 +627,7 @@ defineExpose({
 
 .mb-run-location__choiceLine {
     margin-block-start: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     text-wrap: pretty;
 }
@@ -649,7 +649,7 @@ defineExpose({
 }
 
 .mb-run-location__sectionTitle {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
 }
 </style>

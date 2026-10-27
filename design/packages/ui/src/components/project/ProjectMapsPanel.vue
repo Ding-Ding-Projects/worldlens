@@ -1098,7 +1098,7 @@ function confirmRemoval(): void {
 
 .mb-project-maps__identity {
     margin-block-end: 16px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 /*
@@ -1113,7 +1113,7 @@ function confirmRemoval(): void {
     flex-wrap: wrap;
     padding: 14px 16px;
     margin-block-end: 18px;
-    border-radius: 14px;
+    border-radius: var(--md-sys-shape-corner-large);
     background: rgb(var(--v-theme-surface-container));
     border: 1px solid rgb(var(--v-theme-outline-variant));
     min-inline-size: 0;
@@ -1125,7 +1125,7 @@ function confirmRemoval(): void {
 }
 
 .mb-project-maps__maskTitle {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     line-height: 1.45;
     color: rgb(var(--v-theme-on-surface));
@@ -1184,7 +1184,7 @@ function confirmRemoval(): void {
 
 .mb-project-maps__preview {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
@@ -1199,7 +1199,7 @@ function confirmRemoval(): void {
 }
 
 .mb-project-maps__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -1216,7 +1216,7 @@ function confirmRemoval(): void {
 .mb-project-maps__presetsHeading {
     margin-block-start: 16px;
     margin-block-end: 8px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-transform: uppercase;
@@ -1230,18 +1230,18 @@ function confirmRemoval(): void {
 }
 
 .mb-project-maps__preset {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-project-maps__presetTitle {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.35;
     white-space: normal;
 }
 
 .mb-project-maps__presetDesc {
     padding-block-start: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -1249,7 +1249,7 @@ function confirmRemoval(): void {
 }
 
 .mb-project-maps__create {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-project-maps__form {

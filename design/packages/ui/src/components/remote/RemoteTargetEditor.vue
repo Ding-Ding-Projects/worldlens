@@ -639,7 +639,7 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing, b
 
 .mb-remote-targets__blurb {
     margin-block-start: 6px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -661,7 +661,7 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing, b
     flex-wrap: wrap;
     gap: 8px;
     padding: 6px 8px;
-    border-radius: 10px;
+    border-radius: var(--md-sys-shape-corner-medium);
     border: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
@@ -679,14 +679,14 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing, b
 }
 
 .mb-remote-targets__label {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
     overflow-wrap: anywhere;
 }
 
 .mb-remote-targets__address {
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     overflow-wrap: anywhere;
 }
@@ -705,11 +705,11 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing, b
 .mb-remote-targets__form,
 .mb-remote-targets__disclosure {
     margin-block-start: 12px;
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
 }
 
 .mb-remote-targets__formTitle {
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     padding: 8px 12px 0;
     /*
      * `.v-card-title` defaults to `overflow: hidden; white-space: nowrap;
@@ -750,7 +750,7 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing, b
 }
 
 .mb-remote-targets__browseDialog {
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 /*
@@ -762,7 +762,7 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing, b
 .mb-remote-targets__fieldHint {
     margin: 4px 0 0;
     padding-inline-start: 16px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -781,13 +781,13 @@ defineExpose({ draft, patch, startNew, edit, duplicate, checkAndSave, editing, b
 
 .mb-remote-targets__subhead {
     margin-block-start: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
 .mb-remote-targets__facts {
     margin: 4px 0 0 1.2em;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.6;
 }
 </style>

@@ -150,7 +150,7 @@ function act(action: string, hit: TabHit): void {
 
 .mb-tabs-results__row {
     padding-block: 2px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-tabs-results__row:hover {
@@ -201,7 +201,7 @@ function act(action: string, hit: TabHit): void {
 }
 
 .mb-tabs-results__empty {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     padding-block: 6px;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));

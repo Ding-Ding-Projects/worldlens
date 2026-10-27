@@ -1341,6 +1341,6 @@ defineExpose({ wr, worldPath, owner, repo, branch, check, sync, createRepo, chos
     white-space: pre-wrap;
     overflow-x: auto;
     max-height: 12rem;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 </style>

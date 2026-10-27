@@ -595,13 +595,13 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
 
 .mb-regex-builder__note {
     margin: 0;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
 }
 
 .mb-regex-builder__flags {
     border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-    border-radius: 0.5rem;
+    border-radius: var(--md-sys-shape-corner-small);
     padding: 0.25rem 0.75rem 0.5rem;
     min-width: 0;
 }
@@ -634,11 +634,11 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
 
 .mb-regex-builder__token-label {
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-regex-builder__token-hint {
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     opacity: 0.75;
     white-space: normal;
     text-align: left;
@@ -677,7 +677,7 @@ const shownMatches = computed(() => evaluation.value.matches.slice(0, 50));
 .mb-regex-builder__match-list code {
     font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
     background: rgba(var(--v-theme-on-surface), 0.08);
-    border-radius: 0.25rem;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     padding: 0 0.25rem;
     word-break: break-all;
 }

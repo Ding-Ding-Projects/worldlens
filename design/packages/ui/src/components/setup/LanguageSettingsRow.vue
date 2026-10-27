@@ -46,6 +46,6 @@ const school = useSchoolMode();
 
 .mb-language-setting__lead {
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 </style>

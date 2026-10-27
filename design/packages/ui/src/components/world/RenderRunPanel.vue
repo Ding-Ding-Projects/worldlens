@@ -453,7 +453,7 @@ function openMap(): void {
 
 <style>
 .mb-world-run {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     margin-block: 12px;
 }
 
@@ -463,7 +463,7 @@ function openMap(): void {
     gap: 8px;
     flex-wrap: wrap;
     row-gap: 4px;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     /*
      * `<v-card-title>` ships `overflow: hidden; text-overflow: ellipsis; white-space:
      * nowrap`, and `display: flex` above clears none of the three: `text-overflow` stops
@@ -505,7 +505,7 @@ function openMap(): void {
     gap: 10px;
     flex-wrap: wrap;
     margin-block-start: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
@@ -514,13 +514,13 @@ function openMap(): void {
 }
 
 .mb-world-run__failure {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
 .mb-world-run__note {
     margin-block-start: 6px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
@@ -557,10 +557,10 @@ function openMap(): void {
     overflow: auto;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgba(var(--v-theme-on-surface), 0.06);
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
 }
 

@@ -442,14 +442,14 @@ defineExpose({ downloads });
 }
 
 .mb-downloads__title {
-    font-size: 1rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.3;
 }
 
 .mb-downloads__blurb,
 .mb-downloads__note {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -457,7 +457,7 @@ defineExpose({ downloads });
 
 .mb-downloads__blurb {
     margin-block-start: 4px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 
 .mb-downloads__note {
@@ -467,7 +467,7 @@ defineExpose({ downloads });
 .mb-downloads__detail {
     margin-block-start: 6px;
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     overflow-wrap: anywhere;
 }
 
@@ -502,7 +502,7 @@ defineExpose({ downloads });
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     margin-block-start: 12px;
 }
 </style>

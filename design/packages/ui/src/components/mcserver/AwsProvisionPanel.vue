@@ -481,7 +481,7 @@ const teardownAffected = computed(() =>
 }
 .wl-aws-panel__facts dt {
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: 0.85rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 .wl-aws-panel__facts dd {
     margin: 0;

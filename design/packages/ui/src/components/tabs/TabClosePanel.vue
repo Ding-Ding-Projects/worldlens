@@ -224,13 +224,13 @@ function run(): void {
 <style>
 .mb-tabs-close__heading {
     margin-block: 8px 4px;
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     font-weight: 500;
 }
 
 .mb-tabs-close__line,
 .mb-tabs-close__list {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }

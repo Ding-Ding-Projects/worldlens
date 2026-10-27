@@ -462,7 +462,7 @@ const noResumeReason = computed(() =>
 
 <style>
 .mb-download-row {
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     margin-block: 8px;
 }
 
@@ -471,7 +471,7 @@ const noResumeReason = computed(() =>
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    font-size: 0.9375rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     /*
      * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;
      * white-space: nowrap` for a single-line block title. Flexing it (above) leaves
@@ -496,7 +496,7 @@ const noResumeReason = computed(() =>
     gap: 10px;
     flex-wrap: wrap;
     margin-block-start: 8px;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
@@ -509,13 +509,13 @@ const noResumeReason = computed(() =>
 }
 
 .mb-download-row__failure {
-    font-size: 0.875rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
 }
 
 .mb-download-row__note {
     margin-block-start: 6px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     text-wrap: pretty;
@@ -524,7 +524,7 @@ const noResumeReason = computed(() =>
 .mb-download-row__path {
     margin-block-start: 6px;
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     overflow-wrap: anywhere;
 }
@@ -562,10 +562,10 @@ const noResumeReason = computed(() =>
     overflow: auto;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
     background: rgba(var(--v-theme-on-surface), 0.06);
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
 }
 

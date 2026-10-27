@@ -416,7 +416,7 @@ function set(next: PlainValue): void {
 
 .mb-config-field--highlight {
     background: rgba(var(--v-theme-primary), 0.08);
-    border-radius: 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
     padding-inline: 8px;
 }
 
@@ -431,13 +431,13 @@ function set(next: PlainValue): void {
 .mb-config-field__path {
     margin-inline-start: auto;
     font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 
 .mb-config-field__doc {
     margin-block-start: 6px;
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.45;
     white-space: pre-line;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
@@ -453,7 +453,7 @@ function set(next: PlainValue): void {
     gap: 8px;
     flex-wrap: wrap;
     margin-block-start: 6px;
-    font-size: 0.6875rem;
+    font-size: var(--md-sys-typescale-label-small-size);
     color: rgba(var(--v-theme-on-surface), var(--v-disabled-opacity));
 }
 
@@ -464,7 +464,7 @@ function set(next: PlainValue): void {
 }
 
 .mb-config-field__consent-state {
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.45;
     margin-block-end: 6px;
 }

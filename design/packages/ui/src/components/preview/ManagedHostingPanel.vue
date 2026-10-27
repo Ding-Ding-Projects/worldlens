@@ -481,6 +481,6 @@ function safeUrl(url: string | undefined): string | undefined {
 }
 .device-code {
     font-family: monospace;
-    font-size: 1.4rem;
+    font-size: var(--md-sys-typescale-title-large-size);
 }
 </style>

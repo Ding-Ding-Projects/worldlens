@@ -49,4 +49,4 @@ function setVariant(kind:string|null){const variant=props.schema.variants?.find(
         <VTextField v-else :model-value="modelValue" :label="label" :type="['integer','number'].includes(schema.kind)?'number':'text'" :hint="schema.kind==='int64'?t('chunker.schema.int64Hint','Exact signed 64-bit decimal integer. No rounding.'):schema.kind==='identifier'?t('chunker.schema.identifierHint','Use namespace:name.'):''" persistent-hint @update:model-value="emit('update:modelValue',['integer','number'].includes(schema.kind)?Number($event):$event)" />
     </fieldset>
 </template>
-<style scoped>.chunker-schema{min-width:0;max-width:100%;border:1px solid rgb(var(--v-theme-outline));border-radius:16px;padding:12px;margin-block:8px;overflow-wrap:anywhere;}</style>
+<style scoped>.chunker-schema{min-width:0;max-width:100%;border:1px solid rgb(var(--v-theme-outline));border-radius:var(--md-sys-shape-corner-large);padding:12px;margin-block:8px;overflow-wrap:anywhere;}</style>

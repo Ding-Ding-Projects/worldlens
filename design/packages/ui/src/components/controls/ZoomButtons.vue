@@ -86,11 +86,11 @@ function zoom(delta: number): void {
 }
 
 .mb-zoom-buttons__btn--in {
-    border-radius: 24px 24px 0 0;
+    border-radius: var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0 0;
 }
 
 .mb-zoom-buttons__btn--out {
-    border-radius: 0 0 24px 24px;
+    border-radius: 0 0 var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large);
 }
 
 .mb-zoom-buttons__divider {

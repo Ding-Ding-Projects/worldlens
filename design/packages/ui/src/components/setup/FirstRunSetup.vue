@@ -283,7 +283,7 @@ function onStorageInput(value: string): void {
        long step at 200% display scale pushes the action row off screen, which reads as
        the dialog having no buttons at all. */
     max-height: min(92dvh, 100%);
-    border-radius: 16px;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-setup-card__header {
@@ -292,7 +292,7 @@ function onStorageInput(value: string): void {
 
 .mb-setup-card__title {
     margin: 0;
-    font-size: 1.125rem;
+    font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.4;
     color: rgb(var(--v-theme-on-surface));
@@ -300,7 +300,7 @@ function onStorageInput(value: string): void {
 
 .mb-setup-card__progress {
     margin: 2px 0 0;
-    font-size: 0.8125rem;
+    font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
 }
 
@@ -314,7 +314,7 @@ function onStorageInput(value: string): void {
 }
 
 .mb-setup-card__step {
-    font-size: 0.75rem;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -339,7 +339,7 @@ function onStorageInput(value: string): void {
 .mb-setup-card__region {
     /* Focused programmatically on every step change; the ring is what says so. */
     outline-offset: 4px;
-    border-radius: 8px;
+    border-radius: var(--md-sys-shape-corner-small);
 }
 
 .mb-setup-card__region:focus-visible {
