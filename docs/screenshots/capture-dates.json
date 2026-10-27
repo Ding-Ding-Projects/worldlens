@@ -6,75 +6,83 @@
             "source": "committed"
         },
         "appearance-context-menu.png": {
-            "at": "2026-08-15T18:49:30Z",
+            "at": "2026-10-27T21:34:05Z",
+            "source": "captured"
+        },
+        "appearance-presets.png": {
+            "at": "2026-10-27T21:34:10Z",
             "source": "captured"
         },
         "appearance-surface.png": {
-            "at": "2026-08-15T18:49:32Z",
+            "at": "2026-10-27T21:34:07Z",
             "source": "captured"
         },
         "appearance-typography.png": {
-            "at": "2026-08-15T18:49:31Z",
+            "at": "2026-10-27T21:34:06Z",
+            "source": "captured"
+        },
+        "authenticator-registration.png": {
+            "at": "2026-10-27T21:31:19Z",
             "source": "captured"
         },
         "authenticator-screen.png": {
-            "at": "2026-08-15T18:48:14Z",
+            "at": "2026-10-27T21:31:18Z",
             "source": "captured"
         },
         "backups.png": {
-            "at": "2026-08-15T18:47:27Z",
+            "at": "2026-10-27T21:28:27Z",
             "source": "captured"
         },
         "bayville-pages-home.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-10-27T21:04:10Z",
             "source": "committed"
         },
         "bayville-pages-map.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-10-27T21:04:10Z",
             "source": "committed"
         },
         "browser-extension-screen.png": {
-            "at": "2026-08-15T18:48:31Z",
+            "at": "2026-10-27T21:32:00Z",
             "source": "captured"
         },
         "changelog-viewer.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-16T18:07:40Z",
             "source": "committed"
         },
         "chrome-app-rail.png": {
-            "at": "2026-08-15T18:46:59Z",
+            "at": "2026-10-27T21:23:45Z",
             "source": "captured"
         },
         "chrome-control-bar.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:38:45Z",
+            "source": "captured"
         },
         "chrome-shell-buttons.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-15T14:32:41Z",
             "source": "committed"
         },
         "chrome-titlebar-window-buttons.png": {
-            "at": "2026-08-15T18:46:59Z",
+            "at": "2026-10-27T21:23:44Z",
             "source": "captured"
         },
         "chrome-titlebar.png": {
-            "at": "2026-08-15T18:46:59Z",
+            "at": "2026-10-27T21:23:44Z",
             "source": "captured"
         },
         "chunker-screen.png": {
-            "at": "2026-08-15T18:48:26Z",
+            "at": "2026-10-27T21:31:35Z",
             "source": "captured"
         },
         "ci-render-screen.png": {
-            "at": "2026-08-15T18:48:08Z",
+            "at": "2026-10-27T21:30:38Z",
             "source": "captured"
         },
         "config-delete-gate.png": {
-            "at": "2026-08-15T18:47:59Z",
-            "source": "captured"
+            "at": "2026-08-15T14:32:41Z",
+            "source": "committed"
         },
         "config-history.png": {
-            "at": "2026-08-15T18:48:03Z",
+            "at": "2026-10-27T21:30:32Z",
             "source": "captured"
         },
         "config-regex-builder-open-1280.png": {
@@ -86,87 +94,111 @@
             "source": "committed"
         },
         "config-regex-builder.png": {
-            "at": "2026-08-15T18:47:55Z",
+            "at": "2026-10-27T21:29:50Z",
             "source": "captured"
         },
         "config-screen.png": {
-            "at": "2026-08-15T18:47:43Z",
+            "at": "2026-10-27T21:29:34Z",
             "source": "captured"
         },
         "config-search.png": {
-            "at": "2026-08-15T18:47:54Z",
+            "at": "2026-10-27T21:29:48Z",
             "source": "captured"
         },
         "config-tab-core.png": {
-            "at": "2026-08-15T18:47:44Z",
+            "at": "2026-10-27T21:29:36Z",
             "source": "captured"
         },
         "config-tab-history.png": {
-            "at": "2026-08-15T18:47:52Z",
+            "at": "2026-10-27T21:29:47Z",
             "source": "captured"
         },
         "config-tab-maps.png": {
-            "at": "2026-08-15T18:47:45Z",
+            "at": "2026-10-27T21:29:38Z",
             "source": "captured"
         },
         "config-tab-run.png": {
-            "at": "2026-08-15T18:47:51Z",
+            "at": "2026-10-27T21:29:45Z",
             "source": "captured"
         },
         "config-tab-server-plugin.png": {
-            "at": "2026-08-15T18:47:50Z",
+            "at": "2026-10-27T21:29:44Z",
             "source": "captured"
         },
         "config-tab-storages.png": {
-            "at": "2026-08-15T18:47:47Z",
+            "at": "2026-10-27T21:29:39Z",
             "source": "captured"
         },
         "config-tab-web-app.png": {
-            "at": "2026-08-15T18:47:48Z",
+            "at": "2026-10-27T21:29:41Z",
             "source": "captured"
         },
         "config-tab-web-server.png": {
-            "at": "2026-08-15T18:47:49Z",
+            "at": "2026-10-27T21:29:42Z",
             "source": "captured"
         },
         "config-workspace-ae1df096.png": {
             "at": "2026-10-22T20:30:48Z",
             "source": "committed"
         },
+        "converter-block-mapping-step.png": {
+            "at": "2026-10-27T21:31:41Z",
+            "source": "captured"
+        },
+        "converter-regex-builder.png": {
+            "at": "2026-10-27T21:31:43Z",
+            "source": "captured"
+        },
+        "converter-review-step.png": {
+            "at": "2026-10-27T21:31:47Z",
+            "source": "captured"
+        },
+        "converter-target-step.png": {
+            "at": "2026-10-27T21:31:37Z",
+            "source": "captured"
+        },
+        "converter-trim-step.png": {
+            "at": "2026-10-27T21:31:39Z",
+            "source": "captured"
+        },
+        "converter-world-settings-step.png": {
+            "at": "2026-10-27T21:31:45Z",
+            "source": "captured"
+        },
         "dimsum-surprise.png": {
-            "at": "2026-08-15T18:47:01Z",
+            "at": "2026-10-27T21:24:07Z",
             "source": "captured"
         },
         "direct-world-browse-before.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-24T04:17:46Z",
             "source": "committed"
         },
         "drop-render-zone.png": {
-            "at": "2026-08-15T18:48:23Z",
+            "at": "2026-10-27T21:31:32Z",
             "source": "captured"
         },
         "eula-viewer.png": {
-            "at": "2026-08-15T18:49:18Z",
+            "at": "2026-10-27T21:32:23Z",
             "source": "captured"
         },
         "firstrun-1-welcome-window.png": {
-            "at": "2026-08-15T18:46:52Z",
+            "at": "2026-10-27T21:36:12Z",
             "source": "captured"
         },
         "firstrun-1-welcome.png": {
-            "at": "2026-08-15T18:46:52Z",
+            "at": "2026-10-27T21:36:11Z",
             "source": "captured"
         },
         "firstrun-2-consent.png": {
-            "at": "2026-08-15T18:46:54Z",
+            "at": "2026-10-27T21:36:14Z",
             "source": "captured"
         },
         "firstrun-2-eula.png": {
-            "at": "2026-08-15T18:46:53Z",
+            "at": "2026-10-27T21:36:13Z",
             "source": "captured"
         },
         "firstrun-3-storage.png": {
-            "at": "2026-08-15T18:46:55Z",
+            "at": "2026-10-27T21:36:15Z",
             "source": "captured"
         },
         "front-date-language-e0efd139.png": {
@@ -178,119 +210,119 @@
             "source": "committed"
         },
         "guide-0-where-maps-are-stored.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:36:02Z",
             "source": "committed"
         },
         "guide-1-world-validated.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:36:02Z",
             "source": "committed"
         },
         "guide-2-where-it-goes.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:36:02Z",
             "source": "committed"
         },
         "guide-3-review-and-start.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:36:02Z",
             "source": "committed"
         },
         "guide-4-map-server-list.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:36:02Z",
             "source": "committed"
         },
         "home-catalogue-page.png": {
-            "at": "2026-08-15T18:47:04Z",
-            "source": "captured"
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
         },
         "home-catalogues.png": {
-            "at": "2026-08-15T18:47:04Z",
-            "source": "captured"
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
         },
         "home-screen.png": {
-            "at": "2026-08-15T18:47:03Z",
-            "source": "captured"
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
         },
         "hosted-320.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-25T09:19:29Z",
             "source": "committed"
         },
         "hosted-375.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-25T09:19:29Z",
             "source": "committed"
         },
         "hosted-signed-in.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-25T09:19:29Z",
             "source": "committed"
         },
         "hosted-signin.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-25T09:19:29Z",
             "source": "committed"
         },
         "infinite-colour-picker.png": {
-            "at": "2026-08-15T18:49:33Z",
+            "at": "2026-10-27T21:34:08Z",
             "source": "captured"
         },
         "installed-app-1920x1200.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:36:02Z",
             "source": "committed"
         },
         "issue-100-in-progress-container-offers.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-101-in-progress-interrupted-renders.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-103-in-progress-pages.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-103-in-progress-world-repo.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-105-popup-edge.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:41:46Z",
+            "source": "captured"
         },
         "issue-107-after-pages-replacement.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-18T22:27:14Z",
             "source": "committed"
         },
         "issue-107-before-pages-replacement.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-18T22:27:14Z",
             "source": "committed"
         },
         "issue-123-before-account-overview.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-08T21:32:10Z",
             "source": "committed"
         },
         "issue-123-before-credential-surface.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-08T21:32:10Z",
             "source": "committed"
         },
         "issue-139-before-save-clone-error.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-21T23:52:31Z",
             "source": "committed"
         },
         "issue-148-in-progress-project-render-route.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-24T04:14:26Z",
             "source": "committed"
         },
         "issue-149-in-progress-java-wizard.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-24T04:08:50Z",
             "source": "committed"
         },
         "issue-149-in-progress-server-list.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-24T04:08:50Z",
             "source": "committed"
         },
         "issue-166-in-progress-finished-render-missing.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-24T06:07:39Z",
             "source": "committed"
         },
         "issue-166-in-progress-map-catalogue-missing.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-24T06:07:39Z",
             "source": "committed"
         },
         "issue-180-rail-long-label-wrap.png": {
@@ -326,375 +358,427 @@
             "source": "committed"
         },
         "issue-82-engine-artifact-provenance-fixed.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-24T06:44:02Z",
             "source": "committed"
         },
         "issue-82-engine-artifact-provenance-missing.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-24T06:07:39Z",
             "source": "committed"
         },
         "issue-82-in-progress-java-install.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-24T04:08:50Z",
             "source": "committed"
         },
         "issue-93-in-progress-backup-run.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-94-in-progress-backup-listing.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-95-in-progress-config-save.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-96-in-progress-config-source.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-97-in-progress-downloads.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-98-in-progress-discovered-worlds.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "issue-99-in-progress-dependencies.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T15:21:14Z",
             "source": "committed"
         },
         "kid-catalogue-bilingual.png": {
-            "at": "2026-08-15T18:50:11Z",
+            "at": "2026-10-27T21:35:50Z",
             "source": "captured"
         },
         "kid-catalogue-copy.png": {
-            "at": "2026-08-15T18:49:58Z",
+            "at": "2026-10-27T21:35:31Z",
             "source": "captured"
         },
         "kid-catalogue-maps.png": {
-            "at": "2026-08-15T18:49:56Z",
+            "at": "2026-10-27T21:35:29Z",
             "source": "captured"
         },
         "kid-catalogue-regex-builder.png": {
-            "at": "2026-08-15T18:50:04Z",
+            "at": "2026-10-27T21:35:38Z",
             "source": "captured"
         },
         "kid-catalogue-setup.png": {
-            "at": "2026-08-15T18:49:59Z",
+            "at": "2026-10-27T21:35:32Z",
             "source": "captured"
         },
         "kid-catalogue-share.png": {
-            "at": "2026-08-15T18:49:57Z",
+            "at": "2026-10-27T21:35:30Z",
             "source": "captured"
         },
         "kid-catalogue-yue.png": {
-            "at": "2026-08-15T18:50:09Z",
+            "at": "2026-10-27T21:35:47Z",
             "source": "captured"
         },
         "kid-catalogue.png": {
-            "at": "2026-08-15T18:49:49Z",
+            "at": "2026-10-27T21:35:19Z",
             "source": "captured"
         },
         "kid-explore.png": {
-            "at": "2026-08-15T18:50:00Z",
+            "at": "2026-10-27T21:35:33Z",
             "source": "captured"
         },
         "kid-find-palette.png": {
-            "at": "2026-08-15T18:50:01Z",
+            "at": "2026-10-27T21:35:35Z",
             "source": "captured"
         },
         "kid-gate-no-credential.png": {
-            "at": "2026-08-15T18:49:52Z",
+            "at": "2026-10-27T21:35:22Z",
             "source": "captured"
         },
         "kid-home-360.png": {
-            "at": "2026-08-15T18:50:12Z",
+            "at": "2026-10-27T21:35:52Z",
             "source": "captured"
         },
         "kid-home-390.png": {
-            "at": "2026-08-15T18:49:56Z",
+            "at": "2026-10-27T21:35:28Z",
             "source": "captured"
         },
         "kid-home-414.png": {
-            "at": "2026-08-15T18:50:13Z",
+            "at": "2026-10-27T21:35:55Z",
             "source": "captured"
         },
         "kid-home-bilingual.png": {
-            "at": "2026-08-15T18:50:10Z",
+            "at": "2026-10-27T21:35:49Z",
             "source": "captured"
         },
         "kid-home-funny-1.png": {
-            "at": "2026-08-15T18:50:06Z",
+            "at": "2026-10-27T21:35:41Z",
             "source": "captured"
         },
         "kid-home-funny-5.png": {
-            "at": "2026-08-15T18:50:07Z",
+            "at": "2026-10-27T21:35:43Z",
             "source": "captured"
         },
         "kid-home-scale-1_25x.png": {
-            "at": "2026-08-15T18:50:15Z",
+            "at": "2026-10-27T21:35:58Z",
             "source": "captured"
         },
         "kid-home-scale-1_5x.png": {
-            "at": "2026-08-15T18:50:16Z",
+            "at": "2026-10-27T21:35:59Z",
             "source": "captured"
         },
         "kid-home-scale-1x.png": {
-            "at": "2026-08-15T18:50:15Z",
+            "at": "2026-10-27T21:35:57Z",
             "source": "captured"
         },
         "kid-home-scale-2x.png": {
-            "at": "2026-08-15T18:50:17Z",
+            "at": "2026-10-27T21:35:59Z",
             "source": "captured"
         },
         "kid-home-yue.png": {
-            "at": "2026-08-15T18:50:08Z",
+            "at": "2026-10-27T21:35:45Z",
             "source": "captured"
         },
         "kid-home.png": {
-            "at": "2026-08-15T18:49:48Z",
+            "at": "2026-10-27T21:35:18Z",
             "source": "captured"
         },
         "kid-job-strip.png": {
-            "at": "2026-08-15T18:49:50Z",
+            "at": "2026-10-27T21:35:21Z",
             "source": "captured"
         },
         "kid-messages.png": {
-            "at": "2026-08-15T18:50:02Z",
+            "at": "2026-10-27T21:35:36Z",
             "source": "captured"
         },
         "kid-mode-settings-row.png": {
-            "at": "2026-08-15T18:49:54Z",
+            "at": "2026-10-27T21:35:25Z",
             "source": "captured"
         },
         "kid-rail.png": {
-            "at": "2026-08-15T18:49:49Z",
+            "at": "2026-10-27T21:35:18Z",
             "source": "captured"
         },
         "kid-stickers-won.png": {
-            "at": "2026-08-15T18:50:18Z",
+            "at": "2026-10-27T21:36:02Z",
             "source": "captured"
         },
         "kid-stickers.png": {
-            "at": "2026-08-15T18:49:51Z",
+            "at": "2026-10-27T21:35:21Z",
+            "source": "captured"
+        },
+        "local-preview-screen.png": {
+            "at": "2026-10-27T21:31:06Z",
             "source": "captured"
         },
         "lock-list-screen.png": {
-            "at": "2026-08-15T18:48:17Z",
+            "at": "2026-10-27T21:31:22Z",
+            "source": "captured"
+        },
+        "lock-wizard.png": {
+            "at": "2026-10-27T21:33:47Z",
             "source": "captured"
         },
         "lowlevel-adult-home.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T09:15:37Z",
             "source": "committed"
         },
         "lowlevel-adult-kid-mode-settings.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T06:54:04Z",
             "source": "committed"
         },
         "lowlevel-adult-map-empty.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-adult-settings.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T06:54:04Z",
             "source": "committed"
         },
         "lowlevel-ci-render-history-fixed.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-ci-render-remove-confirmation.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-ci-render-row-removed.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-kid-explore-empty.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T06:54:04Z",
             "source": "committed"
         },
         "lowlevel-kid-first-run-consent.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-kid-first-run-licence.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-kid-first-run-storage.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-kid-first-run-welcome.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-kid-grown-up-gate.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T06:54:04Z",
             "source": "committed"
         },
         "lowlevel-kid-home.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-kid-jobs.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T06:54:04Z",
             "source": "committed"
         },
         "lowlevel-kid-returned-from-settings.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:54:27Z",
             "source": "committed"
         },
         "lowlevel-kid-stickers.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T06:54:04Z",
             "source": "committed"
         },
         "lowlevel-public-pages-render-retry.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-19T11:06:26Z",
             "source": "committed"
         },
+        "map-empty-state.png": {
+            "at": "2026-10-27T21:23:45Z",
+            "source": "captured"
+        },
         "map-hosted-on-github-pages.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:47:21Z",
             "source": "committed"
         },
         "marker-studio.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:45:00Z",
+            "source": "captured"
         },
         "menu-info.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:44:14Z",
+            "source": "captured"
         },
         "menu-maps.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:43:33Z",
+            "source": "captured"
         },
         "menu-markers.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:44:34Z",
+            "source": "captured"
         },
         "menu-regex-builder.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-16T18:07:40Z",
             "source": "committed"
         },
         "menu-root.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:43:22Z",
+            "source": "captured"
         },
         "menu-search.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:45:43Z",
+            "source": "captured"
         },
         "menu-settings.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:43:54Z",
+            "source": "captured"
         },
         "notifications-corner.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-15T14:32:41Z",
             "source": "committed"
         },
         "notifications-history.png": {
-            "at": "2026-08-15T18:49:23Z",
+            "at": "2026-10-27T21:32:46Z",
             "source": "captured"
         },
         "notifications-rail-bell.png": {
-            "at": "2026-08-15T18:49:22Z",
+            "at": "2026-10-27T21:32:45Z",
             "source": "captured"
         },
         "notifications-toast.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-15T14:32:41Z",
             "source": "committed"
         },
+        "offline-docs-article.png": {
+            "at": "2026-10-27T21:31:15Z",
+            "source": "captured"
+        },
+        "offline-docs-index.png": {
+            "at": "2026-10-27T21:31:11Z",
+            "source": "captured"
+        },
+        "offline-docs-search.png": {
+            "at": "2026-10-27T21:31:14Z",
+            "source": "captured"
+        },
+        "ollama-chat-disabled.png": {
+            "at": "2026-10-27T21:31:56Z",
+            "source": "captured"
+        },
+        "ollama-model-store-regex-builder.png": {
+            "at": "2026-10-27T21:31:55Z",
+            "source": "captured"
+        },
+        "ollama-model-store.png": {
+            "at": "2026-10-27T21:31:54Z",
+            "source": "captured"
+        },
+        "ollama-pull-cart.png": {
+            "at": "2026-10-27T21:31:56Z",
+            "source": "captured"
+        },
+        "ollama-runtime-recovery.png": {
+            "at": "2026-10-27T21:31:52Z",
+            "source": "captured"
+        },
         "ollama-screen.png": {
-            "at": "2026-08-15T18:48:28Z",
+            "at": "2026-10-27T21:31:51Z",
             "source": "captured"
         },
         "pages-m3-rewrite-before.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-18T22:27:14Z",
             "source": "committed"
         },
         "pages-parity-360x640-collapsed.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T07:21:38Z",
             "source": "committed"
         },
         "pages-parity-390x844-bilingual-2x-expanded.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T07:21:38Z",
             "source": "committed"
         },
         "pages-parity-390x844-bilingual-2x.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T07:21:38Z",
             "source": "committed"
         },
         "pages-parity-390x844-collapsed.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T07:21:38Z",
             "source": "committed"
         },
         "pages-parity-414x896-collapsed.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T07:21:38Z",
             "source": "committed"
         },
         "pages-parity-appearance-414x844-bilingual.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T11:10:14Z",
             "source": "committed"
         },
         "pages-parity-changelog-414x844-bilingual.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T09:25:57Z",
             "source": "committed"
         },
         "pages-parity-command-390x844-bilingual-2x.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T09:25:57Z",
             "source": "committed"
         },
         "pages-parity-command-390x844-bilingual.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T09:25:57Z",
             "source": "committed"
         },
         "pages-parity-desktop-1024x768.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T07:21:38Z",
             "source": "committed"
         },
         "pages-parity-schedule-390x844-bilingual.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T09:25:57Z",
             "source": "committed"
         },
         "pages-parity-search-360x640-english.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T09:25:57Z",
             "source": "committed"
         },
         "pages-parity-settings-1024x768.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T09:25:57Z",
             "source": "committed"
         },
         "pages-parity-tabs-390x844-english.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T09:25:57Z",
             "source": "committed"
         },
         "pages-published-by-the-app.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:47:21Z",
             "source": "committed"
         },
         "pages-publishing-screen.png": {
-            "at": "2026-08-15T18:48:11Z",
+            "at": "2026-10-27T21:30:42Z",
             "source": "captured"
         },
         "palette-search.png": {
-            "at": "2026-08-15T18:49:25Z",
+            "at": "2026-10-27T21:33:06Z",
             "source": "captured"
         },
         "palette.png": {
-            "at": "2026-08-15T18:49:24Z",
+            "at": "2026-10-27T21:33:05Z",
             "source": "captured"
         },
         "profiles-manager.png": {
-            "at": "2026-08-15T18:47:25Z",
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
+        },
+        "project-canvas-search.png": {
+            "at": "2026-10-27T21:28:08Z",
+            "source": "captured"
+        },
+        "project-canvas.png": {
+            "at": "2026-10-27T21:28:07Z",
             "source": "captured"
         },
         "projects-screen.png": {
-            "at": "2026-08-15T18:48:06Z",
+            "at": "2026-10-27T21:30:36Z",
             "source": "captured"
         },
         "rail-job-shortcuts-1280-dark.png": {
@@ -706,59 +790,63 @@
             "source": "committed"
         },
         "redesign-home-catalogue-page-360x800.png": {
-            "at": "2026-08-15T18:47:06Z",
-            "source": "captured"
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
         },
         "redesign-home-catalogue-page-390x844.png": {
-            "at": "2026-08-15T18:47:09Z",
-            "source": "captured"
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
         },
         "redesign-home-catalogue-page-414x896.png": {
-            "at": "2026-08-15T18:47:11Z",
-            "source": "captured"
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
         },
         "redesign-home-catalogues-360x800.png": {
-            "at": "2026-08-15T18:47:06Z",
-            "source": "captured"
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
         },
         "redesign-home-catalogues-390x844.png": {
-            "at": "2026-08-15T18:47:08Z",
-            "source": "captured"
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
         },
         "redesign-home-catalogues-414x896.png": {
-            "at": "2026-08-15T18:47:10Z",
-            "source": "captured"
+            "at": "2026-08-16T18:07:40Z",
+            "source": "committed"
         },
         "render-1-wizard-world.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T17:23:55Z",
             "source": "committed"
         },
         "render-2-review.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T17:23:55Z",
             "source": "committed"
         },
         "render-3-consent.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T17:23:55Z",
             "source": "committed"
         },
         "render-4-start.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T17:23:55Z",
             "source": "committed"
         },
         "render-5-running.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T17:23:55Z",
             "source": "committed"
         },
         "render-6-map.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T17:23:55Z",
             "source": "committed"
         },
         "rendered-map.png": {
-            "at": "2026-09-04T01:40:43Z",
-            "source": "committed"
+            "at": "2026-10-27T21:38:34Z",
+            "source": "captured"
+        },
+        "renders-screen-empty.png": {
+            "at": "2026-10-27T21:30:43Z",
+            "source": "captured"
         },
         "run-location.png": {
-            "at": "2026-08-15T18:46:58Z",
+            "at": "2026-10-27T21:23:25Z",
             "source": "captured"
         },
         "server-alpha-layout-82727748.png": {
@@ -790,7 +878,7 @@
             "source": "committed"
         },
         "settings-drawer.png": {
-            "at": "2026-08-15T18:47:29Z",
+            "at": "2026-10-27T21:28:45Z",
             "source": "captured"
         },
         "settings-light.png": {
@@ -798,171 +886,239 @@
             "source": "committed"
         },
         "settings-notification-duration.png": {
-            "at": "2026-08-15T18:47:39Z",
+            "at": "2026-10-27T21:29:14Z",
+            "source": "captured"
+        },
+        "settings-regex-builder-invalid.png": {
+            "at": "2026-10-27T21:29:11Z",
             "source": "captured"
         },
         "settings-regex-builder.png": {
-            "at": "2026-08-15T18:47:37Z",
+            "at": "2026-10-27T21:29:10Z",
             "source": "captured"
         },
         "settings-search.png": {
-            "at": "2026-08-15T18:47:36Z",
+            "at": "2026-10-27T21:29:09Z",
+            "source": "captured"
+        },
+        "settings-section-app-logo.png": {
+            "at": "2026-10-27T21:29:05Z",
+            "source": "captured"
+        },
+        "settings-section-bluemap-engine.png": {
+            "at": "2026-10-27T21:29:02Z",
+            "source": "captured"
+        },
+        "settings-section-diagnostics.png": {
+            "at": "2026-10-27T21:29:08Z",
+            "source": "captured"
+        },
+        "settings-section-display.png": {
+            "at": "2026-10-27T21:28:53Z",
+            "source": "captured"
+        },
+        "settings-section-download-concurrency.png": {
+            "at": "2026-10-27T21:28:58Z",
             "source": "captured"
         },
         "settings-section-github-account.png": {
-            "at": "2026-08-15T18:47:34Z",
+            "at": "2026-10-27T21:28:51Z",
+            "source": "captured"
+        },
+        "settings-section-history.png": {
+            "at": "2026-10-27T21:29:07Z",
             "source": "captured"
         },
         "settings-section-java-runtime.png": {
-            "at": "2026-08-15T18:47:31Z",
+            "at": "2026-10-27T21:28:47Z",
+            "source": "captured"
+        },
+        "settings-section-kid-mode.png": {
+            "at": "2026-10-27T21:28:55Z",
             "source": "captured"
         },
         "settings-section-language-and-tone.png": {
-            "at": "2026-08-15T18:47:35Z",
+            "at": "2026-10-27T21:28:52Z",
             "source": "captured"
         },
         "settings-section-map-storage-directory.png": {
-            "at": "2026-08-15T18:47:32Z",
+            "at": "2026-10-27T21:28:48Z",
             "source": "captured"
         },
         "settings-section-mojang-download-consent.png": {
-            "at": "2026-08-15T18:47:30Z",
+            "at": "2026-10-27T21:28:46Z",
+            "source": "captured"
+        },
+        "settings-section-notification-duration.png": {
+            "at": "2026-10-27T21:28:59Z",
+            "source": "captured"
+        },
+        "settings-section-render-memory.png": {
+            "at": "2026-10-27T21:28:57Z",
+            "source": "captured"
+        },
+        "settings-section-surface-placement.png": {
+            "at": "2026-10-27T21:28:56Z",
+            "source": "captured"
+        },
+        "settings-section-system-dependencies.png": {
+            "at": "2026-10-27T21:29:01Z",
+            "source": "captured"
+        },
+        "settings-section-updates.png": {
+            "at": "2026-10-27T21:29:03Z",
+            "source": "captured"
+        },
+        "settings-section-vocabulary.png": {
+            "at": "2026-10-27T21:29:04Z",
             "source": "captured"
         },
         "settings-section-world-folder.png": {
-            "at": "2026-08-15T18:47:32Z",
+            "at": "2026-10-27T21:28:50Z",
             "source": "captured"
         },
         "settings-vocabulary.png": {
-            "at": "2026-08-15T18:47:38Z",
+            "at": "2026-10-27T21:29:13Z",
             "source": "captured"
         },
         "shell-1024x768.png": {
-            "at": "2026-08-15T18:47:13Z",
+            "at": "2026-10-27T21:25:01Z",
             "source": "captured"
         },
         "shell-1280x800.png": {
-            "at": "2026-08-15T18:47:12Z",
+            "at": "2026-10-27T21:25:00Z",
             "source": "captured"
         },
         "shell-1920x1080.png": {
-            "at": "2026-08-15T18:47:12Z",
+            "at": "2026-10-27T21:25:01Z",
             "source": "captured"
         },
         "shell-800x600-narrow.png": {
-            "at": "2026-08-15T18:47:14Z",
+            "at": "2026-10-27T21:25:02Z",
             "source": "captured"
         },
         "shell-scale-1_25x.png": {
-            "at": "2026-08-15T18:47:15Z",
+            "at": "2026-10-27T21:25:20Z",
             "source": "captured"
         },
         "shell-scale-1_5x.png": {
-            "at": "2026-08-15T18:47:16Z",
+            "at": "2026-10-27T21:25:21Z",
             "source": "captured"
         },
         "shell-scale-1x.png": {
-            "at": "2026-08-15T18:47:15Z",
+            "at": "2026-10-27T21:25:19Z",
             "source": "captured"
         },
         "shell-scale-2x.png": {
-            "at": "2026-08-15T18:47:17Z",
+            "at": "2026-10-27T21:25:21Z",
             "source": "captured"
         },
         "shell-titlebar-1920x1080.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:36:02Z",
             "source": "committed"
         },
         "site-tabs-bottom-414x896-window.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T03:13:44Z",
             "source": "committed"
         },
         "structures-screen.png": {
-            "at": "2026-08-15T18:48:22Z",
+            "at": "2026-10-27T21:31:30Z",
             "source": "captured"
         },
         "super-confirm-armed.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-16T18:07:40Z",
             "source": "committed"
         },
         "super-confirm-one-key.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-16T18:07:40Z",
             "source": "committed"
         },
         "super-confirm-untouched.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-16T18:07:40Z",
             "source": "committed"
         },
+        "support-tickets-local-response.png": {
+            "at": "2026-10-27T21:31:27Z",
+            "source": "captured"
+        },
         "support-tickets-screen.png": {
-            "at": "2026-08-15T18:48:19Z",
+            "at": "2026-10-27T21:31:25Z",
             "source": "captured"
         },
         "tab-bulk-close-preview.png": {
-            "at": "2026-08-15T18:49:29Z",
+            "at": "2026-10-27T21:33:29Z",
             "source": "captured"
         },
         "tab-context-menu.png": {
-            "at": "2026-08-15T18:49:27Z",
+            "at": "2026-10-27T21:33:26Z",
             "source": "captured"
         },
         "tab-finder.png": {
-            "at": "2026-08-15T18:49:28Z",
+            "at": "2026-10-27T21:33:27Z",
             "source": "captured"
         },
         "tab-strip.png": {
-            "at": "2026-08-15T18:49:26Z",
+            "at": "2026-10-27T21:33:25Z",
+            "source": "captured"
+        },
+        "theme-contrast.png": {
+            "at": "2026-10-27T21:26:03Z",
             "source": "captured"
         },
         "theme-dark.png": {
-            "at": "2026-08-15T18:47:21Z",
+            "at": "2026-10-27T21:26:00Z",
             "source": "captured"
         },
         "theme-light.png": {
-            "at": "2026-08-15T18:47:19Z",
+            "at": "2026-10-27T21:25:57Z",
             "source": "captured"
         },
         "titlebar-zoom-1920.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-05T16:36:02Z",
             "source": "committed"
         },
         "wharf-first-run.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-25T06:37:42Z",
             "source": "committed"
         },
         "wizard-1-world-read.png": {
-            "at": "2026-08-15T18:49:40Z",
+            "at": "2026-10-27T21:34:51Z",
             "source": "captured"
         },
         "wizard-1-world.png": {
-            "at": "2026-08-15T18:49:37Z",
+            "at": "2026-10-27T21:34:47Z",
             "source": "captured"
         },
         "wizard-2-name-and-dimension.png": {
-            "at": "2026-08-15T18:49:41Z",
+            "at": "2026-10-27T21:34:52Z",
             "source": "captured"
         },
         "wizard-3-options.png": {
-            "at": "2026-08-15T18:49:43Z",
+            "at": "2026-10-27T21:34:54Z",
             "source": "captured"
         },
         "wizard-4-where-it-goes.png": {
-            "at": "2026-08-15T18:49:44Z",
+            "at": "2026-10-27T21:34:55Z",
             "source": "captured"
         },
         "wizard-5-review.png": {
-            "at": "2026-08-15T18:49:45Z",
+            "at": "2026-10-27T21:34:57Z",
             "source": "captured"
         },
         "wizard-docker-world-source-390x844-200pct.png": {
-            "at": "2026-08-15T18:49:39Z",
+            "at": "2026-10-27T21:34:49Z",
             "source": "captured"
         },
         "wizard-release-downloads.png": {
-            "at": "2026-08-15T18:49:47Z",
+            "at": "2026-10-27T21:34:59Z",
             "source": "captured"
         },
         "wizard-ssh-world-source.png": {
-            "at": "2026-08-15T18:49:38Z",
+            "at": "2026-10-27T21:34:48Z",
+            "source": "captured"
+        },
+        "work-destination.png": {
+            "at": "2026-10-27T21:23:46Z",
             "source": "captured"
         },
         "world-downloader-1280.png": {
@@ -970,7 +1126,7 @@
             "source": "committed"
         },
         "worldlens-profile-migration-consent.png": {
-            "at": "2026-09-04T01:40:43Z",
+            "at": "2026-08-07T05:48:12Z",
             "source": "committed"
         }
     }

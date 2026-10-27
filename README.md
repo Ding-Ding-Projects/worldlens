@@ -15,24 +15,48 @@ The [SSH-process foundation](docs/server-management/ssh-process-lifecycle.md) ha
 
 ### Current adoption-browser evidence
 
-![Worldlens existing-container discovery with visible caption and actions at minimum size](docs/screenshots/adoption-unavailable-db18561c.png)
+![Worldlens existing-container discovery with visible caption and actions at minimum size](docs/screenshots/adoption-unavailable-157a7219.png)
 
-Genuine hidden native capture at source `db18561c694015c0be4de15a9867eb4c5d562eab`, captured 2026-10-11T14:20:56.502Z (UTC). Local discovery reaches Docker and reports the unavailable daemon. At800x600 CSS pixels the version/update caption and actions stay visible, and the body scrolls. Two validated layout receipts and independent pixel review cover English/dark at normal and minimum sizes, CDP scale2. Real candidate adoption, other languages/themes, the review dialog and physical DPI remain pending.
+Renewed 2026-10-27 from the packaged Linux build of commit `157a7219`, launched under a virtual X
+display in a Linux container and captured over the Chrome DevTools Protocol at 800 × 600 CSS pixels
+and scale 2 (PNG 1600 × 1200): Host Server, Adopt an existing container, on a machine where Docker
+29.9.2 is installed and its daemon is not running, so discovery reports the unreachable daemon and
+the caption and actions stay visible. Receipt:
+`docs/runtime-proof/linux-cdp-layout-proofs-20261027.json`. The earlier proof below is retained.
+
+Earlier: genuine hidden native capture at source `db18561c694015c0be4de15a9867eb4c5d562eab`, captured 2026-10-11T14:20:56.502Z (UTC). Local discovery reaches Docker and reports the unavailable daemon. At800x600 CSS pixels the version/update caption and actions stay visible, and the body scrolls. Two validated layout receipts and independent pixel review cover English/dark at normal and minimum sizes, CDP scale2. Real candidate adoption, other languages/themes, the review dialog and physical DPI remain pending.
 ### Current localized-caption evidence
 
-![Bilingual Worldlens caption with English and Cantonese update dates, light theme at minimum size](docs/screenshots/front-date-language-e0efd139.png)
+![Bilingual Worldlens caption with English and Cantonese update dates, light theme at minimum size](docs/screenshots/front-date-language-157a7219.png)
 
-Genuine hidden native capture at source e0efd1395eb45341b7c34a494af1b419f920c919, captured 10/11/2026 13:31:03. English and Cantonese dates describe the same recorded build event. All 48 caption tuples passed independent pixel review and layout-receipt validation. This minimum-size image uses CDP scale 2; it does not establish physical DPI, full interface or installer acceptance.
+Renewed 2026-10-27 from the packaged Linux build of commit `157a7219` over the Chrome DevTools
+Protocol, bilingual mode and the light theme chosen through the real Display settings row, Home at
+800 × 600 CSS pixels and scale 2: the caption carries the English and Cantonese update dates for the
+same recorded build event. Same receipt as above. The earlier proof below is retained.
 
-### Initial-caption evidence at e9cad90a (historical)
+Earlier: genuine hidden native capture at source e0efd1395eb45341b7c34a494af1b419f920c919, captured 10/11/2026 13:31:03. English and Cantonese dates describe the same recorded build event. All 48 caption tuples passed independent pixel review and layout-receipt validation. This minimum-size image uses CDP scale 2; it does not establish physical DPI, full interface or installer acceptance.
 
-![Initial Worldlens version and update timestamp visible above first-run setup, English dark theme](docs/screenshots/front-provenance-e9cad90a.png)
+### Initial-caption evidence, renewed at 157a7219
 
-Genuine hidden native capture at source e9cad90a383667fe25354b472e64a2076730aa49, captured 10/11/2026 12:56:20. The initial version and recorded update time stay visible above setup. Forty-eight separately inspected caption tuples cover dark setup and light home, three language modes, normal/minimum CSS sizes and four CDP scale values. Emulated scales do not establish physical Windows DPI acceptance. Full feature, installer and other-surface acceptance remain pending.
+![Initial Worldlens version and update timestamp visible above first-run setup, English dark theme](docs/screenshots/front-provenance-157a7219.png)
+
+Renewed 2026-10-27 from the packaged Linux build of commit `157a7219` on a fresh profile, over the
+Chrome DevTools Protocol at 800 × 600 CSS pixels and scale 2: the version and recorded update time
+stay visible above the first step of setup. Same receipt as above. The earlier proof at e9cad90a is
+retained in `docs/screenshots/front-provenance-e9cad90a.png`.
+
+Earlier: genuine hidden native capture at source e9cad90a383667fe25354b472e64a2076730aa49, captured 10/11/2026 12:56:20. The initial version and recorded update time stay visible above setup. Forty-eight separately inspected caption tuples cover dark setup and light home, three language modes, normal/minimum CSS sizes and four CDP scale values. Emulated scales do not establish physical Windows DPI acceptance. Full feature, installer and other-surface acceptance remain pending.
 
 ### Current historical-version workflow evidence
 
 ![Historical alpha server versions with complete availability reasons, English dark theme](docs/screenshots/server-alpha-layout-82727748.png)
+
+_Not renewed in the 2026-10-27 capture pass: in the packaged build of `157a7219`, the New server
+wizard's version step for the Vanilla flavour, with the catalogue refreshed live during the run,
+listed releases and snapshots only across twelve catalogue pages of 5,816 entries, and searching the
+step for alpha or beta returned nothing, so the historical-alpha page-two layout could not be
+reproduced; the receipt named above records the observation. The run did show a visible defect on
+that step at 150 % scale: the "Wiki" link label wraps onto two lines beside each version row._
 
 Captured from the exact root build at `82727748029d3b1c140d052924a775ac52de52a4` on 2026-10-11 (UTC), at 1280 × 752 CSS pixels and 150% scale. All 35 alpha entries rendered on page two; complete unavailable-server reasons remain readable beside independent Wiki actions. Measured English dark-theme layouts also passed at 800 × 600 and 640 × 600 emulated CSS viewports. Other language, theme and scale tuples, historical server execution and full-feature acceptance remain pending. Earlier presentation images retain their historical source and dates.
 
@@ -133,54 +157,61 @@ BlueMap, API, schema, or release-channel combination is reported as unsupported 
 accepted by implication. The documentation site carries the detailed contract article and its
 known evidence boundaries.
 
-## Real Lowlevel UI run: Kid Mode and Adult Mode
+## Kid Mode and Adult Mode, from the real running application
 
-These images come from one real Electron process on an off-screen Windows desktop. Lowlevel MCP
-performed every click, key press and whole-window capture; the Chrome DevTools Protocol was used
-only to locate visible controls and read assertions. The fresh-profile journey accepted the
-Minecraft download consent under the owner's standing verification choice, exercised Kid Mode, switched to Adult Mode through the grown-up gate,
-opened Adult settings, and switched back to Kid Mode through the visible mode control.
+These images were renewed on 2026-10-27 from the packaged Linux build of commit `157a7219`,
+launched under a virtual X display in a Linux container and driven by the project's Playwright
+harness over the Chrome DevTools Protocol, each test against a fresh launch and a fresh profile.
+The fresh-profile journey accepted the Minecraft download consent under the owner's standing
+verification choice, exercised Kid Mode, went through the grown-up gate, opened Adult settings and
+its Kid Mode section. The earlier set of these pictures, from 2026-08-19, came from a Lowlevel MCP
+run on an off-screen Windows desktop in which Lowlevel performed every click, key press and
+whole-window capture; those `lowlevel-*` files are kept in `docs/screenshots/` under the inventory
+group `lowlevel-ui-e2e` as a record of that input route, but they show an older interface than
+this tree builds, so this page no longer presents them as current. This run holds no Lowlevel
+input receipts: its clicks and key presses were Playwright's.
 
 <details>
 <summary><b>Kid Mode and first run</b> — welcome, licence, consent, storage, Home, Explore, jobs, stickers and the grown-up gate</summary>
 
-![Kid Mode first-run welcome on a fresh isolated profile](docs/screenshots/lowlevel-kid-first-run-welcome.png)
+![First-run welcome over the whole window on a fresh profile, with the version and update caption above it](docs/screenshots/firstrun-1-welcome-window.png)
 
-![Licence review after a real Page Down key press](docs/screenshots/lowlevel-kid-first-run-licence.png)
+![The Minecraft licence step of first-run setup, with the document provenance and its anchored search](docs/screenshots/firstrun-2-eula.png)
 
-![Minecraft download consent before the run chooses Accept](docs/screenshots/lowlevel-kid-first-run-consent.png)
+![The Minecraft download consent step, asked once, before the run chooses Accept](docs/screenshots/firstrun-2-consent.png)
 
-![Map storage step after accepting download consent](docs/screenshots/lowlevel-kid-first-run-storage.png)
+![The map storage step after accepting download consent](docs/screenshots/firstrun-3-storage.png)
 
-![Kid Mode Home reached through Lowlevel input](docs/screenshots/lowlevel-kid-home.png)
+![Kid Mode Home, the first screen a fresh install shows](docs/screenshots/kid-home.png)
 
-![Kid Mode Explore with no map loaded](docs/screenshots/lowlevel-kid-explore-empty.png)
+![Kid Mode Explore with no map loaded](docs/screenshots/kid-explore.png)
 
-![Kid Mode jobs workspace](docs/screenshots/lowlevel-kid-jobs.png)
+![Kid Mode jobs workspace, the re-hosted Work view with its job strip](docs/screenshots/kid-job-strip.png)
 
-![Kid Mode sticker book on a fresh profile](docs/screenshots/lowlevel-kid-stickers.png)
+![Kid Mode sticker book on a fresh profile](docs/screenshots/kid-stickers.png)
 
-![Kid Mode grown-up gate with no code configured](docs/screenshots/lowlevel-kid-grown-up-gate.png)
+![Kid Mode grown-up gate with no code configured](docs/screenshots/kid-gate-no-credential.png)
 
 </details>
 
 <details>
 <summary><b>Adult Mode and the round trip back</b> — Map, Home, Settings, the mode editor and restored Kid Mode</summary>
 
-![Adult Mode Map immediately after leaving Kid Mode](docs/screenshots/lowlevel-adult-map-empty.png)
+![Adult Mode Map with no map loaded, the empty state after leaving Kid Mode](docs/screenshots/map-empty-state.png)
 
-![Adult Mode Home reached from the application rail](docs/screenshots/lowlevel-adult-home.png)
+![Adult Mode Home reached from the application rail](docs/screenshots/shell-1280x800.png)
 
-![Adult Mode Settings opened from the rail](docs/screenshots/lowlevel-adult-settings.png)
+![Adult Mode Settings opened from the rail](docs/screenshots/settings-drawer.png)
 
-![Kid Mode and Adult Mode settings with Adult Mode selected](docs/screenshots/lowlevel-adult-kid-mode-settings.png)
+![The Kid Mode and Adult Mode settings row with Adult Mode selected](docs/screenshots/kid-mode-settings-row.png)
 
-![Kid Mode restored through the visible settings radio control](docs/screenshots/lowlevel-kid-returned-from-settings.png)
+![The Kid Mode and Adult Mode section of Settings, the visible control that restores Kid Mode](docs/screenshots/settings-section-kid-mode.png)
 
 </details>
 
-The repeatable action plan is [`scripts/worldlens-lowlevel-e2e.json`](scripts/worldlens-lowlevel-e2e.json),
-and the complete behavioral explanation is in [Kid Mode](docs/kid-mode.md). The documentation
+The Lowlevel action plan of the earlier run is [`scripts/worldlens-lowlevel-e2e.json`](scripts/worldlens-lowlevel-e2e.json);
+the harness that produced these pictures is `design/packages/app/test/screenshots.spec.ts`, and
+the complete behavioral explanation is in [Kid Mode](docs/kid-mode.md). The documentation
 site includes the same files in its searchable screenshot gallery rather than maintaining a
 second set of images.
 
@@ -222,6 +253,11 @@ of following yesterday's failure forever.
 ![Worldlens showing the UI-created public Bayville repository ready for Pages, with managed workflows current, the public-world disclosure accepted, and one real cloud render active](docs/screenshots/lowlevel-public-pages-render-retry.png)
 
 ![A failed cloud render restored honestly as failed after restart, with its Remove from list action](docs/screenshots/lowlevel-ci-render-history-fixed.png)
+
+_These four cloud-render pictures were not renewed in the 2026-10-27 capture pass: they record real
+GitHub-dispatched renders and their persisted history, which a capture container with no account
+and no dispatched run cannot reproduce. They remain the captures of 2026-08-19 from the Windows
+build on a hidden desktop, and the inventory group `lowlevel-ci-render-history` says so._
 
 <details>
 <summary><b>See the removal itself</b></summary>
@@ -519,15 +555,21 @@ A status card with demo values is still a fake integration.
 <summary><b>The shell, captured from the built application</b></summary>
 
 Real captures of the running application, taken by the project's Playwright harness against a
-freshly built Electron process and driven by clicking its rail and its tab strip - the same harness
-that produced every capture in the Screenshots section further down this file, run most recently on
-2026-08-15. Not mockups, and not the prototype.
+freshly packaged Electron build of this commit and driven by clicking its rail and its tab strip -
+the same harness that produced every capture in the Screenshots section further down this file.
+Run most recently on 2026-10-27: the packaged Linux `electron-builder --dir` output of commit
+`157a7219`, launched under a virtual X display in a Linux container with the committed launcher's
+switches and attached over the Chrome DevTools Protocol, one fresh launch and profile per harness
+test. The earlier set, from 2026-08-15, came from the Windows package on a hidden desktop. Not
+mockups, and not the prototype.
 
-**Home**, six catalogue cards behind an 80 px rail, dark by default. The hero spans both columns
-and carries the Make a map catalogue's own group headings as chips; the count in the lede is the
-live number of features this build actually exposes, not a number typed into a sentence.
+**Home**, the dashboard the application opens on, dark by default, behind an 80 px rail that
+carries Home, Map, Host Server, Work, Actions, Docker, SSH, Convert, Backups and More: a
+"Let's make your first map" hero with the three starting actions and a search across everything,
+an honest lede saying nothing is rendered or saved on this machine yet, and the catalogue
+entries as chips beneath it.
 
-![Worldlens Home, the destination the application opens on: an 80 px application rail on the left showing Home, Map and Work, and five catalogue cards covering everything the application can do, each card saying what that catalogue is for, with a search across all of them](docs/screenshots/home-catalogues.png)
+![Worldlens Home, the destination the application opens on: the application rail on the left, the first-map hero with Generate and start project, New map and Walk me through it, Search everything, and the catalogue chips beneath](docs/screenshots/shell-1280x800.png)
 
 **Work** — the existing tabbed workspace, re-hosted. It holds only the jobs actually opened; on a
 fresh install that is the pinned guide alone, and the other ten destinations are reached from Home's
@@ -619,6 +661,10 @@ not a failure.
 
 **Where rendered maps are stored**, asked once during setup and changeable later in
 Settings. Nothing is written to disk until the first render starts.
+
+_Deliberately not renewed in the 2026-10-27 capture pass: these five pictures exist to show the
+pre-rewrite shell, so a current capture would stop showing the thing they are here to show. The
+guide as it is now is in the `wizard-*` pictures above._
 
 ![A pre-rewrite build, titled Material BlueMap: the setup step that chooses where rendered maps are stored, over the tab strip and floating buttons the application rail later replaced](docs/screenshots/guide-0-where-maps-are-stored.png)
 
@@ -1102,7 +1148,10 @@ never takes the docs down.
 ![A render served from GitHub Pages, in a browser: BlueMap's own viewer chrome across the top with the menu button, the day and night, perspective, flat and free-flight controls, live x and z readouts both at zero and a compass, and below it the rendered tiles. This is a tiny test world, so most of the frame is the empty space beyond it and the rendered ground is a sand-coloured patch in the lower right](docs/screenshots/map-hosted-on-github-pages.png)
 
 _The tiny probe world, rendered by GitHub's runners and served from
-`dingdingchae.github.io`, loaded in a browser with no BlueMap server anywhere._
+`dingdingchae.github.io`, loaded in a browser with no BlueMap server anywhere. Not renewed in the
+2026-10-27 capture pass: the exact Pages URL of that probe world is recorded nowhere in this
+repository, and a guessed site is not evidence. The two Bayville pictures below were renewed from
+the live site on that date; see `docs/runtime-proof/live-pages-bayville-20261027.json`._
 
 <details>
 <summary><b>See the UI-created Bayville repository live on GitHub Pages</b></summary>

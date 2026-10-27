@@ -135,8 +135,11 @@ async function main() {
 
     const existing = new Map();
     if (existsSync(outDir)) {
-        for (const name of await readdir(outDir)) {
-            existing.set(name, await readFile(join(outDir, name)));
+        // `docs/screenshots/archive/` is a directory of retired captures, not a capture, and
+        // reading it as one is an EISDIR that stopped every sync since it was added.
+        for (const entry of await readdir(outDir, { withFileTypes: true })) {
+            if (!entry.isFile()) continue;
+            existing.set(entry.name, await readFile(join(outDir, entry.name)));
         }
     }
 

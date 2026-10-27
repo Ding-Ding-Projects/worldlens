@@ -1,3 +1,66 @@
+# Every README picture renewed where it can be, 2026-10-27
+
+Asked to renew every screenshot the README shows and push. The README shows 90 pictures. What
+was renewed, how, and what was not, with the reason, is below; every renewed picture is a genuine
+capture of the packaged build of `157a7219` or of a live published site, and nothing was
+substituted for a picture that could not be retaken.
+
+**Route.** This container has no Windows and no hidden desktop, so the committed launcher's
+route was mirrored on Linux: `electron-builder --dir --linux` packaged the app (the BlueMap CLI
+jar staged from release v1.0.2130's own asset at its published digest, manifest naming its fork
+commit `fcfea026`), `scripts/launch-worldlens-linux.sh` launches it under Xvfb with the same
+switches on a fresh profile, and the capture matrix attaches over CDP as it always did. The
+matrix in one long session degraded (surfaces timing out, then a renderer crash at test 19), so it
+ran chunked with `WORLDLENS_LEDGER_KEEP`, one fresh launch per harness test: a none-mode run
+(145 captures) and a remote-mode run browsing the live Bayville BlueMap (108), merged with
+`scripts/merge-screenshot-captures.mjs` into 155 unique targets and synced with
+`scripts/sync-screenshots.mjs`. The harness's manifest `method` now comes from
+`WORLDLENS_LAUNCH_ROUTE` so it names this route rather than a hidden Windows desktop, and
+`freshBundle.ts` looks for the unpacked package where the current platform writes it.
+
+**Renewed (70 of 90).** 58 matrix pictures (the shell, first run, settings and its sections, the
+wizard, Kid Mode, themes, tabs, notifications, the viewer's control bar, menu pages, marker studio
+and the rendered map, the last of those with the live Bayville tiles); 14 Kid Mode and Adult Mode
+pictures re-pointed from the `lowlevel-*` set to their renewed matrix twins (the `lowlevel-*` files
+stay in the gallery as the record of the Lowlevel input route of 2026-08-19); the old Home
+catalogue picture re-pointed to the renewed Home dashboard, since the harness itself declares the
+catalogue surfaces replaced (issue #171); the two live Bayville Pages pictures from the sites as
+served (receipt `docs/runtime-proof/live-pages-bayville-20261027.json`); and three dated layout
+proofs retaken from the current source as `*-157a7219.png` by
+`scripts/capture-linux-cdp-proofs.mjs` at 800x600 CSS and scale 2 (first-run caption, bilingual
+light caption, adoption discovery with Docker's daemon unreachable; receipt
+`docs/runtime-proof/linux-cdp-layout-proofs-20261027.json`), the earlier proofs retained.
+
+**Not renewed (20 of 90), each said so beside the picture.** The five pre-rewrite guide
+pictures, deliberately, because they exist to show the pre-rewrite shell. The four cloud-render
+history pictures and the public-Pages retry, which record real GitHub-dispatched renders. The
+probe-world map on `dingdingchae.github.io`, whose URL is recorded nowhere. The config workspace
+proof, retained; `config-screen.png` is renewed beside it. The menu regex builder, the three
+reset-settings super-confirmation states and the profile manager, which did not open within the
+harness's 20 s on this route in any run, retried on fresh launches. The historical-alpha version
+layout: the live Vanilla catalogue in this build lists releases and snapshots only (twelve
+catalogue pages, 5,816 entries) and a search for alpha or beta returns nothing, so the state does
+not exist to photograph; the receipt records it.
+
+**Inventory.** `app-playwright-manifest` now lists exactly what `manifest.json` lists (155) at
+the current interface digest; the 11 targets the run kept but did not retake sit in
+`app-playwright-manifest-retained-20260815` with the previous digest and the reason per file;
+the 10 viewer pictures the remote run produced moved there from `app-playwright-map-dependent`,
+which keeps its 5 untaken targets; `linux-cdp-layout-proofs-20261027` holds the three new proofs;
+the live-pages group records both renewals and both non-renewals per target. The evidence check
+passes every structural rule and still grades the untouched groups (`lowlevel-*`,
+`hosted-deployment`, `packaged-release-issues-180-183`, the retained group, the five remaining
+map-dependent targets) as pictures of an older interface, which is true. The clone had to be
+unshallowed for the check to run at all; `sync-screenshots.mjs` no longer trips over
+`docs/screenshots/archive/`.
+
+**Defects the captures showed.** On the New server wizard's version step at 150 % scale the
+"Wiki" link label wraps onto two lines beside every version row. Not fixed in this pass.
+
+**Not verified.** The packaged Windows application and the hidden-desktop route; `box-shadow`
+and the other properties outside the token check; the four timing-out surfaces, which may be a
+harness budget issue on this slower route rather than a product defect.
+
 # Every interface surface on the design system, 2026-10-27
 
 The rule in `docs/design-system.md` - a component names a token, never a value - is now a

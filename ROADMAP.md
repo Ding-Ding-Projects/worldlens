@@ -10,7 +10,9 @@
 - [x] Align the documentation site's drifted tokens (pill 9999px, `title-large` weight 400) and hold site-to-system parity with a test.
 - [x] Run the colour purity check without the upstream webapp submodule and extend it to Wharf and both instruments; read the Electron window backgrounds from the schemes instead of literals.
 - [x] Verify: workspace lint (22 pre-existing errors in untouched files), typecheck of ui, site, wharf, kid-check, md3-check, render-actions and design-system, the design-system, site and md3-check suites, the whole workspace suite (13,228 passed; 7 failures reproduce on the parent commit, 1 is a timing flake that passes in isolation), and headless Chromium overflow checks of the built ui and site at 800×600 and 1440×900.
-- [ ] Verify the moved type and corner values in the packaged Windows application with the hidden-desktop capture route and refresh the capture matrix.
+- [x] Refresh the capture matrix from the packaged build of `157a7219` (Linux unpacked package under Xvfb over CDP, chunked none-mode and remote-mode runs merged: 155 targets at the current interface digest) and renew 70 of the README's 90 pictures, naming the 20 not renewed and why beside each.
+- [ ] Verify the moved type and corner values in the packaged Windows application with the hidden-desktop capture route; retake the eleven matrix targets this route could not reach and the historical-alpha layout once a catalogue that carries it is reachable.
+- [ ] Fix the "Wiki" link label wrapping onto two lines on the New server wizard's version step at 150 % scale.
 - [ ] Decide whether `line-height`, `padding` and `gap` get a spacing scale and the same check.
 
 ## Live render controls and configuration usability, 2026-10-22

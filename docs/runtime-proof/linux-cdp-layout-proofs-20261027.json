@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "worldlensCommit": "157a721927644846b2a7196b12da515664cc2a36",
+  "route": "linux-container-cdp",
+  "routeNote": "Playwright CDP attached to the exact packaged Worldlens (electron-builder linux-unpacked of this commit) launched under Xvfb on a Linux container with the committed launcher's switches on a fresh profile; device metrics emulated through CDP Emulation.setDeviceMetricsOverride and pixels taken with Page.captureScreenshot, so the PNG holds device pixels at the stated scale",
+  "launcher": "scripts/launch-worldlens-linux.sh",
+  "capturedBy": "scripts/capture-linux-cdp-proofs.mjs",
+  "pageErrors": [],
+  "captures": [
+    {
+      "name": "front-provenance-157a7219",
+      "file": "front-provenance-157a7219.png",
+      "note": "Fresh profile, English, dark: the version and update caption stays visible above first-run setup at the minimum window size",
+      "width": 1600,
+      "height": 1200,
+      "cssViewport": "800x600",
+      "scale": 2,
+      "capturedAt": "2026-10-27T22:28:22.908Z",
+      "sha256": "2773e6ff30084c7ef4abfd7aef2527e0013e762916f048a1dad453f1d7e3d4f2",
+      "theme": "dark",
+      "language": "en",
+      "state": "first-run-step-1"
+    },
+    {
+      "name": "front-date-language-157a7219",
+      "file": "front-date-language-157a7219.png",
+      "note": "Bilingual language mode, light theme, Home at the minimum window size: the caption carries the English and Cantonese update dates for the same recorded build event",
+      "width": 1600,
+      "height": 1200,
+      "cssViewport": "800x600",
+      "scale": 2,
+      "capturedAt": "2026-10-27T22:28:36.728Z",
+      "sha256": "08602597fbd57bee9bb42cec84c87c48893fba3079dbc59cbf166a949287cadd",
+      "theme": "v-theme--light",
+      "language": "bilingual",
+      "state": "home"
+    },
+    {
+      "name": "adoption-unavailable-157a7219",
+      "file": "adoption-unavailable-157a7219.png",
+      "note": "Host Server, Adopt an existing container on this machine, where Docker 29.9.2 is installed and its daemon is not running: discovery reports the unreachable daemon; caption and actions stay visible at the minimum window size",
+      "width": 1600,
+      "height": 1200,
+      "cssViewport": "800x600",
+      "scale": 2,
+      "capturedAt": "2026-10-27T22:28:51.553Z",
+      "sha256": "a0cc5bfefaabda54e56e23c34d912dac319cba22f3f3ec6e93f83e3a3eac06c7",
+      "theme": "dark",
+      "language": "en",
+      "state": "adoption-discovery-daemon-unreachable"
+    }
+  ],
+  "notReproduced": {
+    "server-alpha-layout": "The New server wizard's version step for the Vanilla flavour, with the catalogue refreshed live during this run (2026-10-27T22:28:24.579Z), listed RELEASES and SNAPSHOTS only across 12 catalogue pages of 5,816 entries; searching the step for alpha, a1., old_alpha and beta returned no entry. The historical-alpha page-two layout proof of 2026-10-11 therefore stays as captured at 82727748 and is not renewed."
+  }
+}
