@@ -38,15 +38,17 @@ Verification, in a Linux container, source and headless browser only:
   design-system, after building their package graphs (`pnpm build` itself needs the
   `vendor/BlueMap-Material` submodule, absent here).
 - Suites: design-system 3/3, md3-check 17/17, site 918/918 after the two test updates above,
-  `node --test scripts/check-design-tokens.test.mjs` 15/15; the ui suite is recorded in the
-  closing line of this section.
+  `node --test scripts/check-design-tokens.test.mjs` 15/15; whole workspace 13,228 passed, 8
+  failed: 7 fail identically on the parent commit, 1 (site school mode) passes 3/3 in isolation.
 - `node scripts/check-design-tokens.mjs`, `node scripts/check-webapp-parity.mjs` (7 surfaces
   pure), `pnpm published-text:check` clean; `check:private-terms` skipped (no term file here).
 - Built ui and site driven in headless Chromium at 800×600 and 1440×900: no horizontal
   overflow, no console errors, in dark and light for the site and dark for the ui (the ui's
   stored theme choice was not applied by the init script, so its light theme was not driven).
 
-Not verified: the packaged Windows application, hidden-desktop captures, the capture matrix,
+The 55 `packages/app` files that fail to collect do so because `@worldlens/bridge` and
+`@worldlens/parts` were not built in the container; they are not assertions. Not verified: the
+packaged Windows application, hidden-desktop captures, the capture matrix,
 Wharf and kid-check launched as Electron windows, `box-shadow`, `line-height`, `padding` and
 `gap` (outside the check's scope by design).
 

@@ -9,7 +9,7 @@
 - [x] Rewrite every shape, type and motion literal on the desktop interface, the documentation site, Wharf, the md3-check and kid-check instruments and the render page to its token (1,024 findings: 579 named, 381 moved to the nearest step, 43 fallbacks corrected, 4 declared exemptions).
 - [x] Align the documentation site's drifted tokens (pill 9999px, `title-large` weight 400) and hold site-to-system parity with a test.
 - [x] Run the colour purity check without the upstream webapp submodule and extend it to Wharf and both instruments; read the Electron window backgrounds from the schemes instead of literals.
-- [x] Verify: workspace lint (22 pre-existing errors in untouched files), typecheck of ui, site, wharf, kid-check, md3-check, render-actions and design-system, the design-system, site and md3-check suites, and headless Chromium overflow checks of the built ui and site at 800×600 and 1440×900.
+- [x] Verify: workspace lint (22 pre-existing errors in untouched files), typecheck of ui, site, wharf, kid-check, md3-check, render-actions and design-system, the design-system, site and md3-check suites, the whole workspace suite (13,228 passed; 7 failures reproduce on the parent commit, 1 is a timing flake that passes in isolation), and headless Chromium overflow checks of the built ui and site at 800×600 and 1440×900.
 - [ ] Verify the moved type and corner values in the packaged Windows application with the hidden-desktop capture route and refresh the capture matrix.
 - [ ] Decide whether `line-height`, `padding` and `gap` get a spacing scale and the same check.
 
