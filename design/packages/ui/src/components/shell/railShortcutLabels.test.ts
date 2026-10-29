@@ -79,26 +79,22 @@ describe("every rail shortcut has a dedicated short label in the catalogue", () 
         expect(entry.yue.length, `rail.shortcut.${jobId}.yue is empty`).toBeGreaterThan(0);
     });
 
-    it.each(REQUIRED_SHORTCUT_JOB_IDS)(
-        "rail.shortcut.%s stays within the short-label bound",
-        (jobId) => {
-            const key = `rail.shortcut.${jobId}` as keyof typeof SHELL_FIXED;
-            const entry = SHELL_FIXED[key];
-            for (const [locale, text] of [
-                ["en", entry.en],
-                ["yue", entry.yue],
-            ] as const) {
-                expect(
-                    text,
-                    `rail.shortcut.${jobId}.${locale} is an ellipsis, not a short label`,
-                ).not.toMatch(/[…]|\.\.\./);
-                expect(
-                    withinBound(text),
-                    `rail.shortcut.${jobId}.${locale} ("${text}") exceeds ~10 Latin / ~4 CJK characters`,
-                ).toBe(true);
-            }
-        },
-    );
+    it.each(REQUIRED_SHORTCUT_JOB_IDS)("rail.shortcut.%s stays within the short-label bound", (jobId) => {
+        const key = `rail.shortcut.${jobId}` as keyof typeof SHELL_FIXED;
+        const entry = SHELL_FIXED[key];
+        for (const [locale, text] of [
+            ["en", entry.en],
+            ["yue", entry.yue],
+        ] as const) {
+            expect(text, `rail.shortcut.${jobId}.${locale} is an ellipsis, not a short label`).not.toMatch(
+                /[…]|\.\.\./,
+            );
+            expect(
+                withinBound(text),
+                `rail.shortcut.${jobId}.${locale} ("${text}") exceeds ~10 Latin / ~4 CJK characters`,
+            ).toBe(true);
+        }
+    });
 });
 
 const i18n = createI18n({
@@ -126,9 +122,6 @@ describe("the mounted compact shortcut row never overflows its own box", () => {
                 openJobCount: 0,
                 unreadCount: 0,
                 productName: "Worldlens",
-                // The short form is what the compact rail shows; the extended rail shows the
-                // full name and is covered by railCompactLabelClipping.test.ts.
-                mode: "compact",
                 jobShortcuts: SHORTCUTS,
             },
             global: { plugins: [i18n, vuetify] },
@@ -142,10 +135,9 @@ describe("the mounted compact shortcut row never overflows its own box", () => {
             const text = labelEl.textContent ?? "";
 
             expect(text).not.toContain("…");
-            expect(
-                withinBound(text),
-                `rendered label "${text}" exceeds the short-label bound`,
-            ).toBe(true);
+            expect(withinBound(text), `rendered label "${text}" exceeds the short-label bound`).toBe(
+                true,
+            );
 
             // The honest jsdom limitation, stated rather than silently relied on: scrollWidth
             // and clientWidth are both always 0 here, so this assertion is trivially true in

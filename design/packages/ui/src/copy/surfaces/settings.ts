@@ -995,22 +995,6 @@ export const SETTINGS_VOICED = {
             "「系統」即係部電腦今日心情話事，話光就光話暗就暗。「高對比」就係為低視力朋友度身訂造，冇得傾。地圖入面嘅設定選單都有一模一樣嘅控制，兩邊永遠一致，夾到天衣無縫。",
         ],
     },
-    "settings.display.railSummary": {
-        en: [
-            "On, the navigation rail is a wide column with every destination and job named in full. Off, it is the compact icon rail with short labels. The collapse button at the foot of the rail changes the same setting.",
-            "On, the navigation rail is a wide column with every destination and job named in full. Off, it is the compact icon rail with short labels. The collapse button at the foot of the rail changes the same setting.",
-            "On, the navigation rail is a wide column naming every destination and job in full; off, it is the compact icon rail with short labels. The collapse button at the foot of the rail changes the same setting.",
-            "On, the navigation rail spells out every destination and job in full. Off, it shrinks to the compact icon rail with short labels. The collapse button at the foot of the rail flips the same setting.",
-            "On, the navigation rail spells out every destination and job in full, no guessing required. Off, it tucks itself into the compact icon rail with short labels. The collapse button at the foot of the rail flips the very same setting.",
-        ],
-        yue: [
-            "開咗，導覽列係一條闊欄，每個目的地同工作都寫晒全名。閂咗，就係精簡圖示列，只寫短名。導覽列底部嘅收埋掣改嘅係同一個設定。",
-            "開咗，導覽列係一條闊欄，每個目的地同工作都寫晒全名。閂咗，就係精簡圖示列，只寫短名。導覽列底部嘅收埋掣改嘅係同一個設定。",
-            "開咗，導覽列係闊欄，目的地同工作全部寫全名；閂咗就係精簡圖示列，得短名。導覽列底部嘅收埋掣改同一個設定。",
-            "開咗，導覽列會寫晒每個目的地同工作嘅全名。閂咗，就縮返做精簡圖示列，得短名。導覽列底部個收埋掣都係改呢個設定。",
-            "開咗，導覽列每個目的地同工作都寫到清清楚楚，唔使估。閂咗，就乖乖縮返做精簡圖示列，得短名。導覽列底部個收埋掣，撳落都係改呢個設定。",
-        ],
-    },
 } as const satisfies Record<string, VoicedString>;
 
 export const SETTINGS_FIXED = {
@@ -1249,10 +1233,6 @@ export const SETTINGS_FIXED = {
      * already translates.
      */
     "settings.display.themePickerLabel": { en: "Colour theme", yue: "色彩主題" },
-    "settings.display.railExpanded": {
-        en: "Show navigation labels in full",
-        yue: "導覽列顯示完整名稱",
-    },
     /* Catalogue-coverage sweep: these had no answer here, so every language mode and
        both funny-level extremes rendered the English written at the call site. */
     "settings.addons.changeFailed": { en: "The add-on state could not be changed.", yue: "改唔到呢個 add-on 嘅狀態。" },
@@ -1558,12 +1538,6 @@ export const SETTINGS_FACTS = {
     "settings.display.themeSummary": {
         en: ["System", "Contrast", "high-contrast", "low vision", "settings menu", "agree"],
         yue: ["系統", "高對比", "低視力", "設定選單", "一致"],
-    },
-    // On and off must each still say what they do, and the rail button must still be named
-    // as the second route to the same setting.
-    "settings.display.railSummary": {
-        en: ["On", "Off", "compact icon rail", "collapse button"],
-        yue: ["開咗", "閂咗", "精簡圖示列", "收埋掣"],
     },
 } as const satisfies Record<
     keyof typeof SETTINGS_VOICED,

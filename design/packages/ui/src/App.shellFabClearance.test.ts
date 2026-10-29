@@ -70,20 +70,13 @@ describe("the shell has no floating action buttons", () => {
         expect(railRule).not.toMatch(/position:\s*absolute/);
     });
 
-    it("keeps the rail a fixed column at every width: 80 px compact, 208 px expanded", () => {
+    it("keeps the rail a fixed 80 px column at every width", () => {
         const style = styleOf(railSource);
         // Declared three ways on purpose - inline-size, min-inline-size and the flex basis - so a
         // narrow window shrinks the content beside it rather than crushing the rail's labels.
         expect(style).toContain("inline-size: 80px");
         expect(style).toContain("min-inline-size: 80px");
         expect(style).toContain("flex: 0 0 80px");
-        expect(style).toContain("inline-size: 208px");
-        expect(style).toContain("min-inline-size: 208px");
-        expect(style).toContain("flex: 0 0 208px");
-        // The detached options-editor host has to start where the expanded rail ends.
-        expect(style).toMatch(
-            /\.wl-rail--expanded\) \.mb-world-host--beside-rail\)\s*\{\s*inset-inline-start: 208px/,
-        );
     });
 
     it("gives every rail control at least a 48 px target", () => {

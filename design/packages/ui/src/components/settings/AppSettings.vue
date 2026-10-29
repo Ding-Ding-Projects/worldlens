@@ -42,7 +42,6 @@ import RenderMemoryRow from "./RenderMemoryRow.vue";
 import ProductDisplayNameRow from "./ProductDisplayNameRow.vue";
 import UiSizeRow from "./UiSizeRow.vue";
 import ThemeRow from "./ThemeRow.vue";
-import RailModeRow from "./RailModeRow.vue";
 import { UI_SIZE_LEVELS, currentUiSizeLevel, uiSizeLevelByNumber } from "./uiSizeSetting.js";
 import { THEME_CHOICES, currentTheme } from "./themeSetting.js";
 import { createDownloadConcurrencySetting } from "./downloadConcurrencySetting.js";
@@ -378,10 +377,6 @@ const sections = computed<SettingsSectionText[]>(() => {
                 `${uiSizeLevelByNumber(currentUiSizeLevel.value).percent}%`,
                 ...THEME_CHOICES.map((choice) => themeChoiceLabel(t, choice)),
                 themeChoiceLabel(t, currentTheme.value),
-                t("settings.display.railExpanded", "Show navigation labels in full"),
-                "navigation rail",
-                "collapse navigation",
-                "expand navigation",
             ],
         },
         // Both option labels are on screen at once, whichever mode this profile is
@@ -1092,7 +1087,6 @@ function onDrawer(value: boolean): void {
                     >
                         <UiSizeRow />
                         <ThemeRow />
-                        <RailModeRow />
                     </SettingsSection>
                 </template>
 

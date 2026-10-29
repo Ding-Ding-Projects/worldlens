@@ -75,7 +75,6 @@ import {
     type Translate,
 } from "./paletteItems.js";
 import { PALETTE_SIZES, type PaletteSize } from "./palettePrefs.js";
-import { changeRailMode, currentRailMode } from "../shell/railPrefs.js";
 import { viewerSettingItems } from "./viewerSettings.js";
 
 /**
@@ -1095,48 +1094,6 @@ function appearanceItems(input: PaletteCatalogInput, group: string): PaletteItem
 }
 
 /**
- * The navigation rail's width: expanded with full labels, or the compact icon rail.
- *
- * A live toggle on the same shared readout the rail's own footer button and the Settings row
- * change (`shell/railPrefs.ts`), so all three agree. Always built, because every shell that
- * mounts this palette also mounts the rail; a shell without one would simply see the setting
- * remembered for when it has one.
- */
-function railItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
-    const { t } = input;
-    return [
-        {
-            kind: "setting",
-            id: "display.railExpanded",
-            group,
-            title: t("settings.display.railExpanded", "Show navigation labels in full"),
-            description: t(
-                "palette.display.railExpanded",
-                "Whether the navigation rail is a wide column with full labels or the compact icon rail. Remembered between launches.",
-            ),
-            keywords: [
-                "navigation",
-                "rail",
-                "sidebar",
-                "collapse navigation",
-                "expand navigation",
-                "compact",
-                "labels",
-            ],
-            location: [
-                t("settings.title", "Settings"),
-                t("settings.display.title", "Display and ease of use"),
-            ],
-            control: {
-                kind: "toggle",
-                value: currentRailMode.value === "expanded",
-                set: (value) => changeRailMode(value ? "expanded" : "compact"),
-            },
-        },
-    ];
-}
-
-/**
  * The palette's own size, listed in the palette.
  *
  * It belongs here for the same reason every other setting does: somebody who finds the
@@ -1196,7 +1153,6 @@ export function buildPaletteCatalog(input: PaletteCatalogInput): PaletteItem[] {
         ...shellItems(input, t("palette.group.app", "App"), hasPages),
         ...pageItems(input, t("palette.group.pages", "Pages")),
         ...chromeItems(input, t("palette.group.chrome", "Shell")),
-        ...railItems(input, t("palette.group.chrome", "Shell")),
         ...settingsSectionItems(input, t("palette.group.appSettings", "App settings")),
         ...configScreenItems(input, t("palette.group.config", "Server configuration")),
         configHistoryItem(input, t("palette.group.config", "Server configuration")),

@@ -393,11 +393,6 @@ export const SHELL_FIXED = {
     },
     "shell.home.search.summary": { en: "{shown} of {total} features", yue: "{total} 項之中嘅 {shown} 項" },
     "shell.home.card.count": { en: "{count} features", yue: "{count} 項功能" },
-    "shell.home.card.all": { en: "All {count} features", yue: "全部 {count} 項功能" },
-    "shell.home.dashboard.lede": {
-        en: "Search all {count} features, start a map, or open one of the catalogues below.",
-        yue: "搜尋全部 {count} 項功能、開始整地圖，或者打開下面其中一個目錄。",
-    },
     "shell.home.hero.newMap": { en: "New map", yue: "新地圖" },
     "shell.home.hero.guide": { en: "Or walk me through it", yue: "或者一步步教我" },
 
@@ -450,11 +445,6 @@ export const SHELL_FIXED = {
     "rail.moreShortcuts.title": { en: "More shortcuts", yue: "更多捷徑" },
     "rail.moreShortcuts.search": { en: "Filter shortcuts", yue: "篩選捷徑" },
     "rail.moreShortcuts.empty": { en: "No shortcuts match.", yue: "冇捷徑夾得中。" },
-    /* The extended rail's section heading, its overflow row, and the width toggle. */
-    "rail.jobs": { en: "Jobs", yue: "工作" },
-    "rail.moreJobs": { en: "More jobs…", yue: "更多工作…" },
-    "rail.collapse": { en: "Collapse navigation", yue: "收埋導覽" },
-    "rail.expand": { en: "Expand navigation", yue: "展開導覽" },
     /* Catalogue-coverage sweep: no catalogue answer, so every language and every
        funny level fell back to the English written at the call site. */
     "shell.home.dashboard.drafts": { en: "Pick up where you left off", yue: "接返上次做到嘅位" },
@@ -468,6 +458,9 @@ export const SHELL_FIXED = {
     "shell.home.dashboard.profileOverflow": { en: "+{count} more", yue: "仲有 {count} 個" },
     "shell.home.dashboard.renderOverflow": { en: "+{count} more running", yue: "仲有 {count} 個行緊" },
     "shell.home.dashboard.renderPercent": { en: "{percent}%", yue: "{percent}%" },
+    "shell.home.dashboard.search": { en: "Search everything", yue: "搵晒所有嘢" },
+    "shell.home.dashboard.titleFresh": { en: "Let's make your first map", yue: "整你第一張地圖啦" },
+    "shell.home.dashboard.titleReturning": { en: "Welcome back", yue: "歡迎返嚟" },
     "shell.home.dashboard.welcomeBody": { en: "Nothing is rendered or saved on this machine yet. New map starts one from a world you already have; the guide walks through the whole thing if you would rather be shown.", yue: "呢部機仲未 render 過或者儲過任何嘢。「新地圖」會由你已經有嘅世界開始整；想有人一步步帶你行嘅話，可以用嗰個引導。" },
     "shell.home.dashboard.browseAll": { en: "Browse everything", yue: "全部睇晒" },
     "shell.home.dashboard.profileRemote": { en: "Remote server", yue: "遠端伺服器" },

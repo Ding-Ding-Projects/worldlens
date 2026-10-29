@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiBellOutline,
     mdiBriefcaseOutline,
-    mdiChevronDoubleLeft,
-    mdiChevronDoubleRight,
     mdiCogOutline,
     mdiDotsHorizontal,
     mdiHomeOutline,
@@ -20,28 +18,17 @@ import type { RailDestination } from "./featureTargets.js";
 import {
     computeRailShortcutSplit,
     isCompactRail,
-    RAIL_EXPANDED_SHORTCUT_ITEM_PX,
     RAIL_MORE_BUTTON_PX,
     RAIL_SHORTCUT_ITEM_PX,
     RAIL_SHORTCUTS_DIVIDER_PX,
 } from "./railOverflow.js";
-import type { RailMode } from "./railPrefs.js";
 import { nonNegativeInteger } from "./shellNumbers.js";
 import { restoreRailMenuFocus } from "./railMenuFocus.js";
 
 /**
  * The four core destinations, plus direct-open shortcuts to a handful of frequently reached
- * jobs, and the footer actions. Two persisted widths (see `railPrefs.ts`):
- *
- *  - **expanded** (the default): a 208 px extended navigation rail. Destinations are 48 px pill
- *    rows with icon and full label, the active one on `secondary-container`; a divider and a
- *    small "Jobs" section label head the job shortcuts, which are 40 px single-line rows.
- *  - **compact**: the 80 px icon rail, icons over short labels.
- *
- * No label in either mode ever wraps. A label too long for its row ends in an ellipsis, and the
- * full text is always the control's accessible name and its tooltip or `title`. A short window
- * still switches to the 192 px grid below, whichever width was chosen, keeping targets and the
- * overflow route reachable without a taller window.
+ * jobs, and the three footer actions. The ordinary rail is 80 px wide; a short rail uses a
+ * 192 px grid, keeping labels, targets and the overflow route reachable without a taller window.
  *
  * ### Four destinations, not four items
  *
@@ -116,8 +103,6 @@ const props = withDefaults(
          * one-click path to a job id the shell already knows how to reveal.
          */
         jobShortcuts?: readonly { id: string; icon: string; label: string; shortLabel: string }[];
-        /** Expanded (full labels) or compact (80 px icon rail). The shell owns the preference. */
-        mode?: RailMode;
     }>(),
     {
         paletteShortcut: "Ctrl+Shift+F",
@@ -128,7 +113,6 @@ const props = withDefaults(
         settingsPanelId: "",
         settingsOpen: false,
         jobShortcuts: () => [],
-        mode: "expanded",
     },
 );
 
@@ -147,8 +131,6 @@ const emit = defineEmits<{
      */
     toggleNotifications: [];
     openSettings: [];
-    /** The footer's expand/collapse toggle was pressed; the shell flips the stored preference. */
-    toggleMode: [];
 }>();
 
 const { t } = useI18n();
@@ -227,31 +209,12 @@ const railEl = ref<HTMLElement | null>(null);
 const destinationsEl = ref<HTMLElement | null>(null);
 const footerEl = ref<HTMLElement | null>(null);
 const shortcutsEl = ref<HTMLElement | null>(null);
-const sectionLabelEl = ref<HTMLElement | null>(null);
 const measuredAvailable = ref<number | null>(null);
 const measuredDestinations = ref<number | null>(null);
 const measuredFooter = ref<number | null>(null);
-/** The unmeasured cost of one shortcut row in the width the rail is currently drawn at. */
-function baseShortcutItem(): number {
-    return props.mode === "compact" ? RAIL_SHORTCUT_ITEM_PX : RAIL_EXPANDED_SHORTCUT_ITEM_PX;
-}
-const measuredShortcutItem = ref(baseShortcutItem());
+const measuredShortcutItem = ref(RAIL_SHORTCUT_ITEM_PX);
 const measuredMoreButton = ref(RAIL_MORE_BUTTON_PX);
 const compactRail = computed(() => isCompactRail(measuredAvailable.value ?? 0));
-
-/**
- * The extended rail is drawn only when it was chosen *and* the window is tall enough for the
- * ordinary column. A short window keeps its own 192 px grid in either mode, because that grid
- * already shows every destination label in full.
- */
-const expanded = computed(() => props.mode !== "compact" && !compactRail.value);
-
-const jobsLabelId = `wl-rail-jobs-${useId()}`;
-const toggleLabel = computed(() =>
-    props.mode === "compact"
-        ? t("rail.expand", "Expand navigation")
-        : t("rail.collapse", "Collapse navigation"),
-);
 
 let railObserver: ResizeObserver | null = null;
 
@@ -277,23 +240,14 @@ function measureRail(): void {
     const bottomPadding = Math.max(0, Number.parseFloat(style.paddingBlockEnd) || 0);
     measuredAvailable.value = rail.clientHeight;
     measuredDestinations.value = destinationsRect.bottom - railRect.top + rail.scrollTop;
-    // The divider is paid once whenever a shortcut renders. The extended rail also carries the
-    // "Jobs" section label above its shortcuts, measured rather than estimated so a translated
-    // or enlarged label is budgeted at the size it really is.
-    const sectionLabel = sectionLabelEl.value;
-    const dividerCost =
-        sectionLabel === null
-            ? RAIL_SHORTCUTS_DIVIDER_PX
-            : RAIL_SHORTCUTS_DIVIDER_PX + sectionLabel.getBoundingClientRect().height;
     measuredFooter.value =
         footer.getBoundingClientRect().height +
         bottomPadding +
-        ((props.jobShortcuts ?? []).length > 0 ? dividerCost : 0);
+        ((props.jobShortcuts ?? []).length > 0 ? RAIL_SHORTCUTS_DIVIDER_PX : 0);
 
     // Keep a conservative high-water mark. Forgetting a tall row when it folds into More
     // would immediately make it fit again, causing an endless resize/render oscillation.
-    for (const row of shortcutsEl.value?.querySelectorAll<HTMLElement>("[data-job-shortcut]") ??
-        []) {
+    for (const row of shortcutsEl.value?.querySelectorAll<HTMLElement>("[data-job-shortcut]") ?? []) {
         measuredShortcutItem.value = Math.max(
             measuredShortcutItem.value,
             row.getBoundingClientRect().height + 2,
@@ -311,12 +265,7 @@ onMounted(() => {
     measureRail();
     if (typeof ResizeObserver !== "undefined" && railEl.value !== null) {
         railObserver = new ResizeObserver(() => measureRail());
-        for (const element of [
-            railEl.value,
-            destinationsEl.value,
-            footerEl.value,
-            shortcutsEl.value,
-        ]) {
+        for (const element of [railEl.value, destinationsEl.value, footerEl.value, shortcutsEl.value]) {
             if (element !== null) railObserver.observe(element);
         }
     }
@@ -334,19 +283,7 @@ watch(
 );
 watch(
     () => props.jobShortcuts.length,
-    () => {
-        void nextTick(measureRail);
-    },
-);
-// A width change changes every row's height, so the high-water mark starts again from the
-// new mode's own row size instead of carrying the other mode's taller rows across.
-watch(
-    () => props.mode,
-    () => {
-        measuredShortcutItem.value = baseShortcutItem();
-        measuredMoreButton.value = RAIL_MORE_BUTTON_PX;
-        void nextTick(measureRail);
-    },
+    () => { void nextTick(measureRail); },
 );
 
 onBeforeUnmount(() => {
@@ -423,12 +360,9 @@ watch(moreOpen, (open, wasOpen) => {
         restoreRailMenuFocus(menu, target, active);
     });
 });
-watch(
-    () => shortcutSplit.value.showMore,
-    (show) => {
-        if (!show) moreOpen.value = false;
-    },
-);
+watch(() => shortcutSplit.value.showMore, (show) => {
+    if (!show) moreOpen.value = false;
+});
 </script>
 
 <template>
@@ -440,12 +374,7 @@ watch(
     <nav
         ref="railEl"
         class="wl-rail"
-        :class="{
-            'wl-rail--short': compactRail,
-            'wl-rail--expanded': expanded,
-            'wl-rail--compact': !expanded && !compactRail,
-        }"
-        :data-rail-mode="mode"
+        :class="{ 'wl-rail--short': compactRail }"
         :aria-label="t('rail.label', { product: productName }, '{product} navigation')"
     >
         <!--
@@ -466,7 +395,6 @@ watch(
                     :aria-label="
                         item.badgeLabel === '' ? undefined : `${item.label}, ${item.badgeLabel}`
                     "
-                    :title="item.label"
                     :data-destination="item.id"
                     :data-tutorial-anchor="`rail-${item.id}`"
                     @click="emit('select', item.id)"
@@ -483,9 +411,9 @@ watch(
                         </span>
                     </span>
                     <!--
-                        The label is visible, always, on one line. An icon-only rail is a rail
-                        people learn by trial and error. Too long for its row, it ends in an
-                        ellipsis and the full text stays in `title` above.
+                        The label is visible, always. An icon-only rail is a rail people learn by
+                        trial and error, and the 80 px column exists precisely so it does not have
+                        to be.
                     -->
                     <span class="wl-rail-label">{{ item.label }}</span>
                 </button>
@@ -493,137 +421,118 @@ watch(
         </ul>
 
         <!--
-            Direct-open job shortcuts. Same accessible name pattern as the destinations above -
-            the only difference is what pressing one does (`openJob`, not `select`), and that
-            none of them is ever "active" the way a destination is, because the rail does not
-            track which job is on top in Work. The extended rail heads them with a small "Jobs"
-            section label that also names the list for assistive technology.
+            Direct-open job shortcuts. Same button markup, same 48px target, same accessible
+            name pattern as the four destinations above - the only difference is what pressing
+            one does (`openJob`, not `select`), and that none of them is ever "active" the way a
+            destination is, because the rail does not track which job is on top in Work.
         -->
-        <div v-if="visibleShortcuts.length > 0 || shortcutSplit.showMore" class="wl-rail__jobs">
-            <span
-                v-if="expanded"
-                :id="jobsLabelId"
-                ref="sectionLabelEl"
-                class="wl-rail__section-label"
-            >
-                {{ t("rail.jobs", "Jobs") }}
-            </span>
-            <ul
-                ref="shortcutsEl"
-                class="wl-rail__items wl-rail__shortcuts"
-                :aria-labelledby="expanded ? jobsLabelId : undefined"
-            >
-                <li v-for="item in visibleShortcuts" :key="item.id">
-                    <button
-                        type="button"
-                        class="wl-rail-item wl-rail-item--compact mb-interactive"
-                        :aria-label="item.label"
-                        :title="expanded ? item.label : undefined"
-                        :data-job-shortcut="item.id"
-                        :data-tutorial-anchor="`rail-job-${item.id}`"
-                        @click="emit('openJob', item.id)"
-                    >
-                        <span class="wl-rail-pill">
-                            <v-icon :icon="item.icon" size="18" />
-                        </span>
-                        <!--
-                            The extended rail shows the full job name and the compact rail the
-                            dedicated short form; both stay on one line and ellipsize when a
-                            translation or a personal-vocabulary replacement is longer than the
-                            row. The full name is never lost: it is the button's accessible name
-                            and its `title`, and the compact rail adds a tooltip for a pointer.
-                        -->
-                        <span class="wl-rail-label wl-rail-label--compact">{{
-                            expanded ? item.label : item.shortLabel
-                        }}</span>
-                        <v-tooltip
-                            v-if="!expanded"
-                            activator="parent"
-                            location="end"
-                            :text="item.label"
-                        />
-                    </button>
-                </li>
-                <li v-if="shortcutSplit.showMore">
-                    <button
-                        ref="moreButtonRef"
-                        type="button"
-                        class="wl-rail-item wl-rail-item--compact mb-interactive"
-                        :aria-label="
-                            t(
-                                'rail.moreShortcuts',
-                                { count: String(overflowShortcuts.length) },
-                                'More shortcuts ({count})',
-                            )
-                        "
-                        aria-haspopup="menu"
-                        :aria-expanded="moreOpen ? 'true' : 'false'"
-                        data-rail-more
-                        @click="moreOpen = !moreOpen"
-                    >
-                        <span class="wl-rail-pill">
-                            <v-icon :icon="mdiDotsHorizontal" size="18" />
-                        </span>
-                        <span class="wl-rail-label wl-rail-label--compact">{{
-                            expanded ? t("rail.moreJobs", "More jobs…") : t("rail.more", "More")
-                        }}</span>
-                    </button>
+        <ul
+            v-if="visibleShortcuts.length > 0 || shortcutSplit.showMore"
+            ref="shortcutsEl"
+            class="wl-rail__items wl-rail__shortcuts"
+        >
+            <li v-for="item in visibleShortcuts" :key="item.id">
+                <button
+                    type="button"
+                    class="wl-rail-item wl-rail-item--compact mb-interactive"
+                    :aria-label="item.label"
+                    :data-job-shortcut="item.id"
+                    :data-tutorial-anchor="`rail-job-${item.id}`"
+                    @click="emit('openJob', item.id)"
+                >
+                    <span class="wl-rail-pill">
+                        <v-icon :icon="item.icon" size="18" />
+                    </span>
                     <!--
-                        `target`, never `activator`. An `activator` element makes the overlay
-                        bind its own click listener to that same button, and the button already
-                        has one: a real pointer click then ran both, so the state went true and
-                        straight back to false inside one click and the menu never appeared. A
-                        DOM-dispatched click in a unit test happened to survive it, which is why
-                        this shipped - the packaged build's own instrumentation recorded the
-                        `aria-expanded` sequence true, true, false, false for one press. `target`
-                        gives the overlay the same anchor geometry and none of the events, so the
-                        button below is the only thing that opens or closes this menu - the exact
-                        arrangement `NotificationPanel` already uses for the bell.
+                        The visible label uses the short form and may wrap when customized.
+                        The original regression was a bilingual label ("Get a world off a server
+                        由伺服器攞返個世界") wrapping five lines inside an 80px column. The full
+                        form is never lost: it is the button's own accessible name above, and a
+                        tooltip repeats it for a sighted pointer user who wants the long version.
                     -->
-                    <v-menu
-                        v-model="moreOpen"
-                        :target="moreButtonRef ?? undefined"
-                        location="end"
-                        :close-on-content-click="false"
+                    <span class="wl-rail-label wl-rail-label--compact">{{ item.shortLabel }}</span>
+                    <v-tooltip activator="parent" location="end" :text="item.label" />
+                </button>
+            </li>
+            <li v-if="shortcutSplit.showMore">
+                <button
+                    ref="moreButtonRef"
+                    type="button"
+                    class="wl-rail-item wl-rail-item--compact mb-interactive"
+                    :aria-label="
+                        t(
+                            'rail.moreShortcuts',
+                            { count: String(overflowShortcuts.length) },
+                            'More shortcuts ({count})',
+                        )
+                    "
+                    aria-haspopup="menu"
+                    :aria-expanded="moreOpen ? 'true' : 'false'"
+                    data-rail-more
+                    @click="moreOpen = !moreOpen"
+                >
+                    <span class="wl-rail-pill">
+                        <v-icon :icon="mdiDotsHorizontal" size="18" />
+                    </span>
+                    <span class="wl-rail-label wl-rail-label--compact">{{
+                        t("rail.more", "More")
+                    }}</span>
+                </button>
+                <!--
+                    `target`, never `activator`. An `activator` element makes the overlay
+                    bind its own click listener to that same button, and the button already
+                    has one: a real pointer click then ran both, so the state went true and
+                    straight back to false inside one click and the menu never appeared. A
+                    DOM-dispatched click in a unit test happened to survive it, which is why
+                    this shipped - the packaged build's own instrumentation recorded the
+                    `aria-expanded` sequence true, true, false, false for one press. `target`
+                    gives the overlay the same anchor geometry and none of the events, so the
+                    button below is the only thing that opens or closes this menu - the exact
+                    arrangement `NotificationPanel` already uses for the bell.
+                -->
+                <v-menu
+                    v-model="moreOpen"
+                    :target="moreButtonRef ?? undefined"
+                    location="end"
+                    :close-on-content-click="false"
+                >
+                    <div
+                        ref="moreMenuRef"
+                        class="wl-rail-more-menu"
+                        role="menu"
+                        :aria-label="t('rail.moreShortcuts.title', 'More shortcuts')"
                     >
-                        <div
-                            ref="moreMenuRef"
-                            class="wl-rail-more-menu"
-                            role="menu"
-                            :aria-label="t('rail.moreShortcuts.title', 'More shortcuts')"
-                        >
-                            <ConfigSearchField
-                                v-model="moreQuery"
-                                v-model:regex="moreRegex"
-                                v-model:flags="moreFlags"
-                                :label="t('rail.moreShortcuts.search', 'Filter shortcuts')"
-                                density="compact"
-                                :sample="overflowShortcuts.map((item) => item.label).join('\n')"
-                            />
-                            <ul class="wl-rail-more-menu__list">
-                                <li v-for="item in filteredOverflow" :key="item.id">
-                                    <button
-                                        type="button"
-                                        class="wl-rail-more-menu__item mb-interactive"
-                                        :data-job-shortcut="item.id"
-                                        @click="selectFromMore(item.id)"
-                                    >
-                                        <v-icon :icon="item.icon" size="20" />
-                                        <span>{{ item.label }}</span>
-                                    </button>
-                                </li>
-                                <li
-                                    v-if="filteredOverflow.length === 0"
-                                    class="wl-rail-more-menu__empty"
+                        <ConfigSearchField
+                            v-model="moreQuery"
+                            v-model:regex="moreRegex"
+                            v-model:flags="moreFlags"
+                            :label="t('rail.moreShortcuts.search', 'Filter shortcuts')"
+                            density="compact"
+                            :sample="overflowShortcuts.map((item) => item.label).join('\n')"
+                        />
+                        <ul class="wl-rail-more-menu__list">
+                            <li v-for="item in filteredOverflow" :key="item.id">
+                                <button
+                                    type="button"
+                                    class="wl-rail-more-menu__item mb-interactive"
+                                    :data-job-shortcut="item.id"
+                                    @click="selectFromMore(item.id)"
                                 >
-                                    {{ t("rail.moreShortcuts.empty", "No shortcuts match.") }}
-                                </li>
-                            </ul>
-                        </div>
-                    </v-menu>
-                </li>
-            </ul>
-        </div>
+                                    <v-icon :icon="item.icon" size="20" />
+                                    <span>{{ item.label }}</span>
+                                </button>
+                            </li>
+                            <li
+                                v-if="filteredOverflow.length === 0"
+                                class="wl-rail-more-menu__empty"
+                            >
+                                {{ t("rail.moreShortcuts.empty", "No shortcuts match.") }}
+                            </li>
+                        </ul>
+                    </div>
+                </v-menu>
+            </li>
+        </ul>
 
         <div ref="footerEl" class="wl-rail__footer">
             <button
@@ -696,42 +605,14 @@ watch(
                     :text="t('settings.title', 'Settings')"
                 />
             </button>
-
-            <!--
-                The width preference. A toggle button rather than a disclosure: it changes how
-                this navigation is drawn, it does not reveal a panel, so `aria-pressed` carries
-                the state ("collapsed" is pressed) and the name says what pressing it will do.
-                The same preference is a row in Settings > Display and in the command palette.
-                Not drawn in the short-height grid, which is the same 192 px in either mode: a
-                toggle there would change nothing visible, and a fourth action would push the
-                footer's targets below 44 px. The preference still applies once the window is
-                tall enough again, and stays reachable from Settings and the palette meanwhile.
-            -->
-            <button
-                v-if="!compactRail"
-                type="button"
-                class="wl-rail-action wl-rail-action--mode mb-interactive"
-                :aria-label="toggleLabel"
-                :aria-pressed="mode === 'compact' ? 'true' : 'false'"
-                data-rail-mode-toggle
-                @click="emit('toggleMode')"
-            >
-                <v-icon
-                    :icon="mode === 'compact' ? mdiChevronDoubleRight : mdiChevronDoubleLeft"
-                    size="22"
-                />
-                <v-tooltip activator="parent" location="end" :text="toggleLabel" />
-            </button>
         </div>
     </nav>
 </template>
 
 <style scoped>
 /*
- * Two widths, both fixed columns rather than flexible ones, so a narrow window shrinks the
- * content beside the rail rather than crushing its labels: the compact 80 px icon rail and the
- * 208 px extended rail. Short heights switch to the grid further down in either mode, rather
- * than shrinking targets to make an overfull column appear to fit.
+ * The normal rail keeps its 80 px width. Short heights switch to the grid below rather
+ * than shrinking targets or cutting labels to make an overfull column appear to fit.
  */
 .wl-rail {
     display: flex;
@@ -747,21 +628,6 @@ watch(
     border-inline-end: 1px solid rgb(var(--v-theme-outline-variant));
     overflow-y: auto;
     overflow-x: hidden;
-    transition:
-        inline-size var(--md-sys-motion-duration-medium2, 300ms)
-            var(--md-sys-motion-easing-emphasized, ease),
-        min-inline-size var(--md-sys-motion-duration-medium2, 300ms)
-            var(--md-sys-motion-easing-emphasized, ease),
-        flex-basis var(--md-sys-motion-duration-medium2, 300ms)
-            var(--md-sys-motion-easing-emphasized, ease);
-}
-
-.wl-rail--expanded {
-    inline-size: 208px;
-    min-inline-size: 208px;
-    flex: 0 0 208px;
-    /* 8px gutters leave exactly 192px: room for four 48px footer actions in one row. */
-    padding: 12px 8px;
 }
 
 .wl-rail__items {
@@ -775,28 +641,10 @@ watch(
 
 /* A visible seam between the four core destinations and the job shortcuts beneath them, so the
  * two groups read as different kinds of thing rather than one undifferentiated list. */
-.wl-rail__jobs {
-    display: flex;
-    flex-direction: column;
-    min-inline-size: 0;
+.wl-rail__shortcuts {
     margin-block-start: 8px;
     padding-block-start: 8px;
     border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
-}
-
-/* The extended rail's small uppercase "Jobs" heading, one line like every other label. */
-.wl-rail__section-label {
-    display: block;
-    padding: 8px 16px 4px;
-    font-size: var(--md-sys-typescale-label-small-size);
-    line-height: var(--md-sys-typescale-label-small-line-height);
-    font-weight: var(--md-sys-typescale-label-small-weight);
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: rgb(var(--v-theme-on-surface-variant));
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 .wl-rail__footer {
@@ -808,22 +656,14 @@ watch(
     padding-block-start: 12px;
 }
 
-/* The extended rail lays its footer actions out as one row of 48 px icon buttons. */
-.wl-rail--expanded .wl-rail__footer {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0;
-}
-
-/* 48 px minimum target in the compact rail: icon pill above a single-line label. */
+/* 48 px minimum target, met by the padding rather than by a fixed height that would clip a
+   two-line label in bilingual mode. */
 .wl-rail-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 5px;
     inline-size: 100%;
-    min-inline-size: 0;
     min-block-size: 48px;
     padding: 4px 2px;
     background: none;
@@ -838,7 +678,6 @@ watch(
     place-items: center;
     inline-size: 56px;
     block-size: 32px;
-    flex: 0 0 auto;
     border-radius: var(--md-sys-shape-corner-full, 9999px);
     transition:
         background-color var(--md-sys-motion-duration-short2, 100ms)
@@ -846,10 +685,9 @@ watch(
         color var(--md-sys-motion-duration-short2, 100ms) var(--md-sys-motion-easing-standard, ease);
 }
 
-/* The active indicator is the M3 navigation role, secondary-container. */
 .wl-rail-item--active .wl-rail-pill {
-    background: rgb(var(--v-theme-secondary-container));
-    color: rgb(var(--v-theme-on-secondary-container));
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
 }
 
 .wl-rail-item--active .wl-rail-label {
@@ -862,14 +700,12 @@ watch(
 }
 
 .wl-rail-item--active:hover .wl-rail-pill {
-    background: rgb(var(--v-theme-secondary-container));
+    background: rgb(var(--v-theme-primary-container));
 }
 
 /*
- * Every rail label is one line. A label too long for its row - a translation, bilingual mode, a
- * personal-vocabulary replacement, a large interface size - ends in an ellipsis rather than
- * growing the row into a second line, and the full text is never lost: it is the control's
- * accessible name and its `title`.
+ * The label wraps rather than truncating. Bilingual mode renders two languages in this space and
+ * the longest of them is what decides whether this rail clips - so it is allowed to grow.
  */
 .wl-rail-label {
     /*
@@ -882,30 +718,49 @@ watch(
     letter-spacing: 0.04em;
     line-height: 1.25;
     text-align: center;
-    display: block;
     inline-size: 100%;
+    overflow-wrap: anywhere;
+    /* A translated or personalized name is content, not a two-line decoration. */
+    display: block;
     min-inline-size: 0;
-    max-inline-size: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
 }
 
 /*
- * A compact-rail shortcut row: icon beside its short label, with a 48 px minimum rather than a
- * fixed height. The overflow arithmetic starts with `RAIL_SHORTCUT_ITEM_PX` and raises that
- * budget from actual rows when a large interface size makes the single line taller.
+ * A shortcut row: icon beside a wrapping short label, with a 48px minimum rather than a
+ * fixed height. The overflow arithmetic starts with `RAIL_SHORTCUT_ITEM_PX` and increases
+ * that budget from actual rows when custom text needs more space. The full
+ * bilingual name never disappears - it is the button's `aria-label` and its tooltip - this is
+ * only the on-screen text, which regression v2-08 showed wrapping five lines when it was the
+ * long form.
  */
 .wl-rail-item--compact {
     flex-direction: row;
     align-items: center;
     justify-content: flex-start;
+    /*
+     * A minimum, never a fixed height. The shipped short labels are one line inside it, but the
+     * text this row renders is not always the shipped text: the local personal-vocabulary file
+     * replaces user-facing wording, and a replacement is free to be longer than the label it
+     * replaces. A fixed height forced the single line to end in an ellipsis the moment that
+     * happened - the packaged v1.0.2026 build measured a ten-character replacement at 58px of
+     * text inside a 49px box - and a visible label nobody can read is a clipping defect, not a
+     * compact row. With a minimum the label wraps and the row grows instead.
+     */
     min-block-size: 48px;
     gap: 4px;
     /*
-     * 4px padding + an 18px icon + this 4px gap leaves ~50px for the label, which is what the
-     * widest of the dedicated short labels in shell.ts needs; `railShortcutLabels.test.ts`
-     * enforces the character-count bound that keeps the shipped labels clear of the ellipsis.
+     * Deliberately tighter than the destinations' 4px-2px padding above: an 80px column has
+     * very little room left for a readable label once an icon and its own padding are paid
+     * for, and the label - not the icon - is the thing this compact row exists to show.
+     *
+     * 4px padding + an 18px icon + this 4px gap leaves ~50px for the label, which is what
+     * "Actions", "Convert" and "Backups" (each 7 Latin characters, the widest of the seven
+     * dedicated short labels in shell.ts) actually need - a real running build still showed
+     * them ellipsis-truncated at the previous 6px/22px/6px budget, which left only ~40px.
+     * `railShortcutLabels.test.ts` enforces the character-count bound; this is what keeps
+     * that bound also being enough pixels in the real, rendered row.
      */
     padding-inline: 4px;
 }
@@ -916,84 +771,28 @@ watch(
     background: none !important;
     inline-size: 18px;
     block-size: 18px;
+    flex: 0 0 auto;
 }
 
 /*
- * The shortcut label: one line, ellipsized, never wrapped. The full job name is the button's
- * accessible name and its tooltip or `title`, so the ellipsis hides nothing a person cannot reach.
+ * The compact label wraps; it never truncates. `white-space: nowrap` plus `text-overflow:
+ * ellipsis` was the defect: it is only ever invisible while the rendered text happens to be the
+ * shipped short label, and the vocabulary layer means that is not a property this component
+ * controls. Nothing here clamps a line count either - a clamp is still clipping, just tidier -
+ * so a long replacement costs a second line rather than a lost word. Two wrapped lines are
+ * 28px of text, which still fits inside the row's own 48px minimum; a longer one grows the row,
+ * and the measured row high-water mark carries the budget for that growth.
  */
 .wl-rail-label--compact {
     text-align: start;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    overflow: visible;
+    text-overflow: clip;
     inline-size: auto;
     min-inline-size: 0;
     flex: 1 1 auto;
     display: block;
-}
-
-/*
- * The extended rail. Destinations are 48 px full-width pills, icon beside a full label, the
- * whole pill carrying the active indicator; shortcuts are 40 px single-line rows in the same
- * shape with a smaller icon.
- */
-.wl-rail--expanded .wl-rail-item {
-    flex-direction: row;
-    justify-content: flex-start;
-    gap: 12px;
-    min-block-size: 48px;
-    block-size: 48px;
-    padding: 0 16px;
-    border-radius: var(--md-sys-shape-corner-full, 9999px);
-    transition: background-color var(--md-sys-motion-duration-short2, 100ms)
-        var(--md-sys-motion-easing-standard, ease);
-}
-
-.wl-rail--expanded .wl-rail-item .wl-rail-pill {
-    inline-size: 24px;
-    block-size: 24px;
-    background: none;
-}
-
-.wl-rail--expanded .wl-rail-label {
-    flex: 1 1 auto;
-    text-align: start;
-    font-size: var(--md-sys-typescale-label-large-size);
-    line-height: var(--md-sys-typescale-label-large-line-height);
-    letter-spacing: var(--md-sys-typescale-label-large-tracking);
-    font-weight: var(--md-sys-typescale-label-large-weight);
-}
-
-.wl-rail--expanded .wl-rail-item:hover {
-    background: rgba(var(--v-theme-on-surface), 0.08);
-}
-
-.wl-rail--expanded .wl-rail-item--active,
-.wl-rail--expanded .wl-rail-item--active:hover {
-    background: rgb(var(--v-theme-secondary-container));
-    color: rgb(var(--v-theme-on-secondary-container));
-}
-
-.wl-rail--expanded .wl-rail-item--active .wl-rail-label {
-    color: rgb(var(--v-theme-on-secondary-container));
-}
-
-.wl-rail--expanded .wl-rail-item--compact {
-    min-block-size: 40px;
-    block-size: 40px;
-    gap: 12px;
-    padding: 0 16px;
-}
-
-.wl-rail--expanded .wl-rail-item--compact .wl-rail-pill {
-    inline-size: 24px;
-    block-size: 18px;
-}
-
-.wl-rail--expanded .wl-rail-label--compact {
-    font-size: var(--md-sys-typescale-label-large-size);
-    font-weight: 400;
 }
 
 /*
@@ -1072,7 +871,6 @@ watch(
     place-items: center;
     inline-size: 48px;
     block-size: 48px;
-    flex: 0 0 48px;
     border: 0;
     /*
      * 14px, not a full pill. A full radius on a 48px square is a circle, and a circle in a corner
@@ -1110,7 +908,6 @@ watch(
     font-size: var(--md-sys-typescale-label-small-size);
     font-weight: 700;
     line-height: 16px;
-    white-space: nowrap;
 }
 
 /*
@@ -1126,29 +923,15 @@ watch(
 /*
  * Contrast is literal on the rewrite chrome: every readable rail state stays at 21:1.
  * A normal M3 state layer is deliberately translucent, but white at 8% over the contrast
- * surface turns the background grey and makes its white icon fall short of that exact promise,
- * and the secondary-container active indicator does not reach 21:1 there either. Use the
- * existing primary container pair for interactive feedback and the active state instead; no
- * new colour is introduced and the state remains visible.
+ * surface turns the background grey and makes its white icon fall short of that exact promise.
+ * Use the existing inverse container pair for interactive feedback instead; no new colour is
+ * introduced and the state remains visible.
  */
 :global(.v-theme--contrast) .wl-rail-item:hover .wl-rail-pill,
-:global(.v-theme--contrast) .wl-rail-item--active .wl-rail-pill,
-:global(.v-theme--contrast) .wl-rail--expanded .wl-rail-item:hover,
-:global(.v-theme--contrast) .wl-rail--expanded .wl-rail-item--active,
 :global(.v-theme--contrast) .wl-rail-action:hover,
 :global(.v-theme--contrast) .wl-rail-action .wl-rail-badge {
     background: rgb(var(--v-theme-primary-container));
     color: rgb(var(--v-theme-on-primary-container));
-}
-
-:global(.v-theme--contrast) .wl-rail--expanded .wl-rail-item--active .wl-rail-label,
-:global(.v-theme--contrast) .wl-rail--expanded .wl-rail-item:hover .wl-rail-label {
-    color: rgb(var(--v-theme-on-primary-container));
-}
-
-:global(.v-theme--contrast) .wl-rail--expanded .wl-rail-item:hover .wl-rail-pill,
-:global(.v-theme--contrast) .wl-rail--expanded .wl-rail-item--active .wl-rail-pill {
-    background: none;
 }
 
 /* Visible focus in all three themes, using the existing focus role rather than a new colour. */
@@ -1161,8 +944,8 @@ watch(
 
 /*
  * Short-height grid: four labelled destinations above one pinned utility row. More occupies
- * its own 48 px column beside the footer actions. Only the destination area scrolls at extreme
- * logical heights; shortcuts never evict More or the footer from that row.
+ * its own 48 px column beside three 44 px footer actions. Only the destination area scrolls
+ * at extreme logical heights; shortcuts never evict More or the footer from that row.
  */
 .wl-rail--short {
     display: grid;
@@ -1205,7 +988,7 @@ watch(
     flex: 1 1 auto;
 }
 
-.wl-rail--short .wl-rail__jobs {
+.wl-rail--short .wl-rail__shortcuts {
     grid-column: 1;
     grid-row: 2;
     margin-block-start: 0;
@@ -1223,7 +1006,6 @@ watch(
 .wl-rail--short .wl-rail__shortcuts .wl-rail-label {
     text-align: center;
     flex: 0 1 auto;
-    max-inline-size: 100%;
 }
 
 .wl-rail--short .wl-rail__footer {
@@ -1243,23 +1025,16 @@ watch(
 }
 
 /* App.vue's detached world host is outside the flex body. Its ordinary 80 px inset must
- * follow the rail's actual width: the extended column, or the short-height grid. Other
- * overlays anchor directly to their own controls. Only an existing rail activates these
- * rules, not a map-only or child-mode shell.
+ * follow the actual compact rail too; other overlays anchor directly to their own controls.
+ * Only an existing compact rail activates this rule, not a map-only or child-mode shell.
  */
-:global(:root:has(.wl-rail--expanded) .mb-world-host--beside-rail) {
-    inset-inline-start: 208px;
-}
-
 :global(:root:has(.wl-rail--short) .mb-world-host--beside-rail) {
     inset-inline-start: 192px;
 }
 
 /* This stays last so every transition introduced by the rail is covered. */
 @media (prefers-reduced-motion: reduce) {
-    .wl-rail,
-    .wl-rail-pill,
-    .wl-rail--expanded .wl-rail-item {
+    .wl-rail-pill {
         transition: none;
     }
 }
