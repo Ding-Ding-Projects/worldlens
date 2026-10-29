@@ -1,6 +1,6 @@
 /** Bounded container execution using existing target validation, SSH trust and transfers. */
 import { spawn } from 'node:child_process';
-import { mkdir, readdir, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, rename, stat, writeFile } from 'node:fs/promises';
 import { join, dirname, isAbsolute, relative } from 'node:path';
 import { homedir } from 'node:os';
 import { randomUUID } from 'node:crypto';
@@ -11,7 +11,7 @@ import { validateChunkerCliConfig,validateChunkerConfigStructure } from './chunk
 import {readSelectedSettings,validateSelectedChunkerConfig} from './settingsReport.js';
 import {validateConvertedPayload} from './outputValidation.js';
 import { findChunker } from './chunker.js';
-import { validateTarget } from '../remote/target.js';
+import { validateTarget, type PartialRemoteTarget } from '../remote/target.js';
 import { preflight } from '../remote/preflight.js';
 import { sshArguments, remoteCommandLine } from '../remote/ssh.js';
 import { scpTransfer } from '../remote/transfer.js';
@@ -21,13 +21,23 @@ import { APPROVED_CHUNKER_IMAGE, resolveApprovedChunkerImage } from './approvedI
 
 export const CONTAINER_CHANNELS = ['bedrock:containerImages','bedrock:containerStart','bedrock:containerState','bedrock:containerCancel'] as const;
 interface Options { ipcMain: IpcMain; dataDir: string; configuredJar?: string | null; resourcesPath?: string | null; resolveJava:()=>Promise<{ok:true;executable:string}|{ok:false;message:string}> }
+/** A `bedrock:containerStart` request once its routing fields have been checked. The rest stays `unknown` until validated where it is used. */
+interface StartRequest { kind: 'docker' | 'ssh'; world: string; output: string; format: string; config: unknown; acknowledgeTransfer: unknown; memoryGiB: unknown; image: unknown; target: unknown }
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
+function parseStartRequest(value: unknown): StartRequest {
+    if(!isRecord(value)) throw Error('Choose a valid source, new output folder and target format.');
+    const {kind,world,output,format}=value;
+    if((kind!=='docker'&&kind!=='ssh') || typeof world !== 'string' || typeof output !== 'string' || typeof format !== 'string' ||
+        !isAbsolute(world) || !isAbsolute(output) || !/^(JAVA|BEDROCK)_[A-Z0-9_]+$/.test(format)) throw Error('Choose a valid source, new output folder and target format.');
+    return {kind,world,output,format,config:value.config,acknowledgeTransfer:value.acknowledgeTransfer,memoryGiB:value.memoryGiB,image:value.image,target:value.target};
+}
 interface State { id: string; phase: string; percent: number; logs: string[]; complete: boolean; ok: boolean; output: string | null; message: string; runtimeImage: string|null }
 export function installChunkerContainerIpc(options: Options): void {
     const states = new Map<string, State>();
     const cancels = new Map<string, () => void>();
     const activeOutputs = new Set<string>();
     const ownership = new SenderOwnership(id => cancels.get(id)?.());
-    const handler = (name: typeof CONTAINER_CHANNELS[number], run: (value: any, sender: OperationSender) => Promise<unknown>) => options.ipcMain.handle(name, async (event, value: unknown) => {
+    const handler = (name: typeof CONTAINER_CHANNELS[number], run: (value: unknown, sender: OperationSender) => Promise<unknown>) => options.ipcMain.handle(name, async (event, value: unknown) => {
         try { return { ok: true, value: await run(value, event.sender) }; }
         catch(error) { return { ok: false, message: error instanceof Error ? error.message : String(error) }; }
     });
@@ -35,10 +45,9 @@ export function installChunkerContainerIpc(options: Options): void {
         return [APPROVED_CHUNKER_IMAGE];
     });
     handler('bedrock:containerState', async (id, sender) => states.get(ownership.require(id, sender)) ?? null);
-    handler('bedrock:containerCancel', async (id, sender) => { ownership.require(id, sender); cancels.get(id)?.(); return states.get(id) ?? null; });
-    handler('bedrock:containerStart', async (request, sender) => {
-        if(!request || !['docker','ssh'].includes(request.kind) || typeof request.world !== 'string' || typeof request.output !== 'string' ||
-            !isAbsolute(request.world) || !isAbsolute(request.output) || !/^(JAVA|BEDROCK)_[A-Z0-9_]+$/.test(request.format ?? '')) throw Error('Choose a valid source, new output folder and target format.');
+    handler('bedrock:containerCancel', async (id, sender) => { const owned=ownership.require(id, sender); cancels.get(owned)?.(); return states.get(owned) ?? null; });
+    handler('bedrock:containerStart', async (value, sender) => {
+        const request=parseStartRequest(value);
         if(request.acknowledgeTransfer !== true) throw Error('Confirm that the selected route may read or receive this world.');
         const rel=relative(request.world,request.output);
         if(rel === '' || (!rel.startsWith('..')&&!isAbsolute(rel))) throw Error('The output folder must be outside the source world.');
@@ -57,7 +66,7 @@ export function installChunkerContainerIpc(options: Options): void {
             if(!lookup.found)throw Error(lookup.reason);
             preflightController.signal.throwIfAborted();
             let config=validateChunkerCliConfig(request.config);
-            if(request.config?.worldSettings&&Object.keys(request.config.worldSettings).length){
+            if(isRecord(request.config)&&isRecord(request.config.worldSettings)&&Object.keys(request.config.worldSettings).length){
                 const java=await options.resolveJava();if(!java.ok)throw Error(java.message);
                 config=await validateSelectedChunkerConfig(request.config,java.executable,lookup.jarPath,request.world,preflightController.signal);
             }
@@ -98,7 +107,7 @@ export function installChunkerContainerIpc(options: Options): void {
             let resolvedImage:string;
             const containerName=`worldlens-chunker-${id}`;
             if(request.kind==='ssh') {
-                const targetResult=validateTarget(request.target ?? {});
+                const targetResult=validateTarget((isRecord(request.target) ? request.target : {}) as PartialRemoteTarget);
                 if(!targetResult.ok) throw Error(targetResult.failure.message);
                 const target=targetResult.target;
                 const security={target,knownHostsFile:join(options.dataDir,'known_hosts'),userKnownHostsFile:join(homedir(),'.ssh','known_hosts')};

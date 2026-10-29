@@ -2,8 +2,11 @@ import {EventEmitter} from 'node:events';import {mkdir,mkdtemp,rm,writeFile} fro
 import type {IpcMain} from 'electron';import {describe,it,expect,vi} from 'vitest';
 vi.mock('../cirender/transport.js',()=>({brokerCliTransport:vi.fn()}));
 vi.mock('../cirender/upload.js',()=>({uploadWorldForRender:vi.fn()}));
-import {brokerCliTransport} from '../cirender/transport.js';
-import {installChunkerActionsIpc} from './ipc.js';
+import {brokerCliTransport,type CiTransport} from '../cirender/transport.js';
+import {installChunkerActionsIpc,type ChunkerActionsRecord} from './ipc.js';
+/** What every `chunkerActions:*` channel answers with; `value` is the record unless a call names another shape. */
+interface CallResult<T> {ok:boolean;message?:string;value:T}
+type Handler=(event:{sender:Sender},value?:unknown)=>Promise<unknown>;
 vi.mock('../download/extract.js',async(importOriginal)=>({...(await importOriginal<object>()),extractZip:vi.fn()}));
 vi.mock('../bedrock/convert.js',async(importOriginal)=>({...(await importOriginal<object>()),verifyConvertedWorld:vi.fn()}));
 vi.mock('../bedrock/outputValidation.js',()=>({validateConvertedPayload:vi.fn()}));
@@ -11,7 +14,7 @@ import {extractZip} from '../download/extract.js';
 import {verifyConvertedWorld} from '../bedrock/convert.js';
 import {validateConvertedPayload} from '../bedrock/outputValidation.js';
 class Sender extends EventEmitter{destroyed=false;isDestroyed(){return this.destroyed;}destroy(){this.destroyed=true;this.emit('destroyed');}}
-function install(root:string,account:unknown=async()=>null){const handlers=new Map<string,Function>();const service=installChunkerActionsIpc({ipcMain:{handle:(name:string,handler:Function)=>handlers.set(name,handler),removeHandler:(name:string)=>handlers.delete(name)} as unknown as IpcMain,account:account as never,dataDir:()=>root,packaged:true,resourcesDir:root});return{service,call:(name:string,sender:Sender,value?:unknown)=>handlers.get(`chunkerActions:${name}`)!({sender},value) as Promise<any>};}
+function install(root:string,account:unknown=async()=>null){const handlers=new Map<string,Handler>();const service=installChunkerActionsIpc({ipcMain:{handle:(name:string,handler:Handler)=>handlers.set(name,handler),removeHandler:(name:string)=>handlers.delete(name)} as unknown as IpcMain,account:account as never,dataDir:()=>root,packaged:true,resourcesDir:root});return{service,call:<T = ChunkerActionsRecord>(name:string,sender:Sender,value?:unknown)=>handlers.get(`chunkerActions:${name}`)!({sender},value) as Promise<CallResult<T>>};}
 describe('conversion action ownership channels',()=>{
     it('scopes list, check, collect and cancel to the originating sender',async()=>{
         const root=await mkdtemp(join(tmpdir(),'chunker-owner-')),a=new Sender(),b=new Sender();const {service,call}=install(root);
@@ -31,7 +34,7 @@ describe('conversion action ownership channels',()=>{
             const started=await first.call('start',a,{owner:'owner',repo:'repo',worldFolder:join(root,'source'),outputDirectory:join(root,'output'),targetFormat:'JAVA_1_21_4',config:{},acknowledgeUpload:true,acknowledgePublic:true});
             await vi.waitFor(()=>expect(started.value.state).toBe('failed'));await first.service.dispose();
             const second=install(root);try{
-                const choices=await second.call('recoverable',b);expect(choices.value).toHaveLength(1);expect(choices.value[0]).not.toHaveProperty('request');
+                const choices=await second.call<readonly object[]>('recoverable',b);expect(choices.value).toHaveLength(1);expect(choices.value[0]).not.toHaveProperty('request');
                 expect((await second.call('list',b)).value).toEqual([]);
                 expect((await second.call('check',b,started.value.id)).ok).toBe(false);
                 expect((await second.call('adopt',b,{id:started.value.id,confirmed:false})).ok).toBe(false);
@@ -52,7 +55,7 @@ describe('conversion start upload consent',()=>{
     });
     it('dispatches a url world with no consent flags, and still demands them for its own upload',async()=>{
         const root=await mkdtemp(join(tmpdir(),'chunker-consent-')),sender=new Sender(),dispatched:Record<string,string>[]=[];
-        vi.mocked(brokerCliTransport).mockReturnValue(api(dispatched) as any);
+        vi.mocked(brokerCliTransport).mockReturnValue(api(dispatched) as unknown as CiTransport);
         const {service,call}=install(root,async()=>({}));
         const base={worldFolder:join(root,'source'),outputDirectory:join(root,'output'),targetFormat:'JAVA_1_21_4',config:{}};
         try{

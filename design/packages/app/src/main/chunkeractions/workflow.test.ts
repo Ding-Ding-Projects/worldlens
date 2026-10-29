@@ -1,7 +1,7 @@
 import {readFileSync} from 'node:fs';import {runInNewContext} from 'node:vm';import YAML from 'yaml';import {describe,it,expect,vi} from 'vitest';
 const workflow=YAML.parse(readFileSync(new URL('../../../../../../.github/workflows/chunk-world.yml',import.meta.url),'utf8'));
 function plan(config:object,inspection:string,target='JAVA_1_21_4'){
-    const step=workflow.jobs.plan.steps.find((entry:any)=>typeof entry.run==='string'&&entry.run.includes('const sourceFormat ='));
+    const step=workflow.jobs.plan.steps.find((entry:{run?:unknown})=>typeof entry.run==='string'&&entry.run.includes('const sourceFormat ='));
     const text=step.run.replaceAll('\r\n','\n');const source=text.split("node <<'NODE'\n")[1]?.split('\nNODE')[0];if(!source)throw Error('The registered plan script is missing.');
     const writes=new Map<string,string>();
     const settings={dimensions:{'minecraft:overworld':[[0,0]]},settings:{World:[{name:'LevelName',type:'String',value:'World'},{name:'RandomSeed',type:'String',value:'7'}]}};

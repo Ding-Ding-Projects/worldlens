@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { it, expect, vi } from "vitest";
 const downloads = vi.hoisted(() => ({ resolve: vi.fn(), download: vi.fn() }));
 vi.mock("../java/adoptium.js", () => ({ resolveTemurinRelease: downloads.resolve }));
 vi.mock("../java/download.js", () => ({ downloadVerified: downloads.download }));

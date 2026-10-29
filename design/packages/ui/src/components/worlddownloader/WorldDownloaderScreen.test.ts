@@ -67,7 +67,9 @@ const defaultStatus: DownloaderStatus = {
  * is a compile error against the real bridge contract - not a cast that would hide the same
  * mismatch from the renderer's real preload binding.
  */
-function fakeBridge(overrides: Partial<WorldDownloaderBridge> = {}): WorldDownloaderBridge {
+function fakeBridge(
+    overrides: Partial<WorldDownloaderBridge> = {},
+): WorldDownloaderBridge & { emit(event: DownloaderEvent): boolean } {
     let listener: ((event: DownloaderEvent) => void) | null = null;
 
     const status = vi.fn<WorldDownloaderBridge["status"]>(async () => defaultStatus);
@@ -131,6 +133,12 @@ function fakeBridge(overrides: Partial<WorldDownloaderBridge> = {}): WorldDownlo
         portFree,
         onWorldDownloaderEvent,
         ...overrides,
+        /** Delivers an event the way the preload would. False when nothing is subscribed. */
+        emit(event: DownloaderEvent): boolean {
+            if (listener === null) return false;
+            listener(event);
+            return true;
+        },
     };
 }
 
@@ -190,6 +198,40 @@ describe("WorldDownloaderScreen", () => {
 
         expect(bridge.start).toHaveBeenCalledTimes(1);
         expect(wrapper.text()).toContain("The server refused the connection.");
+    });
+
+    it("renders the log lines and finished summary that arrive on the event channel", async () => {
+        const bridge = fakeBridge();
+        const wrapper = mountScreen(bridge);
+        await flushPromises();
+
+        expect(
+            bridge.emit({ type: "log", sessionId: "s1", stream: "stdout", line: "Saved chunk 0,0", at: "now" }),
+        ).toBe(true);
+        expect(
+            bridge.emit({
+                type: "finished",
+                sessionId: "s1",
+                code: 0,
+                exitCode: 0,
+                bytes: 4096,
+                chunks: 12,
+                dimensions: [{ dimension: "minecraft:overworld", chunks: 12 }],
+                notes: [],
+                at: "now",
+            }),
+        ).toBe(true);
+        await flushPromises();
+
+        expect(wrapper.find('[data-test="world-downloader-log"]').text()).toContain("Saved chunk 0,0");
+        const finished = wrapper.find('[data-test="world-downloader-finished"]');
+        expect(finished.exists()).toBe(true);
+        expect(finished.text()).toContain("12");
+        expect(finished.text()).toContain("minecraft:overworld");
+
+        // Unmounting releases the subscription, so a late event reaches nothing.
+        wrapper.unmount();
+        expect(bridge.emit({ type: "signed-in", sessionId: "s1", at: "later" })).toBe(false);
     });
 
     it("subscribes to real session events and unsubscribes on unmount", async () => {

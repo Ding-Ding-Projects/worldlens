@@ -33,7 +33,7 @@
 
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
-import { mkdir, rm, readFile, stat } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { probeChunker } from "./capabilities.js";
@@ -70,7 +70,7 @@ import {
     writeConversionRecord,
     type ConversionRecord,
 } from "./provenance.js";
-import { validateChunkerCliConfig,validateChunkerConfigStructure } from "./chunkerConfig.js";
+import { validateChunkerConfigStructure } from "./chunkerConfig.js";
 import {readSelectedSettings,validateSelectedChunkerConfig} from './settingsReport.js';
 import {CHUNKER_EDITOR_SCHEMAS} from './editorSchema.js';
 
@@ -433,6 +433,17 @@ export function registerBedrockHandlers(
                 return refuse(error instanceof Error ? error.message : String(error));
             }
             const detection = detectBedrockWorld(listing);
+            // The renderer's `inputFormat` is what `bedrock:detect` said about this folder
+            // when the screen last looked. It never grants anything (see keepOriginalNBT
+            // below), but when it names an edition the folder no longer has, the folder has
+            // changed underneath the screen and the briefing the person read is stale.
+            const claimedEdition = editionOfFormat(inputFormat);
+            if (claimedEdition === "BEDROCK" && !detection.bedrock) {
+                return refuse("This folder is no longer a Bedrock world. Choose the source world again before converting.");
+            }
+            if (claimedEdition === "JAVA" && detection.bedrock) {
+                return refuse("This folder is now a Bedrock world, not the Java world that was inspected. Choose the source world again before converting.");
+            }
             if (!validateChunkerConfigStructure(config)) return refuse("Chunker settings were malformed. Choose each setting again before converting.");
 
             const java = await options.resolveJava();
@@ -613,6 +624,15 @@ export function registerBedrockHandlers(
             for (const channel of BEDROCK_CHANNELS) ipcMain.removeHandler(channel);
         },
     };
+}
+
+/** The edition a renderer-supplied format string names, or null when it names none. */
+function editionOfFormat(format: unknown): "BEDROCK" | "JAVA" | null {
+    if (typeof format !== "string") return null;
+    const upper = format.trim().toUpperCase();
+    if (upper === "BEDROCK" || upper.startsWith("BEDROCK_")) return "BEDROCK";
+    if (upper === "JAVA" || upper.startsWith("JAVA_")) return "JAVA";
+    return null;
 }
 
 function empty(folder: string, error: string): BedrockDetectResult {

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { stageLocalJavaEngine } from "./stage-local-java-engine.mjs";
 import { BLUEMAP_SOURCE_PATH, validateStagedJavaEngine } from "./staged-java-engine.mjs";
-import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, isAbsolute, join, relative, resolve } from "node:path";

@@ -406,6 +406,42 @@ describe("bedrock:convert", () => {
         expect(convert).not.toHaveBeenCalled();
     });
 
+    it("refuses when the folder is no longer the Bedrock world the screen detected", async () => {
+        const convert = vi.fn(async () => okOutcome());
+        const { call } = install({ inspect: async () => JAVA_LISTING, convert });
+        const outcome = (await call("bedrock:convert", {
+            world: "/worlds/MyWorld",
+            inputFormat: "BEDROCK",
+        })) as { ok: boolean; code: string; message: string };
+        expect(outcome).toMatchObject({ ok: false, code: "bad-invocation" });
+        expect(outcome.message).toMatch(/no longer a Bedrock world/);
+        expect(convert).not.toHaveBeenCalled();
+    });
+
+    it("refuses when a folder inspected as Java has become a Bedrock world", async () => {
+        const convert = vi.fn(async () => okOutcome());
+        const { call } = install({ inspect: async () => BEDROCK_LISTING, convert });
+        const outcome = (await call("bedrock:convert", {
+            world: "/worlds/MyWorld",
+            format: "BEDROCK_1_21_30",
+            inputFormat: "JAVA_1_21_4",
+        })) as { ok: boolean; message: string };
+        expect(outcome.ok).toBe(false);
+        expect(outcome.message).toMatch(/now a Bedrock world/);
+        expect(convert).not.toHaveBeenCalled();
+    });
+
+    it("converts when the re-checked folder still matches the detected edition", async () => {
+        const convert = vi.fn(async () => okOutcome());
+        const { call } = install({ convert });
+        const outcome = (await call("bedrock:convert", {
+            world: "/worlds/MyWorld",
+            inputFormat: "BEDROCK",
+        })) as { ok: boolean };
+        expect(outcome.ok).toBe(true);
+        expect(convert).toHaveBeenCalledOnce();
+    });
+
     it("reports a missing Chunker as a value, never as a rejection", async () => {
         const { call } = install({ find: async () => CHUNKER_MISSING });
 

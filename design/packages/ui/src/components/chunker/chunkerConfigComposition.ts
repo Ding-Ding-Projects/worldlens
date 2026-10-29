@@ -1,5 +1,10 @@
 /** Schema-aware composition: advanced fields override matching fields, not whole option groups. */
-type ObjectValue = Record<string, any>;
+type ObjectValue = Record<string, unknown>;
+const isObject=(value:unknown):value is ObjectValue=>typeof value==='object'&&value!==null&&!Array.isArray(value);
+/** A JSON object, or an empty one for anything absent or not shaped like one. */
+const asObject=(value:unknown):ObjectValue=>isObject(value)?value:{};
+/** The object entries of a JSON array, or none when it is absent. */
+const asObjects=(value:unknown):ObjectValue[]=>Array.isArray(value)?value.filter(isObject):[];
 type Box = {minChunkX:number;minChunkZ:number;maxChunkX:number;maxChunkZ:number};
 type Rule = {include:boolean;regions:Box[]};
 export interface ConfigurationCollision { path:string; previous:unknown; replacement:unknown }
@@ -24,36 +29,38 @@ export function intersectPruningRules(a:Rule,b:Rule):Rule{
     return regions.length?{include:true,regions}:{include:false,regions:[all]};
 }
 export function composeChunkerConfiguration(guided:ObjectValue,advanced:ObjectValue):{config:ObjectValue;collisions:ConfigurationCollision[]}{
-    const config={...guided};const collisions:ConfigurationCollision[]=[];
-    const fields=(base:ObjectValue={},extra:ObjectValue={},prefix:string)=>{
+    const config:ObjectValue={...guided};const collisions:ConfigurationCollision[]=[];
+    const fields=(base:ObjectValue={},extra:ObjectValue={},prefix:string):ObjectValue=>{
         const merged={...base};for(const [key,value]of Object.entries(extra)){
             if(Object.hasOwn(base,key)&&JSON.stringify(base[key])!==JSON.stringify(value))collisions.push({path:`${prefix}.${key}`,previous:base[key],replacement:value});
             merged[key]=value;
         }return merged;
     };
-    const entries=(base:ObjectValue[]=[],extra:ObjectValue[]=[],identity:(entry:ObjectValue)=>string,prefix:string)=>{
+    const entries=(base:ObjectValue[]=[],extra:ObjectValue[]=[],identity:(entry:ObjectValue)=>string,prefix:string):ObjectValue[]=>{
         const result=base.map(entry=>({...entry}));for(const entry of extra){const key=identity(entry),index=result.findIndex(old=>identity(old)===key);
             if(index<0)result.push({...entry});else result[index]=fields(result[index],entry,`${prefix}[${key}]`);
         }return result;
     };
-    for(const [option,value]of Object.entries(advanced)){
-        if(option==='keepOriginalNBT'){config[option]=value;continue;}
+    for(const [option,raw]of Object.entries(advanced)){
+        if(option==='keepOriginalNBT'){config[option]=raw;continue;}
+        const value=asObject(raw);
         if(option==='pruning'){
-            const merged={...(guided.pruning?.configs??{})};
-            for(const[dimension,rule]of Object.entries(value.configs??{}))merged[dimension]=merged[dimension]?intersectPruningRules(merged[dimension],rule as Rule):rule;
+            const merged:Record<string,Rule>={...(asObject(asObject(guided.pruning).configs) as Record<string,Rule>)};
+            for(const[dimension,rule]of Object.entries(asObject(value.configs)))merged[dimension]=merged[dimension]?intersectPruningRules(merged[dimension],rule as Rule):rule as Rule;
             config.pruning={configs:merged};continue;
         }
         if(option==='blockMappings'){
-            const base=guided.blockMappings??{},merged={...base};
-            for(const name of ['identifiers','items'])if(value[name])merged[name]=entries(base[name],value[name],entry=>JSON.stringify([entry.old_identifier,entry.old_state_values??{}]),`blockMappings.${name}`);
+            const base=asObject(guided.blockMappings),merged:ObjectValue={...base};
+            for(const name of ['identifiers','items'])if(value[name])merged[name]=entries(asObjects(base[name]),asObjects(value[name]),entry=>JSON.stringify([entry.old_identifier,entry.old_state_values??{}]),`blockMappings.${name}`);
             for(const name of ['state_lists','types'])if(value[name]){
-                merged[name]={...(base[name]??{})};
-                for(const[key,list]of Object.entries(value[name]))merged[name][key]=entries(base[name]?.[key],list as ObjectValue[],entry=>JSON.stringify(name==='types'?entry.input:entry.old_state),`blockMappings.${name}.${key}`);
+                const baseLists=asObject(base[name]),lists:ObjectValue={...baseLists};
+                for(const[key,list]of Object.entries(asObject(value[name])))lists[key]=entries(asObjects(baseLists[key]),asObjects(list),entry=>JSON.stringify(name==='types'?entry.input:entry.old_state),`blockMappings.${name}.${key}`);
+                merged[name]=lists;
             }
             config.blockMappings=merged;continue;
         }
-        if(option==='dimensionRegistry'){config.dimensionRegistry={mappings:entries(guided.dimensionRegistry?.mappings,value.mappings,entry=>entry.identifier,'dimensionRegistry.mappings')};continue;}
-        config[option]=fields(guided[option],value,option);
+        if(option==='dimensionRegistry'){config.dimensionRegistry={mappings:entries(asObjects(asObject(guided.dimensionRegistry).mappings),asObjects(value.mappings),entry=>String(entry.identifier),'dimensionRegistry.mappings')};continue;}
+        config[option]=fields(asObject(guided[option]),value,option);
     }
     return{config,collisions};
 }
