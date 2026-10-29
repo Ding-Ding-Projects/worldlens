@@ -59,6 +59,7 @@ import { AppTitleBar } from "./components/shell/index.js";
 import { readTabWorkspace, writeTabWorkspace } from "./components/tabs/tabStorage.js";
 import { StartupRecoveryBanner } from "./components/startup/index.js";
 import { requestReveal } from "./components/shell/revealRequests.js";
+import { currentRailMode, toggleRailMode } from "./components/shell/railPrefs.js";
 import { onDocsArticleRequested, requestDocsArticle } from "./components/docs/docsLink.js";
 import {
     TutorialOverlay,
@@ -3026,7 +3027,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             -->
             <div v-else class="mb-shell-body">
                 <!--
-                    The application rail: 80 px, always, at every supported width. It emits and
+                    The application rail: a fixed column at every supported width, 208 px
+                    expanded or 80 px compact per the persisted `railPrefs.ts` choice. It emits and
                     owns nothing - every action below is a call into the code this component
                     already had, which is the same division the command palette has used here
                     since it was written.
@@ -3049,11 +3051,13 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :settings-panel-id="SETTINGS_PANEL_ID"
                         :settings-open="settingsOpen"
                         :job-shortcuts="railJobShortcuts"
+                        :mode="currentRailMode"
                         @select="onRailSelect"
                         @open-job="revealPage($event)"
                         @open-palette="paletteOpen = true"
                         @toggle-notifications="notificationsOpen = !notificationsOpen"
                         @open-settings="toggleSettingsFromRail"
+                        @toggle-mode="toggleRailMode"
                     />
                 </AppearanceTarget>
 
@@ -4146,8 +4150,9 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 /*
     The one host that is a sibling of `.mb-shell-body` rather than a job pane inside it, so
     `inset: 0` reaches the window edge and swallows the rail. It starts where the content
-    starts instead. The width is the rail's own `flex: 0 0 80px` from `AppRail.vue`; if that
-    ever moves, `railWidthContract.test.ts` fails rather than this silently misaligning.
+    starts instead. The width is the compact rail's own `flex: 0 0 80px` from `AppRail.vue`;
+    the expanded and short-height rails override this inset from that component's own
+    stylesheet, so each width is declared beside the rule that produces it.
 */
 .mb-world-host--beside-rail {
     inset-inline-start: 80px;

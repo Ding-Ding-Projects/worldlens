@@ -129,6 +129,7 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "downloadConcurrency", owner: "components/settings/downloadConcurrencySetting.ts" },
     { key: "renderEngineChoice", owner: "components/settings/engineChoice.ts" },
     { key: "uiSize", owner: "components/settings/uiSizeSetting.ts" },
+    { key: "railMode", owner: "components/shell/railPrefs.ts" },
     // The choice itself lives in the viewer's own `bluemap-theme` record (see
     // `themeSetting.ts`'s doc comment on why that record is shared rather than doubled);
     // this mirror is the settings-history copy of it, recorded by the one module that

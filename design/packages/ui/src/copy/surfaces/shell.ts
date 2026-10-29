@@ -450,6 +450,11 @@ export const SHELL_FIXED = {
     "rail.moreShortcuts.title": { en: "More shortcuts", yue: "更多捷徑" },
     "rail.moreShortcuts.search": { en: "Filter shortcuts", yue: "篩選捷徑" },
     "rail.moreShortcuts.empty": { en: "No shortcuts match.", yue: "冇捷徑夾得中。" },
+    /* The extended rail's section heading, its overflow row, and the width toggle. */
+    "rail.jobs": { en: "Jobs", yue: "工作" },
+    "rail.moreJobs": { en: "More jobs…", yue: "更多工作…" },
+    "rail.collapse": { en: "Collapse navigation", yue: "收埋導覽" },
+    "rail.expand": { en: "Expand navigation", yue: "展開導覽" },
     /* Catalogue-coverage sweep: no catalogue answer, so every language and every
        funny level fell back to the English written at the call site. */
     "shell.home.dashboard.drafts": { en: "Pick up where you left off", yue: "接返上次做到嘅位" },

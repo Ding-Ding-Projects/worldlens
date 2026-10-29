@@ -168,13 +168,38 @@ describe("the application rail", () => {
      * this list never widens `RailDestination`.
      */
     const SHORTCUTS = [
-        { id: "cirender", icon: "mdi-test-icon", label: "GitHub Actions rendering", shortLabel: "GitHub Actions" },
-        { id: "dockerHosting", icon: "mdi-test-icon", label: "Docker hosting", shortLabel: "Docker" },
-        { id: "remoteHosting", icon: "mdi-test-icon", label: "Remote hosting", shortLabel: "Remote SSH" },
+        {
+            id: "cirender",
+            icon: "mdi-test-icon",
+            label: "GitHub Actions rendering",
+            shortLabel: "GitHub Actions",
+        },
+        {
+            id: "dockerHosting",
+            icon: "mdi-test-icon",
+            label: "Docker hosting",
+            shortLabel: "Docker",
+        },
+        {
+            id: "remoteHosting",
+            icon: "mdi-test-icon",
+            label: "Remote hosting",
+            shortLabel: "Remote SSH",
+        },
         { id: "chunker", icon: "mdi-test-icon", label: "Convert", shortLabel: "Chunker" },
         { id: "backups", icon: "mdi-test-icon", label: "Backups", shortLabel: "Backups" },
-        { id: "mcservers", icon: "mdi-test-icon", label: "Minecraft servers", shortLabel: "MC servers" },
-        { id: "worldDownloader", icon: "mdi-test-icon", label: "Get a world off a server", shortLabel: "World DL" },
+        {
+            id: "mcservers",
+            icon: "mdi-test-icon",
+            label: "Minecraft servers",
+            shortLabel: "MC servers",
+        },
+        {
+            id: "worldDownloader",
+            icon: "mdi-test-icon",
+            label: "Get a world off a server",
+            shortLabel: "World DL",
+        },
     ];
 
     it("renders no shortcuts at all when none are given, rather than an empty divider", () => {
@@ -191,7 +216,9 @@ describe("the application rail", () => {
         // once seven shortcuts are configured alongside them. The rest of the guarantee (that
         // they can never scroll away) is `railOverflow.test.ts`'s job, proven as arithmetic.
         const rail = mountRail({ jobShortcuts: SHORTCUTS });
-        const destinations = rail.findAll(".wl-rail__items:not(.wl-rail__shortcuts) > li > .wl-rail-item");
+        const destinations = rail.findAll(
+            ".wl-rail__items:not(.wl-rail__shortcuts) > li > .wl-rail-item",
+        );
 
         expect(destinations).toHaveLength(4);
         for (const destination of destinations) {
@@ -209,11 +236,67 @@ describe("the application rail", () => {
             expect(item.element.tagName).toBe("BUTTON");
             expect(item.attributes("data-job-shortcut")).toBe(SHORTCUTS[index]?.id);
             expect(item.attributes("aria-label")).toBe(SHORTCUTS[index]?.label);
-            // The full bilingual label is the accessible name and the tooltip - never the
-            // on-screen text, which is the short, single-line form. This is the exact
-            // regression from v2-08-rail-7-jobs-1280x800-dark.png: the full label rendered
-            // visibly and wrapped five lines inside the 80px column.
+            // The extended rail (the default) shows the full name on one ellipsized line and
+            // repeats it in `title`; the compact rail's short form is checked below.
+            expect(item.find(".wl-rail-label").text()).toBe(SHORTCUTS[index]?.label);
+            expect(item.attributes("title")).toBe(SHORTCUTS[index]?.label);
+        }
+    });
+
+    it("shows the short single-line label in the compact rail, the full one staying the name", () => {
+        // The regression from v2-08-rail-7-jobs-1280x800-dark.png: the full label rendered
+        // visibly and wrapped five lines inside the 80px column. The compact rail shows the
+        // dedicated short form instead, and the full form stays the accessible name.
+        const rail = mountRail({ jobShortcuts: SHORTCUTS, mode: "compact" });
+        for (const [index, item] of rail.findAll("[data-job-shortcut]").entries()) {
             expect(item.find(".wl-rail-label").text()).toBe(SHORTCUTS[index]?.shortLabel);
+            expect(item.attributes("aria-label")).toBe(SHORTCUTS[index]?.label);
+        }
+    });
+
+    it("heads the extended rail's shortcuts with a Jobs section label that names the list", () => {
+        const rail = mountRail({ jobShortcuts: SHORTCUTS });
+        const heading = rail.find(".wl-rail__section-label");
+        expect(heading.text()).toBe("Jobs");
+        expect(rail.find(".wl-rail__shortcuts").attributes("aria-labelledby")).toBe(
+            heading.attributes("id"),
+        );
+        expect(rail.find(".wl-rail").classes()).toContain("wl-rail--expanded");
+
+        const compact = mountRail({ jobShortcuts: SHORTCUTS, mode: "compact" });
+        expect(compact.find(".wl-rail__section-label").exists()).toBe(false);
+        expect(compact.find(".wl-rail").classes()).toContain("wl-rail--compact");
+    });
+
+    it("offers a width toggle whose pressed state and name follow the mode", async () => {
+        const expanded = mountRail();
+        const toggle = expanded.find("[data-rail-mode-toggle]");
+        expect(toggle.element.tagName).toBe("BUTTON");
+        expect(toggle.attributes("aria-pressed")).toBe("false");
+        expect(toggle.attributes("aria-label")).toBe("Collapse navigation");
+        await toggle.trigger("click");
+        expect(expanded.emitted("toggleMode")).toHaveLength(1);
+
+        const compact = mountRail({ mode: "compact" });
+        const pressed = compact.find("[data-rail-mode-toggle]");
+        expect(pressed.attributes("aria-pressed")).toBe("true");
+        expect(pressed.attributes("aria-label")).toBe("Expand navigation");
+    });
+
+    it("keeps every destination's tutorial anchor and data hook in both widths", () => {
+        for (const mode of ["expanded", "compact"] as const) {
+            const rail = mountRail({ jobShortcuts: SHORTCUTS, mode });
+            for (const id of ["home", "map", "host", "work"]) {
+                const button = rail.find(`[data-destination="${id}"]`);
+                expect(button.attributes("data-tutorial-anchor")).toBe(`rail-${id}`);
+            }
+            for (const shortcut of SHORTCUTS) {
+                expect(
+                    rail
+                        .find(`[data-job-shortcut="${shortcut.id}"]`)
+                        .attributes("data-tutorial-anchor"),
+                ).toBe(`rail-job-${shortcut.id}`);
+            }
         }
     });
 

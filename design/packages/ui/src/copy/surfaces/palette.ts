@@ -1022,6 +1022,22 @@ export const PALETTE_VOICED = {
     /* The palette's own size                                            */
     /* ---------------------------------------------------------------- */
 
+    "palette.display.railExpanded": {
+        en: [
+            "Whether the navigation rail is a wide column with full labels or the compact icon rail. Remembered between launches.",
+            "Whether the navigation rail is a wide column with full labels or the compact icon rail. Remembered between launches.",
+            "Whether the navigation rail is a wide column with full labels or the compact icon rail, remembered between launches.",
+            "Whether the navigation rail spells everything out in a wide column or tucks into the compact icon rail, and it remembers your choice next time.",
+            "Whether the navigation rail spells everything out in a roomy column or tucks itself into the compact icon rail, and it remembers whichever one you like, every time.",
+        ],
+        yue: [
+            "導覽列要做闊欄寫全名，定係精簡圖示列。會喺下次開嘅時候記住。",
+            "導覽列要做闊欄寫全名，定係精簡圖示列。會喺下次開嘅時候記住。",
+            "導覽列做闊欄寫全名定精簡圖示列，下次開都會記住。",
+            "導覽列係攤開寫晒全名，定縮埋做精簡圖示列，你揀咗下次都記得。",
+            "導覽列係大大方方寫晒全名，定係乖乖縮埋做精簡圖示列，你鍾意邊款，下次都照記住。",
+        ],
+    },
     "palette.size.description": {
         en: [
             "Whether this palette opens as a bounded card or fills the window. Remembered between launches.",
@@ -1536,6 +1552,10 @@ export const PALETTE_FACTS = {
     "palette.menu.players": { en: ["online", "standing"], yue: ["上緊線", "企緊"] },
 
     "palette.size.description": { en: ["card", "window"], yue: ["卡片", "視窗"] },
+    "palette.display.railExpanded": {
+        en: ["navigation rail", "compact icon rail", "Remembered || remembered || remembers"],
+        yue: ["導覽列", "精簡圖示列", "記住 || 記得"],
+    },
 
     "palette.view.description": {
         en: ["perspective", "free flight"],
