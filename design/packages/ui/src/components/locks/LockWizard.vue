@@ -3,10 +3,18 @@ import { computed, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { VAlert, VBtn, VRadio, VRadioGroup, VSelect, VTextField } from "vuetify/components";
 
+import PinEntry from "./PinEntry.vue";
+import { lockMethodLabel } from "./lockMethodCopy.js";
 import {
     MAX_LOCK_MINUTES,
+    OFFERED_LOCK_METHODS,
+    PIN_MAX_LENGTH,
+    PIN_MIN_LENGTH,
+    lockFactors,
+    methodUsesTotp,
+    pinProblem,
+    type LockCreation,
     type LockDuration,
-    type LockMethod,
     type LockTarget,
 } from "./lockModel.js";
 import { generateSecret, otpauthUri } from "./totp.js";
@@ -65,9 +73,13 @@ const { t } = useI18n();
 const store = useLockStore();
 const uid = useId();
 
-const method = ref<LockMethod>("password");
+type OfferedMethod = (typeof OFFERED_LOCK_METHODS)[number];
+
+const method = ref<OfferedMethod>("password");
 const password = ref("");
 const confirmation = ref("");
+const pin = ref("");
+const pinConfirmation = ref("");
 const secret = ref(generateSecret());
 const pairingCode = ref("");
 const durationKind = ref<LockDuration["kind"]>("surface");
@@ -81,8 +93,27 @@ const authenticatorUnavailable = computed<string | null>(() =>
         ? null
         : t(
               "locks.wizard.noVault",
-              "This build has nowhere safe to keep an authenticator secret, so this lock can only use a password.",
+              "This build has nowhere safe to keep an authenticator secret, so this lock can only use a password or a PIN.",
           ),
+);
+
+const factors = computed(() => lockFactors(method.value));
+const needsPassword = computed(() => factors.value.includes("password"));
+const needsPin = computed(() => factors.value.includes("pin"));
+const needsTotp = computed(() => methodUsesTotp(method.value));
+
+/** The anchor for each method's radio: `+` is not a friendly character in a selector. */
+function methodTestId(value: OfferedMethod): string {
+    return `lock-method-${value.replace(/\+/g, "-")}`;
+}
+
+const methodItems = computed(() =>
+    OFFERED_LOCK_METHODS.map((value) => ({
+        value,
+        label: lockMethodLabel(t, value),
+        disabled: methodUsesTotp(value) && authenticatorUnavailable.value !== null,
+        testId: methodTestId(value),
+    })),
 );
 
 /** The URI an authenticator scans. Rendered as text beside the QR the host draws. */
@@ -114,7 +145,7 @@ const blocked = computed<string | null>(() => {
             "This build cannot keep locks, so nothing can be locked here.",
         );
     }
-    if (method.value === "password") {
+    if (needsPassword.value) {
         if (password.value === "") {
             return t("locks.wizard.needPassword", "Choose a password for this lock.");
         }
@@ -124,7 +155,23 @@ const blocked = computed<string | null>(() => {
                 "The two passwords do not match. A lock made from a typo is a lock nothing opens.",
             );
         }
-    } else {
+    }
+    if (needsPin.value) {
+        if (pinProblem(pin.value) !== null) {
+            return t(
+                "locks.wizard.needPin",
+                { min: PIN_MIN_LENGTH, max: PIN_MAX_LENGTH },
+                "Choose a PIN of {min} to {max} digits for this lock.",
+            );
+        }
+        if (pinConfirmation.value !== pin.value) {
+            return t(
+                "locks.wizard.confirmPin",
+                "The two PINs do not match. A lock made from a typo is a lock nothing opens.",
+            );
+        }
+    }
+    if (needsTotp.value) {
         if (authenticatorUnavailable.value !== null) return authenticatorUnavailable.value;
         if (pairingCode.value.trim() === "") {
             return t(
@@ -165,7 +212,7 @@ async function create(): Promise<void> {
     busy.value = true;
     problem.value = null;
     try {
-        if (method.value === "totp") {
+        if (needsTotp.value) {
             const { decodeBase32, verifyTotp } = await import("./totp.js");
             const decoded = decodeBase32(secret.value);
             const paired =
@@ -180,10 +227,12 @@ async function create(): Promise<void> {
             }
         }
 
-        const creation =
-            method.value === "password"
-                ? ({ method: "password", password: password.value } as const)
-                : ({ method: "totp", secretBase32: secret.value } as const);
+        const creation: LockCreation = {
+            method: method.value,
+            ...(needsPassword.value ? { password: password.value } : {}),
+            ...(needsPin.value ? { pin: pin.value } : {}),
+            ...(needsTotp.value ? { secretBase32: secret.value } : {}),
+        };
         const made =
             props.changing === undefined
                 ? await store.add(props.target, creation, chosenDuration())
@@ -194,6 +243,8 @@ async function create(): Promise<void> {
         }
         password.value = "";
         confirmation.value = "";
+        pin.value = "";
+        pinConfirmation.value = "";
         pairingCode.value = "";
         emit("created");
     } finally {
@@ -233,18 +284,15 @@ async function create(): Promise<void> {
         <VRadioGroup
             v-model="method"
             :label="t('locks.wizard.method', 'How this one opens')"
-            inline
+            data-test="lock-method"
         >
             <VRadio
-                :label="t('locks.wizard.methodPassword', 'A password')"
-                value="password"
-                data-test="lock-method-password"
-            />
-            <VRadio
-                :label="t('locks.wizard.methodTotp', 'A code from an authenticator')"
-                value="totp"
-                :disabled="authenticatorUnavailable !== null"
-                data-test="lock-method-totp"
+                v-for="item in methodItems"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+                :disabled="item.disabled"
+                :data-test="item.testId"
             />
         </VRadioGroup>
         <p
@@ -255,7 +303,7 @@ async function create(): Promise<void> {
             {{ authenticatorUnavailable }}
         </p>
 
-        <template v-if="method === 'password'">
+        <template v-if="needsPassword">
             <VTextField
                 :id="`${uid}-password`"
                 v-model="password"
@@ -274,17 +322,43 @@ async function create(): Promise<void> {
                 density="compact"
                 data-test="lock-password-confirm"
             />
-            <p class="mb-lock-wizard__note" data-test="lock-own-credential">
-                {{
-                    t(
-                        "locks.wizard.ownCredential",
-                        "This password opens this one element and nothing else. Every lock carries its own; there is no master password anywhere in this application.",
-                    )
-                }}
-            </p>
         </template>
 
-        <template v-else>
+        <template v-if="needsPin">
+            <PinEntry
+                v-model="pin"
+                :label="
+                    t(
+                        'locks.wizard.pin',
+                        { min: PIN_MIN_LENGTH, max: PIN_MAX_LENGTH },
+                        'PIN for this lock ({min} to {max} digits)',
+                    )
+                "
+                autocomplete="new-password"
+                test-id="lock-pin"
+            />
+            <PinEntry
+                v-model="pinConfirmation"
+                :label="t('locks.wizard.pinAgain', 'The same PIN again')"
+                autocomplete="new-password"
+                test-id="lock-pin-confirm"
+            />
+        </template>
+
+        <p
+            v-if="needsPassword || needsPin"
+            class="mb-lock-wizard__note"
+            data-test="lock-own-credential"
+        >
+            {{
+                t(
+                    "locks.wizard.ownCredential",
+                    "This password opens this one element and nothing else. Every lock carries its own; there is no master password anywhere in this application.",
+                )
+            }}
+        </p>
+
+        <template v-if="needsTotp">
             <p class="mb-lock-wizard__note">
                 {{
                     t(

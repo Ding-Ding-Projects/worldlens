@@ -216,8 +216,7 @@ describe("a wrong answer slows down and never escalates", () => {
         const outcome = await verifyUnlock(record, "right", {
             vault: null,
             atMs: 0,
-            failures: 5,
-            minDelayMs: 500,
+            budget: { failures: 5, blockedUntil: 2000 },
         });
         expect(outcome).toEqual({ ok: false, reason: "rate-limited", retryInMs: 2000 });
     });

@@ -149,7 +149,7 @@ describe("the list of every lock", () => {
         const rows = wrapper.findAll('[data-test="lock-row"]');
         expect(rows).toHaveLength(2);
         expect(wrapper.text()).toContain("Font size");
-        expect(wrapper.text()).toContain("Password");
+        expect(wrapper.text()).toContain("A password");
         wrapper.unmount();
     });
 

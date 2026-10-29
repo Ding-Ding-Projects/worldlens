@@ -5,6 +5,7 @@ import { VAlert, VBtn, VCheckbox, VChip, VDialog, VList, VListItem } from "vueti
 
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
+import { lockMethodLabel } from "./lockMethodCopy.js";
 import { lockSearchText, type LockRecord } from "./lockModel.js";
 import LockWizard from "./LockWizard.vue";
 import { useLockStore } from "./useLocks.js";
@@ -117,9 +118,7 @@ async function removeSelected(): Promise<void> {
 }
 
 function methodLabel(lock: LockRecord): string {
-    return lock.method === "password"
-        ? t("locks.list.byPassword", "Password")
-        : t("locks.list.byAuthenticator", "Authenticator");
+    return lockMethodLabel(t, lock.method);
 }
 
 function durationLabel(lock: LockRecord): string {

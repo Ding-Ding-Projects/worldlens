@@ -13,7 +13,14 @@ import { join } from "node:path";
 
 import { afterEach, describe, expect, it } from "vitest";
 
-import { LockStorage, LOCKS_FILE, parseLocks, type SafeStorageLike } from "./store.js";
+import {
+    isStoredLock,
+    LockStorage,
+    LOCKS_FILE,
+    parseLocks,
+    STORED_LOCK_METHODS,
+    type SafeStorageLike,
+} from "./store.js";
 
 const folders: string[] = [];
 
@@ -152,5 +159,48 @@ describe("the secret vault", () => {
         // Encoded rather than trusted, so it landed inside the secrets folder like any other.
         expect(await storage.getSecret("../../escaped")).toBe("secret");
         await expect(readFile(join(folder, "..", "..", "escaped.bin"), "utf8")).rejects.toThrow();
+    });
+});
+
+describe("the methods a record may name", () => {
+    it("accepts every credential mix and the older authenticator-only method", () => {
+        for (const method of [
+            "pin",
+            "password",
+            "pin+password",
+            "password+totp",
+            "pin+totp",
+            "password+pin+totp",
+            "totp",
+        ]) {
+            expect(STORED_LOCK_METHODS.has(method), method).toBe(true);
+            expect(isStoredLock({ ...LOCK, method }), method).toBe(true);
+        }
+    });
+
+    it("drops a record naming a method this build does not know", () => {
+        expect(isStoredLock({ ...LOCK, method: "fingerprint" })).toBe(false);
+        expect(isStoredLock({ ...LOCK, method: 7 })).toBe(false);
+    });
+
+    it("round-trips a PIN lock's verifier untouched, and an older record without one", async () => {
+        const storage = new LockStorage({
+            dataFolder: await tempFolder(),
+            safeStorage: safeStorage(),
+        });
+        const pinLock = {
+            ...LOCK,
+            id: "pin-1",
+            method: "pin+totp",
+            pinVerifier: {
+                kind: "pbkdf2",
+                hash: "SHA-256",
+                iterations: 1000,
+                salt: "c2FsdA==",
+                derived: "ZGVy",
+            },
+        };
+        await storage.save([LOCK, pinLock]);
+        expect(await storage.load()).toEqual([LOCK, pinLock]);
     });
 });

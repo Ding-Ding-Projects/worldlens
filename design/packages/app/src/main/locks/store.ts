@@ -60,6 +60,20 @@ export interface SafeStorageLike {
  */
 export type StoredLock = Record<string, unknown>;
 
+/**
+ * Every method a record may name. Kept in step with the renderer's `LOCK_METHODS` by a test
+ * on each side, since this package must not import the UI one.
+ */
+export const STORED_LOCK_METHODS: ReadonlySet<string> = new Set([
+    "pin",
+    "password",
+    "pin+password",
+    "password+totp",
+    "pin+totp",
+    "password+pin+totp",
+    "totp",
+]);
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -78,7 +92,9 @@ function isBoundedString(value: unknown): value is string {
 export function isStoredLock(value: unknown): value is StoredLock {
     if (!isPlainObject(value)) return false;
     if (!isBoundedString(value["id"])) return false;
-    if (value["method"] !== "password" && value["method"] !== "totp") return false;
+    if (typeof value["method"] !== "string" || !STORED_LOCK_METHODS.has(value["method"])) {
+        return false;
+    }
 
     const target = value["target"];
     if (!isPlainObject(target)) return false;

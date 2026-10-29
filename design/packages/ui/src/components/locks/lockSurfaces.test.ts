@@ -169,8 +169,10 @@ describe("the wizard refuses a lock nothing could open", () => {
         const wrapper = mountWith(LockWizard, { target }, store);
         await flushPromises();
 
-        await wrapper.find('[data-test="lock-method-totp"] input').setValue(true);
+        await wrapper.find('[data-test="lock-method-password-totp"] input').setValue(true);
         await flushPromises();
+        await wrapper.find('[data-test="lock-password"] input').setValue("correct horse");
+        await wrapper.find('[data-test="lock-password-confirm"] input').setValue("correct horse");
         await wrapper.find('[data-test="lock-pairing-code"] input').setValue("000000");
         await flushPromises();
         await wrapper.find('[data-test="lock-create"]').trigger("click");
@@ -189,7 +191,15 @@ describe("the wizard refuses a lock nothing could open", () => {
         const wrapper = mountWith(LockWizard, { target }, store);
         await flushPromises();
 
-        expect(wrapper.find('[data-test="lock-method-totp"] input').attributes("disabled")).toBeDefined();
+        for (const id of ["password-totp", "pin-totp", "password-pin-totp"]) {
+            expect(
+                wrapper.find(`[data-test="lock-method-${id}"] input`).attributes("disabled"),
+            ).toBeDefined();
+        }
+        // The methods that need no vault stay on offer.
+        expect(
+            wrapper.find('[data-test="lock-method-pin"] input').attributes("disabled"),
+        ).toBeUndefined();
         expect(wrapper.find('[data-test="lock-no-vault"]').text()).toContain("nowhere safe");
         wrapper.unmount();
     });
@@ -201,7 +211,7 @@ describe("the wizard renders the secret for somebody who cannot scan", () => {
         await store.load();
         const wrapper = mountWith(LockWizard, { target }, store);
         await flushPromises();
-        await wrapper.find('[data-test="lock-method-totp"] input').setValue(true);
+        await wrapper.find('[data-test="lock-method-pin-totp"] input').setValue(true);
         await flushPromises();
 
         const uri = wrapper.find('[data-test="lock-pairing-uri"]').text();

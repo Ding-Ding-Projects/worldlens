@@ -23,15 +23,31 @@
 
 import { computed, ref, shallowRef, type ComputedRef, type Ref } from "vue";
 
+import type { DimSumDish } from "../dimsum/dimSumCatalog.js";
 import {
+    createLadder,
+    ladderStartRung,
+    nextSkipAt,
+    skipsInWindow,
+    type Ladder,
+} from "./ladderModel.js";
+import {
+    budgetAfterFailure,
+    budgetAfterSkip,
+    budgetWait,
     createLock,
+    FRESH_BUDGET,
     lockFor,
+    methodUsesTotp,
+    migrateLockRecord,
     verifyUnlock,
+    type AttemptBudget,
     type LockCreation,
     type LockDuration,
     type LockRecord,
     type LockTarget,
     type LockVault,
+    type UnlockAnswer,
     type UnlockOutcome,
 } from "./lockModel.js";
 
@@ -100,12 +116,38 @@ export interface LockStore {
     relock(lockId: string): void;
     /** Ends every open session at once, which is what leaving a surface does. */
     relockAll(kind?: LockDuration["kind"]): void;
-    attempt(lockId: string, answer: string): Promise<UnlockOutcome>;
+    /**
+     * One attempt at one lock, through the one validator and the lock's one budget. A bare
+     * string answers a single-part lock; a combined lock needs every part.
+     */
+    attempt(lockId: string, answer: UnlockAnswer | string): Promise<UnlockOutcome>;
     /** Failed attempts against this lock since the last success. For the prompt's wording. */
     failures(lockId: string): number;
+    /** How long before this lock checks another answer, or zero. */
+    waitMs(lockId: string): number;
+    /** Whether the unlock ladder can be played for this lock's current wait, and if not why. */
+    ladderState(lockId: string): LadderAvailability;
+    /** When the hourly ladder cap frees up again, or null when a skip is available. */
+    nextLadderAt(): number | null;
+    /**
+     * Starts the ladder for this lock's current wait, or null when {@link ladderState} says
+     * it cannot be played. Winning removes the wait and nothing else.
+     */
+    startLadder(
+        lockId: string,
+        context: { readonly schoolMode: boolean; readonly dishes: readonly DimSumDish[] },
+    ): Ladder | null;
     /** Every lock currently open, so a surface can show what it is holding open. */
     readonly open: ComputedRef<readonly string[]>;
 }
+
+/**
+ * - `available`: the lock is making somebody wait and the ladder can be played.
+ * - `not-waiting`: there is no wait to skip.
+ * - `capped`: the hourly cap is used up; the wait is the only way through.
+ * - `spent`: the ladder already fell to the clock for this wait.
+ */
+export type LadderAvailability = "available" | "not-waiting" | "capped" | "spent";
 
 export type AddResult =
     | { readonly ok: true; readonly record: LockRecord }
@@ -127,7 +169,33 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
 
     /** In memory only, deliberately - see the note at the top about locked-on-launch. */
     const sessions = ref(new Map<string, UnlockSession>());
-    const failureCounts = new Map<string, number>();
+    /** One attempt budget per lock, shared by every method and every way of typing. */
+    const budgets = new Map<string, AttemptBudget>();
+    /** When each ladder skip happened, across every lock, for the rolling-hour cap. */
+    let ladderSkips: number[] = [];
+    /** The wait (by its end time) for which the ladder fell to the clock, per lock. */
+    const ladderSpent = new Map<string, number>();
+    /** Bumped when a budget changes, so computed views that read waits re-evaluate. */
+    const budgetVersion = ref(0);
+
+    function budgetOf(lockId: string): AttemptBudget {
+        return budgets.get(lockId) ?? FRESH_BUDGET;
+    }
+
+    function setBudget(lockId: string, budget: AttemptBudget | null): void {
+        if (budget === null) budgets.delete(lockId);
+        else budgets.set(lockId, budget);
+        budgetVersion.value += 1;
+    }
+
+    function ladderState(lockId: string): LadderAvailability {
+        void budgetVersion.value;
+        const budget = budgetOf(lockId);
+        if (budgetWait(budget, now()) <= 0) return "not-waiting";
+        if (ladderSpent.get(lockId) === budget.blockedUntil) return "spent";
+        if (nextSkipAt(ladderSkips, now()) !== null) return "capped";
+        return "available";
+    }
 
     /**
      * Drops sessions that have run out, on read rather than on a timer.
@@ -166,7 +234,12 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
                 return;
             }
             try {
-                locks.value = await host.load();
+                const loadedLocks: LockRecord[] = [];
+                for (const entry of await host.load()) {
+                    const record = migrateLockRecord(entry);
+                    if (record !== null) loadedLocks.push(record);
+                }
+                locks.value = loadedLocks;
                 failure.value = null;
             } catch (error) {
                 // Never an empty list on a failed read: that would render as "nothing is
@@ -187,11 +260,11 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
         },
 
         async add(target, creation, duration): Promise<AddResult> {
-            if (creation.method === "totp" && host?.vault == null) {
+            if (methodUsesTotp(creation.method) && host?.vault == null) {
                 return {
                     ok: false,
                     message:
-                        "This build has nowhere safe to keep an authenticator secret, so this lock can only use a password.",
+                        "This build has nowhere safe to keep an authenticator secret, so this lock can only use a password or a PIN.",
                 };
             }
             const existing = lockFor(locks.value, target.surface, target.path);
@@ -210,9 +283,9 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
             // The secret goes to the vault BEFORE the record is saved. The other order
             // leaves a lock listed whose secret was never stored, which is a lock nothing
             // can open and which reads to its owner as the app having eaten their pairing.
-            if (creation.method === "totp" && host?.vault != null) {
+            if (methodUsesTotp(creation.method) && host?.vault != null) {
                 try {
-                    await host.vault.put(made.record.id, creation.secretBase32);
+                    await host.vault.put(made.record.id, creation.secretBase32 ?? "");
                 } catch (error) {
                     return {
                         ok: false,
@@ -232,11 +305,11 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
             if (existing === undefined) {
                 return { ok: false, message: "That lock is no longer in the list." };
             }
-            if (creation.method === "totp" && host?.vault == null) {
+            if (methodUsesTotp(creation.method) && host?.vault == null) {
                 return {
                     ok: false,
                     message:
-                        "This build has nowhere safe to keep an authenticator secret, so this lock can only use a password.",
+                        "This build has nowhere safe to keep an authenticator secret, so this lock can only use a password or a PIN.",
                 };
             }
 
@@ -250,9 +323,9 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
             // an id that has just stopped existing.
             const record = { ...made.record, id: existing.id, createdAt: existing.createdAt };
 
-            if (creation.method === "totp") {
+            if (methodUsesTotp(creation.method)) {
                 try {
-                    await host?.vault?.put(record.id, creation.secretBase32);
+                    await host?.vault?.put(record.id, creation.secretBase32 ?? "");
                 } catch (error) {
                     return {
                         ok: false,
@@ -270,12 +343,17 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
             // opposite of what somebody changing it has just asked for.
             sessions.value.delete(lockId);
             sessions.value = new Map(sessions.value);
-            failureCounts.delete(lockId);
+            setBudget(lockId, null);
+            ladderSpent.delete(lockId);
 
             // Only once the record no longer refers to it. A stale secret left behind by a
             // password change is inert, and clearing it before the save would have been the
             // failure that leaves a TOTP lock listed with nothing to check against.
-            if (existing.method === "totp" && creation.method !== "totp" && host?.vault != null) {
+            if (
+                methodUsesTotp(existing.method) &&
+                !methodUsesTotp(creation.method) &&
+                host?.vault != null
+            ) {
                 await host.vault.remove(lockId).catch(() => undefined);
             }
 
@@ -287,10 +365,11 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
             await persist(locks.value.filter((lock) => lock.id !== lockId));
             sessions.value.delete(lockId);
             sessions.value = new Map(sessions.value);
-            failureCounts.delete(lockId);
+            setBudget(lockId, null);
+            ladderSpent.delete(lockId);
             // Vault last, so a failure to clear a secret cannot leave a listed lock whose
             // record is gone. An orphaned secret is inert; an orphaned record is not.
-            if (record?.method === "totp" && host?.vault != null) {
+            if (record !== undefined && methodUsesTotp(record.method) && host?.vault != null) {
                 await host.vault.remove(lockId).catch(() => undefined);
             }
         },
@@ -317,25 +396,80 @@ export function createLockStore(options: LockStoreOptions = {}): LockStore {
             const outcome = await verifyUnlock(record, answer, {
                 vault: host?.vault ?? null,
                 atMs: now(),
-                failures: failureCounts.get(lockId) ?? 0,
+                budget: budgetOf(lockId),
             });
 
             if (outcome.ok) {
-                failureCounts.delete(lockId);
+                setBudget(lockId, null);
+                ladderSpent.delete(lockId);
                 const next = new Map(sessions.value);
                 next.set(lockId, { until: outcome.until, kind: record.duration.kind });
                 sessions.value = next;
             } else if (outcome.reason === "mismatch") {
                 // A missing secret is not the person's mistake, so it never counts against
                 // them - otherwise a broken vault would rate-limit somebody out of a lock
-                // they were never given a chance to open.
-                failureCounts.set(lockId, (failureCounts.get(lockId) ?? 0) + 1);
+                // they were never given a chance to open. A rate-limited try was never
+                // checked, so it does not count either.
+                setBudget(lockId, budgetAfterFailure(budgetOf(lockId), now()));
             }
             return outcome;
         },
 
         failures(lockId) {
-            return failureCounts.get(lockId) ?? 0;
+            void budgetVersion.value;
+            return budgetOf(lockId).failures;
+        },
+
+        waitMs(lockId) {
+            void budgetVersion.value;
+            return budgetWait(budgetOf(lockId), now());
+        },
+
+        ladderState,
+
+        nextLadderAt() {
+            void budgetVersion.value;
+            return nextSkipAt(ladderSkips, now());
+        },
+
+        startLadder(lockId, context): Ladder | null {
+            if (ladderState(lockId) !== "available") return null;
+            const lockout = budgetOf(lockId).blockedUntil;
+            let finished = false;
+            return createLadder({
+                start: ladderStartRung({
+                    schoolMode: context.schoolMode,
+                    dishCount: context.dishes.length,
+                }),
+                dishes: context.dishes,
+                now,
+                onCleared: () => {
+                    if (finished) return false;
+                    finished = true;
+                    const at = now();
+                    const budget = budgetOf(lockId);
+                    // The cap is checked again at the moment of winning, and the wait must
+                    // still be the one this ladder was started for.
+                    if (budget.blockedUntil !== lockout || budgetWait(budget, at) <= 0) {
+                        return budgetWait(budget, at) <= 0;
+                    }
+                    if (nextSkipAt(ladderSkips, at) !== null) {
+                        ladderSpent.set(lockId, lockout);
+                        budgetVersion.value += 1;
+                        return false;
+                    }
+                    ladderSkips = [...skipsInWindow(ladderSkips, at), at];
+                    // The wait goes; the failure count, and so the next wait, stays.
+                    setBudget(lockId, budgetAfterSkip(budget));
+                    return true;
+                },
+                onClock: () => {
+                    if (finished) return;
+                    finished = true;
+                    ladderSpent.set(lockId, lockout);
+                    budgetVersion.value += 1;
+                },
+            });
         },
 
         open: computed(() => [...sessions.value.keys()].filter((id) => live(id))),
