@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WorldLens job list redesign</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;font-family:Roboto,system-ui,sans-serif;color:#E1E2E8}
+button{font-family:inherit;cursor:pointer}
+.card{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:16px;background:#1D2024;border:1px solid #42474E;min-width:0}
+.meta{display:inline-flex;align-items:center;height:24px;padding:0 10px;border-radius:12px;background:#272A2E;color:#C2C7CF;font-size:12px;font-family:'Roboto Mono',monospace;white-space:nowrap}
+.name{margin:0;font-size:16px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.status{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:12px;font-size:12px;font-weight:500;white-space:nowrap}
+.btn{height:36px;padding:0 16px;border-radius:18px;font-size:13px;font-weight:500;white-space:nowrap}
+</style>
+</helmet>
+<div style="width:1280px;height:800px;box-sizing:border-box;display:flex;flex-direction:column;background:#101418;overflow:hidden;padding:24px 40px">
+  <div style="width:100%;max-width:1040px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+    <div style="display:flex;align-items:flex-start;gap:16px">
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+        <span style="font-size:12px;color:#C2C7CF">Run a server</span>
+        <h1 style="margin:0;font-size:28px;line-height:36px;font-weight:400">Minecraft servers</h1>
+        <p style="margin:0;font-size:14px;color:#C2C7CF">4 servers · 2 running. Every setting is a typed control.</p>
+      </div>
+      <button class="btn" style="border:0;background:none;color:#8FCDFF">Refresh</button>
+      <button class="btn" style="border:1px solid #8C9199;background:none;color:#8FCDFF">Adopt a container</button>
+      <button class="btn" style="border:0;background:#8FCDFF;color:#003351">New server</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="flex:1;display:flex;align-items:center;gap:8px;height:48px;padding:0 6px 0 16px;border-radius:24px;background:#272A2E">
+        <label for="s-q" style="position:absolute;left:-9999px">Search servers</label>
+        <input id="s-q" placeholder="Search servers" style="flex:1;border:0;background:none;color:#E1E2E8;font-size:14px;font-family:inherit;outline:none">
+        <button aria-label="Open regex builder" class="btn" style="border:1px solid #8C9199;background:none;color:#8FCDFF;font-family:'Roboto Mono',monospace">.*</button>
+      </div>
+      <label for="s-sort" style="font-size:12px;color:#C2C7CF">Sort</label>
+      <select id="s-sort" style="height:48px;border-radius:12px;border:1px solid #8C9199;background:#101418;color:#E1E2E8;padding:0 12px;font-family:inherit"><option>Running first</option><option>Name</option><option>Recently changed</option></select>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;height:44px;padding:0 12px;border-radius:12px;background:#191C20;font-size:13px">
+      <input type="checkbox" id="s-all" aria-label="Select all 4 servers"><label for="s-all">Select all (4)</label>
+      <div style="flex:1"></div>
+      <button class="btn" style="border:0;background:none;color:#8FCDFF" disabled>Start</button>
+      <button class="btn" style="border:0;background:none;color:#8FCDFF" disabled>Stop</button>
+      <button class="btn" style="border:0;background:none;color:#FFB4AB" disabled>Forget…</button>
+      <span style="font-size:12px;color:#C2C7CF">Select servers to act on them</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px">
+      <article class="card">
+        <div style="display:flex;align-items:center;gap:12px"><input type="checkbox" aria-label="Select heapandyville"><h2 class="name" style="flex:1">heapandyville</h2><span class="status" style="background:#004B73;color:#CEE5FF">● Running</span></div>
+        <div style="font-size:13px;color:#C2C7CF">Paper 1.21.4 · This computer, in a container</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px"><span class="meta">:25565</span><span class="meta">4096 MB</span><span class="meta">RCON 25575 · secret held</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><button class="btn" style="border:1px solid #8C9199;background:none;color:#8FCDFF">Stop</button><button class="btn" style="border:0;background:#384956;color:#D3E5F5">Open</button><span style="margin-left:auto;font-size:12px;color:#C2C7CF">checked 3 s ago</span></div>
+      </article>
+      <article class="card">
+        <div style="display:flex;align-items:center;gap:12px"><input type="checkbox" aria-label="Select creative-flats"><h2 class="name" style="flex:1">creative-flats</h2><span class="status" style="background:#272A2E;color:#C2C7CF">○ Stopped</span></div>
+        <div style="font-size:13px;color:#C2C7CF">Purpur 1.21.4 · This computer</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px"><span class="meta">:25566</span><span class="meta">2048 MB</span><span class="meta">No RCON secret</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><button class="btn" style="border:0;background:#8FCDFF;color:#003351">Start</button><button class="btn" style="border:0;background:#384956;color:#D3E5F5">Open</button><span style="margin-left:auto;font-size:12px;color:#C2C7CF">checked 3 s ago</span></div>
+      </article>
+      <article class="card">
+        <div style="display:flex;align-items:center;gap:12px"><input type="checkbox" aria-label="Select bayville-survival"><h2 class="name" style="flex:1">bayville-survival</h2><span class="status" style="background:#4E4161;color:#EDDCFF">Adopted · plugins only</span><span class="status" style="background:#004B73;color:#CEE5FF">● Running</span></div>
+        <div style="font-size:13px;color:#C2C7CF">Fabric 1.21.4 · Remote host, in a container</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px"><span class="meta">:25565</span><span class="meta">6144 MB</span><span class="meta">RCON 25575 · secret held</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><button class="btn" style="border:1px solid #8C9199;background:none;color:#8FCDFF">Stop</button><button class="btn" style="border:0;background:#384956;color:#D3E5F5">Open</button><span style="margin-left:auto;font-size:12px;color:#C2C7CF">checked 4 s ago</span></div>
+      </article>
+      <article class="card">
+        <div style="display:flex;align-items:center;gap:12px"><input type="checkbox" aria-label="Select spawn-archive"><h2 class="name" style="flex:1">spawn-archive</h2><span class="status" style="border:1px solid #8C9199;color:#C2C7CF">Not checked yet</span></div>
+        <div style="font-size:13px;color:#C2C7CF">Vanilla 1.12.2 · AWS EC2 host, in a container</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px"><span class="meta">:25565</span><span class="meta">1024 MB</span><span class="meta">No RCON secret</span></div>
+        <div style="display:flex;align-items:center;gap:8px"><button class="btn" style="border:1px solid #8C9199;background:none;color:#8FCDFF">Start</button><button class="btn" style="border:0;background:#384956;color:#D3E5F5">Open</button><span style="margin-left:auto;font-size:12px;color:#FFB4AB">Host unreachable</span></div>
+      </article>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
