@@ -1,8 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { memoryStorage, setSetupStorage } from "./setupPrefs.js";
 import { defaultMapStorageDir, readMapStorageDir } from "./mapStorage.js";
+import { setupStorage } from "./setupPrefs.js";
 import {
+    SETUP_PROGRESS_KEY,
     SETUP_STEPS,
+    SKIPPABLE_STEPS,
+    readSetupProgress,
+    writeSetupProgress,
     createConsentSettings,
     createFirstRunController,
     formatConsentTimestamp,
@@ -35,7 +40,9 @@ interface FakeBridge extends SetupBridge {
     failOn: string | null;
 }
 
-function fakeBridge(overrides: Partial<Pick<FakeBridge, "record" | "firstRunNeeded">> = {}): FakeBridge {
+function fakeBridge(
+    overrides: Partial<Pick<FakeBridge, "record" | "firstRunNeeded">> = {},
+): FakeBridge {
     const bridge: FakeBridge = {
         calls: [],
         record: overrides.record ?? UNACCEPTED,
@@ -362,7 +369,10 @@ describe("the map folder default", () => {
             bridge: fakeBridge(),
             storageBridge: {
                 mapStorageDirectory: () =>
-                    Promise.resolve({ current: "/srv/bluemap/maps", default: "/home/you/.config/mb/maps" }),
+                    Promise.resolve({
+                        current: "/srv/bluemap/maps",
+                        default: "/home/you/.config/mb/maps",
+                    }),
             },
             platform: "linux",
         });
@@ -376,7 +386,10 @@ describe("the map folder default", () => {
             bridge: fakeBridge(),
             storageBridge: {
                 mapStorageDirectory: () =>
-                    Promise.resolve({ current: "/home/you/.config/mb/maps", default: "/home/you/.config/mb/maps" }),
+                    Promise.resolve({
+                        current: "/home/you/.config/mb/maps",
+                        default: "/home/you/.config/mb/maps",
+                    }),
             },
             platform: "linux",
         });
@@ -389,7 +402,10 @@ describe("the map folder default", () => {
             bridge: fakeBridge(),
             storageBridge: {
                 mapStorageDirectory: () =>
-                    Promise.resolve({ current: "/srv/bluemap/maps", default: "/home/you/.config/mb/maps" }),
+                    Promise.resolve({
+                        current: "/srv/bluemap/maps",
+                        default: "/home/you/.config/mb/maps",
+                    }),
             },
             platform: "linux",
         });
@@ -482,5 +498,142 @@ describe("when the answer was given", () => {
     it("has no answer to give when nothing was recorded", () => {
         expect(formatConsentTimestamp(null, "en")).toBeNull();
         expect(formatConsentTimestamp("not a date", "en")).toBeNull();
+    });
+});
+
+describe("saving and resuming an unfinished setup", () => {
+    it("saves the step as it changes", async () => {
+        const flow = controller(fakeBridge());
+        await flow.start();
+        expect(readSetupProgress()?.step).toBe("welcome");
+        flow.next();
+        expect(readSetupProgress()?.step).toBe("eula");
+        flow.next();
+        expect(readSetupProgress()?.step).toBe("consent");
+    });
+
+    it("saves nothing when setup is not shown at all", async () => {
+        const flow = controller(fakeBridge({ firstRunNeeded: false }));
+        await flow.start();
+        expect(setupStorage().read(SETUP_PROGRESS_KEY)).toBeNull();
+    });
+
+    it.each(["welcome", "eula", "consent"] as const)(
+        "resumes on %s rather than at the welcome",
+        async (saved) => {
+            writeSetupProgress({ step: saved, declined: false, storageDir: null });
+            const flow = controller(fakeBridge());
+            await flow.start();
+            expect(flow.step.value).toBe(saved);
+            expect(flow.resumed.value).toBe(saved !== "welcome");
+        },
+    );
+
+    it("resumes on the map folder when consent was accepted in the main process", async () => {
+        writeSetupProgress({ step: "storage", declined: false, storageDir: "/srv/maps" });
+        const flow = controller(fakeBridge({ record: ACCEPTED }));
+        await flow.start();
+        expect(flow.step.value).toBe("storage");
+        expect(flow.answer.value).toBe("accepted");
+        expect(flow.storageDir.value).toBe("/srv/maps");
+    });
+
+    it("resumes on the map folder after a saved decline, still declined", async () => {
+        writeSetupProgress({ step: "storage", declined: true, storageDir: null });
+        const bridge = fakeBridge();
+        const flow = controller(bridge);
+        await flow.start();
+        expect(flow.step.value).toBe("storage");
+        expect(flow.answer.value).toBe("declined");
+        expect(bridge.calls).not.toContain("acceptDownload");
+    });
+
+    it("never re-accepts consent on resume: no recorded answer lands on the question", async () => {
+        // The saved step is past the question, but the main process has no acceptance
+        // (for example it was withdrawn, or the record was lost) and no decline was saved.
+        writeSetupProgress({ step: "storage", declined: false, storageDir: null });
+        const bridge = fakeBridge({ record: UNACCEPTED });
+        const flow = controller(bridge);
+        await flow.start();
+        expect(flow.step.value).toBe("consent");
+        expect(flow.answer.value).toBeNull();
+        expect(bridge.calls).not.toContain("acceptDownload");
+        // And Next still cannot walk past it.
+        flow.next();
+        expect(flow.step.value).toBe("consent");
+    });
+
+    it("ignores a saved record it cannot read", async () => {
+        setupStorage().write(SETUP_PROGRESS_KEY, "{not json");
+        const flow = controller(fakeBridge());
+        await flow.start();
+        expect(flow.step.value).toBe("welcome");
+        setupStorage().write(SETUP_PROGRESS_KEY, JSON.stringify({ step: "nowhere" }));
+        const again = controller(fakeBridge());
+        await again.start();
+        expect(again.step.value).toBe("welcome");
+    });
+
+    it("clears the saved step when setup completes", async () => {
+        const flow = controller(fakeBridge());
+        await flow.start();
+        flow.next();
+        flow.next();
+        await flow.answerConsent(false);
+        expect(readSetupProgress()?.step).toBe("storage");
+        expect(await flow.finish()).toBe(true);
+        expect(setupStorage().read(SETUP_PROGRESS_KEY)).toBeNull();
+    });
+
+    it("keeps the saved step when completion fails, so the next launch resumes", async () => {
+        const bridge = fakeBridge();
+        bridge.failOn = "completeFirstRun";
+        const flow = controller(bridge);
+        await flow.start();
+        flow.next();
+        flow.next();
+        await flow.answerConsent(false);
+        expect(await flow.finish()).toBe(false);
+        expect(readSetupProgress()?.step).toBe("storage");
+    });
+
+    it("drops leftover progress once setup is already complete", async () => {
+        writeSetupProgress({ step: "eula", declined: false, storageDir: null });
+        const flow = controller(fakeBridge({ firstRunNeeded: false }));
+        await flow.start();
+        expect(setupStorage().read(SETUP_PROGRESS_KEY)).toBeNull();
+    });
+});
+
+describe("skipping an optional step", () => {
+    it("offers skipping only on the map folder, never on the licence or consent", async () => {
+        expect(SKIPPABLE_STEPS).toEqual(["storage"]);
+        const flow = controller(fakeBridge());
+        await flow.start();
+        expect(flow.canSkip.value).toBe(false);
+        flow.next();
+        expect(flow.canSkip.value).toBe(false);
+        flow.next();
+        expect(flow.canSkip.value).toBe(false);
+        expect(await flow.skip()).toBe(false);
+        expect(flow.step.value).toBe("consent");
+        await flow.answerConsent(true);
+        expect(flow.canSkip.value).toBe(true);
+    });
+
+    it("applies the default folder and finishes", async () => {
+        const bridge = fakeBridge();
+        const flow = controller(bridge);
+        await flow.start();
+        flow.next();
+        flow.next();
+        await flow.answerConsent(false);
+        flow.storageDir.value = "relative/and/invalid";
+        expect(await flow.skip()).toBe(true);
+        expect(flow.storageDir.value).toBe(defaultMapStorageDir("linux"));
+        expect(readMapStorageDir()).toBe(defaultMapStorageDir("linux"));
+        expect(bridge.completions).toBe(1);
+        expect(flow.visible.value).toBe(false);
+        expect(setupStorage().read(SETUP_PROGRESS_KEY)).toBeNull();
     });
 });

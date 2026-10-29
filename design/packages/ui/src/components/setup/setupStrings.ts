@@ -208,6 +208,16 @@ export const FIXED = {
     "action.cancel": { en: "Cancel", yue: "取消" },
     "action.continueAnyway": { en: "Continue anyway", yue: "照樣繼續" },
     "action.retry": { en: "Try again", yue: "再試一次" },
+    "action.skipForNow": { en: "Skip for now", yue: "住先跳過" },
+    "action.skipForNowHint": {
+        en: "Uses the default folder and finishes setup. You can change it later in Settings.",
+        yue: "用返預設資料夾，然後完成設定。之後喺「設定」度改得。",
+    },
+    "setup.progressLabel": { en: "Setup progress", yue: "設定進度" },
+    "setup.resumed": {
+        en: "Welcome back. Setup picked up where you left off.",
+        yue: "歡迎返嚟！設定由你上次停低嘅地方繼續。",
+    },
 
     "language.title": { en: "Language", yue: "語言" },
     "language.settingsTitle": { en: "Language and tone", yue: "語言同語氣" },

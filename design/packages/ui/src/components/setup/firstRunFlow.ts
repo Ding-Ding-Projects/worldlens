@@ -1,5 +1,5 @@
 /**
- * The first-run flow itself: three steps, one consent answer, one completion.
+ * The first-run flow itself: four steps, one consent answer, one completion.
  *
  * Kept out of the components on purpose. Everything that decides anything lives here as
  * plain functions over refs, so the rules that matter can be proved by a unit test
@@ -19,9 +19,17 @@
  *
  * `start()` asks the main process whether this is a first launch. In a plain browser
  * there is no bridge, there is no local rendering to consent to, and nothing is shown.
+ *
+ * **Save and resume.** The step somebody is on, a decline they gave and the folder they
+ * typed are saved through `setupPrefs` as they change, so quitting halfway and launching
+ * again resumes where they stopped instead of at the welcome. An acceptance is never
+ * taken from that saved record: it is re-read from the main process, and a resume that
+ * would land past the consent question with no answer on record lands on the question
+ * instead. The saved progress is removed when setup completes.
  */
 
-import { computed, ref, type ComputedRef, type Ref } from "vue";
+import { computed, ref, watch, type ComputedRef, type Ref } from "vue";
+import { setupStorage } from "./setupPrefs.js";
 import {
     currentPlatform,
     defaultMapStorageDir,
@@ -48,6 +56,70 @@ import {
  */
 export const SETUP_STEPS = ["welcome", "eula", "consent", "storage"] as const;
 export type SetupStep = (typeof SETUP_STEPS)[number];
+
+/**
+ * Steps that may be skipped with "Skip for now", which applies the step's default.
+ *
+ * Only the map folder: it has a working default and can be changed later in Settings.
+ * The licence and the consent question are never skippable, because a skipped consent
+ * step would be an answer nobody gave.
+ */
+export const SKIPPABLE_STEPS: readonly SetupStep[] = ["storage"];
+
+/** Where an unfinished run of the flow is saved between launches. */
+export const SETUP_PROGRESS_KEY = "worldlens.setup.progress";
+
+/**
+ * What is saved between launches. Deliberately has no "accepted" state: an acceptance
+ * only ever counts when the main process's own consent record says so.
+ */
+export interface SavedSetupProgress {
+    step: SetupStep;
+    declined: boolean;
+    storageDir: string | null;
+}
+
+export function readSetupProgress(): SavedSetupProgress | null {
+    const raw = setupStorage().read(SETUP_PROGRESS_KEY);
+    if (raw === null) return null;
+    try {
+        const parsed = JSON.parse(raw) as Partial<Record<keyof SavedSetupProgress, unknown>>;
+        const step = parsed.step;
+        if (typeof step !== "string" || !(SETUP_STEPS as readonly string[]).includes(step)) {
+            return null;
+        }
+        return {
+            step: step as SetupStep,
+            declined: parsed.declined === true,
+            storageDir:
+                typeof parsed.storageDir === "string" && parsed.storageDir.trim().length > 0
+                    ? parsed.storageDir
+                    : null,
+        };
+    } catch {
+        return null;
+    }
+}
+
+export function writeSetupProgress(progress: SavedSetupProgress): void {
+    setupStorage().write(SETUP_PROGRESS_KEY, JSON.stringify(progress));
+}
+
+export function clearSetupProgress(): void {
+    setupStorage().remove(SETUP_PROGRESS_KEY);
+}
+
+/**
+ * The step a saved run resumes on.
+ *
+ * Any step after the consent question needs that question answered, so without an
+ * answer the resume lands on the question rather than past it.
+ */
+export function resumeStep(saved: SetupStep, answer: ConsentAnswer): SetupStep {
+    const consentIndex = SETUP_STEPS.indexOf("consent");
+    if (SETUP_STEPS.indexOf(saved) > consentIndex && answer === null) return "consent";
+    return saved;
+}
 
 /** What the person answered during this run of the flow. */
 export type ConsentAnswer = "accepted" | "declined" | null;
@@ -118,7 +190,7 @@ export interface FirstRunController {
     /** Whether the setup surface should be on screen. False until `start()` says so. */
     readonly visible: Ref<boolean>;
     readonly step: Ref<SetupStep>;
-    /** One-based, for "Step 2 of 3". */
+    /** One-based, for "Step 2 of 4". */
     readonly stepNumber: ComputedRef<number>;
     readonly stepCount: number;
     readonly answer: Ref<ConsentAnswer>;
@@ -131,12 +203,18 @@ export interface FirstRunController {
     readonly platform: SetupPlatform;
     /** True when the default still carries an environment token to be expanded. */
     readonly storageIsToken: ComputedRef<boolean>;
+    /** True when this run resumed a saved, unfinished one rather than starting fresh. */
+    readonly resumed: Ref<boolean>;
+    /** Whether the current step offers "Skip for now". */
+    readonly canSkip: ComputedRef<boolean>;
 
     start(): Promise<boolean>;
     next(): void;
     back(): void;
     answerConsent(accepted: boolean): Promise<void>;
     useDefaultStorage(): void;
+    /** Applies the current step's default and moves on; on the last step, finishes. */
+    skip(): Promise<boolean>;
     finish(): Promise<boolean>;
     /** Closes without completing, offered only after a completion failure. */
     dismissAfterFailure(): void;
@@ -165,7 +243,10 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
     const storageDir = ref(readMapStorageDir() ?? defaultMapStorageDir(platform));
     const busy = ref(false);
     const failure = ref<string | null>(null);
+    const resumed = ref(false);
     let completed = false;
+    /** Saving starts once `start()` has shown the flow, and stops when it completes. */
+    let persisting = false;
     /**
      * The real absolute default, once the main process has said what it is.
      *
@@ -179,6 +260,19 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
     const storageIsToken = computed(
         () => storageDir.value.trim() === defaultMapStorageDir(platform),
     );
+    const canSkip = computed(() => SKIPPABLE_STEPS.includes(step.value));
+
+    function save(): void {
+        if (!persisting) return;
+        writeSetupProgress({
+            step: step.value,
+            declined: answer.value === "declined",
+            storageDir: storageDir.value,
+        });
+    }
+
+    // Synchronous, so quitting the instant after a click still finds the step saved.
+    watch([step, answer, storageDir], save, { flush: "sync" });
 
     async function start(): Promise<boolean> {
         if (!bridge) return false;
@@ -193,16 +287,27 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
             failure.value = describe(error);
             return false;
         }
-        if (!needed) return false;
+        if (!needed) {
+            // Setup is complete; anything still saved is left over and means nothing.
+            clearSetupProgress();
+            return false;
+        }
+
+        const saved = readSetupProgress();
 
         // Someone may already have accepted through the environment variable or a previous
-        // partial run. Reflect that rather than presenting an unanswered question.
+        // partial run. Reflect that rather than presenting an unanswered question. This is
+        // the only source an acceptance is ever taken from: the saved progress cannot say
+        // "accepted", so a resume can never accept on somebody's behalf.
+        let acceptedOnRecord = false;
         try {
             const record = await bridge.readConsent();
-            if (record.accepted) answer.value = "accepted";
+            acceptedOnRecord = record.accepted;
         } catch {
             // Not knowing the prior answer only means the question is asked as new.
         }
+        if (acceptedOnRecord) answer.value = "accepted";
+        else if (saved?.declined === true) answer.value = "declined";
 
         if (storageBridge?.mapStorageDirectory) {
             try {
@@ -213,8 +318,9 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
                 // the main process happens to be pointed at. Where there is none, `current`
                 // rather than `default`: it is the folder a render started this second
                 // would really write into, which is what this step claims to be showing.
-                if (readMapStorageDir() === null) {
-                    const shown = resolved.current.trim().length > 0 ? resolved.current.trim() : fallback;
+                if (readMapStorageDir() === null && saved?.storageDir == null) {
+                    const shown =
+                        resolved.current.trim().length > 0 ? resolved.current.trim() : fallback;
                     if (shown.length > 0) storageDir.value = shown;
                 }
             } catch {
@@ -222,6 +328,15 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
             }
         }
 
+        if (saved !== null) {
+            // The folder typed last time is that person's own unfinished answer.
+            if (saved.storageDir !== null) storageDir.value = saved.storageDir;
+            step.value = resumeStep(saved.step, answer.value);
+            resumed.value = step.value !== "welcome";
+        }
+
+        persisting = true;
+        save();
         visible.value = true;
         return true;
     }
@@ -273,6 +388,13 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
         storageDir.value = resolvedDefault ?? defaultMapStorageDir(platform);
     }
 
+    async function skip(): Promise<boolean> {
+        if (busy.value || !canSkip.value) return false;
+        // Storage is the only skippable step and the last one, so moving on is finishing.
+        useDefaultStorage();
+        return finish();
+    }
+
     async function finish(): Promise<boolean> {
         if (busy.value || !bridge) return false;
         if (storageProblem.value !== null) return false;
@@ -286,6 +408,8 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
                 await bridge.completeFirstRun();
                 completed = true;
             }
+            persisting = false;
+            clearSetupProgress();
             visible.value = false;
             return true;
         } catch (error) {
@@ -312,11 +436,14 @@ export function createFirstRunController(options: FirstRunOptions = {}): FirstRu
         failure,
         platform,
         storageIsToken,
+        resumed,
+        canSkip,
         start,
         next,
         back,
         answerConsent,
         useDefaultStorage,
+        skip,
         finish,
         dismissAfterFailure,
     };

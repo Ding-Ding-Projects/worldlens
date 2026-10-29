@@ -26,6 +26,7 @@ import { defineComponent, h } from "vue";
 import FirstRunSetup from "./FirstRunSetup.vue";
 import { memoryStorage, setSetupStorage } from "./setupPrefs.js";
 import { reloadSetupLanguage } from "./setupI18n.js";
+import { readSetupProgress, writeSetupProgress } from "./firstRunFlow.js";
 
 beforeAll(() => {
     // jsdom has no layout engine, so none of these exist and the mount throws without
@@ -136,9 +137,9 @@ async function openSetup(): Promise<void> {
 
 /** Clicks the button whose visible label is exactly `label`. */
 async function press(label: string): Promise<void> {
-    const button = [...document.querySelectorAll<HTMLElement>(".mb-setup-card__actions button")].find(
-        (candidate) => (candidate.textContent ?? "").trim() === label,
-    );
+    const button = [
+        ...document.querySelectorAll<HTMLElement>(".mb-setup-card__actions button"),
+    ].find((candidate) => (candidate.textContent ?? "").trim() === label);
     if (button === undefined) throw new Error(`no action button labelled ${label}`);
     button.click();
     await settle();
@@ -188,9 +189,9 @@ describe("the licence step", () => {
         await openSetup();
         await press("Next");
 
-        const labels = [...document.querySelectorAll<HTMLElement>(".mb-setup-card__actions button")].map(
-            (button) => (button.textContent ?? "").trim(),
-        );
+        const labels = [
+            ...document.querySelectorAll<HTMLElement>(".mb-setup-card__actions button"),
+        ].map((button) => (button.textContent ?? "").trim());
         expect(labels).toContain("Next");
         expect(labels).not.toContain("Accept");
         expect(labels).not.toContain("Decline");
@@ -215,9 +216,10 @@ describe("the consent question", () => {
         // absence of the control is a stronger guarantee than the absence of the tick.
         const inputs = [...card().querySelectorAll<HTMLInputElement>("input")];
         for (const input of inputs) {
-            expect(["checkbox", "radio"], `an ${input.type} appeared on the consent step`).not.toContain(
-                input.type,
-            );
+            expect(
+                ["checkbox", "radio"],
+                `an ${input.type} appeared on the consent step`,
+            ).not.toContain(input.type);
             expect(input.checked).toBe(false);
         }
 
@@ -340,5 +342,85 @@ describe("finishing setup", () => {
         expect(wrapper?.findComponent(FirstRunSetup).emitted("finished")).toBeUndefined();
         // The failure is on screen, and the dialog is still open with a way out of it.
         expect(card().textContent).toContain("disk is full");
+    });
+});
+
+describe("progress, resume, skip and keyboard", () => {
+    function progressbar(): HTMLElement {
+        const bar = card().querySelector<HTMLElement>(
+            '.mb-setup-card__progressbar[role="progressbar"]',
+        );
+        if (bar === null) throw new Error("no progressbar");
+        return bar;
+    }
+
+    function actionButton(label: string): HTMLButtonElement | undefined {
+        return [
+            ...document.querySelectorAll<HTMLButtonElement>(".mb-setup-card__actions button"),
+        ].find((candidate) => (candidate.textContent ?? "").trim() === label);
+    }
+
+    it("shows Step N of 4 with an accessible progressbar that agrees with it", async () => {
+        await openSetup();
+        expect(card().textContent).toContain("Step 1 of 4");
+        expect(progressbar().getAttribute("aria-valuenow")).toBe("1");
+        expect(progressbar().getAttribute("aria-valuemax")).toBe("4");
+        expect(progressbar().getAttribute("aria-valuetext")).toBe("Step 1 of 4");
+        expect(progressbar().getAttribute("aria-label")).toBe("Setup progress");
+        await press("Next");
+        expect(progressbar().getAttribute("aria-valuenow")).toBe("2");
+        expect(card().textContent).toContain("Step 2 of 4");
+    });
+
+    it("resumes at the saved step after a relaunch and says so", async () => {
+        writeSetupProgress({ step: "eula", declined: false, storageDir: null });
+        await openSetup();
+        expect(card().textContent).toContain("Step 2 of 4");
+        expect(document.querySelector('[data-testid="setup-resumed"]')).not.toBeNull();
+    });
+
+    it("lands on the consent question, unanswered, when a resume would skip past it", async () => {
+        writeSetupProgress({ step: "storage", declined: false, storageDir: null });
+        await openSetup();
+        expect(card().textContent).toContain("Step 3 of 4");
+        expect(document.querySelectorAll(".mb-setup-card__answer")).toHaveLength(2);
+        expect(actionButton("Skip for now")).toBeUndefined();
+    });
+
+    it("offers Skip for now only on the map folder, and it finishes with the default", async () => {
+        await openSetup();
+        expect(actionButton("Skip for now")).toBeUndefined();
+        await press("Next");
+        expect(actionButton("Skip for now")).toBeUndefined();
+        await press("Next");
+        expect(actionButton("Skip for now")).toBeUndefined();
+        await press("Decline");
+        expect(actionButton("Skip for now")).toBeDefined();
+
+        await press("Skip for now");
+
+        expect(wrapper?.findComponent(FirstRunSetup).emitted("finished")).toHaveLength(1);
+        expect(readSetupProgress()).toBeNull();
+    });
+
+    it("makes Back and Next native, focusable buttons that a keyboard can reach and press", async () => {
+        await openSetup();
+        await press("Next");
+        for (const label of ["Back", "Next"]) {
+            const button = actionButton(label);
+            expect(button, label).toBeDefined();
+            const element = button as HTMLButtonElement;
+            // A native <button> is activated by Enter and Space and is in the tab order.
+            expect(element.tagName).toBe("BUTTON");
+            expect(element.disabled).toBe(false);
+            expect(element.tabIndex).toBeGreaterThanOrEqual(0);
+            element.focus();
+            expect(document.activeElement).toBe(element);
+        }
+        // Focus moves to the new step's region on every step change, so a keyboard user
+        // is not left on a button that has just changed meaning.
+        await press("Back");
+        expect(document.activeElement?.classList.contains("mb-setup-card__region")).toBe(true);
+        expect(card().textContent).toContain("Step 1 of 4");
     });
 });

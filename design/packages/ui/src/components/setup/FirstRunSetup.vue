@@ -19,7 +19,7 @@ import { SETUP_STEPS, createFirstRunController, type SetupStep } from "./firstRu
 import { productDisplayName } from "../../stores/productName.js";
 
 /**
- * First-run setup: three steps, shown once, before anybody is in the middle of anything.
+ * First-run setup: four steps, shown once, before anybody is in the middle of anything.
  *
  * Mount it once in the shell and forget about it. On mount it asks the main process
  * whether this is a first launch (`needsFirstRun()`); in a browser build, where there is
@@ -47,6 +47,11 @@ import { productDisplayName } from "../../stores/productName.js";
  * once setup genuinely completes. It fires only on a real `finish()` success, never on
  * `dismissAfterFailure` - a completion that did not land is not a reason to navigate
  * anywhere.
+ *
+ * Progress is both a sentence ("Step 2 of 4") and a `progressbar` carrying the same
+ * numbers. The flow saves its step as it goes, so a relaunch resumes there and says so.
+ * "Skip for now" appears only on a step with a working default (the map folder); the
+ * licence and the consent question never offer it.
  */
 const i18n = useSetupI18n();
 
@@ -81,6 +86,13 @@ const stepLabel = (step: SetupStep): string => i18n.t(`step.${step}` as const);
 const progressText = computed(() =>
     i18n.t("setup.progress", { step: flow.stepNumber.value, total: flow.stepCount }),
 );
+
+const progressPercent = computed(() => (flow.stepNumber.value / flow.stepCount) * 100);
+
+async function onSkip(): Promise<void> {
+    const succeeded = await flow.skip();
+    if (succeeded) emit("finished");
+}
 
 onMounted(() => {
     void flow.start();
@@ -129,6 +141,20 @@ function onStorageInput(value: string): void {
                 <p :id="progressId" class="mb-setup-card__progress" aria-live="polite">
                     {{ progressText }}
                 </p>
+                <div
+                    class="mb-setup-card__progressbar"
+                    role="progressbar"
+                    :aria-label="i18n.t('setup.progressLabel')"
+                    aria-valuemin="1"
+                    :aria-valuemax="flow.stepCount"
+                    :aria-valuenow="flow.stepNumber.value"
+                    :aria-valuetext="progressText"
+                >
+                    <div
+                        class="mb-setup-card__progressbar-fill"
+                        :style="{ inlineSize: `${progressPercent}%` }"
+                    />
+                </div>
                 <ol class="mb-setup-card__steps">
                     <li
                         v-for="(name, index) in SETUP_STEPS"
@@ -148,6 +174,13 @@ function onStorageInput(value: string): void {
             <v-divider />
 
             <v-card-text class="mb-setup-card__body">
+                <p
+                    v-if="flow.resumed.value"
+                    class="mb-setup-card__resumed"
+                    data-testid="setup-resumed"
+                >
+                    {{ i18n.t("setup.resumed") }}
+                </p>
                 <div
                     ref="stepRegion"
                     class="mb-setup-card__region"
@@ -245,6 +278,17 @@ function onStorageInput(value: string): void {
 
                 <template v-else>
                     <v-btn
+                        v-if="flow.canSkip.value"
+                        variant="text"
+                        class="mb-setup-card__skip"
+                        :title="i18n.t('action.skipForNowHint')"
+                        :aria-description="i18n.t('action.skipForNowHint')"
+                        :disabled="flow.busy.value"
+                        @click="onSkip"
+                    >
+                        {{ i18n.t("action.skipForNow") }}
+                    </v-btn>
+                    <v-btn
                         v-if="flow.failure.value !== null"
                         variant="text"
                         :disabled="flow.busy.value"
@@ -302,6 +346,34 @@ function onStorageInput(value: string): void {
     margin: 2px 0 0;
     font-size: var(--md-sys-typescale-body-medium-size);
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+.mb-setup-card__progressbar {
+    margin: 8px 0 0;
+    block-size: 4px;
+    overflow: hidden;
+    border-radius: var(--md-sys-shape-corner-full);
+    background: rgb(var(--v-theme-surface-container-highest));
+}
+
+.mb-setup-card__progressbar-fill {
+    block-size: 100%;
+    border-radius: inherit;
+    background: rgb(var(--v-theme-primary));
+    transition: inline-size var(--md-sys-motion-duration-medium2, 300ms)
+        var(--md-sys-motion-easing-standard, ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mb-setup-card__progressbar-fill {
+        transition: none;
+    }
+}
+
+.mb-setup-card__resumed {
+    margin: 0 0 12px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-setup-card__steps {
