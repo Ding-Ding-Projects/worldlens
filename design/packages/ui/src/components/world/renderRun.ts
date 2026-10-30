@@ -71,6 +71,7 @@ import type {
     WorldBridge,
 } from "./worldBridge.js";
 import { speedLevelByNumber } from "../config/speedLevels.js";
+import { playRenderOutcomeCue } from "../../stores/actionSounds.js";
 import type { Translate } from "./worldFolder.js";
 
 export type RunState = "idle" | "starting" | "running" | "finished" | "failed" | "cancelled";
@@ -1246,6 +1247,8 @@ export function createRenderRun(
                 noteEnd(stoppedWithCode(0));
                 void loadProvenance();
                 persistHistory(true);
+                // Once per render id however many runs are watching it; see the store.
+                playRenderOutcomeCue(event.renderId, "finished");
                 break;
             case "failed":
                 state.value = "failed";
@@ -1254,6 +1257,7 @@ export function createRenderRun(
                 noteEnd(endedByFailure(event.failure));
                 void loadProvenance();
                 persistHistory(true);
+                playRenderOutcomeCue(event.renderId, "failed");
                 break;
             case "cancelled":
                 state.value = "cancelled";

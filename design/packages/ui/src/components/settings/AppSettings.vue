@@ -47,6 +47,7 @@ import { THEME_CHOICES, currentTheme } from "./themeSetting.js";
 import { createDownloadConcurrencySetting } from "./downloadConcurrencySetting.js";
 import DownloadConcurrencyRow from "./DownloadConcurrencyRow.vue";
 import NotificationDurationRow from "./NotificationDurationRow.vue";
+import ActionSoundsRow from "./ActionSoundsRow.vue";
 import { notices } from "../../stores/notices.js";
 import {
     dockPlacementLabel,
@@ -454,7 +455,14 @@ const sections = computed<SettingsSectionText[]>(() => {
             anchor: "notification-duration",
             title: text["notification-duration"].title,
             description: text["notification-duration"].description,
-            values: [noticeDurationLevelLabel(t, notices.durationLevel)],
+            values: [
+                noticeDurationLevelLabel(t, notices.durationLevel),
+                t("settings.sounds.enabled", "Play action sounds"),
+                t("settings.sounds.volume", "Action sound volume"),
+                "sound",
+                "audio",
+                "mute",
+            ],
         },
         // The winget/Chocolatey rules everyone can already read: the dependency names and
         // the two package managers, so typing "docker" or "chocolatey" finds this tab even
@@ -1184,6 +1192,7 @@ function onDrawer(value: boolean): void {
                         :description="copy['notification-duration'].description"
                     >
                         <NotificationDurationRow />
+                        <ActionSoundsRow />
                     </SettingsSection>
                 </template>
 

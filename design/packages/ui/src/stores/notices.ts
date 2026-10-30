@@ -11,7 +11,9 @@ import {
     readNoticeDurationLevel,
     writeNoticeDurationLevel,
 } from "../components/config/noticeDurationPrefs.js";
+import { watch } from "vue";
 import { productDisplayName } from "./productName.js";
+import { playActionCue } from "./actionSounds.js";
 
 /**
  * The application's one notification history.
@@ -39,6 +41,29 @@ export const notices = createNoticeState({ delivery: "history" });
 // reads back `DEFAULT_NOTICE_DURATION_LEVEL`, which `createNoticeState()` already defaults
 // to, so this is a no-op read on a fresh install rather than a second source of the default.
 setNoticeDurationLevel(notices, readNoticeDurationLevel());
+
+/**
+ * The success and error cues, for every notice added to the shared history.
+ *
+ * Watched on the state rather than played from {@link raiseNotice}, because some screens
+ * (the options editor among them) call `notify(notices, ...)` directly, and a cue that
+ * sounded for some success messages and not others would teach nobody anything. Keyed on
+ * the newest history entry's id, which changes exactly once per notice, including one
+ * throttled out of the live view: it still landed in the history somebody will read.
+ * Synchronous, so the cue sounds in the same tick the notice arrives. Info and warning
+ * notices stay silent.
+ */
+watch(
+    () => notices.history[0]?.id ?? 0,
+    (newestId, previousId) => {
+        if (newestId <= previousId) return;
+        const newest = notices.history[0];
+        if (newest === undefined) return;
+        if (newest.level === "success") playActionCue("success");
+        else if (newest.level === "error") playActionCue("error");
+    },
+    { flush: "sync" },
+);
 
 /**
  * Raises a notice in the shared rail history.

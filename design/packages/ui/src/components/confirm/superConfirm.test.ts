@@ -39,6 +39,8 @@ import ProfileManager from "../ProfileManager.vue";
 import { loadWorkspace, removeEntry, savePlan, type ConfigWorkspace } from "../config/configWorkspace.js";
 import { profilesStore } from "../../stores/profiles.js";
 import { GATE_COMPLETION_HOLD_MS, GATE_TRAVEL_END } from "./superConfirmGate.js";
+import { reloadDialogEmoji, setDialogEmojiEnabled } from "../setup/dialogEmoji.js";
+import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
 
 /** Set by `useReducedMotion` below; read by the `matchMedia` shim. */
 let reducedMotion = false;
@@ -306,6 +308,54 @@ const CARDS = [
     { name: "the anchored gate", open: openAnchored, component: ConfigSuperConfirm, css: ".mb-config-confirm" },
     { name: "the modal gate", open: openModal, component: MenuSuperConfirm, css: ".mb-super-confirm" },
 ] as const;
+
+/* -------------------------------------------------------------------------- */
+/* The decorative heading emoji                                               */
+/* -------------------------------------------------------------------------- */
+
+for (const card of CARDS) {
+    describe(`${card.name}: the Show emojis in dialogs setting`, () => {
+        beforeEach(() => {
+            setSetupStorage(memoryStorage());
+            reloadDialogEmoji();
+        });
+
+        afterEach(() => {
+            setSetupStorage(memoryStorage());
+            reloadDialogEmoji();
+        });
+
+        it("shows one hidden-from-assistive-technology emoji beside the heading when on", async () => {
+            setDialogEmojiEnabled(true);
+            const host = await card.open();
+            const surface = drive(host, card.component, card.css).card();
+            const emoji = surface?.querySelectorAll(".mb-dialog-emoji") ?? [];
+
+            expect(emoji).toHaveLength(1);
+            expect(emoji[0]?.getAttribute("aria-hidden")).toBe("true");
+            expect(emoji[0]?.textContent?.trim()).not.toBe("");
+            // Beside the words, never instead of them, and never in the accessible name.
+            const heading = emoji[0]?.parentElement;
+            expect(heading?.tagName).toMatch(/^H[23]$/);
+            expect(heading?.textContent).toContain(surface?.getAttribute("aria-label") ?? "missing");
+            expect(surface?.getAttribute("aria-label")).not.toContain(emoji[0]?.textContent ?? "");
+            // Never in a control or in the stated facts.
+            for (const control of surface?.querySelectorAll("button, label, li, [role='status']") ?? []) {
+                expect(control.querySelector(".mb-dialog-emoji")).toBeNull();
+            }
+        });
+
+        it("shows no emoji at all when off, with the same heading text", async () => {
+            setDialogEmojiEnabled(false);
+            const host = await card.open();
+            const surface = drive(host, card.component, card.css).card();
+
+            expect(surface?.querySelector(".mb-dialog-emoji")).toBeNull();
+            const heading = surface?.querySelector("h2, h3");
+            expect(heading?.textContent?.trim()).toBe(surface?.getAttribute("aria-label"));
+        });
+    });
+}
 
 /* -------------------------------------------------------------------------- */
 /* The states the contract names                                              */

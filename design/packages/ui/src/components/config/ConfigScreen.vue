@@ -51,6 +51,7 @@ import { SCREENS, buildSettingIndex, groupMatchesByScreen, searchSettings, works
 import { createBridgeConfigHost, hostMissingReason, provideConfigHost, type ConfigHost } from "./configHost.js";
 import { notify } from "./notifications.js";
 import { notices } from "../../stores/notices.js";
+import { playActionCue } from "../../stores/actionSounds.js";
 
 /**
  * The whole options interface.
@@ -593,6 +594,9 @@ async function confirmSave(): Promise<void> {
 
         workspace.value = markWorkspaceSaved(current, currentPlan);
         applyOpen.value = false;
+        // Before the success notice, so this is the one cue the save makes: the notice's
+        // own success cue falls inside the shared gap and stays silent.
+        playActionCue("save");
 
         notify(
             notices,

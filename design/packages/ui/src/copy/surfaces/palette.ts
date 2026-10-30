@@ -1289,6 +1289,38 @@ export const PALETTE_VOICED = {
             "喺畫面顯示檢視器自己嘅診斷資訊，仲會癲咗咁落大量記錄去主控台。",
         ],
     },
+    "palette.dialogEmoji.description": {
+        en: [
+            "Whether dialog and message box headings show one decorative emoji. Screen readers skip it. Remembered between launches.",
+            "Whether dialog and message box headings show one decorative emoji. Screen readers skip it. Remembered between launches.",
+            "Whether dialog and message box headings show one decorative emoji, which screen readers skip. Remembered between launches.",
+            "Whether dialog and message box headings wear one decorative emoji, which screen readers skip, and it remembers your choice next time.",
+            "Whether dialog and message box headings get to wear one decorative emoji, which screen readers politely skip, and it remembers your choice every time.",
+        ],
+        yue: [
+            "對話框同訊息框嘅標題會唔會顯示一個裝飾 emoji。螢幕閱讀器會跳過佢。會喺下次開嘅時候記住。",
+            "對話框同訊息框嘅標題會唔會顯示一個裝飾 emoji。螢幕閱讀器會跳過佢。會喺下次開嘅時候記住。",
+            "對話框同訊息框標題顯唔顯示裝飾 emoji，螢幕閱讀器會跳過佢。下次開都會記住。",
+            "對話框同訊息框標題戴唔戴個裝飾 emoji，螢幕閱讀器會跳過佢，你揀咗下次都記得。",
+            "對話框同訊息框標題要唔要戴個裝飾 emoji 仔，螢幕閱讀器會好有禮貌咁跳過佢，你揀咗下次都照記住。",
+        ],
+    },
+    "palette.actionSounds.description": {
+        en: [
+            "Short tones for saves, finished or failed renders, success and error messages, and confirmed destructive actions. Remembered between launches.",
+            "Short tones for saves, finished or failed renders, success and error messages, and confirmed destructive actions. Remembered between launches.",
+            "Short tones for saves, finished or failed renders, success and error messages, and confirmed destructive actions, remembered between launches.",
+            "A short tone for saves, finished or failed renders, success and error messages, and confirmed destructive actions, and it remembers your choice next time.",
+            "A tiny tone for saves, finished or failed renders, success and error messages, and confirmed destructive actions, and it remembers whichever way you like it, every time.",
+        ],
+        yue: [
+            "儲存、render 完成或失敗、成功同錯誤訊息，同埋確認咗嘅破壞性操作，都會有短音效。會喺下次開嘅時候記住。",
+            "儲存、render 完成或失敗、成功同錯誤訊息，同埋確認咗嘅破壞性操作，都會有短音效。會喺下次開嘅時候記住。",
+            "儲存、render 完成或失敗、成功同錯誤訊息，同埋確認咗嘅破壞性操作都有短音效，下次開都會記住。",
+            "儲存、render 完成或失敗、成功同錯誤訊息，同埋確認咗嘅破壞性操作都會「叮」一聲，你揀咗下次都記得。",
+            "儲存、render 完成或失敗、成功同錯誤訊息，同埋確認咗嘅破壞性操作，通通都細細聲「叮」一下，你鍾意點，下次都照記住。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const PALETTE_FIXED = {
@@ -1375,6 +1407,7 @@ export const PALETTE_FIXED = {
        funny level rendered the English fallback. */
     "palette.shell.adultMode": { en: "Opens the one grown-up gate before switching out of Kid Mode.", yue: "轉返做大人模式之前，會先開嗰個大人閘。" },
     "palette.where.adultMode": { en: "Opens the grown-up gate in Kid Mode.", yue: "喺小朋友模式度開個大人閘。" },
+    "palette.dialogEmoji.title": { en: "Show emojis in dialogs", yue: "對話框顯示 emoji" },
 } as const satisfies Record<string, FixedString>;
 
 export const PALETTE_FACTS = {
@@ -1570,6 +1603,14 @@ export const PALETTE_FACTS = {
         yue: ["十六格方塊", "區塊網格"],
     },
     "palette.debug.description": { en: ["diagnostics", "console"], yue: ["診斷資訊", "主控台"] },
+    "palette.dialogEmoji.description": {
+        en: ["emoji", "screen readers || Screen readers", "Remembered || remembers"],
+        yue: ["emoji", "螢幕閱讀器", "記住 || 記得"],
+    },
+    "palette.actionSounds.description": {
+        en: ["saves", "renders", "destructive", "Remembered || remembered || remembers"],
+        yue: ["儲存", "render", "破壞性操作", "記住 || 記得"],
+    },
 } as const satisfies Record<
     keyof typeof PALETTE_VOICED,
     { en: readonly string[]; yue: readonly string[] }

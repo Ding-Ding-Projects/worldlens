@@ -66,5 +66,7 @@ export function languageSearchLabels(): string[] {
         `${String(yue)} ${levelName(yue, "yue")}`,
         flat("language.disclosure"),
         flat("action.resetLanguage"),
+        flat("language.dialogEmoji.label"),
+        "emoji",
     ];
 }

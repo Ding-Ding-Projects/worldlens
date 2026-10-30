@@ -10,6 +10,8 @@ import {
     GATE_TRAVEL_END,
     GATE_TRAVEL_START,
 } from "../confirm/superConfirmGate.js";
+import { useDialogEmoji } from "../setup/dialogEmoji.js";
+import { playActionCue } from "../../stores/actionSounds.js";
 
 /**
  * Super confirmation for a destructive action, anchored beside the control that
@@ -41,6 +43,11 @@ const props = withDefaults(
         affected?: readonly string[];
         confirmLabel: string;
         disabled?: boolean;
+        /**
+         * A more specific decorative emoji for this dialog's heading, or null for none.
+         * Shown only while the Show emojis in dialogs setting is on.
+         */
+        emoji?: string | null;
     }>(),
     { affected: () => [], disabled: false },
 );
@@ -56,7 +63,13 @@ const { t } = useI18n();
 
 const open = ref(false);
 const activator = ref<HTMLElement | null>(null);
+const headingEmoji = useDialogEmoji(
+    () => "destructive",
+    () => props.emoji,
+);
+
 const gate = createSuperConfirmGate(() => {
+    playActionCue("destructive");
     emit("authorized", { keyOne: true, keyTwo: true, travel: 100 });
     emit("confirm");
 });
@@ -162,7 +175,14 @@ function cancel(): void {
                 <v-card-text>
                     <div class="mb-config-confirm__head">
                         <v-icon :icon="mdiAlertOutline" color="error" size="26" aria-hidden="true" />
-                        <h3 class="mb-config-confirm__title">{{ title }}</h3>
+                        <h3 class="mb-config-confirm__title">
+                            <span
+                                v-if="headingEmoji !== null"
+                                class="mb-config-confirm__emoji mb-dialog-emoji"
+                                aria-hidden="true"
+                                >{{ headingEmoji }}</span
+                            >{{ title }}
+                        </h3>
                     </div>
 
                     <p class="mb-config-confirm__action">{{ action }}</p>
@@ -287,6 +307,10 @@ function cancel(): void {
     font-size: var(--md-sys-typescale-body-large-size);
     font-weight: 500;
     line-height: 1.3;
+}
+
+.mb-config-confirm__emoji {
+    margin-inline-end: 8px;
 }
 
 .mb-config-confirm__action {

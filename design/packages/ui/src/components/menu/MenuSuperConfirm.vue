@@ -22,6 +22,8 @@ import {
     GATE_TRAVEL_END,
     GATE_TRAVEL_START,
 } from "../confirm/superConfirmGate.js";
+import { useDialogEmoji } from "../setup/dialogEmoji.js";
+import { playActionCue } from "../../stores/actionSounds.js";
 
 /**
  * Super confirmation gate for a destructive action, built in the app's own renderer.
@@ -53,6 +55,11 @@ const props = withDefaults(
         affected?: readonly string[];
         /** Label of the final confirm affordance. */
         confirmLabel: string;
+        /**
+         * A more specific decorative emoji for the heading, or null for none. Shown only
+         * while the Show emojis in dialogs setting is on.
+         */
+        emoji?: string | null;
     }>(),
     { affected: () => [] },
 );
@@ -61,7 +68,15 @@ const emit = defineEmits<{ "update:modelValue": [value: boolean]; confirm: [] }>
 
 const { t } = useI18n();
 
-const gate = createSuperConfirmGate(() => emit("confirm"));
+const headingEmoji = useDialogEmoji(
+    () => "destructive",
+    () => props.emoji,
+);
+
+const gate = createSuperConfirmGate(() => {
+    playActionCue("destructive");
+    emit("confirm");
+});
 
 const armed = gate.armed;
 const done = computed(() => gate.authorized.value);
@@ -138,7 +153,14 @@ function cancel(): void {
             <v-card-text>
                 <div class="mb-super-confirm__head">
                     <v-icon :icon="mdiAlertOutline" color="error" size="28" aria-hidden="true" />
-                    <h2 class="mb-super-confirm__title">{{ title }}</h2>
+                    <h2 class="mb-super-confirm__title">
+                        <span
+                            v-if="headingEmoji !== null"
+                            class="mb-super-confirm__emoji mb-dialog-emoji"
+                            aria-hidden="true"
+                            >{{ headingEmoji }}</span
+                        >{{ title }}
+                    </h2>
                 </div>
 
                 <p class="mb-super-confirm__action">{{ action }}</p>
@@ -315,6 +337,10 @@ function cancel(): void {
     line-height: var(--md-sys-typescale-headline-small-line-height);
     font-weight: var(--md-sys-typescale-headline-small-weight);
     letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+}
+
+.mb-super-confirm__emoji {
+    margin-inline-end: 8px;
 }
 
 /*

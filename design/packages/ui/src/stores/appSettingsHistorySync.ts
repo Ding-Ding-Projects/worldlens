@@ -121,6 +121,7 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "languageMode", owner: "components/setup/setupI18n.ts" },
     { key: "funnyLevelEn", owner: "components/setup/setupI18n.ts" },
     { key: "funnyLevelYue", owner: "components/setup/setupI18n.ts" },
+    { key: "dialogEmoji", owner: "components/setup/dialogEmoji.ts" },
     { key: "productDisplayName", owner: "stores/productName.ts" },
     { key: "updateDismissed", owner: "components/update/updateModel.ts" },
     { key: "noticeDuration", owner: "components/config/noticeDurationPrefs.ts" },
@@ -147,6 +148,9 @@ export const APP_SETTINGS_HISTORY_KEYS: readonly AppSettingsHistoryKey[] = [
     { key: "tabs.worldlens-config-editor-tabs", owner: "components/tabs/tabStorage.ts" },
     { key: "tabs.worldlens-project-editor-tabs", owner: "components/tabs/tabStorage.ts" },
     { key: "runtimeSettings", owner: "components/runtimeSettings/RuntimeSettingsPanel.vue" },
+    // The action sound switch and volume, recorded together. A volume drag is recorded once
+    // it settles rather than per frame - see `actionSounds.ts`'s `recordHistory`.
+    { key: "actionSounds", owner: "stores/actionSounds.ts" },
 ];
 
 /** One store's key, its owner, and why it is deliberately never mirrored into history. */

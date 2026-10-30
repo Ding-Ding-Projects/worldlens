@@ -65,6 +65,8 @@ import {
     type SettingsSectionAnchor,
 } from "../settings/settingsSections.js";
 import { schoolModeEnabled } from "../setup/schoolMode.js";
+import { dialogEmojiChoice, setDialogEmojiEnabled } from "../setup/dialogEmoji.js";
+import { actionSoundPrefs, setActionSoundsEnabled } from "../../stores/actionSounds.js";
 import {
     assertPaletteRegistryBound,
     assertUniquePaletteIds,
@@ -1094,6 +1096,62 @@ function appearanceItems(input: PaletteCatalogInput, group: string): PaletteItem
 }
 
 /**
+ * The two feedback preferences: decorative emoji in dialog headings, and action sounds.
+ *
+ * Both are live toggles on the same shared readouts their Settings rows change
+ * (`setup/dialogEmoji.ts`, `stores/actionSounds.ts`). The emoji row is omitted while School
+ * mode is on, for the same reason the funny levels are: the setting is treated as not
+ * installed rather than shown disabled.
+ */
+function feedbackItems(input: PaletteCatalogInput, group: string): PaletteItem[] {
+    const { t } = input;
+    const items: PaletteItem[] = [];
+    if (!schoolModeEnabled()) {
+        items.push({
+            kind: "setting",
+            id: "language.dialogEmoji",
+            group,
+            title: t("palette.dialogEmoji.title", "Show emojis in dialogs"),
+            description: t(
+                "palette.dialogEmoji.description",
+                "Whether dialog and message box headings show one decorative emoji. Screen readers skip it. Remembered between launches.",
+            ),
+            keywords: ["emoji", "dialog", "decoration", "playful", "tone", "message box"],
+            location: [
+                t("settings.title", "Settings"),
+                t("settings.language.title", "Language and tone"),
+            ],
+            control: {
+                kind: "toggle",
+                value: dialogEmojiChoice(),
+                set: (value) => setDialogEmojiEnabled(value),
+            },
+        });
+    }
+    items.push({
+        kind: "setting",
+        id: "notifications.actionSounds",
+        group,
+        title: t("settings.sounds.enabled", "Play action sounds"),
+        description: t(
+            "palette.actionSounds.description",
+            "Short tones for saves, finished or failed renders, success and error messages, and confirmed destructive actions. Remembered between launches.",
+        ),
+        keywords: ["sound", "audio", "mute", "beep", "chime", "volume", "quiet"],
+        location: [
+            t("settings.title", "Settings"),
+            t("settings.noticeDuration.title", "Notification duration"),
+        ],
+        control: {
+            kind: "toggle",
+            value: actionSoundPrefs.enabled,
+            set: (value) => setActionSoundsEnabled(value),
+        },
+    });
+    return items;
+}
+
+/**
  * The palette's own size, listed in the palette.
  *
  * It belongs here for the same reason every other setting does: somebody who finds the
@@ -1154,6 +1212,7 @@ export function buildPaletteCatalog(input: PaletteCatalogInput): PaletteItem[] {
         ...pageItems(input, t("palette.group.pages", "Pages")),
         ...chromeItems(input, t("palette.group.chrome", "Shell")),
         ...settingsSectionItems(input, t("palette.group.appSettings", "App settings")),
+        ...feedbackItems(input, t("palette.group.appSettings", "App settings")),
         ...configScreenItems(input, t("palette.group.config", "Server configuration")),
         configHistoryItem(input, t("palette.group.config", "Server configuration")),
         ...appearanceItems(input, t("palette.group.appearance", "Appearance")),

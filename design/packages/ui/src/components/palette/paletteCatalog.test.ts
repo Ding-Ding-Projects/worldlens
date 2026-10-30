@@ -43,6 +43,8 @@ import {
     resetSchoolModeRecordAdapter,
 } from "../setup/schoolMode.js";
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
+import { dialogEmojiChoice, reloadDialogEmoji } from "../setup/dialogEmoji.js";
+import { actionSoundPrefs, reloadActionSoundPrefs } from "../../stores/actionSounds.js";
 import {
     buildPaletteCatalog,
     type PaletteCatalogInput,
@@ -691,6 +693,46 @@ describe("the settings rows write, and persist what they wrote", () => {
         expect(row.control.options.map((option) => option.id)).toEqual(["card", "full"]);
         row.control.set("full");
         expect(setSize).toHaveBeenCalledWith("full");
+    });
+});
+
+describe("the feedback rows", () => {
+    beforeEach(() => {
+        setSetupStorage(memoryStorage());
+        reloadDialogEmoji();
+        reloadActionSoundPrefs();
+    });
+
+    it("toggles the dialog emoji live, through the same store the Settings row writes", () => {
+        const row = settingRow(buildPaletteCatalog(input()), "language.dialogEmoji");
+        if (row.control.kind !== "toggle") throw new Error("expected a toggle");
+        expect(row.control.value).toBe(true);
+        row.control.set(false);
+        expect(dialogEmojiChoice()).toBe(false);
+        const again = settingRow(buildPaletteCatalog(input()), "language.dialogEmoji");
+        expect(again.control.value).toBe(false);
+    });
+
+    it("toggles action sounds live, through the same store the Settings row writes", () => {
+        const row = settingRow(buildPaletteCatalog(input()), "notifications.actionSounds");
+        if (row.control.kind !== "toggle") throw new Error("expected a toggle");
+        expect(row.control.value).toBe(true);
+        row.control.set(false);
+        expect(actionSoundPrefs.enabled).toBe(false);
+    });
+
+    it("is findable by the words somebody would type", () => {
+        const items = buildPaletteCatalog(input());
+        for (const [term, id] of [
+            ["emoji", "language.dialogEmoji"],
+            ["sound", "notifications.actionSounds"],
+            ["mute", "notifications.actionSounds"],
+        ] as const) {
+            expect(
+                filterItems(items, createSettingMatcher(term, false, "i")).some((item) => item.id === id),
+                term,
+            ).toBe(true);
+        }
     });
 });
 

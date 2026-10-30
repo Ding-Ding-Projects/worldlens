@@ -401,6 +401,10 @@ export const FIXED = {
     "eula.category.termination": { en: "Termination", yue: "終止" },
     "eula.category.liability": { en: "Warranties and liability", yue: "保證同責任" },
     "eula.category.other": { en: "Other terms", yue: "其他條款" },
+    "language.dialogEmoji.label": {
+        en: "Show emojis in dialogs",
+        yue: "對話框顯示 emoji",
+    },
 } as const satisfies Record<string, FixedString>;
 
 /* -------------------------------------------------------------------------- */
@@ -756,6 +760,22 @@ export const VOICED = {
             "你喺設定嗰陣俾嘅答案。想改幾時都改得。",
             "你設定嗰陣講咗乜，全部喺呢度，仲要唔係石頭刻嘅。",
             "你嘅設定答案擺晒喺呢度，隨時反口都得，我哋唔會唔開心。",
+        ],
+    },
+    "language.dialogEmoji.summary": {
+        en: [
+            "When on, dialog and message box headings show one decorative emoji. It is hidden from screen readers and never replaces any words, buttons or warnings.",
+            "When on, dialog and message box headings show one decorative emoji. It is hidden from screen readers and never replaces any words, buttons or warnings.",
+            "When on, dialog and message box headings get one decorative emoji. Screen readers skip it, and it never replaces any words, buttons or warnings.",
+            "When on, dialog and message box headings wear one small decorative emoji. Screen readers skip it, and it never stands in for any words, buttons or warnings.",
+            "When on, dialog and message box headings get a little emoji hat to wear. Screen readers politely skip it, and it never stands in for any words, buttons or warnings.",
+        ],
+        yue: [
+            "開咗之後，對話框同訊息框嘅標題會多一個裝飾用嘅 emoji。螢幕閱讀器唔會讀出嚟，亦都唔會取代任何文字、按鈕或者警告。",
+            "開咗之後，對話框同訊息框嘅標題會多一個裝飾用嘅 emoji。螢幕閱讀器唔會讀出嚟，亦都唔會取代任何文字、按鈕或者警告。",
+            "開咗，對話框同訊息框嘅標題會加一個裝飾 emoji。螢幕閱讀器會跳過佢，亦都唔會取代任何文字、按鈕或者警告。",
+            "開咗，對話框同訊息框嘅標題會戴住一個細細嘅裝飾 emoji。螢幕閱讀器會跳過佢，佢亦都唔會頂替任何文字、按鈕或者警告。",
+            "開咗，對話框同訊息框嘅標題就有個 emoji 小帽仔戴。螢幕閱讀器會好有禮貌咁跳過佢，佢亦都絕對唔會頂替任何文字、按鈕或者警告。",
         ],
     },
 } as const satisfies Record<string, VoicedString>;

@@ -995,6 +995,22 @@ export const SETTINGS_VOICED = {
             "「系統」即係部電腦今日心情話事，話光就光話暗就暗。「高對比」就係為低視力朋友度身訂造，冇得傾。地圖入面嘅設定選單都有一模一樣嘅控制，兩邊永遠一致，夾到天衣無縫。",
         ],
     },
+    "settings.sounds.summary": {
+        en: [
+            "Short tones play when a save finishes, a render completes or fails, a success or error message arrives, and a destructive action is confirmed. Every result is still shown on screen. Quiet hours and the low-stimulation accommodation silence them too.",
+            "Short tones play when a save finishes, a render completes or fails, a success or error message arrives, and a destructive action is confirmed. Every result is still shown on screen. Quiet hours and the low-stimulation accommodation silence them too.",
+            "Short tones play when a save finishes, a render completes or fails, a success or error message arrives, and a destructive action is confirmed. Every result is still shown on screen, and quiet hours and the low-stimulation accommodation silence them too.",
+            "A short tone plays when a save finishes, a render completes or fails, a success or error message turns up, and a destructive action is confirmed. Every result is still shown on screen, and quiet hours and the low-stimulation accommodation keep them silent too.",
+            "A tiny tone pipes up when a save finishes, a render completes or fails, a success or error message turns up, and a destructive action is confirmed. Every result is still shown on screen, and quiet hours and the low-stimulation accommodation keep them politely silent too.",
+        ],
+        yue: [
+            "儲存完成、render 完成或者失敗、收到成功或者錯誤訊息，同埋確認咗破壞性操作嘅時候，會播一段短音效。所有結果照樣會喺畫面顯示。寧靜時段同低刺激模式都會令佢哋靜音。",
+            "儲存完成、render 完成或者失敗、收到成功或者錯誤訊息，同埋確認咗破壞性操作嘅時候，會播一段短音效。所有結果照樣會喺畫面顯示。寧靜時段同低刺激模式都會令佢哋靜音。",
+            "儲存完成、render 完成或者失敗、收到成功或者錯誤訊息，同埋確認咗破壞性操作，都會播段短音效。所有結果照樣喺畫面顯示，寧靜時段同低刺激模式都會令佢哋靜音。",
+            "儲存搞掂、render 完成或者失敗、成功或者錯誤訊息到咗，同埋確認咗破壞性操作，都會「叮」一聲。所有結果照樣喺畫面顯示，寧靜時段同低刺激模式都會令佢哋靜音。",
+            "儲存搞掂、render 完成或者失敗、成功或者錯誤訊息一到，又或者確認咗破壞性操作，都會細細聲「叮」一下。所有結果照樣喺畫面顯示，寧靜時段同低刺激模式一開，佢哋就乖乖靜音。",
+        ],
+    },
 } as const satisfies Record<string, VoicedString>;
 
 export const SETTINGS_FIXED = {
@@ -1302,6 +1318,8 @@ export const SETTINGS_FIXED = {
     "settings.engineChoice.pickerLabel": { en: "Render engine selection", yue: "Render 引擎揀選" },
     "settings.engineChoice.searchHint": { en: "name, version, capability, or unsupported setting", yue: "名、版本、功能，又或者唔支援嘅設定" },
     "settings.engineChoice.searchLabel": { en: "Search engines", yue: "搵引擎" },
+    "settings.sounds.enabled": { en: "Play action sounds", yue: "播放操作音效" },
+    "settings.sounds.volume": { en: "Action sound volume", yue: "操作音效音量" },
 } as const satisfies Record<string, FixedString>;
 
 export const SETTINGS_FACTS = {
@@ -1538,6 +1556,11 @@ export const SETTINGS_FACTS = {
     "settings.display.themeSummary": {
         en: ["System", "Contrast", "high-contrast", "low vision", "settings menu", "agree"],
         yue: ["系統", "高對比", "低視力", "設定選單", "一致"],
+    },
+    // Which events sound, that the result is still visible, and what silences them.
+    "settings.sounds.summary": {
+        en: ["save", "render", "destructive", "still shown on screen", "Quiet hours || quiet hours", "low-stimulation"],
+        yue: ["儲存", "render", "破壞性操作", "照樣", "寧靜時段", "低刺激模式"],
     },
 } as const satisfies Record<
     keyof typeof SETTINGS_VOICED,

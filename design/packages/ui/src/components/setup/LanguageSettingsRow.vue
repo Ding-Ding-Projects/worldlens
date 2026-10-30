@@ -2,6 +2,7 @@
 import SetupText from "./SetupText.vue";
 import SetupLanguagePanel from "./SetupLanguagePanel.vue";
 import SchoolModeSettingsRow from "./SchoolModeSettingsRow.vue";
+import DialogEmojiRow from "./DialogEmojiRow.vue";
 import { useSchoolMode } from "./schoolMode.js";
 
 /**
@@ -33,6 +34,7 @@ const school = useSchoolMode();
         <template v-if="!school.enabled.value">
             <SetupText text-key="language.settingsLead" class="mb-language-setting__lead" />
             <SetupLanguagePanel />
+            <DialogEmojiRow />
         </template>
     </div>
 </template>

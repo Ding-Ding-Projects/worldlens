@@ -1,10 +1,18 @@
 // @vitest-environment jsdom
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 vi.mock("../setup/schoolMode.js", () => ({ schoolModeEnabled: () => false }));
-vi.mock("../runtimeSettings/index.js", () => ({
-    loadRuntimeSettings: () => ({ values: { narrator: { quietHours: false } } }),
+vi.mock("../runtimeSettings/store.js", () => ({
+    loadRuntimeSettings: () => ({
+        values: { narrator: { quietHours: false }, accommodations: { lowStimulation: false } },
+    }),
 }));
+import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
+import { actionSoundPrefs, reloadActionSoundPrefs } from "../../stores/actionSounds.js";
 import { playVocabularyOutcome, vocabularySounds } from "./vocabularySounds.js";
+beforeEach(() => {
+    setSetupStorage(memoryStorage());
+    reloadActionSoundPrefs();
+});
 afterEach(() => {
     vi.unstubAllGlobals();
     delete window.worldlens;
@@ -35,6 +43,22 @@ it("uses the host's outcome cue and current app volume", async () => {
     vocabularySounds.muted = true;
     await playVocabularyOutcome(false);
     expect(outcomeSound).toHaveBeenCalledOnce();
+});
+it("shares one preference with the app-wide action sound switch", () => {
+    vocabularySounds.muted = true;
+    expect(actionSoundPrefs.enabled).toBe(false);
+    vocabularySounds.muted = false;
+    expect(actionSoundPrefs.enabled).toBe(true);
+});
+it("migrates the older vocabulary-only mute and volume", () => {
+    setSetupStorage(
+        memoryStorage({
+            "worldlens-vocabulary-sounds": JSON.stringify({ muted: true, volume: 0.3 }),
+        }),
+    );
+    reloadActionSoundPrefs();
+    expect(vocabularySounds.muted).toBe(true);
+    expect(vocabularySounds.volume).toBe(0.3);
 });
 it("does not invent a sound when the host has none", async () => {
     const audio = vi.fn();
