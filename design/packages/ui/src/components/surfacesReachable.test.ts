@@ -342,9 +342,11 @@ describe("every settings section has somewhere to render", () => {
     });
 
     it("never renders a slot no section declares", () => {
-        // `prepend` is Vuetify's own slot on an unrelated component in this file rather than a
-        // settings section, so it is named here instead of loosening the rule.
-        const VUETIFY_SLOTS = ["prepend"];
+        // These are component slots, not settings sections: `prepend` is Vuetify's own,
+        // `bar` is DockedSurface's header action slot (the widen button) and `meta` is
+        // ConfigSearchField's in-field count slot. They are named here instead of loosening
+        // the rule, so any other unexpected slot still fails.
+        const VUETIFY_SLOTS = ["prepend", "bar", "meta"];
         const orphans = slots.filter(
             (slot) => !VUETIFY_SLOTS.includes(slot) && !(SETTINGS_SECTIONS as readonly string[]).includes(slot),
         );
