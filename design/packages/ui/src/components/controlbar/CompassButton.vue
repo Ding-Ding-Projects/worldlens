@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { mdiNavigation } from "@mdi/js";
+import { VIcon } from "vuetify/components";
 import { animate, EasingFunctions } from "@worldlens/viewer";
 import type { Animation, BlueMapApp } from "@worldlens/viewer";
 import IconButton from "./IconButton.vue";
@@ -9,8 +11,8 @@ import { prefersReducedMotion, useControlBarApp } from "./useControlBarApp.js";
  * MD3 replacement for upstream `ControlBar/Compass.vue`.
  *
  * The needle rotates live with `controlsManager.data.rotation`; clicking it eases the camera
- * rotation back to north over 300ms. North and south are painted in two different colours so
- * the heading is readable at a glance, which is functional information rather than chrome.
+ * rotation back to north over 300ms. The needle is the prototype's navigation arrow in the
+ * primary role, pointing at north, so the heading is readable at a glance.
  */
 const props = withDefaults(
     defineProps<{
@@ -71,33 +73,21 @@ function faceNorth(event: MouseEvent): void {
         @action="faceNorth"
     >
         <template #icon>
-            <svg
+            <v-icon
                 class="mb-cb-compass__needle"
+                :icon="mdiNavigation"
                 :style="needleStyle"
-                viewBox="0 0 24 24"
                 aria-hidden="true"
-                focusable="false"
-            >
-                <path class="mb-cb-compass__north" d="M12 1.5 L15 12 L9 12 Z" />
-                <path class="mb-cb-compass__south" d="M9 12 L15 12 L12 22.5 Z" />
-            </svg>
+            />
         </template>
     </IconButton>
 </template>
 
 <style>
-.mb-cb-compass__needle {
-    /* Bigger than a normal 24px icon: the heading has to be readable at a glance. */
-    width: 28px;
-    height: 28px;
+.v-application .mb-cb-compass .mb-cb-compass__needle {
+    /* The title-large step, a touch larger than the glyphs beside it: the heading has to read at a glance. */
+    font-size: var(--md-sys-typescale-title-large-size);
+    color: rgb(var(--v-theme-primary));
     /* No transition: the needle tracks the camera every frame, so easing it would lag. */
-}
-
-.mb-cb-compass__north {
-    fill: rgb(var(--v-theme-primary));
-}
-
-.mb-cb-compass__south {
-    fill: rgba(var(--v-theme-on-surface), 0.38);
 }
 </style>

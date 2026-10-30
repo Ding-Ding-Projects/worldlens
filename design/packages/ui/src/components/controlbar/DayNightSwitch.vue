@@ -14,6 +14,9 @@ import { prefersReducedMotion, useControlBarApp } from "./useControlBarApp.js";
  * the first time it moves. `mapViewer.redraw()` runs on every animation frame for the same
  * reason upstream did it, otherwise the change may not appear until the next camera move.
  *
+ * Daylight is drawn as the selected state (a filled `primary-container` circle), as the approved
+ * prototype draws it; `aria-pressed` keeps its upstream meaning, "night is on".
+ *
  * Sunlight is deliberately not persisted (upstream does not save it either), so a reload
  * returns to the map's own `skyLight`.
  */
@@ -67,6 +70,7 @@ function toggle(event: MouseEvent): void {
         class="mb-cb-daynight"
         :icon="isDay ? mdiWeatherSunny : mdiWeatherNight"
         :label="props.label"
+        :active="isDay"
         toggle
         :pressed="!isDay"
         @action="toggle"

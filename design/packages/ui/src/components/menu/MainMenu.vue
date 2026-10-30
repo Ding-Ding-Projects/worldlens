@@ -1,23 +1,28 @@
 <script setup lang="ts">
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiCameraOutline,
-    mdiCogOutline,
     mdiCrosshairsGps,
     mdiFullscreen,
+    mdiAccountMultipleOutline,
     mdiInformationOutline,
+    mdiLayersOutline,
     mdiMapMarkerOutline,
-    mdiMapOutline,
     mdiRefresh,
+    mdiTune,
 } from "@mdi/js";
-import { VDivider, VList } from "vuetify/components";
-import type { BlueMapApp } from "@worldlens/viewer";
+import { VList } from "vuetify/components";
+import type { BlueMapApp, MarkerSetData } from "@worldlens/viewer";
+import { productDisplayName } from "../../stores/productName.js";
 import InfoPage from "./InfoPage.vue";
 import MapsMenu from "./MapsMenu.vue";
 import MenuOption from "./MenuOption.vue";
+import MenuSearchField from "./MenuSearchField.vue";
 import MenuSideSheet from "./MenuSideSheet.vue";
 import SettingsMenu from "./SettingsMenu.vue";
+import { useMenuSearch } from "./menuPrefs";
+import { createMatcher } from "./regex";
 import { provideBlueMap, useBlueMap, useBlueMapTheme } from "./useBlueMap";
 
 /**
@@ -90,6 +95,8 @@ function resolveTitle(value: string): string {
 
 const title = computed(() => {
     const current = page.value;
+    // The root page is the prototype's "Map menu": upstream's generic "Menu" names no surface.
+    if (current?.id === "root") return t("menu.mapMenu", "Map menu");
     if (current && current.id !== "-") return resolveTitle(current.title);
     return resolveTitle(lastTitle.value);
 });
@@ -110,7 +117,9 @@ const fullscreenAvailable = computed(() => document.fullscreenEnabled);
  * Empty while the option is enabled: `MenuOption` only renders a tooltip when it has text.
  */
 const fullscreenTooltip = computed(() =>
-    fullscreenAvailable.value ? "" : t("goFullscreen.unavailable", "Fullscreen is not available in this browser."),
+    fullscreenAvailable.value
+        ? ""
+        : t("goFullscreen.unavailable", "Fullscreen is not available in this browser."),
 );
 
 function openPage(id: string, titleKey: string, fallback: string, data: object = {}): void {
@@ -124,6 +133,103 @@ function openMarkers(): void {
         markerSet: instance.mapViewer.markers.data,
     });
 }
+
+/**
+ * The live player set, when the map has one. The prototype lists Players as its own row, which is
+ * where the control bar's old player-list jump now lives.
+ */
+const playerMarkerSet = computed<MarkerSetData | null>(
+    () =>
+        app.value?.mapViewer?.markers?.data?.markerSets.find((set) => set.id === "bm-players") ??
+        null,
+);
+
+function openPlayers(): void {
+    const instance = app.value;
+    const set = playerMarkerSet.value;
+    if (!instance || !set) return;
+    instance.appState.menu.openPage("markers", () => t("players.title", "Players"), {
+        markerSet: set,
+    });
+}
+
+/** Marker sets a person can open, skipping the two upstream treats as internal. */
+function countSets(set: MarkerSetData | null | undefined): number {
+    if (!set) return 0;
+    return set.markerSets.filter(
+        (child) => child.id !== "bm-players" && child.id !== "bm-popup-set",
+    ).length;
+}
+
+/*
+ * The prototype's trailing meta on each root row. Plain numbers, so no sentence has to be
+ * pluralised in two languages for a count that is self-explanatory beside its own label.
+ */
+const mapsMeta = computed(() => String(app.value?.appState.maps?.length ?? 0));
+const markersMeta = computed(() => String(countSets(app.value?.mapViewer?.markers?.data)));
+const playersMeta = computed(() => String(playerMarkerSet.value?.markers.length ?? 0));
+const infoMeta = computed(() => appVersion.value ?? "");
+
+/**
+ * The desktop application's own version, for the Info row's meta and the footer. Asked of the
+ * preload bridge once; a browser build has none and shows nothing rather than a guess.
+ */
+const appVersion = ref<string | null>(null);
+onMounted(() => {
+    const read = (globalThis as { worldlens?: { getVersion?: () => Promise<string> } }).worldlens
+        ?.getVersion;
+    if (typeof read !== "function") return;
+    void read()
+        .then((value) => {
+            const trimmed = value.trim();
+            if (trimmed.length > 0) appVersion.value = trimmed;
+        })
+        .catch(() => {
+            // The Info page itself reports a failing version channel; the meta just stays empty.
+        });
+});
+
+const footer = computed(() => {
+    const engine = app.value?.settings?.version;
+    const version = appVersion.value;
+    const product = version
+        ? t("info.appVersion", { name: productDisplayName, version }, "{name} {version}")
+        : productDisplayName;
+    if (!engine || engine === "?") return product;
+    return t("menu.footer", { app: product, engine }, "{app} · BlueMap {engine} engine");
+});
+
+/*
+ * The prototype's "Search this menu" field over the root rows. It filters the rows by their
+ * label and keeps the full regex builder the other menu pages carry.
+ */
+const rootSearch = useMenuSearch("root");
+const rootMatcher = computed(() =>
+    createMatcher(rootSearch.query, rootSearch.regex, rootSearch.flags),
+);
+function shown(label: string): boolean {
+    return rootMatcher.value.test(label);
+}
+
+const labels = computed(() => ({
+    maps: t("maps.button", "Maps"),
+    markers: t("markers.button", "Markers"),
+    players: t("players.title", "Players"),
+    settings: t("menu.viewerSettings", "Viewer settings"),
+    info: t("info.button", "Info"),
+    fullscreen: t("goFullscreen.button", "Go Fullscreen"),
+    reset: t("resetCamera.button", "Reset Camera"),
+    screenshot: t("screenshot.button", "Take Screenshot"),
+    update: t("updateMap.button", "Update Map"),
+}));
+const rootSample = computed(() => Object.values(labels.value).join("\n"));
+const nothingShown = computed(
+    () =>
+        rootSearch.query !== "" &&
+        !Object.entries(labels.value).some(
+            ([key, label]) => (key !== "players" || playerMarkerSet.value !== null) && shown(label),
+        ),
+);
 
 function goBack(): void {
     menu.value?.closePage();
@@ -167,52 +273,96 @@ function updateMap(): void {
             alone, and the label is unchanged - so nothing here needs a catalogue entry and
             nothing here renders differently in one language than another.
         -->
-        <v-list v-if="pageId === 'root'" class="mb-main-menu__root" density="compact" nav>
-            <MenuOption submenu :icon="mdiMapOutline" @action="openPage('maps', 'maps.title', 'Maps')">
-                {{ t("maps.button", "Maps") }}
-            </MenuOption>
-            <MenuOption submenu :icon="mdiMapMarkerOutline" @action="openMarkers">
-                {{ t("markers.button", "Markers") }}
-            </MenuOption>
-            <MenuOption
-                submenu
-                :icon="mdiCogOutline"
-                @action="openPage('settings', 'settings.title', 'Settings')"
-            >
-                {{ t("settings.button", "Settings") }}
-            </MenuOption>
-            <MenuOption
-                submenu
-                :icon="mdiInformationOutline"
-                @action="openPage('info', 'info.title', 'Info')"
-            >
-                {{ t("info.button", "Info") }}
-            </MenuOption>
-
-            <v-divider class="mb-main-menu__rule" />
-
-            <MenuOption
-                :icon="mdiFullscreen"
-                :disabled="!fullscreenAvailable"
-                :tooltip="fullscreenTooltip"
-                @action="goFullscreen"
-            >
-                {{ t("goFullscreen.button", "Go Fullscreen") }}
-            </MenuOption>
-            <MenuOption :icon="mdiCrosshairsGps" @action="resetCamera">
-                {{ t("resetCamera.button", "Reset Camera") }}
-            </MenuOption>
-            <MenuOption :icon="mdiCameraOutline" @action="takeScreenshot">
-                {{ t("screenshot.button", "Take Screenshot") }}
-            </MenuOption>
-            <MenuOption
-                :icon="mdiRefresh"
-                :tooltip="t('updateMap.tooltip', 'Clear Tile Cache')"
-                @action="updateMap"
-            >
-                {{ t("updateMap.button", "Update Map") }}
-            </MenuOption>
-        </v-list>
+        <template v-if="pageId === 'root'">
+            <MenuSearchField
+                v-model="rootSearch.query"
+                v-model:regex="rootSearch.regex"
+                v-model:flags="rootSearch.flags"
+                class="mb-main-menu__search"
+                :placeholder="t('menu.searchPlaceholder', 'Search this menu')"
+                :sample="rootSample"
+            />
+            <p v-if="nothingShown" class="mb-main-menu__empty">
+                {{ t("search.noMatch", "Nothing matches that search.") }}
+            </p>
+            <!--
+                The prototype's nine rows, in its order: places to go (each with its live count),
+                then things to do here. The glyph on each row is decoration: `MenuOption` marks
+                it `aria-hidden` and no two rows are told apart by their icon alone.
+            -->
+            <v-list class="mb-main-menu__root" density="compact" nav>
+                <MenuOption
+                    v-if="shown(labels.maps)"
+                    :icon="mdiLayersOutline"
+                    :meta="mapsMeta"
+                    @action="openPage('maps', 'maps.title', 'Maps')"
+                >
+                    {{ labels.maps }}
+                </MenuOption>
+                <MenuOption
+                    v-if="shown(labels.markers)"
+                    :icon="mdiMapMarkerOutline"
+                    :meta="markersMeta"
+                    @action="openMarkers"
+                >
+                    {{ labels.markers }}
+                </MenuOption>
+                <MenuOption
+                    v-if="playerMarkerSet && shown(labels.players)"
+                    :icon="mdiAccountMultipleOutline"
+                    :meta="playersMeta"
+                    @action="openPlayers"
+                >
+                    {{ labels.players }}
+                </MenuOption>
+                <MenuOption
+                    v-if="shown(labels.settings)"
+                    :icon="mdiTune"
+                    @action="openPage('settings', 'settings.title', 'Settings')"
+                >
+                    {{ labels.settings }}
+                </MenuOption>
+                <MenuOption
+                    v-if="shown(labels.info)"
+                    :icon="mdiInformationOutline"
+                    :meta="infoMeta"
+                    @action="openPage('info', 'info.title', 'Info')"
+                >
+                    {{ labels.info }}
+                </MenuOption>
+                <MenuOption
+                    v-if="shown(labels.fullscreen)"
+                    :icon="mdiFullscreen"
+                    :disabled="!fullscreenAvailable"
+                    :tooltip="fullscreenTooltip"
+                    @action="goFullscreen"
+                >
+                    {{ labels.fullscreen }}
+                </MenuOption>
+                <MenuOption
+                    v-if="shown(labels.reset)"
+                    :icon="mdiCrosshairsGps"
+                    @action="resetCamera"
+                >
+                    {{ labels.reset }}
+                </MenuOption>
+                <MenuOption
+                    v-if="shown(labels.screenshot)"
+                    :icon="mdiCameraOutline"
+                    @action="takeScreenshot"
+                >
+                    {{ labels.screenshot }}
+                </MenuOption>
+                <MenuOption
+                    v-if="shown(labels.update)"
+                    :icon="mdiRefresh"
+                    :tooltip="t('updateMap.tooltip', 'Clear Tile Cache')"
+                    @action="updateMap"
+                >
+                    {{ labels.update }}
+                </MenuOption>
+            </v-list>
+        </template>
 
         <MapsMenu v-else-if="pageId === 'maps'" />
 
@@ -233,24 +383,18 @@ function updateMap(): void {
             @open-docs="emit('open-docs')"
             @open-tutorial="emit('open-tutorial')"
         />
+
+        <template #footer>{{ footer }}</template>
     </MenuSideSheet>
 </template>
 
 <style>
 /*
- * The two blocks of this menu are "places to go" and "things to do here", which is a real
- * division and not a decorative one. It is drawn as a hairline in the one colour every other
- * edge in the drawer uses; Vuetify's divider arrives at 0.12 opacity of a border colour,
- * which over a bright terrain render is invisible.
- *
- * `mb-section-rule` from `prototypeSurface.scss` is the richer form of this and is
- * deliberately not used: it exists to carry an uppercase label, and neither of these two
- * blocks has a name that is not already obvious from its own four rows.
+ * The search block sits on the sheet's own 8px inset plus 4px, the prototype's 12px from the
+ * sheet edge, with 8px before the first row.
  */
-.v-application .mb-main-menu__rule.v-divider {
-    margin-block: 8px;
-    border-color: rgb(var(--v-theme-outline-variant));
-    opacity: 1;
+.v-application .mb-side-sheet .mb-main-menu__search {
+    padding: 4px 4px 8px;
 }
 
 /*

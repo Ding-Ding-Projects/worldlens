@@ -51,29 +51,35 @@ const { t } = useI18n();
         location="left"
         width="340"
         temporary
+        absolute
         :aria-label="title"
         @keydown.esc="emit('back')"
         @update:model-value="(value: boolean) => !value && emit('close')"
     >
         <template #prepend>
+            <!--
+                The prototype's header: the title at the start, the close button at the end.
+                A back arrow joins at the start only while a sub-page is open, so the root
+                header reads "Map menu  [x]" exactly as the prototype draws it. Escape still
+                steps back one page, and the menu button on the control bar still folds into
+                the matching X or chevron.
+            -->
             <v-toolbar class="mb-side-sheet__bar" density="comfortable" flat color="surface">
-                <template #prepend>
+                <template v-if="back" #prepend>
                     <v-btn
                         icon
-                        :aria-label="
-                            back ? t('menu.back', 'Back') : t('menu.close', 'Close the menu')
-                        "
+                        :aria-label="t('menu.back', 'Back')"
                         variant="text"
                         @click="emit('back')"
                     >
                         <!-- The icon goes in the default slot: `icon="<path>"` and slot
                              content are mutually exclusive in VBtn, and the tooltip needs
                              to be a child for `activator="parent"`. -->
-                        <v-icon :icon="back ? mdiArrowLeft : mdiClose" />
+                        <v-icon :icon="mdiArrowLeft" />
                         <v-tooltip
                             activator="parent"
                             location="bottom"
-                            :text="back ? t('menu.back', 'Back') : t('menu.close', 'Close the menu')"
+                            :text="t('menu.back', 'Back')"
                         />
                     </v-btn>
                 </template>
@@ -82,7 +88,6 @@ const { t } = useI18n();
 
                 <template #append>
                     <v-btn
-                        v-if="back"
                         icon
                         :aria-label="t('menu.close', 'Close the menu')"
                         variant="text"
@@ -95,19 +100,20 @@ const { t } = useI18n();
                             :text="t('menu.close', 'Close the menu')"
                         />
                     </v-btn>
-                    <!--
-                        The spacer that used to sit here balanced a centred title against the
-                        leading button. The title is start-aligned now, as M3's modal drawer
-                        headline and the prototype's own header both are, so there is nothing
-                        left to balance and an empty 48px reservation would only shorten the
-                        line a long bilingual title has to wrap in.
-                    -->
                 </template>
             </v-toolbar>
             <v-divider class="mb-side-sheet__rule" />
         </template>
 
         <slot />
+
+        <!-- The prototype's footer line: what this build and its engine are. -->
+        <template v-if="$slots.footer" #append>
+            <v-divider class="mb-side-sheet__rule" />
+            <div class="mb-side-sheet__footer">
+                <slot name="footer" />
+            </div>
+        </template>
     </v-navigation-drawer>
 </template>
 
@@ -203,7 +209,27 @@ const { t } = useI18n();
 .mb-side-sheet .mb-side-sheet__bar .v-toolbar__content {
     height: auto;
     min-height: 64px;
-    padding-inline: 16px 8px;
+    padding-inline: 16px 12px;
+}
+
+/*
+ * With a back arrow at the start the toolbar's own 16px start padding would push the arrow
+ * off the 8px row inset the list below uses; the title then sits 8px after the arrow.
+ */
+.mb-side-sheet .mb-side-sheet__bar .v-toolbar__prepend {
+    margin-inline: -8px 4px;
+}
+
+/*
+ * The prototype's footer: 10px 20px of padding, 12px text in the `outline` role. Padded on the
+ * 4dp rhythm (12px 20px) so it lines up with the rows' own labels above it.
+ */
+.mb-side-sheet .mb-side-sheet__footer {
+    padding: 12px 20px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+    color: rgb(var(--v-theme-outline));
 }
 
 .mb-side-sheet .mb-side-sheet__title {

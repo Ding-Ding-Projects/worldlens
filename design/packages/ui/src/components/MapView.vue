@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { BlueMapApp } from "@worldlens/viewer";
 import { activeProfile, profileDataRoot } from "../stores/profiles.js";
-import { blueMapApp, mapCommandPoint, mapCommandPlayer, setBlueMapApp } from "../stores/bluemap.js";
+import { appState, blueMapApp, mapCommandPoint, mapCommandPlayer, setBlueMapApp } from "../stores/bluemap.js";
 import { schoolModeRestriction, useSchoolMode } from "./setup/index.js";
 import CommandBuilder from "./mcserver/CommandBuilder.vue";
 import MarkerStudio from "./markers/MarkerStudio.vue";
@@ -25,6 +25,8 @@ const markerEditor = ref<InstanceType<typeof MarkerStudio> | null>(null);
 const contextOpen = ref(false);
 const contextTarget = ref<[number, number]>([0, 0]);
 const contextPoint = ref<{x:number; y:number; z:number} | null>(null);
+/** The map menu drawer is open; the tools step aside to its right edge rather than under it. */
+const mapMenuOpen = computed(() => appState.value?.menu.isOpen ?? false);
 const currentMapId = computed(() => blueMapApp.value?.mapViewer.data.map?.id ?? "");
 function showMarkers() { markersOpen.value = true; }
 function showCommands() {
@@ -122,7 +124,7 @@ onUnmounted(() => {
         {{ error }}
     </v-alert>
     <CommandBuilder v-model="commandBuilderOpen" v-bind="managedServerId ? { serverId: managedServerId } : {}" :initial-point="mapCommandPoint" @use-command="commandBuilderOpen = false" />
-    <VToolbar v-if="currentMapId" class="map-workspace-tools mb-interactive" density="compact" rounded="xl" elevation="3" :aria-label="t('map.tools', 'Map tools')">
+    <VToolbar v-if="currentMapId" class="map-workspace-tools mb-interactive" :class="{ 'map-workspace-tools--beside-menu': mapMenuOpen }" density="compact" color="surface-container" :aria-label="t('map.tools', 'Map tools')">
         <VBtn variant="text" @click="showMarkers">{{ t('markers.studio.title', 'Markers') }}</VBtn>
         <VBtn variant="text" @click="markersOpen = true; $nextTick(() => markerEditor?.startArea())">{{ t('map.drawArea', 'Draw area') }}</VBtn>
         <VBtn variant="text" @click="showCommands">{{ t('map.commands', 'Commands') }}</VBtn>
@@ -137,6 +139,16 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.map-workspace-tools { position: absolute; left: 16px; bottom: 20px; width: auto; max-width: calc(100% - 32px); z-index: 20; }
+/*
+ * The map's own tools pill, in the same surface language as the control bar's pills: a
+ * `surface-container` pill with an `outline-variant` hairline at elevation level 2, 16px off the
+ * map's corner. This element is positioned against `v-main`, which spans the whole window, so the
+ * 80px application rail (`AppRail.vue`) is added to the inset. While the map menu drawer (340px)
+ * is open it moves to the drawer's right edge so the drawer's footer is never covered and the
+ * tools stay reachable.
+ */
+.map-workspace-tools { position: absolute; left: 96px; bottom: 16px; width: auto; max-width: calc(100% - 112px); z-index: 20; border-radius: var(--md-sys-shape-corner-full); border: 1px solid rgb(var(--v-theme-outline-variant)); box-shadow: var(--md-sys-elevation-shadow-level2); padding-inline: 4px; }
+.map-workspace-tools--beside-menu { left: 436px; max-width: calc(100% - 452px); }
+.map-workspace-tools :deep(.v-btn) { text-transform: none; letter-spacing: normal; }
 .map-workspace-markers { position: absolute; right: 12px; top: 80px; bottom: 88px; width: min(440px, calc(100% - 24px)); overflow: auto; z-index: 21; }
 </style>

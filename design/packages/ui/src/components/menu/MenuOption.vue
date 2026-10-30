@@ -29,8 +29,14 @@ withDefaults(
          * two rows, and a row without one simply has none rather than reserving the space.
          */
         icon?: string;
+        /**
+         * Trailing supporting text, the prototype's right-aligned meta: a count ("3", "4 sets",
+         * "0 online") or a version. Read as part of the row's accessible name, because it is
+         * information rather than decoration.
+         */
+        meta?: string;
     }>(),
-    { submenu: false, active: false, disabled: false, tooltip: "", icon: "" },
+    { submenu: false, active: false, disabled: false, tooltip: "", icon: "", meta: "" },
 );
 
 const emit = defineEmits<{ action: [] }>();
@@ -49,8 +55,10 @@ const emit = defineEmits<{ action: [] }>();
         <v-list-item-title class="mb-menu-option__label">
             <slot />
         </v-list-item-title>
-        <template v-if="submenu" #append>
+        <template v-if="meta || submenu" #append>
+            <span v-if="meta" class="mb-menu-option__meta">{{ meta }}</span>
             <v-icon
+                v-if="submenu"
                 class="mb-menu-option__chevron"
                 :icon="mdiChevronRight"
                 size="small"
@@ -70,10 +78,8 @@ const emit = defineEmits<{ action: [] }>();
  */
 
 /*
- * M3's navigation-drawer item, which is the nearest step on the 4dp rhythm to the
- * prototype's 50px row. The root menu is eight commands rather than the settings page's
- * twenty, so it can afford the taller step - and these are the rows a person aims at with a
- * mouse over a map they are also dragging.
+ * The nearest step on the 8dp rhythm to the prototype's 50px row, and still a full 48px
+ * target for rows a person aims at with a mouse over a map they are also dragging.
  *
  * Written through the sheet rather than as `.mb-menu-option.v-list-item`, which was the first
  * attempt and rendered at 48px. `prototypeSurface.scss` sets `min-block-size: 0` on
@@ -83,7 +89,20 @@ const emit = defineEmits<{ action: [] }>();
  * the component rules land around byte 378k and that sheet around 804k.
  */
 .v-application .mb-side-sheet .mb-menu-option.v-list-item {
-    min-block-size: 56px;
+    min-block-size: 48px;
+}
+
+/*
+ * The prototype's trailing meta: 12px in the `outline` role, the same pair every other count
+ * and path in the design uses. Tabular figures so a count that changes does not shift.
+ */
+.mb-menu-option .mb-menu-option__meta {
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    letter-spacing: var(--md-sys-typescale-body-small-tracking);
+    font-variant-numeric: tabular-nums;
+    color: rgb(var(--v-theme-outline));
+    white-space: nowrap;
 }
 
 /*

@@ -32,7 +32,7 @@ function zoom(delta: number): void {
 
 <template>
     <div class="mb-zoom-buttons mb-interactive">
-        <v-card class="mb-zoom-buttons__surface" rounded="xl" elevation="3" color="surface">
+        <v-card class="mb-zoom-buttons__surface" color="surface-container">
             <v-tooltip :text="t('zoomButtons.zoomIn', 'Zoom in')" location="start">
                 <template #activator="{ props: tooltipProps }">
                     <v-btn
@@ -65,13 +65,24 @@ function zoom(delta: number): void {
 <style scoped>
 .mb-zoom-buttons {
     position: fixed;
-    right: calc(12px + env(safe-area-inset-right, 0px));
-    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    right: calc(16px + env(safe-area-inset-right, 0px));
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
 }
 
 .mb-zoom-buttons__surface {
     display: flex;
     flex-direction: column;
+}
+
+/*
+ * The prototype's joined pair: one `surface-container` column with a hairline and a 16px outer
+ * corner, the same surface language as the control bar's pills at the top of the map.
+ */
+.v-application .mb-zoom-buttons .mb-zoom-buttons__surface {
+    border-radius: var(--md-sys-shape-corner-large);
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    box-shadow: var(--md-sys-elevation-shadow-level2);
+    color: rgb(var(--v-theme-on-surface));
 }
 
 /*
@@ -86,14 +97,15 @@ function zoom(delta: number): void {
 }
 
 .mb-zoom-buttons__btn--in {
-    border-radius: var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0 0;
+    border-radius: var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-large) 0 0;
 }
 
 .mb-zoom-buttons__btn--out {
-    border-radius: 0 0 var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large);
+    border-radius: 0 0 var(--md-sys-shape-corner-large) var(--md-sys-shape-corner-large);
 }
 
 .mb-zoom-buttons__divider {
-    opacity: 0.6;
+    border-color: rgb(var(--v-theme-outline-variant));
+    opacity: 1;
 }
 </style>

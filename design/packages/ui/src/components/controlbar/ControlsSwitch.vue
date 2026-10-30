@@ -82,14 +82,13 @@ function setFreeFlight(): void {
 
 <style>
 /*
- * MD3 segmented control: one container, buttons flush inside it. No padding, so the group is
- * exactly one button tall and both clusters in the bar line up.
+ * The prototype's view-mode group: three round buttons 2px apart with no container of their
+ * own, the chosen one filled `primary-container`. The dividers either side, drawn by the bar,
+ * are what make the three read as one choice.
  */
 .mb-cb-views {
     display: flex;
     align-items: center;
-    gap: 0;
-    border-radius: calc(var(--mb-cb-size, 40px) / 2);
-    background: rgba(var(--v-theme-on-surface), 0.06);
+    gap: 2px;
 }
 </style>

@@ -369,11 +369,14 @@ export const CHROME_FIXED = {
     "appearance.target.app.rail": { en: "The application rail", yue: "應用程式側欄" },
     /*
      * The map viewer's own control bar, named here rather than in a controlbar module
-     * because it is the only key on that whole strip this catalogue is allowed to answer:
+     * because these are the only keys on that whole strip this catalogue is allowed to answer:
      * every other string there -- maps.title, markers.tooltip, compass.tooltip and the rest
      * -- belongs to upstream's viewer locales. See the header note above.
      */
     "appearance.target.controlbar.bar": { en: "The map control bar", yue: "地圖控制列" },
+    /* The map chip beside the menu button: where the map's tiles are served from. */
+    "controlbar.source.local": { en: "local", yue: "本機" },
+    "controlbar.source.remote": { en: "remote", yue: "遠端" },
 
     /* The custom title bar's window buttons. */
     "window.minimize": { en: "Minimize", yue: "縮到最細" },

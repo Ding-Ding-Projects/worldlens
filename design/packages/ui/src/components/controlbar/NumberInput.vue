@@ -169,20 +169,45 @@ function onKeyup(event: KeyboardEvent): void {
 </template>
 
 <style>
+/*
+ * The prototype's coordinate readout: a small `surface` well with a hairline, the axis letter in
+ * the outline colour, the value in monospace. It stays a real outlined text field so the focus
+ * ring, the error ring and the caret are Vuetify's.
+ */
 .mb-cb-number {
-    min-width: 4.5rem;
+    min-width: 5.5rem;
+    max-width: 7rem;
     flex: 1 1 0;
+}
+
+.v-application .mb-cb-number .v-field {
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-surface));
+    font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.mb-cb-number .v-field__outline {
+    --v-field-border-opacity: 1;
+    color: rgb(var(--v-theme-outline-variant));
+}
+
+.mb-cb-number.v-input--error .v-field__outline,
+.mb-cb-number .v-field--focused .v-field__outline {
+    color: inherit;
 }
 
 .mb-cb-number .v-field__input {
     /* Compact density leaves the value hugging the prefix; give the digits room to breathe. */
-    padding-inline-start: 2px;
+    padding-inline-start: 6px;
     min-width: 0;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
 }
 
 .mb-cb-number .v-field__prefix {
-    padding-inline-end: 2px;
-    opacity: 0.72;
-    text-transform: uppercase;
+    padding-inline-end: 0;
+    opacity: 1;
+    color: rgb(var(--v-theme-outline));
+    font-family: "Roboto Mono", ui-monospace, monospace;
 }
 </style>

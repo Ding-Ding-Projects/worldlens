@@ -378,6 +378,12 @@ export const MENU_FIXED = {
     /* The side sheet's own chrome. */
     "menu.back": { en: "Back", yue: "返上一頁" },
     "menu.close": { en: "Close the menu", yue: "閂咗個選單" },
+    /* The map menu's root page: its search field, the viewer settings row, and the footer
+     * naming this build and the BlueMap engine version that generated the map. */
+    "menu.mapMenu": { en: "Map menu", yue: "地圖選單" },
+    "menu.searchPlaceholder": { en: "Search this menu", yue: "喺呢個選單度搵" },
+    "menu.viewerSettings": { en: "Viewer settings", yue: "睇圖設定" },
+    "menu.footer": { en: "{app} · BlueMap {engine} engine", yue: "{app} · BlueMap {engine} 引擎" },
 
     /* The super-confirmation gate's key-state words and the locked track's own label. */
     "superConfirm.keyTurned": { en: "turned", yue: "扭咗" },

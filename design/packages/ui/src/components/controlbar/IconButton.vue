@@ -21,7 +21,11 @@ const props = withDefaults(
         icon?: string;
         /** Longer tooltip text when the tooltip should say more than the accessible name. */
         tooltip?: string;
-        /** MD3 selected state (used by the view-mode switch). */
+        /**
+         * MD3 selected state (the view-mode switch and the day/night switch). Drawn as the
+         * prototype draws it: a filled `primary-container` circle with its `on-` role, rather
+         * than a primary-tinted glyph on nothing.
+         */
         active?: boolean;
         /**
          * Marks this as a toggle button, which is what makes `aria-pressed` appear.
@@ -44,8 +48,8 @@ const emit = defineEmits<{ action: [event: MouseEvent] }>();
     <v-btn
         class="mb-cb-btn"
         icon
-        variant="text"
-        :color="props.active ? 'primary' : 'on-surface-variant'"
+        :variant="props.active ? 'flat' : 'text'"
+        :color="props.active ? 'primary-container' : 'on-surface-variant'"
         :active="props.active"
         :disabled="props.disabled"
         :aria-label="props.label"
