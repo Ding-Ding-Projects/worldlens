@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiContentSaveCheckOutline, mdiFolderSearchOutline, mdiRestore } from "@mdi/js";
+import { mdiContentSaveCheckOutline, mdiFolderOutline, mdiRestore } from "@mdi/js";
 import { VAlert, VBtn, VIcon, VProgressCircular, VTextField } from "vuetify/components";
 import { findField, type FieldMeta, type PlainValue } from "@worldlens/config";
 import ConfigField from "../config/ConfigField.vue";
@@ -68,7 +68,9 @@ async function browse(): Promise<void> {
 
 <template>
     <section class="mb-world-step" :aria-label="t('world.wizard.step.storage', 'Where it goes')">
-        <h3 class="mb-world-step__title">{{ t("world.storage.title", "Where the map is written") }}</h3>
+        <h3 class="mb-world-step__title">
+            {{ t("world.storage.title", "Where the map is written") }}
+        </h3>
         <p class="mb-world-step__blurb">
             {{
                 t(
@@ -82,8 +84,9 @@ async function browse(): Promise<void> {
             <v-text-field
                 v-model="directory"
                 :label="t('world.storage.folder', 'Folder for rendered maps')"
+                :prepend-inner-icon="mdiFolderOutline"
+                class="mb-world-step__path"
                 variant="outlined"
-                density="compact"
                 spellcheck="false"
                 autocapitalize="off"
                 autocomplete="off"
@@ -91,7 +94,14 @@ async function browse(): Promise<void> {
                 @blur="emit('apply', directory)"
                 @keydown.enter="emit('apply', directory)"
             />
-            <v-btn :prepend-icon="mdiFolderSearchOutline" :disabled="host === null" variant="tonal" @click="browse">
+            <v-btn
+                :disabled="host === null"
+                class="mb-world-step__browse"
+                variant="outlined"
+                color="primary"
+                size="x-large"
+                @click="browse"
+            >
                 {{ t("world.storage.browse", "Browse") }}
             </v-btn>
             <v-btn
@@ -112,13 +122,25 @@ async function browse(): Promise<void> {
             <span>{{ t("world.storage.applying", "Pointing rendering at that folder...") }}</span>
         </div>
 
-        <v-alert v-else-if="applyFailure" type="error" density="compact" variant="tonal" class="mt-2" role="alert">
+        <v-alert
+            v-else-if="applyFailure"
+            type="error"
+            density="compact"
+            variant="tonal"
+            class="mt-2"
+            role="alert"
+        >
             {{ applyFailure }}
         </v-alert>
 
         <p v-else-if="applied" class="mb-world-step__applied" role="status">
             <v-icon :icon="mdiContentSaveCheckOutline" size="16" aria-hidden="true" />
-            {{ t("world.storage.applied", "Renders will be written here, from now on and not only this one.") }}
+            {{
+                t(
+                    "world.storage.applied",
+                    "Renders will be written here, from now on and not only this one.",
+                )
+            }}
         </p>
 
         <v-alert v-if="!known" type="info" density="compact" variant="tonal" class="mt-2">
@@ -130,12 +152,21 @@ async function browse(): Promise<void> {
             }}
         </v-alert>
 
-        <v-alert v-for="problem in problems" :key="problem" type="warning" density="compact" variant="tonal" class="mt-2">
+        <v-alert
+            v-for="problem in problems"
+            :key="problem"
+            type="warning"
+            density="compact"
+            variant="tonal"
+            class="mt-2"
+        >
             {{ problem }}
         </v-alert>
 
         <div v-if="storageField" class="mb-world-storage__setting">
-            <h4 class="mb-world-storage__subtitle">{{ t("world.storage.settingTitle", "The map's own storage setting") }}</h4>
+            <h4 class="mb-world-storage__subtitle">
+                {{ t("world.storage.settingTitle", "The map's own storage setting") }}
+            </h4>
             <ConfigField
                 :field="storageField"
                 :file="file"

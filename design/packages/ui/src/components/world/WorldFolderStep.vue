@@ -6,11 +6,23 @@ import {
     mdiChevronDown,
     mdiChevronUp,
     mdiCloudDownloadOutline,
-    mdiFolderSearchOutline,
+    mdiFolderOutline,
     mdiRefresh,
     mdiTrayArrowDown,
 } from "@mdi/js";
-import { VAlert, VBtn, VChip, VIcon, VProgressCircular, VTextField } from "vuetify/components";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VCardItem,
+    VCardSubtitle,
+    VCardTitle,
+    VIcon,
+    VItem,
+    VItemGroup,
+    VProgressCircular,
+    VTextField,
+} from "vuetify/components";
 import { useConfigHost } from "../config/configHost.js";
 import { ReleaseDownloads, type DownloadBridge } from "../downloads/index.js";
 import BedrockConversionNote from "./BedrockConversionNote.vue";
@@ -65,12 +77,23 @@ const props = defineProps<{
      * That is the browser-tab case, and it must cost the manual route nothing.
      */
     catalogBridge?: WorldCatalogBridge | null;
+    /**
+     * The dimension the map will be drawn from, when the host lets this step choose it.
+     *
+     * Left out, the found dimensions are listed in the success note and nothing is chosen
+     * here, which is what the project import dialog wants. The guide passes it, and the
+     * dimensions the world actually has become three selectable cards under the note - the
+     * same choice the next step's Dimension field makes, driving the same model.
+     */
+    dimensionKey?: string | undefined;
 }>();
 
 const emit = defineEmits<{
     "update:modelValue": [value: string];
     /** Asks the shell to read the folder again, after a pick or a retry. */
     inspect: [folder: string];
+    /** A dimension card was chosen. Only emitted when `dimensionKey` was passed. */
+    chooseDimension: [key: string];
 }>();
 
 const { t } = useI18n();
@@ -96,6 +119,15 @@ const good = computed(() => props.inspection.ok && !props.inspection.unchecked);
  * when the answer matters.
  */
 const downloadsOpen = ref(false);
+
+/** True when the host lets this step choose the dimension, and there is something to choose. */
+const choosesDimension = computed(
+    () => props.dimensionKey !== undefined && good.value && props.inspection.dimensions.length > 0,
+);
+
+function onDimensionPicked(value: unknown): void {
+    if (typeof value === "string" && value !== props.dimensionKey) emit("chooseDimension", value);
+}
 
 /**
  * Takes a downloaded folder as the world, and checks it like any other.
@@ -232,7 +264,7 @@ function onDrop(event: DragEvent): void {
         data-tutorial-anchor="world-find"
         :aria-label="t('world.wizard.step.world', 'World')"
     >
-        <h3 class="mb-world-step__title">{{ t("world.folder.title", "Choose a world") }}</h3>
+        <h3 class="mb-world-step__title">{{ t("world.folder.question", "Which world?") }}</h3>
         <p class="mb-world-step__blurb">
             {{
                 t(
@@ -242,40 +274,52 @@ function onDrop(event: DragEvent): void {
             }}
         </p>
 
+        <!--
+            The path field, labelled above itself and drawn in monospace because what it holds
+            is a path, with the native picker beside it. Re-checking the same folder is the
+            field's own trailing action rather than a third button in the row.
+        -->
         <div class="mb-world-step__row">
             <v-text-field
                 v-model="path"
                 :label="t('world.folder.label', 'World folder')"
                 :placeholder="t('world.folder.placeholder', 'the folder that contains level.dat')"
+                :prepend-inner-icon="mdiFolderOutline"
+                class="mb-world-step__path"
                 variant="outlined"
-                density="compact"
+                persistent-placeholder
                 spellcheck="false"
                 autocapitalize="off"
                 autocomplete="off"
                 hide-details="auto"
                 @blur="emit('inspect', path)"
                 @keydown.enter="emit('inspect', path)"
-            />
+            >
+                <template #append-inner>
+                    <v-btn
+                        :icon="mdiRefresh"
+                        :aria-label="t('world.folder.recheck', 'Check this folder again')"
+                        :title="t('world.folder.recheckShort', 'Check again')"
+                        :disabled="!canInspect || path.trim() === '' || inspecting"
+                        variant="text"
+                        size="small"
+                        @click="emit('inspect', path)"
+                    />
+                </template>
+            </v-text-field>
             <v-btn
-                :prepend-icon="mdiFolderSearchOutline"
                 :disabled="host === null"
-                variant="tonal"
+                class="mb-world-step__browse"
+                variant="outlined"
+                color="primary"
+                size="x-large"
                 @click="browse"
             >
                 {{ t("world.folder.browse", "Browse") }}
             </v-btn>
-            <v-btn
-                :prepend-icon="mdiRefresh"
-                :aria-label="t('world.folder.recheck', 'Check this folder again')"
-                :disabled="!canInspect || path.trim() === '' || inspecting"
-                variant="text"
-                @click="emit('inspect', path)"
-            >
-                {{ t("world.folder.recheckShort", "Check again") }}
-            </v-btn>
         </div>
 
-        <p v-if="host === null" class="mb-world-step__blurb">
+        <p v-if="host === null" class="mb-world-step__hint">
             {{
                 t(
                     "world.folder.noPicker",
@@ -314,7 +358,7 @@ function onDrop(event: DragEvent): void {
             type="warning"
             density="compact"
             variant="tonal"
-            class="mt-2"
+            class="mt-3"
             role="alert"
         >
             {{ dropFailure }}
@@ -339,7 +383,7 @@ function onDrop(event: DragEvent): void {
             </v-alert>
 
             <v-alert
-                v-if="!canInspect && path.trim() !== '' && problems.length === 0"
+                v-if="!canInspect && path.trim() !== '' && problems.length === 0 && !good"
                 type="info"
                 density="compact"
                 variant="tonal"
@@ -353,22 +397,26 @@ function onDrop(event: DragEvent): void {
                 }}
             </v-alert>
 
+            <!--
+                The world was read: a primary-container note with a check, saying what was
+                found. The dimensions follow as cards when this step chooses one, and inline
+                in the note when it does not.
+            -->
             <v-alert
                 v-if="good"
-                type="success"
-                density="compact"
-                variant="tonal"
-                class="mt-3"
+                :icon="mdiCheckCircleOutline"
+                color="primary-container"
+                density="comfortable"
+                variant="flat"
+                class="mb-world-step__found"
                 role="status"
             >
-                <div class="mb-world-step__found">
-                    <span>{{ summary }}</span>
-                    <v-chip
+                <span>{{ summary }}</span>
+                <template v-if="!choosesDimension">
+                    <span
                         v-for="dimension in inspection.dimensions"
                         :key="dimension.key"
-                        size="x-small"
-                        variant="tonal"
-                        :prepend-icon="mdiCheckCircleOutline"
+                        class="mb-world-step__found-dimension"
                     >
                         {{ dimension.label }}
                         <span class="mb-world-step__count">
@@ -380,27 +428,70 @@ function onDrop(event: DragEvent): void {
                                 )
                             }}
                         </span>
-                    </v-chip>
-                </div>
+                    </span>
+                </template>
             </v-alert>
+
+            <v-item-group
+                v-if="choosesDimension"
+                :model-value="dimensionKey"
+                mandatory
+                class="mb-world-step__dimensions"
+                role="radiogroup"
+                :aria-label="t('world.identity.dimension', 'Dimension')"
+                @update:model-value="onDimensionPicked"
+            >
+                <v-item
+                    v-for="dimension in inspection.dimensions"
+                    :key="dimension.key"
+                    v-slot="{ isSelected, toggle }"
+                    :value="dimension.key"
+                >
+                    <v-card
+                        :color="isSelected ? 'primary-container' : undefined"
+                        :variant="isSelected ? 'flat' : 'outlined'"
+                        class="mb-world-step__dimension"
+                        :class="{ 'mb-world-step__dimension--selected': isSelected }"
+                        role="radio"
+                        :aria-checked="isSelected ? 'true' : 'false'"
+                        @click="toggle"
+                    >
+                        <v-card-item>
+                            <v-card-title class="mb-world-step__dimension-name">
+                                {{ dimension.label }}
+                            </v-card-title>
+                            <v-card-subtitle class="mb-world-step__dimension-meta">
+                                {{
+                                    t(
+                                        "world.identity.regionCount",
+                                        { n: dimension.regionFiles },
+                                        "{n} region files on disk",
+                                    )
+                                }}
+                            </v-card-subtitle>
+                        </v-card-item>
+                    </v-card>
+                </v-item>
+            </v-item-group>
 
             <BedrockConversionNote :folder="modelValue" @converted="useConverted" />
         </template>
 
         <MinecraftWorldList :model-value="modelValue" :bridge="catalog" @choose="chooseWorld" />
 
-        <SshWorldSourcePanel @use="useSshWorld" />
-
-        <DockerWorldSourcePanel @use="useDockerWorld" />
-
-        <div class="mb-world-step__downloads">
+        <!--
+            The other places a world can come from, as one row of outlined actions. Each
+            opens its own panel below the row rather than in place, so the row keeps its
+            shape whichever is open.
+        -->
+        <div class="mb-world-step__sources">
             <v-btn
                 :prepend-icon="mdiCloudDownloadOutline"
                 :append-icon="downloadsOpen ? mdiChevronUp : mdiChevronDown"
                 :aria-expanded="downloadsOpen ? 'true' : 'false'"
                 aria-controls="mb-world-step-downloads"
-                variant="text"
-                size="small"
+                variant="outlined"
+                color="primary"
                 @click="downloadsOpen = !downloadsOpen"
             >
                 {{
@@ -412,29 +503,47 @@ function onDrop(event: DragEvent): void {
                           )
                 }}
             </v-btn>
-
-            <ReleaseDownloads
-                v-if="downloadsOpen"
-                id="mb-world-step-downloads"
-                :bridge="downloadBridge"
-                @use="useDownloaded"
-            />
+            <SshWorldSourcePanel class="mb-world-step__source" as-action @use="useSshWorld" />
+            <DockerWorldSourcePanel class="mb-world-step__source" as-action @use="useDockerWorld" />
+            <slot name="actions" />
         </div>
+
+        <ReleaseDownloads
+            v-if="downloadsOpen"
+            id="mb-world-step-downloads"
+            class="mb-world-step__downloads"
+            :bridge="downloadBridge"
+            @use="useDownloaded"
+        />
     </section>
 </template>
 
 <style>
 .mb-world-step__title {
-    font-size: var(--md-sys-typescale-body-large-size);
+    margin: 0;
+    font-size: var(--md-sys-typescale-title-large-size);
     font-weight: 500;
-    line-height: 1.3;
+    line-height: var(--md-sys-typescale-title-large-line-height);
 }
 
 .mb-world-step__blurb,
 .mb-world-step__fix {
+    max-inline-size: 66ch;
     font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
+    text-wrap: pretty;
+}
+
+.mb-world-step__blurb {
+    margin-block: 8px 20px;
+}
+
+.mb-world-step__hint {
+    margin-block: 8px 0;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 1.5;
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-world-step__problem {
@@ -445,14 +554,27 @@ function onDrop(event: DragEvent): void {
 .mb-world-step__row {
     display: flex;
     align-items: flex-start;
-    gap: 8px;
+    gap: 12px;
     flex-wrap: wrap;
-    margin-block: 12px;
 }
 
 .mb-world-step__row .v-text-field {
     flex: 1 1 260px;
     min-width: 0;
+}
+
+/* A path is drawn as a path. */
+.mb-world-step__path input {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-medium-size);
+}
+
+.mb-world-step__path .v-field {
+    background: rgb(var(--v-theme-surface));
+}
+
+.mb-world-step__browse.v-btn {
+    min-block-size: 56px;
 }
 
 .mb-world-step__checking {
@@ -463,12 +585,16 @@ function onDrop(event: DragEvent): void {
     margin-block-start: 12px;
 }
 
-.mb-world-step__found {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+.mb-world-step__found.v-alert {
+    margin-block-start: 20px;
     font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: 1.5;
+}
+
+.mb-world-step__found-dimension {
+    display: inline-block;
+    margin-inline-start: 8px;
+    font-weight: 500;
 }
 
 .mb-world-step__count {
@@ -477,17 +603,62 @@ function onDrop(event: DragEvent): void {
     opacity: 0.8;
 }
 
+/* Three selectable cards: the dimensions the world itself has. */
+.mb-world-step__dimensions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin-block-start: 16px;
+}
+
+.mb-world-step__dimension.v-card {
+    border-radius: var(--md-sys-shape-corner-medium);
+    cursor: pointer;
+}
+
+.mb-world-step__dimension.v-card--variant-outlined {
+    border-color: rgb(var(--v-theme-outline-variant));
+}
+
+.mb-world-step__dimension--selected.v-card {
+    outline: 1px solid rgb(var(--v-theme-primary));
+    outline-offset: -1px;
+}
+
+.mb-world-step__dimension .v-card-item {
+    padding: 14px 16px;
+}
+
+.mb-world-step__dimension-name.v-card-title {
+    padding: 0;
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.mb-world-step__dimension-meta.v-card-subtitle {
+    padding: 0;
+    margin-block-start: 2px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    opacity: 1;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-world-step__dimension--selected .mb-world-step__dimension-meta.v-card-subtitle {
+    color: rgb(var(--v-theme-on-primary-container));
+}
+
 .mb-world-step__drop {
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-block-start: 8px;
+    margin-block-start: 12px;
     padding: 12px;
     min-height: 48px;
-    border: 1px dashed rgba(var(--v-theme-on-surface), 0.3);
-    border-radius: var(--md-sys-shape-corner-small);
+    border: 1px dashed rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-medium);
     font-size: var(--md-sys-typescale-body-medium-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
 }
 
@@ -496,9 +667,20 @@ function onDrop(event: DragEvent): void {
     background: rgba(var(--v-theme-primary), 0.08);
 }
 
+/* The other places a world can come from: one row of outlined actions. */
+.mb-world-step__sources {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+    margin-block-start: 18px;
+}
+
+.mb-world-step__sources > .v-btn {
+    min-block-size: 44px;
+}
+
 .mb-world-step__downloads {
     margin-block-start: 16px;
-    padding-block-start: 8px;
-    border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 </style>

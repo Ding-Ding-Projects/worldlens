@@ -29,7 +29,7 @@ export interface WizardStepMeta {
 }
 
 export const WIZARD_STEP_META: readonly WizardStepMeta[] = [
-    { id: "world", key: "world.wizard.step.world", label: "World" },
+    { id: "world", key: "world.folder.title", label: "Choose a world" },
     { id: "identity", key: "world.wizard.step.identity", label: "Name and dimension" },
     { id: "options", key: "world.wizard.step.options", label: "Options" },
     { id: "storage", key: "world.wizard.step.storage", label: "Where it goes" },
@@ -40,7 +40,12 @@ export const WIZARD_STEP_META: readonly WizardStepMeta[] = [
 export const WORLD_STEP_PATHS: readonly string[] = ["world"];
 
 /** The map settings the naming step asks for in its own words. */
-export const IDENTITY_STEP_PATHS: readonly string[] = ["name", "dimension", "dimension-type", "sorting"];
+export const IDENTITY_STEP_PATHS: readonly string[] = [
+    "name",
+    "dimension",
+    "dimension-type",
+    "sorting",
+];
 
 /** The map settings the storage step asks for in its own words. */
 export const STORAGE_STEP_PATHS: readonly string[] = ["storage"];

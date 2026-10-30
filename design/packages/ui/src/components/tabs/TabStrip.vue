@@ -10,6 +10,10 @@ import {
     mdiChevronDown,
     mdiChevronRight,
     mdiClose,
+    mdiDockBottom,
+    mdiDockLeft,
+    mdiDockRight,
+    mdiDockTop,
     mdiDotsHorizontal,
     mdiMagnify,
     mdiLockOpenVariantOutline,
@@ -21,6 +25,7 @@ import {
     mdiRestore,
     mdiTabPlus,
     mdiTabUnselected,
+    mdiTextSearch,
 } from "@mdi/js";
 import {
     VBadge,
@@ -176,7 +181,58 @@ const props = defineProps<{
      * every other power: pinning, groups, reordering, overflow, and all four searches.
      */
     closeless?: boolean;
+    /**
+     * How the strip is drawn, never what it does.
+     *
+     * `"jobs"` is the Work destination's job strip from the approved design: pinned tabs keep
+     * their label beside a pin mark, a group's heading is a small filled chip in its container
+     * colour with the disclosure chevron inside it, the new-tab button follows the last tab,
+     * and the overflow, finder and edge controls sit together at the far end. Every control,
+     * menu, search, keyboard route and accessible name is the same in both presentations;
+     * the group's commands stay on its header's context menu and its Shift+F10 / ContextMenu
+     * keys rather than on a separate "..." button. Left out, the strip draws exactly as before,
+     * which is what the settings sheet and the editors use.
+     */
+    appearance?: "default" | "jobs";
 }>();
+
+const jobs = computed(() => props.appearance === "jobs");
+
+/**
+ * The strip's controls, in reading order. The job strip puts "new tab" straight after the
+ * tabs and the overflow, finder and edge controls at the far end, as the approved design does.
+ */
+const controlOrder = computed<readonly ("placement" | "new" | "overflow" | "finder")[]>(() =>
+    jobs.value
+        ? ["new", "overflow", "finder", "placement"]
+        : ["placement", "new", "overflow", "finder"],
+);
+
+/** The edge glyph for the placement control, so the button shows where the strip is docked. */
+const placementIcon = computed(() => {
+    if (!jobs.value) return mdiDotsHorizontal;
+    switch (props.strip.placement) {
+        case "left":
+            return mdiDockLeft;
+        case "right":
+            return mdiDockRight;
+        case "bottom":
+            return mdiDockBottom;
+        default:
+            return mdiDockTop;
+    }
+});
+
+/**
+ * A group's chip colour in the job strip: the container role of its seeded colour, so
+ * "Rendering" reads as primary-container and "Finished maps" as tertiary-container. Colours
+ * with no container role in the scheme keep their tonal treatment.
+ */
+function groupChipColor(color: string): string {
+    return jobs.value && ["primary", "secondary", "tertiary", "error"].includes(color)
+        ? `${color}-container`
+        : color;
+}
 
 const emit = defineEmits<{
     /*
@@ -320,6 +376,45 @@ const OVERFLOW_WIDTH = 44;
 
 const ordinaryEl = ref<HTMLElement | null>(null);
 const stripRowEl = ref<HTMLElement | null>(null);
+const pinnedEl = ref<HTMLElement | null>(null);
+const controlsEl = ref<HTMLElement | null>(null);
+
+/** A px length from a computed style, or zero. */
+function px(value: string): number {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * The width the ordinary tabs may use in the job strip.
+ *
+ * The job strip sizes its tab list to its content, so the new-tab button can sit right after
+ * the last tab instead of at the far end. A content-sized region cannot report the room it
+ * *could* have - its own width is whatever it already holds - so the budget is worked out from
+ * the row instead: the row's inner width, less the controls (without the overflow button,
+ * which `fitCount` already pays for), less the pinned region and the gaps between them.
+ */
+function jobsAvailable(): number | null {
+    const row = stripRowEl.value;
+    const controls = controlsEl.value;
+    if (row === null || controls === null || typeof getComputedStyle === "undefined") return null;
+    const rowStyle = getComputedStyle(row);
+    const inner = row.clientWidth - px(rowStyle.paddingLeft) - px(rowStyle.paddingRight);
+    if (inner <= 0) return null;
+    const rowGap = px(rowStyle.columnGap);
+    const children = Array.from(controls.children) as HTMLElement[];
+    const counted = children.filter(
+        (child) => !child.classList.contains("mb-tabs-strip__overflow"),
+    );
+    const controlsGap = px(getComputedStyle(controls).columnGap);
+    const controlsWidth =
+        counted.reduce((sum, child) => sum + child.offsetWidth, 0) +
+        controlsGap * Math.max(0, counted.length - 1);
+    const strip = row.firstElementChild as HTMLElement | null;
+    const stripGap = strip === null ? 0 : px(getComputedStyle(strip).columnGap);
+    const pinned = pinnedEl.value === null ? 0 : pinnedEl.value.offsetWidth + stripGap;
+    return Math.max(0, inner - controlsWidth - rowGap - pinned);
+}
 
 /**
  * Publishes how much of the window's left edge this strip occupies, for the chrome that
@@ -370,7 +465,8 @@ const segmentKey = (index: number): string => {
 function measure(): void {
     const host = ordinaryEl.value;
     if (host === null) return;
-    available.value = vertical.value ? host.clientHeight : host.clientWidth;
+    const jobsBudget = jobs.value && !vertical.value ? jobsAvailable() : null;
+    available.value = jobsBudget ?? (vertical.value ? host.clientHeight : host.clientWidth);
     const next = { ...widths.value };
     for (const element of Array.from(host.querySelectorAll<HTMLElement>("[data-segment]"))) {
         const key = element.dataset["segment"];
@@ -1233,7 +1329,12 @@ const tabCountLabel = computed(() =>
 </script>
 
 <template>
-    <div ref="stripRowEl" class="mb-tabs-strip-row" :data-placement="strip.placement">
+    <div
+        ref="stripRowEl"
+        class="mb-tabs-strip-row"
+        :class="{ 'mb-tabs-strip-row--jobs': jobs }"
+        :data-placement="strip.placement"
+    >
         <div
             class="mb-tabs-strip"
             role="tablist"
@@ -1244,7 +1345,12 @@ const tabCountLabel = computed(() =>
                 The pinned region. Measured out of the budget before the ordinary
                 tabs, so it never overflows and a pinned tab is always reachable.
             -->
-            <div v-if="pinned.length > 0" class="mb-tabs-strip__pinned" role="presentation">
+            <div
+                v-if="pinned.length > 0"
+                ref="pinnedEl"
+                class="mb-tabs-strip__pinned"
+                role="presentation"
+            >
                 <TabButton
                     v-for="tab in pinned"
                     :key="tab.id"
@@ -1256,7 +1362,7 @@ const tabCountLabel = computed(() =>
                     :style="tabStyles[tab.id]"
                     :data-tutorial-anchor="`tab-${tab.pageId}`"
                     :closeless="closeless === true"
-                    compact
+                    :compact="!jobs"
                     pinned
                     @activate="goTo(tab.id)"
                     @close="emit('close', tab.id, strip.id)"
@@ -1266,7 +1372,7 @@ const tabCountLabel = computed(() =>
                     @drop="onDrop(tab)"
                 />
 
-                <v-divider :vertical="!vertical" class="mb-tabs-strip__rule" />
+                <v-divider v-if="!jobs" :vertical="!vertical" class="mb-tabs-strip__rule" />
             </div>
 
             <!-- The ordinary region: lone tabs and whole groups, in slot order. -->
@@ -1310,73 +1416,98 @@ const tabCountLabel = computed(() =>
                                 nothing. Caught in a real capture of the running app.
                             -->
                             <div class="mb-tabs-strip__group-bar" role="presentation">
-                            <button
-                                :id="`${idPrefix}-group-${segment.group.id}`"
-                                class="mb-tabs-strip__group-head"
-                                type="button"
-                                :style="groupStyles[segment.group.id]"
-                                :aria-expanded="
-                                    isGroupExpanded(segment.group, revealed) ? 'true' : 'false'
-                                "
-                                :aria-label="
-                                    t(
-                                        'tabs.group.headLabel',
-                                        { group: segment.group.name, count: segment.tabs.length },
-                                        '{group}, {count} tabs',
-                                    )
-                                "
-                                @click="
-                                    emit(
-                                        'set-group-collapsed',
-                                        segment.group.id,
-                                        !segment.group.collapsed,
-                                    )
-                                "
-                                @keydown="
-                                    onGroupKeydown(
-                                        $event,
-                                        segment.group.id,
-                                        segment.group.collapsed,
-                                    )
-                                "
-                                @contextmenu="onGroupContextMenu($event, segment.group.id)"
-                            >
-                                <v-icon
-                                    :icon="
-                                        isGroupExpanded(segment.group, revealed)
-                                            ? mdiChevronDown
-                                            : mdiChevronRight
+                                <button
+                                    :id="`${idPrefix}-group-${segment.group.id}`"
+                                    class="mb-tabs-strip__group-head"
+                                    type="button"
+                                    :style="groupStyles[segment.group.id]"
+                                    :aria-expanded="
+                                        isGroupExpanded(segment.group, revealed) ? 'true' : 'false'
                                     "
-                                    size="16"
-                                    aria-hidden="true"
-                                />
-                                <v-chip size="x-small" :color="segment.group.color" variant="tonal">
-                                    {{ segment.group.name }}
-                                </v-chip>
-                                <span class="mb-tabs-strip__count" aria-hidden="true">{{
-                                    segment.tabs.length
-                                }}</span>
-                            </button>
+                                    :aria-label="
+                                        t(
+                                            'tabs.group.headLabel',
+                                            {
+                                                group: segment.group.name,
+                                                count: segment.tabs.length,
+                                            },
+                                            '{group}, {count} tabs',
+                                        )
+                                    "
+                                    @click="
+                                        emit(
+                                            'set-group-collapsed',
+                                            segment.group.id,
+                                            !segment.group.collapsed,
+                                        )
+                                    "
+                                    @keydown="
+                                        onGroupKeydown(
+                                            $event,
+                                            segment.group.id,
+                                            segment.group.collapsed,
+                                        )
+                                    "
+                                    @contextmenu="onGroupContextMenu($event, segment.group.id)"
+                                >
+                                    <v-icon
+                                        v-if="!jobs"
+                                        :icon="
+                                            isGroupExpanded(segment.group, revealed)
+                                                ? mdiChevronDown
+                                                : mdiChevronRight
+                                        "
+                                        size="16"
+                                        aria-hidden="true"
+                                    />
+                                    <v-chip
+                                        size="x-small"
+                                        :color="groupChipColor(segment.group.color)"
+                                        :variant="jobs ? 'flat' : 'tonal'"
+                                        :prepend-icon="
+                                            jobs
+                                                ? isGroupExpanded(segment.group, revealed)
+                                                    ? mdiChevronDown
+                                                    : mdiChevronRight
+                                                : undefined
+                                        "
+                                    >
+                                        {{ segment.group.name }}
+                                    </v-chip>
+                                    <span
+                                        v-if="!jobs"
+                                        class="mb-tabs-strip__count"
+                                        aria-hidden="true"
+                                        >{{ segment.tabs.length }}</span
+                                    >
+                                </button>
 
-                            <v-btn
-                                :icon="mdiDotsHorizontal"
-                                :aria-label="
-                                    t(
-                                        'tabs.group.menu',
-                                        { group: segment.group.name },
-                                        'Commands for the group {group}',
-                                    )
-                                "
-                                variant="text"
-                                size="x-small"
-                                density="comfortable"
-                                @click="
-                                    openGroupMenu(
-                                        segment.group.id,
-                                        $event.currentTarget as HTMLElement,
-                                    )
-                                "
-                            />
+                                <!--
+                                The job strip draws no separate commands button: the approved
+                                design keeps a group's heading to its chip, and the same menu
+                                opens from the heading's context menu and from Shift+F10 or
+                                the ContextMenu key on it.
+                            -->
+                                <v-btn
+                                    v-if="!jobs"
+                                    :icon="mdiDotsHorizontal"
+                                    :aria-label="
+                                        t(
+                                            'tabs.group.menu',
+                                            { group: segment.group.name },
+                                            'Commands for the group {group}',
+                                        )
+                                    "
+                                    variant="text"
+                                    size="x-small"
+                                    density="comfortable"
+                                    @click="
+                                        openGroupMenu(
+                                            segment.group.id,
+                                            $event.currentTarget as HTMLElement,
+                                        )
+                                    "
+                                />
                             </div>
 
                             <!--
@@ -1419,309 +1550,351 @@ const tabCountLabel = computed(() =>
             </div>
         </div>
 
-        <div class="mb-tabs-strip__controls">
-            <!-- Placement is owned by this strip, so every nested settings/editor strip
-                 gets the same guided, persisted control without borrowing a global value. -->
-            <v-btn
-                :aria-label="
-                    t(
-                        'tabs.placement.button',
-                        { placement: strip.placement },
-                        'Move this tab strip. Current edge: {placement}.',
-                    )
-                "
-                :aria-expanded="placementOpen ? 'true' : 'false'"
-                variant="text"
-                size="small"
-                density="comfortable"
-            >
-                <v-icon :icon="mdiDotsHorizontal" />
-                <v-tooltip
-                    activator="parent"
-                    location="bottom"
-                    :text="t('tabs.placement.title', 'Tab strip edge')"
-                />
-                <v-menu
-                    v-model="placementOpen"
-                    activator="parent"
-                    :close-on-content-click="false"
-                    location="bottom end"
-                    offset="4"
-                >
-                    <div class="mb-tabs-strip__sheet mb-tabs-strip__placement-sheet">
-                        <h3 class="mb-tabs-strip__placement-title">
-                            {{ t("tabs.placement.title", "Tab strip edge") }}
-                        </h3>
-                        <p class="mb-tabs-strip__placement-description">
-                            {{
-                                t(
-                                    "tabs.placement.description",
-                                    "Choose the edge for this strip. The choice is saved for this strip without changing its tabs, pins, groups, or order.",
-                                )
-                            }}
-                        </p>
-                        <ConfigSearchField
-                            v-model="placementQuery"
-                            v-model:regex="placementRegexMode"
-                            v-model:flags="placementFlags"
-                            :label="t('tabs.placement.search', 'Search tab strip edges')"
-                            :sample="placementSample"
-                            class="mb-tabs-strip__menu-filter"
-                        />
-                        <v-list
-                            density="compact"
-                            :aria-label="t('tabs.placement.title', 'Tab strip edge')"
-                        >
-                            <v-list-item
-                                v-for="choice in placementOptions"
-                                :key="choice.value"
-                                :active="strip.placement === choice.value"
-                                :aria-current="
-                                    strip.placement === choice.value ? 'true' : undefined
-                                "
-                                @click="
-                                    emit('set-placement', choice.value);
-                                    placementOpen = false;
-                                "
-                            >
-                                {{ choice.label }}
-                            </v-list-item>
-                        </v-list>
-                        <p
-                            v-if="placementOptions.length === 0"
-                            class="mb-tabs-strip__menu-empty"
-                            role="status"
-                        >
-                            {{
-                                t(
-                                    "tabs.menu.noMatch",
-                                    "No command here matches that. Clearing the filter brings them all back.",
-                                )
-                            }}
-                        </p>
-                        <p class="mb-tabs-strip__placement-provenance">
-                            {{
-                                t(
-                                    "tabs.placement.provenance",
-                                    "Source: this strip's saved setting. Built-in fallback for fresh and migrated profiles: Left edge.",
-                                )
-                            }}
-                        </p>
-                    </div>
-                </v-menu>
-            </v-btn>
-
-            <!-- New tab: a real menu of the pages this shell can show. -->
-            <v-btn
-                :icon="mdiPlus"
-                :aria-label="t('tabs.strip.newTab', 'Open a new tab')"
-                variant="text"
-                size="small"
-                density="comfortable"
-            >
-                <v-icon :icon="mdiPlus" />
-                <v-menu
-                    v-model="newTabMenuOpen"
-                    activator="parent"
-                    location="bottom end"
-                    offset="4"
-                >
-                    <div class="mb-tabs-strip__sheet" @keydown="onNewTabMenuKeydown">
-                        <ConfigSearchField
-                            v-model="newTabQuery"
-                            v-model:regex="newTabRegexMode"
-                            v-model:flags="newTabFlags"
-                            :label="t('tabs.menu.filter', 'Filter these commands')"
-                            :sample="newTabSample"
-                            class="mb-tabs-strip__menu-filter"
-                        />
-
-                        <p
-                            v-if="filteredPages.length === 0"
-                            class="mb-tabs-strip__menu-empty"
-                            role="status"
-                        >
-                            {{
-                                t(
-                                    "tabs.menu.noMatch",
-                                    "No command here matches that. Clearing the filter brings them all back.",
-                                )
-                            }}
-                        </p>
-
-                        <v-list
-                            v-else
-                            density="compact"
-                            :aria-label="t('tabs.strip.newTab', 'Open a new tab')"
-                        >
-                            <v-list-item
-                                v-for="page in filteredPages"
-                                :key="page.id"
-                                @click="emit('open-page', page.id)"
-                            >
-                                <template v-if="page.icon" #prepend>
-                                    <v-icon :icon="page.icon" size="18" aria-hidden="true" />
-                                </template>
-                                {{ page.label }}
-                            </v-list-item>
-                        </v-list>
-                    </div>
-                </v-menu>
-            </v-btn>
-
+        <div ref="controlsEl" class="mb-tabs-strip__controls">
             <!--
-                The overflow surface. It exists only when something really is out
-                of sight, and it lists exactly those segments, so a tab that does
-                not fit is one click away rather than gone.
+                Drawn in the order the presentation asks for, in the DOM as well as on screen,
+                so keyboard focus walks the controls in the order a sighted user reads them.
+                Each control's markup still appears exactly once.
             -->
-            <v-badge
-                v-if="hiddenSegments.length > 0"
-                :content="hiddenSegments.length"
-                color="primary"
-                offset-x="4"
-                offset-y="4"
-            >
-                <v-btn
-                    :icon="mdiChevronDown"
-                    :aria-label="
-                        t(
-                            'tabs.strip.overflow',
-                            { count: hiddenSegments.length },
-                            '{count} tabs do not fit. Show them.',
-                        )
-                    "
-                    :aria-expanded="overflowOpen ? 'true' : 'false'"
-                    variant="text"
-                    size="small"
-                    density="comfortable"
-                >
-                    <v-icon :icon="mdiChevronDown" />
-                    <v-menu
-                        v-model="overflowOpen"
-                        activator="parent"
-                        location="bottom end"
-                        offset="4"
+            <template v-for="control in controlOrder" :key="control">
+                <template v-if="control === 'placement'">
+                    <!-- Placement is owned by this strip, so every nested settings/editor strip
+                         gets the same guided, persisted control without borrowing a global value. -->
+                    <v-btn
+                        :aria-label="
+                            t(
+                                'tabs.placement.button',
+                                { placement: strip.placement },
+                                'Move this tab strip. Current edge: {placement}.',
+                            )
+                        "
+                        :aria-expanded="placementOpen ? 'true' : 'false'"
+                        class="mb-tabs-strip__placement"
+                        :color="jobs ? 'on-surface-variant' : undefined"
+                        variant="text"
+                        size="small"
+                        density="comfortable"
                     >
-                        <div class="mb-tabs-strip__sheet" @keydown="onOverflowMenuKeydown">
-                            <ConfigSearchField
-                                v-model="overflowQuery"
-                                v-model:regex="overflowRegexMode"
-                                v-model:flags="overflowFlags"
-                                :label="t('tabs.menu.filter', 'Filter these commands')"
-                                :sample="overflowSample"
-                                class="mb-tabs-strip__menu-filter"
-                            />
-
-                            <p
-                                v-if="filteredHiddenSegments.length === 0"
-                                class="mb-tabs-strip__menu-empty"
-                                role="status"
-                            >
-                                {{
-                                    t(
-                                        "tabs.menu.noMatch",
-                                        "No command here matches that. Clearing the filter brings them all back.",
-                                    )
-                                }}
-                            </p>
-
-                            <v-list
-                                v-else
-                                density="compact"
-                                :aria-label="t('tabs.strip.overflowList', 'Tabs that do not fit')"
-                            >
-                                <template
-                                    v-for="segment in filteredHiddenSegments"
-                                    :key="
-                                        segment.kind === 'tab' ? segment.tab.id : segment.group.id
-                                    "
+                        <v-icon :icon="placementIcon" />
+                        <v-tooltip
+                            activator="parent"
+                            location="bottom"
+                            :text="t('tabs.placement.title', 'Tab strip edge')"
+                        />
+                        <v-menu
+                            v-model="placementOpen"
+                            activator="parent"
+                            :close-on-content-click="false"
+                            location="bottom end"
+                            offset="4"
+                        >
+                            <div class="mb-tabs-strip__sheet mb-tabs-strip__placement-sheet">
+                                <h3 class="mb-tabs-strip__placement-title">
+                                    {{ t("tabs.placement.title", "Tab strip edge") }}
+                                </h3>
+                                <p class="mb-tabs-strip__placement-description">
+                                    {{
+                                        t(
+                                            "tabs.placement.description",
+                                            "Choose the edge for this strip. The choice is saved for this strip without changing its tabs, pins, groups, or order.",
+                                        )
+                                    }}
+                                </p>
+                                <ConfigSearchField
+                                    v-model="placementQuery"
+                                    v-model:regex="placementRegexMode"
+                                    v-model:flags="placementFlags"
+                                    :label="t('tabs.placement.search', 'Search tab strip edges')"
+                                    :sample="placementSample"
+                                    class="mb-tabs-strip__menu-filter"
+                                />
+                                <v-list
+                                    density="compact"
+                                    :aria-label="t('tabs.placement.title', 'Tab strip edge')"
                                 >
                                     <v-list-item
-                                        v-if="segment.kind === 'tab'"
-                                        @click="onOverflowChoice(segment.tab.id, null, false)"
+                                        v-for="choice in placementOptions"
+                                        :key="choice.value"
+                                        :active="strip.placement === choice.value"
+                                        :aria-current="
+                                            strip.placement === choice.value ? 'true' : undefined
+                                        "
+                                        @click="
+                                            emit('set-placement', choice.value);
+                                            placementOpen = false;
+                                        "
                                     >
-                                        {{ segment.tab.label }}
+                                        {{ choice.label }}
                                     </v-list-item>
-                                    <template v-else>
-                                        <!--
-                                            A subheader, not a disabled row. The group
-                                            name is a label here, and a row drawn like a
-                                            command that refuses every click is worse
-                                            than a heading that never claimed to be one.
-                                        -->
-                                        <v-list-subheader>{{
-                                            segment.group.name
-                                        }}</v-list-subheader>
-                                        <v-list-item
-                                            v-for="tab in segment.tabs"
-                                            :key="tab.id"
-                                            class="mb-tabs-strip__overflow-member"
-                                            @click="
-                                                onOverflowChoice(
-                                                    tab.id,
-                                                    segment.group.id,
-                                                    segment.group.collapsed,
-                                                )
+                                </v-list>
+                                <p
+                                    v-if="placementOptions.length === 0"
+                                    class="mb-tabs-strip__menu-empty"
+                                    role="status"
+                                >
+                                    {{
+                                        t(
+                                            "tabs.menu.noMatch",
+                                            "No command here matches that. Clearing the filter brings them all back.",
+                                        )
+                                    }}
+                                </p>
+                                <p class="mb-tabs-strip__placement-provenance">
+                                    {{
+                                        t(
+                                            "tabs.placement.provenance",
+                                            "Source: this strip's saved setting. Built-in fallback for fresh and migrated profiles: Left edge.",
+                                        )
+                                    }}
+                                </p>
+                            </div>
+                        </v-menu>
+                    </v-btn>
+                </template>
+                <template v-if="control === 'new'">
+                    <!-- New tab: a real menu of the pages this shell can show. -->
+                    <v-btn
+                        :icon="mdiPlus"
+                        :aria-label="t('tabs.strip.newTab', 'Open a new tab')"
+                        class="mb-tabs-strip__new"
+                        :color="jobs ? 'on-surface-variant' : undefined"
+                        variant="text"
+                        size="small"
+                        density="comfortable"
+                    >
+                        <v-icon :icon="mdiPlus" />
+                        <v-menu
+                            v-model="newTabMenuOpen"
+                            activator="parent"
+                            location="bottom end"
+                            offset="4"
+                        >
+                            <div class="mb-tabs-strip__sheet" @keydown="onNewTabMenuKeydown">
+                                <ConfigSearchField
+                                    v-model="newTabQuery"
+                                    v-model:regex="newTabRegexMode"
+                                    v-model:flags="newTabFlags"
+                                    :label="t('tabs.menu.filter', 'Filter these commands')"
+                                    :sample="newTabSample"
+                                    class="mb-tabs-strip__menu-filter"
+                                />
+
+                                <p
+                                    v-if="filteredPages.length === 0"
+                                    class="mb-tabs-strip__menu-empty"
+                                    role="status"
+                                >
+                                    {{
+                                        t(
+                                            "tabs.menu.noMatch",
+                                            "No command here matches that. Clearing the filter brings them all back.",
+                                        )
+                                    }}
+                                </p>
+
+                                <v-list
+                                    v-else
+                                    density="compact"
+                                    :aria-label="t('tabs.strip.newTab', 'Open a new tab')"
+                                >
+                                    <v-list-item
+                                        v-for="page in filteredPages"
+                                        :key="page.id"
+                                        @click="emit('open-page', page.id)"
+                                    >
+                                        <template v-if="page.icon" #prepend>
+                                            <v-icon
+                                                :icon="page.icon"
+                                                size="18"
+                                                aria-hidden="true"
+                                            />
+                                        </template>
+                                        {{ page.label }}
+                                    </v-list-item>
+                                </v-list>
+                            </div>
+                        </v-menu>
+                    </v-btn>
+                </template>
+                <template v-if="control === 'overflow'">
+                    <!--
+                        The overflow surface. It exists only when something really is out
+                        of sight, and it lists exactly those segments, so a tab that does
+                        not fit is one click away rather than gone.
+                    -->
+                    <v-badge
+                        v-if="hiddenSegments.length > 0"
+                        class="mb-tabs-strip__overflow"
+                        :model-value="!jobs"
+                        :content="hiddenSegments.length"
+                        color="primary"
+                        offset-x="4"
+                        offset-y="4"
+                    >
+                        <!--
+                            The job strip draws this as "... N", the count beside the glyph, rather
+                            than a chevron under a badge; the accessible name is the same sentence.
+                        -->
+                        <v-btn
+                            :icon="jobs ? undefined : mdiChevronDown"
+                            :prepend-icon="jobs ? mdiDotsHorizontal : undefined"
+                            :color="jobs ? 'on-surface-variant' : undefined"
+                            :aria-label="
+                                t(
+                                    'tabs.strip.overflow',
+                                    { count: hiddenSegments.length },
+                                    '{count} tabs do not fit. Show them.',
+                                )
+                            "
+                            :aria-expanded="overflowOpen ? 'true' : 'false'"
+                            variant="text"
+                            size="small"
+                            density="comfortable"
+                        >
+                            <span
+                                v-if="jobs"
+                                class="mb-tabs-strip__overflow-count"
+                                aria-hidden="true"
+                                >{{ hiddenSegments.length }}</span
+                            >
+                            <v-icon v-else :icon="mdiChevronDown" />
+                            <v-menu
+                                v-model="overflowOpen"
+                                activator="parent"
+                                location="bottom end"
+                                offset="4"
+                            >
+                                <div class="mb-tabs-strip__sheet" @keydown="onOverflowMenuKeydown">
+                                    <ConfigSearchField
+                                        v-model="overflowQuery"
+                                        v-model:regex="overflowRegexMode"
+                                        v-model:flags="overflowFlags"
+                                        :label="t('tabs.menu.filter', 'Filter these commands')"
+                                        :sample="overflowSample"
+                                        class="mb-tabs-strip__menu-filter"
+                                    />
+
+                                    <p
+                                        v-if="filteredHiddenSegments.length === 0"
+                                        class="mb-tabs-strip__menu-empty"
+                                        role="status"
+                                    >
+                                        {{
+                                            t(
+                                                "tabs.menu.noMatch",
+                                                "No command here matches that. Clearing the filter brings them all back.",
+                                            )
+                                        }}
+                                    </p>
+
+                                    <v-list
+                                        v-else
+                                        density="compact"
+                                        :aria-label="
+                                            t('tabs.strip.overflowList', 'Tabs that do not fit')
+                                        "
+                                    >
+                                        <template
+                                            v-for="segment in filteredHiddenSegments"
+                                            :key="
+                                                segment.kind === 'tab'
+                                                    ? segment.tab.id
+                                                    : segment.group.id
                                             "
                                         >
-                                            {{ tab.label }}
-                                        </v-list-item>
-                                    </template>
-                                </template>
-                            </v-list>
-                        </div>
-                    </v-menu>
-                </v-btn>
-            </v-badge>
-
-            <!--
-                The searchable tab list, always available rather than only when
-                the strip overflows: it is where three of the four searches and
-                both bulk closes live. `eager` keeps its queries alive between
-                openings, which is the return path from a result back to the
-                search that found it.
-            -->
-            <v-btn
-                :icon="mdiMagnify"
-                :aria-label="t('tabs.find.title', 'Find a tab')"
-                :aria-expanded="finderOpen ? 'true' : 'false'"
-                variant="text"
-                size="small"
-                density="comfortable"
-            >
-                <v-icon :icon="mdiMagnify" />
-                <v-tooltip
-                    activator="parent"
-                    location="bottom"
-                    :text="t('tabs.find.title', 'Find a tab')"
-                />
-                <v-menu
-                    v-model="finderOpen"
-                    activator="parent"
-                    :close-on-content-click="false"
-                    location="bottom end"
-                    offset="4"
-                    eager
-                >
-                    <div class="mb-tabs-strip__sheet">
-                        <TabFinder
-                            :workspace="workspace"
-                            :strip="strip"
-                            @activate="onResult"
-                            @pin="emit('pin', $event.tabId, $event.stripId)"
-                            @unpin="emit('unpin', $event.tabId, $event.stripId)"
-                            @ungroup="emit('assign', $event.tabId, null, $event.stripId)"
-                            @close="emit('close', $event.tabId, $event.stripId)"
-                            @focus-group="onGroupResult"
-                            @set-collapsed="
-                                (hit, collapsed) =>
-                                    emit('set-group-collapsed', hit.groupId, collapsed)
-                            "
-                            @apply="(plan, options) => emit('apply', plan, options)"
+                                            <v-list-item
+                                                v-if="segment.kind === 'tab'"
+                                                @click="
+                                                    onOverflowChoice(segment.tab.id, null, false)
+                                                "
+                                            >
+                                                {{ segment.tab.label }}
+                                            </v-list-item>
+                                            <template v-else>
+                                                <!--
+                                                    A subheader, not a disabled row. The group
+                                                    name is a label here, and a row drawn like a
+                                                    command that refuses every click is worse
+                                                    than a heading that never claimed to be one.
+                                                -->
+                                                <v-list-subheader>{{
+                                                    segment.group.name
+                                                }}</v-list-subheader>
+                                                <v-list-item
+                                                    v-for="tab in segment.tabs"
+                                                    :key="tab.id"
+                                                    class="mb-tabs-strip__overflow-member"
+                                                    @click="
+                                                        onOverflowChoice(
+                                                            tab.id,
+                                                            segment.group.id,
+                                                            segment.group.collapsed,
+                                                        )
+                                                    "
+                                                >
+                                                    {{ tab.label }}
+                                                </v-list-item>
+                                            </template>
+                                        </template>
+                                    </v-list>
+                                </div>
+                            </v-menu>
+                        </v-btn>
+                    </v-badge>
+                </template>
+                <template v-if="control === 'finder'">
+                    <!--
+                        The searchable tab list, always available rather than only when
+                        the strip overflows: it is where three of the four searches and
+                        both bulk closes live. `eager` keeps its queries alive between
+                        openings, which is the return path from a result back to the
+                        search that found it.
+                    -->
+                    <v-btn
+                        :icon="jobs ? mdiTextSearch : mdiMagnify"
+                        :aria-label="t('tabs.find.title', 'Find a tab')"
+                        :aria-expanded="finderOpen ? 'true' : 'false'"
+                        class="mb-tabs-strip__finder"
+                        :color="jobs ? 'on-surface-variant' : undefined"
+                        variant="text"
+                        size="small"
+                        density="comfortable"
+                    >
+                        <v-icon :icon="jobs ? mdiTextSearch : mdiMagnify" />
+                        <v-tooltip
+                            activator="parent"
+                            location="bottom"
+                            :text="t('tabs.find.title', 'Find a tab')"
                         />
-                    </div>
-                </v-menu>
-            </v-btn>
+                        <v-menu
+                            v-model="finderOpen"
+                            activator="parent"
+                            :close-on-content-click="false"
+                            location="bottom end"
+                            offset="4"
+                            eager
+                        >
+                            <div class="mb-tabs-strip__sheet">
+                                <TabFinder
+                                    :workspace="workspace"
+                                    :strip="strip"
+                                    @activate="onResult"
+                                    @pin="emit('pin', $event.tabId, $event.stripId)"
+                                    @unpin="emit('unpin', $event.tabId, $event.stripId)"
+                                    @ungroup="emit('assign', $event.tabId, null, $event.stripId)"
+                                    @close="emit('close', $event.tabId, $event.stripId)"
+                                    @focus-group="onGroupResult"
+                                    @set-collapsed="
+                                        (hit, collapsed) =>
+                                            emit('set-group-collapsed', hit.groupId, collapsed)
+                                    "
+                                    @apply="(plan, options) => emit('apply', plan, options)"
+                                />
+                            </div>
+                        </v-menu>
+                    </v-btn>
+                </template>
+            </template>
         </div>
 
         <!--
@@ -2009,7 +2182,6 @@ const tabCountLabel = computed(() =>
     min-width: 0;
 }
 
-
 .mb-tabs-strip__ordinary {
     flex: 1 1 auto;
     min-width: 0;
@@ -2281,6 +2453,158 @@ const tabCountLabel = computed(() =>
     font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+}
+
+/*
+ * The job strip (`appearance="jobs"`), from the approved Work design.
+ *
+ * Appearance only: every rule below is scoped to `.mb-tabs-strip-row--jobs`, so the settings
+ * sheet's and the editors' strips keep the look above. The 44px touch targets are kept as
+ * centred pseudo-element expansions where the drawn chip is smaller (see `WorkPane.vue`).
+ *
+ * In a top or bottom dock the tab list is content-sized, so the new-tab button follows the
+ * last tab and the controls hold the far end; `TabStrip`'s overflow budget is then measured
+ * from the row (`jobsAvailable()`) rather than from this region's own width.
+ */
+.mb-tabs-strip-row--jobs {
+    align-items: flex-end;
+    gap: 4px;
+    padding: 8px 12px 0;
+    background: rgb(var(--v-theme-surface));
+    border-block-end: 1px solid rgb(var(--v-theme-surface-container));
+}
+
+.mb-tabs-strip-row--jobs[data-placement="top"],
+.mb-tabs-strip-row--jobs[data-placement="bottom"] {
+    min-block-size: 0;
+}
+
+.mb-tabs-strip-row--jobs[data-placement="top"] .mb-tabs-strip,
+.mb-tabs-strip-row--jobs[data-placement="bottom"] .mb-tabs-strip {
+    flex: 0 1 auto;
+    align-items: flex-end;
+}
+
+.mb-tabs-strip-row--jobs[data-placement="top"] .mb-tabs-strip__ordinary,
+.mb-tabs-strip-row--jobs[data-placement="bottom"] .mb-tabs-strip__ordinary {
+    flex: 0 1 auto;
+    align-items: flex-end;
+}
+
+.mb-tabs-strip-row--jobs[data-placement="top"] .mb-tabs-strip__pinned,
+.mb-tabs-strip-row--jobs[data-placement="top"] .mb-tabs-strip__segment,
+.mb-tabs-strip-row--jobs[data-placement="top"] .mb-tabs-strip__group,
+.mb-tabs-strip-row--jobs[data-placement="bottom"] .mb-tabs-strip__pinned,
+.mb-tabs-strip-row--jobs[data-placement="bottom"] .mb-tabs-strip__segment,
+.mb-tabs-strip-row--jobs[data-placement="bottom"] .mb-tabs-strip__group {
+    align-items: flex-end;
+}
+
+/* A sheet, not a pill: rounded at the top, square where it meets the page it opens. */
+.mb-tabs-strip-row--jobs .mb-tabs-strip__tab {
+    gap: 8px;
+    max-width: 16rem;
+    padding: 0 4px 0 12px;
+    border: 1px solid rgb(var(--v-theme-surface-container));
+    border-block-end: 0;
+    border-radius: var(--md-sys-shape-corner-medium) var(--md-sys-shape-corner-medium) 0 0;
+    background: rgb(var(--v-theme-surface-container));
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 500;
+    line-height: var(--md-sys-typescale-label-large-line-height);
+    white-space: nowrap;
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__tab:hover {
+    background: rgb(var(--v-theme-surface-container-high));
+}
+
+/* The open job is the page below it: background-coloured, outlined, joined to it. */
+.mb-tabs-strip-row--jobs .mb-tabs-strip__tab--active,
+.mb-tabs-strip-row--jobs .mb-tabs-strip__tab--active:hover {
+    border-color: rgb(var(--v-theme-outline-variant));
+    background: rgb(var(--v-theme-background));
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__label {
+    white-space: nowrap;
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__pin {
+    color: rgb(var(--v-theme-primary));
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__tab:not(:has(.mb-tabs-strip__x)) {
+    padding-inline-end: 12px;
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__x {
+    opacity: 0.6;
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__x .v-icon {
+    font-size: var(--md-sys-typescale-body-large-size);
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__group {
+    padding-inline: 0;
+    border-radius: 0;
+    background: transparent;
+}
+
+/* A group heading: a small labelled chip in the group's container colour. */
+.mb-tabs-strip-row--jobs .mb-tabs-strip__group-bar {
+    align-self: center;
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__group-head {
+    flex: 0 0 auto;
+    padding: 0 2px 0 4px;
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__group-head .v-chip {
+    block-size: 24px;
+    padding-inline: 8px 10px;
+    border-radius: var(--md-sys-shape-corner-small);
+    font-size: var(--md-sys-typescale-label-small-size);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__group-head .v-chip .v-icon {
+    font-size: var(--md-sys-typescale-body-medium-size);
+}
+
+/* New tab sits beside the last tab; the rest of the controls hold the far end. */
+.mb-tabs-strip-row--jobs .mb-tabs-strip__controls {
+    flex: 1 0 auto;
+    align-self: center;
+    gap: 2px;
+}
+
+.mb-tabs-strip-row--jobs[data-placement="top"] .mb-tabs-strip__new,
+.mb-tabs-strip-row--jobs[data-placement="bottom"] .mb-tabs-strip__new {
+    margin-inline-end: auto;
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__controls .v-btn {
+    border-radius: var(--md-sys-shape-corner-small);
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__overflow .v-btn {
+    padding-inline: 10px;
+    font-size: var(--md-sys-typescale-label-medium-size);
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__overflow .v-btn .v-btn__prepend {
+    margin-inline-end: 4px;
+}
+
+.mb-tabs-strip-row--jobs .mb-tabs-strip__overflow-count {
+    font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiArrowLeft, mdiArrowRight, mdiCheck, mdiCrosshairsGps, mdiPlay } from "@mdi/js";
-import { VAlert, VBtn, VDivider, VSpacer } from "vuetify/components";
+import { mdiCrosshairsGps, mdiPlay } from "@mdi/js";
+import {
+    VAlert,
+    VBtn,
+    VCard,
+    VDivider,
+    VSpacer,
+    VStepper,
+    VStepperHeader,
+    VStepperItem,
+    VTooltip,
+} from "vuetify/components";
 import type { FieldMeta, PlainValue } from "@worldlens/config";
 import MapIdentityStep from "./MapIdentityStep.vue";
 import MapOptionsStep from "./MapOptionsStep.vue";
@@ -15,6 +25,8 @@ import { WIZARD_STEPS, WIZARD_STEP_META, type WizardStep } from "./wizardSteps.j
 import type { WorldInspection } from "./worldFolder.js";
 import type { RenderRequest } from "./worldBridge.js";
 import { maskWorldFor } from "../config/maskWorld.js";
+import { useJobOpener } from "../shell/jobOpener.js";
+import { searchSteps } from "./wizardSearch.js";
 
 /**
  * The create-a-map wizard: five steps between "no map" and a render running.
@@ -69,6 +81,12 @@ const props = withDefaults(
         existingProject?: { readonly name: string; readonly maps: number } | null;
         /** A shell-level world drop to prefill when this wizard becomes visible. */
         initialWorldPath?: string | null | undefined;
+        /**
+         * The page's "Search all five steps" query, owned by the screen above so the field can
+         * sit in the page header. Steps whose own words match are marked in the step header;
+         * nothing is hidden or skipped. Empty means no search.
+         */
+        search?: { query: string; regex: boolean; flags: string };
     }>(),
     {
         consentAccepted: false,
@@ -79,6 +97,7 @@ const props = withDefaults(
         applyStorage: null,
         existingProject: null,
         initialWorldPath: null,
+        search: () => ({ query: "", regex: false, flags: "i" }),
     },
 );
 
@@ -171,15 +190,47 @@ onMounted(() => {
     if (props.storage !== null) wizard.storageKnown.value = true;
 });
 
+const stepSearch = computed(() =>
+    searchSteps(props.search.query, props.search.regex, props.search.flags, (key, fallback) =>
+        t(key, fallback),
+    ),
+);
+
 const steps = computed(() =>
     WIZARD_STEP_META.map((meta, index) => ({
         ...meta,
         index,
         reachable: wizard.canReach(meta.id),
-        answered: wizard.canLeave(meta.id),
+        /*
+         * Drawn as done only once it is behind the current step. A later step can already be
+         * "leavable" because its defaults are valid, and showing it as finished before the
+         * person has seen it would claim an answer nobody gave.
+         */
+        answered: index < wizard.stepIndex.value && wizard.canLeave(meta.id),
         current: wizard.step.value === meta.id,
+        /** True or false while a search is active; null when nothing is being searched. */
+        matched: stepSearch.value.matched === null ? null : stepSearch.value.matched.has(meta.id),
     })),
 );
+
+/** The step header's own colour for a step: filled when current, tonal when answered. */
+function stepColor(step: { current: boolean; answered: boolean }): string | undefined {
+    if (step.current) return "primary";
+    if (step.answered) return "primary-container";
+    return undefined;
+}
+
+/** The step header is a group; selecting an item is moving to that step. */
+function onStepSelected(value: unknown): void {
+    const target = WIZARD_STEPS.find((step) => step === value);
+    if (target !== undefined && target !== wizard.step.value) goTo(target);
+}
+
+/**
+ * **Open the full editor instead**: the Projects job, in the Work strip this guide lives in.
+ * Null outside Work (a test, a dialog), in which case the button is not drawn at all.
+ */
+const openJob = useJobOpener();
 
 const problems = computed(() =>
     // `t(key, named, fallback)`, and no filling afterwards: vue-i18n compiles the
@@ -328,25 +379,11 @@ watch(
     (folder) => emit("world", folder.trim()),
 );
 
-defineExpose({ wizard });
+defineExpose({ wizard, stepSearch });
 </script>
 
 <template>
     <div class="mb-world-wizard">
-        <!--
-            Said plainly, above the steps: this is the short route, and there is a longer
-            one. A guide that never mentions the editor is a guide people assume is all
-            there is, which is how ninety settings end up unreachable in practice.
-        -->
-        <p class="mb-world-wizard__mode">
-            {{
-                t(
-                    "world.wizard.easyMode",
-                    "Easy mode. Five short questions, sensible answers for the rest, and a project file written at the end so nothing has to be answered twice. Everything BlueMap can be told is in the project editor afterwards.",
-                )
-            }}
-        </p>
-
         <!--
             A world that already has a project is offered it rather than run through the
             guide again. Nothing is opened or overwritten here; this is a sentence and a
@@ -373,40 +410,76 @@ defineExpose({ wizard });
             </template>
         </v-alert>
 
+        <!--
+            The step header is navigation, not decoration: Material's own stepper, one item per
+            step. A step nobody can answer yet is not editable and says so by being disabled;
+            every answered step can be gone back to, and the current one is announced as the
+            current step. While the page's search is active, a matching step says so in its
+            subtitle and the others are dimmed rather than hidden.
+        -->
         <nav
             class="mb-world-wizard__steps"
             :aria-label="t('world.wizard.stepsLabel', 'Wizard steps')"
         >
-            <v-btn
-                v-for="step in steps"
-                :key="step.id"
-                :disabled="!step.reachable"
-                :aria-current="step.current ? 'step' : undefined"
-                :color="step.current ? 'primary' : undefined"
-                :variant="step.current ? 'tonal' : 'text'"
-                :prepend-icon="step.answered && !step.current ? mdiCheck : undefined"
-                class="mb-world-wizard__step"
-                size="small"
-                density="comfortable"
-                @click="goTo(step.id)"
+            <v-stepper
+                :model-value="wizard.step.value"
+                class="mb-world-wizard__stepper"
+                bg-color="transparent"
+                flat
+                hide-actions
+                non-linear
+                @update:model-value="onStepSelected"
             >
-                <span class="mb-world-wizard__step-number">{{ step.index + 1 }}</span>
-                {{ t(step.key, step.label) }}
-            </v-btn>
+                <v-stepper-header class="mb-world-wizard__stepper-header">
+                    <template v-for="step in steps" :key="step.id">
+                        <v-divider v-if="step.index > 0" class="mb-world-wizard__step-rule" />
+                        <v-stepper-item
+                            :value="step.id"
+                            :title="t(step.key, step.label)"
+                            :subtitle="
+                                step.matched === true
+                                    ? t('world.wizard.searchMatch', 'Matches the search')
+                                    : undefined
+                            "
+                            :editable="step.reachable"
+                            :complete="step.answered && !step.current"
+                            :color="stepColor(step)"
+                            :aria-current="step.current ? 'step' : undefined"
+                            :ripple="false"
+                            class="mb-world-wizard__step"
+                            :class="{
+                                'mb-world-wizard__step--current': step.current,
+                                'mb-world-wizard__step--answered': step.answered && !step.current,
+                                'mb-world-wizard__step--unmatched': step.matched === false,
+                            }"
+                        >
+                            <template #icon>
+                                <span class="mb-world-wizard__step-number">{{
+                                    step.index + 1
+                                }}</span>
+                            </template>
+                        </v-stepper-item>
+                    </template>
+                </v-stepper-header>
+            </v-stepper>
         </nav>
 
-        <v-divider />
-
-        <div class="mb-world-wizard__body">
+        <v-card class="mb-world-wizard__card" color="surface-container" variant="flat">
             <WorldFolderStep
                 v-if="wizard.step.value === 'world'"
                 :model-value="wizard.worldPath.value"
                 :inspection="wizard.inspection.value"
                 :inspecting="wizard.inspecting.value"
                 :can-inspect="inspectable"
+                :dimension-key="wizard.dimensionKey.value"
                 @update:model-value="(value: string) => (wizard.worldPath.value = value)"
                 @inspect="inspect"
-            />
+                @choose-dimension="wizard.chooseDimension"
+            >
+                <template v-if="$slots['world-actions']" #actions>
+                    <slot name="world-actions" />
+                </template>
+            </WorldFolderStep>
 
             <MapIdentityStep
                 v-else-if="wizard.step.value === 'identity'"
@@ -475,12 +548,26 @@ defineExpose({ wizard });
                 @update:run="setRun"
                 @consent="emit('consent')"
             />
-        </div>
+
+            <!--
+                Where the render runs, on the options step beside the other render choices.
+                It stays mounted on every step (shown here only on this one), because the
+                screen above reads the machine it reports when the render starts, and a
+                picker that unmounted would stop reporting a change made to a saved machine.
+            -->
+            <div
+                v-if="$slots['options-aside']"
+                v-show="wizard.step.value === 'options'"
+                class="mb-world-wizard__aside"
+            >
+                <slot name="options-aside" />
+            </div>
+        </v-card>
 
         <!--
             The storage step renders its own problems inline beside the field, so
-            they are not repeated here. Every other step gets them in the footer,
-            next to the button they block.
+            they are not repeated here. Every other step gets them here, directly
+            above the button they block.
         -->
         <v-alert
             v-for="entry in wizard.step.value === 'storage' ? [] : problems"
@@ -504,27 +591,22 @@ defineExpose({ wizard });
             </template>
         </v-alert>
 
-        <v-divider />
-
         <div class="mb-world-wizard__actions">
-            <v-btn variant="text" @click="emit('cancel')">{{
-                t("world.wizard.cancel", "Cancel")
-            }}</v-btn>
-            <v-spacer />
             <v-btn
-                :prepend-icon="mdiArrowLeft"
                 :disabled="wizard.stepIndex.value === 0"
-                variant="text"
+                variant="outlined"
+                size="large"
+                class="mb-world-wizard__back"
                 @click="wizard.back"
             >
                 {{ t("world.wizard.back", "Back") }}
             </v-btn>
             <v-btn
                 v-if="!isLast"
-                :append-icon="mdiArrowRight"
                 :disabled="problems.length > 0"
                 color="primary"
                 variant="flat"
+                size="large"
                 @click="wizard.next"
             >
                 {{ t("world.wizard.next", "Next") }}
@@ -535,11 +617,65 @@ defineExpose({ wizard });
                 :disabled="!canStart"
                 color="primary"
                 variant="flat"
+                size="large"
                 @click="start"
             >
                 {{ t("world.wizard.start", "Render this map") }}
             </v-btn>
+            <!--
+                The longer route, offered beside the short one. The guide's own "easy mode"
+                explanation is its tooltip, because that sentence is exactly what this button
+                is for: everything BlueMap can be told lives in the editor.
+            -->
+            <v-btn
+                v-if="openJob !== null"
+                variant="outlined"
+                color="primary"
+                size="large"
+                class="mb-world-wizard__editor"
+                @click="openJob('projects')"
+            >
+                {{ t("world.wizard.openEditor", "Open the full editor instead") }}
+                <v-tooltip
+                    activator="parent"
+                    location="top"
+                    max-width="360"
+                    :text="
+                        t(
+                            'world.wizard.easyMode',
+                            'Easy mode. Five short questions, sensible answers for the rest, and a project file written at the end so nothing has to be answered twice. Everything BlueMap can be told is in the project editor afterwards.',
+                        )
+                    "
+                />
+            </v-btn>
+            <v-btn variant="text" size="large" @click="emit('cancel')">{{
+                t("world.wizard.cancel", "Cancel")
+            }}</v-btn>
+            <v-spacer />
+            <p class="mb-world-wizard__status" role="status">
+                {{
+                    t(
+                        "world.wizard.stepStatus",
+                        { n: wizard.stepIndex.value + 1, total: WIZARD_STEPS.length },
+                        "Step {n} of {total} · nothing written yet",
+                    )
+                }}
+            </p>
         </div>
+
+        <!--
+            Said once more where it is reachable without a pointer: the easy-mode sentence is
+            the editor button's tooltip above, and a tooltip is not announced, so it is also
+            the accessible description of the step card for anyone who cannot hover.
+        -->
+        <p v-if="openJob === null" class="mb-world-wizard__mode">
+            {{
+                t(
+                    "world.wizard.easyMode",
+                    "Easy mode. Five short questions, sensible answers for the rest, and a project file written at the end so nothing has to be answered twice. Everything BlueMap can be told is in the project editor afterwards.",
+                )
+            }}
+        </p>
     </div>
 </template>
 
@@ -551,60 +687,138 @@ defineExpose({ wizard });
 }
 
 .mb-world-wizard__mode {
-    padding: 4px 4px 0;
+    margin-block-start: 12px;
     font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
 }
 
 .mb-world-wizard__existing {
-    margin: 8px 4px 0;
+    margin-block-end: 16px;
 }
 
+/* The step header: numbered circles, labels, and the rules between them. */
 .mb-world-wizard__steps {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    flex-wrap: wrap;
-    padding: 8px 4px;
+    margin-block: 24px 28px;
 }
 
-.mb-world-wizard__step {
-    text-transform: none;
-    letter-spacing: normal;
+.mb-world-wizard__stepper.v-stepper.v-sheet {
+    overflow: visible;
+    box-shadow: none;
+}
+
+.mb-world-wizard__stepper-header.v-stepper-header {
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 4px 0;
+    box-shadow: none;
+    overflow: visible;
+}
+
+.mb-world-wizard__step.v-stepper-item {
+    flex: 0 0 auto;
+    gap: 10px;
+    min-block-size: 44px;
+    padding: 0 4px;
+    border-radius: var(--md-sys-shape-corner-small);
+    opacity: 1;
+}
+
+.mb-world-wizard__step.v-stepper-item:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+
+.mb-world-wizard__step .v-stepper-item__avatar.v-avatar {
+    inline-size: 30px;
+    block-size: 30px;
+    margin-inline-end: 0;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    background: transparent;
+    color: rgb(var(--v-theme-outline));
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 500;
+}
+
+.mb-world-wizard__step--current .v-stepper-item__avatar.v-avatar,
+.mb-world-wizard__step--answered .v-stepper-item__avatar.v-avatar {
+    border-color: transparent;
+}
+
+.mb-world-wizard__step--current .v-stepper-item__avatar.v-avatar {
+    background: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+}
+
+.mb-world-wizard__step--answered .v-stepper-item__avatar.v-avatar {
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
+}
+
+.mb-world-wizard__step .v-stepper-item__title {
+    font-size: var(--md-sys-typescale-label-large-size);
+    font-weight: 500;
+    color: rgb(var(--v-theme-outline));
+}
+
+.mb-world-wizard__step--current .v-stepper-item__title {
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-world-wizard__step .v-stepper-item__subtitle {
+    font-size: var(--md-sys-typescale-label-small-size);
+    color: rgb(var(--v-theme-primary));
+}
+
+.mb-world-wizard__step--unmatched {
+    opacity: 0.5;
 }
 
 .mb-world-wizard__step-number {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    inline-size: 20px;
-    block-size: 20px;
-    margin-inline-end: 6px;
-    border-radius: 50%;
-    background: rgba(var(--v-theme-on-surface), 0.1);
-    font-size: var(--md-sys-typescale-label-small-size);
     font-variant-numeric: tabular-nums;
 }
 
-.mb-world-wizard__body {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    padding: 16px 4px;
+.mb-world-wizard__step-rule.v-divider {
+    flex: 0 0 26px;
+    margin: 0 12px;
+    border-color: rgb(var(--v-theme-outline-variant));
+    opacity: 1;
+}
+
+/* The step itself, on a surface-container card. */
+.mb-world-wizard__card.v-card {
+    padding: 24px;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-large);
+    overflow: visible;
+}
+
+.mb-world-wizard__aside {
+    margin-block-start: 16px;
 }
 
 .mb-world-wizard__problem {
-    margin: 0 4px 8px;
+    margin-block-start: 12px;
 }
 
 .mb-world-wizard__actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     flex-wrap: wrap;
-    padding: 12px 4px;
+    margin-block-start: 20px;
+}
+
+.mb-world-wizard__editor {
+    font-size: var(--md-sys-typescale-label-large-size);
+}
+
+.mb-world-wizard__status {
+    margin: 0;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: rgb(var(--v-theme-outline));
 }
 
 @media (prefers-reduced-motion: reduce) {

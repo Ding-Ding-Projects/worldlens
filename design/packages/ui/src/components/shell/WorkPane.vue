@@ -3,6 +3,7 @@ import { computed, ref, useSlots } from "vue";
 import { useI18n } from "vue-i18n";
 import { TabbedNavigation, type TabGroupSeed, type TabPage } from "../tabs/index.js";
 import { capabilityAvailable } from "./capabilities.js";
+import { provideJobOpener } from "./jobOpener.js";
 import { JOB_DEFINITIONS, JOB_SEED_GROUPS, FRESH_WORKSPACE_JOB_IDS } from "./jobRegistry.js";
 import { WORK_DEFAULT_PLACEMENT } from "./tabWorkspaceMigration.js";
 
@@ -40,6 +41,9 @@ const { t } = useI18n();
 const slots = useSlots();
 
 const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
+
+/** Job screens inside this strip can bring another job forward; see `jobOpener.ts`. */
+provideJobOpener((pageId) => tabs.value?.revealPage(pageId));
 
 /**
  * The jobs this build can host, translated now rather than at import.
@@ -106,6 +110,7 @@ defineExpose({
             :default-placement="WORK_DEFAULT_PLACEMENT"
             file-new-tabs-into-seed-groups
             publishes-inset
+            appearance="jobs"
             @workspace-change="(ids: readonly string[]) => emit('workspaceChange', ids)"
         >
             <!--
@@ -158,36 +163,36 @@ defineExpose({
 }
 
 /*
- * The job strip's own look, from the approved prototype.
- *
- * Applied from here as a scoped override rather than by editing `TabStrip.vue`, and that is a
- * deliberate boundary: `TabStrip` is shared by the config editor and the project editor as well
- * as by Work, and its 247-case contract suite is what proves docking, groups, pinning, overflow
- * and bulk close still behave. Restyling it in place would put that suite at risk for a change
- * that is only about how Work looks. Everything below is appearance; not one rule changes what a
- * chip does.
- *
- * `:deep()` because these elements are `TabStrip`'s, not this component's.
+ * The job strip's own look, from the approved prototype, is `TabStrip`'s `appearance="jobs"`
+ * presentation, passed above. It lives in `TabStrip.vue` scoped to `.mb-tabs-strip-row--jobs`
+ * because it changes structure as well as paint (the pinned tab keeps its label, a group's
+ * heading is one chip, new-tab follows the last tab) and only the strip can do that. The
+ * settings sheet's and the editors' strips do not pass it and are unchanged. What remains
+ * here is Work's own: the drawn sizes, the touch-target expansion that goes with them, the
+ * dock sizing and the contrast-theme overrides.
  */
-.wl-work :deep(.mb-tabs-strip) {
-    padding: 8px 12px 0;
-    background: rgb(var(--v-theme-surface));
-    border-block-end: 1px solid rgb(var(--v-theme-outline-variant));
+.wl-work :deep(.mb-tabs-strip-row--jobs[data-placement="top"] .mb-tabs-strip__tab),
+.wl-work :deep(.mb-tabs-strip-row--jobs[data-placement="bottom"] .mb-tabs-strip__tab) {
+    min-block-size: 38px;
+    block-size: 38px;
 }
 
-/*
- * A tab shape, not a pill: square at the bottom so a chip meets the pane it opens, rounded at the
- * top so the strip reads as a row of sheets rather than a row of buttons. That is the whole
- * difference between "browser-style tabs" and "a toolbar", and it is the shape the prototype
- * draws.
- */
-.wl-work :deep(.mb-tabs-strip__tab),
-.wl-work :deep(.mb-tab-button) {
-    border-start-start-radius: 10px;
-    border-start-end-radius: 10px;
-    border-end-start-radius: 0;
-    border-end-end-radius: 0;
-    min-block-size: 38px;
+.wl-work :deep(.mb-tabs-strip-row--jobs .mb-tabs-strip__x) {
+    min-inline-size: 24px;
+    min-block-size: 24px;
+    inline-size: 24px;
+    block-size: 24px;
+}
+
+.wl-work :deep(.mb-tabs-strip-row--jobs .mb-tabs-strip__group-head) {
+    min-block-size: 32px;
+    block-size: 32px;
+}
+
+.wl-work :deep(.mb-tabs-strip-row--jobs .mb-tabs-strip__controls .v-btn) {
+    min-block-size: 32px;
+    block-size: 32px;
+    min-inline-size: 32px;
 }
 
 /*
@@ -215,25 +220,6 @@ defineExpose({
 }
 
 /*
- * The group label above its first member: chip-shaped type, real-sized target.
- *
- * This rule used to shrink the head to 24px for the look, and the look is carried by the
- * small uppercase type and the radius, not by the height - while the 24px took the one
- * control that collapses and expands a whole group under half the touch-target minimum.
- * The pseudo-element expansion that works for the tabs measured as unreliable on this
- * element (it sits inside the group bar's own stacking arrangement), so the head keeps the
- * honest 44px box TabStrip gives it everywhere else; the strip row is content-sized and
- * simply grows to hold it.
- */
-.wl-work :deep(.mb-tabs-strip__group-head) {
-    border-radius: var(--md-sys-shape-corner-small);
-    font-size: var(--md-sys-typescale-label-small-size);
-    font-weight: 500;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-}
-
-/*
  * The drawn chip keeps its size; what a finger can hit does not.
  *
  * The restyle above deliberately draws Work's chips smaller than `TabStrip`'s own 44px floor
@@ -257,6 +243,7 @@ defineExpose({
 .wl-work :deep(.mb-tabs-strip__tab),
 .wl-work :deep(.mb-tab-button),
 .wl-work :deep(.mb-tabs-strip__x),
+.wl-work :deep(.mb-tabs-strip__group-head),
 .wl-work :deep(.mb-tabs-strip-row .v-btn) {
     position: relative;
 }
@@ -264,6 +251,7 @@ defineExpose({
 .wl-work :deep(.mb-tabs-strip__tab)::before,
 .wl-work :deep(.mb-tab-button)::before,
 .wl-work :deep(.mb-tabs-strip__x)::before,
+.wl-work :deep(.mb-tabs-strip__group-head)::before,
 .wl-work :deep(.mb-tabs-strip-row .v-btn)::before {
     content: "";
     position: absolute;

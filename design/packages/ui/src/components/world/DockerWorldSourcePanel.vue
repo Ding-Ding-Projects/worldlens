@@ -48,6 +48,11 @@ const props = withDefaults(
     defineProps<{
         bridge?: DockerWorldSourceBridge | null;
         runtimeBridge?: RuntimeBridge | null;
+        /**
+         * Drawn as one of a row of outlined source actions (the guide's world step) rather
+         * than as a text disclosure under a rule. Appearance only.
+         */
+        asAction?: boolean;
     }>(),
     {},
 );
@@ -434,14 +439,19 @@ defineExpose({
         :label="t('world.docker.title', 'World in local Docker')"
         as="section"
     >
-        <div class="mb-docker-world" data-test="docker-world-source">
+        <div
+            class="mb-docker-world"
+            :class="{ 'mb-docker-world--action': asAction }"
+            data-test="docker-world-source"
+        >
             <v-btn
                 :prepend-icon="mdiDocker"
                 :append-icon="open ? mdiChevronUp : mdiChevronDown"
                 :aria-expanded="open ? 'true' : 'false'"
                 aria-controls="mb-docker-world-panel"
-                variant="text"
-                size="small"
+                :variant="asAction ? 'outlined' : 'text'"
+                :color="asAction ? 'primary' : undefined"
+                :size="asAction ? 'default' : 'small'"
                 data-test="docker-open"
                 @click="open = !open"
             >
@@ -824,6 +834,21 @@ defineExpose({
     border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
+/* One of the guide's outlined source actions: no rule above, and a full row once open. */
+.mb-docker-world--action {
+    margin-block-start: 0;
+    padding-block-start: 0;
+    border-block-start: 0;
+}
+
+.mb-docker-world--action > .v-btn {
+    min-block-size: 44px;
+}
+
+.mb-docker-world--action:has(> .v-card) {
+    flex: 1 0 100%;
+}
+
 .mb-docker-world__card {
     margin-block-start: 8px;
     max-block-size: min(80vh, 760px);
@@ -914,7 +939,6 @@ defineExpose({
     overflow: visible;
     row-gap: 8px;
 }
-
 
 .mb-docker-world .v-btn-toggle .v-btn {
     padding-block: 6px;

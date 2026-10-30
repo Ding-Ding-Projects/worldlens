@@ -43,7 +43,7 @@ const props = withDefaults(
         roving: boolean;
         /** The rendered panel, named only by the selected tab. */
         panelId: string;
-        /** Icon only, full name in the accessible name. Pinned tabs, mostly. */
+        /** Icon only, full name in the accessible name. Pinned tabs, unless the host asks for labels. */
         compact?: boolean;
         pinned?: boolean;
         /**
@@ -76,10 +76,16 @@ const { t } = useI18n();
  */
 const label = computed(() => {
     if (props.pinned && props.tab.dirty) {
-        return t("tabs.strip.pinnedUnsaved", { label: props.tab.label }, "{label}, pinned, unsaved work");
+        return t(
+            "tabs.strip.pinnedUnsaved",
+            { label: props.tab.label },
+            "{label}, pinned, unsaved work",
+        );
     }
-    if (props.pinned) return t("tabs.strip.pinnedTab", { label: props.tab.label }, "{label}, pinned");
-    if (props.tab.dirty) return t("tabs.strip.unsavedTab", { label: props.tab.label }, "{label}, unsaved work");
+    if (props.pinned)
+        return t("tabs.strip.pinnedTab", { label: props.tab.label }, "{label}, pinned");
+    if (props.tab.dirty)
+        return t("tabs.strip.unsavedTab", { label: props.tab.label }, "{label}, unsaved work");
     return props.tab.label;
 });
 </script>
@@ -106,11 +112,32 @@ const label = computed(() => {
         @dragover.prevent
         @drop.prevent="emit('drop')"
     >
-        <v-icon v-if="tab.icon !== null || pinned" :icon="tab.icon ?? mdiPin" size="16" aria-hidden="true" />
+        <v-icon
+            v-if="tab.icon !== null || pinned"
+            :icon="tab.icon ?? mdiPin"
+            size="16"
+            aria-hidden="true"
+        />
         <span v-if="!compact" class="mb-tabs-strip__label">{{ tab.label }}</span>
+        <!--
+            A pinned tab drawn with its label carries the pin as a trailing mark, the way the
+            approved strip draws it. It is decoration of a state the accessible name already
+            states ("..., pinned"), so it is hidden from assistive technology.
+        -->
+        <v-icon
+            v-if="pinned && !compact && tab.icon !== null"
+            class="mb-tabs-strip__pin"
+            :icon="mdiPin"
+            size="15"
+            aria-hidden="true"
+        />
         <span v-if="tab.dirty" class="mb-tabs-strip__dot" aria-hidden="true" />
+        <!--
+            A pinned tab never draws a close control, labelled or compact: pinned tabs are
+            protected from casual closing, and the keyboard and menu routes still reach it.
+        -->
         <v-btn
-            v-if="!compact && !closeless"
+            v-if="!compact && !closeless && !pinned"
             class="mb-tabs-strip__x"
             :icon="mdiClose"
             :aria-label="t('tabs.action.close', { label: tab.label }, 'Close {label}')"

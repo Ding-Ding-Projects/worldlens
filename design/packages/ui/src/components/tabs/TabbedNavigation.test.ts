@@ -247,7 +247,9 @@ describe("runtime-only presentation", () => {
             await nextTick();
         }
         expect(view.text()).toContain("Every tab is closed.");
-        const reopen = view.findAll(".mb-tabs__empty-actions button").map((button) => button.text());
+        const reopen = view
+            .findAll(".mb-tabs__empty-actions button")
+            .map((button) => button.text());
         expect(reopen).toEqual(["Map", "Five questions"]);
         expect(reopen).not.toContain("Servers");
 
@@ -1295,7 +1297,9 @@ describe("seeding a fresh workspace into groups", () => {
         expect(isPinned(view, "Home")).toBe(true);
         expect(titles(view)[0]).toBe("Home");
         expect(
-            view.findAll('[role="tab"]').find((tab) => tab.attributes("aria-selected") === "true")
+            view
+                .findAll('[role="tab"]')
+                .find((tab) => tab.attributes("aria-selected") === "true")
                 ?.attributes("title"),
         ).toBe("Home");
         view.unmount();
@@ -1433,7 +1437,9 @@ describe("seeding a fresh workspace into groups", () => {
         // promise about the first time a page appears, not a standing rule.
         expect(isPinned(view, "Home")).toBe(false);
         expect(
-            view.findAll('[role="tab"]').find((tab) => tab.attributes("aria-selected") === "true")
+            view
+                .findAll('[role="tab"]')
+                .find((tab) => tab.attributes("aria-selected") === "true")
                 ?.attributes("title"),
         ).toBe("Map");
         view.unmount();
@@ -1499,7 +1505,9 @@ describe("seeding a fresh workspace into groups", () => {
             "GitHub runners",
         ]);
         expect(
-            view.findAll('[role="tab"]').find((tab) => tab.attributes("aria-selected") === "true")
+            view
+                .findAll('[role="tab"]')
+                .find((tab) => tab.attributes("aria-selected") === "true")
                 ?.attributes("title"),
         ).toBe("GitHub runners");
         // Shown, not expanded: the group's own collapsed preference is the user's, and only
@@ -1731,5 +1739,90 @@ describe("four-edge tab-strip placement", () => {
         expect(second.attributes("data-tab-placement")).toBe("right");
         expect(second.find('[role="tablist"]').attributes("aria-orientation")).toBe("vertical");
         second.unmount();
+    });
+});
+
+/**
+ * The Work job strip (`appearance="jobs"`). It changes how the strip is drawn - a pinned tab
+ * keeps its label, a group heading is one chip, new tab follows the tabs - and nothing about
+ * what it does: the same names, the same group header, the same controls.
+ */
+describe("the job strip presentation", () => {
+    const ICON_PAGES: readonly TabPage[] = [
+        { id: "map", label: "Map", icon: "M0 0h24v24H0z" },
+        { id: "world", label: "Make a map", icon: "M0 0h24v24H0z" },
+        { id: "servers", label: "Servers", icon: "M0 0h24v24H0z" },
+    ];
+
+    function openJobs(
+        appearance: "default" | "jobs",
+    ): VueWrapper<InstanceType<typeof TabbedNavigation>> {
+        return mount(TabbedNavigation, {
+            props: {
+                pages: ICON_PAGES,
+                windowLabel: "Worldlens",
+                stripLabel: "Main",
+                storageKey: `test-jobs-${appearance}`,
+                pinnedPageIds: ["world"],
+                initialGroups: [
+                    {
+                        id: "g-r",
+                        name: "Rendering",
+                        color: "primary",
+                        collapsed: false,
+                        pageIds: ["servers"],
+                    },
+                ],
+                defaultPlacement: "top",
+                appearance,
+            },
+            slots: { world: () => h("p", "the wizard") },
+            global: { plugins: [vuetify, i18n] },
+            attachTo: document.body,
+        });
+    }
+
+    it("draws a pinned tab with its label and pin mark, and the same accessible name", async () => {
+        const view = openJobs("jobs");
+        await nextTick();
+        const pinned = view.find('.mb-tabs-strip__pinned [role="tab"]');
+        expect(pinned.text()).toBe("Make a map");
+        expect(pinned.attributes("aria-label")).toBe("Make a map, pinned");
+        expect(pinned.find(".mb-tabs-strip__pin").exists()).toBe(true);
+        // Pinned tabs are protected from casual closing in either presentation.
+        expect(pinned.find(".mb-tabs-strip__x").exists()).toBe(false);
+        view.unmount();
+    });
+
+    it("keeps the compact pinned tab everywhere else", async () => {
+        const view = openJobs("default");
+        await nextTick();
+        expect(view.find('.mb-tabs-strip__pinned [role="tab"]').text()).toBe("");
+        expect(view.find(".mb-tabs-strip-row--jobs").exists()).toBe(false);
+        view.unmount();
+    });
+
+    it("draws a group heading as one container-coloured chip that still collapses the group", async () => {
+        const view = openJobs("jobs");
+        await nextTick();
+        const head = view.find(".mb-tabs-strip__group-head");
+        expect(head.attributes("aria-label")).toBe("Rendering, 1 tabs");
+        expect(head.find(".v-chip").classes()).toContain("bg-primary-container");
+        expect(view.find('[aria-label="Commands for the group Rendering"]').exists()).toBe(false);
+        await head.trigger("click");
+        expect(view.find(".mb-tabs-strip__group-head").attributes("aria-expanded")).toBe("false");
+        view.unmount();
+    });
+
+    it("orders the controls new tab, finder, edge, in the DOM as on screen", async () => {
+        const view = openJobs("jobs");
+        await nextTick();
+        const labels = view
+            .findAll(".mb-tabs-strip__controls > .v-btn, .mb-tabs-strip__controls > .v-badge")
+            .map((control) => control.attributes("aria-label") ?? "");
+        expect(labels[0]).toBe("Open a new tab");
+        expect(labels[1]).toBe("Find a tab");
+        expect(labels[2]).toMatch(/^Move this tab strip/);
+        view.unmount();
     });
 });

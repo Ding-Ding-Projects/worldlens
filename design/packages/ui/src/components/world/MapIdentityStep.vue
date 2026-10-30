@@ -77,7 +77,11 @@ const idError = computed(() => {
         // `t(key, named, fallback)`, never `t(key, fallback).replace(...)`: vue-i18n
         // compiles the fallback as a message too and consumes `{max}` as a named
         // parameter of its own, leaving a limit message with no limit in it.
-        return t("world.identity.idTooLong", { max: MAP_ID_MAX_LENGTH }, "At most {max} characters.");
+        return t(
+            "world.identity.idTooLong",
+            { max: MAP_ID_MAX_LENGTH },
+            "At most {max} characters.",
+        );
     }
     if (!MAP_ID_PATTERN.test(value)) {
         return t(
@@ -95,15 +99,24 @@ const dimensionItems = computed(() =>
         subtitle: dimension.custom
             ? t("world.identity.customDimension", "Added by a mod or datapack")
             : dimension.regionFiles > 0
-              ? t("world.identity.regionCount", { n: dimension.regionFiles }, "{n} region files on disk")
+              ? t(
+                    "world.identity.regionCount",
+                    { n: dimension.regionFiles },
+                    "{n} region files on disk",
+                )
               : t("world.identity.notChecked", "Not checked"),
     })),
 );
 </script>
 
 <template>
-    <section class="mb-world-step" :aria-label="t('world.wizard.step.identity', 'Name and dimension')">
-        <h3 class="mb-world-step__title">{{ t("world.identity.title", "Name the map and pick its dimension") }}</h3>
+    <section
+        class="mb-world-step"
+        :aria-label="t('world.wizard.step.identity', 'Name and dimension')"
+    >
+        <h3 class="mb-world-step__title">
+            {{ t("world.identity.title", "Name the map and pick its dimension") }}
+        </h3>
         <p class="mb-world-step__blurb">
             {{
                 t(
@@ -125,9 +138,15 @@ const dimensionItems = computed(() =>
             />
             <v-text-field
                 v-model="id"
+                class="mb-world-identity__id"
                 :label="t('world.identity.id', 'Map id')"
                 :error-messages="idError"
-                :hint="t('world.identity.idHint', 'Used as the folder name and in the address the tiles are served from.')"
+                :hint="
+                    t(
+                        'world.identity.idHint',
+                        'Used as the folder name and in the address the tiles are served from.',
+                    )
+                "
                 persistent-hint
                 variant="outlined"
                 density="compact"
@@ -153,7 +172,12 @@ const dimensionItems = computed(() =>
             <v-text-field
                 v-model.number="sortValue"
                 :label="t('world.identity.sorting', 'Sort order')"
-                :hint="t('world.identity.sortingHint', 'A lower number puts this map earlier in the viewer\'s list.')"
+                :hint="
+                    t(
+                        'world.identity.sortingHint',
+                        'A lower number puts this map earlier in the viewer\'s list.',
+                    )
+                "
                 persistent-hint
                 type="number"
                 variant="outlined"
@@ -161,7 +185,13 @@ const dimensionItems = computed(() =>
             />
         </div>
 
-        <v-alert v-if="!dimensionsAreReal" type="info" density="compact" variant="tonal" class="mt-3">
+        <v-alert
+            v-if="!dimensionsAreReal"
+            type="info"
+            density="compact"
+            variant="tonal"
+            class="mt-3"
+        >
             {{
                 t(
                     "world.identity.guessedDimensions",
@@ -171,7 +201,12 @@ const dimensionItems = computed(() =>
         </v-alert>
 
         <p class="mb-world-step__blurb mt-3">
-            {{ t("world.identity.presetNote", "The map starts from BlueMap's own template for this dimension:") }}
+            {{
+                t(
+                    "world.identity.presetNote",
+                    "The map starts from BlueMap's own template for this dimension:",
+                )
+            }}
             <v-chip size="x-small" variant="tonal" class="ml-1">{{ dimensionKey }}</v-chip>
             <span class="ml-1">
                 {{
@@ -196,6 +231,11 @@ const dimensionItems = computed(() =>
 </template>
 
 <style>
+/* The id is what the map is called on disk, so it is drawn as an identifier. */
+.mb-world-identity__id input {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+}
+
 .mb-world-identity__grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));

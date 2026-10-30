@@ -157,6 +157,8 @@ const props = withDefaults(
         publishesInset?: boolean;
         /** True where these tabs are destinations rather than jobs: no close affordances. */
         closeless?: boolean;
+        /** How the strip is drawn; see `TabStrip`'s own `appearance`. Behaviour is identical. */
+        appearance?: "default" | "jobs";
         /**
          * Which of the declared pages a **genuinely fresh** workspace opens a tab for.
          *
@@ -429,7 +431,9 @@ function setCollapsed(groupId: string, collapsed: boolean): void {
 /* -------------------------------------------------------------------------- */
 
 const activeTab = computed(
-    () => presentedStrip.value.tabs.find((tab) => tab.id === presentedStrip.value.activeTabId) ?? null,
+    () =>
+        presentedStrip.value.tabs.find((tab) => tab.id === presentedStrip.value.activeTabId) ??
+        null,
 );
 
 const activePage = computed(() =>
@@ -459,9 +463,7 @@ function fileIntoSeedGroup(state: TabStripState, pageId: string): TabStripState 
     if (state.groups.some((group) => group.tabIds.includes(tab.id))) return state;
 
     const existing =
-        seed.id === undefined
-            ? undefined
-            : state.groups.find((group) => group.id === seed.id);
+        seed.id === undefined ? undefined : state.groups.find((group) => group.id === seed.id);
     if (existing !== undefined) return assignTabToGroup(state, tab.id, existing.id);
 
     const created = createGroup(
@@ -725,6 +727,7 @@ function applyPlan(
             :pages="presentedPages"
             :publishes-inset="publishesInset === true"
             :closeless="closeless === true"
+            :appearance="appearance === 'jobs' ? 'jobs' : 'default'"
             @set-placement="update(setTabPlacement(strip, $event))"
             @activate="(tabId, stripId) => updateIn(stripId, (state) => setActiveTab(state, tabId))"
             @close="(tabId, stripId) => updateIn(stripId, (state) => closeTabs(state, [tabId]))"
@@ -810,7 +813,9 @@ function applyPlan(
                 :style="{ pointerEvents: 'auto' }"
                 role="status"
             >
-                <p class="mb-tabs__empty-line">{{ t("tabs.panel.empty", "Every tab is closed.") }}</p>
+                <p class="mb-tabs__empty-line">
+                    {{ t("tabs.panel.empty", "Every tab is closed.") }}
+                </p>
                 <div class="mb-tabs__empty-actions">
                     <v-btn
                         v-for="page in presentedPages"
@@ -819,7 +824,13 @@ function applyPlan(
                         size="small"
                         @click="openPage(page.id)"
                     >
-                        <v-icon v-if="page.icon" :icon="page.icon" size="18" start aria-hidden="true" />
+                        <v-icon
+                            v-if="page.icon"
+                            :icon="page.icon"
+                            size="18"
+                            start
+                            aria-hidden="true"
+                        />
                         {{ page.label }}
                     </v-btn>
                 </div>

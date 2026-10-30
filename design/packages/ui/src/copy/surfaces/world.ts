@@ -2565,6 +2565,21 @@ export const WORLD_FIXED = {
         yue: "「{name}」睇落唔似係 Minecraft 世界（搵唔到 level.dat 同世界資料）。",
     },
     "world.screen.modeLabel": { en: "Creation view", yue: "建立方式" },
+
+    /* The guide's page header, step search and footer, from the approved Work design. */
+    "world.screen.heading": { en: "Make a map", yue: "整張地圖" },
+    "world.screen.search": { en: "Search all five steps", yue: "搜尋全部五個步驟" },
+    "world.screen.searchSummary": {
+        en: "{count} of {total} steps match",
+        yue: "{total} 個步驟入面有 {count} 個啱",
+    },
+    "world.wizard.searchMatch": { en: "Matches the search", yue: "啱個搜尋" },
+    "world.wizard.openEditor": { en: "Open the full editor instead", yue: "改為打開完整編輯器" },
+    "world.wizard.stepStatus": {
+        en: "Step {n} of {total} · nothing written yet",
+        yue: "第 {n} 步，共 {total} 步 · 仲未寫過任何嘢",
+    },
+    "world.folder.question": { en: "Which world?", yue: "邊個世界？" },
 } as const satisfies Record<string, FixedString>;
 
 /* -------------------------------------------------------------------------- */

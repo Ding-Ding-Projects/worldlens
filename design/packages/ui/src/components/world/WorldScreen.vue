@@ -1,9 +1,13 @@
 <script setup lang="ts">
-import GenerationEntry from "../mcserver/GenerationEntry.vue";
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiMapPlus, mdiProgressClock } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VIcon } from "vuetify/components";
+import { VAlert, VBtn, VCard, VCardText, VIcon, VTooltip } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { generationDialogOpen } from "../mcserver/generationWorkflow.js";
+import { workflowText } from "../mcserver/workflowText.js";
+import { stepSearchText } from "./wizardSearch.js";
+import { WIZARD_STEP_META } from "./wizardSteps.js";
 import ContainerOffers from "./ContainerOffers.vue";
 import InterruptedRenders from "./InterruptedRenders.vue";
 import RenderRunPanel from "./RenderRunPanel.vue";
@@ -165,6 +169,41 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const generatorOpen = ref(false);
+
+/**
+ * "Search all five steps", in the page header beside the title.
+ *
+ * Plain text by default with the full regex builder beside it, like every other search here.
+ * It marks the steps whose own words match in the step header (see `wizardSearch.ts`); it never
+ * hides a step or skips one, because the order of the guide is the point of it.
+ */
+const stepQuery = ref("");
+const stepRegex = ref(false);
+const stepFlags = ref("i");
+const stepSearch = computed(() => ({
+    query: stepQuery.value,
+    regex: stepRegex.value,
+    flags: stepFlags.value,
+}));
+/** The builder's preview corpus: what each step can be found by, one line per step. */
+const stepSample = computed(() =>
+    WIZARD_STEP_META.map((meta) =>
+        stepSearchText(meta.id, (key, fallback) => t(key, fallback))
+            .split("\n")
+            .slice(0, 6)
+            .join(" · "),
+    ).join("\n"),
+);
+const stepSummary = computed(() => {
+    if (stepQuery.value === "") return "";
+    const matched = wizardComponent.value?.stepSearch.matched;
+    const count = matched === null || matched === undefined ? 0 : matched.size;
+    return t(
+        "world.screen.searchSummary",
+        { count, total: WIZARD_STEP_META.length },
+        "{count} of {total} steps match",
+    );
+});
 
 const java = createJavaSetting();
 const javaAvailable = computed<boolean | null>(() => {
@@ -566,16 +605,69 @@ async function resume(renderId: string): Promise<void> {
 </script>
 
 <template>
-    <div class="mb-world-screen">
-        <GenerationEntry />
-        <v-card class="mb-world-screen__card" variant="tonal">
-            <v-card-text class="d-flex align-center justify-space-between ga-3 flex-wrap">
-                <span>{{ t("world.screen.generator", "Need a deterministic test world?") }}</span>
-                <v-btn variant="tonal" @click="generatorOpen = true">
-                    {{ t("world.screen.generateTestWorld", "Generate test world") }}
-                </v-btn>
-            </v-card-text>
-        </v-card>
+    <section
+        class="mb-world-screen"
+        :aria-label="t('world.screen.title', 'Make a map, the quick way')"
+    >
+        <!--
+            The page header: the job's name and what it does on the left, the search over all
+            five steps on the right. The tour's "what rendering does" stop points here.
+        -->
+        <header class="mb-world-screen__header" data-tutorial-anchor="world-render-explainer">
+            <div class="mb-world-screen__intro">
+                <h1 class="mb-world-screen__title">
+                    {{ t("world.screen.heading", "Make a map") }}
+                </h1>
+                <p class="mb-world-screen__blurb">
+                    {{
+                        t(
+                            "world.screen.blurb",
+                            "Point this at a Minecraft world, answer five short steps, and BlueMap renders it into a map you can walk around. It writes a project into that world as it goes, so the answers are kept: rendering it again is one button, and every setting this guide did not ask about is on the Projects tab.",
+                        )
+                    }}
+                </p>
+            </div>
+
+            <div class="mb-world-screen__tools">
+                <ConfigSearchField
+                    v-if="wizardOpen && creationMode === 'wizard'"
+                    v-model="stepQuery"
+                    v-model:regex="stepRegex"
+                    v-model:flags="stepFlags"
+                    class="mb-world-screen__search"
+                    density="comfortable"
+                    :label="t('world.screen.search', 'Search all five steps')"
+                    :sample="stepSample"
+                    :summary="stepSummary"
+                />
+                <!--
+                    Two presentations of one project. The toggle swaps which is shown; it never
+                    creates a second model, and the wizard below stays mounted rather than being
+                    torn down, so switching half way through keeps every answer already given.
+                -->
+                <div
+                    v-if="wizardOpen"
+                    class="mb-world-screen__modes"
+                    role="group"
+                    :aria-label="t('world.screen.modeLabel', 'Creation view')"
+                >
+                    <v-btn-toggle
+                        v-model="creationMode"
+                        mandatory
+                        density="compact"
+                        variant="outlined"
+                    >
+                        <v-btn value="wizard" size="small" data-test="creation-mode-wizard">
+                            {{ t("world.screen.modeWizard", "Steps") }}
+                        </v-btn>
+                        <v-btn value="canvas" size="small" data-test="creation-mode-canvas">
+                            {{ t("world.screen.modeCanvas", "Canvas") }}
+                        </v-btn>
+                    </v-btn-toggle>
+                </div>
+            </div>
+        </header>
+
         <WorldGeneratorDialog v-model="generatorOpen" @open-world="emit('openProject', $event)" />
         <section
             v-if="runningElsewhere.length > 0"
@@ -705,104 +797,89 @@ async function resume(renderId: string): Promise<void> {
             }}
         </v-alert>
 
-        <!--
-            Where the render runs, put where the render is started rather than in settings.
-            All four answers in one list: this computer, a container on it, a machine over
-            SSH, and GitHub's runners. It is above the guide because it changes what the
-            guide's last button does, and a choice offered after the button has been pressed
-            is not a choice.
-        -->
-        <RunLocationCard
-            v-if="wizardOpen"
-            :remote-bridge="remote"
-            :can-render-locally="bridge !== null"
-            :location="runLocation"
-            :can-open-ci="canOpenCi"
-            @update:location="(value: RunLocation) => (runLocation = value)"
-            @update:wsl-distribution="(value: string | null) => (wslDistribution = value)"
-            @update:target="(value: RemoteTarget | null) => (runTarget = value)"
-            @open-ci="emit('openCiRender')"
-        />
+        <div v-if="wizardOpen" class="mb-world-screen__guide">
+            <!--
+                No `data-test` here on purpose. Vue falls a parent-supplied attribute through
+                onto the child's root element, where it REPLACES the child's own, so adding one
+                silently renamed the canvas's stable identifier to this host's name and left
+                every selector that targets the component itself matching nothing. Its own
+                `data-test="project-canvas"` is the one that should survive; a wrapper class is
+                enough to position it from out here.
+            -->
+            <ProjectCanvas
+                v-if="creationMode === 'canvas' && sharedWizard"
+                :wizard="sharedWizard"
+                class="mb-world-screen__canvas"
+            />
 
-        <v-card v-if="wizardOpen" class="mb-world-screen__card">
-            <v-card-text>
-                <header
-                    class="mb-world-screen__intro"
-                    data-tutorial-anchor="world-render-explainer"
-                >
-                    <h2 class="mb-world-screen__title">
-                        {{ t("world.screen.title", "Make a map, the quick way") }}
-                    </h2>
-                    <p class="mb-world-screen__blurb">
-                        {{
-                            t(
-                                "world.screen.blurb",
-                                "Point this at a Minecraft world, answer five short steps, and BlueMap renders it into a map you can walk around. It writes a project into that world as it goes, so the answers are kept: rendering it again is one button, and every setting this guide did not ask about is on the Projects tab.",
-                            )
-                        }}
-                    </p>
-                </header>
-
+            <WorldWizard
+                v-show="creationMode === 'wizard'"
+                ref="wizardComponent"
+                :consent-accepted="consentAccepted"
+                :can-render="bridge !== null"
+                :can-inspect="canInspect"
+                :storage="storage"
+                :separator="separator"
+                :probe="probe"
+                :apply-storage="applyStorage"
+                :existing-project="existingProject"
+                :initial-world-path="props.initialWorldPath"
+                :search="stepSearch"
+                @start="start"
+                @consent="emit('consent')"
+                @cancel="emit('cancel')"
+                @step="rereadConsent"
+                @world="lookForProject"
+                @open-project="openExistingProject"
+            >
                 <!--
-                    Two presentations of one project. The toggle swaps which is shown; it never
-                    creates a second model, and the wizard below stays mounted rather than being
-                    torn down, so switching half way through keeps every answer already given.
+                    Two more ways to get a world, beside the step's own: a deterministic test
+                    world from a seed, and a generated server world that becomes a project.
                 -->
-                <div
-                    class="mb-world-screen__modes"
-                    role="group"
-                    :aria-label="t('world.screen.modeLabel', 'Creation view')"
-                >
-                    <v-btn-toggle
-                        v-model="creationMode"
-                        mandatory
-                        density="compact"
+                <template #world-actions>
+                    <v-btn variant="outlined" color="primary" @click="generatorOpen = true">
+                        {{ t("world.screen.generateTestWorld", "Generate test world") }}
+                        <v-tooltip
+                            activator="parent"
+                            location="top"
+                            max-width="320"
+                            :text="t('world.screen.generator', 'Need a deterministic test world?')"
+                        />
+                    </v-btn>
+                    <v-btn
                         variant="outlined"
+                        color="primary"
+                        class="mb-world-screen__generate"
+                        @click="generationDialogOpen = true"
                     >
-                        <v-btn value="wizard" size="small" data-test="creation-mode-wizard">
-                            {{ t("world.screen.modeWizard", "Steps") }}
-                        </v-btn>
-                        <v-btn value="canvas" size="small" data-test="creation-mode-canvas">
-                            {{ t("world.screen.modeCanvas", "Canvas") }}
-                        </v-btn>
-                    </v-btn-toggle>
-                </div>
+                        {{ workflowText("Generate and start project", "產生世界並建立專案") }}
+                    </v-btn>
+                </template>
 
                 <!--
-                    No `data-test` here on purpose. Vue falls a parent-supplied attribute through
-                    onto the child's root element, where it REPLACES the child's own, so adding one
-                    silently renamed the canvas's stable identifier to this host's name and left
-                    every selector that targets the component itself matching nothing. Its own
-                    `data-test="project-canvas"` is the one that should survive; a wrapper class is
-                    enough to position it from out here.
+                    Where the render runs, put where the render is set up rather than in settings.
+                    All four answers in one list: this computer, a container on it, a machine over
+                    SSH, and GitHub's runners. It is on the options step, beside the other render
+                    choices and before the button that starts one, because a choice offered after
+                    that button has been pressed is not a choice. The wizard keeps it mounted on
+                    every step so the route it reports is always the current one.
                 -->
-                <ProjectCanvas
-                    v-if="creationMode === 'canvas' && sharedWizard"
-                    :wizard="sharedWizard"
-                    class="mb-world-screen__canvas"
-                />
-
-                <WorldWizard
-                    v-show="creationMode === 'wizard'"
-                    ref="wizardComponent"
-                    :consent-accepted="consentAccepted"
-                    :can-render="bridge !== null"
-                    :can-inspect="canInspect"
-                    :storage="storage"
-                    :separator="separator"
-                    :probe="probe"
-                    :apply-storage="applyStorage"
-                    :existing-project="existingProject"
-                    :initial-world-path="props.initialWorldPath"
-                    @start="start"
-                    @consent="emit('consent')"
-                    @cancel="emit('cancel')"
-                    @step="rereadConsent"
-                    @world="lookForProject"
-                    @open-project="openExistingProject"
-                />
-            </v-card-text>
-        </v-card>
+                <template #options-aside>
+                    <RunLocationCard
+                        :remote-bridge="remote"
+                        :can-render-locally="bridge !== null"
+                        :location="runLocation"
+                        :can-open-ci="canOpenCi"
+                        @update:location="(value: RunLocation) => (runLocation = value)"
+                        @update:wsl-distribution="
+                            (value: string | null) => (wslDistribution = value)
+                        "
+                        @update:target="(value: RemoteTarget | null) => (runTarget = value)"
+                        @open-ci="emit('openCiRender')"
+                    />
+                </template>
+            </WorldWizard>
+        </div>
 
         <v-card v-else-if="lastConfig !== ''" variant="tonal" class="mb-world-screen__card">
             <v-card-text>
@@ -811,39 +888,88 @@ async function resume(renderId: string): Promise<void> {
                 </v-btn>
             </v-card-text>
         </v-card>
-    </div>
+    </section>
 </template>
 
 <style>
+/*
+ * The guide's page, from the approved Work design: a left-aligned column, the header (title,
+ * description, step search) above the step header, the step card and the footer row.
+ */
 .mb-world-screen {
     display: flex;
     flex-direction: column;
     gap: 4px;
     inline-size: 100%;
-    max-inline-size: 960px;
-    margin-inline: auto;
-    padding: 12px;
+    max-inline-size: 940px;
+    padding: 32px 48px 48px;
 }
 
 .mb-world-screen__card {
     border-radius: var(--md-sys-shape-corner-large);
 }
 
-.mb-world-screen__title {
-    font-size: var(--md-sys-typescale-title-large-size);
-    font-weight: 400;
-    line-height: 1.3;
-}
-
-.mb-world-screen__blurb {
-    font-size: var(--md-sys-typescale-body-medium-size);
-    line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    text-wrap: pretty;
+.mb-world-screen__header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: wrap;
+    margin-block-end: 4px;
 }
 
 .mb-world-screen__intro {
-    margin-block-end: 8px;
+    flex: 1 1 320px;
+    min-inline-size: 0;
+}
+
+.mb-world-screen__title {
+    margin: 0 0 6px;
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: 400;
+    line-height: var(--md-sys-typescale-headline-small-line-height);
+}
+
+.mb-world-screen__blurb {
+    margin: 0;
+    max-inline-size: 62ch;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: 1.5;
+    color: rgb(var(--v-theme-on-surface-variant));
+    text-wrap: pretty;
+}
+
+.mb-world-screen__tools {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+    flex: 0 1 320px;
+    min-inline-size: 240px;
+}
+
+.mb-world-screen__search {
+    align-self: stretch;
+}
+
+.mb-world-screen__search .v-field {
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-surface-container));
+}
+
+.mb-world-screen__guide {
+    display: flex;
+    flex-direction: column;
+}
+
+.mb-world-screen__modes {
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+    .mb-world-screen {
+        padding: 16px;
+    }
 }
 
 .mb-world-screen__running {

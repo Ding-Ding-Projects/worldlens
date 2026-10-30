@@ -58,6 +58,11 @@ const props = withDefaults(
         bridge?: SshWorldSourceBridge | null;
         remoteBridge?: RemoteBridge | null;
         storage?: TargetStorage | null;
+        /**
+         * Drawn as one of a row of outlined source actions (the guide's world step) rather
+         * than as a text disclosure under a rule. Appearance only.
+         */
+        asAction?: boolean;
     }>(),
     {},
 );
@@ -422,14 +427,19 @@ defineExpose({
         :label="t('world.ssh.title', 'World on an SSH machine')"
         as="section"
     >
-        <div class="mb-ssh-world" data-test="ssh-world-source">
+        <div
+            class="mb-ssh-world"
+            :class="{ 'mb-ssh-world--action': asAction }"
+            data-test="ssh-world-source"
+        >
             <v-btn
                 :prepend-icon="mdiFolderNetworkOutline"
                 :append-icon="open ? mdiChevronUp : mdiChevronDown"
                 :aria-expanded="open ? 'true' : 'false'"
                 aria-controls="mb-ssh-world-panel"
-                variant="text"
-                size="small"
+                :variant="asAction ? 'outlined' : 'text'"
+                :color="asAction ? 'primary' : undefined"
+                :size="asAction ? 'default' : 'small'"
                 data-test="ssh-open"
                 @click="open = !open"
             >
@@ -765,6 +775,21 @@ defineExpose({
     margin-block-start: 16px;
     padding-block-start: 8px;
     border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
+}
+
+/* One of the guide's outlined source actions: no rule above, and a full row once open. */
+.mb-ssh-world--action {
+    margin-block-start: 0;
+    padding-block-start: 0;
+    border-block-start: 0;
+}
+
+.mb-ssh-world--action > .v-btn {
+    min-block-size: 44px;
+}
+
+.mb-ssh-world--action:has(> .v-card) {
+    flex: 1 0 100%;
 }
 
 .mb-ssh-world__card {
