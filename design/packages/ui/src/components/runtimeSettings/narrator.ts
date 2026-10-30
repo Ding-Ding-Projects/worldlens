@@ -1,4 +1,4 @@
-import type { NarratorSettings } from "./model.js";
+import { narratorQuietNow, type NarratorSettings } from "./model.js";
 
 export interface VoiceInfo {
     readonly id: string;
@@ -81,7 +81,7 @@ export interface NarratorController {
         settings: NarratorSettings,
         text: { en: string; yue: string },
         category: string,
-        context?: { screenReaderActive?: boolean; reducedSound?: boolean },
+        context?: { screenReaderActive?: boolean; reducedSound?: boolean; now?: Date },
     ) => void;
     readonly dispose: () => void;
 }
@@ -163,7 +163,7 @@ export function createNarratorController(input?: SpeechAdapter | null): Narrator
         speak: (settings, text, category, context = {}) => {
             if (
                 !settings.enabled ||
-                settings.quietHours ||
+                narratorQuietNow(settings, context.now ?? new Date()) ||
                 context.screenReaderActive ||
                 context.reducedSound ||
                 adapter === null

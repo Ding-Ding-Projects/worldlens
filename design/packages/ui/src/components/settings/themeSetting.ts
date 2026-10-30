@@ -128,6 +128,13 @@ function writeStoredTheme(choice: ThemeChoice): void {
 const storedTheme = ref<ThemeChoice>(readStoredTheme());
 
 /**
+ * A theme a scheduled or external runtime rule is holding right now, or `undefined` when none
+ * is. Never persisted: the saved record stays exactly what a person chose, so releasing the
+ * override is enough to put their choice back.
+ */
+const temporaryTheme = ref<ThemeChoice | undefined>(undefined);
+
+/**
  * The one answer to "what theme was chosen".
  *
  * Deliberately the record rather than the running viewer's `appState.theme`. Reading the
@@ -136,7 +143,15 @@ const storedTheme = ref<ThemeChoice>(readStoredTheme());
  * also reintroduce, in the readers, exactly the ambiguity the watcher below exists to
  * remove. Where a viewer is running the two agree, because the watcher holds it to this.
  */
-export const currentTheme: ComputedRef<ThemeChoice> = computed(() => storedTheme.value);
+export const currentTheme: ComputedRef<ThemeChoice> = computed(() =>
+    temporaryTheme.value === undefined ? storedTheme.value : temporaryTheme.value,
+);
+
+/**
+ * The saved choice alone, ignoring any temporary override. What a scheduled rule restores to
+ * when it stops applying, and what `changeTheme` without `temporary` writes.
+ */
+export const savedTheme: ComputedRef<ThemeChoice> = computed(() => storedTheme.value);
 
 /**
  * Holds the live viewer to the chosen theme, for the life of the page.
@@ -171,7 +186,7 @@ watch(
     ([app, live]) => {
         if (app === null) return;
         const showing = isThemeChoice(live) ? live : null;
-        if (showing !== storedTheme.value) app.setTheme(storedTheme.value);
+        if (showing !== currentTheme.value) app.setTheme(currentTheme.value);
     },
 );
 
@@ -185,19 +200,40 @@ watch(
  * `theme`, fire-and-forget like every other key `recordAppSetting` carries.
  *
  * Every theme control calls this - the settings row, the in-map settings menu, the
- * command palette. Nothing else may write the record, and nothing that writes
+ * command palette. A scheduled runtime rule calls it with `temporary: true`, which shows the
+ * theme without writing the record or the history, and `releaseTemporaryTheme` puts the saved
+ * choice back when the rule stops applying. Nothing else may write the record, and nothing that writes
  * `appState.theme` behind this function's back will be persisted, which is the entire
  * point: see the module comment for the viewer's own startup writing "light" into that
  * field on a profile where nobody chose anything.
  */
-export function changeTheme(choice: ThemeChoice): void {
+export function changeTheme(choice: ThemeChoice, options: { temporary?: boolean } = {}): void {
+    if (options.temporary === true) {
+        // A runtime rule's value: shown everywhere the theme is read, written nowhere.
+        temporaryTheme.value = choice;
+        pushToLiveApp(choice);
+        return;
+    }
+
+    // A person's own choice wins over whatever a rule was holding, immediately.
+    temporaryTheme.value = undefined;
     storedTheme.value = choice;
     writeStoredTheme(choice);
+    pushToLiveApp(choice);
 
+    recordAppSetting("theme", choice);
+}
+
+/** Drops a temporary theme so the saved choice shows again. A no-op when none is held. */
+export function releaseTemporaryTheme(): void {
+    if (temporaryTheme.value === undefined) return;
+    temporaryTheme.value = undefined;
+    pushToLiveApp(storedTheme.value);
+}
+
+function pushToLiveApp(choice: ThemeChoice): void {
     const app = blueMapApp.value;
     if (app !== null && app.appState.theme !== choice) {
         app.setTheme(choice);
     }
-
-    recordAppSetting("theme", choice);
 }

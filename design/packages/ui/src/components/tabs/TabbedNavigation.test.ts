@@ -1593,7 +1593,9 @@ describe("the new-tab picker's search field", () => {
         search.dispatchEvent(new Event("input", { bubbles: true }));
         await settle();
 
-        const rows = [...document.querySelectorAll(".mb-tabs-strip__sheet .v-list-item")].map(
+        const rows = [...document.querySelectorAll(
+            ".mb-tabs-strip__sheet:not(.mb-tabs-strip__sheet--finder) .v-list-item",
+        )].map(
             (row) => row.textContent ?? "",
         );
         expect(rows.some((text) => text.includes("Servers"))).toBe(true);
@@ -1623,7 +1625,9 @@ describe("the new-tab picker's search field", () => {
         search.dispatchEvent(new Event("input", { bubbles: true }));
         await settle();
 
-        const row = [...document.querySelectorAll(".mb-tabs-strip__sheet .v-list-item")].find(
+        const row = [...document.querySelectorAll(
+            ".mb-tabs-strip__sheet:not(.mb-tabs-strip__sheet--finder) .v-list-item",
+        )].find(
             (element) => (element.textContent ?? "").includes("Servers"),
         );
         expect(row).toBeDefined();

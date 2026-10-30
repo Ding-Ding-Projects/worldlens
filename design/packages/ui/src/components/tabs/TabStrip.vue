@@ -1608,13 +1608,22 @@ const tabCountLabel = computed(() =>
                                     :sample="placementSample"
                                     class="mb-tabs-strip__menu-filter"
                                 />
+                                <!--
+                                    The design's two-by-two dock picker: each choice is a list item
+                                    drawing a miniature of the window with the strip on that edge.
+                                    The miniature is the item's picture, not a second control.
+                                -->
                                 <v-list
                                     density="compact"
+                                    class="mb-tabs-strip__docks"
+                                    bg-color="transparent"
                                     :aria-label="t('tabs.placement.title', 'Tab strip edge')"
                                 >
                                     <v-list-item
                                         v-for="choice in placementOptions"
                                         :key="choice.value"
+                                        class="mb-tabs-strip__dock"
+                                        :class="`mb-tabs-strip__dock--${choice.value}`"
                                         :active="strip.placement === choice.value"
                                         :aria-current="
                                             strip.placement === choice.value ? 'true' : undefined
@@ -1624,7 +1633,13 @@ const tabCountLabel = computed(() =>
                                             placementOpen = false;
                                         "
                                     >
-                                        {{ choice.label }}
+                                        <span class="mb-tabs-strip__dock-art" aria-hidden="true">
+                                            <span class="mb-tabs-strip__dock-bar" />
+                                            <span class="mb-tabs-strip__dock-fill" />
+                                        </span>
+                                        <span class="mb-tabs-strip__dock-label">{{
+                                            choice.label
+                                        }}</span>
                                     </v-list-item>
                                 </v-list>
                                 <p
@@ -1639,6 +1654,20 @@ const tabCountLabel = computed(() =>
                                         )
                                     }}
                                 </p>
+                                <p class="mb-tabs-strip__placement-current">
+                                    {{
+                                        t(
+                                            "tabs.placement.current",
+                                            {
+                                                edge:
+                                                    placementChoices.find(
+                                                        (choice) => choice.value === strip.placement,
+                                                    )?.label ?? strip.placement,
+                                            },
+                                            "Docked: {edge}",
+                                        )
+                                    }}
+                                </p>
                                 <p class="mb-tabs-strip__placement-provenance">
                                     {{
                                         t(
@@ -1647,6 +1676,19 @@ const tabCountLabel = computed(() =>
                                         )
                                     }}
                                 </p>
+                                <v-btn
+                                    class="mb-tabs-strip__placement-reset"
+                                    variant="outlined"
+                                    color="on-surface-variant"
+                                    block
+                                    :disabled="strip.placement === 'left'"
+                                    @click="
+                                        emit('set-placement', 'left');
+                                        placementOpen = false;
+                                    "
+                                >
+                                    {{ t("tabs.placement.reset", "Reset to the default edge") }}
+                                </v-btn>
                             </div>
                         </v-menu>
                     </v-btn>
@@ -1874,7 +1916,7 @@ const tabCountLabel = computed(() =>
                             offset="4"
                             eager
                         >
-                            <div class="mb-tabs-strip__sheet">
+                            <div class="mb-tabs-strip__sheet mb-tabs-strip__sheet--finder">
                                 <TabFinder
                                     :workspace="workspace"
                                     :strip="strip"
@@ -1911,7 +1953,7 @@ const tabCountLabel = computed(() =>
             offset="4"
             @update:model-value="(value: boolean) => !value && closeTabMenu()"
         >
-            <div class="mb-tabs-strip__sheet">
+            <div class="mb-tabs-strip__sheet mb-tabs-strip__sheet--menu">
                 <TabPlanConfirm
                     v-if="tabMenuPlan !== null"
                     :strip="strip"
@@ -2378,33 +2420,128 @@ const tabCountLabel = computed(() =>
     border-block-start: 1px solid rgba(var(--v-theme-on-surface), 0.12);
 }
 
-.mb-tabs-strip__placement-sheet {
-    width: min(calc(100vw - 16px), 24rem);
-    padding-block: 8px;
+/*
+ * The design's dock popover: a 300px card on surface-container-high with the 16dp large
+ * corner, a title-small heading, a body-small description, the two-by-two picker, the
+ * current edge in primary, and an outlined full-width reset.
+ */
+.mb-tabs-strip__sheet.mb-tabs-strip__placement-sheet {
+    box-sizing: border-box;
+    width: min(calc(100vw - 16px), 300px);
+    padding: 16px;
+    background: rgb(var(--v-theme-surface-container-high));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-tabs-strip__placement-title,
 .mb-tabs-strip__placement-description,
-.mb-tabs-strip__placement-provenance {
+.mb-tabs-strip__placement-provenance,
+.mb-tabs-strip__placement-current {
     margin: 0;
-    padding-inline: 12px;
     overflow-wrap: anywhere;
 }
 
 .mb-tabs-strip__placement-title {
-    font-size: var(--md-sys-typescale-body-large-size);
+    font-size: var(--md-sys-typescale-title-small-size);
+    line-height: var(--md-sys-typescale-title-small-line-height);
+    font-weight: var(--md-sys-typescale-title-small-weight);
 }
 
 .mb-tabs-strip__placement-description,
 .mb-tabs-strip__placement-provenance {
-    padding-block-start: 6px;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    padding-block-start: 4px;
+    color: rgb(var(--v-theme-on-surface-variant));
     font-size: var(--md-sys-typescale-body-small-size);
-    line-height: 1.45;
+    line-height: var(--md-sys-typescale-body-small-line-height);
 }
 
-.mb-tabs-strip__placement-provenance {
-    padding-block-end: 4px;
+.mb-tabs-strip__placement-sheet .mb-tabs-strip__menu-filter {
+    margin: 12px 0 4px;
+}
+
+.mb-tabs-strip__docks.v-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 8px 0 0;
+}
+
+.mb-tabs-strip__sheet .mb-tabs-strip__dock.v-list-item {
+    min-block-size: 0;
+    padding: 6px;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.mb-tabs-strip__dock.v-list-item--active {
+    border-color: rgb(var(--v-theme-primary));
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
+}
+
+.mb-tabs-strip__dock .v-list-item__content {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mb-tabs-strip__dock-art {
+    display: flex;
+    gap: 4px;
+    block-size: 48px;
+}
+
+.mb-tabs-strip__dock--top .mb-tabs-strip__dock-art {
+    flex-direction: column;
+}
+
+.mb-tabs-strip__dock--bottom .mb-tabs-strip__dock-art {
+    flex-direction: column-reverse;
+}
+
+.mb-tabs-strip__dock--right .mb-tabs-strip__dock-art {
+    flex-direction: row-reverse;
+}
+
+.mb-tabs-strip__dock-bar,
+.mb-tabs-strip__dock-fill {
+    border-radius: var(--md-sys-shape-corner-extra-small);
+}
+
+.mb-tabs-strip__dock-bar {
+    flex: 0 0 8px;
+    background: rgb(var(--v-theme-outline-variant));
+}
+
+.mb-tabs-strip__dock-fill {
+    flex: 1 1 auto;
+    background: rgb(var(--v-theme-surface-container));
+}
+
+.mb-tabs-strip__dock.v-list-item--active .mb-tabs-strip__dock-bar {
+    background: rgb(var(--v-theme-primary));
+}
+
+.mb-tabs-strip__dock-label {
+    font-size: var(--md-sys-typescale-label-medium-size);
+    text-align: center;
+}
+
+.mb-tabs-strip__placement-current {
+    padding-block-start: 8px;
+    text-align: center;
+    color: rgb(var(--v-theme-primary));
+    font-size: var(--md-sys-typescale-body-small-size);
+}
+
+.mb-tabs-strip__placement-reset.v-btn {
+    margin-block-start: 12px;
+    border-radius: var(--md-sys-shape-corner-full);
+    border-color: rgb(var(--v-theme-outline));
+    color: rgb(var(--v-theme-on-surface-variant));
+    text-transform: none;
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
 }
 
 @media (max-width: 640px) {
@@ -2438,6 +2575,27 @@ const tabCountLabel = computed(() =>
 
 .mb-tabs-strip__sheet .v-list-item {
     min-block-size: 44px;
+}
+
+/*
+ * The finder's sheet is the design's large search card rather than a menu: the
+ * surface-container role, an outline-variant hairline, the 28dp extra-large corner
+ * and a level-3 lift. Scrolling moves to the finder's own result list, so the
+ * header, scope chips and selection footer stay in view.
+ */
+/* The design's context menu: surface-container-high, a hairline and the 12dp medium corner. */
+.mb-tabs-strip__sheet.mb-tabs-strip__sheet--menu {
+    background: rgb(var(--v-theme-surface-container-high));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.mb-tabs-strip__sheet.mb-tabs-strip__sheet--finder {
+    background: rgb(var(--v-theme-surface-container));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    box-shadow: var(--md-sys-elevation-shadow-level3);
+    overflow-x: hidden;
 }
 
 .mb-tabs-strip__overflow-member {

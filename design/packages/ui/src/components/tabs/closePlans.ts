@@ -47,7 +47,7 @@ import type { TabHit } from "./tabSearch.js";
 import { searchStripTabs } from "./tabSearch.js";
 
 /** Which of the five bulk closes a plan is for. */
-export type ClosePlanKind = "containing" | "notContaining" | "others" | "toStart" | "toEnd";
+export type ClosePlanKind = "containing" | "notContaining" | "others" | "toStart" | "toEnd" | "selected";
 
 /** Why a plan will close nothing, when the reason is the query rather than the tabs. */
 export type ClosePlanRefusal = "empty-query" | "invalid-pattern";
@@ -251,6 +251,39 @@ export function planCloseOthers(
         eligible,
         selected,
         protectedPinned,
+        dirty,
+        refusal: null,
+        patternError: null,
+    });
+}
+
+/**
+ * Close exactly the tabs somebody ticked in the finder, under the same rules.
+ *
+ * A hand-picked selection is still a bulk close, so it is not allowed to be a way
+ * around them: pinned tabs drop out unless the pinned choice is made, unsaved work
+ * is named, and the preview counts what will go before anything does. Ids that no
+ * longer exist in the strip (closed elsewhere since they were ticked) simply match
+ * nothing, so a stale selection can never close a different tab.
+ */
+export function planSelectionClose(
+    strip: TabStripState,
+    tabIds: readonly string[],
+    includePinned: boolean,
+): TabClosePlan {
+    const dirty = dirtySet(strip);
+    const scope: ClosePlanScope = { kind: "strip" };
+    const { eligible, protectedPinned } = scopeFor(strip, includePinned, scope);
+    const chosen = new Set(tabIds);
+    return finish({
+        kind: "selected",
+        mode: null,
+        query: "",
+        scope,
+        includePinned,
+        eligible,
+        selected: eligible.filter((hit) => chosen.has(hit.tabId)),
+        protectedPinned: protectedPinned.filter((entry) => chosen.has(entry.hit.tabId)),
         dirty,
         refusal: null,
         patternError: null,

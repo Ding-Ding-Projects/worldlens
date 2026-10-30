@@ -120,6 +120,7 @@ export {
     applyClosePlan,
     groupsEmptiedBy,
     planCloseOthers,
+    planSelectionClose,
     planCloseToEdge,
     planTextClose,
 } from "./closePlans.js";

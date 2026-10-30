@@ -45,6 +45,8 @@ import { indexStrip, tabOrder, type TabGroup, type TabStripState, type TabWorksp
 export interface TabHit {
     readonly tabId: string;
     readonly label: string;
+    /** The tab's own `@mdi/js` glyph, so a result row looks like the tab it opens. */
+    readonly icon?: string | null;
     readonly windowId: string;
     readonly windowLabel: string;
     readonly stripId: string;
@@ -98,6 +100,7 @@ function hitsForStrip(strip: TabStripState): readonly TabHit[] {
         return {
             tabId: tab.id,
             label: tab.label,
+            icon: tab.icon,
             windowId: strip.windowId,
             windowLabel: strip.windowLabel,
             stripId: strip.id,

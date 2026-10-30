@@ -17,7 +17,13 @@
 
 import { describe, expect, it } from "vitest";
 import { createSettingMatcher } from "../config/regexEngine.js";
-import { applyClosePlan, planCloseOthers, planCloseToEdge, planTextClose } from "./closePlans.js";
+import {
+    applyClosePlan,
+    planCloseOthers,
+    planCloseToEdge,
+    planSelectionClose,
+    planTextClose,
+} from "./closePlans.js";
 import {
     addTab,
     createGroup,
@@ -345,5 +351,44 @@ describe("applying a plan", () => {
         const outcome = applyClosePlan(state, built, { keepEmptyGroups: true });
         expect(outcome.emptiedGroups.map((group) => group.name)).toEqual(["Renders"]);
         expect(outcome.strip.groups.map((group) => group.tabIds)).toEqual([[]]);
+    });
+});
+
+describe("the finder's hand-picked selection close", () => {
+    it("closes exactly the ticked tabs and nothing else", () => {
+        const plan = planSelectionClose(strip(), ["Settings", "notes"], false);
+        expect(plan.kind).toBe("selected");
+        expect(plan.mode).toBeNull();
+        expect(labels(plan.selected)).toEqual(["Settings", "notes"]);
+        expect(plan.runnable).toBe(true);
+    });
+
+    it("keeps a ticked pinned tab out until the pinned choice is made, and names it", () => {
+        const kept = planSelectionClose(strip(), ["Overworld map", "notes"], false);
+        expect(labels(kept.selected)).toEqual(["notes"]);
+        expect(kept.protectedPinned.map((entry) => entry.hit.label)).toEqual(["Overworld map"]);
+
+        const included = planSelectionClose(strip(), ["Overworld map", "notes"], true);
+        expect(labels(included.selected)).toEqual(["Overworld map", "notes"]);
+    });
+
+    it("does not report an unticked pinned tab as protected", () => {
+        const plan = planSelectionClose(strip(), ["notes"], false);
+        expect(plan.protectedPinned).toEqual([]);
+    });
+
+    it("ignores ids that are no longer in the strip, so a stale tick closes nothing", () => {
+        const plan = planSelectionClose(strip(), ["gone"], false);
+        expect(plan.selected).toEqual([]);
+        expect(plan.runnable).toBe(false);
+    });
+
+    it("names unsaved work among the ticked tabs, and applying keeps it open by default", () => {
+        const dirty = setTabDirty(strip(), "notes", true);
+        const plan = planSelectionClose(dirty, ["notes", "Settings"], false);
+        expect(plan.unsaved.map((entry) => entry.hit.label)).toEqual(["notes"]);
+        const outcome = applyClosePlan(dirty, plan);
+        expect(labels(outcome.closed)).toEqual(["Settings"]);
+        expect(outcome.kept.map((entry) => entry.hit.label)).toEqual(["notes"]);
     });
 });

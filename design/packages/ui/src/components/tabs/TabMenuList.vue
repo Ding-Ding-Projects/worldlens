@@ -70,7 +70,7 @@ const sample = computed(() => props.items.map((item) => item.label).join("\n"));
                 @click="emit('choose', item.id)"
             >
                 <template #prepend>
-                    <v-icon :icon="item.icon" size="18" aria-hidden="true" />
+                    <v-icon :icon="item.icon" size="20" aria-hidden="true" />
                 </template>
                 <span class="mb-tabs-menu__label">{{ item.label }}</span>
                 <template v-if="item.shortcut !== null" #append>
@@ -87,41 +87,64 @@ const sample = computed(() => props.items.map((item) => item.label).join("\n"));
 </template>
 
 <style>
+/*
+ * The design's tab context menu: 262dp wide, 40dp rows with a 20dp leading icon, the label in
+ * body-medium, the shortcut right-aligned in a mono label-small on the outline role, and the
+ * destructive rows in the error role. The filter field sits above the rows, as every context
+ * menu in this application carries one.
+ */
 .mb-tabs-menu {
-    min-width: 260px;
+    box-sizing: border-box;
+    min-width: 262px;
+    padding-block: 8px;
 }
 
 .mb-tabs-menu__filter {
-    margin: 8px 8px 4px;
+    margin: 0 8px 4px;
 }
 
-.mb-tabs-menu__list {
+.mb-tabs-menu__list.v-list {
     background: transparent;
+    padding: 0;
+}
+
+.mb-tabs-menu__list .v-list-item {
+    min-block-size: 40px;
+    padding-inline: 16px;
+}
+
+.mb-tabs-menu__list .v-list-item__prepend > .v-icon {
+    margin-inline-end: 12px;
+    opacity: 1;
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-tabs-menu__label {
     font-size: var(--md-sys-typescale-body-medium-size);
+    color: rgb(var(--v-theme-on-surface));
 }
 
-.mb-tabs-menu__item--danger .mb-tabs-menu__label {
+.mb-tabs-menu__item--danger .mb-tabs-menu__label,
+.mb-tabs-menu__list .mb-tabs-menu__item--danger .v-list-item__prepend > .v-icon {
     color: rgb(var(--v-theme-error));
 }
 
 .mb-tabs-menu__keys {
     margin-inline-start: 16px;
-    padding: 1px 6px;
-    border-radius: var(--md-sys-shape-corner-extra-small);
-    border: 1px solid rgba(var(--v-theme-on-surface), 0.24);
+    padding: 0;
+    border: none;
+    background: none;
     font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: var(--md-sys-typescale-label-small-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-outline));
     white-space: nowrap;
 }
 
 .mb-tabs-menu__empty {
-    padding: 8px 12px 12px;
+    margin: 0;
+    padding: 8px 16px 12px;
     font-size: var(--md-sys-typescale-body-small-size);
-    line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    line-height: var(--md-sys-typescale-body-small-line-height);
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 </style>

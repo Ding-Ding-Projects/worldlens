@@ -56,7 +56,12 @@ export interface NarratorSettings {
     readonly rate: number;
     readonly pitch: number;
     readonly cooldownMs: number;
+    /** Whether the quiet-hours window below silences narration and action cues. */
     readonly quietHours: boolean;
+    /** Local "HH:MM" start of the quiet window. A window may cross midnight. */
+    readonly quietStart: string;
+    /** Local "HH:MM" end of the quiet window. Equal to the start means all day. */
+    readonly quietEnd: string;
 }
 
 export interface RuntimeValues {
@@ -135,6 +140,8 @@ export const DEFAULT_RUNTIME_VALUES: RuntimeValues = {
         pitch: 1,
         cooldownMs: 1200,
         quietHours: false,
+        quietStart: "22:00",
+        quietEnd: "07:00",
     },
 };
 
@@ -272,6 +279,8 @@ function parseValues(value: unknown): RuntimeValues | null {
             "pitch",
             "cooldownMs",
             "quietHours",
+            "quietStart",
+            "quietEnd",
         ])
     )
         return null;
@@ -317,6 +326,17 @@ function parseValues(value: unknown): RuntimeValues | null {
         typeof narrator.quietHours !== "boolean"
     )
         return null;
+    // Records saved before the quiet window existed carry only the boolean; they get the
+    // default window rather than failing closed and discarding every other preference.
+    const quietStart = narrator.quietStart ?? DEFAULT_RUNTIME_VALUES.narrator.quietStart;
+    const quietEnd = narrator.quietEnd ?? DEFAULT_RUNTIME_VALUES.narrator.quietEnd;
+    if (
+        !boundedString(quietStart, 5) ||
+        !boundedString(quietEnd, 5) ||
+        !validTime(quietStart) ||
+        !validTime(quietEnd)
+    )
+        return null;
     return {
         language,
         theme,
@@ -343,6 +363,8 @@ function parseValues(value: unknown): RuntimeValues | null {
             pitch: narrator.pitch,
             cooldownMs: narrator.cooldownMs,
             quietHours: narrator.quietHours,
+            quietStart,
+            quietEnd,
         },
     };
 }
@@ -469,24 +491,61 @@ export function scheduledRuleMatches(rule: ScheduledRule, at: Date): boolean {
     return true;
 }
 
+export type RuntimeOverrides = Partial<Pick<RuntimeValues, RuntimeSettingKey>>;
+
+/**
+ * Only the settings that active local rules set right now, without the base values.
+ *
+ * The shell applies these as temporary overrides on top of each setting's own saved choice,
+ * so it has to know which keys a rule is actually holding - a merged value that happens to
+ * equal the base is indistinguishable from "no rule applies" and would never be released.
+ * Lower priorities are applied first so the highest priority, then the lowest id, wins.
+ */
+export function resolveScheduledOverrides(
+    rules: readonly ScheduledRule[],
+    at = new Date(),
+): RuntimeOverrides {
+    const active = rules
+        .filter((rule) => scheduledRuleMatches(rule, at) && rule.source === "local")
+        .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
+        .reverse();
+    const next: Record<string, unknown> = {};
+    for (const rule of active) {
+        const key = rule.setting;
+        const value =
+            key === "fontSize" && typeof rule.value === "string" ? Number(rule.value) : rule.value;
+        if (key === "fontSize" && !finiteNumber(value, 0.75, 2)) continue;
+        next[key] = value;
+    }
+    return next as RuntimeOverrides;
+}
+
 /** Priority wins, then a stable id tie-breaker makes equal priorities deterministic. */
 export function resolveScheduledValues(
     base: RuntimeValues,
     rules: readonly ScheduledRule[],
     at = new Date(),
 ): RuntimeValues {
-    const active = rules
-        .filter((rule) => scheduledRuleMatches(rule, at) && rule.source === "local")
-        .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id));
-    let next: RuntimeValues = base;
-    for (const rule of active) {
-        const key = rule.setting;
-        const value =
-            key === "fontSize" && typeof rule.value === "string" ? Number(rule.value) : rule.value;
-        if (key === "fontSize" && !finiteNumber(value, 0.75, 2)) continue;
-        next = { ...next, [key]: value } as RuntimeValues;
-    }
-    return next;
+    return { ...base, ...resolveScheduledOverrides(rules, at) } as RuntimeValues;
+}
+
+/** True when narrator quiet hours are switched on and `at` falls inside the local window. */
+export function narratorQuietNow(
+    narrator: Pick<NarratorSettings, "quietHours"> &
+        Partial<Pick<NarratorSettings, "quietStart" | "quietEnd">>,
+    at = new Date(),
+): boolean {
+    if (!narrator.quietHours) return false;
+    // A partial record with no window keeps the original meaning of the switch: quiet all day.
+    if (narrator.quietStart === undefined || narrator.quietEnd === undefined) return true;
+    const startText = narrator.quietStart;
+    const endText = narrator.quietEnd;
+    if (!validTime(startText) || !validTime(endText)) return true;
+    const start = parseMinutes(startText);
+    const end = parseMinutes(endText);
+    const minutes = at.getHours() * 60 + at.getMinutes();
+    if (start === end) return true;
+    return start < end ? minutes >= start && minutes < end : minutes >= start || minutes < end;
 }
 
 /** External payloads may only update known, bounded appearance fields. */

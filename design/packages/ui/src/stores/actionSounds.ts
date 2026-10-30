@@ -41,6 +41,7 @@
 import { reactive } from "vue";
 import { setupStorage } from "../components/setup/setupPrefs.js";
 import { loadRuntimeSettings } from "../components/runtimeSettings/store.js";
+import { narratorQuietNow } from "../components/runtimeSettings/model.js";
 import { recordAppSetting } from "./appSettingsHistorySync.js";
 
 export const ACTION_CUES = [
@@ -171,13 +172,13 @@ export function setActionSoundsVolume(volume: number): void {
 
 /**
  * True while the person's other preferences ask for quiet: the switch, a zero volume, the
- * narrator's quiet hours, or the low-stimulation accommodation.
+ * narrator's quiet-hours window while it is in force, or the low-stimulation accommodation.
  */
 export function actionSoundsSuppressed(): boolean {
     if (!actionSoundPrefs.enabled || actionSoundPrefs.volume <= 0) return true;
     try {
         const values = loadRuntimeSettings().values;
-        return values.narrator.quietHours || values.accommodations.lowStimulation;
+        return narratorQuietNow(values.narrator) || values.accommodations.lowStimulation;
     } catch {
         return false;
     }

@@ -120,3 +120,61 @@ describe("the pattern and sample fields' key handling", () => {
         wrapper.unmount();
     });
 });
+
+describe("the pattern field's own token controls", () => {
+    function renderWith(pattern: string) {
+        return mount(ConfigRegexBuilder, {
+            props: { pattern, flags: "i", sample: "render-thread-count" },
+            global: { plugins: [vuetify, i18n()] },
+            attachTo: document.body.appendChild(document.createElement("div")),
+        });
+    }
+
+    it("deletes a whole inserted token in one press, not just its last character", async () => {
+        const wrapper = renderWith("^render-(?<name>");
+        await wrapper.get('[aria-label="Delete the last token"]').trigger("click");
+        expect(wrapper.emitted("update:pattern")?.at(-1)).toEqual(["^render-"]);
+        wrapper.unmount();
+    });
+
+    it("falls back to one character for text typed by hand", async () => {
+        const wrapper = renderWith("render");
+        await wrapper.get('[aria-label="Delete the last token"]').trigger("click");
+        expect(wrapper.emitted("update:pattern")?.at(-1)).toEqual(["rende"]);
+        wrapper.unmount();
+    });
+
+    it("clears the whole pattern from the clear control", async () => {
+        const wrapper = renderWith("^render.*$");
+        await wrapper.get('[aria-label="Clear the pattern"]').trigger("click");
+        expect(wrapper.emitted("update:pattern")?.at(-1)).toEqual([""]);
+        wrapper.unmount();
+    });
+
+    it("names every flag in words beside its letter and toggles it through a real checkbox", async () => {
+        const wrapper = renderWith("a");
+        expect(wrapper.text()).toContain("ignore case (i)");
+        expect(wrapper.text()).toContain("dot matches newline (s)");
+        const multiline = wrapper
+            .findAll('input[type="checkbox"]')
+            .find((input) => input.attributes("value") === "m");
+        expect(multiline).toBeDefined();
+        await multiline?.setValue(true);
+        expect(wrapper.emitted("update:flags")?.at(-1)).toEqual(["im"]);
+        wrapper.unmount();
+    });
+
+    it("keeps every token family announced as its own group", () => {
+        const wrapper = renderWith("");
+        const groups = wrapper.findAll('[role="group"]').map((group) => group.attributes("aria-label"));
+        expect(groups).toEqual([
+            "Character classes",
+            "Anchors",
+            "Groups",
+            "Alternation",
+            "Quantifiers",
+            "Literals",
+        ]);
+        wrapper.unmount();
+    });
+});

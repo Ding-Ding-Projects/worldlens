@@ -551,6 +551,8 @@ export const TABS_FIXED = {
     "tabs.placement.right": { en: "Right edge", yue: "右邊" },
     "tabs.placement.top": { en: "Top edge", yue: "上邊" },
     "tabs.placement.bottom": { en: "Bottom edge", yue: "下邊" },
+    "tabs.placement.current": { en: "Docked: {edge}", yue: "而家擺喺：{edge}" },
+    "tabs.placement.reset": { en: "Reset to the default edge", yue: "還原做預設嗰邊" },
     "tabs.placement.provenance": {
         en: "Source: this strip's saved setting. Built-in fallback for fresh and migrated profiles: Left edge.",
         yue: "來源：呢條分頁列自己儲低嘅設定。新 profile 同舊記錄遷移嘅內置後備值：左邊。",
@@ -669,6 +671,29 @@ export const TABS_FIXED = {
      * the badge is the only thing telling the reader where the tab actually lives. */
     "tabs.find.collapsed": { en: "in a collapsed group", yue: "喺一個收埋咗嘅群組入面" },
     "tabs.find.pinned": { en: "pinned", yue: "已釘住" },
+    /* The finder's scope chips, its row states and its hand-picked bulk close. */
+    "tabs.find.scopes": { en: "What to search", yue: "搜乜嘢" },
+    "tabs.find.scope.tabs": { en: "Tabs", yue: "分頁" },
+    "tabs.find.scope.everywhere": { en: "Everywhere", yue: "全部地方" },
+    "tabs.find.scope.groups": { en: "Groups", yue: "群組" },
+    "tabs.find.scope.close": { en: "Bulk close", yue: "一次過閂" },
+    "tabs.find.select": { en: "Select {label} for closing", yue: "揀 {label} 準備閂" },
+    "tabs.find.open": { en: "open", yue: "開住" },
+    "tabs.find.collapsedShort": { en: "collapsed", yue: "收埋咗" },
+    "tabs.find.noGroup": { en: "no group", yue: "冇群組" },
+    "tabs.find.invert": { en: "Invert", yue: "反轉揀選" },
+    "tabs.find.closeNothing": { en: "Close nothing", yue: "乜都唔閂" },
+    "tabs.find.closeSelected": { en: "Close {count} tabs...", yue: "閂 {count} 個分頁..." },
+    "tabs.find.bulkNote": {
+        en: "Selecting several and pressing Close previews exactly what would go before it does it.",
+        yue: "揀幾個再撳閂，會先預覽清楚邊啲會走，先至真係閂。",
+    },
+    "tabs.find.bulkSelected": {
+        en: "{count} selected. Pinned tabs are left out unless you include them in the preview.",
+        yue: "揀咗 {count} 個。釘住咗嘅分頁唔會計在內，除非你喺預覽度揀埋佢哋。",
+    },
+    "tabs.find.reviewTitle": { en: "Close the {count} selected tabs", yue: "閂揀咗嗰 {count} 個分頁" },
+    "tabs.find.backToList": { en: "Back to the list", yue: "返去個清單" },
 
     /* ---------------------------------------------------------------- */
     /* The bulk close: the two inverse actions and their controls        */

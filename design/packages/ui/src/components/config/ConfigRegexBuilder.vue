@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiContentCopy } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardText, VChip, VChipGroup, VDivider, VTextarea } from "vuetify/components";
+import { mdiBackspaceOutline, mdiClose, mdiContentCopy, mdiRegex } from "@mdi/js";
+import { VAlert, VBtn, VCard, VCardText, VCheckbox, VChip, VDivider, VIcon, VTextarea } from "vuetify/components";
 import {
     MAX_EVAL_MS,
     MAX_MATCHES,
@@ -90,6 +90,8 @@ interface Token {
     readonly before: string;
     readonly after?: string;
     readonly hint: string;
+    /** The one- or two-word name the design prints beside the token on its chip. */
+    readonly short: string;
 }
 
 interface TokenGroup {
@@ -101,46 +103,53 @@ const tokenGroups = computed<TokenGroup[]>(() => [
     {
         title: t("config.regex.group.classes", "Character classes"),
         tokens: [
-            { label: "[abc]", before: "[", after: "]", hint: t("config.regex.hint.set", "any one of these characters") },
-            { label: "[^abc]", before: "[^", after: "]", hint: t("config.regex.hint.notSet", "any character except these") },
-            { label: "\\d", before: "\\d", hint: t("config.regex.hint.digit", "any digit") },
-            { label: "\\w", before: "\\w", hint: t("config.regex.hint.word", "any word character") },
-            { label: "\\s", before: "\\s", hint: t("config.regex.hint.space", "any whitespace") },
-            { label: ".", before: ".", hint: t("config.regex.hint.any", "any character except a line break") },
+            { label: "[abc]", before: "[", after: "]", hint: t("config.regex.hint.set", "any one of these characters"), short: t("config.regex.short.anyOf", "any of") },
+            { label: "[^abc]", before: "[^", after: "]", hint: t("config.regex.hint.notSet", "any character except these"), short: t("config.regex.short.noneOf", "none of") },
+            { label: "\\d", before: "\\d", hint: t("config.regex.hint.digit", "any digit"), short: t("config.regex.short.digit", "digit") },
+            { label: "\\w", before: "\\w", hint: t("config.regex.hint.word", "any word character"), short: t("config.regex.short.word", "word") },
+            { label: "\\s", before: "\\s", hint: t("config.regex.hint.space", "any whitespace"), short: t("config.regex.short.space", "space") },
+            { label: ".", before: ".", hint: t("config.regex.hint.any", "any character except a line break"), short: t("config.regex.short.anyChar", "any") },
         ],
     },
     {
         title: t("config.regex.group.anchors", "Anchors"),
         tokens: [
-            { label: "^", before: "^", hint: t("config.regex.hint.start", "start of text, or of a line with flag m") },
-            { label: "$", before: "$", hint: t("config.regex.hint.end", "end of text, or of a line with flag m") },
-            { label: "\\b", before: "\\b", hint: t("config.regex.hint.boundary", "word boundary") },
-            { label: "\\B", before: "\\B", hint: t("config.regex.hint.notBoundary", "not a word boundary") },
+            { label: "^", before: "^", hint: t("config.regex.hint.start", "start of text, or of a line with flag m"), short: t("config.regex.short.start", "start") },
+            { label: "$", before: "$", hint: t("config.regex.hint.end", "end of text, or of a line with flag m"), short: t("config.regex.short.end", "end") },
+            { label: "\\b", before: "\\b", hint: t("config.regex.hint.boundary", "word boundary"), short: t("config.regex.short.edge", "edge") },
+            { label: "\\B", before: "\\B", hint: t("config.regex.hint.notBoundary", "not a word boundary"), short: t("config.regex.short.notEdge", "not edge") },
         ],
     },
     {
         title: t("config.regex.group.groups", "Groups"),
         tokens: [
-            { label: "( )", before: "(", after: ")", hint: t("config.regex.hint.capture", "capturing group") },
-            { label: "(?: )", before: "(?:", after: ")", hint: t("config.regex.hint.noCapture", "group without capturing") },
-            { label: "(?<n> )", before: "(?<name>", after: ")", hint: t("config.regex.hint.named", "named capturing group") },
-            { label: "\\1", before: "\\1", hint: t("config.regex.hint.backref", "back-reference to group 1") },
-            { label: "(?= )", before: "(?=", after: ")", hint: t("config.regex.hint.lookahead", "followed by") },
-            { label: "(?! )", before: "(?!", after: ")", hint: t("config.regex.hint.negLookahead", "not followed by") },
+            { label: "( )", before: "(", after: ")", hint: t("config.regex.hint.capture", "capturing group"), short: t("config.regex.short.group", "group") },
+            { label: "(?: )", before: "(?:", after: ")", hint: t("config.regex.hint.noCapture", "group without capturing"), short: t("config.regex.short.silent", "silent") },
+            { label: "(?<n> )", before: "(?<name>", after: ")", hint: t("config.regex.hint.named", "named capturing group"), short: t("config.regex.short.named", "named") },
+            { label: "\\1", before: "\\1", hint: t("config.regex.hint.backref", "back-reference to group 1"), short: t("config.regex.short.again", "again") },
+            { label: "(?= )", before: "(?=", after: ")", hint: t("config.regex.hint.lookahead", "followed by"), short: t("config.regex.short.ahead", "ahead") },
+            { label: "(?! )", before: "(?!", after: ")", hint: t("config.regex.hint.negLookahead", "not followed by"), short: t("config.regex.short.notAhead", "not ahead") },
         ],
     },
     {
         title: t("config.regex.group.alternation", "Alternation"),
-        tokens: [{ label: "|", before: "|", hint: t("config.regex.hint.or", "match the left side or the right side") }],
+        tokens: [
+            {
+                label: "|",
+                before: "|",
+                hint: t("config.regex.hint.or", "match the left side or the right side"),
+                short: t("config.regex.short.or", "or"),
+            },
+        ],
     },
     {
         title: t("config.regex.group.quantifiers", "Quantifiers"),
         tokens: [
-            { label: "*", before: "*", hint: t("config.regex.hint.star", "zero or more") },
-            { label: "+", before: "+", hint: t("config.regex.hint.plus", "one or more") },
-            { label: "?", before: "?", hint: t("config.regex.hint.opt", "zero or one") },
-            { label: "{2,5}", before: "{2,5}", hint: t("config.regex.hint.range", "between two and five") },
-            { label: "*?", before: "*?", hint: t("config.regex.hint.lazy", "zero or more, as few as possible") },
+            { label: "*", before: "*", hint: t("config.regex.hint.star", "zero or more"), short: t("config.regex.short.zeroPlus", "0+") },
+            { label: "+", before: "+", hint: t("config.regex.hint.plus", "one or more"), short: t("config.regex.short.onePlus", "1+") },
+            { label: "?", before: "?", hint: t("config.regex.hint.opt", "zero or one"), short: t("config.regex.short.optional", "optional") },
+            { label: "{2,5}", before: "{2,5}", hint: t("config.regex.hint.range", "between two and five"), short: t("config.regex.short.exactly", "2 to 5") },
+            { label: "*?", before: "*?", hint: t("config.regex.hint.lazy", "zero or more, as few as possible"), short: t("config.regex.short.lazy", "lazy") },
         ],
     },
 ]);
@@ -186,6 +195,42 @@ function escapeSelection(): void {
     emit("update:pattern", escapeLiteral(props.pattern));
 }
 
+/** Every literal string a token button can insert, longest first, for the backspace below. */
+const insertedPieces = computed(() =>
+    [...new Set(tokenGroups.value.flatMap((group) => group.tokens.flatMap((token) => [token.before + (token.after ?? ""), token.before, token.after ?? ""])))]
+        .filter((piece) => piece.length > 0)
+        .sort((a, b) => b.length - a.length),
+);
+
+/**
+ * Removes the last token rather than the last character.
+ *
+ * A pattern built from the chips is a sequence of tokens, so the one-press undo is the last
+ * token: `(?<name>` goes in one press and comes out in one. An escaped character (`\.`) is
+ * one token too, and anything typed by hand falls back to a single character.
+ */
+function deleteLastToken(): void {
+    const current = props.pattern;
+    if (current === "") return;
+    const piece = insertedPieces.value.find((candidate) => current.endsWith(candidate));
+    const escaped = /\\.$/u.test(current) ? 2 : 0;
+    const cut = Math.max(piece?.length ?? 0, escaped, 1);
+    emit("update:pattern", current.slice(0, current.length - cut));
+}
+
+/** The flag's own letter beside what it does, so neither has to be guessed from the other. */
+function flagLabel(flag: string): string {
+    const names: Record<string, string> = {
+        g: t("config.regex.flag.g", "every match"),
+        i: t("config.regex.flag.i", "ignore case"),
+        m: t("config.regex.flag.m", "multiline"),
+        s: t("config.regex.flag.s", "dot matches newline"),
+        u: t("config.regex.flag.u", "Unicode"),
+        y: t("config.regex.flag.y", "sticky"),
+    };
+    return `${names[flag] ?? flag} (${flag})`;
+}
+
 async function copy(value: string, what: string): Promise<void> {
     try {
         await navigator.clipboard.writeText(value);
@@ -200,10 +245,21 @@ async function copy(value: string, what: string): Promise<void> {
 </script>
 
 <template>
-    <v-card class="mb-config-regex" role="dialog" :aria-label="t('config.regex.title', 'Regex builder')" max-width="440">
+    <v-card
+        class="mb-config-regex"
+        role="dialog"
+        :aria-label="t('config.regex.title', 'Regex builder')"
+        variant="flat"
+    >
         <v-card-text class="mb-config-regex__body">
-            <h3 class="mb-config-regex__heading">{{ t("config.regex.title", "Regex builder") }}</h3>
-            <p class="mb-config-regex__meta">
+            <header class="mb-config-regex__head">
+                <v-icon :icon="mdiRegex" size="20" color="primary" aria-hidden="true" />
+                <h3 class="mb-config-regex__heading">{{ t("config.regex.title", "Regex builder") }}</h3>
+                <span class="mb-config-regex__anchored">
+                    {{ t("config.regex.anchored", "anchored to the field it belongs to") }}
+                </span>
+            </header>
+            <p class="mb-config-regex__lead">
                 {{
                     t(
                         "config.regex.engine",
@@ -219,53 +275,107 @@ async function copy(value: string, what: string): Promise<void> {
                     :label="t('config.regex.pattern', 'Pattern')"
                     :counter="MAX_PATTERN_LENGTH"
                     :maxlength="MAX_PATTERN_LENGTH"
-                    rows="2"
+                    rows="1"
                     auto-grow
                     density="compact"
                     variant="outlined"
+                    color="primary"
                     spellcheck="false"
                     autocapitalize="off"
                     autocomplete="off"
                     hide-details="auto"
                     @keydown="stopUnlessEscape"
-                />
+                >
+                    <template #append-inner>
+                        <v-btn
+                            :icon="mdiBackspaceOutline"
+                            :disabled="pattern === ''"
+                            :aria-label="t('config.regex.backspace', 'Delete the last token')"
+                            variant="text"
+                            size="small"
+                            density="comfortable"
+                            @click="deleteLastToken"
+                        />
+                        <v-btn
+                            :icon="mdiClose"
+                            :disabled="pattern === ''"
+                            :aria-label="t('config.regex.clear', 'Clear the pattern')"
+                            variant="text"
+                            size="small"
+                            density="comfortable"
+                            @click="emit('update:pattern', '')"
+                        />
+                    </template>
+                </v-textarea>
             </div>
 
-            <fieldset class="mb-config-regex__row">
-                <legend>{{ t("config.regex.flags", "Flags") }}</legend>
-                <v-chip-group v-model="selectedFlags" multiple column selected-class="text-primary">
-                    <v-chip v-for="flag in SUPPORTED_FLAGS" :key="flag" :value="flag" size="small" filter variant="outlined">
-                        {{ flag }}
-                    </v-chip>
-                </v-chip-group>
-            </fieldset>
-
-            <v-divider class="my-2" />
-
-            <fieldset v-for="group in tokenGroups" :key="group.title" class="mb-config-regex__row">
-                <legend>{{ group.title }}</legend>
-                <v-btn
-                    v-for="token in group.tokens"
-                    :key="token.label"
-                    size="small"
-                    variant="tonal"
-                    density="comfortable"
-                    :title="token.hint"
-                    :aria-label="`${token.label}: ${token.hint}`"
-                    @click="insertToken(token)"
+            <!--
+                One wrapping row of assist chips, as the design draws it, with each family of
+                tokens still announced as its own group so the classes, anchors, groups,
+                alternation and quantifiers stay told apart for assistive technology.
+            -->
+            <div class="mb-config-regex__tokens">
+                <div
+                    v-for="group in tokenGroups"
+                    :key="group.title"
+                    role="group"
+                    :aria-label="group.title"
+                    class="mb-config-regex__group"
                 >
-                    {{ token.label }}
-                </v-btn>
-            </fieldset>
+                    <v-chip
+                        v-for="token in group.tokens"
+                        :key="token.label"
+                        class="mb-config-regex__token"
+                        variant="outlined"
+                        :title="token.hint"
+                        :aria-label="`${token.label}: ${token.hint}`"
+                        @click="insertToken(token)"
+                    >
+                        <code class="mb-config-regex__tok">{{ token.label }}</code>
+                        <span class="mb-config-regex__tokHint">{{ token.short }}</span>
+                    </v-chip>
+                </div>
+                <div role="group" :aria-label="t('config.regex.group.literals', 'Literals')" class="mb-config-regex__group">
+                    <v-chip class="mb-config-regex__token" variant="outlined" @click="escapeSelection">
+                        <code class="mb-config-regex__tok">\</code>
+                        <span class="mb-config-regex__tokHint">{{ t("config.regex.escape", "Escape the selection") }}</span>
+                    </v-chip>
+                </div>
+            </div>
 
-            <fieldset class="mb-config-regex__row">
-                <legend>{{ t("config.regex.group.literals", "Literals") }}</legend>
-                <v-btn size="small" variant="tonal" density="comfortable" @click="escapeSelection">
-                    {{ t("config.regex.escape", "Escape the selection") }}
-                </v-btn>
-            </fieldset>
+            <div class="mb-config-regex__flagRow">
+                <fieldset class="mb-config-regex__flags">
+                    <legend class="mb-config-regex__sr">{{ t("config.regex.flags", "Flags") }}</legend>
+                    <v-checkbox
+                        v-for="flag in SUPPORTED_FLAGS"
+                        :key="flag"
+                        v-model="selectedFlags"
+                        :value="flag"
+                        :label="flagLabel(flag)"
+                        color="primary"
+                        density="compact"
+                        hide-details
+                        class="mb-config-regex__flag"
+                    />
+                </fieldset>
+                <span class="mb-config-regex__live" aria-live="polite">
+                    <template v-if="!pattern">{{ t("config.regex.noPattern", "No pattern yet.") }}</template>
+                    <template v-else-if="evaluation.error">
+                        {{ t("config.regex.invalid", "The pattern is not valid, so nothing matches.") }}
+                    </template>
+                    <template v-else>
+                        {{
+                            t(
+                                "config.regex.matchCount",
+                                { count: evaluation.matches.length },
+                                "{count} matches in the sample",
+                            )
+                        }}
+                    </template>
+                </span>
+            </div>
 
-            <v-divider class="my-2" />
+            <v-divider class="mb-config-regex__rule" />
 
             <v-textarea
                 v-model="sampleText"
@@ -283,41 +393,31 @@ async function copy(value: string, what: string): Promise<void> {
                 {{ evaluation.error }}
             </v-alert>
 
-            <div class="mb-config-regex__results" aria-live="polite">
-                <p class="mb-config-regex__meta">
-                    <template v-if="!pattern">{{ t("config.regex.noPattern", "No pattern yet.") }}</template>
-                    <template v-else-if="evaluation.error">
-                        {{ t("config.regex.invalid", "The pattern is not valid, so nothing matches.") }}
+            <div class="mb-config-regex__results">
+                <p
+                    v-if="pattern && !evaluation.error && (evaluation.truncated || evaluation.timedOut || evaluation.sampleTruncated)"
+                    class="mb-config-regex__meta"
+                >
+                    <template v-if="evaluation.truncated">
+                        {{ t("config.regex.truncated", { max: MAX_MATCHES }, "(stopped at {max})") }}
                     </template>
-                    <template v-else>
+                    <template v-if="evaluation.timedOut">
                         {{
                             t(
-                                "config.regex.matchCount",
-                                { count: evaluation.matches.length },
-                                "{count} matches in the sample",
+                                "config.regex.timedOut",
+                                { ms: MAX_EVAL_MS },
+                                "(stopped after {ms} ms: the pattern is too slow)",
                             )
                         }}
-                        <template v-if="evaluation.truncated">
-                            {{ t("config.regex.truncated", { max: MAX_MATCHES }, "(stopped at {max})") }}
-                        </template>
-                        <template v-if="evaluation.timedOut">
-                            {{
-                                t(
-                                    "config.regex.timedOut",
-                                    { ms: MAX_EVAL_MS },
-                                    "(stopped after {ms} ms: the pattern is too slow)",
-                                )
-                            }}
-                        </template>
-                        <template v-if="evaluation.sampleTruncated">
-                            {{
-                                t(
-                                    "config.regex.sampleCut",
-                                    { n: MAX_SAMPLE_LENGTH },
-                                    "(only the first {n} characters were scanned)",
-                                )
-                            }}
-                        </template>
+                    </template>
+                    <template v-if="evaluation.sampleTruncated">
+                        {{
+                            t(
+                                "config.regex.sampleCut",
+                                { n: MAX_SAMPLE_LENGTH },
+                                "(only the first {n} characters were scanned)",
+                            )
+                        }}
                     </template>
                 </p>
 
@@ -336,7 +436,7 @@ async function copy(value: string, what: string): Promise<void> {
                 </p>
             </div>
 
-            <div class="mb-config-regex__row">
+            <div class="mb-config-regex__actions">
                 <v-btn size="small" variant="text" :prepend-icon="mdiContentCopy" @click="copy(pattern, t('config.regex.pattern', 'Pattern'))">
                     {{ t("config.regex.copyPattern", "Copy the pattern") }}
                 </v-btn>
@@ -393,50 +493,164 @@ async function copy(value: string, what: string): Promise<void> {
  * layout in the case that never had a scrollbar at all (the reserved gutter is
  * empty space, not a rendered scrollbar).
  */
-.mb-config-regex {
+.mb-config-regex.v-card {
+    box-sizing: border-box;
+    inline-size: min(620px, calc(100vw - 16px));
     max-height: min(70vh, 640px);
     overflow-y: auto;
     scrollbar-gutter: stable;
+
+    /*
+     * The design's builder card: the surface-container role one step above the page it
+     * opens over, an outline-variant hairline, the 16px large corner and a level-3 lift.
+     * Stated here because this card is teleported out of `.v-application`, so nothing in
+     * the shared sheets reaches it.
+     */
+    background: rgb(var(--v-theme-surface-container));
+    color: rgb(var(--v-theme-on-surface));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-large);
+    box-shadow: var(--md-sys-elevation-shadow-level3);
 }
 
 .mb-config-regex__body {
-    padding: 12px 16px 16px;
+    padding: 16px 20px 16px;
+}
+
+.mb-config-regex__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .mb-config-regex__heading {
-    font-size: var(--md-sys-typescale-body-large-size);
-    font-weight: 500;
-    margin-block-end: 2px;
+    flex: 1 1 auto;
+    margin: 0;
+    font-size: var(--md-sys-typescale-title-small-size);
+    line-height: var(--md-sys-typescale-title-small-line-height);
+    font-weight: var(--md-sys-typescale-title-medium-weight);
+}
+
+.mb-config-regex__anchored {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-outline));
+}
+
+.mb-config-regex__lead {
+    margin: 4px 0 12px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-config-regex__meta {
     font-size: var(--md-sys-typescale-body-small-size);
-    line-height: 1.4;
+    line-height: var(--md-sys-typescale-body-small-line-height);
     margin-block: 4px;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* The pattern field: a monospace outlined field on the plain surface, drawn in primary. */
+.mb-config-regex__pattern .v-field {
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-surface));
 }
 
 .mb-config-regex__pattern textarea,
-.mb-config-regex .mb-config-regex__matches code {
+.mb-config-regex .mb-config-regex__matches code,
+.mb-config-regex__tok {
     font-family: "Roboto Mono", ui-monospace, monospace;
 }
 
-.mb-config-regex__row {
+.mb-config-regex__pattern textarea {
+    font-size: var(--md-sys-typescale-body-large-size);
+}
+
+.mb-config-regex__tokens {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-block-start: 12px;
+}
+
+.mb-config-regex__group {
+    display: contents;
+}
+
+/* Assist chips: 32dp, the small corner, an outline-variant border, the token in primary. */
+.mb-config-regex .mb-config-regex__token.v-chip {
+    block-size: 32px;
+    border-radius: var(--md-sys-shape-corner-small);
+    border-color: rgb(var(--v-theme-outline-variant));
+    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: var(--md-sys-typescale-label-medium-size);
+    gap: 8px;
+}
+
+.mb-config-regex__tok {
+    color: rgb(var(--v-theme-primary));
+    margin-inline-end: 8px;
+}
+
+.mb-config-regex__flagRow {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    margin-block-start: 12px;
+}
+
+.mb-config-regex__flags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 4px;
     border: none;
+    margin: 0;
     padding: 0;
-    margin: 4px 0 0;
+    flex: 1 1 auto;
+    min-inline-size: 0;
+}
+
+.mb-config-regex__flag.v-input {
+    flex: 0 0 auto;
+}
+
+.mb-config-regex__flag .v-label {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-on-surface-variant));
+    opacity: 1;
+}
+
+.mb-config-regex__live {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-primary));
+}
+
+.mb-config-regex__sr {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+}
+
+.mb-config-regex__rule {
+    margin-block: 12px;
+    border-color: rgb(var(--v-theme-outline-variant));
+    opacity: 1;
+}
+
+.mb-config-regex__actions {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    align-items: center;
+    margin-block-start: 4px;
 }
 
-.mb-config-regex__row legend {
-    font-size: var(--md-sys-typescale-body-small-size);
-    letter-spacing: 0.05em;
-    width: 100%;
-    padding: 0;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+.mb-config-regex__actions .v-btn {
+    text-transform: none;
+    letter-spacing: var(--md-sys-typescale-label-large-tracking);
 }
 
 .mb-config-regex__matches {
@@ -450,6 +664,6 @@ async function copy(value: string, what: string): Promise<void> {
 .mb-config-regex__at,
 .mb-config-regex__groups {
     margin-inline-start: 6px;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 </style>
