@@ -466,12 +466,12 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
             the first thing on the panel is the rule over the folders it searched, with the
             rescan action at its far end.
         -->
-        <v-card-title class="mb-discovered__head">
-            <h2 class="mb-section-label mb-discovered__label">
+        <v-card-title class="mb-discovered__head mb-responsive-card-title">
+            <h2 class="mb-section-label mb-discovered__label mb-responsive-card-title__text">
                 {{ t("project.discovered.foldersSection", "Minecraft folders") }}
             </h2>
             <span class="mb-discovered__rule" aria-hidden="true" />
-            <v-btn :prepend-icon="mdiRefresh" variant="text" size="small" color="primary" :disabled="busy" @click="load">
+            <v-btn class="mb-responsive-card-title__action" :prepend-icon="mdiRefresh" variant="text" size="small" color="primary" :disabled="busy" @click="load">
                 {{ t("project.discovered.rescan", "Look again") }}
             </v-btn>
         </v-card-title>
