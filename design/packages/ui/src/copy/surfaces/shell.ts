@@ -404,8 +404,12 @@ export const SHELL_FIXED = {
     /* The status strip. */
     "status.renders": { en: "{count} rendering", yue: "{count} 個渲染緊" },
     "status.problems": { en: "{count} problems", yue: "{count} 個問題" },
-    "status.action.problems": { en: "Show problems", yue: "睇問題" },
     "status.action.renders": { en: "Open renders", yue: "開渲染" },
+    "status.rendering": { en: "Rendering {subject}", yue: "渲染緊 {subject}" },
+    "status.renderingLead": { en: "Rendering", yue: "渲染緊" },
+    "status.problem": { en: "1 problem", yue: "1 個問題" },
+    "status.left": { en: "{eta} left", yue: "仲有 {eta}" },
+    "status.action.console": { en: "Open console", yue: "打開控制台" },
 
     /*
      * Severity, in words. The panel renders these beside an icon precisely so the distinction
@@ -420,31 +424,12 @@ export const SHELL_FIXED = {
     "problems.source.navigation": { en: "Navigation", yue: "導覽" },
     "problems.render.remedy": { en: "Open the render console", yue: "開渲染主控台" },
     "problems.config.remedy": { en: "Open the setting", yue: "開嗰個設定" },
-    /* Catalogue-coverage sweep: these answered nothing, so every language and every
-       funny level rendered the English fallback. */
-    "rail.host": { en: "Host Server", yue: "寄存伺服器" },
     /*
-     * Dedicated short display labels for the rail's compact shortcut rows - deliberately not
-     * the job's full title (that stays the button's accessible name and tooltip, from
-     * `tabs.page.*` beside these). Material navigation rails use short single-line labels, and
-     * an 80px column genuinely cannot hold "Get a world off a server" on one line at any font
-     * size worth reading - the regression these replace was exactly that: the full label
-     * truncating mid-word behind an ellipsis ("Remo…", "Chun…", "Back…"). At most ~10 Latin
-     * characters or ~4 CJK characters, and never an ellipsis - see
-     * `railShortcutLabels.test.ts`, which enforces both bounds on every entry below.
+     * The fourth rail destination: the Minecraft servers job, opened in Work. Its badge counts
+     * running servers, in words in the accessible name.
      */
-    "rail.shortcut.cirender": { en: "Actions", yue: "操作" },
-    "rail.shortcut.dockerHosting": { en: "Docker", yue: "Docker" },
-    "rail.shortcut.remoteHosting": { en: "SSH", yue: "SSH" },
-    "rail.shortcut.chunker": { en: "Convert", yue: "轉換" },
-    "rail.shortcut.backups": { en: "Backups", yue: "備份" },
-    "rail.shortcut.mcservers": { en: "Servers", yue: "伺服器" },
-    "rail.shortcut.worldDownloader": { en: "Downloader", yue: "下載器" },
-    "rail.more": { en: "More", yue: "更多" },
-    "rail.moreShortcuts": { en: "More shortcuts ({count})", yue: "更多捷徑（{count}）" },
-    "rail.moreShortcuts.title": { en: "More shortcuts", yue: "更多捷徑" },
-    "rail.moreShortcuts.search": { en: "Filter shortcuts", yue: "篩選捷徑" },
-    "rail.moreShortcuts.empty": { en: "No shortcuts match.", yue: "冇捷徑夾得中。" },
+    "rail.servers": { en: "Servers", yue: "伺服器" },
+    "rail.servers.running": { en: "{count} running", yue: "{count} 部運行緊" },
     /* Catalogue-coverage sweep: no catalogue answer, so every language and every
        funny level fell back to the English written at the call site. */
     "shell.home.dashboard.drafts": { en: "Pick up where you left off", yue: "接返上次做到嘅位" },

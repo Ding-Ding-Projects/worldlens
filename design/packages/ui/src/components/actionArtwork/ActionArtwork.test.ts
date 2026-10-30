@@ -26,7 +26,7 @@ const EXPECTED_ACTIONS = {
         alt: "A desktop workstation turning terrain chunks into a map at five increasing processing levels",
     },
     restartToInstall: {
-        owner: "components/update/UpdateBanner.vue",
+        owner: "components/update/UpdateStatusRow.vue",
         filename: "restart-to-install.png",
         alt: "A completed update package ready beside a workstation while the open map remains safely visible",
     },

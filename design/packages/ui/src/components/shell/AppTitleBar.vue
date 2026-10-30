@@ -30,10 +30,15 @@ const props = withDefaults(
         bridge?: WindowBridge | null;
         /** Shown beside the icon. The window title is set by the document, not here. */
         title?: string;
+        /**
+         * What the window is showing, after an em dash: the job on top of Work, or the world on
+         * the map. Empty on Home, where the product name alone is the caption.
+         */
+        subtitle?: string;
         /** The shell landmark the keyboard skip link moves focus to. */
         mainContentId?: string;
     }>(),
-    { title: "Worldlens", mainContentId: "worldlens-main-content" },
+    { title: "Worldlens", subtitle: "", mainContentId: "worldlens-main-content" },
 );
 
 const { t } = useI18n();
@@ -113,6 +118,14 @@ onBeforeUnmount(() => {
         <div class="mb-titlebar-drag">
             <img class="mb-titlebar-logo" :src="LOGO_URL" alt="" />
             <span class="mb-titlebar-title">{{ props.title }}</span>
+            <span v-if="props.subtitle !== ''" class="mb-titlebar-subtitle">
+                &mdash; {{ props.subtitle }}
+            </span>
+            <!--
+                Which build this is, behind one compact information button rather than two
+                stacked lines: the bar stays a single 40px line, and the version and update
+                time are its tooltip and its accessible description.
+            -->
             <FrontBuildProvenance />
         </div>
 
@@ -206,10 +219,12 @@ onBeforeUnmount(() => {
 .mb-titlebar {
     display: flex;
     align-items: stretch;
-    min-height: 40px;
-    background: rgb(var(--v-theme-surface-light, var(--v-theme-surface)));
+    /* One line, exactly 40px: the caption ellipsizes, it never wraps the bar taller. */
+    block-size: 40px;
+    min-block-size: 40px;
+    background: rgb(var(--v-theme-surface));
     color: rgb(var(--v-theme-on-surface));
-    border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+    border-bottom: 1px solid rgb(var(--v-theme-surface-container));
     user-select: none;
     pointer-events: auto;
 }
@@ -220,6 +235,7 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: 8px;
     min-width: 0;
+    white-space: nowrap;
     padding-inline-start: 12px;
     -webkit-app-region: drag;
     app-region: drag;
@@ -237,10 +253,23 @@ onBeforeUnmount(() => {
  * window buttons are the ones that must never be the thing that scrolls out of reach.
  */
 .mb-titlebar-title {
+    flex: 0 1 auto;
+    min-inline-size: 0;
     font-size: var(--md-sys-typescale-body-small-size);
     font-weight: 500;
     letter-spacing: 0.02em;
-    color: rgba(var(--v-theme-on-surface), 0.85);
+    color: rgb(var(--v-theme-on-surface-variant));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* The current job gives way before the product name does. */
+.mb-titlebar-subtitle {
+    flex: 0 1 auto;
+    min-inline-size: 0;
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-outline));
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -275,23 +304,23 @@ onBeforeUnmount(() => {
     min-width: 48px;
     height: 100%;
     border-radius: 0;
-    color: rgba(var(--v-theme-on-surface), 0.85);
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-titlebar-button.v-btn:hover {
-    background: rgba(var(--v-theme-on-surface), 0.08);
+    background: rgb(var(--v-theme-surface-container));
 }
 
 /*
- * Close goes red on hover because that is what every window on this platform does, and a
- * close button that looks like the other two is one somebody presses by accident. It is a
- * state layer, not the resting colour: a permanently red button in the corner reads as an
- * error the application is reporting.
+ * Close goes to the error container on hover, as the prototype draws it, because a close
+ * button that looks like the other two is one somebody presses by accident. It is a state,
+ * not the resting colour: a permanently red button in the corner reads as an error the
+ * application is reporting.
  */
 .mb-titlebar-button--close.v-btn:hover,
 .mb-titlebar-button--close.v-btn:focus-visible {
-    background: rgb(var(--v-theme-error));
-    color: rgb(var(--v-theme-on-error));
+    background: rgb(var(--v-theme-error-container));
+    color: rgb(var(--v-theme-on-error-container));
 }
 
 /*

@@ -29,7 +29,7 @@ export const ACTION_ARTWORK = {
     },
     restartToInstall: {
         action: "Restart the application to install a ready update",
-        owner: "components/update/UpdateBanner.vue",
+        owner: "components/update/UpdateStatusRow.vue",
         filename: "restart-to-install.png",
         source: restartToInstallSource,
         alt: "A completed update package ready beside a workstation while the open map remains safely visible",

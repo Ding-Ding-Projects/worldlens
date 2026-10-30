@@ -20,6 +20,7 @@ import AppRail from "./AppRail.vue";
 import ProblemsPanel from "./ProblemsPanel.vue";
 import StatusStrip from "./StatusStrip.vue";
 import type { Problem } from "./problemsAdapter.js";
+import { EMPTY_FACTS } from "../progress/progressModel.js";
 
 beforeAll(() => {
     globalThis.ResizeObserver = class {
@@ -78,27 +79,45 @@ describe("the application rail", () => {
     });
 
     it("makes every destination a real button with a visible label", () => {
-        const rail = mountRail();
+        const rail = mountRail({ serversJobId: "mcservers" });
         const items = rail.findAll(".wl-rail-item");
 
-        // Home, Map, Host Server, Work. The count is asserted rather than merely iterated so
-        // that a destination quietly disappearing fails here instead of being noticed by
-        // somebody who went looking for it and could not find it.
+        // Home, Map, Work, Servers - exactly the four the approved design draws. The count is
+        // asserted rather than merely iterated so a destination quietly disappearing (or a
+        // fifth one quietly appearing) fails here.
         expect(items).toHaveLength(4);
-        expect(items.map((item) => item.find(".wl-rail-label").text())).toContain("Host Server");
+        expect(items.map((item) => item.find(".wl-rail-label").text())).toEqual([
+            "Home",
+            "Map",
+            "Work",
+            "Servers",
+        ]);
         for (const item of items) {
             expect(item.element.tagName).toBe("BUTTON");
-            // Visible text, not an icon alone. An icon-only rail is one people learn by trial and
-            // error, and the 80 px column exists precisely so it does not have to be.
+            expect(item.classes()).toContain("v-btn");
+            // Visible text, not an icon alone.
             expect(item.find(".wl-rail-label").text().length).toBeGreaterThan(0);
         }
     });
 
+    it("carries no job shortcuts and no More menu below the destinations", () => {
+        const rail = mountRail({ serversJobId: "mcservers" });
+        expect(rail.find("[data-job-shortcut]").exists()).toBe(false);
+        expect(rail.find("[data-rail-more]").exists()).toBe(false);
+        expect(rail.find(".wl-rail__shortcuts").exists()).toBe(false);
+    });
+
+    it("draws no Servers destination when this build cannot host the job", () => {
+        const rail = mountRail({ serversJobId: null });
+        const labels = rail.findAll(".wl-rail-label").map((label) => label.text());
+        expect(labels).toEqual(["Home", "Map", "Work"]);
+    });
+
     it("gives every rail destination somewhere to actually go", async () => {
-        // Adding a destination to the rail without a layer to render it does not produce
-        // a blank screen. The map is always mounted underneath and merely covered, so an
-        // unrouted destination shows the map - which is how Host Server came to say
-        // "no map loaded" instead of listing servers.
+        // A destination with no layer does not produce a blank screen: the map is always
+        // mounted underneath and merely covered, so an unrouted destination shows the map.
+        // Home and Work have layers of their own; Map is the always-mounted layer itself; and
+        // Servers is a job, which the shell opens through the same route the palette uses.
         const { readFile } = await import("node:fs/promises");
         const { fileURLToPath } = await import("node:url");
         const read = async (relative: string): Promise<string> => {
@@ -110,25 +129,42 @@ describe("the application rail", () => {
         const rail = await read("./AppRail.vue");
 
         const declared = [...rail.matchAll(/^\s*id: "(\w+)",$/gm)].map((match) => match[1]);
-        expect(declared.length, "no rail destinations were found to check").toBeGreaterThan(0);
+        expect(declared).toEqual(["home", "map", "work", "servers"]);
 
         for (const id of declared) {
-            // The map is the always-mounted layer itself, so it has no v-show of its own.
-            if (id === "map") continue;
+            if (id === "map" || id === "servers") continue;
             expect(app, `the rail offers "${id}" and App.vue renders nothing for it`).toContain(
                 `destination === '${id}'`,
             );
         }
+        expect(app).toContain(':servers-job-id="railServersJobId"');
+        expect(app).toContain('@open-job="revealPage($event)"');
+        expect(app).toMatch(/railServersJobId = computed[\s\S]*PAGE_MCSERVERS/);
     });
 
     it("marks the active destination with aria-current, not only with a colour", () => {
-        const rail = mountRail({ destination: "work" });
+        const rail = mountRail({ destination: "work", serversJobId: "mcservers" });
         const current = rail
             .findAll(".wl-rail-item")
             .filter((item) => item.attributes("aria-current") === "page");
 
         expect(current).toHaveLength(1);
         expect(current[0]?.find(".wl-rail-label").text()).toBe("Work");
+        expect(current[0]?.classes()).toContain("wl-rail-item--active");
+    });
+
+    it("moves the indicator to Servers while the servers job is on top of Work", () => {
+        const rail = mountRail({
+            destination: "work",
+            serversJobId: "mcservers",
+            activeJobId: "mcservers",
+        });
+        const current = rail
+            .findAll(".wl-rail-item")
+            .filter((item) => item.attributes("aria-current") === "page");
+
+        expect(current).toHaveLength(1);
+        expect(current[0]?.find(".wl-rail-label").text()).toBe("Servers");
     });
 
     it("states the full count in the accessible name where the badge is compact", () => {
@@ -138,13 +174,23 @@ describe("the application rail", () => {
             .find((item) => item.find(".wl-rail-label").text() === "Work");
 
         // The badge itself reads "99+", which is not a count when it is read aloud.
-        expect(work?.find(".wl-rail-badge").text()).toBe("99+");
+        expect(work?.find(".v-badge__badge").text()).toBe("99+");
         expect(work?.attributes("aria-label")).toContain("128");
+    });
+
+    it("names running servers in the Servers button's accessible name", () => {
+        const rail = mountRail({ serversJobId: "mcservers", runningServerCount: 2 });
+        const servers = rail.find('[data-destination="servers"]');
+        expect(servers.find(".v-badge__badge").text()).toBe("2");
+        expect(servers.attributes("aria-label")).toBe("Servers, 2 running");
     });
 
     it("hides the badge from assistive technology so the count is not announced twice", () => {
         const rail = mountRail({ openJobCount: 3 });
-        expect(rail.find(".wl-rail-badge").attributes("aria-hidden")).toBe("true");
+        // The whole badge wrapper, including Vuetify's own polite status span inside it.
+        const badge = rail.find('[data-destination="work"] .v-badge__badge');
+        expect(badge.text()).toBe("3");
+        expect(badge.element.closest('[aria-hidden="true"]')).not.toBeNull();
     });
 
     it("names the palette shortcut in the search action's own accessible name", () => {
@@ -162,78 +208,18 @@ describe("the application rail", () => {
         expect(rail.emitted("select")?.[0]).toEqual(["map"]);
     });
 
-    /*
-     * Job shortcuts: a small, curated set of direct-open buttons beneath the four core
-     * destinations, distinct from them - see `AppRail.vue`'s own doc comment for why growing
-     * this list never widens `RailDestination`.
-     */
-    const SHORTCUTS = [
-        { id: "cirender", icon: "mdi-test-icon", label: "GitHub Actions rendering", shortLabel: "GitHub Actions" },
-        { id: "dockerHosting", icon: "mdi-test-icon", label: "Docker hosting", shortLabel: "Docker" },
-        { id: "remoteHosting", icon: "mdi-test-icon", label: "Remote hosting", shortLabel: "Remote SSH" },
-        { id: "chunker", icon: "mdi-test-icon", label: "Convert", shortLabel: "Chunker" },
-        { id: "backups", icon: "mdi-test-icon", label: "Backups", shortLabel: "Backups" },
-        { id: "mcservers", icon: "mdi-test-icon", label: "Minecraft servers", shortLabel: "MC servers" },
-        { id: "worldDownloader", icon: "mdi-test-icon", label: "Get a world off a server", shortLabel: "World DL" },
-    ];
+    it("opens the servers job through openJob, never through select", async () => {
+        const rail = mountRail({ serversJobId: "mcservers" });
+        await rail.find('[data-destination="servers"]').trigger("click");
 
-    it("renders no shortcuts at all when none are given, rather than an empty divider", () => {
-        const rail = mountRail();
-        expect(rail.find(".wl-rail__shortcuts").exists()).toBe(false);
-    });
-
-    it("keeps all four destinations rendered and visible with every shortcut configured", () => {
-        // The regression itself: v2-08-rail-7-jobs-1280x800-dark.png showed the rail scrolled
-        // to a position where Home, Map, Host Server and Work were entirely out of view and
-        // only the seven shortcuts were on screen. jsdom cannot measure real scroll position or
-        // visibility, so this proves the half it can: the four destination buttons are still
-        // real, present, undetached elements - not conditionally removed, not `display: none` -
-        // once seven shortcuts are configured alongside them. The rest of the guarantee (that
-        // they can never scroll away) is `railOverflow.test.ts`'s job, proven as arithmetic.
-        const rail = mountRail({ jobShortcuts: SHORTCUTS });
-        const destinations = rail.findAll(".wl-rail__items:not(.wl-rail__shortcuts) > li > .wl-rail-item");
-
-        expect(destinations).toHaveLength(4);
-        for (const destination of destinations) {
-            expect(destination.isVisible()).toBe(true);
-            expect(destination.attributes("style") ?? "").not.toContain("display: none");
-        }
-    });
-
-    it("renders every given job shortcut as a real, visibly-labelled button", () => {
-        const rail = mountRail({ jobShortcuts: SHORTCUTS });
-        const shortcuts = rail.findAll("[data-job-shortcut]");
-
-        expect(shortcuts).toHaveLength(SHORTCUTS.length);
-        for (const [index, item] of shortcuts.entries()) {
-            expect(item.element.tagName).toBe("BUTTON");
-            expect(item.attributes("data-job-shortcut")).toBe(SHORTCUTS[index]?.id);
-            expect(item.attributes("aria-label")).toBe(SHORTCUTS[index]?.label);
-            // The full bilingual label is the accessible name and the tooltip - never the
-            // on-screen text, which is the short, single-line form. This is the exact
-            // regression from v2-08-rail-7-jobs-1280x800-dark.png: the full label rendered
-            // visibly and wrapped five lines inside the 80px column.
-            expect(item.find(".wl-rail-label").text()).toBe(SHORTCUTS[index]?.shortLabel);
-        }
-    });
-
-    it("emits openJob with the exact job id, never select, when a shortcut is pressed", async () => {
-        const rail = mountRail({ jobShortcuts: SHORTCUTS });
-        const worldDownloaderButton = rail.find('[data-job-shortcut="worldDownloader"]');
-
-        expect(worldDownloaderButton.exists()).toBe(true);
-        await worldDownloaderButton.trigger("click");
-
-        expect(rail.emitted("openJob")?.[0]).toEqual(["worldDownloader"]);
+        expect(rail.emitted("openJob")?.[0]).toEqual(["mcservers"]);
         expect(rail.emitted("select")).toBeUndefined();
     });
 
-    it("keeps every shortcut keyboard-reachable, in the same order they render", () => {
-        const rail = mountRail({ jobShortcuts: SHORTCUTS });
-        const shortcuts = rail.findAll("[data-job-shortcut]");
-        // A plain <button> in document order is keyboard-reachable by construction - no
-        // tabindex, no role override, nothing that would pull it out of the tab sequence.
-        for (const item of shortcuts) {
+    it("keeps every destination keyboard-reachable, in the order they render", () => {
+        const rail = mountRail({ serversJobId: "mcservers" });
+        for (const item of rail.findAll(".wl-rail-item")) {
+            // A plain <button> in document order is keyboard-reachable by construction.
             expect(item.attributes("tabindex")).toBeUndefined();
             expect(item.attributes("type")).toBe("button");
         }
@@ -251,9 +237,9 @@ describe("the status strip", () => {
         expect(strip.find(".wl-status").exists()).toBe(false);
     });
 
-    it("announces politely, and without the progress percentage", () => {
+    it("announces politely, and without the progress numbers", () => {
         const strip = mount(StatusStrip, {
-            props: { runningRenderCount: 2, renderProgress: 0.41, problemCount: 0 },
+            props: { runningRenderCount: 2, renderProgress: 41, problemCount: 0 },
             global: { plugins: [vuetify, i18n()] },
         });
         const live = strip.find('[role="status"]');
@@ -265,16 +251,75 @@ describe("the status strip", () => {
         expect(live.text()).toContain("2");
     });
 
-    it("offers at most one action, and a problem outranks a running render", () => {
+    it("names the one running render, its count and its estimate", () => {
         const strip = mount(StatusStrip, {
-            props: { runningRenderCount: 2, problemCount: 1 },
+            props: {
+                runningRenderCount: 1,
+                renderProgress: 41,
+                renderSubject: "heapandyville · overworld",
+                renderFacts: {
+                    ...EMPTY_FACTS,
+                    active: true,
+                    levels: [
+                        {
+                            id: "overall",
+                            label: { key: "x", fallback: "Overall", values: {} },
+                            detail: null,
+                            percent: 41,
+                            count: { done: 394, total: 961, unit: "tiles" },
+                        },
+                    ],
+                    estimate: { source: "engine", seconds: null, text: "6 min" },
+                },
+                consoleAvailable: true,
+                problemCount: 1,
+            },
             global: { plugins: [vuetify, i18n()] },
         });
 
-        const actions = strip.findAll(".wl-status__action");
-        expect(actions).toHaveLength(1);
-        // A render is fine and simply takes time; a problem is a thing that is wrong.
-        expect(actions[0]?.text()).toContain("problems");
+        expect(strip.find(".wl-status__subject").text()).toBe("heapandyville · overworld");
+        expect(strip.find(".wl-status__readout").text()).toBe("394 of 961 tiles · 6 min left");
+        expect(strip.find(".v-progress-linear").exists()).toBe(true);
+        expect(strip.find('[role="status"]').text()).toContain("Rendering heapandyville");
+    });
+
+    it("offers the problems chip and Open console, and emits each", async () => {
+        const strip = mount(StatusStrip, {
+            props: {
+                runningRenderCount: 1,
+                renderSubject: "heapandyville",
+                consoleAvailable: true,
+                problemCount: 1,
+                problemsPanelId: "problems-panel",
+            },
+            global: { plugins: [vuetify, i18n()] },
+        });
+
+        const chip = strip.find(".wl-status__problems");
+        expect(chip.classes()).toContain("v-chip");
+        expect(chip.text()).toBe("1 problem");
+        expect(chip.attributes("aria-expanded")).toBe("false");
+        expect(chip.attributes("aria-controls")).toBe("problems-panel");
+        await chip.trigger("click");
+        expect(strip.emitted("toggleProblems")).toHaveLength(1);
+
+        const console = strip.find(".wl-status__console");
+        expect(console.text()).toBe("Open console");
+        expect(console.classes()).toContain("v-btn--variant-outlined");
+        await console.trigger("click");
+        expect(strip.emitted("openConsole")).toHaveLength(1);
+    });
+
+    it("opens the Renders list when several renders run, because no one console is theirs", async () => {
+        const strip = mount(StatusStrip, {
+            props: { runningRenderCount: 3, renderSubject: "ignored", consoleAvailable: true },
+            global: { plugins: [vuetify, i18n()] },
+        });
+
+        expect(strip.find(".wl-status__subject").exists()).toBe(false);
+        expect(strip.find(".wl-status__console").exists()).toBe(false);
+        await strip.find(".wl-status__renders").trigger("click");
+        expect(strip.emitted("openRenders")).toHaveLength(1);
     });
 });
 

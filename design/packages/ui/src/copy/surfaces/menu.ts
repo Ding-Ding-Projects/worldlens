@@ -310,6 +310,7 @@ export const MENU_FIXED = {
     "frontBuild.versionUnavailable": { en: "Version unavailable", yue: "版本資料未能提供" },
     "frontBuild.updated": { en: "Updated {timestampEn}", yue: "更新於 {timestampYue}" },
     "frontBuild.updatedUnavailable": { en: "Updated time unavailable", yue: "更新時間未能提供" },
+    "frontBuild.details": { en: "About this build", yue: "關於呢個版本" },
     /* The Maps page's own list of renders this computer has made. Kept apart from the map
      * list above it, so the two headings have to say which is which. */
     "maps.rendered": { en: "Rendered on this computer", yue: "喺呢部電腦 render 過" },

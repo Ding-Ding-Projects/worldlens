@@ -751,6 +751,36 @@ const renderProgressPercent = computed<number | null>(() => {
     return known.reduce((total, percent) => total + percent, 0) / known.length;
 });
 
+/**
+ * The one render the status strip can name, its facts and its console.
+ *
+ * Several renders have no single world, count or console to name, so all three are absent then
+ * and the strip keeps to its total and opens the Renders job that lists each of them.
+ */
+const statusRenderRow = computed(() => {
+    const running = renderIndicator.rows.value.filter(
+        (row) => row.state === "starting" || row.state === "running",
+    );
+    return running.length === 1 ? (running[0] ?? null) : null;
+});
+const statusRenderSubject = computed(() => {
+    const row = statusRenderRow.value;
+    if (row === null) return null;
+    return row.projectLabel === "" || row.projectLabel === row.worldLabel
+        ? row.worldLabel
+        : `${row.worldLabel} · ${row.projectLabel}`;
+});
+const statusConsoleKey = computed(() =>
+    statusRenderRow.value?.canOpenConsole === true ? statusRenderRow.value.key : null,
+);
+function openStatusConsole(): void {
+    const key = statusConsoleKey.value;
+    if (key === null) return;
+    const target = renderIndicator.consoleTargetFor(key);
+    if (target !== null) onOpenConsole(target);
+    else revealPage(PAGE_RENDERS);
+}
+
 const pages = computed<TabPage[]>(() => [
     // First in the strip and pinned on a fresh install (see the `pinned-page-ids` binding
     // below): the one destination that represents every capability this app has, weighted
@@ -895,79 +925,38 @@ const pages = computed<TabPage[]>(() => [
 ]);
 
 /**
- * The rail's direct-open shortcuts, named here and nowhere else.
+ * The job the rail's Servers destination opens, or null when this build cannot host it.
  *
- * A hand-written list rather than a slice of `pages` above, deliberately: the rail is a small,
- * curated set of jobs worth a permanent one-click button, not "every job that exists" - the exact
- * distinction `AppRail.vue`'s own doc comment draws between a shortcut and a destination. Adding
- * a job to `jobRegistry.ts` never silently grows the rail; a job earns a rail shortcut only when
- * someone adds it to this list on purpose. `railJobShortcutInventory.test.ts` locks this exact
- * set so a removed entry - or a rename that leaves a stale id nothing resolves to - fails loudly.
- */
-const RAIL_JOB_SHORTCUT_IDS = [
-    PAGE_CIRENDER,
-    PAGE_DOCKER_HOSTING,
-    PAGE_REMOTE_HOSTING,
-    PAGE_CHUNKER,
-    PAGE_BACKUPS,
-    PAGE_MCSERVERS,
-    PAGE_WORLD_DOWNLOADER,
-] as const;
-
-/**
- * The compact, one-line label each shortcut shows on the rail itself.
+ * Servers is the Minecraft servers job, not a screen of its own: pressing it answers exactly as
+ * the palette's open-page row does (switch to Work, ensure the tab, reveal it), and the rail
+ * shows it active while that job is on top of Work. A build that capability-gates the job out
+ * gets no Servers destination rather than one pointing nowhere, the same rule `WorkPane.vue`
+ * applies to the tab itself.
  *
- * Regression: v2-08-rail-7-jobs-1280x800-dark.png showed the *full* bilingual page label
- * ("Get a world off a server 由伺服器攞返個世界") wrapping five lines inside the 80px column.
- * The full label is never lost - it stays the button's `aria-label` and its tooltip text below
- * - this is only what renders on screen, so it has to fit one line at every supported width and
- * in both language modes. `t()` here rather than a plain string so bilingual mode still shows
- * a real (short) Cantonese form rather than silently staying English-only.
+ * The rail used to carry seven direct-open job shortcuts and a More menu here. The approved
+ * design has four destinations and nothing else; each of those jobs is still one step away in
+ * Work's add-job picker and in the command palette's open-page rows.
  */
-/**
- * A real `computed()`, not a plain object literal - `t()` evaluated once at module setup
- * time bakes in whatever the catalogue happened to answer (or its fallback, if messages had
- * not finished loading yet) forever, with no way to pick up a later catalogue change. This is
- * exactly how a real running build kept rendering "GitHub Actions", "Remote SSH" and "Chunker"
- * after shell.ts's own catalogue values had already changed to "Actions", "SSH" and "Convert" -
- * found only by inspecting the live app, not by reading source. The fallback strings below are
- * kept in step with shell.ts's current values on principle, but the reactive `computed()` is
- * what actually guarantees they cannot drift apart in the running application.
- */
-const RAIL_JOB_SHORTCUT_LABELS = computed<Record<(typeof RAIL_JOB_SHORTCUT_IDS)[number], string>>(
-    () => ({
-        [PAGE_CIRENDER]: t("rail.shortcut.cirender", "Actions"),
-        [PAGE_DOCKER_HOSTING]: t("rail.shortcut.dockerHosting", "Docker"),
-        [PAGE_REMOTE_HOSTING]: t("rail.shortcut.remoteHosting", "SSH"),
-        [PAGE_CHUNKER]: t("rail.shortcut.chunker", "Convert"),
-        [PAGE_BACKUPS]: t("rail.shortcut.backups", "Backups"),
-        [PAGE_MCSERVERS]: t("rail.shortcut.mcservers", "Servers"),
-        [PAGE_WORLD_DOWNLOADER]: t("rail.shortcut.worldDownloader", "Downloader"),
-    }),
+const railServersJobId = computed<string | null>(() =>
+    pages.value.some((page) => page.id === PAGE_MCSERVERS) ? PAGE_MCSERVERS : null,
 );
 
-const railJobShortcuts = computed<
-    { id: string; icon: string; label: string; shortLabel: string }[]
->(() => {
-    const byId = new Map(pages.value.map((page) => [page.id, page]));
-    return RAIL_JOB_SHORTCUT_IDS.flatMap((id) => {
-        const page = byId.get(id);
-        // A shortcut whose job this build cannot host (capability-gated out) is dropped
-        // rather than shown pointing nowhere - the same rule `WorkPane.vue` already applies
-        // to the tab itself, so a rail shortcut can never outlive the job it opens.
-        // `page.icon` is nullable on `TabPage` in general; every entry named above sets
-        // one, so the fallback never fires.
-        return page === undefined
-            ? []
-            : [
-                  {
-                      id: page.id,
-                      icon: page.icon ?? "",
-                      label: page.label,
-                      shortLabel: RAIL_JOB_SHORTCUT_LABELS.value[id],
-                  },
-              ];
-    });
+/** The job on top of Work, read back from the tab component rather than mirrored here. */
+const activeWorkPageId = computed<string | null>(() => tabs.value?.activePage?.id ?? null);
+
+/**
+ * What the title bar names after the product: the job on top of Work, or the map being viewed.
+ * Home says nothing more, because the product name is the whole answer there.
+ */
+const titleBarSubtitle = computed<string>(() => {
+    if (destination.value === "work") return tabs.value?.activePage?.label ?? "";
+    if (destination.value === "map") {
+        const active = profilesStore.profiles.find(
+            (profile) => profile.id === profilesStore.activeId,
+        );
+        return active?.name ?? "";
+    }
+    return "";
 });
 
 /**
@@ -2595,7 +2584,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             :label="t('appearance.target.app.titleBar', 'The window title bar')"
             as="div"
         >
-            <AppTitleBar :title="productDisplayName" :main-content-id="MAIN_CONTENT_ID" />
+            <AppTitleBar
+                :title="productDisplayName"
+                :subtitle="titleBarSubtitle"
+                :main-content-id="MAIN_CONTENT_ID"
+            />
         </AppearanceTarget>
 
         <!--
@@ -2629,10 +2622,14 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
         <StatusStrip
             :running-render-count="runningRenderCount"
             :render-progress="renderProgressPercent"
+            :render-subject="statusRenderSubject"
+            :render-facts="statusRenderRow?.facts ?? null"
+            :console-available="statusConsoleKey !== null"
             :problem-count="problems.length"
             :problems-open="problemsOpen"
             :problems-panel-id="PROBLEMS_PANEL_ID"
             @open-renders="revealPage(PAGE_RENDERS)"
+            @open-console="openStatusConsole"
             @toggle-problems="problemsOpen = !problemsOpen"
         />
 
@@ -3048,7 +3045,9 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :settings-activator-id="settingsActivatorId"
                         :settings-panel-id="SETTINGS_PANEL_ID"
                         :settings-open="settingsOpen"
-                        :job-shortcuts="railJobShortcuts"
+                        :servers-job-id="railServersJobId"
+                        :active-job-id="activeWorkPageId"
+                        :running-server-count="mcServerStore.runningCount.value"
                         @select="onRailSelect"
                         @open-job="revealPage($event)"
                         @open-palette="paletteOpen = true"

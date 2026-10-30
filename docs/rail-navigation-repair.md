@@ -1,5 +1,12 @@
 # Rail navigation repair, 2026-10-02
 
+> **Superseded, 2026-10-29.** The rail now follows the approved prototype: four
+> destinations (Home, Map, Work, Servers) and three footer actions, with no job
+> shortcuts and no More menu, so the overflow arithmetic, the short-height grid and
+> the `scripts/rail-layout*.mjs` checks described below were removed with it. The
+> seven former shortcut jobs remain reachable from Work's add-job picker and from
+> the command palette. This record is kept as history of the earlier repair.
+
 This is a focused repair of the current `design/packages/ui` rail, based on
 `abec229c799cd7a0e02835fd6ebbed1b1009c75b`. It relates to issues #184 and #185.
 It is not the unpublished 43-file batch described in #185, and it does not claim

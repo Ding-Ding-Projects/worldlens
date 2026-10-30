@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import { VAlert, VBtn, VProgressLinear } from "vuetify/components";
-import { mdiOpenInNew, mdiRestart } from "@mdi/js";
-import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
+import { VBanner, VBtn, VIcon, VProgressLinear } from "vuetify/components";
+import { mdiCellphoneArrowDown, mdiOpenInNew } from "@mdi/js";
 import { langAttr } from "../setup/setupI18n.js";
 import { updatePair, updateText } from "./updateCopy.js";
 import type { UpdateBannerModel } from "./updateModel.js";
@@ -10,23 +9,23 @@ import type { UpdateBannerModel } from "./updateModel.js";
 /**
  * The persistent, non-blocking "ready to install" banner.
  *
- * Modelled on GitHub Desktop's: it sits in the layout rather than over it, it never takes
- * focus, it never gates anything, and it stays until the user acts on it. That persistence
- * is the point - the offer has to survive an hour of rendering so it can be taken at a
- * moment of the user's choosing, which is exactly what a toast that auto-dismisses cannot
- * do.
+ * A full-width Material banner on the primary container, directly under the title bar: an
+ * update icon, one line of copy, **Restart to install** and **Later**. It sits in the layout
+ * rather than over it, it never takes focus, it never gates anything, and it stays until the
+ * user acts on it. That persistence is the point - the offer has to survive an hour of
+ * rendering so it can be taken at a moment of the user's choosing, which is exactly what a
+ * toast that auto-dismisses cannot do.
  *
- * What it never does is block. It is an `alert` region announced politely, not a dialog:
- * nothing behind it is disabled, `Escape` is not trapped, and the only two actions are
- * "install it now" and "not now".
+ * What it never does is block. It is a polite `status` region, not a dialog: nothing behind it
+ * is disabled, `Escape` is not trapped, and the only two actions are "install it now" and
+ * "not now". The illustration that used to sit in here lives beside the same offer in Settings
+ * (`UpdateStatusRow.vue`), where there is room for it.
  *
  * **A download in flight gets a bar, and only ever a truthful one.** The bar is determinate
  * only when the updater reported a percentage or served a total to derive one from, and is
  * indeterminate otherwise, which is the ordinary case with Electron's Squirrel updater rather
- * than a failure. Nothing here computes a percentage of its own: a bar that invents motion
- * says the download is fine at exactly the moment nothing may be happening, which is worse
- * than showing no bar at all. Every decision about which of the two to draw is made in
- * `progressFor` next door, so this component only renders what it is handed.
+ * than a failure. Every decision about which of the two to draw is made in `progressFor` next
+ * door, so this component only renders what it is handed.
  *
  * **Restart is visibly held while a render runs.** The main process refuses either way, but
  * a button that looks live and silently does nothing is indistinguishable from a broken
@@ -66,8 +65,7 @@ const progressLabel = computed(() => updateText("update.label.progress"));
  *
  * Assembled from whatever the updater actually reported and nothing else, so a download with
  * no total simply loses the "of 48.0 MB" half rather than gaining a guess. When none of the
- * three is known the line says so outright, because a bar sliding back and forth over an
- * empty caption leaves the user unable to tell a slow download from a stalled one.
+ * three is known the line says so outright.
  */
 const progressDetail = computed(() => {
     const current = progress.value;
@@ -90,14 +88,8 @@ const progressDetail = computed(() => {
 });
 
 /**
- * The politely announced summary, deliberately coarse.
- *
- * A progress event can arrive several times a second, and a live region wired straight to it
- * would talk over everything else a screen reader is trying to say. So this is rounded to the
- * nearest ten percent: the text changes about ten times across a whole download, and a live
- * region only announces when its text actually changes. An indeterminate download announces
- * nothing here at all, because the banner's own title has already said a download is running
- * and there is no new fact to add.
+ * The politely announced summary, deliberately coarse: rounded to the nearest ten percent so a
+ * live region fed several progress events a second announces about ten times per download.
  */
 const progressAnnouncement = computed(() => {
     const current = progress.value;
@@ -118,52 +110,52 @@ function onNotes(): void {
 </script>
 
 <template>
-    <v-alert
+    <!--
+        `role="status"` overrides the banner's own `role="banner"`: the title bar above is the
+        application's one banner landmark, and this is an announcement, not a second one.
+    -->
+    <v-banner
         v-if="props.model.visible"
-        :type="props.model.tone === 'warning' ? 'warning' : props.model.tone === 'info' ? 'info' : 'success'"
-        variant="tonal"
-        density="comfortable"
+        class="mb-update-banner"
+        :class="`mb-update-banner--${props.model.tone}`"
+        bg-color="primary-container"
+        density="compact"
         role="status"
         aria-live="polite"
-        class="mb-update-banner"
+        :data-tone="props.model.tone"
     >
-        <!-- The artwork illustrates the restart offer, which a download in flight has not
-             reached yet, and it would push the bar off the first line at a narrow width. -->
-        <ActionArtwork
-            v-if="progress === null"
-            artwork="restartToInstall"
-            :alt="updateText('update.artwork.restartAlt')"
-        />
+        <template #prepend>
+            <v-icon :icon="mdiCellphoneArrowDown" size="20" aria-hidden="true" />
+        </template>
+
         <div class="mb-update-banner__text">
-            <p class="mb-update-banner__title">{{ titlePair.primary }}</p>
+            <p class="mb-update-banner__line">
+                <span class="mb-update-banner__title">{{ titlePair.primary }}</span>
+                {{ " " }}
+                <span class="mb-update-banner__body">{{ bodyPair.primary }}</span>
+            </p>
             <p
                 v-if="titlePair.secondary !== null"
                 class="mb-update-banner__secondary"
                 :lang="langAttr('yue')"
             >
                 {{ titlePair.secondary }}
-            </p>
-            <p class="mb-update-banner__body">{{ bodyPair.primary }}</p>
-            <p
-                v-if="bodyPair.secondary !== null"
-                class="mb-update-banner__secondary"
-                :lang="langAttr('yue')"
-            >
-                {{ bodyPair.secondary }}
+                {{ bodyPair.secondary ?? "" }}
             </p>
 
             <div v-if="progress !== null" class="mb-update-banner__progress">
-                <!-- `aria-live="off"` on the two rendered elements is load-bearing: the alert
+                <!-- `aria-live="off"` on the two rendered elements is load-bearing: the banner
                      around them is a polite live region, so without it every tick of the byte
                      counter would be announced. The coarse summary below carries its own
-                     polite region instead, and changes about ten times per download. -->
+                     polite region instead. -->
                 <v-progress-linear
                     class="mb-update-banner__bar"
                     :model-value="progress.percent ?? 0"
                     :indeterminate="progress.indeterminate"
                     :aria-label="progressLabel"
                     aria-live="off"
-                    height="8"
+                    color="on-primary-container"
+                    height="4"
                     rounded
                 />
                 <p class="mb-update-banner__progress-detail" aria-live="off">
@@ -179,123 +171,108 @@ function onNotes(): void {
             </div>
         </div>
 
-        <div v-if="progress === null" class="mb-update-banner__actions">
-            <v-btn
-                :prepend-icon="mdiRestart"
-                :disabled="!props.model.canRestart || props.busy === true"
-                :loading="props.busy === true"
-                variant="tonal"
-                class="mb-update-banner__restart"
-                @click="onRestart"
-            >
-                {{ restartLabel }}
-            </v-btn>
-            <v-btn
-                v-if="props.model.notesUrl !== null"
-                :prepend-icon="mdiOpenInNew"
-                variant="text"
-                class="mb-update-banner__notes"
-                @click="onNotes"
-            >
-                {{ notesLabel }}
-            </v-btn>
-            <v-btn
-                v-if="props.model.canDismiss"
-                variant="text"
-                class="mb-update-banner__later"
-                :aria-label="dismissLabel"
-                @click="emit('dismiss')"
-            >
-                {{ laterLabel }}
-            </v-btn>
-        </div>
-    </v-alert>
+        <template v-if="progress === null" #actions>
+            <div class="mb-update-banner__actions">
+                <v-btn
+                    v-if="props.model.notesUrl !== null"
+                    :prepend-icon="mdiOpenInNew"
+                    variant="text"
+                    color="on-primary-container"
+                    height="32"
+                    class="mb-update-banner__notes"
+                    @click="onNotes"
+                >
+                    {{ notesLabel }}
+                </v-btn>
+                <v-btn
+                    :disabled="!props.model.canRestart || props.busy === true"
+                    :loading="props.busy === true"
+                    variant="flat"
+                    color="primary"
+                    height="32"
+                    class="mb-update-banner__restart"
+                    @click="onRestart"
+                >
+                    {{ restartLabel }}
+                </v-btn>
+                <v-btn
+                    v-if="props.model.canDismiss"
+                    variant="text"
+                    color="on-primary-container"
+                    height="32"
+                    class="mb-update-banner__later"
+                    :aria-label="dismissLabel"
+                    @click="emit('dismiss')"
+                >
+                    {{ laterLabel }}
+                </v-btn>
+            </div>
+        </template>
+    </v-banner>
 </template>
 
 <style>
-.mb-update-banner {
-    /*
-     * An opaque surface of its own, which a tonal alert does not have.
-     *
-     * This banner is the one alert in the application that renders *over the map*. Vuetify's
-     * `tonal` variant is a tinted wash at low alpha, which is fine on a page background and
-     * is illegible on top of a rendered world: the map's own colour reads straight through
-     * the copy, so "Version x is downloaded and ready to install" sits on top of roads and
-     * rooftops and cannot be read at all. Reported from a real build with exactly that
-     * screenshot.
-     *
-     * So it paints its own background, border and elevation rather than borrowing the map's.
-     * The tonal tint is kept as a colour-mix over the opaque surface, so the success and
-     * warning tones still read as themselves instead of the alert becoming a plain grey box.
-     */
-    background: color-mix(
-        in srgb,
-        rgb(var(--v-theme-surface)) 92%,
-        currentColor
-    );
-    box-shadow: var(--v-shadow-key-umbra-opacity, 0 0 0 rgba(0, 0, 0, 0.2)),
-        0 4px 12px rgba(0, 0, 0, 0.35);
-    border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
-
-    display: flex;
-    /* Grows downward at a narrow width rather than clipping the buttons off the end,
-       which is what a single row does at 800px in bilingual mode. */
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: 8px 16px;
+/*
+ * Full width, opaque, on the primary container, in the layout rather than over it. The
+ * banner's own surface is painted by `bg-color`, so nothing behind it - the map included -
+ * shows through the copy.
+ */
+.mb-update-banner.v-banner {
+    flex: 0 0 auto;
+    align-items: center;
+    /* One row: icon, copy, actions. Vuetify's own density rules add a second row and extra
+       top padding meant for a two-line banner. */
+    grid-template-rows: auto;
+    padding: 8px 16px;
+    border-block-end: 1px solid rgb(var(--v-theme-surface-container));
+    color: rgb(var(--v-theme-on-primary-container));
     overflow-wrap: anywhere;
 }
 
+.mb-update-banner .v-banner__prepend {
+    align-self: center;
+    margin-inline-end: 16px;
+}
+
+.mb-update-banner .v-banner__content {
+    min-inline-size: 0;
+}
+
 .mb-update-banner__text {
-    flex: 1 1 18rem;
-    min-width: 0;
+    min-inline-size: 0;
+    flex: 1 1 auto;
 }
 
-.mb-update-banner .mb-action-artwork {
-    flex: 1 1 18rem;
-    max-inline-size: 24rem;
+.mb-update-banner__line {
     margin: 0;
-    aspect-ratio: 16 / 9;
-}
-
-.mb-update-banner__title {
-    margin: 0;
-    font-weight: 600;
-    text-wrap: pretty;
-}
-
-.mb-update-banner__body {
-    margin: 4px 0 0;
+    /* One line across the banner, as drawn: the global prose measure is for paragraphs. */
+    max-inline-size: none;
     font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height);
     text-wrap: pretty;
 }
 
 .mb-update-banner__secondary {
     margin: 2px 0 0;
+    max-inline-size: none;
     font-size: var(--md-sys-typescale-body-small-size);
-    line-height: 1.5;
-    opacity: 0.85;
+    line-height: var(--md-sys-typescale-body-small-line-height);
     text-wrap: pretty;
 }
 
 .mb-update-banner__progress {
-    margin: 10px 0 0;
-    /* The bar is a full-width measure of one thing, so it spans the text column rather than
-       sitting inline beside copy that would make its length mean nothing. */
+    margin: 8px 0 0;
     inline-size: 100%;
 }
 
 .mb-update-banner__progress-detail {
-    margin: 6px 0 0;
-    font-size: var(--md-sys-typescale-body-medium-size);
+    margin: 4px 0 0;
+    font-size: var(--md-sys-typescale-body-small-size);
     font-variant-numeric: tabular-nums;
-    opacity: 0.9;
     text-wrap: pretty;
 }
 
-/* Standard visually-hidden text: read by a screen reader, invisible to everyone else. The
-   coarse progress summary lives here so the announcement exists without a second copy of
-   the same numbers on screen. */
+/* Standard visually-hidden text: read by a screen reader, invisible to everyone else. */
 .mb-update-banner__visually-hidden {
     position: absolute;
     inline-size: 1px;
@@ -303,27 +280,44 @@ function onNotes(): void {
     padding: 0;
     margin: -1px;
     overflow: hidden;
-    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
     white-space: nowrap;
     border: 0;
 }
 
+.mb-update-banner.v-banner .v-banner-actions {
+    align-self: center;
+    margin: 0;
+}
+
+/* Sentence case, as every button in the shell reads; Vuetify's default is uppercase. The
+   prototype's 32px pill, which still clears the 24px minimum target with room to spare. */
+.mb-update-banner .v-btn {
+    padding-inline: 16px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+/* Wraps under the copy at a narrow width rather than clipping a button off the end. */
 .mb-update-banner__actions {
     display: flex;
     flex-wrap: wrap;
+    justify-content: flex-end;
     align-items: center;
     gap: 8px;
-}
-
-.mb-update-banner__actions .v-btn {
-    /* An adequate target at every supported display scale. */
-    min-height: 40px;
+    margin-inline-start: 16px;
 }
 
 @media (max-width: 720px) {
-    .mb-update-banner .mb-action-artwork {
-        flex-basis: 100%;
-        max-inline-size: none;
+    .mb-update-banner.v-banner {
+        grid-template-areas: "prepend content" ". actions";
+    }
+
+    .mb-update-banner__actions {
+        margin-inline-start: 0;
+        margin-block-start: 8px;
     }
 }
 </style>

@@ -83,6 +83,17 @@ describe("the shell has no floating action buttons", () => {
         const style = styleOf(railSource);
         expect(style).toContain("min-block-size: 48px");
         expect(style).toMatch(/inline-size:\s*48px/);
+        expect(style).toMatch(/block-size:\s*48px/);
+    });
+
+    it("builds every rail control from Material buttons rather than styled native ones", () => {
+        // Four destinations and three footer actions, each a real `v-btn`: no native button
+        // dressed up to look like one, and no div pretending to be a control.
+        const template = templateOf(railSource);
+        expect(template).not.toMatch(/<button\b/);
+        expect(template).not.toMatch(/<div[^>]+@click=/);
+        expect((template.match(/<v-btn\b/g) ?? []).length).toBe(4);
+        expect(template).toContain('v-for="item in items"');
     });
 });
 

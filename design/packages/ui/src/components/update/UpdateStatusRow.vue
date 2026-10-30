@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { VAlert, VBtn, VProgressCircular } from "vuetify/components";
 import { mdiRefresh, mdiRestart } from "@mdi/js";
+import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
 import { langAttr } from "../setup/setupI18n.js";
 import { updatePair, updateText } from "./updateCopy.js";
 import type { UpdateState } from "./updateBridge.js";
@@ -67,11 +68,23 @@ const newVersion = computed(() => props.state.readyVersion ?? props.state.newVer
             />
             <div class="mb-update-row__message" role="status" aria-live="polite">
                 <p class="mb-update-row__primary">{{ message.primary }}</p>
-                <p v-if="message.secondary !== null" class="mb-update-row__secondary" :lang="langAttr('yue')">
+                <p
+                    v-if="message.secondary !== null"
+                    class="mb-update-row__secondary"
+                    :lang="langAttr('yue')"
+                >
                     {{ message.secondary }}
                 </p>
             </div>
         </div>
+
+        <!-- The restart offer's illustration. It used to sit in the banner, which is now one
+             line under the title bar; this row is where the same offer has room for it. -->
+        <ActionArtwork
+            v-if="props.state.readyVersion !== null"
+            artwork="restartToInstall"
+            :alt="updateText('update.artwork.restartAlt')"
+        />
 
         <dl class="mb-update-row__facts">
             <!-- Absent rather than a placeholder glyph before the main process has

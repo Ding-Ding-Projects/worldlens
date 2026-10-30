@@ -77,12 +77,6 @@ const DEFAULT_SEARCH_MARKERS = [
  */
 const REGISTRY: readonly MenuRegistryEntry[] = [
     {
-        file: "shell/AppRail.vue",
-        builtVia: "v-menu",
-        menu: "The rail's own 'More' overflow menu, listing job shortcuts that do not fit the rail's fixed row.",
-        status: "has-search",
-    },
-    {
         file: "appearance/AppearanceTarget.vue",
         builtVia: "v-menu",
         menu: "The generic 'Edit appearance...' context menu every per-element target opens.",

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import FrontBuildProvenance from "./FrontBuildProvenance.vue";
@@ -9,6 +9,27 @@ import { voiceMessages } from "../../copy/appVoice.js";
 import type { LanguageMode } from "../setup/setupI18n.js";
 
 afterEach(() => vi.unstubAllGlobals());
+
+beforeEach(() => {
+    // Vuetify's overlay location strategy reads these; jsdom implements neither.
+    vi.stubGlobal("visualViewport", {
+        width: 1280,
+        height: 800,
+        offsetLeft: 0,
+        offsetTop: 0,
+        scale: 1,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+    });
+    vi.stubGlobal(
+        "ResizeObserver",
+        class {
+            observe(): void {}
+            unobserve(): void {}
+            disconnect(): void {}
+        },
+    );
+});
 
 function render(answer?: unknown, reject = false, mode: LanguageMode = "en") {
     vi.stubGlobal(
@@ -22,8 +43,10 @@ function render(answer?: unknown, reject = false, mode: LanguageMode = "en") {
               },
     );
     return mount(FrontBuildProvenance, {
+        attachTo: document.body,
         global: {
             plugins: [
+                createVuetify(),
                 createI18n({
                     legacy: false,
                     locale: "en",
@@ -48,8 +71,13 @@ describe("front-screen build provenance", () => {
             );
             await flushPromises();
             const options: Intl.DateTimeFormatOptions = {
-                year: "numeric", month: "short", day: "numeric",
-                hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short",
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                timeZoneName: "short",
             };
             const cantonese = new Intl.DateTimeFormat("zh-HK", options).format(new Date(instant));
             const english = new Intl.DateTimeFormat("en", options).format(new Date(instant));
@@ -62,7 +90,30 @@ describe("front-screen build provenance", () => {
         },
     );
 
-    it("mounts visible provenance in the initial desktop caption", async () => {
+    it("keeps the provenance one press away in the caption, never as stacked lines", async () => {
+        const wrapper = render({
+            version: "1.0.42",
+            updatedAt: "2026-10-11T12:20:41.000Z",
+            timestampOrigin: "build",
+        });
+        await flushPromises();
+        const button = wrapper.get('[data-testid="front-build-button"]');
+        expect(button.element.tagName).toBe("BUTTON");
+        expect(button.attributes("aria-label")).toBe("About this build");
+        // The two lines are the button's accessible description, always in the document.
+        const details = document.getElementById(button.attributes("aria-describedby") ?? "");
+        expect(details?.textContent).toContain("Version 1.0.42");
+        expect(details?.textContent).toContain("Updated ");
+        // Pressing pins the tooltip open; Escape unpins it.
+        expect(button.attributes("aria-pressed")).toBe("false");
+        await button.trigger("click");
+        expect(button.attributes("aria-pressed")).toBe("true");
+        await button.trigger("keydown", { key: "Escape" });
+        expect(button.attributes("aria-pressed")).toBe("false");
+        wrapper.unmount();
+    });
+
+    it("mounts the provenance inside the desktop caption", async () => {
         vi.stubGlobal("worldlens", {
             getBuildProvenance: () =>
                 Promise.resolve({
