@@ -3228,6 +3228,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                                 @open-render="onOpenRenderFromHome"
                                 @open-map="onOpenMapFromHome"
                                 @open-catalogue="shell.openCatalogue"
+                                @activate-feature="onActivateFeature"
+                                @activate-target="(target) => shell.activateTarget(target)"
                             />
                         </template>
                     </div>

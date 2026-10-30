@@ -23,9 +23,10 @@ function block(text: string, pattern: RegExp, label: string): string {
  * present, rather than asking jsdom a question it cannot answer.
  *
  * Regression: v2-09-rail-7-jobs-320.png, captured through the cheap headless CDP route at a
- * real 320px window width, showed a horizontal scrollbar on the Home page body. The three
- * buttons in `.wl-dash__actions` ("New map", "Walk me through it", "Search everything") did
- * not wrap onto their own lines and overflowed the viewport instead.
+ * real 320px window width, showed a horizontal scrollbar on the Home page body. The buttons in
+ * `.wl-dash__actions` did not wrap onto their own lines and overflowed the viewport instead.
+ * The row now holds "Generate and start project" and the command palette under "On this
+ * machine"; the same stacking rule applies, and so do the two-column grids collapsing to one.
  */
 describe("the Home dashboard's action row never scrolls the page sideways", () => {
     const dashboard = source("./HomeDashboard.vue");
@@ -62,5 +63,14 @@ describe("the Home dashboard's action row never scrolls the page sideways", () =
             "base .wl-dash__actions rule",
         );
         expect(actions).toContain("flex-wrap: wrap");
+    });
+
+    it("collapses the two-column catalogue grid to one column on narrow windows", () => {
+        const query = block(
+            dashboard,
+            /@media \(max-width: 760px\) \{\s*\.wl-dash__grid \{[^}]*\}\s*\}/,
+            "narrow catalogue grid breakpoint",
+        );
+        expect(query).toContain("grid-template-columns: minmax(0, 1fr)");
     });
 });

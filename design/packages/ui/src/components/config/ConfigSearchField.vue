@@ -117,6 +117,12 @@ function clear(): void {
             :aria-controls="props.inputAriaControls"
         >
             <template #append-inner>
+                <!--
+                    Optional trailing text inside the field, before the controls: Home's
+                    "88 features · 155 settings · 162 articles" and a catalogue page's count.
+                    Text only; it never replaces the regex toggle or the builder.
+                -->
+                <slot name="meta" />
                 <v-btn
                     v-if="query"
                     :icon="mdiClose"

@@ -60,18 +60,18 @@ export const SHELL_VOICED = {
      */
     "shell.home.lede": {
         en: [
-            "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to. Nothing is hidden behind a menu you have to already know about, and every catalogue opens a page that names everything in it, one line each.",
-            "All {count} things this application does live in one of the five catalogues below, grouped by the job they belong to. Nothing is hidden behind a menu you have to already know about, and every catalogue opens a page that names everything in it, one line each.",
-            "Everything this application does, all {count} of them, lives in one of the five catalogues below, grouped by the job it belongs to. Nothing hides behind a menu you would have to already know about, and every catalogue opens a page naming everything in it, one line each.",
-            "All {count} things this application can do are in the five catalogues below. Nothing is hidden in a menu you have to know about first, and every catalogue opens a page that lists the lot, one line each.",
-            "Every last one of the {count} things this thing can do is in the five boxes below, sorted by job. No secret menus, no folklore, and each box opens a page that names everything inside, one line apiece.",
+            "All {count} things this application does live in one of the six catalogues below, grouped by the job they belong to. Nothing is hidden behind a menu you have to already know about, and every catalogue opens a page that names everything in it, one line each.",
+            "All {count} things this application does live in one of the six catalogues below, grouped by the job they belong to. Nothing is hidden behind a menu you have to already know about, and every catalogue opens a page that names everything in it, one line each.",
+            "Everything this application does, all {count} of them, lives in one of the six catalogues below, grouped by the job it belongs to. Nothing hides behind a menu you would have to already know about, and every catalogue opens a page naming everything in it, one line each.",
+            "All {count} things this application can do are in the six catalogues below. Nothing is hidden in a menu you have to know about first, and every catalogue opens a page that lists the lot, one line each.",
+            "Every last one of the {count} things this thing can do is in the six boxes below, sorted by job. No secret menus, no folklore, and each box opens a page that names everything inside, one line apiece.",
         ],
         yue: [
-            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面五個目錄入面，按用途分好。冇嘢收埋喺你要預先知道嘅選單後面，每個目錄打開都係一版清單，逐行寫晒入面有咩。",
-            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面五個目錄入面，按用途分好。冇嘢收埋喺你要預先知道嘅選單後面，每個目錄打開都係一版清單，逐行寫晒入面有咩。",
-            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面五個目錄度，按用途分好咗。冇嘢匿埋喺要預先知先搵到嘅選單度，每個目錄一開就係一版清單，逐行列晒。",
-            "佢做到嘅 {count} 樣嘢全部喺下面五個目錄，冇一樣要你事先知道先搵到，每個目錄一開仲有成版清單逐行話你知有咩。",
-            "呢舊嘢識做嘅 {count} 樣，全部擺晒喺下面五個櫃桶度，分好類。冇隱藏選單，唔使靠人教。",
+            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面六個目錄入面，按用途分好。冇嘢收埋喺你要預先知道嘅選單後面，每個目錄打開都係一版清單，逐行寫晒入面有咩。",
+            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面六個目錄入面，按用途分好。冇嘢收埋喺你要預先知道嘅選單後面，每個目錄打開都係一版清單，逐行寫晒入面有咩。",
+            "呢個應用程式做到嘅 {count} 樣嘢，全部喺下面六個目錄度，按用途分好咗。冇嘢匿埋喺要預先知先搵到嘅選單度，每個目錄一開就係一版清單，逐行列晒。",
+            "佢做到嘅 {count} 樣嘢全部喺下面六個目錄，冇一樣要你事先知道先搵到，每個目錄一開仲有成版清單逐行話你知有咩。",
+            "呢舊嘢識做嘅 {count} 樣，全部擺晒喺下面六個櫃桶度，分好類。冇隱藏選單，唔使靠人教。",
         ],
     },
 
@@ -98,14 +98,14 @@ export const SHELL_VOICED = {
             "Nothing in this list matches “{query}”.",
             "Nothing in this list matches “{query}”.",
             "Nothing in this list matches “{query}”ically speaking.",
-            "This list has nothing for “{query}”. It might be in one of the other four.",
+            "This list has nothing for “{query}”. It might be in one of the other five.",
         ],
         yue: [
             "呢個清單度搵唔到「{query}」。",
             "呢個清單度搵唔到「{query}」。",
             "呢個清單入面搵唔到「{query}」。",
             "呢個清單度「{query}」乜都冇。",
-            "呢個清單冇「{query}」，可能喺另外四個嗰邊。",
+            "呢個清單冇「{query}」，可能喺另外五個嗰邊。",
         ],
     },
 
@@ -397,7 +397,7 @@ export const SHELL_FIXED = {
     "shell.home.hero.guide": { en: "Or walk me through it", yue: "或者一步步教我" },
 
     /* Catalogue pages. */
-    "shell.catalogue.back": { en: "All five catalogues", yue: "五個目錄" },
+    "shell.catalogue.back": { en: "All catalogues", yue: "全部目錄" },
     "shell.catalogue.search.label": { en: "Search this list", yue: "搵呢個清單" },
     "shell.catalogue.search.summary": { en: "{shown} of {total}", yue: "{total} 之中嘅 {shown}" },
 
@@ -449,23 +449,34 @@ export const SHELL_FIXED = {
        funny level fell back to the English written at the call site. */
     "shell.home.dashboard.drafts": { en: "Pick up where you left off", yue: "接返上次做到嘅位" },
     "shell.home.dashboard.draftsBody": { en: "You have {count} project drafts waiting for their first render.", yue: "你有 {count} 個專案草稿等緊行第一次 render。" },
-    "shell.home.dashboard.guide": { en: "Walk me through it", yue: "一步步教我" },
     "shell.home.dashboard.inProgress": { en: "In progress", yue: "做緊" },
     "shell.home.dashboard.mapsAndServers": { en: "Your maps & servers", yue: "你嘅地圖同伺服器" },
-    "shell.home.dashboard.newMap": { en: "New map", yue: "新地圖" },
     "shell.home.dashboard.openProjects": { en: "Open projects", yue: "開專案" },
     "shell.home.dashboard.profileLocal": { en: "Rendered on this computer", yue: "喺呢部機行嘅" },
     "shell.home.dashboard.profileOverflow": { en: "+{count} more", yue: "仲有 {count} 個" },
     "shell.home.dashboard.renderOverflow": { en: "+{count} more running", yue: "仲有 {count} 個行緊" },
     "shell.home.dashboard.renderPercent": { en: "{percent}%", yue: "{percent}%" },
-    "shell.home.dashboard.search": { en: "Search everything", yue: "搵晒所有嘢" },
-    "shell.home.dashboard.titleFresh": { en: "Let's make your first map", yue: "整你第一張地圖啦" },
-    "shell.home.dashboard.titleReturning": { en: "Welcome back", yue: "歡迎返嚟" },
-    "shell.home.dashboard.welcomeBody": { en: "Nothing is rendered or saved on this machine yet. New map starts one from a world you already have; the guide walks through the whole thing if you would rather be shown.", yue: "呢部機仲未 render 過或者儲過任何嘢。「新地圖」會由你已經有嘅世界開始整；想有人一步步帶你行嘅話，可以用嗰個引導。" },
-    "shell.home.dashboard.browseAll": { en: "Browse everything", yue: "全部睇晒" },
     "shell.home.dashboard.profileRemote": { en: "Remote server", yue: "遠端伺服器" },
     "shell.home.dashboard.renderOffer": { en: "Found running · tap to reattach", yue: "搵到緊喺度行 · 㩒一下重新接返" },
     "shell.home.dashboard.renderWorking": { en: "Working…", yue: "做緊嘢…" },
+    /* Home and catalogue page, matched to the approved prototype. */
+    "shell.home.search.everything": {
+        en: "Search every feature, setting and article",
+        yue: "搵晒所有功能、設定同文章",
+    },
+    "shell.home.search.counts": {
+        en: "{features} features · {settings} settings · {articles} articles",
+        yue: "{features} 項功能 · {settings} 個設定 · {articles} 篇文章",
+    },
+    "shell.home.card.mapsCount": { en: "{count} maps", yue: "{count} 張地圖" },
+    "shell.home.hero.sections": { en: "What is inside", yue: "入面有乜" },
+    "shell.home.results.features": { en: "Features", yue: "功能" },
+    "shell.home.results.settings": { en: "Settings", yue: "設定" },
+    "shell.home.results.articles": { en: "Articles", yue: "文章" },
+    "shell.home.results.more": { en: "+{count} more", yue: "仲有 {count} 個" },
+    "shell.home.machine.title": { en: "On this machine", yue: "呢部機上面" },
+    "shell.home.machine.palette": { en: "Open the command palette", yue: "開指令面板" },
+    "shell.catalogue.group.countOne": { en: "1 feature", yue: "1 項功能" },
 } as const satisfies Record<string, FixedString>;
 
 /**
