@@ -109,42 +109,170 @@ function mountScreen(host: McServerHost | null, attach = false) {
 }
 
 describe("ServerListScreen", () => {
-    it.each([true, false])("loads real capabilities before enabling the permitted lifecycle control: available=%s", async (available) => {
+    it.each([true, false])(
+        "loads real capabilities before enabling the permitted lifecycle control: available=%s",
+        async (available) => {
+            const host = fakeHost([record("survival", "Survival")]);
+            host.status = async () =>
+                ok({
+                    state: "exited",
+                    running: false,
+                    startedAt: null,
+                    exitCode: 0,
+                    checkedAt: "now",
+                });
+            host.probe = async () => {
+                if (!available) throw new Error("Disconnected");
+                return ok({
+                    reachable: true,
+                    runtimeVersion: null,
+                    message: "",
+                    checkedAt: "now",
+                    capabilities: {
+                        canCreate: false,
+                        canLifecycle: false,
+                        canStart: true,
+                        canStop: false,
+                        canWriteFiles: false,
+                        canDestroy: false,
+                        console: "none",
+                    },
+                });
+            };
+            const { wrapper } = mountScreen(host);
+            try {
+                await flushPromises();
+                // A stopped server offers Start as its one lifecycle control; Stop is not
+                // available for it, so it is not drawn at all rather than drawn dead.
+                const controls = wrapper.findAll(".wl-mcserver-card__actions button");
+                const start = controls.find((button) => button.text() === "Start");
+                expect(start).toBeDefined();
+                expect(controls.find((button) => button.text() === "Stop")).toBeUndefined();
+                expect(start?.attributes("disabled") === undefined).toBe(available);
+                // A refused control names its reason beside itself, in words.
+                const notice = wrapper.find(".wl-mcserver-card__notice");
+                expect(notice.exists()).toBe(!available);
+                if (!available) expect(notice.text()).toContain("cannot be reached");
+            } finally {
+                wrapper.unmount();
+            }
+        },
+    );
+    it("offers Stop as the primary control while a server runs, and names a refused one", async () => {
         const host = fakeHost([record("survival", "Survival")]);
-        host.status = async () => ok({ state: "exited", running: false, startedAt: null, exitCode: 0, checkedAt: "now" });
-        host.probe = async () => { if (!available) throw new Error("Disconnected"); return ok({ reachable: true, runtimeVersion: null, message: "", checkedAt: "now",
-            capabilities: { canCreate: false, canLifecycle: false, canStart: true, canStop: false,
-                canWriteFiles: false, canDestroy: false, console: "none" } }); };
+        host.probe = async () =>
+            ok({
+                reachable: true,
+                runtimeVersion: null,
+                message: "",
+                checkedAt: "now",
+                capabilities: {
+                    canCreate: false,
+                    canLifecycle: false,
+                    canWriteFiles: false,
+                    canDestroy: false,
+                    console: "none",
+                },
+            });
         const { wrapper } = mountScreen(host);
         try {
             await flushPromises();
             const controls = wrapper.findAll(".wl-mcserver-card__actions button");
-            expect(controls.find((button) => button.text() === "Start")).toBeDefined();
-            expect(controls.find((button) => button.text() === "Stop")).toBeDefined();
-            expect(controls.find((button) => button.text() === "Start")?.attributes("disabled") === undefined).toBe(available);
-            expect(controls.find((button) => button.text() === "Stop")?.attributes("disabled")).toBeDefined();
-        } finally { wrapper.unmount(); }
+            const stop = controls.find((button) => button.text() === "Stop");
+            expect(stop?.attributes("disabled")).toBeDefined();
+            expect(wrapper.find(".wl-mcserver-card__notice").text()).toContain(
+                "cannot start or stop",
+            );
+        } finally {
+            wrapper.unmount();
+        }
+    });
+    it("selects a range with shift-click, in the order the list is shown", async () => {
+        const { wrapper } = mountScreen(
+            fakeHost([
+                record("a", "Alpha"),
+                record("b", "Bravo"),
+                record("c", "Charlie"),
+                record("d", "Delta"),
+            ]),
+        );
+        try {
+            await flushPromises();
+            const box = (name: string) => wrapper.find(`input[aria-label="Select ${name}"]`);
+            // The pointer press carries the modifier; the control's own value change follows.
+            const press = async (name: string, shiftKey = false) => {
+                // jsdom flips `checked` on the click itself but raises no input event.
+                await box(name).trigger("click", { shiftKey });
+                await box(name).trigger("input");
+            };
+            await press("Alpha");
+            await press("Charlie", true);
+            await flushPromises();
+            expect(wrapper.text()).toContain("3 selected");
+            expect((box("Delta").element as HTMLInputElement).checked).toBe(false);
+            // Shift-clicking a selected end of the range clears the whole range again.
+            await press("Alpha", true);
+            await flushPromises();
+            expect(wrapper.text()).not.toContain("selected");
+        } finally {
+            wrapper.unmount();
+        }
     });
     it("shows the actionable start failure without losing the server list", async () => {
         const host = fakeHost([record("survival", "Survival")]);
-        host.status = async () => ok({ state: "exited", running: false, startedAt: null, exitCode: 1, checkedAt: "now" });
-        host.probe = async () => ok({ reachable: true, runtimeVersion: null, message: "", checkedAt: "now", capabilities: { canCreate: true, canLifecycle: true, canWriteFiles: true, canDestroy: true, console: "stdin" } });
-        host.start = async () => ({ ok: false, failure: { code: "not-found", message: "Java executable is missing", detail: "Choose an available runtime." } });
+        host.status = async () =>
+            ok({ state: "exited", running: false, startedAt: null, exitCode: 1, checkedAt: "now" });
+        host.probe = async () =>
+            ok({
+                reachable: true,
+                runtimeVersion: null,
+                message: "",
+                checkedAt: "now",
+                capabilities: {
+                    canCreate: true,
+                    canLifecycle: true,
+                    canWriteFiles: true,
+                    canDestroy: true,
+                    console: "stdin",
+                },
+            });
+        host.start = async () => ({
+            ok: false,
+            failure: {
+                code: "not-found",
+                message: "Java executable is missing",
+                detail: "Choose an available runtime.",
+            },
+        });
         const { wrapper } = mountScreen(host);
         try {
             await flushPromises();
-            await wrapper.findAll(".wl-mcserver-card__actions button").find(b => b.text() === "Start")!.trigger("click");
+            await wrapper
+                .findAll(".wl-mcserver-card__actions button")
+                .find((b) => b.text() === "Start")!
+                .trigger("click");
             await flushPromises();
             expect(wrapper.text()).toContain("Java executable is missing");
             expect(wrapper.text()).toContain("Choose an available runtime.");
             expect(wrapper.text()).toContain("Survival");
-        } finally { wrapper.unmount(); }
+        } finally {
+            wrapper.unmount();
+        }
     });
     it("refreshes a late process exit without overlapping polls and stops after unmount", async () => {
         vi.useFakeTimers();
         const host = fakeHost([record("survival", "Survival")]);
         let reads = 0;
-        host.status = async () => { reads++; return ok({ state: reads === 1 ? "running" : "exited", running: reads === 1, startedAt: null, exitCode: reads === 1 ? null : 1, checkedAt: "now" }); };
+        host.status = async () => {
+            reads++;
+            return ok({
+                state: reads === 1 ? "running" : "exited",
+                running: reads === 1,
+                startedAt: null,
+                exitCode: reads === 1 ? null : 1,
+                checkedAt: "now",
+            });
+        };
         const { wrapper } = mountScreen(host);
         try {
             await flushPromises();
@@ -154,7 +282,10 @@ describe("ServerListScreen", () => {
             wrapper.unmount();
             await vi.advanceTimersByTimeAsync(6000);
             expect(reads).toBe(2);
-        } finally { wrapper.unmount(); vi.useRealTimers(); }
+        } finally {
+            wrapper.unmount();
+            vi.useRealTimers();
+        }
     });
     it("retries a transient unknown status and observes the recovered exit", async () => {
         vi.useFakeTimers();
@@ -163,7 +294,13 @@ describe("ServerListScreen", () => {
         host.status = async () => {
             reads++;
             if (reads === 2) throw new Error("Temporary disconnect");
-            return ok({ state: reads === 1 ? "running" : "exited", running: reads === 1, startedAt: null, exitCode: reads === 1 ? null : 1, checkedAt: "now" });
+            return ok({
+                state: reads === 1 ? "running" : "exited",
+                running: reads === 1,
+                startedAt: null,
+                exitCode: reads === 1 ? null : 1,
+                checkedAt: "now",
+            });
         };
         const { wrapper } = mountScreen(host);
         try {
@@ -171,7 +308,10 @@ describe("ServerListScreen", () => {
             await vi.advanceTimersByTimeAsync(4000);
             expect(reads).toBe(3);
             expect(wrapper.text()).toContain("exited (code 1)");
-        } finally { wrapper.unmount(); vi.useRealTimers(); }
+        } finally {
+            wrapper.unmount();
+            vi.useRealTimers();
+        }
     });
     it("says plainly that this build cannot reach a server host", () => {
         const { wrapper } = mountScreen(null);

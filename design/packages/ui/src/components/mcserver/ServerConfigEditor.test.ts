@@ -104,11 +104,9 @@ describe("server configuration describe/apply workflow", () => {
             .find((btn) => btn.text() === "Save changes")!
             .trigger("click");
         await flushPromises();
-        wrapper.findComponent({ name: "VSelect" }).vm.$emit("update:modelValue", "ops.json");
+        wrapper.findComponent({ name: "VList" }).vm.$emit("update:selected", ["ops.json"]);
         await flushPromises();
-        wrapper
-            .findComponent({ name: "VSelect" })
-            .vm.$emit("update:modelValue", "server.properties");
+        wrapper.findComponent({ name: "VList" }).vm.$emit("update:selected", ["server.properties"]);
         await flushPromises();
         expect(wrapper.findComponent({ name: "RecursiveValueEditor" }).props("modelValue")).toEqual(
             changed,

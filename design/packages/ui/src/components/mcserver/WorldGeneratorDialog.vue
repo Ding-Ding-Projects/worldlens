@@ -18,8 +18,18 @@ import {
     VSelect,
     VSwitch,
     VTextField,
+    VIcon,
+    VSpacer,
 } from "vuetify/components";
-import { mdiArrowDown, mdiArrowUp, mdiClose, mdiDelete, mdiDice5, mdiPlus } from "@mdi/js";
+import {
+    mdiArrowDown,
+    mdiArrowUp,
+    mdiClose,
+    mdiDelete,
+    mdiDice5,
+    mdiImageFilterHdr,
+    mdiPlus,
+} from "@mdi/js";
 import PathField from "../PathField.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
@@ -154,6 +164,7 @@ const { t } = useI18n({
             dispatched:
                 "Dispatched {file} on {ref} of {repository} at {at}. Follow the run and download the generated world and map from:",
             previewPlan: "Preview plan",
+            previewPlanBlocked: "Fix the settings marked above before previewing the plan.",
             cancel: "Cancel",
             planTitle: "Generation plan",
             planUnwired: "not yet wired",
@@ -216,6 +227,7 @@ const { t } = useI18n({
             dispatched:
                 "已經喺 {at} 向 {repository} 嘅 {ref} 派發 {file}。去呢度跟進，兼下載生成好嘅世界同地圖：",
             previewPlan: "預覽計劃",
+            previewPlanBlocked: "先改好上面標咗嘅設定，先可以預覽計劃。",
             cancel: "取消",
             planTitle: "生成計劃",
             planUnwired: "未接線",
@@ -591,10 +603,12 @@ function onClose(): void {
 </script>
 
 <template>
-    <VDialog v-model="open" max-width="760" persistent scrollable>
-        <VCard>
-            <VCardTitle class="d-flex align-center justify-space-between">
+    <VDialog v-model="open" max-width="1000" persistent scrollable>
+        <VCard class="wl-worldgen">
+            <VCardTitle class="wl-worldgen__title">
+                <VIcon :icon="mdiImageFilterHdr" size="22" class="wl-worldgen__glyph" />
                 <span>{{ t("title") }}</span>
+                <VSpacer />
                 <VBtn
                     variant="text"
                     :icon="mdiClose"
@@ -603,7 +617,8 @@ function onClose(): void {
                     @click="onClose"
                 />
             </VCardTitle>
-            <VCardText>
+            <VDivider />
+            <VCardText class="wl-worldgen__body">
                 <VAlert
                     v-if="engineId !== 'synthetic'"
                     type="info"
@@ -620,8 +635,8 @@ function onClose(): void {
                   choosing a world type needs to know their choice will be ignored while
                   they are making it, not after they have made every other one too.
                 -->
-                <div class="text-subtitle-2 mb-2">{{ t("engine") }}</div>
-                <VRadioGroup v-model="engineId" density="compact" hide-details class="mb-2">
+                <div class="wl-worldgen__label">{{ t("engine") }}</div>
+                <VRadioGroup v-model="engineId" hide-details class="mb-2 wl-worldgen__engines">
                     <VRadio
                         v-for="engine in WORLD_GEN_ENGINES"
                         :key="engine.id"
@@ -669,9 +684,13 @@ function onClose(): void {
                         hide-details
                         clearable
                     />
-                    <VBtn :prepend-icon="mdiDice5" variant="tonal" @click="rollSeed">{{
-                        t("seedRandom")
-                    }}</VBtn>
+                    <VBtn
+                        :prepend-icon="mdiDice5"
+                        variant="outlined"
+                        color="primary"
+                        @click="rollSeed"
+                        >{{ t("seedRandom") }}</VBtn
+                    >
                 </div>
                 <div class="text-caption mb-4">
                     <template v-if="seedResolved !== null"
@@ -709,7 +728,7 @@ function onClose(): void {
 
                 <!-- Superflat layer editor -->
                 <div v-if="settings.worldType === 'flat'" class="mb-4">
-                    <div class="text-subtitle-2 mb-2">{{ t("layers") }}</div>
+                    <div class="wl-worldgen__label">{{ t("layers") }}</div>
                     <VList density="compact">
                         <VListItem v-for="(layer, index) in settings.superflatLayers" :key="index">
                             <div class="d-flex align-center ga-2">
@@ -778,9 +797,13 @@ function onClose(): void {
                             hide-details
                             style="max-width: 100px"
                         />
-                        <VBtn :prepend-icon="mdiPlus" variant="tonal" @click="onAddLayer">{{
-                            t("layerAdd")
-                        }}</VBtn>
+                        <VBtn
+                            :prepend-icon="mdiPlus"
+                            variant="outlined"
+                            color="primary"
+                            @click="onAddLayer"
+                            >{{ t("layerAdd") }}</VBtn
+                        >
                     </div>
                     <div class="text-caption mt-1">
                         {{ t("layerTotal") }}: {{ layerTotalDepth }}
@@ -799,7 +822,7 @@ function onClose(): void {
                 <VDivider class="my-4" />
 
                 <!-- Dimensions -->
-                <div class="text-subtitle-2 mb-2">{{ t("dimensions") }}</div>
+                <div class="wl-worldgen__label">{{ t("dimensions") }}</div>
                 <div class="d-flex ga-4 mb-4">
                     <VSwitch
                         :model-value="true"
@@ -956,7 +979,7 @@ function onClose(): void {
                 <VDivider class="my-4" />
 
                 <!-- Gamerules -->
-                <div class="text-subtitle-2 mb-2">{{ t("gamerules") }}</div>
+                <div class="wl-worldgen__label">{{ t("gamerules") }}</div>
                 <div class="d-flex flex-wrap ga-4 mb-2">
                     <VSwitch
                         v-model="settings.gamerules.doDaylightCycle"
@@ -1004,7 +1027,7 @@ function onClose(): void {
                 <VDivider class="my-4" />
 
                 <!-- Output -->
-                <div class="text-subtitle-2 mb-2">{{ t("output") }}</div>
+                <div class="wl-worldgen__label">{{ t("output") }}</div>
                 <VRadioGroup
                     v-model="settings.outputMode"
                     density="compact"
@@ -1031,7 +1054,7 @@ function onClose(): void {
                 <VDivider class="my-4" />
 
                 <!-- Runner -->
-                <div class="text-subtitle-2 mb-2">{{ t("runner") }}</div>
+                <div class="wl-worldgen__label">{{ t("runner") }}</div>
                 <VRadioGroup
                     v-model="runnerKind"
                     density="compact"
@@ -1078,7 +1101,7 @@ function onClose(): void {
                         :label="t('githubPublish')"
                         data-test="worldgen-github-publish"
                     />
-                    <div class="text-subtitle-2 mt-3 mb-1">{{ t("configPreview") }}</div>
+                    <div class="wl-worldgen__label mt-3">{{ t("configPreview") }}</div>
                     <pre
                         class="worldgen-config-preview"
                         data-test="worldgen-config-preview"
@@ -1176,7 +1199,7 @@ function onClose(): void {
 
                 <!-- Plan preview -->
                 <div v-if="showPlan">
-                    <div class="text-subtitle-2 mb-2">{{ t("planTitle") }}</div>
+                    <div class="wl-worldgen__label">{{ t("planTitle") }}</div>
                     <VList density="compact">
                         <VListItem v-for="step in plan.steps" :key="step.kind">
                             <div class="d-flex align-center ga-2">
@@ -1242,16 +1265,23 @@ function onClose(): void {
                     }}
                 </VAlert>
             </VCardText>
-            <VCardActions>
+            <VDivider />
+            <VCardActions class="wl-worldgen__actions">
+                <VSpacer />
                 <VBtn
                     v-if="generating && targetBytes !== null"
                     variant="text"
                     @click="stopGeneration"
                     >{{ tx("worldgen.measured.stop") }}</VBtn
                 >
-                <VBtn v-else variant="text" :disabled="generating" @click="onClose">{{
-                    t("cancel")
-                }}</VBtn>
+                <VBtn
+                    v-else
+                    variant="text"
+                    color="primary"
+                    :disabled="generating"
+                    @click="onClose"
+                    >{{ t("cancel") }}</VBtn
+                >
                 <VBtn
                     v-if="runnerKind === 'github-actions' && engineId === 'synthetic'"
                     color="primary"
@@ -1281,8 +1311,9 @@ function onClose(): void {
                 </VBtn>
                 <VBtn
                     color="primary"
-                    variant="tonal"
+                    variant="outlined"
                     :disabled="!validation.ok"
+                    :title="validation.ok ? undefined : t('previewPlanBlocked')"
                     @click="onPreviewPlan"
                 >
                     {{ t("previewPlan") }}
@@ -1293,15 +1324,95 @@ function onClose(): void {
 </template>
 
 <style scoped>
+/* `Worldlens.dc.html`'s world generator: icon title, labelled sections, outlined controls. */
+.wl-worldgen :deep(.v-btn) {
+    text-transform: none;
+    letter-spacing: 0;
+}
+.wl-worldgen .wl-worldgen__title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px 18px 26px;
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: 400;
+}
+.wl-worldgen__glyph {
+    color: rgb(var(--v-theme-primary));
+}
+.wl-worldgen .wl-worldgen__body {
+    padding: 20px 26px;
+}
+.wl-worldgen__label {
+    margin: 8px 0;
+    font-size: var(--md-sys-typescale-label-medium-size);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-worldgen__engines :deep(.v-input__control) {
+    inline-size: 100%;
+}
+.wl-worldgen__engines :deep(.v-selection-control-group > *) {
+    grid-area: auto;
+}
+.wl-worldgen__engines :deep(.v-selection-control-group) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: none;
+    gap: 12px;
+}
+@media (max-width: 720px) {
+    .wl-worldgen__engines :deep(.v-selection-control-group) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+.wl-worldgen__engines :deep(.v-radio) {
+    padding: 8px 12px;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-large);
+    background: rgb(var(--v-theme-surface-container));
+}
+.wl-worldgen__engines :deep(.v-radio:has(input:checked)) {
+    border-color: transparent;
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
+}
+.wl-worldgen__engines :deep(.v-label) {
+    font-weight: 500;
+    opacity: 1;
+}
+.wl-worldgen :deep(.v-list) {
+    padding: 0;
+    background: transparent;
+}
+.wl-worldgen :deep(.v-list-item) {
+    margin-block-end: 8px;
+    padding: 8px 12px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-surface-container-high));
+}
+.wl-worldgen .wl-worldgen__actions {
+    padding: 16px 26px;
+    gap: 8px;
+}
+.wl-worldgen .wl-worldgen__actions :deep(.v-btn) {
+    min-block-size: 44px;
+    padding-inline: 22px;
+    border-radius: var(--md-sys-shape-corner-full);
+}
 .worldgen-config-preview {
     max-height: 16rem;
     overflow: auto;
-    padding: 0.75rem;
-    border-radius: var(--md-sys-shape-corner-small);
-    background: rgb(var(--v-theme-surface-variant));
+    padding: 12px 14px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    background: rgb(var(--v-theme-surface-container));
     color: rgb(var(--v-theme-on-surface-variant));
-    font-size: var(--md-sys-typescale-body-medium-size);
-    line-height: 1.4;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 1.5;
     white-space: pre;
 }
 </style>

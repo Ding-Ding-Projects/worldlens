@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiAlertCircleOutline, mdiCloudUploadOutline, mdiDeleteOutline, mdiServerNetwork } from "@mdi/js";
+import {
+    mdiAlertCircleOutline,
+    mdiCloudOutline,
+    mdiCloudUploadOutline,
+    mdiDeleteOutline,
+    mdiDns,
+    mdiEyeOffOutline,
+    mdiKeyOutline,
+    mdiServerNetwork,
+    mdiShieldOutline,
+    mdiWeb,
+} from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -16,7 +27,13 @@ import {
     VTextField,
 } from "vuetify/components";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
-import { awsInstanceTypes, awsPlan, awsProvision, awsRegions, awsTeardown } from "./mcserverBridge.js";
+import {
+    awsInstanceTypes,
+    awsPlan,
+    awsProvision,
+    awsRegions,
+    awsTeardown,
+} from "./mcserverBridge.js";
 import {
     awsFormBlockReason,
     buildAwsSpec,
@@ -120,13 +137,22 @@ onMounted(() => {
     void loadCatalogue();
     tracked.value = readTrackedAwsInstance(props.serverId, localStorageRef);
     if (tracked.value !== null) {
-        form.value = { ...form.value, region: tracked.value.region, staticAddress: tracked.value.staticAddress };
+        form.value = {
+            ...form.value,
+            region: tracked.value.region,
+            staticAddress: tracked.value.staticAddress,
+        };
     }
 });
 
-const regionItems = computed(() => regions.value.map((r) => ({ title: `${r.name} (${r.id})`, value: r.id })));
+const regionItems = computed(() =>
+    regions.value.map((r) => ({ title: `${r.name} (${r.id})`, value: r.id })),
+);
 const instanceTypeItems = computed(() =>
-    instanceTypeOptions.value.map((option) => ({ title: `${option.id} - ${instanceTypeSummary(option)}`, value: option.id })),
+    instanceTypeOptions.value.map((option) => ({
+        title: `${option.id} - ${instanceTypeSummary(option)}`,
+        value: option.id,
+    })),
 );
 
 async function requestPlan(): Promise<void> {
@@ -140,7 +166,9 @@ async function requestPlan(): Promise<void> {
         if (result.ok) {
             plan.value = result.value ?? null;
         } else {
-            planFailure.value = result.failure?.message ?? t("mcserver.aws.planFailed", "Could not compute the plan.");
+            planFailure.value =
+                result.failure?.message ??
+                t("mcserver.aws.planFailed", "Could not compute the plan.");
         }
     } finally {
         planLoading.value = false;
@@ -157,11 +185,18 @@ async function provision(): Promise<void> {
         const result = await awsProvision(spec);
         if (result.ok && result.value) {
             provisionSteps.value = result.value.steps;
-            const record = trackedInstanceFromResult(props.serverId, spec.region, spec.staticAddress, result.value);
+            const record = trackedInstanceFromResult(
+                props.serverId,
+                spec.region,
+                spec.staticAddress,
+                result.value,
+            );
             tracked.value = record;
             writeTrackedAwsInstance(record, localStorageRef);
         } else {
-            provisionFailure.value = result.failure?.message ?? t("mcserver.aws.provisionFailed", "Could not provision the instance.");
+            provisionFailure.value =
+                result.failure?.message ??
+                t("mcserver.aws.provisionFailed", "Could not provision the instance.");
         }
     } finally {
         provisionRunning.value = false;
@@ -188,7 +223,9 @@ async function confirmTeardown(): Promise<void> {
                 tracked.value = null;
             }
         } else {
-            teardownFailure.value = result.failure?.message ?? t("mcserver.aws.teardownFailed", "Could not tear down the instance.");
+            teardownFailure.value =
+                result.failure?.message ??
+                t("mcserver.aws.teardownFailed", "Could not tear down the instance.");
         }
     } finally {
         teardownRunning.value = false;
@@ -205,48 +242,81 @@ const teardownAffected = computed(() =>
     tracked.value === null
         ? []
         : [
-              t("mcserver.aws.teardownAffectedInstance", { id: tracked.value.instanceId }, "EC2 instance {id}"),
-              t("mcserver.aws.teardownAffectedSg", { id: tracked.value.securityGroupId }, "Security group {id}"),
+              t(
+                  "mcserver.aws.teardownAffectedInstance",
+                  { id: tracked.value.instanceId },
+                  "EC2 instance {id}",
+              ),
+              t(
+                  "mcserver.aws.teardownAffectedSg",
+                  { id: tracked.value.securityGroupId },
+                  "Security group {id}",
+              ),
               ...(tracked.value.elasticIpAllocationId
-                  ? [t("mcserver.aws.teardownAffectedEip", { id: tracked.value.elasticIpAllocationId }, "Elastic IP {id}")]
+                  ? [
+                        t(
+                            "mcserver.aws.teardownAffectedEip",
+                            { id: tracked.value.elasticIpAllocationId },
+                            "Elastic IP {id}",
+                        ),
+                    ]
                   : []),
           ],
 );
+
+/** A glyph per planned resource, matching the design's plan table. */
+function resourceIcon(kind: string): string {
+    if (kind === "instance") return mdiDns;
+    if (kind === "security-group") return mdiShieldOutline;
+    if (kind === "key-pair-check") return mdiKeyOutline;
+    return mdiWeb;
+}
 </script>
 
 <template>
     <div class="wl-aws-panel">
-        <VAlert v-if="catalogueFailure" type="warning" variant="tonal" density="compact" class="mb-3">
+        <VAlert
+            v-if="catalogueFailure"
+            type="warning"
+            variant="tonal"
+            density="compact"
+            class="mb-3"
+        >
             {{ catalogueFailure }}
         </VAlert>
 
-        <VCard v-if="tracked === null" variant="outlined" class="mb-4">
-            <VCardTitle class="text-subtitle-1">
+        <VCard v-if="tracked === null" variant="outlined" class="wl-aws-panel__card">
+            <VCardTitle class="wl-aws-panel__title">
+                <VIcon :icon="mdiCloudOutline" size="22" />
                 {{ t("mcserver.aws.setupTitle", "Provision on AWS") }}
             </VCardTitle>
-            <VCardText>
-                <div class="text-body-2 text-medium-emphasis mb-4">
-                    {{
-                        t(
-                            "mcserver.aws.setupLede",
-                            "Creates a new EC2 instance and runs this server's Docker container on it, using the same console, configuration editor, and plugin manager as every other server here.",
-                        )
-                    }}
-                </div>
+            <VDivider />
+            <VCardText class="wl-aws-panel__body">
+                <VCard variant="outlined" rounded="lg" class="wl-aws-panel__notice">
+                    <VIcon :icon="mdiEyeOffOutline" size="20" />
+                    <p>
+                        {{
+                            t(
+                                "mcserver.aws.setupLede",
+                                "Creates a new EC2 instance and runs this server's Docker container on it, using the same console, configuration editor, and plugin manager as every other server here.",
+                            )
+                        }}
+                    </p>
+                </VCard>
 
                 <div class="wl-aws-panel__grid">
                     <VSelect
                         v-model="form.region"
                         :items="regionItems"
                         :label="t('mcserver.aws.region', 'Region')"
-                        density="compact"
+                        variant="outlined"
                         hide-details
                     />
                     <VSelect
                         v-model="form.instanceType"
                         :items="instanceTypeItems"
                         :label="t('mcserver.aws.instanceType', 'Instance type')"
-                        density="compact"
+                        variant="outlined"
                         hide-details
                     />
                     <VTextField
@@ -255,40 +325,63 @@ const teardownAffected = computed(() =>
                         min="1"
                         max="16384"
                         :label="t('mcserver.aws.disk', 'Root disk (GiB)')"
-                        density="compact"
+                        suffix="GiB"
+                        variant="outlined"
                         hide-details
                     />
                     <VTextField
                         v-model="form.keyPairName"
                         :label="t('mcserver.aws.keyPair', 'Existing EC2 key pair name')"
-                        :hint="t('mcserver.aws.keyPairHint', 'This app never generates or holds a private key. Create the pair in the AWS console first.')"
+                        :hint="
+                            t(
+                                'mcserver.aws.keyPairHint',
+                                'This app never generates or holds a private key. Create the pair in the AWS console first.',
+                            )
+                        "
                         persistent-hint
-                        density="compact"
+                        variant="outlined"
                     />
                     <VTextField
                         v-model="form.amiId"
                         :label="t('mcserver.aws.ami', 'AMI id')"
-                        :hint="t('mcserver.aws.amiHint', 'The machine image to launch, e.g. ami-0abcdef1234567890.')"
+                        :hint="
+                            t(
+                                'mcserver.aws.amiHint',
+                                'The machine image to launch, e.g. ami-0abcdef1234567890.',
+                            )
+                        "
                         persistent-hint
-                        density="compact"
+                        variant="outlined"
                     />
                     <VSwitch
                         v-model="form.staticAddress"
                         :label="t('mcserver.aws.staticAddress', 'Static address (Elastic IP)')"
-                        :hint="t('mcserver.aws.staticAddressHint', 'Keeps the same address across a stop and start.')"
+                        :hint="
+                            t(
+                                'mcserver.aws.staticAddressHint',
+                                'Keeps the same address across a stop and start.',
+                            )
+                        "
                         persistent-hint
-                        density="compact"
+                        color="primary"
                         hide-details="auto"
                     />
                 </div>
 
-                <VAlert v-if="blockMessage" type="info" variant="tonal" density="compact" class="mt-4">
+                <VAlert
+                    v-if="blockMessage"
+                    type="info"
+                    variant="tonal"
+                    density="compact"
+                    class="mt-4"
+                >
                     {{ blockMessage }}
                 </VAlert>
 
                 <div class="wl-aws-panel__actions">
                     <VBtn
-                        variant="tonal"
+                        variant="outlined"
+                        color="primary"
                         :prepend-icon="mdiServerNetwork"
                         :loading="planLoading"
                         :disabled="blockReason !== null"
@@ -299,41 +392,62 @@ const teardownAffected = computed(() =>
                     </VBtn>
                 </div>
 
-                <VAlert v-if="planFailure" type="error" variant="tonal" density="compact" class="mt-3">
+                <VAlert
+                    v-if="planFailure"
+                    type="error"
+                    variant="tonal"
+                    density="compact"
+                    class="mt-3"
+                >
                     {{ planFailure }}
                 </VAlert>
 
-                <VCard v-if="plan" variant="tonal" class="mt-4 wl-aws-panel__plan">
-                    <VCardText>
-                        <div class="text-caption text-medium-emphasis mb-2">
-                            {{
-                                t(
-                                    "mcserver.aws.planNote",
-                                    "List-price on-demand estimate for common regions, not a live pricing lookup. Actual usage, data transfer, and non-listed instance types can change the real bill.",
-                                )
-                            }}
-                        </div>
-                        <ul class="wl-aws-panel__resources">
-                            <li v-for="resource in plan.resources" :key="resource.kind + resource.summary">
-                                <span>{{ resource.summary }}</span>
-                                <VChip size="small" :color="resource.estimatedMonthlyUsd === null ? 'warning' : undefined" variant="tonal">
-                                    {{ resource.estimatedMonthlyUsd === null ? t("mcserver.aws.costUnknown", "cost unknown") : formatMonthlyUsd(resource.estimatedMonthlyUsd) }}
-                                </VChip>
-                            </li>
-                        </ul>
-                        <VDivider class="my-2" />
-                        <div class="wl-aws-panel__total">
-                            <span class="font-weight-medium">{{ t("mcserver.aws.total", "Estimated total") }}</span>
-                            <span>
-                                {{ formatMonthlyUsd(plan.estimatedMonthlyUsd) }}
-                                <span v-if="planHasUnknownCost(plan)" class="text-warning">
-                                    {{ t("mcserver.aws.totalIncomplete", "+ unknown") }}
-                                </span>
+                <VCard v-if="plan" variant="outlined" rounded="lg" class="wl-aws-panel__plan">
+                    <div class="wl-aws-panel__plan-head">
+                        <span>{{
+                            t("mcserver.aws.planResources", "Resources that will be created")
+                        }}</span>
+                        <span>{{ t("mcserver.aws.planMonthly", "Estimated / month") }}</span>
+                    </div>
+                    <ul class="wl-aws-panel__resources">
+                        <li
+                            v-for="resource in plan.resources"
+                            :key="resource.kind + resource.summary"
+                        >
+                            <VIcon :icon="resourceIcon(resource.kind)" size="20" />
+                            <span class="wl-aws-panel__resource-name">{{ resource.summary }}</span>
+                            <VChip
+                                v-if="resource.estimatedMonthlyUsd === null"
+                                size="small"
+                                color="tertiary-container"
+                                variant="flat"
+                            >
+                                {{ t("mcserver.aws.costUnknown", "cost unknown") }}
+                            </VChip>
+                            <span v-else class="wl-aws-panel__cost">{{
+                                formatMonthlyUsd(resource.estimatedMonthlyUsd)
+                            }}</span>
+                        </li>
+                    </ul>
+                    <div class="wl-aws-panel__total">
+                        <span>{{ t("mcserver.aws.total", "Estimated total") }}</span>
+                        <span class="wl-aws-panel__cost">
+                            {{ formatMonthlyUsd(plan.estimatedMonthlyUsd) }}
+                            <span v-if="planHasUnknownCost(plan)" class="text-warning">
+                                {{ t("mcserver.aws.totalIncomplete", "+ unknown") }}
                             </span>
-                        </div>
-
+                        </span>
+                    </div>
+                    <p class="wl-aws-panel__note">
+                        {{
+                            t(
+                                "mcserver.aws.planNote",
+                                "List-price on-demand estimate for common regions, not a live pricing lookup. Actual usage, data transfer, and non-listed instance types can change the real bill.",
+                            )
+                        }}
+                    </p>
+                    <div class="wl-aws-panel__plan-actions">
                         <VBtn
-                            class="mt-4"
                             color="primary"
                             variant="flat"
                             :prepend-icon="mdiCloudUploadOutline"
@@ -342,45 +456,77 @@ const teardownAffected = computed(() =>
                         >
                             {{ t("mcserver.aws.provision", "Provision") }}
                         </VBtn>
-                    </VCardText>
+                    </div>
                 </VCard>
 
-                <VAlert v-if="provisionFailure" type="error" variant="tonal" density="compact" class="mt-3">
+                <VAlert
+                    v-if="provisionFailure"
+                    type="error"
+                    variant="tonal"
+                    density="compact"
+                    class="mt-3"
+                >
                     <div class="d-flex align-center ga-2 mb-1">
                         <VIcon :icon="mdiAlertCircleOutline" size="small" />
-                        <span class="font-weight-medium">{{ t("mcserver.aws.provisionFailedTitle", "Provisioning failed") }}</span>
+                        <span class="font-weight-medium">{{
+                            t("mcserver.aws.provisionFailedTitle", "Provisioning failed")
+                        }}</span>
                     </div>
                     {{ rollbackNote }}
                 </VAlert>
 
                 <ul v-if="provisionSteps.length > 0" class="wl-aws-panel__steps mt-3">
                     <li v-for="s in provisionSteps" :key="s.kind">
-                        <VChip size="small" :color="stepStatusColor(s.status)" variant="tonal">{{ s.status }}</VChip>
+                        <VChip size="small" :color="stepStatusColor(s.status)" variant="tonal">{{
+                            s.status
+                        }}</VChip>
                         <span>{{ s.message }}</span>
-                        <span v-if="s.resourceId" class="text-caption text-medium-emphasis">{{ s.resourceId }}</span>
+                        <span v-if="s.resourceId" class="text-caption text-medium-emphasis">{{
+                            s.resourceId
+                        }}</span>
                     </li>
                 </ul>
             </VCardText>
         </VCard>
 
-        <VCard v-else variant="outlined">
-            <VCardTitle class="text-subtitle-1 d-flex align-center justify-space-between">
+        <VCard v-else variant="outlined" class="wl-aws-panel__card">
+            <VCardTitle class="wl-aws-panel__title">
+                <VIcon :icon="mdiCloudOutline" size="22" />
                 {{ t("mcserver.aws.runningTitle", "Running on AWS") }}
-                <VChip size="small" color="success" variant="tonal">{{ tracked.region }}</VChip>
+                <span class="wl-aws-panel__spacer" />
+                <VChip size="small" color="secondary-container" variant="flat">{{
+                    tracked.region
+                }}</VChip>
             </VCardTitle>
-            <VCardText>
+            <VDivider />
+            <VCardText class="wl-aws-panel__body">
                 <dl class="wl-aws-panel__facts">
                     <dt>{{ t("mcserver.aws.instanceId", "Instance") }}</dt>
                     <dd>{{ tracked.instanceId }}</dd>
                     <dt>{{ t("mcserver.aws.publicIp", "Public address") }}</dt>
-                    <dd>{{ tracked.publicIp || t("mcserver.aws.publicIpPending", "not assigned yet") }}</dd>
+                    <dd>
+                        {{
+                            tracked.publicIp ||
+                            t("mcserver.aws.publicIpPending", "not assigned yet")
+                        }}
+                    </dd>
                     <dt>{{ t("mcserver.aws.securityGroup", "Security group") }}</dt>
                     <dd>{{ tracked.securityGroupId }}</dd>
-                    <dt v-if="tracked.elasticIpAllocationId">{{ t("mcserver.aws.elasticIp", "Elastic IP") }}</dt>
-                    <dd v-if="tracked.elasticIpAllocationId">{{ tracked.elasticIpAllocationId }}</dd>
+                    <dt v-if="tracked.elasticIpAllocationId">
+                        {{ t("mcserver.aws.elasticIp", "Elastic IP") }}
+                    </dt>
+                    <dd v-if="tracked.elasticIpAllocationId">
+                        {{ tracked.elasticIpAllocationId }}
+                    </dd>
                 </dl>
 
-                <VAlert v-if="teardownFailure" type="error" variant="tonal" density="compact" class="mt-3">
+                <VAlert
+                    v-if="teardownFailure"
+                    type="error"
+                    variant="tonal"
+                    density="compact"
+                    class="mt-3"
+                >
                     {{ teardownFailure }}
                 </VAlert>
 
@@ -391,12 +537,25 @@ const teardownAffected = computed(() =>
                     density="compact"
                     class="mt-3"
                 >
-                    {{ t("mcserver.aws.teardownIncomplete", "Some resources could not be removed and need manual cleanup - see the steps below.") }}
+                    {{
+                        t(
+                            "mcserver.aws.teardownIncomplete",
+                            "Some resources could not be removed and need manual cleanup - see the steps below.",
+                        )
+                    }}
                 </VAlert>
 
                 <ul v-if="teardownResult" class="wl-aws-panel__steps mt-3">
                     <li v-for="s in teardownResult.steps" :key="s.kind">
-                        <VChip size="small" :color="s.status === 'removed' || s.status === 'already-gone' ? 'success' : 'error'" variant="tonal">
+                        <VChip
+                            size="small"
+                            :color="
+                                s.status === 'removed' || s.status === 'already-gone'
+                                    ? 'success'
+                                    : 'error'
+                            "
+                            variant="tonal"
+                        >
                             {{ s.status }}
                         </VChip>
                         <span>{{ s.message }}</span>
@@ -418,7 +577,13 @@ const teardownAffected = computed(() =>
                     @confirm="confirmTeardown"
                 >
                     <template #activator="{ props: activatorProps }">
-                        <VBtn v-bind="activatorProps" color="error" variant="tonal" :prepend-icon="mdiDeleteOutline" :loading="teardownRunning">
+                        <VBtn
+                            v-bind="activatorProps"
+                            color="error"
+                            variant="outlined"
+                            :prepend-icon="mdiDeleteOutline"
+                            :loading="teardownRunning"
+                        >
                             {{ t("mcserver.aws.teardown", "Tear down") }}
                         </VBtn>
                     </template>
@@ -429,35 +594,106 @@ const teardownAffected = computed(() =>
 </template>
 
 <style scoped>
+/* `Worldlens.dc.html`'s AWS provisioning surface: an accounts notice, setting tiles, a priced plan. */
+.wl-aws-panel .wl-aws-panel__card {
+    border-radius: var(--md-sys-shape-corner-large);
+}
+.wl-aws-panel .wl-aws-panel__title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 22px;
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: 400;
+}
+.wl-aws-panel__spacer {
+    flex: 1 1 auto;
+}
+.wl-aws-panel .wl-aws-panel__body {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 20px 22px;
+}
+.wl-aws-panel .wl-aws-panel__notice {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 14px 18px;
+}
+.wl-aws-panel__notice p {
+    margin: 0;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: 20px;
+}
 .wl-aws-panel__grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
     align-items: start;
+}
+@media (max-width: 720px) {
+    .wl-aws-panel__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 .wl-aws-panel__actions {
     display: flex;
     gap: 8px;
-    margin-top: 16px;
+}
+.wl-aws-panel .wl-aws-panel__plan {
+    padding: 0;
+    overflow: hidden;
+}
+.wl-aws-panel__plan-head {
+    display: flex;
+    justify-content: space-between;
+    padding: 12px 18px;
+    background: rgb(var(--v-theme-surface-container));
+    font-size: var(--md-sys-typescale-label-medium-size);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 .wl-aws-panel__resources {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
 }
 .wl-aws-panel__resources li {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+    gap: 14px;
+    padding: 12px 18px;
+    border-top: 1px solid rgb(var(--v-theme-surface-container-high));
+}
+.wl-aws-panel__resource-name {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    font-size: var(--md-sys-typescale-body-medium-size);
+}
+.wl-aws-panel__cost {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-medium-size);
 }
 .wl-aws-panel__total {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 12px 18px;
+    border-top: 1px solid rgb(var(--v-theme-outline-variant));
+    font-weight: 500;
+}
+.wl-aws-panel__note {
+    margin: 0;
+    padding: 0 18px 12px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-aws-panel__plan-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 18px 16px;
 }
 .wl-aws-panel__steps {
     list-style: none;
@@ -485,6 +721,6 @@ const teardownAffected = computed(() =>
 }
 .wl-aws-panel__facts dd {
     margin: 0;
-    font-family: monospace;
+    font-family: "Roboto Mono", ui-monospace, monospace;
 }
 </style>

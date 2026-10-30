@@ -13,6 +13,7 @@ import {
     VDivider,
     VIcon,
     VLabel,
+    VNumberInput,
     VProgressCircular,
     VProgressLinear,
     VRadio,
@@ -23,7 +24,14 @@ import {
     VSelect,
     VTextField,
 } from "vuetify/components";
-import { mdiCheckCircle, mdiCloudDownloadOutline, mdiOpenInNew, mdiRefresh } from "@mdi/js";
+import {
+    mdiCheck,
+    mdiCheckCircle,
+    mdiClose,
+    mdiCloudDownloadOutline,
+    mdiOpenInNew,
+    mdiRefresh,
+} from "@mdi/js";
 import PathField from "../PathField.vue";
 import SshProcessReadinessPanel from "./SshProcessReadinessPanel.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -106,6 +114,24 @@ const visibleSteps = computed(() =>
     ),
 );
 const stepNumber = computed(() => visibleSteps.value.indexOf(step.value) + 1);
+
+/** The stepper's own words for each step, as the design names them. */
+const STEP_LABELS: Record<(typeof WIZARD_STEPS)[number], string> = {
+    flavour: "Flavour",
+    version: "Version",
+    "mod-loader": "Mod loader",
+    runtime: "Where it runs",
+    java: "Java",
+    resources: "Memory and port",
+    world: "World",
+    review: "Review",
+};
+/** A finished step can be revisited from the stepper; a later one is reached through Next. */
+function goToStep(target: (typeof WIZARD_STEPS)[number]): void {
+    if (visibleSteps.value.indexOf(target) < visibleSteps.value.indexOf(step.value)) {
+        step.value = target;
+    }
+}
 
 /* -------------------------------------------------------------------------- */
 /* Step 2: version, from the real catalogue                                   */
@@ -473,9 +499,17 @@ const awsAvailable = computed(() => {
     const bridge = (globalThis as { worldlens?: { mcserver?: { aws?: unknown } } }).worldlens;
     return bridge?.mcserver?.aws !== undefined && bridge.mcserver.aws !== null;
 });
-const runtimeOptionsForWizard = computed(() => runtimeOptions(awsAvailable.value).map((option) =>
-    option.id === "ssh-process" ? { ...option, name: t("mcserver.sshReadiness.runtime"),
-        description: t("mcserver.sshReadiness.explanation") } : option));
+const runtimeOptionsForWizard = computed(() =>
+    runtimeOptions(awsAvailable.value).map((option) =>
+        option.id === "ssh-process"
+            ? {
+                  ...option,
+                  name: t("mcserver.sshReadiness.runtime"),
+                  description: t("mcserver.sshReadiness.explanation"),
+              }
+            : option,
+    ),
+);
 
 interface RuntimeAvailability {
     checking: boolean;
@@ -1219,7 +1253,8 @@ const advanceBlockedReason = computed<string | null>(() => {
                 : (validateModsDirectory(modsDirectory.value) ??
                       t("mcserver.wizard.pickModLoader", "Choose a loader version first."));
         case "runtime":
-            if (whereItRuns.value === "ssh-process") return t("mcserver.sshReadiness.installUnavailable");
+            if (whereItRuns.value === "ssh-process")
+                return t("mcserver.sshReadiness.installUnavailable");
             if (folderError.value !== null) return folderError.value;
             if (javaNotRequired.value && dockerImageError.value !== null)
                 return dockerImageError.value;
@@ -1307,76 +1342,111 @@ const canAdvance = computed(() => {
 </script>
 
 <template>
-    <VDialog v-model="open" max-width="720" scrollable persistent>
-        <VCard>
-            <VCardTitle>{{ t("mcserver.wizard.title", "New Minecraft server") }}</VCardTitle>
-            <VCardText class="wl-mcserver-wizard__body">
-                <nav
-                    class="wl-mcserver-wizard__stepper"
-                    :aria-label="t('mcserver.wizard.progress', 'Wizard progress')"
+    <VDialog v-model="open" max-width="1080" scrollable persistent>
+        <VCard class="wl-mcserver-wizard">
+            <VCardTitle class="wl-mcserver-wizard__title">
+                <span>{{ t("mcserver.wizard.title", "New Minecraft server") }}</span>
+                <span class="wl-mcserver-wizard__count">{{
+                    t(
+                        "mcserver.wizard.stepCount",
+                        { n: stepNumber, total: visibleSteps.length },
+                        "Step {n} of {total}",
+                    )
+                }}</span>
+                <VSpacer />
+                <VBtn
+                    :icon="mdiClose"
+                    variant="text"
+                    size="small"
+                    :aria-label="t('common.cancel', 'Cancel')"
+                    @click="open = false"
+                />
+            </VCardTitle>
+            <nav
+                class="wl-mcserver-wizard__stepper"
+                :aria-label="t('mcserver.wizard.progress', 'Wizard progress')"
+            >
+                <VBtn
+                    v-for="(s, idx) in visibleSteps"
+                    :key="s"
+                    variant="text"
+                    size="small"
+                    class="wl-mcserver-wizard__stepper-item"
+                    :class="{
+                        'wl-mcserver-wizard__stepper-item--active': s === step,
+                        'wl-mcserver-wizard__stepper-item--done': stepNumber > idx + 1,
+                    }"
+                    :aria-current="s === step ? 'step' : undefined"
+                    :disabled="stepNumber <= idx + 1 && s !== step"
+                    @click="goToStep(s)"
                 >
-                    <VChip
-                        v-for="(s, idx) in visibleSteps"
-                        :key="s"
-                        size="small"
-                        :variant="s === step ? 'flat' : stepNumber > idx + 1 ? 'tonal' : 'outlined'"
-                        :color="
-                            s === step ? 'primary' : stepNumber > idx + 1 ? 'success' : undefined
-                        "
-                    >
-                        {{ idx + 1 }}. {{ t(`mcserver.wizard.step.${s}`, s) }}
-                    </VChip>
-                </nav>
-
+                    <span class="wl-mcserver-wizard__stepper-dot" aria-hidden="true">
+                        <VIcon v-if="stepNumber > idx + 1" :icon="mdiCheck" size="14" />
+                        <template v-else>{{ idx + 1 }}</template>
+                    </span>
+                    {{ t(`mcserver.wizard.step.${s}`, STEP_LABELS[s]) }}
+                </VBtn>
+            </nav>
+            <VCardText class="wl-mcserver-wizard__body">
                 <!-- Step 1: flavour -->
                 <div v-if="step === 'flavour'" class="wl-mcserver-wizard__step">
-                    <div class="text-body-2">
+                    <p class="wl-mcserver-wizard__intro">
                         {{
                             t(
                                 "mcserver.wizard.flavourIntro",
-                                "Choose the kind of server this will be.",
+                                "What kind of server this is. It decides which versions are catalogued, whether plugins or mods load, and whether a mod-loader step appears at all.",
                             )
                         }}
-                    </div>
-                    <div class="wl-mcserver-wizard__flavours">
-                        <VBtn
+                    </p>
+                    <div
+                        class="wl-mcserver-wizard__flavours"
+                        role="radiogroup"
+                        :aria-label="t('mcserver.wizard.flavour', 'Flavour')"
+                    >
+                        <VCard
                             v-for="card in FLAVOUR_CARDS"
                             :key="card.id"
-                            variant="text"
-                            block
-                            rounded="lg"
+                            :variant="flavour === card.id ? 'flat' : 'outlined'"
+                            :color="flavour === card.id ? 'primary-container' : undefined"
                             class="wl-mcserver-wizard__flavour-card"
+                            rounded="lg"
                             :class="{
                                 'wl-mcserver-wizard__flavour-card--selected': flavour === card.id,
                             }"
+                            role="radio"
+                            :aria-checked="flavour === card.id"
                             :aria-pressed="flavour === card.id"
+                            tabindex="0"
                             @click="flavour = card.id"
+                            @keydown.enter.prevent="flavour = card.id"
+                            @keydown.space.prevent="flavour = card.id"
                         >
                             <div class="wl-mcserver-wizard__flavour-name">
-                                {{ card.name }}
+                                <span class="wl-mcserver-wizard__flavour-title">{{
+                                    card.name
+                                }}</span>
+                                <span class="wl-mcserver-wizard__flavour-tagline">{{
+                                    card.tagline
+                                }}</span>
+                                <VSpacer />
+                                <span class="wl-mcserver-wizard__flavour-catalogue">{{
+                                    card.cataloguedId === null
+                                        ? t(
+                                              "mcserver.wizard.noCatalogue",
+                                              "Publishes no downloadable builds",
+                                          )
+                                        : t("mcserver.wizard.liveCatalogue", "live catalogue")
+                                }}</span>
                                 <VIcon
                                     v-if="flavour === card.id"
                                     :icon="mdiCheckCircle"
                                     size="18"
-                                    color="primary"
                                 />
                             </div>
-                            <div class="text-caption text-medium-emphasis">{{ card.tagline }}</div>
-                            <div class="text-caption">{{ card.description }}</div>
-                            <VChip
-                                v-if="card.cataloguedId === null"
-                                size="x-small"
-                                variant="tonal"
-                                color="warning"
-                            >
-                                {{
-                                    t(
-                                        "mcserver.wizard.noCatalogue",
-                                        "Publishes no downloadable builds",
-                                    )
-                                }}
-                            </VChip>
-                        </VBtn>
+                            <div class="wl-mcserver-wizard__flavour-desc">
+                                {{ card.description }}
+                            </div>
+                        </VCard>
                     </div>
                 </div>
 
@@ -1913,14 +1983,31 @@ const canAdvance = computed(() => {
 
                 <!-- Step 4: where it runs -->
                 <div v-else-if="step === 'runtime'" class="wl-mcserver-wizard__step">
+                    <p class="wl-mcserver-wizard__intro">
+                        {{
+                            t(
+                                "mcserver.wizard.runtimeIntro",
+                                "Where this server runs. The choices are capability-driven: a build whose shell does not expose a bridge keeps that option out entirely rather than offering a button that can never do anything.",
+                            )
+                        }}
+                    </p>
                     <VRadioGroup
                         v-model="whereItRuns"
-                        :label="t('mcserver.wizard.whereItRuns', 'Where it runs')"
+                        :aria-label="t('mcserver.wizard.whereItRuns', 'Where it runs')"
+                        hide-details
+                        class="wl-mcserver-wizard__runtime-group"
                     >
-                        <div
+                        <VCard
                             v-for="option in runtimeOptionsForWizard"
                             :key="option.id"
+                            :variant="whereItRuns === option.id ? 'flat' : 'outlined'"
+                            :color="whereItRuns === option.id ? 'primary-container' : undefined"
                             class="wl-mcserver-wizard__runtime-option"
+                            rounded="lg"
+                            :class="{
+                                'wl-mcserver-wizard__runtime-option--disabled':
+                                    option.id === 'local-docker' && !store.canCreateLocalDocker,
+                            }"
                         >
                             <VRadio
                                 :value="option.id"
@@ -1929,14 +2016,12 @@ const canAdvance = computed(() => {
                                     option.id === 'local-docker' && !store.canCreateLocalDocker
                                 "
                             />
-                            <div
-                                class="text-caption text-medium-emphasis wl-mcserver-wizard__runtime-desc"
-                            >
+                            <div class="wl-mcserver-wizard__runtime-desc">
                                 {{ option.description }}
                             </div>
                             <div
                                 v-if="option.id === 'local-docker' && !store.canCreateLocalDocker"
-                                class="text-caption text-error wl-mcserver-wizard__runtime-desc"
+                                class="wl-mcserver-wizard__runtime-desc wl-mcserver-wizard__runtime-desc--blocked"
                             >
                                 {{
                                     t(
@@ -1945,7 +2030,7 @@ const canAdvance = computed(() => {
                                     )
                                 }}
                             </div>
-                        </div>
+                        </VCard>
                     </VRadioGroup>
 
                     <template v-if="whereItRuns === 'local-process'">
@@ -2057,7 +2142,9 @@ const canAdvance = computed(() => {
                         />
                     </template>
 
-                    <template v-else-if="whereItRuns === 'ssh-docker' || whereItRuns === 'ssh-process'">
+                    <template
+                        v-else-if="whereItRuns === 'ssh-docker' || whereItRuns === 'ssh-process'"
+                    >
                         <ConfigSearchField
                             v-if="hostProfiles.length > 0"
                             v-model="hostProfileQuery"
@@ -2089,7 +2176,9 @@ const canAdvance = computed(() => {
                             :loading="hostProfileLoading"
                             :hint="
                                 t(
-                                    whereItRuns === 'ssh-process' ? 'mcserver.sshReadiness.explanation' : 'mcserver.wizard.sshCreateHostHint',
+                                    whereItRuns === 'ssh-process'
+                                        ? 'mcserver.sshReadiness.explanation'
+                                        : 'mcserver.wizard.sshCreateHostHint',
                                     whereItRuns === 'ssh-process'
                                         ? 'Choose a saved host profile. Readiness checks inspect that host without creating a server.'
                                         : 'Choose a saved profile with a digest-pinned Minecraft server image and an absolute server parent folder. Create makes a new container and a unique data folder on that host.',
@@ -2305,33 +2394,68 @@ const canAdvance = computed(() => {
 
                 <!-- Step 5: resources -->
                 <div v-else-if="step === 'resources'" class="wl-mcserver-wizard__step">
-                    <div>
-                        <VLabel class="text-caption" for="wl-mcserver-memory">
-                            {{ t("mcserver.wizard.memory", "Memory (MB)") }}: {{ memoryMb }}
-                        </VLabel>
+                    <VCard rounded="lg" variant="outlined" class="wl-mcserver-wizard__setting">
+                        <div class="wl-mcserver-wizard__setting-head">
+                            <VLabel
+                                class="wl-mcserver-wizard__setting-name"
+                                for="wl-mcserver-memory"
+                            >
+                                {{ t("mcserver.wizard.memory", "Memory (MB)") }}
+                            </VLabel>
+                            <span class="wl-mcserver-wizard__setting-value">{{ memoryMb }} MB</span>
+                            <span class="wl-mcserver-wizard__setting-note">{{
+                                t(
+                                    "mcserver.wizard.memoryNote",
+                                    "bounded to what a Minecraft server can actually use",
+                                )
+                            }}</span>
+                        </div>
                         <VSlider
                             id="wl-mcserver-memory"
                             v-model="memoryMb"
                             :min="512"
                             :max="memorySliderCap"
                             :step="256"
+                            color="primary"
                             thumb-label
+                            hide-details
                             :aria-label="t('mcserver.wizard.memory', 'Memory (MB)')"
                         />
+                        <div class="wl-mcserver-wizard__setting-bounds">
+                            <span>512</span>
+                            <span>{{ memorySliderCap }}</span>
+                        </div>
                         <div v-if="memoryError" class="text-caption text-error">
                             {{ memoryError }}
                         </div>
-                    </div>
-                    <VTextField
-                        v-model.number="port"
-                        type="number"
-                        :min="1"
-                        :max="65535"
-                        :label="t('mcserver.wizard.port', 'Server port')"
-                        :error-messages="portError ? [portError] : []"
-                        :hint="t('mcserver.wizard.portHint', 'Ports run from 1 to 65535.')"
-                        persistent-hint
-                    />
+                    </VCard>
+                    <VCard
+                        rounded="lg"
+                        variant="outlined"
+                        class="wl-mcserver-wizard__setting wl-mcserver-wizard__setting--row"
+                    >
+                        <div class="wl-mcserver-wizard__setting-doc">
+                            <div class="wl-mcserver-wizard__setting-name">
+                                {{ t("mcserver.wizard.port", "Server port") }}
+                            </div>
+                            <div class="wl-mcserver-wizard__setting-note">
+                                {{ t("mcserver.wizard.portHint", "Ports run from 1 to 65535.") }}
+                            </div>
+                        </div>
+                        <VNumberInput
+                            v-model="port"
+                            :min="1"
+                            :max="65535"
+                            :step="1"
+                            control-variant="split"
+                            variant="outlined"
+                            density="comfortable"
+                            class="wl-mcserver-wizard__port"
+                            :label="t('mcserver.wizard.port', 'Server port')"
+                            :error-messages="portError ? [portError] : []"
+                            :hide-details="!portError"
+                        />
+                    </VCard>
                     <PathField
                         v-if="whereItRuns !== 'local-process'"
                         v-model="serverDir"
@@ -2410,7 +2534,6 @@ const canAdvance = computed(() => {
                         :label="t('mcserver.wizard.name', 'Display name')"
                         :error-messages="nameError ? [nameError] : []"
                     />
-                    <VDivider />
                     <dl class="wl-mcserver-wizard__summary">
                         <dt>{{ t("mcserver.wizard.flavour", "Flavour") }}</dt>
                         <dd>{{ flavour }}</dd>
@@ -2437,44 +2560,71 @@ const canAdvance = computed(() => {
                             }}
                         </dd>
                     </dl>
-                    <VDivider />
-                    <VSwitch
-                        v-model="eulaAccepted"
-                        color="primary"
-                        :label="
-                            t(
-                                'mcserver.wizard.eulaAgree',
-                                'I have read and accept the Minecraft EULA',
-                            )
-                        "
-                    />
-                    <a
-                        href="https://www.minecraft.net/en-us/eula"
-                        target="_blank"
-                        rel="noopener"
-                        class="wl-mcserver-wizard__eula-link"
-                    >
-                        {{ t("mcserver.wizard.eulaLink", "Read the Minecraft EULA") }}
-                        <VIcon :icon="mdiOpenInNew" size="14" />
-                    </a>
+                    <VCard rounded="lg" variant="flat" class="wl-mcserver-wizard__eula">
+                        <div class="wl-mcserver-wizard__eula-title">
+                            {{
+                                t(
+                                    "mcserver.wizard.eulaTitle",
+                                    "The EULA is never accepted as a side effect",
+                                )
+                            }}
+                        </div>
+                        <p class="wl-mcserver-wizard__eula-body">
+                            {{
+                                t(
+                                    "mcserver.wizard.eulaBody",
+                                    "Nothing in this flow writes eula=true on your behalf. It is written only when you agree here, by an explicit action.",
+                                )
+                            }}
+                        </p>
+                        <div class="wl-mcserver-wizard__eula-row">
+                            <VSwitch
+                                v-model="eulaAccepted"
+                                color="primary"
+                                hide-details
+                                :label="
+                                    t(
+                                        'mcserver.wizard.eulaAgree',
+                                        'I have read and accept the Minecraft EULA',
+                                    )
+                                "
+                            />
+                            <a
+                                href="https://www.minecraft.net/en-us/eula"
+                                target="_blank"
+                                rel="noopener"
+                                class="wl-mcserver-wizard__eula-link"
+                            >
+                                {{ t("mcserver.wizard.eulaLink", "Read the Minecraft EULA") }}
+                                <VIcon :icon="mdiOpenInNew" size="14" />
+                            </a>
+                        </div>
+                    </VCard>
                     <VAlert v-if="createFailure" type="error" variant="tonal" density="compact">{{
                         createFailure
                     }}</VAlert>
                 </div>
             </VCardText>
-            <VCardActions>
-                <VBtn variant="text" @click="open = false">{{ t("common.cancel", "Cancel") }}</VBtn>
-                <VSpacer />
-                <VBtn v-if="step !== 'flavour'" variant="text" @click="back">{{
-                    t("common.back", "Back")
+            <VDivider />
+            <VCardActions class="wl-mcserver-wizard__actions">
+                <VBtn variant="text" color="primary" @click="open = false">{{
+                    t("common.cancel", "Cancel")
                 }}</VBtn>
-                <span v-if="advanceBlockedReason" class="text-caption text-medium-emphasis mr-2">
+                <VSpacer />
+                <span v-if="advanceBlockedReason" class="wl-mcserver-wizard__blocked">
                     {{ advanceBlockedReason }}
                 </span>
                 <VBtn
+                    v-if="step !== 'flavour'"
+                    variant="outlined"
+                    color="on-surface"
+                    @click="back"
+                    >{{ t("common.back", "Back") }}</VBtn
+                >
+                <VBtn
                     v-if="step !== 'review'"
                     color="primary"
-                    variant="tonal"
+                    variant="flat"
                     :disabled="!canAdvance"
                     :title="advanceBlockedReason ?? undefined"
                     @click="next"
@@ -2484,7 +2634,7 @@ const canAdvance = computed(() => {
                 <VBtn
                     v-else
                     color="primary"
-                    variant="tonal"
+                    variant="flat"
                     :disabled="!canCreate"
                     :loading="creating"
                     :title="
@@ -2502,15 +2652,88 @@ const canAdvance = computed(() => {
 </template>
 
 <style scoped>
-.wl-mcserver-wizard__body {
+/* `Worldlens.dc.html`'s new-server wizard: title with step count, a numbered stepper, cards. */
+/*
+ * The dialog is teleported to the overlay container, outside the destination layer that
+ * gives every other button its Material 3 shape, so the wizard states it for its own.
+ */
+.wl-mcserver-wizard :deep(.v-btn) {
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 500;
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__actions :deep(.v-btn) {
+    min-block-size: 44px;
+    padding-inline: 22px;
+    border-radius: var(--md-sys-shape-corner-full);
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__title {
     display: flex;
-    flex-direction: column;
-    gap: 12px;
+    align-items: center;
+    gap: 14px;
+    padding: 24px 28px 8px;
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: 400;
+    line-height: 32px;
+}
+.wl-mcserver-wizard__count {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-outline));
 }
 .wl-mcserver-wizard__stepper {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 20px 4px;
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__stepper-item {
+    padding-inline: 8px;
+    min-block-size: 40px;
+    font-weight: 400;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__stepper-item.v-btn--disabled {
+    opacity: 1;
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__stepper-item--active {
+    color: rgb(var(--v-theme-on-surface));
+    font-weight: 500;
+}
+.wl-mcserver-wizard__stepper-dot {
+    inline-size: 28px;
+    block-size: 28px;
+    margin-inline-end: 8px;
+    border-radius: var(--md-sys-shape-corner-full);
+    border: 1px solid rgb(var(--v-theme-outline));
+    display: inline-grid;
+    place-items: center;
+    font-size: var(--md-sys-typescale-body-small-size);
+}
+.wl-mcserver-wizard__stepper-item--active .wl-mcserver-wizard__stepper-dot {
+    background: rgb(var(--v-theme-primary));
+    border-color: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-primary));
+}
+.wl-mcserver-wizard__stepper-item--done .wl-mcserver-wizard__stepper-dot {
+    background: rgb(var(--v-theme-secondary-container));
+    border-color: rgb(var(--v-theme-secondary-container));
+    color: rgb(var(--v-theme-on-secondary-container));
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 28px 24px;
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__actions {
+    padding: 16px 28px;
+    gap: 10px;
+}
+.wl-mcserver-wizard__blocked {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-on-surface-variant));
+    max-inline-size: 40ch;
 }
 .wl-mcserver-wizard__versions-loading {
     display: flex;
@@ -2525,65 +2748,47 @@ const canAdvance = computed(() => {
 }
 .wl-mcserver-wizard__flavours {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
 }
-.wl-mcserver-wizard__flavour-card {
-    text-align: left;
-    border: 1px solid rgb(var(--v-border-color));
-    /*
-     * The corner comes from the `rounded="lg"` prop on the button, not from here.
-     *
-     * A plain `border-radius` in this block cannot win: Vuetify's radius utilities are
-     * `!important`, and the design system's component defaults make every button
-     * `corner-full` (9999px). On an ordinary short button that is the intended pill. On this
-     * card, once it was given `height: auto` to fit four stacked blocks, a 9999px radius
-     * turned each one into an ellipse, with the corners of the text clipped outside the oval.
-     *
-     * `docs/design-system.md` records the same trap being sprung by the window caption
-     * buttons, and the same answer: spend the token through the `rounded` prop.
-     */
-    padding: 10px;
-    background: transparent;
+@media (max-width: 720px) {
+    .wl-mcserver-wizard__flavours {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__flavour-card {
+    padding: 16px 18px;
+    border-radius: var(--md-sys-shape-corner-large);
     cursor: pointer;
-
-    /*
-     * A `VBtn` puts its slot inside `.v-btn__content`, and that element, not this one, is
-     * what lays the card out. Left alone it is a centred row with `white-space: nowrap`
-     * inside a button of fixed height, so this card's four stacked blocks (name, tagline,
-     * description, catalogue chip) were drawn on one line, refused to wrap, and printed
-     * straight through each other. Every flavour then overflowed into its neighbour and the
-     * step grew a horizontal scrollbar.
-     *
-     * The rules below therefore belong on the content element rather than here: setting
-     * `flex-direction: column` on the button root did nothing at all, which is exactly why
-     * the breakage was invisible in the stylesheet and obvious on screen.
-     */
-    height: auto;
-    min-height: 0;
-    padding-block: 10px;
+    min-block-size: 98px;
 }
-
-.wl-mcserver-wizard__flavour-card :deep(.v-btn__content) {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    inline-size: 100%;
-    min-inline-size: 0;
-    /* The description is prose. It has to be allowed to break. */
-    white-space: normal;
-    text-align: left;
-}
-.wl-mcserver-wizard__flavour-card--selected {
-    border-color: rgb(var(--v-theme-primary));
-    background: rgba(var(--v-theme-primary), 0.08);
+.wl-mcserver-wizard .wl-mcserver-wizard__flavour-card:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
 }
 .wl-mcserver-wizard__flavour-name {
-    font-weight: 600;
     display: flex;
-    align-items: center;
-    gap: 6px;
+    align-items: baseline;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.wl-mcserver-wizard__flavour-title {
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: 500;
+}
+.wl-mcserver-wizard__flavour-tagline {
+    font-size: var(--md-sys-typescale-body-small-size);
+    opacity: 0.8;
+}
+.wl-mcserver-wizard__flavour-catalogue {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-label-small-size);
+    opacity: 0.8;
+}
+.wl-mcserver-wizard__flavour-desc {
+    margin-top: 6px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: 20px;
 }
 .wl-mcserver-wizard__version-group {
     display: flex;
@@ -2595,25 +2800,41 @@ const canAdvance = computed(() => {
     flex-direction: column;
     gap: 2px;
 }
-.wl-mcserver-wizard__family-row {
+.wl-mcserver-wizard .wl-mcserver-wizard__family-row {
     min-height: 48px;
     justify-content: flex-start;
     gap: 8px;
     text-align: left;
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+.wl-mcserver-wizard__family-row :deep(.v-btn__content) {
+    gap: 8px;
+    inline-size: 100%;
+    font-family: "Roboto Mono", ui-monospace, monospace;
 }
 .wl-mcserver-wizard__family-versions {
     display: flex;
     flex-direction: column;
-    gap: 2px;
-    padding-inline-start: 12px;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-large);
+    overflow: hidden;
     container: server-version-family / inline-size;
 }
 .wl-mcserver-wizard__version-row-wrap {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(120px, 180px);
-    align-items: start;
+    grid-template-columns: minmax(0, 1fr) minmax(120px, 200px);
+    align-items: center;
     gap: 8px;
     min-height: 48px;
+    padding-inline-end: 12px;
+    border-bottom: 1px solid rgb(var(--v-theme-surface-container-high));
+}
+.wl-mcserver-wizard__version-row-wrap:last-child {
+    border-bottom: 0;
+}
+.wl-mcserver-wizard__version-row-wrap:has(.wl-mcserver-wizard__version-row--selected) {
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
 }
 .wl-mcserver-wizard__version-pages {
     display: flex;
@@ -2622,7 +2843,7 @@ const canAdvance = computed(() => {
     gap: 8px;
     min-height: 48px;
 }
-.wl-mcserver-wizard__version-row {
+.wl-mcserver-wizard .wl-mcserver-wizard__version-row {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2631,12 +2852,12 @@ const canAdvance = computed(() => {
     min-height: 48px;
     height: auto;
     width: 100%;
-    padding: 6px 8px;
-    border-radius: var(--md-sys-shape-corner-small);
+    padding: 6px 18px;
+    border-radius: 0;
     background: transparent;
-    border: 1px solid transparent;
     cursor: pointer;
     text-align: left;
+    color: inherit;
 }
 .wl-mcserver-wizard__version-details {
     min-width: 0;
@@ -2681,16 +2902,104 @@ const canAdvance = computed(() => {
 .wl-mcserver-wizard__wiki-action:focus-visible {
     text-decoration: underline;
 }
-.wl-mcserver-wizard__version-row--selected {
-    border-color: rgb(var(--v-theme-primary));
-    background: rgba(var(--v-theme-primary), 0.08);
+.wl-mcserver-wizard__version-row > :deep(.v-btn__content) > span:first-child {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-large-size);
 }
-.wl-mcserver-wizard__runtime-option {
-    margin-bottom: 6px;
+.wl-mcserver-wizard__version-row-wrap .wl-mcserver-wizard__wiki-action {
+    color: inherit;
+    font-size: var(--md-sys-typescale-body-small-size);
+    gap: 6px;
+}
+.wl-mcserver-wizard__wiki-action > span:nth-of-type(1) {
+    white-space: nowrap;
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__setting {
+    padding: 16px 20px;
+    border-radius: var(--md-sys-shape-corner-large);
+}
+.wl-mcserver-wizard__setting--row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.wl-mcserver-wizard__setting-doc {
+    flex: 1 1 240px;
+}
+.wl-mcserver-wizard__setting-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__setting-name {
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
+    color: rgb(var(--v-theme-on-surface));
+    opacity: 1;
+}
+.wl-mcserver-wizard__setting-value {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-large-size);
+    color: rgb(var(--v-theme-primary));
+}
+.wl-mcserver-wizard__setting-note {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-mcserver-wizard__setting-bounds {
+    display: flex;
+    justify-content: space-between;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-label-small-size);
+    color: rgb(var(--v-theme-outline));
+}
+.wl-mcserver-wizard__port {
+    flex: 0 0 240px;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+}
+.wl-mcserver-wizard__intro {
+    margin: 0;
+    max-inline-size: 68ch;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: 21px;
+}
+.wl-mcserver-wizard__runtime-group :deep(.v-input__control) {
+    inline-size: 100%;
+}
+.wl-mcserver-wizard__runtime-group :deep(.v-selection-control-group > *) {
+    grid-area: auto;
+}
+.wl-mcserver-wizard__runtime-group :deep(.v-selection-control-group) {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: none;
+    gap: 12px;
+}
+@media (max-width: 720px) {
+    .wl-mcserver-wizard__runtime-group :deep(.v-selection-control-group) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__runtime-option {
+    padding: 8px 18px 16px 8px;
+    border-radius: var(--md-sys-shape-corner-large);
+}
+.wl-mcserver-wizard__runtime-option :deep(.v-label) {
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
+    opacity: 1;
 }
 .wl-mcserver-wizard__runtime-desc {
-    margin-left: 32px;
-    margin-top: -6px;
+    margin-inline-start: 50px;
+    margin-top: -4px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: 20px;
+}
+.wl-mcserver-wizard__runtime-desc--blocked {
+    margin-top: 6px;
+    color: rgb(var(--v-theme-error));
 }
 .wl-mcserver-wizard__progress {
     display: flex;
@@ -2699,17 +3008,53 @@ const canAdvance = computed(() => {
 }
 .wl-mcserver-wizard__summary {
     display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 4px 12px;
+    grid-template-columns: minmax(140px, 0.4fr) 1fr;
+    margin: 0;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-large);
+    overflow: hidden;
     font-size: var(--md-sys-typescale-body-medium-size);
+}
+.wl-mcserver-wizard__summary dt,
+.wl-mcserver-wizard__summary dd {
+    margin: 0;
+    padding: 11px 18px;
+    border-bottom: 1px solid rgb(var(--v-theme-surface-container-high));
 }
 .wl-mcserver-wizard__summary dt {
     color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-mcserver-wizard__summary dd {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    overflow-wrap: anywhere;
+}
+.wl-mcserver-wizard .wl-mcserver-wizard__eula {
+    padding: 18px 20px;
+    border-radius: var(--md-sys-shape-corner-large);
+    background: rgb(var(--v-theme-error-container));
+    color: rgb(var(--v-theme-on-error-container));
+}
+.wl-mcserver-wizard__eula-title {
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
+}
+.wl-mcserver-wizard__eula-body {
+    margin: 6px 0 8px;
+    max-inline-size: 68ch;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: 20px;
+}
+.wl-mcserver-wizard__eula-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
 }
 .wl-mcserver-wizard__eula-link {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: var(--md-sys-typescale-body-small-size);
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: inherit;
 }
 </style>

@@ -112,15 +112,27 @@ function choose(option: SearchablePickerOption): void {
 </template>
 
 <style scoped>
+/* An outlined field-shaped activator: 12px corners, sentence case, label then value. */
 .wl-searchable-picker__activator {
     min-height: 48px;
     justify-content: flex-start;
     gap: 8px;
     text-align: left;
     width: 100%;
+    border-radius: var(--md-sys-shape-corner-medium);
+    border-color: rgb(var(--v-theme-outline-variant));
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+}
+.wl-searchable-picker__activator :deep(.v-btn__content) {
+    gap: 12px;
 }
 .wl-searchable-picker__label {
     color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-searchable-picker__value {
+    font-family: "Roboto Mono", ui-monospace, monospace;
 }
 .wl-searchable-picker__value {
     overflow: hidden;

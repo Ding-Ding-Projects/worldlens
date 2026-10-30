@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiCubeOutline, mdiRefresh } from "@mdi/js";
+import { mdiChevronRight, mdiClose, mdiCubeOutline, mdiRefresh } from "@mdi/js";
 import {
     VAlert,
     VBtn,
@@ -11,7 +11,10 @@ import {
     VCardTitle,
     VChip,
     VDialog,
+    VDivider,
+    VIcon,
     VProgressCircular,
+    VSpacer,
     VSelect,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -71,8 +74,16 @@ const profileRegex = ref(false);
 const profileFlags = ref("i");
 const profileFailure = ref<string | null>(null);
 const profileLoading = ref(false);
-const profileMatcher = computed(() => createSettingMatcher(profileQuery.value, profileRegex.value, profileFlags.value));
-const profileItems = computed(() => profiles.value.filter((profile) => profileMatcher.value.test(`${profile.hostId} ${profile.target.label} ${profile.target.user}@${profile.target.host}`)));
+const profileMatcher = computed(() =>
+    createSettingMatcher(profileQuery.value, profileRegex.value, profileFlags.value),
+);
+const profileItems = computed(() =>
+    profiles.value.filter((profile) =>
+        profileMatcher.value.test(
+            `${profile.hostId} ${profile.target.label} ${profile.target.user}@${profile.target.host}`,
+        ),
+    ),
+);
 
 async function loadProfiles(): Promise<void> {
     const generation = ++profileGeneration;
@@ -88,10 +99,16 @@ async function loadProfiles(): Promise<void> {
         const result = await store.hostProfiles.list();
         if (generation !== profileGeneration || !props.modelValue) return;
         if (result.ok) profiles.value = result.value ?? [];
-        else profileFailure.value = result.failure?.message ?? t("mcserver.adoptBrowser.profileFailure", "SSH host profiles could not be loaded.");
+        else
+            profileFailure.value =
+                result.failure?.message ??
+                t("mcserver.adoptBrowser.profileFailure", "SSH host profiles could not be loaded.");
     } catch {
         if (generation === profileGeneration && props.modelValue) {
-            profileFailure.value = t("mcserver.adoptBrowser.profileFailure", "SSH host profiles could not be loaded.");
+            profileFailure.value = t(
+                "mcserver.adoptBrowser.profileFailure",
+                "SSH host profiles could not be loaded.",
+            );
         }
     } finally {
         if (generation === profileGeneration) profileLoading.value = false;
@@ -109,20 +126,40 @@ async function discover(): Promise<void> {
     attempted.value = false;
     try {
         const result = await store.adoptDiscover(hostId);
-        if (generation !== discoveryGeneration || !props.modelValue || hostId !== selectedHostId.value) return;
+        if (
+            generation !== discoveryGeneration ||
+            !props.modelValue ||
+            hostId !== selectedHostId.value
+        )
+            return;
         if (result.ok) {
             candidates.value = result.value ?? [];
             resultHostId.value = hostId;
         } else {
             failure.value = {
-                message: result.failure?.message ?? t("mcserver.adoptBrowser.unknownFailure", "Discovery failed for an unrecorded reason."),
+                message:
+                    result.failure?.message ??
+                    t(
+                        "mcserver.adoptBrowser.unknownFailure",
+                        "Discovery failed for an unrecorded reason.",
+                    ),
                 detail: result.failure?.detail ?? null,
             };
         }
         attempted.value = true;
     } catch {
-        if (generation === discoveryGeneration && props.modelValue && hostId === selectedHostId.value) {
-            failure.value = { message: t("mcserver.adoptBrowser.unknownFailure", "Discovery failed for an unrecorded reason."), detail: null };
+        if (
+            generation === discoveryGeneration &&
+            props.modelValue &&
+            hostId === selectedHostId.value
+        ) {
+            failure.value = {
+                message: t(
+                    "mcserver.adoptBrowser.unknownFailure",
+                    "Discovery failed for an unrecorded reason.",
+                ),
+                detail: null,
+            };
             attempted.value = true;
         }
     } finally {
@@ -161,7 +198,10 @@ watch(selectedHostId, () => {
     invalidateDiscovery();
     if (props.modelValue) void discover();
 });
-onBeforeUnmount(() => { discoveryGeneration++; profileGeneration++; });
+onBeforeUnmount(() => {
+    discoveryGeneration++;
+    profileGeneration++;
+});
 
 const query = ref("");
 const useRegex = ref(false);
@@ -178,10 +218,14 @@ function searchableText(candidate: AdoptionCandidate): string {
     ].join(" ");
 }
 
-const filtered = computed(() => candidates.value.filter((candidate) => matcher.value.test(searchableText(candidate))));
+const filtered = computed(() =>
+    candidates.value.filter((candidate) => matcher.value.test(searchableText(candidate))),
+);
 
 /** The builder previews against the real corpus, one candidate per line, as every other list here does. */
-const sampleText = computed(() => candidates.value.map(searchableText).join(String.fromCharCode(10)));
+const sampleText = computed(() =>
+    candidates.value.map(searchableText).join(String.fromCharCode(10)),
+);
 
 const filterSummary = computed(() =>
     t(
@@ -198,14 +242,22 @@ const filterSummary = computed(() =>
  * their absence is stated instead of left as blank space.
  */
 function guessLabel(candidate: AdoptionCandidate): string | null {
-    const parts = [candidate.guessedFlavour, candidate.guessedVersion].filter((part): part is string => part !== null);
+    const parts = [candidate.guessedFlavour, candidate.guessedVersion].filter(
+        (part): part is string => part !== null,
+    );
     if (parts.length === 0) return null;
     return t("mcserver.adoptBrowser.guess", { guess: parts.join(" ") }, "Best guess: {guess}");
 }
 
 function choose(candidate: AdoptionCandidate): void {
-    if (!props.modelValue || discovering.value || resultHostId.value === undefined ||
-        resultHostId.value !== selectedHostId.value || !candidates.value.includes(candidate)) return;
+    if (
+        !props.modelValue ||
+        discovering.value ||
+        resultHostId.value === undefined ||
+        resultHostId.value !== selectedHostId.value ||
+        !candidates.value.includes(candidate)
+    )
+        return;
     emit("picked", candidate, resultHostId.value);
     open.value = false;
 }
@@ -213,9 +265,21 @@ function choose(candidate: AdoptionCandidate): void {
 
 <template>
     <VDialog v-model="open" class="wl-adoptbrowser-dialog" max-width="640" scrollable>
-        <VCard>
-            <VCardTitle>{{ t("mcserver.adoptBrowser.title", "Adopt an existing container") }}</VCardTitle>
-            <VCardText>
+        <VCard class="wl-adoptbrowser">
+            <VCardTitle class="wl-adoptbrowser__title">
+                <VIcon :icon="mdiCubeOutline" size="22" />
+                <span>{{ t("mcserver.adoptBrowser.title", "Adopt an existing container") }}</span>
+                <VSpacer />
+                <VBtn
+                    :icon="mdiClose"
+                    variant="text"
+                    size="small"
+                    :aria-label="t('common.close', 'Close')"
+                    @click="open = false"
+                />
+            </VCardTitle>
+            <VDivider />
+            <VCardText class="wl-adoptbrowser__body">
                 <div class="wl-adoptbrowser__blurb">
                     {{
                         t(
@@ -231,16 +295,35 @@ function choose(candidate: AdoptionCandidate): void {
                         v-model="profileQuery"
                         v-model:regex="profileRegex"
                         v-model:flags="profileFlags"
-                        :label="t('mcserver.adoptBrowser.profileSearch', 'Search SSH host profiles')"
-                        :sample="profiles.map((profile) => `${profile.hostId} ${profile.target.label} ${profile.target.host}`).join(String.fromCharCode(10))"
+                        :label="
+                            t('mcserver.adoptBrowser.profileSearch', 'Search SSH host profiles')
+                        "
+                        :sample="
+                            profiles
+                                .map(
+                                    (profile) =>
+                                        `${profile.hostId} ${profile.target.label} ${profile.target.host}`,
+                                )
+                                .join(String.fromCharCode(10))
+                        "
                         class="mb-2"
                     />
                     <VSelect
                         v-model="selectedHostId"
-                        :items="[{ title: t('mcserver.adoptBrowser.localHost', 'This computer'), value: null }, ...profileItems.map((profile) => ({ title: `${profile.target.label} · ${profile.target.user}@${profile.target.host}`, value: profile.hostId }))]"
+                        :items="[
+                            {
+                                title: t('mcserver.adoptBrowser.localHost', 'This computer'),
+                                value: null,
+                            },
+                            ...profileItems.map((profile) => ({
+                                title: `${profile.target.label} · ${profile.target.user}@${profile.target.host}`,
+                                value: profile.hostId,
+                            })),
+                        ]"
                         item-title="title"
                         item-value="value"
                         :label="t('mcserver.adoptBrowser.target', 'Discovery target')"
+                        variant="outlined"
                         :loading="profileLoading"
                         clearable
                         class="mb-2"
@@ -251,26 +334,62 @@ function choose(candidate: AdoptionCandidate): void {
                                     v-model="profileQuery"
                                     v-model:regex="profileRegex"
                                     v-model:flags="profileFlags"
-                                    :label="t('mcserver.adoptBrowser.dropdownSearch', 'Search this host list')"
-                                    :sample="profiles.map((profile) => `${profile.hostId} ${profile.target.label} ${profile.target.host}`).join(String.fromCharCode(10))"
+                                    :label="
+                                        t(
+                                            'mcserver.adoptBrowser.dropdownSearch',
+                                            'Search this host list',
+                                        )
+                                    "
+                                    :sample="
+                                        profiles
+                                            .map(
+                                                (profile) =>
+                                                    `${profile.hostId} ${profile.target.label} ${profile.target.host}`,
+                                            )
+                                            .join(String.fromCharCode(10))
+                                    "
                                 />
                             </div>
                         </template>
                     </VSelect>
-                    <VAlert v-if="profileFailure" type="warning" variant="tonal" class="mb-2">{{ profileFailure }}</VAlert>
-                    <VAlert v-else-if="!profileLoading && profiles.length === 0" type="info" variant="tonal" class="mb-2">
-                        {{ t("mcserver.adoptBrowser.noProfiles", "No saved SSH host profiles yet. Local container discovery remains available; add a profile from the server list to inspect a remote host.") }}
+                    <VAlert v-if="profileFailure" type="warning" variant="tonal" class="mb-2">{{
+                        profileFailure
+                    }}</VAlert>
+                    <VAlert
+                        v-else-if="!profileLoading && profiles.length === 0"
+                        type="info"
+                        variant="tonal"
+                        class="mb-2"
+                    >
+                        {{
+                            t(
+                                "mcserver.adoptBrowser.noProfiles",
+                                "No saved SSH host profiles yet. Local container discovery remains available; add a profile from the server list to inspect a remote host.",
+                            )
+                        }}
                     </VAlert>
                 </template>
 
-                <div v-if="discovering" class="wl-adoptbrowser__loading" role="status" aria-live="polite">
+                <div
+                    v-if="discovering"
+                    class="wl-adoptbrowser__loading"
+                    role="status"
+                    aria-live="polite"
+                >
                     <VProgressCircular indeterminate size="24" />
-                    <span>{{ t("mcserver.adoptBrowser.discovering", "Looking for containers on this machine...") }}</span>
+                    <span>{{
+                        t(
+                            "mcserver.adoptBrowser.discovering",
+                            "Looking for containers on this machine...",
+                        )
+                    }}</span>
                 </div>
 
                 <VAlert v-else-if="failure" type="warning" variant="tonal" role="alert">
                     <div>{{ failure.message }}</div>
-                    <div v-if="failure.detail" class="wl-adoptbrowser__detail">{{ failure.detail }}</div>
+                    <div v-if="failure.detail" class="wl-adoptbrowser__detail">
+                        {{ failure.detail }}
+                    </div>
                     <template #append>
                         <VBtn :prepend-icon="mdiRefresh" variant="text" @click="discover">
                             {{ t("mcserver.adoptBrowser.retry", "Try again") }}
@@ -300,67 +419,131 @@ function choose(candidate: AdoptionCandidate): void {
                         v-model:regex="useRegex"
                         v-model:flags="flags"
                         :label="t('mcserver.adoptBrowser.search', 'Search containers')"
-                        :placeholder="t('mcserver.adoptBrowser.searchHint', 'Name, container id or image')"
+                        :placeholder="
+                            t('mcserver.adoptBrowser.searchHint', 'Name, container id or image')
+                        "
                         :sample="sampleText"
                         :summary="filterSummary"
                         class="wl-adoptbrowser__search"
                     />
 
-                    <div v-if="filtered.length === 0" class="wl-adoptbrowser__noMatch" role="status">
-                        {{ t("mcserver.adoptBrowser.noMatches", "No container matches that search.") }}
+                    <div
+                        v-if="filtered.length === 0"
+                        class="wl-adoptbrowser__noMatch"
+                        role="status"
+                    >
+                        {{
+                            t(
+                                "mcserver.adoptBrowser.noMatches",
+                                "No container matches that search.",
+                            )
+                        }}
                     </div>
 
-                    <ul v-else class="wl-adoptbrowser__list">
-                        <li v-for="candidate in filtered" :key="candidate.containerId">
-                            <button
-                                type="button"
-                                class="wl-adoptbrowser__row"
-                                :aria-label="
-                                    t(
-                                        'mcserver.adoptBrowser.chooseOne',
-                                        { name: candidate.containerName },
-                                        'Review {name} for adoption',
-                                    )
-                                "
-                                @click="choose(candidate)"
-                            >
-                                <span class="wl-adoptbrowser__name">{{ candidate.containerName }}</span>
-                                <span class="wl-adoptbrowser__mono">{{ candidate.containerId }}</span>
-                                <span class="wl-adoptbrowser__mono">{{ candidate.image }}</span>
-                                <VChip v-if="guessLabel(candidate)" size="small" variant="tonal" :prepend-icon="mdiCubeOutline">
+                    <div v-else class="wl-adoptbrowser__list">
+                        <VCard
+                            v-for="candidate in filtered"
+                            :key="candidate.containerId"
+                            link
+                            rounded="lg"
+                            role="button"
+                            variant="outlined"
+                            class="wl-adoptbrowser__row"
+                            :aria-label="
+                                t(
+                                    'mcserver.adoptBrowser.chooseOne',
+                                    { name: candidate.containerName },
+                                    'Review {name} for adoption',
+                                )
+                            "
+                            @click="choose(candidate)"
+                            @keydown.enter.prevent="choose(candidate)"
+                            @keydown.space.prevent="choose(candidate)"
+                        >
+                            <span class="mb-icon-tile wl-adoptbrowser__tile" aria-hidden="true">
+                                <VIcon :icon="mdiCubeOutline" size="21" />
+                            </span>
+                            <div class="wl-adoptbrowser__text">
+                                <span class="wl-adoptbrowser__name">{{
+                                    candidate.containerName
+                                }}</span>
+                                <span class="wl-adoptbrowser__mono"
+                                    >{{ candidate.containerId }} · {{ candidate.image }}</span
+                                >
+                                <VChip
+                                    v-if="guessLabel(candidate)"
+                                    size="small"
+                                    color="secondary-container"
+                                    variant="flat"
+                                    :prepend-icon="mdiCubeOutline"
+                                >
                                     {{ guessLabel(candidate) }}
                                 </VChip>
                                 <span v-else class="wl-adoptbrowser__noGuess">
-                                    {{ t("mcserver.adoptBrowser.noGuess", "No flavour or version could be guessed from this image.") }}
+                                    {{
+                                        t(
+                                            "mcserver.adoptBrowser.noGuess",
+                                            "No flavour or version could be guessed from this image.",
+                                        )
+                                    }}
                                 </span>
-                            </button>
-                        </li>
-                    </ul>
+                            </div>
+                            <VIcon
+                                :icon="mdiChevronRight"
+                                class="wl-adoptbrowser__chevron"
+                                aria-hidden="true"
+                            />
+                        </VCard>
+                    </div>
                 </template>
             </VCardText>
-            <VCardActions>
+            <VDivider />
+            <VCardActions class="wl-adoptbrowser__actions">
+                <VSpacer />
                 <VBtn
                     :prepend-icon="mdiRefresh"
-                    variant="text"
+                    variant="outlined"
+                    color="primary"
                     :disabled="discovering"
                     @click="discover"
                 >
                     {{ t("mcserver.adoptBrowser.rediscover", "Look again") }}
                 </VBtn>
-                <VBtn variant="text" @click="open = false">{{ t("common.close", "Close") }}</VBtn>
+                <VBtn variant="text" color="primary" @click="open = false">{{
+                    t("common.close", "Close")
+                }}</VBtn>
             </VCardActions>
         </VCard>
     </VDialog>
 </template>
 
 <style scoped>
+/* The adoption picker in the same dialog language as the review it leads to. */
 .wl-adoptbrowser-dialog :deep(.v-overlay__content) {
     margin-top: calc(24px + var(--mb-titlebar-height, 40px));
     max-height: calc(100% - 48px - var(--mb-titlebar-height, 40px));
 }
+.wl-adoptbrowser :deep(.v-btn) {
+    text-transform: none;
+    letter-spacing: 0;
+}
+.wl-adoptbrowser .wl-adoptbrowser__title {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 18px 20px 18px 28px;
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: 400;
+}
+.wl-adoptbrowser .wl-adoptbrowser__body {
+    padding: 20px 28px;
+}
 .wl-adoptbrowser__blurb {
+    max-inline-size: 68ch;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: 21px;
     color: rgb(var(--v-theme-on-surface-variant));
-    margin-bottom: 12px;
+    margin-bottom: 16px;
 }
 .wl-adoptbrowser__loading {
     display: flex;
@@ -371,7 +554,7 @@ function choose(candidate: AdoptionCandidate): void {
 .wl-adoptbrowser__detail {
     color: rgb(var(--v-theme-on-surface-variant));
     margin-top: 4px;
-    font-family: monospace;
+    font-family: "Roboto Mono", ui-monospace, monospace;
 }
 .wl-adoptbrowser__search {
     margin-bottom: 8px;
@@ -381,45 +564,60 @@ function choose(candidate: AdoptionCandidate): void {
     padding: 12px 0;
 }
 .wl-adoptbrowser__list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
 }
-.wl-adoptbrowser__row {
+.wl-adoptbrowser .wl-adoptbrowser__row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    border-radius: var(--md-sys-shape-corner-large);
+    background: rgb(var(--v-theme-surface-container));
+}
+.wl-adoptbrowser .wl-adoptbrowser__row:hover {
+    border-color: rgb(var(--v-theme-primary));
+}
+.wl-adoptbrowser .wl-adoptbrowser__row:focus-visible {
+    outline: 2px solid rgb(var(--v-theme-primary));
+    outline-offset: 2px;
+}
+.wl-adoptbrowser .wl-adoptbrowser__tile {
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-adoptbrowser__text {
+    flex: 1 1 auto;
+    min-inline-size: 0;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
-    width: 100%;
-    min-height: 48px;
-    padding: 12px;
-    text-align: left;
-    cursor: pointer;
-    background: rgb(var(--v-theme-surface));
-    color: rgb(var(--v-theme-on-surface));
-    border: 1px solid rgb(var(--v-theme-outline-variant));
-    border-radius: var(--md-sys-shape-corner-md);
-}
-.wl-adoptbrowser__row:hover {
-    background: rgb(var(--v-theme-surface-variant));
-    box-shadow: var(--md-sys-elevation-shadow-level1);
-}
-.wl-adoptbrowser__row:focus-visible {
-    outline: 2px solid rgb(var(--v-theme-primary));
-    outline-offset: 2px;
 }
 .wl-adoptbrowser__name {
-    font-weight: 600;
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
 }
 .wl-adoptbrowser__mono {
-    font-family: monospace;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-on-surface-variant));
     overflow-wrap: anywhere;
 }
 .wl-adoptbrowser__noGuess {
+    font-size: var(--md-sys-typescale-body-small-size);
     color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-adoptbrowser__chevron {
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-adoptbrowser .wl-adoptbrowser__actions {
+    padding: 16px 28px;
+    gap: 8px;
+}
+.wl-adoptbrowser .wl-adoptbrowser__actions :deep(.v-btn) {
+    min-block-size: 44px;
+    padding-inline: 22px;
+    border-radius: var(--md-sys-shape-corner-full);
 }
 </style>

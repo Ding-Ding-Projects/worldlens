@@ -187,7 +187,10 @@ describe("mcserver panels mount against a real store and bridge", () => {
     it("ServerConfigEditor mounts and offers the file picker", async () => {
         const wrapper = await mountWith(ServerConfigEditor, { serverId: "srv-1" });
         await flushPromises();
-        expect(wrapper.findComponent({ name: "VSelect" }).exists()).toBe(true);
+        // The file picker is the file rail: a selectable list naming every known file.
+        const files = wrapper.findComponent({ name: "VList" });
+        expect(files.exists()).toBe(true);
+        expect(files.text()).toContain("server.properties");
     });
 
     it("PluginManager mounts and shows the empty installed state", async () => {
@@ -213,12 +216,30 @@ describe("mcserver panels mount against a real store and bridge", () => {
         vi.useFakeTimers();
         const host = fakeHost();
         let reads = 0;
-        host.status = async () => ({ ok: true, value: { state: ++reads === 1 ? "running" : "exited", running: reads === 1, startedAt: null, exitCode: reads === 1 ? null : 1, checkedAt: "now" } });
-        host.start = async () => ({ ok: false, failure: { code: "command-failed", message: "Unable to access jarfile", detail: "Check the configured server archive." } });
+        host.status = async () => ({
+            ok: true,
+            value: {
+                state: ++reads === 1 ? "running" : "exited",
+                running: reads === 1,
+                startedAt: null,
+                exitCode: reads === 1 ? null : 1,
+                checkedAt: "now",
+            },
+        });
+        host.start = async () => ({
+            ok: false,
+            failure: {
+                code: "command-failed",
+                message: "Unable to access jarfile",
+                detail: "Check the configured server archive.",
+            },
+        });
         const wrapper = await mountWith(WebConsolePanel, { serverId: "srv-1" }, host);
         try {
             await flushPromises();
-            const start = wrapper.findAll(".wl-mcserver-panel__actions button").find(b => b.text() === "Start")!;
+            const start = wrapper
+                .findAll(".wl-mcserver-panel__actions button")
+                .find((b) => b.text() === "Start")!;
             expect(start.attributes("disabled")).toBeDefined();
             await vi.advanceTimersByTimeAsync(2000);
             expect(start.attributes("disabled")).toBeUndefined();
@@ -231,7 +252,10 @@ describe("mcserver panels mount against a real store and bridge", () => {
             const last = reads;
             await vi.advanceTimersByTimeAsync(6000);
             expect(reads).toBe(last);
-        } finally { wrapper.unmount(); vi.useRealTimers(); }
+        } finally {
+            wrapper.unmount();
+            vi.useRealTimers();
+        }
     });
 
     it("offers a non-destructive back action without forgetting the server", async () => {

@@ -291,15 +291,6 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
-        file: "components/shell/AppRail.vue",
-        surface:
-            "The rail's own 'More' overflow menu, listing job shortcuts that do not fit the " +
-            "rail's fixed row.",
-        ownVMenu: true,
-        wrapsAppearanceTarget: false,
-        status: "clean",
-    },
-    {
         file: APPEARANCE_TARGET_FILE,
         surface:
             "The shared per-element 'Edit appearance...' context menu and its editor popover -- " +
@@ -628,14 +619,6 @@ const REGISTRY: readonly OverlayEntry[] = [
         file: "components/mcserver/SearchableOptionPicker.vue",
         surface:
             "The shared searchable option picker every server dropdown reuses; its search field lives inside the menu, so it must not close on a content click.",
-        ownVMenu: true,
-        wrapsAppearanceTarget: false,
-        status: "clean",
-    },
-    {
-        file: "components/mcserver/ServerConsole.vue",
-        surface:
-            "The console's own command menu, beside its search field.",
         ownVMenu: true,
         wrapsAppearanceTarget: false,
         status: "clean",

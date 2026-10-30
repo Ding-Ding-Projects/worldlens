@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiCubeOutline,
+    mdiDns,
     mdiPlay,
     mdiPlus,
     mdiRefresh,
@@ -13,16 +14,17 @@ import {
 import {
     VAlert,
     VBtn,
+    VBtnToggle,
     VCard,
     VCardText,
     VCheckbox,
     VChip,
     VIcon,
     VProgressCircular,
-    VSelect,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import ServerJobHeader from "./ServerJobHeader.vue";
 import { useServerStore } from "./useServers.js";
 import {
     filterServers,
@@ -31,6 +33,7 @@ import {
     sortServers,
     stateLabel,
     transportSummary,
+    type InstanceState,
     type ServerRecord,
     type ServerSort,
 } from "./serverModel.js";
@@ -113,7 +116,7 @@ let disposed = false;
 const monitored = new Map<string, number>();
 async function pollRunning(): Promise<void> {
     try {
-        const ids = new Set(store.servers.value.map(server => server.id));
+        const ids = new Set(store.servers.value.map((server) => server.id));
         for (const id of monitored.keys()) if (!ids.has(id)) monitored.delete(id);
         for (const server of store.servers.value) {
             if (disposed) return;
@@ -130,27 +133,126 @@ async function pollRunning(): Promise<void> {
             if (answer.value?.running) monitored.set(server.id, 0);
             else monitored.delete(server.id);
             if (answer.ok && answer.value?.state === "exited") {
-                lifecycleErrors.value.push(t("mcserver.lifecycle.exited", { name: server.name, code: answer.value.exitCode ?? "unknown" }, { default: "Server {name} exited (code {code}). Open its console or logs for details." }));
+                lifecycleErrors.value.push(
+                    t(
+                        "mcserver.lifecycle.exited",
+                        { name: server.name, code: answer.value.exitCode ?? "unknown" },
+                        {
+                            default:
+                                "Server {name} exited (code {code}). Open its console or logs for details.",
+                        },
+                    ),
+                );
             }
         }
     } finally {
-        if (!disposed) statusTimer = setTimeout(() => { void pollRunning(); }, 2000);
+        if (!disposed)
+            statusTimer = setTimeout(() => {
+                void pollRunning();
+            }, 2000);
     }
 }
 onMounted(() => {
     void refreshAll();
-    statusTimer = setTimeout(() => { void pollRunning(); }, 2000);
+    statusTimer = setTimeout(() => {
+        void pollRunning();
+    }, 2000);
 });
-onUnmounted(() => { disposed = true; clearTimeout(statusTimer); });
+onUnmounted(() => {
+    disposed = true;
+    clearTimeout(statusTimer);
+});
 
 async function refreshAll(): Promise<void> {
     await store.load();
     const records = [...store.servers.value];
     for (let offset = 0; offset < records.length; offset += 4) {
-        await Promise.allSettled(records.slice(offset, offset + 4).flatMap((server) =>
-            [store.probe(server.id), store.refreshStatus(server.id)]));
+        await Promise.allSettled(
+            records
+                .slice(offset, offset + 4)
+                .flatMap((server) => [probeOne(server.id), store.refreshStatus(server.id)]),
+        );
     }
 }
+
+/**
+ * Whether each server's host answered its last probe. Only a settled probe may put a
+ * "could not be reached" sentence on a card: before the first answer the capabilities are
+ * merely unknown, and saying the host is unreachable then would be a guess shown as a fact.
+ */
+const probeSettled = reactive<Record<string, "reachable" | "unreachable">>({});
+async function probeOne(id: string): Promise<void> {
+    try {
+        const answer = await store.probe(id);
+        probeSettled[id] =
+            answer.ok && answer.value?.reachable !== false ? "reachable" : "unreachable";
+    } catch {
+        probeSettled[id] = "unreachable";
+    }
+}
+
+/* A one-second clock, so "checked 3 s ago" is computed where it is shown, never stored. */
+const now = ref(Date.now());
+const clock = setInterval(() => {
+    now.value = Date.now();
+}, 1000);
+onUnmounted(() => clearInterval(clock));
+
+function stateOf(id: string): InstanceState | null {
+    return store.statuses[id]?.state ?? null;
+}
+function isRunning(id: string): boolean {
+    const state = stateOf(id);
+    return state === "running" || state === "paused";
+}
+/** The one lifecycle action a card offers: Stop while it runs, Start otherwise. */
+function primaryAction(id: string): "start" | "stop" {
+    return isRunning(id) ? "stop" : "start";
+}
+function blockReason(server: ServerRecord, action: "start" | "stop"): string | null {
+    return lifecycleBlockReason(
+        server,
+        store.capabilitiesFor(server.id),
+        action,
+        stateOf(server.id),
+    );
+}
+/** The sentence a card prints in the error colour: why its own lifecycle control is refused. */
+function cardNotice(server: ServerRecord): string | null {
+    if (probeSettled[server.id] === undefined) return null;
+    if (probeSettled[server.id] === "unreachable") {
+        return t(
+            "mcserver.list.hostUnreachable",
+            "The host cannot be reached, so its state is unknown rather than assumed stopped.",
+        );
+    }
+    return blockReason(server, primaryAction(server.id));
+}
+function checkedLabel(id: string): string {
+    if (probeSettled[id] === "unreachable")
+        return t("mcserver.list.unreachableShort", "host unreachable");
+    const at = Date.parse(store.statuses[id]?.checkedAt ?? "");
+    if (Number.isNaN(at)) return "";
+    const seconds = Math.max(0, Math.round((now.value - at) / 1000));
+    return seconds < 60
+        ? t("mcserver.list.checkedSeconds", { n: seconds }, "checked {n} s ago")
+        : t("mcserver.list.checkedMinutes", { n: Math.floor(seconds / 60) }, "checked {n} min ago");
+}
+function stateColor(id: string): string {
+    const state = stateOf(id);
+    if (state === "running") return "secondary-container";
+    if (state === "paused" || state === "unknown") return "tertiary-container";
+    return "surface-container-highest";
+}
+function memoryMb(server: ServerRecord): number | null {
+    return server.ref.kind === "ssh-process" ? server.ref.memoryMb : null;
+}
+
+const sortItems = computed(() => [
+    { title: t("mcserver.list.sort.name", "Name"), value: "name" as const },
+    { title: t("mcserver.list.sort.recent", "Recently changed"), value: "recent" as const },
+    { title: t("mcserver.list.sort.state", "Running first"), value: "state" as const },
+]);
 
 const filtered = computed(() =>
     sortServers(
@@ -179,11 +281,38 @@ const someSelected = computed(() => selected.value.length > 0 && !allSelected.va
 
 function toggleSelectAll(): void {
     selected.value = allSelected.value ? [] : filtered.value.map((s) => s.id);
+    rangeAnchor = null;
+}
+
+/*
+ * Shift-click selects a range, the way every list on a desktop does. The checkbox's own
+ * `click` arrives before its value update, so the modifier is captured there and spent on
+ * the update that follows. The range is taken from the list as it is currently shown -
+ * filtered and sorted - because that is the order the person is looking at.
+ */
+let rangeAnchor: string | null = null;
+let pendingShift = false;
+function noteModifier(event: MouseEvent): void {
+    pendingShift = event.shiftKey;
 }
 function toggleOne(id: string): void {
-    selected.value = selected.value.includes(id)
-        ? selected.value.filter((x) => x !== id)
-        : [...selected.value, id];
+    const extend = pendingShift;
+    pendingShift = false;
+    const order = filtered.value.map((s) => s.id);
+    const from = rangeAnchor === null ? -1 : order.indexOf(rangeAnchor);
+    const to = order.indexOf(id);
+    if (extend && from !== -1 && to !== -1) {
+        const range = order.slice(Math.min(from, to), Math.max(from, to) + 1);
+        const select = !selected.value.includes(id);
+        selected.value = select
+            ? [...new Set([...selected.value, ...range])]
+            : selected.value.filter((x) => !range.includes(x));
+    } else {
+        selected.value = selected.value.includes(id)
+            ? selected.value.filter((x) => x !== id)
+            : [...selected.value, id];
+    }
+    rangeAnchor = id;
 }
 
 const selectedRecords = computed<readonly ServerRecord[]>(() =>
@@ -207,7 +336,9 @@ async function bulkStart(): Promise<void> {
             }
         }
         await refreshAll();
-    } finally { bulkBusy.value = false; }
+    } finally {
+        bulkBusy.value = false;
+    }
 }
 
 async function bulkStop(): Promise<void> {
@@ -227,7 +358,9 @@ async function bulkStop(): Promise<void> {
             }
         }
         await refreshAll();
-    } finally { bulkBusy.value = false; }
+    } finally {
+        bulkBusy.value = false;
+    }
 }
 
 async function bulkForget(): Promise<void> {
@@ -240,24 +373,46 @@ async function bulkForget(): Promise<void> {
                 const result = await store.forget(record.id);
                 if (!result.ok) {
                     retained.push(record.id);
-                    lifecycleErrors.value.push(`${record.name}: ${result.failure?.message ?? t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.")}`);
+                    lifecycleErrors.value.push(
+                        `${record.name}: ${result.failure?.message ?? t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.")}`,
+                    );
                 }
             } catch {
                 retained.push(record.id);
-                lifecycleErrors.value.push(t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again."));
+                lifecycleErrors.value.push(
+                    t(
+                        "mcserver.lifecycle.incomplete",
+                        "The server operation did not complete. Check its status and try again.",
+                    ),
+                );
             }
         }
         selected.value = retained;
-    } finally { bulkBusy.value = false; }
+    } finally {
+        bulkBusy.value = false;
+    }
 }
 
 async function lifecycle(id: string, action: "start" | "stop"): Promise<void> {
     try {
-        const result = action === "start" ? await store.start(id) : await store.stop(id, { graceful: true });
-        if (!result.ok) lifecycleErrors.value.push(`${id}: ${result.failure?.message ?? t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.")}${result.failure?.detail ? ` ${result.failure.detail}` : ""}`);
+        const result =
+            action === "start" ? await store.start(id) : await store.stop(id, { graceful: true });
+        if (!result.ok)
+            lifecycleErrors.value.push(
+                `${id}: ${result.failure?.message ?? t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again.")}${result.failure?.detail ? ` ${result.failure.detail}` : ""}`,
+            );
     } catch {
-        lifecycleErrors.value.push(t("mcserver.lifecycle.incomplete", "The server operation did not complete. Check its status and try again."));
+        lifecycleErrors.value.push(
+            t(
+                "mcserver.lifecycle.incomplete",
+                "The server operation did not complete. Check its status and try again.",
+            ),
+        );
     }
+}
+async function lifecycleOne(id: string): Promise<void> {
+    if (primaryAction(id) === "stop") await stopOne(id);
+    else await startOne(id);
 }
 async function startOne(id: string): Promise<void> {
     lifecycleErrors.value = [];
@@ -273,15 +428,21 @@ async function stopOne(id: string): Promise<void> {
 
 <template>
     <div class="wl-mcserver-list">
-        <VAlert v-if="lifecycleErrors.length" type="error" role="alert" closable @click:close="lifecycleErrors = []">{{ lifecycleErrors.join("; ") }}</VAlert>
-        <div class="wl-mcserver-list__header">
-            <div class="text-h6" data-test="mcserver-list-heading" tabindex="-1">
-                {{ t("mcserver.list.title", "Minecraft servers") }}
-            </div>
-            <div class="wl-mcserver-list__actions">
+        <VAlert
+            v-if="lifecycleErrors.length"
+            type="error"
+            role="alert"
+            closable
+            class="mb-4"
+            @click:close="lifecycleErrors = []"
+            >{{ lifecycleErrors.join("; ") }}</VAlert
+        >
+        <ServerJobHeader>
+            <template #actions>
                 <VBtn
                     :prepend-icon="mdiRefresh"
                     variant="text"
+                    color="primary"
                     :disabled="!store.canList"
                     :title="
                         !store.canList
@@ -299,6 +460,7 @@ async function stopOne(id: string): Promise<void> {
                     v-if="store.hasAdopt"
                     :prepend-icon="mdiCubeOutline"
                     variant="text"
+                    color="primary"
                     @click="emit('adopt')"
                 >
                     {{ t("mcserver.list.adopt", "Adopt an existing container") }}
@@ -307,14 +469,15 @@ async function stopOne(id: string): Promise<void> {
                     v-if="store.hasHostProfiles"
                     :prepend-icon="mdiServerNetwork"
                     variant="text"
+                    color="primary"
                     @click="emit('hostProfile')"
                 >
                     {{ t("mcserver.list.hostProfile", "Add SSH host") }}
                 </VBtn>
                 <VBtn
                     :prepend-icon="mdiPlus"
-                    color="primary"
-                    variant="tonal"
+                    color="primary-container"
+                    variant="flat"
                     :disabled="!store.canList"
                     :title="
                         !store.canList
@@ -328,8 +491,8 @@ async function stopOne(id: string): Promise<void> {
                 >
                     {{ t("mcserver.list.create", "New server") }}
                 </VBtn>
-            </div>
-        </div>
+            </template>
+        </ServerJobHeader>
 
         <VAlert v-if="!store.canList" type="info" variant="tonal" class="mb-4">
             {{
@@ -359,26 +522,29 @@ async function stopOne(id: string): Promise<void> {
                     v-model:flags="flags"
                     :label="t('mcserver.list.search', 'Search servers')"
                     :sample="sampleText"
+                    density="comfortable"
                     class="wl-mcserver-list__search"
                 />
-                <VSelect
+                <VBtnToggle
                     v-model="sort"
-                    :items="[
-                        { title: t('mcserver.list.sort.name', 'Name'), value: 'name' },
-                        {
-                            title: t('mcserver.list.sort.recent', 'Recently changed'),
-                            value: 'recent',
-                        },
-                        { title: t('mcserver.list.sort.state', 'Running first'), value: 'state' },
-                    ]"
-                    :label="t('mcserver.list.sortLabel', 'Sort by')"
-                    density="compact"
-                    hide-details
+                    mandatory
                     class="wl-mcserver-list__sort"
-                />
+                    :aria-label="t('mcserver.list.sortLabel', 'Sort by')"
+                >
+                    <VBtn
+                        v-for="item in sortItems"
+                        :key="item.value"
+                        :value="item.value"
+                        :variant="sort === item.value ? 'flat' : 'outlined'"
+                        :color="sort === item.value ? 'primary-container' : 'on-surface-variant'"
+                        :aria-pressed="sort === item.value"
+                    >
+                        {{ item.title }}
+                    </VBtn>
+                </VBtnToggle>
             </div>
 
-            <div v-if="filtered.length > 0" class="wl-mcserver-list__bulkbar">
+            <VCard v-if="filtered.length > 0" variant="outlined" class="wl-mcserver-list__bulkbar">
                 <VCheckbox
                     :model-value="allSelected"
                     :indeterminate="someSelected"
@@ -389,56 +555,59 @@ async function stopOne(id: string): Promise<void> {
                     "
                     @update:model-value="toggleSelectAll"
                 />
-                <template v-if="selected.length > 0">
-                    <span class="text-caption text-medium-emphasis">{{
-                        t("mcserver.list.selectedCount", { n: selected.length }, "{n} selected")
-                    }}</span>
-                    <VBtn
-                        size="small"
-                        variant="text"
-                        :prepend-icon="mdiPlay"
-                        :loading="bulkBusy"
-                        @click="bulkStart"
-                    >
-                        {{ t("mcserver.list.bulkStart", "Start") }}
-                    </VBtn>
-                    <VBtn
-                        size="small"
-                        variant="text"
-                        :prepend-icon="mdiStop"
-                        :loading="bulkBusy"
-                        @click="bulkStop"
-                    >
-                        {{ t("mcserver.list.bulkStop", "Stop") }}
-                    </VBtn>
-                    <ConfigSuperConfirm
-                        :title="t('mcserver.list.bulkForgetTitle', 'Forget the selected servers')"
-                        :action="
-                            t(
-                                'mcserver.list.bulkForgetAction',
-                                { n: selected.length },
-                                'Remove {n} server(s) from this app. Their containers, folders, and worlds are never deleted.',
-                            )
-                        "
-                        :affected="selectedRecords.map((r) => r.name)"
-                        :confirm-label="t('mcserver.list.bulkForgetConfirm', 'Forget them')"
-                        :disabled="bulkBusy"
-                        @confirm="bulkForget"
-                    >
-                        <template #activator="{ props: activatorProps }">
-                            <VBtn
-                                v-bind="activatorProps"
-                                size="small"
-                                variant="text"
-                                color="error"
-                                :prepend-icon="mdiTrashCanOutline"
-                            >
-                                {{ t("mcserver.list.bulkForget", "Forget") }}
-                            </VBtn>
-                        </template>
-                    </ConfigSuperConfirm>
-                </template>
-            </div>
+                <span v-if="selected.length > 0" class="wl-mcserver-list__selected">{{
+                    t("mcserver.list.selectedCount", { n: selected.length }, "{n} selected")
+                }}</span>
+                <span class="wl-mcserver-list__spacer" />
+                <VBtn
+                    size="small"
+                    variant="text"
+                    color="primary"
+                    :prepend-icon="mdiPlay"
+                    :loading="bulkBusy"
+                    :disabled="selected.length === 0"
+                    @click="bulkStart"
+                >
+                    {{ t("mcserver.list.bulkStart", "Start") }}
+                </VBtn>
+                <VBtn
+                    size="small"
+                    variant="text"
+                    color="primary"
+                    :prepend-icon="mdiStop"
+                    :loading="bulkBusy"
+                    :disabled="selected.length === 0"
+                    @click="bulkStop"
+                >
+                    {{ t("mcserver.list.bulkStop", "Stop") }}
+                </VBtn>
+                <ConfigSuperConfirm
+                    :title="t('mcserver.list.bulkForgetTitle', 'Forget the selected servers')"
+                    :action="
+                        t(
+                            'mcserver.list.bulkForgetAction',
+                            { n: selected.length },
+                            'Remove {n} server(s) from this app. Their containers, folders, and worlds are never deleted.',
+                        )
+                    "
+                    :affected="selectedRecords.map((r) => r.name)"
+                    :confirm-label="t('mcserver.list.bulkForgetConfirm', 'Forget them')"
+                    :disabled="bulkBusy || selected.length === 0"
+                    @confirm="bulkForget"
+                >
+                    <template #activator="{ props: activatorProps }">
+                        <VBtn
+                            v-bind="activatorProps"
+                            size="small"
+                            variant="text"
+                            color="error"
+                            :prepend-icon="mdiTrashCanOutline"
+                        >
+                            {{ t("mcserver.list.bulkForget", "Forget") }}
+                        </VBtn>
+                    </template>
+                </ConfigSuperConfirm>
+            </VCard>
 
             <VAlert v-if="filtered.length === 0" type="info" variant="tonal">
                 {{
@@ -462,6 +631,7 @@ async function stopOne(id: string): Promise<void> {
                                 :model-value="selected.includes(server.id)"
                                 density="compact"
                                 hide-details
+                                class="wl-mcserver-card__check"
                                 :aria-label="
                                     t(
                                         'mcserver.list.selectOne',
@@ -469,15 +639,17 @@ async function stopOne(id: string): Promise<void> {
                                         'Select {name}',
                                     )
                                 "
+                                @click.capture="noteModifier"
                                 @update:model-value="toggleOne(server.id)"
                                 @click.stop
                             />
-                            <VIcon :icon="mdiServerNetwork" />
+                            <VIcon :icon="mdiDns" size="20" class="wl-mcserver-card__icon" />
                             <VBtn
                                 class="wl-mcserver-card__title"
                                 :ref="(element) => setServerControlRef(element, server.id)"
                                 :data-server-control="server.id"
                                 variant="text"
+                                color="primary"
                                 :ripple="false"
                                 @click="emit('open', server.id)"
                             >
@@ -485,88 +657,131 @@ async function stopOne(id: string): Promise<void> {
                             </VBtn>
                             <VChip
                                 size="small"
-                                :color="stateLabel(store.statuses[server.id]?.state ?? null).color"
+                                :color="stateColor(server.id)"
                                 variant="flat"
+                                class="wl-mcserver-card__state"
                             >
-                                {{ stateLabel(store.statuses[server.id]?.state ?? null).text }}
+                                {{ stateLabel(stateOf(server.id)).text }}
                             </VChip>
                         </div>
-                        <div class="text-caption text-medium-emphasis">
+                        <div class="wl-mcserver-card__meta">
                             {{ flavourName(server.flavour) }}
                             <span v-if="server.minecraftVersion">
                                 &middot; {{ server.minecraftVersion }}</span
                             >
                             &middot; {{ transportSummary(server) }}
-                            <span v-if="server.rconPort">
-                                &middot;
-                                {{
-                                    t("mcserver.list.port", { p: server.rconPort }, "port {p}")
-                                }}</span
+                        </div>
+                        <div class="wl-mcserver-card__chips">
+                            <VChip
+                                v-if="memoryMb(server) !== null"
+                                size="small"
+                                variant="outlined"
+                                class="wl-mcserver-card__chip"
                             >
-                            <span v-if="server.origin === 'adopted'">
-                                &middot;
+                                {{ memoryMb(server) }} MB
+                            </VChip>
+                            <VChip size="small" variant="outlined" class="wl-mcserver-card__chip">
+                                <template v-if="server.rconPort">
+                                    {{
+                                        t("mcserver.list.port", { p: server.rconPort }, "rcon {p}")
+                                    }}
+                                    &middot;
+                                </template>
+                                {{
+                                    server.hasRconSecret
+                                        ? t("mcserver.list.secretHeld", "secret held")
+                                        : t("mcserver.list.noSecret", "no rcon secret")
+                                }}
+                            </VChip>
+                            <VChip
+                                v-if="server.origin === 'adopted'"
+                                size="small"
+                                color="tertiary-container"
+                                variant="flat"
+                            >
                                 {{ t("mcserver.list.adopted", "adopted, not created here") }}
-                            </span>
+                                <template v-if="server.writeScope.length > 0">
+                                    &middot; {{ server.writeScope.join(", ") }}
+                                </template>
+                            </VChip>
                         </div>
                         <div class="wl-mcserver-card__actions">
                             <VBtn
                                 size="small"
-                                variant="tonal"
-                                :prepend-icon="mdiPlay"
-                                :disabled="
-                                    lifecycleBlockReason(
-                                        server,
-                                        store.capabilitiesFor(server.id),
-                                        'start',
-                                        store.statuses[server.id]?.state ?? null,
-                                    ) !== null
+                                :variant="
+                                    primaryAction(server.id) === 'start' &&
+                                    blockReason(server, 'start') === null
+                                        ? 'flat'
+                                        : 'outlined'
                                 "
-                                :title="
-                                    lifecycleBlockReason(
-                                        server,
-                                        store.capabilitiesFor(server.id),
-                                        'start',
-                                        store.statuses[server.id]?.state ?? null,
-                                    ) ?? undefined
+                                :color="
+                                    primaryAction(server.id) === 'start' &&
+                                    blockReason(server, 'start') === null
+                                        ? 'primary-container'
+                                        : 'on-surface'
                                 "
-                                @click="startOne(server.id)"
+                                :prepend-icon="
+                                    primaryAction(server.id) === 'stop' ? mdiStop : mdiPlay
+                                "
+                                :disabled="blockReason(server, primaryAction(server.id)) !== null"
+                                :title="blockReason(server, primaryAction(server.id)) ?? undefined"
+                                @click="lifecycleOne(server.id)"
                             >
-                                {{ t("mcserver.list.start", "Start") }}
+                                {{
+                                    primaryAction(server.id) === "stop"
+                                        ? t("mcserver.list.stop", "Stop")
+                                        : t("mcserver.list.start", "Start")
+                                }}
+                            </VBtn>
+                            <!--
+                                The other lifecycle action, only while it is genuinely available
+                                too: a paused or unknown server may be both started and stopped,
+                                and hiding one of those would take an action away.
+                            -->
+                            <VBtn
+                                v-if="
+                                    blockReason(
+                                        server,
+                                        primaryAction(server.id) === 'stop' ? 'start' : 'stop',
+                                    ) === null
+                                "
+                                size="small"
+                                variant="outlined"
+                                color="on-surface"
+                                :prepend-icon="
+                                    primaryAction(server.id) === 'stop' ? mdiPlay : mdiStop
+                                "
+                                @click="
+                                    primaryAction(server.id) === 'stop'
+                                        ? startOne(server.id)
+                                        : stopOne(server.id)
+                                "
+                            >
+                                {{
+                                    primaryAction(server.id) === "stop"
+                                        ? t("mcserver.list.start", "Start")
+                                        : t("mcserver.list.stop", "Stop")
+                                }}
                             </VBtn>
                             <VBtn
                                 size="small"
-                                variant="tonal"
-                                :prepend-icon="mdiStop"
-                                :disabled="
-                                    lifecycleBlockReason(
-                                        server,
-                                        store.capabilitiesFor(server.id),
-                                        'stop',
-                                        store.statuses[server.id]?.state ?? null,
-                                    ) !== null
-                                "
-                                :title="
-                                    lifecycleBlockReason(
-                                        server,
-                                        store.capabilitiesFor(server.id),
-                                        'stop',
-                                        store.statuses[server.id]?.state ?? null,
-                                    ) ?? undefined
-                                "
-                                @click="stopOne(server.id)"
-                            >
-                                {{ t("mcserver.list.stop", "Stop") }}
-                            </VBtn>
-                            <VBtn
-                                size="small"
-                                variant="text"
+                                variant="outlined"
+                                color="primary"
+                                class="wl-mcserver-card__open"
                                 :ref="(element) => setServerControlRef(element, server.id)"
                                 :data-server-control="server.id"
                                 @click="emit('open', server.id)"
                             >
-                                {{ t("mcserver.list.manage", "Manage") }}
+                                {{ t("mcserver.list.manage", "Open") }}
                             </VBtn>
+                            <span class="wl-mcserver-list__spacer" />
+                            <span class="wl-mcserver-card__checked">{{
+                                checkedLabel(server.id)
+                            }}</span>
                         </div>
+                        <p v-if="cardNotice(server)" class="wl-mcserver-card__notice">
+                            {{ cardNotice(server) }}
+                        </p>
                     </VCardText>
                 </VCard>
             </div>
@@ -576,54 +791,51 @@ async function stopOne(id: string): Promise<void> {
 
 <style scoped>
 /*
- * The page's own margins, which this screen simply never had.
- *
- * Every sibling destination pads itself: `CataloguePage.vue` uses 48px inline, dropping to
- * 20px on a narrow window. This one had no rule for its root at all, so its content ran flush
- * to both edges of the shell. Measured on the packaged app at a 1400px viewport, the "New
- * server" button occupied 1258 to 1400: its right edge was exactly the window edge, with the
- * title jammed against the navigation rail on the other side. It read as a screen that had
- * overflowed, and clicks near the edge of that button had nowhere to land.
- *
- * Matching the catalogue's numbers rather than inventing new ones, so the two destinations
- * line up when somebody moves between them.
+ * Measurements read from `Worldlens.dc.html`'s Minecraft servers job: a 26px/40px page inset,
+ * a 44px icon tile beside a 24px title, a 46px search row with a segmented sort beside it, a
+ * bulk bar card and two fixed columns of 16px-cornered server cards.
  */
 .wl-mcserver-list {
-    padding: 18px 48px 48px;
+    padding: 26px 40px 44px;
 }
 
 @media (max-width: 720px) {
     .wl-mcserver-list {
-        padding-inline: 20px;
+        padding-inline: 16px;
     }
 }
 
-.wl-mcserver-list__header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-}
-.wl-mcserver-list__actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
 .wl-mcserver-list__toolbar {
     display: flex;
     gap: 12px;
     align-items: flex-start;
     flex-wrap: wrap;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 .wl-mcserver-list__search {
     flex: 1 1 320px;
     min-width: 240px;
 }
-.wl-mcserver-list__sort {
-    max-width: 220px;
+/*
+ * The prototype's sort control is a row of separate 12px-cornered outlined buttons with 6px
+ * between them, the chosen one filled - a segmented choice whose segments do not touch.
+ */
+.wl-mcserver-list .wl-mcserver-list__sort {
+    block-size: 48px;
+    gap: 6px;
+    flex: 0 0 auto;
+    border-radius: 0;
+    overflow: visible;
+}
+.wl-mcserver-list .wl-mcserver-list__sort :deep(.v-btn) {
+    block-size: 48px;
+    min-block-size: 48px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    padding-inline: 16px;
+    font-weight: 400;
+}
+.wl-mcserver-list .wl-mcserver-list__sort :deep(.v-btn--variant-outlined) {
+    border: 1px solid rgb(var(--v-theme-outline-variant));
 }
 .wl-mcserver-list__loading {
     display: flex;
@@ -631,12 +843,21 @@ async function stopOne(id: string): Promise<void> {
     gap: 10px;
     padding: 24px 0;
 }
-.wl-mcserver-list__bulkbar {
+.wl-mcserver-list .wl-mcserver-list__bulkbar {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex-wrap: wrap;
-    margin-bottom: 8px;
+    padding: 4px 14px 4px 6px;
+    margin-bottom: 14px;
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+.wl-mcserver-list__selected {
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-mcserver-list__spacer {
+    flex: 1 1 auto;
 }
 .wl-mcserver-list__grid {
     display: grid;
@@ -645,10 +866,8 @@ async function stopOne(id: string): Promise<void> {
      * this project already decided once before. An auto-fill grid re-flows on a few pixels of
      * window width, so a list of five servers flips between three-and-two and two-and-three
      * while somebody is dragging the window edge, and every card changes size and position
-     * under the pointer. The same reasoning is recorded for the Home catalogue grid.
-     *
-     * One column below the narrow breakpoint, because two 280px cards genuinely do not fit
-     * and the alternative is clipped text, which no amount of design fidelity is worth.
+     * under the pointer. One column below the narrow breakpoint, because two 280px cards
+     * genuinely do not fit and the alternative is clipped text.
      */
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
@@ -660,43 +879,85 @@ async function stopOne(id: string): Promise<void> {
     }
 }
 
-.wl-mcserver-card {
-    /*
-     * The design file gives these cards a filled surface-container background rather than the
-     * transparent one `variant="outlined"` leaves behind. On the dark scheme a transparent
-     * card over the page background is a rectangle of hairline with nothing inside it, which
-     * is why the list read as a wireframe rather than as a set of objects.
-     */
+.wl-mcserver-list .wl-mcserver-card {
     background: rgb(var(--v-theme-surface-container));
+    border-radius: var(--md-sys-shape-corner-large);
 }
-.wl-mcserver-card__body {
+.wl-mcserver-list .wl-mcserver-card__body {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    padding: 12px 18px 16px 8px;
 }
 .wl-mcserver-card__top {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
 }
-.wl-mcserver-card__title {
-    background: transparent;
-    border: none;
-    font-weight: 600;
-    cursor: pointer;
-    text-align: left;
-    flex: 1;
-    padding: 0;
-    min-height: 44px;
+.wl-mcserver-card__check {
+    flex: 0 0 auto;
+}
+.wl-mcserver-card__icon {
+    color: rgb(var(--v-theme-on-surface-variant));
+    margin-inline-end: 4px;
+}
+.wl-mcserver-list .wl-mcserver-card__title {
+    flex: 1 1 auto;
+    justify-content: flex-start;
+    min-inline-size: 0;
+    min-block-size: 40px;
+    padding-inline: 4px;
+    font-size: var(--md-sys-typescale-body-large-size);
+    font-weight: 500;
+}
+.wl-mcserver-card__title :deep(.v-btn__content) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.wl-mcserver-card__state {
+    flex: 0 0 auto;
+}
+.wl-mcserver-card__meta,
+.wl-mcserver-card__chips,
+.wl-mcserver-card__actions,
+.wl-mcserver-card__notice {
+    margin-inline-start: 10px;
+}
+.wl-mcserver-card__meta {
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 18px;
+    color: rgb(var(--v-theme-outline));
+}
+.wl-mcserver-card__chips {
     display: flex;
-    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
 }
-.wl-mcserver-card--selected {
-    border-color: rgb(var(--v-theme-primary));
+.wl-mcserver-card__chip {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    color: rgb(var(--v-theme-on-surface-variant));
+    border-color: rgb(var(--v-theme-outline-variant));
 }
 .wl-mcserver-card__actions {
     display: flex;
-    gap: 6px;
+    align-items: center;
+    gap: 8px;
     flex-wrap: wrap;
+    margin-top: 14px;
+}
+.wl-mcserver-card__checked {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-label-small-size);
+    color: rgb(var(--v-theme-outline));
+}
+.wl-mcserver-list .wl-mcserver-card__notice {
+    margin-top: 10px;
+    margin-bottom: 0;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 18px;
+    color: rgb(var(--v-theme-error));
+}
+.wl-mcserver-list .wl-mcserver-card--selected {
+    border-color: rgb(var(--v-theme-primary));
 }
 </style>

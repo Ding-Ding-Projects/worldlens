@@ -1,18 +1,16 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiContentCopy, mdiDownload, mdiHammerWrench, mdiRefresh, mdiSend } from "@mdi/js";
 import {
-    VAlert,
-    VBtn,
-    VCard,
-    VCardText,
-    VChip,
-    VMenu,
-    VList,
-    VListItem,
-    VTextField,
-} from "vuetify/components";
+    mdiArrowCollapseDown,
+    mdiContentCopy,
+    mdiDownload,
+    mdiFlash,
+    mdiHammerWrench,
+    mdiRefresh,
+    mdiSend,
+} from "@mdi/js";
+import { VAlert, VBtn, VBtnToggle, VCard, VCardText, VChip, VTextField } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import CommandBuilder from "./CommandBuilder.vue";
 import { useServerStore } from "./useServers.js";
@@ -200,8 +198,15 @@ const sampleText = computed(() => lines.value.map((l) => l.text).join("\n"));
 
 function colourFor(stream: ConsoleLine["stream"]): string {
     if (stream === "stderr") return "error";
-    if (stream === "app") return "info";
+    if (stream === "app") return "primary";
     return "";
+}
+
+/** The line's own clock time, HH:MM:SS, or nothing when the host sent no parseable time. */
+function timeOf(at: string): string {
+    const parsed = new Date(at);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toTimeString().slice(0, 8);
 }
 
 const sendReason = computed<string | null>(() => {
@@ -293,40 +298,29 @@ function exportTranscript(): void {
                 :sample="sampleText"
                 class="wl-mcserver-console__search"
             />
-            <VMenu>
-                <template #activator="{ props: menuProps }">
-                    <VBtn v-bind="menuProps" variant="text" size="small">
-                        {{ t("mcserver.console.level", { level: levelFilter }, "Level: {level}") }}
-                    </VBtn>
-                </template>
-                <VList>
-                    <VListItem
-                        v-for="level in ['all', 'stdout', 'stderr', 'app'] as const"
-                        :key="level"
-                        @click="levelFilter = level"
-                    >
-                        {{ level }}
-                    </VListItem>
-                </VList>
-            </VMenu>
-            <VBtn :prepend-icon="mdiRefresh" variant="text" size="small" @click="fillFromTail">
-                {{ t("mcserver.console.refresh", "Refresh") }}
-            </VBtn>
-            <VBtn
-                :prepend-icon="mdiContentCopy"
-                variant="text"
-                size="small"
-                @click="copyTranscript"
+            <VBtnToggle
+                v-model="levelFilter"
+                mandatory
+                class="wl-mcserver-console__levels"
+                :aria-label="t('mcserver.console.level', { level: levelFilter }, 'Level: {level}')"
             >
-                {{ t("mcserver.console.copy", "Copy") }}
-            </VBtn>
-            <VBtn :prepend-icon="mdiDownload" variant="text" size="small" @click="exportTranscript">
-                {{ t("mcserver.console.export", "Export") }}
-            </VBtn>
+                <VBtn
+                    v-for="level in ['all', 'stdout', 'stderr', 'app'] as const"
+                    :key="level"
+                    :value="level"
+                    :variant="levelFilter === level ? 'flat' : 'outlined'"
+                    :color="levelFilter === level ? 'primary-container' : 'on-surface-variant'"
+                    :aria-pressed="levelFilter === level"
+                >
+                    {{ level }}
+                </VBtn>
+            </VBtnToggle>
             <VBtn
-                variant="text"
-                size="small"
-                :color="follow ? 'primary' : undefined"
+                class="wl-mcserver-console__tool"
+                :prepend-icon="mdiArrowCollapseDown"
+                variant="outlined"
+                :color="follow ? 'primary' : 'on-surface-variant'"
+                :aria-pressed="follow"
                 @click="follow = !follow"
             >
                 {{
@@ -336,25 +330,37 @@ function exportTranscript(): void {
                 }}
             </VBtn>
             <VBtn
-                :prepend-icon="mdiHammerWrench"
-                variant="text"
-                size="small"
-                @click="builderOpen = true"
-            >
-                {{ t("mcserver.console.openCommandBuilder", "Command builder") }}
-            </VBtn>
-            <VChip size="small" :color="rcon?.ok ? 'success' : 'warning'" :title="rcon?.message">
-                {{
-                    rcon?.ok
-                        ? t("mcserver.console.rconUp", "RCON reachable")
-                        : t("mcserver.console.rconDown", "RCON not reachable")
-                }}
-            </VChip>
+                class="wl-mcserver-console__icon"
+                :icon="mdiRefresh"
+                variant="outlined"
+                color="on-surface-variant"
+                :aria-label="t('mcserver.console.refresh', 'Refresh')"
+                :title="t('mcserver.console.refresh', 'Refresh')"
+                @click="fillFromTail"
+            />
+            <VBtn
+                class="wl-mcserver-console__icon"
+                :icon="mdiContentCopy"
+                variant="outlined"
+                color="on-surface-variant"
+                :aria-label="t('mcserver.console.copy', 'Copy')"
+                :title="t('mcserver.console.copy', 'Copy')"
+                @click="copyTranscript"
+            />
+            <VBtn
+                class="wl-mcserver-console__icon"
+                :icon="mdiDownload"
+                variant="outlined"
+                color="on-surface-variant"
+                :aria-label="t('mcserver.console.export', 'Export')"
+                :title="t('mcserver.console.export', 'Export')"
+                @click="exportTranscript"
+            />
         </div>
-        <VAlert v-if="failure" type="warning" variant="tonal" class="mb-2">{{ failure }}</VAlert>
-        <VCard variant="outlined">
+        <VAlert v-if="failure" type="warning" variant="tonal" class="mb-3">{{ failure }}</VAlert>
+        <VCard variant="outlined" class="wl-mcserver-console__card">
             <VCardText ref="logRef" class="wl-mcserver-console__log" role="log" aria-live="polite">
-                <div v-if="filteredLines.length === 0" class="text-medium-emphasis">
+                <div v-if="filteredLines.length === 0" class="wl-mcserver-console__empty">
                     {{ t("mcserver.console.empty", "No log lines yet.") }}
                 </div>
                 <div
@@ -362,23 +368,41 @@ function exportTranscript(): void {
                     :key="index"
                     class="wl-mcserver-console__line"
                 >
-                    <VChip size="x-small" :color="colourFor(line.stream)" variant="text">{{
-                        line.stream
-                    }}</VChip>
-                    {{ line.text }}
+                    <span class="wl-mcserver-console__at">{{ timeOf(line.at) }}</span>
+                    <span class="wl-mcserver-console__stream">{{ line.stream }}</span>
+                    <span
+                        class="wl-mcserver-console__text"
+                        :class="colourFor(line.stream) ? `text-${colourFor(line.stream)}` : ''"
+                        >{{ line.text }}</span
+                    >
                 </div>
             </VCardText>
         </VCard>
 
         <form class="wl-mcserver-console__input" @submit.prevent="send">
+            <VChip
+                size="small"
+                :color="rcon?.ok ? 'secondary-container' : 'tertiary-container'"
+                variant="flat"
+                :prepend-icon="mdiFlash"
+                :title="rcon?.message"
+            >
+                {{
+                    rcon?.ok
+                        ? t("mcserver.console.rconUp", "RCON reachable")
+                        : t("mcserver.console.rconDown", "RCON not reachable")
+                }}
+            </VChip>
             <VTextField
                 v-model="command"
                 :label="t('mcserver.console.command', 'Command')"
                 :disabled="!!sendReason || sending"
                 :title="sendReason ?? undefined"
-                density="compact"
+                prefix="/"
+                variant="outlined"
                 hide-details
                 autocomplete="off"
+                class="wl-mcserver-console__command"
                 @keydown.up.prevent="historyUp"
                 @keydown.down.prevent="historyDown"
                 @keydown.tab.prevent="
@@ -386,21 +410,45 @@ function exportTranscript(): void {
                 "
             />
             <VBtn
+                class="wl-mcserver-console__tool"
+                :prepend-icon="mdiHammerWrench"
+                variant="outlined"
+                color="primary"
+                @click="builderOpen = true"
+            >
+                {{ t("mcserver.console.openCommandBuilder", "Command builder") }}
+            </VBtn>
+            <VBtn
+                class="wl-mcserver-console__tool"
                 type="submit"
                 :prepend-icon="mdiSend"
-                color="primary"
-                variant="tonal"
+                color="primary-container"
+                variant="flat"
                 :disabled="!!sendReason || sending || command.trim() === ''"
                 :title="sendReason ?? undefined"
             >
                 {{ t("mcserver.console.send", "Send") }}
             </VBtn>
         </form>
-        <div
-            v-if="completions.length > 0"
-            class="wl-mcserver-console__completions text-caption text-medium-emphasis"
-        >
-            {{ completions.join(", ") }}
+        <p v-if="sendReason" class="wl-mcserver-console__reason">{{ sendReason }}</p>
+        <div class="wl-mcserver-console__completions">
+            <VChip
+                v-for="completion in completions"
+                :key="completion"
+                size="small"
+                variant="outlined"
+                class="wl-mcserver-console__completion"
+                @click="command = completion + ' '"
+            >
+                {{ completion }}
+            </VChip>
+            <span class="wl-mcserver-console__spacer" />
+            <span class="wl-mcserver-console__hint">{{
+                t(
+                    "mcserver.console.historyHint",
+                    "Up and down walk the history. Detaching the session never touches the server.",
+                )
+            }}</span>
         </div>
         <CommandBuilder
             v-model="builderOpen"
@@ -411,30 +459,112 @@ function exportTranscript(): void {
 </template>
 
 <style scoped>
+/* `Worldlens.dc.html`'s console tab: a 42px tool row, a mono transcript, a 46px command row. */
 .wl-mcserver-console__toolbar {
     display: flex;
-    gap: 12px;
+    gap: 10px;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
     flex-wrap: wrap;
 }
 .wl-mcserver-console__search {
     flex: 1 1 260px;
 }
-.wl-mcserver-console__log {
-    font-family: monospace;
+.wl-mcserver-console .wl-mcserver-console__levels {
+    block-size: 44px;
+    gap: 6px;
+    border-radius: 0;
+    overflow: visible;
+}
+.wl-mcserver-console .wl-mcserver-console__levels :deep(.v-btn) {
+    block-size: 44px;
+    min-block-size: 44px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    padding-inline: 14px;
+    font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: var(--md-sys-typescale-body-small-size);
-    max-height: 420px;
+    font-weight: 400;
+}
+.wl-mcserver-console .wl-mcserver-console__levels :deep(.v-btn--variant-outlined),
+.wl-mcserver-console .wl-mcserver-console__icon {
+    border-color: rgb(var(--v-theme-outline-variant));
+}
+.wl-mcserver-console .wl-mcserver-console__tool {
+    min-block-size: 44px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    padding-inline: 14px;
+}
+.wl-mcserver-console .wl-mcserver-console__icon {
+    inline-size: 44px;
+    block-size: 44px;
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+.wl-mcserver-console .wl-mcserver-console__card {
+    background: rgb(var(--v-theme-background));
+    border-radius: var(--md-sys-shape-corner-large);
+}
+.wl-mcserver-console .wl-mcserver-console__log {
+    padding: 14px 16px;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 20px;
+    block-size: 300px;
+    min-block-size: 160px;
+    resize: vertical;
     overflow-y: auto;
+}
+.wl-mcserver-console__line {
+    display: flex;
+    gap: 12px;
+}
+.wl-mcserver-console__at {
+    flex: 0 0 62px;
+    color: rgb(var(--v-theme-outline));
+}
+.wl-mcserver-console__stream {
+    flex: 0 0 58px;
+    color: rgb(var(--v-theme-outline));
+}
+.wl-mcserver-console__text {
+    flex: 1 1 auto;
+    min-inline-size: 0;
     white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.wl-mcserver-console__empty {
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 .wl-mcserver-console__input {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     align-items: center;
-    margin-top: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
 }
-.wl-mcserver-console__input :deep(.v-input) {
+.wl-mcserver-console__command {
+    flex: 1 1 240px;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+}
+.wl-mcserver-console__reason {
+    margin: 6px 0 0;
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+.wl-mcserver-console__completions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+.wl-mcserver-console__completion {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+}
+.wl-mcserver-console__spacer {
     flex: 1 1 auto;
+}
+.wl-mcserver-console__hint {
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-outline));
 }
 </style>
