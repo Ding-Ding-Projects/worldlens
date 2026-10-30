@@ -3,10 +3,15 @@ import { computed, onBeforeUnmount, onMounted, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import {
     mdiAlertCircleOutline,
+    mdiCancel,
     mdiCheckboxMultipleMarkedOutline,
+    mdiCheckCircleOutline,
+    mdiChevronDown,
+    mdiChevronUp,
     mdiCloudSyncOutline,
     mdiConsoleLine,
     mdiDocker,
+    mdiDotsHorizontalCircleOutline,
     mdiLaptop,
     mdiLoading,
     mdiSelectOff,
@@ -17,13 +22,12 @@ import {
     VAlert,
     VBtn,
     VCard,
-    VCardText,
     VChip,
     VCheckbox,
-    VDivider,
     VExpandTransition,
     VIcon,
     VProgressCircular,
+    VProgressLinear,
 } from "vuetify/components";
 import AppearanceTarget from "../appearance/AppearanceTarget.vue";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -34,6 +38,8 @@ import { createCiRenders } from "../cirender/ciRenders.js";
 import type { CiRenderBridge } from "../cirender/ciRenderBridge.js";
 import { resolveCiRenderBridge } from "../cirender/ciRenderBridge.js";
 import RenderProgressDetail from "../progress/RenderProgressDetail.vue";
+import RepairOffer from "../repair/RepairOffer.vue";
+import type { RepairBridge } from "../repair/repairBridge.js";
 import { formatPercent } from "../progress/format.js";
 import type { ContainerOffersBridge } from "../world/containerOffers.js";
 import type { WorldBridge } from "../world/worldBridge.js";
@@ -67,6 +73,8 @@ const props = defineProps<{
     worldBridge?: WorldBridge | null;
     containerOffersBridge?: ContainerOffersBridge | null;
     ciRenderBridge?: CiRenderBridge | null;
+    /** The repair offer's bridge; left out it is probed, `null` means there is none. */
+    repairBridge?: RepairBridge | null;
 }>();
 
 const emit = defineEmits<{
@@ -142,6 +150,62 @@ function toggleExpanded(key: string): void {
 }
 
 const visibleKeys = computed(() => filteredRows.value.map((row) => row.key));
+
+/** A render that is still going, or found and waiting to be picked back up. */
+function isLive(row: ActiveRenderRow): boolean {
+    return row.state === "starting" || row.state === "running" || row.state === "offer";
+}
+
+/** The prototype's two bands: the live cards first, the settled rows under their own rule. */
+const activeRows = computed(() => filteredRows.value.filter(isLive));
+const settledRows = computed(() => filteredRows.value.filter((row) => !isLive(row)));
+
+/** `undefined` keeps the offer's own probe; anything else is passed through as given. */
+const repairBridgeValue = computed(() => props.repairBridge);
+
+/**
+ * The header's one-line count, from the rows the aggregator really holds. Only the states
+ * actually present are named, so an idle page says "nothing running" rather than a row of zeros.
+ */
+const countLine = computed(() => {
+    const rows = aggregator.rows.value;
+    const count = (states: readonly string[]) =>
+        rows.filter((row) => states.includes(row.state)).length;
+    const parts: string[] = [];
+    const running = count(["starting", "running"]);
+    const offers = count(["offer"]);
+    const failed = count(["failed"]);
+    const stopped = count(["cancelled"]);
+    const finished = count(["finished"]);
+    if (running > 0)
+        parts.push(t("rendersInProgress.count.running", { n: String(running) }, "{n} running"));
+    if (offers > 0)
+        parts.push(t("rendersInProgress.count.offer", { n: String(offers) }, "{n} to reattach"));
+    if (failed > 0)
+        parts.push(t("rendersInProgress.count.failed", { n: String(failed) }, "{n} failed"));
+    if (stopped > 0)
+        parts.push(t("rendersInProgress.count.stopped", { n: String(stopped) }, "{n} stopped"));
+    if (finished > 0)
+        parts.push(t("rendersInProgress.count.finished", { n: String(finished) }, "{n} finished"));
+    if (parts.length === 0) return t("rendersInProgress.count.none", "nothing running right now");
+    return parts.join(" · ");
+});
+
+/** The render the header's "Open the render console" goes to: the first one that has one. */
+const firstConsoleKey = computed(
+    () => aggregator.rows.value.find((row) => row.canOpenConsole)?.key ?? null,
+);
+
+function settledIcon(row: ActiveRenderRow): string {
+    switch (row.state) {
+        case "finished":
+            return mdiCheckCircleOutline;
+        case "failed":
+            return mdiAlertCircleOutline;
+        default:
+            return mdiCancel;
+    }
+}
 const hasSelection = computed(() => selected.value.size > 0);
 
 function selectAllVisible(): void {
@@ -295,111 +359,133 @@ function percentLabel(row: ActiveRenderRow): string {
 
 <template>
     <div class="mb-renders">
+        <!--
+            The page header the prototype opens every job on: a 44px icon tile, the title with a
+            one-line count under it, and the page's own action at the far end. The counts are
+            read from the rows the aggregator really holds, never written down.
+        -->
         <header class="mb-renders__head">
-            <h2 class="mb-renders__title">
-                {{ t("rendersInProgress.title", "Renders in progress") }}
-            </h2>
-            <p class="mb-renders__blurb">
-                {{
-                    t(
-                        "rendersInProgress.blurb",
-                        "Every render this application knows about right now: on this computer, in a container, or on GitHub's runners - including one this app did not start this session.",
-                    )
-                }}
-            </p>
+            <div class="mb-icon-tile mb-renders__tile" aria-hidden="true">
+                <v-icon :icon="mdiDotsHorizontalCircleOutline" size="24" />
+            </div>
+            <div class="mb-renders__titles">
+                <h1 class="mb-renders__title">
+                    {{ t("rendersInProgress.title", "Renders in progress") }}
+                </h1>
+                <p class="mb-renders__count">{{ countLine }}</p>
+            </div>
+            <v-btn
+                v-if="firstConsoleKey !== null"
+                variant="outlined"
+                color="primary"
+                class="mb-renders__console"
+                @click="openConsole(firstConsoleKey)"
+            >
+                {{ t("rendersInProgress.openRenderConsole", "Open the render console") }}
+            </v-btn>
         </header>
+        <p class="mb-lede mb-renders__blurb">
+            {{
+                t(
+                    "rendersInProgress.blurb",
+                    "Every render this application knows about right now: on this computer, in a container, or on GitHub's runners - including one this app did not start this session.",
+                )
+            }}
+        </p>
 
-        <div class="mb-renders__search">
-            <ConfigSearchField
-                v-model="query"
-                v-model:regex="regexMode"
-                v-model:flags="flags"
-                :label="t('rendersInProgress.search.label', 'Search renders')"
-                :placeholder="
-                    t('rendersInProgress.search.placeholder', 'World, project, route, or state')
-                "
-                :sample="searchSample"
-                :summary="
-                    t(
-                        'rendersInProgress.search.summary',
-                        {
-                            shown: String(filteredRows.length),
-                            total: String(aggregator.rows.value.length),
-                        },
-                        'Showing {shown} of {total}',
-                    )
-                "
-            />
-        </div>
-
-        <div v-if="visibleKeys.length > 0" class="mb-renders__bulkbar">
-            <v-btn
-                :prepend-icon="mdiCheckboxMultipleMarkedOutline"
-                variant="text"
-                size="small"
-                @click="selectAllVisible"
-            >
-                {{
-                    t(
-                        "rendersInProgress.bulk.selectAll",
-                        { count: String(visibleKeys.length) },
-                        "Select all {count} shown",
-                    )
-                }}
-            </v-btn>
-            <v-btn
-                v-if="hasSelection"
-                :prepend-icon="mdiSelectOff"
-                variant="text"
-                size="small"
-                @click="clearSelection"
-            >
-                {{ t("rendersInProgress.bulk.clear", "Clear selection") }}
-            </v-btn>
-
-            <p class="mb-renders__bulkstatus" role="status" aria-live="polite">
-                {{
-                    t(
-                        "rendersInProgress.bulk.selected",
-                        { count: String(selected.size) },
-                        "{count} selected",
-                    )
-                }}
-                <template v-if="bulkStatus">{{ bulkStatus }}</template>
-            </p>
-
-            <template v-if="hasSelection && cancellableSelected.length > 0">
-                <ConfigSuperConfirm
-                    :title="t('rendersInProgress.bulk.cancelTitle', 'Stop selected renders')"
-                    :action="cancelAction"
-                    :affected="cancelAffected"
-                    :confirm-label="
+        <div class="mb-renders__tools">
+            <div class="mb-renders__search">
+                <ConfigSearchField
+                    v-model="query"
+                    v-model:regex="regexMode"
+                    v-model:flags="flags"
+                    :label="t('rendersInProgress.search.label', 'Search renders')"
+                    :placeholder="
+                        t('rendersInProgress.search.placeholder', 'World, project, route, or state')
+                    "
+                    :sample="searchSample"
+                    :summary="
                         t(
-                            'rendersInProgress.bulk.cancelConfirmLabel',
-                            'Slide to stop the selected renders',
+                            'rendersInProgress.search.summary',
+                            {
+                                shown: String(filteredRows.length),
+                                total: String(aggregator.rows.value.length),
+                            },
+                            'Showing {shown} of {total}',
                         )
                     "
-                    @confirm="runBulkCancel"
+                />
+            </div>
+
+            <div v-if="visibleKeys.length > 0" class="mb-renders__bulkbar">
+                <v-btn
+                    :prepend-icon="mdiCheckboxMultipleMarkedOutline"
+                    variant="text"
+                    size="small"
+                    @click="selectAllVisible"
                 >
-                    <template #activator="{ props: activator }">
-                        <v-btn
-                            v-bind="activator"
-                            :prepend-icon="mdiTrashCanOutline"
-                            color="error"
-                            variant="tonal"
-                            size="small"
-                        >
-                            {{
-                                t(
-                                    "rendersInProgress.bulk.cancelButton",
-                                    { count: String(cancellableSelected.length) },
-                                    "Stop {count} selected",
-                                )
-                            }}
-                        </v-btn>
-                    </template>
-                </ConfigSuperConfirm>
-            </template>
+                    {{
+                        t(
+                            "rendersInProgress.bulk.selectAll",
+                            { count: String(visibleKeys.length) },
+                            "Select all {count} shown",
+                        )
+                    }}
+                </v-btn>
+                <v-btn
+                    v-if="hasSelection"
+                    :prepend-icon="mdiSelectOff"
+                    variant="text"
+                    size="small"
+                    @click="clearSelection"
+                >
+                    {{ t("rendersInProgress.bulk.clear", "Clear selection") }}
+                </v-btn>
+
+                <p class="mb-renders__bulkstatus" role="status" aria-live="polite">
+                    {{
+                        t(
+                            "rendersInProgress.bulk.selected",
+                            { count: String(selected.size) },
+                            "{count} selected",
+                        )
+                    }}
+                    <template v-if="bulkStatus">{{ bulkStatus }}</template>
+                </p>
+
+                <template v-if="hasSelection && cancellableSelected.length > 0">
+                    <ConfigSuperConfirm
+                        :title="t('rendersInProgress.bulk.cancelTitle', 'Stop selected renders')"
+                        :action="cancelAction"
+                        :affected="cancelAffected"
+                        :confirm-label="
+                            t(
+                                'rendersInProgress.bulk.cancelConfirmLabel',
+                                'Slide to stop the selected renders',
+                            )
+                        "
+                        @confirm="runBulkCancel"
+                    >
+                        <template #activator="{ props: activator }">
+                            <v-btn
+                                v-bind="activator"
+                                :prepend-icon="mdiTrashCanOutline"
+                                color="error"
+                                variant="tonal"
+                                size="small"
+                            >
+                                {{
+                                    t(
+                                        "rendersInProgress.bulk.cancelButton",
+                                        { count: String(cancellableSelected.length) },
+                                        "Stop {count} selected",
+                                    )
+                                }}
+                            </v-btn>
+                        </template>
+                    </ConfigSuperConfirm>
+                </template>
+            </div>
         </div>
 
         <!--
@@ -407,7 +493,7 @@ function percentLabel(row: ActiveRenderRow): string {
             first pass over all three routes has actually returned - never confused with the
             state that comes after, which means the check ran and genuinely found nothing.
         -->
-        <div
+        <v-card
             v-if="aggregator.emptyState.value === 'checking'"
             class="mb-renders__empty"
             data-test="empty-checking"
@@ -427,12 +513,13 @@ function percentLabel(row: ActiveRenderRow): string {
                     )
                 }}
             </p>
-        </div>
-        <div
+        </v-card>
+        <v-card
             v-else-if="aggregator.emptyState.value === 'empty'"
             class="mb-renders__empty"
             data-test="empty-none"
         >
+            <v-icon :icon="mdiCheckCircleOutline" size="20" aria-hidden="true" />
             <p>
                 {{
                     t(
@@ -441,8 +528,8 @@ function percentLabel(row: ActiveRenderRow): string {
                     )
                 }}
             </p>
-        </div>
-        <div
+        </v-card>
+        <v-card
             v-else-if="filteredRows.length === 0"
             class="mb-renders__empty"
             data-test="empty-no-match"
@@ -450,7 +537,7 @@ function percentLabel(row: ActiveRenderRow): string {
             <p>
                 {{ t("rendersInProgress.empty.noMatch", "Nothing running matches this search.") }}
             </p>
-        </div>
+        </v-card>
 
         <!--
             `mb-motion-stagger` (styles/motion.scss) gives each row the M3 entry - a short
@@ -460,19 +547,20 @@ function percentLabel(row: ActiveRenderRow): string {
             perfectly still, which is the whole difference between animating an arrival and
             animating an update.
         -->
-        <ul v-else class="mb-renders__list mb-motion-stagger">
-            <li v-for="(row, rowIndex) in filteredRows" :key="row.key" class="mb-renders__item">
+        <ul v-if="activeRows.length > 0" class="mb-renders__list mb-motion-stagger">
+            <li v-for="(row, rowIndex) in activeRows" :key="row.key" class="mb-renders__item">
                 <AppearanceTarget
                     :id="`renders.row.${row.key}`"
                     :label="`${row.worldLabel} — ${row.projectLabel}`"
                     as="div"
                 >
                     <v-card class="mb-renders__card" :class="`mb-renders__card--${row.state}`">
-                        <v-card-text class="mb-renders__row">
+                        <div class="mb-renders__row">
                             <v-checkbox
                                 :model-value="selected.has(row.key)"
                                 density="compact"
                                 hide-details
+                                class="mb-renders__check"
                                 :aria-label="
                                     t(
                                         'rendersInProgress.row.select',
@@ -482,22 +570,17 @@ function percentLabel(row: ActiveRenderRow): string {
                                 "
                                 @update:model-value="toggleSelected(row.key)"
                             />
-
-                            <v-icon :icon="routeIcon(row.route)" size="20" aria-hidden="true" />
+                            <div class="mb-icon-tile mb-renders__rowtile" aria-hidden="true">
+                                <v-icon :icon="routeIcon(row.route)" size="20" />
+                            </div>
 
                             <div class="mb-renders__identity">
-                                <button
-                                    type="button"
-                                    class="mb-renders__disclosure"
-                                    :aria-expanded="expanded.has(row.key)"
-                                    :aria-controls="`${renderDetailIdPrefix}-${rowIndex}`"
-                                    @click="toggleExpanded(row.key)"
-                                >
-                                    <strong>{{ row.worldLabel }}</strong>
+                                <h2 class="mb-renders__name">
+                                    {{ row.worldLabel }}
                                     <span class="mb-renders__project">
-                                        — {{ row.projectLabel }}</span
+                                        · {{ row.projectLabel }}</span
                                     >
-                                </button>
+                                </h2>
                                 <span class="mb-renders__meta">
                                     {{ routeLabel(row.route) }}
                                     <template v-if="row.routeDetail"
@@ -508,9 +591,6 @@ function percentLabel(row: ActiveRenderRow): string {
 
                             <v-chip size="small" :color="stateTone(row)" variant="tonal">
                                 {{ stateLabel(row) }}
-                                <template v-if="percentLabel(row) !== ''">
-                                    · {{ percentLabel(row) }}</template
-                                >
                             </v-chip>
 
                             <v-icon
@@ -525,7 +605,6 @@ function percentLabel(row: ActiveRenderRow): string {
                                 <v-btn
                                     v-if="row.needsReattach"
                                     :prepend-icon="mdiSync"
-                                    size="small"
                                     variant="tonal"
                                     color="primary"
                                     :disabled="row.busy || rowBusy.has(row.key)"
@@ -536,17 +615,14 @@ function percentLabel(row: ActiveRenderRow): string {
                                 <v-btn
                                     v-if="row.canOpenConsole"
                                     :prepend-icon="mdiConsoleLine"
-                                    size="small"
-                                    variant="text"
+                                    variant="outlined"
                                     @click="openConsole(row.key)"
                                 >
                                     {{ t("rendersInProgress.row.openConsole", "Open console") }}
                                 </v-btn>
                                 <v-btn
                                     v-if="row.canCancel"
-                                    :prepend-icon="mdiTrashCanOutline"
-                                    size="small"
-                                    variant="text"
+                                    variant="outlined"
                                     color="error"
                                     :disabled="row.busy || rowBusy.has(row.key)"
                                     @click="cancelOne(row.key)"
@@ -554,7 +630,23 @@ function percentLabel(row: ActiveRenderRow): string {
                                     {{ t("rendersInProgress.row.cancel", "Stop") }}
                                 </v-btn>
                             </div>
-                        </v-card-text>
+                        </div>
+
+                        <div class="mb-renders__progress">
+                            <v-progress-linear
+                                :model-value="row.percent ?? 0"
+                                :indeterminate="row.percent === null"
+                                :aria-label="`${row.worldLabel} — ${row.projectLabel}`"
+                                color="primary"
+                                bg-color="surface-container-highest"
+                                bg-opacity="1"
+                                height="8"
+                                rounded
+                            />
+                            <span v-if="percentLabel(row) !== ''" class="mb-renders__percent">
+                                {{ percentLabel(row) }}
+                            </span>
+                        </div>
 
                         <v-alert
                             v-if="row.errorText !== null"
@@ -576,13 +668,29 @@ function percentLabel(row: ActiveRenderRow): string {
                             {{ row.reattachMessage }}
                         </v-alert>
 
+                        <div class="mb-renders__disclosure">
+                            <v-btn
+                                :append-icon="expanded.has(row.key) ? mdiChevronUp : mdiChevronDown"
+                                variant="text"
+                                size="small"
+                                :aria-expanded="expanded.has(row.key) ? 'true' : 'false'"
+                                :aria-controls="`${renderDetailIdPrefix}-${rowIndex}`"
+                                @click="toggleExpanded(row.key)"
+                            >
+                                {{
+                                    expanded.has(row.key)
+                                        ? t("rendersInProgress.row.hideDetail", "Hide the stages")
+                                        : t("rendersInProgress.row.showDetail", "Show the stages")
+                                }}
+                            </v-btn>
+                        </div>
+
                         <v-expand-transition>
                             <div
                                 v-if="expanded.has(row.key)"
                                 :id="`${renderDetailIdPrefix}-${rowIndex}`"
                                 class="mb-renders__detail"
                             >
-                                <v-divider />
                                 <RenderProgressDetail :facts="row.facts" />
                             </div>
                         </v-expand-transition>
@@ -590,37 +698,153 @@ function percentLabel(row: ActiveRenderRow): string {
                 </AppearanceTarget>
             </li>
         </ul>
+
+        <RepairOffer :bridge="repairBridgeValue" />
+
+        <!--
+            Renders that are over - finished, stopped or failed - in the prototype's quieter
+            outlined rows under their own rule, so a page with one live render and three
+            settled ones still leads with the one that is moving.
+        -->
+        <section v-if="settledRows.length > 0" class="mb-renders__settled">
+            <div class="mb-section-rule">
+                <h2 class="mb-section-label">
+                    {{ t("rendersInProgress.settled", "Finished, stopped or failed") }}
+                </h2>
+            </div>
+            <ul class="mb-renders__list mb-renders__list--settled mb-motion-stagger">
+                <li v-for="row in settledRows" :key="row.key" class="mb-renders__item">
+                    <AppearanceTarget
+                        :id="`renders.row.${row.key}`"
+                        :label="`${row.worldLabel} — ${row.projectLabel}`"
+                        as="div"
+                    >
+                        <v-card
+                            variant="outlined"
+                            class="mb-renders__settledcard"
+                            :class="`mb-renders__card--${row.state}`"
+                        >
+                            <div class="mb-renders__row">
+                                <v-checkbox
+                                    :model-value="selected.has(row.key)"
+                                    density="compact"
+                                    hide-details
+                                    class="mb-renders__check"
+                                    :aria-label="
+                                        t(
+                                            'rendersInProgress.row.select',
+                                            { world: row.worldLabel },
+                                            'Select the render of {world}',
+                                        )
+                                    "
+                                    @update:model-value="toggleSelected(row.key)"
+                                />
+                                <v-icon
+                                    :icon="settledIcon(row)"
+                                    :color="stateTone(row)"
+                                    size="20"
+                                    aria-hidden="true"
+                                />
+                                <div class="mb-renders__identity">
+                                    <span class="mb-renders__settledname">
+                                        {{ row.worldLabel }} · {{ row.projectLabel }}
+                                    </span>
+                                    <span v-if="row.errorText !== null" class="mb-renders__meta">
+                                        {{ row.errorText }}
+                                    </span>
+                                </div>
+                                <span class="mb-renders__mono">
+                                    {{ routeLabel(row.route) }} · {{ stateLabel(row) }}
+                                </span>
+                                <div class="mb-renders__actions">
+                                    <v-btn
+                                        v-if="row.canOpenConsole"
+                                        variant="outlined"
+                                        color="primary"
+                                        size="small"
+                                        @click="openConsole(row.key)"
+                                    >
+                                        {{ t("rendersInProgress.row.openConsole", "Open console") }}
+                                    </v-btn>
+                                </div>
+                            </div>
+                        </v-card>
+                    </AppearanceTarget>
+                </li>
+            </ul>
+        </section>
     </div>
 </template>
 
 <style>
+/*
+ * The prototype's Renders page: a 30/48/48 gutter and a 1120px measure, a header row with the
+ * icon tile and the page action, then the live render cards, the repair offer and the settled
+ * rows, each 20px apart.
+ */
 .mb-renders {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 16px;
-    max-width: 100%;
+    gap: 20px;
+    inline-size: 100%;
+    max-inline-size: 1120px;
+    padding: 30px 48px 48px;
+    box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+    .mb-renders {
+        padding: 20px 16px 32px;
+    }
 }
 
 .mb-renders__head {
     display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+
+.mb-renders .mb-icon-tile.mb-renders__tile {
+    inline-size: 44px;
+    block-size: 44px;
+    flex-basis: 44px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-surface-container));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-renders__titles {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+}
+
+.mb-renders .mb-renders__title {
+    margin: 0;
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: 400;
+    line-height: 32px;
+}
+
+.mb-renders__count {
+    margin: 0;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 16px;
+    color: rgb(var(--v-theme-outline));
+}
+
+.mb-renders .mb-lede.mb-renders__blurb {
+    margin: -8px 0 0;
+}
+
+.mb-renders__tools {
+    display: flex;
     flex-direction: column;
-    gap: 4px;
-}
-
-.mb-renders__title {
-    font-size: var(--md-sys-typescale-title-large-size);
-    font-weight: 500;
-}
-
-.mb-renders__blurb {
-    font-size: var(--md-sys-typescale-body-medium-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    max-width: 60ch;
+    gap: 8px;
 }
 
 .mb-renders__search {
-    max-width: 480px;
+    max-inline-size: 480px;
 }
 
 .mb-renders__bulkbar {
@@ -631,18 +855,22 @@ function percentLabel(row: ActiveRenderRow): string {
 }
 
 .mb-renders__bulkstatus {
+    margin: 0 0 0 4px;
     font-size: var(--md-sys-typescale-body-small-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    margin-inline-start: 4px;
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
-.mb-renders__empty {
+.v-application .v-card.mb-renders__empty {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 24px 8px;
+    gap: 12px;
+    padding: 18px 22px;
     font-size: var(--md-sys-typescale-body-medium-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-renders__empty p {
+    margin: 0;
 }
 
 .mb-renders__list {
@@ -651,53 +879,92 @@ function percentLabel(row: ActiveRenderRow): string {
     padding: 0;
     display: flex;
     flex-direction: column;
+    gap: 20px;
+}
+
+.mb-renders__list--settled {
     gap: 8px;
 }
 
-.mb-renders__card {
+/* The live card: a 16px corner, the prototype's container tint and a hairline outline. */
+.v-application .v-card.mb-renders__card {
     overflow: hidden;
+    border-radius: var(--md-sys-shape-corner-large);
 }
 
 .mb-renders__row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 14px;
     flex-wrap: wrap;
+    padding: 18px 22px 14px;
+    min-inline-size: 0;
+}
+
+.mb-renders__check {
+    flex: 0 0 auto;
+}
+
+.mb-renders .mb-icon-tile.mb-renders__rowtile {
+    inline-size: 38px;
+    block-size: 38px;
+    flex-basis: 38px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
 }
 
 .mb-renders__identity {
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    min-inline-size: 0;
     flex: 1 1 12rem;
 }
 
-.mb-renders__disclosure {
-    background: none;
-    border: none;
-    padding: 0;
-    text-align: start;
-    cursor: pointer;
-    font: inherit;
-    color: inherit;
+.mb-renders .mb-renders__name {
+    margin: 0;
+    font-size: var(--md-sys-typescale-title-medium-size);
+    font-weight: 500;
+    line-height: 24px;
     overflow-wrap: anywhere;
 }
 
 .mb-renders__project {
-    font-weight: 400;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    font-weight: 500;
 }
 
-.mb-renders__meta {
+.mb-renders__meta,
+.mb-renders__mono {
+    font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: var(--md-sys-typescale-body-small-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    line-height: 18px;
+    color: rgb(var(--v-theme-outline));
+    overflow-wrap: anywhere;
 }
 
 .mb-renders__actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: 8px;
     margin-inline-start: auto;
+}
+
+.mb-renders__progress {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 22px 16px;
+}
+
+.mb-renders__progress .v-progress-linear {
+    flex: 1 1 auto;
+}
+
+.mb-renders__percent {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-on-surface-variant));
+    white-space: nowrap;
 }
 
 .mb-renders__spin {
@@ -720,10 +987,37 @@ function percentLabel(row: ActiveRenderRow): string {
 }
 
 .mb-renders__error {
-    margin: 0 16px 12px;
+    margin: 0 22px 14px;
+}
+
+.mb-renders__disclosure {
+    display: flex;
+    padding: 6px 14px;
+    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
 .mb-renders__detail {
-    padding: 0 16px 16px;
+    padding: 18px 22px;
+    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-renders__settled .mb-section-label {
+    margin: 0;
+}
+
+/* A settled row is outlined only: the prototype keeps the tint for what is still moving. */
+.v-application .v-card.mb-renders__settledcard {
+    background: transparent;
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.mb-renders__settledcard .mb-renders__row {
+    padding: 10px 18px 10px 10px;
+}
+
+.mb-renders__settledname {
+    font-size: var(--md-sys-typescale-body-large-size);
+    line-height: 22px;
+    overflow-wrap: anywhere;
 }
 </style>

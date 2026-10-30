@@ -32,7 +32,9 @@ function rule(source: string, selector: string): string {
 
 describe("project surface sizing inventory", () => {
     it("gives the project header/actions, maps, search affordances and speed controls 44px targets", () => {
-        expect(editor).toMatch(/\.mb-project-editor__headrow \.v-btn,[\s\S]*min-block-size:\s*44px/);
+        expect(editor).toMatch(
+            /\.mb-project-editor__headActions \.v-btn,[\s\S]*min-block-size:\s*44px/,
+        );
         expect(maps).toMatch(/\.mb-project-maps \.v-btn,[\s\S]*min-block-size:\s*44px/);
         expect(search).toMatch(/\.mb-config-search \.v-btn\s*{[^}]*min-block-size:\s*44px/s);
         expect(speed).toMatch(/\.mb-livespeed__button\s*{[^}]*min-block-size:\s*44px/s);

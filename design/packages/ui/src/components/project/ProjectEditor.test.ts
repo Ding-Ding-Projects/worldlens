@@ -1020,10 +1020,10 @@ describe("the project-shaped workspace", () => {
     });
 
     it("has a three-pane desktop grid that collapses by container width before narrow layouts can overflow", () => {
-        // The middle column carries the larger share: the tree is eight short names and the
-        // consequences panel is a summary, while the settings are what the editor is for.
+        // The prototype's measurements: a 264px tree, a 286px rail, and every remaining pixel to
+        // the settings, which are what the editor is for.
         expect(projectEditorSource).toMatch(
-            /grid-template-columns:\s*minmax\(11rem, 0\.55fr\) minmax\(0, 2\.7fr\) minmax\(16rem, 0\.8fr\)/,
+            /grid-template-columns:\s*264px minmax\(0, 1fr\) 286px/,
         );
         expect(projectEditorSource).toContain("@container project-editor (max-width: 72rem)");
         expect(projectEditorSource).toContain("@container project-editor (max-width: 52rem)");

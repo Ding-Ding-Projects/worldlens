@@ -1194,6 +1194,10 @@ export const CIRENDER_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const CIRENDER_FIXED = {
+    "cirender.price.title": { en: "The price of that, up front", yue: "代價，一早講清楚" },
+    "cirender.meta.noBridge": { en: "not available in this build", yue: "呢個組建用唔到" },
+    "cirender.meta.signedOut": { en: "not signed in", yue: "未登入" },
+    "cirender.meta.runner": { en: "standard runners, 4 vCPU", yue: "標準 runner，4 個 vCPU" },
     "cirender.repo.createAndSetUp": {
         en: "Create {repo} and set it up",
         yue: "整 {repo} 同埋set好佢",

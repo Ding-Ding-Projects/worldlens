@@ -517,6 +517,9 @@ async function openCreate(): Promise<void> {
     document.getElementById(createNameId)?.focus();
 }
 
+/** The editor header's "New map" opens this same in-place form, so there is one way to add a map. */
+defineExpose({ openCreate });
+
 async function confirmCreate(): Promise<void> {
     if (createProblem.value !== null) return;
     const id = createIdPreview.value;

@@ -180,6 +180,25 @@ export const RENDERSINPROGRESS_FIXED = {
     "rendersInProgress.row.reattach": { en: "Reattach", yue: "重新接上" },
     "rendersInProgress.row.openConsole": { en: "Open console", yue: "打開控制台" },
     "rendersInProgress.row.cancel": { en: "Stop", yue: "停止" },
+    "rendersInProgress.row.showDetail": { en: "Show the stages", yue: "睇吓每個階段" },
+    "rendersInProgress.row.hideDetail": { en: "Hide the stages", yue: "收埋啲階段" },
+    "rendersInProgress.openRenderConsole": {
+        en: "Open the render console",
+        yue: "打開 render 控制台",
+    },
+    "rendersInProgress.settled": {
+        en: "Finished, stopped or failed",
+        yue: "完成咗、停咗或者失敗咗",
+    },
+    "rendersInProgress.count.running": { en: "{n} running", yue: "{n} 個行緊" },
+    "rendersInProgress.count.offer": { en: "{n} to reattach", yue: "{n} 個等重新接上" },
+    "rendersInProgress.count.failed": { en: "{n} failed", yue: "{n} 個失敗咗" },
+    "rendersInProgress.count.stopped": { en: "{n} stopped", yue: "{n} 個停咗" },
+    "rendersInProgress.count.finished": { en: "{n} finished", yue: "{n} 個完成咗" },
+    "rendersInProgress.count.none": {
+        en: "nothing running right now",
+        yue: "而家冇嘢行緊",
+    },
 
     "tabs.page.renders": { en: "Renders", yue: "Render" },
     "tabs.page.rendersCounted": { en: "Renders ({count})", yue: "Render（{count}）" },

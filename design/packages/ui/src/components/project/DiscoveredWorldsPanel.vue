@@ -461,14 +461,19 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
 
 <template>
     <v-card v-if="bridge !== null" class="mb-discovered" :aria-label="t('project.discovered.cardLabel', 'Worlds ready to use')">
-        <v-card-title class="mb-discovered__head mb-responsive-card-title">
-            <v-icon :icon="mdiEarth" aria-hidden="true" />
-            <span class="mb-responsive-card-title__text">{{ t("project.discovered.title", "Worlds ready to use") }}</span>
-            <span class="mb-responsive-card-title__actions">
-                <v-btn class="mb-responsive-card-title__action" :prepend-icon="mdiRefresh" variant="text" size="small" :disabled="busy" @click="load">
-                    {{ t("project.discovered.rescan", "Look again") }}
-                </v-btn>
-            </span>
+        <!--
+            No card title: the prototype heads this whole chooser with section rules alone, so
+            the first thing on the panel is the rule over the folders it searched, with the
+            rescan action at its far end.
+        -->
+        <v-card-title class="mb-discovered__head">
+            <h2 class="mb-section-label mb-discovered__label">
+                {{ t("project.discovered.foldersSection", "Minecraft folders") }}
+            </h2>
+            <span class="mb-discovered__rule" aria-hidden="true" />
+            <v-btn :prepend-icon="mdiRefresh" variant="text" size="small" color="primary" :disabled="busy" @click="load">
+                {{ t("project.discovered.rescan", "Look again") }}
+            </v-btn>
         </v-card-title>
 
         <v-card-text>
@@ -481,16 +486,6 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
                 }}
             </p>
 
-            <!--
-                The panel holds two lists - where it looked, and what it found - and the
-                prototype separates every list from the one above it with a labelled rule
-                rather than with whitespace and a heavier font. Without it the two run
-                together into one undifferentiated column, which is most of why a card of
-                rows reads as the old application even once the rows themselves are right.
-            -->
-            <div class="mb-section-rule">
-                <span class="mb-section-label">{{ t("project.discovered.foldersSection", "Minecraft folders") }}</span>
-            </div>
 
             <ul class="mb-discovered__mounts">
                 <li v-for="folder in folders" :key="folder.id" class="mb-discovered__mount">
@@ -836,10 +831,37 @@ const noSearchMatch = computed(() => !busy.value && available.value.length > 0 &
     inline-size: 100%;
 }
 
+/*
+ * Drawn straight onto the page, as the prototype draws the chooser: only the rows are
+ * surfaces. Doubled class to outrank the shared card rule in `prototypeSurface.scss`.
+ */
+.v-card.mb-discovered {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+}
+
+.mb-discovered > :deep(.v-card-text) {
+    padding: 0;
+}
+
+.mb-discovered__label {
+    margin: 0;
+}
+
+.mb-discovered__rule {
+    flex: 1 1 2rem;
+    block-size: 1px;
+    align-self: center;
+    background: rgb(var(--v-theme-surface-container-high));
+}
+
 .mb-discovered__head {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    padding: 0 0 10px;
     flex-wrap: wrap;
     /*
      * `<v-card-title>` defaults to `overflow: hidden; text-overflow: ellipsis;

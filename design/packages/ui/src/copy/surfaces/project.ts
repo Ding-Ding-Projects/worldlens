@@ -1656,7 +1656,10 @@ export const PROJECT_FIXED = {
     "project.editor.back": { en: "All projects", yue: "所有 project" },
     "project.editor.fromWizard": { en: "made by the guide", yue: "由引導整嘅" },
     "project.workspace.label": { en: "Project structure", yue: "專案結構" },
-    "project.workspace.heading": { en: "Project structure", yue: "專案結構" },
+    "project.workspace.groupMaps": { en: "Maps", yue: "地圖" },
+    "project.workspace.groupStorages": { en: "Storages", yue: "儲存空間" },
+    "project.workspace.groupConfiguration": { en: "Configuration", yue: "設定" },
+    "project.workspace.groupRunning": { en: "Running it", yue: "點樣行" },
     "project.workspace.note": {
         en: "Choose a record to bring its real settings into view.",
         yue: "揀一項，就會將佢真正嘅設定帶出嚟。",
@@ -1693,7 +1696,9 @@ export const PROJECT_FIXED = {
     /* ---------------------------------------------------------------- */
 
     "project.list.cardLabel": { en: "Projects on this computer", yue: "呢部電腦上面嘅 project" },
-    "project.list.title": { en: "Projects", yue: "Project" },
+    "projects.page.elsewhere": { en: "Somewhere else", yue: "第二度" },
+    "project.editor.newMap": { en: "New map", yue: "新地圖" },
+    "project.context.run": { en: "Render it", yue: "Render 佢" },
     "project.list.refresh": { en: "Look again", yue: "再check下" },
     "project.list.new": { en: "New project", yue: "新增 project" },
     "project.list.searchLabel": { en: "Search projects", yue: "搜尋 project" },

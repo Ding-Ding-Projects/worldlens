@@ -2,12 +2,22 @@
 import { computed, nextTick, onMounted, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import {
-    mdiArrowLeft,
+    mdiApplicationOutline,
     mdiChevronLeft,
     mdiChevronRight,
+    mdiCogOutline,
+    mdiConsoleLine,
+    mdiDatabaseOutline,
+    mdiEarth,
+    mdiHistory,
+    mdiMapOutline,
+    mdiPuzzleOutline,
+    mdiServerOutline,
     mdiContentSaveOutline,
     mdiFolderOpenOutline,
+    mdiPlus,
     mdiUndoVariant,
+    mdiUnfoldMoreHorizontal,
 } from "@mdi/js";
 import {
     VAlert,
@@ -48,9 +58,7 @@ import EngineChoicePanel from "../settings/EngineChoicePanel.vue";
 import RunLocationCard from "../remote/RunLocationCard.vue";
 import type { RemoteBridge, RemoteTarget, RuntimeBridge } from "../remote/remoteBridge.js";
 import type { RunLocation } from "../remote/runtimeChoice.js";
-import RenderDestinationMenu, {
-    type RenderDestinationId,
-} from "./RenderDestinationMenu.vue";
+import RenderDestinationMenu, { type RenderDestinationId } from "./RenderDestinationMenu.vue";
 
 export type ProjectPagesState = "off" | "pending" | "published" | "failed";
 export interface ProjectPagesStateRecord {
@@ -203,7 +211,8 @@ const props = withDefaults(
         canOpenCi: false,
         canImportProject: false,
         canPublishExisting: false,
-        importReason: "Importing a project needs a desktop file picker and a verified project host.",
+        importReason:
+            "Importing a project needs a desktop file picker and a verified project host.",
         publishReason: "No verified finished render is available to publish yet.",
         pagesState: "off",
         pagesFailure: null,
@@ -595,6 +604,71 @@ const workspaceNodes = computed<readonly WorkspaceNode[]>(() => [
     }),
 ]);
 
+/**
+ * The tree's four headings, exactly the prototype's: maps, storages, the whole-file
+ * configuration, and what running it involves. Each section node (Maps, Storages) stays the
+ * first entry under its heading, because it is a real destination - the section's own list.
+ */
+interface WorkspaceGroup {
+    readonly id: string;
+    readonly label: string;
+    readonly nodes: readonly WorkspaceNode[];
+}
+
+const workspaceGroups = computed<readonly WorkspaceGroup[]>(() => {
+    const nodes = workspaceNodes.value;
+    const of = (kinds: readonly WorkspaceNodeKind[], ids?: readonly string[]) =>
+        nodes.filter(
+            (node) => kinds.includes(node.kind) && (ids === undefined || ids.includes(node.id)),
+        );
+    return [
+        {
+            id: "maps",
+            label: t("project.workspace.groupMaps", "Maps"),
+            nodes: [...of(["section"], [TAB_MAPS]), ...of(["map"])],
+        },
+        {
+            id: "storages",
+            label: t("project.workspace.groupStorages", "Storages"),
+            nodes: [...of(["section"], [TAB_STORAGES]), ...of(["storage"])],
+        },
+        {
+            id: "configuration",
+            label: t("project.workspace.groupConfiguration", "Configuration"),
+            nodes: of(["singleton"]),
+        },
+        {
+            id: "running",
+            label: t("project.workspace.groupRunning", "Running it"),
+            nodes: of(["render", "history"]),
+        },
+    ].filter((group) => group.nodes.length > 0);
+});
+
+const SINGLETON_ICONS: Record<SingletonKind, string> = {
+    core: mdiCogOutline,
+    webapp: mdiApplicationOutline,
+    webserver: mdiServerOutline,
+    plugin: mdiPuzzleOutline,
+};
+
+function nodeIcon(node: WorkspaceNode): string {
+    switch (node.kind) {
+        case "map":
+            return mdiEarth;
+        case "storage":
+            return mdiDatabaseOutline;
+        case "render":
+            return mdiConsoleLine;
+        case "history":
+            return mdiHistory;
+        case "singleton":
+            return SINGLETON_ICONS[node.id as SingletonKind] ?? mdiCogOutline;
+        case "section":
+            return node.id === TAB_STORAGES ? mdiDatabaseOutline : mdiMapOutline;
+    }
+}
+
 watch(
     workspaceNodes,
     (nodes) => {
@@ -654,6 +728,19 @@ function selectMap(value: string | null): void {
 function selectStorage(value: string | null): void {
     selectedStorage.value = value;
     if (tabsNav.value?.activePage?.id === TAB_STORAGES) syncWorkspaceNode(TAB_STORAGES);
+}
+
+const mapsPanel = ref<InstanceType<typeof ProjectMapsPanel> | null>(null);
+
+/**
+ * The header's New map: bring the maps section forward and open its own in-place "Add a map"
+ * form, the one route to a new map, rather than a second form that could drift from it.
+ */
+async function newMap(): Promise<void> {
+    activeWorkspaceNode.value = TAB_MAPS;
+    tabsNav.value?.revealPage(TAB_MAPS);
+    await nextTick();
+    await mapsPanel.value?.openCreate();
 }
 
 function revealWorkspaceNode(node: WorkspaceNode): void {
@@ -1069,7 +1156,10 @@ function setOutputFolder(value: string): void {
 
 function setPagesEnabled(value: boolean | null): void {
     const enabled = value === true;
-    emit("update:project", withRender(props.project, { hosting: enabled ? "github-pages" : "local" }));
+    emit(
+        "update:project",
+        withRender(props.project, { hosting: enabled ? "github-pages" : "local" }),
+    );
     emit("pages-toggle", enabled);
 }
 
@@ -1175,31 +1265,31 @@ const renderButtonLabel = computed(() =>
             under it is a page.
         -->
         <header class="mb-project-editor__header">
-            <div class="mb-project-editor__headrow">
-                <v-btn
-                    :prepend-icon="mdiArrowLeft"
-                    variant="text"
-                    size="small"
-                    @click="emit('close')"
-                >
-                    {{ t("project.editor.back", "All projects") }}
-                </v-btn>
-                <v-spacer />
-                <span v-if="project.fromWizard" class="mb-badge-pill">
-                    {{ t("project.editor.fromWizard", "made by the guide") }}
-                </span>
-                <span v-if="isDirty" class="mb-badge-pill mb-project-editor__dirtyBadge">
-                    {{ t("project.editor.unsaved", "Unsaved changes") }}
-                </span>
-            </div>
-
+            <!--
+                The prototype's editor header: the folder tile, the project's name with the
+                switch-project affordance beside it and one meta line beneath, then the actions
+                at the far end - New map, and Save. "All projects" is that switch affordance: it
+                is the way back to the chooser, so it sits on the title the prototype makes
+                clickable rather than as a separate back button above it.
+            -->
             <div class="mb-project-editor__title">
-                <span class="mb-icon-tile" aria-hidden="true">
-                    <v-icon :icon="mdiFolderOpenOutline" size="21" />
+                <span class="mb-icon-tile mb-project-editor__tile" aria-hidden="true">
+                    <v-icon :icon="mdiFolderOpenOutline" size="22" />
                 </span>
                 <div class="mb-project-editor__titleText">
-                    <h1>{{ project.name }}</h1>
-                    <p class="mb-meta">
+                    <div class="mb-project-editor__nameline">
+                        <h1>{{ project.name }}</h1>
+                        <v-btn
+                            :icon="mdiUnfoldMoreHorizontal"
+                            variant="text"
+                            size="small"
+                            density="comfortable"
+                            :aria-label="t('project.editor.back', 'All projects')"
+                            :title="t('project.editor.back', 'All projects')"
+                            @click="emit('close')"
+                        />
+                    </div>
+                    <p class="mb-meta mb-project-editor__headMeta">
                         {{
                             t(
                                 "project.editor.headMeta",
@@ -1213,41 +1303,27 @@ const renderButtonLabel = computed(() =>
                         }}
                     </p>
                 </div>
+                <div class="mb-project-editor__headActions">
+                    <span v-if="project.fromWizard" class="mb-badge-pill">
+                        {{ t("project.editor.fromWizard", "made by the guide") }}
+                    </span>
+                    <span v-if="isDirty" class="mb-badge-pill mb-project-editor__dirtyBadge">
+                        {{ t("project.editor.unsaved", "Unsaved changes") }}
+                    </span>
+                    <v-btn :prepend-icon="mdiPlus" color="primary" variant="flat" @click="newMap">
+                        {{ t("project.editor.newMap", "New map") }}
+                    </v-btn>
+                    <v-btn
+                        :prepend-icon="mdiContentSaveOutline"
+                        :disabled="!isDirty || isSaving"
+                        color="primary"
+                        variant="outlined"
+                        @click="emit('save')"
+                    >
+                        {{ t("project.editor.save", "Save now") }}
+                    </v-btn>
+                </div>
             </div>
-
-            <p class="mb-lede">
-                {{
-                    t(
-                        "project.editor.defaults",
-                        { settings: settingCount },
-                        "This project opens on BlueMap's own generated defaults. All {settings} settings a map, a storage and the four whole-file configs carry are on screen and editable from the first second, each showing the value BlueMap itself would use. A setting you never touch is left out of the project, so BlueMap's own default is what renders.",
-                    )
-                }}
-            </p>
-            <p class="mb-footnote">
-                {{
-                    t(
-                        "project.editor.blurb",
-                        "Everything below is applied when this project renders, so a second render repeats the first without asking anything again. The world is wherever this file was found; moving the folder moves the project with it.",
-                    )
-                }}
-            </p>
-
-            <v-text-field
-                :model-value="project.name"
-                :label="t('project.editor.name', 'Project name')"
-                variant="outlined"
-                density="compact"
-                hide-details="auto"
-                @update:model-value="
-                    (value: string) => emit('update:project', withName(project, value))
-                "
-            />
-
-            <p class="mb-meta mb-project-editor__where">
-                {{ t("project.editor.world", { world }, "Lives at the root of {world}") }}
-            </p>
-            <p class="mb-path" :title="plan.file">{{ plan.file }}</p>
 
             <v-progress-linear v-if="isSaving" indeterminate color="primary" class="mt-2" />
 
@@ -1272,100 +1348,7 @@ const renderButtonLabel = computed(() =>
             >
                 {{ problem }}
             </v-alert>
-
-            <div class="mb-project-editor__actions">
-                <v-btn
-                    :prepend-icon="mdiContentSaveOutline"
-                    :disabled="!isDirty || isSaving"
-                    color="primary"
-                    variant="flat"
-                    @click="emit('save')"
-                >
-                    {{ t("project.editor.save", "Save now") }}
-                </v-btn>
-                <v-btn
-                    :prepend-icon="mdiUndoVariant"
-                    :disabled="!isDirty || isSaving"
-                    variant="text"
-                    @click="emit('revert')"
-                >
-                    {{ t("project.editor.revert", "Discard these changes") }}
-                </v-btn>
-                <v-spacer />
-                <RenderDestinationMenu
-                    :label="renderButtonLabel"
-                    :location="renderLocationValue"
-                    :main-disabled="!canStart"
-                    :disabled="isRendering"
-                    :rendering="isRendering"
-                    :can-render-locally="renderable"
-                    :can-render-in-docker="props.canRenderInDocker"
-                    :can-render-remotely="props.canRenderRemotely"
-                    :has-remote-target="props.renderTarget !== null"
-                    :remote-preflight-passed="props.remotePreflightPassed"
-                    :can-open-ci="props.canOpenCi"
-                    :can-import-project="props.canImportProject"
-                    :can-publish-existing="props.canPublishExisting"
-                    :import-reason="props.importReason"
-                    :publish-reason="props.publishReason"
-                    @render="emit('render')"
-                    @choose="emit('destination', $event)"
-                />
-            </div>
-
-            <RunLocationCard
-                v-if="renderLocationValue !== 'local'"
-                :remote-bridge="props.remoteBridge"
-                :runtime-bridge="props.runtimeBridge"
-                :can-render-locally="renderable"
-                :location="renderLocationValue"
-                :can-open-ci="props.canOpenCi"
-                :context-generation="props.renderContextGeneration"
-                @update:location="emit('update:render-location', $event)"
-                @update:target="emit('update:render-target', $event)"
-                @update:preflight="emit('update:render-preflight', $event)"
-                @open-ci="emit('destination', 'github-actions')"
-            />
-
-            <p v-if="!renderable" class="mb-footnote mb-project-editor__engineNote">
-                {{
-                    t(
-                        "project.editor.noEngine",
-                        "This build cannot render locally. Every setting here is real and saved to the project either way; starting a render needs the desktop app.",
-                    )
-                }}
-            </p>
         </header>
-
-        <!--
-            The prototype's right-hand rail, laid across the page rather than down its side.
-            It is the same content and the same three operations; what moved is where it sits,
-            because this editor is hosted inside a 900px measure rather than the prototype's
-            full-width shell, and a 286px column taken out of that would leave the maps panel
-            too narrow to edit a map in. The information is the point, not the column.
-        -->
-        <section
-            class="mb-project-editor__plan"
-            :aria-label="t('project.editor.plan', 'Save plan')"
-        >
-            <div class="mb-section-rule">
-                <span class="mb-section-label">{{ t("project.editor.plan", "Save plan") }}</span>
-            </div>
-            <p class="mb-footnote mb-project-editor__planLede">
-                {{
-                    t(
-                        "project.editor.nothingWritten",
-                        "Your edits save themselves after a quiet pause, and Save now writes immediately. Every write does exactly this and nothing else, and every one becomes a revision the History tab can bring back.",
-                    )
-                }}
-            </p>
-            <ul class="mb-project-editor__planRows">
-                <li v-for="row in planRows" :key="row.id" class="mb-project-editor__planRow">
-                    <span class="mb-project-editor__planVerb">{{ row.verb }}</span>
-                    <span class="mb-project-editor__planDetail">{{ row.detail }}</span>
-                </li>
-            </ul>
-        </section>
 
         <div
             class="mb-project-editor__workspace"
@@ -1399,9 +1382,6 @@ const renderButtonLabel = computed(() =>
                             size="20"
                         />
                     </button>
-                    <p v-show="!navigatorCollapsed" class="mb-project-editor__eyebrow">
-                        {{ t("project.workspace.heading", "Project structure") }}
-                    </p>
                     <p v-show="!navigatorCollapsed" class="mb-project-editor__navigator-note">
                         {{
                             t(
@@ -1423,46 +1403,68 @@ const renderButtonLabel = computed(() =>
                     :id="navigatorListId"
                     class="mb-project-editor__navigator-list"
                 >
-                    <button
-                        v-for="node in workspaceNodes"
-                        :key="node.id"
-                        type="button"
-                        class="mb-project-editor__navigator-node"
-                        :class="[
-                            `mb-project-editor__navigator-node--${node.kind}`,
-                            `mb-project-editor__navigator-node--depth-${node.depth}`,
-                            {
-                                'mb-project-editor__navigator-node--active':
-                                    activeWorkspaceNode === node.id,
-                            },
-                        ]"
-                        :data-workspace-node="node.id"
-                        :aria-current="activeWorkspaceNode === node.id ? 'page' : undefined"
-                        :title="node.detail"
-                        @click="revealWorkspaceNode(node)"
-                    >
-                        <span class="mb-project-editor__navigator-label">{{ node.label }}</span>
-                        <span
-                            v-if="node.settingsCount !== undefined"
-                            class="mb-project-editor__navigator-count"
-                            data-workspace-node-count
+                    <template v-for="group in workspaceGroups" :key="group.id">
+                        <!--
+                            The prototype's tree heading: an uppercase label, a hairline, and
+                            the count of what sits under it. A heading is not a destination,
+                            so it is a plain heading; the section's own node follows it.
+                        -->
+                        <h3 class="mb-project-editor__navigator-heading">
+                            <span>{{ group.label }}</span>
+                            <span class="mb-project-editor__navigator-rule" aria-hidden="true" />
+                            <span class="mb-project-editor__navigator-headcount">{{
+                                group.nodes.length
+                            }}</span>
+                        </h3>
+                        <button
+                            v-for="node in group.nodes"
+                            :key="node.id"
+                            type="button"
+                            class="mb-project-editor__navigator-node"
+                            :class="[
+                                `mb-project-editor__navigator-node--${node.kind}`,
+                                `mb-project-editor__navigator-node--depth-${node.depth}`,
+                                {
+                                    'mb-project-editor__navigator-node--active':
+                                        activeWorkspaceNode === node.id,
+                                },
+                            ]"
+                            :data-workspace-node="node.id"
+                            :aria-current="activeWorkspaceNode === node.id ? 'page' : undefined"
+                            :title="node.detail"
+                            @click="revealWorkspaceNode(node)"
                         >
-                            {{
-                                node.countKind === "flags"
-                                    ? t(
-                                          "project.workspace.flagCount",
-                                          { count: node.settingsCount },
-                                          "{count} flags",
-                                      )
-                                    : t(
-                                          "project.workspace.settingCount",
-                                          { count: node.settingsCount },
-                                          "{count} settings",
-                                      )
-                            }}
-                        </span>
-                        <span class="mb-project-editor__navigator-detail">{{ node.detail }}</span>
-                    </button>
+                            <v-icon
+                                :icon="nodeIcon(node)"
+                                size="19"
+                                class="mb-project-editor__navigator-icon"
+                                aria-hidden="true"
+                            />
+                            <span class="mb-project-editor__navigator-label">{{ node.label }}</span>
+                            <span
+                                v-if="node.settingsCount !== undefined"
+                                class="mb-project-editor__navigator-count"
+                                data-workspace-node-count
+                            >
+                                {{
+                                    node.countKind === "flags"
+                                        ? t(
+                                              "project.workspace.flagCount",
+                                              { count: node.settingsCount },
+                                              "{count} flags",
+                                          )
+                                        : t(
+                                              "project.workspace.settingCount",
+                                              { count: node.settingsCount },
+                                              "{count} settings",
+                                          )
+                                }}
+                            </span>
+                            <span class="mb-project-editor__navigator-detail">{{
+                                node.detail
+                            }}</span>
+                        </button>
+                    </template>
                 </div>
             </nav>
 
@@ -1494,6 +1496,7 @@ const renderButtonLabel = computed(() =>
                 >
                     <template #maps>
                         <ProjectMapsPanel
+                            ref="mapsPanel"
                             :project="project"
                             :world="world"
                             :separator="separatorValue"
@@ -1558,7 +1561,12 @@ const renderButtonLabel = computed(() =>
                                 <section class="mb-project-editor__pages-toggle" aria-live="polite">
                                     <v-switch
                                         :model-value="effectivePagesState !== 'off'"
-                                        :label="t('project.render.pages', 'Publish this project to GitHub Pages')"
+                                        :label="
+                                            t(
+                                                'project.render.pages',
+                                                'Publish this project to GitHub Pages',
+                                            )
+                                        "
                                         :hint="
                                             t(
                                                 'project.render.pagesHint',
@@ -1573,13 +1581,29 @@ const renderButtonLabel = computed(() =>
                                     />
                                     <p class="mb-project-editor__pagesState" role="status">
                                         <template v-if="effectivePagesState === 'pending'">
-                                            {{ t('project.render.pagesPending', 'Pages setup is pending. The project will not claim enabled until the existing guided publication flow accepts it.') }}
+                                            {{
+                                                t(
+                                                    "project.render.pagesPending",
+                                                    "Pages setup is pending. The project will not claim enabled until the existing guided publication flow accepts it.",
+                                                )
+                                            }}
                                         </template>
                                         <template v-else-if="effectivePagesState === 'failed'">
-                                            {{ props.pagesFailure ?? t('project.render.pagesFailed', 'Pages setup failed. Automatic publication remains off until it succeeds.') }}
+                                            {{
+                                                props.pagesFailure ??
+                                                t(
+                                                    "project.render.pagesFailed",
+                                                    "Pages setup failed. Automatic publication remains off until it succeeds.",
+                                                )
+                                            }}
                                         </template>
                                         <template v-else-if="effectivePagesState === 'published'">
-                                            {{ t('project.render.pagesPublished', 'Pages publication is enabled for this project.') }}
+                                            {{
+                                                t(
+                                                    "project.render.pagesPublished",
+                                                    "Pages publication is enabled for this project.",
+                                                )
+                                            }}
                                         </template>
                                     </p>
                                 </section>
@@ -1866,6 +1890,141 @@ const renderButtonLabel = computed(() =>
                 class="mb-project-editor__context"
                 :aria-label="t('project.context.label', 'Render consequences and save plan')"
             >
+                <!--
+                    The prototype's rail opens on the defaults promise in a primary-container
+                    note, then the save plan, then the command line - and this rail carries
+                    the same in that order, with the run controls and the project's own name
+                    between them, because that is where "what happens when I press this" is
+                    answered.
+                -->
+                <div class="mb-project-editor__defaultsNote">
+                    <p>
+                        {{
+                            t(
+                                "project.editor.defaults",
+                                { settings: settingCount },
+                                "This project opens on BlueMap's own generated defaults. All {settings} settings a map, a storage and the four whole-file configs carry are on screen and editable from the first second, each showing the value BlueMap itself would use. A setting you never touch is left out of the project, so BlueMap's own default is what renders.",
+                            )
+                        }}
+                    </p>
+                    <p class="mb-project-editor__defaultsFoot">
+                        {{
+                            t(
+                                "project.editor.blurb",
+                                "Everything below is applied when this project renders, so a second render repeats the first without asking anything again. The world is wherever this file was found; moving the folder moves the project with it.",
+                            )
+                        }}
+                    </p>
+                </div>
+
+                <section class="mb-project-editor__context-section mb-project-editor__run-actions">
+                    <p class="mb-project-editor__eyebrow">
+                        {{ t("project.context.run", "Render it") }}
+                    </p>
+                    <div class="mb-project-editor__actions">
+                        <RenderDestinationMenu
+                            :label="renderButtonLabel"
+                            :location="renderLocationValue"
+                            :main-disabled="!canStart"
+                            :disabled="isRendering"
+                            :rendering="isRendering"
+                            :can-render-locally="renderable"
+                            :can-render-in-docker="props.canRenderInDocker"
+                            :can-render-remotely="props.canRenderRemotely"
+                            :has-remote-target="props.renderTarget !== null"
+                            :remote-preflight-passed="props.remotePreflightPassed"
+                            :can-open-ci="props.canOpenCi"
+                            :can-import-project="props.canImportProject"
+                            :can-publish-existing="props.canPublishExisting"
+                            :import-reason="props.importReason"
+                            :publish-reason="props.publishReason"
+                            @render="emit('render')"
+                            @choose="emit('destination', $event)"
+                        />
+                        <v-btn
+                            :prepend-icon="mdiUndoVariant"
+                            :disabled="!isDirty || isSaving"
+                            variant="text"
+                            @click="emit('revert')"
+                        >
+                            {{ t("project.editor.revert", "Discard these changes") }}
+                        </v-btn>
+                    </div>
+                    <RunLocationCard
+                        v-if="renderLocationValue !== 'local'"
+                        :remote-bridge="props.remoteBridge"
+                        :runtime-bridge="props.runtimeBridge"
+                        :can-render-locally="renderable"
+                        :location="renderLocationValue"
+                        :can-open-ci="props.canOpenCi"
+                        :context-generation="props.renderContextGeneration"
+                        @update:location="emit('update:render-location', $event)"
+                        @update:target="emit('update:render-target', $event)"
+                        @update:preflight="emit('update:render-preflight', $event)"
+                        @open-ci="emit('destination', 'github-actions')"
+                    />
+                    <p v-if="!renderable" class="mb-project-editor__context-note">
+                        {{
+                            t(
+                                "project.editor.noEngine",
+                                "This build cannot render locally. Every setting here is real and saved to the project either way; starting a render needs the desktop app.",
+                            )
+                        }}
+                    </p>
+                </section>
+
+                <section class="mb-project-editor__context-section">
+                    <v-text-field
+                        :model-value="project.name"
+                        :label="t('project.editor.name', 'Project name')"
+                        variant="outlined"
+                        density="compact"
+                        hide-details="auto"
+                        @update:model-value="
+                            (value: string) => emit('update:project', withName(project, value))
+                        "
+                    />
+                    <p class="mb-project-editor__context-note">
+                        {{ t("project.editor.world", { world }, "Lives at the root of {world}") }}
+                    </p>
+                    <p class="mb-path" :title="plan.file">{{ plan.file }}</p>
+                </section>
+
+                <section
+                    class="mb-project-editor__context-section mb-project-editor__plan"
+                    :aria-label="t('project.editor.plan', 'Save plan')"
+                >
+                    <p class="mb-project-editor__eyebrow">
+                        {{ t("project.editor.plan", "Save plan") }}
+                    </p>
+                    <ul class="mb-project-editor__planRows">
+                        <li
+                            v-for="row in planRows"
+                            :key="row.id"
+                            class="mb-project-editor__planRow"
+                        >
+                            <span class="mb-project-editor__planVerb">{{ row.verb }}</span>
+                            <span class="mb-project-editor__planDetail">{{ row.detail }}</span>
+                        </li>
+                    </ul>
+                    <ol class="mb-project-editor__save-plan">
+                        <li v-for="step in savePlan" :key="step.target">
+                            <code
+                                ><span>{{ step.verb }}</span> {{ step.target }}</code
+                            >
+                            <p>{{ step.detail }}</p>
+                        </li>
+                    </ol>
+                    <p class="mb-project-editor__context-note">
+                        {{
+                            t(
+                                "project.editor.nothingWritten",
+                                "Your edits save themselves after a quiet pause, and Save now writes immediately. Every write does exactly this and nothing else, and every one becomes a revision the History tab can bring back.",
+                            )
+                        }}
+                    </p>
+                </section>
+
                 <section class="mb-project-editor__context-section">
                     <p class="mb-project-editor__eyebrow">
                         {{ t("project.context.consequences", "Consequences") }}
@@ -1909,20 +2068,6 @@ const renderButtonLabel = computed(() =>
                         </template>
                     </dl>
                 </section>
-
-                <section class="mb-project-editor__context-section">
-                    <p class="mb-project-editor__eyebrow">
-                        {{ t("project.context.savePlan", "Save plan") }}
-                    </p>
-                    <ol class="mb-project-editor__save-plan">
-                        <li v-for="step in savePlan" :key="step.target">
-                            <code
-                                ><span>{{ step.verb }}</span> {{ step.target }}</code
-                            >
-                            <p>{{ step.detail }}</p>
-                        </li>
-                    </ol>
-                </section>
             </aside>
         </div>
     </div>
@@ -1932,7 +2077,7 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 0;
     inline-size: 100%;
     min-inline-size: 0;
     box-sizing: border-box;
@@ -1947,17 +2092,8 @@ const renderButtonLabel = computed(() =>
  * application opened a settings dialog".
  */
 .mb-project-editor__header {
-    margin-block-end: 8px;
+    padding: 18px 24px 14px;
     min-inline-size: 0;
-}
-
-.mb-project-editor__headrow {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    min-inline-size: 0;
-    margin-block-end: 12px;
 }
 
 /*
@@ -1977,20 +2113,53 @@ const renderButtonLabel = computed(() =>
     display: flex;
     align-items: center;
     gap: 14px;
-    margin-block-end: 6px;
+    flex-wrap: wrap;
     min-inline-size: 0;
 }
 
+.mb-project-editor .mb-icon-tile.mb-project-editor__tile {
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
+}
+
+.mb-project-editor__nameline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-inline-size: 0;
+}
+
+.mb-project-editor__nameline .v-btn {
+    color: rgb(var(--v-theme-outline));
+}
+
+.mb-project-editor .mb-project-editor__nameline h1 {
+    margin: 0;
+    font-size: var(--md-sys-typescale-headline-small-size);
+    font-weight: 400;
+    line-height: 30px;
+}
+
+.mb-project-editor .mb-project-editor__headMeta {
+    margin: 2px 0 0;
+    color: rgb(var(--v-theme-outline));
+}
+
+.mb-project-editor__headActions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-inline-start: auto;
+}
+
 .mb-project-editor__titleText {
+    flex: 1 1 14rem;
     min-inline-size: 0;
 }
 
 .mb-project-editor__titleText h1 {
-    overflow-wrap: anywhere;
-}
-
-.mb-project-editor__where {
-    margin-block-start: 8px;
     overflow-wrap: anywhere;
 }
 
@@ -1999,10 +2168,6 @@ const renderButtonLabel = computed(() =>
     color: rgb(var(--v-theme-on-surface-variant));
     font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
-}
-
-.mb-project-editor__engineNote {
-    margin-block: 8px 0;
 }
 
 .mb-project-editor__actions {
@@ -2014,7 +2179,7 @@ const renderButtonLabel = computed(() =>
     min-inline-size: 0;
 }
 
-.mb-project-editor__headrow .v-btn,
+.mb-project-editor__headActions .v-btn,
 .mb-project-editor__actions .v-btn,
 .mb-project-editor__fieldDefault .v-btn {
     min-block-size: 44px;
@@ -2022,7 +2187,7 @@ const renderButtonLabel = computed(() =>
     max-inline-size: 100%;
 }
 
-.mb-project-editor__headrow .v-btn .v-btn__content,
+.mb-project-editor__headActions .v-btn .v-btn__content,
 .mb-project-editor__actions .v-btn .v-btn__content,
 .mb-project-editor__fieldDefault .v-btn .v-btn__content {
     white-space: normal;
@@ -2041,14 +2206,6 @@ const renderButtonLabel = computed(() =>
  * panel is that it can be read in a glance and checked against what the person expected, and
  * a paragraph would be read once and never again.
  * ------------------------------------------------------------------------- */
-.mb-project-editor__plan {
-    margin-block-end: 8px;
-    min-inline-size: 0;
-}
-
-.mb-project-editor__planLede {
-    margin-block-end: 10px;
-}
 
 .mb-project-editor__planRows {
     display: flex;
@@ -2063,7 +2220,7 @@ const renderButtonLabel = computed(() =>
 .mb-project-editor__planRow {
     display: flex;
     align-items: baseline;
-    gap: 10px;
+    gap: 8px;
     flex-wrap: wrap;
     padding: 9px 11px;
     border-radius: var(--md-sys-shape-corner-small);
@@ -2110,10 +2267,11 @@ const renderButtonLabel = computed(() =>
         are the reason the editor exists. Both side columns keep a floor wide enough to stay
         legible rather than being squeezed into ellipsis.
     */
-    grid-template-columns: minmax(11rem, 0.55fr) minmax(0, 2.7fr) minmax(16rem, 0.8fr);
-    align-items: start;
-    gap: 12px;
+    grid-template-columns: 264px minmax(0, 1fr) 286px;
+    align-items: stretch;
+    gap: 0;
     min-inline-size: 0;
+    border-block-start: 1px solid rgb(var(--v-theme-surface-container));
 }
 
 /*
@@ -2121,7 +2279,7 @@ const renderButtonLabel = computed(() =>
     pixel it gives up goes to the settings rather than being shared out.
 */
 .mb-project-editor__workspace--collapsed {
-    grid-template-columns: auto minmax(0, 3.4fr) minmax(16rem, 0.8fr);
+    grid-template-columns: auto minmax(0, 1fr) 286px;
 }
 
 .mb-project-editor__navigator--collapsed {
@@ -2163,22 +2321,30 @@ const renderButtonLabel = computed(() =>
     outline-offset: 2px;
 }
 
+/*
+ * The prototype's three panes are not cards: they are columns of the page, divided by the
+ * same hairline that runs under the header, with the rail painted the plain surface colour so
+ * it reads as a side panel rather than a third card.
+ */
 .mb-project-editor__navigator,
 .mb-project-editor__workspace-editor,
 .mb-project-editor__context {
     min-inline-size: 0;
-    border: 1px solid rgba(var(--v-theme-on-surface), var(--v-border-opacity));
-    border-radius: var(--md-sys-shape-corner-large);
-    background: rgb(var(--v-theme-surface));
 }
 
-.mb-project-editor__navigator,
-.mb-project-editor__context {
-    padding: 14px;
+.mb-project-editor__navigator {
+    padding: 12px 10px;
+    border-inline-end: 1px solid rgb(var(--v-theme-surface-container));
 }
 
 .mb-project-editor__workspace-editor {
-    padding: 12px;
+    padding: 20px 26px 40px;
+}
+
+.mb-project-editor__context {
+    padding: 20px 18px;
+    border-inline-start: 1px solid rgb(var(--v-theme-surface-container));
+    background: rgb(var(--v-theme-surface));
 }
 
 .mb-project-editor__navigator-head,
@@ -2186,20 +2352,41 @@ const renderButtonLabel = computed(() =>
     min-inline-size: 0;
 }
 
-.mb-project-editor__context-section + .mb-project-editor__context-section {
-    margin-block-start: 18px;
-    padding-block-start: 18px;
-    border-block-start: 1px solid rgba(var(--v-theme-on-surface), var(--v-border-opacity));
+.mb-project-editor__context-section {
+    margin-block-start: 20px;
+}
+
+.mb-project-editor__defaultsNote {
+    padding: 12px 14px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-primary-container));
+    color: rgb(var(--v-theme-on-primary-container));
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 19px;
+}
+
+.mb-project-editor__defaultsNote p {
+    margin: 0;
+}
+
+.mb-project-editor__defaultsNote .mb-project-editor__defaultsFoot {
+    margin-block-start: 8px;
+    opacity: 0.85;
+}
+
+.mb-project-editor__run-actions .mb-project-editor__actions {
+    flex-direction: column;
+    align-items: stretch;
 }
 
 .mb-project-editor__eyebrow {
-    margin: 0;
+    margin: 0 0 10px;
     font-size: var(--md-sys-typescale-label-small-size);
-    font-weight: 700;
+    font-weight: 500;
     letter-spacing: 0.08em;
     line-height: 1.3;
     text-transform: uppercase;
-    color: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-outline));
 }
 
 .mb-project-editor__navigator-note,
@@ -2214,17 +2401,49 @@ const renderButtonLabel = computed(() =>
 
 .mb-project-editor__navigator-list {
     display: grid;
-    gap: 4px;
-    margin-block-start: 12px;
+    gap: 0;
 }
 
+/* The tree heading: an uppercase label, a hairline, the count. */
+.mb-project-editor .mb-project-editor__navigator-heading {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin: 0;
+    padding: 14px 10px 6px;
+    font-size: var(--md-sys-typescale-label-small-size);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    line-height: 16px;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-outline));
+}
+
+.mb-project-editor__navigator-rule {
+    flex: 1 1 auto;
+    block-size: 1px;
+    align-self: center;
+    background: rgb(var(--v-theme-surface-container));
+}
+
+.mb-project-editor__navigator-headcount {
+    letter-spacing: 0;
+}
+
+/*
+ * A 40px row, as the prototype draws it: icon, label, mono count. The longer description is
+ * kept for the tooltip and for screen readers (it is the button's text), but visually it is
+ * folded away so the tree scans as names rather than paragraphs.
+ */
 .mb-project-editor__navigator-node {
+    position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 2px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: 10px;
     inline-size: 100%;
     min-block-size: 44px;
-    padding: 8px 10px;
+    padding: 0 10px;
     border: 0;
     border-radius: var(--md-sys-shape-corner-medium);
     background: transparent;
@@ -2234,7 +2453,15 @@ const renderButtonLabel = computed(() =>
 }
 
 .mb-project-editor__navigator-node:hover {
-    background: rgba(var(--v-theme-on-surface), 0.08);
+    background: rgb(var(--v-theme-surface-container));
+}
+
+.mb-project-editor__navigator-icon {
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-project-editor__navigator-node--active .mb-project-editor__navigator-icon {
+    color: inherit;
 }
 
 .mb-project-editor__navigator-node:focus-visible {
@@ -2252,28 +2479,20 @@ const renderButtonLabel = computed(() =>
 }
 
 .mb-project-editor__navigator-node--depth-1 {
-    margin-inline-start: 12px;
-    inline-size: calc(100% - 12px);
-}
-
-.mb-project-editor__navigator-node--section,
-.mb-project-editor__navigator-node--render,
-.mb-project-editor__navigator-node--history,
-.mb-project-editor__navigator-node--singleton {
-    margin-block-start: 5px;
+    padding-inline-start: 22px;
 }
 
 .mb-project-editor__navigator-label {
     min-inline-size: 0;
     overflow: hidden;
     font-size: var(--md-sys-typescale-body-medium-size);
-    font-weight: 650;
+    font-weight: 400;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .mb-project-editor__navigator-count {
-    align-self: start;
+    align-self: center;
     color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
     font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: var(--md-sys-typescale-label-small-size);
@@ -2282,13 +2501,12 @@ const renderButtonLabel = computed(() =>
 }
 
 .mb-project-editor__navigator-detail {
-    grid-column: 1 / -1;
-    min-inline-size: 0;
-    font-size: var(--md-sys-typescale-label-small-size);
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-    white-space: normal;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
 }
 
 .mb-project-editor__navigator-node--active .mb-project-editor__navigator-detail,
@@ -2411,6 +2629,103 @@ const renderButtonLabel = computed(() =>
     overflow-wrap: anywhere;
 }
 
+/* ---------------------------------------------------------------------------
+ * The typed field rows, in the prototype's anatomy.
+ *
+ * Scoped to this editor rather than changed in `ConfigField.vue`, which the wizard and the
+ * whole-file config screen share: the mono setting path leads the row, the control type and
+ * provenance are quiet outlined labels, the "re-render" marker is the prototype's
+ * error-container pill, and a value this project has changed carries a primary outline so
+ * changed and untouched settings can be told apart down a long column at a glance.
+ * ------------------------------------------------------------------------- */
+.mb-project-editor .mb-config-field {
+    padding: 14px 0;
+    border-block-end: 1px solid rgb(var(--v-theme-surface-container));
+}
+
+.mb-project-editor .mb-config-field__badges {
+    align-items: baseline;
+    gap: 10px;
+}
+
+.mb-project-editor .mb-config-field__path {
+    order: -1;
+    margin-inline-start: 0;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    font-weight: 500;
+    color: rgb(var(--v-theme-on-surface));
+}
+
+.mb-project-editor .mb-config-field__badges .v-chip--variant-outlined {
+    border-color: transparent;
+    padding-inline: 0;
+    color: rgb(var(--v-theme-outline));
+}
+
+/* `color="warning"` arrives as Vuetify's `text-warning` utility, which is `!important`. */
+.mb-project-editor .mb-config-field__badges .v-chip--variant-tonal {
+    background: rgb(var(--v-theme-error-container));
+    color: rgb(var(--v-theme-on-error-container)) !important;
+}
+
+.mb-project-editor .mb-config-field__badges .v-chip--variant-tonal .v-chip__underlay {
+    opacity: 0;
+}
+
+.mb-project-editor .mb-config-field__doc {
+    max-inline-size: 70ch;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-project-editor .mb-config-field .v-text-field,
+.mb-project-editor .mb-config-field .v-select,
+.mb-project-editor .mb-config-field .v-autocomplete,
+.mb-project-editor .mb-config-field .v-combobox {
+    max-inline-size: 400px;
+}
+
+.mb-project-editor .mb-config-field--changed .v-field--variant-outlined .v-field__outline {
+    color: rgb(var(--v-theme-primary));
+    --v-field-border-opacity: 1;
+}
+
+/*
+ * The setting groups as the prototype draws them: an uppercase primary label over a hairline,
+ * not a stack of tinted accordion cards. The panels stay real expansion panels - collapsible,
+ * keyboard-operable, announced - and only lose the card paint.
+ */
+.mb-project-editor .mb-config-form__panels .v-expansion-panel {
+    background: transparent;
+    border: none;
+}
+
+.mb-project-editor .mb-config-form__panels .v-expansion-panel__shadow {
+    display: none;
+}
+
+.mb-project-editor .mb-config-form__panels .v-expansion-panel-title {
+    min-block-size: 40px;
+    padding: 18px 0 4px;
+    border-block-end: 1px solid rgb(var(--v-theme-surface-container));
+    border-radius: 0;
+}
+
+.mb-project-editor .mb-config-form__panels .v-expansion-panel-title__overlay {
+    border-radius: var(--md-sys-shape-corner-small);
+}
+
+.mb-project-editor .mb-config-form__group {
+    font-size: var(--md-sys-typescale-label-small-size);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-primary));
+}
+
+.mb-project-editor .mb-config-form__panels .v-expansion-panel-text__wrapper {
+    padding: 0;
+}
+
 @container project-editor (max-width: 42rem) {
     .mb-project-editor__actions > .v-spacer {
         flex-basis: 100%;
@@ -2424,7 +2739,7 @@ const renderButtonLabel = computed(() =>
 
 @container project-editor (max-width: 72rem) {
     .mb-project-editor__workspace {
-        grid-template-columns: minmax(11rem, 0.55fr) minmax(0, 1fr);
+        grid-template-columns: 240px minmax(0, 1fr);
     }
 
     /* The collapse is worth most exactly here, where the width is already short. */
@@ -2434,6 +2749,8 @@ const renderButtonLabel = computed(() =>
 
     .mb-project-editor__context {
         grid-column: 1 / -1;
+        border-inline-start: none;
+        border-block-start: 1px solid rgb(var(--v-theme-surface-container));
     }
 }
 

@@ -4,7 +4,6 @@ import { useI18n } from "vue-i18n";
 import {
     mdiDeleteOutline,
     mdiDownload,
-    mdiFolderMultipleOutline,
     mdiFolderOpenOutline,
     mdiPencilOutline,
     mdiPlay,
@@ -466,15 +465,26 @@ function askToForget(world: string): void {
 
 <template>
     <v-card class="mb-projects" :aria-label="t('project.list.cardLabel', 'Projects on this computer')">
+        <!--
+            The prototype heads this list with its section rule rather than a card title: the
+            uppercase label, a hairline that eats the width, the count, then the two actions.
+        -->
         <v-card-title class="mb-projects__head">
-            <v-icon :icon="mdiFolderMultipleOutline" aria-hidden="true" />
-            <span>{{ t("project.list.title", "Projects") }}</span>
-            <GlossaryTerm term="project" />
-            <v-spacer />
+            <h2 class="mb-section-label mb-projects__label">
+                <GlossaryTerm
+                    term="project"
+                    :label="t('project.list.section', 'Projects on this machine')"
+                />
+            </h2>
+            <span class="mb-projects__rule" aria-hidden="true" />
+            <span class="mb-meta mb-projects__section-count">
+                {{ t("project.list.sectionCount", { n: visible.length }, "{n} projects") }}
+            </span>
             <v-btn
                 :prepend-icon="mdiRefresh"
                 variant="text"
                 size="small"
+                color="primary"
                 :disabled="hostName === null || isBusy"
                 @click="emit('refresh')"
             >
@@ -486,7 +496,7 @@ function askToForget(world: string): void {
         </v-card-title>
 
         <v-card-text>
-            <p class="mb-lede">
+            <p class="mb-lede mb-projects__blurb">
                 {{
                     t(
                         "project.list.blurb",
@@ -601,12 +611,6 @@ function askToForget(world: string): void {
                 are none, so an empty screen shows its explanation rather than a heading over
                 nothing.
             -->
-            <div v-if="visible.length > 0" class="mb-section-rule">
-                <span class="mb-section-label">{{ t("project.list.section", "Projects on this machine") }}</span>
-                <span class="mb-meta mb-projects__section-count">
-                    {{ t("project.list.sectionCount", { n: visible.length }, "{n} projects") }}
-                </span>
-            </div>
 
             <div
                 class="mb-projects__list"
@@ -831,10 +835,51 @@ function askToForget(world: string): void {
     inline-size: 100%;
 }
 
+/*
+ * The prototype draws this list straight onto the page under its section rule, with no card
+ * around it: only the rows are surfaces. The card stays (it carries the accessible name and
+ * the slots) but paints nothing of its own. Doubled class to outrank the shared card rule.
+ */
+.v-card.mb-projects {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    overflow: visible;
+}
+
+.mb-projects > :deep(.v-card-text) {
+    padding: 0;
+}
+
+/* The section rule's hairline, as an element so the count and the actions can follow it. */
+.mb-projects__rule {
+    flex: 1 1 2rem;
+    block-size: 1px;
+    align-self: center;
+    background: rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-projects__label {
+    margin: 0;
+}
+
+/* The glossary term carries the label here, so it takes the section label's type, not its own. */
+.mb-projects__label :deep(.mb-glossary-term__label) {
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    color: inherit;
+}
+
+.mb-lede.mb-projects__blurb {
+    margin-block-end: 10px;
+}
+
 .mb-projects__head {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+    padding: 0 0 10px;
     flex-wrap: wrap;
     row-gap: 4px;
     /*
@@ -861,13 +906,8 @@ function askToForget(world: string): void {
     margin-block: 4px 0;
 }
 
-/*
- * `mb-section-rule`'s hairline is its own `::after`, and generated content is the last flex
- * item by definition - so a count written into the markup would otherwise land between the
- * label and the rule instead of at the far end of it.
- */
 .mb-projects__section-count {
-    order: 1;
+    white-space: nowrap;
 }
 
 .mb-projects__search {

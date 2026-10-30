@@ -81,6 +81,27 @@ export const REPAIR_FIXED = {
     "repair.subject.webServer": { en: "Web server", yue: "Web server" },
     "repair.lineChanges": { en: "+{added}/-{removed}", yue: "+{added}/-{removed}" },
     "repair.reportAction": { en: "Report a problem", yue: "報告問題" },
+    // The repair offer `RepairOffer.vue` draws on the Renders page.
+    "repair.offer.label": {
+        en: "A failed render this build can explain",
+        yue: "一個呢個組建解釋到嘅失敗 render",
+    },
+    "repair.offer.title": {
+        en: "A render failed to start ({mode})",
+        yue: "有個 render 開唔到（{mode}）",
+    },
+    "repair.offer.lede": {
+        en: "Automatic repair shows what it read before it proposes an edit, so the change is yours to approve rather than something that already happened.",
+        yue: "自動修復會先俾你睇佢讀到啲乜，先至提議改嘢，所以批唔批准係你話事，唔係改咗先講。",
+    },
+    "repair.offer.proposed": { en: "Proposed: {remedy}", yue: "建議：{remedy}" },
+    "repair.offer.notNow": { en: "Not now", yue: "遲啲先" },
+    "repair.offer.apply": { en: "Apply the repair", yue: "套用修復" },
+    "repair.offer.again": { en: "Show it again", yue: "再顯示多次" },
+    "repair.offer.leftAlone": {
+        en: "Left as it was. The failure stays on record under Settings, Diagnostics.",
+        yue: "原封不動。呢次失敗仍然記錄喺設定嘅診斷度。",
+    },
     "repair.reportPreview": {
         en: "Review every field before submitting. Nothing is sent automatically; optional evidence can be edited or removed.",
         yue: "提交之前請逐項睇清楚。唔會自動傳送；可選證據可以修改或者刪走。",

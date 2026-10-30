@@ -1128,8 +1128,6 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
         would put the project's dirty state, its save path and its render in two places.
     -->
     <div class="mb-projects-screen" :class="{ 'mb-projects-screen--editing': editorOpen }">
-        <GenerationEntry />
-        <AccessPreparationPanel />
         <!--
             The render outlives the editor being closed, so it sits above both rather than
             inside either. It renders nothing at all while no render has been started.
@@ -1283,7 +1281,30 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
                 @create="createOpen = true"
                 @notify="notify"
             />
+
+            <!--
+                The prototype's "Somewhere else": the ways to a world that this machine did not
+                find on its own. Generating one is the entry this build has; it opens the same
+                generation dialog the wizard does.
+            -->
+            <section class="mb-projects-screen__elsewhere">
+                <div class="mb-section-rule">
+                    <h2 class="mb-section-label">
+                        {{ t("projects.page.elsewhere", "Somewhere else") }}
+                    </h2>
+                </div>
+                <div class="mb-projects-screen__sources">
+                    <GenerationEntry />
+                </div>
+            </section>
         </template>
+
+        <!--
+            Access preparation is a pre-render step for every project, so it stays on the
+            page in both states, below the chooser or the editor rather than above them: the
+            prototype opens this job on its own header, never on a form.
+        -->
+        <AccessPreparationPanel />
 
         <!-- Starting one asks for a folder, so it is a decision dialog rather than a notice. -->
         <v-card v-if="createOpen" class="mb-projects-screen__create">
@@ -1389,7 +1410,7 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
 .mb-projects-screen {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 18px;
     inline-size: 100%;
     max-inline-size: 900px;
     margin-inline: auto;
@@ -1405,7 +1426,18 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
  * guess.
  */
 .mb-projects-screen--editing {
-    max-inline-size: 1400px;
+    max-inline-size: none;
+    padding: 0;
+    gap: 0;
+}
+
+/*
+ * The editor runs edge to edge, as the prototype draws it: its header, tree, settings and
+ * rail own the whole width. Anything else on the page while it is open - a render's panel,
+ * a failure, access preparation - keeps the page gutter.
+ */
+.mb-projects-screen--editing > :not(.mb-project-editor) {
+    margin: 12px 24px;
 }
 
 @media (max-width: 900px) {
@@ -1415,7 +1447,21 @@ async function handlePagesToggle(enabled: boolean): Promise<void> {
 }
 
 .mb-projects-screen__header {
-    margin-block-end: 18px;
+    margin-block-end: 0;
+}
+
+.mb-projects-screen__elsewhere {
+    margin-block-start: 20px;
+}
+
+.mb-projects-screen__elsewhere .mb-section-label {
+    margin: 0;
+}
+
+.mb-projects-screen__sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .mb-projects-screen__create {

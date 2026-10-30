@@ -16,6 +16,7 @@ import {
     VAlert,
     VBtn,
     VCard,
+    VIcon,
     VCardText,
     VCardTitle,
     VCheckbox,
@@ -504,6 +505,30 @@ function chooseRepository(value: unknown): void {
 
 /** Which of GitHub's naming rules `repo` breaks, or null when it is fine or still empty. */
 const repoProblem = computed(() => repoNameProblem(repo.value, t));
+
+/**
+ * The header's one meta line, as the prototype writes it: who this renders as, which
+ * repository, and the runner it gets. Every part is read from state this screen already holds;
+ * a part that is not known yet is left out rather than guessed.
+ */
+const headerMeta = computed(() => {
+    const parts: string[] = [];
+    if (!renders.available) {
+        parts.push(t("cirender.meta.noBridge", "not available in this build"));
+    } else if (accountsLoaded.value && accountSignedOut.value) {
+        parts.push(t("cirender.meta.signedOut", "not signed in"));
+    } else {
+        const login = accountOrdered.value.find(
+            (account) => account.id === effectiveAccountId.value,
+        )?.login;
+        if (login !== undefined) parts.push(login);
+    }
+    if (owner.value.trim() !== "" && repo.value.trim() !== "") {
+        parts.push(`${owner.value.trim()}/${repo.value.trim()}`);
+    }
+    parts.push(t("cirender.meta.runner", "standard runners, 4 vCPU"));
+    return parts.join(" · ");
+});
 
 let nameCheckTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -1207,8 +1232,7 @@ function attachSample(): string {
 }
 
 const selectedAttachRun = computed<CiAttachableRun | null>(
-    () =>
-        renders.attachableRuns.value.find((run) => run.id === selectedAttachRunId.value) ?? null,
+    () => renders.attachableRuns.value.find((run) => run.id === selectedAttachRunId.value) ?? null,
 );
 
 /**
@@ -1237,10 +1261,7 @@ watch(selectedAttachRun, (run) => {
  */
 const attachBlockedBecause = computed<string | null>(() => {
     if (worldFolder.value.trim() !== "") return null;
-    return t(
-        "cirender.attach.needWorld",
-        "Choose a world above before fetching a render into it.",
-    );
+    return t("cirender.attach.needWorld", "Choose a world above before fetching a render into it.");
 });
 
 /** Owner or repository changed underneath a listing that no longer describes them. */
@@ -1251,7 +1272,11 @@ watch([owner, repo], () => {
 
 async function loadAttachableRuns(): Promise<void> {
     selectedAttachRunId.value = null;
-    await renders.loadAttachableRuns(owner.value.trim(), repo.value.trim(), effectiveAccountId.value);
+    await renders.loadAttachableRuns(
+        owner.value.trim(),
+        repo.value.trim(),
+        effectiveAccountId.value,
+    );
 }
 
 /**
@@ -1542,8 +1567,16 @@ onBeforeUnmount(() => {
             leading with it puts a picture where the title belongs.
         -->
         <header class="ci-render-screen__header">
-            <h1 class="mb-page-title">{{ t("cirender.title", "Render on GitHub") }}</h1>
-            <p class="mb-lede">
+            <div class="ci-render-screen__titlerow">
+                <div class="mb-icon-tile ci-render-screen__tile" aria-hidden="true">
+                    <v-icon :icon="mdiCloudSyncOutline" size="24" />
+                </div>
+                <div class="ci-render-screen__titles">
+                    <h1 class="mb-page-title">{{ t("cirender.title", "Render on GitHub") }}</h1>
+                    <p class="ci-render-screen__meta">{{ headerMeta }}</p>
+                </div>
+            </div>
+            <p class="mb-lede ci-render-screen__lede">
                 {{
                     t(
                         "cirender.pitch",
@@ -1551,25 +1584,6 @@ onBeforeUnmount(() => {
                     )
                 }}
             </p>
-            <p class="mb-footnote">
-                {{
-                    t(
-                        "cirender.caveats",
-                        "The trade-offs, plainly: uploading a multi-gigabyte world takes time and bandwidth; GitHub's free Actions minutes are finite for private repositories, while public ones get unlimited standard-runner minutes; and a very large world can still exceed a job's budget or be too big to send as one release asset.",
-                    )
-                }}
-            </p>
-            <ActionArtwork
-                class="ci-render-screen__artwork"
-                artwork="cloudRenderSetup"
-                :alt="
-                    t(
-                        'cirender.artwork.alt',
-                        'A local Minecraft world travelling through a cloud render pipeline and returning as a finished map',
-                    )
-                "
-                eager
-            />
         </header>
 
         <VAlert v-if="!renders.available" type="info" variant="tonal" class="mb-4">
@@ -2522,7 +2536,9 @@ onBeforeUnmount(() => {
                                     size="small"
                                     :variant="run.id === selectedAttachRunId ? 'flat' : 'tonal'"
                                     :color="run.id === selectedAttachRunId ? 'primary' : undefined"
-                                    :aria-current="run.id === selectedAttachRunId ? 'true' : undefined"
+                                    :aria-current="
+                                        run.id === selectedAttachRunId ? 'true' : undefined
+                                    "
                                     :aria-label="
                                         t(
                                             'cirender.attach.selectRun',
@@ -2584,7 +2600,8 @@ onBeforeUnmount(() => {
                                     "cirender.attach.confirm",
                                     {
                                         mapId:
-                                            selectedAttachRun.mapId ?? selectedAttachRun.displayTitle,
+                                            selectedAttachRun.mapId ??
+                                            selectedAttachRun.displayTitle,
                                     },
                                     "Fetch {mapId} into the map list for the world selected above. Its render already finished on GitHub; this only downloads, verifies and registers it.",
                                 )
@@ -3138,7 +3155,9 @@ onBeforeUnmount(() => {
                                     {{
                                         t(
                                             "cirender.schedule.help",
-                                            { count: renders.schedule.value.checksPerMonth ?? 0 },
+                                            {
+                                                count: renders.schedule.value.checksPerMonth ?? 0,
+                                            },
                                             "Checks this world for changes about {count} times a month, and only starts a render when it actually finds one.",
                                         )
                                     }}
@@ -3208,6 +3227,42 @@ onBeforeUnmount(() => {
                 </VCardText>
             </VCard>
         </template>
+
+        <!--
+            The prototype's right rail: "the price of that, up front". The trade-offs sit beside
+            the pitch rather than under it, because advertising the upside alone is how somebody
+            wastes an afternoon. The artwork illustrates the pipeline the reader was just told
+            about, so it follows the words in the rail rather than leading the page.
+        -->
+        <aside
+            class="ci-render-screen__aside"
+            :aria-label="t('cirender.price.title', 'The price of that, up front')"
+        >
+            <h2 class="ci-render-screen__eyebrow">
+                {{ t("cirender.price.title", "The price of that, up front") }}
+            </h2>
+            <VCard class="ci-render-screen__cost" variant="flat">
+                <p>
+                    {{
+                        t(
+                            "cirender.caveats",
+                            "The trade-offs, plainly: uploading a multi-gigabyte world takes time and bandwidth; GitHub's free Actions minutes are finite for private repositories, while public ones get unlimited standard-runner minutes; and a very large world can still exceed a job's budget or be too big to send as one release asset.",
+                        )
+                    }}
+                </p>
+            </VCard>
+            <ActionArtwork
+                class="ci-render-screen__artwork"
+                artwork="cloudRenderSetup"
+                :alt="
+                    t(
+                        'cirender.artwork.alt',
+                        'A local Minecraft world travelling through a cloud render pipeline and returning as a finished map',
+                    )
+                "
+                eager
+            />
+        </aside>
     </div>
 </template>
 
@@ -3220,29 +3275,144 @@ onBeforeUnmount(() => {
  * on this screen in particular is a long way, because it is mostly prose about consents and
  * runners. Stated here rather than inherited so the screen is correct wherever it is hosted.
  */
+/*
+ * The shell hosts this screen in a centring column with its own 16px pad (`.mb-shell-centre`
+ * in App.vue). The prototype runs the two columns edge to edge, so the screen takes that pad
+ * back rather than the shell being edited for one job.
+ */
 .ci-render-screen {
-    inline-size: 100%;
-    max-inline-size: 900px;
-    margin-inline: auto;
-    padding: 30px 40px 48px;
+    position: relative;
+    align-self: stretch;
+    box-sizing: border-box;
+    inline-size: calc(100% + 32px);
+    margin: -16px;
+    min-block-size: calc(100vh - 48px);
+    padding: 26px calc(320px + 30px) 40px 30px;
+}
+
+/*
+ * The prototype's runners page: a main column with a 26/30/40 gutter and a 780px measure, and
+ * a 320px rail on the plain surface colour down the right edge, divided by a hairline. The
+ * rail's colour and hairline belong to the host (`::before`, stretched over the screen,
+ * at least the window tall), so the panel reaches the bottom of the window however short its contents are.
+ */
+.ci-render-screen > :not(.ci-render-screen__aside) {
+    max-inline-size: 780px;
+}
+
+.ci-render-screen::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: 0;
+    inline-size: 320px;
+    pointer-events: none;
+    border-inline-start: 1px solid rgb(var(--v-theme-surface-container));
+    background: rgb(var(--v-theme-surface));
+}
+
+.ci-render-screen__aside {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+    inline-size: 320px;
+    box-sizing: border-box;
+    padding: 22px 20px;
+}
+
+@media (max-width: 1100px) {
+    .ci-render-screen {
+        padding-inline-end: 30px;
+    }
+
+    .ci-render-screen::before {
+        display: none;
+    }
+
+    .ci-render-screen__aside {
+        position: static;
+        inline-size: auto;
+        margin: 24px -30px -40px;
+        border-block-start: 1px solid rgb(var(--v-theme-surface-container));
+        background: rgb(var(--v-theme-surface));
+    }
 }
 
 @media (max-width: 900px) {
     .ci-render-screen {
         padding: 20px 16px 32px;
     }
+
+    .ci-render-screen__aside {
+        margin: 24px -16px -32px;
+    }
 }
 
 .ci-render-screen__header {
-    margin-block-end: 18px;
+    margin-block-end: 22px;
 }
 
-/*
- * The footnote above the artwork already carries the shared sheet's 26px bottom margin, so
- * the picture only needs its own gap underneath it before the first card begins.
- */
+.ci-render-screen__titlerow {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.ci-render-screen .ci-render-screen__tile {
+    inline-size: 44px;
+    block-size: 44px;
+    flex-basis: 44px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-surface-container));
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.ci-render-screen__titles {
+    min-inline-size: 0;
+}
+
+.ci-render-screen .ci-render-screen__titles .mb-page-title {
+    margin: 0;
+    font-size: var(--md-sys-typescale-headline-small-size);
+}
+
+.ci-render-screen__meta {
+    margin: 2px 0 0;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 16px;
+    color: rgb(var(--v-theme-outline));
+    overflow-wrap: anywhere;
+}
+
+.ci-render-screen .ci-render-screen__lede {
+    margin: 16px 0 0;
+    max-inline-size: 72ch;
+}
+
+.ci-render-screen__eyebrow {
+    margin: 0 0 12px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    line-height: 16px;
+    text-transform: uppercase;
+    color: rgb(var(--v-theme-outline));
+}
+
+.ci-render-screen .ci-render-screen__cost {
+    padding: 12px 13px;
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.ci-render-screen__cost p {
+    margin: 0;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: 18px;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
 .ci-render-screen__artwork {
-    margin-block-end: 6px;
+    margin-block-start: 14px;
 }
 
 .ci-jobs,
