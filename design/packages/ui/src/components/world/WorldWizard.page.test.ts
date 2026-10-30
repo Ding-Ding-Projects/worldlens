@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import type { WorldInspection } from "./worldFolder.js";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { defineComponent, h } from "vue";
@@ -85,6 +86,9 @@ const INSPECTION = {
             regionDirectory: "region",
             regionFiles: 784,
             custom: false,
+            preset: "overworld",
+            sorting: 0,
+            external: false,
         },
         {
             key: "minecraft:the_nether",
@@ -93,6 +97,9 @@ const INSPECTION = {
             regionDirectory: "DIM-1/region",
             regionFiles: 132,
             custom: false,
+            preset: "nether",
+            sorting: 100,
+            external: false,
         },
         {
             key: "minecraft:the_end",
@@ -101,9 +108,12 @@ const INSPECTION = {
             regionDirectory: "DIM1/region",
             regionFiles: 45,
             custom: false,
+            preset: "end",
+            sorting: 200,
+            external: false,
         },
     ],
-} as const;
+} as const satisfies WorldInspection;
 
 function mountInWork(opened: string[], search?: { query: string; regex: boolean; flags: string }) {
     return mount(WorldWizard, {
