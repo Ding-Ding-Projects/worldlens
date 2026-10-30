@@ -1,6 +1,34 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import {
+    mdiAccountCircleOutline,
+    mdiArrowCollapseHorizontal,
+    mdiArrowExpandHorizontal,
+    mdiBellOutline,
+    mdiCloudOutline,
+    mdiCoffeeOutline,
+    mdiDownload,
+    mdiDownloadMultiple,
+    mdiEngineOutline,
+    mdiFolderOutline,
+    mdiFolderSearchOutline,
+    mdiHistory,
+    mdiHumanHandsup,
+    mdiImageOutline,
+    mdiMemory,
+    mdiPackageVariantClosed,
+    mdiPuzzleOutline,
+    mdiSourceCommit,
+    mdiSpellcheck,
+    mdiStethoscope,
+    mdiTeddyBear,
+    mdiTranslate,
+    mdiTuneVariant,
+    mdiUpdate,
+    mdiViewDashboardOutline,
+} from "@mdi/js";
+import { VBtn, VIcon, VTooltip } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import GhCliAccountsList from "../github/GhCliAccountsList.vue";
@@ -34,7 +62,7 @@ import { AppLogoRow, logoStore } from "../appLogo/index.js";
 import { RepairPanel } from "../repair/index.js";
 import { KidModeRow, useKidMode } from "../../kid/index.js";
 import { DOCK_PLACEMENTS } from "./dockPlacement.js";
-import { dockedSurfaces } from "./useDockPlacement.js";
+import { dockedSurfaces, setDockThickness, thicknessFor } from "./useDockPlacement.js";
 import { createJavaSetting, describeJavaRejections } from "./javaSetting.js";
 import { createMapStorageSetting } from "./mapStorageSetting.js";
 import { createRenderMemorySetting } from "./renderMemorySetting.js";
@@ -253,6 +281,140 @@ const regexMode = ref(false);
 const flags = ref("im");
 
 const copy = computed(() => sectionCopy(t));
+
+/**
+ * The leading glyph each section's header carries, per the approved design's settings sheet.
+ * Decorative only - the section's title is its name - and chosen from the `@mdi/js` set the
+ * rest of the application already ships.
+ */
+const SECTION_ICONS: Readonly<Record<SettingsSectionAnchor, string>> = {
+    "mojang-download-consent": mdiDownload,
+    "java-runtime": mdiCoffeeOutline,
+    "render-engine-choice": mdiEngineOutline,
+    "map-storage-directory": mdiFolderOutline,
+    "world-folder": mdiFolderSearchOutline,
+    "github-account": mdiAccountCircleOutline,
+    "language-and-tone": mdiTranslate,
+    display: mdiHumanHandsup,
+    "kid-mode": mdiTeddyBear,
+    "surface-placement": mdiViewDashboardOutline,
+    "render-memory": mdiMemory,
+    "download-concurrency": mdiDownloadMultiple,
+    "notification-duration": mdiBellOutline,
+    "system-dependencies": mdiPackageVariantClosed,
+    "aws-accounts": mdiCloudOutline,
+    addons: mdiPuzzleOutline,
+    "bluemap-engine": mdiSourceCommit,
+    updates: mdiUpdate,
+    vocabulary: mdiSpellcheck,
+    "app-logo": mdiImageOutline,
+    "runtime-settings": mdiTuneVariant,
+    history: mdiHistory,
+    diagnostics: mdiStethoscope,
+};
+
+/**
+ * The trailing state chip a section header carries: the value it holds right now, in a word or
+ * two, read from the same controllers the rows below it write through. Sections whose row
+ * already states its own value prominently (consent, kid mode, the panels) carry none rather
+ * than saying it twice.
+ */
+interface SectionStatus {
+    readonly text: string;
+    readonly tone: "neutral" | "good" | "attention";
+}
+
+const sectionStatus = computed<Partial<Record<SettingsSectionAnchor, SectionStatus>>>(() => {
+    const out: Partial<Record<SettingsSectionAnchor, SectionStatus>> = {};
+    const installation = java.report.value?.installation ?? null;
+    if (java.state.value === "found" && installation !== null) {
+        out["java-runtime"] = { text: `Java ${installation.version.version}`, tone: "neutral" };
+    } else if (java.state.value === "missing") {
+        out["java-runtime"] = {
+            text: t("settings.status.notFound", "Not found"),
+            tone: "attention",
+        };
+    }
+    out["map-storage-directory"] = storage.isDefault.value
+        ? { text: t("settings.status.default", "Default"), tone: "neutral" }
+        : { text: t("settings.status.set", "Set"), tone: "neutral" };
+    if (github.canList) {
+        out["github-account"] = github.hasAccounts.value
+            ? {
+                  text: t(
+                      "settings.status.accounts",
+                      { n: github.accounts.value.length },
+                      "{n} signed in",
+                  ),
+                  tone: "good",
+              }
+            : { text: t("settings.status.signedOut", "Signed out"), tone: "neutral" };
+    }
+    out.display = {
+        text: `${String(uiSizeLevelByNumber(currentUiSizeLevel.value).percent)}%`,
+        tone: "neutral",
+    };
+    const memory = renderMemory.readout.value;
+    if (memory !== null) {
+        out["render-memory"] = {
+            text:
+                memory.mode === "automatic"
+                    ? t("settings.status.automatic", "Automatic")
+                    : `${String(memory.megabytes)} MB`,
+            tone: "neutral",
+        };
+    }
+    const workers = downloadConcurrency.readout.value;
+    if (workers !== null) {
+        out["download-concurrency"] = { text: String(workers.workers), tone: "neutral" };
+    }
+    out["notification-duration"] = {
+        text: noticeDurationLevelLabel(t, notices.durationLevel),
+        tone: "neutral",
+    };
+    const version = props.updates.state.value.currentVersion;
+    if (version !== "") out.updates = { text: version, tone: "neutral" };
+    return out;
+});
+
+/* -------------------------------------------------------------------------- */
+/* Width                                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The two widths the approved design's sheet offers from its header: the standard 560px
+ * column and an 820px one for reading long explanations beside their controls. Written
+ * through the same per-edge thickness record the splitter drags, so the header button and
+ * the splitter can never disagree about how wide the sheet is, and the choice persists.
+ */
+const STANDARD_WIDTH = 560;
+const WIDE_WIDTH = 820;
+
+const dock = ref<InstanceType<typeof DockedSurface> | null>(null);
+
+/** The edge the sheet is docked to, when it is docked to a side; null otherwise. */
+const sideEdge = computed<"left" | "right" | null>(() => {
+    const placement = dock.value?.placement ?? "right";
+    return placement === "left" || placement === "right" ? placement : null;
+});
+
+const wide = computed(() => {
+    const edge = sideEdge.value;
+    if (edge === null) return false;
+    return (thicknessFor("app-settings", edge) ?? STANDARD_WIDTH) >= WIDE_WIDTH;
+});
+
+const widthLabel = computed(() =>
+    wide.value
+        ? t("settings.width.narrow", "Narrow this panel")
+        : t("settings.width.widen", "Widen this panel"),
+);
+
+function toggleWidth(): void {
+    const edge = sideEdge.value;
+    if (edge === null) return;
+    setDockThickness("app-settings", edge, wide.value ? STANDARD_WIDTH : WIDE_WIDTH);
+}
 
 /** The two `SimpleHistoryPanel` headings, read live so a language switch renames them too. */
 const historyCopy = computed(() => ({
@@ -610,6 +772,13 @@ const matchedSections = computed<SettingsSectionText[]>(() => {
 
 const sample = computed(() => sectionSample(sections.value));
 
+/** The number shown inside the search field: every section, or the ones still matching. */
+const searchCount = computed(() =>
+    matcher.value.active && matcher.value.error === null
+        ? visible.value.length
+        : sections.value.length,
+);
+
 /** An honest "showing X of Y", including the case where the pattern itself is broken. */
 const searchSummary = computed(() => {
     if (matcher.value.error !== null) {
@@ -859,11 +1028,28 @@ function onDrawer(value: boolean): void {
         :title="t('settings.title', 'Settings')"
         :open="props.open"
         default-placement="right"
-        :preferred-thickness="520"
-        :preferred-width="520"
+        ref="dock"
+        :preferred-thickness="STANDARD_WIDTH"
+        :preferred-width="STANDARD_WIDTH"
         :preferred-height="720"
         @update:open="onDrawer"
     >
+        <template #bar>
+            <v-btn
+                v-if="sideEdge !== null"
+                class="mb-settings__width"
+                icon
+                variant="text"
+                density="comfortable"
+                :aria-label="widthLabel"
+                :aria-pressed="wide ? 'true' : 'false'"
+                @click="toggleWidth"
+            >
+                <v-icon :icon="wide ? mdiArrowCollapseHorizontal : mdiArrowExpandHorizontal" />
+                <v-tooltip activator="parent" location="bottom" :text="widthLabel" />
+            </v-btn>
+        </template>
+
         <template #prepend>
             <div class="mb-settings__search">
                 <ConfigSearchField
@@ -880,8 +1066,13 @@ function onDrawer(value: boolean): void {
                     "
                     :sample="sample"
                     :summary="searchSummary"
+                    class="mb-settings__field"
                     density="comfortable"
-                />
+                >
+                    <template #meta>
+                        <span class="mb-settings__count" aria-hidden="true">{{ searchCount }}</span>
+                    </template>
+                </ConfigSearchField>
 
                 <!--
                     A search here no longer hides tabs with `v-show`: only the active
@@ -954,6 +1145,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="consentSection"
                         anchor="mojang-download-consent"
+                        :icon="SECTION_ICONS['mojang-download-consent']"
+                        :status="sectionStatus['mojang-download-consent']?.text ?? null"
+                        :status-tone="sectionStatus['mojang-download-consent']?.tone ?? 'neutral'"
                         :title="copy['mojang-download-consent'].title"
                         :description="copy['mojang-download-consent'].description"
                     >
@@ -975,6 +1169,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="javaSection"
                         anchor="java-runtime"
+                        :icon="SECTION_ICONS['java-runtime']"
+                        :status="sectionStatus['java-runtime']?.text ?? null"
+                        :status-tone="sectionStatus['java-runtime']?.tone ?? 'neutral'"
                         :title="copy['java-runtime'].title"
                         :description="copy['java-runtime'].description"
                     >
@@ -989,6 +1186,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="renderEngineChoiceSection"
                         anchor="render-engine-choice"
+                        :icon="SECTION_ICONS['render-engine-choice']"
+                        :status="sectionStatus['render-engine-choice']?.text ?? null"
+                        :status-tone="sectionStatus['render-engine-choice']?.tone ?? 'neutral'"
                         :title="copy['render-engine-choice'].title"
                         :description="copy['render-engine-choice'].description"
                     >
@@ -1012,6 +1212,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="storageSection"
                         anchor="map-storage-directory"
+                        :icon="SECTION_ICONS['map-storage-directory']"
+                        :status="sectionStatus['map-storage-directory']?.text ?? null"
+                        :status-tone="sectionStatus['map-storage-directory']?.tone ?? 'neutral'"
                         :title="copy['map-storage-directory'].title"
                         :description="copy['map-storage-directory'].description"
                     >
@@ -1028,6 +1231,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="worldSection"
                         anchor="world-folder"
+                        :icon="SECTION_ICONS['world-folder']"
+                        :status="sectionStatus['world-folder']?.text ?? null"
+                        :status-tone="sectionStatus['world-folder']?.tone ?? 'neutral'"
                         :title="copy['world-folder'].title"
                         :description="copy['world-folder'].description"
                     >
@@ -1048,6 +1254,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="githubSection"
                         anchor="github-account"
+                        :icon="SECTION_ICONS['github-account']"
+                        :status="sectionStatus['github-account']?.text ?? null"
+                        :status-tone="sectionStatus['github-account']?.tone ?? 'neutral'"
                         :title="copy['github-account'].title"
                         :description="copy['github-account'].description"
                     >
@@ -1069,6 +1278,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="languageSection"
                         anchor="language-and-tone"
+                        :icon="SECTION_ICONS['language-and-tone']"
+                        :status="sectionStatus['language-and-tone']?.text ?? null"
+                        :status-tone="sectionStatus['language-and-tone']?.tone ?? 'neutral'"
                         :title="copy['language-and-tone'].title"
                         :description="copy['language-and-tone'].description"
                     >
@@ -1090,6 +1302,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="displaySection"
                         anchor="display"
+                        :icon="SECTION_ICONS['display']"
+                        :status="sectionStatus['display']?.text ?? null"
+                        :status-tone="sectionStatus['display']?.tone ?? 'neutral'"
                         :title="copy.display.title"
                         :description="copy.display.description"
                     >
@@ -1112,6 +1327,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="kidModeSection"
                         anchor="kid-mode"
+                        :icon="SECTION_ICONS['kid-mode']"
+                        :status="sectionStatus['kid-mode']?.text ?? null"
+                        :status-tone="sectionStatus['kid-mode']?.tone ?? 'neutral'"
                         :title="copy['kid-mode'].title"
                         :description="copy['kid-mode'].description"
                     >
@@ -1129,6 +1347,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="placementSection"
                         anchor="surface-placement"
+                        :icon="SECTION_ICONS['surface-placement']"
+                        :status="sectionStatus['surface-placement']?.text ?? null"
+                        :status-tone="sectionStatus['surface-placement']?.tone ?? 'neutral'"
                         :title="copy['surface-placement'].title"
                         :description="copy['surface-placement'].description"
                     >
@@ -1148,6 +1369,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="renderMemorySection"
                         anchor="render-memory"
+                        :icon="SECTION_ICONS['render-memory']"
+                        :status="sectionStatus['render-memory']?.text ?? null"
+                        :status-tone="sectionStatus['render-memory']?.tone ?? 'neutral'"
                         :title="copy['render-memory'].title"
                         :description="copy['render-memory'].description"
                     >
@@ -1169,6 +1393,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="downloadConcurrencySection"
                         anchor="download-concurrency"
+                        :icon="SECTION_ICONS['download-concurrency']"
+                        :status="sectionStatus['download-concurrency']?.text ?? null"
+                        :status-tone="sectionStatus['download-concurrency']?.tone ?? 'neutral'"
                         :title="copy['download-concurrency'].title"
                         :description="copy['download-concurrency'].description"
                     >
@@ -1188,6 +1415,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="noticeDurationSection"
                         anchor="notification-duration"
+                        :icon="SECTION_ICONS['notification-duration']"
+                        :status="sectionStatus['notification-duration']?.text ?? null"
+                        :status-tone="sectionStatus['notification-duration']?.tone ?? 'neutral'"
                         :title="copy['notification-duration'].title"
                         :description="copy['notification-duration'].description"
                     >
@@ -1206,6 +1436,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="systemDependenciesSection"
                         anchor="system-dependencies"
+                        :icon="SECTION_ICONS['system-dependencies']"
+                        :status="sectionStatus['system-dependencies']?.text ?? null"
+                        :status-tone="sectionStatus['system-dependencies']?.tone ?? 'neutral'"
                         :title="copy['system-dependencies'].title"
                         :description="copy['system-dependencies'].description"
                     >
@@ -1222,6 +1455,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="awsAccountsSection"
                         anchor="aws-accounts"
+                        :icon="SECTION_ICONS['aws-accounts']"
+                        :status="sectionStatus['aws-accounts']?.text ?? null"
+                        :status-tone="sectionStatus['aws-accounts']?.tone ?? 'neutral'"
                         :title="copy['aws-accounts'].title"
                         :description="copy['aws-accounts'].description"
                     >
@@ -1233,6 +1469,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="addonsSection"
                         anchor="addons"
+                        :icon="SECTION_ICONS['addons']"
+                        :status="sectionStatus['addons']?.text ?? null"
+                        :status-tone="sectionStatus['addons']?.tone ?? 'neutral'"
                         :title="copy.addons.title"
                         :description="copy.addons.description"
                     >
@@ -1251,6 +1490,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="blueMapSourceSection"
                         anchor="bluemap-engine"
+                        :icon="SECTION_ICONS['bluemap-engine']"
+                        :status="sectionStatus['bluemap-engine']?.text ?? null"
+                        :status-tone="sectionStatus['bluemap-engine']?.tone ?? 'neutral'"
                         :title="copy['bluemap-engine'].title"
                         :description="copy['bluemap-engine'].description"
                     >
@@ -1270,6 +1512,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="updatesSection"
                         anchor="updates"
+                        :icon="SECTION_ICONS['updates']"
+                        :status="sectionStatus['updates']?.text ?? null"
+                        :status-tone="sectionStatus['updates']?.tone ?? 'neutral'"
                         :title="copy.updates.title"
                         :description="copy.updates.description"
                     >
@@ -1295,6 +1540,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="vocabularySection"
                         anchor="vocabulary"
+                        :icon="SECTION_ICONS['vocabulary']"
+                        :status="sectionStatus['vocabulary']?.text ?? null"
+                        :status-tone="sectionStatus['vocabulary']?.tone ?? 'neutral'"
                         :title="copy.vocabulary.title"
                         :description="copy.vocabulary.description"
                     >
@@ -1312,6 +1560,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="appLogoSection"
                         anchor="app-logo"
+                        :icon="SECTION_ICONS['app-logo']"
+                        :status="sectionStatus['app-logo']?.text ?? null"
+                        :status-tone="sectionStatus['app-logo']?.tone ?? 'neutral'"
                         :title="copy['app-logo'].title"
                         :description="copy['app-logo'].description"
                     >
@@ -1323,6 +1574,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="runtimeSettingsSection"
                         anchor="runtime-settings"
+                        :icon="SECTION_ICONS['runtime-settings']"
+                        :status="sectionStatus['runtime-settings']?.text ?? null"
+                        :status-tone="sectionStatus['runtime-settings']?.tone ?? 'neutral'"
                         :title="copy['runtime-settings'].title"
                         :description="copy['runtime-settings'].description"
                     >
@@ -1341,6 +1595,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="historySection"
                         anchor="history"
+                        :icon="SECTION_ICONS['history']"
+                        :status="sectionStatus['history']?.text ?? null"
+                        :status-tone="sectionStatus['history']?.tone ?? 'neutral'"
                         :title="copy.history.title"
                         :description="copy.history.description"
                     >
@@ -1365,6 +1622,9 @@ function onDrawer(value: boolean): void {
                     <SettingsSection
                         ref="diagnosticsSection"
                         anchor="diagnostics"
+                        :icon="SECTION_ICONS['diagnostics']"
+                        :status="sectionStatus['diagnostics']?.text ?? null"
+                        :status-tone="sectionStatus['diagnostics']?.tone ?? 'neutral'"
                         :title="copy.diagnostics.title"
                         :description="copy.diagnostics.description"
                     >
@@ -1383,10 +1643,53 @@ function onDrawer(value: boolean): void {
  * list a search produces, and the column the tabbed body fills.
  */
 .mb-settings__search {
-    padding: 12px 16px;
+    padding: 16px 24px 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
+}
+
+/*
+ * The approved sheet's search: a 48px filled field on surface-container with an
+ * outline-variant hairline that turns primary on focus, the section count inside it before
+ * the regex controls. Still the shared `ConfigSearchField`, so the builder is the same one.
+ */
+.mb-settings__field .v-field {
+    min-block-size: 48px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-surface-container));
+}
+
+.mb-settings__field .v-field__outline {
+    --v-field-border-opacity: 1;
+    color: rgb(var(--v-theme-outline-variant));
+}
+
+.mb-settings__field .v-field--focused .v-field__outline {
+    color: rgb(var(--v-theme-primary));
+}
+
+/*
+ * The count inside the field already says how many sections there are or match, so the
+ * sentence under it stays for assistive technology (it is the field's polite live region)
+ * without drawing the same number a second time on screen.
+ */
+.mb-settings__field .mb-config-search__summary {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+.mb-settings__count {
+    flex: 0 0 auto;
+    margin-inline-end: 4px;
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-outline));
+    white-space: nowrap;
 }
 
 /*
@@ -1480,7 +1783,7 @@ function onDrawer(value: boolean): void {
     flex: 1 1 auto;
     min-height: 0;
     min-width: 0;
-    padding: 0 16px 24px;
+    padding: 4px 24px 24px;
     overflow: hidden;
 }
 
@@ -1645,6 +1948,18 @@ function onDrawer(value: boolean): void {
 .mb-settings__body .mb-setting {
     min-width: 0;
     max-width: 100%;
+}
+
+/*
+ * M3 buttons carry label-large in sentence case. Vuetify's own default is uppercase with wide
+ * tracking, which in a narrow segmented row also broke a word mid-letter ("STANDAR D"); every
+ * row on this surface takes the M3 label instead, and a long label wraps between words.
+ */
+.mb-settings__body .v-btn {
+    text-transform: none;
+    letter-spacing: var(--md-sys-typescale-label-large-tracking, 0.00625rem);
+    word-break: normal;
+    overflow-wrap: normal;
 }
 
 .mb-settings__body:focus-visible {

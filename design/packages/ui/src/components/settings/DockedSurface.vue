@@ -194,7 +194,9 @@ onBeforeUnmount(() => {
     globalThis.removeEventListener?.("resize", onResize);
 });
 
-const placement = computed<DockPlacement>(() => placementFor(props.surfaceId, props.defaultPlacement));
+const placement = computed<DockPlacement>(() =>
+    placementFor(props.surfaceId, props.defaultPlacement),
+);
 
 /** The thickness this surface was resized to on its current docked edge, if any. */
 const storedThickness = computed<number | null>(() =>
@@ -275,7 +277,10 @@ function announceClamp(): void {
 const currentFloatingRect = computed<FloatingRect | null>(() => {
     if (layout.value.placement !== "floating") return null;
     const offset = layout.value.offset ?? { top: FLOATING_MARGIN, left: FLOATING_MARGIN };
-    const size = layout.value.size ?? { width: props.preferredWidth, height: props.preferredHeight };
+    const size = layout.value.size ?? {
+        width: props.preferredWidth,
+        height: props.preferredHeight,
+    };
     return { top: offset.top, left: offset.left, width: size.width, height: size.height };
 });
 
@@ -294,24 +299,47 @@ function currentThickness(): number {
 function splitterLabel(edge: DockedEdge): string {
     switch (edge) {
         case "left":
-            return t("panels.resize.left", { title: props.title }, "Resize {title} from the left edge");
+            return t(
+                "panels.resize.left",
+                { title: props.title },
+                "Resize {title} from the left edge",
+            );
         case "right":
-            return t("panels.resize.right", { title: props.title }, "Resize {title} from the right edge");
+            return t(
+                "panels.resize.right",
+                { title: props.title },
+                "Resize {title} from the right edge",
+            );
         case "top":
-            return t("panels.resize.top", { title: props.title }, "Resize {title} from the top edge");
+            return t(
+                "panels.resize.top",
+                { title: props.title },
+                "Resize {title} from the top edge",
+            );
         case "bottom":
-            return t("panels.resize.bottom", { title: props.title }, "Resize {title} from the bottom edge");
+            return t(
+                "panels.resize.bottom",
+                { title: props.title },
+                "Resize {title} from the bottom edge",
+            );
     }
 }
 
 function splitterValueText(): string {
-    return t("panels.resize.valueText", { value: Math.round(currentThickness()) }, "{value} pixels");
+    return t(
+        "panels.resize.valueText",
+        { value: Math.round(currentThickness()) },
+        "{value} pixels",
+    );
 }
 
 /* ---- Docked splitter: drag with the pointer, step with the keyboard ---- */
 
-let splitterDragOrigin: { readonly pointerPos: number; readonly thickness: number; readonly edge: DockedEdge } | null =
-    null;
+let splitterDragOrigin: {
+    readonly pointerPos: number;
+    readonly thickness: number;
+    readonly edge: DockedEdge;
+} | null = null;
 
 function onSplitterPointerDown(event: PointerEvent, edge: DockedEdge): void {
     if (event.button !== 0) return;
@@ -365,8 +393,11 @@ function onSplitterKeydown(event: KeyboardEvent, edge: DockedEdge): void {
 
 /* ---- Floating panel: drag its header to move it ---- */
 
-let headerDragOrigin: { readonly pointerX: number; readonly pointerY: number; readonly rect: FloatingRect } | null =
-    null;
+let headerDragOrigin: {
+    readonly pointerX: number;
+    readonly pointerY: number;
+    readonly rect: FloatingRect;
+} | null = null;
 
 /**
  * Starts a move drag from anywhere on the header except an interactive control inside it.
@@ -395,7 +426,11 @@ function onHeaderPointerMove(event: PointerEvent): void {
     if (headerDragOrigin === null || event.buttons === 0) return;
     const dx = event.clientX - headerDragOrigin.pointerX;
     const dy = event.clientY - headerDragOrigin.pointerY;
-    const requested = { ...headerDragOrigin.rect, left: headerDragOrigin.rect.left + dx, top: headerDragOrigin.rect.top + dy };
+    const requested = {
+        ...headerDragOrigin.rect,
+        left: headerDragOrigin.rect.left + dx,
+        top: headerDragOrigin.rect.top + dy,
+    };
     const next = clampFloatingRect(requested, viewport.value);
     setDockFloatingRect(props.surfaceId, next);
     if (next.top !== requested.top || next.left !== requested.left) announceClamp();
@@ -552,8 +587,10 @@ function onResizeHandleKeydown(event: KeyboardEvent, axis: ResizeAxis): void {
 function resizeHandleValueText(axis: ResizeAxis): string {
     const rect = currentFloatingRect.value;
     if (rect === null) return "";
-    if (axis === "width") return t("panels.resize.valueText", { value: Math.round(rect.width) }, "{value} pixels");
-    if (axis === "height") return t("panels.resize.valueText", { value: Math.round(rect.height) }, "{value} pixels");
+    if (axis === "width")
+        return t("panels.resize.valueText", { value: Math.round(rect.width) }, "{value} pixels");
+    if (axis === "height")
+        return t("panels.resize.valueText", { value: Math.round(rect.height) }, "{value} pixels");
     return t(
         "panels.resize.valueTextSize",
         { width: Math.round(rect.width), height: Math.round(rect.height) },
@@ -690,13 +727,16 @@ const resetAllVisible = computed(() => placementMatcher.value.test(resetAllLabel
 
 /** What the anchored regex builder previews against: every row this menu can show. */
 const placementSample = computed(() =>
-    [...DOCK_PLACEMENTS.map((option) => placementLabel(option)), resetThisLabel.value, resetAllLabel.value].join(
-        "\n",
-    ),
+    [
+        ...DOCK_PLACEMENTS.map((option) => placementLabel(option)),
+        resetThisLabel.value,
+        resetAllLabel.value,
+    ].join("\n"),
 );
 
 const placementNoMatches = computed(
-    () => filteredPlacements.value.length === 0 && !resetThisVisible.value && !resetAllVisible.value,
+    () =>
+        filteredPlacements.value.length === 0 && !resetThisVisible.value && !resetAllVisible.value,
 );
 
 /** The query starts fresh every time the chooser opens, so a leftover filter from last
@@ -767,7 +807,9 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
             :class="`mb-docked__splitter--${dockAxis(layout.placement)}`"
             role="separator"
             tabindex="0"
-            :aria-orientation="dockAxis(layout.placement) === 'horizontal' ? 'vertical' : 'horizontal'"
+            :aria-orientation="
+                dockAxis(layout.placement) === 'horizontal' ? 'vertical' : 'horizontal'
+            "
             :aria-valuemin="thicknessBounds(layout.placement, viewport, openerRect).min"
             :aria-valuemax="thicknessBounds(layout.placement, viewport, openerRect).max"
             :aria-valuenow="Math.round(currentThickness())"
@@ -796,7 +838,13 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
                 :aria-valuemax="Math.round(Math.max(0, viewport.width - FLOATING_MARGIN * 2))"
                 :aria-valuenow="Math.round(currentFloatingRect?.width ?? 0)"
                 :aria-valuetext="resizeHandleValueText('width')"
-                :aria-label="t('panels.resize.right', { title: props.title }, 'Resize {title} from the right edge')"
+                :aria-label="
+                    t(
+                        'panels.resize.right',
+                        { title: props.title },
+                        'Resize {title} from the right edge',
+                    )
+                "
                 :aria-describedby="resizeInstructionsId"
                 @pointerdown="onResizeHandlePointerDown($event, 'width')"
                 @pointermove="onResizeHandlePointerMove"
@@ -812,7 +860,13 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
                 :aria-valuemax="Math.round(Math.max(0, viewport.height - FLOATING_MARGIN * 2))"
                 :aria-valuenow="Math.round(currentFloatingRect?.height ?? 0)"
                 :aria-valuetext="resizeHandleValueText('height')"
-                :aria-label="t('panels.resize.bottom', { title: props.title }, 'Resize {title} from the bottom edge')"
+                :aria-label="
+                    t(
+                        'panels.resize.bottom',
+                        { title: props.title },
+                        'Resize {title} from the bottom edge',
+                    )
+                "
                 :aria-describedby="resizeInstructionsId"
                 @pointerdown="onResizeHandlePointerDown($event, 'height')"
                 @pointermove="onResizeHandlePointerMove"
@@ -822,7 +876,13 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
             <div
                 class="mb-docked__resize-handle mb-docked__resize-handle--corner"
                 tabindex="0"
-                :aria-label="t('panels.resize.corner', { title: props.title }, 'Resize {title} from the corner')"
+                :aria-label="
+                    t(
+                        'panels.resize.corner',
+                        { title: props.title },
+                        'Resize {title} from the corner',
+                    )
+                "
                 :aria-describedby="resizeInstructionsId"
                 @pointerdown="onResizeHandlePointerDown($event, 'both')"
                 @pointermove="onResizeHandlePointerMove"
@@ -884,8 +944,8 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
 
                     <v-btn
                         class="mb-docked__placement"
+                        icon
                         variant="text"
-                        size="small"
                         density="comfortable"
                         :aria-label="
                             t(
@@ -916,7 +976,11 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
                             location="bottom end"
                             offset="4"
                         >
-                            <div class="mb-docked__menu" role="none" @keydown="onPlacementMenuKeydown">
+                            <div
+                                class="mb-docked__menu"
+                                role="none"
+                                @keydown="onPlacementMenuKeydown"
+                            >
                                 <ConfigSearchField
                                     v-model="placementQuery"
                                     v-model:regex="placementRegexMode"
@@ -926,7 +990,11 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
                                     class="mb-docked__menu-filter"
                                 />
 
-                                <p v-if="placementNoMatches" class="mb-docked__menu-empty" role="status">
+                                <p
+                                    v-if="placementNoMatches"
+                                    class="mb-docked__menu-empty"
+                                    role="status"
+                                >
                                     {{
                                         t(
                                             "menuSearch.noMatch",
@@ -952,7 +1020,12 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
                                     />
                                 </v-list>
 
-                                <v-divider v-if="filteredPlacements.length > 0 && (resetThisVisible || resetAllVisible)" />
+                                <v-divider
+                                    v-if="
+                                        filteredPlacements.length > 0 &&
+                                        (resetThisVisible || resetAllVisible)
+                                    "
+                                />
 
                                 <v-list
                                     v-if="resetThisVisible || resetAllVisible"
@@ -978,9 +1051,9 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
                     </v-btn>
 
                     <v-btn
+                        class="mb-docked__close"
                         icon
                         variant="text"
-                        size="small"
                         density="comfortable"
                         :aria-label="t('dock.close', { title: props.title }, 'Close {title}')"
                         @click="close"
@@ -994,6 +1067,8 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
                     </v-btn>
                 </div>
             </header>
+
+            <v-divider class="mb-docked__bar-divider" />
 
             <!--
                 Stated, not silent. The panel was moved because the placement the user
@@ -1039,8 +1114,6 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
 
             <slot name="prepend" />
 
-            <v-divider />
-
             <div
                 ref="body"
                 class="mb-docked__body"
@@ -1077,11 +1150,11 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
 }
 
 .mb-docked--left {
-    border-inline-end: 1px solid rgba(var(--v-theme-on-surface), 0.14);
+    border-inline-end: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
 .mb-docked--right {
-    border-inline-start: 1px solid rgba(var(--v-theme-on-surface), 0.14);
+    border-inline-start: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
 .mb-docked--top {
@@ -1102,12 +1175,21 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
     border-radius: inherit;
 }
 
+/* The approved sheet's header: 72px tall, the title at 24px from the edge, the actions at
+   12px, and one outline-variant rule under it before the panel's own content starts. */
 .mb-docked__bar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     flex: 0 0 auto;
-    padding: 8px 8px 8px 16px;
+    min-block-size: 72px;
+    padding: 12px 12px 12px 24px;
+}
+
+.mb-docked__bar-divider {
+    flex: 0 0 auto;
+    border-color: rgb(var(--v-theme-surface-container));
+    opacity: 1;
 }
 
 .mb-docked__title-target {
@@ -1121,9 +1203,9 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
     flex: 1 1 auto;
     min-inline-size: 0;
     margin: 0;
-    font-size: var(--md-sys-typescale-body-large-size);
-    font-weight: 500;
-    line-height: 1.25;
+    font-size: var(--md-sys-typescale-title-large-size);
+    font-weight: var(--md-sys-typescale-title-large-weight, 400);
+    line-height: var(--md-sys-typescale-title-large-line-height, 1.75rem);
     /* The longest bilingual label still wraps rather than pushing the buttons off. */
     overflow-wrap: anywhere;
     white-space: normal;
@@ -1132,8 +1214,14 @@ defineExpose({ openPlacementMenu, placement, layout, element: root });
 .mb-docked__bar-actions {
     display: flex;
     align-items: center;
-    gap: 2px;
+    gap: 4px;
     flex: 0 0 auto;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+/* The header's icon buttons are on-surface-variant, as the design's header actions are. */
+.mb-docked__bar-actions .v-btn--variant-text {
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-docked__adjustment {

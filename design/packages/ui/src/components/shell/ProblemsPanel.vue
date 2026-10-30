@@ -1,20 +1,22 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiAlertCircleOutline, mdiAlertOutline, mdiClose, mdiInformationOutline } from "@mdi/js";
 import { VBtn, VIcon } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { createSettingMatcher } from "../config/regexEngine.js";
 import { severityLabel, type Problem, type ProblemSeverity } from "./problemsAdapter.js";
 import type { FeatureTarget } from "./featureTargets.js";
 
 /**
  * Every unresolved problem in one place, docked to the bottom of the content.
  *
- * ### It reflows, it does not cover
+ * ### It sits beside the rail, never over it
  *
- * Docked into the layout rather than floated over it. A panel that covered the bottom of the
- * screen would hide the Save button on the surface the problem is about, which is the one control
- * the reader is heading for. The destination above it gets less height and keeps all of its
- * controls.
+ * A card pinned to the bottom of the content column, inset 16px, as the approved design draws
+ * it. It never covers the rail, it is closed with its own button or the status strip's toggle,
+ * and it only opens because somebody asked for it, so it is never in the way of a Save button
+ * nobody chose to hide.
  *
  * ### The inline error stays where it is
  *
@@ -27,6 +29,13 @@ import type { FeatureTarget } from "./featureTargets.js";
  *
  * Never colour alone. Each row names its severity in text next to an icon, so the distinction
  * survives a monochrome display, a contrast theme and a reader who cannot see red.
+ *
+ * ### It carries its own search
+ *
+ * The approved design puts a search bar in the panel's header, and this project's rule is that
+ * every search bar is the shared `ConfigSearchField` with its anchored regex builder. It
+ * matches what each row shows - severity, source, message and meaning - and plain text stays
+ * the default.
  */
 const props = withDefaults(
     defineProps<{
@@ -51,12 +60,29 @@ const ICONS: Record<ProblemSeverity, string> = {
     info: mdiInformationOutline,
 };
 
+const query = ref("");
+const regexMode = ref(false);
+const flags = ref("i");
+
+const matcher = computed(() => createSettingMatcher(query.value, regexMode.value, flags.value));
+
+function haystack(problem: Problem): string {
+    return [
+        severityLabel(problem.severity, t),
+        problem.source,
+        problem.message,
+        problem.meaning,
+    ].join("\n");
+}
+
+const shown = computed(() =>
+    props.problems.filter((problem) => matcher.value.test(haystack(problem))),
+);
+
+const sample = computed(() => props.problems.map(haystack).join("\n"));
+
 const title = computed(() =>
-    t(
-        "problems.title",
-        { count: String(props.problems.length) },
-        "Problems ({count})",
-    ),
+    t("problems.title", { count: String(props.problems.length) }, "Problems ({count})"),
 );
 </script>
 
@@ -69,12 +95,27 @@ const title = computed(() =>
         :aria-label="title"
     >
         <header class="wl-problems__head">
+            <v-icon
+                class="wl-problems__icon"
+                :icon="mdiAlertCircleOutline"
+                size="20"
+                aria-hidden="true"
+            />
             <h2 class="wl-problems__title">{{ title }}</h2>
+            <ConfigSearchField
+                v-model="query"
+                v-model:regex="regexMode"
+                v-model:flags="flags"
+                class="wl-problems__search"
+                :label="t('problems.search', 'Search problems')"
+                :sample="sample"
+            />
+            <span class="wl-problems__spacer" />
             <v-btn
                 :icon="mdiClose"
                 variant="text"
-                size="small"
                 density="comfortable"
+                class="wl-problems__close"
                 :aria-label="t('problems.close', 'Close the problems panel')"
                 @click="emit('update:open', false)"
             />
@@ -85,18 +126,25 @@ const title = computed(() =>
             with hidden overflow deletes whatever sits past the cap with no scrollbar to say so.
         -->
         <ul class="wl-problems__list">
-            <li v-for="problem in problems" :key="problem.id" class="wl-problem">
-                <span class="wl-problem__severity">
-                    <v-icon :icon="ICONS[problem.severity]" size="18" />
-                    <!-- The word, not only the icon and never only the colour. -->
-                    <span class="wl-problem__severity-word">
-                        {{ severityLabel(problem.severity, t) }}
-                    </span>
-                </span>
+            <li v-for="problem in shown" :key="problem.id" class="wl-problem">
+                <v-icon
+                    class="wl-problem__icon"
+                    :class="`wl-problem__icon--${problem.severity}`"
+                    :icon="ICONS[problem.severity]"
+                    size="20"
+                    aria-hidden="true"
+                />
 
                 <span class="wl-problem__text">
-                    <span class="wl-problem__source">{{ problem.source }}</span>
                     <span class="wl-problem__message">{{ problem.message }}</span>
+                    <span class="wl-problem__severity">
+                        <!-- The word, not only the icon and never only the colour. -->
+                        <span class="wl-problem__severity-word">{{
+                            severityLabel(problem.severity, t)
+                        }}</span>
+                        <span aria-hidden="true">·</span>
+                        <span class="wl-problem__source">{{ problem.source }}</span>
+                    </span>
                     <span class="wl-problem__meaning">{{ problem.meaning }}</span>
                 </span>
 
@@ -107,8 +155,8 @@ const title = computed(() =>
                 <v-btn
                     v-if="problem.remedy"
                     class="wl-problem__remedy"
-                    variant="tonal"
-                    size="small"
+                    variant="outlined"
+                    color="primary"
                     @click="emit('remedy', problem.remedy.target)"
                 >
                     {{ problem.remedy.label }}
@@ -119,42 +167,89 @@ const title = computed(() =>
         <p v-if="problems.length === 0" class="wl-problems__empty">
             {{ t("problems.empty", "Nothing is wrong right now.") }}
         </p>
+        <p v-else-if="shown.length === 0" class="wl-problems__empty" role="status">
+            {{ t("problems.noMatch", "No problem matches this search.") }}
+        </p>
     </section>
 </template>
 
 <style scoped>
+/*
+ * The approved design's problems card: surface-container, the large corner, an outline-variant
+ * hairline and the level-3 shadow, inset 16px from the content's edges. It still sits in the
+ * layout rather than over it, so the destination above it reflows and keeps its Save button.
+ */
 .wl-problems {
+    /* Its siblings in the content column are absolutely positioned layers, so the panel
+       pins itself to the column's bottom edge and stacks above them, as the design's card
+       sits over the bottom of the content with 16px clear on every side. */
+    position: relative;
+    z-index: 2;
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
+    min-block-size: min(280px, 40vh);
     max-block-size: 40vh;
-    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
-    background: rgb(var(--v-theme-surface-container, var(--v-theme-surface)));
+    margin: auto 16px 16px 8px;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-large);
+    background: rgb(var(--v-theme-surface-container));
+    box-shadow: var(--md-sys-elevation-shadow-level3);
+    overflow: hidden;
 }
 
 .wl-problems__head {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 6px 8px 6px 16px;
-    min-block-size: 48px;
+    gap: 10px;
+    padding: 8px 12px 8px 18px;
+    min-block-size: 60px;
+    border-block-end: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.wl-problems__icon {
+    flex: 0 0 auto;
+    color: rgb(var(--v-theme-error));
 }
 
 .wl-problems__title {
     margin: 0;
-    font-size: var(--md-sys-typescale-body-medium-size);
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: rgb(var(--v-theme-on-surface-variant));
+    font-size: var(--md-sys-typescale-title-medium-size);
+    line-height: var(--md-sys-typescale-title-medium-line-height, 1.5rem);
+    font-weight: var(--md-sys-typescale-title-medium-weight, 500);
+    color: rgb(var(--v-theme-on-surface));
     min-inline-size: 0;
+}
+
+.wl-problems__search {
+    flex: 1 1 240px;
+    max-inline-size: 360px;
+    margin-inline-start: 10px;
+}
+
+.wl-problems__search :deep(.v-field) {
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-surface));
+}
+
+.wl-problems__search :deep(.v-field__outline) {
+    --v-field-border-opacity: 1;
+    color: rgb(var(--v-theme-outline-variant));
+}
+
+.wl-problems__spacer {
+    flex: 1 1 auto;
+}
+
+.wl-problems__close {
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .wl-problems__list {
     list-style: none;
     margin: 0;
-    padding: 0 0 8px;
+    padding: 8px 0;
     overflow-y: auto;
     min-block-size: 0;
 }
@@ -168,23 +263,29 @@ const title = computed(() =>
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
-    gap: 10px;
-    padding: 12px 16px;
-    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
+    gap: 14px;
+    padding: 14px 18px;
 }
 
-.wl-problem__severity {
-    display: flex;
-    align-items: center;
-    gap: 5px;
+.wl-problem + .wl-problem {
+    border-block-start: 1px solid rgb(var(--v-theme-surface-container-high));
+}
+
+.wl-problem__icon {
     flex: 0 0 auto;
-    min-inline-size: 92px;
-    color: rgb(var(--v-theme-on-surface-variant));
+    margin-block-start: 1px;
 }
 
-.wl-problem__severity-word {
-    font-size: var(--md-sys-typescale-body-small-size);
-    font-weight: 600;
+.wl-problem__icon--error {
+    color: rgb(var(--v-theme-error));
+}
+
+.wl-problem__icon--warning {
+    color: rgb(var(--v-theme-tertiary));
+}
+
+.wl-problem__icon--info {
+    color: rgb(var(--v-theme-primary));
 }
 
 .wl-problem__text {
@@ -193,24 +294,36 @@ const title = computed(() =>
     min-inline-size: 0;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-}
-
-.wl-problem__source {
-    font-family: "Roboto Mono", ui-monospace, monospace;
-    font-size: var(--md-sys-typescale-body-small-size);
-    color: rgb(var(--v-theme-outline, var(--v-theme-on-surface-variant)));
-    overflow-wrap: anywhere;
+    gap: 4px;
 }
 
 .wl-problem__message {
     font-size: var(--md-sys-typescale-body-medium-size);
+    font-weight: 500;
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
 }
 
+.wl-problem__severity {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: 1.5;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.wl-problem__severity-word {
+    font-weight: 500;
+}
+
+.wl-problem__source {
+    overflow-wrap: anywhere;
+}
+
 .wl-problem__meaning {
-    max-inline-size: 68ch;
+    max-inline-size: 76ch;
     font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
     color: rgb(var(--v-theme-on-surface-variant));
@@ -219,11 +332,15 @@ const title = computed(() =>
 
 .wl-problem__remedy {
     flex: 0 0 auto;
+    min-block-size: 40px;
+    border-radius: var(--md-sys-shape-corner-full);
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .wl-problems__empty {
     margin: 0;
-    padding: 12px 16px 20px;
+    padding: 16px 18px 20px;
     font-size: var(--md-sys-typescale-body-medium-size);
     color: rgb(var(--v-theme-on-surface-variant));
 }

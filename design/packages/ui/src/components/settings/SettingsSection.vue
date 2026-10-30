@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, ref, useId } from "vue";
+import { VChip, VIcon } from "vuetify/components";
 import type { SettingsSectionAnchor } from "./settingsSections.js";
 
 /**
@@ -19,15 +20,33 @@ import type { SettingsSectionAnchor } from "./settingsSections.js";
  * the setting is for. The scroll drops to an instant jump for the same reason: it still
  * arrives, it just does not slide.
  */
-const props = defineProps<{
-    /**
-     * Any section the surface renders, not only the four a render can point at: the
-     * GitHub sign-in is listed and searched here and nothing in the bridge can link to it.
-     */
-    anchor: SettingsSectionAnchor;
-    title: string;
-    description: string;
-}>();
+const props = withDefaults(
+    defineProps<{
+        /**
+         * Any section the surface renders, not only the four a render can point at: the
+         * GitHub sign-in is listed and searched here and nothing in the bridge can link to it.
+         */
+        anchor: SettingsSectionAnchor;
+        title: string;
+        description: string;
+        /**
+         * The leading glyph beside the title, an `@mdi/js` path. Decorative: the title is
+         * the name, so the icon is hidden from assistive technology.
+         */
+        icon?: string | null;
+        /**
+         * The current value in a word or two, drawn as the trailing chip the approved design
+         * puts at the end of every section header ("Declined", "Bundled 21", "Set"). Null
+         * draws nothing; a host with richer status uses the `status` slot instead.
+         */
+        status?: string | null;
+        /** The chip's colour role: a neutral readout, a good state, or one needing action. */
+        statusTone?: "neutral" | "good" | "attention";
+    }>(),
+    { icon: null, status: null, statusTone: "neutral" },
+);
+
+const STATUS_COLOR = { neutral: undefined, good: "primary", attention: "error" } as const;
 
 const titleId = useId();
 const root = ref<HTMLElement | null>(null);
@@ -86,8 +105,25 @@ defineExpose({ reveal, element: root });
         :data-anchor="props.anchor"
     >
         <header class="mb-setting__header">
+            <v-icon
+                v-if="props.icon !== null"
+                class="mb-setting__icon"
+                :icon="props.icon"
+                size="20"
+                aria-hidden="true"
+            />
             <h3 :id="titleId" class="mb-setting__title">{{ props.title }}</h3>
-            <slot name="status" />
+            <span class="mb-setting__status"
+                ><v-chip
+                    v-if="props.status !== null"
+                    class="mb-setting__chip"
+                    :class="`mb-setting__chip--${props.statusTone}`"
+                    :color="STATUS_COLOR[props.statusTone]"
+                    size="small"
+                    variant="tonal"
+                    >{{ props.status }}</v-chip
+                ><slot name="status"
+            /></span>
         </header>
 
         <p class="mb-setting__description">{{ props.description }}</p>
@@ -98,36 +134,25 @@ defineExpose({ reveal, element: root });
 
 <style>
 /*
- * M3 card group anatomy.
+ * M3 list-section anatomy, per the approved design's settings sheet.
  *
- * `.mb-setting` is the card, `.mb-setting__header` is its title/status row, and
- * `.mb-setting__list` (below) is the optional M3 list a card wraps its rows in
- * when it holds more than one control. Every dimension here is a token or a
- * value straight off the M3 spacing scale (8 / 16 / 24), never an ad-hoc number
- * chosen by eye - that is what made this dialog read as "a bit cramped" the
- * first time and it is not getting reintroduced by a second ad-hoc value.
+ * A section is one entry in a flat list rather than a card of its own: a header row (leading
+ * icon, title-medium heading, a trailing status chip), the supporting text under it, and
+ * the typed control. Sections are separated by an outline-variant divider instead of each
+ * painting a container, which is what lets the sheet read as one list of settings rather
+ * than a stack of boxes. Every dimension is a token or a step on the 4/8 grid.
  */
 .mb-setting {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 24px;
-    border-radius: var(--md-sys-shape-corner-medium, 12px);
-    /* The M3 surface-container role, not a hand-mixed tint: it already answers
-       both themes and any accent, because it is the same token the rest of the
-       app's M3 surfaces read from. */
-    background: var(--md-sys-color-surface-container, rgba(var(--v-theme-on-surface), 0.04));
+    gap: 12px;
+    padding: 16px 0;
+    border-block-end: 1px solid rgb(var(--v-theme-outline-variant));
     /* Reserved so the flash outline does not reflow the column when it appears. */
     outline: 2px solid transparent;
-    outline-offset: 2px;
+    outline-offset: 4px;
+    border-radius: var(--md-sys-shape-corner-extra-small);
     scroll-margin-block: 16px;
-}
-
-/* A divider between stacked cards, drawn from the M3 outline-variant token
-   rather than a bare grey rule, so it survives both themes and any accent. */
-.mb-setting + .mb-setting {
-    border-top: 1px solid var(--md-sys-color-outline-variant, rgba(var(--v-theme-on-surface), 0.4));
-    margin-block-start: 8px;
 }
 
 .mb-setting:focus-visible,
@@ -146,13 +171,18 @@ defineExpose({ reveal, element: root });
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 8px 16px;
+    gap: 8px 12px;
 }
 
-/* Title-medium: the M3 typescale role for a card/list-group header, read from
-   the same tokens `MenuSideSheet.vue` already draws its own title from, rather
-   than a hand-picked 1rem/500 that happened to look right on one screen. */
+.mb-setting__icon {
+    flex: 0 0 auto;
+    color: rgb(var(--v-theme-primary));
+}
+
+/* Title-medium: the M3 typescale role for a list-section header. */
 .mb-setting__title {
+    flex: 1 1 auto;
+    min-inline-size: 0;
     margin: 0;
     font-size: var(--md-sys-typescale-title-medium-size, 1rem);
     line-height: var(--md-sys-typescale-title-medium-line-height, 1.5rem);
@@ -162,13 +192,36 @@ defineExpose({ reveal, element: root });
     overflow-wrap: break-word;
 }
 
-/* Body-medium: the M3 typescale role for supporting text under a title. */
+/* The trailing state chip. Empty when the host has nothing to say about the value. */
+.mb-setting__status {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.mb-setting__status:empty {
+    display: none;
+}
+
+/* The neutral readout chip sits on surface-container-highest, as the design's state pills do. */
+.mb-setting__chip--neutral.v-chip {
+    background: rgb(var(--v-theme-surface-container-highest));
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-setting__chip--attention.v-chip {
+    background: rgb(var(--v-theme-error-container));
+    color: rgb(var(--v-theme-on-error-container));
+}
+
+/* Body-medium in on-surface-variant: the M3 role for supporting text under a title. */
 .mb-setting__description {
     margin: 0;
     font-size: var(--md-sys-typescale-body-medium-size, 0.875rem);
     line-height: var(--md-sys-typescale-body-medium-line-height, 1.25rem);
     letter-spacing: var(--md-sys-typescale-body-medium-tracking, 0.015625rem);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
 }
 
@@ -208,7 +261,7 @@ defineExpose({ reveal, element: root });
     /* The M3 list-item divider inset - it starts after the leading icon
        column, not at the row's own edge, which is what keeps a stack of rows
        reading as one list rather than as a stack of unrelated cards. */
-    margin-inline: -24px;
+    margin-inline: -16px;
 }
 
 .mb-setting__row {
@@ -218,7 +271,7 @@ defineExpose({ reveal, element: root });
     align-items: center;
     column-gap: 16px;
     min-height: 56px;
-    padding-inline: 24px;
+    padding-inline: 16px;
     padding-block: 8px;
     border-radius: var(--md-sys-shape-corner-small, 8px);
 }

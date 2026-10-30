@@ -4,6 +4,7 @@ import { useI18n } from "vue-i18n";
 import {
     mdiArrowRightCircleOutline,
     mdiFlashOutline,
+    mdiKeyboardReturn,
     mdiStar,
     mdiStarOutline,
     mdiTuneVariant,
@@ -40,8 +41,10 @@ const props = withDefaults(
     defineProps<{
         item: PaletteItem;
         favourite?: boolean;
+        /** The row Enter in the search box acts on: drawn selected, with the Enter glyph. */
+        first?: boolean;
     }>(),
-    { favourite: false },
+    { favourite: false, first: false },
 );
 
 const emit = defineEmits<{
@@ -56,6 +59,32 @@ const emit = defineEmits<{
 const { t } = useI18n();
 
 const descriptionId = useId();
+
+/**
+ * The supporting line under the title, as the approved design draws it: where the thing
+ * lives ("Work · the guide"), falling back to its own explanation when it has no location.
+ * A disabled row's reason always wins, because a disabled control names its unmet condition
+ * next to itself, in words.
+ */
+const supporting = computed(() => {
+    const item = props.item;
+    if (item.disabled !== undefined) {
+        return [item.disabled.reason, item.disabled.recovery ?? ""].filter(Boolean).join(" ");
+    }
+    if (item.location !== undefined && item.location.length > 0) return item.location.join(" · ");
+    return item.description;
+});
+
+/**
+ * The hover tooltip: the full explanation, and the related actions the catalogue suggests
+ * next, which the 52px row has no room to draw. The same words are read to assistive
+ * technology through the row's `aria-describedby`.
+ */
+const tooltip = computed(() => {
+    const related = props.item.relatedLabels ?? [];
+    if (related.length === 0) return props.item.description;
+    return `${props.item.description}\n${t("palette.row.related", "Related actions")}: ${related.join(", ")}`;
+});
 
 const icon = computed(() => {
     switch (props.item.kind) {
@@ -173,9 +202,33 @@ function endEditing(): void {
 <template>
     <li
         class="mb-palette-row"
+        :class="{ 'mb-palette-row--first': props.first }"
         data-palette-row
         :aria-disabled="props.item.disabled !== undefined ? 'true' : undefined"
     >
+        <!--
+            Everything the row says beyond its title and one supporting line - the full
+            explanation, where a destination goes, what to try next - is read with the row
+            through `aria-describedby` rather than drawn, which is what keeps a row the
+            design's 52px. The search still matches all of it.
+        -->
+        <span :id="descriptionId" class="mb-palette-row__described">
+            {{ props.item.description }}
+            <template v-if="props.item.kind === 'destination'"
+                >{{ " " }}{{ props.item.where }}</template
+            >
+            <template v-if="props.item.disabled !== undefined">
+                {{ " " }}{{ props.item.disabled.reason }}
+                <template v-if="props.item.disabled.recovery !== undefined">
+                    {{ " " }}{{ props.item.disabled.recovery }}
+                </template>
+            </template>
+            <template v-if="props.item.relatedLabels?.length">
+                {{ " " }}{{ t("palette.row.suggestedNext", "Suggested next") }}:
+                {{ props.item.relatedLabels.join(", ") }}
+            </template>
+        </span>
+
         <!--
             A command and a destination are one button covering the whole row: there is
             nothing inside either of them that is separately operable, so a nested control
@@ -185,6 +238,7 @@ function endEditing(): void {
             v-if="props.item.kind !== 'setting'"
             type="button"
             class="mb-palette-row__go"
+            :title="tooltip"
             :aria-describedby="descriptionId"
             :disabled="props.item.disabled !== undefined"
             :aria-disabled="props.item.disabled !== undefined ? 'true' : undefined"
@@ -194,51 +248,41 @@ function endEditing(): void {
 
             <span class="mb-palette-row__text">
                 <span class="mb-palette-row__title">{{ props.item.title }}</span>
-                <span :id="descriptionId" class="mb-palette-row__detail">
-                    {{ props.item.description }}
-                    <template v-if="props.item.kind === 'destination'">
-                        {{ " " }}{{ props.item.where }}
-                    </template>
-                    <template v-if="props.item.disabled !== undefined">
-                        {{ " " }}{{ props.item.disabled.reason }}
-                        <template v-if="props.item.disabled.recovery !== undefined">
-                            {{ " " }}{{ props.item.disabled.recovery }}
-                        </template>
-                    </template>
-                </span>
                 <span
-                    v-if="props.item.location?.length"
                     class="mb-palette-row__location"
-                    :aria-label="t('palette.row.location', 'Location')"
+                    :aria-label="
+                        props.item.location?.length
+                            ? `${t('palette.row.location', 'Location')}: ${supporting}`
+                            : undefined
+                    "
+                    >{{ supporting }}</span
                 >
-                    {{ props.item.location.join(" › ") }}
-                </span>
             </span>
 
             <span class="mb-palette-row__kind">{{ kindLabel }}</span>
+            <v-icon
+                v-if="props.first"
+                class="mb-palette-row__enter"
+                :icon="mdiKeyboardReturn"
+                size="16"
+                aria-hidden="true"
+            />
         </button>
 
-        <div v-else class="mb-palette-row__setting">
+        <div v-else class="mb-palette-row__setting" :title="tooltip">
             <v-icon class="mb-palette-row__icon" :icon="icon" size="20" aria-hidden="true" />
 
             <span class="mb-palette-row__text">
                 <span class="mb-palette-row__title">{{ props.item.title }}</span>
-                <span :id="descriptionId" class="mb-palette-row__detail">
-                    {{ props.item.description }}
-                    <template v-if="props.item.disabled !== undefined">
-                        {{ " " }}{{ props.item.disabled.reason }}
-                        <template v-if="props.item.disabled.recovery !== undefined">
-                            {{ " " }}{{ props.item.disabled.recovery }}
-                        </template>
-                    </template>
-                </span>
                 <span
-                    v-if="props.item.location?.length"
                     class="mb-palette-row__location"
-                    :aria-label="t('palette.row.location', 'Location')"
+                    :aria-label="
+                        props.item.location?.length
+                            ? `${t('palette.row.location', 'Location')}: ${supporting}`
+                            : undefined
+                    "
+                    >{{ supporting }}</span
                 >
-                    {{ props.item.location.join(" › ") }}
-                </span>
             </span>
 
             <!--
@@ -296,6 +340,7 @@ function endEditing(): void {
         <button
             type="button"
             class="mb-palette-row__favourite"
+            :class="{ 'mb-palette-row__favourite--on': props.favourite }"
             :aria-label="
                 props.favourite
                     ? t(
@@ -318,32 +363,46 @@ function endEditing(): void {
                 aria-hidden="true"
             />
         </button>
-
-        <div
-            v-if="props.item.relatedLabels?.length"
-            class="mb-palette-row__related"
-            :aria-label="t('palette.row.related', 'Related actions')"
-        >
-            {{ t("palette.row.suggestedNext", "Suggested next") }}:
-            {{ props.item.relatedLabels.join(", ") }}
-        </div>
     </li>
 </template>
 
 <style>
+/*
+ * The approved design's palette row: 52px, 22px side padding, a 20px leading glyph in
+ * on-surface-variant, a body-medium title over a label-small supporting line in outline, and
+ * a quiet trailing meta. The row under the keyboard's Enter is drawn selected, on
+ * surface-container-high, with the Enter glyph at its end.
+ */
 .mb-palette-row {
     list-style: none;
     position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.mb-palette-row--first {
+    background: rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-palette-row__described {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
 }
 
 .mb-palette-row__go,
 .mb-palette-row__setting {
     display: flex;
+    flex: 1 1 auto;
     align-items: center;
-    gap: 12px;
-    width: 100%;
-    padding: 8px 12px;
-    border-radius: var(--md-sys-shape-corner-medium);
+    gap: 14px;
+    min-inline-size: 0;
+    min-block-size: 52px;
+    padding: 6px 4px 6px 22px;
     text-align: start;
     color: rgb(var(--v-theme-on-surface));
 }
@@ -359,8 +418,11 @@ function endEditing(): void {
     cursor: pointer;
 }
 
-.mb-palette-row__go:hover {
-    background: rgba(var(--v-theme-on-surface), 0.06);
+/* The M3 hover state layer, drawn on the whole row rather than the button alone. */
+@media (hover: hover) {
+    .mb-palette-row:hover {
+        background: rgb(var(--v-theme-surface-container-high));
+    }
 }
 
 /* Vuetify marks focus with a low-opacity overlay, which is a tint rather than an indicator.
@@ -378,51 +440,59 @@ function endEditing(): void {
 
 .mb-palette-row__icon {
     flex: none;
-    color: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-palette-row__text {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 0;
     min-width: 0;
     flex: 1 1 auto;
 }
 
 .mb-palette-row__title {
-    font-size: var(--md-sys-typescale-body-large-size);
-    font-weight: 500;
-    line-height: 1.3;
-    overflow-wrap: anywhere;
-}
-
-.mb-palette-row__detail {
-    font-size: var(--md-sys-typescale-body-small-size);
-    line-height: 1.4;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    text-wrap: pretty;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    line-height: var(--md-sys-typescale-body-medium-line-height, 1.25rem);
     overflow-wrap: anywhere;
 }
 
 .mb-palette-row__location {
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height, 1rem);
+    color: rgb(var(--v-theme-outline));
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mb-palette-row__kind {
+    flex: none;
+    font-family: "Roboto Mono", ui-monospace, monospace;
     font-size: var(--md-sys-typescale-label-small-size);
-    line-height: 1.35;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    overflow-wrap: anywhere;
+    color: rgb(var(--v-theme-outline));
+    white-space: nowrap;
+}
+
+.mb-palette-row__enter {
+    flex: none;
+    color: rgb(var(--v-theme-outline));
 }
 
 .mb-palette-row__favourite {
-    position: absolute;
-    inset-inline-end: 8px;
-    inset-block-start: 7px;
-    z-index: 1;
-    width: 32px;
-    height: 32px;
+    flex: none;
+    inline-size: 40px;
+    block-size: 40px;
+    margin-inline-end: 12px;
     border: 0;
     border-radius: 50%;
     background: transparent;
-    color: rgb(var(--v-theme-primary));
+    color: rgb(var(--v-theme-outline));
     cursor: pointer;
+}
+
+.mb-palette-row__favourite--on {
+    color: rgb(var(--v-theme-primary));
 }
 
 .mb-palette-row__favourite:hover {
@@ -432,25 +502,6 @@ function endEditing(): void {
 .mb-palette-row__favourite:focus-visible {
     outline: 2px solid rgb(var(--v-theme-primary));
     outline-offset: -1px;
-}
-
-.mb-palette-row__related {
-    padding: 0 48px 6px 44px;
-    font-size: var(--md-sys-typescale-label-small-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    overflow-wrap: anywhere;
-}
-
-.mb-palette-row__kind {
-    flex: none;
-    align-self: flex-start;
-    padding: 2px 8px;
-    border-radius: var(--md-sys-shape-corner-full);
-    background: rgba(var(--v-theme-on-surface), 0.08);
-    font-size: var(--md-sys-typescale-label-small-size);
-    letter-spacing: 0.02em;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-    white-space: nowrap;
 }
 
 .mb-palette-row__control {
@@ -476,7 +527,7 @@ function endEditing(): void {
 
     .mb-palette-row__control {
         flex: 1 1 100%;
-        padding-inline-start: 32px;
+        padding-inline-start: 34px;
     }
 
     .mb-palette-row__select,

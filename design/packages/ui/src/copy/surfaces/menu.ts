@@ -379,6 +379,10 @@ export const MENU_FIXED = {
     "menu.back": { en: "Back", yue: "返上一頁" },
     "menu.close": { en: "Close the menu", yue: "閂咗個選單" },
 
+    /* The super-confirmation gate's key-state words and the locked track's own label. */
+    "superConfirm.keyTurned": { en: "turned", yue: "扭咗" },
+    "superConfirm.keyNotYet": { en: "not yet", yue: "未扭" },
+    "superConfirm.trackLocked": { en: "Turn both keys first", yue: "先扭晒兩條鎖匙" },
     /* The confirmation slider's `aria-valuetext`, read out as the handle travels. It is a
      * position, not a percentage of anything destroyed. */
     "superConfirm.travel": {

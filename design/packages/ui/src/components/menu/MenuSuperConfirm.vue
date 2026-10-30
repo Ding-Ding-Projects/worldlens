@@ -1,18 +1,22 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiAlertOutline, mdiCheckCircle, mdiExitRun, mdiKeyOutline } from "@mdi/js";
+import {
+    mdiAlertOutline,
+    mdiCheckCircle,
+    mdiChevronRight,
+    mdiExitRun,
+    mdiKeyOutline,
+} from "@mdi/js";
 import {
     VBtn,
     VCard,
     VCardActions,
     VCardText,
     VDialog,
-    VDivider,
     VIcon,
     VProgressLinear,
     VSlider,
-    VSpacer,
     VSwitch,
 } from "vuetify/components";
 import {
@@ -23,6 +27,8 @@ import {
     GATE_TRAVEL_START,
 } from "../confirm/superConfirmGate.js";
 import { useDialogEmoji } from "../setup/dialogEmoji.js";
+import ActionArtwork from "../actionArtwork/ActionArtwork.vue";
+import type { ActionArtworkId } from "../actionArtwork/actionArtwork.js";
 import { playActionCue } from "../../stores/actionSounds.js";
 
 /**
@@ -60,8 +66,14 @@ const props = withDefaults(
          * while the Show emojis in dialogs setting is on.
          */
         emoji?: string | null;
+        /**
+         * Optional artwork drawn across the top of the gate, as the approved design shows for
+         * a configuration deletion. Decorative framing only: the facts stay in `action` and
+         * `affected`, so a gate without artwork says exactly as much.
+         */
+        artwork?: ActionArtworkId | null;
     }>(),
-    { affected: () => [] },
+    { affected: () => [], artwork: null },
 );
 
 const emit = defineEmits<{ "update:modelValue": [value: boolean]; confirm: [] }>();
@@ -79,6 +91,11 @@ const gate = createSuperConfirmGate(() => {
 });
 
 const armed = gate.armed;
+
+/** The word under each key's name: whether it has been turned yet. */
+function keyState(turned: boolean): string {
+    return turned ? t("superConfirm.keyTurned", "turned") : t("superConfirm.keyNotYet", "not yet");
+}
 const done = computed(() => gate.authorized.value);
 const affectedList = computed<readonly string[]>(() => props.affected ?? []);
 
@@ -143,13 +160,19 @@ function cancel(): void {
 </script>
 
 <template>
-    <v-dialog v-model="open" max-width="440" scrollable>
+    <v-dialog v-model="open" max-width="620" scrollable>
         <v-card
             class="mb-super-confirm"
             :class="{ 'mb-super-confirm--authorized': done }"
             :aria-label="title"
             @keydown.esc.stop="cancel"
         >
+            <ActionArtwork
+                v-if="props.artwork !== null && props.artwork !== undefined"
+                class="mb-super-confirm__artwork"
+                :artwork="props.artwork"
+                eager
+            />
             <v-card-text>
                 <div class="mb-super-confirm__head">
                     <v-icon :icon="mdiAlertOutline" color="error" size="28" aria-hidden="true" />
@@ -169,89 +192,161 @@ function cancel(): void {
                     <li v-for="item in affectedList" :key="item">{{ item }}</li>
                 </ul>
 
-                <v-divider class="my-3" />
-
                 <p class="mb-super-confirm__step">
-                    {{ t("superConfirm.keys", "Turn both keys, then drag the slider all the way.") }}
+                    {{
+                        t("superConfirm.keys", "Turn both keys, then drag the slider all the way.")
+                    }}
                 </p>
 
+                <!--
+                    Two key cards side by side, each an outlined tile holding a real switch and the
+                    word for its state underneath. The tile turns primary when its key is on, so the
+                    pair reads at a glance as one turned and one not, as in the approved design.
+                -->
                 <div class="mb-super-confirm__keys">
-                    <v-switch
-                        v-model="gate.keyOne.value"
-                        class="mb-super-confirm__key mb-super-confirm__key--one"
-                        :label="t('superConfirm.keyOne', 'Key 1')"
-                        :prepend-icon="mdiKeyOutline"
-                        color="error"
-                        density="compact"
-                        hide-details
-                        inset
+                    <div
+                        class="mb-super-confirm__key-card"
+                        :class="{ 'mb-super-confirm__key-card--on': gate.keyOne.value }"
+                    >
+                        <v-switch
+                            v-model="gate.keyOne.value"
+                            class="mb-super-confirm__key mb-super-confirm__key--one"
+                            :label="t('superConfirm.keyOne', 'Key 1')"
+                            :prepend-icon="mdiKeyOutline"
+                            color="primary"
+                            density="compact"
+                            hide-details
+                            inset
+                        />
+                        <span class="mb-super-confirm__key-state" aria-hidden="true">{{
+                            keyState(gate.keyOne.value)
+                        }}</span>
+                    </div>
+                    <div
+                        class="mb-super-confirm__key-card"
+                        :class="{ 'mb-super-confirm__key-card--on': gate.keyTwo.value }"
+                    >
+                        <v-switch
+                            v-model="gate.keyTwo.value"
+                            class="mb-super-confirm__key mb-super-confirm__key--two"
+                            :label="t('superConfirm.keyTwo', 'Key 2')"
+                            :prepend-icon="mdiKeyOutline"
+                            color="primary"
+                            density="compact"
+                            hide-details
+                            inset
+                        />
+                        <span class="mb-super-confirm__key-state" aria-hidden="true">{{
+                            keyState(gate.keyTwo.value)
+                        }}</span>
+                    </div>
+                </div>
+
+                <!--
+                    The full-range slider, drawn as the design's pill track: the progress fill runs
+                    behind the thumb while it travels, the chevron rides on the thumb, and the words
+                    in the middle say what the track is waiting for. The slider is the real control;
+                    everything else in the pill is decoration hidden from assistive technology,
+                    because the status sentence below already says the same thing.
+                -->
+                <div
+                    class="mb-super-confirm__track"
+                    :class="{
+                        'mb-super-confirm__track--armed': armed && !done,
+                        'mb-super-confirm__track--done': done,
+                    }"
+                    :style="{ '--mb-super-confirm-travel': `${gate.percent.value}%` }"
+                >
+                    <v-progress-linear
+                        class="mb-super-confirm__progress"
+                        :class="{
+                            'mb-super-confirm__progress--live': gate.phase.value === 'moving',
+                        }"
+                        :model-value="gate.travel.value"
+                        :color="done ? 'success' : 'error'"
+                        bg-opacity="0"
+                        height="36"
+                        rounded
+                        striped
+                        aria-hidden="true"
                     />
-                    <v-switch
-                        v-model="gate.keyTwo.value"
-                        class="mb-super-confirm__key mb-super-confirm__key--two"
-                        :label="t('superConfirm.keyTwo', 'Key 2')"
-                        :prepend-icon="mdiKeyOutline"
+                    <span class="mb-super-confirm__track-label" aria-hidden="true">{{
+                        done
+                            ? t("superConfirm.done", "Authorized.")
+                            : armed
+                              ? confirmLabel
+                              : t("superConfirm.trackLocked", "Turn both keys first")
+                    }}</span>
+                    <v-slider
+                        class="mb-super-confirm__slider"
+                        :model-value="gate.travel.value"
+                        :min="GATE_TRAVEL_START"
+                        :max="GATE_TRAVEL_END"
+                        :step="1"
+                        :disabled="!armed || done"
+                        :aria-label="confirmLabel"
+                        :aria-valuetext="
+                            t(
+                                'superConfirm.travel',
+                                { percent: gate.percent.value },
+                                '{percent} percent of the way across',
+                            )
+                        "
+                        :thumb-size="36"
+                        :track-size="0"
                         color="error"
-                        density="compact"
                         hide-details
-                        inset
+                        @update:model-value="onTravel"
+                        @end="onRelease"
+                    />
+                    <v-icon
+                        class="mb-super-confirm__chevron"
+                        :icon="done ? mdiCheckCircle : mdiChevronRight"
+                        size="20"
+                        aria-hidden="true"
                     />
                 </div>
 
-                <v-slider
-                    class="mb-super-confirm__slider"
-                    :model-value="gate.travel.value"
-                    :min="GATE_TRAVEL_START"
-                    :max="GATE_TRAVEL_END"
-                    :step="1"
-                    :disabled="!armed || done"
-                    :aria-label="confirmLabel"
-                    :aria-valuetext="
-                        t('superConfirm.travel', { percent: gate.percent.value }, '{percent} percent of the way across')
-                    "
-                    color="error"
-                    hide-details
-                    @update:model-value="onTravel"
-                    @end="onRelease"
-                />
-
-                <v-progress-linear
-                    class="mb-super-confirm__progress"
-                    :class="{ 'mb-super-confirm__progress--live': gate.phase.value === 'moving' }"
-                    :model-value="gate.travel.value"
-                    :color="done ? 'success' : 'error'"
-                    height="6"
-                    rounded
-                    striped
-                    aria-hidden="true"
-                />
-
                 <p class="mb-super-confirm__status" role="status" aria-live="polite">
                     <template v-if="done">
-                        <v-icon :icon="mdiCheckCircle" color="success" size="18" class="mb-super-confirm__tick" />
+                        <v-icon
+                            :icon="mdiCheckCircle"
+                            color="success"
+                            size="18"
+                            class="mb-super-confirm__tick"
+                        />
                         {{ t("superConfirm.done", "Authorized.") }}
                     </template>
                     <template v-else-if="!armed">
-                        {{ t("superConfirm.locked", "Both keys are needed before the slider moves.") }}
+                        {{
+                            t(
+                                "superConfirm.locked",
+                                "Both keys are needed before the slider moves.",
+                            )
+                        }}
                     </template>
                     <template v-else>
-                        {{ t("superConfirm.armed", "Armed. Drag the slider to the end to confirm.") }}
+                        {{
+                            t("superConfirm.armed", "Armed. Drag the slider to the end to confirm.")
+                        }}
                     </template>
                 </p>
             </v-card-text>
 
-            <v-card-actions>
+            <v-card-actions class="mb-super-confirm__actions">
                 <v-btn
                     class="mb-super-confirm__exit"
                     :prepend-icon="mdiExitRun"
-                    color="primary"
-                    variant="tonal"
+                    variant="outlined"
                     @click="cancel"
                 >
                     {{ t("superConfirm.exit", "Emergency exit") }}
                 </v-btn>
-                <v-spacer />
-                <span class="mb-super-confirm__label">{{ confirmLabel }}</span>
+                <span
+                    class="mb-super-confirm__label"
+                    :class="{ 'mb-super-confirm__label--done': done }"
+                    >{{ confirmLabel }}</span
+                >
             </v-card-actions>
         </v-card>
     </v-dialog>
@@ -280,8 +375,9 @@ function cancel(): void {
      * M3's dialog corner - the one shape in the scale reserved for a surface that takes the
      * whole screen's attention, which is what this one is for.
      */
-    border-radius: var(--md-sys-shape-corner-xl);
-    background: rgb(var(--v-theme-surface-container-high));
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    overflow: hidden;
+    background: rgb(var(--v-theme-surface-container));
     color: rgb(var(--v-theme-on-surface));
     border: 1px solid rgb(var(--v-theme-outline-variant));
     /* M3 puts a dialog at level 3, a step above the anchored menus at level 2. */
@@ -289,12 +385,12 @@ function cancel(): void {
 }
 
 .mb-super-confirm .v-card-text {
-    padding: 24px 24px 8px;
+    padding: 22px 26px 8px;
 }
 
 .mb-super-confirm .v-card-actions {
-    padding: 8px 24px 24px;
-    gap: 8px;
+    padding: 8px 26px 24px;
+    gap: 10px;
 }
 
 .mb-super-confirm .v-divider {
@@ -333,10 +429,10 @@ function cancel(): void {
  * anything else.
  */
 .mb-super-confirm__title {
-    font-size: var(--md-sys-typescale-headline-small-size);
-    line-height: var(--md-sys-typescale-headline-small-line-height);
-    font-weight: var(--md-sys-typescale-headline-small-weight);
-    letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+    font-size: var(--md-sys-typescale-title-large-size);
+    line-height: var(--md-sys-typescale-title-large-line-height);
+    font-weight: 500;
+    letter-spacing: var(--md-sys-typescale-title-large-tracking);
 }
 
 .mb-super-confirm__emoji {
@@ -357,10 +453,14 @@ function cancel(): void {
 }
 
 .mb-super-confirm__affected {
-    margin: 8px 0 0 1.2em;
-    font-size: var(--md-sys-typescale-body-medium-size);
-    line-height: var(--md-sys-typescale-body-medium-line-height);
-    letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 8px 0 0;
+    padding: 0;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-body-small-size);
+    line-height: var(--md-sys-typescale-body-small-line-height);
     color: rgb(var(--v-theme-on-surface));
     overflow-wrap: anywhere;
 }
@@ -384,13 +484,6 @@ function cancel(): void {
     gap: 6px;
     min-height: 24px;
     margin-block-start: 4px;
-}
-
-.mb-super-confirm__keys {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    margin-block: 4px 8px;
 }
 
 /* Both keys stay operable side by side down to the narrowest supported width. */
@@ -484,6 +577,147 @@ function cancel(): void {
     font-weight: var(--md-sys-typescale-label-large-weight);
     letter-spacing: var(--md-sys-typescale-label-large-tracking);
     color: rgb(var(--v-theme-on-surface));
+}
+
+/* ---------------------------------------------------------------------------
+ * The approved design's gate anatomy: optional artwork across the top, the warning heading,
+ * the affected list in mono, two key cards, the pill track the slider rides in, and the
+ * Emergency exit beside the name of what the slider authorises.
+ * ------------------------------------------------------------------------- */
+.mb-super-confirm__artwork {
+    margin: 0;
+    border-style: none;
+    border-radius: 0;
+    aspect-ratio: auto;
+    block-size: 150px;
+}
+
+.mb-super-confirm__affected {
+    list-style: none;
+}
+
+.mb-super-confirm__step {
+    margin-block-start: 16px;
+}
+
+.mb-super-confirm__keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-block: 12px 0;
+}
+
+.mb-super-confirm__key-card {
+    display: flex;
+    flex: 1 1 10rem;
+    flex-direction: column;
+    justify-content: center;
+    min-block-size: 56px;
+    padding: 4px 14px 6px;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-medium);
+}
+
+.mb-super-confirm__key-card--on {
+    border-color: rgb(var(--v-theme-primary));
+}
+
+.mb-super-confirm__key-state {
+    padding-inline-start: 40px;
+    font-size: var(--md-sys-typescale-label-small-size);
+    color: rgb(var(--v-theme-outline));
+}
+
+.mb-super-confirm__track {
+    position: relative;
+    block-size: 48px;
+    margin-block-start: 16px;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-full);
+    background: rgb(var(--v-theme-surface));
+}
+
+.mb-super-confirm__track--armed {
+    border-color: rgb(var(--v-theme-error));
+}
+
+.mb-super-confirm__track--done {
+    border-color: rgb(var(--v-theme-success));
+}
+
+.mb-super-confirm__track .mb-super-confirm__progress {
+    position: absolute;
+    inset: 5px;
+    inline-size: auto;
+    block-size: 36px;
+    opacity: 0.32;
+}
+
+.mb-super-confirm__track-label {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding-inline: 56px;
+    font-size: var(--md-sys-typescale-body-medium-size);
+    color: rgb(var(--v-theme-on-surface-variant));
+    pointer-events: none;
+    text-align: center;
+}
+
+.mb-super-confirm__slider.v-input {
+    position: absolute;
+    inset-block: 0;
+    inset-inline: 23px;
+    margin: 0;
+}
+
+.mb-super-confirm__slider .v-input__control {
+    min-block-size: 46px;
+}
+
+.mb-super-confirm__slider .v-slider-thumb__surface {
+    background: rgb(var(--v-theme-surface-container-highest));
+}
+
+.mb-super-confirm__track--armed .mb-super-confirm__slider .v-slider-thumb__surface {
+    background: rgb(var(--v-theme-error));
+}
+
+.mb-super-confirm__chevron {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: calc(23px + (100% - 46px) * var(--mb-super-confirm-travel, 0%) / 100%);
+    translate: -50% -50%;
+    color: rgb(var(--v-theme-on-surface-variant));
+    pointer-events: none;
+}
+
+.mb-super-confirm__track--armed .mb-super-confirm__chevron {
+    color: rgb(var(--v-theme-on-error));
+}
+
+.mb-super-confirm__actions {
+    display: flex;
+    gap: 10px;
+}
+
+.mb-super-confirm__actions .mb-super-confirm__exit {
+    flex: 1 1 0;
+    min-block-size: 44px;
+}
+
+.mb-super-confirm__label {
+    display: flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    min-block-size: 44px;
+    text-align: center;
+}
+
+.mb-super-confirm__label--done {
+    color: rgb(var(--v-theme-success));
 }
 
 @keyframes mb-super-confirm-pulse {

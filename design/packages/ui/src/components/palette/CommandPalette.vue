@@ -2,16 +2,7 @@
 import { computed, nextTick, ref, useId, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiArrowCollapse, mdiArrowExpand, mdiClose } from "@mdi/js";
-import {
-    VBtn,
-    VCard,
-    VDialog,
-    VDivider,
-    VIcon,
-    VToolbar,
-    VToolbarTitle,
-    VTooltip,
-} from "vuetify/components";
+import { VBtn, VCard, VDialog, VDivider, VIcon, VTooltip } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { blueMapApp } from "../../stores/bluemap.js";
@@ -219,10 +210,7 @@ const matcher = computed(() => createSettingMatcher(query.value, regexMode.value
 const visible = computed(() => filterItems(items.value, matcher.value));
 
 const usableDiscovery = computed(() =>
-    prunePaletteDiscovery(
-        discovery.value,
-        new Set(items.value.map((item) => item.id)),
-    ),
+    prunePaletteDiscovery(discovery.value, new Set(items.value.map((item) => item.id))),
 );
 
 let registryGeneration = 0;
@@ -250,6 +238,9 @@ watch(
 const orderedVisible = computed(() => orderPaletteItems(visible.value, usableDiscovery.value));
 
 const groups = computed(() => groupItems(orderedVisible.value));
+
+/** The row Enter in the search box acts on, marked so the keystroke's target is visible. */
+const firstId = computed(() => orderedVisible.value[0]?.id ?? null);
 
 const sample = computed(() => paletteSample(items.value));
 
@@ -474,26 +465,55 @@ function onActivate(item: PaletteItem): void {
 </script>
 
 <template>
+    <!--
+        The approved design's palette: a bounded card hanging 96px from the top of the window,
+        the search row as its header, and the result list under one hairline. The card's title
+        is kept for assistive technology (it names the dialog) without a toolbar of its own;
+        the size toggle and close sit at the end of the search row instead.
+    -->
     <v-dialog
         class="mb-palette"
         :class="{ 'mb-palette--full': size === 'full' }"
         :model-value="props.open"
         :fullscreen="size === 'full'"
-        :max-width="size === 'card' ? 760 : '100%'"
+        :max-width="size === 'card' ? 680 : '100%'"
         :content-props="{ 'aria-labelledby': titleId }"
         scrollable
         @update:model-value="onDialog"
     >
         <v-card class="mb-palette__card" @keydown="onKeydown">
-            <v-toolbar class="mb-palette__bar" density="comfortable" flat color="surface">
-                <v-toolbar-title :id="titleId" class="mb-palette__title">
-                    {{ t("palette.title", "Command palette") }}
-                </v-toolbar-title>
+            <h2 :id="titleId" class="mb-palette__title">
+                {{ t("palette.title", "Command palette") }}
+            </h2>
 
-                <template #append>
+            <div class="mb-palette__search">
+                <ConfigSearchField
+                    ref="searchRef"
+                    v-model="query"
+                    v-model:regex="regexMode"
+                    v-model:flags="flags"
+                    class="mb-palette__field"
+                    :label="t('palette.search.label', 'Search everything')"
+                    :placeholder="
+                        t('palette.search.hint', 'a command, a setting, or where you want to go')
+                    "
+                    :sample="sample"
+                    :summary="summary"
+                    density="default"
+                    @keydown.enter.prevent="onSearchEnter"
+                >
+                    <template #meta>
+                        <kbd class="mb-palette__shortcut">{{
+                            t("palette.shortcut", "Ctrl+Shift+F")
+                        }}</kbd>
+                    </template>
+                </ConfigSearchField>
+
+                <div class="mb-palette__actions">
                     <v-btn
                         icon
                         variant="text"
+                        density="comfortable"
                         :aria-label="sizeLabel"
                         :aria-pressed="size === 'full' ? 'true' : 'false'"
                         @click="toggleSize"
@@ -505,6 +525,7 @@ function onActivate(item: PaletteItem): void {
                     <v-btn
                         icon
                         variant="text"
+                        density="comfortable"
                         :aria-label="t('palette.close', 'Close the command palette')"
                         @click="close"
                     >
@@ -515,32 +536,18 @@ function onActivate(item: PaletteItem): void {
                             :text="t('palette.close', 'Close the command palette')"
                         />
                     </v-btn>
-                </template>
-            </v-toolbar>
-
-            <v-divider />
-
-            <div class="mb-palette__search">
-                <ConfigSearchField
-                    ref="searchRef"
-                    v-model="query"
-                    v-model:regex="regexMode"
-                    v-model:flags="flags"
-                    :label="t('palette.search.label', 'Search everything')"
-                    :placeholder="
-                        t('palette.search.hint', 'a command, a setting, or where you want to go')
-                    "
-                    :sample="sample"
-                    :summary="summary"
-                    density="comfortable"
-                    @keydown.enter.prevent="onSearchEnter"
-                />
-                <p v-if="actionNotice" class="mb-palette__action-notice" role="status" aria-live="polite">
-                    {{ actionNotice }}
-                </p>
+                </div>
             </div>
+            <p
+                v-if="actionNotice"
+                class="mb-palette__action-notice"
+                role="status"
+                aria-live="polite"
+            >
+                {{ actionNotice }}
+            </p>
 
-            <v-divider />
+            <v-divider class="mb-palette__rule" />
 
             <div ref="listRef" class="mb-palette__body">
                 <template v-for="group in groups" :key="group.label">
@@ -550,6 +557,7 @@ function onActivate(item: PaletteItem): void {
                             v-for="item in group.items"
                             :key="item.id"
                             :item="item"
+                            :first="item.id === firstId"
                             :favourite="usableDiscovery.favourites.includes(item.id)"
                             @activate="onActivate"
                             @toggle-favourite="toggleFavourite"
@@ -587,8 +595,6 @@ function onActivate(item: PaletteItem): void {
                 </p>
             </div>
 
-            <v-divider />
-
             <p class="mb-palette__hint">
                 {{
                     t(
@@ -602,45 +608,129 @@ function onActivate(item: PaletteItem): void {
 </template>
 
 <style>
+/*
+ * Bounded card: surface-container, the extra-large M3 corner, an outline-variant hairline and
+ * the level-3 shadow, 96px from the top of the window rather than centred, so the list grows
+ * downward from where the eye already is.
+ */
+.mb-palette.v-dialog:not(.mb-palette--full) > .v-overlay__content {
+    align-self: flex-start;
+    margin-block-start: 96px;
+    max-block-size: calc(100% - 128px);
+}
+
 .mb-palette .mb-palette__card {
     display: flex;
     flex-direction: column;
-    /* Bounded so the list scrolls inside the card rather than the card growing past the
-       window. In the full-window size the dialog is already the viewport and this is moot. */
-    max-height: 80vh;
+    max-height: min(80vh, 560px);
+    border-radius: var(--md-sys-shape-corner-extra-large);
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    background: rgb(var(--v-theme-surface-container));
+    box-shadow: var(--md-sys-elevation-shadow-level3);
+    overflow: hidden;
 }
 
 .mb-palette--full .mb-palette__card {
     max-height: 100%;
+    border-radius: 0;
 }
 
-.mb-palette .mb-palette__title {
-    font-size: var(--md-sys-typescale-body-large-size);
-    font-weight: 500;
-    overflow-wrap: anywhere;
-    white-space: normal;
-    line-height: 1.25;
+/* The dialog's name, kept for assistive technology rather than drawn as a toolbar. */
+.mb-palette__title {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
 }
 
+/* The search row is the card's header: 62px, the field borderless on the card's own surface. */
 .mb-palette__search {
-    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-block-size: 62px;
+    padding: 4px 8px 4px 12px;
+}
+
+.mb-palette__field {
+    flex: 1 1 auto;
+}
+
+.mb-palette__field .v-field {
+    background: transparent;
+    font-size: var(--md-sys-typescale-body-large-size);
+}
+
+.mb-palette__field .v-field__outline {
+    display: none;
+}
+
+.mb-palette__field .v-field__prepend-inner .v-icon {
+    color: rgb(var(--v-theme-primary));
+    opacity: 1;
+}
+
+/* Once something is typed, the floating label would hang over nothing: the field keeps it
+   as its accessible name and stops drawing it. */
+.mb-palette__field .v-field--dirty .v-label.v-field-label,
+.mb-palette__field .v-field--focused .v-label.v-field-label--floating {
+    visibility: hidden;
+}
+
+/* The count sentence stays the field's polite live region but is not drawn in the header. */
+.mb-palette__field .mb-config-search__summary {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+}
+
+.mb-palette__shortcut {
+    flex: 0 0 auto;
+    margin-inline: 4px 8px;
+    font-family: "Roboto Mono", ui-monospace, monospace;
+    font-size: var(--md-sys-typescale-label-small-size);
+    color: rgb(var(--v-theme-outline));
+    white-space: nowrap;
+}
+
+.mb-palette__actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    color: rgb(var(--v-theme-on-surface-variant));
+}
+
+.mb-palette__rule {
+    border-color: rgb(var(--v-theme-outline-variant));
+    opacity: 1;
 }
 
 .mb-palette__body {
     flex: 1 1 auto;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 8px 8px 16px;
+    padding: 8px 0 12px;
 }
 
 .mb-palette__group {
     margin: 12px 0 4px;
-    padding-inline: 12px;
+    padding-inline: 22px;
     font-size: var(--md-sys-typescale-label-small-size);
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-outline));
+}
+
+.mb-palette__group:first-child {
+    margin-block-start: 4px;
 }
 
 .mb-palette__list {
@@ -651,25 +741,27 @@ function onActivate(item: PaletteItem): void {
 
 .mb-palette__empty,
 .mb-palette__note {
-    margin: 12px;
+    margin: 12px 22px;
     font-size: var(--md-sys-typescale-body-medium-size);
     line-height: 1.5;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
     text-wrap: pretty;
 }
 
 .mb-palette__action-notice {
-    margin: 8px 0 0;
+    margin: 0;
+    padding: 0 22px 8px;
     font-size: var(--md-sys-typescale-body-small-size);
     line-height: 1.4;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-palette__hint {
     margin: 0;
-    padding: 8px 16px;
-    font-size: var(--md-sys-typescale-body-small-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    padding: 8px 22px;
+    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
+    font-size: var(--md-sys-typescale-label-small-size);
+    color: rgb(var(--v-theme-outline));
     text-wrap: pretty;
 }
 

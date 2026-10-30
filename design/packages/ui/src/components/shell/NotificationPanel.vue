@@ -115,7 +115,7 @@ function close(): void {
             tabindex="-1"
             @keydown.esc.stop="close"
         >
-            <v-card class="wl-notifications__card" rounded="lg">
+            <v-card class="wl-notifications__card" flat>
                 <NoticeCentrePanel :state="state" @close="close" />
             </v-card>
         </div>
@@ -142,16 +142,23 @@ function close(): void {
     outline-offset: 2px;
 }
 
+/* The approved design's card: surface-container, the large corner, an outline-variant
+   hairline and the level-3 shadow an anchored panel takes. */
 .wl-notifications__card {
     flex: 1 1 auto;
     min-block-size: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border-radius: var(--md-sys-shape-corner-large);
+    background: rgb(var(--v-theme-surface-container));
+    box-shadow: var(--md-sys-elevation-shadow-level3);
 }
 
 .wl-notifications :deep(.mb-notice-centre) {
     min-block-size: 0;
+    max-block-size: none;
     overflow-y: auto;
 }
 </style>

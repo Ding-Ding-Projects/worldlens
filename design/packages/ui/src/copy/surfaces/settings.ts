@@ -1018,6 +1018,16 @@ export const SETTINGS_FIXED = {
     "settings.body": { en: "All settings", yue: "所有設定" },
     "settings.search.label": { en: "Search settings", yue: "搜尋設定" },
     "settings.search.labelShort": { en: "Search", yue: "搜尋" },
+
+    /* The trailing state chip on each section header, and the sheet's width toggle. */
+    "settings.status.notFound": { en: "Not found", yue: "搵唔到" },
+    "settings.status.default": { en: "Default", yue: "預設" },
+    "settings.status.set": { en: "Set", yue: "已設定" },
+    "settings.status.accounts": { en: "{n} signed in", yue: "{n} 個已登入" },
+    "settings.status.signedOut": { en: "Signed out", yue: "未登入" },
+    "settings.status.automatic": { en: "Automatic", yue: "自動" },
+    "settings.width.widen": { en: "Widen this panel", yue: "拉闊呢塊版" },
+    "settings.width.narrow": { en: "Narrow this panel", yue: "收窄呢塊版" },
     "settings.search.hint": {
         en: "name, explanation, or a value on screen",
         yue: "名稱、說明，或者畫面上見到嘅值",

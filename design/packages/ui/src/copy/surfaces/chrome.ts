@@ -421,6 +421,10 @@ export const CHROME_FIXED = {
      * what keeps a collapsed row from hiding an active filter silently.
      */
     "notices.centre.filters": { en: "Filters", yue: "篩選" },
+    "notices.centre.note": {
+        en: "Nothing appears over your work. Everything raised stays here.",
+        yue: "乜都唔會遮住你做緊嘅嘢。所有訊息都喺度等你睇。",
+    },
     "notices.centre.clearFilters": { en: "Clear every filter", yue: "清走所有篩選" },
     /* Catalogue-coverage sweep: these answered nothing, so every language and every
        funny level rendered the English fallback. */

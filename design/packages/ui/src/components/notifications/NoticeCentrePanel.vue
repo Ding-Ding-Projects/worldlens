@@ -12,7 +12,7 @@ import {
     mdiOpenInNew,
     mdiRestore,
 } from "@mdi/js";
-import { VBtn, VCard, VChip, VDivider, VIcon } from "vuetify/components";
+import { VBtn, VCard, VChip, VIcon } from "vuetify/components";
 import ChangelogDateFilter from "../changelog/ChangelogDateFilter.vue";
 import { type DayKey } from "../changelog/changelogDates.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
@@ -275,16 +275,6 @@ onBeforeUnmount(() => {
         </header>
 
         <div class="mb-notice-centre__controls">
-            <ConfigSearchField
-                v-model="query"
-                v-model:regex="regex"
-                v-model:flags="flags"
-                :label="t('notices.centre.search', 'Search notifications')"
-                :placeholder="t('notices.centre.searchHint', 'Message, detail, level or timestamp')"
-                :sample="sample"
-                :summary="summary"
-            />
-
             <div class="mb-notice-centre__filterbar">
                 <v-btn
                     :prepend-icon="mdiFilterVariant"
@@ -349,17 +339,33 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <v-divider />
-
         <template v-if="state.history.length > 0">
             <NoticeBulkToolbar
+                class="mb-notice-centre__bulk"
                 :state="state"
                 :visible="visible"
                 :selected="selected"
                 @update:selected="onSelectedChange"
             />
-            <v-divider />
         </template>
+
+        <!--
+            The search sits under the filters and the bulk row and over the list it filters,
+            as in the approved design, and stays outside the collapsible row so the control
+            most people reach for first is always on screen.
+        -->
+        <div class="mb-notice-centre__search">
+            <ConfigSearchField
+                v-model="query"
+                v-model:regex="regex"
+                v-model:flags="flags"
+                class="mb-notice-centre__field"
+                :label="t('notices.centre.search', 'Search notifications')"
+                :placeholder="t('notices.centre.searchHint', 'Message, detail, level or timestamp')"
+                :sample="sample"
+                :summary="summary"
+            />
+        </div>
 
         <!--
             A plain list rather than `<v-list>`: every row carries a heading, a disclosure and
@@ -395,22 +401,25 @@ onBeforeUnmount(() => {
                         @pick="onPick(notice.id, $event)"
                     />
                     <v-icon
+                        class="mb-notice-centre__level-icon"
                         :icon="LEVEL_ICONS[notice.level]"
                         :color="notice.level"
-                        size="small"
+                        size="20"
                         aria-hidden="true"
                     />
                     <div class="mb-notice-centre__text">
-                        <p class="mb-notice-centre__meta">
-                            <span class="mb-notice-centre__level-name">{{
-                                levelLabel(notice.level)
-                            }}</span>
-                            <span>{{ notice.at }}</span>
-                        </p>
                         <p v-if="notice.title" class="mb-notice-centre__title">
                             {{ notice.title }}
                         </p>
                         <p class="mb-notice-centre__message">{{ notice.message }}</p>
+                        <p class="mb-notice-centre__meta">
+                            <time class="mb-notice-centre__time" :datetime="notice.at">{{
+                                notice.at
+                            }}</time>
+                            <span class="mb-notice-centre__level-name">{{
+                                levelLabel(notice.level)
+                            }}</span>
+                        </p>
                         <details v-if="notice.detail">
                             <summary>{{ t("notices.centre.detail", "Details") }}</summary>
                             <pre class="mb-notice-centre__detail">{{ notice.detail }}</pre>
@@ -451,8 +460,6 @@ onBeforeUnmount(() => {
             </li>
         </ul>
 
-        <v-divider v-if="visible.length > 0" />
-
         <footer v-if="visible.length > 0" class="mb-notice-centre__foot">
             <v-btn
                 :prepend-icon="mdiContentCopy"
@@ -467,6 +474,14 @@ onBeforeUnmount(() => {
                 {{ t("notices.centre.copied", "Copied as Markdown.") }}
             </span>
         </footer>
+        <p class="mb-notice-centre__note">
+            {{
+                t(
+                    "notices.centre.note",
+                    "Nothing appears over your work. Everything raised stays here.",
+                )
+            }}
+        </p>
     </v-card>
 </template>
 
@@ -477,6 +492,10 @@ onBeforeUnmount(() => {
     notification card, which the contract fixes at 420px. As a fixed `width` it stayed 440
     inside that 420 card and the card - which hides its overflow - cut 20px off every row,
     the search field and the filter controls with it.
+
+    The anatomy is the approved design's notification centre: a header with the title and
+    close, the filter row, the bulk row, the search, the list, and a one-line footer, each
+    band separated by a surface-container-high hairline on the card's surface-container.
 */
 .mb-notice-centre {
     inline-size: 100%;
@@ -487,17 +506,25 @@ onBeforeUnmount(() => {
     overflow-y: auto;
 }
 
+.mb-notice-centre.v-card {
+    background: rgb(var(--v-theme-surface-container));
+    color: rgb(var(--v-theme-on-surface));
+    box-shadow: none;
+}
+
 .mb-notice-centre__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 12px 12px 0 16px;
+    padding: 8px 8px 8px 18px;
+    border-block-end: 1px solid rgb(var(--v-theme-outline-variant));
 }
 
 .mb-notice-centre__heading {
-    font-size: var(--md-sys-typescale-body-large-size);
-    font-weight: 500;
+    font-size: var(--md-sys-typescale-title-medium-size);
+    line-height: var(--md-sys-typescale-title-medium-line-height, 1.5rem);
+    font-weight: var(--md-sys-typescale-title-medium-weight, 500);
     margin: 0;
 }
 
@@ -509,13 +536,20 @@ onBeforeUnmount(() => {
 .mb-notice-centre__icon-button {
     min-width: 40px;
     min-height: 40px;
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-notice-centre__controls {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 8px 16px 12px;
+    padding: 8px 12px;
+    border-block-end: 1px solid rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-notice-centre__filterbar .v-btn {
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .mb-notice-centre__filterbar {
@@ -538,14 +572,46 @@ onBeforeUnmount(() => {
     gap: 6px;
 }
 
-.mb-notice-centre__level {
+/* The design's level chips: 32px pills, outlined until pressed, then tonal primary. */
+.mb-notice-centre__level.v-btn {
     min-height: 32px;
+    border-radius: var(--md-sys-shape-corner-full);
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.mb-notice-centre__bulk {
+    border-block-end: 1px solid rgb(var(--v-theme-surface-container-high));
+}
+
+.mb-notice-centre__bulk .v-btn {
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+.mb-notice-centre__search {
+    padding: 12px 14px 10px;
+}
+
+.mb-notice-centre__field .v-field {
+    min-block-size: 44px;
+    border-radius: var(--md-sys-shape-corner-medium);
+    background: rgb(var(--v-theme-surface));
+}
+
+.mb-notice-centre__field .v-field__outline {
+    --v-field-border-opacity: 1;
+    color: rgb(var(--v-theme-outline-variant));
+}
+
+.mb-notice-centre__field .v-field--focused .v-field__outline {
+    color: rgb(var(--v-theme-primary));
 }
 
 .mb-notice-centre__empty {
-    padding: 16px;
+    padding: 16px 18px;
     font-size: var(--md-sys-typescale-body-medium-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-notice-centre__list {
@@ -556,8 +622,14 @@ onBeforeUnmount(() => {
 }
 
 .mb-notice-centre__item {
-    padding: 10px 16px;
-    border-block-end: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+    padding: 8px 18px 8px 4px;
+    border-block-end: 1px solid rgb(var(--v-theme-surface-container-high));
+}
+
+@media (hover: hover) {
+    .mb-notice-centre__item:hover {
+        background: rgb(var(--v-theme-surface-container-high));
+    }
 }
 
 .mb-notice-centre__item:last-child {
@@ -567,26 +639,18 @@ onBeforeUnmount(() => {
 .mb-notice-centre__row {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
+    gap: 8px;
+}
+
+.mb-notice-centre__level-icon {
+    flex: 0 0 auto;
+    margin-block-start: 10px;
 }
 
 .mb-notice-centre__text {
     flex: 1 1 auto;
     min-width: 0;
-}
-
-.mb-notice-centre__meta {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    font-size: var(--md-sys-typescale-label-small-size);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
-}
-
-.mb-notice-centre__level-name {
-    font-weight: 600;
+    padding-block-start: 8px;
 }
 
 .mb-notice-centre__title {
@@ -596,8 +660,27 @@ onBeforeUnmount(() => {
 
 .mb-notice-centre__message {
     font-size: var(--md-sys-typescale-body-medium-size);
-    line-height: 1.45;
+    line-height: var(--md-sys-typescale-body-medium-line-height, 1.25rem);
     overflow-wrap: anywhere;
+    text-wrap: pretty;
+}
+
+.mb-notice-centre__meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px;
+    margin-block-start: 4px;
+    font-size: var(--md-sys-typescale-label-small-size);
+    color: rgb(var(--v-theme-outline));
+}
+
+.mb-notice-centre__time {
+    font-family: "Roboto Mono", ui-monospace, monospace;
+}
+
+.mb-notice-centre__level-name {
+    font-weight: 500;
 }
 
 .mb-notice-centre__detail {
@@ -614,19 +697,39 @@ onBeforeUnmount(() => {
     align-items: center;
     gap: 4px;
     margin-block-start: 4px;
+    padding-inline-start: 76px;
+}
+
+.mb-notice-centre__actions:empty {
+    display: none;
+}
+
+.mb-notice-centre__actions .v-btn,
+.mb-notice-centre__foot .v-btn {
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .mb-notice-centre__showing,
 .mb-notice-centre__copied {
     font-size: var(--md-sys-typescale-body-small-size);
-    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    color: rgb(var(--v-theme-on-surface-variant));
 }
 
 .mb-notice-centre__foot {
     display: flex;
     align-items: center;
     gap: 8px;
-    padding: 8px 16px;
+    padding: 4px 12px;
+    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
+}
+
+.mb-notice-centre__note {
+    margin: 0;
+    padding: 10px 18px;
+    border-block-start: 1px solid rgb(var(--v-theme-outline-variant));
+    font-size: var(--md-sys-typescale-body-small-size);
+    color: rgb(var(--v-theme-outline));
 }
 
 @media (prefers-reduced-motion: reduce) {

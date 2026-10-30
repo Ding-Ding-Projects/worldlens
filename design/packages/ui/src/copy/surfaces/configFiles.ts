@@ -1668,6 +1668,9 @@ export const CONFIGFILES_FIXED = {
         yue: "拖到全程嘅 {percent}%",
     },
     "config.confirm.exit": { en: "Emergency exit", yue: "緊急退出" },
+    "config.confirm.keyTurned": { en: "turned", yue: "扭咗" },
+    "config.confirm.keyNotYet": { en: "not yet", yue: "未扭" },
+    "config.confirm.trackLocked": { en: "Turn both keys first", yue: "先扭晒兩條鎖匙" },
 
     /*
      * The accessible names of the config screen's own window and tab strip. Both are read

@@ -31,22 +31,26 @@ function source(): string {
     return read("./SettingsSection.vue");
 }
 
-describe("settings section card anatomy (M3 revamp)", () => {
-    it("uses full-card 24px padding and a 16px rhythm instead of the cramped 16px/12px it shipped with", () => {
+describe("settings section list anatomy (approved design)", () => {
+    it("is one entry in a flat list: vertical rhythm on the 4/8 grid, no container of its own", () => {
         const text = source();
         const card = text.match(/\.mb-setting\s*\{[^}]*\}/s)?.[0] ?? "";
         expect(card, "missing .mb-setting rule").not.toBe("");
-        expect(card).toContain("padding: 24px");
-        expect(card).toContain("gap: 16px");
-        expect(card).not.toMatch(/padding:\s*16px\s*;/);
-        expect(card).not.toMatch(/gap:\s*12px\s*;/);
+        expect(card).toContain("padding: 16px 0");
+        expect(card).toContain("gap: 12px");
+        expect(card).not.toContain("background:");
     });
 
-    it("draws a divider between stacked sections from the outline-variant token", () => {
+    it("separates stacked sections with an outline-variant divider", () => {
         const text = source();
-        const divider = text.match(/\.mb-setting \+ \.mb-setting\s*\{[^}]*\}/s)?.[0] ?? "";
-        expect(divider, "missing stacked-section divider rule").not.toBe("");
-        expect(divider).toContain("border-top");
-        expect(divider).toContain("--md-sys-color-outline-variant");
+        const card = text.match(/\.mb-setting\s*\{[^}]*\}/s)?.[0] ?? "";
+        expect(card).toContain("border-block-end");
+        expect(card).toContain("--v-theme-outline-variant");
+    });
+
+    it("leads the header with a decorative icon, the heading, then a trailing status slot", () => {
+        const text = source();
+        expect(text).toMatch(/class="mb-setting__icon"[\s\S]*aria-hidden="true"/);
+        expect(text).toMatch(/mb-setting__title[\s\S]*mb-setting__status/);
     });
 });

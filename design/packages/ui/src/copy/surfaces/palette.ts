@@ -1327,6 +1327,7 @@ export const PALETTE_FIXED = {
     /* The palette's own chrome. */
     "palette.title": { en: "Command palette", yue: "指令面板" },
     "palette.close": { en: "Close the command palette", yue: "閂咗指令面板" },
+    "palette.shortcut": { en: "Ctrl+Shift+F", yue: "Ctrl+Shift+F" },
     "palette.search.label": { en: "Search everything", yue: "搜尋所有嘢" },
     "palette.search.hint": {
         en: "a command, a setting, or where you want to go",

@@ -117,7 +117,7 @@ function rows(view: VueWrapper<Host>): string[] {
 }
 
 async function type(view: VueWrapper<Host>, query: string): Promise<void> {
-    const input = view.find("input");
+    const input = view.find(".mb-config-search input");
     await input.setValue(query);
     await nextTick();
 }
@@ -357,7 +357,7 @@ describe("the filters row starts collapsed", () => {
         await nextTick();
 
         expect(rows(view)).toHaveLength(4);
-        expect((view.find("input").element as HTMLInputElement).value).toBe("");
+        expect((view.find(".mb-config-search input").element as HTMLInputElement).value).toBe("");
     });
 });
 
@@ -403,7 +403,9 @@ describe("filtering by a date range", () => {
         await nextTick();
 
         // The query survives setting a date.
-        expect((view.find("input").element as HTMLInputElement).value).toBe("middle");
+        expect((view.find(".mb-config-search input").element as HTMLInputElement).value).toBe(
+            "middle",
+        );
         expect(rows(view)).toHaveLength(1);
         expect(view.text()).toContain("the middle one");
     });

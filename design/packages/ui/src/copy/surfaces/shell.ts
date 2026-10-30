@@ -420,6 +420,8 @@ export const SHELL_FIXED = {
     "problems.severity.info": { en: "Note", yue: "備註" },
     "problems.title": { en: "Problems ({count})", yue: "問題（{count}）" },
     "problems.close": { en: "Close the problems panel", yue: "閂咗問題版" },
+    "problems.search": { en: "Search problems", yue: "搜尋問題" },
+    "problems.noMatch": { en: "No problem matches this search.", yue: "冇問題啱呢個搜尋。" },
     "problems.source.workspace": { en: "Saved workspace", yue: "儲低咗嘅工作區" },
     "problems.source.navigation": { en: "Navigation", yue: "導覽" },
     "problems.render.remedy": { en: "Open the render console", yue: "開渲染主控台" },
