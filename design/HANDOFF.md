@@ -1,5 +1,65 @@
 # Handoff
 
+## 2026-10-30 UI matched to the design prototype, stopped at the usage limit
+
+Goal: make the shipped UI (`design/packages/ui`) match the approved Claude Design
+prototype `design/Worldlens.dc.html` using pure Vuetify Material 3 components and
+design-system tokens, remove no feature, and make display-only features real.
+
+Done and on main (each verified by its focused vitest suites; UI typecheck exit 0
+at `99989f5`, `dc2626d` and `2167dfd`):
+
+- `a9258e6` title bar, update banner, status strip, four-destination rail (Home,
+  Map, Work, Servers). The seven former rail job shortcuts are reachable from
+  Work's add-job picker and the command palette.
+- `40a1edb` Home and catalogue page. `62599f8` + `ec5799e` Work job strip and the
+  Make a map guide. `779afd1` Minecraft servers job. `99989f5` Projects, Renders
+  (with a read-only-first repair offer) and cloud runners. `6c8a0c6` Settings
+  sheet, command palette, notifications, Problems, super-confirm. `2167dfd` Map
+  controls and map menu.
+- Features: `eee2d00` lint errors cleared and the Bedrock stale-world check wired;
+  `568854b` resumable first-run setup; `62899ab` PIN and combined lock methods and
+  the play-instead-of-waiting ladder; `1e67a4d` dialog emoji switch and app-wide
+  action sounds.
+
+Unfinished, saved at `9c9988c` and NOT verified (no tests or typecheck run):
+
+1. Appearance editor, regex builders, options editor, tab finder, tab menu and
+   dock overlays restyle (tabs/, menu/MenuRegexBuilder.vue,
+   config/ConfigRegexBuilder*). Next: narrow the TabbedNavigation test selector
+   that now also matches the finder sheet's v-list-items, then finish and test.
+2. Runtime settings wiring (runtimeSettings/, settings/themeSetting.ts): scheduled
+   theme was getting a temporary-override route. Still to do: density and
+   language overrides, Focus classes on real content, time awareness and next
+   action in the status strip, Momentum as a notice, one display-name source,
+   quiet hours as a real time window or an honest label, and the
+   runtime-settings doc in both languages.
+3. Accessibility tools menu: not started in code.
+4. Not started: settings sub-pages and notification header to the prototype,
+   info-icon guidance, external editor picker, a shared export chooser,
+   collapsible filters, site articles, README and docs updates for this work.
+
+Known red tests not caused by this work: `changelogData.test.ts` (trailer check)
+and `runtimeSettings/completeness.test.ts` (paths). Run UI tests in chunks with
+`NODE_OPTIONS=--max-old-space-size=3072` on small machines; the full run runs out
+of memory.
+
+## 廣東話：2026-10-30 介面跟原型重做，用量到頂暫停
+
+目標：用純 Material 3 元件同設計 token，令介面跟足 `design/Worldlens.dc.html`，
+唔刪功能，淨係做樣嘅功能要真係接駁好。
+
+已完成並喺 main：外框同四個目的地導覽列、主頁同目錄頁、Work 分頁列同整地圖引導、
+Minecraft 伺服器、項目／渲染／雲端 runner、設定／指令面板／通知／問題面板／超級確認、
+地圖控制同地圖選單；另外清咗 lint、首次設定可以續做、PIN 同組合鎖、等待小遊戲、
+對話框 emoji 開關同全 app 音效。
+
+未完成，存喺 `9c9988c`，未驗證：編輯器同分頁搜尋改樣、排程主題／密度／語言接駁同
+專注模式、無障礙選單、設定子頁、資訊圖示、外部編輯器、匯出、可收埋篩選，
+同埋網站文章同文件更新。
+
+兩個紅燈測試唔關今次事：changelogData 同 runtimeSettings completeness。
+
 ## 2026-10-22 window-wide click interception
 
 The vocabulary feedback live region filled the window even when empty. The global
