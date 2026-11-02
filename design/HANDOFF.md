@@ -21,6 +21,13 @@ toolbar (`Map.dc.html`), Work and Renders (`Work.dc.html`), Minecraft servers
 items from the 2026-10-30 entry below. No packaged-app screenshots were taken
 for these steps; verify with the run-worldlens skill on Windows.
 
+Full UI suite run folder by folder after these steps: everything passes except
+five tests that fail identically with every Contour change reverted:
+`changelog/changelogData.test.ts` (trailers), `eula/EulaViewer.test.ts`
+(export menu search), and `runtimeSettings/completeness.test.ts`,
+`runtimeSettings/model.test.ts` (overlapping rule order) and
+`runtimeSettings/narrator.test.ts` (quiet-time cooldown).
+
 ## 2026-11-02 Contour design direction proposed
 
 `design/contour/` adds Contour, a fresh visual direction built on `tokens.css`
