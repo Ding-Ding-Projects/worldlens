@@ -134,13 +134,25 @@
  * arrives with `elevation="2"` from a screen nobody has edited must still land flat, or the
  * conversion is only as complete as the props somebody remembered to change.
  * ------------------------------------------------------------------------- */
+/*
+ * Contour (2026-11-02): the container tint alone separates a card from the pane, so the hairline
+ * goes and the corner is the extra-large one the panes use. The contrast scheme keeps a full-
+ * strength outline, because there every container is the same black and the line is the only
+ * edge a card has.
+ */
 .mb-shell-layer .v-card,
 .v-application .mb-surface-card {
-    border-radius: var(--md-sys-shape-corner-large);
+    border-radius: var(--md-sys-shape-corner-xl);
     background: rgb(var(--v-theme-surface-container));
     background-color: rgb(var(--v-theme-surface-container));
-    border: 1px solid rgb(var(--v-theme-outline-variant));
+    border: 1px solid transparent;
     box-shadow: none;
+}
+
+.v-theme--contrast .mb-shell-layer .v-card,
+.v-theme--contrast.v-application .mb-surface-card,
+.v-theme--contrast .mb-surface-card {
+    border-color: rgb(var(--v-theme-on-surface));
 }
 
 /*

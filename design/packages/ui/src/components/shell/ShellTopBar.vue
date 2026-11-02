@@ -73,6 +73,7 @@ function compact(count: number): string {
         <v-btn
             class="wl-topbar__search mb-interactive"
             variant="flat"
+            color="surface-container-high"
             rounded="xl"
             :ripple="false"
             :aria-label="searchLabel"
