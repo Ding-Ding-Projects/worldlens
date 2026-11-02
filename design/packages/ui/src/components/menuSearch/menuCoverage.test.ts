@@ -339,12 +339,6 @@ const REGISTRY: readonly MenuRegistryEntry[] = [
         status: "has-search",
     },
     {
-        file: "appearance/AppearanceEditor.vue",
-        builtVia: "v-menu",
-        menu: "The per-property lock menu, anchored to the property row it locks.",
-        status: "has-search",
-    },
-    {
         file: "palette/PaletteChoiceField.vue",
         builtVia: "v-menu",
         menu: "The command palette's choice field, built on the shared MenuSearchList.",
