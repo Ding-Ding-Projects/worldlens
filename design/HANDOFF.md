@@ -1,5 +1,26 @@
 # Handoff
 
+## 2026-11-02 Contour approved and implementation started
+
+The owner asked for the Contour design (`design/contour/`) to be built into the
+app, so Contour is now the target for `design/packages/ui`. Done and on main:
+
+- `cb5c5b8` one surface in focus: `components/shell/FocusDialog.vue`. The
+  appearance editor opens full-window; every lock wizard and unlock prompt
+  (element, appearance property, tab, lock list) is a modal dialog on a scrim.
+- `98e846b` shell: `ShellTopBar.vue` (Material 3 search bar opening the
+  palette, notification bell), labelled Settings at the foot of the rail, rail
+  on the background, Home and Work on one raised 28px pane.
+- Home: what is happening on this machine comes before the catalogues, each
+  catalogue tile has its own container shape, cards use the extra-large corner.
+
+Next, in this order: Settings as a list-detail destination instead of the
+docked surface (Contour `Settings.dc.html`), the Map side sheet and floating
+toolbar (`Map.dc.html`), Work and Renders (`Work.dc.html`), Minecraft servers
+(`Servers.dc.html`, add `--wl-ok` to the design tokens first), then the open
+items from the 2026-10-30 entry below. No packaged-app screenshots were taken
+for these steps; verify with the run-worldlens skill on Windows.
+
 ## 2026-11-02 Contour design direction proposed
 
 `design/contour/` adds Contour, a fresh visual direction built on `tokens.css`

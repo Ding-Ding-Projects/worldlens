@@ -354,6 +354,167 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
             </ConfigSearchField>
 
             <!-- Search results replace the cards while a query is active. -->
+            <!--
+                Contour leads with what is moving on this machine right now, above the
+                catalogues: a person coming back to the app usually came back for that. It steps
+                aside while a search is showing results, so the results sit straight under the
+                field that produced them.
+            -->
+            <section v-if="!searching" class="wl-machine" aria-labelledby="wl-dash-machine-title">
+                <div class="wl-section-head">
+                    <h2 id="wl-dash-machine-title" class="wl-section-head__name">
+                        {{ t("shell.home.machine.title", "On this machine") }}
+                    </h2>
+                    <v-divider class="wl-section-head__rule" />
+                </div>
+
+                <div class="wl-dash__actions">
+                    <GenerationEntry />
+                    <v-btn
+                        class="wl-action mb-interactive"
+                        variant="outlined"
+                        @click="emit('openPalette')"
+                    >
+                        {{ t("shell.home.machine.palette", "Open the command palette") }}
+                    </v-btn>
+                </div>
+
+                <div v-if="returning" class="wl-dash__content">
+                    <v-card
+                        v-if="runningRows.length > 0"
+                        class="wl-panel"
+                        variant="flat"
+                        tag="section"
+                        aria-labelledby="wl-dash-progress-title"
+                    >
+                        <h3 id="wl-dash-progress-title" class="wl-panel__title">
+                            {{ t("shell.home.dashboard.inProgress", "In progress") }}
+                        </h3>
+                        <ul class="wl-rows">
+                            <li v-for="row in runningRows" :key="row.key">
+                                <v-list-item
+                                    class="wl-render-row wl-plain mb-interactive"
+                                    rounded="0"
+                                    role="button"
+                                    link
+                                    :ripple="false"
+                                    @click="emit('openRender', row.key)"
+                                >
+                                    <span class="wl-result__name">{{ renderTitle(row) }}</span>
+                                    <span class="wl-result__meta">{{ renderMeta(row) }}</span>
+                                    <template #append>
+                                        <v-progress-linear
+                                            class="wl-render-row__bar"
+                                            color="primary"
+                                            rounded
+                                            height="6"
+                                            :model-value="displayPercent(row.percent) ?? 0"
+                                            :indeterminate="displayPercent(row.percent) === null"
+                                            :aria-label="renderTitle(row)"
+                                        />
+                                        <v-icon
+                                            class="wl-chevron"
+                                            :icon="mdiChevronRight"
+                                            size="18"
+                                        />
+                                    </template>
+                                </v-list-item>
+                            </li>
+                        </ul>
+                        <p v-if="runningOverflow > 0" class="wl-results__more">
+                            {{
+                                t(
+                                    "shell.home.dashboard.renderOverflow",
+                                    { count: String(runningOverflow) },
+                                    "+{count} more running",
+                                )
+                            }}
+                        </p>
+                    </v-card>
+
+                    <v-card
+                        v-if="savedProfiles.length > 0"
+                        class="wl-panel"
+                        variant="flat"
+                        tag="section"
+                        aria-labelledby="wl-dash-maps-title"
+                    >
+                        <h3 id="wl-dash-maps-title" class="wl-panel__title">
+                            {{ t("shell.home.dashboard.mapsAndServers", "Your maps & servers") }}
+                        </h3>
+                        <ul class="wl-rows">
+                            <li v-for="profile in savedProfiles" :key="profile.id">
+                                <v-list-item
+                                    class="wl-profile-row wl-plain mb-interactive"
+                                    rounded="0"
+                                    role="button"
+                                    link
+                                    :ripple="false"
+                                    @click="emit('openMap', profile.id)"
+                                >
+                                    <template #prepend>
+                                        <span class="wl-row-tile wl-tile--secondary">
+                                            <v-icon :icon="mdiServerNetwork" size="18" />
+                                        </span>
+                                    </template>
+                                    <span class="wl-result__name">{{ profile.name }}</span>
+                                    <span class="wl-result__meta wl-profile-row__meta">{{
+                                        profileMeta(profile)
+                                    }}</span>
+                                    <template #append>
+                                        <v-icon
+                                            class="wl-chevron"
+                                            :icon="mdiChevronRight"
+                                            size="18"
+                                        />
+                                    </template>
+                                </v-list-item>
+                            </li>
+                        </ul>
+                        <p v-if="savedProfilesOverflow > 0" class="wl-results__more">
+                            {{
+                                t(
+                                    "shell.home.dashboard.profileOverflow",
+                                    { count: String(savedProfilesOverflow) },
+                                    "+{count} more",
+                                )
+                            }}
+                        </p>
+                    </v-card>
+
+                    <v-card
+                        v-if="
+                            runningRows.length === 0 &&
+                            savedProfiles.length === 0 &&
+                            projectCount > 0
+                        "
+                        class="wl-panel"
+                        variant="flat"
+                        tag="section"
+                        aria-labelledby="wl-dash-drafts-title"
+                    >
+                        <h3 id="wl-dash-drafts-title" class="wl-panel__title">
+                            {{ t("shell.home.dashboard.drafts", "Pick up where you left off") }}
+                        </h3>
+                        <p class="wl-panel__body">
+                            {{
+                                t(
+                                    "shell.home.dashboard.draftsBody",
+                                    { count: String(projectCount) },
+                                    "You have {count} project drafts waiting for their first render.",
+                                )
+                            }}
+                        </p>
+                        <v-btn
+                            class="wl-drafts-open mb-interactive"
+                            variant="tonal"
+                            @click="emit('newMap')"
+                        >
+                            {{ t("shell.home.dashboard.openProjects", "Open projects") }}
+                        </v-btn>
+                    </v-card>
+                </div>
+            </section>
             <div v-if="searching" class="wl-results" role="region" :aria-label="summary">
                 <section v-if="featureHits.length > 0" class="wl-results__group">
                     <div class="wl-section-head">
@@ -532,7 +693,10 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                                 @click.stop="emit('openCatalogue', hero.id)"
                             >
                                 <template #prepend>
-                                    <span class="wl-tile wl-tile--hero wl-tile--primary">
+                                    <span
+                                        class="wl-tile wl-tile--hero wl-tile--primary"
+                                        data-catalogue="make"
+                                    >
                                         <v-icon :icon="catalogueTone('make').icon" size="30" />
                                     </span>
                                 </template>
@@ -596,6 +760,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                             <span
                                 class="wl-tile"
                                 :class="`wl-tile--${catalogueTone(catalogue.id).tile}`"
+                                :data-catalogue="catalogue.id"
                             >
                                 <v-icon :icon="catalogueTone(catalogue.id).icon" size="22" />
                             </span>
@@ -625,166 +790,6 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
                     </ul>
                 </v-card>
             </div>
-
-            <!--
-                Not in the approved design's frame, and kept on purpose: what is moving on this
-                machine right now, and the two starts that are not a catalogue row.
-            -->
-            <section class="wl-machine" aria-labelledby="wl-dash-machine-title">
-                <div class="wl-section-head">
-                    <h2 id="wl-dash-machine-title" class="wl-section-head__name">
-                        {{ t("shell.home.machine.title", "On this machine") }}
-                    </h2>
-                    <v-divider class="wl-section-head__rule" />
-                </div>
-
-                <div class="wl-dash__actions">
-                    <GenerationEntry />
-                    <v-btn
-                        class="wl-action mb-interactive"
-                        variant="outlined"
-                        @click="emit('openPalette')"
-                    >
-                        {{ t("shell.home.machine.palette", "Open the command palette") }}
-                    </v-btn>
-                </div>
-
-                <div v-if="returning" class="wl-dash__content">
-                    <v-card
-                        v-if="runningRows.length > 0"
-                        class="wl-panel"
-                        variant="flat"
-                        tag="section"
-                        aria-labelledby="wl-dash-progress-title"
-                    >
-                        <h3 id="wl-dash-progress-title" class="wl-panel__title">
-                            {{ t("shell.home.dashboard.inProgress", "In progress") }}
-                        </h3>
-                        <ul class="wl-rows">
-                            <li v-for="row in runningRows" :key="row.key">
-                                <v-list-item
-                                    class="wl-render-row wl-plain mb-interactive"
-                                    rounded="0"
-                                    role="button"
-                                    link
-                                    :ripple="false"
-                                    @click="emit('openRender', row.key)"
-                                >
-                                    <span class="wl-result__name">{{ renderTitle(row) }}</span>
-                                    <span class="wl-result__meta">{{ renderMeta(row) }}</span>
-                                    <template #append>
-                                        <v-progress-linear
-                                            class="wl-render-row__bar"
-                                            color="primary"
-                                            rounded
-                                            height="6"
-                                            :model-value="displayPercent(row.percent) ?? 0"
-                                            :indeterminate="displayPercent(row.percent) === null"
-                                            :aria-label="renderTitle(row)"
-                                        />
-                                        <v-icon
-                                            class="wl-chevron"
-                                            :icon="mdiChevronRight"
-                                            size="18"
-                                        />
-                                    </template>
-                                </v-list-item>
-                            </li>
-                        </ul>
-                        <p v-if="runningOverflow > 0" class="wl-results__more">
-                            {{
-                                t(
-                                    "shell.home.dashboard.renderOverflow",
-                                    { count: String(runningOverflow) },
-                                    "+{count} more running",
-                                )
-                            }}
-                        </p>
-                    </v-card>
-
-                    <v-card
-                        v-if="savedProfiles.length > 0"
-                        class="wl-panel"
-                        variant="flat"
-                        tag="section"
-                        aria-labelledby="wl-dash-maps-title"
-                    >
-                        <h3 id="wl-dash-maps-title" class="wl-panel__title">
-                            {{ t("shell.home.dashboard.mapsAndServers", "Your maps & servers") }}
-                        </h3>
-                        <ul class="wl-rows">
-                            <li v-for="profile in savedProfiles" :key="profile.id">
-                                <v-list-item
-                                    class="wl-profile-row wl-plain mb-interactive"
-                                    rounded="0"
-                                    role="button"
-                                    link
-                                    :ripple="false"
-                                    @click="emit('openMap', profile.id)"
-                                >
-                                    <template #prepend>
-                                        <span class="wl-row-tile wl-tile--secondary">
-                                            <v-icon :icon="mdiServerNetwork" size="18" />
-                                        </span>
-                                    </template>
-                                    <span class="wl-result__name">{{ profile.name }}</span>
-                                    <span class="wl-result__meta wl-profile-row__meta">{{
-                                        profileMeta(profile)
-                                    }}</span>
-                                    <template #append>
-                                        <v-icon
-                                            class="wl-chevron"
-                                            :icon="mdiChevronRight"
-                                            size="18"
-                                        />
-                                    </template>
-                                </v-list-item>
-                            </li>
-                        </ul>
-                        <p v-if="savedProfilesOverflow > 0" class="wl-results__more">
-                            {{
-                                t(
-                                    "shell.home.dashboard.profileOverflow",
-                                    { count: String(savedProfilesOverflow) },
-                                    "+{count} more",
-                                )
-                            }}
-                        </p>
-                    </v-card>
-
-                    <v-card
-                        v-if="
-                            runningRows.length === 0 &&
-                            savedProfiles.length === 0 &&
-                            projectCount > 0
-                        "
-                        class="wl-panel"
-                        variant="flat"
-                        tag="section"
-                        aria-labelledby="wl-dash-drafts-title"
-                    >
-                        <h3 id="wl-dash-drafts-title" class="wl-panel__title">
-                            {{ t("shell.home.dashboard.drafts", "Pick up where you left off") }}
-                        </h3>
-                        <p class="wl-panel__body">
-                            {{
-                                t(
-                                    "shell.home.dashboard.draftsBody",
-                                    { count: String(projectCount) },
-                                    "You have {count} project drafts waiting for their first render.",
-                                )
-                            }}
-                        </p>
-                        <v-btn
-                            class="wl-drafts-open mb-interactive"
-                            variant="tonal"
-                            @click="emit('newMap')"
-                        >
-                            {{ t("shell.home.dashboard.openProjects", "Open projects") }}
-                        </v-btn>
-                    </v-card>
-                </div>
-            </section>
         </div>
     </div>
 </template>
@@ -793,11 +798,13 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 .wl-dash {
     block-size: 100%;
     overflow-y: auto;
-    background: rgb(var(--v-theme-background));
+    /* Contour: Home is the raised pane itself, so it paints the surface, not the background. */
+    background: rgb(var(--v-theme-surface));
 }
 
 .wl-dash__inner {
-    max-inline-size: 1106px;
+    max-inline-size: 1120px;
+    margin-inline: auto;
     padding: 36px 48px 48px;
 }
 
@@ -906,6 +913,38 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
     block-size: 56px;
     flex-basis: 56px;
     border-radius: var(--md-sys-shape-corner-large);
+}
+
+/*
+ * Contour: every catalogue keeps its own container shape, so the six read apart at a glance
+ * without a single new colour. Shapes, not hues, carry the difference, which also survives the
+ * contrast scheme where every container is the same black.
+ */
+.wl-tile[data-catalogue="make"] {
+    border-radius: var(--md-sys-shape-corner-full);
+}
+
+.wl-tile[data-catalogue="maps"] {
+    border-radius: var(--md-sys-shape-corner-large);
+}
+
+.wl-tile[data-catalogue="share"] {
+    border-radius: var(--md-sys-shape-corner-xl) var(--md-sys-shape-corner-xl)
+        var(--md-sys-shape-corner-xl) var(--md-sys-shape-corner-sm);
+}
+
+.wl-tile[data-catalogue="copy"] {
+    border-radius: var(--md-sys-shape-corner-sm) var(--md-sys-shape-corner-xl)
+        var(--md-sys-shape-corner-sm) var(--md-sys-shape-corner-xl);
+}
+
+.wl-tile[data-catalogue="host"] {
+    border-radius: var(--md-sys-shape-corner-xl) var(--md-sys-shape-corner-xl)
+        var(--md-sys-shape-corner-md) var(--md-sys-shape-corner-md);
+}
+
+.wl-tile[data-catalogue="setup"] {
+    border-radius: var(--md-sys-shape-corner-md);
 }
 
 .wl-tile--primary {
@@ -1064,8 +1103,8 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 
 .wl-card {
     padding: 20px;
-    border: 1px solid rgb(var(--v-theme-outline-variant));
-    border-radius: var(--md-sys-shape-corner-large);
+    border: 1px solid transparent;
+    border-radius: var(--md-sys-shape-corner-xl);
     background: rgb(var(--v-theme-surface-container));
     color: rgb(var(--v-theme-on-surface));
     min-inline-size: 0;
@@ -1276,7 +1315,7 @@ function profileMeta(profile: (typeof profilesStore.profiles)[number]): string {
 /* -------------------------------------------------------------------------- */
 
 .wl-machine {
-    margin-block-start: 40px;
+    margin-block: 8px 32px;
 }
 
 .wl-dash__actions {

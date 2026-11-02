@@ -3,14 +3,13 @@
 Continue in `Ding-Ding-Projects/worldlens` on `main`. Read `AGENTS.md` and the
 2026-10-30 entry at the top of `design/HANDOFF.md` first.
 
-New since 2026-10-30: `design/contour/` holds Contour, a fresh visual direction
-on the same tokens and features (see `design/contour/HANDOFF.md`). Ask the owner
-whether Contour replaces `design/Worldlens.dc.html` as the approved prototype
-before step 2. Either way, fix the stacked translucent overlays first: an editor,
-the settings surface and a dialog must never draw over each other.
+New since 2026-11-02: Contour (`design/contour/`) is approved and replaces
+`design/Worldlens.dc.html` as the design target. Read the 2026-11-02 entries at
+the top of `design/HANDOFF.md` for what is already built (overlays, shell, Home)
+and the order of what is next.
 
-Goal: the shipped UI in `design/packages/ui` must match the approved prototype
-`design/Worldlens.dc.html` (render its states by editing the `state = {...}`
+Goal: the shipped UI in `design/packages/ui` must match the approved Contour design
+`design/contour/` (render its states by editing the `state = {...}`
 defaults), using pure Vuetify Material 3 components and design-system tokens,
 removing no feature, and every visible control must perform its action.
 
@@ -18,7 +17,7 @@ removing no feature, and every visible control must perform its action.
    runtimeSettings and settings suites one directory at a time with
    `NODE_OPTIONS=--max-old-space-size=3072` and fix what it broke.
 2. Finish the appearance editor, regex builders, options editor and tab overlays
-   restyle against the prototype.
+   restyle against Contour.
 3. Finish the runtime-settings wiring listed in the handoff (density, language,
    Focus, time awareness, next action, Momentum, display name, quiet hours) with
    tests that prove the visible effect.

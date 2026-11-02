@@ -1,7 +1,8 @@
 # Contour: a fresh visual direction for WorldLens (2026-11-02)
 
-**Status:** design proposal, not implemented. The approved prototype is still
-`design/Worldlens.dc.html`; this folder is an alternative look built on the same
+**Status:** approved by the owner on 2026-11-02 and being implemented in
+`design/packages/ui` (progress in `design/HANDOFF.md`). It replaces
+`design/Worldlens.dc.html` as the design target. It is built on the same
 design system (`design/tokens.css`), the same Material Design 3 rules and the same
 feature set. Nothing has been removed.
 
@@ -49,9 +50,10 @@ is the logo, `map-render.png` the map render).
 - The servers screen adds one role, `--wl-ok` (running status dot), which is not in
   `tokens.css` yet. Add it there before implementing.
 
-## To implement
+## Implementation status
 
-Decide first whether Contour replaces `Worldlens.dc.html` as the approved
-prototype. If it does, the unfinished checkpoint described in `design/HANDOFF.md`
-should be finished against Contour instead, starting with the overlay rule in
-point 1, because that is the defect users can see today.
+- Point 1 (one surface in focus): done, `FocusDialog.vue`.
+- Points 2 to 4 (panes, top search bar, Settings in the rail): done for Home and
+  Work; Settings still opens the docked surface rather than a full page.
+- Point 5 (catalogue shapes): done on Home.
+- Still to build: Settings list-detail page, Map, Work: Renders, Minecraft servers.
