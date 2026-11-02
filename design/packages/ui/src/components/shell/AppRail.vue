@@ -1,16 +1,8 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
-import {
-    mdiBellOutline,
-    mdiCogOutline,
-    mdiDns,
-    mdiEarth,
-    mdiHammerScrewdriver,
-    mdiHomeOutline,
-    mdiMagnify,
-} from "@mdi/js";
-import { VBadge, VBtn, VIcon, VTooltip } from "vuetify/components";
+import { mdiCogOutline, mdiDns, mdiEarth, mdiHammerScrewdriver, mdiHomeOutline } from "@mdi/js";
+import { VBadge, VBtn, VIcon } from "vuetify/components";
 import type { RailDestination } from "./featureTargets.js";
 import { nonNegativeInteger } from "./shellNumbers.js";
 
@@ -43,12 +35,12 @@ import { nonNegativeInteger } from "./shellNumbers.js";
  * Each destination is a `v-btn` whose content is the M3 rail-item anatomy: a 56 x 32 full-corner
  * active indicator holding the icon (and a `v-badge` where there is a count), with the label
  * always visible beneath it. The button's own full-width state layer is turned off so the hover
- * and press feedback lands on the indicator, where the specification puts it. The footer actions
- * are icon `v-btn`s with `v-tooltip`s.
+ * and press feedback lands on the indicator, where the specification puts it. Settings, at the
+ * foot, is built the same way; search and the bell live in the top bar (`ShellTopBar.vue`).
  *
  * ### Badges say the number, and also say it in words
  *
- * Work counts open jobs, Servers counts running servers and the bell counts unread notices. Each
+ * Work counts open jobs and Servers counts running servers. Each
  * badge is compact past 99 and hidden from assistive technology, because the full number is in the
  * button's own accessible name: "99+" read aloud is not a count, and a coloured dot alone is colour
  * carrying meaning on its own.
@@ -58,12 +50,8 @@ const props = withDefaults(
         destination: RailDestination;
         /** From the tab workspace itself, never from a second copy of it. */
         openJobCount: number;
-        /** From the existing notice store. */
-        unreadCount: number;
         /** The user's own chosen name for this application, or the shipped one. */
         productName: string;
-        /** The palette's real chord, so the tooltip cannot drift from the binding. */
-        paletteShortcut?: string;
         /**
          * The job Servers opens, or null when this build cannot host it - in which case the
          * destination is not drawn at all rather than drawn pointing nowhere.
@@ -73,29 +61,15 @@ const props = withDefaults(
         activeJobId?: string | null;
         /** Running Minecraft servers, from the one server store. */
         runningServerCount?: number;
-        /**
-         * The DOM id the notification history anchors to.
-         *
-         * Passed in rather than generated here so the shell can hand the same id to the panel: an
-         * anchored panel needs a stable selector for the control that opens it.
-         */
-        notificationsActivatorId?: string;
-        /** The panel controlled by the notification disclosure button. */
-        notificationsPanelId?: string;
-        notificationsOpen?: boolean;
         /** The settings disclosure button and the docked panel it controls. */
         settingsActivatorId?: string;
         settingsPanelId?: string;
         settingsOpen?: boolean;
     }>(),
     {
-        paletteShortcut: "Ctrl+Shift+F",
         serversJobId: null,
         activeJobId: null,
         runningServerCount: 0,
-        notificationsActivatorId: "",
-        notificationsPanelId: "",
-        notificationsOpen: false,
         settingsActivatorId: "",
         settingsPanelId: "",
         settingsOpen: false,
@@ -106,20 +80,12 @@ const emit = defineEmits<{
     select: [destination: RailDestination];
     /** Servers was pressed; the shell answers exactly as it answers the palette's open-page row. */
     openJob: [jobId: string];
-    openPalette: [];
-    /**
-     * One user press changes this state exactly once. The panel still owns its overlay and its
-     * anchor, but the rail owns the press: `NotificationPanel` turns off the overlay's automatic
-     * activator click, so this event cannot race a second toggle.
-     */
-    toggleNotifications: [];
     openSettings: [];
 }>();
 
 const { t } = useI18n();
 
 const openJobCount = computed(() => nonNegativeInteger(props.openJobCount));
-const unreadCount = computed(() => nonNegativeInteger(props.unreadCount));
 const runningServerCount = computed(() => nonNegativeInteger(props.runningServerCount));
 
 type RailItemId = RailDestination | "servers";
@@ -209,20 +175,6 @@ function compact(count: number): string {
     return safe > 99 ? "99+" : String(safe);
 }
 
-const searchLabel = computed(() =>
-    t("rail.search", { shortcut: props.paletteShortcut }, "Search everything ({shortcut})"),
-);
-
-const unreadLabel = computed(() =>
-    unreadCount.value === 0
-        ? t("rail.notifications", "Notifications")
-        : t(
-              "rail.notifications.unread",
-              { count: String(unreadCount.value) },
-              "Notifications, {count} unread",
-          ),
-);
-
 const settingsLabel = computed(() => t("settings.title", "Settings"));
 </script>
 
@@ -285,67 +237,32 @@ const settingsLabel = computed(() => t("settings.title", "Settings"));
             </li>
         </ul>
 
+        <!--
+            Settings sits at the foot of the rail as a labelled item like the destinations above
+            it, because in Contour it is a place a person goes, not an icon they have to learn.
+            Search and the notification bell moved to the top bar (`ShellTopBar.vue`).
+        -->
         <div class="wl-rail__footer">
-            <v-btn
-                class="wl-rail-action mb-interactive"
-                variant="text"
-                rounded="lg"
-                color="on-surface-variant"
-                :icon="true"
-                :aria-label="searchLabel"
-                aria-haspopup="dialog"
-                @click="emit('openPalette')"
-            >
-                <v-icon :icon="mdiMagnify" size="22" />
-                <v-tooltip activator="parent" location="end" :text="searchLabel" />
-            </v-btn>
-
-            <!--
-                This is the one opener for the anchored notification history. The panel keeps the
-                bell as its geometry anchor, but it does not also bind its own automatic click to
-                that anchor: one click reaches this event, the shell flips `notificationsOpen`, and
-                the panel reflects that same value back through `aria-expanded`.
-            -->
-            <v-btn
-                :id="notificationsActivatorId === '' ? undefined : notificationsActivatorId"
-                class="wl-rail-action mb-interactive"
-                variant="text"
-                rounded="lg"
-                color="on-surface-variant"
-                :icon="true"
-                :aria-label="unreadLabel"
-                :aria-expanded="notificationsOpen ? 'true' : 'false'"
-                :aria-controls="notificationsPanelId === '' ? undefined : notificationsPanelId"
-                aria-haspopup="dialog"
-                @click="emit('toggleNotifications')"
-            >
-                <v-badge
-                    class="wl-rail-badge"
-                    :model-value="unreadCount > 0"
-                    :content="compact(unreadCount)"
-                    color="error"
-                    aria-hidden="true"
-                >
-                    <v-icon :icon="mdiBellOutline" size="22" />
-                </v-badge>
-                <v-tooltip activator="parent" location="end" :text="unreadLabel" />
-            </v-btn>
-
             <v-btn
                 :id="settingsActivatorId === '' ? undefined : settingsActivatorId"
                 class="wl-rail-action mb-interactive"
+                :class="{ 'wl-rail-item--active': settingsOpen }"
                 variant="text"
-                rounded="lg"
-                color="on-surface-variant"
-                :icon="true"
+                rounded="0"
+                :color="settingsOpen ? 'on-surface' : 'on-surface-variant'"
+                :ripple="false"
                 :aria-label="settingsLabel"
                 :aria-expanded="settingsOpen ? 'true' : 'false'"
                 :aria-controls="settingsPanelId === '' ? undefined : settingsPanelId"
                 aria-haspopup="dialog"
+                data-destination="settings"
+                data-tutorial-anchor="rail-settings"
                 @click="emit('openSettings')"
             >
-                <v-icon :icon="mdiCogOutline" size="22" />
-                <v-tooltip activator="parent" location="end" :text="settingsLabel" />
+                <span class="wl-rail-pill">
+                    <v-icon :icon="mdiCogOutline" size="22" />
+                </span>
+                <span class="wl-rail-label">{{ settingsLabel }}</span>
             </v-btn>
         </div>
     </nav>
@@ -366,8 +283,11 @@ const settingsLabel = computed(() => t("settings.title", "Settings"));
     min-block-size: 0;
     /* The prototype prints 14/12: the first indicator sits one notch below the strip above. */
     padding: 14px 0 12px;
-    background: rgb(var(--v-theme-surface));
-    border-inline-end: 1px solid rgb(var(--v-theme-surface-container));
+    /*
+     * Contour: the rail sits on the window background with no rule beside it, and the content
+     * is the raised surface. The pane's own rounded edge is the separation.
+     */
+    background: rgb(var(--v-theme-background));
     overflow-y: auto;
     overflow-x: hidden;
 }
@@ -384,6 +304,7 @@ const settingsLabel = computed(() => t("settings.title", "Settings"));
 
 .wl-rail__footer {
     margin-block-start: auto;
+    inline-size: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -396,7 +317,8 @@ const settingsLabel = computed(() => t("settings.title", "Settings"));
  * two-line label in bilingual mode grows the item instead of being clipped. The button's own
  * full-width state layer is hidden; the indicator below carries hover and press instead.
  */
-.wl-rail-item.v-btn {
+.wl-rail-item.v-btn,
+.wl-rail-action.v-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -411,11 +333,14 @@ const settingsLabel = computed(() => t("settings.title", "Settings"));
 }
 
 .wl-rail-item.v-btn :deep(.v-btn__overlay),
-.wl-rail-item.v-btn :deep(.v-btn__underlay) {
+.wl-rail-item.v-btn :deep(.v-btn__underlay),
+.wl-rail-action.v-btn :deep(.v-btn__overlay),
+.wl-rail-action.v-btn :deep(.v-btn__underlay) {
     display: none;
 }
 
-.wl-rail-item.v-btn :deep(.v-btn__content) {
+.wl-rail-item.v-btn :deep(.v-btn__content),
+.wl-rail-action.v-btn :deep(.v-btn__content) {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -446,7 +371,8 @@ const settingsLabel = computed(() => t("settings.title", "Settings"));
     color: rgb(var(--v-theme-on-primary-container));
 }
 
-.wl-rail-item.v-btn:hover .wl-rail-pill {
+.wl-rail-item.v-btn:hover .wl-rail-pill,
+.wl-rail-action.v-btn:hover .wl-rail-pill {
     background: rgba(var(--v-theme-on-surface), 0.08);
 }
 
@@ -476,11 +402,6 @@ const settingsLabel = computed(() => t("settings.title", "Settings"));
  * 48 x 48 icon buttons with the large corner, not a full circle: three circles in a column read
  * as floating actions, and these are part of the rail.
  */
-.wl-rail-action.v-btn {
-    inline-size: 48px;
-    min-inline-size: 48px;
-    block-size: 48px;
-}
 
 /*
  * The badge geometry the prototype prints: 16 px tall, its corner just outside the icon's.

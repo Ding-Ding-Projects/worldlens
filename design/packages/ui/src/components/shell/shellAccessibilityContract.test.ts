@@ -19,14 +19,17 @@ describe("Material shell accessibility contract", () => {
 
     it("connects every disclosure to the stable panel it controls", () => {
         const rail = source("./AppRail.vue");
+        const topBar = source("./ShellTopBar.vue");
         const status = source("./StatusStrip.vue");
         const problems = source("./ProblemsPanel.vue");
         const notifications = source("./NotificationPanel.vue");
         const docked = source("../settings/DockedSurface.vue");
 
-        expect(rail).toContain(":aria-controls=\"notificationsPanelId");
-        expect(rail).toContain(":aria-controls=\"settingsPanelId");
-        expect(status).toContain(":aria-controls=\"problemsPanelId");
+        expect(topBar).toContain(
+            "props.notificationsPanelId === '' ? undefined : props.notificationsPanelId",
+        );
+        expect(rail).toContain(':aria-controls="settingsPanelId');
+        expect(status).toContain(':aria-controls="problemsPanelId');
         expect(problems).toContain(':id="panelId"');
         expect(notifications).toContain(":id=\"panelId ?? 'worldlens-notifications-panel'\"");
         expect(docked).toContain(':id="`docked.${props.surfaceId}.panel`"');
@@ -59,7 +62,9 @@ describe("Material shell accessibility contract", () => {
         const rail = source("./AppRail.vue");
         const titleBar = source("./AppTitleBar.vue");
 
-        expect(rail).toMatch(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.wl-rail-pill[\s\S]*transition: none/);
+        expect(rail).toMatch(
+            /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.wl-rail-pill[\s\S]*transition: none/,
+        );
         expect(titleBar).toMatch(
             /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.mb-titlebar-skip[\s\S]*transition: none/,
         );

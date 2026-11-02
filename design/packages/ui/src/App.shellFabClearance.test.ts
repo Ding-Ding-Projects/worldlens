@@ -28,6 +28,10 @@ const railSource = readFileSync(
     fileURLToPath(new URL("./components/shell/AppRail.vue", import.meta.url)),
     "utf8",
 );
+const topBarSource = readFileSync(
+    fileURLToPath(new URL("./components/shell/ShellTopBar.vue", import.meta.url)),
+    "utf8",
+);
 
 /** The template, without the script or the styles, so a comment about FABs is not a FAB. */
 function templateOf(source: string): string {
@@ -80,20 +84,28 @@ describe("the shell has no floating action buttons", () => {
     });
 
     it("gives every rail control at least a 48 px target", () => {
+        // Every rail control, Settings included, is a full-width item in the 80 px column with a
+        // 48 px minimum height. Search and the bell moved to the top bar, where both are 48 px.
         const style = styleOf(railSource);
         expect(style).toContain("min-block-size: 48px");
-        expect(style).toMatch(/inline-size:\s*48px/);
-        expect(style).toMatch(/block-size:\s*48px/);
+        expect(style).toMatch(/inline-size:\s*80px/);
+        const topBar = styleOf(topBarSource);
+        expect(topBar).toMatch(/inline-size:\s*48px/);
+        expect(topBar).toMatch(/block-size:\s*48px/);
     });
 
     it("builds every rail control from Material buttons rather than styled native ones", () => {
-        // Four destinations and three footer actions, each a real `v-btn`: no native button
-        // dressed up to look like one, and no div pretending to be a control.
+        // The destinations and the Settings item in the rail, and the search bar and bell in the
+        // top bar, each a real `v-btn`: no native button dressed up to look like one, and no div
+        // pretending to be a control.
         const template = templateOf(railSource);
         expect(template).not.toMatch(/<button\b/);
         expect(template).not.toMatch(/<div[^>]+@click=/);
-        expect((template.match(/<v-btn\b/g) ?? []).length).toBe(4);
+        expect((template.match(/<v-btn\b/g) ?? []).length).toBe(2);
         expect(template).toContain('v-for="item in items"');
+        const topBar = templateOf(topBarSource);
+        expect(topBar).not.toMatch(/<button\b/);
+        expect((topBar.match(/<v-btn\b/g) ?? []).length).toBe(2);
     });
 });
 

@@ -25,6 +25,7 @@ export type { RevealRequest } from "./revealRequests.js";
  * the activation controller and the workspace migration.
  */
 export { default as AppRail } from "./AppRail.vue";
+export { default as ShellTopBar } from "./ShellTopBar.vue";
 export { default as HomeCatalogues } from "./HomeCatalogues.vue";
 export { default as CataloguePage } from "./CataloguePage.vue";
 export { default as WorkPane } from "./WorkPane.vue";

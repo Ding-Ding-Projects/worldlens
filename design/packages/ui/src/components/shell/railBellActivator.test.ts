@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 
 /**
- * The rail bell and its anchored notification history, exercised together.
+ * The notification bell and its anchored notification history, exercised together. The bell
+ * lived in the rail until the Contour top bar (`ShellTopBar.vue`); the contract moved with it.
  *
  * The old test inspected `AppRail.vue` for the absence of a click handler. That was a useful
  * guard against one historical double-toggle, but it also let the opposite failure ship: a real
@@ -22,7 +23,7 @@ import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import { VApp } from "vuetify/components";
 import { createNoticeState } from "../config/notifications.js";
-import AppRail from "./AppRail.vue";
+import ShellTopBar from "./ShellTopBar.vue";
 import NotificationPanel from "./NotificationPanel.vue";
 import { requestReveal, resetRevealRequests } from "./revealRequests.js";
 
@@ -78,7 +79,7 @@ function i18n() {
 /**
  * A deliberately small version of the real App.vue seam.
  *
- * It does not stand in for either child: the real rail emits the press and the real notification
+ * It does not stand in for either child: the real top bar emits the press and the real notification
  * panel renders the anchored Vuetify menu. The only local code is the same single state transition
  * App.vue owns, so this test stays focused on the wiring that failed in the packaged application.
  */
@@ -90,11 +91,8 @@ const NotificationRailHost = defineComponent({
         return () =>
             h(VApp, null, {
                 default: () => [
-                    h(AppRail, {
-                        destination: "home",
-                        openJobCount: 0,
+                    h(ShellTopBar, {
                         unreadCount: 0,
-                        productName: "Worldlens",
                         notificationsActivatorId: activatorId,
                         notificationsOpen: notificationsOpen.value,
                         onToggleNotifications: () => {
@@ -158,7 +156,7 @@ function activePanel(): HTMLElement | null {
     return document.querySelector<HTMLElement>(".v-overlay--active .wl-notifications");
 }
 
-describe("the rail notification bell", () => {
+describe("the top bar notification bell", () => {
     it("opens the real anchored panel from one user press and closes through the same state", async () => {
         const view = render();
         const control = bell(view);

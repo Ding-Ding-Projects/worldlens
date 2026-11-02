@@ -38,6 +38,7 @@ import { MarkerMenu, StudioMarkerLayerHost } from "./components/markers/index.js
 import type { AnyMarkerSetData } from "./components/markers/markerTypes.js";
 import {
     AppRail,
+    ShellTopBar,
     ALL_CATALOGUE_FEATURES,
     CataloguePage,
     WorkPane,
@@ -3037,11 +3038,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         class="mb-interactive"
                         :destination="destination"
                         :open-job-count="openJobIds.length"
-                        :unread-count="unreadNoticeCount"
                         :product-name="productDisplayName"
-                        :notifications-activator-id="notificationsActivatorId"
-                        :notifications-panel-id="NOTIFICATIONS_PANEL_ID"
-                        :notifications-open="notificationsOpen"
                         :settings-activator-id="settingsActivatorId"
                         :settings-panel-id="SETTINGS_PANEL_ID"
                         :settings-open="settingsOpen"
@@ -3050,13 +3047,28 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         :running-server-count="mcServerStore.runningCount.value"
                         @select="onRailSelect"
                         @open-job="revealPage($event)"
-                        @open-palette="paletteOpen = true"
-                        @toggle-notifications="notificationsOpen = !notificationsOpen"
                         @open-settings="toggleSettingsFromRail"
                     />
                 </AppearanceTarget>
 
-                <div class="mb-shell-content" :inert="configOpen">
+                <div
+                    class="mb-shell-content"
+                    :class="{ 'mb-shell-content--paned': destination !== 'map' }"
+                    :inert="configOpen"
+                >
+                    <!--
+                        Contour's top bar: the shared search bar and the notification bell, above
+                        every destination. Home and Work sit under it on one raised pane; on Map
+                        the bar is the only chrome above the canvas.
+                    -->
+                    <ShellTopBar
+                        :unread-count="unreadNoticeCount"
+                        :notifications-activator-id="notificationsActivatorId"
+                        :notifications-panel-id="NOTIFICATIONS_PANEL_ID"
+                        :notifications-open="notificationsOpen"
+                        @open-palette="paletteOpen = true"
+                        @toggle-notifications="notificationsOpen = !notificationsOpen"
+                    />
                     <!--
                         Map. The canvas itself is mounted at shell level above and stays there:
                         this layer is the chrome that only makes sense over one, and it is
@@ -3907,6 +3919,8 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
 .mb-shell-content {
     position: relative;
+    /* Contour: the top bar's height; every layer starts under it. */
+    --mb-shell-top: 64px;
     flex: 1 1 auto;
     min-inline-size: 0;
     /* Column, so the docked Problems panel is a sibling that takes height from the layer
@@ -3942,9 +3956,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
      * destination instead of having the panel drawn over the bottom of it - a distinction worth
      * stating because both arrangements look identical until somebody opens the panel while a map
      * is loaded and finds the map's own controls underneath it.
+     *
+     * Contour starts every layer under the top bar (`--mb-shell-top`), so the bar is never drawn
+     * over a destination either.
      */
     position: absolute;
-    inset: 0;
+    inset: var(--mb-shell-top, 0) 0 0 0;
     display: flex;
     flex-direction: column;
     min-block-size: 0;
@@ -4012,8 +4029,24 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
      *
      * A layer that is documented as opaque should say so itself, rather than depending on which
      * child happens to be inside it and how tall that child happens to be.
+     *
+     * Contour: the layer is one raised pane, the surface colour with the extra-large corner, set
+     * in from the window edge so the background shows round it. The window background behind it
+     * comes from `.mb-shell-content--paned`, so the canvas cannot show through the margin either.
      */
+    inset: var(--mb-shell-top, 0) 16px 16px 0;
+    border-radius: var(--md-sys-shape-corner-xl);
+    background: rgb(var(--v-theme-surface));
+}
+
+/*
+ * Behind the pane on Home and Work: the window background, so the map canvas that stays mounted
+ * underneath never shows in the margin round the pane or behind the top bar. Map is the one
+ * destination without it, because there the canvas is the content.
+ */
+.mb-shell-content--paned {
     background: rgb(var(--v-theme-background));
+    pointer-events: auto;
 }
 
 .mb-shell-layer--home > * {

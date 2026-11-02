@@ -306,9 +306,9 @@ async function discardConfigChanges(): Promise<void> {
     await settle();
 }
 
-/** The rail owns the one notification route in the redesigned shell. */
+/** The Contour top bar owns the one notification route in the redesigned shell. */
 function notificationBell(): HTMLButtonElement {
-    const bell = [...document.querySelectorAll<HTMLButtonElement>(".wl-rail-action")].find(
+    const bell = [...document.querySelectorAll<HTMLButtonElement>(".wl-topbar-action")].find(
         (button) => button.getAttribute("aria-label")?.startsWith("Notifications"),
     );
     if (bell === undefined) throw new Error("the shell renders no notification bell");

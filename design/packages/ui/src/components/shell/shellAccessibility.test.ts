@@ -17,6 +17,7 @@ import { createVuetify } from "vuetify";
 import * as components from "vuetify/components";
 import * as directives from "vuetify/directives";
 import AppRail from "./AppRail.vue";
+import ShellTopBar from "./ShellTopBar.vue";
 import ProblemsPanel from "./ProblemsPanel.vue";
 import StatusStrip from "./StatusStrip.vue";
 import type { Problem } from "./problemsAdapter.js";
@@ -58,7 +59,6 @@ function mountRail(props: Record<string, unknown> = {}) {
         props: {
             destination: "home",
             openJobCount: 0,
-            unreadCount: 0,
             productName: "Worldlens",
             ...props,
         },
@@ -109,7 +109,7 @@ describe("the application rail", () => {
 
     it("draws no Servers destination when this build cannot host the job", () => {
         const rail = mountRail({ serversJobId: null });
-        const labels = rail.findAll(".wl-rail-label").map((label) => label.text());
+        const labels = rail.findAll(".wl-rail-item .wl-rail-label").map((label) => label.text());
         expect(labels).toEqual(["Home", "Map", "Work"]);
     });
 
@@ -193,12 +193,27 @@ describe("the application rail", () => {
         expect(badge.element.closest('[aria-hidden="true"]')).not.toBeNull();
     });
 
-    it("names the palette shortcut in the search action's own accessible name", () => {
+    it("labels Settings at the foot of the rail like a destination", () => {
         const rail = mountRail();
-        const search = rail.findAll(".wl-rail-action")[0];
+        const settings = rail.find(".wl-rail-action");
+
+        expect(settings.element.tagName).toBe("BUTTON");
+        expect(settings.find(".wl-rail-label").text()).toBe("Settings");
+        expect(settings.attributes("aria-haspopup")).toBe("dialog");
+    });
+
+    it("names the palette shortcut in the top bar search's own accessible name", () => {
+        const bar = mount(ShellTopBar, {
+            props: { unreadCount: 0 },
+            global: { plugins: [vuetify, i18n()] },
+            attachTo: document.body,
+        });
+        const search = bar.find(".wl-topbar__search");
 
         // A tooltip is not a name: it never reaches somebody who is not pointing at the control.
-        expect(search?.attributes("aria-label")).toContain("Ctrl+Shift+F");
+        expect(search.element.tagName).toBe("BUTTON");
+        expect(search.attributes("aria-label")).toContain("Ctrl+Shift+F");
+        expect(search.text()).toContain("Ctrl+Shift+F");
     });
 
     it("emits the destination rather than acting on it", async () => {
