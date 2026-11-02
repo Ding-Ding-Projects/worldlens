@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WorldLens Map</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+[data-wl-theme="dark"]{--wl-bg:#0B0E11;--wl-surface:#101418;--wl-surf-low:#191C20;--wl-surf-cont:#1D2024;--wl-surf-high:#272A2E;--wl-surf-highest:#323539;--wl-outline-var:#42474E;--wl-outline:#8C9199;--wl-on-surf-var:#C2C7CF;--wl-on-surf:#E1E2E8;--wl-primary:#8FCDFF;--wl-on-primary:#003351;--wl-prim-cont:#004B73;--wl-on-prim-cont:#CEE5FF;--wl-sec:#B7C9D9;--wl-sec-cont:#384956;--wl-on-sec-cont:#D3E5F5;--wl-tert:#D1BFE7;--wl-tert-cont:#4E4161;--wl-on-tert-cont:#EDDCFF;--wl-error:#FFB4AB;--wl-on-error:#410002;--wl-err-cont:#93000A;--wl-on-err-cont:#FFDAD6;--wl-scrim:rgba(0,0,0,.6)}
+[data-wl-theme="light"]{--wl-bg:#F7F9FF;--wl-surface:#FFFFFF;--wl-surf-low:#F1F4FA;--wl-surf-cont:#EBEEF4;--wl-surf-high:#E5E8EE;--wl-surf-highest:#DFE2E8;--wl-outline-var:#C1C7CE;--wl-outline:#6C737A;--wl-on-surf-var:#41474D;--wl-on-surf:#181C20;--wl-primary:#00639B;--wl-on-primary:#FFFFFF;--wl-prim-cont:#CDE5FF;--wl-on-prim-cont:#001D32;--wl-sec:#3B4A57;--wl-sec-cont:#D3E5F5;--wl-on-sec-cont:#0C1D29;--wl-tert:#66587B;--wl-tert-cont:#EDDCFF;--wl-on-tert-cont:#211634;--wl-error:#BA1A1A;--wl-on-error:#FFFFFF;--wl-err-cont:#FFDAD6;--wl-on-err-cont:#410002;--wl-scrim:rgba(0,0,0,.32)}
+[data-wl-theme="contrast"]{--wl-bg:#000000;--wl-surface:#000000;--wl-surf-low:#000000;--wl-surf-cont:#000000;--wl-surf-high:#141414;--wl-surf-highest:#1F1F1F;--wl-outline-var:#FFFFFF;--wl-outline:#FFFFFF;--wl-on-surf-var:#FFFFFF;--wl-on-surf:#FFFFFF;--wl-primary:#FFFFFF;--wl-on-primary:#000000;--wl-prim-cont:#FFFFFF;--wl-on-prim-cont:#000000;--wl-sec:#FFFF00;--wl-sec-cont:#000000;--wl-on-sec-cont:#FFFF00;--wl-tert:#FFFF00;--wl-tert-cont:#000000;--wl-on-tert-cont:#FFFF00;--wl-error:#FF5449;--wl-on-error:#000000;--wl-err-cont:#000000;--wl-on-err-cont:#FF5449;--wl-scrim:rgba(0,0,0,.85)}
+[data-wl-theme="contrast"] .card,[data-wl-theme="contrast"] .pane{outline:1px solid #FFFFFF}
+.msr{font-family:"Material Symbols Rounded";font-weight:normal;font-style:normal;font-size:24px;line-height:1;display:inline-block;white-space:nowrap;font-feature-settings:"liga";-webkit-font-smoothing:antialiased}
+.fill{font-variation-settings:"FILL" 1}
+a{color:var(--wl-primary);text-underline-offset:2px}a:hover{color:var(--wl-on-surf)}
+input::placeholder{color:var(--wl-on-surf-var);opacity:1}
+.sl{position:relative;overflow:hidden;cursor:pointer}
+.sl::after{content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;transition:opacity 150ms cubic-bezier(.2,0,0,1);pointer-events:none}
+.sl:hover::after{opacity:.08}.sl:active::after{opacity:.10}
+.sl:focus-visible,.ri:focus-visible,.sw:focus-visible{outline:3px solid var(--wl-primary);outline-offset:2px}
+.ri{display:flex;flex-direction:column;align-items:center;gap:4px;width:80px;text-decoration:none;color:var(--wl-on-surf-var);font:500 12px/16px Roboto,sans-serif;letter-spacing:.5px}
+.ri:hover{color:var(--wl-on-surf)}
+.ri .ind{width:56px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative;transition:background 200ms cubic-bezier(.2,0,0,1)}
+.ri:hover .ind{background:var(--wl-surf-high)}
+.ri[aria-current] {color:var(--wl-on-surf)}
+.ri[aria-current] .ind{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.ri[aria-current] .msr{font-variation-settings:"FILL" 1}
+.bdg{position:absolute;top:-4px;right:6px;min-width:16px;height:16px;border-radius:8px;background:var(--wl-error);color:var(--wl-on-error);font:500 11px/16px Roboto,sans-serif;text-align:center;padding:0 4px;box-sizing:border-box}
+.ib{width:48px;height:48px;border:0;border-radius:24px;background:transparent;color:var(--wl-on-surf-var);display:inline-flex;align-items:center;justify-content:center}
+.seg{height:40px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);font:500 14px/20px Roboto,sans-serif;padding:0 16px;display:inline-flex;align-items:center;gap:6px}
+.seg[aria-pressed="true"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.sw{width:52px;height:32px;border-radius:16px;border:2px solid var(--wl-outline);background:var(--wl-surf-highest);position:relative;padding:0;flex:0 0 52px;cursor:pointer;box-sizing:border-box}
+.sw::before{content:"";position:absolute;top:6px;left:6px;width:16px;height:16px;border-radius:50%;background:var(--wl-outline);transition:all 200ms cubic-bezier(.2,0,0,1)}
+.sw[aria-checked="true"]{background:var(--wl-primary);border-color:var(--wl-primary)}
+.sw[aria-checked="true"]::before{left:22px;top:2px;width:24px;height:24px;background:var(--wl-on-primary)}
+.row{display:flex;align-items:center;gap:16px;min-height:56px;padding:8px 16px;box-sizing:border-box;border-radius:16px}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+</style>
+</helmet>
+<div data-wl-theme="{{theme}}" style="min-height: 900px; background: var(--wl-bg); color: var(--wl-on-surf); font-family: Roboto, Helvetica, sans-serif; display: flex; flex-direction: column;">
+
+  <header style="display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 8px 16px 8px 24px; box-sizing: border-box; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 12px; flex: 0 0 auto;">
+      <img src="/_blob/a6db7f96fe3529a6731879337583eb21" alt="" style="width: 32px; height: 32px; border-radius: 8px;">
+      <span style="font-size: 18px; line-height: 24px; font-weight: 500;">WorldLens</span>
+    </div>
+    <label style="flex: 1 1 320px; max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 8px 0 16px; border-radius: 24px; background: var(--wl-surf-high); color: var(--wl-on-surf-var); box-sizing: border-box;">
+      <span class="msr" aria-hidden="true">search</span>
+      <input type="search" aria-label="Search this map" placeholder="Search this map: markers, players, coordinates" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--wl-on-surf); font: 400 16px/24px Roboto, sans-serif; outline: none;">
+      <kbd style="font: 500 12px/16px 'Roboto Mono', monospace; padding: 4px 8px; border-radius: 8px; background: var(--wl-surf-highest); color: var(--wl-on-surf-var);">Ctrl Shift F</kbd>
+    </label>
+    <div style="display: flex; align-items: center; gap: 8px; flex: 0 0 auto;">
+      <button type="button" class="sl ib" aria-label="Notifications, 3 new" style="position: relative; overflow: visible;"><span class="msr" aria-hidden="true">notifications</span><span class="bdg" style="top: 6px; right: 6px;">3</span></button>
+    </div>
+  </header>
+
+  <div style="display: flex; flex-wrap: wrap; flex: 1;">
+    <nav aria-label="Destinations" style="flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 12px 0 24px;">
+      <a href="Main.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">home</span></span>Home</a>
+      <a href="Map.dc.html" class="ri" aria-current="page"><span class="ind"><span class="msr" aria-hidden="true">map</span></span>Map</a>
+      <a href="Work.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">handyman</span><span class="bdg">3</span></span>Work</a>
+      <a href="Servers.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">dns</span></span>Servers</a>
+      <div style="flex: 1;"></div>
+      <a href="Settings.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">settings</span></span>Settings</a>
+    </nav>
+
+    <main style="flex: 999 1 560px; min-width: 0; margin: 0 16px 16px 0; display: flex; flex-wrap: wrap; gap: 12px;">
+
+      <section aria-label="Map viewer" class="pane" style="flex: 999 1 480px; min-width: 0; min-height: 600px; position: relative; border-radius: 28px; overflow: hidden; background: var(--wl-surf-low);">
+        <img src="/_blob/fc9a717fc8f15396c06f0ae65f6bee80" alt="Heapandyville overworld, rendered in 3D" style="position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;">
+
+        <button type="button" class="sl card" style="position: absolute; left: 16px; top: 16px; display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 16px 0 8px; border: 0; border-radius: 28px; background: var(--wl-surf-cont); color: var(--wl-on-surf); box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 2px 6px 2px rgba(0,0,0,.15); text-align: left;">
+          <img src="/_blob/fc9a717fc8f15396c06f0ae65f6bee80" alt="" style="width: 40px; height: 40px; border-radius: 20px; object-fit: cover;">
+          <span style="display: flex; flex-direction: column;"><span style="font: 500 16px/22px Roboto, sans-serif;">Heapandyville</span><span style="font: 400 12px/16px Roboto, sans-serif; color: var(--wl-on-surf-var);">overworld · on this machine</span></span>
+          <span class="msr" aria-hidden="true" style="color: var(--wl-on-surf-var);">expand_more</span>
+        </button>
+
+        <div class="card" style="position: absolute; right: 16px; top: 16px; display: flex; flex-direction: column; border-radius: 24px; background: var(--wl-surf-cont); box-shadow: 0 1px 2px rgba(0,0,0,.3), 0 2px 6px 2px rgba(0,0,0,.15); overflow: hidden;">
+          <button type="button" class="sl ib" aria-label="Zoom in"><span class="msr" aria-hidden="true">add</span></button>
+          <div style="height: 1px; background: var(--wl-outline-var); margin: 0 8px;"></div>
+          <button type="button" class="sl ib" aria-label="Zoom out"><span class="msr" aria-hidden="true">remove</span></button>
+        </div>
+
+        <div class="card" style="position: absolute; left: 16px; bottom: 16px; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; background: var(--wl-surf-cont); color: var(--wl-on-surf); font: 500 13px/16px 'Roboto Mono', monospace;">
+          <span class="msr" aria-hidden="true" style="font-size: 18px; color: var(--wl-primary);">my_location</span>x 1204 · z −388
+        </div>
+
+        <div role="toolbar" aria-label="Map controls" class="card" style="position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); display: flex; align-items: center; gap: 4px; padding: 8px; border-radius: 28px; background: var(--wl-surf-cont); box-shadow: 0 4px 8px 3px rgba(0,0,0,.15), 0 1px 3px rgba(0,0,0,.3); max-width: calc(100% - 32px); flex-wrap: wrap; justify-content: center;">
+          <div role="group" aria-label="Camera" style="display: flex;">
+            <sc-for list="{{modes}}" as="m" hint-placeholder-count="3">
+              <button type="button" class="sl seg" aria-pressed="{{m.pressed}}" onClick="{{m.pick}}" style="border-radius: {{m.radius}};">{{m.label}}</button>
+            </sc-for>
+          </div>
+          <span style="width: 1px; height: 24px; background: var(--wl-outline-var); margin: 0 6px;" aria-hidden="true"></span>
+          <button type="button" class="sl ib" aria-label="Recenter on spawn"><span class="msr" aria-hidden="true">recenter</span></button>
+          <button type="button" class="sl ib" aria-label="Measure distance"><span class="msr" aria-hidden="true">straighten</span></button>
+          <button type="button" class="sl ib" aria-label="Screenshot this view"><span class="msr" aria-hidden="true">photo_camera</span></button>
+          <button type="button" class="sl ib" aria-label="Map menu" aria-expanded="{{sheetOpen}}" onClick="{{toggleSheet}}" style="background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);"><span class="msr" aria-hidden="true">menu_open</span></button>
+        </div>
+      </section>
+
+      <sc-if value="{{sheetOpen}}" hint-placeholder-val="{{true}}">
+        <aside aria-labelledby="sheet-h" class="pane" style="flex: 1 1 340px; max-width: 380px; min-width: 0; background: var(--wl-surf-low); border-radius: 28px; padding: 20px 12px 20px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px;">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 0 4px 8px 16px;">
+            <h2 id="sheet-h" style="margin: 0; flex: 1; font-size: 22px; line-height: 28px; font-weight: 400;">Map menu</h2>
+            <button type="button" class="sl ib" aria-label="Close map menu" onClick="{{toggleSheet}}"><span class="msr" aria-hidden="true">close</span></button>
+          </div>
+
+          <h3 style="margin: 8px 16px 4px; font: 500 14px/20px Roboto, sans-serif; color: var(--wl-on-surf-var);">Show on the map</h3>
+          <sc-for list="{{layers}}" as="l" hint-placeholder-count="4">
+            <div class="row">
+              <span class="msr" aria-hidden="true" style="color: var(--wl-on-surf-var);">{{l.icon}}</span>
+              <span style="flex: 1; display: flex; flex-direction: column;"><span id="{{l.id}}" style="font: 400 16px/24px Roboto, sans-serif;">{{l.label}}</span><span style="font: 400 14px/20px Roboto, sans-serif; color: var(--wl-on-surf-var);">{{l.meta}}</span></span>
+              <button type="button" class="sw" role="switch" aria-checked="{{l.on}}" aria-labelledby="{{l.id}}" onClick="{{l.toggle}}"></button>
+            </div>
+          </sc-for>
+
+          <div style="height: 1px; background: var(--wl-outline-var); margin: 8px 16px;"></div>
+          <h3 style="margin: 8px 16px 4px; font: 500 14px/20px Roboto, sans-serif; color: var(--wl-on-surf-var);">This map</h3>
+          <a href="Work.dc.html" class="row sl" style="color: var(--wl-on-surf); text-decoration: none;"><span class="msr" aria-hidden="true" style="color: var(--wl-on-surf-var);">push_pin</span><span style="flex: 1;">Markers and marker sets</span><span class="msr" aria-hidden="true" style="color: var(--wl-on-surf-var);">chevron_right</span></a>
+          <a href="Settings.dc.html" class="row sl" style="color: var(--wl-on-surf); text-decoration: none;"><span class="msr" aria-hidden="true" style="color: var(--wl-on-surf-var);">tune</span><span style="flex: 1;">Viewer settings</span><span class="msr" aria-hidden="true" style="color: var(--wl-on-surf-var);">chevron_right</span></a>
+          <a href="Work.dc.html" class="row sl" style="color: var(--wl-on-surf); text-decoration: none;"><span class="msr" aria-hidden="true" style="color: var(--wl-on-surf-var);">ios_share</span><span style="flex: 1; display: flex; flex-direction: column; min-width: 0;"><span>Published to Pages</span><span style="font: 400 13px/18px 'Roboto Mono', monospace; color: var(--wl-on-surf-var); overflow-wrap: anywhere;">dingdingchae.github.io/heapandyville</span></span><span class="msr" aria-hidden="true" style="color: var(--wl-on-surf-var);">chevron_right</span></a>
+
+          <div style="flex: 1;"></div>
+          <p style="margin: 12px 16px 0; font: 400 12px/16px 'Roboto Mono', monospace; color: var(--wl-outline);">WorldLens 1.0.2130 · BlueMap 5.11 engine</p>
+        </aside>
+      </sc-if>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","contrast"],"default":"dark"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { mode: '3D', sheetOpen: true, on: { markers: true, players: true, hires: true, grid: false } };
+  }
+  renderVals() {
+    const s = this.state;
+    const labels = ['2D', '3D', 'Flat'];
+    const modes = labels.map((label, i) => ({
+      label,
+      pressed: s.mode === label ? 'true' : 'false',
+      radius: i === 0 ? '20px 0 0 20px' : (i === labels.length - 1 ? '0 20px 20px 0' : '0'),
+      pick: () => this.setState({ mode: label })
+    }));
+    const defs = [
+      { key: 'markers', icon: 'location_on', label: 'Markers', meta: 'Every marker set on this map' },
+      { key: 'players', icon: 'person', label: 'Players', meta: 'Live from the server' },
+      { key: 'hires', icon: 'grid_view', label: 'High-resolution tiles', meta: 'Near the camera' },
+      { key: 'grid', icon: 'border_all', label: 'Chunk borders', meta: 'Off by default' }
+    ];
+    const layers = defs.map((d) => ({
+      ...d,
+      id: 'lyr-' + d.key,
+      on: s.on[d.key] ? 'true' : 'false',
+      toggle: () => this.setState({ on: { ...s.on, [d.key]: !s.on[d.key] } })
+    }));
+    return {
+      theme: this.props.theme ?? 'dark',
+      modes,
+      layers,
+      sheetOpen: s.sheetOpen,
+      toggleSheet: () => this.setState({ sheetOpen: !s.sheetOpen })
+    };
+  }
+}
+</script>
+</body>
+</html>

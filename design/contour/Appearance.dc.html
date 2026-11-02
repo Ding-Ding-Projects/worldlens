@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WorldLens Appearance editor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+[data-wl-theme="dark"]{--wl-bg:#0B0E11;--wl-surface:#101418;--wl-surf-low:#191C20;--wl-surf-cont:#1D2024;--wl-surf-high:#272A2E;--wl-surf-highest:#323539;--wl-outline-var:#42474E;--wl-outline:#8C9199;--wl-on-surf-var:#C2C7CF;--wl-on-surf:#E1E2E8;--wl-primary:#8FCDFF;--wl-on-primary:#003351;--wl-prim-cont:#004B73;--wl-on-prim-cont:#CEE5FF;--wl-sec:#B7C9D9;--wl-sec-cont:#384956;--wl-on-sec-cont:#D3E5F5;--wl-tert:#D1BFE7;--wl-tert-cont:#4E4161;--wl-on-tert-cont:#EDDCFF;--wl-error:#FFB4AB;--wl-on-error:#410002;--wl-err-cont:#93000A;--wl-on-err-cont:#FFDAD6;--wl-scrim:rgba(0,0,0,.6)}
+[data-wl-theme="light"]{--wl-bg:#F7F9FF;--wl-surface:#FFFFFF;--wl-surf-low:#F1F4FA;--wl-surf-cont:#EBEEF4;--wl-surf-high:#E5E8EE;--wl-surf-highest:#DFE2E8;--wl-outline-var:#C1C7CE;--wl-outline:#6C737A;--wl-on-surf-var:#41474D;--wl-on-surf:#181C20;--wl-primary:#00639B;--wl-on-primary:#FFFFFF;--wl-prim-cont:#CDE5FF;--wl-on-prim-cont:#001D32;--wl-sec:#3B4A57;--wl-sec-cont:#D3E5F5;--wl-on-sec-cont:#0C1D29;--wl-tert:#66587B;--wl-tert-cont:#EDDCFF;--wl-on-tert-cont:#211634;--wl-error:#BA1A1A;--wl-on-error:#FFFFFF;--wl-err-cont:#FFDAD6;--wl-on-err-cont:#410002;--wl-scrim:rgba(0,0,0,.32)}
+[data-wl-theme="contrast"]{--wl-bg:#000000;--wl-surface:#000000;--wl-surf-low:#000000;--wl-surf-cont:#000000;--wl-surf-high:#141414;--wl-surf-highest:#1F1F1F;--wl-outline-var:#FFFFFF;--wl-outline:#FFFFFF;--wl-on-surf-var:#FFFFFF;--wl-on-surf:#FFFFFF;--wl-primary:#FFFFFF;--wl-on-primary:#000000;--wl-prim-cont:#FFFFFF;--wl-on-prim-cont:#000000;--wl-sec:#FFFF00;--wl-sec-cont:#000000;--wl-on-sec-cont:#FFFF00;--wl-tert:#FFFF00;--wl-tert-cont:#000000;--wl-on-tert-cont:#FFFF00;--wl-error:#FF5449;--wl-on-error:#000000;--wl-err-cont:#000000;--wl-on-err-cont:#FF5449;--wl-scrim:rgba(0,0,0,.85)}
+[data-wl-theme="contrast"] .card,[data-wl-theme="contrast"] .pane,[data-wl-theme="contrast"] .dlg{outline:1px solid #FFFFFF}
+.msr{font-family:"Material Symbols Rounded";font-weight:normal;font-style:normal;font-size:24px;line-height:1;display:inline-block;white-space:nowrap;font-feature-settings:"liga";-webkit-font-smoothing:antialiased}
+.fill{font-variation-settings:"FILL" 1}
+a{color:var(--wl-primary);text-underline-offset:2px}a:hover{color:var(--wl-on-surf)}
+input::placeholder{color:var(--wl-on-surf-var);opacity:1}
+.sl{position:relative;overflow:hidden;cursor:pointer}
+.sl::after{content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;transition:opacity 150ms cubic-bezier(.2,0,0,1);pointer-events:none}
+.sl:hover::after{opacity:.08}.sl:active::after{opacity:.10}
+.sl:focus-visible{outline:3px solid var(--wl-primary);outline-offset:2px}
+.ib{width:48px;height:48px;border:0;border-radius:24px;background:transparent;color:var(--wl-on-surf-var);display:inline-flex;align-items:center;justify-content:center}
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 20px;border-radius:20px;border:0;font:500 14px/20px Roboto,sans-serif;text-decoration:none}
+.tab{height:48px;padding:0 20px;border:0;background:transparent;color:var(--wl-on-surf-var);font:500 14px/20px Roboto,sans-serif;position:relative}
+.tab[aria-selected="true"]{color:var(--wl-primary)}
+.tab[aria-selected="true"]::before{content:"";position:absolute;left:12px;right:12px;bottom:0;height:3px;border-radius:3px 3px 0 0;background:var(--wl-primary)}
+.fld{display:flex;flex-direction:column;gap:6px}
+.fld label,.fld .lbl{font:500 14px/20px Roboto,sans-serif}
+.box{display:flex;align-items:center;gap:8px;height:56px;padding:0 16px;border:1px solid var(--wl-outline);border-radius:12px;box-sizing:border-box;color:var(--wl-on-surf);font:400 16px/24px Roboto,sans-serif;background:transparent}
+.help{font:400 12px/16px Roboto,sans-serif;color:var(--wl-on-surf-var)}
+input[type=range]{accent-color:var(--wl-primary);width:100%;height:24px}
+.lockb{width:40px;height:40px;border:0;border-radius:20px;background:transparent;color:var(--wl-on-surf-var);display:inline-flex;align-items:center;justify-content:center}
+.radio{display:flex;align-items:center;gap:12px;min-height:48px;padding:0 12px;border-radius:24px;cursor:pointer;font:400 16px/24px Roboto,sans-serif}
+.radio input{width:20px;height:20px;accent-color:var(--wl-primary);margin:0}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+</style>
+</helmet>
+<div data-wl-theme="{{theme}}" style="min-height: 900px; position: relative; background: var(--wl-bg); color: var(--wl-on-surf); font-family: Roboto, Helvetica, sans-serif; display: flex; flex-direction: column;">
+
+  <header style="display: flex; align-items: center; gap: 12px; min-height: 72px; padding: 8px 24px 8px 12px; box-sizing: border-box; flex-wrap: wrap; background: var(--wl-surf-low);">
+    <a href="Settings.dc.html" class="sl ib" aria-label="Close the appearance editor" style="color: var(--wl-on-surf);"><span class="msr" aria-hidden="true">close</span></a>
+    <div style="flex: 1 1 260px; min-width: 0;">
+      <h1 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 400;">Appearance of Language and tone</h1>
+      <p style="margin: 0; font-size: 12px; line-height: 16px; color: var(--wl-on-surf-var);">Only this element changes. Everything else keeps its theme.</p>
+    </div>
+    <span style="display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--wl-tert-cont); color: var(--wl-on-tert-cont); font: 500 14px/20px Roboto, sans-serif;"><span class="msr" aria-hidden="true" style="font-size: 18px;">edit</span>Editing state: default</span>
+    <button type="button" class="btn sl" style="background: transparent; color: var(--wl-primary);"><span class="msr" aria-hidden="true" style="font-size: 20px;">restart_alt</span>Reset this element</button>
+    <button type="button" class="btn sl" style="background: var(--wl-primary); color: var(--wl-on-primary);">Save</button>
+  </header>
+
+  <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 16px 16px; box-sizing: border-box;">
+    <section aria-label="Settings for this element" class="pane" style="flex: 1 1 440px; max-width: 560px; min-width: 0; background: var(--wl-surface); border-radius: 28px; padding: 8px 0 24px; box-sizing: border-box; display: flex; flex-direction: column;">
+      <div role="tablist" aria-label="What to edit" style="display: flex; padding: 0 12px; border-bottom: 1px solid var(--wl-outline-var); overflow-x: auto;">
+        <sc-for list="{{tabs}}" as="t" hint-placeholder-count="3">
+          <button type="button" role="tab" class="tab sl" aria-selected="{{t.selected}}" onClick="{{t.pick}}">{{t.label}}</button>
+        </sc-for>
+      </div>
+
+      <div style="padding: 20px 24px 0; display: flex; flex-direction: column; gap: 20px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 8px; height: 56px; padding: 0 4px 0 16px; border-radius: 28px; background: var(--wl-surf-high);">
+            <span class="msr" aria-hidden="true" style="color: var(--wl-on-surf-var);">search</span>
+            <input type="search" aria-label="Search the typography settings" placeholder="Search the typography settings" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--wl-on-surf); font: 400 16px/24px Roboto, sans-serif; outline: none;">
+            <button type="button" class="sl ib" aria-label="Regex builder" style="width: 40px; height: 40px;"><span class="msr" aria-hidden="true" style="font-size: 20px;">regular_expression</span></button>
+          </div>
+          <span class="help" style="padding-left: 16px;">Showing 28 of the 28 settings.</span>
+        </div>
+
+        <div class="fld">
+          <div style="display: flex; align-items: center;"><label for="ff" style="flex: 1;">Font</label><button type="button" class="lockb sl" aria-label="Lock the font setting" onClick="{{openLock}}"><span class="msr" aria-hidden="true" style="font-size: 20px;">lock_open</span></button></div>
+          <div class="box"><select id="ff" style="flex: 1; border: 0; background: transparent; color: var(--wl-on-surf); font: inherit; outline: none;"><option>Roboto</option><option>Roboto Mono</option><option>System font</option></select></div>
+          <span class="help">Installed font active: Roboto.</span>
+        </div>
+
+        <div class="fld">
+          <div style="display: flex; align-items: center;"><label for="fs" style="flex: 1;">Size</label><button type="button" class="lockb sl" aria-label="Lock the size setting" onClick="{{openLock}}"><span class="msr" aria-hidden="true" style="font-size: 20px;">lock_open</span></button></div>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <div class="box" style="width: 120px; flex: 0 0 120px;"><span aria-live="polite" style="flex: 1;">{{size}}</span><span style="color: var(--wl-on-surf-var);">px</span></div>
+            <input id="fs" type="range" min="10" max="32" step="1" value="{{size}}" onChange="{{setSize}}" style="flex: 1;">
+          </div>
+        </div>
+
+        <div class="fld">
+          <label for="fu">Size unit</label>
+          <div class="box"><select id="fu" style="flex: 1; border: 0; background: transparent; color: var(--wl-on-surf); font: inherit; outline: none;"><option>Pixels</option><option>Points</option><option>Relative to the app text size</option></select></div>
+        </div>
+
+        <div class="fld">
+          <div style="display: flex; align-items: center;"><label for="fw" style="flex: 1;">Weight</label><span class="help" style="font-family: 'Roboto Mono', monospace;">{{weight}}</span></div>
+          <input id="fw" type="range" min="100" max="900" step="100" value="{{weight}}" onChange="{{setWeight}}">
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="pv-h" class="pane" style="flex: 999 1 420px; min-width: 0; background: var(--wl-surf-low); border-radius: 28px; padding: 28px 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px;">
+      <h2 id="pv-h" style="margin: 0; font: 500 14px/20px Roboto, sans-serif; color: var(--wl-on-surf-var);">Live preview</h2>
+      <div class="card" style="background: var(--wl-surface); border-radius: 24px; padding: 28px; display: flex; flex-direction: column; gap: 16px;">
+        <span style="font-size: 22px; line-height: 28px;">Language and tone</span>
+        <p style="margin: 0; font-family: Roboto, sans-serif; font-size: {{sizePx}}; font-weight: {{weight}}; line-height: 1.5; color: var(--wl-on-surf-var); max-width: 60ch;">Pick the language WorldLens speaks and how playful it gets. Tone can change on a schedule, so weekday mornings can stay plain.</p>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--wl-sec-cont); color: var(--wl-on-sec-cont); font: 500 14px/20px Roboto, sans-serif;">English</span>
+          <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--wl-outline); font: 500 14px/20px Roboto, sans-serif;">廣東話</span>
+        </div>
+      </div>
+      <p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var); max-width: 68ch;">The editor takes the whole window while it is open. Settings, other editors and dialogs never draw on top of each other: a lock opens as one dialog over a dimmed screen.</p>
+    </section>
+  </div>
+
+  <sc-if value="{{lockOpen}}" hint-placeholder-val="{{true}}">
+    <div style="position: absolute; inset: 0; background: var(--wl-scrim); display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box;">
+      <div role="dialog" aria-modal="true" aria-labelledby="lk-h" class="dlg" style="width: 100%; max-width: 520px; max-height: 100%; overflow-y: auto; background: var(--wl-surf-high); color: var(--wl-on-surf); border-radius: 28px; padding: 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 4px 8px 3px rgba(0,0,0,.15), 0 1px 3px rgba(0,0,0,.3);">
+        <div style="display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;">
+          <span class="msr" aria-hidden="true" style="color: var(--wl-sec);">lock</span>
+          <h2 id="lk-h" style="margin: 0; font-size: 24px; line-height: 32px; font-weight: 400;">Lock this setting</h2>
+          <p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var);">This lock opens this one element and nothing else. Every lock carries its own; there is no master password anywhere in WorldLens.</p>
+        </div>
+
+        <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px;">
+          <legend style="font: 500 14px/20px Roboto, sans-serif; margin-bottom: 4px;">How this one opens</legend>
+          <sc-for list="{{methods}}" as="m" hint-placeholder-count="2">
+            <label class="radio sl"><input type="radio" name="lockmethod" checked="{{m.checked}}" onChange="{{m.pick}}">{{m.label}}</label>
+          </sc-for>
+        </fieldset>
+
+        <div class="fld">
+          <label for="pw1">Password for this lock</label>
+          <input id="pw1" type="password" autocomplete="new-password" class="box" style="width: 100%;">
+        </div>
+        <div class="fld">
+          <label for="pw2">The same password again</label>
+          <input id="pw2" type="password" autocomplete="new-password" class="box" style="width: 100%;">
+        </div>
+        <div class="fld">
+          <label for="dur">How long an unlock lasts</label>
+          <div class="box"><select id="dur" style="flex: 1; border: 0; background: transparent; color: var(--wl-on-surf); font: inherit; outline: none;"><option>This surface only</option><option>Until WorldLens closes</option><option>Fifteen minutes</option></select></div>
+        </div>
+
+        <div style="display: flex; gap: 12px; padding: 12px 16px; border-radius: 16px; background: var(--wl-surf-highest); font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var);">
+          <span class="msr" aria-hidden="true" style="font-size: 20px; color: var(--wl-tert);">info</span>
+          <span>A lock keeps the setting out of reach, not encrypted from anybody else on this computer. Forgetting the answer means clearing WorldLens's local data folder, which removes every lock.</span>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn sl" onClick="{{closeLock}}" style="background: transparent; color: var(--wl-primary);">Never mind</button>
+          <button type="button" class="btn sl" onClick="{{closeLock}}" style="background: var(--wl-primary); color: var(--wl-on-primary);">Lock it</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","contrast"],"default":"dark"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { tab: 'Text', size: 17, weight: 400, lockOpen: true, method: 'pw' };
+  }
+  renderVals() {
+    const s = this.state;
+    const tabs = ['Text', 'Surface', 'Presets'].map((label) => ({ label, selected: s.tab === label ? 'true' : 'false', pick: () => this.setState({ tab: label }) }));
+    const methods = [
+      { id: 'pw', label: 'A password' },
+      { id: 'totp', label: 'A code from an authenticator app' }
+    ].map((m) => ({ ...m, checked: s.method === m.id, pick: () => this.setState({ method: m.id }) }));
+    return {
+      theme: this.props.theme ?? 'dark',
+      tabs,
+      methods,
+      size: s.size,
+      sizePx: s.size + 'px',
+      weight: s.weight,
+      setSize: (e) => this.setState({ size: Number(e.target.value) }),
+      setWeight: (e) => this.setState({ weight: Number(e.target.value) }),
+      lockOpen: s.lockOpen,
+      openLock: () => this.setState({ lockOpen: true }),
+      closeLock: () => this.setState({ lockOpen: false })
+    };
+  }
+}
+</script>
+</body>
+</html>

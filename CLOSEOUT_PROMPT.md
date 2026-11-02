@@ -1,7 +1,13 @@
-# Worldlens closeout prompt (2026-10-30)
+# Worldlens closeout prompt (updated 2026-11-02)
 
 Continue in `Ding-Ding-Projects/worldlens` on `main`. Read `AGENTS.md` and the
 2026-10-30 entry at the top of `design/HANDOFF.md` first.
+
+New since 2026-10-30: `design/contour/` holds Contour, a fresh visual direction
+on the same tokens and features (see `design/contour/HANDOFF.md`). Ask the owner
+whether Contour replaces `design/Worldlens.dc.html` as the approved prototype
+before step 2. Either way, fix the stacked translucent overlays first: an editor,
+the settings surface and a dialog must never draw over each other.
 
 Goal: the shipped UI in `design/packages/ui` must match the approved prototype
 `design/Worldlens.dc.html` (render its states by editing the `state = {...}`

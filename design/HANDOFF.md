@@ -1,5 +1,15 @@
 # Handoff
 
+## 2026-11-02 Contour design direction proposed
+
+`design/contour/` adds Contour, a fresh visual direction built on `tokens.css`
+with six clickable artboards (Home, Map, Work: Renders, Settings, Appearance
+editor with the lock dialog, Minecraft servers). It is a proposal: the approved
+prototype is still `Worldlens.dc.html` until the owner decides. Its first rule
+comes from a 1.0.2130 screenshot where the appearance editor, settings drawer and
+lock dialog were open together and translucent: one opaque surface in focus,
+dialogs on a scrim, nothing stacks. Details in `design/contour/HANDOFF.md`.
+
 ## 2026-10-30 UI matched to the design prototype, stopped at the usage limit
 
 Goal: make the shipped UI (`design/packages/ui`) match the approved Claude Design

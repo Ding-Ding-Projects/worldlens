@@ -1,0 +1,21 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-02T16:58:00Z"},
+  "title": "WorldLens Redesign",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1440, "h": 900, "title": "Home", "expand": "fill", "is_interactive": true},
+    "Map.dc.html": {"x": 1520, "y": 0, "w": 1440, "h": 900, "title": "Map", "expand": "fill", "is_interactive": true},
+    "Work.dc.html": {"x": 3040, "y": 0, "w": 1440, "h": 900, "title": "Work: Renders", "expand": "fill", "is_interactive": true},
+    "Settings.dc.html": {"x": 0, "y": 1320, "w": 1440, "h": 900, "title": "Settings", "expand": "fill", "is_interactive": true},
+    "Appearance.dc.html": {"x": 1520, "y": 1320, "w": 1440, "h": 900, "title": "Appearance editor + lock dialog", "expand": "fill", "is_interactive": true},
+    "Servers.dc.html": {"x": 3040, "y": 1320, "w": 1440, "h": 900, "title": "Minecraft servers", "expand": "fill", "is_interactive": true}
+  },
+  "order": ["Main.dc.html", "Map.dc.html", "Work.dc.html", "Settings.dc.html", "Appearance.dc.html", "Servers.dc.html"],
+  "notes": {
+    "row1": {"x": 0, "y": -300, "text": "Contour: destinations", "kind": "title1", "maxW": 4480},
+    "row2": {"x": 0, "y": 1020, "text": "Contour: one surface at a time", "kind": "title1", "maxW": 4480}
+  },
+  "designSystems": []
+}
