@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import FocusDialog from "../shell/FocusDialog.vue";
 import {
     mdiContentSave,
     mdiDelete,
@@ -1224,11 +1225,15 @@ async function onFileChosen(event: Event): Promise<void> {
             </v-window-item>
         </v-window>
 
-        <v-menu
+        <FocusDialog
             v-model="propertyLockOpen"
-            :target="propertyLockAnchor ?? undefined"
-            :close-on-content-click="false"
-            location="bottom start"
+            :label="
+                t(
+                    'locks.wizard.title',
+                    { label: propertyLockTarget?.label ?? targetLabel },
+                    'Lock {label}',
+                )
+            "
             @update:model-value="(value: boolean) => !value && closePropertyPopup()"
         >
             <div
@@ -1243,12 +1248,16 @@ async function onFileChosen(event: Event): Promise<void> {
                     @cancel="closePropertyPopup"
                 />
             </div>
-        </v-menu>
-        <v-menu
+        </FocusDialog>
+        <FocusDialog
             v-model="propertyUnlockOpen"
-            :target="propertyLockAnchor ?? undefined"
-            :close-on-content-click="false"
-            location="bottom start"
+            :label="
+                t(
+                    'locks.unlock.label',
+                    { label: propertyLockTarget?.label ?? targetLabel },
+                    'Unlock {label}',
+                )
+            "
             @update:model-value="(value: boolean) => !value && closePropertyPopup()"
         >
             <div
@@ -1265,7 +1274,7 @@ async function onFileChosen(event: Event): Promise<void> {
                     @support="closePropertyPopup"
                 />
             </div>
-        </v-menu>
+        </FocusDialog>
     </section>
 </template>
 

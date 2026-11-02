@@ -529,17 +529,20 @@ describe("the anchored editor", () => {
         expect(bodyText()).toContain("Appearance of The test row");
     });
 
-    it("is non-modal: nothing is laid over the element it is editing", async () => {
-        // A scrim would make the element unusable while its own appearance is being edited,
-        // which defeats the reason the editor is anchored beside it rather than centred.
+    it("takes the whole window on a scrim: one surface in focus", async () => {
+        // 1.0.2130 showed this editor, the settings surface and a lock wizard at once, each a
+        // scrim-less popover, and their text printed over each other. The editor is now a
+        // full-window dialog, so nothing else can be read (or misread) behind it.
         mountTarget();
         targetElement().dispatchEvent(
             new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
         );
         await settle();
 
-        expect(document.querySelector(".v-overlay__scrim")).toBeNull();
-        expect(document.querySelector(".host-button")).not.toBeNull();
+        expect(document.querySelector(".v-overlay__scrim")).not.toBeNull();
+        expect(
+            document.querySelector(".mb-focus-dialog--full .mb-appearance-editor"),
+        ).not.toBeNull();
     });
 
     it("paints its own surface rather than letting the page read through it", async () => {
@@ -895,10 +898,7 @@ describe("dismissal: closes on an outside pointer press", () => {
         expect(activeCount(".mb-appearance-target__menu")).toBe(0);
     });
 
-    it("closes the anchored editor on a press elsewhere inside the wrapped surface", async () => {
-        // The editor carries no scrim (see "is non-modal" above), so an outside click is the
-        // *only* pointer route that can dismiss it - this half of the defect trapped the
-        // user more completely than the menu half did.
+    it("closes the full-window editor from its close button", async () => {
         mountTarget();
         targetElement().dispatchEvent(
             new MouseEvent("contextmenu", { bubbles: true, shiftKey: true }),
@@ -906,7 +906,7 @@ describe("dismissal: closes on an outside pointer press", () => {
         await settle();
         expect(activeCount(".mb-appearance-editor")).toBe(1);
 
-        press(document.querySelector(".host-button")!);
+        document.querySelector<HTMLElement>("[data-test=focus-dialog-close]")!.click();
         await settle();
 
         expect(activeCount(".mb-appearance-editor")).toBe(0);

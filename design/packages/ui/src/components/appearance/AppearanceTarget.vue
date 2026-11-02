@@ -11,6 +11,7 @@ import {
 import { VList, VListItem, VMenu } from "vuetify/components";
 
 import AppearanceEditor from "./AppearanceEditor.vue";
+import FocusDialog from "../shell/FocusDialog.vue";
 import LockWizard from "../locks/LockWizard.vue";
 import UnlockPrompt from "../locks/UnlockPrompt.vue";
 import { useLockStore } from "../locks/useLocks.js";
@@ -655,43 +656,30 @@ function onKeydown(event: KeyboardEvent): void {
         </v-menu>
 
         <!--
-            The editor. Anchored to the element and tracking it, non-modal, with no scrim, so
-            the element it is editing stays visible and usable while it is open. `location`
-            puts it beside rather than over the element, and Vuetify's connected strategy
-            flips it at the viewport edge without detaching it from the anchor. `:target`
-            only, deliberately no `:activator` - see the comment on `menuId` above for why;
-            it matters even more here, because this popup has no scrim, so an outside click
-            is the *only* pointer route that can dismiss it.
+            The editor takes the whole window. It used to be a scrim-less popover beside the
+            element, and with the settings surface and a lock wizard open as well, three
+            translucent layers printed over each other. One surface in focus now: the editor,
+            then any lock question as a dialog on its own scrim above it. `FocusDialog.vue` has
+            the full story.
         -->
-        <v-menu
-            v-model="editorOpen"
-            :id="editorId"
-            :target="root ?? undefined"
-            :open-on-click="false"
-            :close-on-content-click="false"
-            :scrim="false"
-            location="end top"
-            offset="12"
+        <FocusDialog
+            :model-value="editorOpen"
+            :label="t('appearance.editor.title', { element: label }, 'Appearance of {element}')"
+            fullscreen
             @update:model-value="(value: boolean) => !value && closeEditor()"
         >
-            <div ref="editorContent">
+            <div :id="editorId" ref="editorContent">
                 <AppearanceEditor :target-id="id" :target-label="label" />
             </div>
-        </v-menu>
+        </FocusDialog>
 
         <!--
-            The lock wizard and the unlock prompt, anchored to this element exactly as the
-            editor above is, non-modal and with no scrim so the thing being locked stays
-            visible while its lock is being made.
+            The lock wizard and the unlock prompt: a question, so a modal dialog on a scrim with
+            an opaque surface, never a popover over whatever else is open.
         -->
-        <v-menu
-            v-model="wizardOpen"
-            :target="root ?? undefined"
-            :open-on-click="false"
-            :close-on-content-click="false"
-            :scrim="false"
-            location="end top"
-            offset="12"
+        <FocusDialog
+            :model-value="wizardOpen"
+            :label="t('locks.wizard.title', { label }, 'Lock {label}')"
             @update:model-value="(value: boolean) => !value && closeLockPopups()"
         >
             <LockWizard
@@ -700,16 +688,11 @@ function onKeydown(event: KeyboardEvent): void {
                 @created="closeLockPopups"
                 @cancel="closeLockPopups"
             />
-        </v-menu>
+        </FocusDialog>
 
-        <v-menu
-            v-model="unlockOpen"
-            :target="root ?? undefined"
-            :open-on-click="false"
-            :close-on-content-click="false"
-            :scrim="false"
-            location="end top"
-            offset="12"
+        <FocusDialog
+            :model-value="unlockOpen"
+            :label="t('locks.unlock.label', { label }, 'Unlock {label}')"
             @update:model-value="(value: boolean) => !value && closeLockPopups()"
         >
             <UnlockPrompt
@@ -720,7 +703,7 @@ function onKeydown(event: KeyboardEvent): void {
                 @cancel="closeLockPopups"
                 @support="closeLockPopups"
             />
-        </v-menu>
+        </FocusDialog>
     </component>
 </template>
 

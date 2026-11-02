@@ -45,6 +45,7 @@ const OVERLAY_SURFACES = [
     "appearance/AppearanceTarget.vue",
     "appearance/ColorField.vue",
     "appearance/TypographyEditor.vue",
+    "shell/FocusDialog.vue",
     "config/ConfigNotifications.vue",
     "controlbar/ControlBar.vue",
     "eula/EulaViewer.vue",

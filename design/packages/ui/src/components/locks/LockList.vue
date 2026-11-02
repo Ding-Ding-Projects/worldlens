@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { VAlert, VBtn, VCheckbox, VChip, VDialog, VList, VListItem } from "vuetify/components";
+import { VAlert, VBtn, VCheckbox, VChip, VList, VListItem } from "vuetify/components";
 
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import { lockMethodLabel } from "./lockMethodCopy.js";
 import { lockSearchText, type LockRecord } from "./lockModel.js";
 import LockWizard from "./LockWizard.vue";
+import FocusDialog from "../shell/FocusDialog.vue";
 import { useLockStore } from "./useLocks.js";
 
 /**
@@ -378,9 +379,16 @@ function isOpen(lock: LockRecord): boolean {
             list of locks on elements that are mostly somewhere else entirely - there is no
             element on this screen for it to sit beside.
         -->
-        <VDialog
+        <FocusDialog
             :model-value="changing !== null"
-            max-width="520"
+            :label="
+                t(
+                    'locks.wizard.changeTitle',
+                    { label: changing?.target.label ?? '' },
+                    'Change the lock on {label}',
+                )
+            "
+            :max-width="520"
             @update:model-value="(open: boolean) => !open && (changing = null)"
         >
             <LockWizard
@@ -390,7 +398,7 @@ function isOpen(lock: LockRecord): boolean {
                 @created="onChanged"
                 @cancel="changing = null"
             />
-        </VDialog>
+        </FocusDialog>
     </section>
 </template>
 

@@ -592,14 +592,6 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
-        file: "components/appearance/AppearanceEditor.vue",
-        surface:
-            "The per-property lock menu and its sibling, both anchored to a property row rather than to a fixed activator.",
-        ownVMenu: true,
-        wrapsAppearanceTarget: false,
-        status: "clean",
-    },
-    {
         file: "components/mcserver/CommandBuilder.vue",
         surface:
             "The command builder's per-argument picker, opened from the row it fills in.",

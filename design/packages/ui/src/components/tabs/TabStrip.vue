@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import FocusDialog from "../shell/FocusDialog.vue";
 import LockWizard from "../locks/LockWizard.vue";
 import UnlockPrompt from "../locks/UnlockPrompt.vue";
 import { useLockStore } from "../locks/useLocks.js";
@@ -1982,13 +1983,9 @@ const tabCountLabel = computed(() =>
             the same `element` surface, so a tab lock is an ordinary element lock: it shows up in
             the lock list, it is counted, and one reset clears it with all the others.
         -->
-        <v-menu
+        <FocusDialog
             v-model="lockWizardOpen"
-            :target="tabMenuTarget"
-            :open-on-click="false"
-            :close-on-content-click="false"
-            location="bottom start"
-            offset="4"
+            :label="t('locks.wizard.title', { label: tabMenuTab?.label ?? '' }, 'Lock {label}')"
             @update:model-value="(value: boolean) => !value && closeTabLockPopups()"
         >
             <LockWizard
@@ -1998,15 +1995,11 @@ const tabCountLabel = computed(() =>
                 @created="closeTabLockPopups"
                 @cancel="closeTabLockPopups"
             />
-        </v-menu>
+        </FocusDialog>
 
-        <v-menu
+        <FocusDialog
             v-model="unlockOpen"
-            :target="tabMenuTarget"
-            :open-on-click="false"
-            :close-on-content-click="false"
-            location="bottom start"
-            offset="4"
+            :label="t('locks.unlock.label', { label: tabMenuTab?.label ?? '' }, 'Unlock {label}')"
             @update:model-value="(value: boolean) => !value && closeTabLockPopups()"
         >
             <UnlockPrompt
@@ -2017,7 +2010,7 @@ const tabCountLabel = computed(() =>
                 @cancel="closeTabLockPopups"
                 @support="closeTabLockPopups"
             />
-        </v-menu>
+        </FocusDialog>
 
         <!--
             And one for whichever group's header was opened. Same explicit close
