@@ -1,5 +1,20 @@
 # Handoff
 
+## 2026-11-02 Releases unblocked, Contour BlueMap viewer bundled
+
+No release published between v1.0.2130 (2026-10-23) and v1.0.2170 (2026-11-03). Every
+Windows installer job from ff5d17f on sat in `pnpm build` until GitHub's six-hour limit:
+`stageHostingRuntime()` extracted the Linux Node `.tar.xz` with System32 `tar`. `e2c4eb5`
+uses Git for Windows' GNU tar, gives every child process a deadline and no stdin, logs each
+phase, and caps the Windows job at 60 minutes. The next run reached packing and failed the
+hosting provenance check, because electron-builder never copies `.gitkeep`; `6694501` prunes
+those placeholders and makes the error name differing paths. Run 41551533023 then published
+v1.0.2170 with Setup.exe, RELEASES and the full nupkg.
+
+`ce1c35e` moves `vendor/BlueMap-Material` to 28684da, the first Contour slice of the web viewer
+(floating control clusters, floating side sheet, menu icons); its design files and handoff are
+in that repository's `design/contour-viewer/`.
+
 ## 2026-11-02 Contour approved and implementation started
 
 The owner asked for the Contour design (`design/contour/`) to be built into the
