@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { verifyHostingRuntime, stageHostingRuntime, assertHostingRuntimeProvenance, extractNodeRuntimeArchive } from './stage-hosting-runtime.mjs';
+import { verifyHostingRuntime, stageHostingRuntime, assertHostingRuntimeProvenance, extractNodeRuntimeArchive, pruneUnpackagedPlaceholders } from './stage-hosting-runtime.mjs';
 test('runtime ZIP extraction selects the executable and license on Unix', () => {
     const root = mkdtempSync(join(tmpdir(), 'hosting ZIP '));
     try {
@@ -43,6 +43,17 @@ test('Windows refuses the Linux .tar.xz plainly when Git for Windows tar is miss
     assert.throws(() => extractNodeRuntimeArchive('D:/c/node-v22.20.0-linux-x64.tar.xz', 'D:/o', 'node-v22.20.0-linux-x64', 'bin/node', {
         platform: 'win32', windowsTar: () => null, run() { throw new Error('must not run'); },
     }), /Git for Windows/);
+});
+test('placeholders electron-builder never packages are pruned from the staged tree', () => {
+    const root = mkdtempSync(join(tmpdir(), 'hosting prune '));
+    try {
+        mkdirSync(join(root, 'tr46', 'lib'), { recursive: true });
+        writeFileSync(join(root, 'tr46', 'lib', '.gitkeep'), '');
+        writeFileSync(join(root, 'tr46', 'lib', 'index.js'), 'module.exports = 1;');
+        assert.equal(pruneUnpackagedPlaceholders(root), 1);
+        assert.equal(existsSync(join(root, 'tr46', 'lib', '.gitkeep')), false);
+        assert.equal(existsSync(join(root, 'tr46', 'lib', 'index.js')), true);
+    } finally { rmSync(root, { recursive: true, force: true }); }
 });
 test('hosting receipt verifies bytes and rejects missing and tampered runtime files', () => {
     const root = mkdtempSync(join(tmpdir(), 'hosting receipt '));

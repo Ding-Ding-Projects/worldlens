@@ -98,6 +98,24 @@ export function extractNodeRuntimeArchive(archive, extract, archiveRoot, executa
         run(tar, ['-xf', archive, '-C', extract, ...members], childOptions);
     }
 }
+/**
+ * electron-builder never copies a `.gitkeep` into the package (it is in its fixed list of
+ * excluded names), and npm leaves one in at least `tr46/lib`. A staged tree that still held it
+ * could never match the packaged copy, so the provenance check after packing failed every
+ * Windows build with "Unexpected hosting runtime files". The files are empty placeholders with
+ * no runtime meaning; removing them here keeps the trusted derivation and the package identical.
+ */
+export function pruneUnpackagedPlaceholders(root) {
+    if (!existsSync(root)) return 0;
+    let removed = 0;
+    for (const entry of readdirSync(root, { withFileTypes: true })) {
+        const path = join(root, entry.name);
+        if (entry.isDirectory()) removed += pruneUnpackagedPlaceholders(path);
+        else if (entry.name === '.gitkeep') { rmSync(path); removed++; }
+    }
+    return removed;
+}
+
 /** Always derive from independently verified acquisition, never from an output receipt. */
 async function deriveRuntime(root, source, { offline = false } = {}) {
     const { manifest } = source;
@@ -128,6 +146,7 @@ async function deriveRuntime(root, source, { offline = false } = {}) {
     // symlink-free runtime inventory rejects. The bot worker only uses require().
     log('installing the bot runtime with npm ci');
     execFileSync(process.execPath, [npm, 'ci', ...(offline ? ['--offline'] : []), '--omit=dev', '--ignore-scripts', '--no-bin-links', '--no-audit', '--no-fund', '--cache', join(cache, 'npm'), '--prefix', bots], childOptions);
+    pruneUnpackagedPlaceholders(join(bots, 'node_modules'));
     writeFileSync(join(bots, 'auth-worker.mjs'), source.worker);
     if (hash(readFileSync(join(bots, 'auth-worker.mjs'))) !== hash(source.worker)) throw new Error('Staged worker differs from trusted source');
     const require = createRequire(join(bots, 'auth-worker.mjs'));
@@ -147,7 +166,13 @@ export async function assertHostingRuntimeProvenance(root) {
         const trusted = await deriveRuntime(scratch, source, { offline: true });
         const observed = files(root).filter(entry => entry.path !== 'receipt.json');
         const expectedPaths = new Set(trusted.files.map(entry => entry.path));
-        if (observed.length !== trusted.files.length || observed.some(entry => !expectedPaths.has(entry.path))) throw new Error('Unexpected hosting runtime files');
+        if (observed.length !== trusted.files.length || observed.some(entry => !expectedPaths.has(entry.path))) {
+            const observedPaths = new Set(observed.map(entry => entry.path));
+            const extra = observed.filter(entry => !expectedPaths.has(entry.path)).map(entry => entry.path);
+            const missing = trusted.files.filter(entry => !observedPaths.has(entry.path)).map(entry => entry.path);
+            const show = (list) => list.length === 0 ? 'none' : list.slice(0, 10).join(', ') + (list.length > 10 ? `, and ${list.length - 10} more` : '');
+            throw new Error(`Unexpected hosting runtime files. Packaged but not derived: ${show(extra)}. Derived but not packaged: ${show(missing)}.`);
+        }
         const claim = verifyHostingRuntime(root, { pins: source.manifest });
         if (claim.sourceCommit !== source.revision || claim.workerSha256 !== hash(source.worker) || claim.botLockSha256 !== hash(source.lock)) throw new Error('Hosting source association does not match trusted source');
         for (const entry of trusted.files) {
