@@ -112,6 +112,9 @@ jobs:
     # engine is not installed", which is a broken artifact rather than an ungated one.
     if: always() && needs.jars.result == 'success'
     runs-on: windows-2022
+    # A healthy run takes about ten minutes. Without a limit, a hung step held this job for the
+    # runner's six-hour default on every push from 2026-10-24, so no release could publish.
+    timeout-minutes: 60
     steps:
       # Workspace builds require the pinned maintained viewer source.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

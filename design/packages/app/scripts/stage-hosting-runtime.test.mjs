@@ -25,6 +25,25 @@ test('runtime ZIP extraction selects the executable and license on Unix', () => 
         assert.equal(existsSync(join(output, 'node-fixture-win-x64/unrequested.txt')), false);
     } finally { rmSync(root, { recursive: true, force: true }); }
 });
+test('Windows extracts the Linux .tar.xz with Git for Windows GNU tar, never System32 tar', () => {
+    const calls = [];
+    extractNodeRuntimeArchive('D:\\cache\\node-v22.20.0-linux-x64.tar.xz', 'D:\\out\\node\\linux-x64', 'node-v22.20.0-linux-x64', 'bin/node', {
+        platform: 'win32',
+        windowsTar: () => 'C:/Program Files/Git/usr/bin/tar.exe',
+        run(command, args, options) { calls.push({ command, args, options }); },
+    });
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].command, 'C:/Program Files/Git/usr/bin/tar.exe');
+    assert.deepEqual(calls[0].args, ['--force-local', '-xJf', 'D:/cache/node-v22.20.0-linux-x64.tar.xz', '-C', 'D:/out/node/linux-x64', 'node-v22.20.0-linux-x64/bin/node', 'node-v22.20.0-linux-x64/LICENSE']);
+    // No stdin and a deadline: a stuck extractor fails the build instead of holding it for hours.
+    assert.equal(calls[0].options.stdio[0], 'ignore');
+    assert.ok(calls[0].options.timeout > 0);
+});
+test('Windows refuses the Linux .tar.xz plainly when Git for Windows tar is missing', () => {
+    assert.throws(() => extractNodeRuntimeArchive('D:/c/node-v22.20.0-linux-x64.tar.xz', 'D:/o', 'node-v22.20.0-linux-x64', 'bin/node', {
+        platform: 'win32', windowsTar: () => null, run() { throw new Error('must not run'); },
+    }), /Git for Windows/);
+});
 test('hosting receipt verifies bytes and rejects missing and tampered runtime files', () => {
     const root = mkdtempSync(join(tmpdir(), 'hosting receipt '));
     try {

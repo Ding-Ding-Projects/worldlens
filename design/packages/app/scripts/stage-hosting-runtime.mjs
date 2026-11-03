@@ -44,7 +44,8 @@ async function verifiedArchive(cache, manifest, pin, offline) {
     const archive = join(cache, pin.asset);
     if (!existsSync(archive) || hash(readFileSync(archive)) !== pin.sha256) {
         if (offline) throw new Error('Verified Node archive cache is unavailable');
-        const response = await fetch(`https://nodejs.org/dist/v${manifest.nodeVersion}/${pin.asset}`);
+        log(`downloading ${pin.asset}`);
+        const response = await fetch(`https://nodejs.org/dist/v${manifest.nodeVersion}/${pin.asset}`, { signal: AbortSignal.timeout(CHILD_TIMEOUT_MS) });
         if (!response.ok) throw new Error(`Node archive download returned ${response.status}`);
         const bytes = Buffer.from(await response.arrayBuffer());
         if (hash(bytes) !== pin.sha256) throw new Error('Node archive checksum mismatch');
@@ -62,14 +63,39 @@ function licenseInventory(root, inventory, version) {
     licenses.push({ name: 'Node.js', version, license: 'See bundled upstream license inventory', files: ['node/win32-x64/LICENSE', 'node/linux-x64/LICENSE'] });
     return licenses;
 }
+/** Every child process here gets no stdin and a deadline, so a stuck tool fails the build. */
+const CHILD_TIMEOUT_MS = 5 * 60 * 1000;
+const childOptions = { stdio: ['ignore', 'inherit', 'inherit'], timeout: CHILD_TIMEOUT_MS };
+const log = (message) => console.log(`hosting runtime: ${message}`);
+
+/**
+ * Git for Windows' GNU tar, which reads xz itself. Windows' own `tar.exe` (libarchive) has no
+ * built-in xz on the hosted runners and falls back to piping through an external `xz`; that is
+ * the shape of the hang that held every Windows build in this step from 2026-10-24 until the
+ * job's six-hour limit. Returns null when Git for Windows is not where `git --exec-path` says.
+ */
+export function gitForWindowsTar({ run = execFileSync } = {}) {
+    try {
+        const execPath = String(run('git', ['--exec-path'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 30_000 })).trim();
+        const tar = resolve(execPath, '../../..', 'usr/bin/tar.exe');
+        return existsSync(tar) ? tar : null;
+    } catch { return null; }
+}
+
 /** GNU tar cannot read ZIP; use the ZIP extractor already used by bootstrap. */
-export function extractNodeRuntimeArchive(archive, extract, archiveRoot, executable, { platform = process.platform, run = execFileSync } = {}) {
+export function extractNodeRuntimeArchive(archive, extract, archiveRoot, executable, { platform = process.platform, run = execFileSync, windowsTar = gitForWindowsTar } = {}) {
     const members = [`${archiveRoot}/${executable}`, `${archiveRoot}/LICENSE`];
     if (archive.endsWith('.zip') && platform !== 'win32') {
-        run('unzip', ['-q', archive, ...members, '-d', extract]);
+        run('unzip', ['-q', archive, ...members, '-d', extract], childOptions);
+    } else if (archive.endsWith('.tar.xz') && platform === 'win32') {
+        const gnuTar = windowsTar({ run });
+        if (!gnuTar) throw new Error('Extracting the Linux Node runtime on Windows needs Git for Windows\' tar (usr/bin/tar.exe); it was not found');
+        // `--force-local` stops GNU tar reading the drive letter in `D:/...` as a remote host.
+        const slash = (path) => path.split('\\').join('/');
+        run(gnuTar, ['--force-local', '-xJf', slash(archive), '-C', slash(extract), ...members], childOptions);
     } else {
         const tar = platform === 'win32' ? join(process.env.SystemRoot || 'C:/Windows', 'System32', 'tar.exe') : 'tar';
-        run(tar, ['-xf', archive, '-C', extract, ...members]);
+        run(tar, ['-xf', archive, '-C', extract, ...members], childOptions);
     }
 }
 /** Always derive from independently verified acquisition, never from an output receipt. */
@@ -82,6 +108,7 @@ async function deriveRuntime(root, source, { offline = false } = {}) {
         const extract = join(root, 'node', platform);
         mkdirSync(extract, { recursive: true });
         const archiveRoot = pin.asset.replace(/\.(zip|tar\.xz)$/, '');
+        log(`extracting ${pin.asset}`);
         extractNodeRuntimeArchive(archive, extract, archiveRoot, pin.executable);
         const inner = join(extract, archiveRoot);
         if (!existsSync(join(inner, pin.executable))) throw new Error('Node archive has no executable');
@@ -99,7 +126,8 @@ async function deriveRuntime(root, source, { offline = false } = {}) {
     // npm validates cached/downloaded tarballs against the immutable reviewed lock.
     // --no-bin-links: on Unix npm links node_modules/.bin entries as symlinks, which the
     // symlink-free runtime inventory rejects. The bot worker only uses require().
-    execFileSync(process.execPath, [npm, 'ci', ...(offline ? ['--offline'] : []), '--omit=dev', '--ignore-scripts', '--no-bin-links', '--no-audit', '--no-fund', '--cache', join(cache, 'npm'), '--prefix', bots], { stdio: 'inherit', timeout: 5 * 60 * 1000 });
+    log('installing the bot runtime with npm ci');
+    execFileSync(process.execPath, [npm, 'ci', ...(offline ? ['--offline'] : []), '--omit=dev', '--ignore-scripts', '--no-bin-links', '--no-audit', '--no-fund', '--cache', join(cache, 'npm'), '--prefix', bots], childOptions);
     writeFileSync(join(bots, 'auth-worker.mjs'), source.worker);
     if (hash(readFileSync(join(bots, 'auth-worker.mjs'))) !== hash(source.worker)) throw new Error('Staged worker differs from trusted source');
     const require = createRequire(join(bots, 'auth-worker.mjs'));
