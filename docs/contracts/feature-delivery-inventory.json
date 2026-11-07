@@ -6411,6 +6411,466 @@
       "sourceEvidence": [],
       "focusedInventory": null,
       "reviewState": "excluded-with-reason"
+    },
+    {
+      "id": "virtual-disk-manager",
+      "title": "Full Windows virtual disk manager",
+      "requirement": "Every application that runs on Windows ships a full manager for VHD, VHDX and VHD Set files with ISO attach: create, attach, detach, grow, shrink, compact, convert, differencing chains and merges, VHD Set checkpoints, identity, metadata, mirror and change tracking, Dev Drive and native boot, each through a route that exists on Windows Home, naming that route and offering the equivalent script, plus Quick pack into a hash-verified, automatically grown VHDX that never overwrites.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/vdisk/VirtualDisksScreen.vue",
+              "design/packages/app/src/main/vdisk/manager.ts",
+              "design/packages/app/src/main/vdisk/ipc.ts",
+              "design/packages/shared/src/virtualDisk.ts"
+            ],
+            "consumer": "Virtual disks job invokes the typed vdisk bridge; the main process runs DiskPart, Storage module and Hyper-V routes through the Windows permission prompt.",
+            "limitation": "Shrink, convert, identity, VHD Set checkpoints, metadata, mirror, change tracking, Dev Drive designation and native boot through the VirtDisk API route are not wired; real Windows round trips are not yet verified.",
+            "sourceCommit": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369"
+          }
+        },
+        "hosted-workspace": {
+          "applicability": "not-applicable",
+          "reason": "Virtual disks attach to the Windows computer running the desktop app; the hosted profile refuses the vdisk prefix with that reason.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, tests and evidence support the applicable surface requirement.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "not-a-runtime-verdict",
+          "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [
+        {
+          "path": "design/packages/ui/src/components/vdisk/VirtualDisksScreen.vue",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        },
+        {
+          "path": "design/packages/app/src/main/vdisk/manager.ts",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        },
+        {
+          "path": "design/packages/app/src/main/vdisk/ipc.ts",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        },
+        {
+          "path": "design/packages/shared/src/virtualDisk.ts",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        }
+      ],
+      "focusedInventory": "docs/virtual-disks.md",
+      "reviewState": "partial-source-mapping"
+    },
+    {
+      "id": "base64-tools",
+      "title": "Full local Base64 toolkit",
+      "requirement": "Every user-facing application and GitHub Pages ships a local Base64 encoder and decoder for text and files with standard, URL-safe and MIME variants, padding and line options, strict decoding with exact offsets, text encodings, data URLs, streamed large files with hash verification, same-folder sidecar drop round trips that never overwrite, safe preview, import, export and undo.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/shared/src/base64.ts"
+            ],
+            "consumer": "Shared core only; no screen consumes it yet.",
+            "limitation": "The desktop screen, file streaming route, history and site surface are not built.",
+            "sourceCommit": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369"
+          }
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, tests and evidence support the applicable surface requirement.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "not-a-runtime-verdict",
+          "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [
+        {
+          "path": "design/packages/shared/src/base64.ts",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        }
+      ],
+      "focusedInventory": null,
+      "reviewState": "partial-source-mapping"
+    },
+    {
+      "id": "extension-support",
+      "title": "Application extension support",
+      "requirement": "Every application ships extension support tailored to it: a versioned manifest, an out-of-process protocol, declared permissions with consent on change, time and size limits, no sensitive values handed over, a searchable manager, useful built-in defaults, an author article with samples, tests and screenshots.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/app/src/main/addons/manager.ts",
+              "design/packages/app/src/main/addons/ipc.ts",
+              "design/packages/ui/src/components/settings/AddonManagerPanel.vue"
+            ],
+            "consumer": "The add-on manager panel in Settings drives the sandboxed add-on runtime.",
+            "limitation": "Built-in default extensions, the author article with runnable samples and consent-on-change review are not mapped.",
+            "sourceCommit": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369"
+          }
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, tests and evidence support the applicable surface requirement.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "not-a-runtime-verdict",
+          "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [
+        {
+          "path": "design/packages/app/src/main/addons/manager.ts",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        },
+        {
+          "path": "design/packages/app/src/main/addons/ipc.ts",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        },
+        {
+          "path": "design/packages/ui/src/components/settings/AddonManagerPanel.vue",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        }
+      ],
+      "focusedInventory": null,
+      "reviewState": "partial-source-mapping"
+    },
+    {
+      "id": "action-sound-effects",
+      "title": "Action sounds with a Settings switch",
+      "requirement": "Every application provides short sounds for meaningful actions and outcomes with a visible, persisted Settings switch that turns them all off and respects mute, volume and quiet hours.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/stores/actionSounds.ts"
+            ],
+            "consumer": "Central cue store used by render, vocabulary and virtual disk outcomes.",
+            "limitation": "The action-to-cue mapping document and full surface review are pending.",
+            "sourceCommit": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369"
+          }
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, tests and evidence support the applicable surface requirement.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "not-a-runtime-verdict",
+          "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [
+        {
+          "path": "design/packages/ui/src/stores/actionSounds.ts",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        }
+      ],
+      "focusedInventory": null,
+      "reviewState": "partial-source-mapping"
+    },
+    {
+      "id": "minecraft-world-generator",
+      "title": "Minecraft world generator in every server tab",
+      "requirement": "Every Minecraft server tab includes a world generator with typed customization from per-version extraction, a 100 by 100 chunk default with a drawing canvas, Folder or ZIP output through Browse, and generation only after in-app EULA acceptance.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/shared/src/worldGenerationConfig.ts"
+            ],
+            "consumer": "World generation configuration shared by the dialog and the Actions runner.",
+            "limitation": "Per-version extraction, the drawing canvas and ZIP output need review against the contract.",
+            "sourceCommit": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369"
+          }
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, tests and evidence support the applicable surface requirement.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "not-a-runtime-verdict",
+          "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [
+        {
+          "path": "design/packages/shared/src/worldGenerationConfig.ts",
+          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "status": "source-present; behavior and completeness require review"
+        }
+      ],
+      "focusedInventory": null,
+      "reviewState": "partial-source-mapping"
+    },
+    {
+      "id": "drawesome-drawing",
+      "title": "Drawing and annotation",
+      "requirement": "Every application lets a person draw on screenshots, previews, images or a blank board with seven pens, a partial eraser, Shift-locked strokes, shortcuts, undo, redo, guarded clear, SVG and PNG export, persistence and history.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, tests and evidence support the applicable surface requirement.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "not-a-runtime-verdict",
+          "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": "design/feature-surfaces-20261107/HANDOFF.md",
+      "reviewState": "pending-review"
+    },
+    {
+      "id": "live-charts",
+      "title": "Live charts in the Liveline style",
+      "requirement": "Every chart that updates while visible eases smoothly with a pulsing live dot, gradient fill, quiet grid, animated range and value badge, scrub crosshair with keyboard scrubbing, a screen-reader summary, honest loading, paused, empty and stale states, and a reduced-motion path.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "hosted-workspace": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "documentation-site": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "applicable",
+          "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "pending",
+          "captureAcceptance": "pending"
+        },
+        "repository-deliverables": {
+          "applicability": "supporting-deliverable",
+          "reason": "Documentation, tests and evidence support the applicable surface requirement.",
+          "implementation": "pending-review",
+          "runtimeAcceptance": "not-a-runtime-verdict",
+          "captureAcceptance": "not-a-capture-verdict"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": "design/feature-surfaces-20261107/HANDOFF.md",
+      "reviewState": "pending-review"
+    },
+    {
+      "id": "job-experience-document-label",
+      "title": "Job Experience Document product label",
+      "requirement": "Every job-related application uses the label Job Experience Document instead of Resume by default, with a persisted toggle back.",
+      "surfaces": {
+        "desktop": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens has no job-related workflow, document or label, so there is no Resume wording to replace.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "hosted-workspace": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens has no job-related workflow, document or label, so there is no Resume wording to replace.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "documentation-site": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens has no job-related workflow, document or label, so there is no Resume wording to replace.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "embedded-bluemap-viewer": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens has no job-related workflow, document or label, so there is no Resume wording to replace.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        },
+        "repository-deliverables": {
+          "applicability": "not-applicable",
+          "reason": "Worldlens has no job-related workflow, document or label, so there is no Resume wording to replace.",
+          "implementation": "not-applicable",
+          "runtimeAcceptance": "not-applicable",
+          "captureAcceptance": "not-applicable"
+        }
+      },
+      "sourceEvidence": [],
+      "focusedInventory": null,
+      "reviewState": "pending-review"
     }
   ],
   "deliveryObligations": [

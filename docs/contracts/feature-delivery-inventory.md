@@ -4,7 +4,7 @@ Generated from `feature-delivery-inventory.json`. Run `node scripts/check-featur
 
 Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation and acceptance inventory; no all-feature completion claim.
 
-109 feature requirements and 3 additional delivery obligations are tracked across 5 separately assessed scopes. Public identifiers retain ordinary technical wording. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.
+117 feature requirements and 3 additional delivery obligations are tracked across 5 separately assessed scopes. Public identifiers retain ordinary technical wording. Source mappings identify code presence only. They do not establish implementation completeness, runtime acceptance or capture acceptance. Per-surface reasons, limitations and evidence remain in the JSON.
 
 | Identifier | Requirement | Scopes with recorded source mapping | Source paths | Review state |
 | --- | --- | --- | --- | --- |
@@ -117,6 +117,14 @@ Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation 
 | `onboarding-wizard` | Practical in-application onboarding | None recorded | Not yet mapped | pending-review |
 | `info-icon-guidance` | Per-control contextual information | None recorded | Not yet mapped | pending-review |
 | `private-documentation-package` | Private-repository documentation package | None recorded | Not yet mapped | excluded-with-reason |
+| `virtual-disk-manager` | Full Windows virtual disk manager | desktop | `design/packages/ui/src/components/vdisk/VirtualDisksScreen.vue`, `design/packages/app/src/main/vdisk/manager.ts`, `design/packages/app/src/main/vdisk/ipc.ts`, `design/packages/shared/src/virtualDisk.ts` | partial-source-mapping |
+| `base64-tools` | Full local Base64 toolkit | desktop | `design/packages/shared/src/base64.ts` | partial-source-mapping |
+| `extension-support` | Application extension support | desktop | `design/packages/app/src/main/addons/manager.ts`, `design/packages/app/src/main/addons/ipc.ts`, `design/packages/ui/src/components/settings/AddonManagerPanel.vue` | partial-source-mapping |
+| `action-sound-effects` | Action sounds with a Settings switch | desktop | `design/packages/ui/src/stores/actionSounds.ts` | partial-source-mapping |
+| `minecraft-world-generator` | Minecraft world generator in every server tab | desktop | `design/packages/shared/src/worldGenerationConfig.ts` | partial-source-mapping |
+| `drawesome-drawing` | Drawing and annotation | None recorded | Not yet mapped | pending-review |
+| `live-charts` | Live charts in the Liveline style | None recorded | Not yet mapped | pending-review |
+| `job-experience-document-label` | Job Experience Document product label | None recorded | Not yet mapped | pending-review |
 | `documentation-companion` | Additional documentation companion | None recorded | Not yet mapped | pending-review |
 | `build-gui-companion` | Portable build GUI companion | None recorded | Not yet mapped | pending-review |
 | `hosted-deployment-tools` | Container deployment and setup tools | None recorded | Not yet mapped | pending-review |

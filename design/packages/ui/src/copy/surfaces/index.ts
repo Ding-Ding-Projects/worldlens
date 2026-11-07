@@ -97,6 +97,7 @@ import { TUTORIAL_FACTS, TUTORIAL_FIXED, TUTORIAL_VOICED } from "./tutorial.js";
 import { WORLD_FACTS, WORLD_FIXED, WORLD_VOICED } from "./world.js";
 import { WORLDREPO_FACTS, WORLDREPO_FIXED, WORLDREPO_VOICED } from "./worldrepo.js";
 import { VOCABULARY_FACTS, VOCABULARY_FIXED, VOCABULARY_VOICED } from "./vocabulary.js";
+import { VIRTUALDISKS_FIXED } from "./virtualDisks.js";
 import {
     WORLDDOWNLOADER_FACTS,
     WORLDDOWNLOADER_FIXED,
@@ -168,6 +169,7 @@ export const SURFACE_VOICED = {
 } as const;
 
 export const SURFACE_FIXED = {
+    ...VIRTUALDISKS_FIXED,
     ...MEASUREDWORLDGEN_FIXED,
     ...CHROME_FIXED,
     ...CHUNKER_FIXED,

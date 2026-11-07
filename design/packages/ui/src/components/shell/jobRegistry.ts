@@ -43,6 +43,7 @@ import {
     mdiSourceRepository,
     mdiWeb,
     mdiImageMultipleOutline,
+    mdiHarddisk,
 } from "@mdi/js";
 import type { Component } from "vue";
 
@@ -71,7 +72,8 @@ export type CoreJobId =
     | "remoteHosting"
     | "dockerHosting"
     | "worldDownloader"
-    | "screenshots";
+    | "screenshots"
+    | "virtualDisks";
 
 /**
  * Jobs that exist only where a sanitized public contract for them is in this checkout.
@@ -118,6 +120,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     dockerHosting: "dockerHosting",
     worldDownloader: "worldDownloader",
     screenshots: "screenshots",
+    virtualDisks: "virtualDisks",
     browserExtension: "browserExtension",
 } as const satisfies Record<string, JobId>;
 
@@ -423,6 +426,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         // a world from a live server - not a "keep a copy of a map you already made" action the
         // way backups/worldrepo beside it are. A fresh workspace should not imply this job is
         // one of the ones about preserving your own output.
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "virtualDisks",
+        semanticName: "virtualDisks",
+        labelKey: "tabs.page.virtualDisks",
+        labelFallback: "Virtual disks",
+        icon: mdiHarddisk,
         seedGroup: null,
         pinnedOnFreshWorkspace: false,
     },

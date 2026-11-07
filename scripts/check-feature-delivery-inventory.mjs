@@ -115,6 +115,14 @@ export const REQUIRED_IDS = Object.freeze([
   "project-profile",
   "roblox-model-catalogue",
   "roblox-visual-realism",
+  "virtual-disk-manager",
+  "base64-tools",
+  "extension-support",
+  "action-sound-effects",
+  "minecraft-world-generator",
+  "drawesome-drawing",
+  "live-charts",
+  "job-experience-document-label",
 ]);
 // Required delivery contracts also exist outside the feature catalogue. Keep this
 // independent list so omission of an entire companion cannot pass the checker.

@@ -435,6 +435,7 @@ export const CHROME_FIXED = {
     "tabs.page.mcservers": { en: "Minecraft servers", yue: "Minecraft 伺服器" },
     "tabs.page.projectCanvas": { en: "Project canvas", yue: "專案畫布" },
     "tabs.page.screenshots": { en: "Screenshots", yue: "截圖" },
+    "tabs.page.virtualDisks": { en: "Virtual disks", yue: "虛擬磁碟" },
     "tabs.page.worldDownloader": { en: "Get a world off a server", yue: "由伺服器攞返個世界" },
 } as const satisfies Record<string, FixedString>;
 

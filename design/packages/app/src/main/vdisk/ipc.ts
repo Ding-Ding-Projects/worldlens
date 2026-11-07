@@ -38,6 +38,8 @@ export function registerVirtualDiskHandlers(
     const runner = options.runner !== undefined ? options.runner : process.platform === "win32" ? createWindowsRunner(root) : null;
     const manager = new VirtualDiskManager(root, runner);
     let pack: AbortController | null = null;
+    /** Map disks mounted this session, watched so a render never stops for space. */
+    const mapWatches = new Map<string, { timer: ReturnType<typeof setInterval>; size: number }>();
 
     ipcMain.handle("vdisk:status", async () => await manager.status());
     ipcMain.handle("vdisk:list", async () => await manager.list());
@@ -66,14 +68,27 @@ export function registerVirtualDiskHandlers(
         pack?.abort();
         return pack !== null;
     });
-    ipcMain.handle("vdisk:prepareMapDisk", async (_event, vhdx: unknown, sizeBytes: unknown) =>
-        typeof vhdx === "string" && typeof sizeBytes === "number" ? await manager.prepareMapDisk(vhdx, sizeBytes) : { ok: false, mount: null, message: "Choose where the map disk goes." },
-    );
+    ipcMain.handle("vdisk:prepareMapDisk", async (_event, vhdx: unknown, sizeBytes: unknown) => {
+        if (typeof vhdx !== "string" || typeof sizeBytes !== "number") return { ok: false, mount: null, message: "Choose where the map disk goes." };
+        const result = await manager.prepareMapDisk(vhdx, sizeBytes);
+        if (result.ok && result.mount && !mapWatches.has(vhdx)) {
+            const mount = result.mount;
+            const watch = { size: sizeBytes, timer: setInterval(() => {
+                void manager.growMapDiskIfNeeded(vhdx, mount, watch.size).then((grown) => {
+                    if (grown !== null) watch.size = grown;
+                });
+            }, 60_000) };
+            watch.timer.unref?.();
+            mapWatches.set(vhdx, watch);
+        }
+        return result;
+    });
 
     return {
         manager,
         dispose: () => {
             pack?.abort();
+            for (const watch of mapWatches.values()) clearInterval(watch.timer);
             for (const channel of VDISK_CHANNELS) ipcMain.removeHandler(channel);
         },
     };

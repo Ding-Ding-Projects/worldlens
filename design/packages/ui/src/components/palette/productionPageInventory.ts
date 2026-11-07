@@ -21,6 +21,7 @@ export const PRODUCTION_APP_PAGE_IDS = [
     "remoteHosting",
     "dockerHosting",
     "screenshots",
+    "virtualDisks",
 ] as const;
 
 export function assertProductionPageIds(
