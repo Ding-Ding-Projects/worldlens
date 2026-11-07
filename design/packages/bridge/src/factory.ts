@@ -1116,6 +1116,24 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
 
+        vdisk: {
+            status: () => transport.invoke("vdisk:status"),
+            list: () => transport.invoke("vdisk:list"),
+            history: () => transport.invoke("vdisk:history"),
+            addToLibrary: (paths: unknown) => transport.invoke("vdisk:addToLibrary", paths),
+            removeFromLibrary: (target: unknown) => transport.invoke("vdisk:removeFromLibrary", target),
+            script: (request: unknown) => transport.invoke("vdisk:script", request),
+            run: (request: unknown) => transport.invoke("vdisk:run", request),
+            quickPack: (sources: unknown) => transport.invoke("vdisk:quickPack", sources),
+            cancelPack: () => transport.invoke("vdisk:cancelPack"),
+            prepareMapDisk: (vhdx: unknown, sizeBytes: unknown) => transport.invoke("vdisk:prepareMapDisk", vhdx, sizeBytes),
+            onProgress: (listener: BridgeListener) => {
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
+                transport.on("vdisk:progress", forward);
+                return () => transport.off("vdisk:progress", forward);
+            },
+        },
+
         converter: {
             catalog: () => transport.invoke("converter:catalog"),
             inspect: (path: unknown) => transport.invoke("converter:inspect", path),

@@ -228,6 +228,12 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
     ),
     runtime: optIn("docker-socket", "Probing the Docker daemon needs its socket."),
 
+    vdisk: refused(
+        "Virtual disks attach to the Windows computer running the desktop app. A container has no " +
+            "Windows disk service, and attaching a disk on the server would put it on the wrong machine.",
+        "Use the Virtual disks job in the desktop app on Windows.",
+    ),
+
     managedHosting: refused(
         "Hosting another map from inside a hosted deployment would reach the Docker daemon, the " +
             "render storage and the operating-system credential store of the machine this " +

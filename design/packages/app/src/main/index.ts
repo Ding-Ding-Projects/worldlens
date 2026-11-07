@@ -191,6 +191,7 @@ import { registerAddonHandlers } from "./addons/index.js";
 import type { AddonIpc } from "./addons/index.js";
 import { registerVocabularyHandlers } from "./vocabulary/index.js";
 import { registerConverterHandlers, type ConverterIpc } from "./converter/index.js";
+import { registerVirtualDiskHandlers, type VirtualDiskIpc } from "./vdisk/ipc.js";
 import { registerOllamaHandlers, type OllamaIpc } from "./ollama/index.js";
 import { registerRuntimeSettingsHandlers } from "./runtimeSettings/ipc.js";
 import type { RuntimeSettingsIpc } from "./runtimeSettings/ipc.js";
@@ -514,6 +515,7 @@ let generationIpc: { dispose(): void } | null = null;
 let botIpc: { dispose(): void } | null = null;
 let managedHostingIpc: { dispose(): void } | null = null;
 let converterIpc: ConverterIpc | null = null;
+let vdiskIpc: VirtualDiskIpc | null = null;
 let ollamaIpc: OllamaIpc | null = null;
 let runtimeSettingsIpc: RuntimeSettingsIpc | null = null;
 let runtimeSourceRegistry: RuntimeSourceRegistry | null = null;
@@ -716,6 +718,11 @@ function registerIpc(): void {
             : {}),
     });
     app.on("will-quit", () => converterIpc?.dispose());
+    // The virtual disk manager: VHD, VHDX, VHD Set and ISO, Quick pack and render-into-VHDX.
+    // Registered everywhere so a non-Windows build answers with the Windows requirement
+    // instead of a missing channel.
+    vdiskIpc = registerVirtualDiskHandlers(ipcMain, { dataDir: app.getPath("userData") });
+    app.on("will-quit", () => vdiskIpc?.dispose());
     ollamaIpc = registerOllamaHandlers(ipcMain, { dataDir: app.getPath("userData") });
     app.on("will-quit", () => ollamaIpc?.dispose());
 

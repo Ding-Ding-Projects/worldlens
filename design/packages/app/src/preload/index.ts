@@ -2522,6 +2522,19 @@ interface AddonsBridge {
 }
 
 interface WorldlensBridge {
+    vdisk: {
+        status(): Promise<unknown>;
+        list(): Promise<unknown>;
+        history(): Promise<unknown>;
+        addToLibrary(paths: readonly string[]): Promise<unknown>;
+        removeFromLibrary(path: string): Promise<unknown>;
+        script(request: unknown): Promise<unknown>;
+        run(request: unknown): Promise<unknown>;
+        quickPack(sources: readonly string[]): Promise<unknown>;
+        cancelPack(): Promise<unknown>;
+        prepareMapDisk(vhdx: string, sizeBytes: number): Promise<unknown>;
+        onProgress(listener: (progress: unknown) => void): () => void;
+    };
     converter: {
         catalog(): Promise<unknown>;
         inspect(path: string): Promise<unknown>;
