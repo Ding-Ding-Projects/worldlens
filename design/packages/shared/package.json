@@ -23,6 +23,14 @@
             "types": "./dist/vocabulary.d.ts",
             "import": "./dist/vocabulary.js"
         },
+        "./virtualDisk": {
+            "types": "./dist/virtualDisk.d.ts",
+            "import": "./dist/virtualDisk.js"
+        },
+        "./base64": {
+            "types": "./dist/base64.d.ts",
+            "import": "./dist/base64.js"
+        },
         "./dist/*": "./dist/*"
     }
 }
