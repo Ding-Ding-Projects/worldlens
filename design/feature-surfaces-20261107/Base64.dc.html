@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Base64 toolkit</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0E11}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+textarea::placeholder{color:#8C9199}
+</style>
+</helmet>
+<div style="min-height: 800px; box-sizing: border-box; padding: 32px; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif; display: flex; flex-direction: column; gap: 20px">
+  <header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <h1 style="margin: 0; font-size: 32px; font-weight: 400">Base64</h1>
+      <p style="margin: 0; font-size: 14px; color: #C2C7CF">Encode and decode text or files on this computer. Nothing is uploaded.</p>
+    </div>
+    <div role="radiogroup" aria-label="Direction" style="display: flex; border: 1px solid #8C9199; border-radius: 20px; overflow: hidden">
+      <sc-for list="{{modes}}" as="m" hint-placeholder-count="2">
+        <button role="radio" aria-checked="{{m.on}}" onClick="{{m.pick}}" style="{{m.style}}">{{m.label}}</button>
+      </sc-for>
+    </div>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; gap: 8px">
+    <label style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; background: #1D2024; font-size: 14px">Alphabet
+      <select style="border: 0; background: transparent; color: #E1E2E8; font: 500 14px Roboto, sans-serif"><option>Standard</option><option>URL-safe</option><option>MIME (76 per line)</option></select></label>
+    <label style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; background: #1D2024; font-size: 14px">Text encoding
+      <select style="border: 0; background: transparent; color: #E1E2E8; font: 500 14px Roboto, sans-serif"><option>UTF-8</option><option>UTF-16 LE</option><option>Latin-1</option></select></label>
+    <label style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; background: #1D2024; font-size: 14px"><input type="checkbox" checked style="accent-color: #8FCDFF; width: 18px; height: 18px">Padding</label>
+    <label style="display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border-radius: 12px; background: #1D2024; font-size: 14px"><input type="checkbox" checked style="accent-color: #8FCDFF; width: 18px; height: 18px">Strict decoding</label>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; flex: 1">
+    <label style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 20px; background: #191C20; min-height: 280px">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: .5px; color: #C2C7CF">{{inLabel}}</span>
+      <textarea onInput="{{onInput}}" style="flex: 1; min-height: 200px; resize: vertical; border: 0; outline: 0; background: transparent; color: #E1E2E8; font: 400 15px/22px 'Roboto Mono', monospace">{{input}}</textarea>
+    </label>
+    <div style="display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: 20px; background: #191C20; min-height: 280px">
+      <span style="font-size: 12px; font-weight: 500; letter-spacing: .5px; color: #C2C7CF">{{outLabel}}</span>
+      <output style="flex: 1; word-break: break-all; font: 400 15px/22px 'Roboto Mono', monospace; color: {{outColor}}">{{output}}</output>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end">
+        <button style="height: 40px; padding: 0 16px; border: 0; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Copy as data: URL</button>
+        <button style="height: 40px; padding: 0 20px; border: 0; border-radius: 20px; background: #384956; color: #D3E5F5; font: 500 14px Roboto, sans-serif">Copy</button>
+      </div>
+    </div>
+  </div>
+  <section aria-label="Files" style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 20px; border: 2px dashed #42474E; border-radius: 20px">
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#8FCDFF" stroke-width="1.8" aria-hidden="true"><path d="M12 15V3M7 8l5-5 5 5"></path><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"></path></svg>
+    <div style="flex: 1 1 260px; display: flex; flex-direction: column; gap: 4px">
+      <strong style="font-size: 16px; font-weight: 500">Drop a file to encode it beside itself</strong>
+      <span style="font-size: 13px; color: #C2C7CF">level.dat becomes level.dat.base64.txt in the same folder. Drop that text file to get level.dat back. Nothing is ever overwritten.</span>
+    </div>
+    <div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 6px">
+      <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-family: 'Roboto Mono', monospace">r.0.0.mca</span><span style="color: #C2C7CF">62% · 7.9 of 12.7 MB</span></div>
+      <div role="progressbar" aria-valuenow="62" aria-valuemin="0" aria-valuemax="100" aria-label="Encoding r.0.0.mca" style="height: 4px; border-radius: 2px; background: #323539"><div style="width: 62%; height: 4px; border-radius: 2px; background: #8FCDFF"></div></div>
+      <div style="display: flex; gap: 8px; justify-content: flex-end"><button style="height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: transparent; color: #8FCDFF; font: 500 13px Roboto, sans-serif">Pause</button><button style="height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: transparent; color: #FFB4AB; font: 500 13px Roboto, sans-serif">Cancel</button></div>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { mode: 'Encode', input: 'Bayville spawn: 128, 64, -42' }; }
+  renderVals() {
+    const s = this.state;
+    let output = '', bad = false;
+    try {
+      if (s.mode === 'Encode') { output = btoa(unescape(encodeURIComponent(s.input))); }
+      else { output = decodeURIComponent(escape(atob(s.input.trim()))); }
+    } catch (e) {
+      bad = true;
+      const i = s.input.search(/[^A-Za-z0-9+/=\s]/);
+      output = i >= 0 ? 'Not Base64: character ' + (i + 1) + ' is "' + s.input[i] + '".' : 'Not Base64: the length is not a multiple of four.';
+    }
+    const modes = ['Encode', 'Decode'].map((label) => ({ label, on: s.mode === label ? 'true' : 'false',
+      pick: () => this.setState({ mode: label, input: label === s.mode ? s.input : output && !bad ? output : '' }),
+      style: 'height:40px;padding:0 20px;border:0;font:500 14px Roboto,sans-serif;background:' + (s.mode === label ? '#384956' : 'transparent') + ';color:' + (s.mode === label ? '#D3E5F5' : '#C2C7CF') }));
+    return { modes, input: s.input, output, onInput: (e) => this.setState({ input: e.target.value }),
+      inLabel: s.mode === 'Encode' ? 'TEXT' : 'BASE64', outLabel: s.mode === 'Encode' ? 'BASE64' : 'TEXT', outColor: bad ? '#FFB4AB' : '#E1E2E8' };
+  }
+}
+</script>
+</body>
+</html>

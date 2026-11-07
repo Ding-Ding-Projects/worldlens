@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live chart and release notes</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0E11}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+@keyframes wlpulse{0%{r:5;opacity:.9}100%{r:16;opacity:0}}
+.wl-pulse{animation:wlpulse 1.6s cubic-bezier(.2,0,0,1) infinite}
+@media (prefers-reduced-motion: reduce){.wl-pulse{animation:none;opacity:0}}
+</style>
+</helmet>
+<div style="min-height: 800px; box-sizing: border-box; padding: 32px; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif; display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 20px; align-content: start">
+  <section aria-label="Server ticks per second" style="grid-column: 1 / -1; display: flex; flex-direction: column; gap: 12px; padding: 24px; border-radius: 28px; background: #191C20">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 12px">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 500; color: #C2C7CF">Bayville server · ticks per second</h2>
+        <span style="font-size: 45px; line-height: 52px; font-weight: 400">{{current}}</span>
+      </div>
+      <span style="display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 12px; border-radius: 14px; background: #004B73; color: #CEE5FF; font-size: 13px"><span style="width: 8px; height: 8px; border-radius: 50%; background: #8FCDFF"></span>Live · every 2 s</span>
+    </div>
+    <svg role="img" aria-label="{{summary}}" viewBox="0 0 1000 220" preserveAspectRatio="none" style="width: 100%; height: 220px; display: block">
+      <defs><linearGradient id="wlfill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#8FCDFF" stop-opacity=".35"></stop><stop offset="1" stop-color="#8FCDFF" stop-opacity="0"></stop></linearGradient></defs>
+      <path d="M0 55H1000M0 110H1000M0 165H1000" stroke="#272A2E" stroke-width="1"></path>
+      <path d="{{area}}" fill="url(#wlfill)"></path>
+      <path d="{{line}}" fill="none" stroke="#8FCDFF" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></path>
+      <path d="M{{scrubX}} 0V220" stroke="#8C9199" stroke-dasharray="4 4"></path>
+      <circle cx="{{lastX}}" cy="{{lastY}}" r="5" fill="#8FCDFF" class="wl-pulse"></circle>
+      <circle cx="{{lastX}}" cy="{{lastY}}" r="5" fill="#8FCDFF"></circle>
+    </svg>
+    <label style="display: flex; align-items: center; gap: 12px; font-size: 13px; color: #C2C7CF">Scrub
+      <input type="range" min="0" max="29" value="{{scrub}}" onInput="{{onScrub}}" style="flex: 1; accent-color: #8FCDFF">
+      <output style="font-family: 'Roboto Mono', monospace; color: #E1E2E8; min-width: 150px">{{scrubText}}</output>
+    </label>
+  </section>
+  <section aria-label="Release notes" style="display: flex; flex-direction: column; gap: 12px; padding: 24px; border-radius: 28px; background: #191C20">
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+      <h2 style="margin: 0; font-size: 22px; font-weight: 400">What's new in 1.0.2140</h2>
+      <span style="font-size: 12px; color: #8C9199">From GitHub, shown safely</span>
+    </div>
+    <div role="region" aria-label="Release notes for 1.0.2140" style="padding: 16px; border-radius: 16px; background: #101418; font-size: 14px; line-height: 22px">
+      <h3 style="margin: 0 0 8px; font-size: 16px; font-weight: 500">Map viewer</h3>
+      <ul style="margin: 0 0 12px; padding-left: 20px"><li>Spawn rings now follow the <code style="font-family: 'Roboto Mono', monospace; background: #272A2E; padding: 1px 6px; border-radius: 4px">spawn</code> layer</li><li>Fixed the Nether roof showing through <a href="#">#212</a></li></ul>
+      <p style="margin: 0">Thanks to everyone who tested the snapshot builds 🎉</p>
+    </div>
+  </section>
+  <section aria-label="Settings with info buttons" style="display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 28px; background: #191C20">
+    <h2 style="margin: 0; font-size: 22px; font-weight: 400">Render settings</h2>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <button onClick="{{toggleInfo}}" aria-expanded="{{infoOpen}}" aria-label="About render distance" style="align-self: flex-start; width: 32px; height: 32px; border: 0; border-radius: 16px; background: transparent; color: #8FCDFF; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg></button>
+      <label style="display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 14px">Render distance<select style="height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>12 chunks</option><option>16 chunks</option></select></label>
+      <sc-if value="{{infoShown}}" hint-placeholder-val="{{true}}">
+        <div style="margin-top: 8px; padding: 14px; border-radius: 12px; background: #272A2E; font-size: 13px; line-height: 20px; color: #C2C7CF">How far from each player the map is drawn. Try it: 12 chunks covers 192 blocks each way. The example below changes nothing on your server.</div>
+      </sc-if>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto">
+      <button style="height: 40px; padding: 0 16px; border: 1px solid #8C9199; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Open folder in editor</button>
+      <button style="height: 40px; padding: 0 20px; border: 0; border-radius: 20px; background: #384956; color: #D3E5F5; font: 500 14px Roboto, sans-serif">Open in VS Code</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { scrub: 29, info: true }; }
+  renderVals() {
+    const vals = [20,20,19.8,19.9,20,20,19.4,18.6,18.9,19.7,20,20,19.9,20,19.5,19.8,20,20,20,19.9,19.2,18.4,18.8,19.6,20,20,19.9,20,19.8,19.9];
+    const y = (v) => 220 - ((v - 17) / 3.5) * 200;
+    const pts = vals.map((v, i) => [(i / (vals.length - 1)) * 990, y(v)]);
+    const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+    const last = pts[pts.length - 1];
+    const sp = pts[this.state.scrub];
+    const secs = (29 - this.state.scrub) * 2;
+    return { line, area: line + ' L990 220 L0 220 Z', lastX: last[0], lastY: last[1], scrub: this.state.scrub, scrubX: sp[0].toFixed(1),
+      scrubText: (secs ? secs + ' s ago' : 'now') + ' · ' + vals[this.state.scrub].toFixed(1) + ' TPS',
+      onScrub: (e) => this.setState({ scrub: Number(e.target.value) }),
+      current: vals[vals.length - 1].toFixed(1), summary: 'Ticks per second over the last minute, between 18.4 and 20.0, now 19.9',
+      infoOpen: this.state.info ? 'true' : 'false', infoShown: this.state.info, toggleInfo: () => this.setState({ info: !this.state.info }) };
+  }
+}
+</script>
+</body>
+</html>

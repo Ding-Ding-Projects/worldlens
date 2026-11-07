@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Worldlens extensions</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0E11}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+input::placeholder{color:#8C9199}
+</style>
+</helmet>
+<div style="min-height: 800px; display: flex; flex-wrap: wrap; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif">
+  <nav aria-label="Application rail" style="flex: 0 0 80px; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px 0; background: #101418">
+    <div style="width: 40px; height: 40px; border-radius: 12px; background: #004B73; display: flex; align-items: center; justify-content: center; margin-bottom: 12px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#CEE5FF" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"></path></svg>
+    </div>
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: #C2C7CF; font-size: 12px">
+      <span style="width: 56px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"></path></svg></span>Home</a>
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: #C2C7CF; font-size: 12px">
+      <span style="width: 56px; height: 32px; border-radius: 16px; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 4l-6 3v13l6-3 6 3 6-3V4l-6 3z"></path><path d="M9 4v13M15 7v13"></path></svg></span>Map</a>
+    <a href="#" style="display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: #E1E2E8; font-size: 12px; font-weight: 500">
+      <span style="width: 56px; height: 32px; border-radius: 16px; background: #384956; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#D3E5F5" stroke-width="2" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg></span>Work</a>
+  </nav>
+  <main style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+    <div role="tablist" aria-label="Open jobs" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 16px 0; background: #101418">
+      <button role="tab" aria-selected="false" style="height: 36px; padding: 0 16px; border: 0; border-radius: 12px 12px 0 0; background: transparent; color: #C2C7CF; font: 500 14px Roboto, sans-serif">Bayville map</button>
+      <button role="tab" aria-selected="true" style="height: 36px; padding: 0 16px; border: 0; border-radius: 12px 12px 0 0; background: #0B0E11; color: #E1E2E8; font: 500 14px Roboto, sans-serif">Extensions</button>
+      <button role="tab" aria-selected="false" style="height: 36px; padding: 0 16px; border: 0; border-radius: 12px 12px 0 0; background: transparent; color: #C2C7CF; font: 500 14px Roboto, sans-serif">Base64</button>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; padding: 32px; align-items: flex-start">
+      <section style="flex: 999 1 520px; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+        <header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <h1 style="margin: 0; font-size: 32px; font-weight: 400; line-height: 40px">Extensions</h1>
+            <p style="margin: 0; font-size: 14px; color: #C2C7CF; max-width: 520px">Small programs that add map layers, render steps and server actions. Each runs in its own process and asks before it uses anything new.</p>
+          </div>
+          <button style="height: 40px; padding: 0 20px; border: 1px solid #8C9199; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Add from folder</button>
+        </header>
+        <label style="display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 16px; border-radius: 28px; background: #1D2024">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C2C7CF" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          <span style="position: absolute; left: -9999px">Search extensions</span>
+          <input value="{{query}}" onInput="{{onQuery}}" placeholder="Search extensions, permissions or authors" style="flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #E1E2E8; font: 400 16px Roboto, sans-serif">
+          <button aria-label="Build a pattern" style="height: 32px; padding: 0 12px; border: 0; border-radius: 8px; background: #272A2E; color: #C2C7CF; font: 500 13px 'Roboto Mono', monospace">.*</button>
+        </label>
+        <div role="group" aria-label="Filter" style="display: flex; flex-wrap: wrap; gap: 8px">
+          <sc-for list="{{filters}}" as="f" hint-placeholder-count="4">
+            <button onClick="{{f.pick}}" aria-pressed="{{f.on}}" style="{{f.style}}">{{f.label}}</button>
+          </sc-for>
+        </div>
+        <ul style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; border-radius: 16px; overflow: hidden">
+          <sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+            <li style="{{r.rowStyle}}">
+              <button onClick="{{r.pick}}" style="flex: 1; min-width: 0; display: flex; align-items: center; gap: 16px; border: 0; background: transparent; color: inherit; text-align: left; padding: 0; font: inherit">
+                <span style="width: 40px; height: 40px; flex: 0 0 40px; border-radius: 12px; background: {{r.tint}}; display: flex; align-items: center; justify-content: center; color: #0B0E11; font-weight: 700">{{r.initial}}</span>
+                <span style="display: flex; flex-direction: column; gap: 2px; min-width: 0">
+                  <span style="font-size: 16px; font-weight: 500">{{r.name}}</span>
+                  <span style="font-size: 13px; color: #C2C7CF">{{r.meta}}</span>
+                </span>
+              </button>
+              <sc-if value="{{r.needsConsent}}" hint-placeholder-val="{{false}}">
+                <span style="height: 24px; padding: 0 10px; border-radius: 12px; background: #4E4161; color: #EDDCFF; font-size: 12px; display: flex; align-items: center">Asks for 1 new permission</span>
+              </sc-if>
+              <button role="switch" aria-checked="{{r.on}}" aria-label="{{r.switchLabel}}" onClick="{{r.toggle}}" style="{{r.switchStyle}}"><span style="{{r.knobStyle}}"></span></button>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+      <aside aria-label="Extension details" style="flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 28px; background: #191C20">
+        <div style="display: flex; align-items: center; gap: 12px">
+          <span style="width: 48px; height: 48px; border-radius: 14px; background: #D1BFE7; display: flex; align-items: center; justify-content: center; color: #0B0E11; font-weight: 700; font-size: 20px">S</span>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <h2 style="margin: 0; font-size: 22px; font-weight: 400">Spawn ring overlay</h2>
+            <span style="font: 400 13px 'Roboto Mono', monospace; color: #C2C7CF">v1.3.0 · manifest 1</span>
+          </div>
+        </div>
+        <p style="margin: 0; font-size: 14px; line-height: 20px; color: #C2C7CF">Draws a ring at each world spawn and marks chunks that stay loaded.</p>
+        <div style="display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 16px; background: #272A2E">
+          <h3 style="margin: 0; font-size: 14px; font-weight: 500; color: #EDDCFF">Version 1.3.0 wants one more permission</h3>
+          <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+            <li style="display: flex; gap: 10px; align-items: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8FCDFF" stroke-width="2" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Read the open world's region list <span style="color: #8C9199">· allowed</span></li>
+            <li style="display: flex; gap: 10px; align-items: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D1BFE7" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16h.01"></path></svg>Add a layer to the map viewer <span style="color: #EDDCFF">· new</span></li>
+          </ul>
+          <p style="margin: 0; font-size: 13px; color: #C2C7CF">It never sees sign-ins, tokens or file contents outside the world folder. Each call stops after 5 seconds or 1 MB.</p>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end">
+            <button onClick="{{decline}}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Keep 1.2.4</button>
+            <button onClick="{{allow}}" style="height: 40px; padding: 0 20px; border: 0; border-radius: 20px; background: #8FCDFF; color: #003351; font: 500 14px Roboto, sans-serif">{{allowLabel}}</button>
+          </div>
+        </div>
+        <a href="#" style="font-size: 14px">Write your own extension</a>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { query: '', filter: 'All', on: { a: true, b: true, c: false, d: true }, allowed: false }; }
+  renderVals() {
+    const s = this.state;
+    const data = [
+      { id: 'a', name: 'Render queue notifier', meta: 'Built in · notifies when a render finishes', tint: '#8FCDFF', builtIn: true },
+      { id: 'b', name: 'Spawn ring overlay', meta: 'v1.3.0 · adds a map layer', tint: '#D1BFE7', builtIn: false, consent: true },
+      { id: 'c', name: 'Region size report', meta: 'Built in · lists the heaviest region files', tint: '#B7C9D9', builtIn: true },
+      { id: 'd', name: 'Server backup reminder', meta: 'v0.9.1 · reads server schedules', tint: '#FFB4AB', builtIn: false }
+    ];
+    const q = s.query.toLowerCase();
+    const rows = data.filter((d) => (!q || (d.name + d.meta).toLowerCase().includes(q))
+      && (s.filter === 'All' || (s.filter === 'Built in' && d.builtIn) || (s.filter === 'Enabled' && s.on[d.id]) || (s.filter === 'Needs consent' && d.consent && !s.allowed)))
+      .map((d) => {
+        const on = !!s.on[d.id];
+        return { ...d, initial: d.name[0], on: on ? 'true' : 'false', switchLabel: (on ? 'Turn off ' : 'Turn on ') + d.name,
+          needsConsent: !!d.consent && !s.allowed,
+          rowStyle: 'display:flex;align-items:center;gap:16px;min-height:72px;padding:0 20px;background:' + (d.id === 'b' ? '#272A2E' : '#191C20'),
+          switchStyle: 'width:52px;height:32px;flex:0 0 52px;border-radius:16px;padding:0;position:relative;border:2px solid ' + (on ? '#8FCDFF' : '#8C9199') + ';background:' + (on ? '#8FCDFF' : '#323539'),
+          knobStyle: 'position:absolute;top:50%;transform:translateY(-50%);left:' + (on ? '22px' : '4px') + ';width:' + (on ? '24px' : '16px') + ';height:' + (on ? '24px' : '16px') + ';border-radius:50%;background:' + (on ? '#003351' : '#8C9199') + ';transition:left 200ms cubic-bezier(.2,0,0,1)',
+          pick: () => {}, toggle: () => this.setState({ on: { ...s.on, [d.id]: !on } }) };
+      });
+    const filters = ['All', 'Enabled', 'Built in', 'Needs consent'].map((label) => {
+      const sel = s.filter === label;
+      return { label, on: sel ? 'true' : 'false', pick: () => this.setState({ filter: label }),
+        style: 'height:32px;padding:0 16px;border-radius:8px;font:500 14px Roboto,sans-serif;border:1px solid ' + (sel ? '#384956' : '#8C9199') + ';background:' + (sel ? '#384956' : 'transparent') + ';color:' + (sel ? '#D3E5F5' : '#C2C7CF') };
+    });
+    return { query: s.query, onQuery: (e) => this.setState({ query: e.target.value }), filters, rows,
+      allowLabel: s.allowed ? 'Allowed' : 'Allow and update', allow: () => this.setState({ allowed: true }), decline: () => this.setState({ allowed: false }) };
+  }
+}
+</script>
+</body>
+</html>

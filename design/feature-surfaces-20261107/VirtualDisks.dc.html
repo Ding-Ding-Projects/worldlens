@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Virtual disk manager</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0E11}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+</style>
+</helmet>
+<div style="min-height: 800px; box-sizing: border-box; padding: 32px; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif; display: flex; flex-direction: column; gap: 20px">
+  <header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <h1 style="margin: 0; font-size: 32px; font-weight: 400">Virtual disks</h1>
+      <p style="margin: 0; font-size: 14px; color: #C2C7CF">VHD, VHDX and ISO files on this PC. Every action shows the route it used and the script that does the same.</p>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; gap: 8px">
+      <button style="height: 40px; padding: 0 20px; border: 1px solid #8C9199; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Attach existing</button>
+      <button style="height: 40px; padding: 0 20px; border: 0; border-radius: 20px; background: #8FCDFF; color: #003351; font: 500 14px Roboto, sans-serif">Create disk</button>
+    </div>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+    <div style="flex: 999 1 520px; min-width: 0; overflow-x: auto; border-radius: 20px; background: #191C20">
+      <table style="width: 100%; min-width: 560px; border-collapse: collapse; font-size: 14px">
+        <caption style="position: absolute; left: -9999px">Known virtual disks</caption>
+        <thead><tr style="text-align: left; color: #C2C7CF; font-size: 12px; letter-spacing: .5px">
+          <th scope="col" style="padding: 14px 20px; font-weight: 500">FILE</th><th scope="col" style="padding: 14px 8px; font-weight: 500">TYPE</th><th scope="col" style="padding: 14px 8px; font-weight: 500">SIZE</th><th scope="col" style="padding: 14px 8px; font-weight: 500">STATE</th><th scope="col" style="padding: 14px 20px 14px 8px"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
+        <tbody>
+          <sc-for list="{{disks}}" as="d" hint-placeholder-count="3">
+            <tr style="{{d.rowStyle}}">
+              <td style="padding: 14px 20px"><button onClick="{{d.pick}}" style="border: 0; background: transparent; color: #E1E2E8; padding: 0; text-align: left; font: 500 14px 'Roboto Mono', monospace">{{d.name}}</button></td>
+              <td style="padding: 14px 8px; color: #C2C7CF">{{d.kind}}</td>
+              <td style="padding: 14px 8px; color: #C2C7CF">{{d.size}}</td>
+              <td style="padding: 14px 8px"><span style="{{d.badge}}">{{d.state}}</span></td>
+              <td style="padding: 14px 20px 14px 8px; text-align: right"><button onClick="{{d.toggle}}" style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">{{d.action}}</button></td>
+            </tr>
+          </sc-for>
+        </tbody>
+      </table>
+    </div>
+    <aside aria-label="Quick pack" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 28px; background: #1D2024">
+      <h2 style="margin: 0; font-size: 22px; font-weight: 400">Quick pack</h2>
+      <p style="margin: 0; font-size: 14px; color: #C2C7CF; line-height: 20px">Drop a world folder here. It is copied into a new VHDX beside it, sized to fit, then every file is checked by SHA-256. The folder itself is left alone.</p>
+      <div style="padding: 16px; border-radius: 16px; background: #272A2E; display: flex; flex-direction: column; gap: 8px">
+        <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-family: 'Roboto Mono', monospace">Bayville.vhdx</span><span style="color: #C2C7CF">Checking 1,204 of 1,880</span></div>
+        <div role="progressbar" aria-label="Checking Bayville.vhdx" aria-valuenow="64" aria-valuemin="0" aria-valuemax="100" style="height: 4px; border-radius: 2px; background: #323539"><div style="width: 64%; height: 4px; border-radius: 2px; background: #8FCDFF"></div></div>
+        <span style="font-size: 12px; color: #C2C7CF">Grew from 2.0 GB to 2.6 GB on its own when the files did not fit.</span>
+      </div>
+      <details style="font-size: 13px">
+        <summary style="cursor: pointer; color: #8FCDFF; font-weight: 500">Route: Mount-DiskImage, no Hyper-V needed</summary>
+        <pre style="margin: 10px 0 0; padding: 12px; border-radius: 12px; background: #0B0E11; color: #C2C7CF; font: 400 12px/18px 'Roboto Mono', monospace; white-space: pre-wrap">New-Item -Path . -Name Bayville.vhdx ...
+Mount-DiskImage -ImagePath .\Bayville.vhdx</pre>
+      </details>
+      <p style="margin: 0; font-size: 12px; color: #8C9199">Creating, growing and attaching ask Windows for permission each time.</p>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { attached: { a: true, b: false, c: false }, sel: 'a' }; }
+  renderVals() {
+    const s = this.state;
+    const list = [
+      { id: 'a', name: 'Bayville.vhdx', kind: 'VHDX dynamic', size: '2.6 GB' },
+      { id: 'b', name: 'Backups-2026.vhdx', kind: 'VHDX fixed', size: '40 GB' },
+      { id: 'c', name: 'server-1.21.iso', kind: 'ISO', size: '612 MB' }
+    ];
+    const disks = list.map((d) => {
+      const on = !!s.attached[d.id];
+      return { ...d, state: on ? 'Attached as E:' : 'Detached', action: on ? 'Detach' : 'Attach',
+        badge: 'display:inline-flex;height:24px;align-items:center;padding:0 10px;border-radius:12px;font-size:12px;background:' + (on ? '#004B73' : '#323539') + ';color:' + (on ? '#CEE5FF' : '#C2C7CF'),
+        rowStyle: 'border-top:1px solid #272A2E;background:' + (s.sel === d.id ? '#272A2E' : 'transparent'),
+        pick: () => this.setState({ sel: d.id }), toggle: () => this.setState({ attached: { ...s.attached, [d.id]: !on } }) };
+    });
+    return { disks };
+  }
+}
+</script>
+</body>
+</html>
