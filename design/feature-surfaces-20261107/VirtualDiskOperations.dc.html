@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Virtual disk operations</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0E11}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+</style>
+</helmet>
+<div style="min-height: 1000px; box-sizing: border-box; padding: 28px 32px; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif; display: flex; flex-direction: column; gap: 18px">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px">
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span style="font-size: 13px; color: #C2C7CF">Virtual disks › <span style="font-family: 'Roboto Mono', monospace; color: #E1E2E8">Bayville.vhdx</span> · VHDX dynamic · 64 GB · attached as E:</span>
+      <h1 style="margin: 0; font-size: 28px; font-weight: 400">{{title}}</h1>
+    </div>
+    <button style="height: 40px; padding: 0 16px; border: 0; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Back to library</button>
+  </header>
+  <div role="tablist" aria-label="Operation" style="display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid #272A2E">
+    <sc-for list="{{tabs}}" as="t" hint-placeholder-count="9">
+      <button role="tab" aria-selected="{{t.on}}" onClick="{{t.pick}}" style="{{t.style}}">{{t.label}}</button>
+    </sc-for>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+    <section style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 28px; background: #191C20">
+      <sc-if value="{{isResize}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; gap: 16px">
+          <div role="radiogroup" aria-label="Direction" style="display: flex; align-self: flex-start; border: 1px solid #8C9199; border-radius: 20px; overflow: hidden">
+            <sc-for list="{{dirs}}" as="d" hint-placeholder-count="2"><button role="radio" aria-checked="{{d.on}}" onClick="{{d.pick}}" style="{{d.style}}">{{d.label}}</button></sc-for>
+          </div>
+          <label style="display: flex; flex-direction: column; gap: 8px; font-size: 14px">New virtual size
+            <div style="display: flex; align-items: center; gap: 14px">
+              <input type="range" min="{{min}}" max="{{max}}" value="{{size}}" onInput="{{onSize}}" style="flex: 1; accent-color: #8FCDFF">
+              <output style="min-width: 96px; padding: 8px 12px; border-radius: 8px; background: #101418; font: 500 16px 'Roboto Mono', monospace; text-align: right">{{size}} GB</output>
+            </div>
+          </label>
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #8C9199"><span>{{minLabel}}</span><span>{{maxLabel}}</span></div>
+          <div aria-label="Partition map after the change" style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; height: 32px; border-radius: 8px; overflow: hidden; font-size: 12px">
+              <span style="flex: 0 0 3%; background: #4E4161"></span><span style="flex: 0 0 1%; background: #384956"></span>
+              <span style="flex: 1 1 auto; background: #8FCDFF; color: #003351; display: flex; align-items: center; padding-left: 10px; font-weight: 500">E: NTFS · {{volSize}} GB</span>
+              <span style="flex: 0 0 {{freePct}}; background: #272A2E"></span>
+            </div>
+            <label style="display: flex; gap: 10px; align-items: center; font-size: 14px"><input type="checkbox" checked style="accent-color: #8FCDFF; width: 18px; height: 18px">{{extendLabel}}</label>
+          </div>
+          <sc-if value="{{isShrink}}" hint-placeholder-val="{{false}}">
+            <div style="padding: 14px; border-radius: 16px; background: #4E4161; color: #EDDCFF; font-size: 13px; line-height: 20px">Shrinking moves nothing you can lose by itself, but a power cut mid-way can. Make a verified copy first? <button style="margin-left: 6px; height: 30px; padding: 0 12px; border: 0; border-radius: 15px; background: #EDDCFF; color: #4E4161; font: 500 13px Roboto, sans-serif">Copy and verify</button></div>
+          </sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{isCompact}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 10px">
+          <p style="margin: 0; font-size: 14px; color: #C2C7CF">Returns unused space to the host disk. 2.6 GB on disk now; about 1.9 GB after a Full pass.</p>
+          <sc-for list="{{modes}}" as="m" hint-placeholder-count="5">
+            <label style="{{m.style}}"><input type="radio" name="mode" checked="{{m.on}}" onChange="{{m.pick}}" style="accent-color: #8FCDFF; width: 18px; height: 18px; margin-top: 2px"><span style="display: flex; flex-direction: column; gap: 2px"><strong style="font-weight: 500">{{m.label}}</strong><span style="font-size: 13px; color: #C2C7CF">{{m.help}}</span></span></label>
+          </sc-for>
+          <p style="margin: 0; font-size: 13px; color: #C2C7CF">E: is detached for Full and attached read-only for Quick, then put back the way it was.</p>
+        </div>
+      </sc-if>
+      <sc-if value="{{isConvert}}" hint-placeholder-val="{{false}}">
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; font-size: 14px">
+          <label style="display: flex; flex-direction: column; gap: 6px">Format<select style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>VHDX</option><option>VHD (2,040 GB at most)</option><option>VHD Set</option></select></label>
+          <label style="display: flex; flex-direction: column; gap: 6px">Type<select style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>Fixed</option><option>Dynamic</option></select></label>
+          <label style="display: flex; flex-direction: column; gap: 6px">Block size<select style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>32 MB</option><option>1 MB</option><option>256 MB</option></select></label>
+          <label style="display: flex; flex-direction: column; gap: 6px">Save as<input value="D:\Worlds\Bayville-fixed.vhdx" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 13px 'Roboto Mono', monospace"></label>
+          <label style="grid-column: 1 / -1; display: flex; gap: 10px; align-items: center"><input type="checkbox" style="accent-color: #8FCDFF; width: 18px; height: 18px">Delete the original after the new file is verified</label>
+          <p style="grid-column: 1 / -1; margin: 0; font-size: 13px; color: #C2C7CF">Needs 64 GB free on D:. 212 GB free. The original stays until the copy is checked.</p>
+        </div>
+      </sc-if>
+      <sc-if value="{{isMerge}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14px">
+          <p style="margin: 0; color: #C2C7CF">Merge <span style="font-family: 'Roboto Mono', monospace; color: #E1E2E8">Bayville-plugins.avhdx</span> into</p>
+          <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 16px; background: #101418; font-family: 'Roboto Mono', monospace; font-size: 13px">
+            <span>Bayville.vhdx</span><span style="padding-left: 18px; color: #8FCDFF">└ Bayville-test.avhdx  ← merge target</span><span style="padding-left: 36px">└ Bayville-plugins.avhdx</span>
+          </div>
+          <div style="padding: 14px; border-radius: 16px; background: #93000A; color: #FFDAD6; font-size: 13px; line-height: 20px">These stop working after the merge: <strong>Bayville-test-2.avhdx</strong> (a sibling made from Bayville-test.avhdx on 6 Nov). Merging needs both keys.</div>
+        </div>
+      </sc-if>
+      <sc-if value="{{isSet}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+          <p style="margin: 0; color: #C2C7CF">servers.vhds · 3 checkpoints · active leaf: before-1.21</p>
+          <sc-for list="{{checkpoints}}" as="c" hint-placeholder-count="3">
+            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; background: #101418"><span style="flex: 1; font-family: 'Roboto Mono', monospace">{{c.n}}</span><span style="color: #8C9199; font-size: 13px">{{c.t}}</span><button style="height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">Apply</button><button style="height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">Attach</button><button style="height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: transparent; color: #FFB4AB; font: 500 13px Roboto, sans-serif">Delete</button></div>
+          </sc-for>
+          <button style="align-self: flex-start; height: 40px; padding: 0 16px; border: 1px solid #8C9199; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Take checkpoint</button>
+        </div>
+      </sc-if>
+      <sc-if value="{{isIdentity}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 14px">
+          <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; padding: 14px; border-radius: 14px; background: #101418"><span>Disk identifier <span style="font-family: 'Roboto Mono', monospace; color: #C2C7CF">{6C1E41B2-9A0F-4D7E-8C11-5B0A2F9E77D3}</span></span><button style="height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">New identifier</button></div>
+          <table style="border-collapse: collapse; font-size: 13px"><caption style="text-align: left; padding-bottom: 6px; color: #C2C7CF">Custom metadata</caption><tbody>
+            <tr style="border-top: 1px solid #272A2E"><td style="padding: 8px; font-family: 'Roboto Mono', monospace">world.seed</td><td style="padding: 8px">20261023</td></tr>
+            <tr style="border-top: 1px solid #272A2E"><td style="padding: 8px; font-family: 'Roboto Mono', monospace">owner.note</td><td style="padding: 8px">Bayville main map</td></tr>
+          </tbody></table>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px"><button style="height: 36px; padding: 0 14px; border: 0; border-radius: 18px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">Start live mirror</button><button style="height: 36px; padding: 0 14px; border: 0; border-radius: 18px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">Show changed ranges</button></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{isDev}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+          <sc-for list="{{devChecks}}" as="c" hint-placeholder-count="4"><div style="display: flex; gap: 10px; align-items: center"><span style="{{c.dot}}"></span>{{c.t}}</div></sc-for>
+          <p style="margin: 0; font-size: 13px; color: #C2C7CF">Turning antivirus off applies to every Dev Drive on this PC and Microsoft calls it a security risk. It is never on by default.</p>
+        </div>
+      </sc-if>
+      <sc-if value="{{isBoot}}" hint-placeholder-val="{{false}}">
+        <div style="display: flex; flex-direction: column; gap: 10px; font-size: 14px">
+          <sc-for list="{{bootChecks}}" as="c" hint-placeholder-count="5"><div style="display: flex; gap: 10px; align-items: center"><span style="{{c.dot}}"></span>{{c.t}}</div></sc-for>
+          <p style="margin: 0; font-size: 13px; color: #C2C7CF">The boot store is exported before any change. Worldlens never restarts this PC; restart when you are ready.</p>
+        </div>
+      </sc-if>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; padding-top: 4px; border-top: 1px solid #272A2E">
+        <span style="flex: 1 1 220px; align-self: center; font-size: 13px; color: #C2C7CF">Windows asks for permission once.</span>
+        <button style="height: 40px; padding: 0 16px; border: 0; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Cancel</button>
+        <button style="{{runStyle}}">{{runLabel}}</button>
+      </div>
+    </section>
+    <aside aria-label="Route and script" style="flex: 1 1 400px; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 22px; border-radius: 28px; background: #1D2024">
+      <h2 style="margin: 0; font-size: 16px; font-weight: 500">Route</h2>
+      <div role="radiogroup" aria-label="Route" style="display: flex; flex-direction: column; gap: 6px">
+        <sc-for list="{{routes}}" as="r" hint-placeholder-count="3">
+          <button role="radio" aria-checked="{{r.on}}" onClick="{{r.pick}}" disabled="{{r.off}}" style="{{r.style}}"><span style="font-weight: 500">{{r.label}}</span><span style="font-size: 12px; color: #C2C7CF">{{r.note}}</span></button>
+        </sc-for>
+      </div>
+      <div style="display: flex; justify-content: space-between; align-items: center"><h2 style="margin: 0; font-size: 16px; font-weight: 500">Same thing as a script</h2><button style="height: 32px; padding: 0 12px; border: 0; border-radius: 16px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">Copy</button></div>
+      <pre style="margin: 0; padding: 14px; border-radius: 14px; background: #0B0E11; color: #C2C7CF; font: 400 12px/19px 'Roboto Mono', monospace; white-space: pre-wrap; overflow-wrap: anywhere">{{script}}</pre>
+      <h2 style="margin: 4px 0 0; font-size: 16px; font-weight: 500">Recent on this disk</h2>
+      <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #C2C7CF">
+        <li>Grew 48 → 64 GB · DiskPart · 6 Nov 21:10</li>
+        <li>Compact Quick · VirtDisk API · 2 Nov 18:02</li>
+      </ul>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { tab: 'Resize', dir: 'Grow', size: 80, route: 'diskpart', mode: 'Full' }; }
+  renderVals() {
+    const s = this.state;
+    const names = ['Resize', 'Compact', 'Convert', 'Chain and merge', 'VHD Set checkpoints', 'Identity and mirror', 'Dev Drive', 'Native boot'];
+    const tabs = names.map((label) => { const on = s.tab === label; return { label, on: on ? 'true' : 'false', pick: () => this.setState({ tab: label }),
+      style: 'height:44px;padding:0 14px;border:0;background:transparent;font:500 14px Roboto,sans-serif;border-bottom:3px solid ' + (on ? '#8FCDFF' : 'transparent') + ';color:' + (on ? '#8FCDFF' : '#C2C7CF') }; });
+    const shrink = s.dir === 'Shrink';
+    const min = shrink ? 5 : 65, max = shrink ? 63 : 256;
+    const size = Math.min(max, Math.max(min, s.size));
+    const dirs = ['Grow', 'Shrink'].map((label) => ({ label, on: s.dir === label ? 'true' : 'false', pick: () => this.setState({ dir: label, size: label === 'Shrink' ? 8 : 80 }),
+      style: 'height:40px;padding:0 20px;border:0;font:500 14px Roboto,sans-serif;background:' + (s.dir === label ? '#384956' : 'transparent') + ';color:' + (s.dir === label ? '#D3E5F5' : '#C2C7CF') }));
+    const routeDefs = {
+      Resize: [['virtdisk', 'VirtDisk API', shrink ? 'Shrinks to the size you pick, online' : 'Grows online', false], ['diskpart', 'DiskPart', shrink ? 'Cannot shrink a virtual disk' : 'expand vdisk, then extend', shrink], ['hyperv', 'Hyper-V module', 'Not installed on this PC', true]],
+      Compact: [['virtdisk', 'VirtDisk API', 'Every mode', false], ['diskpart', 'DiskPart', 'compact vdisk, Full only', false], ['hyperv', 'Hyper-V module', 'Not installed on this PC', true]],
+      def: [['virtdisk', 'VirtDisk API', 'Available', false], ['diskpart', 'DiskPart', 'Available', false], ['hyperv', 'Hyper-V module', 'Not installed on this PC', true]]
+    };
+    const defs = routeDefs[s.tab] || routeDefs.def;
+    let route = s.route; if ((defs.find((d) => d[0] === route) || [0, 0, 0, true])[3]) route = 'virtdisk';
+    const routes = defs.map((d) => ({ label: d[1], note: d[2], off: d[3], on: route === d[0] ? 'true' : 'false', pick: () => this.setState({ route: d[0] }),
+      style: 'display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:10px 14px;border-radius:14px;text-align:left;font:400 14px Roboto,sans-serif;color:' + (d[3] ? '#8C9199' : '#E1E2E8') + ';border:1px solid ' + (route === d[0] ? '#8FCDFF' : '#42474E') + ';background:' + (route === d[0] ? '#004B73' : 'transparent') }));
+    const f = 'D:\\Worlds\\Bayville.vhdx';
+    let script = '';
+    if (s.tab === 'Resize') {
+      if (shrink) {
+        script = 'Resize-Partition -DriveLetter E -Size ' + (size - 0.2).toFixed(1) + 'GB\n# Then ResizeVirtualDisk in virtdisk.dll (no Hyper-V needed).\n# With the Hyper-V module the same step is:\n# Resize-VHD -Path "' + f + '" -SizeBytes ' + size + 'GB';
+      } else {
+        script = route === 'diskpart' ? 'diskpart\nselect vdisk file="' + f + '"\nexpand vdisk maximum=' + size * 1024 + '\nattach vdisk\nselect volume E\nextend' :
+          '# ResizeVirtualDisk in virtdisk.dll, run by Worldlens (no Hyper-V needed)\n# Built-in equivalent:\ndiskpart\nselect vdisk file="' + f + '"\nexpand vdisk maximum=' + size * 1024 + '\n# then\n$max = (Get-PartitionSupportedSize -DriveLetter E).SizeMax\nResize-Partition -DriveLetter E -Size $max';
+      }
+    } else if (s.tab === 'Compact') {
+      script = route === 'diskpart' ? 'diskpart\nselect vdisk file="' + f + '"\nattach vdisk readonly\ncompact vdisk\ndetach vdisk' : '# CompactVirtualDisk in virtdisk.dll, ' + s.mode + ' mode\nDismount-DiskImage -ImagePath "' + f + '"\n# With the Hyper-V module the same step is:\n# Optimize-VHD -Path "' + f + '" -Mode ' + s.mode + '\nMount-DiskImage -ImagePath "' + f + '"';
+    } else if (s.tab === 'Chain and merge') {
+      script = 'diskpart\nselect vdisk file="D:\\Worlds\\Bayville-plugins.avhdx"\nmerge vdisk depth=1';
+    } else if (s.tab === 'Convert') {
+      script = '# CreateVirtualDisk with a source path in virtdisk.dll\n# With the Hyper-V module the same step is:\n# Convert-VHD -Path "' + f + '" `\n#   -DestinationPath "D:\\Worlds\\Bayville-fixed.vhdx" -VHDType Fixed';
+    } else {
+      script = 'diskpart\nselect vdisk file="' + f + '"\ndetail vdisk';
+    }
+    const modeDefs = [['Full', 'Scans the file system for free blocks. Needs the disk detached.'], ['Quick', 'Uses the file system\'s own free list. Disk attached read-only.'], ['Retrim', 'Sends trims again without reclaiming space.'], ['Pretrimmed', 'Like Quick, for a disk already trimmed.'], ['Prezeroed', 'Like Quick, for free space already written with zeros.']];
+    const modes = modeDefs.map((m) => ({ label: m[0], help: m[1], on: s.mode === m[0], pick: () => this.setState({ mode: m[0] }),
+      style: 'display:flex;gap:12px;padding:12px 14px;border-radius:14px;font-size:14px;background:' + (s.mode === m[0] ? '#272A2E' : '#101418') }));
+    const dot = (ok) => 'width:10px;height:10px;flex:0 0 10px;border-radius:50%;background:' + (ok ? '#8FCDFF' : '#FFB4AB');
+    const destructive = (s.tab === 'Resize' && shrink) || s.tab === 'Chain and merge';
+    return { tabs, dirs, routes, script, modes, title: s.tab === 'Resize' ? (shrink ? 'Shrink' : 'Grow') + ' Bayville.vhdx' : s.tab,
+      isResize: s.tab === 'Resize', isShrink: shrink, isCompact: s.tab === 'Compact', isConvert: s.tab === 'Convert', isMerge: s.tab === 'Chain and merge',
+      isSet: s.tab === 'VHD Set checkpoints', isIdentity: s.tab === 'Identity and mirror', isDev: s.tab === 'Dev Drive', isBoot: s.tab === 'Native boot',
+      size, min, max, onSize: (e) => this.setState({ size: Number(e.target.value) }), volSize: shrink ? size - 0.2 : size - 0.2,
+      minLabel: shrink ? 'Smallest safe size 4.1 GB' : 'Now 64 GB', maxLabel: shrink ? 'Now 64 GB' : 'VHDX limit 64 TB · 212 GB free on D:',
+      freePct: '0%', extendLabel: shrink ? 'Shrink E: first, then the disk' : 'Extend E: into the new space',
+      checkpoints: [{ n: 'before-1.21', t: 'active · 5 Nov 22:15' }, { n: 'after-plugins', t: '3 Nov 19:40' }, { n: 'clean-install', t: '1 Nov 09:02' }],
+      devChecks: [{ t: 'Windows 11 build 26100, needs 22621.2338 or later', dot: dot(true) }, { t: 'Size 64 GB, needs 50 GB or more', dot: dot(true) }, { t: 'ReFS available on this PC', dot: dot(true) }, { t: 'Host file not on a removable disk', dot: dot(true) }],
+      bootChecks: [{ t: 'VHDX format', dot: dot(true) }, { t: 'Host disk is basic, not dynamic', dot: dot(true) }, { t: 'Room for full expansion plus the page file: 71 GB needed, 212 GB free', dot: dot(true) }, { t: 'File has a downloaded-from-internet mark: remove it?', dot: dot(false) }, { t: 'Not on a network share', dot: dot(true) }],
+      runLabel: destructive ? (shrink ? 'Shrink… (two keys)' : 'Merge… (two keys)') : s.tab === 'Resize' ? 'Grow to ' + size + ' GB' : 'Run',
+      runStyle: 'height:40px;padding:0 20px;border:0;border-radius:20px;font:500 14px Roboto,sans-serif;background:' + (destructive ? '#FFB4AB' : '#8FCDFF') + ';color:' + (destructive ? '#690005' : '#003351') };
+  }
+}
+</script>
+</body>
+</html>

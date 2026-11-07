@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Virtual disk manager</title>
+<title>Virtual disk library</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -12,74 +12,147 @@
 <style>
 body{margin:0;background:#0B0E11}
 a{color:#8FCDFF}a:hover{color:#CEE5FF}
+input::placeholder{color:#8C9199}
 </style>
 </helmet>
-<div style="min-height: 800px; box-sizing: border-box; padding: 32px; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif; display: flex; flex-direction: column; gap: 20px">
+<div style="min-height: 1000px; box-sizing: border-box; padding: 28px 32px; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif; display: flex; flex-direction: column; gap: 18px">
   <header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px">
     <div style="display: flex; flex-direction: column; gap: 6px">
       <h1 style="margin: 0; font-size: 32px; font-weight: 400">Virtual disks</h1>
-      <p style="margin: 0; font-size: 14px; color: #C2C7CF">VHD, VHDX and ISO files on this PC. Every action shows the route it used and the script that does the same.</p>
+      <p style="margin: 0; font-size: 14px; color: #C2C7CF">Every VHD, VHDX, VHD Set and ISO attached on this PC or added by you. 7 disks, 3 attached.</p>
     </div>
     <div style="display: flex; flex-wrap: wrap; gap: 8px">
-      <button style="height: 40px; padding: 0 20px; border: 1px solid #8C9199; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Attach existing</button>
+      <button style="height: 40px; padding: 0 16px; border: 0; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Scan a folder</button>
+      <button style="height: 40px; padding: 0 16px; border: 1px solid #8C9199; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Add file</button>
+      <button style="height: 40px; padding: 0 16px; border: 1px solid #8C9199; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Quick pack</button>
       <button style="height: 40px; padding: 0 20px; border: 0; border-radius: 20px; background: #8FCDFF; color: #003351; font: 500 14px Roboto, sans-serif">Create disk</button>
     </div>
   </header>
-  <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
-    <div style="flex: 999 1 520px; min-width: 0; overflow-x: auto; border-radius: 20px; background: #191C20">
-      <table style="width: 100%; min-width: 560px; border-collapse: collapse; font-size: 14px">
-        <caption style="position: absolute; left: -9999px">Known virtual disks</caption>
-        <thead><tr style="text-align: left; color: #C2C7CF; font-size: 12px; letter-spacing: .5px">
-          <th scope="col" style="padding: 14px 20px; font-weight: 500">FILE</th><th scope="col" style="padding: 14px 8px; font-weight: 500">TYPE</th><th scope="col" style="padding: 14px 8px; font-weight: 500">SIZE</th><th scope="col" style="padding: 14px 8px; font-weight: 500">STATE</th><th scope="col" style="padding: 14px 20px 14px 8px"><span style="position: absolute; left: -9999px">Actions</span></th></tr></thead>
-        <tbody>
-          <sc-for list="{{disks}}" as="d" hint-placeholder-count="3">
-            <tr style="{{d.rowStyle}}">
-              <td style="padding: 14px 20px"><button onClick="{{d.pick}}" style="border: 0; background: transparent; color: #E1E2E8; padding: 0; text-align: left; font: 500 14px 'Roboto Mono', monospace">{{d.name}}</button></td>
-              <td style="padding: 14px 8px; color: #C2C7CF">{{d.kind}}</td>
-              <td style="padding: 14px 8px; color: #C2C7CF">{{d.size}}</td>
-              <td style="padding: 14px 8px"><span style="{{d.badge}}">{{d.state}}</span></td>
-              <td style="padding: 14px 20px 14px 8px; text-align: right"><button onClick="{{d.toggle}}" style="height: 32px; padding: 0 14px; border: 0; border-radius: 16px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">{{d.action}}</button></td>
-            </tr>
+  <section aria-label="Routes on this PC" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 16px; background: #101418; font-size: 13px">
+    <span style="color: #C2C7CF; margin-right: 4px">Routes found</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px; background: #004B73; color: #CEE5FF">VirtDisk API</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px; background: #004B73; color: #CEE5FF">Storage module</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px; background: #004B73; color: #CEE5FF">DiskPart</span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px; background: #323539; color: #C2C7CF">Hyper-V module not installed</span>
+    <span style="color: #C2C7CF">Every action below still works without it.</span>
+  </section>
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+    <section aria-label="Library" style="flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center">
+        <label style="flex: 1 1 280px; display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 8px 0 16px; border-radius: 24px; background: #1D2024">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C2C7CF" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+          <span style="position: absolute; left: -9999px">Search disks</span>
+          <input value="{{query}}" onInput="{{onQuery}}" placeholder="Name, path, letter or disk ID" style="flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: #E1E2E8; font: 400 15px Roboto, sans-serif">
+          <button aria-label="Build a pattern" style="height: 32px; padding: 0 10px; border: 0; border-radius: 8px; background: #272A2E; color: #C2C7CF; font: 500 13px 'Roboto Mono', monospace">.*</button>
+        </label>
+        <div role="group" aria-label="Filter" style="display: flex; flex-wrap: wrap; gap: 6px">
+          <sc-for list="{{filters}}" as="f" hint-placeholder-count="6">
+            <button onClick="{{f.pick}}" aria-pressed="{{f.on}}" style="{{f.style}}">{{f.label}}</button>
           </sc-for>
-        </tbody>
-      </table>
-    </div>
-    <aside aria-label="Quick pack" style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 24px; border-radius: 28px; background: #1D2024">
-      <h2 style="margin: 0; font-size: 22px; font-weight: 400">Quick pack</h2>
-      <p style="margin: 0; font-size: 14px; color: #C2C7CF; line-height: 20px">Drop a world folder here. It is copied into a new VHDX beside it, sized to fit, then every file is checked by SHA-256. The folder itself is left alone.</p>
-      <div style="padding: 16px; border-radius: 16px; background: #272A2E; display: flex; flex-direction: column; gap: 8px">
-        <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-family: 'Roboto Mono', monospace">Bayville.vhdx</span><span style="color: #C2C7CF">Checking 1,204 of 1,880</span></div>
-        <div role="progressbar" aria-label="Checking Bayville.vhdx" aria-valuenow="64" aria-valuemin="0" aria-valuemax="100" style="height: 4px; border-radius: 2px; background: #323539"><div style="width: 64%; height: 4px; border-radius: 2px; background: #8FCDFF"></div></div>
-        <span style="font-size: 12px; color: #C2C7CF">Grew from 2.0 GB to 2.6 GB on its own when the files did not fit.</span>
+        </div>
       </div>
-      <details style="font-size: 13px">
-        <summary style="cursor: pointer; color: #8FCDFF; font-weight: 500">Route: Mount-DiskImage, no Hyper-V needed</summary>
-        <pre style="margin: 10px 0 0; padding: 12px; border-radius: 12px; background: #0B0E11; color: #C2C7CF; font: 400 12px/18px 'Roboto Mono', monospace; white-space: pre-wrap">New-Item -Path . -Name Bayville.vhdx ...
-Mount-DiskImage -ImagePath .\Bayville.vhdx</pre>
-      </details>
-      <p style="margin: 0; font-size: 12px; color: #8C9199">Creating, growing and attaching ask Windows for permission each time.</p>
+      <div style="overflow-x: auto; border-radius: 20px; background: #191C20">
+        <table style="width: 100%; min-width: 720px; border-collapse: collapse; font-size: 14px">
+          <caption style="position: absolute; left: -9999px">Virtual disks</caption>
+          <thead><tr style="text-align: left; color: #C2C7CF; font-size: 12px; letter-spacing: .4px">
+            <th scope="col" style="padding: 12px 16px; font-weight: 500">NAME ▾</th><th scope="col" style="padding: 12px 8px; font-weight: 500">FORMAT</th><th scope="col" style="padding: 12px 8px; font-weight: 500">TYPE</th><th scope="col" style="padding: 12px 8px; font-weight: 500; text-align: right">VIRTUAL</th><th scope="col" style="padding: 12px 8px; font-weight: 500; text-align: right">ON DISK</th><th scope="col" style="padding: 12px 16px 12px 8px; font-weight: 500">STATE</th></tr></thead>
+          <tbody>
+            <sc-for list="{{rows}}" as="d" hint-placeholder-count="7">
+              <tr style="{{d.rowStyle}}">
+                <td style="{{d.nameCell}}"><button onClick="{{d.pick}}" style="display: flex; align-items: center; gap: 8px; border: 0; background: transparent; color: #E1E2E8; padding: 0; text-align: left; font: 500 14px 'Roboto Mono', monospace"><span style="color: #5A5F66; font-family: Roboto, sans-serif">{{d.branch}}</span>{{d.name}}</button></td>
+                <td style="padding: 11px 8px; color: #C2C7CF">{{d.format}}</td>
+                <td style="padding: 11px 8px; color: #C2C7CF">{{d.kind}}</td>
+                <td style="padding: 11px 8px; text-align: right; font-family: 'Roboto Mono', monospace">{{d.virtual}}</td>
+                <td style="padding: 11px 8px; text-align: right; font-family: 'Roboto Mono', monospace; color: #C2C7CF">{{d.file}}</td>
+                <td style="padding: 11px 16px 11px 8px"><span style="{{d.badge}}">{{d.state}}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </div>
+      <p style="margin: 0; font-size: 12px; color: #8C9199">Drop a .vhd, .vhdx, .vhds, .avhdx or .iso anywhere on the window to add and attach it. Right-click a row for every action.</p>
+    </section>
+    <aside aria-label="Disk details" style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px; border-radius: 28px; background: #191C20">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px">
+        <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+          <h2 style="margin: 0; font: 400 22px 'Roboto Mono', monospace; overflow-wrap: anywhere">{{sel.name}}</h2>
+          <span style="font-size: 13px; color: #C2C7CF; overflow-wrap: anywhere">{{sel.path}}</span>
+        </div>
+        <span style="{{sel.badge}}">{{sel.state}}</span>
+      </div>
+      <div aria-label="Partition map" style="display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; height: 28px; border-radius: 8px; overflow: hidden; font-size: 11px">
+          <span style="flex: 0 0 4%; background: #4E4161" title="EFI 100 MB"></span>
+          <span style="flex: 0 0 2%; background: #384956" title="Reserved 16 MB"></span>
+          <span style="flex: {{sel.usedFlex}}; background: #8FCDFF; color: #003351; display: flex; align-items: center; padding-left: 8px; font-weight: 500">{{sel.volume}}</span>
+          <span style="flex: {{sel.freeFlex}}; background: #272A2E; color: #C2C7CF; display: flex; align-items: center; padding-left: 8px">{{sel.unalloc}}</span>
+        </div>
+        <span style="font-size: 12px; color: #C2C7CF">GPT · EFI · Reserved · {{sel.volumeLong}}</span>
+      </div>
+      <dl style="margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; font-size: 13px">
+        <sc-for list="{{sel.facts}}" as="x" hint-placeholder-count="12">
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0"><dt style="color: #8C9199; font-size: 12px">{{x.k}}</dt><dd style="margin: 0; overflow-wrap: anywhere; font-family: {{x.font}}">{{x.v}}</dd></div>
+        </sc-for>
+      </dl>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 16px; background: #101418">
+        <h3 style="margin: 0; font-size: 13px; font-weight: 500; color: #C2C7CF">Parent chain · test passed</h3>
+        <sc-for list="{{sel.chain}}" as="c" hint-placeholder-count="2">
+          <div style="display: flex; justify-content: space-between; gap: 8px; font-size: 13px"><span style="font-family: 'Roboto Mono', monospace">{{c.n}}</span><span style="color: #8C9199">{{c.t}}</span></div>
+        </sc-for>
+      </div>
+      <div role="group" aria-label="Actions" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px">
+        <sc-for list="{{actions}}" as="a" hint-placeholder-count="15">
+          <button style="{{a.style}}">{{a.label}}</button>
+        </sc-for>
+      </div>
     </aside>
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":800}}'>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
 class Component extends DCLogic {
-  constructor(p){ super(p); this.state = { attached: { a: true, b: false, c: false }, sel: 'a' }; }
+  constructor(p){ super(p); this.state = { sel: 'bay', filter: 'All', query: '' }; }
   renderVals() {
     const s = this.state;
-    const list = [
-      { id: 'a', name: 'Bayville.vhdx', kind: 'VHDX dynamic', size: '2.6 GB' },
-      { id: 'b', name: 'Backups-2026.vhdx', kind: 'VHDX fixed', size: '40 GB' },
-      { id: 'c', name: 'server-1.21.iso', kind: 'ISO', size: '612 MB' }
+    const disks = [
+      { id: 'bay', name: 'Bayville.vhdx', depth: 0, format: 'VHDX', kind: 'Dynamic', virtual: '64 GB', file: '2.6 GB', att: true, letter: 'E:', path: 'D:\\Worlds\\Bayville.vhdx', used: 6, chain: [] },
+      { id: 'bayc', name: 'Bayville-test.avhdx', depth: 1, format: 'VHDX', kind: 'Differencing', virtual: '64 GB', file: '310 MB', att: false, path: 'D:\\Worlds\\Bayville-test.avhdx', used: 6, chain: [{ n: 'Bayville.vhdx', t: 'parent · 2 Nov 21:04' }, { n: 'Bayville-test.avhdx', t: 'leaf · 6 Nov 09:12' }] },
+      { id: 'bayd', name: 'Bayville-plugins.avhdx', depth: 2, format: 'VHDX', kind: 'Differencing', virtual: '64 GB', file: '88 MB', att: false, path: 'D:\\Worlds\\Bayville-plugins.avhdx', used: 6, chain: [{ n: 'Bayville.vhdx', t: '2 Nov 21:04' }, { n: 'Bayville-test.avhdx', t: '6 Nov 09:12' }, { n: 'Bayville-plugins.avhdx', t: 'leaf · 7 Nov 10:40' }] },
+      { id: 'srv', name: 'servers.vhds', depth: 0, format: 'VHD Set', kind: '3 checkpoints', virtual: '200 GB', file: '41 GB', att: true, letter: 'F:', path: 'D:\\Hosting\\servers.vhds', used: 22, chain: [] },
+      { id: 'bk', name: 'Backups-2026.vhdx', depth: 0, format: 'VHDX', kind: 'Fixed', virtual: '40 GB', file: '40 GB', att: false, path: 'G:\\Backups-2026.vhdx', used: 71, chain: [] },
+      { id: 'old', name: 'legacy-maps.vhd', depth: 0, format: 'VHD', kind: 'Dynamic', virtual: '120 GB', file: '18 GB', att: false, path: 'G:\\Archive\\legacy-maps.vhd', used: 15, chain: [] },
+      { id: 'iso', name: 'win11-24h2.iso', depth: 0, format: 'ISO', kind: 'Read-only', virtual: '5.4 GB', file: '5.4 GB', att: true, letter: 'H:', path: 'C:\\Users\\me\\Downloads\\win11-24h2.iso', used: 100, chain: [] }
     ];
-    const disks = list.map((d) => {
-      const on = !!s.attached[d.id];
-      return { ...d, state: on ? 'Attached as E:' : 'Detached', action: on ? 'Detach' : 'Attach',
-        badge: 'display:inline-flex;height:24px;align-items:center;padding:0 10px;border-radius:12px;font-size:12px;background:' + (on ? '#004B73' : '#323539') + ';color:' + (on ? '#CEE5FF' : '#C2C7CF'),
-        rowStyle: 'border-top:1px solid #272A2E;background:' + (s.sel === d.id ? '#272A2E' : 'transparent'),
-        pick: () => this.setState({ sel: d.id }), toggle: () => this.setState({ attached: { ...s.attached, [d.id]: !on } }) };
+    const q = s.query.toLowerCase();
+    const match = (d) => (s.filter === 'All' || (s.filter === 'Attached' && d.att) || (s.filter === 'Differencing' && d.kind === 'Differencing') || d.format === s.filter)
+      && (!q || (d.name + d.path + (d.letter || '')).toLowerCase().includes(q));
+    const badge = (on) => 'display:inline-flex;height:24px;align-items:center;padding:0 10px;border-radius:12px;font-size:12px;white-space:nowrap;background:' + (on ? '#004B73' : '#323539') + ';color:' + (on ? '#CEE5FF' : '#C2C7CF');
+    const rows = disks.filter(match).map((d) => ({ ...d, branch: d.depth ? '└' : '', state: d.att ? 'Attached ' + d.letter : 'Detached', badge: badge(d.att),
+      nameCell: 'padding:11px 16px 11px ' + (16 + d.depth * 22) + 'px',
+      rowStyle: 'border-top:1px solid #272A2E;background:' + (s.sel === d.id ? '#272A2E' : 'transparent'),
+      pick: () => this.setState({ sel: d.id }) }));
+    const filters = ['All', 'Attached', 'VHDX', 'VHD', 'VHD Set', 'ISO', 'Differencing'].map((label) => {
+      const on = s.filter === label;
+      return { label, on: on ? 'true' : 'false', pick: () => this.setState({ filter: label }),
+        style: 'height:32px;padding:0 12px;border-radius:8px;font:500 13px Roboto,sans-serif;border:1px solid ' + (on ? '#384956' : '#8C9199') + ';background:' + (on ? '#384956' : 'transparent') + ';color:' + (on ? '#D3E5F5' : '#C2C7CF') };
     });
-    return { disks };
+    const d = disks.find((x) => x.id === s.sel) || disks[0];
+    const mono = "'Roboto Mono', monospace";
+    const sel = { name: d.name, path: d.path, state: d.att ? 'Attached ' + d.letter : 'Detached', badge: badge(d.att),
+      usedFlex: '0 0 ' + Math.max(d.used, 18) + '%', freeFlex: '1 1 auto', volume: d.att ? d.letter + ' NTFS' : 'NTFS', volumeLong: d.att ? 'NTFS "' + d.name.split('.')[0] + '" on ' + d.letter + ', ' + (100 - d.used) + '% free' : 'NTFS, ' + (100 - d.used) + '% free',
+      unalloc: d.id === 'bay' ? '' : '',
+      facts: [
+        { k: 'Format and type', v: d.format + ' · ' + d.kind, font: 'inherit' }, { k: 'Virtual size', v: d.virtual, font: mono },
+        { k: 'Size on host disk', v: d.file, font: mono }, { k: 'Smallest safe size', v: d.format === 'VHD' ? 'Shrink needs VHDX' : '4.1 GB', font: mono },
+        { k: 'Block size', v: d.format === 'VHD' ? '2 MB' : '32 MB', font: mono }, { k: 'Sectors, logical / physical', v: d.format === 'VHD' ? '512 / 512' : '512 / 4096', font: mono },
+        { k: '4K aligned', v: 'Yes', font: 'inherit' }, { k: 'Fragmentation', v: '3 %', font: mono },
+        { k: 'Disk number', v: d.att ? '3' : 'Not attached', font: mono }, { k: 'Change tracking', v: 'Off', font: 'inherit' },
+        { k: 'Disk identifier', v: '{6C1E-41B2-9A0F-…-77D3}', font: mono }, { k: 'Virtual disk ID', v: '{B90A-2C77-…-04E1}', font: mono }
+      ],
+      chain: d.chain.length ? d.chain : [{ n: d.name, t: 'no parent' }] };
+    const acts = [d.att ? 'Detach' : 'Attach…', 'Grow', 'Shrink', 'Compact', 'Convert', 'Create child', 'Merge', 'Reconnect parent', 'Test chain', 'Start mirror', 'Metadata', 'New identifier', 'Make Dev Drive', 'Native boot', 'Show script'];
+    const actions = acts.map((label, i) => ({ label, style: 'min-height:40px;padding:6px 8px;border:0;border-radius:12px;font:500 13px Roboto,sans-serif;background:' + (i === 0 ? '#8FCDFF' : '#272A2E') + ';color:' + (i === 0 ? '#003351' : '#D3E5F5') }));
+    return { rows, filters, sel, actions, query: s.query, onQuery: (e) => this.setState({ query: e.target.value }) };
   }
 }
 </script>

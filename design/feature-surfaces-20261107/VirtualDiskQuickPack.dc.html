@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Quick pack</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0E11}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+</style>
+</helmet>
+<div style="min-height: 1000px; box-sizing: border-box; padding: 28px 32px; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif; display: flex; flex-direction: column; gap: 18px">
+  <header style="display: flex; flex-direction: column; gap: 6px">
+    <h1 style="margin: 0; font-size: 28px; font-weight: 400">Quick pack</h1>
+    <p style="margin: 0; font-size: 14px; color: #C2C7CF; max-width: 760px">Drop files or folders. They are copied into one new VHDX in the folder they came from, checked file by file, and the disk is detached. Your originals are never moved, changed or deleted.</p>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+    <section aria-label="Pack in progress" style="flex: 999 1 600px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 28px; background: #191C20">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline">
+        <h2 style="margin: 0; font: 400 22px 'Roboto Mono', monospace">Photos (1).vhdx</h2>
+        <span style="font-size: 13px; color: #C2C7CF">D:\Pictures · Photos.vhdx already existed, so this one is numbered</span>
+      </div>
+      <ol aria-label="Phases" style="margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; font-size: 12px">
+        <sc-for list="{{phases}}" as="p" hint-placeholder-count="5">
+          <li style="display: flex; flex-direction: column; gap: 6px"><span style="{{p.bar}}"></span><span style="color: {{p.color}}">{{p.label}}</span></li>
+        </sc-for>
+      </ol>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px">
+        <sc-for list="{{stats}}" as="x" hint-placeholder-count="4"><div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: #101418"><span style="font-size: 12px; color: #8C9199">{{x.k}}</span><span style="font: 500 18px 'Roboto Mono', monospace">{{x.v}}</span></div></sc-for>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; justify-content: space-between; font-size: 13px; gap: 8px"><span style="font-family: 'Roboto Mono', monospace; overflow-wrap: anywhere">2019\Japan\IMG_4471.HEIC</span><span style="color: #C2C7CF; white-space: nowrap">{{pct}}%</span></div>
+        <div role="progressbar" aria-label="Copying files" aria-valuenow="{{pct}}" aria-valuemin="0" aria-valuemax="100" style="height: 6px; border-radius: 3px; background: #323539"><div style="width: {{pctCss}}; height: 6px; border-radius: 3px; background: #8FCDFF"></div></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 16px; background: #101418">
+        <h3 style="margin: 0; font-size: 13px; font-weight: 500; color: #C2C7CF">Automatic growth</h3>
+        <span style="font-size: 14px">Grew 41.0 → 47.5 GB at file 9,212 (many small files took more room than planned). Carried on from that file and checked it again.</span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end">
+        <button onClick="{{toggle}}" style="height: 40px; padding: 0 16px; border: 0; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">{{pauseLabel}}</button>
+        <button style="height: 40px; padding: 0 16px; border: 1px solid #FFB4AB; border-radius: 20px; background: transparent; color: #FFB4AB; font: 500 14px Roboto, sans-serif">Cancel and remove the new VHDX</button>
+      </div>
+    </section>
+    <aside aria-label="Options and last result" style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 22px; border-radius: 28px; background: #1D2024; font-size: 14px">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 500">Options</h2>
+        <label style="display: flex; justify-content: space-between; align-items: center; gap: 8px">Disk type<select style="height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>Dynamic</option><option>Fixed</option></select></label>
+        <label style="display: flex; justify-content: space-between; align-items: center; gap: 8px">File system<select style="height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>NTFS</option><option>exFAT</option><option>ReFS</option></select></label>
+        <label style="display: flex; gap: 10px; align-items: center"><input type="checkbox" style="accent-color: #8FCDFF; width: 18px; height: 18px">Copy permissions too</label>
+        <label style="display: flex; gap: 10px; align-items: center"><input type="checkbox" checked style="accent-color: #8FCDFF; width: 18px; height: 18px">Fit tightly when done (shrink to smallest safe size)</label>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 22px; border-radius: 28px; background: #1D2024; font-size: 14px">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 500">Last pack: Minecraft-backups.vhdx</h2>
+        <span style="display: inline-flex; align-self: flex-start; height: 26px; align-items: center; padding: 0 12px; border-radius: 13px; background: #4E4161; color: #EDDCFF; font-size: 12px">Partial: 2 files skipped</span>
+        <span style="color: #C2C7CF">18,402 files · 22.1 GB virtual · 19.8 GB on disk · 18,400 SHA-256 matches</span>
+        <span style="color: #C2C7CF">Skipped: <span style="font-family: 'Roboto Mono', monospace">session.lock</span> (in use by java.exe), <span style="font-family: 'Roboto Mono', monospace">latest.log</span> (in use)</span>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px"><button style="height: 36px; padding: 0 14px; border: 0; border-radius: 18px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">Show in folder</button><button style="height: 36px; padding: 0 14px; border: 0; border-radius: 18px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">Attach now</button><button style="height: 36px; padding: 0 14px; border: 0; border-radius: 18px; background: #272A2E; color: #8FCDFF; font: 500 13px Roboto, sans-serif">Retry skipped</button></div>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { paused: false }; }
+  renderVals() {
+    const names = ['Size', 'Create', 'Copy', 'Verify', 'Detach'];
+    const at = 2;
+    const phases = names.map((label, i) => ({ label: i === at ? label + ' · now' : label, color: i <= at ? '#E1E2E8' : '#8C9199',
+      bar: 'display:block;height:4px;border-radius:2px;background:' + (i < at ? '#8FCDFF' : i === at ? '#004B73' : '#323539') }));
+    return { phases, pct: 58, pctCss: '58%', pauseLabel: this.state.paused ? 'Resume' : 'Pause', toggle: () => this.setState({ paused: !this.state.paused }),
+      stats: [{ k: 'Files', v: '9,480 / 16,330' }, { k: 'Copied', v: '24.1 / 41.6 GB' }, { k: 'Speed', v: this.state.paused ? 'Paused' : '312 MB/s' }, { k: 'Time left', v: this.state.paused ? '—' : '0:56' }] };
+  }
+}
+</script>
+</body>
+</html>

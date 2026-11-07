@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Create a virtual disk</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0E11}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+</style>
+</helmet>
+<div style="min-height: 1000px; box-sizing: border-box; padding: 28px 32px; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif; display: flex; flex-direction: column; gap: 18px">
+  <header style="display: flex; flex-direction: column; gap: 6px">
+    <h1 style="margin: 0; font-size: 28px; font-weight: 400">Create a virtual disk</h1>
+    <ol aria-label="Steps" style="margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; font-size: 13px">
+      <li style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px; background: #004B73; color: #CEE5FF">1 Disk</li>
+      <li style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px; background: #272A2E; color: #C2C7CF">2 Partitions and format</li>
+      <li style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px; background: #272A2E; color: #C2C7CF">3 Attach</li>
+      <li style="display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 16px; background: #272A2E; color: #C2C7CF">4 Review</li>
+    </ol>
+  </header>
+  <div role="group" aria-label="Presets" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px">
+    <sc-for list="{{presets}}" as="p" hint-placeholder-count="4">
+      <button onClick="{{p.pick}}" aria-pressed="{{p.on}}" style="{{p.style}}"><strong style="font-weight: 500; font-size: 15px">{{p.label}}</strong><span style="font-size: 13px; color: #C2C7CF">{{p.help}}</span></button>
+    </sc-for>
+  </div>
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+    <section style="flex: 999 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 18px; padding: 24px; border-radius: 28px; background: #191C20">
+      <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+        <legend style="font-size: 14px; font-weight: 500; margin-bottom: 8px">Format</legend>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <sc-for list="{{formats}}" as="f" hint-placeholder-count="3"><button role="radio" aria-checked="{{f.on}}" onClick="{{f.pick}}" style="{{f.style}}"><strong style="font-weight: 500">{{f.label}}</strong><span style="font-size: 12px; color: #C2C7CF">{{f.help}}</span></button></sc-for>
+        </div>
+      </fieldset>
+      <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px">
+        <legend style="font-size: 14px; font-weight: 500; margin-bottom: 8px">Type</legend>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <sc-for list="{{types}}" as="f" hint-placeholder-count="4"><button role="radio" aria-checked="{{f.on}}" onClick="{{f.pick}}" style="{{f.style}}"><strong style="font-weight: 500">{{f.label}}</strong><span style="font-size: 12px; color: #C2C7CF">{{f.help}}</span></button></sc-for>
+        </div>
+      </fieldset>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; font-size: 14px">
+        <label style="display: flex; flex-direction: column; gap: 6px">Size
+          <span style="display: flex; gap: 6px"><input type="number" value="{{size}}" onInput="{{onSize}}" style="{{sizeStyle}}"><select onChange="{{onUnit}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>GB</option><option>TB</option><option>MB</option></select></span>
+          <span role="status" style="font-size: 12px; color: {{limitColor}}">{{limitText}}</span>
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px">Block size<select disabled="{{vhdLike}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>32 MB (default)</option><option>1 MB</option><option>2 MB</option><option>256 MB</option></select><span style="font-size: 12px; color: #8C9199">A power of two, 1 to 256 MB</span></label>
+        <label style="display: flex; flex-direction: column; gap: 6px">Logical / physical sector<select disabled="{{vhdLike}}" style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>512 / 4096</option><option>4096 / 4096</option><option>512 / 512</option></select></label>
+        <label style="display: flex; flex-direction: column; gap: 6px; grid-column: 1 / -1">Save as
+          <span style="display: flex; gap: 6px"><input value="{{path}}" style="flex: 1; min-width: 0; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 13px 'Roboto Mono', monospace"><button style="height: 44px; padding: 0 16px; border: 1px solid #8C9199; border-radius: 22px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Browse</button></span>
+        </label>
+        <sc-if value="{{isDiff}}" hint-placeholder-val="{{false}}">
+          <label style="display: flex; flex-direction: column; gap: 6px; grid-column: 1 / -1">Parent disk<input value="D:\Worlds\Bayville.vhdx" style="height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 13px 'Roboto Mono', monospace"><span style="font-size: 12px; color: #C2C7CF">The parent becomes read-only while it has children.</span></label>
+        </sc-if>
+        <sc-if value="{{isCopy}}" hint-placeholder-val="{{false}}">
+          <label style="display: flex; flex-direction: column; gap: 6px; grid-column: 1 / -1">Copy from<select style="height: 44px; padding: 0 10px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>Disk 2 · USB SSD 500 GB · offline</option><option>Backups-2026.vhdx</option></select><span style="font-size: 12px; color: #C2C7CF">The source must be offline or read-only. It is only read.</span></label>
+        </sc-if>
+        <details style="grid-column: 1 / -1; font-size: 13px"><summary style="cursor: pointer; color: #8FCDFF; font-weight: 500">Access filter (SDDL)</summary><input placeholder="O:BAG:BAD:(A;;GA;;;BA)" style="margin-top: 8px; width: 100%; box-sizing: border-box; height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 13px 'Roboto Mono', monospace"></details>
+      </div>
+    </section>
+    <aside aria-label="Preflight" style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 12px; padding: 22px; border-radius: 28px; background: #1D2024">
+      <h2 style="margin: 0; font-size: 16px; font-weight: 500">Preflight</h2>
+      <sc-for list="{{checks}}" as="c" hint-placeholder-count="4"><div style="display: flex; gap: 10px; font-size: 14px; line-height: 20px"><span style="{{c.dot}}"></span><span>{{c.t}}</span></div></sc-for>
+      <h2 style="margin: 6px 0 0; font-size: 16px; font-weight: 500">After creating</h2>
+      <ul style="margin: 0; padding-left: 18px; font-size: 14px; line-height: 22px; color: #C2C7CF">
+        <li>Initialize as GPT</li><li>One NTFS volume labelled “{{label}}”, quick format</li><li>Attach and give it the next free letter</li>
+      </ul>
+      <pre style="margin: 0; padding: 12px; border-radius: 12px; background: #0B0E11; color: #C2C7CF; font: 400 12px/18px 'Roboto Mono', monospace; white-space: pre-wrap; overflow-wrap: anywhere">{{script}}</pre>
+      <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px">
+        <button style="height: 40px; padding: 0 16px; border: 0; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Back</button>
+        <button disabled="{{blocked}}" style="{{nextStyle}}">Next: partitions</button>
+      </div>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { preset: 'Portable data disk', format: 'VHDX', type: 'Dynamic', size: 64, unit: 'GB' }; }
+  renderVals() {
+    const s = this.state;
+    const presetDefs = [['Portable data disk', 'VHDX, dynamic, NTFS', { format: 'VHDX', type: 'Dynamic', size: 64 }], ['Dev Drive', 'VHDX, dynamic, ReFS, 50 GB or more', { format: 'VHDX', type: 'Dynamic', size: 80 }], ['Native boot disk', 'VHDX, fixed, room for Windows', { format: 'VHDX', type: 'Fixed', size: 128 }], ['Differencing scratch copy', 'A child of a disk you pick', { format: 'VHDX', type: 'Differencing', size: 64 }]];
+    const card = (on) => 'display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:14px 16px;border-radius:16px;text-align:left;font:400 14px Roboto,sans-serif;color:#E1E2E8;border:1px solid ' + (on ? '#8FCDFF' : '#42474E') + ';background:' + (on ? '#004B73' : '#191C20');
+    const presets = presetDefs.map((p) => ({ label: p[0], help: p[1], on: s.preset === p[0] ? 'true' : 'false', style: card(s.preset === p[0]), pick: () => this.setState({ preset: p[0], ...p[2] }) }));
+    const formats = [['VHDX', 'Up to 64 TB, resilient'], ['VHD', 'Up to 2,040 GB, older tools'], ['VHD Set', 'Shared, with checkpoints']].map((f) => ({ label: f[0], help: f[1], on: s.format === f[0] ? 'true' : 'false', style: card(s.format === f[0]), pick: () => this.setState({ format: f[0] }) }));
+    const types = [['Fixed', 'Reserves the whole size now'], ['Dynamic', 'Grows as you write'], ['Differencing', 'Changes on top of a parent'], ['Copy', 'From a disk or another file']].map((f) => ({ label: f[0], help: f[1], on: s.type === f[0] ? 'true' : 'false', style: card(s.type === f[0]), pick: () => this.setState({ type: f[0] }) }));
+    const gb = s.unit === 'TB' ? s.size * 1024 : s.unit === 'MB' ? s.size / 1024 : s.size;
+    const maxGb = s.format === 'VHD' && s.type !== 'Fixed' ? 2040 : s.format === 'VHD' ? 2040 : 65536;
+    let limitText = 'Between 3 MB and ' + (maxGb === 65536 ? '64 TB' : '2,040 GB') + ' for ' + s.format + '.', bad = false;
+    if (gb < 3 / 1024) { limitText = 'Too small: ' + s.format + ' needs at least 3 MB.'; bad = true; }
+    else if (gb > maxGb) { limitText = 'Too big: ' + s.format + ' holds at most ' + (maxGb === 65536 ? '64 TB' : '2,040 GB') + '. Choose VHDX for more.'; bad = true; }
+    if (s.preset === 'Dev Drive' && gb < 50) { limitText = 'A Dev Drive needs 50 GB or more.'; bad = true; }
+    const dot = (ok) => 'width:10px;height:10px;flex:0 0 10px;margin-top:5px;border-radius:50%;background:' + (ok ? '#8FCDFF' : '#FFB4AB');
+    const fixed = s.type === 'Fixed';
+    const checks = [
+      { t: fixed ? 'Needs ' + gb + ' GB free on D: now. 212 GB free.' : 'Dynamic: does not reserve ' + gb + ' GB. It can fill D: later if you let it grow.', dot: dot(fixed ? gb < 212 : true) },
+      { t: 'D: is NTFS, not compressed or encrypted', dot: dot(true) },
+      { t: 'Not a network folder', dot: dot(true) },
+      { t: bad ? limitText : 'Size is within the ' + s.format + ' limits', dot: dot(!bad) }
+    ];
+    const ext = s.format === 'VHD' ? 'vhd' : s.format === 'VHD Set' ? 'vhds' : 'vhdx';
+    const label = s.preset === 'Dev Drive' ? 'DevDrive' : 'Data';
+    const path = 'D:\\Disks\\' + label + '.' + ext;
+    const script = 'diskpart\ncreate vdisk file="' + path + '" maximum=' + Math.round(gb * 1024) + ' type=' + (fixed ? 'fixed' : 'expandable') + (s.type === 'Differencing' ? ' parent="D:\\Worlds\\Bayville.vhdx"' : '') + '\nattach vdisk\nconvert gpt\ncreate partition primary\nformat fs=' + (s.preset === 'Dev Drive' ? 'refs' : 'ntfs') + ' label="' + label + '" quick\nassign';
+    return { presets, formats, types, size: s.size, onSize: (e) => this.setState({ size: Number(e.target.value) || 0 }), onUnit: (e) => this.setState({ unit: e.target.value }),
+      sizeStyle: 'flex:1;min-width:0;height:44px;padding:0 12px;border-radius:8px;background:#101418;color:#E1E2E8;font:400 15px Roboto Mono,monospace;border:' + (bad ? '2px solid #FFB4AB' : '1px solid #8C9199'),
+      limitText, limitColor: bad ? '#FFB4AB' : '#8C9199', vhdLike: s.format === 'VHD', isDiff: s.type === 'Differencing', isCopy: s.type === 'Copy', checks, path, label, script, blocked: bad,
+      nextStyle: 'height:40px;padding:0 20px;border:0;border-radius:20px;font:500 14px Roboto,sans-serif;background:' + (bad ? '#323539' : '#8FCDFF') + ';color:' + (bad ? '#8C9199' : '#003351') };
+  }
+}
+</script>
+</body>
+</html>

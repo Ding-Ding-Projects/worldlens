@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Render the map into a virtual disk</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0B0E11}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+</style>
+</helmet>
+<div style="min-height: 1000px; box-sizing: border-box; padding: 28px 32px; background: #0B0E11; color: #E1E2E8; font-family: Roboto, sans-serif; display: flex; flex-direction: column; gap: 18px">
+  <header style="display: flex; flex-direction: column; gap: 6px">
+    <span style="font-size: 13px; color: #C2C7CF">Render Bayville · step 4 of 5</span>
+    <h1 style="margin: 0; font-size: 28px; font-weight: 400">Where should the map go?</h1>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start">
+    <section style="flex: 999 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 16px; padding: 24px; border-radius: 28px; background: #191C20">
+      <div role="radiogroup" aria-label="Map storage" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px">
+        <sc-for list="{{choices}}" as="c" hint-placeholder-count="2">
+          <button role="radio" aria-checked="{{c.on}}" onClick="{{c.pick}}" style="{{c.style}}"><strong style="font-weight: 500; font-size: 16px">{{c.label}}</strong><span style="font-size: 13px; color: #C2C7CF; line-height: 19px">{{c.help}}</span></button>
+        </sc-for>
+      </div>
+      <sc-if value="{{vhd}}" hint-placeholder-val="{{true}}">
+        <div style="display: flex; flex-direction: column; gap: 14px">
+          <label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px">Virtual disk file
+            <span style="display: flex; gap: 6px"><input value="D:\Maps\Bayville-map.vhdx" style="flex: 1; min-width: 0; height: 44px; padding: 0 12px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 13px 'Roboto Mono', monospace"><button style="height: 44px; padding: 0 16px; border: 1px solid #8C9199; border-radius: 22px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Browse</button></span>
+            <span style="font-size: 12px; color: #8C9199">A new file. If one with this name exists, Worldlens offers to render into it instead, never over it.</span>
+          </label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px">
+            <sc-for list="{{estimate}}" as="x" hint-placeholder-count="4"><div style="display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; background: #101418"><span style="font-size: 12px; color: #8C9199">{{x.k}}</span><span style="font: 500 17px 'Roboto Mono', monospace">{{x.v}}</span></div></sc-for>
+          </div>
+          <label style="display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px">File system inside the disk<select style="height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid #8C9199; background: #101418; color: #E1E2E8; font: 400 14px Roboto, sans-serif"><option>NTFS, 4 KB clusters (best for many small tiles)</option><option>ReFS</option><option>exFAT (opens on more machines)</option></select></label>
+          <sc-for list="{{opts}}" as="o" hint-placeholder-count="5">
+            <label style="display: flex; gap: 12px; align-items: flex-start; font-size: 14px"><input type="checkbox" checked="{{o.on}}" onChange="{{o.flip}}" style="accent-color: #8FCDFF; width: 18px; height: 18px; margin-top: 1px"><span style="display: flex; flex-direction: column; gap: 2px"><span>{{o.label}}</span><span style="font-size: 12px; color: #8C9199">{{o.help}}</span></span></label>
+          </sc-for>
+        </div>
+      </sc-if>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; border-top: 1px solid #272A2E; padding-top: 14px">
+        <button style="height: 40px; padding: 0 16px; border: 0; border-radius: 20px; background: transparent; color: #8FCDFF; font: 500 14px Roboto, sans-serif">Back</button>
+        <button style="height: 40px; padding: 0 20px; border: 0; border-radius: 20px; background: #8FCDFF; color: #003351; font: 500 14px Roboto, sans-serif">{{nextLabel}}</button>
+      </div>
+    </section>
+    <aside aria-label="How it runs" style="flex: 1 1 380px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; flex-direction: column; gap: 10px; padding: 22px; border-radius: 28px; background: #1D2024; font-size: 14px">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 500">How it runs</h2>
+        <ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; line-height: 20px; color: #C2C7CF">
+          <li>Creates the VHDX, sized from the world, and mounts it to a private folder, no drive letter used.</li>
+          <li>BlueMap writes tiles straight into it. If it fills, it grows and the render carries on.</li>
+          <li>Detaches when the render ends, or keeps it attached for the viewer.</li>
+          <li>The viewer, Publish and hosting attach it read-only when they need it.</li>
+        </ol>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 28px; background: #1D2024; font-size: 14px">
+        <h2 style="margin: 0; font-size: 16px; font-weight: 500">Rendering now</h2>
+        <span style="font-family: 'Roboto Mono', monospace; font-size: 13px; color: #C2C7CF">Bayville-map.vhdx → %LOCALAPPDATA%\Worldlens\mounts\Bayville</span>
+        <div role="progressbar" aria-label="Rendering into Bayville-map.vhdx" aria-valuenow="37" aria-valuemin="0" aria-valuemax="100" style="height: 6px; border-radius: 3px; background: #323539"><div style="width: 37%; height: 6px; border-radius: 3px; background: #8FCDFF"></div></div>
+        <span style="color: #C2C7CF; font-size: 13px">412,880 of 1.1 M tiles · disk 3.1 of 8.0 GB used</span>
+      </div>
+      <p style="margin: 0; font-size: 12px; color: #8C9199">Needs Windows. On other systems the map goes to a folder and this option says why it is unavailable.</p>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { mode: 'vhd', o: { grow: true, detach: true, set: false, compact: true, verify: true } }; }
+  renderVals() {
+    const s = this.state;
+    const card = (on) => 'display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px;border-radius:18px;text-align:left;font:400 14px Roboto,sans-serif;color:#E1E2E8;border:1px solid ' + (on ? '#8FCDFF' : '#42474E') + ';background:' + (on ? '#004B73' : '#101418');
+    const choices = [['folder', 'A folder', 'Tiles as ordinary files. Simple, but a big map is about a million small files.'], ['vhd', 'Inside a virtual disk', 'The whole map lives in one VHDX file: quick to copy, back up, move or upload, and it never clutters a drive.']]
+      .map((c) => ({ label: c[1], help: c[2], on: s.mode === c[0] ? 'true' : 'false', style: card(s.mode === c[0]), pick: () => this.setState({ mode: c[0] }) }));
+    const defs = [['grow', 'Grow automatically if the map outgrows the disk', 'Never stops a render for space while the host drive has room.'],
+      ['detach', 'Detach when the render finishes', 'Off keeps it attached so the viewer opens instantly.'],
+      ['set', 'Keep every render as a checkpoint (VHD Set)', 'Roll back to an earlier render of the same world.'],
+      ['compact', 'Compact after rendering', 'Gives space from deleted tiles back to the host drive.'],
+      ['verify', 'Check the tile count and hashes after detaching', 'A short read-only pass before the map is called done.']];
+    const opts = defs.map((d) => ({ label: d[1], help: d[2], on: !!s.o[d[0]], flip: () => this.setState({ o: { ...s.o, [d[0]]: !s.o[d[0]] } }) }));
+    return { choices, vhd: s.mode === 'vhd', opts, nextLabel: s.mode === 'vhd' ? 'Next: create disk and render' : 'Next: render',
+      estimate: [{ k: 'Regions', v: '1,184' }, { k: 'Tiles, estimated', v: '1.1 M' }, { k: 'Starting size', v: '8.0 GB' }, { k: 'Free on D:', v: '212 GB' }] };
+  }
+}
+</script>
+</body>
+</html>
