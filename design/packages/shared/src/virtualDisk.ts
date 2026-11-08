@@ -110,7 +110,10 @@ const isPowerOfTwo = (n: number): boolean => n > 0 && (n & (n - 1)) === 0;
 export function validateCreate(request: CreateRequest): readonly CreateProblem[] {
     const problems: CreateProblem[] = [];
     const ext = VIRTUAL_DISK_EXTENSIONS[request.format];
-    if (!request.path.toLowerCase().endsWith(ext)) {
+    // A differencing child conventionally carries the "a" prefix (.avhdx, .avhd).
+    const childExt = request.type === "differencing" && (request.format === "vhdx" || request.format === "vhd") ? `.a${ext.slice(1)}` : null;
+    const lower = request.path.toLowerCase();
+    if (!lower.endsWith(ext) && !(childExt && lower.endsWith(childExt))) {
         problems.push({ field: "path", message: `A ${formatLabel(request.format)} file name ends with ${ext}.` });
     }
     if (request.path.startsWith("\\\\")) {

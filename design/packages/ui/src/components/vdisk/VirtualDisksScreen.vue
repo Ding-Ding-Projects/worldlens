@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiContentCopy, mdiDatabaseArrowDownOutline, mdiFolderOpenOutline, mdiHarddisk, mdiPackageDown, mdiPlus, mdiRefresh } from "@mdi/js";
-import { VAlert, VBtn, VCheckbox, VChip, VProgressLinear, VSelect, VTab, VTabs, VTextField } from "vuetify/components";
+import { VAlert, VBtn, VBtnToggle, VCheckbox, VChip, VNumberInput, VProgressLinear, VSelect, VSwitch, VTab, VTabs, VTextarea, VTextField } from "vuetify/components";
 import {
     COMPACT_MODES,
     GIB,
@@ -12,12 +12,14 @@ import {
     compactScript,
     createScript,
     detachScript,
+    devDriveScript,
     formatBytes,
     formatLabel,
     growScript,
     isDroppableDisk,
     mapDiskSize,
     mergeScript,
+    nativeBootScript,
     powerShellEquivalent,
     routeLabel,
     routesFor,
@@ -125,8 +127,24 @@ const compactMode = ref<CompactMode>("Full");
 const mergeDepth = ref(1);
 const destination = ref("");
 const lastScript = ref("");
+const smallestSafe = ref(true);
+const targetType = ref<"fixed" | "dynamic">("dynamic");
+const parentPath = ref("");
+const metadataAction = ref<"list" | "set" | "delete">("list");
+const metadataKey = ref("");
+const metadataValue = ref("");
+const trackingAction = ref<"enable" | "disable" | "query">("query");
+const trackingId = ref("");
+const checkpointAction = ref<"take" | "apply" | "delete">("take");
+const checkpointId = ref("");
+const devDriveLabel = ref("DevDrive");
+const bootImage = ref("");
+const bootIndex = ref(1);
+/** What the last run reported (sizes, identifiers, metadata, changed ranges). */
+const lastDetails = ref<Readonly<Record<string, unknown>> | null>(null);
 
 const operations = computed<readonly { readonly id: Op; readonly label: string }[]>(() => [
+    { id: "describe", label: t("vdisk.op.describe", "Read details") },
     { id: "attach", label: t("vdisk.op.attach", "Attach") },
     { id: "detach", label: t("vdisk.op.detach", "Detach") },
     { id: "grow", label: t("vdisk.op.grow", "Grow") },
@@ -134,42 +152,152 @@ const operations = computed<readonly { readonly id: Op; readonly label: string }
     { id: "compact", label: t("vdisk.op.compact", "Compact") },
     { id: "convert", label: t("vdisk.op.convert", "Convert") },
     { id: "merge", label: t("vdisk.op.merge", "Merge into parent") },
+    { id: "reparent", label: t("vdisk.op.reparent", "Change parent") },
     { id: "identity", label: t("vdisk.op.identity", "New disk identifier") },
+    { id: "metadata", label: t("vdisk.op.metadata", "Metadata") },
+    { id: "changeTracking", label: t("vdisk.op.changeTracking", "Change tracking") },
+    { id: "checkpoint", label: t("vdisk.op.checkpoint", "VHD Set checkpoints") },
+    { id: "mirror", label: t("vdisk.op.mirror", "Mirror to a new file") },
+    { id: "devdrive", label: t("vdisk.op.devdrive", "Make a Dev Drive") },
+    { id: "nativeboot", label: t("vdisk.op.nativeboot", "Prepare for native boot") },
 ]);
-const routeChoices = computed(() => routesFor(op.value, routes.value).filter((c) => c.route !== "virtdisk"));
+const routeChoices = computed(() => routesFor(op.value, routes.value));
 watch([op, routeChoices], () => {
     const first = routeChoices.value.find((c) => c.usable);
     route.value = first?.route ?? null;
+    lastDetails.value = null;
 });
-const destructive = computed(() => op.value === "shrink" || op.value === "merge" || op.value === "identity");
+const destructive = computed(
+    () =>
+        op.value === "shrink" ||
+        op.value === "merge" ||
+        op.value === "identity" ||
+        op.value === "reparent" ||
+        op.value === "devdrive" ||
+        op.value === "nativeboot" ||
+        (op.value === "metadata" && metadataAction.value === "delete") ||
+        (op.value === "checkpoint" && checkpointAction.value !== "take"),
+);
 
-const scriptPreview = computed(() => {
+/** UTF-8 text as base64, for a metadata value. */
+function utf8Base64(text: string): string {
+    let binary = "";
+    for (const byte of new TextEncoder().encode(text)) binary += String.fromCharCode(byte);
+    return btoa(binary);
+}
+
+function newMetadataKey(): void {
+    metadataKey.value = globalThis.crypto.randomUUID();
+}
+
+const request = computed(() => {
+    const path = selected.value?.path ?? "";
+    return {
+        operation: op.value,
+        path,
+        ...(route.value ? { route: route.value } : {}),
+        readOnly: readOnly.value,
+        sizeBytes: Math.round(sizeGb.value * GIB),
+        extendVolume: extendLetter.value.trim() || null,
+        mode: compactMode.value,
+        depth: mergeDepth.value,
+        ...(destination.value ? { destination: destination.value } : {}),
+        smallestSafe: op.value === "shrink" && route.value === "virtdisk" && smallestSafe.value,
+        targetType: targetType.value,
+        ...(parentPath.value ? { parentPath: parentPath.value } : {}),
+        metadata: { action: metadataAction.value, ...(metadataKey.value ? { key: metadataKey.value } : {}), ...(metadataAction.value === "set" ? { valueBase64: utf8Base64(metadataValue.value) } : {}) },
+        changeTracking: { action: trackingAction.value, ...(trackingId.value ? { changeTrackingId: trackingId.value } : {}) },
+        checkpoint: { action: checkpointAction.value, ...(checkpointId.value ? { checkpointId: checkpointId.value } : {}) },
+        devDriveLabel: devDriveLabel.value,
+        ...(bootImage.value ? { nativeBoot: { imageFile: bootImage.value, imageIndex: bootIndex.value } } : {}),
+    };
+});
+
+/** What can be checked for native boot before anything runs, from the file itself. */
+const bootChecks = computed(() => {
+    const path = selected.value?.path ?? "";
+    const vhdx = path.toLowerCase().endsWith(".vhdx");
+    const local = !path.startsWith("\\\\");
+    return [
+        { ok: vhdx, text: vhdx ? t("vdisk.boot.vhdx", "VHDX format.") : t("vdisk.boot.notVhdx", "Native boot needs a VHDX file.") },
+        { ok: local, text: local ? t("vdisk.boot.local", "The file is on a local disk.") : t("vdisk.boot.share", "The file is on a network share; native boot needs a local disk.") },
+        { ok: bootImage.value !== "", text: bootImage.value ? t("vdisk.boot.image", "Windows image chosen.") : t("vdisk.boot.noImage", "Choose an install.wim or install.esd from Windows setup media.") },
+    ];
+});
+
+/** Scripts the screen can write itself, for the browser build and while the desktop answer loads. */
+function localScript(): string {
     const path = selected.value?.path;
     if (!path) return "";
-    try {
-        const bytes = Math.round(sizeGb.value * GIB);
-        switch (op.value) {
-            case "attach":
-                return route.value === "storage" ? powerShellEquivalent("attach", path, { readOnly: readOnly.value }) : attachScript(path, readOnly.value);
-            case "detach":
-                return route.value === "storage" ? powerShellEquivalent("detach", path) : detachScript(path);
-            case "grow":
-                return route.value === "hyperv" ? powerShellEquivalent("grow", path, { sizeBytes: bytes }) : growScript(path, bytes, extendLetter.value.trim() || null);
-            case "shrink":
-                return powerShellEquivalent("shrink", path, { sizeBytes: bytes }).replace("# Hyper-V module equivalent\n", "");
-            case "compact":
-                return route.value === "hyperv" ? powerShellEquivalent("compact", path, { mode: compactMode.value }).replace("# Hyper-V module equivalent\n", "") : compactScript(path);
-            case "convert":
-                return powerShellEquivalent("convert", path, { destination: destination.value || path }).replace("# Hyper-V module equivalent\n", "");
-            case "merge":
-                return route.value === "hyperv" ? powerShellEquivalent("merge", path).replace("# Hyper-V module equivalent\n", "") : mergeScript(path, mergeDepth.value);
-            default:
-                return `Set-VHD -Path '${path.replace(/'/gu, "''")}' -ResetDiskIdentifier`;
-        }
-    } catch (error) {
-        return `# ${error instanceof Error ? error.message : String(error)}`;
+    const bytes = Math.round(sizeGb.value * GIB);
+    if (route.value === "virtdisk") return t("vdisk.script.virtdisk", "# Runs through the VirtDisk API in the desktop app. The complete script appears here there.");
+    switch (op.value) {
+        case "attach":
+            return route.value === "storage" ? powerShellEquivalent("attach", path, { readOnly: readOnly.value }) : attachScript(path, readOnly.value);
+        case "detach":
+            return route.value === "storage" ? powerShellEquivalent("detach", path) : detachScript(path);
+        case "grow":
+            return route.value === "hyperv" ? powerShellEquivalent("grow", path, { sizeBytes: bytes }) : growScript(path, bytes, extendLetter.value.trim() || null);
+        case "shrink":
+            return powerShellEquivalent("shrink", path, { sizeBytes: bytes }).replace("# Hyper-V module equivalent\n", "");
+        case "compact":
+            return route.value === "hyperv" ? powerShellEquivalent("compact", path, { mode: compactMode.value }).replace("# Hyper-V module equivalent\n", "") : compactScript(path);
+        case "convert":
+            return powerShellEquivalent("convert", path, { destination: destination.value || path }).replace("# Hyper-V module equivalent\n", "");
+        case "merge":
+            return route.value === "hyperv" ? powerShellEquivalent("merge", path).replace("# Hyper-V module equivalent\n", "") : mergeScript(path, mergeDepth.value);
+        case "devdrive":
+            return devDriveScript(path, devDriveLabel.value);
+        case "nativeboot":
+            return bootImage.value ? nativeBootScript({ path, imageFile: bootImage.value, imageIndex: bootIndex.value, bcdBackupPath: "<app data>\\bcd-backup.bcd" }) : `# ${t("vdisk.boot.noImage", "Choose an install.wim or install.esd from Windows setup media.")}`;
+        case "identity":
+            return `Set-VHD -Path '${path.replace(/'/gu, "''")}' -ResetDiskIdentifier`;
+        default:
+            return "";
     }
-});
+}
+
+const script = ref<{ full: string; preview: string }>({ full: "", preview: "" });
+let scriptAsk = 0;
+watch(
+    [request, route],
+    async () => {
+        const mine = ++scriptAsk;
+        let text: string;
+        try {
+            text = localScript();
+        } catch (error) {
+            text = `# ${error instanceof Error ? error.message : String(error)}`;
+        }
+        script.value = { full: text, preview: text };
+        if (!bridge || !selected.value || !route.value) return;
+        const answer = await bridge.script(JSON.parse(JSON.stringify(request.value)), route.value).catch(() => null);
+        if (answer && mine === scriptAsk) script.value = answer;
+    },
+    { immediate: true, deep: true },
+);
+const scriptPreview = computed(() => script.value.preview);
+
+async function browseDestination(): Promise<void> {
+    const folder = await globalThis.window?.worldlens?.dialog.pickFolder({ title: t("vdisk.pick.folder", "Choose a folder for the new disk") });
+    const name = selected.value?.path.split(/[\\/]/u).pop()?.replace(/\.[^.]+$/u, "") ?? "Disk";
+    if (folder) destination.value = `${folder}\\${name} (${op.value === "mirror" ? "mirror" : "copy"}).vhdx`;
+}
+
+async function browseParent(): Promise<void> {
+    const file = await globalThis.window?.worldlens?.dialog.pickFile({ title: t("vdisk.pick.parent", "Choose the parent disk"), extensions: ["vhd", "vhdx", "avhd", "avhdx"] });
+    if (file) parentPath.value = file;
+}
+
+async function browseBootImage(): Promise<void> {
+    const file = await globalThis.window?.worldlens?.dialog.pickFile({ title: t("vdisk.pick.image", "Choose a Windows image"), extensions: ["wim", "esd"] });
+    if (file) bootImage.value = file;
+}
+
+function detailText(value: unknown): string {
+    if (typeof value === "number" && value > 1024 * 1024) return `${formatBytes(value)} (${value})`;
+    return typeof value === "string" ? value : JSON.stringify(value);
+}
 
 async function copyText(text: string): Promise<void> {
     try {
@@ -184,21 +312,12 @@ async function runOperation(): Promise<void> {
     if (!bridge || !selected.value || !route.value) return;
     busy.value = true;
     try {
-        const result = await bridge.run({
-            operation: op.value,
-            path: selected.value.path,
-            route: route.value,
-            readOnly: readOnly.value,
-            sizeBytes: Math.round(sizeGb.value * GIB),
-            extendVolume: extendLetter.value.trim() || null,
-            mode: compactMode.value,
-            depth: mergeDepth.value,
-            destination: destination.value || undefined,
-        });
+        const result = await bridge.run(JSON.parse(JSON.stringify(request.value)));
         lastScript.value = result.script;
+        lastDetails.value = result.details ?? null;
         notice.value = {
             kind: result.ok ? "success" : result.cancelled ? "info" : "error",
-            text: result.ok ? t("vdisk.notice.done", { route: result.route ? routeLabel(result.route as VirtualDiskRoute) : "" }, "Done through {route}.") : result.message,
+            text: result.ok && op.value === "describe" ? t("vdisk.notice.read", "Read the disk details.") : result.ok ? t("vdisk.notice.done", { route: result.route ? routeLabel(result.route as VirtualDiskRoute) : "" }, "Done through {route}.") : result.message,
         };
         playActionCue(result.ok ? "success" : "error");
         await refresh();
@@ -473,19 +592,96 @@ const size = (bytes: number | null): string => (bytes === null ? t("vdisk.unknow
                     :no-data-text="t('vdisk.noRoute', 'No route on this PC can do this.')"
                 />
                 <VCheckbox v-if="op === 'attach'" v-model="readOnly" :label="t('vdisk.attachReadOnly', 'Attach read-only')" density="compact" hide-details />
-                <div v-if="op === 'grow' || op === 'shrink'" class="wl-vdisk__row">
+                <VSwitch
+                    v-if="op === 'shrink' && route === 'virtdisk'"
+                    v-model="smallestSafe"
+                    color="primary"
+                    density="compact"
+                    :label="t('vdisk.smallestSafe', 'Shrink to the smallest safe size')"
+                    :hint="t('vdisk.smallestSafeHint', 'Windows works out how far the disk can shrink without cutting a partition.')"
+                    persistent-hint
+                />
+                <div v-if="op === 'grow' || (op === 'shrink' && !(route === 'virtdisk' && smallestSafe))" class="wl-vdisk__row">
                     <VTextField v-model.number="sizeGb" type="number" :label="t('vdisk.newSize', 'New virtual size (GB)')" min="1" density="comfortable" />
                     <VTextField v-if="op === 'grow'" v-model="extendLetter" :label="t('vdisk.extendLetter', 'Extend volume (letter)')" maxlength="1" density="comfortable" />
                 </div>
                 <VSelect v-if="op === 'compact'" v-model="compactMode" :items="COMPACT_MODES.map((m) => ({ title: m.mode + ' · ' + m.help, value: m.mode }))" :label="t('vdisk.compactMode', 'Compact mode')" density="comfortable" />
                 <VTextField v-if="op === 'merge'" v-model.number="mergeDepth" type="number" min="1" :label="t('vdisk.mergeDepth', 'Levels to merge')" density="comfortable" />
-                <VTextField v-if="op === 'convert'" v-model="destination" :label="t('vdisk.destination', 'Save the converted copy as')" density="comfortable" />
+                <template v-if="op === 'convert' || op === 'mirror'">
+                    <div class="wl-vdisk__row">
+                        <VTextField v-model="destination" :label="op === 'mirror' ? t('vdisk.mirrorTo', 'Mirror into a new file') : t('vdisk.destination', 'Save the converted copy as')" density="comfortable" />
+                        <VBtn variant="tonal" :prepend-icon="mdiFolderOpenOutline" :disabled="!bridge" @click="browseDestination">{{ t("vdisk.browse", "Browse") }}</VBtn>
+                    </div>
+                    <VBtnToggle v-if="op === 'convert'" v-model="targetType" mandatory density="comfortable" color="primary" :aria-label="t('vdisk.type', 'Type')">
+                        <VBtn value="dynamic">{{ t("vdisk.type.dynamic", "Dynamic") }}</VBtn>
+                        <VBtn value="fixed">{{ t("vdisk.type.fixed", "Fixed") }}</VBtn>
+                    </VBtnToggle>
+                    <p class="wl-vdisk__hint">{{ op === "mirror" ? t("vdisk.mirrorHint", "Copies the disk live while it stays in use, then switches to the copy. The original file is kept.") : t("vdisk.convertHint", "Writes a new file in the format its name gives (.vhd, .vhdx). The original is kept.") }}</p>
+                </template>
+                <div v-if="op === 'reparent'" class="wl-vdisk__row">
+                    <VTextField v-model="parentPath" :label="t('vdisk.parentPath', 'New parent disk')" density="comfortable" />
+                    <VBtn variant="tonal" :prepend-icon="mdiFolderOpenOutline" :disabled="!bridge" @click="browseParent">{{ t("vdisk.browse", "Browse") }}</VBtn>
+                </div>
+                <template v-if="op === 'metadata'">
+                    <VBtnToggle v-model="metadataAction" mandatory density="comfortable" color="primary" :aria-label="t('vdisk.op.metadata', 'Metadata')">
+                        <VBtn value="list">{{ t("vdisk.meta.list", "List") }}</VBtn>
+                        <VBtn value="set">{{ t("vdisk.meta.set", "Set") }}</VBtn>
+                        <VBtn value="delete">{{ t("vdisk.meta.delete", "Delete") }}</VBtn>
+                    </VBtnToggle>
+                    <div v-if="metadataAction !== 'list'" class="wl-vdisk__row">
+                        <VTextField v-model="metadataKey" class="wl-vdisk__mono" :label="t('vdisk.meta.key', 'Item identifier (GUID)')" density="comfortable" />
+                        <VBtn v-if="metadataAction === 'set'" variant="tonal" @click="newMetadataKey">{{ t("vdisk.meta.newKey", "New identifier") }}</VBtn>
+                    </div>
+                    <VTextarea v-if="metadataAction === 'set'" v-model="metadataValue" rows="2" auto-grow :label="t('vdisk.meta.value', 'Value (stored as UTF-8)')" density="comfortable" />
+                </template>
+                <template v-if="op === 'changeTracking'">
+                    <VBtnToggle v-model="trackingAction" mandatory density="comfortable" color="primary" :aria-label="t('vdisk.op.changeTracking', 'Change tracking')">
+                        <VBtn value="query">{{ t("vdisk.track.query", "Changed ranges") }}</VBtn>
+                        <VBtn value="enable">{{ t("vdisk.track.enable", "Turn on") }}</VBtn>
+                        <VBtn value="disable">{{ t("vdisk.track.disable", "Turn off") }}</VBtn>
+                    </VBtnToggle>
+                    <VTextField v-if="trackingAction === 'query'" v-model="trackingId" class="wl-vdisk__mono" :label="t('vdisk.track.since', 'Changes since this tracking id')" :hint="t('vdisk.track.sinceHint', 'Read details shows the current id. Empty means the id from when tracking was turned on.')" persistent-hint density="comfortable" />
+                </template>
+                <template v-if="op === 'checkpoint'">
+                    <VBtnToggle v-model="checkpointAction" mandatory density="comfortable" color="primary" :aria-label="t('vdisk.op.checkpoint', 'VHD Set checkpoints')">
+                        <VBtn value="take">{{ t("vdisk.cp.take", "Take") }}</VBtn>
+                        <VBtn value="apply">{{ t("vdisk.cp.apply", "Go back to") }}</VBtn>
+                        <VBtn value="delete">{{ t("vdisk.cp.delete", "Delete") }}</VBtn>
+                    </VBtnToggle>
+                    <VTextField v-if="checkpointAction !== 'take'" v-model="checkpointId" class="wl-vdisk__mono" :label="t('vdisk.cp.id', 'Checkpoint identifier')" :hint="t('vdisk.cp.idHint', 'Take shows the new identifier; Read details lists the ones the set has.')" persistent-hint density="comfortable" />
+                    <p v-if="selected && !selected.path.toLowerCase().endsWith('.vhds')" class="wl-vdisk__hint">{{ t("vdisk.cp.needSet", "Checkpoints need a VHD Set (.vhds). Create one on the Create tab.") }}</p>
+                </template>
+                <template v-if="op === 'devdrive'">
+                    <VTextField v-model="devDriveLabel" maxlength="32" counter :label="t('vdisk.devdrive.label', 'Volume label')" density="comfortable" />
+                    <p class="wl-vdisk__hint">{{ t("vdisk.devdrive.hint", "Formats an empty disk as a ReFS Dev Drive. Needs Windows 11 build 22621.2338 or later and at least 50 GB; a disk with partitions is refused.") }}</p>
+                </template>
+                <template v-if="op === 'nativeboot'">
+                    <div class="wl-vdisk__row">
+                        <VTextField v-model="bootImage" :label="t('vdisk.boot.imageLabel', 'Windows image (install.wim or install.esd)')" density="comfortable" />
+                        <VBtn variant="tonal" :prepend-icon="mdiFolderOpenOutline" :disabled="!bridge" @click="browseBootImage">{{ t("vdisk.browse", "Browse") }}</VBtn>
+                    </div>
+                    <VNumberInput v-model="bootIndex" :min="1" :max="64" :step="1" control-variant="split" :label="t('vdisk.boot.index', 'Image index')" density="comfortable" />
+                    <ul class="wl-vdisk__checks" :aria-label="t('vdisk.boot.checks', 'Before native boot')">
+                        <li v-for="c in bootChecks" :key="c.text" :class="c.ok ? 'is-ok' : 'is-bad'">{{ c.ok ? "✓" : "✗" }} {{ c.text }}</li>
+                    </ul>
+                    <p class="wl-vdisk__hint">{{ t("vdisk.boot.hint", "Exports the boot configuration first, applies the image and adds a boot entry. The computer never restarts on its own; restart when you are ready and pick the new entry.") }}</p>
+                </template>
 
                 <div class="wl-vdisk__script-head">
                     <h3>{{ t("vdisk.script", "Same thing as a script") }}</h3>
-                    <VBtn size="small" variant="text" :prepend-icon="mdiContentCopy" @click="copyText(scriptPreview)">{{ t("vdisk.copy", "Copy") }}</VBtn>
+                    <VBtn size="small" variant="text" :prepend-icon="mdiContentCopy" @click="copyText(script.full)">{{ t("vdisk.copy", "Copy") }}</VBtn>
                 </div>
                 <pre class="wl-vdisk__script">{{ scriptPreview }}</pre>
+
+                <section v-if="lastDetails" class="wl-vdisk__answer" data-test="vdisk-details" :aria-label="t('vdisk.answer', 'What Windows reported')">
+                    <h3>{{ t("vdisk.answer", "What Windows reported") }}</h3>
+                    <dl class="wl-vdisk__facts">
+                        <div v-for="(value, key) in lastDetails" :key="key">
+                            <dt>{{ key }}</dt>
+                            <dd class="wl-vdisk__mono">{{ detailText(value) }}</dd>
+                        </div>
+                    </dl>
+                </section>
 
                 <ConfigSuperConfirm
                     v-if="destructive"
@@ -618,6 +814,12 @@ const size = (bytes: number | null): string => (bytes === null ? t("vdisk.unknow
 .wl-vdisk__row--tight > :last-child { flex: 0 0 96px; }
 .wl-vdisk__routes { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 12px; border-radius: var(--md-sys-shape-corner-large, 16px); background: rgb(var(--v-theme-surface-container-low, var(--v-theme-surface))); }
 .wl-vdisk__routes-label, .wl-vdisk__hint { color: rgb(var(--v-theme-on-surface-variant)); font-size: 13px; }
+.wl-vdisk__checks { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 4px; font-size: 14px; }
+.wl-vdisk__checks .is-ok { color: rgb(var(--v-theme-success)); }
+.wl-vdisk__checks .is-bad { color: rgb(var(--v-theme-error)); }
+.wl-vdisk__answer { margin-top: 12px; padding: 12px; border-radius: 16px; background: rgb(var(--v-theme-surface-variant)); }
+.wl-vdisk__answer h3 { margin: 0 0 8px; font-size: 14px; }
+.wl-vdisk__answer dd { overflow-wrap: anywhere; }
 .wl-vdisk__split { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin-top: 12px; }
 .wl-vdisk__library { flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
 .wl-vdisk__detail { flex: 1 1 360px; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 20px; border-radius: var(--md-sys-shape-corner-extra-large, 28px); background: rgb(var(--v-theme-surface-container, var(--v-theme-surface))); }

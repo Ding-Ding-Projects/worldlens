@@ -66,7 +66,7 @@ describe.runIf(enabled)("virtual disks on a real Windows host", () => {
         await fs.writeFile(path.join(mount, "hello.txt"), "Bayville");
         expect(await fs.readFile(path.join(mount, "hello.txt"), "utf8")).toBe("Bayville");
         const detached = await manager.run({ operation: "detach", path: disk("a.vhdx") });
-        log("detach", { route: detached.route, ok: detached.ok });
+        log("detach", { route: detached.route, ok: detached.ok, message: detached.message });
         expect(detached.ok).toBe(true);
     });
 
@@ -83,7 +83,7 @@ describe.runIf(enabled)("virtual disks on a real Windows host", () => {
 
     it("grows and then shrinks to the smallest safe size without Hyper-V", async () => {
         const grown = await manager.run({ operation: "grow", path: disk("a.vhdx"), sizeBytes: 320 * MIB, route: "virtdisk" });
-        log("grow", { route: grown.route, ok: grown.ok, size: grown.details?.["virtualSize"] });
+        log("grow", { route: grown.route, ok: grown.ok, message: grown.message, size: grown.details?.["virtualSize"] });
         expect(grown.ok).toBe(true);
         expect(grown.details?.["virtualSize"]).toBe(320 * MIB);
         const shrunk = await manager.run({ operation: "shrink", path: disk("a.vhdx"), smallestSafe: true });
@@ -96,7 +96,7 @@ describe.runIf(enabled)("virtual disks on a real Windows host", () => {
     it("gives the disk a new identifier", async () => {
         const before = String((await manager.describe(disk("a.vhdx"))).details?.["identifier"]);
         const after = await manager.run({ operation: "identity", path: disk("a.vhdx") });
-        log("identity", { route: after.route, ok: after.ok, before, after: after.details?.["identifier"] });
+        log("identity", { route: after.route, ok: after.ok, message: after.message, before, after: after.details?.["identifier"] });
         expect(after.ok).toBe(true);
         expect(after.details?.["identifier"]).not.toBe(before);
     });
@@ -104,7 +104,7 @@ describe.runIf(enabled)("virtual disks on a real Windows host", () => {
     it("sets, lists and deletes custom metadata", async () => {
         const key = "6c1e41b2-9a0f-4d7e-8c11-5b0a2f9e77d3";
         const set = await manager.run({ operation: "metadata", path: disk("a.vhdx"), metadata: { action: "set", key, valueBase64: Buffer.from("Bayville main map").toString("base64") } });
-        log("metadata set", set.details);
+        log("metadata set", { ok: set.ok, message: set.message, details: set.details });
         expect(set.ok).toBe(true);
         expect(JSON.stringify(set.details)).toContain(key);
         const removed = await manager.run({ operation: "metadata", path: disk("a.vhdx"), metadata: { action: "delete", key } });

@@ -51,7 +51,10 @@ export function createWindowsRunner(workDir: string): DiskScriptRunner {
         const launcher = [
             "$ErrorActionPreference = 'Stop'",
             "try {",
-            `  $p = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/c',${psQuote(inner)}) -Verb RunAs -WindowStyle Hidden -Wait -PassThru`,
+            // `/s` plus one outer pair of quotes: cmd strips exactly that pair and keeps the
+            // quotes around the PowerShell path, the script and the log intact. Without it, a
+            // command line that starts with a quote loses its first and last quote.
+            `  $p = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d','/s','/c',${psQuote(`"${inner}"`)}) -Verb RunAs -WindowStyle Hidden -Wait -PassThru`,
             "  Write-Output ('EXIT:' + $p.ExitCode)",
             "} catch {",
             "  if ($_.Exception.Message -match 'cancel') { Write-Output 'CANCELLED' } else { Write-Output ('ERROR:' + $_.Exception.Message) }",
