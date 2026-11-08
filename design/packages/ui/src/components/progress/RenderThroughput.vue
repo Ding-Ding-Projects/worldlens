@@ -2,6 +2,8 @@
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { createThroughputTracker } from "./throughputModel.js";
+import LiveChart from "../charts/LiveChart.vue";
+import { pushSample, stateOf, type LiveSample } from "../charts/liveChartModel.js";
 import type { ProgressFacts } from "./progressModel.js";
 
 /**
@@ -36,6 +38,9 @@ const tracker = createThroughputTracker();
  */
 const version = ref(0);
 
+/** The render speed readings the live chart draws, one per real observation. */
+const samples = ref<readonly LiveSample[]>([]);
+
 const overallPercent = computed<number | null>(() => {
     const overall = props.facts.levels.find((level) => level.id === "overall");
     return overall?.percent ?? null;
@@ -47,6 +52,10 @@ watch(
         if (percent === null) return;
         tracker.observe(percent, Date.now());
         version.value++;
+        // Each real reading joins the live chart; nothing is drawn between readings that the
+        // render did not report.
+        const rate = tracker.reading().percentPerMinute;
+        if (rate !== null) samples.value = pushSample(samples.value, { t: Date.now(), v: rate });
     },
     { immediate: true },
 );
@@ -59,13 +68,21 @@ watch(
     (active, wasActive) => {
         if (active && !wasActive) {
             tracker.reset();
+            samples.value = [];
             version.value++;
         }
     },
 );
 
+/** Ticks so a render that has gone quiet is shown as stale rather than live. */
+const clock = ref(Date.now());
+const tick = setInterval(() => (clock.value = Date.now()), 5000);
+const chartState = computed(() => stateOf({ samples: samples.value, running: props.facts.active, now: clock.value, staleMs: 45_000, started: props.facts.active }));
+const formatRate = (value: number): string => t("liveSpeed.rateShort", { rate: Math.round(value * 10) / 10 }, "{rate}%/min");
+
 onBeforeUnmount(() => {
     tracker.reset();
+    clearInterval(tick);
 });
 
 const reading = computed(() => {
@@ -89,9 +106,12 @@ const rateText = computed(() => {
 </script>
 
 <template>
-    <p class="mb-throughput" role="status" aria-live="polite">
-        {{ rateText || t("liveSpeed.throughputNone", "Not enough data yet to show a rate.") }}
-    </p>
+    <div class="mb-throughput-wrap">
+        <p class="mb-throughput" role="status" aria-live="polite">
+            {{ rateText || t("liveSpeed.throughputNone", "Not enough data yet to show a rate.") }}
+        </p>
+        <LiveChart :samples="samples" :state="chartState" :label="t('liveSpeed.chartLabel', 'Render speed')" :format="formatRate" :window-ms="300000" :height="120" />
+    </div>
 </template>
 
 <style>

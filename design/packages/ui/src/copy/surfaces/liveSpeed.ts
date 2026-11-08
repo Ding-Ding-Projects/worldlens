@@ -250,6 +250,8 @@ export const LIVESPEED_FIXED = {
     "liveSpeed.restarting": { en: "Restarting...", yue: "重新啟動緊…" },
     "liveSpeed.throughputLabel": { en: "Throughput", yue: "進度速率" },
     "liveSpeed.throughputNone": { en: "Not enough data yet to show a rate.", yue: "數據仲未夠，暫時計唔到速率。" },
+    "liveSpeed.rateShort": { en: "{rate}%/min", yue: "每分鐘 {rate}%" },
+    "liveSpeed.chartLabel": { en: "Render speed", yue: "渲染速度" },
     "liveSpeed.messageLabel": { en: "The main process said:", yue: "主程序話：" },
     "liveSpeed.route.local": { en: "local", yue: "本機" },
     "liveSpeed.route.docker": { en: "docker", yue: "Docker" },
