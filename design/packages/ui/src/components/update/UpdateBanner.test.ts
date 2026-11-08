@@ -15,7 +15,8 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { mount, type VueWrapper } from "@vue/test-utils";
 import { createVuetify } from "vuetify";
 import { VApp } from "vuetify/components";
-import { h } from "vue";
+import { h, nextTick } from "vue";
+import { createI18n } from "vue-i18n";
 import UpdateBanner from "./UpdateBanner.vue";
 import { bannerFor, unknownUpdateState } from "./updateModel.js";
 import { memoryStorage, setSetupStorage } from "../setup/setupPrefs.js";
@@ -144,5 +145,29 @@ describe("UpdateBanner", () => {
         const wrapper = render(ready());
         expect(wrapper.findAll(".mb-update-banner__secondary").length).toBe(0);
         expect(wrapper.find(".mb-update-banner").text()).toContain("0.2.0");
+    });
+
+    it("renders the update's own notes in place, as Markdown, only when asked", async () => {
+        const model = bannerFor(ready({ releaseNotes: "## Fixed\n\n- **Tiles** load faster\n- <script>x</script>" }));
+        const wrapper = mount(
+            { render: () => h(VApp, null, { default: () => [h(UpdateBanner, { model })] }) },
+            { global: { plugins: [createVuetify(), createI18n({ legacy: false, locale: "en", missingWarn: false, fallbackWarn: false, messages: { en: {} } })] } },
+        );
+        mounted.push(wrapper);
+        const toggle = wrapper.find(".mb-update-banner__whatsnew");
+        expect(toggle.attributes("aria-expanded")).toBe("false");
+        expect(wrapper.find("[data-test=provider-text]").exists()).toBe(false);
+        await toggle.trigger("click");
+        await nextTick();
+        expect(toggle.attributes("aria-expanded")).toBe("true");
+        const notes = wrapper.find("[data-test=provider-text]");
+        expect(notes.find("li strong").text()).toBe("Tiles");
+        expect(notes.find("script").exists()).toBe(false);
+        expect(notes.text()).toContain("<script>x</script>");
+    });
+
+    it("offers no notes toggle when the update carries none", () => {
+        const wrapper = render(ready({ releaseNotes: "   " }));
+        expect(wrapper.find(".mb-update-banner__whatsnew").exists()).toBe(false);
     });
 });

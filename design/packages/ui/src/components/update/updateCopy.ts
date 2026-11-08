@@ -300,6 +300,8 @@ export const UPDATE_FIXED = {
     "update.action.restart": { en: "Restart to install", yue: "重新開機安裝" },
     "update.action.later": { en: "Later", yue: "遲啲先" },
     "update.action.notes": { en: "Release notes", yue: "更新說明" },
+    "update.action.whatsNew": { en: "What's new", yue: "有乜新嘢" },
+    "update.action.hideNotes": { en: "Hide what's new", yue: "收埋新嘢" },
     "update.action.check": { en: "Check for updates", yue: "檢查更新" },
     "update.action.showBanner": { en: "Show the update banner again", yue: "再顯示更新橫額" },
     "update.action.dismiss": { en: "Dismiss this banner", yue: "收起呢個橫額" },

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { VBanner, VBtn, VIcon, VProgressLinear } from "vuetify/components";
-import { mdiCellphoneArrowDown, mdiOpenInNew } from "@mdi/js";
+import { mdiCellphoneArrowDown, mdiChevronDown, mdiChevronUp, mdiOpenInNew } from "@mdi/js";
+import ProviderText from "../providerText/ProviderText.vue";
 import { langAttr } from "../setup/setupI18n.js";
 import { updatePair, updateText } from "./updateCopy.js";
 import type { UpdateBannerModel } from "./updateModel.js";
@@ -53,6 +54,10 @@ const bodyPair = computed(() => updatePair(props.model.bodyKey, props.model.vars
 const restartLabel = computed(() => updateText("update.action.restart"));
 const laterLabel = computed(() => updateText("update.action.later"));
 const notesLabel = computed(() => updateText("update.action.notes"));
+/** The notes the update carries, rendered in place so reading them needs no browser. */
+const hasNotes = computed(() => (props.model.notes ?? "").trim() !== "");
+const notesOpen = ref(false);
+const whatsNewLabel = computed(() => updateText(notesOpen.value ? "update.action.hideNotes" : "update.action.whatsNew"));
 const dismissLabel = computed(() => updateText("update.action.dismiss"));
 
 const progress = computed(() => props.model.progress);
@@ -143,6 +148,12 @@ function onNotes(): void {
                 {{ bodyPair.secondary ?? "" }}
             </p>
 
+            <!-- Outside the live announcement: opening the notes should not read them aloud
+                 unasked, so this region turns announcements off for its own content. -->
+            <div v-if="hasNotes && notesOpen" id="mb-update-notes" class="mb-update-banner__notes-body" aria-live="off">
+                <ProviderText :source="props.model.notes" :label="notesLabel" />
+            </div>
+
             <div v-if="progress !== null" class="mb-update-banner__progress">
                 <!-- `aria-live="off"` on the two rendered elements is load-bearing: the banner
                      around them is a polite live region, so without it every tick of the byte
@@ -173,6 +184,19 @@ function onNotes(): void {
 
         <template v-if="progress === null" #actions>
             <div class="mb-update-banner__actions">
+                <v-btn
+                    v-if="hasNotes"
+                    :prepend-icon="notesOpen ? mdiChevronUp : mdiChevronDown"
+                    variant="text"
+                    color="on-primary-container"
+                    height="32"
+                    class="mb-update-banner__whatsnew"
+                    :aria-expanded="notesOpen"
+                    aria-controls="mb-update-notes"
+                    @click="notesOpen = !notesOpen"
+                >
+                    {{ whatsNewLabel }}
+                </v-btn>
                 <v-btn
                     v-if="props.model.notesUrl !== null"
                     :prepend-icon="mdiOpenInNew"
@@ -258,6 +282,16 @@ function onNotes(): void {
     font-size: var(--md-sys-typescale-body-small-size);
     line-height: var(--md-sys-typescale-body-small-line-height);
     text-wrap: pretty;
+}
+
+.mb-update-banner__notes-body {
+    margin-top: 8px;
+    max-height: 40vh;
+    overflow: auto;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: rgba(var(--v-theme-surface), 0.6);
+    color: rgb(var(--v-theme-on-surface));
 }
 
 .mb-update-banner__progress {
