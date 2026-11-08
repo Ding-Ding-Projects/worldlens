@@ -1138,7 +1138,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             history: () => transport.invoke("vdisk:history"),
             addToLibrary: (paths: unknown) => transport.invoke("vdisk:addToLibrary", paths),
             removeFromLibrary: (target: unknown) => transport.invoke("vdisk:removeFromLibrary", target),
-            script: (request: unknown) => transport.invoke("vdisk:script", request),
+            script: (request: unknown, route: unknown) => transport.invoke("vdisk:script", request, route),
             run: (request: unknown) => transport.invoke("vdisk:run", request),
             quickPack: (sources: unknown) => transport.invoke("vdisk:quickPack", sources),
             cancelPack: () => transport.invoke("vdisk:cancelPack"),

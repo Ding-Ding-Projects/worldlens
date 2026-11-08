@@ -31,6 +31,7 @@ export interface VirtualDiskOperationResult {
     readonly route: string | null;
     readonly message: string;
     readonly script: string;
+    readonly details?: Readonly<Record<string, unknown>>;
 }
 
 export interface VirtualDiskHistoryEntry {
@@ -71,7 +72,7 @@ export interface VirtualDiskBridge {
     history(): Promise<readonly VirtualDiskHistoryEntry[]>;
     addToLibrary(paths: readonly string[]): Promise<{ readonly added: readonly string[]; readonly refused: readonly { readonly path: string; readonly reason: string }[] }>;
     removeFromLibrary(path: string): Promise<readonly VirtualDiskEntry[]>;
-    script(request: unknown): Promise<string>;
+    script(request: unknown, route?: string): Promise<{ readonly full: string; readonly preview: string }>;
     run(request: unknown): Promise<VirtualDiskOperationResult>;
     quickPack(sources: readonly string[]): Promise<VirtualDiskPackResult>;
     cancelPack(): Promise<boolean>;

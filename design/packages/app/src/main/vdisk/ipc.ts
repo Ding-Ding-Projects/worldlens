@@ -49,7 +49,9 @@ export function registerVirtualDiskHandlers(
         if (typeof target === "string") await manager.removeFromLibrary(target);
         return await manager.list();
     });
-    ipcMain.handle("vdisk:script", (_event, request: unknown) => manager.script(request as OperationRequest));
+    ipcMain.handle("vdisk:script", (_event, request: unknown, route: unknown) =>
+        manager.script(request as OperationRequest, route === "virtdisk" || route === "storage" || route === "hyperv" ? route : "diskpart"),
+    );
     ipcMain.handle("vdisk:run", async (_event, request: unknown) => {
         const r = request as Partial<OperationRequest> | null;
         if (!r || typeof r.operation !== "string" || typeof r.path !== "string") return { ok: false, cancelled: false, route: null, message: "Choose a disk and an operation.", script: "" };

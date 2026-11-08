@@ -215,3 +215,19 @@ describe("render into a VHDX", () => {
         expect(await manager.library()).toContain(path.join(dir, "Bayville-map.vhdx"));
     });
 });
+
+describe("script preview", () => {
+    it("shows the one VirtDisk call and copies the whole shim", () => {
+        const manager = new VirtualDiskManager(path.join(dir, "state"), fakeRunner(), "win32");
+        const answer = manager.script({ operation: "shrink", path: "D:\\a.vhdx", smallestSafe: true }, "virtdisk");
+        expect(answer.preview.split("\n")).toHaveLength(2);
+        expect(answer.preview).toContain("[Worldlens.VirtDisk]::Resize");
+        expect(answer.full).toContain("Add-Type");
+        expect(answer.full.length).toBeGreaterThan(answer.preview.length);
+    });
+    it("previews DiskPart scripts in full", () => {
+        const manager = new VirtualDiskManager(path.join(dir, "state"), fakeRunner(), "win32");
+        const answer = manager.script({ operation: "detach", path: "D:\\a.vhdx" });
+        expect(answer.preview).toBe(answer.full);
+    });
+});

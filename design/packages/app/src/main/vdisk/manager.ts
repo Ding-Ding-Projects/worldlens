@@ -243,12 +243,20 @@ export class VirtualDiskManager {
         return out.sort((x, y) => x.path.localeCompare(y.path));
     }
 
-    /** The exact script an operation would run on a route, for the copy button. Never runs anything. */
-    script(request: OperationRequest, route: VirtualDiskRoute = "diskpart"): string {
+    /**
+     * The exact script an operation would run on a route, for the copy button, and a short
+     * preview. A VirtDisk script carries its whole C# shim, so its preview is the one call that
+     * matters with a note that copying gives everything. Never runs anything.
+     */
+    script(request: OperationRequest, route: VirtualDiskRoute = "diskpart"): { readonly full: string; readonly preview: string } {
         try {
-            return this.build(request, route).script;
+            const full = this.build(request, route).script;
+            if (route !== "virtdisk") return { full, preview: full };
+            const call = full.split("\n").find((line) => line.includes("[Worldlens.VirtDisk]::"))?.trim() ?? "";
+            return { full, preview: `# Loads the VirtDisk shim (virtdisk.dll through Add-Type); Copy gives the complete script.\n${call}` };
         } catch (error) {
-            return `# ${error instanceof Error ? error.message : String(error)}`;
+            const text = `# ${error instanceof Error ? error.message : String(error)}`;
+            return { full: text, preview: text };
         }
     }
 

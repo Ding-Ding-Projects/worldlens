@@ -2539,7 +2539,7 @@ interface WorldlensBridge {
         history(): Promise<unknown>;
         addToLibrary(paths: readonly string[]): Promise<unknown>;
         removeFromLibrary(path: string): Promise<unknown>;
-        script(request: unknown): Promise<unknown>;
+        script(request: unknown, route?: string): Promise<unknown>;
         run(request: unknown): Promise<unknown>;
         quickPack(sources: readonly string[]): Promise<unknown>;
         cancelPack(): Promise<unknown>;

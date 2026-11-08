@@ -51,9 +51,11 @@ jobs:
         working-directory: design
         run: pnpm install --frozen-lockfile
 
+      # The shared package imports the design system's built colours, so build it with its
+      # workspace dependencies first.
       - name: Build the shared package
         working-directory: design
-        run: pnpm --filter @worldlens/shared run build
+        run: pnpm --filter "@worldlens/shared..." run build
 
       - name: Record the host
         shell: pwsh
