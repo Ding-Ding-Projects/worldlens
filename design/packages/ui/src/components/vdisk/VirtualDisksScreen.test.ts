@@ -87,4 +87,33 @@ describe("the virtual disk manager screen", () => {
         expect(wrapper.text()).toContain("legacy.vhd");
         expect(wrapper.find(".wl-vdisk__table").text()).not.toContain("Bayville.vhdx");
     });
+
+    it("offers every VirtDisk operation, two keys for the ones that change a disk, and shows what Windows reported", async () => {
+        const vdisk = install({
+            script: vi.fn().mockResolvedValue({ full: "Add-Type ... full shim\n[Worldlens.VirtDisk]::Describe('D:\\Worlds\\Bayville.vhdx')", preview: "# Loads the shim\n[Worldlens.VirtDisk]::Describe('D:\\Worlds\\Bayville.vhdx')" }),
+            run: vi.fn().mockResolvedValue({ ok: true, cancelled: false, route: "virtdisk", message: "Read.", script: "", details: { virtualSize: 64 * GIB, type: "dynamic" } }),
+        });
+        const wrapper = mountScreen();
+        await flushPromises();
+        const vm = wrapper.vm as unknown as { op: string; operations: { id: string }[]; destructive: boolean };
+        expect(vm.operations.map((o) => o.id)).toEqual(expect.arrayContaining(["describe", "reparent", "metadata", "changeTracking", "checkpoint", "mirror", "devdrive", "nativeboot"]));
+        vm.op = "describe";
+        await flushPromises();
+        expect(vdisk.script).toHaveBeenCalled();
+        expect(wrapper.find(".wl-vdisk__script").text()).toContain("[Worldlens.VirtDisk]::Describe");
+        expect(wrapper.find(".wl-vdisk__script").text()).not.toContain("full shim");
+        await wrapper.findAll("button").find((b) => b.text().includes("Windows asks once"))!.trigger("click");
+        await flushPromises();
+        expect(wrapper.find("[data-test=vdisk-details]").text()).toContain("64 GB");
+        for (const id of ["devdrive", "nativeboot", "reparent"]) {
+            vm.op = id;
+            await flushPromises();
+            expect(vm.destructive, id).toBe(true);
+            expect(wrapper.text()).toContain("Run (two keys)");
+        }
+        vm.op = "nativeboot";
+        await flushPromises();
+        expect(wrapper.text()).toContain("never restarts on its own");
+        expect(wrapper.find(".wl-vdisk__checks").text()).toContain("Choose an install.wim");
+    });
 });

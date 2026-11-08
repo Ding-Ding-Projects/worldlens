@@ -31,6 +31,8 @@ public static class VirtDisk {
     [DllImport(Dll)] static extern int MergeVirtualDisk(SafeFileHandle handle, int flags, byte[] parameters, IntPtr overlapped);
     [DllImport(Dll)] static extern int MirrorVirtualDisk(SafeFileHandle handle, int flags, IntPtr parameters, ref NativeOverlapped overlapped);
     [DllImport(Dll)] static extern int BreakMirrorVirtualDisk(SafeFileHandle handle);
+    [DllImport(Dll)] static extern int AttachVirtualDisk(SafeFileHandle handle, IntPtr securityDescriptor, int flags, int providerFlags, byte[] parameters, IntPtr overlapped);
+    [DllImport(Dll)] static extern int DetachVirtualDisk(SafeFileHandle handle, int flags, int providerFlags);
     [DllImport(Dll)] static extern int GetVirtualDiskOperationProgress(SafeFileHandle handle, ref NativeOverlapped overlapped, byte[] progress);
     [DllImport(Dll)] static extern int EnumerateVirtualDiskMetadata(SafeFileHandle handle, ref int count, [Out] Guid[] items);
     [DllImport(Dll)] static extern int GetVirtualDiskMetadata(SafeFileHandle handle, ref Guid item, ref int size, byte[] data);
@@ -232,7 +234,15 @@ public static class VirtDisk {
             Marshal.WriteIntPtr(p, 56, source);
             SafeFileHandle h;
             int flags = fixedSize ? 1 : 0;
-            Check(CreateVirtualDisk(TypeFor(path), path, ACCESS_NONE, IntPtr.Zero, flags, 0, p, IntPtr.Zero, out h), "CreateVirtualDisk");
+            int code = CreateVirtualDisk(TypeFor(path), path, ACCESS_NONE, IntPtr.Zero, flags, 0, p, IntPtr.Zero, out h);
+            // A VHD Set refuses defaults on some builds; the documented VHD Set sector sizes are
+            // 512 logical and 4096 physical. Retry once with them before reporting the error.
+            if (code == 87 && path.ToLowerInvariant().EndsWith(".vhds") && logicalSector == 0 && physicalSector == 0) {
+                Marshal.WriteInt32(p, 36, 512);
+                Marshal.WriteInt32(p, 40, 4096);
+                code = CreateVirtualDisk(TypeFor(path), path, ACCESS_NONE, IntPtr.Zero, flags, 0, p, IntPtr.Zero, out h);
+            }
+            Check(code, "CreateVirtualDisk");
             h.Dispose();
         } finally {
             Marshal.FreeHGlobal(p);
@@ -281,24 +291,58 @@ public static class VirtDisk {
 
     /** Ranges changed since a change tracking id, as offset:length pairs. */
     public static string QueryChanges(string path, string changeTrackingId) {
-        using (var h = Open(path, true)) {
-            var size = Info(h, 1, false);
-            ulong virtualSize = BitConverter.ToUInt64(size, 8);
-            var ranges = new List<string>();
-            ulong offset = 0;
-            while (offset < virtualSize) {
-                int count = 256;
-                var buf = new byte[count * 24];
-                ulong processed;
-                Check(QueryChangesVirtualDisk(h, changeTrackingId, offset, virtualSize - offset, 0, buf, ref count, out processed), "QueryChangesVirtualDisk");
-                for (int i = 0; i < count; i++) ranges.Add(BitConverter.ToUInt64(buf, i * 24) + ":" + BitConverter.ToUInt64(buf, i * 24 + 8));
-                if (processed == 0) break;
-                offset += processed;
+        // Windows answers a change query only on a handle that may read the disk; on some builds
+        // only while the disk is attached. Try a read-only open first, then a read-only attach
+        // without a drive letter for the length of the query.
+        int lastCode = 0;
+        foreach (var attach in new[] { false, true }) {
+            SafeFileHandle h;
+            int code = attach ? OpenVirtualDisk(UnknownType(), path, ACCESS_ALL, 0, OpenParams(1, 1, false, false), out h)
+                              : OpenVirtualDisk(UnknownType(), path, ACCESS_NONE, 0, OpenParams(2, 0, false, true), out h);
+            if (code != 0) { lastCode = code; continue; }
+            using (h) {
+                bool attached = false;
+                try {
+                    if (attach) {
+                        var ap = new byte[8];
+                        BitConverter.GetBytes(1).CopyTo(ap, 0);
+                        Check(AttachVirtualDisk(h, IntPtr.Zero, 1 | 2, 0, ap, IntPtr.Zero), "AttachVirtualDisk");
+                        attached = true;
+                    }
+                    var ranges = QueryRanges(h, changeTrackingId, out code);
+                    if (code == 0) {
+                        var d = new Dictionary<string, object>();
+                        d["ranges"] = ranges.ToArray();
+                        d["attachedForQuery"] = attach;
+                        return Ok(d);
+                    }
+                    lastCode = code;
+                } finally {
+                    if (attached) DetachVirtualDisk(h, 0, 0);
+                }
             }
-            var d = new Dictionary<string, object>();
-            d["ranges"] = ranges.ToArray();
-            return Ok(d);
         }
+        Check(lastCode, "QueryChangesVirtualDisk");
+        return Ok(new Dictionary<string, object>());
+    }
+
+    static List<string> QueryRanges(SafeFileHandle h, string changeTrackingId, out int failure) {
+        failure = 0;
+        var ranges = new List<string>();
+        var size = Info(h, 1, false);
+        ulong virtualSize = BitConverter.ToUInt64(size, 8);
+        ulong offset = 0;
+        while (offset < virtualSize) {
+            int count = 256;
+            var buf = new byte[count * 24];
+            ulong processed;
+            int code = QueryChangesVirtualDisk(h, changeTrackingId, offset, virtualSize - offset, 0, buf, ref count, out processed);
+            if (code != 0) { failure = code; return ranges; }
+            for (int i = 0; i < count; i++) ranges.Add(BitConverter.ToUInt64(buf, i * 24) + ":" + BitConverter.ToUInt64(buf, i * 24 + 8));
+            if (processed == 0) break;
+            offset += processed;
+        }
+        return ranges;
     }
 
     public static string ListMetadata(string path) {
@@ -378,10 +422,16 @@ public static class VirtDisk {
             var ev = new ManualResetEvent(false);
             var ov = new NativeOverlapped();
             ov.EventHandle = ev.SafeWaitHandle.DangerousGetHandle();
+            bool attached = false;
             try {
                 Marshal.WriteInt64(p, 0, 0);
                 Marshal.WriteInt32(p, 0, 1);
                 Marshal.WriteIntPtr(p, 8, dest);
+                // Windows mirrors only a disk that is in use, so attach it without a drive letter
+                // for the copy and detach afterwards. A disk that is already attached stays so.
+                var ap = new byte[8];
+                BitConverter.GetBytes(1).CopyTo(ap, 0);
+                attached = AttachVirtualDisk(h, IntPtr.Zero, 2, 0, ap, IntPtr.Zero) == 0;
                 int code = MirrorVirtualDisk(h, 0, p, ref ov);
                 if (code != 0 && code != 997) Check(code, "MirrorVirtualDisk");
                 var progress = new byte[24];
@@ -395,6 +445,7 @@ public static class VirtDisk {
                 }
                 Check(BreakMirrorVirtualDisk(h), "BreakMirrorVirtualDisk");
             } finally {
+                if (attached) DetachVirtualDisk(h, 0, 0);
                 Marshal.FreeHGlobal(p);
                 Marshal.FreeHGlobal(dest);
                 ev.Dispose();

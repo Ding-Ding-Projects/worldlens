@@ -44,3 +44,16 @@ The site's Base64 article (`#/docs/base64`) carries the same tool, built from th
 - `design/packages/ui/src/components/base64/Base64Screen.test.ts`: conversion and truthful failures, 300-step undo surviving a restart only when inputs are kept, history without payloads, the exact bad-character mark, typing as one undo step, and a safe preview that never renders SVG markup.
 - `design/packages/site/src/tools/base64Tool.test.ts`: the site tool encodes as you type, marks the exact bad character, steps back through undo and redo, never renders decoded markup and follows the language setting.
 - Screenshots come from the built interface and the built site in headless Chrome, without the desktop bridge.
+
+## 廣東話
+
+**Base64** 工作喺呢部電腦度將文字同檔案編碼同解碼,乜都唔會上載。喺指令面板(`Ctrl+Shift+F`,再打 "Base64")或者「工作」分頁開。
+
+- **文字:** 標準(RFC 4648 第 4 節)、網址安全(第 5 節)同 MIME(每行 76 個字,CRLF 換行),仲可以自訂每行長度。編碼時可以開或者閂補位。**嚴格解碼**會拒絕字母表以外嘅字、MIME 以外嘅空格同換行、同埋錯嘅補位,仲會講明係邊個字、喺第幾個位;寬鬆解碼會忽略空白,兩套字母表都收,冇補位都得。文字編碼有 UTF-8、UTF-16 LE、UTF-16 BE 同 Latin-1;寫唔到落揀咗嘅編碼嘅字會報出嚟,唔會靜靜雞整爛。解碼失敗唔會出半份結果。
+- **匯入同匯出:** 可以由檔案、剪貼簿或者貼上匯入,貼 `data:` 網址會即刻解碼。可以複製、複製成 `data:` 網址、存做檔案(永遠唔會蓋過舊檔),或者匯出成 JSON 記錄。
+- **檔案:** 將檔案拖去 **編碼**,會喺旁邊寫 `name.ext.base64.txt`;將嗰個文字檔拖去 **解碼**,會喺旁邊寫返 `name.ext`。檔名先睇 `.base64.txt` 或 `.b64`,再睇開頭 `data:` 網址嘅類型,再睇解碼出嚟啲位元組嘅特徵,最後先用 `.bin`。兩邊都唔會蓋過舊檔,撞名就加號碼,例如 `report (1).pdf`。
+- **大檔案:** 每次一 MB 咁串流入一個隱藏嘅暫存檔。編碼結果會再解碼一次,用 SHA-256 同原檔對;解碼結果會讀返出嚟,同解碼嘅內容對。對得啱先會改名放好。隨時可以暫停、繼續同取消,取消或者失敗都唔會留低嘢。冇桌面版(寄存工作區)嘅時候,256 MB 以內嘅檔案喺視窗入面讀,結果用同一套名下載。
+- **預覽:** 用位元組特徵揀預覽方式,唔信檔名或者聲稱嘅類型:圖片、聲音同影片用 blob 網址喺普通媒體元素播,文字顯示做文字,其他(包括 SVG 同 HTML)一律顯示十六進位。解碼出嚟嘅嘢唔會被執行、打開或者嵌入。
+- **歷史同復原:** 每次複製、儲存同轉換檔案都係一條歷史記錄,有名、大細同 SHA-256,但唔會有內容。復原同重做冇上限;只有開咗 **喺呢部電腦保留輸入** 先會喺重開之後仲喺度,因為預設唔會將打過嘅字寫落磁碟。清除歷史要先過兩條鎖匙確認。
+- **文件網站:** 網站嘅 Base64 文章(`#/docs/base64`)有同一個工具,用同一份共用程式碼。網頁唔可以喺檔案旁邊寫嘢,所以檔案喺頁面入面讀(最多 256 MB),結果下載做 `name.ext.base64.txt` 或者還原嘅 `name.ext`。
+- **驗證:** 上面「Verification」列出嘅測試檔同截圖,全部用建好嘅介面同網站喺無頭 Chrome 影,冇桌面橋接。
