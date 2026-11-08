@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiContentCopy, mdiDownload, mdiFileUploadOutline, mdiFolderOpenOutline, mdiRedo, mdiSwapHorizontal, mdiUndo } from "@mdi/js";
+import { mdiContentCopy, mdiDownload, mdiFileUploadOutline, mdiFolderOpenOutline, mdiMicrosoftVisualStudioCode, mdiRedo, mdiSwapHorizontal, mdiUndo } from "@mdi/js";
+import { editorBridge } from "../editors/editorBridge.js";
 import { VAlert, VBtn, VBtnToggle, VCheckbox, VProgressLinear, VSelect, VSwitch, VTab, VTabs, VTextarea, VTextField } from "vuetify/components";
 import {
     buildDataUrl,
@@ -71,6 +72,14 @@ const history = new Base64History(safeStorage());
 const workspace = ref<Base64Workspace>(history.current);
 const tick = ref(0); // re-reads undo state after history changes
 const notice = ref<{ kind: "success" | "info" | "warning" | "error"; text: string } | null>(null);
+const editors = editorBridge();
+
+/** Opens a finished file in Visual Studio Code in one action, or says why it cannot. */
+async function openInVsCode(file: string): Promise<void> {
+    if (!editors) return;
+    const answer = await editors.openInVsCode(file);
+    notice.value = { kind: answer.ok ? "success" : "warning", text: answer.message + (answer.downloadUrl ? ` ${answer.downloadUrl}` : "") };
+}
 const keepInputs = ref(history.keepInputs);
 const includePayload = ref(false);
 
@@ -497,6 +506,7 @@ const encodingModel = computed({ get: () => workspace.value.encoding, set: (v: T
                         </VAlert>
                         <div v-if="job.result.ok && files && job.result.output" class="wl-b64__row">
                             <VBtn size="small" variant="text" :prepend-icon="mdiFolderOpenOutline" @click="files.reveal(job.result.output)">{{ t("base64.files.reveal", "Show in folder") }}</VBtn>
+                            <VBtn v-if="editors" size="small" variant="text" :prepend-icon="mdiMicrosoftVisualStudioCode" @click="openInVsCode(job.result.output)">{{ t("editors.openInVsCode", "Open in VS Code") }}</VBtn>
                         </div>
                         <Base64Preview v-if="job.preview" :bytes="job.preview" :truncated="job.result.outputBytes > job.preview.length" />
                     </template>

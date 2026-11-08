@@ -19,6 +19,7 @@ import {
     mdiMemory,
     mdiPackageVariantClosed,
     mdiPuzzleOutline,
+    mdiApplicationEditOutline,
     mdiSourceCommit,
     mdiSpellcheck,
     mdiStethoscope,
@@ -45,6 +46,7 @@ import DockedSurface from "./DockedSurface.vue";
 import DependencyInstallerPanel from "./DependencyInstallerPanel.vue";
 import AwsAccountsPanel from "./AwsAccountsPanel.vue";
 import AddonManagerPanel from "./AddonManagerPanel.vue";
+import ExternalEditorPanel from "../editors/ExternalEditorPanel.vue";
 import BlueMapSourceRow from "./BlueMapSourceRow.vue";
 import { blueMapSourceSearchValues } from "./bluemapSourceStore.js";
 import JavaRuntimeRow from "./JavaRuntimeRow.vue";
@@ -214,6 +216,7 @@ const noticeDurationSection = ref<InstanceType<typeof SettingsSection> | null>(n
 const systemDependenciesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const awsAccountsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const addonsSection = ref<InstanceType<typeof SettingsSection> | null>(null);
+const externalEditorSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const blueMapSourceSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const updatesSection = ref<InstanceType<typeof SettingsSection> | null>(null);
 const vocabularySection = ref<InstanceType<typeof SettingsSection> | null>(null);
@@ -304,6 +307,7 @@ const SECTION_ICONS: Readonly<Record<SettingsSectionAnchor, string>> = {
     "system-dependencies": mdiPackageVariantClosed,
     "aws-accounts": mdiCloudOutline,
     addons: mdiPuzzleOutline,
+    "external-editor": mdiApplicationEditOutline,
     "bluemap-engine": mdiSourceCommit,
     updates: mdiUpdate,
     vocabulary: mdiSpellcheck,
@@ -659,6 +663,12 @@ const sections = computed<SettingsSectionText[]>(() => {
                 "import",
             ],
         },
+        {
+            anchor: "external-editor",
+            title: text["external-editor"].title,
+            description: text["external-editor"].description,
+            values: ["Visual Studio Code", "VS Code", "Insiders", "VSCodium", "Notepad++", "Sublime Text", "editor"],
+        },
         // The commit, version and release tag this section is currently showing, so somebody
         // who can see a hash on screen can search for it. Facts rather than the sentences
         // around them, which the title and description already cover.
@@ -856,6 +866,8 @@ function sectionRef(anchor: SettingsSectionAnchor): InstanceType<typeof Settings
             return awsAccountsSection.value;
         case "addons":
             return addonsSection.value;
+        case "external-editor":
+            return externalEditorSection.value;
         case "bluemap-engine":
             return blueMapSourceSection.value;
         case "updates":
@@ -1476,6 +1488,20 @@ function onDrawer(value: boolean): void {
                         :description="copy.addons.description"
                     >
                         <AddonManagerPanel />
+                    </SettingsSection>
+                </template>
+
+                <template #external-editor>
+                    <SettingsSection
+                        ref="externalEditorSection"
+                        anchor="external-editor"
+                        :icon="SECTION_ICONS['external-editor']"
+                        :status="sectionStatus['external-editor']?.text ?? null"
+                        :status-tone="sectionStatus['external-editor']?.tone ?? 'neutral'"
+                        :title="copy['external-editor'].title"
+                        :description="copy['external-editor'].description"
+                    >
+                        <ExternalEditorPanel />
                     </SettingsSection>
                 </template>
 

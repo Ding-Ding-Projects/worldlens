@@ -234,6 +234,12 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
         "Use the Base64 text tools here, or the Base64 job in the desktop app for files.",
     ),
 
+    editors: refused(
+        "An editor is a program on the computer running the desktop app. A container cannot start " +
+            "one on the visitor's computer, and starting one on the server would put it on the wrong machine.",
+        "Download the export and open it in your editor, or use the desktop app.",
+    ),
+
     vdisk: refused(
         "Virtual disks attach to the Windows computer running the desktop app. A container has no " +
             "Windows disk service, and attaching a disk on the server would put it on the wrong machine.",

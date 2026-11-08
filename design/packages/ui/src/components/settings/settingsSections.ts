@@ -165,6 +165,7 @@ export const SETTINGS_SECTIONS = [
     "system-dependencies",
     "aws-accounts",
     "addons",
+    "external-editor",
     "bluemap-engine",
     "updates",
     "vocabulary",

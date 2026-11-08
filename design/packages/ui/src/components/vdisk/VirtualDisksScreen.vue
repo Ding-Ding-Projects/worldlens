@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { mdiContentCopy, mdiDatabaseArrowDownOutline, mdiFolderOpenOutline, mdiHarddisk, mdiPackageDown, mdiPlus, mdiRefresh } from "@mdi/js";
+import { mdiContentCopy, mdiMicrosoftVisualStudioCode, mdiDatabaseArrowDownOutline, mdiFolderOpenOutline, mdiHarddisk, mdiPackageDown, mdiPlus, mdiRefresh } from "@mdi/js";
 import { VAlert, VBtn, VBtnToggle, VCheckbox, VChip, VNumberInput, VProgressLinear, VSelect, VSwitch, VTab, VTabs, VTextarea, VTextField } from "vuetify/components";
 import {
     COMPACT_MODES,
@@ -31,6 +31,7 @@ import {
     type VirtualDiskType,
 } from "@worldlens/shared/virtualDisk";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { editorBridge, openTextInVsCode } from "../editors/editorBridge.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import { playActionCue } from "../../stores/actionSounds.js";
 import {
@@ -327,6 +328,12 @@ const detailLabel = (key: string): string => DETAIL_LABELS[key]?.() ?? key;
 function detailText(value: unknown): string {
     if (typeof value === "number" && value > 1024 * 1024) return `${formatBytes(value)} (${value})`;
     return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+const canOpenEditor = editorBridge() !== null;
+async function scriptInVsCode(): Promise<void> {
+    const answer = await openTextInVsCode(`disk-${op.value}.ps1`, script.value.full);
+    notice.value = { kind: answer.ok ? "success" : "warning", text: answer.message + (answer.downloadUrl ? ` ${answer.downloadUrl}` : "") };
 }
 
 async function copyText(text: string): Promise<void> {
@@ -699,7 +706,10 @@ const size = (bytes: number | null): string => (bytes === null ? t("vdisk.unknow
 
                 <div class="wl-vdisk__script-head">
                     <h3>{{ t("vdisk.script", "Same thing as a script") }}</h3>
-                    <VBtn size="small" variant="text" :prepend-icon="mdiContentCopy" @click="copyText(script.full)">{{ t("vdisk.copy", "Copy") }}</VBtn>
+                    <div>
+                        <VBtn v-if="canOpenEditor" size="small" variant="text" :prepend-icon="mdiMicrosoftVisualStudioCode" @click="scriptInVsCode">{{ t("editors.openInVsCode", "Open in VS Code") }}</VBtn>
+                        <VBtn size="small" variant="text" :prepend-icon="mdiContentCopy" @click="copyText(script.full)">{{ t("vdisk.copy", "Copy") }}</VBtn>
+                    </div>
                 </div>
                 <pre class="wl-vdisk__script">{{ scriptPreview }}</pre>
 

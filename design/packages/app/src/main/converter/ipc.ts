@@ -1,16 +1,14 @@
 import type { IpcMain } from "electron";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { join } from "node:path";
 import { buildAdapterRegistry, detectAdapters, inspectInput, type ConverterAdapter } from "./registry.js";
 import { ConverterQueue, type ConverterQueueItem } from "./queue.js";
 import { runIsolatedAdapter } from "./isolated.js";
+import { EditorService } from "../editors/editors.js";
 
-const execFileAsync = promisify(execFile);
 export const CONVERTER_CHANNELS = ["converter:catalog", "converter:inspect", "converter:pdf", "converter:enqueue", "converter:queue", "converter:pause", "converter:resume", "converter:cancel", "converter:retry", "converter:openInEditor"] as const;
 export interface ConverterIpc { dispose(): void; }
 
-export interface ConverterIpcOptions { readonly dataDir: string; readonly bundledFiles?: Readonly<Record<string, string>>; }
+export interface ConverterIpcOptions { readonly dataDir: string; readonly bundledFiles?: Readonly<Record<string, string>>; readonly editors?: EditorService; }
 
 export function registerConverterHandlers(ipcMain: Pick<IpcMain, "handle" | "removeHandler">, options: ConverterIpcOptions): ConverterIpc {
     let queue: ConverterQueue | null = null;
@@ -68,9 +66,11 @@ export function registerConverterHandlers(ipcMain: Pick<IpcMain, "handle" | "rem
     ipcMain.handle("converter:retry", async (_event, id: unknown) => typeof id === "string" ? await getQueue().retry(id) : false);
     ipcMain.handle("converter:openInEditor", async (_event, path: unknown) => {
         if (typeof path !== "string" || path.trim() === "") return { ok: false, message: "Choose an exported file first." };
-        const candidates = process.platform === "win32" ? ["code", join(process.env.LOCALAPPDATA ?? "", "Programs", "Microsoft VS Code", "bin", "code.cmd"), join(process.env.ProgramFiles ?? "C:\\Program Files", "Microsoft VS Code", "bin", "code.cmd")] : ["code"];
-        for (const command of candidates) { try { await execFileAsync(command, [path], { windowsHide: true, timeout: 15_000 }); return { ok: true, message: "Opened the export in Visual Studio Code." }; } catch { /* try the next detected installation */ } }
-        return { ok: false, message: "Visual Studio Code was not detected. Install it through the app's editor settings, then retry." };
+        // The shared editor service detects every VS Code install (per user, machine, Insiders,
+        // VSCodium, PATH) and answers honestly with the download page when there is none.
+        const editors = options.editors ?? new EditorService(join(options.dataDir, "editors", "editors.json"));
+        const result = await editors.openInVsCode(path);
+        return { ok: result.ok, message: result.message, ...(result.downloadUrl ? { downloadUrl: result.downloadUrl } : {}) };
     });
     return { dispose: () => { for (const channel of CONVERTER_CHANNELS) ipcMain.removeHandler(channel); } };
 }

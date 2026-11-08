@@ -102,6 +102,7 @@ import { BASE64_FIXED } from "./base64.js";
 import { DRAWING_FIXED } from "./drawing.js";
 import { CHARTS_FIXED } from "./charts.js";
 import { PROVIDERTEXT_FIXED } from "./providerText.js";
+import { EDITORS_FIXED } from "./editors.js";
 import {
     WORLDDOWNLOADER_FACTS,
     WORLDDOWNLOADER_FIXED,
@@ -178,6 +179,7 @@ export const SURFACE_FIXED = {
     ...DRAWING_FIXED,
     ...CHARTS_FIXED,
     ...PROVIDERTEXT_FIXED,
+    ...EDITORS_FIXED,
     ...MEASUREDWORLDGEN_FIXED,
     ...CHROME_FIXED,
     ...CHUNKER_FIXED,

@@ -193,6 +193,8 @@ import { registerVocabularyHandlers } from "./vocabulary/index.js";
 import { registerConverterHandlers, type ConverterIpc } from "./converter/index.js";
 import { registerVirtualDiskHandlers, type VirtualDiskIpc } from "./vdisk/ipc.js";
 import { registerBase64Handlers, type Base64Ipc } from "./base64/ipc.js";
+import { registerEditorHandlers, type EditorIpc } from "./editors/ipc.js";
+import { EditorService } from "./editors/editors.js";
 import { registerOllamaHandlers, type OllamaIpc } from "./ollama/index.js";
 import { registerRuntimeSettingsHandlers } from "./runtimeSettings/ipc.js";
 import type { RuntimeSettingsIpc } from "./runtimeSettings/ipc.js";
@@ -517,6 +519,7 @@ let botIpc: { dispose(): void } | null = null;
 let managedHostingIpc: { dispose(): void } | null = null;
 let converterIpc: ConverterIpc | null = null;
 let vdiskIpc: VirtualDiskIpc | null = null;
+let editorIpc: EditorIpc | null = null;
 let base64Ipc: Base64Ipc | null = null;
 let ollamaIpc: OllamaIpc | null = null;
 let runtimeSettingsIpc: RuntimeSettingsIpc | null = null;
@@ -669,8 +672,24 @@ function registerIpc(): void {
     // Local conversion and Ollama are registered even when their bundled dependencies are
     // unavailable. The renderer receives a complete catalogue with disabled reasons instead
     // of a missing tab or a button that sends somebody hunting for a manual install.
+    // One editor service for every surface that opens something in an external editor.
+    const editorService = new EditorService(path.join(app.getPath("userData"), "editors", "editors.json"));
+    editorIpc = registerEditorHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+        service: editorService,
+        pickProgram: async () => {
+            const picked = await dialog.showOpenDialog({
+                title: "Choose an editor program",
+                properties: ["openFile"],
+                ...(process.platform === "win32" ? { filters: [{ name: "Programs", extensions: ["exe", "cmd", "bat"] }] } : {}),
+            });
+            return picked.canceled ? null : (picked.filePaths[0] ?? null);
+        },
+    });
+    app.on("will-quit", () => editorIpc?.dispose());
     converterIpc = registerConverterHandlers(ipcMain, {
         dataDir: app.getPath("userData"),
+        editors: editorService,
         ...(app.isPackaged
             ? {
                   bundledFiles: {

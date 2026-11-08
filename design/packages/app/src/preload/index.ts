@@ -2522,6 +2522,16 @@ interface AddonsBridge {
 }
 
 interface WorldlensBridge {
+    /** External editors: detection, the person's choice, and the one-action VS Code hand-off. */
+    editors: {
+        list(): Promise<unknown>;
+        choose(id: string): Promise<unknown>;
+        add(): Promise<unknown>;
+        remove(id: string): Promise<unknown>;
+        open(target: string, id?: string): Promise<unknown>;
+        openInVsCode(target: string): Promise<unknown>;
+        openText(name: string, text: string): Promise<unknown>;
+    };
     base64: {
         encodeFile(source: string, options: unknown, jobId?: string): Promise<unknown>;
         decodeFile(source: string, jobId?: string): Promise<unknown>;

@@ -49,4 +49,5 @@ export const DRAWING_FIXED = {
     "draw.canvas": { en: "Drawing with {count} strokes", yue: "畫咗 {count} 筆嘅畫" },
     "draw.menu": { en: "Drawing commands", yue: "畫畫指令" },
     "draw.menuFilter": { en: "Filter tools", yue: "篩選工具" },
+    "draw.svgInVsCode": { en: "SVG in VS Code", yue: "喺 VS Code 開 SVG" },
 } as const satisfies Record<string, FixedString>;

@@ -1132,6 +1132,16 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
 
+        editors: {
+            list: () => transport.invoke("editors:list"),
+            choose: (id: unknown) => transport.invoke("editors:choose", id),
+            add: () => transport.invoke("editors:add"),
+            remove: (id: unknown) => transport.invoke("editors:remove", id),
+            open: (target: unknown, id: unknown) => transport.invoke("editors:open", target, id),
+            openInVsCode: (target: unknown) => transport.invoke("editors:openInVsCode", target),
+            openText: (name: unknown, text: unknown) => transport.invoke("editors:openText", name, text),
+        },
+
         vdisk: {
             status: () => transport.invoke("vdisk:status"),
             list: () => transport.invoke("vdisk:list"),

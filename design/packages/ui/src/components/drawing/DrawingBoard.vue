@@ -23,6 +23,7 @@ import { VBtn, VIcon, VMenu, VSlider, VTooltip } from "vuetify/components";
 import ColorField from "../appearance/ColorField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import MenuSearchList, { type MenuSearchItem } from "../menuSearch/MenuSearchList.vue";
+import { editorBridge, openTextInVsCode } from "../editors/editorBridge.js";
 import {
     DrawingHistory,
     ERASER_KEY,
@@ -351,6 +352,13 @@ function exportSvg(): void {
     notice.value = t("draw.notice.exported", "Exported.");
 }
 
+const canOpenEditor = editorBridge() !== null;
+async function svgInVsCode(): Promise<void> {
+    const svg = toSvg(strokes.value, { width: width.value, height: height.value, background: background.value, fill: background.value ? null : "#ffffff" });
+    const answer = await openTextInVsCode(`drawing-${stamp()}.svg`, svg);
+    notice.value = answer.message + (answer.downloadUrl ? ` ${answer.downloadUrl}` : "");
+}
+
 function exportPng(ratio: 1 | 2 | 3): void {
     const off = document.createElement("canvas");
     off.width = width.value * ratio;
@@ -460,6 +468,7 @@ defineExpose({ strokes, tool, undo, redo, exportSvg });
                     </template>
                     <div class="wl-draw__menu">
                         <VBtn v-for="r in ([1, 2, 3] as const)" :key="r" variant="text" block @click="exportPng(r)">{{ t("draw.pngAt", { ratio: r }, "PNG at {ratio}x") }}</VBtn>
+                        <VBtn v-if="canOpenEditor" variant="text" block @click="svgInVsCode">{{ t("draw.svgInVsCode", "SVG in VS Code") }}</VBtn>
                     </div>
                 </VMenu>
                 <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden :aria-label="t('draw.open', 'Open picture')" @change="onFile" />

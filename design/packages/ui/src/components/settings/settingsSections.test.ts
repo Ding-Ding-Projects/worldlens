@@ -122,6 +122,12 @@ const SECTIONS: SettingsSectionText[] = [
         values: ["manifest", "capabilities"],
     },
     {
+        anchor: "external-editor",
+        title: "External editor",
+        description: "The editor that opens project folders and files.",
+        values: ["Visual Studio Code", "Notepad++"],
+    },
+    {
         anchor: "bluemap-engine",
         title: "BlueMap engine",
         description: "Which BlueMap this installation's rendering engine was built from.",
@@ -234,6 +240,7 @@ describe("every section the surface renders", () => {
             "system-dependencies",
             "aws-accounts",
             "addons",
+            "external-editor",
             "bluemap-engine",
             "updates",
             "vocabulary",
