@@ -1,5 +1,21 @@
 # Handoff
 
+## 2026-11-08 Disks proven on Windows; drawing, live charts, extensions, editors, guides
+
+What changed, all on `main`:
+
+- **Virtual disks.** The VirtDisk API route runs every operation on the screen. The "Virtual disks on Windows" workflow passes all 14 real-disk steps on a hosted Windows Server 2025 runner (run 42507510508) without using Hyper-V. Five runs found and fixed: cmd quoting that silenced every elevated PowerShell step, change queries needing a readable handle, mirroring needing a version 2 handle and an attach, VHD Set creation needing the backing-storage flag, and checkpoint apply needing the plain field combination. Native boot is unit-tested only. See `docs/virtual-disks.md`.
+- **Drawing board** Work tab (`docs/drawing.md`), **live charts** for render speed (`docs/live-charts.md`), one **provider text** renderer with the update banner's What's new (`docs/provider-text.md`), **external editor** detection and one-action VS Code hand-off (`docs/external-editor.md`), **extensions** with an out-of-process protocol, three built-ins and runnable samples (`docs/extensions.md`), **control guides** beside Base64, disk and drawing controls (`docs/control-guides.md`), and **menu shortcuts** in the shared searchable menu.
+- All new articles carry a Cantonese section and are published on the site as server articles (72 in total).
+
+Not done or not verified:
+
+- Native boot on real hardware; any of this in the packaged app on a Windows Home PC.
+- Guides cover only the controls listed in `docs/control-guides.md`.
+- Live charts: time windows, reference lines, several series and candlesticks.
+- Drawing on a live window screenshot; drawing history in local version control.
+- Job pages are not found by name in the command palette in the built interface without a map (the palette lists documentation and settings, not the Work pages); open them from the Work tab's **+** menu. This predates this work and is not fixed.
+
 ## 2026-11-02 Releases unblocked, Contour BlueMap viewer bundled
 
 No release published between v1.0.2130 (2026-10-23) and v1.0.2170 (2026-11-03). Every
