@@ -20,12 +20,15 @@ import {
     quickPackSize,
     routesFor,
     validateCreate,
+    devDriveScript,
+    nativeBootScript,
     type CreateRequest,
     type RouteAvailability,
     type VirtualDiskOperation,
     type VirtualDiskRoute,
 } from "@worldlens/shared/virtualDisk";
 import type { DiskScriptRunner, ScriptOutcome } from "./runner.js";
+import { parseVirtdiskOutput, virtdiskScript, type VirtDiskCall } from "./virtdiskInterop.js";
 
 export interface VirtualDiskStatus {
     readonly available: boolean;
@@ -58,6 +61,17 @@ export interface OperationRequest {
     readonly create?: CreateRequest;
     readonly destination?: string;
     readonly mode?: "Full" | "Quick" | "Retrim" | "Pretrimmed" | "Prezeroed";
+    /** Shrink as far as possible without cutting a partition. */
+    readonly smallestSafe?: boolean;
+    /** Convert: the target format and type. Create (VirtDisk): fixed or dynamic. */
+    readonly targetType?: "fixed" | "dynamic";
+    readonly parentPath?: string;
+    readonly sectorSize?: 512 | 4096;
+    readonly metadata?: { readonly action: "list" | "set" | "delete"; readonly key?: string; readonly valueBase64?: string };
+    readonly changeTracking?: { readonly action: "enable" | "disable" | "query"; readonly changeTrackingId?: string };
+    readonly checkpoint?: { readonly action: "take" | "apply" | "delete"; readonly checkpointId?: string };
+    readonly devDriveLabel?: string;
+    readonly nativeBoot?: { readonly imageFile: string; readonly imageIndex: number };
 }
 
 export interface OperationResult {
@@ -67,6 +81,8 @@ export interface OperationResult {
     readonly route: VirtualDiskRoute | null;
     readonly message: string;
     readonly script: string;
+    /** What the VirtDisk API or a PowerShell step reported, such as sizes, ids or ranges. */
+    readonly details?: Readonly<Record<string, unknown>>;
 }
 
 export interface HistoryEntry {
@@ -227,54 +243,153 @@ export class VirtualDiskManager {
         return out.sort((x, y) => x.path.localeCompare(y.path));
     }
 
-    /** The exact script an operation would run, for the copy button. Never runs anything. */
-    script(request: OperationRequest): string {
+    /** The exact script an operation would run on a route, for the copy button. Never runs anything. */
+    script(request: OperationRequest, route: VirtualDiskRoute = "diskpart"): string {
         try {
-            return this.build(request, "diskpart").script;
+            return this.build(request, route).script;
         } catch (error) {
             return `# ${error instanceof Error ? error.message : String(error)}`;
         }
     }
 
-    private build(request: OperationRequest, route: VirtualDiskRoute): { script: string; kind: "diskpart" | "powershell" } {
+    private virtdiskCall(request: OperationRequest): VirtDiskCall {
         const p = request.path;
+        switch (request.operation) {
+            case "describe":
+                return { op: "describe", path: p };
+            case "grow":
+                return { op: "resize", path: p, newSizeBytes: request.sizeBytes ?? 0, smallestSafe: false };
+            case "shrink":
+                return { op: "resize", path: p, newSizeBytes: request.smallestSafe ? 0 : request.sizeBytes ?? 0, smallestSafe: request.smallestSafe === true };
+            case "compact": {
+                const mode = request.mode ?? "Full";
+                if (mode !== "Full" && mode !== "Quick") throw new Error(`The VirtDisk route compacts in Full or Quick mode; ${mode} needs the Hyper-V module.`);
+                return { op: "compact", path: p, quick: mode === "Quick" };
+            }
+            case "merge":
+                return { op: "merge", path: p, depth: request.depth ?? 1 };
+            case "convert":
+                if (!request.destination) throw new Error("Choose where the converted copy goes.");
+                if (existsSync(request.destination)) throw new Error("A file with that name already exists. Nothing is ever overwritten; choose another name.");
+                return { op: "create", path: request.destination, maximumSizeBytes: 0, fixed: request.targetType === "fixed", sourcePath: p };
+            case "create": {
+                const c = request.create;
+                if (!c) throw new Error("Create needs the disk details.");
+                return {
+                    op: "create",
+                    path: c.path,
+                    maximumSizeBytes: c.type === "differencing" ? 0 : c.sizeBytes,
+                    fixed: c.type === "fixed",
+                    ...(c.blockSizeBytes ? { blockSizeBytes: c.blockSizeBytes } : {}),
+                    ...(c.logicalSectorBytes ? { logicalSectorBytes: c.logicalSectorBytes } : {}),
+                    ...(c.physicalSectorBytes ? { physicalSectorBytes: c.physicalSectorBytes } : {}),
+                    ...(c.parentPath ? { parentPath: c.parentPath } : {}),
+                };
+            }
+            case "identity":
+                if (request.sectorSize) return { op: "setPhysicalSectorSize", path: p, bytes: request.sectorSize };
+                return { op: "newIdentifier", path: p };
+            case "reparent":
+                if (!request.parentPath) throw new Error("Choose the parent disk.");
+                return { op: "setParent", path: p, parentPath: request.parentPath };
+            case "metadata": {
+                const m = request.metadata ?? { action: "list" as const };
+                if (m.action === "set") return { op: "setMetadata", path: p, key: m.key ?? "", valueBase64: m.valueBase64 ?? "" };
+                if (m.action === "delete") return { op: "deleteMetadata", path: p, key: m.key ?? "" };
+                return { op: "listMetadata", path: p };
+            }
+            case "changeTracking": {
+                const c = request.changeTracking ?? { action: "query" as const };
+                if (c.action === "query") return { op: "queryChanges", path: p, changeTrackingId: c.changeTrackingId ?? "" };
+                return { op: "setChangeTracking", path: p, enabled: c.action === "enable" };
+            }
+            case "checkpoint": {
+                const c = request.checkpoint ?? { action: "take" as const };
+                if (c.action === "take") return { op: "takeCheckpoint", path: p };
+                if (c.action === "apply") return { op: "applyCheckpoint", path: p, checkpointId: c.checkpointId ?? "" };
+                return { op: "deleteCheckpoint", path: p, checkpointId: c.checkpointId ?? "" };
+            }
+            case "mirror":
+                if (!request.destination) throw new Error("Choose where the mirror copy goes.");
+                if (existsSync(request.destination)) throw new Error("A file with that name already exists. Nothing is ever overwritten; choose another name.");
+                return { op: "mirror", path: p, destination: request.destination };
+            default:
+                throw new Error(`${request.operation} has no VirtDisk route.`);
+        }
+    }
+
+    private build(request: OperationRequest, route: VirtualDiskRoute): { script: string; kind: "diskpart" | "powershell"; json: boolean } {
+        const p = request.path;
+        const ps = (value: string): string => `'${value.replace(/'/gu, "''")}'`;
+        if (route === "virtdisk") return { script: virtdiskScript(this.virtdiskCall(request)), kind: "powershell", json: true };
         switch (request.operation) {
             case "create": {
                 if (!request.create) throw new Error("Create needs the disk details.");
-                return { script: createScript(request.create), kind: "diskpart" };
+                return { script: createScript(request.create), kind: "diskpart", json: false };
             }
             case "attach":
-                if (route === "storage") return { script: powerShellEquivalent("attach", p, { readOnly: request.readOnly === true }), kind: "powershell" };
-                return { script: attachScript(p, request.readOnly === true), kind: "diskpart" };
+                if (route === "storage") return { script: powerShellEquivalent("attach", p, { readOnly: request.readOnly === true }), kind: "powershell", json: false };
+                return { script: attachScript(p, request.readOnly === true), kind: "diskpart", json: false };
             case "detach":
-                if (route === "storage") return { script: powerShellEquivalent("detach", p), kind: "powershell" };
-                return { script: detachScript(p), kind: "diskpart" };
+                if (route === "storage") return { script: powerShellEquivalent("detach", p), kind: "powershell", json: false };
+                return { script: detachScript(p), kind: "diskpart", json: false };
             case "grow":
-                if (route === "hyperv") return { script: `Resize-VHD -Path '${p.replace(/'/gu, "''")}' -SizeBytes ${request.sizeBytes ?? 0}`, kind: "powershell" };
-                return { script: growScript(p, request.sizeBytes ?? 0, request.extendVolume ?? null), kind: "diskpart" };
+                if (route === "hyperv") return { script: `Resize-VHD -Path ${ps(p)} -SizeBytes ${request.sizeBytes ?? 0}`, kind: "powershell", json: false };
+                return { script: growScript(p, request.sizeBytes ?? 0, request.extendVolume ?? null), kind: "diskpart", json: false };
             case "shrink":
-                return { script: `Resize-VHD -Path '${p.replace(/'/gu, "''")}' -SizeBytes ${request.sizeBytes ?? 0}`, kind: "powershell" };
+                return { script: request.smallestSafe ? `Resize-VHD -Path ${ps(p)} -ToMinimumSize` : `Resize-VHD -Path ${ps(p)} -SizeBytes ${request.sizeBytes ?? 0}`, kind: "powershell", json: false };
             case "compact":
-                if (route === "hyperv") return { script: `Optimize-VHD -Path '${p.replace(/'/gu, "''")}' -Mode ${request.mode ?? "Full"}`, kind: "powershell" };
-                return { script: compactScript(p), kind: "diskpart" };
+                if (route === "hyperv") return { script: `Optimize-VHD -Path ${ps(p)} -Mode ${request.mode ?? "Full"}`, kind: "powershell", json: false };
+                return { script: compactScript(p), kind: "diskpart", json: false };
             case "convert":
-                return { script: `Convert-VHD -Path '${p.replace(/'/gu, "''")}' -DestinationPath '${(request.destination ?? "").replace(/'/gu, "''")}'`, kind: "powershell" };
+                return { script: `Convert-VHD -Path ${ps(p)} -DestinationPath ${ps(request.destination ?? "")}${request.targetType ? ` -VHDType ${request.targetType === "fixed" ? "Fixed" : "Dynamic"}` : ""}`, kind: "powershell", json: false };
             case "merge":
-                if (route === "hyperv") return { script: `Merge-VHD -Path '${p.replace(/'/gu, "''")}'`, kind: "powershell" };
-                return { script: mergeScript(p, request.depth ?? 1), kind: "diskpart" };
+                if (route === "hyperv") return { script: `Merge-VHD -Path ${ps(p)}`, kind: "powershell", json: false };
+                return { script: mergeScript(p, request.depth ?? 1), kind: "diskpart", json: false };
             case "identity":
-                return { script: `Set-VHD -Path '${p.replace(/'/gu, "''")}' -ResetDiskIdentifier`, kind: "powershell" };
+                return { script: `Set-VHD -Path ${ps(p)} -ResetDiskIdentifier -Force`, kind: "powershell", json: false };
+            case "reparent":
+                return { script: `Set-VHD -Path ${ps(p)} -ParentPath ${ps(request.parentPath ?? "")}`, kind: "powershell", json: false };
+            case "devdrive":
+                return { script: devDriveScript(p, request.devDriveLabel ?? "DevDrive"), kind: "powershell", json: true };
+            case "nativeboot": {
+                if (!request.nativeBoot) throw new Error("Choose the Windows image to apply.");
+                return {
+                    script: nativeBootScript({ path: p, imageFile: request.nativeBoot.imageFile, imageIndex: request.nativeBoot.imageIndex, bcdBackupPath: path.join(this.root, `bcd-backup-${Date.now()}.bcd`) }),
+                    kind: "powershell",
+                    json: true,
+                };
+            }
             default:
-                throw new Error(`${request.operation} is designed but not yet wired in this build.`);
+                throw new Error(`${request.operation} has no ${route} route.`);
         }
+    }
+
+    /** Read-only details from the VirtDisk API, without the permission prompt when Windows allows it. */
+    async describe(diskPath: string): Promise<OperationResult> {
+        const status = await this.status();
+        if (!status.available || !this.runner) return { ok: false, cancelled: false, route: null, message: status.reason ?? "Unavailable.", script: "" };
+        if (!status.routes.virtdisk) return { ok: false, cancelled: false, route: null, message: "The VirtDisk API was not found on this PC.", script: "" };
+        const script = virtdiskScript({ op: "describe", path: diskPath });
+        let parsed = parseVirtdiskOutput(await this.runner.query(script).catch((error: unknown) => String(error)));
+        // Opening some disks needs administrator rights; ask only when Windows says so.
+        if (!parsed.ok && parsed["code"] === 5) {
+            const outcome = await this.runner.elevatedPowerShell(script);
+            if (outcome.cancelled) return { ok: false, cancelled: true, route: "virtdisk", message: "Cancelled at the Windows permission prompt.", script };
+            parsed = parseVirtdiskOutput(outcome.output);
+        }
+        const { ok, message, ...details } = parsed as { ok: boolean; message?: string };
+        return { ok, cancelled: false, route: "virtdisk", message: ok ? "Read." : String(message ?? "Could not read the disk."), script, details };
     }
 
     /**
      * Runs one operation through the first usable route (or the one asked for). A declined
      * permission prompt is reported as cancelled and incomplete; a route that this PC does not
-     * have is refused with the reason before anything runs.
+     * have is refused with the reason before anything runs. VirtDisk and PowerShell steps report
+     * JSON, and their own verdict decides success, not just the exit code.
      */
     async run(request: OperationRequest): Promise<OperationResult> {
+        if (request.operation === "describe") return await this.describe(request.path);
         const status = await this.status();
         if (!status.available || !this.runner) return { ok: false, cancelled: false, route: null, message: status.reason ?? "Unavailable.", script: "" };
         if (request.operation === "create" && request.create) {
@@ -282,23 +397,33 @@ export class VirtualDiskManager {
             if (problems.length > 0) return { ok: false, cancelled: false, route: null, message: problems.map((x) => x.message).join(" "), script: "" };
             if (existsSync(request.create.path)) return { ok: false, cancelled: false, route: null, message: "A file with that name already exists. Nothing is ever overwritten; choose another name.", script: "" };
         }
-        const choices = routesFor(request.operation, status.routes).filter((c) => c.usable && c.route !== "virtdisk");
+        const choices = routesFor(request.operation, status.routes).filter((c) => c.usable);
         const chosen = request.route ? choices.find((c) => c.route === request.route) : choices[0];
         if (!chosen) {
             const need = routesFor(request.operation, status.routes).map((c) => c.reason).join(" ");
             return { ok: false, cancelled: false, route: null, message: `No route on this PC can do this yet. ${need}`, script: "" };
         }
-        let built: { script: string; kind: "diskpart" | "powershell" };
+        let built: { script: string; kind: "diskpart" | "powershell"; json: boolean };
         try {
             built = this.build(request, chosen.route);
         } catch (error) {
             return { ok: false, cancelled: false, route: null, message: error instanceof Error ? error.message : String(error), script: "" };
         }
         const outcome: ScriptOutcome = built.kind === "diskpart" ? await this.runner.diskpart(built.script) : await this.runner.elevatedPowerShell(built.script);
-        const message = outcome.cancelled ? "Cancelled at the Windows permission prompt. Nothing was changed." : outcome.ok ? "Done." : `Did not complete: ${outcome.output.trim().slice(-600)}`;
-        await this.record({ operation: request.operation, path: request.path, route: chosen.route, ok: outcome.ok, message });
-        if (outcome.ok && request.operation === "create" && request.create) await this.addToLibrary([request.create.path]);
-        return { ok: outcome.ok, cancelled: outcome.cancelled, route: chosen.route, message, script: built.script };
+        let ok = outcome.ok;
+        let message = outcome.cancelled ? "Cancelled at the Windows permission prompt. Nothing was changed." : outcome.ok ? "Done." : `Did not complete: ${outcome.output.trim().slice(-600)}`;
+        let details: Record<string, unknown> | undefined;
+        if (built.json && !outcome.cancelled) {
+            const parsed = parseVirtdiskOutput(outcome.output) as { ok: boolean; message?: string; [key: string]: unknown };
+            const { ok: parsedOk, message: parsedMessage, ...rest } = parsed;
+            ok = parsedOk;
+            details = rest;
+            message = ok ? "Done." : `Did not complete: ${String(parsedMessage ?? "no result")}`;
+        }
+        await this.record({ operation: request.operation, path: request.path, route: chosen.route, ok, message });
+        const created = request.operation === "create" ? request.create?.path : request.operation === "convert" || request.operation === "mirror" ? request.destination : undefined;
+        if (ok && created) await this.addToLibrary([created]);
+        return { ok, cancelled: outcome.cancelled, route: chosen.route, message, script: built.script, ...(details ? { details } : {}) };
     }
 
     /**

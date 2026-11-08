@@ -11,7 +11,7 @@ import type { DiskScriptRunner, ScriptOutcome } from "./runner.js";
  * never-overwrite rule can be observed, `assign mount=` creates the folder, and the permission
  * prompt can be declined. No real disk is ever touched.
  */
-function fakeRunner(options: { decline?: boolean; hyperv?: boolean } = {}): DiskScriptRunner & { scripts: string[] } {
+function fakeRunner(options: { decline?: boolean; hyperv?: boolean; virtdiskFails?: boolean } = {}): DiskScriptRunner & { scripts: string[] } {
     const scripts: string[] = [];
     const ok: ScriptOutcome = { ok: true, cancelled: false, output: "DiskPart successfully did it.", exitCode: 0 };
     const exec = async (script: string): Promise<ScriptOutcome> => {
@@ -21,6 +21,9 @@ function fakeRunner(options: { decline?: boolean; hyperv?: boolean } = {}): Disk
         if (created) await fs.writeFile(created[1]!, "");
         const mount = /assign mount="([^"]+)"/u.exec(script);
         if (mount) await fs.mkdir(mount[1]!, { recursive: true });
+        // A VirtDisk call answers with one JSON line, as the real shim does.
+        const call = /\[Worldlens\.VirtDisk\]::(\w+)/u.exec(script);
+        if (call) return { ...ok, output: options.virtdiskFails ? '{"ok":false,"code":50,"message":"The request is not supported."}' : `{"ok":true,"call":"${call[1]}"}` };
         return ok;
     };
     return {
@@ -75,15 +78,54 @@ describe("operations", () => {
         expect(result.ok).toBe(false);
         expect(await fs.readFile(target, "utf8")).toBe("keep me");
     });
-    it("refuses a shrink when only Home routes exist, naming why", async () => {
+    it("shrinks through the VirtDisk API on Windows Home, to the smallest safe size", async () => {
         const manager = new VirtualDiskManager(path.join(dir, "state"), fakeRunner(), "win32");
-        const result = await manager.run({ operation: "shrink", path: "D:\\a.vhdx", sizeBytes: 1024 ** 3 });
+        const result = await manager.run({ operation: "shrink", path: "D:\\a.vhdx", smallestSafe: true });
+        expect(result.ok).toBe(true);
+        expect(result.route).toBe("virtdisk");
+        expect(result.script).toContain("[Worldlens.VirtDisk]::Resize('D:\\a.vhdx', [uint64]0, $true)");
+        expect(result.details).toEqual({ call: "Resize" });
+    });
+
+    it("takes the API's own verdict over the exit code", async () => {
+        const manager = new VirtualDiskManager(path.join(dir, "state"), fakeRunner({ virtdiskFails: true }), "win32");
+        const result = await manager.run({ operation: "identity", path: "D:\\a.vhdx" });
+        expect(result.ok).toBe(false);
+        expect(result.message).toContain("not supported");
+    });
+
+    it("routes every remaining operation through a route that exists on Home", async () => {
+        const runner = fakeRunner();
+        const manager = new VirtualDiskManager(path.join(dir, "state"), runner, "win32");
+        const cases = [
+            { operation: "convert" as const, path: "D:\\a.vhdx", destination: path.join(dir, "a.vhd"), targetType: "dynamic" as const },
+            { operation: "metadata" as const, path: "D:\\a.vhdx", metadata: { action: "set" as const, key: "6c1e41b2-9a0f-4d7e-8c11-5b0a2f9e77d3", valueBase64: "QUJD" } },
+            { operation: "changeTracking" as const, path: "D:\\a.vhdx", changeTracking: { action: "enable" as const } },
+            { operation: "checkpoint" as const, path: "D:\\s.vhds", checkpoint: { action: "take" as const } },
+            { operation: "mirror" as const, path: "D:\\a.vhdx", destination: path.join(dir, "m.vhdx") },
+            { operation: "reparent" as const, path: "D:\\c.avhdx", parentPath: "D:\\p.vhdx" },
+            { operation: "compact" as const, path: "D:\\a.vhdx", mode: "Quick" as const, route: "virtdisk" as const },
+            { operation: "devdrive" as const, path: "D:\\d.vhdx", devDriveLabel: "Dev" },
+        ];
+        for (const request of cases) {
+            const result = await manager.run(request);
+            expect(result.route, request.operation).not.toBe("hyperv");
+            expect(result.ok, `${request.operation}: ${result.message}`).toBe(request.operation === "devdrive" ? false : true);
+        }
+        // Dev Drive answers through its own script, which the fake does not run: it reports no result.
+        expect(runner.scripts.some((s) => s.includes("Format-Volume -Partition $part -DevDrive"))).toBe(true);
+        expect(await manager.library()).toEqual(expect.arrayContaining([path.join(dir, "a.vhd"), path.join(dir, "m.vhdx")]));
+    });
+
+    it("refuses compact modes the VirtDisk API cannot do, naming the route that can", async () => {
+        const manager = new VirtualDiskManager(path.join(dir, "state"), fakeRunner(), "win32");
+        const result = await manager.run({ operation: "compact", path: "D:\\a.vhdx", mode: "Retrim", route: "virtdisk" });
         expect(result.ok).toBe(false);
         expect(result.message).toMatch(/Hyper-V/u);
     });
-    it("uses Hyper-V for shrink when it is installed", async () => {
+    it("uses Hyper-V for shrink when it is installed and chosen", async () => {
         const manager = new VirtualDiskManager(path.join(dir, "state"), fakeRunner({ hyperv: true }), "win32");
-        const result = await manager.run({ operation: "shrink", path: "D:\\a.vhdx", sizeBytes: 1024 ** 3 });
+        const result = await manager.run({ operation: "shrink", path: "D:\\a.vhdx", sizeBytes: 1024 ** 3, route: "hyperv" });
         expect(result.ok).toBe(true);
         expect(result.route).toBe("hyperv");
     });

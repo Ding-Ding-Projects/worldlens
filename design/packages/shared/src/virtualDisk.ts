@@ -29,7 +29,11 @@ export type VirtualDiskOperation =
     | "identity"
     | "checkpoint"
     | "devdrive"
-    | "nativeboot";
+    | "nativeboot"
+    | "describe"
+    | "metadata"
+    | "changeTracking"
+    | "mirror";
 
 export const MIB = 1024 * 1024;
 export const GIB = 1024 * MIB;
@@ -260,8 +264,12 @@ export function routesFor(operation: VirtualDiskOperation, available: RouteAvail
         reparent: ["virtdisk", "hyperv"],
         identity: ["virtdisk", "hyperv"],
         checkpoint: ["virtdisk", "hyperv"],
-        devdrive: ["diskpart", "storage"],
-        nativeboot: ["diskpart"],
+        devdrive: ["storage"],
+        nativeboot: ["storage"],
+        describe: ["virtdisk"],
+        metadata: ["virtdisk"],
+        changeTracking: ["virtdisk"],
+        mirror: ["virtdisk"],
     };
     return can[operation].map((route) => {
         if (!available[route]) {
@@ -380,5 +388,84 @@ export function devDriveChecks(build: { readonly major: number; readonly build: 
         { ok: buildOk, message: buildOk ? `Windows build ${build.build}.${build.revision} supports Dev Drive.` : "Dev Drive needs Windows 11 build 22621.2338 or later." },
         { ok: sizeBytes >= 50 * GIB, message: sizeBytes >= 50 * GIB ? "Size is 50 GB or more." : "A Dev Drive needs 50 GB or more." },
         { ok: !onRemovable, message: onRemovable ? "Dev Drive cannot live on a removable disk." : "Host file is not on a removable disk." },
+    ];
+}
+
+const psQuote = (value: string): string => `'${assertScriptablePath(value).replace(/'/gu, "''")}'`;
+
+/**
+ * Turns an empty VHDX into a Dev Drive: attach it, give it one GPT partition and format that as
+ * a Dev Drive (ReFS). It erases the disk, so the screen asks with two keys first and the script
+ * refuses a disk that already has partitions.
+ */
+export function devDriveScript(path: string, label: string): string {
+    const safeLabel = label.replace(/[^A-Za-z0-9 _-]/gu, "").slice(0, 32) || "DevDrive";
+    return [
+        "$ErrorActionPreference = 'Stop'",
+        `$image = Mount-DiskImage -ImagePath ${psQuote(path)} -NoDriveLetter -PassThru`,
+        "$disk = $image | Get-Disk",
+        "if ($disk.PartitionStyle -ne 'RAW') { Dismount-DiskImage -ImagePath $image.ImagePath | Out-Null; throw 'This disk already has partitions. A Dev Drive starts from an empty disk.' }",
+        "Initialize-Disk -Number $disk.Number -PartitionStyle GPT",
+        "$part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -AssignDriveLetter",
+        `$volume = Format-Volume -Partition $part -DevDrive -NewFileSystemLabel '${safeLabel}' -Confirm:$false`,
+        "Write-Output ('{\"ok\":true,\"driveLetter\":\"' + $part.DriveLetter + '\",\"fileSystem\":\"' + $volume.FileSystem + '\"}')",
+    ].join("\n");
+}
+
+export interface NativeBootRequest {
+    readonly path: string;
+    readonly imageFile: string;
+    readonly imageIndex: number;
+    /** Where the boot configuration is exported before anything changes. */
+    readonly bcdBackupPath: string;
+}
+
+/**
+ * Prepares a fixed VHDX for native boot: exports the boot configuration first, applies a Windows
+ * image to the disk with DISM, adds a boot entry with bcdboot and detaches. It never restarts
+ * the computer; the person restarts when they are ready and picks the new entry.
+ */
+export function nativeBootScript(request: NativeBootRequest): string {
+    if (!request.path.toLowerCase().endsWith(".vhdx")) throw new Error("Native boot needs a VHDX file.");
+    if (!/\.(wim|esd)$/iu.test(request.imageFile)) throw new Error("Choose an install.wim or install.esd from Windows setup media.");
+    if (!Number.isInteger(request.imageIndex) || request.imageIndex < 1) throw new Error("The image index is a whole number from 1.");
+    return [
+        "$ErrorActionPreference = 'Stop'",
+        `Unblock-File -Path ${psQuote(request.path)} -ErrorAction SilentlyContinue`,
+        `bcdedit /export ${psQuote(request.bcdBackupPath)} | Out-Null`,
+        "if ($LASTEXITCODE -ne 0) { throw 'Could not export the boot configuration, so nothing was changed.' }",
+        `$image = Mount-DiskImage -ImagePath ${psQuote(request.path)} -NoDriveLetter -PassThru`,
+        "try {",
+        "  $disk = $image | Get-Disk",
+        "  if ($disk.PartitionStyle -ne 'RAW') { throw 'This disk already has partitions. Native boot starts from an empty fixed VHDX.' }",
+        "  Initialize-Disk -Number $disk.Number -PartitionStyle GPT",
+        "  $part = New-Partition -DiskNumber $disk.Number -UseMaximumSize -AssignDriveLetter",
+        "  Format-Volume -Partition $part -FileSystem NTFS -NewFileSystemLabel 'Windows' -Confirm:$false | Out-Null",
+        "  $root = $part.DriveLetter + ':\\'",
+        `  dism /Apply-Image /ImageFile:${psQuote(request.imageFile)} /Index:${request.imageIndex} /ApplyDir:$root`,
+        "  if ($LASTEXITCODE -ne 0) { throw ('DISM could not apply the image (exit ' + $LASTEXITCODE + ').') }",
+        "  bcdboot ($root + 'Windows')",
+        "  if ($LASTEXITCODE -ne 0) { throw ('bcdboot could not add the boot entry (exit ' + $LASTEXITCODE + ').') }",
+        "} finally {",
+        `  Dismount-DiskImage -ImagePath ${psQuote(request.path)} | Out-Null`,
+        "}",
+        "Write-Output '{\"ok\":true,\"restartNeeded\":true}'",
+    ].join("\n");
+}
+
+export interface NativeBootCheck {
+    readonly ok: boolean;
+    readonly message: string;
+}
+
+/** The documented native boot prerequisites the screen checks before offering the step. */
+export function nativeBootChecks(input: { readonly path: string; readonly fixed: boolean; readonly virtualBytes: number; readonly hostFreeBytes: number; readonly hostDiskIsDynamic: boolean; readonly onNetworkShare: boolean; readonly hasInternetMark: boolean }): readonly NativeBootCheck[] {
+    const need = input.fixed ? 0 : input.virtualBytes;
+    return [
+        { ok: input.path.toLowerCase().endsWith(".vhdx"), message: input.path.toLowerCase().endsWith(".vhdx") ? "VHDX format." : "Native boot needs a VHDX file." },
+        { ok: !input.hostDiskIsDynamic, message: input.hostDiskIsDynamic ? "The host disk is a dynamic disk; native boot needs a basic disk." : "The host disk is basic." },
+        { ok: !input.onNetworkShare, message: input.onNetworkShare ? "The file is on a network share; native boot needs a local disk." : "The file is on a local disk." },
+        { ok: input.hostFreeBytes >= need, message: input.hostFreeBytes >= need ? "There is room for the disk to reach its full size." : `A dynamic disk expands to its full size at boot: ${formatBytes(need)} must be free.` },
+        { ok: !input.hasInternetMark, message: input.hasInternetMark ? "The file has a downloaded-from-the-internet mark; it is removed first." : "No downloaded-from-the-internet mark." },
     ];
 }

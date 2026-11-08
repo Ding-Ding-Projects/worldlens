@@ -71,8 +71,18 @@ export function createWindowsRunner(workDir: string): DiskScriptRunner {
     };
     return {
         query: async (script) => {
-            const { stdout } = await execFileAsync(powershell(), ["-NoProfile", "-NonInteractive", "-Command", script], { windowsHide: true, timeout: 60_000, maxBuffer: 16 * 1024 * 1024 });
-            return stdout;
+            // Long scripts (the VirtDisk shim is several kilobytes) go through a file, which
+            // keeps them clear of the command-line length limit and of argument quoting.
+            const dir = path.join(workDir, "vdisk-queries", randomUUID());
+            await fs.mkdir(dir, { recursive: true });
+            const file = path.join(dir, "query.ps1");
+            await fs.writeFile(file, script, "utf8");
+            try {
+                const { stdout } = await execFileAsync(powershell(), ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", file], { windowsHide: true, timeout: 120_000, maxBuffer: 16 * 1024 * 1024 });
+                return stdout;
+            } finally {
+                await fs.rm(dir, { recursive: true, force: true });
+            }
         },
         diskpart: (script) => run(script, "diskpart"),
         elevatedPowerShell: (script) => run(script, "powershell"),

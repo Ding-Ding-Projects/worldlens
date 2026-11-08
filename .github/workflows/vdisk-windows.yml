@@ -1,0 +1,70 @@
+name: Virtual disks on Windows
+
+# Drives the virtual disk manager against real VHD, VHDX and VHD Set files on a hosted Windows
+# runner: the VirtDisk API route (resize, identifier, metadata, change tracking, compact,
+# convert, differencing and merge, VHD Set checkpoints, mirror), DiskPart creation with a mounted
+# volume, Quick pack and, where the runner supports it, Dev Drive. Hosted runners have no
+# Hyper-V module, which is the point: every operation must work on Windows Home routes.
+#
+# It is separate from CI so a runner-specific disk failure is visible without holding releases.
+# Native boot is not run here: it changes the runner's boot configuration and needs a Windows
+# image; its script and checks are covered by unit tests.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "design/packages/app/src/main/vdisk/**"
+      - "design/packages/shared/src/virtualDisk.ts"
+      - ".github/workflows/vdisk-windows.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vdisk-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  integration:
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          submodules: true
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          package_json_file: design/package.json
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: design
+        run: pnpm install --frozen-lockfile
+
+      - name: Build the shared package
+        working-directory: design
+        run: pnpm --filter @worldlens/shared run build
+
+      - name: Record the host
+        shell: pwsh
+        run: |
+          $os = Get-CimInstance Win32_OperatingSystem
+          "Windows $($os.Caption) build $($os.BuildNumber)" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+          "Hyper-V module: $([bool](Get-Command Resize-VHD -ErrorAction SilentlyContinue))" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+          "Dev Drive formatting: $((Get-Command Format-Volume).Parameters.ContainsKey('DevDrive'))" | Tee-Object -Append $env:GITHUB_STEP_SUMMARY
+
+      - name: Run the integration tests
+        working-directory: design
+        env:
+          WL_VDISK_INTEGRATION: "1"
+        run: npx vitest run packages/app/src/main/vdisk/manager.windows.test.ts --reporter=verbose
