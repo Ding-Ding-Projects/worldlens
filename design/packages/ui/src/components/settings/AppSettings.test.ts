@@ -71,6 +71,7 @@ const SECTION_TITLE: Readonly<Record<SettingsSectionAnchor, string>> = {
     "aws-accounts": "AWS accounts",
     addons: "Design add-ons",
     "external-editor": "External editor",
+    extensions: "Extensions",
     "bluemap-engine": "BlueMap engine",
     updates: "Updates",
     vocabulary: "Personal vocabulary",

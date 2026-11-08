@@ -1,0 +1,11 @@
+{
+  "manifestVersion": 1,
+  "id": "marker-heights-node",
+  "name": "Marker heights (Node sample)",
+  "version": "1.0.0",
+  "description": "Lists the open map's markers from highest to lowest. A runnable sample from the extension author guide.",
+  "run": { "command": "node", "args": ["main.js"] },
+  "permissions": ["read-markers", "produce-file"],
+  "commands": [{ "id": "heights", "title": "Markers by height", "input": "markers" }],
+  "limits": { "timeoutMs": 10000, "maxOutputBytes": 65536 }
+}

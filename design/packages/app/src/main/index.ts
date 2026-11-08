@@ -195,6 +195,7 @@ import { registerVirtualDiskHandlers, type VirtualDiskIpc } from "./vdisk/ipc.js
 import { registerBase64Handlers, type Base64Ipc } from "./base64/ipc.js";
 import { registerEditorHandlers, type EditorIpc } from "./editors/ipc.js";
 import { EditorService } from "./editors/editors.js";
+import { registerExtensionHandlers, type ExtensionIpc } from "./extensions/ipc.js";
 import { registerOllamaHandlers, type OllamaIpc } from "./ollama/index.js";
 import { registerRuntimeSettingsHandlers } from "./runtimeSettings/ipc.js";
 import type { RuntimeSettingsIpc } from "./runtimeSettings/ipc.js";
@@ -520,6 +521,7 @@ let managedHostingIpc: { dispose(): void } | null = null;
 let converterIpc: ConverterIpc | null = null;
 let vdiskIpc: VirtualDiskIpc | null = null;
 let editorIpc: EditorIpc | null = null;
+let extensionIpc: ExtensionIpc | null = null;
 let base64Ipc: Base64Ipc | null = null;
 let ollamaIpc: OllamaIpc | null = null;
 let runtimeSettingsIpc: RuntimeSettingsIpc | null = null;
@@ -687,6 +689,18 @@ function registerIpc(): void {
         },
     });
     app.on("will-quit", () => editorIpc?.dispose());
+    // Extensions: programs in any language that add commands, one request per process, with
+    // declared permissions, consent, and time and size limits. The built-ins are written to
+    // the data folder on start.
+    extensionIpc = registerExtensionHandlers(ipcMain, {
+        dataDir: app.getPath("userData"),
+        pickFolder: async () => {
+            const picked = await dialog.showOpenDialog({ title: "Choose an extension folder", properties: ["openDirectory"] });
+            return picked.canceled ? null : (picked.filePaths[0] ?? null);
+        },
+        openPath: (folder) => shell.openPath(folder),
+    });
+    app.on("will-quit", () => extensionIpc?.dispose());
     converterIpc = registerConverterHandlers(ipcMain, {
         dataDir: app.getPath("userData"),
         editors: editorService,

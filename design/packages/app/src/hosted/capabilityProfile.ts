@@ -234,6 +234,12 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
         "Use the Base64 text tools here, or the Base64 job in the desktop app for files.",
     ),
 
+    extensions: refused(
+        "Extensions are programs that run on the computer running the desktop app. A hosted " +
+            "deployment does not start programs for visitors.",
+        "Use extensions in the desktop app.",
+    ),
+
     editors: refused(
         "An editor is a program on the computer running the desktop app. A container cannot start " +
             "one on the visitor's computer, and starting one on the server would put it on the wrong machine.",

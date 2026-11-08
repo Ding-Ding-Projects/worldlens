@@ -1,0 +1,11 @@
+{
+  "manifestVersion": 1,
+  "id": "marker-count-python",
+  "name": "Marker count (Python sample)",
+  "version": "1.0.0",
+  "description": "Counts the open map's markers per set and per type. A runnable sample from the extension author guide.",
+  "run": { "command": "python3", "args": ["main.py"] },
+  "permissions": ["read-markers", "produce-file"],
+  "commands": [{ "id": "count", "title": "Count markers", "input": "markers" }],
+  "limits": { "timeoutMs": 10000, "maxOutputBytes": 65536 }
+}

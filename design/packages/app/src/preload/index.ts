@@ -2522,6 +2522,14 @@ interface AddonsBridge {
 }
 
 interface WorldlensBridge {
+    /** Extensions: list, consent, run one command, import a folder, open the folder. */
+    extensions: {
+        list(): Promise<unknown>;
+        setEnabled(id: string, enabled: boolean): Promise<unknown>;
+        run(id: string, command: string, input: unknown): Promise<unknown>;
+        import(): Promise<unknown>;
+        openFolder(): Promise<unknown>;
+    };
     /** External editors: detection, the person's choice, and the one-action VS Code hand-off. */
     editors: {
         list(): Promise<unknown>;

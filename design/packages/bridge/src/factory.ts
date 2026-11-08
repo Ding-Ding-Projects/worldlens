@@ -1132,6 +1132,14 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
 
+        extensions: {
+            list: () => transport.invoke("extensions:list"),
+            setEnabled: (id: unknown, enabled: unknown) => transport.invoke("extensions:setEnabled", id, enabled),
+            run: (id: unknown, command: unknown, input: unknown) => transport.invoke("extensions:run", id, command, input),
+            import: () => transport.invoke("extensions:import"),
+            openFolder: () => transport.invoke("extensions:openFolder"),
+        },
+
         editors: {
             list: () => transport.invoke("editors:list"),
             choose: (id: unknown) => transport.invoke("editors:choose", id),

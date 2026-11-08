@@ -170,6 +170,10 @@ export function sectionCopy(t: Translate): Readonly<Record<SettingsSectionAnchor
             title: t("settings.externalEditor.title", "External editor"),
             description: t("settings.externalEditor.description", "The editor that opens project folders and files, chosen from the ones found on this computer or added by you. Exports always open in Visual Studio Code in one action."),
         },
+        "extensions": {
+            title: t("settings.extensions.title", "Extensions"),
+            description: t("settings.extensions.description", "Programs in any language that add commands, such as exporting markers. Each declares what it may read, runs in its own process with time and size limits, and stays off until you agree to its permissions."),
+        },
         "bluemap-engine": {
             title: t("settings.bluemapSource.title", "BlueMap engine"),
             description: t(
