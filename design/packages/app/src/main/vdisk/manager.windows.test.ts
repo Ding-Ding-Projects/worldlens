@@ -168,7 +168,7 @@ describe.runIf(enabled)("virtual disks on a real Windows host", () => {
         expect(taken.ok).toBe(true);
         const id = String(taken.details?.["checkpointId"]);
         const applied = await manager.run({ operation: "checkpoint", path: disk("s.vhds"), checkpoint: { action: "apply", checkpointId: id } });
-        log("checkpoint apply", { ok: applied.ok, message: applied.message });
+        log("checkpoint apply", { ok: applied.ok, message: applied.message, variant: applied.details?.["variant"] });
         expect(applied.ok).toBe(true);
         const deleted = await manager.run({ operation: "checkpoint", path: disk("s.vhds"), checkpoint: { action: "delete", checkpointId: id } });
         log("checkpoint delete", { ok: deleted.ok, message: deleted.message });

@@ -401,9 +401,24 @@ public static class VirtDisk {
     }
 
     public static string ApplyCheckpoint(string vhdsPath, string checkpointId) {
-        using (var h = Open(vhdsPath, false)) Check(ApplySnapshotVhdSet(h, SnapshotParams(new Guid(checkpointId), Guid.NewGuid()), 1), "ApplySnapshotVhdSet");
+        // The documented fields are the checkpoint to go back to and, optionally, an identifier
+        // under which the current state is kept. Windows builds differ in which combination they
+        // accept, so try going back with nothing kept first, then keeping the current state.
+        var target = new Guid(checkpointId);
+        var keep = Guid.NewGuid();
+        int code = 0;
+        string used = "";
+        using (var h = Open(vhdsPath, false)) {
+            var attempts = new[] { new { leaf = Guid.Empty, flags = 0, name = "plain" }, new { leaf = Guid.Empty, flags = 1, name = "writeable" }, new { leaf = keep, flags = 0, name = "keep-current" }, new { leaf = keep, flags = 1, name = "keep-current-writeable" } };
+            foreach (var a in attempts) {
+                code = ApplySnapshotVhdSet(h, SnapshotParams(target, a.leaf), a.flags);
+                if (code == 0) { used = a.name; break; }
+            }
+        }
+        Check(code, "ApplySnapshotVhdSet");
         var d = new Dictionary<string, object>();
         d["applied"] = checkpointId;
+        d["variant"] = used;
         return Ok(d);
     }
 

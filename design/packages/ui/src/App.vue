@@ -120,6 +120,7 @@ import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensi
 import ScreenshotGalleryScreen from "./components/gallery/ScreenshotGalleryScreen.vue";
 import VirtualDisksScreen from "./components/vdisk/VirtualDisksScreen.vue";
 import Base64Screen from "./components/base64/Base64Screen.vue";
+import DrawingBoard from "./components/drawing/DrawingBoard.vue";
 import { createLockStore } from "./components/locks/lockStore.js";
 import { provideLockStore, resolveLockHost } from "./components/locks/useLocks.js";
 import { createServerStore } from "./components/mcserver/serverStore.js";
@@ -632,6 +633,8 @@ const PAGE_SCREENSHOTS = "screenshots";
 const PAGE_VIRTUAL_DISKS = "virtualDisks";
 /* The local Base64 toolkit: text, streamed files beside their source, history and undo. */
 const PAGE_BASE64 = "base64";
+/* The drawing board: seven pens and a partial eraser on a picture or a blank board. */
+const PAGE_DRAWING = "drawing";
 
 /**
  * A count of everything in progress, kept alive for the whole life of the shell rather than
@@ -940,6 +943,11 @@ const pages = computed<TabPage[]>(() => [
         id: PAGE_BASE64,
         label: t("tabs.page.base64", "Base64"),
         icon: mdiCodeBraces,
+    },
+    {
+        id: PAGE_DRAWING,
+        label: t("tabs.page.drawing", "Drawing board"),
+        icon: mdiDraw,
     },
 ]);
 
@@ -3005,6 +3013,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                         <Base64Screen />
                     </div>
                 </template>
+                <template #drawing>
+                    <div class="mb-world-host mb-interactive">
+                        <DrawingBoard />
+                    </div>
+                </template>
 
                 <template #ollama>
                     <div class="mb-world-host mb-interactive">
@@ -3645,6 +3658,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #base64>
                                 <div class="mb-world-host mb-interactive">
                                     <Base64Screen />
+                                </div>
+                            </template>
+                            <template #drawing>
+                                <div class="mb-world-host mb-interactive">
+                                    <DrawingBoard />
                                 </div>
                             </template>
 

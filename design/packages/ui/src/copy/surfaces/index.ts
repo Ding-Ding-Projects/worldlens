@@ -99,6 +99,7 @@ import { WORLDREPO_FACTS, WORLDREPO_FIXED, WORLDREPO_VOICED } from "./worldrepo.
 import { VOCABULARY_FACTS, VOCABULARY_FIXED, VOCABULARY_VOICED } from "./vocabulary.js";
 import { VIRTUALDISKS_FIXED } from "./virtualDisks.js";
 import { BASE64_FIXED } from "./base64.js";
+import { DRAWING_FIXED } from "./drawing.js";
 import {
     WORLDDOWNLOADER_FACTS,
     WORLDDOWNLOADER_FIXED,
@@ -172,6 +173,7 @@ export const SURFACE_VOICED = {
 export const SURFACE_FIXED = {
     ...VIRTUALDISKS_FIXED,
     ...BASE64_FIXED,
+    ...DRAWING_FIXED,
     ...MEASUREDWORLDGEN_FIXED,
     ...CHROME_FIXED,
     ...CHUNKER_FIXED,
