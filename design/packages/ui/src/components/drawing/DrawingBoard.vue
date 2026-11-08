@@ -163,21 +163,45 @@ function paint(ctx: CanvasRenderingContext2D, ratio: number, working: readonly S
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, width.value, height.value);
     }
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
     for (const stroke of working) {
         const segments = strokeSegments(stroke);
-        ctx.globalAlpha = segments[0]?.opacity ?? 1;
+        const opacity = segments[0]?.opacity ?? 1;
+        // A see-through pen is drawn whole onto its own layer and then laid down once, the way
+        // the SVG export's group opacity composites it, so overlapping segments never darken.
+        const target = opacity < 1 ? layerFor(ctx.canvas.width, ctx.canvas.height, ratio) : ctx;
+        target.lineCap = "round";
+        target.lineJoin = "round";
         for (const s of segments) {
-            ctx.strokeStyle = s.color;
-            ctx.lineWidth = s.width;
-            ctx.beginPath();
-            ctx.moveTo(s.x1, s.y1);
-            ctx.lineTo(s.x2, s.y2);
-            ctx.stroke();
+            target.strokeStyle = s.color;
+            target.lineWidth = s.width;
+            target.beginPath();
+            target.moveTo(s.x1, s.y1);
+            target.lineTo(s.x2, s.y2);
+            target.stroke();
+        }
+        if (target !== ctx) {
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.globalAlpha = opacity;
+            ctx.drawImage(target.canvas, 0, 0);
+            ctx.restore();
         }
     }
-    ctx.globalAlpha = 1;
+}
+
+let layer: CanvasRenderingContext2D | null = null;
+function layerFor(w: number, h: number, ratio: number): CanvasRenderingContext2D {
+    if (!layer || layer.canvas.width !== w || layer.canvas.height !== h) {
+        const c = document.createElement("canvas");
+        c.width = w;
+        c.height = h;
+        layer = c.getContext("2d");
+    }
+    const l = layer!;
+    l.setTransform(1, 0, 0, 1, 0, 0);
+    l.clearRect(0, 0, w, h);
+    l.setTransform(ratio, 0, 0, ratio, 0, 0);
+    return l;
 }
 
 let active: { start: Point; points: Point[]; began: number; working: Stroke[] } | null = null;
@@ -438,7 +462,7 @@ defineExpose({ strokes, tool, undo, redo, exportSvg });
                         <VBtn v-for="r in ([1, 2, 3] as const)" :key="r" variant="text" block @click="exportPng(r)">{{ t("draw.pngAt", { ratio: r }, "PNG at {ratio}x") }}</VBtn>
                     </div>
                 </VMenu>
-                <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" class="wl-sr-only" :aria-label="t('draw.open', 'Open picture')" @change="onFile" />
+                <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden :aria-label="t('draw.open', 'Open picture')" @change="onFile" />
             </div>
         </header>
 
@@ -530,7 +554,7 @@ defineExpose({ strokes, tool, undo, redo, exportSvg });
 
         <VMenu v-model="menu" :target="menuTarget" location="end" :close-on-content-click="false">
             <div class="wl-draw__menu">
-                <MenuSearchList :items="menuItems" :label="t('draw.menu', 'Drawing commands')" :filter-label="t('draw.menuFilter', 'Filter drawing commands')" @choose="choose" />
+                <MenuSearchList :items="menuItems" :label="t('draw.menu', 'Drawing commands')" :filter-label="t('draw.menuFilter', 'Filter tools')" @choose="choose" />
             </div>
         </VMenu>
     </section>

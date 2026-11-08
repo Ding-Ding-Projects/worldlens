@@ -162,11 +162,14 @@ const operations = computed<readonly { readonly id: Op; readonly label: string }
     { id: "nativeboot", label: t("vdisk.op.nativeboot", "Prepare for native boot") },
 ]);
 const routeChoices = computed(() => routesFor(op.value, routes.value));
-watch([op, routeChoices], () => {
-    const first = routeChoices.value.find((c) => c.usable);
-    route.value = first?.route ?? null;
-    lastDetails.value = null;
-});
+/** Changes only when the operation or what this PC can do changes, not on every refresh. */
+const routeKey = computed(() => `${op.value}|${routeChoices.value.map((c) => `${c.route}:${c.usable}`).join(",")}`);
+watch(routeKey, (_key, previous) => {
+    // Keep the route the person chose while it is still usable for this operation.
+    const keep = routeChoices.value.find((c) => c.usable && c.route === route.value);
+    route.value = keep?.route ?? routeChoices.value.find((c) => c.usable)?.route ?? null;
+    if (previous === undefined || previous.split("|")[0] !== op.value) lastDetails.value = null;
+}, { immediate: true });
 const destructive = computed(
     () =>
         op.value === "shrink" ||
@@ -272,7 +275,8 @@ watch(
         script.value = { full: text, preview: text };
         if (!bridge || !selected.value || !route.value) return;
         const answer = await bridge.script(JSON.parse(JSON.stringify(request.value)), route.value).catch(() => null);
-        if (answer && mine === scriptAsk) script.value = answer;
+        // An empty answer keeps the script the screen wrote itself rather than blanking it.
+        if (answer && answer.preview && mine === scriptAsk) script.value = answer;
     },
     { immediate: true, deep: true },
 );
@@ -293,6 +297,32 @@ async function browseBootImage(): Promise<void> {
     const file = await globalThis.window?.worldlens?.dialog.pickFile({ title: t("vdisk.pick.image", "Choose a Windows image"), extensions: ["wim", "esd"] });
     if (file) bootImage.value = file;
 }
+
+/** Plain names for what the VirtDisk API reports; anything else shows under its own key. */
+const DETAIL_LABELS: Readonly<Record<string, () => string>> = {
+    virtualSize: () => t("vdisk.detail.virtualSize", "Virtual size"),
+    physicalSize: () => t("vdisk.detail.physicalSize", "Size on disk"),
+    blockSize: () => t("vdisk.detail.blockSize", "Block size"),
+    sectorSize: () => t("vdisk.detail.sectorSize", "Logical sector"),
+    physicalSectorSize: () => t("vdisk.detail.physicalSectorSize", "Physical sector"),
+    identifier: () => t("vdisk.detail.identifier", "Disk identifier"),
+    virtualDiskId: () => t("vdisk.detail.virtualDiskId", "Virtual disk id"),
+    type: () => t("vdisk.detail.type", "Type"),
+    is4kAligned: () => t("vdisk.detail.is4kAligned", "4K aligned"),
+    smallestSafeSize: () => t("vdisk.detail.smallestSafeSize", "Smallest safe size"),
+    fragmentationPercent: () => t("vdisk.detail.fragmentationPercent", "Fragmentation (%)"),
+    changeTracking: () => t("vdisk.detail.changeTracking", "Change tracking"),
+    changeTrackingId: () => t("vdisk.detail.changeTrackingId", "Change tracking id"),
+    parentPaths: () => t("vdisk.detail.parentPaths", "Parent disks"),
+    parentResolved: () => t("vdisk.detail.parentResolved", "Parent found"),
+    isLoaded: () => t("vdisk.detail.isLoaded", "In use"),
+    ranges: () => t("vdisk.detail.ranges", "Changed ranges"),
+    items: () => t("vdisk.detail.items", "Metadata items"),
+    checkpointId: () => t("vdisk.detail.checkpointId", "Checkpoint id"),
+    driveLetter: () => t("vdisk.detail.driveLetter", "Drive letter"),
+    fileSystem: () => t("vdisk.detail.fileSystem", "File system"),
+};
+const detailLabel = (key: string): string => DETAIL_LABELS[key]?.() ?? key;
 
 function detailText(value: unknown): string {
     if (typeof value === "number" && value > 1024 * 1024) return `${formatBytes(value)} (${value})`;
@@ -677,7 +707,7 @@ const size = (bytes: number | null): string => (bytes === null ? t("vdisk.unknow
                     <h3>{{ t("vdisk.answer", "What Windows reported") }}</h3>
                     <dl class="wl-vdisk__facts">
                         <div v-for="(value, key) in lastDetails" :key="key">
-                            <dt>{{ key }}</dt>
+                            <dt>{{ detailLabel(String(key)) }}</dt>
                             <dd class="wl-vdisk__mono">{{ detailText(value) }}</dd>
                         </div>
                     </dl>

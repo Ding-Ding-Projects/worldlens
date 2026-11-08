@@ -303,5 +303,6 @@ defineExpose({ scrub });
 .wl-live__canvas { display: block; width: 100%; border-radius: 12px; outline: none; }
 .wl-live__canvas:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
 .wl-live__tip { margin: 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.wl-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .wl-live__state { margin: 0; font-size: 12px; color: rgb(var(--v-theme-on-surface-variant)); }
 </style>

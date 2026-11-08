@@ -48,5 +48,5 @@ export const DRAWING_FIXED = {
     "draw.clearReason": { en: "Clear is available once there is a stroke.", yue: "有筆劃先可以清除。" },
     "draw.canvas": { en: "Drawing with {count} strokes", yue: "畫咗 {count} 筆嘅畫" },
     "draw.menu": { en: "Drawing commands", yue: "畫畫指令" },
-    "draw.menuFilter": { en: "Filter drawing commands", yue: "篩選畫畫指令" },
+    "draw.menuFilter": { en: "Filter tools", yue: "篩選工具" },
 } as const satisfies Record<string, FixedString>;

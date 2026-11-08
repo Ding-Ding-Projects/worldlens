@@ -11,7 +11,7 @@ import { createWindowsRunner } from "./runner.js";
 /**
  * Real virtual disks on a real Windows host. Runs only on Windows with
  * WL_VDISK_INTEGRATION=1, which the `Virtual disks on Windows` workflow sets on a hosted runner
- * (administrator, no Hyper-V module). Every disk lives in a fresh temporary folder that is
+ * (administrator; Windows Server 2025 has the Hyper-V module, and no step here uses it). Every disk lives in a fresh temporary folder that is
  * detached and deleted at the end; nothing touches an existing disk.
  *
  * Each step prints the route and the details the API reported, so the run log is the evidence.

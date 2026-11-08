@@ -1879,7 +1879,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/menuSearch/MenuSearchList.vue",
+              "design/packages/ui/src/components/menuSearch/menuShortcut.ts",
+              "design/packages/ui/src/components/tabs/tabMenus.ts"
+            ],
+            "consumer": "The shared searchable menu and the tab menus show each row's working shortcut right-aligned and announce it through aria-keyshortcuts; the drawing board's menu uses it.",
+            "limitation": "Menus built outside these two components have not each been audited for shortcuts.",
+            "sourceCommit": "b1e713256c8b4549b95def4028b767670be77954"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -6428,11 +6438,12 @@
               "design/packages/ui/src/components/vdisk/VirtualDisksScreen.vue",
               "design/packages/app/src/main/vdisk/manager.ts",
               "design/packages/app/src/main/vdisk/ipc.ts",
-              "design/packages/shared/src/virtualDisk.ts"
+              "design/packages/shared/src/virtualDisk.ts",
+              "design/packages/app/src/main/vdisk/virtdiskInterop.ts"
             ],
-            "consumer": "Virtual disks job invokes the typed vdisk bridge; the main process runs DiskPart, Storage module and Hyper-V routes through the Windows permission prompt.",
-            "limitation": "Shrink, convert, identity, VHD Set checkpoints, metadata, mirror, change tracking, Dev Drive designation and native boot through the VirtDisk API route are not wired; real Windows round trips are not yet verified.",
-            "sourceCommit": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369"
+            "consumer": "Virtual disks job invokes the typed vdisk bridge; the main process runs the VirtDisk API, Storage module, DiskPart and Hyper-V routes through the Windows permission prompt, and every operation is offered on the screen.",
+            "limitation": "Fourteen real-disk steps pass on a hosted Windows Server 2025 runner (run 42507510508) without using Hyper-V; native boot is covered by unit tests only, and the packaged app on a Windows Home PC is not yet captured.",
+            "sourceCommit": "b1e713256c8b4549b95def4028b767670be77954"
           }
         },
         "hosted-workspace": {
@@ -6774,14 +6785,31 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/drawing/DrawingBoard.vue",
+              "design/packages/ui/src/components/drawing/drawingModel.ts"
+            ],
+            "consumer": "Drawing board job in the Work tabs: seven pens, partial eraser, Shift lock, keys in tooltips and the right-click menu, undo and redo across restart, guarded clear, SVG and PNG export.",
+            "limitation": "Drawing on a live window screenshot and joining local version history are not built; the packaged Windows app is not yet captured.",
+            "sourceCommit": "b1e713256c8b4549b95def4028b767670be77954"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/drawing/DrawingBoard.vue"
+            ],
+            "consumer": "The same board runs in the hosted workspace; strokes stay in that browser's storage.",
+            "limitation": "Hosted interaction is not yet captured.",
+            "sourceCommit": "b1e713256c8b4549b95def4028b767670be77954"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
@@ -6819,14 +6847,32 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/charts/LiveChart.vue",
+              "design/packages/ui/src/components/charts/liveChartModel.ts",
+              "design/packages/ui/src/components/progress/RenderThroughput.vue"
+            ],
+            "consumer": "Render speed under the live speed control draws every real percent-per-minute reading as a live chart with honest states.",
+            "limitation": "Time-window buttons, a reference line, several series and candlesticks are not built; the chart under a real render is not yet captured.",
+            "sourceCommit": "b1e713256c8b4549b95def4028b767670be77954"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/charts/LiveChart.vue"
+            ],
+            "consumer": "The same component renders in the hosted workspace wherever a render reports progress.",
+            "limitation": "Hosted capture pending.",
+            "sourceCommit": "b1e713256c8b4549b95def4028b767670be77954"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",

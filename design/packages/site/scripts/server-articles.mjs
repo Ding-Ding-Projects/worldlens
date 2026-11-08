@@ -11,6 +11,8 @@ export const SERVER_ARTICLES = Object.freeze([
     { id: "maintained-viewer-build", path: "docs/build/maintained-viewer.md" },
     { id: "base64", path: "docs/base64.md" },
     { id: "virtual-disks", path: "docs/virtual-disks.md" },
+    { id: "drawing", path: "docs/drawing.md" },
+    { id: "live-charts", path: "docs/live-charts.md" },
 ]);
 
 /** Preserve complete Markdown text in the archive's safe text-only block model.
