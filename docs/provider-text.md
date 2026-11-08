@@ -10,6 +10,10 @@ Headings, paragraphs, bold, italic, strikethrough, inline code and fenced code b
 
 - The update banner's **What's new** button shows the update's own notes in place, so reading them needs no browser. Opening them does not read them aloud: they sit outside the banner's live announcement.
 
+![What's new open in the update banner](evidence/provider-text/update-whats-new-1000x640.png)
+
+The screenshot (8 November 2026) shows the banner mounted on its own in headless Chrome with sample notes; the toggle was opened by a script click.
+
 ## Safety
 
 The renderer parses the Markdown into a tree and builds the page from that tree. It never produces HTML, so nothing in the text can become markup, a script, a style or an event handler; raw HTML in the source is shown as text. Links are kept only for `http`, `https` and `mailto` addresses, or relative paths resolved against a base the surface names, and they open outside the app. Images are never fetched: each becomes a link that names the image. An empty source says "No notes were provided." rather than leaving an empty box.

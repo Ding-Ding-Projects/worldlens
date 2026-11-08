@@ -474,13 +474,13 @@ const encodingModel = computed({ get: () => workspace.value.encoding, set: (v: T
                         :max="9999"
                         :step="4"
                         control-variant="split"
-                        :label="t('base64.lineLength', 'Line length, 0 = none')"
+                        :label="t('base64.lineLength', 'Line length')"
                         density="compact"
                         hide-details
                         :disabled="workspace.direction === 'decode'"
                         @update:model-value="(v: number | null) => update({ lineLength: Math.max(0, Math.floor(Number(v) || 0)) })"
                     />
-                    <InfoButton :control="t('base64.lineLength', 'Line length, 0 = none')" :guide="guides.lineLength" resettable @reset="update({ lineLength: workspace.alphabet === 'mime' ? 76 : 0 })" />
+                    <InfoButton :control="t('base64.lineLength', 'Line length')" :guide="guides.lineLength" resettable @reset="update({ lineLength: workspace.alphabet === 'mime' ? 76 : 0 })" />
                 </span>
                 <span class="wl-b64__with-info">
                     <VCheckbox :model-value="workspace.padding" :label="t('base64.padding', 'Padding')" density="compact" hide-details :disabled="workspace.direction === 'decode'" @update:model-value="(v: boolean | null) => update({ padding: v === true })" />

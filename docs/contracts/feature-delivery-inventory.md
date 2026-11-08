@@ -115,7 +115,7 @@ Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation 
 | `roblox-model-catalogue` | Every shared Roblox model, meaningfully used | None recorded | Not yet mapped | excluded-with-reason |
 | `roblox-visual-realism` | Roblox visual realism | None recorded | Not yet mapped | excluded-with-reason |
 | `onboarding-wizard` | Practical in-application onboarding | None recorded | Not yet mapped | pending-review |
-| `info-icon-guidance` | Per-control contextual information | None recorded | Not yet mapped | pending-review |
+| `info-icon-guidance` | Per-control contextual information | desktop | `design/packages/ui/src/components/info/InfoButton.vue`, `design/packages/ui/src/components/base64/Base64Screen.vue`, `design/packages/ui/src/components/vdisk/VirtualDisksScreen.vue`, `design/packages/ui/src/components/drawing/DrawingBoard.vue` | pending-review |
 | `private-documentation-package` | Private-repository documentation package | None recorded | Not yet mapped | excluded-with-reason |
 | `virtual-disk-manager` | Full Windows virtual disk manager | desktop | `design/packages/ui/src/components/vdisk/VirtualDisksScreen.vue`, `design/packages/app/src/main/vdisk/manager.ts`, `design/packages/app/src/main/vdisk/ipc.ts`, `design/packages/shared/src/virtualDisk.ts`, `design/packages/app/src/main/vdisk/virtdiskInterop.ts` | partial-source-mapping |
 | `base64-tools` | Full local Base64 toolkit | desktop, hosted-workspace | `design/packages/ui/src/components/base64/Base64Screen.vue`, `design/packages/app/src/main/base64/files.ts`, `design/packages/shared/src/base64.ts`, `docs/base64.md`, `design/packages/app/src/main/base64/ipc.ts`, `design/packages/app/src/hosted/capabilityProfile.ts` | partial-source-mapping |

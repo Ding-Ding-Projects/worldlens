@@ -106,7 +106,7 @@ onMounted(() => void refresh());
                         <p class="wl-ext__desc">{{ e.description }}</p>
                     </div>
                     <VChip size="small" variant="tonal">{{ e.builtIn ? t("extensions.builtIn", "Built in") : t("extensions.added", "Added by you") }}</VChip>
-                    <VSwitch :model-value="e.enabled" :disabled="e.problems.length > 0" color="primary" density="compact" hide-details :label="e.enabled ? t('extensions.on', 'On') : t('extensions.off', 'Off')" @update:model-value="toggle(e, $event)" />
+                    <VSwitch :model-value="e.enabled" :disabled="e.problems.length > 0" color="primary" base-color="on-surface-variant" inset density="compact" hide-details :label="e.enabled ? t('extensions.on', 'On') : t('extensions.off', 'Off')" @update:model-value="toggle(e, $event)" />
                 </header>
                 <p v-if="e.problems.length" class="wl-ext__problem" role="alert">{{ t("extensions.problems", "This extension cannot run until its manifest is fixed:") }} {{ e.problems.join(" ") }}</p>
                 <VAlert v-if="e.needsConsent && consenting !== e.id" type="warning" variant="tonal" density="compact">
@@ -160,7 +160,7 @@ onMounted(() => void refresh());
 <style scoped>
 .wl-ext { display: flex; flex-direction: column; gap: 12px; }
 .wl-ext__actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.wl-ext__card { padding: 16px; border-radius: 16px; background: rgb(var(--v-theme-surface-variant)); display: flex; flex-direction: column; gap: 8px; }
+.wl-ext__card { padding: 16px; border-radius: 16px; background: rgba(var(--v-theme-on-surface), 0.05); border: 1px solid rgba(var(--v-theme-on-surface), 0.12); display: flex; flex-direction: column; gap: 8px; }
 .wl-ext__head { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
 .wl-ext__head > div { flex: 1; min-width: 200px; }
 .wl-ext__head h3 { margin: 0; font-size: 16px; }

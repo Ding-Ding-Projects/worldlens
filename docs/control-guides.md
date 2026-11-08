@@ -2,13 +2,15 @@
 
 Some controls carry a small information button beside them. It opens a guide anchored to that control: what it is for, the choices, the default, what changing it does, an example, what is checked, and what to do if something goes wrong. Where it helps, the guide has a **Try it** example that shows what the current setting does, and **Reset to default** puts the control back.
 
+![The Padding guide with its live example](evidence/control-guides/base64-padding-guide-1440x900.png)
+
 ## Where they are
 
 - **Base64:** Alphabet (with a live example of the standard and URL-safe characters), Text encoding (with "é" in the chosen encoding), Line length, Padding (with "Ma" encoded with and without it) and Strict decoding. The options that apply only to one direction say so beside them.
 - **Virtual disks:** Operation and Route.
 - **Drawing board:** Size.
 
-Line length on the Base64 screen is now a number stepper with a split control rather than a text box.
+Line length on the Base64 screen is now a number stepper with a split control rather than a text box, and its label is short enough not to be cut off.
 
 ## Accessibility
 

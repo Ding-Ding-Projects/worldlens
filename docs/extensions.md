@@ -4,6 +4,8 @@ Extensions add commands to Worldlens: a program, in any language, that reads wha
 
 Manage them in **Settings → Extensions**: search them, see what each may read and how long it may run, turn them on or off, run their commands, and save or open what they produce.
 
+![Extensions and the consent step, with the External editor section below](evidence/extensions/settings-extensions-editor-1100x1400.png)
+
 ## Built in
 
 | Extension | Command | Reads | Gives back |
@@ -85,6 +87,7 @@ Anything you add is off until you turn it on, and turning it on shows exactly wh
 - `design/packages/app/src/main/extensions/host.test.ts`: manifests name every problem, the three built-ins run and produce CSV (with formulas neutralised), GeoJSON and Markdown, consent is asked again when permissions change, no secret environment variable or undeclared input reaches a program, time and size limits stop a program, a program outside its folder is refused, and a malformed answer is reported plainly.
 - `design/packages/app/src/main/extensions/samples.test.ts`: both samples in this guide have valid manifests and run through the host (the Python one where Python is installed).
 - `design/packages/ui/src/components/extensions/ExtensionsPanel.test.ts`: permissions and limits shown, search, consent before turning on, no run without an open map, and marker rows without markup.
+- The screenshot (8 November 2026) shows the two Settings sections mounted on their own in headless Chrome, with a stand-in bridge answering as a Windows PC; it shows the screens, not a live run.
 
 ## 廣東話
 

@@ -36,7 +36,7 @@ export const BASE64_FIXED = {
     "base64.direction": { en: "Direction", yue: "方向" },
     "base64.alphabet": { en: "Alphabet", yue: "字母表" },
     "base64.encoding": { en: "Text encoding", yue: "文字編碼" },
-    "base64.lineLength": { en: "Line length, 0 = none", yue: "每行長度，0 即唔分行" },
+    "base64.lineLength": { en: "Line length", yue: "每行長度" },
     "base64.padding": { en: "Padding", yue: "補齊（=）" },
     "base64.strict": { en: "Strict decoding", yue: "嚴格解碼" },
     "base64.inText": { en: "Text", yue: "文字" },

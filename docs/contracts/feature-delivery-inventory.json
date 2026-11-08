@@ -6371,7 +6371,18 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/info/InfoButton.vue",
+              "design/packages/ui/src/components/base64/Base64Screen.vue",
+              "design/packages/ui/src/components/vdisk/VirtualDisksScreen.vue",
+              "design/packages/ui/src/components/drawing/DrawingBoard.vue"
+            ],
+            "consumer": "Guides with purpose, choices, default, effect, example, validation, recovery, a live Try it example and Reset beside the Base64 options, the disk operation and route, and the drawing size.",
+            "limitation": "Most controls in the app do not have a guide yet; only the listed ones do.",
+            "sourceCommit": "2bc1df9dfc491e0f0e309b4b9b93f31d5626cd5c"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",

@@ -8,6 +8,8 @@ Worldlens opens files and folders in the editor you use, and anything it exports
 
 When nothing is found the section says so plainly and links to the VS Code download page.
 
+![The External editor section below Extensions](evidence/extensions/settings-extensions-editor-1100x1400.png)
+
 ## Open in VS Code
 
 These open in Visual Studio Code in one action, whichever editor is chosen above:
