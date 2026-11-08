@@ -176,3 +176,19 @@ describe("Escape, in two steps", () => {
         expect(event.defaultPrevented).toBe(false);
     });
 });
+
+describe("shortcuts on menu rows", () => {
+    it("shows a row's working shortcut right-aligned and announces it as a shortcut", async () => {
+        wrapper = render([
+            { id: "undo", label: "Undo", shortcut: "Ctrl+Z" },
+            { id: "redo", label: "Redo", shortcut: "Ctrl+Shift+Z" },
+            { id: "clear", label: "Clear" },
+        ]);
+        await nextTick();
+        const rows = wrapper.findAll(".v-list-item");
+        expect(rows[0]!.find("kbd").text()).toBe("Ctrl+Z");
+        expect(rows[1]!.attributes("aria-keyshortcuts")).toBe("Control+Shift+Z");
+        expect(rows[2]!.find("kbd").exists()).toBe(false);
+        expect(rows[2]!.attributes("aria-keyshortcuts")).toBeUndefined();
+    });
+});

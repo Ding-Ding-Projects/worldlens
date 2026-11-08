@@ -3,6 +3,7 @@ import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VList, VListItem } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { ariaShortcut } from "./menuShortcut.js";
 import { createSettingMatcher } from "../config/regexEngine.js";
 
 /**
@@ -22,7 +23,15 @@ export interface MenuSearchItem {
     readonly label: string;
     readonly disabled?: boolean;
     readonly reason?: string | undefined;
+    /**
+     * The shortcut that does the same thing where this menu was opened, in platform notation
+     * ("Ctrl+Z"). Shown right-aligned and announced through `aria-keyshortcuts`. Callers pass
+     * the same value their key handler registers, so the two cannot drift; a row with no
+     * shortcut shows nothing.
+     */
+    readonly shortcut?: string | null | undefined;
 }
+
 
 /**
  * A small fixed-item command menu's own filter field, for every menu in this application
@@ -120,8 +129,13 @@ function onKeydown(event: KeyboardEvent): void {
                 :title="item.label"
                 v-bind="item.disabled === true && item.reason !== undefined ? { subtitle: item.reason } : {}"
                 :disabled="item.disabled === true"
+                v-bind:aria-keyshortcuts="item.shortcut ? ariaShortcut(item.shortcut) : undefined"
                 @click="choose(item)"
-            />
+            >
+                <template v-if="item.shortcut" #append>
+                    <kbd class="mb-menu-search__shortcut" aria-hidden="true">{{ item.shortcut }}</kbd>
+                </template>
+            </v-list-item>
         </v-list>
     </div>
 </template>
@@ -137,6 +151,14 @@ function onKeydown(event: KeyboardEvent): void {
 
 .mb-menu-search__list {
     background: transparent;
+}
+
+.mb-menu-search__shortcut {
+    margin-left: 16px;
+    font-family: inherit;
+    font-size: var(--md-sys-typescale-label-small-size, 11px);
+    color: rgba(var(--v-theme-on-surface), var(--v-medium-emphasis-opacity));
+    white-space: nowrap;
 }
 
 .mb-menu-search__empty {

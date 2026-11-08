@@ -233,11 +233,14 @@ public static class VirtDisk {
             Marshal.WriteIntPtr(p, 48, parent);
             Marshal.WriteIntPtr(p, 56, source);
             SafeFileHandle h;
-            int flags = fixedSize ? 1 : 0;
+            bool vhdSet = path.ToLowerInvariant().EndsWith(".vhds");
+            // A VHD Set is a small header file plus a backing disk Windows creates beside it;
+            // CREATE_VIRTUAL_DISK_FLAG_CREATE_BACKING_STORAGE (0x8) asks for that backing disk.
+            int flags = (fixedSize ? 1 : 0) | (vhdSet ? 8 : 0);
             int code = CreateVirtualDisk(TypeFor(path), path, ACCESS_NONE, IntPtr.Zero, flags, 0, p, IntPtr.Zero, out h);
             // A VHD Set refuses defaults on some builds; the documented VHD Set sector sizes are
             // 512 logical and 4096 physical. Retry once with them before reporting the error.
-            if (code == 87 && path.ToLowerInvariant().EndsWith(".vhds") && logicalSector == 0 && physicalSector == 0) {
+            if (code == 87 && vhdSet && logicalSector == 0 && physicalSector == 0) {
                 Marshal.WriteInt32(p, 36, 512);
                 Marshal.WriteInt32(p, 40, 4096);
                 code = CreateVirtualDisk(TypeFor(path), path, ACCESS_NONE, IntPtr.Zero, flags, 0, p, IntPtr.Zero, out h);
@@ -416,7 +419,9 @@ public static class VirtDisk {
      * independent. Progress is polled until the copy completes.
      */
     public static string Mirror(string path, string destination) {
-        using (var h = OpenV1(path, ACCESS_ALL, 1)) {
+        // Mirroring is one of the version 2 operations: the handle comes from a version 2 open
+        // with no access mask, the same as resize, which works on the same disk.
+        using (var h = Open(path, false)) {
             IntPtr p = Marshal.AllocHGlobal(16);
             IntPtr dest = Marshal.StringToHGlobalUni(destination);
             var ev = new ManualResetEvent(false);
