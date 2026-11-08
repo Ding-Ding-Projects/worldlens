@@ -191,4 +191,13 @@ export const VIRTUALDISKS_FIXED = {
     "vdisk.detail.checkpointId": { en: "Checkpoint id", yue: "檢查點 id" },
     "vdisk.detail.driveLetter": { en: "Drive letter", yue: "盤符" },
     "vdisk.detail.fileSystem": { en: "File system", yue: "檔案系統" },
+    "vdisk.guide.route.purpose": { en: "Which Windows tool does the work for this operation.", yue: "呢個操作用邊件 Windows 工具做。" },
+    "vdisk.guide.route.choices": { en: "VirtDisk API talks to virtdisk.dll directly and covers almost everything. Storage module and DiskPart are built into Windows. Hyper-V module is used only when installed and chosen; it is never required.", yue: "VirtDisk API 直接同 virtdisk.dll 傾,差唔多乜都做到。Storage 模組同 DiskPart 係 Windows 內置。Hyper-V 模組只會喺有裝又揀咗先用,永遠唔係必要。" },
+    "vdisk.guide.route.default": { en: "The first route this PC has for the operation.", yue: "呢部電腦有嘅第一條路線。" },
+    "vdisk.guide.route.effect": { en: "The result names the route that did the work, and the script below changes to that route's script.", yue: "結果會講明用咗邊條路線,下面嘅腳本亦會變做嗰條路線嘅腳本。" },
+    "vdisk.guide.route.recovery": { en: "A route this PC lacks is shown with the reason and cannot be picked; choose another.", yue: "呢部電腦冇嘅路線會寫明原因,揀唔到;揀過第二條。" },
+    "vdisk.guide.operation.purpose": { en: "What to do to the selected disk.", yue: "對揀咗嘅磁碟做乜。" },
+    "vdisk.guide.operation.effect": { en: "Operations that can lose data or break disks made from this one need the two-key confirmation first.", yue: "可能會冇咗資料或者整壞由佢衍生嘅磁碟嘅操作,要先過兩條鎖匙。" },
+    "vdisk.guide.operation.validation": { en: "Sizes, names and formats are checked before anything runs, and nothing is ever overwritten.", yue: "行之前會檢查大細、名同格式,永遠唔會蓋過舊檔。" },
+    "vdisk.guide.operation.recovery": { en: "A declined Windows prompt is reported as cancelled with nothing changed. Read details is always safe to run.", yue: "Windows 提示撳咗拒絕會報「取消咗,乜都冇改」。讀資料任何時候行都安全。" },
 } as const satisfies Record<string, FixedString>;

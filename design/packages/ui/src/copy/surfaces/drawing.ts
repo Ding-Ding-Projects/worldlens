@@ -50,4 +50,8 @@ export const DRAWING_FIXED = {
     "draw.menu": { en: "Drawing commands", yue: "畫畫指令" },
     "draw.menuFilter": { en: "Filter tools", yue: "篩選工具" },
     "draw.svgInVsCode": { en: "SVG in VS Code", yue: "喺 VS Code 開 SVG" },
+    "draw.guide.size.purpose": { en: "How thick the pen and the eraser are.", yue: "筆同擦膠有幾粗。" },
+    "draw.guide.size.choices": { en: "Half to three times each pen's own width, in quarter steps.", yue: "每支筆本身闊度嘅一半到三倍,每格四分一。" },
+    "draw.guide.size.default": { en: "One times.", yue: "一倍。" },
+    "draw.guide.size.effect": { en: "Applies to the next stroke; strokes already drawn keep their size.", yue: "下一筆先生效;畫咗嘅筆劃粗幼不變。" },
 } as const satisfies Record<string, FixedString>;

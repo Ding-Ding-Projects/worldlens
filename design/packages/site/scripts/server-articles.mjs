@@ -16,6 +16,7 @@ export const SERVER_ARTICLES = Object.freeze([
     { id: "extensions", path: "docs/extensions.md" },
     { id: "external-editor", path: "docs/external-editor.md" },
     { id: "provider-text", path: "docs/provider-text.md" },
+    { id: "control-guides", path: "docs/control-guides.md" },
 ]);
 
 /** Preserve complete Markdown text in the archive's safe text-only block model.

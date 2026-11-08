@@ -33,6 +33,7 @@ import {
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { editorBridge, openTextInVsCode } from "../editors/editorBridge.js";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
+import InfoButton from "../info/InfoButton.vue";
 import { playActionCue } from "../../stores/actionSounds.js";
 import {
     virtualDiskBridge,
@@ -331,6 +332,20 @@ function detailText(value: unknown): string {
 }
 
 const canOpenEditor = editorBridge() !== null;
+
+const routeGuide = computed(() => ({
+    purpose: t("vdisk.guide.route.purpose", "Which Windows tool does the work for this operation."),
+    choices: t("vdisk.guide.route.choices", "VirtDisk API talks to virtdisk.dll directly and covers almost everything. Storage module and DiskPart are built into Windows. Hyper-V module is used only when installed and chosen; it is never required."),
+    defaultValue: t("vdisk.guide.route.default", "The first route this PC has for the operation."),
+    effect: t("vdisk.guide.route.effect", "The result names the route that did the work, and the script below changes to that route's script."),
+    recovery: t("vdisk.guide.route.recovery", "A route this PC lacks is shown with the reason and cannot be picked; choose another."),
+}));
+const operationGuide = computed(() => ({
+    purpose: t("vdisk.guide.operation.purpose", "What to do to the selected disk."),
+    effect: t("vdisk.guide.operation.effect", "Operations that can lose data or break disks made from this one need the two-key confirmation first."),
+    validation: t("vdisk.guide.operation.validation", "Sizes, names and formats are checked before anything runs, and nothing is ever overwritten."),
+    recovery: t("vdisk.guide.operation.recovery", "A declined Windows prompt is reported as cancelled with nothing changed. Read details is always safe to run."),
+}));
 async function scriptInVsCode(): Promise<void> {
     const answer = await openTextInVsCode(`disk-${op.value}.ps1`, script.value.full);
     notice.value = { kind: answer.ok ? "success" : "warning", text: answer.message + (answer.downloadUrl ? ` ${answer.downloadUrl}` : "") };
@@ -620,7 +635,10 @@ const size = (bytes: number | null): string => (bytes === null ? t("vdisk.unknow
                     <div><dt>{{ t("vdisk.access", "Access") }}</dt><dd>{{ selected.readOnly ? t("vdisk.readOnly", "Read-only") : t("vdisk.readWrite", "Read and write") }}</dd></div>
                 </dl>
 
-                <VSelect v-model="op" :items="operations" item-title="label" item-value="id" :label="t('vdisk.operation', 'Operation')" density="comfortable" />
+                <div class="wl-vdisk__with-info">
+                    <VSelect v-model="op" :items="operations" item-title="label" item-value="id" :label="t('vdisk.operation', 'Operation')" density="comfortable" />
+                    <InfoButton :control="t('vdisk.operation', 'Operation')" :guide="operationGuide" resettable @reset="op = 'describe'" />
+                </div>
                 <VSelect
                     v-model="route"
                     :items="routeChoices.map((c) => ({ title: routeLabel(c.route) + (c.usable ? '' : ' · ' + c.reason), value: c.route, props: { disabled: !c.usable } }))"
@@ -628,6 +646,7 @@ const size = (bytes: number | null): string => (bytes === null ? t("vdisk.unknow
                     density="comfortable"
                     :no-data-text="t('vdisk.noRoute', 'No route on this PC can do this.')"
                 />
+                <InfoButton class="wl-vdisk__route-info" :control="t('vdisk.route', 'Route')" :guide="routeGuide" resettable @reset="route = routeChoices.find((c) => c.usable)?.route ?? null" />
                 <VCheckbox v-if="op === 'attach'" v-model="readOnly" :label="t('vdisk.attachReadOnly', 'Attach read-only')" density="compact" hide-details />
                 <VSwitch
                     v-if="op === 'shrink' && route === 'virtdisk'"
@@ -896,6 +915,9 @@ const size = (bytes: number | null): string => (bytes === null ? t("vdisk.unknow
 .wl-vdisk__history ul { list-style: none; padding: 0; margin: 0; font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
 .wl-vdisk__history .ok { color: rgb(var(--v-theme-primary)); }
 .wl-vdisk__history .bad { color: rgb(var(--v-theme-error)); }
+.wl-vdisk__with-info { display: flex; align-items: center; gap: 4px; }
+.wl-vdisk__with-info > :first-child { flex: 1; min-width: 0; }
+.wl-vdisk__route-info { margin: -12px 0 8px auto; display: flex; }
 .wl-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .wl-vdisk__drop { transition: none; } }
 @media (max-width: 600px) { .wl-vdisk { padding: 12px; } }

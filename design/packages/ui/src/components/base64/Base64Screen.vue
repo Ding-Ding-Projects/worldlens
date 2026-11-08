@@ -3,7 +3,8 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiContentCopy, mdiDownload, mdiFileUploadOutline, mdiFolderOpenOutline, mdiMicrosoftVisualStudioCode, mdiRedo, mdiSwapHorizontal, mdiUndo } from "@mdi/js";
 import { editorBridge } from "../editors/editorBridge.js";
-import { VAlert, VBtn, VBtnToggle, VCheckbox, VProgressLinear, VSelect, VSwitch, VTab, VTabs, VTextarea, VTextField } from "vuetify/components";
+import { VAlert, VBtn, VBtnToggle, VCheckbox, VNumberInput, VProgressLinear, VSelect, VSwitch, VTab, VTabs, VTextarea, VTextField } from "vuetify/components";
+import InfoButton from "../info/InfoButton.vue";
 import {
     buildDataUrl,
     decodedFileName,
@@ -369,6 +370,52 @@ const size = (n: number): string => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toF
 const percent = (job: FileJob): number => (job.total > 0 ? Math.round((job.done / job.total) * 100) : 0);
 const directionLabel = (d: "encode" | "decode"): string => (d === "encode" ? t("base64.encode", "Encode") : t("base64.decode", "Decode"));
 const alphabetModel = computed({ get: () => workspace.value.alphabet, set: (v: Base64Alphabet) => update({ alphabet: v, lineLength: v === "mime" ? 76 : 0 }) });
+/* ---------------- Per-control guides ---------------- */
+
+/** Text whose encoding uses the 62nd and 63rd characters, so the alphabets differ visibly. */
+const ALPHABET_SAMPLE = "??>>~";
+/** A tiny live sample for the guides: what the current options do to "Ma" and "Man". */
+const sample = (patch: Partial<Base64Workspace>, input: string) => {
+    const r = convert({ ...workspace.value, direction: "encode", input, ...patch });
+    return r.ok ? r.output : "";
+};
+const guides = computed(() => ({
+    alphabet: {
+        purpose: t("base64.guide.alphabet.purpose", "Which 64 characters the encoded text uses."),
+        choices: t("base64.guide.alphabet.choices", "Standard uses + and /. URL-safe uses - and _ so the text can sit in a web address or file name. MIME is standard with 76-character lines, as email uses."),
+        defaultValue: t("base64.guide.alphabet.default", "Standard."),
+        effect: t("base64.guide.alphabet.effect", "Only the 62nd and 63rd characters and the line breaks change; the bytes are the same."),
+        validation: t("base64.guide.alphabet.validation", "Strict decoding refuses a character from the other alphabet and names its position."),
+        recovery: t("base64.guide.alphabet.recovery", "If decoding fails on - or _, switch to URL-safe, or turn strict decoding off."),
+    },
+    padding: {
+        purpose: t("base64.guide.padding.purpose", "Whether the encoded text is filled out to a multiple of four characters with =."),
+        defaultValue: t("base64.guide.padding.default", "On, as RFC 4648 asks."),
+        effect: t("base64.guide.padding.effect", "Off drops the trailing = signs, which some URLs and tokens expect."),
+        validation: t("base64.guide.padding.validation", "Strict decoding refuses missing or misplaced padding."),
+        recovery: t("base64.guide.padding.recovery", "A decoder that complains about length usually wants padding back on."),
+    },
+    strict: {
+        purpose: t("base64.guide.strict.purpose", "How picky decoding is."),
+        choices: t("base64.guide.strict.choices", "Strict refuses anything outside the alphabet, stray spaces and wrong padding. Lenient ignores whitespace, accepts both alphabets and missing padding."),
+        defaultValue: t("base64.guide.strict.default", "On."),
+        example: t("base64.guide.strict.example", "TWE decodes leniently to Ma and is refused strictly for missing padding."),
+        recovery: t("base64.guide.strict.recovery", "The error names the exact character and position; fix it there or turn strict off."),
+    },
+    lineLength: {
+        purpose: t("base64.guide.lineLength.purpose", "Breaks the encoded text into lines of this many characters."),
+        defaultValue: t("base64.guide.lineLength.default", "0 (no breaks); MIME uses 76."),
+        effect: t("base64.guide.lineLength.effect", "Lines end with CRLF. Decoding ignores the breaks."),
+        validation: t("base64.guide.lineLength.validation", "Whole numbers from 0."),
+    },
+    encoding: {
+        purpose: t("base64.guide.encoding.purpose", "How typed text becomes bytes before encoding, and how decoded bytes become text."),
+        choices: t("base64.guide.encoding.choices", "UTF-8 for almost everything; UTF-16 LE or BE for Windows and Java strings; Latin-1 for old single-byte text."),
+        defaultValue: t("base64.guide.encoding.default", "UTF-8."),
+        validation: t("base64.guide.encoding.validation", "Text that cannot be written in the chosen encoding is reported, never changed."),
+    },
+}));
+
 const encodingModel = computed({ get: () => workspace.value.encoding, set: (v: TextEncodingName) => update({ encoding: v }) });
 </script>
 
@@ -404,20 +451,51 @@ const encodingModel = computed({ get: () => workspace.value.encoding, set: (v: T
                     <VBtn value="encode">{{ t("base64.encode", "Encode") }}</VBtn>
                     <VBtn value="decode">{{ t("base64.decode", "Decode") }}</VBtn>
                 </VBtnToggle>
-                <VSelect v-model="alphabetModel" :items="alphabets" :label="t('base64.alphabet', 'Alphabet')" density="compact" hide-details />
-                <VSelect v-model="encodingModel" :items="encodings" :label="t('base64.encoding', 'Text encoding')" density="compact" hide-details />
-                <VTextField
-                    :model-value="workspace.lineLength"
-                    type="number"
-                    min="0"
-                    :label="t('base64.lineLength', 'Line length, 0 = none')"
-                    density="compact"
-                    hide-details
-                    :disabled="workspace.direction === 'decode'"
-                    @update:model-value="(v: string) => update({ lineLength: Math.max(0, Math.floor(Number(v) || 0)) })"
-                />
-                <VCheckbox :model-value="workspace.padding" :label="t('base64.padding', 'Padding')" density="compact" hide-details :disabled="workspace.direction === 'decode'" @update:model-value="(v: boolean | null) => update({ padding: v === true })" />
-                <VCheckbox :model-value="workspace.strict" :label="t('base64.strict', 'Strict decoding')" density="compact" hide-details :disabled="workspace.direction === 'encode'" @update:model-value="(v: boolean | null) => update({ strict: v === true })" />
+                <span class="wl-b64__with-info">
+                    <VSelect v-model="alphabetModel" :items="alphabets" :label="t('base64.alphabet', 'Alphabet')" density="compact" hide-details />
+                    <InfoButton :control="t('base64.alphabet', 'Alphabet')" :guide="guides.alphabet" resettable @reset="alphabetModel = 'standard'">
+                        <template #playground>
+                            <code>"{{ ALPHABET_SAMPLE }}" → {{ sample({ alphabet: alphabetModel }, ALPHABET_SAMPLE) }}</code>
+                        </template>
+                    </InfoButton>
+                </span>
+                <span class="wl-b64__with-info">
+                    <VSelect v-model="encodingModel" :items="encodings" :label="t('base64.encoding', 'Text encoding')" density="compact" hide-details />
+                    <InfoButton :control="t('base64.encoding', 'Text encoding')" :guide="guides.encoding" resettable @reset="encodingModel = 'utf-8'">
+                        <template #playground>
+                            <code>"é" → {{ sample({ encoding: encodingModel }, "é") }}</code>
+                        </template>
+                    </InfoButton>
+                </span>
+                <span class="wl-b64__with-info">
+                    <VNumberInput
+                        :model-value="workspace.lineLength"
+                        :min="0"
+                        :max="9999"
+                        :step="4"
+                        control-variant="split"
+                        :label="t('base64.lineLength', 'Line length, 0 = none')"
+                        density="compact"
+                        hide-details
+                        :disabled="workspace.direction === 'decode'"
+                        @update:model-value="(v: number | null) => update({ lineLength: Math.max(0, Math.floor(Number(v) || 0)) })"
+                    />
+                    <InfoButton :control="t('base64.lineLength', 'Line length, 0 = none')" :guide="guides.lineLength" resettable @reset="update({ lineLength: workspace.alphabet === 'mime' ? 76 : 0 })" />
+                </span>
+                <span class="wl-b64__with-info">
+                    <VCheckbox :model-value="workspace.padding" :label="t('base64.padding', 'Padding')" density="compact" hide-details :disabled="workspace.direction === 'decode'" @update:model-value="(v: boolean | null) => update({ padding: v === true })" />
+                    <InfoButton :control="t('base64.padding', 'Padding')" :guide="guides.padding" resettable @reset="update({ padding: true })">
+                        <template #playground>
+                            <code>"Ma" → {{ sample({ padding: workspace.padding }, "Ma") }}</code>
+                        </template>
+                    </InfoButton>
+                </span>
+                <span class="wl-b64__with-info">
+                    <VCheckbox :model-value="workspace.strict" :label="t('base64.strict', 'Strict decoding')" density="compact" hide-details :disabled="workspace.direction === 'encode'" @update:model-value="(v: boolean | null) => update({ strict: v === true })" />
+                    <InfoButton :control="t('base64.strict', 'Strict decoding')" :guide="guides.strict" resettable @reset="update({ strict: true })" />
+                </span>
+                <p v-if="workspace.direction === 'decode'" class="wl-b64__reason">{{ t("base64.decodeReason", "Line length and padding apply when encoding.") }}</p>
+                <p v-else class="wl-b64__reason">{{ t("base64.encodeReason", "Strict decoding applies when decoding.") }}</p>
             </div>
 
             <div class="wl-b64__io">
@@ -572,6 +650,8 @@ const encodingModel = computed({ get: () => workspace.value.encoding, set: (v: T
 .wl-b64__history li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 14px; }
 .wl-b64__history .ok { color: rgb(var(--v-theme-primary)); }
 .wl-b64__history .bad { color: rgb(var(--v-theme-error)); }
+.wl-b64__with-info { display: inline-flex; align-items: center; gap: 2px; min-width: 0; }
+.wl-b64__reason { margin: 0; width: 100%; font-size: 12px; color: rgb(var(--v-theme-on-surface-variant)); }
 .wl-sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .wl-b64__drop { transition: none; } }
 @media (max-width: 600px) { .wl-b64 { padding: 12px; } }

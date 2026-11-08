@@ -21,6 +21,7 @@ import {
 } from "@mdi/js";
 import { VBtn, VIcon, VMenu, VSlider, VTooltip } from "vuetify/components";
 import ColorField from "../appearance/ColorField.vue";
+import InfoButton from "../info/InfoButton.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import MenuSearchList, { type MenuSearchItem } from "../menuSearch/MenuSearchList.vue";
 import { editorBridge, openTextInVsCode } from "../editors/editorBridge.js";
@@ -514,7 +515,20 @@ defineExpose({ strokes, tool, undo, redo, exportSvg });
                         />
                     </div>
                     <ColorField v-model="color" :label="t('draw.customColour', 'Any colour')" />
-                    <VSlider v-model="scale" :min="0.5" :max="3" :step="0.25" :label="t('draw.size', 'Size')" density="compact" hide-details thumb-label />
+                    <div class="wl-draw__row">
+                        <VSlider v-model="scale" :min="0.5" :max="3" :step="0.25" :label="t('draw.size', 'Size')" density="compact" hide-details thumb-label />
+                        <InfoButton
+                            :control="t('draw.size', 'Size')"
+                            :guide="{
+                                purpose: t('draw.guide.size.purpose', 'How thick the pen and the eraser are.'),
+                                choices: t('draw.guide.size.choices', 'Half to three times each pen\'s own width, in quarter steps.'),
+                                defaultValue: t('draw.guide.size.default', 'One times.'),
+                                effect: t('draw.guide.size.effect', 'Applies to the next stroke; strokes already drawn keep their size.'),
+                            }"
+                            resettable
+                            @reset="scale = 1"
+                        />
+                    </div>
                     <div class="wl-draw__row">
                         <VBtn icon size="small" variant="text" :disabled="!canUndo" :aria-label="t('draw.undo', 'Undo') + ' (Ctrl+Z)'" aria-keyshortcuts="Control+Z" @click="undo"><VIcon :icon="mdiUndo" /></VBtn>
                         <VBtn icon size="small" variant="text" :disabled="!canRedo" :aria-label="t('draw.redo', 'Redo') + ' (Ctrl+Shift+Z)'" aria-keyshortcuts="Control+Shift+Z" @click="redo"><VIcon :icon="mdiRedo" /></VBtn>

@@ -104,6 +104,7 @@ import { CHARTS_FIXED } from "./charts.js";
 import { PROVIDERTEXT_FIXED } from "./providerText.js";
 import { EDITORS_FIXED } from "./editors.js";
 import { EXTENSIONS_FIXED } from "./extensions.js";
+import { INFO_FIXED } from "./info.js";
 import {
     WORLDDOWNLOADER_FACTS,
     WORLDDOWNLOADER_FIXED,
@@ -182,6 +183,7 @@ export const SURFACE_FIXED = {
     ...PROVIDERTEXT_FIXED,
     ...EDITORS_FIXED,
     ...EXTENSIONS_FIXED,
+    ...INFO_FIXED,
     ...MEASUREDWORLDGEN_FIXED,
     ...CHROME_FIXED,
     ...CHUNKER_FIXED,

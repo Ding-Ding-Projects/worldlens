@@ -3043,7 +3043,17 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/providerText/ProviderText.vue",
+              "design/packages/ui/src/components/providerText/providerMarkdown.ts",
+              "design/packages/ui/src/components/update/UpdateBanner.vue"
+            ],
+            "consumer": "One renderer builds Vue nodes from parsed Markdown, never HTML; the update banner's What's new shows the update's notes through it.",
+            "limitation": "Issue, pull-request and README surfaces do not use it yet; the packaged app is not captured.",
+            "sourceCommit": "261a0a9af2f4aeaf795051336e0883e5b9692a76"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
@@ -3389,14 +3399,33 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/app/src/main/editors/editors.ts",
+              "design/packages/app/src/main/editors/ipc.ts",
+              "design/packages/ui/src/components/editors/ExternalEditorPanel.vue",
+              "design/packages/ui/src/components/editors/editorBridge.ts"
+            ],
+            "consumer": "Settings, External editor lists detected and added editors and remembers the choice; Base64 results, disk scripts, drawing SVG, extension output and converter exports open in VS Code in one action.",
+            "limitation": "Detection on a real Windows PC is covered by unit tests with pretend paths, not yet by a capture.",
+            "sourceCommit": "261a0a9af2f4aeaf795051336e0883e5b9692a76"
+          }
         },
         "hosted-workspace": {
           "applicability": "applicable",
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/app/src/hosted/capabilityProfile.ts"
+            ],
+            "consumer": "The editor channels are refused with the reason.",
+            "limitation": "Hosted capture pending.",
+            "sourceCommit": "261a0a9af2f4aeaf795051336e0883e5b9692a76"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
@@ -6599,13 +6628,17 @@
           "captureAcceptance": "pending",
           "sourceMapping": {
             "paths": [
-              "design/packages/app/src/main/addons/manager.ts",
-              "design/packages/app/src/main/addons/ipc.ts",
-              "design/packages/ui/src/components/settings/AddonManagerPanel.vue"
+              "design/packages/app/src/main/extensions/host.ts",
+              "design/packages/app/src/main/extensions/builtins.ts",
+              "design/packages/app/src/main/extensions/ipc.ts",
+              "design/packages/ui/src/components/extensions/ExtensionsPanel.vue",
+              "docs/extensions.md",
+              "docs/extensions-samples/marker-count-python/main.py",
+              "docs/extensions-samples/marker-heights-node/main.js"
             ],
-            "consumer": "The add-on manager panel in Settings drives the sandboxed add-on runtime.",
-            "limitation": "Built-in default extensions, the author article with runnable samples and consent-on-change review are not mapped.",
-            "sourceCommit": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369"
+            "consumer": "Settings, Extensions runs language-neutral out-of-process extensions with a versioned manifest, permissions with consent on change, time and size limits, a stripped environment, three built-ins and an author guide with runnable samples.",
+            "limitation": "The separate design add-on manager is unchanged; extension runs in the packaged app are not yet captured.",
+            "sourceCommit": "261a0a9af2f4aeaf795051336e0883e5b9692a76"
           }
         },
         "hosted-workspace": {
@@ -6613,7 +6646,15 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/app/src/hosted/capabilityProfile.ts"
+            ],
+            "consumer": "The extension channels are refused with the reason.",
+            "limitation": "Hosted capture pending.",
+            "sourceCommit": "261a0a9af2f4aeaf795051336e0883e5b9692a76"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
