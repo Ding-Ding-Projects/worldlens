@@ -46,6 +46,9 @@ export function blockToPlainText(block: Block): string {
             return block.items.map((item) => `${item.term} ${contentToPlainText(item.description)}`).join(" ");
         case "callout":
             return `${block.title} ${contentToPlainText(block.content)}`;
+        case "tool":
+            // The tool's own words live in the string tables; index what it is for.
+            return block.tool === "base64" ? "Base64 encode decode tool" : "";
     }
 }
 

@@ -21,6 +21,7 @@ import type {
     InlineContent,
 } from "../content/types.js";
 import type { I18n } from "../i18n/I18n.js";
+import { mountBase64Tool } from "../tools/base64Tool.js";
 import type { FixedKey } from "../i18n/strings.js";
 
 const CALLOUT_LABEL_KEYS: Readonly<Record<CalloutTone, FixedKey>> = {
@@ -207,6 +208,9 @@ function renderBlock(block: Block, i18n: I18n): HTMLElement {
             aside.appendChild(renderParagraph(block.content));
             return aside;
         }
+
+        case "tool":
+            return mountBase64Tool(i18n);
     }
 }
 

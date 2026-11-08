@@ -7,6 +7,9 @@ import {
     formatDate,
     releaseAvailability,
 } from "./content/release.js";
+import { I18n } from "./i18n/I18n.js";
+import { Preferences } from "./platform/Preferences.js";
+import { mountBase64Tool } from "./tools/base64Tool.js";
 
 const focusableSelector = [
     "a[href]",
@@ -193,7 +196,38 @@ function hydrateReleaseDownloads(root: ParentNode): void {
     setTextContent(summary, `${release.version} · ${formatDate(release.publishedAt)}`);
 }
 
+/** Working tools that belong inside an article, keyed by the article route. */
+const ARTICLE_TOOLS: Readonly<Record<string, string>> = {
+    "#/docs/base64": "wl-base64-tool",
+};
+let toolI18n: I18n | null = null;
+
+/**
+ * The archive rebuilds article markup from its own state, which re-creates any node added to
+ * it and drops that node's listeners. A custom element survives that: every time the page
+ * inserts it, it builds a fresh, working tool inside itself.
+ */
+class Base64ToolElement extends HTMLElement {
+    connectedCallback(): void {
+        toolI18n ??= new I18n(new Preferences());
+        this.replaceChildren(mountBase64Tool(toolI18n));
+    }
+}
+if (!customElements.get("wl-base64-tool")) customElements.define("wl-base64-tool", Base64ToolElement);
+
+/** Mounts an article's tool under its title, once per visit. */
+function mountArticleTools(root: ParentNode): void {
+    const tag = ARTICLE_TOOLS[location.hash];
+    if (!tag) return;
+    const article = root.querySelector<HTMLElement>("article");
+    if (!article || article.querySelector(tag)) return;
+    const heading = article.querySelector("h1");
+    if (!heading) return;
+    heading.insertAdjacentElement("afterend", document.createElement(tag));
+}
+
 function enhance(root: ParentNode = document): void {
+    mountArticleTools(root);
     useStaticWalkthroughs(root);
     labelTabControls(root);
     labelExpandedControls(root);

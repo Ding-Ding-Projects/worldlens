@@ -82,6 +82,7 @@ import { scheduledSettings } from "./scheduled-settings.js";
 import { panelGeometry } from "./panel-geometry.js";
 import { mcserverHosting } from "./mcserver-hosting.js";
 import { fileConverter } from "./file-converter.js";
+import { base64Toolkit } from "./base64-toolkit.js";
 import { localModelTooling } from "./local-model-tooling.js";
 import { runtimeSettings } from "./runtime-settings.js";
 import { mcserverHostProfiles } from "./mcserver-host-profiles.js";
@@ -136,6 +137,7 @@ export const articles: readonly Article[] = [
     panelGeometry,
     mcserverHosting,
     fileConverter,
+    base64Toolkit,
     localModelTooling,
     runtimeSettings,
     mcserverHostProfiles,

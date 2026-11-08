@@ -83,7 +83,13 @@ export interface CalloutBlock {
     readonly content: InlineContent;
 }
 
-export type Block = ParagraphBlock | ListBlock | TableBlock | CodeBlock | DefinitionsBlock | CalloutBlock;
+/** A working tool embedded in its article, such as the Base64 toolkit. Runs entirely in the page. */
+export interface ToolBlock {
+    readonly kind: "tool";
+    readonly tool: "base64";
+}
+
+export type Block = ParagraphBlock | ListBlock | TableBlock | CodeBlock | DefinitionsBlock | CalloutBlock | ToolBlock;
 
 /* -------------------------------------------------------------------------- */
 /* Articles                                                                   */

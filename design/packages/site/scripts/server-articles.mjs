@@ -9,6 +9,8 @@ export const SERVER_ARTICLES = Object.freeze([
     { id: "mcserver-ssh-process-lifecycle", path: "docs/server-management/ssh-process-lifecycle.md" },
     { id: "mcserver-ssh-process-readiness", path: "docs/server-management/ssh-process-readiness.md" },
     { id: "maintained-viewer-build", path: "docs/build/maintained-viewer.md" },
+    { id: "base64", path: "docs/base64.md" },
+    { id: "virtual-disks", path: "docs/virtual-disks.md" },
 ]);
 
 /** Preserve complete Markdown text in the archive's safe text-only block model.
@@ -36,6 +38,9 @@ export function markdownArticle(source, id) {
         paragraph = [];
     };
     for (const line of lines.slice(1)) {
+        // A line that is only an image points at a repository file the archive cannot show;
+        // the text around it already says what the picture shows.
+        if (!fence && /^\s*!\[[^\]]*\]\([^)]*\)\s*$/u.test(line)) continue;
         const marker = /^(\s*)(`{3,}|~{3,})(.*)$/u.exec(line);
         if (fence) {
             if (marker && marker[2][0] === fence[0] && marker[2].length >= fence.length && !marker[3].trim()) {

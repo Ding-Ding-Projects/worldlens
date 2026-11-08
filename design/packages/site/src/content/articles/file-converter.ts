@@ -93,6 +93,10 @@ export const fileConverter: Article = {
     ],
     suggested: [
         {
+            articleId: "base64-toolkit",
+            reason: "Base64 encoding and decoding, for text and files, has its own working tool.",
+        },
+        {
             articleId: "local-model-tooling",
             reason: "The neighbouring local tooling surface uses the same bundled-first and offline boundaries.",
         },

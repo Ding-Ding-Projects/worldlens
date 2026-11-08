@@ -1,0 +1,28 @@
+/* The Base64 toolkit embedded in its article (tools/base64Tool.ts). */
+.mb-tool { display: flex; flex-direction: column; gap: 14px; margin: 16px 0; padding: 20px; border-radius: 28px; background: var(--md-sys-color-surface-container, color-mix(in srgb, currentColor 6%, transparent)); }
+.mb-tool-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.mb-tool-seg { display: inline-flex; border: 1px solid var(--md-sys-color-outline-variant, color-mix(in srgb, currentColor 40%, transparent)); border-radius: 20px; overflow: hidden; }
+.mb-tool-seg .mb-tool-btn { border: 0; border-radius: 0; }
+.mb-tool-seg .mb-tool-btn[aria-checked="true"] { background: var(--md-sys-color-secondary-container, color-mix(in srgb, currentColor 16%, transparent)); color: var(--md-sys-color-on-secondary-container, currentColor); }
+.mb-tool-btn { min-height: 40px; padding: 0 16px; border: 1px solid var(--md-sys-color-outline-variant, color-mix(in srgb, currentColor 40%, transparent)); border-radius: 20px; background: transparent; color: var(--md-sys-color-primary, currentColor); font: inherit; cursor: pointer; }
+.mb-tool-btn:disabled { opacity: 0.45; cursor: default; }
+.mb-tool-btn:focus-visible, .mb-tool-drop:focus-within, .mb-tool textarea:focus-visible, .mb-tool select:focus-visible, .mb-tool input:focus-visible { outline: 2px solid var(--md-sys-color-primary, currentColor); outline-offset: 2px; }
+.mb-tool-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.mb-tool-field select, .mb-tool-field input { min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--md-sys-color-outline-variant, color-mix(in srgb, currentColor 40%, transparent)); background: transparent; color: inherit; font: inherit; }
+.mb-tool-check { display: inline-flex; gap: 8px; align-items: center; min-height: 40px; }
+.mb-tool-io { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.mb-tool-box { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mb-tool-label { font-size: 12px; font-weight: 600; opacity: 0.8; }
+.mb-tool-box textarea { min-height: 180px; padding: 12px; border-radius: 12px; border: 1px solid var(--md-sys-color-outline-variant, color-mix(in srgb, currentColor 40%, transparent)); background: transparent; color: inherit; resize: vertical; }
+.mb-tool-out { display: block; min-height: 180px; margin: 0; padding: 12px; border-radius: 12px; background: color-mix(in srgb, currentColor 5%, transparent); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; }
+.mb-tool-mono { font-family: "Roboto Mono", ui-monospace, monospace; font-size: 13px; }
+.mb-tool-error { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--md-sys-color-error-container, color-mix(in srgb, #ba1a1a 16%, transparent)); }
+.mb-tool-error mark { background: var(--md-sys-color-error, #ba1a1a); color: var(--md-sys-color-on-error, #fff); padding: 0 2px; border-radius: 2px; }
+.mb-tool-hint { font-size: 13px; opacity: 0.8; margin-right: auto; }
+.mb-tool-preview { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.mb-tool-media { max-width: 100%; max-height: 320px; border-radius: 12px; }
+.mb-tool-targets { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 14px; }
+.mb-tool-drop { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px; text-align: center; border: 2px dashed var(--md-sys-color-outline-variant, color-mix(in srgb, currentColor 40%, transparent)); border-radius: 28px; cursor: pointer; }
+.mb-tool-sr, .mb-tool-drop input[type="file"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+wl-base64-tool { display: block; }
+.mb-tool [hidden] { display: none !important; }

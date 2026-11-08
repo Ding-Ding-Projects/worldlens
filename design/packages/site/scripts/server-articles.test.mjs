@@ -9,7 +9,7 @@ import { buildCanonicalRuntime, canonicalArchiveSitePlugin, mergeServerArticleCa
 const root = fileURLToPath(new URL("..", import.meta.url));
 test("production runtime includes each independently required current server article", () => {
     const articles = loadServerArticles(root);
-    assert.deepEqual(articles.map((article) => article.id), ["mcserver-hosting", "mcserver-adoption-ownership", "mcserver-ssh-process-lifecycle", "mcserver-ssh-process-readiness", "maintained-viewer-build"]);
+    assert.deepEqual(articles.map((article) => article.id), ["mcserver-hosting", "mcserver-adoption-ownership", "mcserver-ssh-process-lifecycle", "mcserver-ssh-process-readiness", "maintained-viewer-build", "base64", "virtual-disks"]);
     const runtime = buildCanonicalRuntime(root);
     for (const article of articles) assert.ok(runtime.includes(JSON.stringify(article)), `${article.id} is missing from production runtime`);
     assert.ok(runtime.includes("Forced termination is unsupported"));
@@ -26,14 +26,18 @@ test("complete paragraphs, tables, lists and fenced code survive conversion", ()
     assert.equal(article.sections[1].blocks[2].v, "echo '# Literal heading'");
     assert.equal(article.sections[2].blocks[0].v, "完整內容。");
     assert.deepEqual(markdownArticle("# Ordered\n\n1. First\n2. Second", "ordered").sections[0].blocks[0], { t: "ol", items: ["First", "Second"] });
+    // An image-only line is dropped; text and fenced code that merely mention one are kept.
+    const pictured = markdownArticle("# Pictured\n\nBefore\n\n![Shot](evidence/a.png)\n\nAfter\n\n```md\n![kept](x.png)\n```", "pictured");
+    assert.equal(JSON.stringify(pictured).includes("evidence/a.png"), false);
+    assert.equal(JSON.stringify(pictured).includes("![kept](x.png)"), true);
 });
 test("all 59 originals survive and incomplete or duplicate merged catalogues fail", () => {
     const archive = JSON.parse(readFileSync(resolve(root, "archive/content/articles.json"), "utf8"));
     const current = loadServerArticles(root);
     const merged = mergeServerArticleCatalog(archive, current);
-    assert.equal(merged.count, 64);
+    assert.equal(merged.count, 66);
     assert.deepEqual(merged.articles.slice(0, 59), archive.articles);
-    assert.throws(() => mergeServerArticleCatalog(archive, current.slice(1)), /exactly 64/u);
+    assert.throws(() => mergeServerArticleCatalog(archive, current.slice(1)), /exactly 66/u);
     assert.throws(() => mergeServerArticleCatalog(archive, [{ ...current[0], id: archive.articles[0].id }, ...current.slice(1)]), /id duplicates/u);
     assert.throws(() => mergeServerArticleCatalog(archive, [{ ...current[0], title: archive.articles[0].title }, ...current.slice(1)]), /title duplicates/u);
     assert.throws(() => mergeServerArticleCatalog(archive, [{ ...current[0], sourcePath: "../private.md" }, ...current.slice(1)]), /safe documentation path/u);

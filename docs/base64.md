@@ -31,9 +31,16 @@ The preview element is chosen from the bytes' signature, never a name or claimed
 
 Every copy, save and file conversion is a history entry with names, sizes and SHA-256, never the payload. Undo and redo are unlimited. They survive a restart only when **Keep inputs on this computer** is on, because by default nothing typed is written to disk. Clearing history needs the two-key confirmation.
 
+## On the documentation site
+
+The site's Base64 article (`#/docs/base64`) carries the same tool, built from the same shared code: every alphabet and option, exact error positions, history and undo. A web page cannot write beside a file, so files are read in the page (up to 256 MB) and the result downloads as `name.ext.base64.txt` or the restored `name.ext`.
+
+![The tool on the site](evidence/base64/site-tool-1440x900.png)
+
 ## Verification
 
 - `design/packages/shared/src/base64.test.ts`: round trips for every alphabet, padding option and length remainder against Node's encoder; RFC 4648 test vectors (removing padding from the encoder turns this red); strict offsets; every text encoding; `data:` URLs; naming order; preview kinds; hex dump; CRC-32 and a ZIP read back by Python's `zipfile`; streaming in odd chunk sizes.
 - `design/packages/app/src/main/base64/files.test.ts`: the same-folder round trip with numbered names, `data:` and signature naming, refusal of non-Base64 text with nothing left behind, a 128 MB file streamed in bounded memory with the exact output length, pause and cancel, and exports that never overwrite.
 - `design/packages/ui/src/components/base64/Base64Screen.test.ts`: conversion and truthful failures, 300-step undo surviving a restart only when inputs are kept, history without payloads, the exact bad-character mark, typing as one undo step, and a safe preview that never renders SVG markup.
-- Screenshots come from the built interface in headless Chrome without the desktop bridge.
+- `design/packages/site/src/tools/base64Tool.test.ts`: the site tool encodes as you type, marks the exact bad character, steps back through undo and redo, never renders decoded markup and follows the language setting.
+- Screenshots come from the built interface and the built site in headless Chrome, without the desktop bridge.

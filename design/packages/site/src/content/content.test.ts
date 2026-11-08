@@ -76,6 +76,9 @@ function blockStrings(block: Block): string[] {
             return block.items.flatMap((item) => [item.term, ...contentStrings(item.description)]);
         case "callout":
             return [block.title, ...contentStrings(block.content)];
+        case "tool":
+            // A tool carries no prose of its own; its labels are checked in the string tables.
+            return [];
     }
 }
 
@@ -127,6 +130,7 @@ function articleHrefs(article: Article): string[] {
                     visit(block.content);
                     break;
                 case "code":
+                case "tool":
                     break;
             }
             return found;

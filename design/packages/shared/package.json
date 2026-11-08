@@ -31,6 +31,10 @@
             "types": "./dist/base64.d.ts",
             "import": "./dist/base64.js"
         },
+        "./base64Workspace": {
+            "types": "./dist/base64Workspace.d.ts",
+            "import": "./dist/base64Workspace.js"
+        },
         "./dist/*": "./dist/*"
     }
 }
