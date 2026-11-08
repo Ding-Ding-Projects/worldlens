@@ -9,10 +9,18 @@
  */
 
 export type Base64Alphabet = "standard" | "url" | "mime";
-export type TextEncodingName = "utf-8" | "utf-16le" | "latin1";
+export type TextEncodingName = "utf-8" | "utf-16le" | "utf-16be" | "latin1";
 
 const STANDARD = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 const URL_SAFE = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+const reverse = (chars: string): Int8Array => {
+    const table = new Int8Array(128).fill(-1);
+    for (let i = 0; i < chars.length; i += 1) table[chars.charCodeAt(i)] = i;
+    return table;
+};
+const STANDARD_REVERSE = reverse(STANDARD);
+const URL_REVERSE = reverse(URL_SAFE);
 
 export interface EncodeOptions {
     readonly alphabet?: Base64Alphabet;
@@ -26,26 +34,45 @@ function table(alphabet: Base64Alphabet): string {
     return alphabet === "url" ? URL_SAFE : STANDARD;
 }
 
+/** Turns ASCII codes into a flat string in slices, avoiding per-character concatenation. */
+function asciiToString(codes: Uint8Array): string {
+    let out = "";
+    for (let i = 0; i < codes.length; i += 32_768) out += String.fromCharCode.apply(null, codes.subarray(i, i + 32_768) as unknown as number[]);
+    return out;
+}
+
 function rawEncode(bytes: Uint8Array, chars: string, final: boolean): { text: string; rest: Uint8Array } {
     const whole = final ? bytes.length : bytes.length - (bytes.length % 3);
-    let out = "";
+    const codes = new Uint8Array(Math.ceil(whole / 3) * 4);
+    const table = Uint8Array.from(chars, (c) => c.charCodeAt(0));
+    const PAD = 61; // "="
+    let o = 0;
     let i = 0;
     for (; i + 2 < whole; i += 3) {
         const n = (bytes[i]! << 16) | (bytes[i + 1]! << 8) | bytes[i + 2]!;
-        out += chars[(n >> 18) & 63]! + chars[(n >> 12) & 63]! + chars[(n >> 6) & 63]! + chars[n & 63]!;
+        codes[o++] = table[(n >> 18) & 63]!;
+        codes[o++] = table[(n >> 12) & 63]!;
+        codes[o++] = table[(n >> 6) & 63]!;
+        codes[o++] = table[n & 63]!;
     }
     if (final) {
         const left = bytes.length - i;
         if (left === 1) {
             const n = bytes[i]! << 16;
-            out += chars[(n >> 18) & 63]! + chars[(n >> 12) & 63]! + "==";
+            codes[o++] = table[(n >> 18) & 63]!;
+            codes[o++] = table[(n >> 12) & 63]!;
+            codes[o++] = PAD;
+            codes[o++] = PAD;
         } else if (left === 2) {
             const n = (bytes[i]! << 16) | (bytes[i + 1]! << 8);
-            out += chars[(n >> 18) & 63]! + chars[(n >> 12) & 63]! + chars[(n >> 6) & 63]! + "=";
+            codes[o++] = table[(n >> 18) & 63]!;
+            codes[o++] = table[(n >> 12) & 63]!;
+            codes[o++] = table[(n >> 6) & 63]!;
+            codes[o++] = PAD;
         }
-        return { text: out, rest: new Uint8Array(0) };
+        return { text: asciiToString(codes.subarray(0, o)), rest: new Uint8Array(0) };
     }
-    return { text: out, rest: bytes.slice(whole) };
+    return { text: asciiToString(codes.subarray(0, o)), rest: bytes.slice(whole) };
 }
 
 function finish(text: string, options: EncodeOptions): string {
@@ -82,7 +109,8 @@ export interface DecodeOptions {
 export function decodeText(text: string, options: DecodeOptions = {}): DecodeResult {
     const alphabet = options.alphabet ?? "standard";
     const strict = options.strict ?? true;
-    const values: number[] = [];
+    const values = new Uint8Array(text.length);
+    let count = 0;
     let padSeen = -1;
     let padCount = 0;
     for (let i = 0; i < text.length; i += 1) {
@@ -101,12 +129,13 @@ export function decodeText(text: string, options: DecodeOptions = {}): DecodeRes
             continue;
         }
         if (padSeen >= 0) return { ok: false, offset: i, message: `"${c}" at character ${i + 1} comes after the padding.` };
-        let v = (alphabet === "url" ? URL_SAFE : STANDARD).indexOf(c);
-        if (v < 0 && !strict) v = (alphabet === "url" ? STANDARD : URL_SAFE).indexOf(c);
+        const code = c.charCodeAt(0);
+        let v = code < 128 ? (alphabet === "url" ? URL_REVERSE : STANDARD_REVERSE)[code]! : -1;
+        if (v < 0 && !strict && code < 128) v = (alphabet === "url" ? STANDARD_REVERSE : URL_REVERSE)[code]!;
         if (v < 0) return { ok: false, offset: i, message: `"${c}" at character ${i + 1} is not in the ${alphabet === "url" ? "URL-safe" : "standard"} alphabet.` };
-        values.push(v);
+        values[count++] = v;
     }
-    const rem = values.length % 4;
+    const rem = count % 4;
     if (rem === 1) return { ok: false, offset: text.length, message: "The text ends one character into a group, which no input can produce." };
     if (strict) {
         const expectPad = rem === 0 ? 0 : 4 - rem;
@@ -116,25 +145,26 @@ export function decodeText(text: string, options: DecodeOptions = {}): DecodeRes
     } else if (padCount > 2) {
         return { ok: false, offset: padSeen, message: "More than two padding characters." };
     }
-    const out = new Uint8Array(Math.floor((values.length * 3) / 4));
+    const out = new Uint8Array(Math.floor((count * 3) / 4));
     let o = 0;
-    for (let i = 0; i < values.length; i += 4) {
-        const a = values[i]!, b = values[i + 1]!, c = values[i + 2], d = values[i + 3];
+    for (let i = 0; i < count; i += 4) {
+        const a = values[i]!, b = values[i + 1]!;
         out[o++] = (a << 2) | (b >> 4);
-        if (c !== undefined) out[o++] = ((b & 15) << 4) | (c >> 2);
-        if (d !== undefined) out[o++] = ((c! & 3) << 6) | d;
+        if (i + 2 < count) out[o++] = ((b & 15) << 4) | (values[i + 2]! >> 2);
+        if (i + 3 < count) out[o++] = ((values[i + 2]! & 3) << 6) | values[i + 3]!;
     }
     return { ok: true, bytes: out.slice(0, o) };
 }
 
 export function textToBytes(text: string, encoding: TextEncodingName = "utf-8"): Uint8Array {
     if (encoding === "utf-8") return new TextEncoder().encode(text);
-    if (encoding === "utf-16le") {
+    if (encoding === "utf-16le" || encoding === "utf-16be") {
         const out = new Uint8Array(text.length * 2);
+        const le = encoding === "utf-16le";
         for (let i = 0; i < text.length; i += 1) {
             const code = text.charCodeAt(i);
-            out[i * 2] = code & 255;
-            out[i * 2 + 1] = code >> 8;
+            out[i * 2] = le ? code & 255 : code >> 8;
+            out[i * 2 + 1] = le ? code >> 8 : code & 255;
         }
         return out;
     }
@@ -150,6 +180,15 @@ export function textToBytes(text: string, encoding: TextEncodingName = "utf-8"):
 export function bytesToText(bytes: Uint8Array, encoding: TextEncodingName = "utf-8"): string {
     if (encoding === "utf-8") return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     if (encoding === "utf-16le") return new TextDecoder("utf-16le", { fatal: true }).decode(bytes);
+    if (encoding === "utf-16be") {
+        if (bytes.length % 2 !== 0) throw new Error("UTF-16 text has an even number of bytes; this has an odd number.");
+        const swapped = new Uint8Array(bytes.length);
+        for (let i = 0; i < bytes.length; i += 2) {
+            swapped[i] = bytes[i + 1]!;
+            swapped[i + 1] = bytes[i]!;
+        }
+        return new TextDecoder("utf-16le", { fatal: true }).decode(swapped);
+    }
     let out = "";
     for (const b of bytes) out += String.fromCharCode(b);
     return out;
@@ -207,11 +246,141 @@ export function sidecarName(fileName: string): string {
     return `${fileName}${SIDECAR_SUFFIX}`;
 }
 
-/** `level.dat.base64.txt` decodes back to `level.dat`; anything else returns null. */
+/** `level.dat.base64.txt` (or `level.dat.b64`) decodes back to `level.dat`; anything else returns null. */
 export function restoredName(fileName: string): string | null {
-    if (!fileName.toLowerCase().endsWith(SIDECAR_SUFFIX)) return null;
-    const original = fileName.slice(0, -SIDECAR_SUFFIX.length);
-    return original === "" ? null : original;
+    const lower = fileName.toLowerCase();
+    for (const suffix of [SIDECAR_SUFFIX, ".b64"]) {
+        if (lower.endsWith(suffix)) {
+            const original = fileName.slice(0, -suffix.length);
+            return original === "" ? null : original;
+        }
+    }
+    return null;
+}
+
+const MIME_EXTENSIONS: Readonly<Record<string, string>> = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/gif": ".gif",
+    "image/webp": ".webp",
+    "image/svg+xml": ".svg",
+    "application/pdf": ".pdf",
+    "application/zip": ".zip",
+    "application/gzip": ".gz",
+    "application/json": ".json",
+    "text/plain": ".txt",
+    "text/html": ".html",
+    "audio/mpeg": ".mp3",
+    "audio/ogg": ".ogg",
+    "audio/wav": ".wav",
+    "video/mp4": ".mp4",
+    "video/webm": ".webm",
+};
+
+/**
+ * The name a decoded file gets, in the contract's order: the `.base64.txt` or `.b64` name
+ * pattern, then a `data:` URL's MIME type, then the decoded bytes' signature, and `.bin` last.
+ * `sourceName` is the Base64 file's own name.
+ */
+export function decodedFileName(sourceName: string, dataUrlMime: string | null, firstBytes: Uint8Array): { readonly name: string; readonly from: "name" | "data-url" | "signature" | "fallback" } {
+    const fromName = restoredName(sourceName);
+    if (fromName) return { name: fromName, from: "name" };
+    const stem = sourceName.replace(/\.(txt|b64|base64)$/iu, "") || "decoded";
+    const mimeExt = dataUrlMime ? MIME_EXTENSIONS[dataUrlMime.toLowerCase()] : undefined;
+    if (mimeExt) return { name: `${stem}${mimeExt}`, from: "data-url" };
+    const sniffed = sniffMime(firstBytes);
+    if (sniffed.extension !== ".bin" && sniffed.extension !== ".txt") return { name: `${stem}${sniffed.extension}`, from: "signature" };
+    return { name: `${stem}${sniffed.extension === ".txt" ? ".txt" : ".bin"}`, from: sniffed.extension === ".txt" ? "signature" : "fallback" };
+}
+
+/** Byte signatures for audio and video, used only to choose a safe preview element. */
+export function previewKind(mime: string): "image" | "audio" | "video" | "text" | "hex" {
+    if (mime.startsWith("image/") && mime !== "image/svg+xml") return "image";
+    if (mime.startsWith("audio/")) return "audio";
+    if (mime.startsWith("video/")) return "video";
+    if (mime.startsWith("text/") || mime === "application/json") return "text";
+    return "hex";
+}
+
+/** A classic 16-bytes-per-line hex dump of at most `limit` bytes. */
+export function hexDump(bytes: Uint8Array, limit = 4096): string {
+    const lines: string[] = [];
+    const end = Math.min(bytes.length, limit);
+    for (let offset = 0; offset < end; offset += 16) {
+        const row = bytes.slice(offset, Math.min(offset + 16, end));
+        const hex = Array.from(row, (b) => b.toString(16).padStart(2, "0")).join(" ");
+        const ascii = Array.from(row, (b) => (b >= 32 && b < 127 ? String.fromCharCode(b) : ".")).join("");
+        lines.push(`${offset.toString(16).padStart(8, "0")}  ${hex.padEnd(47, " ")}  ${ascii}`);
+    }
+    return lines.join("\n");
+}
+
+const CRC_TABLE = (() => {
+    const table = new Uint32Array(256);
+    for (let n = 0; n < 256; n += 1) {
+        let c = n;
+        for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+        table[n] = c >>> 0;
+    }
+    return table;
+})();
+
+export function crc32(bytes: Uint8Array): number {
+    let c = 0xffffffff;
+    for (const b of bytes) c = CRC_TABLE[(c ^ b) & 255]! ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+}
+
+/**
+ * A stored (uncompressed) ZIP of the given entries, for bulk export. Base64 text compresses
+ * well, but storing keeps this small, dependency-free and readable by every unzip tool.
+ */
+export function storeZip(entries: readonly { readonly name: string; readonly bytes: Uint8Array }[]): Uint8Array {
+    const enc = new TextEncoder();
+    const local: Uint8Array[] = [];
+    const central: Uint8Array[] = [];
+    let offset = 0;
+    for (const entry of entries) {
+        const name = enc.encode(entry.name.replace(/\\/gu, "/"));
+        const crc = crc32(entry.bytes);
+        const size = entry.bytes.length;
+        const head = new DataView(new ArrayBuffer(30));
+        head.setUint32(0, 0x04034b50, true);
+        head.setUint16(4, 20, true);
+        head.setUint16(6, 0x0800, true);
+        head.setUint32(14, crc, true);
+        head.setUint32(18, size, true);
+        head.setUint32(22, size, true);
+        head.setUint16(26, name.length, true);
+        local.push(new Uint8Array(head.buffer), name, entry.bytes);
+        const dir = new DataView(new ArrayBuffer(46));
+        dir.setUint32(0, 0x02014b50, true);
+        dir.setUint16(4, 20, true);
+        dir.setUint16(6, 20, true);
+        dir.setUint16(8, 0x0800, true);
+        dir.setUint32(16, crc, true);
+        dir.setUint32(20, size, true);
+        dir.setUint32(24, size, true);
+        dir.setUint16(28, name.length, true);
+        dir.setUint32(42, offset, true);
+        central.push(new Uint8Array(dir.buffer), name);
+        offset += 30 + name.length + size;
+    }
+    const centralSize = central.reduce((n, part) => n + part.length, 0);
+    const end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true);
+    end.setUint16(8, entries.length, true);
+    end.setUint16(10, entries.length, true);
+    end.setUint32(12, centralSize, true);
+    end.setUint32(16, offset, true);
+    const parts = [...local, ...central, new Uint8Array(end.buffer)];
+    const out = new Uint8Array(parts.reduce((n, part) => n + part.length, 0));
+    let at = 0;
+    for (const part of parts) {
+        out.set(part, at);
+        at += part.length;
+    }
+    return out;
 }
 
 /** The first name that is free, `name (1).ext` style, so a write never overwrites. */
@@ -260,16 +429,19 @@ export class Base64StreamEncoder {
 
     private wrap(text: string): string {
         if (this.width <= 0) return text;
-        let out = "";
-        for (const c of text) {
+        const parts: string[] = [];
+        let at = 0;
+        while (at < text.length) {
             if (this.column === this.width) {
-                out += "\r\n";
+                parts.push("\r\n");
                 this.column = 0;
             }
-            out += c;
-            this.column += 1;
+            const take = Math.min(this.width - this.column, text.length - at);
+            parts.push(text.slice(at, at + take));
+            at += take;
+            this.column += take;
         }
-        return out;
+        return parts.join("");
     }
 }
 

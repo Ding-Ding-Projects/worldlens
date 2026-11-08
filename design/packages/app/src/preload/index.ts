@@ -2522,6 +2522,17 @@ interface AddonsBridge {
 }
 
 interface WorldlensBridge {
+    base64: {
+        encodeFile(source: string, options: unknown, jobId?: string): Promise<unknown>;
+        decodeFile(source: string, jobId?: string): Promise<unknown>;
+        pause(jobId: string): Promise<unknown>;
+        resume(jobId: string): Promise<unknown>;
+        cancel(jobId: string): Promise<unknown>;
+        readHead(file: string): Promise<unknown>;
+        saveAs(suggestedName: string, bytes: Uint8Array): Promise<unknown>;
+        reveal(file: string): Promise<unknown>;
+        onProgress(listener: (progress: unknown) => void): () => void;
+    };
     vdisk: {
         status(): Promise<unknown>;
         list(): Promise<unknown>;

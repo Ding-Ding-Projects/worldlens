@@ -637,6 +637,7 @@ export const LOCKS_VOICED = {
 } as const satisfies Record<string, VoicedString>;
 
 export const LOCKS_FIXED = {
+    "locks.unlock.label": { en: "Unlock {label}", yue: "解鎖 {label}" },
     "locks.menu.lock": { en: "Lock this element...", yue: "鎖住呢個 element..." },
     "locks.menu.unlock": { en: "Unlock this element...", yue: "解鎖呢個 element..." },
     "locks.menu.relock": { en: "Lock it again now", yue: "即刻再鎖返" },

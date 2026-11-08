@@ -22,6 +22,7 @@ export const PRODUCTION_APP_PAGE_IDS = [
     "dockerHosting",
     "screenshots",
     "virtualDisks",
+    "base64",
 ] as const;
 
 export function assertProductionPageIds(

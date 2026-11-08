@@ -228,6 +228,12 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
     ),
     runtime: optIn("docker-socket", "Probing the Docker daemon needs its socket."),
 
+    base64: refused(
+        "File conversion writes beside the file on the computer that holds it. In a hosted workspace " +
+            "text conversion still runs in the browser; files are downloaded under the same names instead.",
+        "Use the Base64 text tools here, or the Base64 job in the desktop app for files.",
+    ),
+
     vdisk: refused(
         "Virtual disks attach to the Windows computer running the desktop app. A container has no " +
             "Windows disk service, and attaching a disk on the server would put it on the wrong machine.",

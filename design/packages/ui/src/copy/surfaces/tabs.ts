@@ -653,12 +653,7 @@ export const TABS_FIXED = {
         en: "Showing {shown} of {total}",
         yue: "{total} 個之中顯示緊 {shown} 個",
     },
-    "tabs.find.all": {
-        en: "Search every open tab, in every window",
-        yue: "搜尋所有視窗入面每一個開住嘅分頁",
-    },
     "tabs.find.allLabel": { en: "Search every open tab", yue: "搜尋每一個開住嘅分頁" },
-    "tabs.find.groups": { en: "Search tab groups by name", yue: "用名搜尋分頁群組" },
     "tabs.find.groupsLabel": { en: "Search group names", yue: "搜尋群組名" },
     "tabs.find.groupSummary": {
         en: "Showing {shown} of {total} groups",

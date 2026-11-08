@@ -12,6 +12,7 @@ import {
     mdiFileDocumentOutline,
     mdiImageMultipleOutline,
     mdiHarddisk,
+    mdiCodeBraces,
     mdiCubeOutline,
     mdiSwapHorizontal,
     mdiLifebuoy,
@@ -118,6 +119,7 @@ import LockList from "./components/locks/LockList.vue";
 import BrowserExtensionScreen from "./components/browserExtension/BrowserExtensionScreen.vue";
 import ScreenshotGalleryScreen from "./components/gallery/ScreenshotGalleryScreen.vue";
 import VirtualDisksScreen from "./components/vdisk/VirtualDisksScreen.vue";
+import Base64Screen from "./components/base64/Base64Screen.vue";
 import { createLockStore } from "./components/locks/lockStore.js";
 import { provideLockStore, resolveLockHost } from "./components/locks/useLocks.js";
 import { createServerStore } from "./components/mcserver/serverStore.js";
@@ -628,6 +630,8 @@ const PAGE_WORLD_DOWNLOADER = "worldDownloader";
 const PAGE_SCREENSHOTS = "screenshots";
 /* The virtual disk manager: VHD, VHDX, VHD Set and ISO, Quick pack and map storage in a VHDX. */
 const PAGE_VIRTUAL_DISKS = "virtualDisks";
+/* The local Base64 toolkit: text, streamed files beside their source, history and undo. */
+const PAGE_BASE64 = "base64";
 
 /**
  * A count of everything in progress, kept alive for the whole life of the shell rather than
@@ -931,6 +935,11 @@ const pages = computed<TabPage[]>(() => [
         id: PAGE_VIRTUAL_DISKS,
         label: t("tabs.page.virtualDisks", "Virtual disks"),
         icon: mdiHarddisk,
+    },
+    {
+        id: PAGE_BASE64,
+        label: t("tabs.page.base64", "Base64"),
+        icon: mdiCodeBraces,
     },
 ]);
 
@@ -2991,6 +3000,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     </div>
                 </template>
 
+                <template #base64>
+                    <div class="mb-world-host mb-interactive">
+                        <Base64Screen />
+                    </div>
+                </template>
+
                 <template #ollama>
                     <div class="mb-world-host mb-interactive">
                         <OllamaScreen />
@@ -3624,6 +3639,12 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #virtualDisks>
                                 <div class="mb-world-host mb-interactive">
                                     <VirtualDisksScreen />
+                                </div>
+                            </template>
+
+                            <template #base64>
+                                <div class="mb-world-host mb-interactive">
+                                    <Base64Screen />
                                 </div>
                             </template>
 

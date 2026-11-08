@@ -316,6 +316,8 @@ export const SHELL_VOICED = {
  * telling, never the facts - was broken.
  */
 export const SHELL_FIXED = {
+    "shell.focusDialog.close": { en: "Close {label}", yue: "閂咗 {label}" },
+    "topBar.search.placeholder": { en: "Search maps, servers, settings and commands", yue: "搜尋地圖、伺服器、設定同指令" },
     /* ---------------------------------------------------------------- */
     /* The catalogue rows' live meta                                     */
     /* ---------------------------------------------------------------- */

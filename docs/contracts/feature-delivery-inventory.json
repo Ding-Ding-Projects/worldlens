@@ -6502,11 +6502,14 @@
           "captureAcceptance": "pending",
           "sourceMapping": {
             "paths": [
+              "design/packages/ui/src/components/base64/Base64Screen.vue",
+              "design/packages/app/src/main/base64/files.ts",
+              "design/packages/app/src/main/base64/ipc.ts",
               "design/packages/shared/src/base64.ts"
             ],
-            "consumer": "Shared core only; no screen consumes it yet.",
-            "limitation": "The desktop screen, file streaming route, history and site surface are not built.",
-            "sourceCommit": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369"
+            "consumer": "Base64 job in the Work tabs and command palette; files stream through the typed base64 bridge.",
+            "limitation": "Interaction in the packaged Windows app is not yet captured; screenshots come from the built interface without the bridge.",
+            "sourceCommit": "181dbb8b7dd6b4afc8c2f51cb5ccf5e2ea3881ef"
           }
         },
         "hosted-workspace": {
@@ -6514,7 +6517,16 @@
           "reason": "Universal interactive-surface requirement; platform-specific mediation and limitations require explicit review.",
           "implementation": "pending-review",
           "runtimeAcceptance": "pending",
-          "captureAcceptance": "pending"
+          "captureAcceptance": "pending",
+          "sourceMapping": {
+            "paths": [
+              "design/packages/ui/src/components/base64/Base64Screen.vue",
+              "design/packages/app/src/hosted/capabilityProfile.ts"
+            ],
+            "consumer": "Text runs in the browser; files are read in the window and downloaded under the same names; the base64 file prefix is refused with the reason.",
+            "limitation": "Hosted interaction is not yet captured.",
+            "sourceCommit": "181dbb8b7dd6b4afc8c2f51cb5ccf5e2ea3881ef"
+          }
         },
         "documentation-site": {
           "applicability": "applicable",
@@ -6540,12 +6552,27 @@
       },
       "sourceEvidence": [
         {
+          "path": "design/packages/ui/src/components/base64/Base64Screen.vue",
+          "baseline": "181dbb8b7dd6b4afc8c2f51cb5ccf5e2ea3881ef",
+          "status": "source-present; behavior and completeness require review"
+        },
+        {
+          "path": "design/packages/app/src/main/base64/files.ts",
+          "baseline": "181dbb8b7dd6b4afc8c2f51cb5ccf5e2ea3881ef",
+          "status": "source-present; behavior and completeness require review"
+        },
+        {
           "path": "design/packages/shared/src/base64.ts",
-          "baseline": "6806a0f4dcbe9d263d79d9093fd1f82b3531e369",
+          "baseline": "181dbb8b7dd6b4afc8c2f51cb5ccf5e2ea3881ef",
+          "status": "source-present; behavior and completeness require review"
+        },
+        {
+          "path": "docs/base64.md",
+          "baseline": "181dbb8b7dd6b4afc8c2f51cb5ccf5e2ea3881ef",
           "status": "source-present; behavior and completeness require review"
         }
       ],
-      "focusedInventory": null,
+      "focusedInventory": "docs/base64.md",
       "reviewState": "partial-source-mapping"
     },
     {

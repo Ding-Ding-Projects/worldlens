@@ -118,7 +118,7 @@ Baseline: `11cd248f9a13c6547474a0cfe168b2958751be60`. Incomplete implementation 
 | `info-icon-guidance` | Per-control contextual information | None recorded | Not yet mapped | pending-review |
 | `private-documentation-package` | Private-repository documentation package | None recorded | Not yet mapped | excluded-with-reason |
 | `virtual-disk-manager` | Full Windows virtual disk manager | desktop | `design/packages/ui/src/components/vdisk/VirtualDisksScreen.vue`, `design/packages/app/src/main/vdisk/manager.ts`, `design/packages/app/src/main/vdisk/ipc.ts`, `design/packages/shared/src/virtualDisk.ts` | partial-source-mapping |
-| `base64-tools` | Full local Base64 toolkit | desktop | `design/packages/shared/src/base64.ts` | partial-source-mapping |
+| `base64-tools` | Full local Base64 toolkit | desktop, hosted-workspace | `design/packages/ui/src/components/base64/Base64Screen.vue`, `design/packages/app/src/main/base64/files.ts`, `design/packages/shared/src/base64.ts`, `docs/base64.md`, `design/packages/app/src/main/base64/ipc.ts`, `design/packages/app/src/hosted/capabilityProfile.ts` | partial-source-mapping |
 | `extension-support` | Application extension support | desktop | `design/packages/app/src/main/addons/manager.ts`, `design/packages/app/src/main/addons/ipc.ts`, `design/packages/ui/src/components/settings/AddonManagerPanel.vue` | partial-source-mapping |
 | `action-sound-effects` | Action sounds with a Settings switch | desktop | `design/packages/ui/src/stores/actionSounds.ts` | partial-source-mapping |
 | `minecraft-world-generator` | Minecraft world generator in every server tab | desktop | `design/packages/shared/src/worldGenerationConfig.ts` | partial-source-mapping |

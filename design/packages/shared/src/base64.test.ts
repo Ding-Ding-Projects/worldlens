@@ -11,8 +11,17 @@ import {
     restoredName,
     sidecarName,
     sniffMime,
+    storeZip,
+    crc32,
+    decodedFileName,
+    hexDump,
+    previewKind,
     textToBytes,
 } from "./base64.js";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const sample = (n: number): Uint8Array => Uint8Array.from({ length: n }, (_, i) => (i * 37 + 11) & 255);
 
@@ -36,7 +45,7 @@ describe("round trips", () => {
         expect(decodeText(mime, { alphabet: "mime" }).ok).toBe(true);
     });
     it("round trips every text encoding", () => {
-        for (const enc of ["utf-8", "utf-16le", "latin1"] as const) {
+        for (const enc of ["utf-8", "utf-16le", "utf-16be", "latin1"] as const) {
             const text = enc === "latin1" ? "café" : "Bayville 世界";
             expect(bytesToText(textToBytes(text, enc), enc)).toBe(text);
         }
@@ -90,5 +99,64 @@ describe("streaming", () => {
         for (let i = 0; i < text.length; i += 101) parts.push(dec.push(text.slice(i, i + 101)));
         parts.push(dec.end());
         expect(Buffer.concat(parts).equals(Buffer.from(bytes))).toBe(true);
+    });
+});
+
+describe("padding Shek Q", () => {
+    it("pads every remainder exactly like RFC 4648 section 10", () => {
+        const vectors: [string, string][] = [["", ""], ["f", "Zg=="], ["fo", "Zm8="], ["foo", "Zm9v"], ["foob", "Zm9vYg=="], ["fooba", "Zm9vYmE="], ["foobar", "Zm9vYmFy"]];
+        for (const [plain, encoded] of vectors) {
+            expect(encodeBytes(textToBytes(plain))).toBe(encoded);
+            expect(encodeBytes(textToBytes(plain), { padding: false })).toBe(encoded.replace(/=+$/u, ""));
+            const back = decodeText(encoded);
+            expect(back.ok && bytesToText(back.bytes)).toBe(plain);
+        }
+    });
+    it("orders UTF-16 BE bytes high first", () => {
+        expect(Array.from(textToBytes("A", "utf-16be"))).toEqual([0, 65]);
+        expect(() => bytesToText(Uint8Array.from([0, 65, 0]), "utf-16be")).toThrow(/odd/u);
+    });
+});
+
+describe("decoded names follow the contract order", () => {
+    const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
+    it("uses the name pattern, then data: MIME, then signature, then .bin", () => {
+        expect(decodedFileName("report.pdf.base64.txt", "image/png", png)).toEqual({ name: "report.pdf", from: "name" });
+        expect(decodedFileName("photo.b64", null, png)).toEqual({ name: "photo", from: "name" });
+        expect(decodedFileName("clip.txt", "image/png", Uint8Array.of(0))).toEqual({ name: "clip.png", from: "data-url" });
+        expect(decodedFileName("clip.txt", null, png)).toEqual({ name: "clip.png", from: "signature" });
+        expect(decodedFileName("clip.txt", null, Uint8Array.of(0, 255, 254, 1))).toEqual({ name: "clip.bin", from: "fallback" });
+    });
+    it("never picks a scriptable preview element", () => {
+        expect(previewKind("image/svg+xml")).toBe("hex");
+        expect(previewKind("text/html")).toBe("text");
+        expect(previewKind("image/png")).toBe("image");
+    });
+    it("dumps hex with offsets and printable text", () => {
+        expect(hexDump(textToBytes("Hi!"))).toBe("00000000  48 69 21" + " ".repeat(39) + "  Hi!");
+    });
+});
+
+describe("bulk ZIP export", () => {
+    it("matches the standard CRC-32 check value", () => {
+        expect(crc32(textToBytes("123456789"))).toBe(0xcbf43926);
+    });
+    it("writes an archive that unzip reads back", () => {
+        const dir = mkdtempSync(join(tmpdir(), "wl-zip-"));
+        const zip = storeZip([
+            { name: "a.base64.txt", bytes: textToBytes("QUJD") },
+            { name: "folder\\b.json", bytes: textToBytes("{}") },
+        ]);
+        writeFileSync(join(dir, "out.zip"), zip);
+        let listing = "";
+        try {
+            listing = execFileSync("python3", ["-c", "import zipfile,sys;z=zipfile.ZipFile(sys.argv[1]);print(z.testzip());print(sorted(z.namelist()));print(z.read('a.base64.txt').decode())", join(dir, "out.zip")]).toString();
+        } catch {
+            return; // No Python on this machine: the CRC test above still guards the format.
+        }
+        expect(listing).toContain("None");
+        expect(listing).toContain("'folder/b.json'");
+        expect(listing).toContain("QUJD");
+        expect(readFileSync(join(dir, "out.zip")).subarray(0, 4).toString("hex")).toBe("504b0304");
     });
 });

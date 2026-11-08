@@ -1116,6 +1116,22 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
 
+        base64: {
+            encodeFile: (source: unknown, options: unknown, jobId: unknown) => transport.invoke("base64:encodeFile", source, options, jobId),
+            decodeFile: (source: unknown, jobId: unknown) => transport.invoke("base64:decodeFile", source, jobId),
+            pause: (jobId: unknown) => transport.invoke("base64:pause", jobId),
+            resume: (jobId: unknown) => transport.invoke("base64:resume", jobId),
+            cancel: (jobId: unknown) => transport.invoke("base64:cancel", jobId),
+            readHead: (file: unknown) => transport.invoke("base64:readHead", file),
+            saveAs: (suggestedName: unknown, bytes: unknown) => transport.invoke("base64:saveAs", suggestedName, bytes),
+            reveal: (file: unknown) => transport.invoke("base64:reveal", file),
+            onProgress: (listener: BridgeListener) => {
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
+                transport.on("base64:progress", forward);
+                return () => transport.off("base64:progress", forward);
+            },
+        },
+
         vdisk: {
             status: () => transport.invoke("vdisk:status"),
             list: () => transport.invoke("vdisk:list"),

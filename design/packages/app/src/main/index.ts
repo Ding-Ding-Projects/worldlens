@@ -192,6 +192,7 @@ import type { AddonIpc } from "./addons/index.js";
 import { registerVocabularyHandlers } from "./vocabulary/index.js";
 import { registerConverterHandlers, type ConverterIpc } from "./converter/index.js";
 import { registerVirtualDiskHandlers, type VirtualDiskIpc } from "./vdisk/ipc.js";
+import { registerBase64Handlers, type Base64Ipc } from "./base64/ipc.js";
 import { registerOllamaHandlers, type OllamaIpc } from "./ollama/index.js";
 import { registerRuntimeSettingsHandlers } from "./runtimeSettings/ipc.js";
 import type { RuntimeSettingsIpc } from "./runtimeSettings/ipc.js";
@@ -516,6 +517,7 @@ let botIpc: { dispose(): void } | null = null;
 let managedHostingIpc: { dispose(): void } | null = null;
 let converterIpc: ConverterIpc | null = null;
 let vdiskIpc: VirtualDiskIpc | null = null;
+let base64Ipc: Base64Ipc | null = null;
 let ollamaIpc: OllamaIpc | null = null;
 let runtimeSettingsIpc: RuntimeSettingsIpc | null = null;
 let runtimeSourceRegistry: RuntimeSourceRegistry | null = null;
@@ -723,6 +725,13 @@ function registerIpc(): void {
     // instead of a missing channel.
     vdiskIpc = registerVirtualDiskHandlers(ipcMain, { dataDir: app.getPath("userData") });
     app.on("will-quit", () => vdiskIpc?.dispose());
+    // The Base64 toolkit's file side: streamed same-folder conversion, previews and exports.
+    base64Ipc = registerBase64Handlers(ipcMain, {
+        showItemInFolder: (fullPath) => shell.showItemInFolder(fullPath),
+        showSaveDialog: (window, options) => (window ? dialog.showSaveDialog(window, options) : dialog.showSaveDialog(options)),
+        windowFor: (sender) => BrowserWindow.fromWebContents(sender as Electron.WebContents),
+    });
+    app.on("will-quit", () => base64Ipc?.dispose());
     ollamaIpc = registerOllamaHandlers(ipcMain, { dataDir: app.getPath("userData") });
     app.on("will-quit", () => ollamaIpc?.dispose());
 
