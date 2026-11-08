@@ -1,6 +1,6 @@
 import type { BrowserWindow, IpcMain } from "electron";
 import * as path from "node:path";
-import type { EncodeOptions } from "@worldlens/shared/base64";
+import type { Base64Alphabet, EncodeOptions } from "@worldlens/shared/base64";
 import { Base64FileJobs, readHead, writeNew } from "./files.js";
 
 export const BASE64_CHANNELS = [
@@ -30,7 +30,7 @@ interface ElectronSurface {
 const asOptions = (value: unknown): EncodeOptions => {
     const v = (value ?? {}) as Record<string, unknown>;
     const alphabet = v.alphabet === "url" || v.alphabet === "mime" ? v.alphabet : "standard";
-    const out: { alphabet: EncodeOptions["alphabet"]; padding?: boolean; lineLength?: number } = { alphabet };
+    const out: { alphabet: Base64Alphabet; padding?: boolean; lineLength?: number } = { alphabet };
     if (typeof v.padding === "boolean") out.padding = v.padding;
     if (typeof v.lineLength === "number" && Number.isInteger(v.lineLength) && v.lineLength >= 0 && v.lineLength <= 100_000) out.lineLength = v.lineLength;
     return out;
