@@ -192,6 +192,32 @@ interface DestructiveFile {
  * Ordered by path so the diff of adding one reads as an addition rather than a reshuffle.
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
+    "components/drawing/DrawingBoard.vue": {
+        count: 2,
+        destroys: "the touched part of strokes on the drawing board, under the eraser",
+        standing: "reversible",
+        note:
+            "eraseAt is the eraser tool drawing: it removes only what the pointer touches, and each " +
+            "erase is one step in the board's undo history, so Ctrl+Z puts the strokes back. Clearing " +
+            "the whole board is a separate action and goes through ConfigSuperConfirm.",
+    },
+    "components/vdisk/VirtualDisksScreen.vue": {
+        count: 1,
+        destroys: "nothing on disk: one entry in the screen's list of known virtual disks",
+        standing: "reversible",
+        note:
+            "removeFromLibrary forgets the path and keeps the file, as the button says ('Remove from " +
+            "the list (keeps the file)'). Dropping or opening the same file adds it back. Operations " +
+            "that change a disk's contents are gated separately in the same screen.",
+    },
+    "components/vdisk/vdiskBridge.ts": {
+        count: 1,
+        destroys: "nothing: the declared shape of the disk bridge's removeFromLibrary method",
+        standing: "type-only",
+        note:
+            "An interface member, not a call. The one caller, VirtualDisksScreen.vue, is declared " +
+            "separately with its own standing.",
+    },
     "components/mcserver/ServerConfigEditor.vue": {
         count: 1,
         destroys: "nothing on disk: the unsaved draft of one server configuration file, on the person's own request",

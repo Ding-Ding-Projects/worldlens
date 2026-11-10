@@ -13,6 +13,8 @@ import {
     mdiImageMultipleOutline,
     mdiHarddisk,
     mdiCodeBraces,
+    mdiDatabaseSearchOutline,
+    mdiDraw,
     mdiCubeOutline,
     mdiSwapHorizontal,
     mdiLifebuoy,
@@ -121,6 +123,8 @@ import ScreenshotGalleryScreen from "./components/gallery/ScreenshotGalleryScree
 import VirtualDisksScreen from "./components/vdisk/VirtualDisksScreen.vue";
 import Base64Screen from "./components/base64/Base64Screen.vue";
 import DrawingBoard from "./components/drawing/DrawingBoard.vue";
+import CoreProtectInspector from "./components/coreprotect/CoreProtectInspector.vue";
+import CoreProtectLayerHost from "./components/coreprotect/CoreProtectLayerHost.vue";
 import { createLockStore } from "./components/locks/lockStore.js";
 import { provideLockStore, resolveLockHost } from "./components/locks/useLocks.js";
 import { createServerStore } from "./components/mcserver/serverStore.js";
@@ -635,6 +639,8 @@ const PAGE_VIRTUAL_DISKS = "virtualDisks";
 const PAGE_BASE64 = "base64";
 /* The drawing board: seven pens and a partial eraser on a picture or a blank board. */
 const PAGE_DRAWING = "drawing";
+/* The CoreProtect inspector: block changes from a server's CoreProtect database, highlighted on the map. */
+const PAGE_COREPROTECT = "coreprotect";
 
 /**
  * A count of everything in progress, kept alive for the whole life of the shell rather than
@@ -948,6 +954,11 @@ const pages = computed<TabPage[]>(() => [
         id: PAGE_DRAWING,
         label: t("tabs.page.drawing", "Drawing board"),
         icon: mdiDraw,
+    },
+    {
+        id: PAGE_COREPROTECT,
+        label: t("tabs.page.coreprotect", "CoreProtect inspector"),
+        icon: mdiDatabaseSearchOutline,
     },
 ]);
 
@@ -2669,6 +2680,7 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
             -->
             <MapView v-if="profilesStore.activeId" :key="profilesStore.activeId" />
             <StudioMarkerLayerHost />
+            <CoreProtectLayerHost :map-visible="destination === 'map'" />
 
             <!--
                 Kid Mode's own shell: the same three destinations, the same resolved
@@ -3016,6 +3028,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                 <template #drawing>
                     <div class="mb-world-host mb-interactive">
                         <DrawingBoard />
+                    </div>
+                </template>
+                <template #coreprotect>
+                    <div class="mb-world-host mb-interactive">
+                        <CoreProtectInspector @open-map="shell.destination.value = 'map'" />
                     </div>
                 </template>
 
@@ -3663,6 +3680,11 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                             <template #drawing>
                                 <div class="mb-world-host mb-interactive">
                                     <DrawingBoard />
+                                </div>
+                            </template>
+                            <template #coreprotect>
+                                <div class="mb-world-host mb-interactive">
+                                    <CoreProtectInspector @open-map="shell.destination.value = 'map'" />
                                 </div>
                             </template>
 

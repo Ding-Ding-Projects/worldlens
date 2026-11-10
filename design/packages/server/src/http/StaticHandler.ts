@@ -22,6 +22,7 @@ const CONTENT_TYPES: Record<string, string> = {
     ".conf": "text/plain; charset=utf-8",
     ".webmanifest": "application/manifest+json",
     ".map": "application/json",
+    ".wasm": "application/wasm",
 };
 
 function contains(root: string, target: string): boolean {
@@ -85,7 +86,7 @@ export class StaticHandler implements HttpHandler {
                 "x-content-type-options": "nosniff",
                 "referrer-policy": "no-referrer",
                 "content-security-policy":
-                    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+                    "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
             });
             res.end();
             return true;
@@ -98,7 +99,7 @@ export class StaticHandler implements HttpHandler {
             "x-content-type-options": "nosniff",
             "referrer-policy": "no-referrer",
             "content-security-policy":
-                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
+                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'",
         });
         if (req.method === "HEAD") {
             res.end();

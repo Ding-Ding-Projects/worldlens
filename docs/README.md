@@ -128,6 +128,15 @@ application has. The in-app documentation browser groups them the same way, unde
 | [Generating a world and project from a server](./server-generation.md) | The Generate and start project dialog and its main-process coordinator: named stages, idempotent operation ids, data-generator capability descriptors, protected inputs the renderer may never supply, retained records on failure, and the honest cancel that reports what already happened. |
 | [Server configuration editor](./server-configuration-editor.md) | Typed describe/apply over properties, YAML, JSON and TOML with bounded recursive discovery, record tables for ops, whitelist and bans, hash-checked apply that returns a conflict instead of overwriting, and the draft-only meaning of reset. |
 | [Discovered commands and bots](./bots-and-commands.md) | Command graphs read from the server's own declare_commands packet or data-generator report, once-only previews, same-principal dispatch, Mineflayer and Baritone bot sessions, and the exact unavailable state this build reports because no protected account or protocol connection exists yet. |
+| [Base64](./base64.md) | Local Base64 encoding and decoding for text and files: standard, URL-safe and MIME variants, strict decoding with exact offsets, data URLs and streamed large files. |
+| [Virtual disks](./virtual-disks.md) | Managing VHD, VHDX, VHD Set and ISO files on Windows from the app, and rendering a map onto a virtual disk. |
+| [Drawing board](./drawing.md) | Seven pens and a partial eraser on a picture or blank board, with shortcuts, undo history, and SVG and PNG export. |
+| [Live charts](./live-charts.md) | Charts whose data changes on screen, drawn one way everywhere, starting with the render speed chart under a running render. |
+| [Extensions](./extensions.md) | Out-of-process extensions with a versioned manifest, declared permissions and consent, time and size limits, and a searchable manager. |
+| [External editor and VS Code](./external-editor.md) | Opening exports, files and project folders in an installed editor or Visual Studio Code, and what happens when none is found. |
+| [Release notes and other provider text](./provider-text.md) | Rendering release notes, issue text and README previews as markup through one isolated renderer. |
+| [Control guides](./control-guides.md) | The explanation button beside a control, saying what it does and what each choice changes. |
+| [CoreProtect inspector](./coreprotect-inspector.md) | Opening a CoreProtect database to see who changed which blocks, highlighted on the live map and in the hosted map, with replay, file watching and copy-ready admin commands. |
 
 ## Markers
 

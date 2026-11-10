@@ -282,6 +282,25 @@ interface OverlayEntry {
 
 const REGISTRY: readonly OverlayEntry[] = [
     {
+        file: "components/drawing/DrawingBoard.vue",
+        surface:
+            "The drawing board's export menu under its toolbar button, and its right-click " +
+            "menu anchored at the pointer through :target, listing every tool and action with " +
+            "its shortcut.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
+        file: "components/info/InfoButton.vue",
+        surface:
+            "The guide anchored under a control's information button: what the control does, " +
+            "its choices and default, with a try-it example and reset.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
         file: "components/MapView.vue",
         surface:
             "The map's right-click context menu, anchored at the pointer through :target, offering " +

@@ -65,6 +65,7 @@ const ICONS: Readonly<Record<ToolId, string>> = {
 };
 
 /** Stroke colours are data, not chrome: a fixed set that reads on light and dark pictures. */
+// material-exempt: ink colours for strokes, which are the drawing itself.
 const SWATCHES = ["#1f1f1f", "#ffffff", "#d93025", "#f29900", "#188038", "#1a73e8", "#9334e6"] as const;
 
 const toolLabel = (id: ToolId): string =>
@@ -162,6 +163,7 @@ function paint(ctx: CanvasRenderingContext2D, ratio: number, working: readonly S
     ctx.clearRect(0, 0, width.value, height.value);
     if (backgroundImage) ctx.drawImage(backgroundImage, 0, 0, width.value, height.value);
     else {
+        // material-exempt: the white paper of a blank board, part of the picture being drawn.
         ctx.fillStyle = "#ffffff";
         ctx.fillRect(0, 0, width.value, height.value);
     }
@@ -348,6 +350,7 @@ function download(name: string, blob: Blob): void {
 const stamp = (): string => new Date().toISOString().slice(0, 19).replace(/[:T]/gu, "-");
 
 function exportSvg(): void {
+    // material-exempt: the exported picture keeps the white paper it was drawn on.
     const svg = toSvg(strokes.value, { width: width.value, height: height.value, background: background.value, fill: background.value ? null : "#ffffff" });
     download(`drawing-${stamp()}.svg`, new Blob([svg], { type: "image/svg+xml" }));
     notice.value = t("draw.notice.exported", "Exported.");
@@ -355,6 +358,7 @@ function exportSvg(): void {
 
 const canOpenEditor = editorBridge() !== null;
 async function svgInVsCode(): Promise<void> {
+    // material-exempt: the exported picture keeps the white paper it was drawn on.
     const svg = toSvg(strokes.value, { width: width.value, height: height.value, background: background.value, fill: background.value ? null : "#ffffff" });
     const answer = await openTextInVsCode(`drawing-${stamp()}.svg`, svg);
     notice.value = answer.message + (answer.downloadUrl ? ` ${answer.downloadUrl}` : "");
@@ -607,6 +611,7 @@ defineExpose({ strokes, tool, undo, redo, exportSvg });
 .wl-draw__hint { margin: 0; font-size: 12px; color: rgb(var(--v-theme-on-surface-variant)); }
 .wl-draw__disc { align-self: flex-end; }
 .wl-draw__toolbar.is-min .wl-draw__disc { align-self: center; }
+/* material-exempt: the drawing paper is white in both themes, so a drawing looks the same as its export. */
 .wl-draw__surface { flex: 1; min-width: 0; max-height: calc(100vh - 220px); border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2); background: #fff; }
 .wl-draw__canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
 .wl-draw__canvas.is-eraser { cursor: cell; }

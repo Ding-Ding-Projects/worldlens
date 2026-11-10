@@ -1,5 +1,16 @@
 # Handoff
 
+## 2026-11-09 CoreProtect inspector
+
+What changed, all on `main`:
+
+- **CoreProtect inspector** Work tab (`docs/coreprotect-inspector.md`). It opens a CoreProtect SQLite database in the page with sql.js (WebAssembly), filters block changes by world, players, block, action, time and rollback state, and draws them as a highlight marker set on the running map, newest brightest. Replay plays changes in time order; watching re-reads a file opened through the system picker every 5 seconds. Quick admin actions build `/co lookup`, `#count`, `#preview`, rollback, restore, inspect and teleport commands; rollback and restore go through the two-key confirmation before copying. CSV and JSON export.
+- The hosted server and the desktop window both allow `'wasm-unsafe-eval'` in `script-src`, and the hosted server serves `.wasm` as `application/wasm`, so the inspector works in the hosted map too.
+- `App.vue` imported `mdiDraw` nowhere although the Drawing board page used it; the import is added (refs #190).
+- `docs/README.md` and `docsModel.ts` now index the nine articles added since 2026-11-07 (base64, virtual disks, drawing, live charts, extensions, external editor, provider text, control guides, CoreProtect inspector). The site carries 73 articles.
+
+Not done or not verified: sending commands over RCON from the inspector; MySQL databases; container, item, chat and sign tables; a capture of the highlight layer on a real rendered map (the screenshots show the inspector only).
+
 ## 2026-11-08 Disks proven on Windows; drawing, live charts, extensions, editors, guides
 
 What changed, all on `main`:

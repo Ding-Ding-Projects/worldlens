@@ -24,6 +24,7 @@ export const PRODUCTION_APP_PAGE_IDS = [
     "virtualDisks",
     "base64",
     "drawing",
+    "coreprotect",
 ] as const;
 
 export function assertProductionPageIds(

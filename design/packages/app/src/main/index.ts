@@ -486,7 +486,9 @@ function hardenSession(baseUrl: string): void {
             }
             headers["Content-Security-Policy"] = [
                 "default-src 'self'; " +
-                    "script-src 'self'; " +
+                    // WebAssembly compile only (no eval of script): the CoreProtect inspector reads
+                    // SQLite through sql.js, which ships its own .wasm file with the app.
+                    "script-src 'self' 'wasm-unsafe-eval'; " +
                     "style-src 'self' 'unsafe-inline'; " + // Vuetify injects style tags
                     "img-src 'self' data: blob:; " +
                     "font-src 'self' data:; " +

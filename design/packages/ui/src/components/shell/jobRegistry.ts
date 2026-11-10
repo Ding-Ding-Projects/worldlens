@@ -25,6 +25,7 @@
 import {
     mdiCloudDownloadOutline,
     mdiDraw,
+    mdiDatabaseSearchOutline,
     mdiGraphOutline,
     mdiCloudSyncOutline,
     mdiCloudUploadOutline,
@@ -77,7 +78,8 @@ export type CoreJobId =
     | "screenshots"
     | "virtualDisks"
     | "base64"
-    | "drawing";
+    | "drawing"
+    | "coreprotect";
 
 /**
  * Jobs that exist only where a sanitized public contract for them is in this checkout.
@@ -127,6 +129,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     virtualDisks: "virtualDisks",
     base64: "base64",
     drawing: "drawing",
+    coreprotect: "coreprotect",
     browserExtension: "browserExtension",
 } as const satisfies Record<string, JobId>;
 
@@ -432,6 +435,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         // a world from a live server - not a "keep a copy of a map you already made" action the
         // way backups/worldrepo beside it are. A fresh workspace should not imply this job is
         // one of the ones about preserving your own output.
+        seedGroup: null,
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "coreprotect",
+        semanticName: "coreprotect",
+        labelKey: "tabs.page.coreprotect",
+        labelFallback: "CoreProtect inspector",
+        icon: mdiDatabaseSearchOutline,
         seedGroup: null,
         pinnedOnFreshWorkspace: false,
     },

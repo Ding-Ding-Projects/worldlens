@@ -165,6 +165,7 @@ const escapeAttr = (value: string): string => value.replace(/&/gu, "&amp;").repl
 
 /** Only colours that cannot carry markup reach an SVG attribute. */
 export function safeColor(value: string): string {
+    // material-exempt: validates stroke colours, which are drawing data; black is the fallback ink.
     return /^#[0-9a-f]{3,8}$/iu.test(value) || /^(rgb|hsl)a?\([\d\s.,%/-]+\)$/iu.test(value) ? value : "#000000";
 }
 

@@ -78,6 +78,7 @@ function colours(): { line: string; grid: string; text: string; surface: string 
         const v = style.getPropertyValue(name).trim();
         return v ? `rgb(${v})` : fallback;
     };
+    // material-exempt: fallbacks used only when a theme role cannot be read for the canvas; they are the Material 3 baseline values of those same roles.
     return { line: rgb("--v-theme-primary", "#6750a4"), grid: rgb("--v-theme-outline-variant", "#cac4d0"), text: rgb("--v-theme-on-surface-variant", "#49454f"), surface: rgb("--v-theme-surface", "#ffffff") };
 }
 

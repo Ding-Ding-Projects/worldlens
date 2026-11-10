@@ -242,7 +242,8 @@ async function runDesktop(direction: "encode" | "decode", source: string): Promi
     const answer = direction === "encode" ? await files.encodeFile(source, fileOptions.value, job.jobId) : await files.decodeFile(source, job.jobId);
     job.result = answer;
     if (answer.ok && answer.output && direction === "decode") job.preview = await files.readHead(answer.output);
-    playActionCue(answer.ok ? "success" : answer.cancelled ? "close" : "error");
+    // A job the person cancelled ends quietly; there is no cue for "you asked me to stop".
+    if (!answer.cancelled) playActionCue(answer.ok ? "success" : "error");
     history.record({
         kind: "file",
         direction,

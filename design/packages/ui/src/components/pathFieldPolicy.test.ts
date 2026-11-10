@@ -282,6 +282,20 @@ function fieldIdentity(field: { readonly key: string | null; readonly tag: strin
     return field.key ?? field.tag.slice(0, 60);
 }
 const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
+    "components/vdisk/VirtualDisksScreen.vue::<VTextField v-model=\"destination\" :label=\"op === 'mirror' ? ": {
+        reason: "own-browse",
+        note:
+            "The new file a converted or mirrored disk is written to. It does not exist yet, so " +
+            "an open-file picker cannot choose it; the Browse button beside it picks a folder and " +
+            "fills in a name derived from the source disk.",
+    },
+    "components/vdisk/VirtualDisksScreen.vue::vdisk.map.file": {
+        reason: "own-browse",
+        note:
+            "The new VHDX that map storage will be created in. It does not exist yet, so the " +
+            "Browse button beside it picks a folder and fills in Map.vhdx rather than opening an " +
+            "existing file.",
+    },
     "components/mcserver/GenerationProjectDialog.vue::<VTextField\n                        v-model=\"worldName\"\n    ": {
         reason: "not-a-location",
         note:

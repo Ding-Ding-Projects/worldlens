@@ -116,6 +116,15 @@ export const APPLICATION_ORDER: readonly string[] = [
     "scheduled-settings-and-external-sources.md",
     "panel-geometry.md",
     "server-hosted-material-ui.md",
+    "base64.md",
+    "virtual-disks.md",
+    "drawing.md",
+    "live-charts.md",
+    "extensions.md",
+    "external-editor.md",
+    "provider-text.md",
+    "control-guides.md",
+    "coreprotect-inspector.md",
     // "Running it somewhere other than a desktop" in docs/README.md. Ways of running this
     // application rather than a fourth kind of thing, so they share its heading here.
     "hosted-mode.md",
