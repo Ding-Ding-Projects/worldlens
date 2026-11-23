@@ -84,6 +84,10 @@ The tree follows the ARIA tree pattern: <kbd>Up</kbd> and <kbd>Down</kbd> move, 
 
 The search bar looks through tag names, values, or both. Plain text is the default and ignores case. The regex toggle turns the pattern on, and the full regex builder opens beside the bar with the same pattern and flags. Matching rows are highlighted, the arrows step through matches (expanding the way to each one), and the count says when the list was cut at 500 or the search stopped early because it ran past its time budget. A pattern that cannot compile is reported, not ignored. Patterns are limited to 512 characters and only the first 4,096 characters of a value are tested.
 
+### Chunk view
+
+A chunk opened from the region canvas lands on **Chunk**: a 16 by 16 picture, west to east and north to south, with four layers. **Height** reads the chosen heightmap (motion blocking, world surface, ocean floor and the rest) and shades each column by its surface Y. **Biome**, **Blocks** and **Light** read the section at the height on the slider: biomes by 4-block cell, the block palette by colour, and block light from 0 to 15. Every cell has a spoken name ("x 7, z 2: Stone"). The side panel lists the chunk's block entities (chests, signs, spawners) with their positions and the generation step. Since 1.17 mobs and items live in the entities folder's region files; open that region to edit them. Values are still edited in the tree and form, and the picture reads again after every edit and undo.
+
 ## History
 
 Each project has its own small Git repository, kept under the application's data directory and never inside the world folder, so a world gains no `.git` and nothing that scans it changes.
@@ -175,3 +179,7 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 每個值都用啱佢嘅控制項：是否用開關；固定選項用名揀；有界數字用加減器，有真正上下限同單位；範圍用滑桿；`DayTime` 用一日之內嘅滑桿加時鐘，日數保留；tick 時長用分秒，±1 秒、±1 分；RGB 顏色（兩種物品格式嘅染色、藥水同地圖顏色）用顏色選擇器；資源 ID 旁邊顯示易明嘅名；自由文字同唔識嘅嘢用有範圍檢查嘅欄位。鍵比對唔分大細楷同底線，1.21.11 改名前後都對得上。每個控制項送出嘅編輯同文字欄一樣，所以還原、歷史、備份同「伺服器運行緊唔准寫」全部照舊，整數用 64 位元計。
 
 頂欄嘅 **Game names**（遊戲名）會顯示原本嘅鍵同類型，每個值用文字欄；呢個選擇會喺呢部電腦記住。
+
+### Chunk 檢視
+
+由 region 畫布打開嘅 chunk 會直接去 **Chunk**：16 乘 16 嘅圖，西至東、北至南，有四層。**Height**（高度）讀揀咗嘅 heightmap，按每條柱嘅地面 Y 上色。**Biome**（生態域）、**Blocks**（方塊）同 **Light**（光）讀滑桿嗰個高度嘅 section：生態域每 4 格一格、方塊按調色盤上色、方塊光由 0 到 15。每格都有讀得出嘅名（「x 7, z 2: Stone」）。側邊列出呢個 chunk 嘅方塊實體（箱、告示牌、生怪籠）同佢哋嘅位置，仲有生成步驟。1.17 之後生物同物品喺 entities 資料夾嘅 region 檔，打開嗰個 region 先改得。數值照舊喺樹同表格度改，每次編輯同還原之後幅圖都會重新讀。
