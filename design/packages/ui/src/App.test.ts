@@ -38,6 +38,7 @@ import { dismissAll, markReviewed } from "./components/config/notifications.js";
 import { CommandPalette } from "./components/palette/index.js";
 import { capabilityAvailable } from "./components/shell/capabilities.js";
 import { JOB_DEFINITIONS } from "./components/shell/jobRegistry.js";
+import { HUB_MEMBER_IDS, TOOL_HUBS } from "./components/shell/toolHubs.js";
 import { WorldScreen } from "./components/world/index.js";
 import { ProjectsScreen } from "./components/project/index.js";
 import { AppSettings } from "./components/settings/index.js";
@@ -498,17 +499,59 @@ describe("the tab strip", () => {
         shell();
         await expandShellGroups();
 
-        // Home and Map are rail destinations. Work contains every available registered job,
-        // and this expectation follows the same availability source as production so a new
-        // registered job cannot silently remain outside the shell test.
-        const expectedLabels = JOB_DEFINITIONS.filter((job) =>
-            capabilityAvailable(job.availability),
-        )
-            .map((job) =>
-                job.pinnedOnFreshWorkspace ? `${job.labelFallback}, pinned` : job.labelFallback,
-            )
-            .sort();
+        // Home and Map are rail destinations. Work contains every available registered job
+        // that is not inside a tool hub, plus each hub that has an available member; the hubs'
+        // own members are covered by the next test. This follows the same availability source
+        // as production so a new registered job cannot silently remain outside the shell test.
+        const available = JOB_DEFINITIONS.filter((job) => capabilityAvailable(job.availability));
+        const expectedLabels = [
+            ...available
+                .filter((job) => !HUB_MEMBER_IDS.has(job.id))
+                .map((job) =>
+                    job.pinnedOnFreshWorkspace ? `${job.labelFallback}, pinned` : job.labelFallback,
+                ),
+            ...TOOL_HUBS.filter((hub) =>
+                available.some((job) => (hub.members as readonly string[]).includes(job.id)),
+            ).map((hub) => hub.labelFallback),
+        ].sort();
         expect([...tabLabels()].sort()).toEqual(expectedLabels);
+    });
+
+    it("reaches every hub member from inside its hub", async () => {
+        shell();
+        await expandShellGroups();
+
+        for (const hub of TOOL_HUBS) {
+            const members = JOB_DEFINITIONS.filter(
+                (job) =>
+                    capabilityAvailable(job.availability) &&
+                    (hub.members as readonly string[]).includes(job.id),
+            );
+            if (members.length === 0) continue;
+            tabButton(hub.labelFallback).click();
+            await settle();
+            for (const member of members) {
+                const item = document.querySelector<HTMLElement>(
+                    `.wl-hub[data-hub="${hub.id}"] .wl-hub__list [data-tool="${member.id}"]`,
+                );
+                expect(item, `${hub.id} lists ${member.id}`).not.toBeNull();
+            }
+            // Picking the last member swaps the tool beside the list. One pick per hub rather
+            // than every member: each tool is a whole screen, and mounting them all in turn
+            // proves nothing the list check above does not.
+            const last = members[members.length - 1]!;
+            document
+                .querySelector<HTMLElement>(
+                    `.wl-hub[data-hub="${hub.id}"] .wl-hub__list [data-tool="${last.id}"]`,
+                )!
+                .click();
+            await settle();
+            expect(
+                document
+                    .querySelector(`.wl-hub[data-hub="${hub.id}"] .wl-hub__tool`)
+                    ?.getAttribute("data-current-tool"),
+            ).toBe(last.id);
+        }
     });
 
     it("reaches Home from the rail, where no bulk close can ever touch it", async () => {
@@ -523,7 +566,9 @@ describe("the tab strip", () => {
         shell();
         await expandShellGroups();
 
-        tabButton("Docs").click();
+        tabButton("Built-in tools").click();
+        await settle();
+        document.querySelector<HTMLElement>('.wl-hub__list [data-tool="docs"]')!.click();
         await settle();
 
         expect(document.querySelector(".mb-docs")).not.toBeNull();

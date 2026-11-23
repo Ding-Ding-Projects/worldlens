@@ -1,11 +1,27 @@
 <script setup lang="ts">
-import { computed, ref, useSlots } from "vue";
+import { computed, reactive, ref, useSlots, watch } from "vue";
 import { useI18n } from "vue-i18n";
-import { TabbedNavigation, type TabGroupSeed, type TabPage } from "../tabs/index.js";
+import {
+    TabbedNavigation,
+    readTabWorkspace,
+    writeTabWorkspace,
+    type TabGroupSeed,
+    type TabPage,
+} from "../tabs/index.js";
 import { capabilityAvailable } from "./capabilities.js";
 import { provideJobOpener } from "./jobOpener.js";
 import { JOB_DEFINITIONS, JOB_SEED_GROUPS, FRESH_WORKSPACE_JOB_IDS } from "./jobRegistry.js";
 import { WORK_DEFAULT_PLACEMENT } from "./tabWorkspaceMigration.js";
+import ToolHub from "./ToolHub.vue";
+import {
+    HUB_MEMBER_IDS,
+    TOOL_HUBS,
+    foldMembersIntoHubs,
+    hubForMember,
+    readHubSelection,
+    writeHubSelection,
+    type HubId,
+} from "./toolHubs.js";
 
 /**
  * Work: the existing tab system, re-hosted as a workspace of jobs somebody actually started.
@@ -43,7 +59,44 @@ const slots = useSlots();
 const tabs = ref<InstanceType<typeof TabbedNavigation> | null>(null);
 
 /** Job screens inside this strip can bring another job forward; see `jobOpener.ts`. */
-provideJobOpener((pageId) => tabs.value?.revealPage(pageId));
+/*
+ * General tools and the Minecraft tools that are not about maps live inside two hub tabs
+ * instead of crowding the strip - see `toolHubs.ts`. A workspace saved before that is folded
+ * onto the hubs here, before `TabbedNavigation` reads it, so the user's groups and pins carry
+ * over and the hub opens on whichever tool was in front.
+ */
+const hubSelection = reactive<Partial<Record<HubId, string>>>(readHubSelection());
+{
+    const saved = readTabWorkspace();
+    if (saved !== null) {
+        const folded = foldMembersIntoHubs(saved);
+        if (folded.changed) {
+            writeTabWorkspace(folded.workspace);
+            Object.assign(hubSelection, folded.picked);
+        }
+    }
+}
+watch(hubSelection, (value) => writeHubSelection({ ...value }), { deep: true });
+
+/** A hub's members this build can show, in the hub's own order. */
+function availableMembers(hubId: HubId): string[] {
+    const hub = TOOL_HUBS.find((candidate) => candidate.id === hubId);
+    if (hub === undefined) return [];
+    return hub.members.filter((id) =>
+        capabilityAvailable(JOB_DEFINITIONS.find((job) => job.id === id)?.availability),
+    );
+}
+
+/** A member id becomes its hub's id, with the member picked; any other id passes through. */
+function routeToHub(pageId: string): string {
+    const hub = hubForMember(pageId);
+    if (hub === null) return pageId;
+    hubSelection[hub.id] = pageId;
+    return hub.id;
+}
+
+/** Job screens inside this strip can bring another job forward; see `jobOpener.ts`. */
+provideJobOpener((pageId) => tabs.value?.revealPage(routeToHub(pageId)));
 
 /**
  * The jobs this build can host, translated now rather than at import.
@@ -53,8 +106,10 @@ provideJobOpener((pageId) => tabs.value?.revealPage(pageId));
  * no content for that page" panel, which is the right message for a real gap and the wrong one
  * for a job that was never meant to exist here.
  */
-const pages = computed<TabPage[]>(() =>
-    JOB_DEFINITIONS.filter((job) => capabilityAvailable(job.availability)).map((job) => ({
+const pages = computed<TabPage[]>(() => [
+    ...JOB_DEFINITIONS.filter(
+        (job) => capabilityAvailable(job.availability) && !HUB_MEMBER_IDS.has(job.id),
+    ).map((job) => ({
         id: job.id,
         label:
             job.id === "renders" && props.runningRenderCount > 0
@@ -66,7 +121,12 @@ const pages = computed<TabPage[]>(() =>
                 : t(job.labelKey, job.labelFallback),
         icon: job.icon,
     })),
-);
+    ...TOOL_HUBS.filter((hub) => availableMembers(hub.id).length > 0).map((hub) => ({
+        id: hub.id,
+        label: t(hub.labelKey, hub.labelFallback),
+        icon: hub.icon,
+    })),
+]);
 
 /**
  * The same three seeded groups, with the same names, colours and memberships as before the
@@ -88,8 +148,10 @@ const pinnedPageIds = computed(() =>
 
 /** Re-exposed so the shell can drive Work exactly as it drove the old strip. */
 defineExpose({
-    ensurePage: (pageId: string) => tabs.value?.ensurePage(pageId),
-    revealPage: (pageId: string) => tabs.value?.revealPage(pageId),
+    ensurePage: (pageId: string) => tabs.value?.ensurePage(routeToHub(pageId)),
+    revealPage: (pageId: string) => tabs.value?.revealPage(routeToHub(pageId)),
+    /** The tool each hub currently shows. */
+    hubSelection,
     renamePage: (pageId: string, label: string) => tabs.value?.renamePage(pageId, label),
     activePage: computed(() => tabs.value?.activePage ?? null),
     openPageIds: computed<readonly string[]>(() => tabs.value?.openPageIds ?? []),
@@ -121,6 +183,18 @@ defineExpose({
             -->
             <template v-for="(_, name) in slots" #[name]="scope: Record<string, unknown>">
                 <slot :name="name" v-bind="scope ?? {}" />
+            </template>
+            <template v-for="hub in TOOL_HUBS" :key="hub.id" #[hub.id]>
+                <ToolHub
+                    :hub="hub"
+                    :available="availableMembers(hub.id)"
+                    :model-value="hubSelection[hub.id] ?? null"
+                    @update:model-value="(id: string) => (hubSelection[hub.id] = id)"
+                >
+                    <template #default="{ toolId }">
+                        <slot :name="toolId" />
+                    </template>
+                </ToolHub>
             </template>
         </TabbedNavigation>
 

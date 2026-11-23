@@ -175,6 +175,11 @@ export const KID_JOB_LABELS: Readonly<Record<string, FixedString>> = {
     // about the same concept, and this table has to match the job registry's spelling exactly or
     // the lookup in `kidLabel()` (an exact string match) silently never fires for this job's tab.
     "Memory console": { en: "Shared memory desk", yue: "共用記憶檯" },
+    "Hosted instances": { en: "Maps out there", yue: "放咗出去嘅地圖" },
+    "NBT editor": { en: "World notebook", yue: "世界筆記簿" },
+    // The two tool hubs from `toolHubs.ts`: tabs that each hold several tools.
+    "Built-in tools": { en: "Toolbox", yue: "工具箱" },
+    "Other tools": { en: "More toys", yue: "更多玩具" },
 };
 
 /**
