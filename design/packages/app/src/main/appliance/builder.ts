@@ -42,7 +42,7 @@ export interface ApplianceDeps {
     /** Working folder under the app's own data directory: composed images and created VMs live here. */
     readonly root: string;
     /** The bundled, build-time-pinned base image and its checksum, or null when this build carries none. */
-    readonly base: (arch: ApplianceArch) => Promise<{ readonly path: string; readonly sha256: string } | null>;
+    readonly base: (arch: ApplianceArch) => Promise<{ readonly path: string; readonly sha256: string; readonly workloads?: readonly string[] } | null>;
     readonly runner: CommandRunner;
     readonly diskRunner: DiskScriptRunner | null;
     readonly registry: InstanceRegistry;
@@ -149,6 +149,9 @@ export class ApplianceBuilder {
         const base = await this.deps.base(arch);
         if (!base) return result({ ok: false, message: arch === "aarch64-rpi" ? "This build of Worldlens does not carry the Raspberry Pi appliance image. Run the fetch-appliance-base script and rebuild." : "This build of Worldlens does not carry the appliance base image. Run the fetch-appliance-base script and rebuild." });
 
+        if (request.workload?.kind === "app" && !(base.workloads ?? ["map"]).includes("app"))
+            return result({ ok: false, message: "The appliance base bundled with this build only runs a finished map. Running the whole WorldLens app needs a base built from the current appliance scripts; until one is pinned, deploy WorldLens as a container instead." });
+
         const workName = `${slug(request.vmName || request.hostName)}-${(this.deps.now?.() ?? new Date()).getTime().toString(36)}`;
         const folder = path.join(this.deps.root, "vms", workName);
         const rawName = `${slug(request.vmName || request.hostName)}.img`;
@@ -158,7 +161,7 @@ export class ApplianceBuilder {
         progress.set("base", "running");
         const mapDirectory = await resolveMapDirectory(request.mapRoot);
         const vocabulary = await this.deps.vocabulary();
-        const config = buildMapConfig({ hostName: request.hostName, port: request.port, accessCode: request.accessCode, vocabulary, now: this.deps.now?.() });
+        const config = buildMapConfig({ hostName: request.hostName, port: request.port, accessCode: request.accessCode, vocabulary, now: this.deps.now?.(), workload: request.workload });
         const composed = await composeDisk({
             baseImage: base.path,
             baseSha256: base.sha256,
@@ -315,7 +318,7 @@ export class ApplianceBuilder {
         const link = `http://${ip}${port === 80 ? "" : `:${port}`}/`;
         // A first boot loads the map server image before it can answer: about a minute in
         // VirtualBox on a fast PC, so the window is generous but still bounded.
-        const ok = await (this.deps.health ?? defaultHealth)(`${link}health`, 240_000);
+        const ok = await (this.deps.health ?? defaultHealth)(request.workload?.kind === "app" ? link : `${link}health`, request.workload?.kind === "app" ? 600_000 : 240_000);
         if (!ok) {
             progress.fail("no answer");
             const kept = await record(link);

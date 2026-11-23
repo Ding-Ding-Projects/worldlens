@@ -7,6 +7,7 @@
  * real step list and the real result. A link is shown only after the main process has fetched it
  * from this PC, and a declined permission prompt is shown as incomplete, never as done.
  */
+import { sha256Hex } from "../remote/deployWorldLensModel.js";
 import { computed, onBeforeUnmount, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { VBtn, VDialog } from "vuetify/components";
@@ -124,7 +125,9 @@ async function run(): Promise<void> {
     result.value = null;
     resetSteps();
     try {
-        result.value = await b.build(buildRequest(form.value, props.mapRoot));
+        const request = buildRequest(form.value, props.mapRoot);
+        if (form.value.runApp) request.workload = { kind: "app", image: form.value.appImage.trim(), passwordSha256: await sha256Hex(form.value.appPassword) };
+        result.value = await b.build(request);
         steps.value = result.value.steps.length ? result.value.steps : steps.value;
     } catch (error) {
         result.value = { ok: false, cancelled: false, target: form.value.target, link: null, path: null, message: error instanceof Error ? error.message : String(error), steps: steps.value };
@@ -249,6 +252,18 @@ function open(): void {
                         <input v-model="form.accessCode" type="password" autocomplete="new-password" data-field="accessCode" :disabled="busy" />
                     </label>
 
+                    <label class="wl-appliance__check"><input v-model="form.runApp" type="checkbox" data-field="runApp" :disabled="busy" /> {{ t("appliance.runApp", "Run the whole WorldLens app, not only the map") }}</label>
+                    <template v-if="form.runApp">
+                        <label>
+                            {{ t("appliance.appImage", "WorldLens app image (pinned by digest)") }}
+                            <input v-model="form.appImage" data-field="appImage" autocomplete="off" placeholder="ghcr.io/ding-ding-projects/worldlens-hosted@sha256:…" :disabled="busy" />
+                        </label>
+                        <label>
+                            {{ t("appliance.appPassword", "Password for the app") }}
+                            <input v-model="form.appPassword" type="password" autocomplete="new-password" data-field="appPassword" :disabled="busy" />
+                        </label>
+                        <p class="wl-appliance__hint">{{ t("appliance.appNote", "The first start downloads the app, so the appliance needs internet once. The map is offered to the app read-only. Only a SHA-256 of the password is written to the image.") }}</p>
+                    </template>
                     <p v-if="problem" class="wl-appliance__hint" data-role="problem">{{ problem }}</p>
                     <button type="submit" class="wl-appliance__cta" data-action="build" :disabled="busy || !!problem">{{ busy ? t("appliance.working", "Working…") : cta }}</button>
                 </form>

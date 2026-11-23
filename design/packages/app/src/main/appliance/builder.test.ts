@@ -166,6 +166,26 @@ describe("VMware build", () => {
         expect(refused.ok).toBe(false);
         expect(refused.message).toContain("boom");
     });
+    it("runs the whole app only on a base that says it can, and checks the app's image and password", async () => {
+        const app = { kind: "app" as const, image: `ghcr.io/ding-ding-projects/worldlens-hosted@sha256:${"c".repeat(64)}`, passwordSha256: "d".repeat(64) };
+        expect(validateRequest(request({ workload: { ...app, image: "ghcr.io/x/worldlens-hosted:latest" } }))).toMatch(/pinned by digest/);
+        expect(validateRequest(request({ workload: { ...app, passwordSha256: "" } }))).toMatch(/password/);
+        expect(validateRequest(request({ workload: app }))).toBeNull();
+        const { runner, calls } = fakeRunner(() => undefined);
+        const mapOnly = await new ApplianceBuilder(deps(runner, { base: async () => ({ path: base.path, sha256: base.sha256 }) })).build(request({ workload: app }), () => undefined);
+        expect(mapOnly.ok).toBe(false);
+        expect(mapOnly.message).toMatch(/only runs a finished map/);
+        expect(calls).toHaveLength(0);
+        const urls: string[] = [];
+        const { runner: vm } = fakeRunner((c) => {
+            if (c.args.includes("getGuestIPAddress")) return { code: 0, stdout: "192.0.2.141\n" };
+            if (c.file.includes("vmrun") && c.args.length === 0) return { code: 0, stdout: "vmrun version 17.6.0" };
+            return { code: 0 };
+        });
+        const both = new ApplianceBuilder(deps(vm, { base: async () => ({ ...base, workloads: ["map", "app"] }), health: async (u) => { urls.push(u); return true; } }));
+        expect((await both.build(request({ workload: app }), () => undefined)).ok).toBe(true);
+        expect(urls).toEqual(["http://192.0.2.141/"]);
+    });
     it("refuses a base whose checksum is wrong before anything is started", async () => {
         const { runner, calls } = fakeRunner(() => undefined);
         const builder = new ApplianceBuilder(deps(runner, { base: async () => ({ path: base.path, sha256: "0".repeat(64) }) }));
@@ -283,7 +303,10 @@ describe("bundled base", () => {
         await mkdir(path.join(res, "appliance"), { recursive: true });
         await writeFile(path.join(res, "appliance", "base.img"), "x");
         await writeFile(path.join(res, "appliance", "base.json"), JSON.stringify({ file: "base.img", sha256: "a".repeat(64) }));
-        expect(await readBundledBase(res)).toEqual({ path: path.join(res, "appliance", "base.img"), sha256: "a".repeat(64) });
+        // A manifest that names no workloads came from an older pin: it runs the map only.
+        expect(await readBundledBase(res)).toEqual({ path: path.join(res, "appliance", "base.img"), sha256: "a".repeat(64), workloads: ["map"] });
+        await writeFile(path.join(res, "appliance", "base.json"), JSON.stringify({ file: "base.img", sha256: "a".repeat(64), workloads: ["map", "app", "rm -rf"] }));
+        expect((await readBundledBase(res))?.workloads).toEqual(["map", "app"]);
         await writeFile(path.join(res, "appliance", "base.json"), JSON.stringify({ file: "../x", sha256: "a".repeat(64) }));
         expect(await readBundledBase(res)).toBeNull();
         expect(await readBundledBase(path.join(dir, "nowhere"))).toBeNull();

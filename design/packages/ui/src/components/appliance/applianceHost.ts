@@ -64,6 +64,8 @@ export interface ApplianceRequestView {
     usbConfirmName?: string;
     exportFormat?: ExportFormat;
     exportDir?: string;
+    /** Absent: the finished map. `app`: the whole WorldLens app; only the password's SHA-256 is sent. */
+    workload?: { kind: "app"; image: string; passwordSha256: string };
 }
 
 export interface ApplianceBridge {
@@ -99,10 +101,16 @@ export interface ApplianceFormState {
     usbConfirmName: string;
     exportFormat: ExportFormat;
     exportDir: string;
+    /** Run the whole WorldLens app instead of only the finished map. */
+    runApp: boolean;
+    appImage: string;
+    appPassword: string;
 }
 
+export const HOSTED_IMAGE_PATTERN = /^[a-z0-9][a-z0-9._/-]{0,200}\/worldlens-hosted(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$/u;
+
 export function defaultForm(): ApplianceFormState {
-    return { target: "vmware", vmName: "worldlens-map", network: "bridged", memoryMb: 1024, cpus: 2, hostName: "worldlens-map", port: "80", askAccessCode: true, accessCode: "", usbDiskNumber: null, usbConfirmName: "", exportFormat: "vmdk", exportDir: "" };
+    return { target: "vmware", vmName: "worldlens-map", network: "bridged", memoryMb: 1024, cpus: 2, hostName: "worldlens-map", port: "80", askAccessCode: true, accessCode: "", usbDiskNumber: null, usbConfirmName: "", exportFormat: "vmdk", exportDir: "", runApp: false, appImage: "", appPassword: "" };
 }
 
 /** The reason the build button is disabled, or null. Mirrors the main process; the main process re-checks. */
@@ -121,6 +129,10 @@ export function formProblem(form: ApplianceFormState, mapRoot: string, usb: read
         if (form.usbConfirmName.trim().toLowerCase() !== disk.name.toLowerCase()) return "Type the drive name to confirm the erase.";
     }
     if (form.target === "export" && !form.exportDir.trim()) return "Choose where to save the image.";
+    if (form.runApp) {
+        if (!HOSTED_IMAGE_PATTERN.test(form.appImage.trim())) return "WorldLens app: paste the worldlens-hosted image pinned by digest.";
+        if (form.appPassword.length < 8) return "WorldLens app: a password of at least 8 characters.";
+    }
     return null;
 }
 

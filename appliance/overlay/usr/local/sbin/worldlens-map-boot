@@ -86,12 +86,34 @@ echo "$HOST" > /etc/hostname
 sed -i "s/^#\?host-name=.*/host-name=$HOST/" /etc/avahi/avahi-daemon.conf 2>/dev/null
 rc-service avahi-daemon restart >/dev/null 2>&1 || true
 
-if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
-    say "loading the bundled map-server image"
-    docker load -i "$STATE/mapserver.tar" >> /var/log/worldlens-map.log 2>&1 || { banner "$TITLE" "The bundled map server could not be loaded."; exit 1; }
+KIND=$(jq -r '.workload.kind // "map"' "$CONFIG")
+HEALTH_PATH=health
+if [ "$KIND" = app ]; then
+    # The whole WorldLens application (the hosted image), pulled by digest. Both values were
+    # validated by the builder; they are checked again here because this script runs as root.
+    APP_IMAGE=$(jq -r '.workload.image // ""' "$CONFIG")
+    APP_HASH=$(jq -r '.workload.passwordSha256 // ""' "$CONFIG")
+    echo "$APP_IMAGE" | grep -Eq '^[a-z0-9][a-z0-9._/-]{0,200}/worldlens-hosted(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$' || { banner "$TITLE" "The WorldLens app image in this appliance is not valid. Rebuild it from WorldLens."; exit 1; }
+    echo "$APP_HASH" | grep -Eq '^[a-f0-9]{64}$' || { banner "$TITLE" "This appliance has no password set. Rebuild it from WorldLens."; exit 1; }
+    until docker image inspect "$APP_IMAGE" >/dev/null 2>&1; do
+        banner "$TITLE" "Downloading the WorldLens app. The first start needs an internet connection."
+        docker pull "$APP_IMAGE" >> /var/log/worldlens-map.log 2>&1 || sleep 15
+    done
+    docker rm -f worldlens-app >/dev/null 2>&1
+    docker run -d --name worldlens-app --restart always -p "$PORT:8110" \
+        -e WORLDLENS_PASSWORD_SHA256="$APP_HASH" -e WORLDLENS_DATA=/data/state \
+        -e WORLDLENS_MOUNTS="maps:/data/maps:ro:Maps" \
+        -v "$DATA/map:/data/maps:ro" -v worldlens-app-state:/data/state \
+        "$APP_IMAGE" >> /var/log/worldlens-map.log 2>&1 || { banner "$TITLE" "The WorldLens app did not start."; exit 1; }
+    HEALTH_PATH=
+else
+    if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+        say "loading the bundled map-server image"
+        docker load -i "$STATE/mapserver.tar" >> /var/log/worldlens-map.log 2>&1 || { banner "$TITLE" "The bundled map server could not be loaded."; exit 1; }
+    fi
+    docker rm -f worldlens-map >/dev/null 2>&1
+    docker run -d --name worldlens-map --restart always -p "$PORT:$INTERNAL_PORT" -v "$DATA:/data:ro" "$IMAGE" >> /var/log/worldlens-map.log 2>&1 || { banner "$TITLE" "The map server did not start."; exit 1; }
 fi
-docker rm -f worldlens-map >/dev/null 2>&1
-docker run -d --name worldlens-map --restart always -p "$PORT:$INTERNAL_PORT" -v "$DATA:/data:ro" "$IMAGE" >> /var/log/worldlens-map.log 2>&1 || { banner "$TITLE" "The map server did not start."; exit 1; }
 
 url() {
     ip=$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p' | head -n1)
@@ -103,7 +125,7 @@ url() {
 # Show the address once the server answers; keep refreshing in case the network address changes.
 while true; do
     U=$(url) || U=
-    if [ -n "$U" ] && curl -fsS -m 3 -o /dev/null "${U}health"; then
+    if [ -n "$U" ] && curl -fsS -m 3 -o /dev/null "${U}${HEALTH_PATH}"; then
         banner "$TITLE" "$READY" "$U   or   http://$HOST.local/"
         sleep 60
     else

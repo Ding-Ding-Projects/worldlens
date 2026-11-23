@@ -46,7 +46,19 @@ export interface ApplianceIpcOptions {
  * so later builds start immediately. Nothing is downloaded: the bytes come from the install.
  * An uncompressed base (a build staged with an older script) is used where it lies.
  */
-export async function readBundledBase(resourcesDir: string, arch: "x86_64" | "aarch64-rpi" = "x86_64", cacheDir?: string): Promise<{ path: string; sha256: string } | null> {
+export async function readBundledBase(resourcesDir: string, arch: "x86_64" | "aarch64-rpi" = "x86_64", cacheDir?: string): Promise<{ path: string; sha256: string; workloads: readonly string[] } | null> {
+    const found = await readBundledBaseFile(resourcesDir, arch, cacheDir);
+    if (found === null) return null;
+    try {
+        const manifest = JSON.parse(await fs.readFile(path.join(resourcesDir, "appliance", arch === "aarch64-rpi" ? "base-rpi.json" : "base.json"), "utf8")) as { workloads?: unknown };
+        const workloads = Array.isArray(manifest.workloads) ? manifest.workloads.filter((w): w is string => w === "map" || w === "app") : ["map"];
+        return { ...found, workloads };
+    } catch {
+        return { ...found, workloads: ["map"] };
+    }
+}
+
+async function readBundledBaseFile(resourcesDir: string, arch: "x86_64" | "aarch64-rpi", cacheDir?: string): Promise<{ path: string; sha256: string } | null> {
     try {
         const manifest = JSON.parse(await fs.readFile(path.join(resourcesDir, "appliance", arch === "aarch64-rpi" ? "base-rpi.json" : "base.json"), "utf8")) as { file?: unknown; sha256?: unknown; compression?: unknown };
         if (typeof manifest.file !== "string" || typeof manifest.sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(manifest.sha256) || manifest.file.includes("/") || manifest.file.includes("\\")) return null;

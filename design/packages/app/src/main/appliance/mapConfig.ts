@@ -1,3 +1,4 @@
+import type { ApplianceWorkload } from "./types.js";
 import { randomBytes, scryptSync } from "node:crypto";
 
 /** The words the appliance shows on its console and as page titles, before any vocabulary mapping. */
@@ -39,10 +40,14 @@ export interface MapConfig {
     readonly accessCodeVerifier: string | null;
     readonly labels: Readonly<Record<LabelKey, string>>;
     readonly created: string;
+    /** Absent for a map appliance; see `ApplianceWorkload`. Read by the boot script. */
+    readonly workload?: { readonly kind: "app"; readonly image: string; readonly passwordSha256: string };
 }
 
-export function buildMapConfig(input: { hostName: string; port: number; accessCode: string | null; vocabulary: Readonly<Record<string, string>>; now?: Date | undefined }): MapConfig {
+export function buildMapConfig(input: { hostName: string; port: number; accessCode: string | null; vocabulary: Readonly<Record<string, string>>; now?: Date | undefined; workload?: ApplianceWorkload | undefined }): MapConfig {
+    const app = input.workload?.kind === "app" ? input.workload : null;
     return {
+        ...(app === null ? {} : { workload: { kind: "app" as const, image: app.image, passwordSha256: app.passwordSha256 } }),
         schema: 1,
         hostname: input.hostName,
         port: input.port,

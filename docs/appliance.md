@@ -66,6 +66,12 @@ The base image is about 1.4 GiB raw (compresses well). `.github/workflows/applia
 
 In the appliance dialog, **Raspberry Pi** writes this image to an SD card or a USB drive through the same verified disk write as the PC USB stick: removable drives only (USB, SD and MMC buses, never the boot or system disk), the drive name typed to confirm, administrator approval through the Windows prompt, and a SHA-256 read-back before it says done.
 
+## The whole WorldLens app as an appliance
+
+**Run the whole WorldLens app, not only the map** in the appliance dialog makes the same disk run the WorldLens application (the hosted image, `docs/hosted-mode.md`) instead of the map server. Paste the `worldlens-hosted` image pinned by digest and set a password (at least 8 characters). The builder writes a `workload` entry (`kind: "app"`, the image, and only the password's SHA-256) into `worldlens-map.json`; on boot the script checks both again, pulls the image by digest (so the first start needs internet, and keeps retrying with a message on the console until it has it), and runs it with the copied map offered read-only as "Maps" and its own state in a named volume. The link is checked from this PC by its sign-in page rather than `/health`, with a 10 minute window for the first download.
+
+Only a base built from the current appliance scripts can do this. `appliance-base.pin.json` entries may list `"workloads": ["map", "app"]`; an entry that lists none is treated as map only, and the builder then refuses an app build with that reason instead of producing a disk that quietly runs the map. The pinned `v1.0.2256` bases list none, so until a new base is built by the Appliance workflow and pinned with `"app"`, deploy the app as a container instead.
+
 ## Kernel and drivers
 
 The PC image uses Alpine's `linux-lts` kernel rather than `linux-virt`. The same image boots in VirtualBox, in VMware and from a USB stick on a real PC, so it needs the common physical network drivers (and Realtek's firmware) as well as the virtual ones; `linux-virt` has no Realtek driver at all. `hwdrivers` loads the driver for whatever network card is present, and `/etc/modules` also lists the Intel, VMware and virtio drivers so a virtual machine always gets its network.
@@ -102,3 +108,7 @@ The installer carries both bases zstd-compressed (about 260 MB and 135 MB rather
 - 第一次真開機揪出幾隻蟲，全部修好：VirtualBox 冇網卡驅動、VMware 冇 PCIe 位、失敗嘅虛擬機冇記錄、NAT 端口撞車、建置腳本失敗都報成功。
 - 樹莓派版本已經砌好，模擬器入面開到核心、掛到根目錄；但仲未喺真嘅樹莓派上面開過，亦未真係寫過記憶卡或者 USB。
 - 兩個底層映像壓縮後放入安裝檔，第一次用先喺本機解壓同驗指紋，唔使臨時下載。
+
+### 成個 WorldLens 做 appliance
+
+對話框入面剔 **Run the whole WorldLens app, not only the map**，同一隻碟就會行 WorldLens 應用程式（hosted image）而唔係淨係地圖伺服器。貼上用 digest 鎖定嘅 `worldlens-hosted` 映像，再設一個最少 8 個字嘅密碼。Builder 會將 `workload`（映像同密碼嘅 SHA-256，冇原文）寫入 `worldlens-map.json`；開機腳本再檢查一次，用 digest 拉映像（所以第一次開機要上網，未拉到會喺螢幕講住並且一直重試），之後將複製入去嘅地圖以唯讀「Maps」畀個 app 用，狀態放喺 named volume。由呢部電腦檢查登入頁，第一次下載有 10 分鐘。只有用而家嘅 appliance 腳本 build 出嚟嘅 base 先做到：pin 要寫 `"workloads": ["map", "app"]`，冇寫就當淨係地圖，builder 會講明原因拒絕，唔會整出一隻靜靜雞照行地圖嘅碟。而家 pin 住嘅 `v1.0.2256` 未有，所以喺新 base pin 好之前，請改用容器部署。

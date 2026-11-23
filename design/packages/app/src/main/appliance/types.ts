@@ -20,7 +20,19 @@ export interface ApplianceRequest {
     readonly usbConfirmName?: string;
     readonly exportFormat?: ExportFormat;
     readonly exportDir?: string;
+    /**
+     * What the appliance runs. Absent means the finished map (the original appliance). `app`
+     * runs the whole WorldLens application (the hosted image, pulled by digest on first boot)
+     * with the chosen folder copied in and offered to it read-only.
+     */
+    readonly workload?: ApplianceWorkload;
 }
+
+export type ApplianceWorkload =
+    | { readonly kind: "map" }
+    | { readonly kind: "app"; readonly image: string; readonly passwordSha256: string };
+
+const HOSTED_IMAGE = /^[a-z0-9][a-z0-9._/-]{0,200}\/worldlens-hosted(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$/u;
 
 export type StepState = "pending" | "running" | "done" | "failed";
 
@@ -91,6 +103,10 @@ export function validateRequest(request: ApplianceRequest): string | null {
     if (request.target === "usb") {
         if (!Number.isInteger(request.usbDiskNumber) || (request.usbDiskNumber ?? -1) < 0) return "Choose a USB drive.";
         if (!request.usbConfirmName) return "Type the drive name to confirm the erase.";
+    }
+    if (request.workload?.kind === "app") {
+        if (!HOSTED_IMAGE.test(request.workload.image)) return "Choose the WorldLens hosted image pinned by digest (…/worldlens-hosted@sha256:…).";
+        if (!/^[a-f0-9]{64}$/u.test(request.workload.passwordSha256)) return "Set a password for the WorldLens app.";
     }
     if (request.target === "export") {
         if (!request.exportFormat) return "Choose an image format.";
