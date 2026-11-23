@@ -1,0 +1,64 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-23T19:50:00Z"
+  },
+  "title": "WorldLens: deploy anywhere",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [
+    {
+      "id": "container",
+      "name": "Container"
+    },
+    {
+      "id": "appliance",
+      "name": "Virtual appliance"
+    },
+    {
+      "id": "running",
+      "name": "Running copies"
+    }
+  ],
+  "boards": {
+    "Container.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Container",
+      "page": "container",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Appliance.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Virtual appliance",
+      "page": "appliance",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Running.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Running copies",
+      "page": "running",
+      "expand": "fill",
+      "is_interactive": true
+    }
+  },
+  "order": [
+    "Container.dc.html",
+    "Appliance.dc.html",
+    "Running.dc.html"
+  ],
+  "notes": {},
+  "designSystems": []
+}
