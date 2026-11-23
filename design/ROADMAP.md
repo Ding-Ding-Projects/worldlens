@@ -13,7 +13,7 @@
 - [x] Hosted instances page: every hosted map, appliance and live viewer, with health checked from this PC, Open, Copy, Start, Stop, Restart, Update and Remove with name confirmation. Seen in the built app (empty state).
 - [x] NBT editor with a Git history per project. A real level.dat was edited, saved and recorded in the built app.
 - [ ] Share dialogs captured in the built app after a real finished render. Pending a throwaway render setup.
-- [ ] Publish the map server, live viewer and appliance images from CI and record their digests in the pin files.
+- [x] Publish the map server, live viewer and appliance images from CI and record their digests in the pin files. Map server and live viewer are pinned to their amd64+arm64 image lists built from `42f0793`; both appliance bases are pinned to the `v1.0.2256` assets, with both expanded digests verified locally (2026-11-23).
 
 ## Current feature delivery, 2026-10-21
 

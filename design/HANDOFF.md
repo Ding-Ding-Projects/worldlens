@@ -29,8 +29,8 @@ What changed, all on `main`:
 Not done or not verified:
 
 - Real arm64 hardware, and reaching a link from a second computer. (Hosting over a real SSH host and the arm64 images under emulation passed on 2026-11-23.)
-- Appliance: one-click VirtualBox and VMware boots passed on 2026-11-23 and five defects found by them are fixed (see `docs/appliance.md`). Not run: a real USB or SD write, a real Raspberry Pi board, VHDX in Hyper-V, OVA import. `appliance-base.pin.json` is filled once the Appliance workflow attaches both `.zst` assets to a release.
-- The map server and live viewer image digests are not recorded yet (`mapserver-image.lock.json`, `liveviewer-image.pin.json`); builds without Docker fail or skip until then.
+- Appliance: one-click VirtualBox and VMware boots passed on 2026-11-23 and five defects found by them are fixed (see `docs/appliance.md`). Not run: a real USB or SD write, a real Raspberry Pi board, VHDX in Hyper-V, OVA import. Both bases are pinned in `appliance-base.pin.json` to the `v1.0.2256` assets, and both expanded digests were verified locally.
+- The map server and live viewer image digests are pinned (`scripts/mapserver-image.lock.json`, `liveviewer-image.pin.json`), so a build host without Docker can fetch them by digest. That no-Docker route has not been run end to end.
 - Live viewer Microsoft sign-in is wired (protected account store, sign-in worker bundled as `dist/main/auth-worker.mjs`); not run with a real account.
 - The NBT editor's running-server check uses only the session.lock probe.
 - No capture of the three share dialogs in the built app; a production build hides the screen state, and a real render here would write into the user's maps folder.

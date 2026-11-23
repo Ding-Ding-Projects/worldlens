@@ -1,5 +1,5 @@
 {
   "image": "ghcr.io/ding-ding-projects/worldlens-map-server",
-  "digest": null,
+  "digest": "sha256:50860b279967471fddcf9413c93030c7c6e60ced80b51091808c219e42962493",
   "note": "The pinned manifest-list digest used when a build host has no Docker. CI prints the digest of every push in its job summary; record it here to enable the no-Docker route. While it is null, a build without Docker stops with a clear message instead of bundling something unverified."
 }

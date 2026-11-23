@@ -1,13 +1,13 @@
 {
-    "comment": "Pinned appliance base images, one per architecture. Fill each in after the Appliance workflow publishes its asset: url (the .img.zst asset), zstSha256 (of the .zst) and imgSha256 (of the expanded .img). Null means that base is not pinned yet and fetch-appliance-base.mjs refuses to stage it.",
-    "x86_64": {
-        "url": null,
-        "zstSha256": null,
-        "imgSha256": null
-    },
-    "aarch64-rpi": {
-        "url": null,
-        "zstSha256": null,
-        "imgSha256": null
-    }
+  "comment": "Pinned appliance base images, one per architecture. Fill each in after the Appliance workflow publishes its asset: url (the .img.zst asset), zstSha256 (of the .zst) and imgSha256 (of the expanded .img). Null means that base is not pinned yet and fetch-appliance-base.mjs refuses to stage it.",
+  "x86_64": {
+    "url": "https://github.com/Ding-Ding-Projects/worldlens/releases/download/v1.0.2256/worldlens-appliance-base-x86_64.img.zst",
+    "zstSha256": "92cb58dfa43941e393c4364bfe994aa8268556a7b1dd406285589578742bc739",
+    "imgSha256": "dbcc4f450bca1aa0924e503e5368733b7cd27910c26e962143ca3990425bd185"
+  },
+  "aarch64-rpi": {
+    "url": "https://github.com/Ding-Ding-Projects/worldlens/releases/download/v1.0.2256/worldlens-appliance-base-aarch64-rpi.img.zst",
+    "zstSha256": "05eaf14f1c5420369cf989e543d7df7ae04022e75ffa104b69c180f04d676dd0",
+    "imgSha256": "5bc97aa102b3703c7e2732b85567b8df52ca64479955135d26a1b767ff815223"
+  }
 }

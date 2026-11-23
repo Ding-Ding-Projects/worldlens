@@ -56,7 +56,7 @@ sudo sh appliance/build-base.sh --mapserver-tar worldlens-map-server-x86_64.tar 
 node design/packages/app/scripts/fetch-appliance-base.mjs --from out/worldlens-appliance-base-x86_64.img
 ```
 
-`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. The pin is empty until the workflow has published a first asset. The packaged app needs one `extraResources` entry: `{ from: "dist/appliance", to: "appliance", filter: ["**/*"] }`.
+`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. Both bases are pinned to the `v1.0.2256` release assets (published 2026-11-23); `--check` exits 0 only when every pin is complete. The installer copies `dist/appliance` to `resources/appliance`.
 
 The base image is about 1.4 GiB raw (compresses well). `.github/workflows/appliance.yml` boots it once under QEMU and waits for `/health` before uploading it as a zstd asset with a SHA-256.
 
@@ -94,7 +94,6 @@ The installer carries both bases zstd-compressed (about 260 MB and 135 MB rather
 
 - A Raspberry Pi image booted on a real board, and a real SD card or USB drive written by the app (it needs a drive chosen in the dialog and the administrator prompt approved).
 - The `.vhdx` mounted by Windows or Hyper-V, and the `.ova` imported into VMware or VirtualBox.
-- The pinned bases: `appliance-base.pin.json` is filled in once the workflow has attached both assets to a release.
 
 ## 廣東話
 
