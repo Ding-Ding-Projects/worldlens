@@ -56,7 +56,7 @@ sudo sh appliance/build-base.sh --mapserver-tar worldlens-map-server-x86_64.tar 
 node design/packages/app/scripts/fetch-appliance-base.mjs --from out/worldlens-appliance-base-x86_64.img
 ```
 
-`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. Both bases are pinned to the `v1.0.2256` release assets (published 2026-11-23); `--check` exits 0 only when every pin is complete. The installer copies `dist/appliance` to `resources/appliance`.
+`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. Both bases are pinned to the `v1.0.2300` release assets (built 2026-11-23 by Appliance run 45274195226, from the boot script that runs both workloads); `--check` exits 0 only when every pin is complete. The installer copies `dist/appliance` to `resources/appliance`.
 
 The base image is about 1.4 GiB raw (compresses well). `.github/workflows/appliance.yml` boots it once under QEMU and waits for `/health` before uploading it as a zstd asset with a SHA-256.
 
@@ -70,7 +70,7 @@ In the appliance dialog, **Raspberry Pi** writes this image to an SD card or a U
 
 **Run the whole WorldLens app, not only the map** in the appliance dialog makes the same disk run the WorldLens application (the hosted image, `docs/hosted-mode.md`) instead of the map server. Paste the `worldlens-hosted` image pinned by digest and set a password (at least 8 characters). The builder writes a `workload` entry (`kind: "app"`, the image, and only the password's SHA-256) into `worldlens-map.json`; on boot the script checks both again, pulls the image by digest (so the first start needs internet, and keeps retrying with a message on the console until it has it), and runs it with the copied map offered read-only as "Maps" and its own state in a named volume. The link is checked from this PC by its sign-in page rather than `/health`, with a 10 minute window for the first download.
 
-Only a base built from the current appliance scripts can do this. `appliance-base.pin.json` entries may list `"workloads": ["map", "app"]`; an entry that lists none is treated as map only, and the builder then refuses an app build with that reason instead of producing a disk that quietly runs the map. The pinned `v1.0.2256` bases list none, so until a new base is built by the Appliance workflow and pinned with `"app"`, deploy the app as a container instead.
+Only a base built from the current appliance scripts can do this. `appliance-base.pin.json` entries may list `"workloads": ["map", "app"]`; an entry that lists none is treated as map only, and the builder then refuses an app build with that reason instead of producing a disk that quietly runs the map. The `v1.0.2300` bases are pinned with `"workloads": ["map", "app"]`. The app workload has not yet been booted in a real virtual machine.
 
 ## Kernel and drivers
 
@@ -111,4 +111,4 @@ The installer carries both bases zstd-compressed (about 260 MB and 135 MB rather
 
 ### 成個 WorldLens 做 appliance
 
-對話框入面剔 **Run the whole WorldLens app, not only the map**，同一隻碟就會行 WorldLens 應用程式（hosted image）而唔係淨係地圖伺服器。貼上用 digest 鎖定嘅 `worldlens-hosted` 映像，再設一個最少 8 個字嘅密碼。Builder 會將 `workload`（映像同密碼嘅 SHA-256，冇原文）寫入 `worldlens-map.json`；開機腳本再檢查一次，用 digest 拉映像（所以第一次開機要上網，未拉到會喺螢幕講住並且一直重試），之後將複製入去嘅地圖以唯讀「Maps」畀個 app 用，狀態放喺 named volume。由呢部電腦檢查登入頁，第一次下載有 10 分鐘。只有用而家嘅 appliance 腳本 build 出嚟嘅 base 先做到：pin 要寫 `"workloads": ["map", "app"]`，冇寫就當淨係地圖，builder 會講明原因拒絕，唔會整出一隻靜靜雞照行地圖嘅碟。而家 pin 住嘅 `v1.0.2256` 未有，所以喺新 base pin 好之前，請改用容器部署。
+對話框入面剔 **Run the whole WorldLens app, not only the map**，同一隻碟就會行 WorldLens 應用程式（hosted image）而唔係淨係地圖伺服器。貼上用 digest 鎖定嘅 `worldlens-hosted` 映像，再設一個最少 8 個字嘅密碼。Builder 會將 `workload`（映像同密碼嘅 SHA-256，冇原文）寫入 `worldlens-map.json`；開機腳本再檢查一次，用 digest 拉映像（所以第一次開機要上網，未拉到會喺螢幕講住並且一直重試），之後將複製入去嘅地圖以唯讀「Maps」畀個 app 用，狀態放喺 named volume。由呢部電腦檢查登入頁，第一次下載有 10 分鐘。只有用而家嘅 appliance 腳本 build 出嚟嘅 base 先做到：pin 要寫 `"workloads": ["map", "app"]`，冇寫就當淨係地圖，builder 會講明原因拒絕，唔會整出一隻靜靜雞照行地圖嘅碟。而家 pin 住嘅 `v1.0.2300` base 已經寫明 `"workloads": ["map", "app"]`，不過 app 模式未喺真虛擬機開過機。
