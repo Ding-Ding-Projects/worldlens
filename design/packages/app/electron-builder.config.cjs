@@ -150,6 +150,14 @@ module.exports = {
             filter: ["liveviewer-image.tar", "liveviewer-image.json"],
         },
         {
+            // The appliance base images (PC and Raspberry Pi), zstd-compressed, staged by
+            // scripts/fetch-appliance-base.mjs. The app expands one on first use into its data
+            // folder. Absent when no base is pinned yet; the appliance dialog then says so.
+            from: "dist/appliance",
+            to: "appliance",
+            filter: ["base.json", "base-rpi.json", "*.img.zst"],
+        },
+        {
             from: "../../../tools/oracle/out/jars",
             to: "jars",
             filter: ["**/*"],

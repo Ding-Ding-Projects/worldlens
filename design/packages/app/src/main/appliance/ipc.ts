@@ -1,6 +1,10 @@
 import type { IpcMain } from "electron";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
+import { createReadStream, createWriteStream } from "node:fs";
+import { pipeline } from "node:stream/promises";
+import * as zlib from "node:zlib";
 import { nodeCommandRunner } from "./commands.js";
 import { ApplianceBuilder } from "./builder.js";
 import { InstanceRegistry } from "./registry.js";
@@ -34,16 +38,43 @@ export interface ApplianceIpcOptions {
     readonly reveal?: (target: string) => void;
 }
 
-export async function readBundledBase(resourcesDir: string): Promise<{ path: string; sha256: string } | null> {
+/**
+ * The bundled appliance base for one architecture, ready to compose onto.
+ *
+ * The installer carries each base zstd-compressed (about 400 MB smaller than raw). On first use
+ * it is expanded into `cacheDir`, checked against the image digest the build recorded, and kept,
+ * so later builds start immediately. Nothing is downloaded: the bytes come from the install.
+ * An uncompressed base (a build staged with an older script) is used where it lies.
+ */
+export async function readBundledBase(resourcesDir: string, arch: "x86_64" | "aarch64-rpi" = "x86_64", cacheDir?: string): Promise<{ path: string; sha256: string } | null> {
     try {
-        const manifest = JSON.parse(await fs.readFile(path.join(resourcesDir, "appliance", "base.json"), "utf8")) as { file?: unknown; sha256?: unknown };
+        const manifest = JSON.parse(await fs.readFile(path.join(resourcesDir, "appliance", arch === "aarch64-rpi" ? "base-rpi.json" : "base.json"), "utf8")) as { file?: unknown; sha256?: unknown; compression?: unknown };
         if (typeof manifest.file !== "string" || typeof manifest.sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(manifest.sha256) || manifest.file.includes("/") || manifest.file.includes("\\")) return null;
         const file = path.join(resourcesDir, "appliance", manifest.file);
         await fs.access(file);
-        return { path: file, sha256: manifest.sha256 };
+        if (manifest.compression !== "zstd") return { path: file, sha256: manifest.sha256 };
+        if (cacheDir === undefined) return null;
+        const expanded = path.join(cacheDir, manifest.file.replace(/\.zst$/u, ""));
+        if (await digestOf(expanded).catch(() => null) === manifest.sha256) return { path: expanded, sha256: manifest.sha256 };
+        await fs.mkdir(cacheDir, { recursive: true });
+        const partial = `${expanded}.partial`;
+        await pipeline(createReadStream(file), zlib.createZstdDecompress(), createWriteStream(partial));
+        if ((await digestOf(partial)) !== manifest.sha256) {
+            await fs.rm(partial, { force: true });
+            return null;
+        }
+        await fs.rm(expanded, { force: true });
+        await fs.rename(partial, expanded);
+        return { path: expanded, sha256: manifest.sha256 };
     } catch {
         return null;
     }
+}
+
+async function digestOf(file: string): Promise<string> {
+    const hash = createHash("sha256");
+    for await (const chunk of createReadStream(file)) hash.update(chunk as Buffer);
+    return hash.digest("hex");
 }
 
 const isRequest = (value: unknown): value is ApplianceRequest => value !== null && typeof value === "object" && typeof (value as ApplianceRequest).target === "string";
@@ -57,7 +88,7 @@ export function registerApplianceHandlers(ipcMain: Pick<IpcMain, "handle" | "rem
     const diskRunner = options.diskRunner !== undefined ? options.diskRunner : process.platform === "win32" ? createWindowsRunner(path.join(root, "disk")) : null;
     const builder = new ApplianceBuilder({
         root,
-        base: () => readBundledBase(options.resourcesDir),
+        base: (arch) => readBundledBase(options.resourcesDir, arch, path.join(root, "bases")),
         runner: nodeCommandRunner,
         diskRunner,
         registry: new InstanceRegistry(root),

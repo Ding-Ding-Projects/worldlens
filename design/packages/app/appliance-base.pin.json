@@ -1,6 +1,13 @@
 {
-    "comment": "Pinned appliance base image. Fill in after the Appliance workflow publishes an asset: url (the .img.zst asset), zstSha256 (of the .zst) and imgSha256 (of the expanded .img). Null means no base is pinned yet and fetch-appliance-base.mjs refuses to continue.",
-    "url": null,
-    "zstSha256": null,
-    "imgSha256": null
+    "comment": "Pinned appliance base images, one per architecture. Fill each in after the Appliance workflow publishes its asset: url (the .img.zst asset), zstSha256 (of the .zst) and imgSha256 (of the expanded .img). Null means that base is not pinned yet and fetch-appliance-base.mjs refuses to stage it.",
+    "x86_64": {
+        "url": null,
+        "zstSha256": null,
+        "imgSha256": null
+    },
+    "aarch64-rpi": {
+        "url": null,
+        "zstSha256": null,
+        "imgSha256": null
+    }
 }

@@ -5,7 +5,7 @@ const psQuote = (value: string): string => `'${value.replace(/'/gu, "''")}'`;
 
 /** Read-only: USB disks that are neither the boot nor the system disk. Needs no elevation. */
 export const LIST_USB_SCRIPT =
-    "Get-Disk | Where-Object { $_.BusType -eq 'USB' -and -not $_.IsBoot -and -not $_.IsSystem } | Select-Object Number,FriendlyName,Size | ConvertTo-Json -Compress";
+    "Get-Disk | Where-Object { $_.BusType -in @('USB','SD','MMC') -and -not $_.IsBoot -and -not $_.IsSystem } | Select-Object Number,FriendlyName,Size | ConvertTo-Json -Compress";
 
 export function parseUsbDisks(json: string): UsbDisk[] {
     const text = json.trim();
@@ -59,7 +59,7 @@ export function usbWriteScript(input: { diskNumber: number; diskName: string; im
         "$ErrorActionPreference = 'Stop'",
         `$n = ${n}`,
         "$d = Get-Disk -Number $n",
-        `if ($d.BusType -ne 'USB' -or $d.IsBoot -or $d.IsSystem -or $d.FriendlyName.Trim() -ne ${psQuote(input.diskName)} -or $d.Size -lt ${input.imageBytes}) { Write-Output 'REFUSED'; exit 3 }`,
+        `if ($d.BusType -notin @('USB','SD','MMC') -or $d.IsBoot -or $d.IsSystem -or $d.FriendlyName.Trim() -ne ${psQuote(input.diskName)} -or $d.Size -lt ${input.imageBytes}) { Write-Output 'REFUSED'; exit 3 }`,
         "Clear-Disk -Number $n -RemoveData -RemoveOEM -Confirm:$false",
         "$dev = New-Object System.IO.FileStream(('\\\\.\\PhysicalDrive' + $n), [System.IO.FileMode]::Open, [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::ReadWrite)",
         `$src = [System.IO.File]::OpenRead(${psQuote(input.imagePath)})`,

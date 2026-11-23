@@ -26,12 +26,14 @@ on:
         default: ""
         type: string
 
+# Write is needed only by the release attach steps, which run on a manual dispatch that names a
+# release; a push builds and uploads workflow artifacts only.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   appliance:
-    name: Appliance base image (x86_64)
+    name: Appliance base images (x86_64 and Raspberry Pi)
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -143,4 +145,54 @@ jobs:
         run: |
           set -euo pipefail
           gh release upload "$TAG" out/worldlens-appliance-base-x86_64.img.zst out/worldlens-appliance-base-x86_64.sha256.txt --clobber
+          gh release view "$TAG" --json assets --jq '.assets[].name'
+
+      # The Raspberry Pi image: the same appliance for an arm64 Pi 3, 4 or 5. Its packages are
+      # installed in an emulated aarch64 chroot, so the runner needs arm64 binfmt emulation,
+      # which Ubuntu's qemu-user-static package registers. A hosted runner cannot boot a Pi, so
+      # this build is proven by the script's own checks of the boot partition, not by a boot.
+      - name: Install arm64 emulation for the Raspberry Pi image
+        if: steps.source.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y --no-install-recommends qemu-user-static binfmt-support dosfstools
+          ls /proc/sys/fs/binfmt_misc/ | grep -q aarch64
+
+      - name: Build the arm64 map-server image
+        if: steps.source.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          docker buildx build --platform linux/arm64 --provenance=false -t worldlens-map-server:bundled \
+            --output type=docker,dest=out/worldlens-map-server-arm64.tar design/packages/mapserver
+
+      - name: Build the Raspberry Pi base image
+        if: steps.source.outputs.present == 'true'
+        run: sudo sh appliance/build-base-rpi.sh --mapserver-tar out/worldlens-map-server-arm64.tar --out out
+
+      - name: Compress and checksum the Raspberry Pi image
+        if: steps.source.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          cd out
+          zstd -19 -T0 -f worldlens-appliance-base-aarch64-rpi.img -o worldlens-appliance-base-aarch64-rpi.img.zst
+          sha256sum worldlens-appliance-base-aarch64-rpi.img worldlens-appliance-base-aarch64-rpi.img.zst > worldlens-appliance-base-aarch64-rpi.sha256.txt
+          cat worldlens-appliance-base-aarch64-rpi.sha256.txt
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.source.outputs.present == 'true'
+        with:
+          name: appliance-base-aarch64-rpi
+          path: |
+            out/worldlens-appliance-base-aarch64-rpi.img.zst
+            out/worldlens-appliance-base-aarch64-rpi.sha256.txt
+          if-no-files-found: error
+
+      - name: Attach the Raspberry Pi image to a release
+        if: steps.source.outputs.present == 'true' && github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" out/worldlens-appliance-base-aarch64-rpi.img.zst out/worldlens-appliance-base-aarch64-rpi.sha256.txt --clobber
           gh release view "$TAG" --json assets --jq '.assets[].name'

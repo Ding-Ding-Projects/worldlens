@@ -6,7 +6,12 @@
  * a working-looking control that throws the moment somebody presses it.
  */
 
-export type ApplianceTarget = "vmware" | "virtualbox" | "usb" | "export";
+export type ApplianceTarget = "vmware" | "virtualbox" | "usb" | "rpi" | "export";
+
+/** Targets that write a removable drive: a PC USB stick, or a Raspberry Pi SD card or USB drive. */
+export function writesDrive(target: ApplianceTarget): boolean {
+    return target === "usb" || target === "rpi";
+}
 export type ExportFormat = "img" | "vmdk" | "vhdx" | "ova";
 export type NetworkMode = "bridged" | "nat";
 export type StepState = "pending" | "running" | "done" | "failed";
@@ -110,9 +115,9 @@ export function formProblem(form: ApplianceFormState, mapRoot: string, usb: read
     if (form.target === "vmware" || form.target === "virtualbox") {
         if (!/^[A-Za-z0-9][A-Za-z0-9 _.-]{0,63}$/u.test(form.vmName)) return "Virtual machine name: letters, digits, spaces, dots, dashes, underscores.";
     }
-    if (form.target === "usb") {
+    if (writesDrive(form.target)) {
         const disk = usb.find((d) => d.number === form.usbDiskNumber);
-        if (!disk) return "Choose a USB drive.";
+        if (!disk) return form.target === "rpi" ? "Choose the SD card or USB drive for the Raspberry Pi." : "Choose a USB drive.";
         if (form.usbConfirmName.trim().toLowerCase() !== disk.name.toLowerCase()) return "Type the drive name to confirm the erase.";
     }
     if (form.target === "export" && !form.exportDir.trim()) return "Choose where to save the image.";
@@ -131,7 +136,7 @@ export function buildRequest(form: ApplianceFormState, mapRoot: string): Applian
         port: Number(form.port),
         accessCode: form.askAccessCode ? form.accessCode : null,
     };
-    if (form.target === "usb") {
+    if (writesDrive(form.target)) {
         if (form.usbDiskNumber !== null) request.usbDiskNumber = form.usbDiskNumber;
         request.usbConfirmName = form.usbConfirmName;
     }
@@ -146,7 +151,7 @@ export function planLabels(target: ApplianceTarget): { id: string; label: string
     const base = { id: "base", label: "Bundled appliance base (Alpine, Docker, map server)" };
     const pack = { id: "pack", label: "Pack the map onto a data partition" };
     if (target === "export") return [base, pack, { id: "format", label: "Write the chosen format" }, { id: "notes", label: "Write the checksum and install note" }];
-    if (target === "usb") return [base, pack, { id: "write", label: "Write the drive" }, { id: "readback", label: "Read back and compare" }, { id: "safe", label: "Safe to remove" }];
+    if (writesDrive(target)) return [target === "rpi" ? { id: "base", label: "Bundled Raspberry Pi appliance base (Alpine arm64, Docker, map server)" } : base, pack, { id: "write", label: "Write the drive" }, { id: "readback", label: "Read back and compare" }, { id: "safe", label: "Safe to remove" }];
     return [base, pack, { id: "disk", label: "Make the virtual disk" }, { id: "create", label: "Create and start the virtual machine" }, { id: "boot", label: "Wait for it to boot and report its address" }, { id: "check", label: "Check the link from this PC" }];
 }
 

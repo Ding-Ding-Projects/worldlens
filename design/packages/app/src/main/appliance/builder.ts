@@ -31,6 +31,7 @@ import {
     type ApplianceRequest,
     type ApplianceResult,
     type ApplianceStep,
+    type ApplianceArch,
     type ApplianceTarget,
     type ToolStatus,
     type UsbDisk,
@@ -41,7 +42,7 @@ export interface ApplianceDeps {
     /** Working folder under the app's own data directory: composed images and created VMs live here. */
     readonly root: string;
     /** The bundled, build-time-pinned base image and its checksum, or null when this build carries none. */
-    readonly base: () => Promise<{ readonly path: string; readonly sha256: string } | null>;
+    readonly base: (arch: ApplianceArch) => Promise<{ readonly path: string; readonly sha256: string } | null>;
     readonly runner: CommandRunner;
     readonly diskRunner: DiskScriptRunner | null;
     readonly registry: InstanceRegistry;
@@ -75,6 +76,7 @@ const PLANS: Record<ApplianceTarget, readonly StepId[]> = {
     vmware: ["base", "pack", "disk", "create", "boot", "check"],
     virtualbox: ["base", "pack", "disk", "create", "boot", "check"],
     usb: ["base", "pack", "write", "readback", "safe"],
+    rpi: ["base", "pack", "write", "readback", "safe"],
     export: ["base", "pack", "format", "notes"],
 };
 
@@ -143,14 +145,15 @@ export class ApplianceBuilder {
     }
 
     private async run(request: ApplianceRequest, progress: Progress, result: (p: Partial<ApplianceResult> & { ok: boolean; message: string }) => ApplianceResult): Promise<ApplianceResult> {
-        const base = await this.deps.base();
-        if (!base) return result({ ok: false, message: "This build of Worldlens does not carry the appliance base image. Run the fetch-appliance-base script and rebuild." });
+        const arch: ApplianceArch = request.target === "rpi" ? "aarch64-rpi" : "x86_64";
+        const base = await this.deps.base(arch);
+        if (!base) return result({ ok: false, message: arch === "aarch64-rpi" ? "This build of Worldlens does not carry the Raspberry Pi appliance image. Run the fetch-appliance-base script and rebuild." : "This build of Worldlens does not carry the appliance base image. Run the fetch-appliance-base script and rebuild." });
 
         const workName = `${slug(request.vmName || request.hostName)}-${(this.deps.now?.() ?? new Date()).getTime().toString(36)}`;
         const folder = path.join(this.deps.root, "vms", workName);
         const rawName = `${slug(request.vmName || request.hostName)}.img`;
         const rawPath = path.join(folder, rawName);
-        const tidy = request.target === "usb" || request.target === "export";
+        const tidy = request.target === "usb" || request.target === "rpi" || request.target === "export";
 
         progress.set("base", "running");
         const mapDirectory = await resolveMapDirectory(request.mapRoot);
@@ -172,7 +175,9 @@ export class ApplianceBuilder {
 
         try {
             if (request.target === "vmware" || request.target === "virtualbox") return await this.runVm(request, progress, result, folder, rawName, composed.bytes);
-            if (request.target === "usb") return await this.runUsb(request, progress, result, composed.path, composed.bytes, composed.sha256);
+            // A Raspberry Pi boots the arm64 image from an SD card or USB drive; the write is the
+            // same verified disk write as the PC USB stick.
+            if (request.target === "usb" || request.target === "rpi") return await this.runUsb(request, progress, result, composed.path, composed.bytes, composed.sha256);
             return await this.runExport(request, progress, result, composed.path);
         } finally {
             if (tidy) await fs.rm(folder, { recursive: true, force: true }).catch(() => undefined);

@@ -475,7 +475,7 @@ const APPLIANCE_PINNED_ACTIONS = Object.freeze({
   }),
   "actions/upload-artifact": Object.freeze({
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
-    count: 1,
+    count: 2,
   }),
   "pnpm/action-setup": Object.freeze({
     sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",

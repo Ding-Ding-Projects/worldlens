@@ -237,7 +237,7 @@ describe("usb target", () => {
     });
     it("builds a script that re-checks the live disk and quotes the name safely", () => {
         const script = usbWriteScript({ diskNumber: 3, diskName: "O'Brien Drive", imagePath: "C:\\img\\a.img", imageBytes: 1048576 });
-        expect(script).toContain("$d.BusType -ne 'USB'");
+        expect(script).toContain("$d.BusType -notin @('USB','SD','MMC')");
         expect(script).toContain("$d.IsBoot -or $d.IsSystem");
         expect(script).toContain("'O''Brien Drive'");
         expect(script).toContain("PhysicalDrive");

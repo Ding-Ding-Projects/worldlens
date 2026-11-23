@@ -24,8 +24,7 @@ import {
     type ApplianceTarget,
     type ExportFormat,
     type ToolStatusView,
-    type UsbDiskView,
-} from "./applianceHost.js";
+    type UsbDiskView, writesDrive } from "./applianceHost.js";
 
 const props = defineProps<{ modelValue: boolean; mapRoot: string; bridge?: ApplianceBridge | null | undefined }>();
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
@@ -53,6 +52,7 @@ const targets = computed(() => {
         { id: "vmware" as ApplianceTarget, label: t("appliance.target.vmware", "VMware Workstation"), body: t("appliance.target.vmBody", "Creates the virtual machine and starts it."), status: found(vm, "vmrun"), ok: vm?.found === true },
         { id: "virtualbox" as ApplianceTarget, label: t("appliance.target.virtualbox", "VirtualBox"), body: t("appliance.target.vmBody", "Creates the virtual machine and starts it."), status: found(vb, "VBoxManage"), ok: vb?.found === true },
         { id: "usb" as ApplianceTarget, label: t("appliance.target.usb", "Bootable USB"), body: t("appliance.target.usbBody", "Plug into any PC, boot from USB, the map serves itself."), status: `${t("appliance.usbDrives", "removable drives")}: ${usbDisks.value.length}`, ok: true },
+        { id: "rpi" as ApplianceTarget, label: t("appliance.target.rpi", "Raspberry Pi"), body: t("appliance.target.rpiBody", "Write an SD card or USB drive for a Raspberry Pi 3, 4 or 5. Plug it in, power on, the map serves itself."), status: `${t("appliance.usbDrives", "removable drives")}: ${usbDisks.value.length}`, ok: true },
         { id: "export" as ApplianceTarget, label: t("appliance.target.export", "Export image"), body: t("appliance.target.exportBody", "Save the disk image to install by hand anywhere."), status: ".img · .vmdk · .vhdx · .ova", ok: true },
     ];
 });
@@ -64,13 +64,14 @@ const formats: { id: ExportFormat; label: string }[] = [
     { id: "ova", label: "Appliance (.ova)" },
 ];
 
-const cta = computed(() => (form.value.target === "export" ? t("appliance.ctaExport", "Build and save the image") : form.value.target === "usb" ? t("appliance.ctaUsb", "Build and write the USB drive") : t("appliance.ctaVm", "Build and start")));
+const cta = computed(() => (form.value.target === "export" ? t("appliance.ctaExport", "Build and save the image") : form.value.target === "usb" ? t("appliance.ctaUsb", "Build and write the USB drive") : form.value.target === "rpi" ? t("appliance.ctaRpi", "Build and write the Raspberry Pi drive") : t("appliance.ctaVm", "Build and start")));
 const confirmName = computed(() => usbDisks.value.find((d) => d.number === form.value.usbDiskNumber)?.name ?? "");
 const readyTitle = computed(() => {
     const r = result.value;
     if (!r?.ok) return "";
     if (r.target === "export") return t("appliance.readyExport", "The image is saved");
     if (r.target === "usb") return t("appliance.readyUsb", "The USB drive is ready");
+    if (r.target === "rpi") return t("appliance.readyRpi", "The Raspberry Pi drive is ready. Put it in the Pi and power it on.");
     return r.target === "vmware" ? t("appliance.readyVmware", "The appliance is up in VMware") : t("appliance.readyVirtualbox", "The appliance is up in VirtualBox");
 });
 const shown = computed(() => result.value?.link ?? result.value?.path ?? "");
@@ -206,7 +207,7 @@ function open(): void {
                         </label>
                     </template>
 
-                    <template v-if="form.target === 'usb'">
+                    <template v-if="writesDrive(form.target)">
                         <label>
                             {{ t("appliance.usbPick", "USB drive (removable disks only)") }}
                             <select v-model.number="form.usbDiskNumber" data-field="usbDisk" :disabled="busy" @focus="refresh">

@@ -291,7 +291,7 @@ for (const [lineEnding, workflow] of [
 // arrived with eight pinned uses (checkout, pnpm, node, java, two uploads, two downloads). It is kept because it is cheap and it
 // does force somebody to look; actionDependencyProblems above is what actually holds the
 // line, because it checks every use against its reviewed SHA rather than counting.
-test("all 169 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
+test("all 170 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
   const inventoryFiles = Object.keys(ACTION_INVENTORIES).sort();
   const workflowFiles = readdirSync(inRoot(".github/workflows"))
     .filter((name) => /\.ya?ml$/i.test(name))
@@ -312,7 +312,7 @@ test("all 169 actions in every executable workflow are SHA-pinned and checkouts 
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    169,
+    170,
   );
   // 10, not 6: the container-image job added docker/setup-qemu-action,
   // docker/setup-buildx-action, docker/login-action and docker/build-push-action, each

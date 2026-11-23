@@ -91,10 +91,12 @@ describe("ApplianceDialog", () => {
         const group = wrapper.find('[role="radiogroup"]');
         expect(group.exists()).toBe(true);
         const tiles = wrapper.findAll('[role="radio"]');
-        expect(tiles).toHaveLength(4);
+        // VMware, VirtualBox, a PC USB stick, a Raspberry Pi drive, and an image to export.
+        expect(tiles).toHaveLength(5);
+        expect(tiles[3]?.text()).toContain("Raspberry Pi");
         expect(tiles[0]?.attributes("aria-checked")).toBe("true");
-        await tiles[3]?.trigger("click");
-        expect(tiles[3]?.attributes("aria-checked")).toBe("true");
+        await tiles[4]?.trigger("click");
+        expect(tiles[4]?.attributes("aria-checked")).toBe("true");
         expect(wrapper.text()).toContain("Image format");
     });
 

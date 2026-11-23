@@ -1,4 +1,6 @@
-export type ApplianceTarget = "vmware" | "virtualbox" | "usb" | "export";
+/** "rpi" writes the arm64 Raspberry Pi build of the appliance to an SD card or USB drive. */
+export type ApplianceTarget = "vmware" | "virtualbox" | "usb" | "rpi" | "export";
+export type ApplianceArch = "x86_64" | "aarch64-rpi";
 export type ExportFormat = "img" | "vmdk" | "vhdx" | "ova";
 export type NetworkMode = "bridged" | "nat";
 

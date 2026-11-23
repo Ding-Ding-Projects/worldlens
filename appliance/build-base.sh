@@ -40,7 +40,10 @@ cleanup() {
     [ -n "$LOOP" ] && losetup -d "$LOOP" 2>/dev/null
     rm -rf "$WORK"
 }
-trap cleanup EXIT
+# Keep the failing exit code: without this, the last command in cleanup (a successful rm)
+# became the exit status and a failed build reported success. A failed build also removes its
+# partial image, so nothing half-written can be mistaken for a base.
+trap 'rc=$?; cleanup; if [ "$rc" -ne 0 ]; then rm -f "$IMG"; echo "build failed (exit $rc)" >&2; fi; exit $rc' EXIT
 
 echo "== fetch and verify the Alpine mini root filesystem"
 curl -fsSL -o "$WORK/rootfs.tar.gz" "$ALPINE_ROOTFS_URL"
