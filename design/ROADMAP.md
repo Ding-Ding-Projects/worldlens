@@ -1,5 +1,19 @@
 # Roadmap
 
+## Share a finished render, NBT editor — 2026-11-23
+
+- [x] Three share cards on the finished-render panel (Host the map, Build an appliance, Live viewer and bot), disabled until the render has output. Tests pass.
+- [x] Host the map in a container on this PC: bundled map server image (amd64 and arm64, built at build time), packed map in a private volume, verified network link with Open and Copy, optional access code. A real local Docker run passed end to end.
+- [ ] Host the map over a real SSH host. Built and unit tested only.
+- [ ] Appliance image: builder, disk writers (.img, .vmdk, .vhdx, .ova), VMware and VirtualBox plans, USB writer with typed confirmation and read-back are built and unit tested. Blocked on the first published appliance base image; no virtual machine boot or USB write has run.
+- [ ] Raspberry Pi arm64 appliance image. Not built.
+- [x] Live viewer with a mineflayer bot (Prismarine Viewer or Prismarine Web Client), every option a control. A real Docker run joined a real 1.20.4 server.
+- [ ] Microsoft sign-in for the live viewer bot. Needs the bot account service wired into the app.
+- [x] Hosted instances page: every hosted map, appliance and live viewer, with health checked from this PC, Open, Copy, Start, Stop, Restart, Update and Remove with name confirmation. Seen in the built app (empty state).
+- [x] NBT editor with a Git history per project. A real level.dat was edited, saved and recorded in the built app.
+- [ ] Share dialogs captured in the built app after a real finished render. Pending a throwaway render setup.
+- [ ] Publish the map server, live viewer and appliance images from CI and record their digests in the pin files.
+
 ## Current feature delivery, 2026-10-21
 
 - [x] Track 109 feature requirements plus three independently checked delivery obligations; ten positive/negative inventory checks pass. This is ledger validation only.

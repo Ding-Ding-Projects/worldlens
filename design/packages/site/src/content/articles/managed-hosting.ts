@@ -61,6 +61,10 @@ export const managedHosting: Article = {
     ],
     suggested: [
         {
+            articleId: "share-host",
+            reason: "The one-click route: host a finished map on this PC or an SSH host, build an appliance, or host a live viewer.",
+        },
+        {
             articleId: "hosted-mode",
             reason: "The same authenticated viewer, served from the container image CI publishes rather than from an export of one render.",
         },

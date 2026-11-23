@@ -1,5 +1,26 @@
 # Handoff
 
+## 2026-11-23 Share a finished render, NBT editor
+
+What changed, all on `main`:
+
+- **Share cards** on the finished-render panel open three dialogs: Host the map (`docs/share-host.md`), Build an appliance (`docs/appliance.md`) and Live viewer and bot (`docs/live-viewer.md`). One module, `packages/app/src/main/sharing/register.ts`, wires all three with the saved SSH hosts, known hosts and the loaded wording file.
+- **Hosted instances** page lists every instance from the three registries with health checked from this PC through a bounded `sharing:checkLink` that only reaches private, loopback or `.local` addresses.
+- **NBT editor** page (`docs/nbt-editor.md`) with a Git history per project under user data.
+- Design boards for all of it are in `design/design-sources/share-and-host/`.
+- Workflow lint inventories now include the new image jobs and three older workflows; the named-checkout credential check no longer scans to the end of the file.
+- The shared path field draws its browse icon explicitly; it was empty everywhere because the tooltip filled the button slot.
+
+Not done or not verified:
+
+- Hosting over a real SSH host, the arm64 images, and reaching a link from a second computer.
+- The appliance needs a first published base image (`design/packages/app/appliance-base.pin.json` is null); no VM boot or USB write has run; the Raspberry Pi image is not built.
+- The map server and live viewer image digests are not recorded yet (`mapserver-image.lock.json`, `liveviewer-image.pin.json`); builds without Docker fail or skip until then.
+- Live viewer Microsoft sign-in: the bot account service is not wired, so `accounts` is null.
+- The NBT editor's running-server check uses only the session.lock probe.
+- No capture of the three share dialogs in the built app; a production build hides the screen state, and a real render here would write into the user's maps folder.
+- `pathFieldPolicy.test.ts` fails on the server generation dialog's world-name field (older, not touched here).
+
 ## 2026-11-09 CoreProtect inspector
 
 What changed, all on `main`:

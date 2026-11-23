@@ -378,6 +378,10 @@ export const backups: Article = {
 
     suggested: [
         {
+            articleId: "nbt-editor",
+            reason: "Change single values inside a world with a recorded history of every save.",
+        },
+        {
             articleId: "release-downloads",
             reason: "A different split format on the same idea - why it cannot read a backup's own parts, and what it restores instead.",
         },

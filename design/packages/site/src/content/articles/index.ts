@@ -90,6 +90,10 @@ import { minecraftVersionCatalogue } from "./minecraft-version-catalogue.js";
 import { creativeStudio } from "./creative-studio.js";
 import { uiSmokePlanning } from "./ui-smoke-planning.js";
 import { managedHosting } from "./managed-hosting.js";
+import { shareHost } from "./share-host.js";
+import { applianceImage } from "./appliance-image.js";
+import { liveViewer } from "./live-viewer.js";
+import { nbtEditor } from "./nbt-editor.js";
 import { serverGeneration } from "./server-generation.js";
 import { serverConfigurationEditor } from "./server-configuration-editor.js";
 import { botsAndCommands } from "./bots-and-commands.js";
@@ -169,6 +173,10 @@ export const articles: readonly Article[] = [
     contractLocalization,
     contractSuperConfirmation,
     managedHosting,
+    shareHost,
+    applianceImage,
+    liveViewer,
+    nbtEditor,
     serverGeneration,
     serverConfigurationEditor,
     botsAndCommands,
