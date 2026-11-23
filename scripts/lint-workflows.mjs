@@ -190,7 +190,7 @@ const RELEASE_JOB_FINGERPRINT =
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
-    count: 6,
+    count: 7,
   }),
   "actions/setup-node": Object.freeze({
     sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
@@ -202,7 +202,7 @@ const PINNED_ACTIONS = Object.freeze({
   }),
   "actions/upload-artifact": Object.freeze({
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
-    count: 5,
+    count: 6,
   }),
   "actions/download-artifact": Object.freeze({
     sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
@@ -218,19 +218,19 @@ const PINNED_ACTIONS = Object.freeze({
   // path cannot reach a registry even if the condition were ever mis-edited.
   "docker/setup-qemu-action": Object.freeze({
     sha: "96fe6ef7f33517b61c61be40b68a1882f3264fb8",
-    count: 1,
+    count: 2,
   }),
   "docker/setup-buildx-action": Object.freeze({
     sha: "37fe631027851001ddb9b187196cc803df7f5f0e",
-    count: 2,
+    count: 3,
   }),
   "docker/login-action": Object.freeze({
     sha: "dbcb813823bdd20940b903addbd779551569679f",
-    count: 2,
+    count: 3,
   }),
   "docker/build-push-action": Object.freeze({
     sha: "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
-    count: 3,
+    count: 5,
   }),
 });
 
@@ -462,7 +462,65 @@ const WORLDGEN_PINNED_ACTIONS = Object.freeze({
   }),
 });
 
+// The appliance base image, the feature workspace transfer and the Windows virtual disk
+// workflows, pinned the same way as every other workflow above.
+const APPLIANCE_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 1,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+});
+
+const FEATURE_WORKSPACE_TRANSFER_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 2,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+  "actions/upload-artifact": Object.freeze({
+    sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
+    count: 2,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+});
+
+const VDISK_WINDOWS_PINNED_ACTIONS = Object.freeze({
+  "actions/checkout": Object.freeze({
+    sha: "11d5960a326750d5838078e36cf38b85af677262",
+    count: 1,
+  }),
+  "actions/setup-node": Object.freeze({
+    sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
+    count: 1,
+  }),
+  "pnpm/action-setup": Object.freeze({
+    sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
+    count: 1,
+  }),
+});
+
 const ACTION_INVENTORIES = Object.freeze({
+  ".github/workflows/appliance.yml": APPLIANCE_PINNED_ACTIONS,
+  ".github/workflows/feature-workspace-transfer.yml": FEATURE_WORKSPACE_TRANSFER_PINNED_ACTIONS,
+  ".github/workflows/vdisk-windows.yml": VDISK_WINDOWS_PINNED_ACTIONS,
   ".github/workflows/ci.yml": PINNED_ACTIONS,
   ".github/workflows/build-jars.yml": BUILD_JARS_PINNED_ACTIONS,
   ".github/workflows/chunk-world.yml": CHUNK_WORLD_PINNED_ACTIONS,
@@ -475,7 +533,10 @@ const ACTION_INVENTORIES = Object.freeze({
   ".github/workflows/worldgen.yml": WORLDGEN_PINNED_ACTIONS,
 });
 
-const SUPPORTED_HOSTED_RUNNERS = new Set(["ubuntu-24.04", "windows-2022"]);
+// windows-2025 is the generally available hosted image the virtual disk integration workflow
+// needs for its newer VirtDisk behaviour; release packaging itself stays pinned to windows-2022
+// by its own check below.
+const SUPPORTED_HOSTED_RUNNERS = new Set(["ubuntu-24.04", "windows-2022", "windows-2025"]);
 
 const EXPECTED_CI_TRIGGERS = Object.freeze([
   "push",
@@ -539,6 +600,28 @@ const EXPECTED_CI_CONDITIONS = Object.freeze([
   }),
   Object.freeze({
     scope: "jobs.map-server-image.steps.Record the pushed map server digest",
+    expression: "github.event_name != 'pull_request'",
+  }),
+  // The live viewer image job follows the same pull-request boundary: a pull request only
+  // builds, and only a non-pull-request event logs in, pushes or records a digest.
+  Object.freeze({
+    scope: "jobs.liveviewer-image.steps.Build the image without pushing",
+    expression: "github.event_name == 'pull_request'",
+  }),
+  Object.freeze({
+    scope: "jobs.liveviewer-image.steps.Log in to the container registry",
+    expression: "github.event_name != 'pull_request'",
+  }),
+  Object.freeze({
+    scope: "jobs.liveviewer-image.steps.Build and push the image",
+    expression: "github.event_name != 'pull_request'",
+  }),
+  Object.freeze({
+    scope: "jobs.liveviewer-image.steps.Record the pushed image digest",
+    expression: "github.event_name != 'pull_request'",
+  }),
+  Object.freeze({
+    scope: "jobs.liveviewer-image.steps.Keep the digest record",
     expression: "github.event_name != 'pull_request'",
   }),
   Object.freeze({
@@ -1226,9 +1309,15 @@ function actionDependencyProblems(text, file) {
       const indent = indentOf(lines[index]);
       let end = lines.length;
       for (let next = index + 1; next < lines.length; next++) {
+        // A step ends at the next step: a list item at the same indent (`- uses:` steps), or any
+        // shallower line, which is where a named step's `uses:` key hands back to the next
+        // `- name:` item. Without the second case a named checkout scanned to the end of the
+        // file and counted every later checkout's guard as its own.
+        const nextLine = lines[next];
+        if (nextLine.trim() === "" || nextLine.trim().startsWith("#")) continue;
         if (
-          indentOf(lines[next]) === indent &&
-          /^\s*-\s+(?:name|uses):/.test(lines[next])
+          indentOf(nextLine) < indent ||
+          (indentOf(nextLine) === indent && /^\s*-\s+(?:name|uses):/.test(nextLine))
         ) {
           end = next;
           break;

@@ -291,7 +291,7 @@ for (const [lineEnding, workflow] of [
 // arrived with eight pinned uses (checkout, pnpm, node, java, two uploads, two downloads). It is kept because it is cheap and it
 // does force somebody to look; actionDependencyProblems above is what actually holds the
 // line, because it checks every use against its reviewed SHA rather than counting.
-test("all 142 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
+test("all 169 actions in every executable workflow are SHA-pinned and checkouts erase credentials", () => {
   const inventoryFiles = Object.keys(ACTION_INVENTORIES).sort();
   const workflowFiles = readdirSync(inRoot(".github/workflows"))
     .filter((name) => /\.ya?ml$/i.test(name))
@@ -312,7 +312,7 @@ test("all 142 actions in every executable workflow are SHA-pinned and checkouts 
         Object.values(inventory).reduce((sum, item) => sum + item.count, 0),
       0,
     ),
-    142,
+    169,
   );
   // 10, not 6: the container-image job added docker/setup-qemu-action,
   // docker/setup-buildx-action, docker/login-action and docker/build-push-action, each
@@ -520,10 +520,10 @@ test("mutable action tags, retained checkout credentials and missing root gates 
   const eol = workflow.includes("\r\n") ? "\r\n" : "\n";
   assert.equal(
     workflow.match(/node scripts\/release-version\.mjs/g)?.length,
-    // Three, not two: the container-image job resolves the image identity through the same
-    // committed resolver, which is the property this assertion is protecting rather than an
-    // exception to it.
-    3,
+    // Five, not two: the container-image, map-server-image and live-viewer-image jobs each
+    // resolve their image identity through the same committed resolver, which is the property
+    // this assertion is protecting rather than an exception to it.
+    5,
     "packaging and publication must both use the committed version resolver",
   );
   assert.equal(workflow.includes("-build.${GITHUB_RUN_NUMBER}"), false);
