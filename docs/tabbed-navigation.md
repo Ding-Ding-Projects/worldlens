@@ -118,6 +118,36 @@ declared order rather than at the arithmetically-correct-but-unpredictable posit
 region is the promise that the landing tab stays at the front), skipping a page with no tab, and
 creating nothing at all for a seed left with no members.
 
+### Tools gathered into two tabs
+
+The Work strip later grew to 29 jobs, and about a dozen of them have nothing to do with maps.
+Since 2026-11-23 those sit inside two **hub tabs** instead of one tab each
+(`components/shell/toolHubs.ts`, drawn by `ToolHub.vue`):
+
+| Hub tab            | What is in it                                                                                                                                                          |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Built-in tools** | Docs, File converter, Base64, Drawing board, Authenticator, Locks, Support Tickets, Browser downloads, Ollama, Virtual disks, Memory console (where the build has one) |
+| **Other tools**    | NBT editor, Convert                                                                                                                                                    |
+
+Map work stays in the strip. Minecraft servers stays too, because the Servers rail destination opens
+it and it is where a map's server lives.
+
+- **A hub is a list-detail page, not a second tab strip.** A navigation list on the left names
+  each tool; the picked tool is the job's own `App.vue` slot, rendered unchanged beside it. Below
+  720 px of pane width the list becomes a select above the tool.
+- **Every old route still works.** `WorkPane` turns a member id into its hub with that member
+  picked, so `revealPage("base64")`, the command palette, the job opener and a glossary link to
+  Docs all land on the right tool.
+- **The picked tool is remembered** per hub under `worldlens-tool-hubs`. A missing, stale or
+  unreadable value falls back to the hub's first tool.
+- **A saved workspace is folded once.** The first tab that showed a hub's tool becomes the hub,
+  keeping its place, group, pin and appearance; the other tabs of that hub close; the hub opens on
+  whichever tool was in front. A workspace with no such tabs is not rewritten.
+
+Proof: `toolHubs.test.ts` (membership, the fold, storage) and `App.test.ts` ("keeps every available
+registered job reachable from the shell", "reaches every hub member from inside its hub", "reaches
+the docs browser through its own job"). Design boards: `design/design-sources/work-strip-declutter/`.
+
 ### Reaching a page a saved workspace predates
 
 `seedStrip` only ever runs once, the moment a workspace file cannot be read at all - a genuinely
@@ -433,6 +463,32 @@ Publish to Pages、Watch it live，即係一張已經存在嘅地圖，同睇得
 計出嚟嗰種算術上啱但估唔到嘅位置；`applyGroupSeeds` 就每個 seed 開一個群組，會跳過已釘住嘅 tab（釘住
 贏 —— 釘住區就係「落地嗰個 tab 會留喺最前」呢個承諾）、跳過冇 tab 嘅頁面，而一個最後一個成員都冇嘅
 seed 就乜都唔會開。
+
+### 工具收埋喺兩個分頁
+
+之後工作列大到有 29 個 job，當中十幾個同地圖完全無關。由 2026-11-23 開始，呢啲收咗入兩個
+**工具分頁（hub tab）**，唔再一樣一個分頁（`components/shell/toolHubs.ts`，由 `ToolHub.vue` 畫）：
+
+| 工具分頁     | 入面有乜                                                                                                       |
+| ------------ | -------------------------------------------------------------------------------------------------------------- |
+| **內置工具** | 文件、檔案轉換器、Base64、畫板、認證器、鎖、支援票、瀏覽器下載、Ollama、虛擬磁碟、記憶控制台（版本有先會出現） |
+| **其他工具** | NBT 編輯器、轉換世界                                                                                           |
+
+地圖嘅工作留喺工作列。Minecraft 伺服器都留低，因為側欄嘅「伺服器」直接開佢，地圖個伺服器就喺嗰度。
+
+- **工具分頁係「清單＋內容」頁，唔係第二條分頁列。** 左邊導覽清單列出每樣工具；揀咗嗰樣就係個
+  job 喺 `App.vue` 原本嘅 slot，原封不動畫喺隔籬。面板窄過 720 px 嗰陣，清單會變成工具上面嘅下拉選單。
+- **舊路線全部照用。** `WorkPane` 會將成員 id 轉做佢嘅工具分頁，並且揀定嗰樣工具，所以
+  `revealPage("base64")`、指令面板、job opener 同詞彙表連去文件，全部都會落到啱嗰樣工具。
+- **揀過邊樣會記住**，每個工具分頁分開記，存喺 `worldlens-tool-hubs`。值唔見咗、過時或者讀唔到，
+  就返去嗰個分頁嘅第一樣工具。
+- **舊嘅 workspace 會摺一次。** 第一個顯示某工具分頁成員嘅分頁會變成嗰個工具分頁，位置、群組、
+  釘選同外觀全部保留；同一個工具分頁其他成員嘅分頁會關咗；工具分頁會開喺之前擺喺前面嗰樣工具。
+  冇呢類分頁嘅 workspace 唔會改寫。
+
+證明：`toolHubs.test.ts`（成員、摺疊、儲存）同 `App.test.ts`（"keeps every available registered job
+reachable from the shell"、"reaches every hub member from inside its hub"、"reaches the docs browser
+through its own job"）。設計板：`design/design-sources/work-strip-declutter/`。
 
 ### 去到一個比已儲存 workspace 更後出現嘅頁面
 

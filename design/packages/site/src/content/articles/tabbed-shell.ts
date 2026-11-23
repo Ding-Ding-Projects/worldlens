@@ -39,6 +39,13 @@ export const tabbedShell: Article = {
                     ],
                 },
                 {
+                    kind: "paragraph",
+                    content: [
+                        { strong: "General tools live in two tabs. " },
+                        "Since 2026-11-23 the Work strip keeps to map work. Docs, File converter, Base64, Drawing board, Authenticator, Locks, Support Tickets, Browser downloads, Ollama and Virtual disks sit inside one Built-in tools tab, and the NBT editor and Convert sit inside an Other tools tab. Each is a list-detail page: pick a tool from the list and it opens beside it, unchanged. Opening a tool by name from the command palette opens its tab with that tool picked, the picked tool is remembered, and a workspace saved before the change is folded onto the two tabs once, keeping its groups and pins.",
+                    ],
+                },
+                {
                     kind: "table",
                     caption:
                         "One authority per ordering, so two of them can never contradict each other",

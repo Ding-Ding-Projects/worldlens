@@ -83,11 +83,8 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
         <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px;">
           <div style="flex: 1 1 360px; min-width: 0;">
             <h1 style="margin: 0; font-size: 36px; line-height: 44px; font-weight: 400;">Built-in tools</h1>
-            <p style="margin: 6px 0 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var); max-width: 68ch;">Tools every app in this family carries, kept together in one tab so the strip stays about maps. Pick one on the left; it opens here, or as its own tab if you prefer.</p>
+            <p style="margin: 6px 0 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var); max-width: 68ch;">Tools every app in this family carries, kept together in one tab so the strip stays about maps. Pick one from the list; it opens beside it.</p>
           </div>
-          <label style="display: flex; flex-direction: column; gap: 4px; font: 500 12px/16px Roboto, sans-serif; color: var(--wl-on-surf-var);">Open as its own tab
-            <button type="button" class="btn sl" onClick="{{popOut}}" style="background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);"><span class="msr" aria-hidden="true" style="font-size: 20px;">open_in_new</span>{{popLabel}}</button>
-          </label>
         </div>
         <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;">
           <nav aria-label='Built-in tools' class="card" style="flex: 1 1 260px; max-width: 320px; min-width: 0; background: var(--wl-surf-cont); border-radius: 28px; padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; gap: 4px;">
@@ -123,7 +120,7 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
 class Component extends DCLogic {
   constructor(props) {
     super(props);
-    this.state = { picked: null, popped: false,
+    this.state = { picked: null,
       jobs: [
         {"id": "world", "icon": "add_location_alt", "label": "Make a map", "href": "Strip.dc.html", "cls": ""},
         {"id": "renders", "icon": "bolt", "label": "Renders", "href": "Strip.dc.html", "cls": ""},
@@ -347,9 +344,7 @@ class Component extends DCLogic {
       theme: this.props.theme ?? 'dark',
       jobs,
       sel,
-      tools: all.map((t) => ({ ...t, current: t.id === sel.id ? 'true' : 'false', pick: () => this.setState({ picked: t.id }) })),
-      popLabel: s.popped ? sel.label + ' is open as a tab' : sel.label,
-      popOut: () => this.setState({ popped: true })
+      tools: all.map((t) => ({ ...t, current: t.id === sel.id ? 'true' : 'false', pick: () => this.setState({ picked: t.id }) }))
     };
   }
 }

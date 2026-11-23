@@ -2,10 +2,10 @@
 
 Design boards for moving general-purpose tools out of the Work tab strip, made on 2026-11-23.
 
-| Board | What it shows |
-| --- | --- |
-| `Strip.dc.html` | The Add a job catalogue grouped by purpose, with a Now / Before toggle against the old flat list of 29 jobs. |
-| `Tools.dc.html` | The **Built-in tools** tab: a list of tools on the left, the picked tool on the right, and a button that opens the picked tool as its own tab. |
+| Board           | What it shows                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `Strip.dc.html` | The Add a job catalogue grouped by purpose, with a Now / Before toggle against the old flat list of 29 jobs.        |
+| `Tools.dc.html` | The **Built-in tools** tab: a list of tools on the left and the picked tool beside it.                              |
 | `Other.dc.html` | The **Other tools** tab: Minecraft tools that are not about making, viewing or hosting a map (NBT editor, Convert). |
 
 Every board has tweaks for theme (dark, light, high contrast) and, on the two hub boards, which tool is picked.
@@ -21,5 +21,5 @@ Minecraft servers stays in the strip because the Servers rail destination opens 
 ## Rules the build follows
 
 - Every tool keeps its command palette row and its old page id. Revealing an old id opens the hub with that tool picked.
-- A workspace saved by an older build keeps any tool tab it already had open; nothing the user arranged is closed.
+- A workspace saved by an older build is folded once: the first tab that showed a hub's tool becomes the hub, in the same place, group and pin; other tool tabs of that hub close; the hub opens on whichever tool was in front.
 - The hub's tool list is a navigation list, not a second tab strip, so it carries no tab-strip contract of its own.
