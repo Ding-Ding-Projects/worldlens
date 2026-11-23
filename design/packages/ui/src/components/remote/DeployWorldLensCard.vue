@@ -30,6 +30,7 @@ import {
     sha256Hex,
     type DeployForm,
 } from "./deployWorldLensModel.js";
+import { PUBLISHED_HOSTED_IMAGE } from "./publishedImages.js";
 
 const props = defineProps<{
     bridge: DockerHostingBridge;
@@ -45,7 +46,11 @@ const manualImage = ref(false);
 const busy = ref(false);
 const outcome = ref<{ ok: boolean; text: string } | null>(null);
 
-const hostedImages = computed(() => (props.snapshot?.images ?? []).filter(isHostedImage));
+const hostedImages = computed(() => {
+    const local = (props.snapshot?.images ?? []).filter(isHostedImage);
+    // The published image is offered even before it is pulled: Docker pulls a missing digest on create.
+    return local.includes(PUBLISHED_HOSTED_IMAGE) ? local : [...local, PUBLISHED_HOSTED_IMAGE];
+});
 if (hostedImages.value[0] !== undefined) form.value.image = hostedImages.value[0];
 
 const passwordProblem = computed(() =>

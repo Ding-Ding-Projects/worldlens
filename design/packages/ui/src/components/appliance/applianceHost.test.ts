@@ -3,7 +3,9 @@ import { buildRequest, defaultForm, formProblem } from "./applianceHost.js";
 
 describe("appliance form: the whole WorldLens app", () => {
     it("needs a digest-pinned hosted image and a real password, and sends neither until asked", () => {
-        const form = { ...defaultForm(), askAccessCode: false, runApp: true };
+        // The published image arrives filled in; a tag instead of a digest is refused.
+        expect(defaultForm().appImage).toMatch(/worldlens-hosted@sha256:[a-f0-9]{64}$/);
+        const form = { ...defaultForm(), askAccessCode: false, runApp: true, appImage: "ghcr.io/x/worldlens-hosted:latest" };
         expect(formProblem(form, "/maps/a", [])).toMatch(/pinned by digest/);
         const image = `ghcr.io/ding-ding-projects/worldlens-hosted@sha256:${"e".repeat(64)}`;
         expect(

@@ -197,3 +197,15 @@ person as far as the server is concerned.
   honest, and a sign the profile was promising something the image could not do.
 - Measured at 320, 375 and 768 CSS pixels in a real browser against the real container. Zero
   horizontal overflow at all three. See [the captures](screenshots/hosted-375.caption.txt).
+
+## Published image
+
+CI publishes this image as `ghcr.io/<owner>/worldlens-hosted` (job `hosted-image`). The first published digest, offered by default in **Deploy WorldLens as a container** and in the appliance dialog's app option (`design/packages/ui/src/components/remote/publishedImages.ts`):
+
+```
+ghcr.io/ding-ding-projects/worldlens-hosted@sha256:ed9d646bf15f8f5ea3cfbf2fe4b568d0e7b18630aa2b631118ed337beee3eb7c
+```
+
+Version 1.0.2340, commit `bde9835`, CI run 45278760421, 2026-11-23. Not yet pulled and started outside CI.
+
+已發佈映像：CI 嘅 `hosted-image` job 發佈 `ghcr.io/<owner>/worldlens-hosted`，第一個 digest（上面嗰行，版本 1.0.2340，commit `bde9835`）而家係容器部署卡同 appliance app 選項嘅預設。CI 以外未拉落嚟行過。
