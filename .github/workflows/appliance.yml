@@ -162,6 +162,8 @@ jobs:
         if: steps.source.outputs.present == 'true'
         run: |
           set -euo pipefail
+          # The default "docker" driver cannot export a docker-format tar for another platform.
+          docker buildx create --name wl-arm64 --driver docker-container --use
           docker buildx build --platform linux/arm64 --provenance=false -t worldlens-map-server:bundled \
             --output type=docker,dest=out/worldlens-map-server-arm64.tar design/packages/mapserver
 
