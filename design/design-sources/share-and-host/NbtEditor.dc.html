@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NBT editor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+input,select{font:400 13px 'Roboto Mono',monospace}
+.wl-motion .wl-row{transition:background .16s}
+.wl-row:hover{background:rgba(143,205,255,.08)}
+@media (prefers-reduced-motion: reduce){.wl-row{transition:none!important}}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8FCDFF;outline-offset:2px}
+</style>
+</helmet>
+<div class="{{rootClass}}" style="width: 1280px; height: 820px; box-sizing: border-box; background: {{bg}}; color: {{onSurf}}; font-family: Roboto, Helvetica, sans-serif; padding: 20px 32px; display: flex; flex-direction: column; gap: 12px;">
+  <header style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <h1 style="margin: 0; font-size: 24px; font-weight: 500;">NBT editor</h1>
+    <span style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: {{onSurfVar}};">Example survival / level.dat · gzip · big-endian</span>
+    <div style="margin-left: auto; display: flex; gap: 8px; align-items: center;">
+      <label style="display: flex; align-items: center; gap: 6px; height: 40px; border-radius: 20px; background: {{surfHigh}}; padding: 0 14px; width: 300px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6" fill="none" stroke="{{onSurfVar}}" stroke-width="2"></circle><path d="M15 15l5 5" stroke="{{onSurfVar}}" stroke-width="2"></path></svg>
+        <input aria-label="Search tags and values" value="Spawn" style="border: 0; background: transparent; color: {{onSurf}}; flex: 1; font-family: Roboto;">
+      </label>
+      <button type="button" aria-label="Regex builder" style="height: 40px; padding: 0 14px; border-radius: 20px; border: 1px solid {{outline}}; background: transparent; color: {{onSurf}}; font: 500 13px 'Roboto Mono'; cursor: pointer;">.* Regex</button>
+      <button type="button" style="height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid {{outline}}; background: transparent; color: {{onSurf}}; font: 500 13px Roboto; cursor: pointer;">Undo</button>
+      <button type="button" style="height: 40px; padding: 0 18px; border-radius: 20px; border: 0; background: {{accent}}; color: #003351; font: 500 13px Roboto; cursor: pointer;">Save and record</button>
+    </div>
+  </header>
+  <div style="display: flex; gap: 16px; flex: 1; min-height: 0;">
+    <nav aria-label="Files" style="flex: 0 0 220px; background: {{surfCont}}; border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; overflow: auto;">
+      <span style="font-size: 11px; color: {{onSurfVar}}; padding: 4px 8px; letter-spacing: .5px;">THIS PROJECT</span>
+      <a href="#" style="padding: 8px; border-radius: 8px; background: {{secCont}}; color: {{onSurf}}; text-decoration: none;">level.dat</a>
+      <a href="#" style="padding: 8px; border-radius: 8px; color: {{onSurf}}; text-decoration: none;">playerdata / 3 files</a>
+      <a href="#" style="padding: 8px; border-radius: 8px; color: {{onSurf}}; text-decoration: none;">region / r.0.0.mca · 312 chunks</a>
+      <a href="#" style="padding: 8px; border-radius: 8px; color: {{onSurf}}; text-decoration: none;">data / raids.dat</a>
+      <a href="#" style="padding: 8px; border-radius: 8px; color: {{onSurf}}; text-decoration: none;">structures / house.nbt</a>
+      <a href="#" style="padding: 8px; border-radius: 8px; color: {{onSurf}}; text-decoration: none;">servers.dat</a>
+      <button type="button" style="margin-top: auto; height: 36px; border-radius: 18px; border: 1px dashed {{outline}}; background: transparent; color: {{onSurf}}; font: 500 12px Roboto; cursor: pointer;">Open any NBT file…</button>
+    </nav>
+    <section aria-label="Tag tree" role="tree" style="flex: 1; min-width: 0; background: {{surfCont}}; border-radius: 16px; padding: 10px 8px; overflow: auto; font-family: 'Roboto Mono', monospace; font-size: 13px;">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="14">
+        <div class="wl-row" role="treeitem" aria-level="{{r.level}}" aria-expanded="{{r.expanded}}" style="display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 2px 8px 2px {{r.indent}}; border-radius: 8px; background: {{r.hl}};">
+          <button type="button" aria-label="{{r.toggleLabel}}" onClick="{{r.toggle}}" style="width: 22px; height: 22px; border: 0; background: transparent; color: {{onSurfVar}}; cursor: pointer; visibility: {{r.caretVis}}; font-size: 12px;">{{r.caret}}</button>
+          <span style="min-width: 44px; text-align: center; font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 6px; background: {{r.typeBg}}; color: {{r.typeFg}};">{{r.type}}</span>
+          <span style="color: {{onSurf}};">{{r.name}}</span>
+          <sc-if value="{{r.editable}}" hint-placeholder-val="{{true}}">
+            <input aria-label="{{r.name}} value" value="{{r.value}}" style="margin-left: auto; width: 220px; height: 28px; border-radius: 6px; border: 1px solid {{outlineVar}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 8px;">
+          </sc-if>
+          <sc-if value="{{r.isBool}}" hint-placeholder-val="{{false}}">
+            <button type="button" role="switch" aria-checked="{{r.on}}" aria-label="{{r.name}}" onClick="{{r.flip}}" style="margin-left: auto; width: 44px; height: 26px; border-radius: 13px; border: 2px solid {{r.track}}; background: {{r.fill}}; position: relative; cursor: pointer;"><span style="position: absolute; top: 3px; left: {{r.knobX}}; width: 16px; height: 16px; border-radius: 8px; background: {{r.knob}};"></span></button>
+          </sc-if>
+          <sc-if value="{{r.isList}}" hint-placeholder-val="{{false}}">
+            <span style="margin-left: auto; color: {{onSurfVar}}; font-size: 12px;">{{r.value}}</span>
+          </sc-if>
+        </div>
+      </sc-for>
+    </section>
+    <aside aria-label="History" style="flex: 0 0 300px; background: {{surfCont}}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: auto;">
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h2 style="margin: 0; font-size: 15px; font-weight: 500;">History</h2>
+        <span style="margin-left: auto; font-size: 11px; color: {{onSurfVar}};">project Git repository</span>
+      </div>
+      <div style="font-size: 12px; background: {{surfHigh}}; border-radius: 10px; padding: 10px; font-family: 'Roboto Mono', monospace; line-height: 1.6;">
+        <div style="color: #FFB4AB;">- Data.SpawnX: 128</div>
+        <div style="color: #7FD19A;">+ Data.SpawnX: 256</div>
+        <div style="color: #FFB4AB;">- Data.allowCommands: 0b</div>
+        <div style="color: #7FD19A;">+ Data.allowCommands: 1b</div>
+      </div>
+      <sc-for list="{{commits}}" as="c" hint-placeholder-count="4">
+        <div style="display: flex; flex-direction: column; gap: 2px; border-left: 3px solid {{accent}}; padding: 4px 10px;">
+          <span style="font-size: 13px;">{{c.msg}}</span>
+          <span style="font-size: 11px; color: {{onSurfVar}}; font-family: 'Roboto Mono', monospace;">{{c.meta}}</span>
+          <span style="display: flex; gap: 6px; margin-top: 4px;">
+            <button type="button" style="height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid {{outline}}; background: transparent; color: {{onSurf}}; font: 500 11px Roboto; cursor: pointer;">Diff</button>
+            <button type="button" style="height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid {{outline}}; background: transparent; color: {{onSurf}}; font: 500 11px Roboto; cursor: pointer;">Restore</button>
+          </span>
+        </div>
+      </sc-for>
+    </aside>
+  </div>
+  <footer style="display: flex; gap: 16px; font-size: 12px; color: {{onSurfVar}}; flex-wrap: wrap;">
+    <span>2 unsaved changes</span><span>Back up before saving: on</span><span>Writes are blocked while the world is open in a running server</span>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#8FCDFF","options":["#8FCDFF","#7FD19A","#D1BFE7","#FFB68A"]},"motion":{"editor":"boolean","default":true},"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { open: { root: true, Data: true, GameRules: true, Player: false }, bools: { allowCommands: true, hardcore: false, doDaylightCycle: true } }; }
+  renderVals() {
+    const dark = (this.props.theme ?? 'dark') === 'dark';
+    const accent = this.props.accent ?? '#8FCDFF';
+    const c = dark
+      ? { bg:'#0B0E11', surfCont:'#1D2024', surfHigh:'#272A2E', onSurf:'#E1E2E8', onSurfVar:'#C2C7CF', outline:'#8C9199', outlineVar:'#42474E', secCont:'#384956' }
+      : { bg:'#F7F9FF', surfCont:'#EBEEF4', surfHigh:'#E5E8EE', onSurf:'#181C20', onSurfVar:'#41474D', outline:'#6C737A', outlineVar:'#C1C7CE', secCont:'#D3E5F5' };
+    const types = { Compound:['#384956','#D3E5F5'], List:['#4E4161','#EDDCFF'], Int:['#004B73','#CEE5FF'], Long:['#004B73','#CEE5FF'], Double:['#5B4300','#FFDF9E'], String:['#1E4D2B','#B6F2C6'], Byte:['#4D2B1E','#FFDBCC'] };
+    const o = this.state.open, b = this.state.bools;
+    const tree = [
+      { id:'root', name:'(root)', type:'Compound', d:0, kids:true },
+      { id:'Data', name:'Data', type:'Compound', d:1, kids:true, p:'root' },
+      { name:'LevelName', type:'String', d:2, v:'Example survival', p:'Data' },
+      { name:'SpawnX', type:'Int', d:2, v:'256', p:'Data', hl:true },
+      { name:'SpawnY', type:'Int', d:2, v:'71', p:'Data', hl:true },
+      { name:'SpawnZ', type:'Int', d:2, v:'-112', p:'Data', hl:true },
+      { name:'RandomSeed', type:'Long', d:2, v:'-4172144997902289642', p:'Data' },
+      { name:'allowCommands', type:'Byte', d:2, bool:true, p:'Data' },
+      { name:'hardcore', type:'Byte', d:2, bool:true, p:'Data' },
+      { id:'GameRules', name:'GameRules', type:'Compound', d:2, kids:true, p:'Data' },
+      { name:'doDaylightCycle', type:'Byte', d:3, bool:true, p:'GameRules' },
+      { name:'randomTickSpeed', type:'String', d:3, v:'3', p:'GameRules' },
+      { id:'Player', name:'Player', type:'Compound', d:2, kids:true, p:'Data' },
+      { name:'Pos', type:'List', d:3, list:'3 × Double', p:'Player' },
+      { name:'Health', type:'Double', d:3, v:'20.0', p:'Player' },
+      { name:'DataVersion', type:'Int', d:2, v:'4189', p:'Data' }
+    ];
+    const visible = (n) => { let p = n.p; const byId = Object.fromEntries(tree.filter(t => t.id).map(t => [t.id, t])); while (p) { if (!o[p]) return false; p = byId[p].p; } return true; };
+    const rows = tree.filter(visible).map(n => { const on = !!b[n.name]; const [tb, tf] = types[n.type]; return {
+      name: n.name, type: n.type.toUpperCase(), level: String(n.d + 1), indent: (8 + n.d * 22) + 'px', typeBg: tb, typeFg: tf,
+      hl: n.hl ? 'rgba(143,205,255,.12)' : 'transparent',
+      caret: n.kids ? (o[n.id] ? '▾' : '▸') : '', caretVis: n.kids ? 'visible' : 'hidden', expanded: n.kids ? String(!!o[n.id]) : 'false',
+      toggleLabel: n.kids ? (o[n.id] ? 'Collapse ' : 'Expand ') + n.name : 'No children',
+      toggle: () => n.kids && this.setState({ open: { ...o, [n.id]: !o[n.id] } }),
+      editable: !n.kids && !n.bool && !n.list, value: n.list || n.v || '', isList: !!n.list, isBool: !!n.bool,
+      on: on ? 'true' : 'false', fill: on ? accent : 'transparent', track: on ? accent : c.outline, knob: on ? '#003351' : c.outline, knobX: on ? '22px' : '3px',
+      flip: () => this.setState({ bools: { ...b, [n.name]: !on } }) }; });
+    return { ...c, accent, rootClass: (this.props.motion ?? true) ? 'wl-motion' : '', rows,
+      commits: [ { msg:'Move spawn to the village square', meta:'a41c2e0 · 19:31 · level.dat' }, { msg:'Allow commands for the event', meta:'9be0f71 · 19:12 · level.dat' }, { msg:'Give LensBot a map', meta:'07d3a2c · yesterday · playerdata' }, { msg:'Project created', meta:'f00d1e5 · 2026-11-20' } ] };
+  }
+}
+</script>
+</body>
+</html>

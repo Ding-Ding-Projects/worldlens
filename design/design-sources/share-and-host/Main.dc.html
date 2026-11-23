@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Render finished: share this map</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+.wl-route{transition:transform .22s cubic-bezier(.2,0,0,1),box-shadow .22s cubic-bezier(.2,0,0,1)}
+.wl-motion .wl-route:hover{transform:translateY(-3px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.wl-motion .wl-pop{animation:wlpop .42s cubic-bezier(.05,.7,.1,1)}
+@keyframes wlpop{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.wl-route,.wl-pop{transition:none!important;animation:none!important}}
+button:focus-visible,a:focus-visible{outline:3px solid #8FCDFF;outline-offset:2px}
+</style>
+</helmet>
+<div class="{{rootClass}}" style="width: 1280px; height: 820px; box-sizing: border-box; display: flex; background: {{bg}}; color: {{onSurf}}; font-family: Roboto, Helvetica, sans-serif;">
+  <nav aria-label="Main" style="width: 88px; flex-shrink: 0; background: {{surfLow}}; display: flex; flex-direction: column; align-items: center; gap: 16px; padding-top: 20px; box-sizing: border-box;">
+    <div style="width: 48px; height: 48px; border-radius: 16px; background: {{accent}}; color: #003351; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px;">W</div>
+    <a href="#" style="width: 56px; height: 32px; border-radius: 16px; background: {{secCont}}; display: flex; align-items: center; justify-content: center; color: {{onSurf}}; text-decoration: none; font-size: 11px;">World</a>
+    <a href="#" style="font-size: 11px; color: {{onSurfVar}}; text-decoration: none;">Maps</a>
+    <a href="#" style="font-size: 11px; color: {{onSurfVar}}; text-decoration: none;">Hosting</a>
+    <a href="#" style="font-size: 11px; color: {{onSurfVar}}; text-decoration: none;">Servers</a>
+  </nav>
+  <main style="flex: 1; min-width: 0; padding: 28px 40px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px; overflow: hidden;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <h1 style="margin: 0; font-size: 28px; font-weight: 500;">Example survival</h1>
+      <span style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: {{onSurfVar}};">world / overworld + nether</span>
+    </div>
+    <section aria-label="Render result" style="background: {{surfCont}}; border-radius: 16px; padding: 20px 24px; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="#7FD19A" stroke-width="2"></circle><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#7FD19A" stroke-width="2" stroke-linecap="round"></path></svg>
+        <h2 style="margin: 0; font-size: 20px; font-weight: 500;">Rendered</h2>
+        <span style="border: 1px solid {{outlineVar}}; border-radius: 8px; padding: 2px 8px; font-size: 12px;">overworld, nether</span>
+        <span style="margin-left: auto; font-family: 'Roboto Mono', monospace; font-size: 12px; color: {{onSurfVar}};">14 min 08 s · Rendered by: BlueMap 5.4</span>
+      </div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+        <button type="button" style="height: 40px; padding: 0 20px; border-radius: 20px; border: 0; background: {{accent}}; color: #003351; font: 500 14px Roboto, sans-serif; cursor: pointer;">Open map</button>
+        <button type="button" style="height: 40px; padding: 0 20px; border-radius: 20px; border: 1px solid {{outline}}; background: transparent; color: {{onSurf}}; font: 500 14px Roboto, sans-serif; cursor: pointer;">Render again</button>
+      </div>
+    </section>
+
+    <section aria-labelledby="share-h" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: baseline; gap: 12px;">
+        <h2 id="share-h" style="margin: 0; font-size: 18px; font-weight: 500;">Share this map</h2>
+        <span style="font-size: 13px; color: {{onSurfVar}};">One click each. Every part ships inside Worldlens; nothing is downloaded while you wait.</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;">
+        <sc-for list="{{routes}}" as="r" hint-placeholder-count="3">
+          <button type="button" class="wl-route" onClick="{{r.pick}}" aria-pressed="{{r.pressed}}" style="text-align: left; border: {{r.border}}; background: {{r.bg}}; color: {{onSurf}}; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 8px; cursor: pointer; font-family: Roboto, sans-serif; min-height: 176px;">
+            <span style="font-size: 12px; letter-spacing: .5px; color: {{accent}}; font-weight: 500;">{{r.kicker}}</span>
+            <span style="font-size: 17px; font-weight: 500;">{{r.title}}</span>
+            <span style="font-size: 13px; line-height: 1.45; color: {{onSurfVar}};">{{r.body}}</span>
+            <span style="margin-top: auto; font-family: 'Roboto Mono', monospace; font-size: 11px; color: {{onSurfVar}};">{{r.targets}}</span>
+          </button>
+        </sc-for>
+      </div>
+    </section>
+
+    <sc-if value="{{isHosting}}" hint-placeholder-val="{{false}}">
+      <section class="wl-pop" role="status" aria-live="polite" style="background: {{surfHigh}}; border-radius: 16px; padding: 18px 24px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; justify-content: space-between; font-size: 14px;"><strong style="font-weight: 500;">{{pickedTitle}}: packing the map</strong><span style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: {{onSurfVar}};">step 2 of 5 · 00:41</span></div>
+        <div style="height: 6px; border-radius: 3px; background: {{outlineVar}}; overflow: hidden;"><div style="width: 38%; height: 6px; background: {{accent}}; border-radius: 3px;"></div></div>
+        <span style="font-size: 12px; color: {{onSurfVar}};">18 412 of 48 300 tiles · 312 MB of 820 MB</span>
+      </section>
+    </sc-if>
+
+    <sc-if value="{{isReady}}" hint-placeholder-val="{{false}}">
+      <section class="wl-pop" role="status" aria-live="polite" style="background: {{primCont}}; color: #CEE5FF; border-radius: 16px; padding: 18px 24px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <strong style="font-size: 16px; font-weight: 500;">{{pickedTitle}} is up</strong>
+          <span style="font-size: 12px; opacity: .85;">health checked 3 s ago · 19:42</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <code style="flex: 1 1 360px; min-width: 0; background: rgba(0,0,0,.28); padding: 10px 14px; border-radius: 10px; font: 500 15px 'Roboto Mono', monospace; overflow-wrap: anywhere;">{{link}}</code>
+          <a href="#" style="height: 40px; padding: 0 20px; border-radius: 20px; background: {{accent}}; color: #003351; display: inline-flex; align-items: center; text-decoration: none; font-weight: 500; font-size: 14px;">Open</a>
+          <button type="button" style="height: 40px; padding: 0 20px; border-radius: 20px; border: 1px solid #CEE5FF; background: transparent; color: #CEE5FF; font: 500 14px Roboto, sans-serif; cursor: pointer;">Copy link</button>
+        </div>
+        <span style="font-size: 12px; opacity: .85;">Access code is shown once in the host details. Reachable from this network only.</span>
+      </section>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#8FCDFF","options":["#8FCDFF","#7FD19A","#D1BFE7","#FFB68A"]},"motion":{"editor":"boolean","default":true},"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"stage":{"editor":"enum","options":["finished","hosting","ready"],"default":"ready"},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { picked: 'host' }; }
+  renderVals() {
+    const dark = (this.props.theme ?? 'dark') === 'dark';
+    const accent = this.props.accent ?? '#8FCDFF';
+    const c = dark
+      ? { bg:'#0B0E11', surfLow:'#191C20', surfCont:'#1D2024', surfHigh:'#272A2E', onSurf:'#E1E2E8', onSurfVar:'#C2C7CF', outline:'#8C9199', outlineVar:'#42474E', secCont:'#384956', primCont:'#004B73' }
+      : { bg:'#F7F9FF', surfLow:'#F1F4FA', surfCont:'#EBEEF4', surfHigh:'#E5E8EE', onSurf:'#181C20', onSurfVar:'#41474D', outline:'#6C737A', outlineVar:'#C1C7CE', secCont:'#D3E5F5', primCont:'#004B73' };
+    const defs = [
+      { id:'host', kicker:'CONTAINER', title:'Host the map', body:'Runs the map in a container on this PC or on an SSH host. You get a link to open and share on your network.', targets:'this PC · SSH host', link:'http://192.0.2.59:8100/' },
+      { id:'appliance', kicker:'APPLIANCE', title:'Build an appliance', body:'Builds a small operating system that boots straight into the map. Starts in VMware or VirtualBox, or writes a USB stick to plug into any PC.', targets:'VMware · VirtualBox · USB', link:'http://192.0.2.141/' },
+      { id:'live', kicker:'LIVE 3D', title:'Live viewer and bot', body:'Hosts Prismarine Viewer or Prismarine Web Client with a mineflayer bot on your server, so people watch the world in 3D.', targets:'this PC · SSH host', link:'http://192.0.2.59:3007/' }
+    ];
+    const picked = this.state.picked;
+    const p = defs.find(d => d.id === picked) || defs[0];
+    const stage = this.props.stage ?? 'ready';
+    return { ...c, accent,
+      rootClass: (this.props.motion ?? true) ? 'wl-motion' : '',
+      routes: defs.map(d => ({ ...d, pressed: d.id === picked ? 'true' : 'false', bg: d.id === picked ? c.surfHigh : c.surfCont, border: d.id === picked ? '2px solid ' + accent : '1px solid ' + c.outlineVar, pick: () => this.setState({ picked: d.id }) })),
+      pickedTitle: p.title, link: p.link,
+      isHosting: stage === 'hosting', isReady: stage === 'ready' };
+  }
+}
+</script>
+</body>
+</html>

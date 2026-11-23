@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Share on a phone</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+button:focus-visible,a:focus-visible{outline:3px solid #8FCDFF;outline-offset:2px}
+</style>
+</helmet>
+<div style="width: 390px; height: 844px; box-sizing: border-box; background: {{bg}}; color: {{onSurf}}; font-family: Roboto, Helvetica, sans-serif; padding: 20px 16px; display: flex; flex-direction: column; gap: 12px; overflow: hidden;">
+  <h1 style="margin: 0; font-size: 22px; font-weight: 500;">Example survival</h1>
+  <section style="background: {{surfCont}}; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+    <strong style="font-size: 16px; font-weight: 500;">Rendered</strong>
+    <span style="font-size: 12px; color: {{onSurfVar}}; font-family: 'Roboto Mono', monospace;">14 min 08 s · BlueMap 5.4</span>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+      <button type="button" style="height: 48px; flex: 1 1 140px; border-radius: 24px; border: 0; background: {{accent}}; color: #003351; font: 500 14px Roboto;">Open map</button>
+      <button type="button" style="height: 48px; flex: 1 1 140px; border-radius: 24px; border: 1px solid {{outline}}; background: transparent; color: {{onSurf}}; font: 500 14px Roboto;">Render again</button>
+    </div>
+  </section>
+  <h2 style="margin: 4px 0 0; font-size: 16px; font-weight: 500;">Share this map</h2>
+  <sc-for list="{{routes}}" as="r" hint-placeholder-count="3">
+    <button type="button" style="text-align: left; min-height: 64px; border-radius: 16px; border: 1px solid {{outlineVar}}; background: {{surfCont}}; color: {{onSurf}}; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; font-family: Roboto;">
+      <span style="font-size: 15px; font-weight: 500;">{{r.t}}</span>
+      <span style="font-size: 12px; color: {{onSurfVar}};">{{r.s}}</span>
+    </button>
+  </sc-for>
+  <section role="status" style="background: #004B73; color: #CEE5FF; border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 10px;">
+    <strong style="font-size: 15px; font-weight: 500;">Host the map is up</strong>
+    <code style="background: rgba(0,0,0,.28); padding: 10px 12px; border-radius: 10px; font: 500 14px 'Roboto Mono', monospace; overflow-wrap: anywhere;">http://192.0.2.59:8100/</code>
+    <div style="display: flex; gap: 8px;">
+      <a href="#" style="flex: 1; height: 48px; border-radius: 24px; background: {{accent}}; color: #003351; display: flex; align-items: center; justify-content: center; text-decoration: none; font-weight: 500;">Open</a>
+      <button type="button" style="flex: 1; height: 48px; border-radius: 24px; border: 1px solid #CEE5FF; background: transparent; color: #CEE5FF; font: 500 14px Roboto;">Copy link</button>
+    </div>
+  </section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#8FCDFF","options":["#8FCDFF","#7FD19A","#D1BFE7","#FFB68A"]},"motion":{"editor":"boolean","default":true},"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = (this.props.theme ?? 'dark') === 'dark';
+    const c = dark
+      ? { bg:'#0B0E11', surfCont:'#1D2024', onSurf:'#E1E2E8', onSurfVar:'#C2C7CF', outline:'#8C9199', outlineVar:'#42474E' }
+      : { bg:'#F7F9FF', surfCont:'#EBEEF4', onSurf:'#181C20', onSurfVar:'#41474D', outline:'#6C737A', outlineVar:'#C1C7CE' };
+    return { ...c, accent: this.props.accent ?? '#8FCDFF',
+      routes: [ { t:'Host the map', s:'This PC or an SSH host' }, { t:'Build an appliance', s:'VMware, VirtualBox, USB or export' }, { t:'Live viewer and bot', s:'Prismarine plus mineflayer' } ] };
+  }
+}
+</script>
+</body>
+</html>

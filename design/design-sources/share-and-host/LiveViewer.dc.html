@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Live viewer and bot</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+input,select{font:400 14px Roboto,sans-serif}
+.wl-motion .wl-pop{animation:wlpop .42s cubic-bezier(.05,.7,.1,1)}
+.wl-motion .wl-live{animation:wlpulse 1.6s ease-in-out infinite}
+@keyframes wlpop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes wlpulse{50%{opacity:.35}}
+@media (prefers-reduced-motion: reduce){.wl-pop,.wl-live{animation:none!important}}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8FCDFF;outline-offset:2px}
+</style>
+</helmet>
+<div class="{{rootClass}}" style="width: 1280px; height: 820px; box-sizing: border-box; background: {{bg}}; color: {{onSurf}}; font-family: Roboto, Helvetica, sans-serif; padding: 24px 40px; display: flex; flex-direction: column; gap: 14px;">
+  <header style="display: flex; align-items: center; gap: 12px;">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 500;">Live 3D viewer and bot</h1>
+    <div role="radiogroup" aria-label="Viewer" style="margin-left: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid {{outline}}; border-radius: 20px; overflow: hidden; width: 420px;">
+      <sc-for list="{{kinds}}" as="k" hint-placeholder-count="2">
+        <button type="button" role="radio" aria-checked="{{k.checked}}" onClick="{{k.pick}}" style="height: 40px; border: 0; background: {{k.bg}}; color: {{onSurf}}; font: 500 13px Roboto; cursor: pointer;">{{k.label}}</button>
+      </sc-for>
+    </div>
+  </header>
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; flex: 1; min-height: 0;">
+    <section aria-labelledby="srv" style="background: {{surfCont}}; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; overflow: auto;">
+      <h2 id="srv" style="margin: 0; font-size: 15px; font-weight: 500;">Minecraft server</h2>
+      <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Server<select style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 10px;"><option>Survival server · 192.0.2.93:25565 (managed)</option><option>Enter an address…</option></select></label>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Version<select style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 10px;"><option>Detect (1.21.4)</option><option>1.20.4</option><option>1.19.4</option></select></label>
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Bot name<input value="LensBot" style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 12px;"></label>
+      </div>
+      <fieldset style="border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
+        <legend style="font-size: 12px; color: {{onSurfVar}}; margin-bottom: 4px;">Sign-in</legend>
+        <div role="radiogroup" aria-label="Sign-in" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid {{outline}}; border-radius: 18px; overflow: hidden;">
+          <sc-for list="{{auths}}" as="a" hint-placeholder-count="2">
+            <button type="button" role="radio" aria-checked="{{a.checked}}" onClick="{{a.pick}}" style="height: 36px; border: 0; background: {{a.bg}}; color: {{onSurf}}; font: 500 13px Roboto; cursor: pointer;">{{a.label}}</button>
+          </sc-for>
+        </div>
+        <span style="font-size: 12px; color: {{onSurfVar}};">{{authHelp}}</span>
+      </fieldset>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px;">
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Host on<select style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 10px;"><option>This PC</option><option>pi@map-host.example</option></select></label>
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Web port<input value="3007" style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 12px; font-family: 'Roboto Mono', monospace;"></label>
+      </div>
+    </section>
+
+    <section aria-labelledby="view" style="background: {{surfCont}}; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; overflow: auto;">
+      <h2 id="view" style="margin: 0; font-size: 15px; font-weight: 500;">Viewer</h2>
+      <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: {{onSurfVar}};">View distance: {{dist}} chunks<input type="range" min="2" max="16" value="{{dist}}" onInput="{{setDist}}" style="accent-color: {{accent}};"></label>
+      <div role="radiogroup" aria-label="Camera" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid {{outline}}; border-radius: 18px; overflow: hidden;">
+        <sc-for list="{{cams}}" as="c" hint-placeholder-count="2">
+          <button type="button" role="radio" aria-checked="{{c.checked}}" onClick="{{c.pick}}" style="height: 36px; border: 0; background: {{c.bg}}; color: {{onSurf}}; font: 500 13px Roboto; cursor: pointer;">{{c.label}}</button>
+        </sc-for>
+      </div>
+      <sc-for list="{{viewSw}}" as="s" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="flex: 1; font-size: 14px;">{{s.label}}</span>
+          <button type="button" role="switch" aria-checked="{{s.on}}" aria-label="{{s.label}}" onClick="{{s.flip}}" style="width: 52px; height: 32px; border-radius: 16px; border: 2px solid {{s.track}}; background: {{s.fill}}; position: relative; cursor: pointer; flex-shrink: 0;"><span style="position: absolute; top: 4px; left: {{s.knobX}}; width: 20px; height: 20px; border-radius: 10px; background: {{s.knob}};"></span></button>
+        </div>
+      </sc-for>
+      <div aria-hidden="true" style="flex: 1; min-height: 120px; border-radius: 12px; background: linear-gradient(180deg,#7EB7E8 0%,#B9DCF3 55%,#5E9B4C 55%,#3F7A34 100%); position: relative; overflow: hidden;">
+        <div style="position: absolute; left: 30%; bottom: 30%; width: 64px; height: 64px; background: #8A6A45;"></div>
+        <div style="position: absolute; left: 50%; bottom: 30%; width: 40px; height: 96px; background: #6B4B2C;"></div>
+        <span class="wl-live" style="position: absolute; top: 8px; left: 8px; background: #93000A; color: #FFDAD6; font: 500 11px Roboto; padding: 2px 8px; border-radius: 8px;">LIVE</span>
+      </div>
+    </section>
+
+    <section aria-labelledby="bot" style="background: {{surfCont}}; border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 10px; overflow: auto;">
+      <h2 id="bot" style="margin: 0; font-size: 15px; font-weight: 500;">Bot behaviour</h2>
+      <sc-for list="{{botSw}}" as="s" hint-placeholder-count="6">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="flex: 1; display: flex; flex-direction: column;"><span style="font-size: 14px;">{{s.label}}</span><span style="font-size: 12px; color: {{onSurfVar}};">{{s.help}}</span></span>
+          <button type="button" role="switch" aria-checked="{{s.on}}" aria-label="{{s.label}}" onClick="{{s.flip}}" style="width: 52px; height: 32px; border-radius: 16px; border: 2px solid {{s.track}}; background: {{s.fill}}; position: relative; cursor: pointer; flex-shrink: 0;"><span style="position: absolute; top: 4px; left: {{s.knobX}}; width: 20px; height: 20px; border-radius: 10px; background: {{s.knob}};"></span></button>
+        </div>
+      </sc-for>
+      <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Follow player<input value="Steve" style="height: 40px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 12px;"></label>
+      <button type="button" style="height: 48px; border-radius: 24px; border: 0; background: {{accent}}; color: #003351; font: 500 15px Roboto; cursor: pointer; margin-top: auto;">Host the viewer</button>
+    </section>
+  </div>
+  <sc-if value="{{isReady}}" hint-placeholder-val="{{true}}">
+    <div class="wl-pop" role="status" aria-live="polite" style="background: #004B73; color: #CEE5FF; border-radius: 16px; padding: 14px 20px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+      <strong style="font-size: 15px; font-weight: 500;">{{readyTitle}}</strong>
+      <code style="flex: 1 1 260px; min-width: 0; background: rgba(0,0,0,.28); padding: 8px 12px; border-radius: 10px; font: 500 14px 'Roboto Mono', monospace;">http://192.0.2.59:3007/</code>
+      <a href="#" style="height: 40px; padding: 0 20px; border-radius: 20px; background: {{accent}}; color: #003351; display: inline-flex; align-items: center; text-decoration: none; font-weight: 500;">Open</a>
+      <button type="button" style="height: 40px; padding: 0 20px; border-radius: 20px; border: 1px solid #CEE5FF; background: transparent; color: #CEE5FF; font: 500 14px Roboto; cursor: pointer;">Copy link</button>
+      <span style="font-size: 12px; opacity: .85;">LensBot joined at 19:58 · 23 ms ping</span>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#8FCDFF","options":["#8FCDFF","#7FD19A","#D1BFE7","#FFB68A"]},"motion":{"editor":"boolean","default":true},"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"stage":{"editor":"enum","options":["configure","ready"],"default":"ready"},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { kind: 'viewer', auth: 'offline', cam: 'third', dist: 6, sw: { mouse: true, chat: true, reconnect: true, follow: true, look: false, relay: true, sleep: false, firstPerson: false, players: true } }; }
+  seg(list, key){ const c = this.colors; return list.map(([id,label]) => ({ label, checked: this.state[key] === id ? 'true' : 'false', bg: this.state[key] === id ? (c.dark ? '#384956' : '#D3E5F5') : 'transparent', pick: () => this.setState({ [key]: id }) })); }
+  sws(defs){ const sw = this.state.sw, c = this.colors, a = this.accent; return defs.map(([id,label,help]) => { const on = sw[id]; return { label, help, on: on ? 'true' : 'false', fill: on ? a : 'transparent', track: on ? a : c.outline, knob: on ? '#003351' : c.outline, knobX: on ? '26px' : '4px', flip: () => this.setState({ sw: { ...sw, [id]: !on } }) }; }); }
+  renderVals() {
+    const dark = (this.props.theme ?? 'dark') === 'dark';
+    this.accent = this.props.accent ?? '#8FCDFF';
+    this.colors = dark
+      ? { dark, bg:'#0B0E11', surfCont:'#1D2024', surfHigh:'#272A2E', onSurf:'#E1E2E8', onSurfVar:'#C2C7CF', outline:'#8C9199' }
+      : { dark, bg:'#F7F9FF', surfCont:'#EBEEF4', surfHigh:'#E5E8EE', onSurf:'#181C20', onSurfVar:'#41474D', outline:'#6C737A' };
+    const k = this.state.kind;
+    return { ...this.colors, accent: this.accent, rootClass: (this.props.motion ?? true) ? 'wl-motion' : '',
+      kinds: this.seg([['viewer','Prismarine Viewer'],['client','Prismarine Web Client']], 'kind'),
+      auths: this.seg([['offline','Offline name'],['microsoft','Microsoft account']], 'auth'),
+      cams: this.seg([['third','Follow camera'],['first','First person']], 'cam'),
+      authHelp: this.state.auth === 'microsoft' ? 'Sign in with a code at microsoft.com/link. The session is kept in protected app storage.' : 'Works on servers in offline mode only.',
+      dist: this.state.dist, setDist: (e) => this.setState({ dist: Number(e.target.value) }),
+      viewSw: this.sws([['mouse','Mouse look for visitors'],['players','Show other players'],['chat','Show chat beside the view']]),
+      botSw: this.sws([['reconnect','Reconnect after a kick','Waits 10 s, then up to 5 tries.'],['follow','Follow a player','Path-finds to stay close.'],['look','Look at nearby players','Turns its head only.'],['relay','Relay chat to the page','Visitors read chat live.'],['sleep','Sleep at night','Uses a bed when one is near.']]),
+      isReady: (this.props.stage ?? 'ready') === 'ready',
+      readyTitle: k === 'viewer' ? 'Prismarine Viewer is up' : 'Prismarine Web Client is up' };
+  }
+}
+</script>
+</body>
+</html>

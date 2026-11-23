@@ -1,0 +1,40 @@
+{
+  "v": 3,
+  "createdOnFiles": { "v": 1, "at": "2026-11-23T18:40:00Z" },
+  "title": "Worldlens Share and Host",
+  "launch": { "view": "canvas", "page": "share" },
+  "pages": [
+    { "id": "share", "name": "Share after render" },
+    { "id": "host", "name": "Docker-hosted map" },
+    { "id": "appliance", "name": "Appliance OS image" },
+    { "id": "live", "name": "Live viewer and bot" },
+    { "id": "nbt", "name": "NBT editor" },
+    { "id": "instances", "name": "Instances" }
+  ],
+  "boards": {
+    "Main.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 820, "title": "Render finished: share this map", "is_interactive": true, "page": "share" },
+    "Phone.dc.html": { "x": 1360, "y": 0, "w": 390, "h": 844, "title": "Phone width: ready card", "page": "share" },
+    "HostMap.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 820, "title": "Docker-hosted map (this PC or SSH host)", "is_interactive": true, "page": "host" },
+    "Appliance.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 820, "title": "Appliance OS image (VMware, VirtualBox, USB, export)", "is_interactive": true, "page": "appliance" },
+    "LiveViewer.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 820, "title": "Live 3D viewer and mineflayer bot", "is_interactive": true, "page": "live" },
+    "NbtEditor.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 820, "title": "NBT editor with project history", "is_interactive": true, "page": "nbt" },
+    "Instances.dc.html": { "x": 0, "y": 0, "w": 1280, "h": 820, "title": "Hosted instances (hosted maps and appliances)", "is_interactive": true, "page": "instances" }
+  },
+  "order": ["Main.dc.html", "Phone.dc.html", "HostMap.dc.html", "Appliance.dc.html", "LiveViewer.dc.html", "NbtEditor.dc.html", "Instances.dc.html"],
+  "notes": {
+    "title": { "x": 0, "y": -300, "text": "Share a finished render", "kind": "title1", "maxW": 1750, "page": "share" },
+    "nMain": { "x": 0, "y": 880, "w": 560, "fill": "blue", "page": "share", "text": "Shows: the finished-render card with three share routes beside Open map.\nTry: the Stage tweak (finished, hosting, ready) and click a route card.\nUnbuilt: target for the render panel." },
+    "nPhone": { "x": 1840, "y": 0, "w": 420, "fill": "blue", "page": "share", "text": "Shows: the ready card at 390 px. Nothing is removed on a phone; route cards stack and actions wrap.\nTry: nothing interactive here; it is the parity reference." },
+    "tHost": { "x": 0, "y": -300, "text": "Docker-hosted map", "kind": "title1", "maxW": 1280, "page": "host" },
+    "nHost": { "x": 1360, "y": 0, "w": 520, "fill": "blue", "page": "host", "text": "Shows: one-click hosting of the rendered map as a container on this PC or an SSH host.\nTry: Target switch, the Stage tweak for progress, ready and failure.\nUnbuilt: real progress comes from the main process." },
+    "tAppliance": { "x": 0, "y": -300, "text": "Appliance OS image", "kind": "title1", "maxW": 1280, "page": "appliance" },
+    "nAppliance": { "x": 1360, "y": 0, "w": 520, "fill": "blue", "page": "appliance", "text": "Shows: the appliance with every part bundled; one-click start in VMware or VirtualBox, a bootable USB, or an exported image to install by hand.\nTry: the four targets, the USB confirmation, Stage tweak.\nUnbuilt: the USB write needs an administrator prompt the user approves." },
+    "tLive": { "x": 0, "y": -300, "text": "Live viewer and bot", "kind": "title1", "maxW": 1280, "page": "live" },
+    "nLive": { "x": 1360, "y": 0, "w": 520, "fill": "blue", "page": "live", "text": "Shows: Prismarine Viewer or Prismarine Web Client plus a mineflayer bot, every option a real control.\nTry: Viewer kind and sign-in switches, bot behaviour toggles.\nUnbuilt: Microsoft sign-in uses the device-code flow; nothing is stored in plain text." },
+    "tNbt": { "x": 0, "y": -300, "text": "NBT editor", "kind": "title1", "maxW": 1280, "page": "nbt" },
+    "nNbt": { "x": 1360, "y": 0, "w": 520, "fill": "blue", "page": "nbt", "text": "Shows: a tree editor for every NBT tag type with typed inline controls, search with regex, and a history panel backed by one Git repository per project.\nTry: expand nodes, edit values, the History tab.\nUnbuilt: region-file chunk browsing beyond the first level." },
+    "tInstances": { "x": 0, "y": -300, "text": "Instances", "kind": "title1", "maxW": 1280, "page": "instances" },
+    "nInstances": { "x": 1360, "y": 0, "w": 520, "fill": "blue", "page": "instances", "text": "Shows: every instance this app created, with health checked just now, link, open, copy, logs, stop, remove.\nTry: the row actions; Remove names exactly what is deleted." }
+  },
+  "designSystems": []
+}

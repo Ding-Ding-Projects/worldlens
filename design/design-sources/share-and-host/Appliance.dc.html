@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Build the appliance</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+input,select{font:400 14px Roboto,sans-serif}
+.wl-motion .wl-pop{animation:wlpop .42s cubic-bezier(.05,.7,.1,1)}
+.wl-motion .wl-run{animation:wlpulse 1.4s ease-in-out infinite}
+.wl-motion .wl-tile{transition:transform .2s cubic-bezier(.2,0,0,1)}
+.wl-motion .wl-tile:hover{transform:translateY(-2px)}
+@keyframes wlpop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes wlpulse{50%{opacity:.45}}
+@media (prefers-reduced-motion: reduce){.wl-pop,.wl-run,.wl-tile{animation:none!important;transition:none!important}}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8FCDFF;outline-offset:2px}
+</style>
+</helmet>
+<div class="{{rootClass}}" style="width: 1280px; height: 820px; box-sizing: border-box; background: {{bg}}; color: {{onSurf}}; font-family: Roboto, Helvetica, sans-serif; padding: 28px 40px; display: flex; flex-direction: column; gap: 16px;">
+  <header style="display: flex; align-items: center; gap: 12px;">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 500;">Build an appliance</h1>
+    <span style="font-size: 13px; color: {{onSurfVar}};">A small Linux that boots straight into this map. Everything it needs ships inside Worldlens.</span>
+  </header>
+  <div role="radiogroup" aria-label="Where the appliance runs" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px;">
+    <sc-for list="{{targets}}" as="t" hint-placeholder-count="3">
+      <button type="button" class="wl-tile" role="radio" aria-checked="{{t.checked}}" onClick="{{t.pick}}" style="text-align: left; border: {{t.border}}; background: {{t.bg}}; color: {{onSurf}}; border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; font-family: Roboto;">
+        <span style="font-size: 16px; font-weight: 500;">{{t.label}}</span>
+        <span style="font-size: 12px; color: {{onSurfVar}}; line-height: 1.4;">{{t.body}}</span>
+        <span style="font-family: 'Roboto Mono', monospace; font-size: 11px; color: {{t.statusColor}};">{{t.status}}</span>
+      </button>
+    </sc-for>
+  </div>
+  <div style="display: flex; gap: 24px; flex: 1; min-height: 0;">
+    <form aria-label="Appliance settings" style="flex: 0 0 470px; background: {{surfCont}}; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px; overflow: auto;">
+      <sc-if value="{{isVm}}" hint-placeholder-val="{{true}}">
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Virtual machine name<input value="worldlens-bayville" style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 12px;"></label>
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Network<select style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 10px;"><option>Bridged: Ethernet (LAN)</option><option>NAT with port forward</option></select></label>
+        </div>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: {{onSurfVar}};">Memory: {{memory}} MB
+          <input type="range" min="256" max="4096" step="256" value="{{memory}}" onInput="{{setMemory}}" style="accent-color: {{accent}};">
+        </label>
+        <label style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: {{onSurfVar}};">Processors: {{cpus}}
+          <input type="range" min="1" max="8" step="1" value="{{cpus}}" onInput="{{setCpus}}" style="accent-color: {{accent}};">
+        </label>
+      </sc-if>
+      <sc-if value="{{isUsb}}" hint-placeholder-val="{{false}}">
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">USB drive (removable disks only)
+          <select style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 10px;"><option>Choose a drive…</option><option>SanDisk Ultra · 29.8 GB · disk 3</option></select>
+        </label>
+        <div role="note" style="border: 2px solid #FFB4AB; border-radius: 12px; padding: 12px; font-size: 13px; color: #FFDAD6; background: rgba(147,0,10,.35);">
+          Everything on the chosen drive is erased. To confirm, type its name: <code style="font-family: 'Roboto Mono', monospace;">SanDisk Ultra</code>
+          <input aria-label="Type the drive name to confirm" placeholder="SanDisk Ultra" style="margin-top: 8px; width: 100%; box-sizing: border-box; height: 40px; border-radius: 8px; border: 1px solid #FFB4AB; background: transparent; color: #FFDAD6; padding: 0 10px;">
+        </div>
+        <span style="font-size: 12px; color: {{onSurfVar}};">Writing a disk asks Windows for administrator approval once. The written image is read back and checked before it says done.</span>
+      </sc-if>
+      <sc-if value="{{isExport}}" hint-placeholder-val="{{false}}">
+        <fieldset style="border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+          <legend style="font-size: 13px; font-weight: 500; margin-bottom: 6px;">Image format</legend>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; min-height: 32px;"><input type="radio" name="fmt" style="accent-color: {{accent}};"> Raw disk (.img)</label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; min-height: 32px;"><input type="radio" name="fmt" checked style="accent-color: {{accent}};"> VMware disk (.vmdk)</label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; min-height: 32px;"><input type="radio" name="fmt" style="accent-color: {{accent}};"> Hyper-V disk (.vhdx)</label>
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; min-height: 32px;"><input type="radio" name="fmt" style="accent-color: {{accent}};"> Appliance (.ova)</label>
+        </fieldset>
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Save to<input value="D:\Worldlens\" style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 12px; font-family: 'Roboto Mono', monospace;"></label>
+      </sc-if>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Host name<input value="worldlens-map" style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 12px;"></label>
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Web port<input value="80" inputmode="numeric" style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 12px; font-family: 'Roboto Mono', monospace;"></label>
+      </div>
+      <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; min-height: 32px;"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: {{accent}};"> Ask for an access code</label>
+      <button type="button" style="height: 48px; border-radius: 24px; border: 0; background: {{accent}}; color: #003351; font: 500 15px Roboto; cursor: pointer; margin-top: auto;">{{cta}}</button>
+    </form>
+    <section aria-label="Build progress" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 14px;">
+      <ol style="list-style: none; margin: 0; padding: 18px 20px; background: {{surfCont}}; border-radius: 16px; display: flex; flex-direction: column; gap: 11px;">
+        <sc-for list="{{steps}}" as="s" hint-placeholder-count="6">
+          <li style="display: flex; align-items: center; gap: 12px; font-size: 14px;">
+            <span class="{{s.cls}}" aria-hidden="true" style="width: 22px; height: 22px; border-radius: 11px; border: 2px solid {{s.color}}; background: {{s.dot}}; flex-shrink: 0;"></span>
+            <span style="flex: 1;">{{s.label}}</span>
+            <span style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: {{onSurfVar}};">{{s.meta}}</span>
+          </li>
+        </sc-for>
+      </ol>
+      <sc-if value="{{isReady}}" hint-placeholder-val="{{true}}">
+        <div class="wl-pop" role="status" aria-live="polite" style="background: #004B73; color: #CEE5FF; border-radius: 16px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px;">
+          <strong style="font-size: 18px; font-weight: 500;">{{readyTitle}}</strong>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <code style="flex: 1 1 280px; min-width: 0; background: rgba(0,0,0,.28); padding: 10px 14px; border-radius: 10px; font: 500 15px 'Roboto Mono', monospace;">{{link}}</code>
+            <a href="#" style="height: 40px; padding: 0 20px; border-radius: 20px; background: {{accent}}; color: #003351; display: inline-flex; align-items: center; text-decoration: none; font-weight: 500;">Open</a>
+            <button type="button" style="height: 40px; padding: 0 20px; border-radius: 20px; border: 1px solid #CEE5FF; background: transparent; color: #CEE5FF; font: 500 14px Roboto; cursor: pointer;">Copy link</button>
+          </div>
+          <span style="font-size: 12px; opacity: .85;">{{readyNote}}</span>
+        </div>
+      </sc-if>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#8FCDFF","options":["#8FCDFF","#7FD19A","#D1BFE7","#FFB68A"]},"motion":{"editor":"boolean","default":true},"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"stage":{"editor":"enum","options":["configure","progress","ready"],"default":"ready"},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { target: 'vmware', memory: 1024, cpus: 2 }; }
+  renderVals() {
+    const dark = (this.props.theme ?? 'dark') === 'dark';
+    const accent = this.props.accent ?? '#8FCDFF';
+    const c = dark
+      ? { bg:'#0B0E11', surfCont:'#1D2024', surfHigh:'#272A2E', onSurf:'#E1E2E8', onSurfVar:'#C2C7CF', outline:'#8C9199', outlineVar:'#42474E' }
+      : { bg:'#F7F9FF', surfCont:'#EBEEF4', surfHigh:'#E5E8EE', onSurf:'#181C20', onSurfVar:'#41474D', outline:'#6C737A', outlineVar:'#C1C7CE' };
+    const t = this.state.target; const stage = this.props.stage ?? 'ready';
+    const defs = [
+      ['vmware','VMware Workstation','Creates the virtual machine and starts it.','found: vmrun 17.6'],
+      ['virtualbox','VirtualBox','Creates the virtual machine and starts it.','found: VBoxManage 7.1'],
+      ['usb','Bootable USB','Plug into any PC, boot from USB, the map serves itself.','removable drives: 1'],
+      ['export','Export image','Save the disk image to install by hand anywhere.','.img · .vmdk · .vhdx · .ova']
+    ];
+    const isUsb = t === 'usb'; const isExport = t === 'export';
+    const labels = isExport
+      ? [['Bundled appliance base (Alpine, Docker, map server)','148 MB · sha256 ok'],['Pack the map onto a data partition','820 MB'],['Write the chosen format','.vmdk · 968 MB'],['Write the checksum and install note','SHA256SUMS · INSTALL.txt']]
+      : isUsb
+      ?[['Bundled appliance base (Alpine, Docker, map server)','148 MB · sha256 ok'],['Pack the map onto a data partition','820 MB'],['Write the drive','968 MB'],['Read back and compare','sha256 match'],['Safe to remove','']]
+      : [['Bundled appliance base (Alpine, Docker, map server)','148 MB · sha256 ok'],['Pack the map onto a data partition','820 MB'],['Make the virtual disk','968 MB'],['Create and start the virtual machine','2 s'],['Wait for it to boot and report its address','31 s'],['Check the link from this PC','200 OK']];
+    const upTo = stage === 'configure' ? -1 : stage === 'progress' ? 2 : 99;
+    return { ...c, accent, rootClass: (this.props.motion ?? true) ? 'wl-motion' : '',
+      targets: defs.map(([id,label,body,status]) => ({ label, body, status, statusColor: accent, checked: t === id ? 'true' : 'false', bg: t === id ? c.surfHigh : c.surfCont, border: t === id ? '2px solid ' + accent : '1px solid ' + c.outlineVar, pick: () => this.setState({ target: id }) })),
+      isVm: !isUsb && !isExport, isUsb, isExport,
+      memory: this.state.memory, cpus: this.state.cpus,
+      setMemory: (e) => this.setState({ memory: Number(e.target.value) }),
+      setCpus: (e) => this.setState({ cpus: Number(e.target.value) }),
+      cta: isExport ? 'Build and save the image' : isUsb ? 'Build and write the USB drive' : 'Build and start',
+      steps: labels.map(([label, meta], i) => { const done = i < upTo; const run = i === upTo; return { label, meta: done ? meta : run ? 'working…' : '', cls: run ? 'wl-run' : '', color: done || run ? accent : c.outline, dot: done ? accent : 'transparent' }; }),
+      isReady: stage === 'ready',
+      readyTitle: isExport ? 'The image is saved' : isUsb ? 'The USB drive is ready' : 'The appliance is up in ' + (t === 'vmware' ? 'VMware' : 'VirtualBox'),
+      link: isExport ? 'D:\\Worldlens\\worldlens-bayville.vmdk' : isUsb ?'http://worldlens-map.local/' : 'http://192.0.2.141/',
+      readyNote: isExport ? 'SHA256SUMS and INSTALL.txt sit beside it. Open shows the folder; Copy copies the path. Once booted it serves the map at http://worldlens-map.local/.' : isUsb ? 'Boot any PC from it. The address appears on that PC screen and at worldlens-map.local on most networks.' : 'Address reported by the appliance and checked from this PC at 19:51.' };
+  }
+}
+</script>
+</body>
+</html>

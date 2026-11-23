@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Host the map</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+input,select{font:400 14px Roboto,sans-serif}
+.wl-motion .wl-pop{animation:wlpop .42s cubic-bezier(.05,.7,.1,1)}
+.wl-motion .wl-run{animation:wlpulse 1.4s ease-in-out infinite}
+@keyframes wlpop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes wlpulse{50%{opacity:.45}}
+@media (prefers-reduced-motion: reduce){.wl-pop,.wl-run{animation:none!important}}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8FCDFF;outline-offset:2px}
+</style>
+</helmet>
+<div class="{{rootClass}}" style="width: 1280px; height: 820px; box-sizing: border-box; background: {{bg}}; color: {{onSurf}}; font-family: Roboto, Helvetica, sans-serif; padding: 28px 40px; display: flex; flex-direction: column; gap: 18px;">
+  <header style="display: flex; align-items: center; gap: 12px;">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 500;">Host the map</h1>
+    <span style="font-size: 13px; color: {{onSurfVar}};">Example survival · render 2026-11-23 19:28</span>
+    <button type="button" style="margin-left: auto; height: 36px; padding: 0 16px; border-radius: 18px; border: 1px solid {{outline}}; background: transparent; color: {{onSurf}}; font: 500 13px Roboto; cursor: pointer;">Help for this page</button>
+  </header>
+  <div style="display: flex; gap: 24px; flex: 1; min-height: 0;">
+    <form aria-label="Hosting settings" style="flex: 0 0 470px; background: {{surfCont}}; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px; overflow: auto;">
+      <fieldset style="border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px;">
+        <legend style="font-size: 13px; font-weight: 500; margin-bottom: 8px;">Where it runs</legend>
+        <div role="radiogroup" aria-label="Where it runs" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid {{outline}}; border-radius: 20px; overflow: hidden;">
+          <sc-for list="{{targets}}" as="t" hint-placeholder-count="2">
+            <button type="button" role="radio" aria-checked="{{t.checked}}" onClick="{{t.pick}}" style="height: 40px; border: 0; background: {{t.bg}}; color: {{onSurf}}; font: 500 14px Roboto; cursor: pointer;">{{t.label}}</button>
+          </sc-for>
+        </div>
+        <sc-if value="{{isSsh}}" hint-placeholder-val="{{false}}">
+          <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">SSH host (saved targets)
+            <select style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 10px;"><option>pi@map-host.example · Raspberry Pi 5 · arm64</option><option>admin@nas.example · x86_64</option><option>Add an SSH host…</option></select>
+          </label>
+          <span style="font-size: 12px; color: {{onSurfVar}};">Docker on that host: found 27.3 · host key matches the saved fingerprint.</span>
+        </sc-if>
+        <sc-if value="{{isLocal}}" hint-placeholder-val="{{true}}">
+          <span style="font-size: 12px; color: {{onSurfVar}};">Docker Desktop on this PC: running 4.38 · the map server image ships inside Worldlens.</span>
+        </sc-if>
+      </fieldset>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Instance name<input value="bayville-map" style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 12px;"></label>
+        <label style="display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: {{onSurfVar}};">Port (free: checked)<input value="8100" inputmode="numeric" style="height: 44px; border-radius: 8px; border: 1px solid {{outline}}; background: {{surfHigh}}; color: {{onSurf}}; padding: 0 12px; font-family: 'Roboto Mono', monospace;"></label>
+      </div>
+      <fieldset style="border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px;">
+        <legend style="font-size: 13px; font-weight: 500; margin-bottom: 6px;">Maps to include</legend>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; min-height: 32px;"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: {{accent}};"> Overworld · 612 MB</label>
+        <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; min-height: 32px;"><input type="checkbox" checked style="width: 18px; height: 18px; accent-color: {{accent}};"> Nether · 208 MB</label>
+      </fieldset>
+      <sc-for list="{{switches}}" as="s" hint-placeholder-count="3">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="flex: 1; display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 14px;">{{s.label}}</span><span style="font-size: 12px; color: {{onSurfVar}};">{{s.help}}</span></span>
+          <button type="button" role="switch" aria-checked="{{s.on}}" aria-label="{{s.label}}" onClick="{{s.flip}}" style="width: 52px; height: 32px; border-radius: 16px; border: 2px solid {{s.track}}; background: {{s.fill}}; position: relative; cursor: pointer; flex-shrink: 0;"><span style="position: absolute; top: 4px; left: {{s.knobX}}; width: 20px; height: 20px; border-radius: 10px; background: {{s.knob}}; transition: left .2s;"></span></button>
+        </div>
+      </sc-for>
+      <button type="button" style="height: 48px; border-radius: 24px; border: 0; background: {{accent}}; color: #003351; font: 500 15px Roboto; cursor: pointer; margin-top: auto;">Host now</button>
+    </form>
+
+    <section aria-label="Progress and result" style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px;">
+      <ol style="list-style: none; margin: 0; padding: 20px; background: {{surfCont}}; border-radius: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <sc-for list="{{steps}}" as="s" hint-placeholder-count="5">
+          <li style="display: flex; align-items: center; gap: 12px; font-size: 14px;">
+            <span class="{{s.cls}}" aria-hidden="true" style="width: 22px; height: 22px; border-radius: 11px; border: 2px solid {{s.color}}; background: {{s.dot}}; flex-shrink: 0;"></span>
+            <span style="flex: 1;">{{s.label}}</span>
+            <span style="font-family: 'Roboto Mono', monospace; font-size: 12px; color: {{onSurfVar}};">{{s.meta}}</span>
+          </li>
+        </sc-for>
+      </ol>
+      <sc-if value="{{isReady}}" hint-placeholder-val="{{true}}">
+        <div class="wl-pop" role="status" aria-live="polite" style="background: #004B73; color: #CEE5FF; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+          <strong style="font-size: 18px; font-weight: 500;">The map is up on {{where}}</strong>
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <code style="flex: 1 1 300px; min-width: 0; background: rgba(0,0,0,.28); padding: 10px 14px; border-radius: 10px; font: 500 15px 'Roboto Mono', monospace;">{{link}}</code>
+            <a href="#" style="height: 40px; padding: 0 20px; border-radius: 20px; background: {{accent}}; color: #003351; display: inline-flex; align-items: center; text-decoration: none; font-weight: 500;">Open</a>
+            <button type="button" style="height: 40px; padding: 0 20px; border-radius: 20px; border: 1px solid #CEE5FF; background: transparent; color: #CEE5FF; font: 500 14px Roboto; cursor: pointer;">Copy link</button>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center; font-size: 13px; flex-wrap: wrap;">
+            <span>Viewer name <code style="font-family: 'Roboto Mono', monospace;">viewer</code> · access code</span>
+            <code style="background: rgba(0,0,0,.28); padding: 4px 10px; border-radius: 8px; font-family: 'Roboto Mono', monospace;">kite-amber-4192</code>
+            <button type="button" style="height: 32px; padding: 0 14px; border-radius: 16px; border: 1px solid #CEE5FF; background: transparent; color: #CEE5FF; font: 500 12px Roboto; cursor: pointer;">Copy code</button>
+            <span style="opacity: .8;">Shown once. Health checked 2 s ago at 19:44.</span>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{isFailed}}" hint-placeholder-val="{{false}}">
+        <div class="wl-pop" role="alert" style="background: #93000A; color: #FFDAD6; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+          <strong style="font-size: 18px; font-weight: 500;">Hosting did not finish</strong>
+          <code style="background: rgba(0,0,0,.3); padding: 10px 14px; border-radius: 10px; font: 13px 'Roboto Mono', monospace; white-space: pre-wrap;">docker run … worldlens-map-server@sha256:9c1e…  exit 125
+Bind for 0.0.0.0:8100 failed: port is already allocated</code>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button type="button" style="height: 40px; padding: 0 18px; border-radius: 20px; border: 0; background: #FFDAD6; color: #410002; font: 500 14px Roboto; cursor: pointer;">Use port 8101 and retry</button>
+            <button type="button" style="height: 40px; padding: 0 18px; border-radius: 20px; border: 1px solid #FFDAD6; background: transparent; color: #FFDAD6; font: 500 14px Roboto; cursor: pointer;">Copy details</button>
+          </div>
+        </div>
+      </sc-if>
+    </section>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#8FCDFF","options":["#8FCDFF","#7FD19A","#D1BFE7","#FFB68A"]},"motion":{"editor":"boolean","default":true},"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"stage":{"editor":"enum","options":["configure","progress","ready","failed"],"default":"ready"},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  constructor(p){ super(p); this.state = { target: 'local', sw: { boot: true, code: true, lan: true } }; }
+  renderVals() {
+    const dark = (this.props.theme ?? 'dark') === 'dark';
+    const accent = this.props.accent ?? '#8FCDFF';
+    const c = dark
+      ? { bg:'#0B0E11', surfCont:'#1D2024', surfHigh:'#272A2E', onSurf:'#E1E2E8', onSurfVar:'#C2C7CF', outline:'#8C9199', outlineVar:'#42474E' }
+      : { bg:'#F7F9FF', surfCont:'#EBEEF4', surfHigh:'#E5E8EE', onSurf:'#181C20', onSurfVar:'#41474D', outline:'#6C737A', outlineVar:'#C1C7CE' };
+    const stage = this.props.stage ?? 'ready';
+    const t = this.state.target;
+    const order = ['configure','progress','ready','failed'];
+    const doneUpTo = stage === 'configure' ? -1 : stage === 'progress' ? 2 : stage === 'failed' ? 3 : 5;
+    const labels = [['Load the bundled map server image','2.1 MB · 1 s'],['Pack the rendered map','820 MB · 38 s'],['Copy it into a private volume','41 s'],['Start the container','2 s'],['Check health and the network link','200 OK']];
+    const sw = this.state.sw;
+    const swDefs = [['boot','Start again when the computer starts','Restarts unless you stop it.'],['code','Ask for an access code','A viewer name and generated code protect the map.'],['lan','Reachable on my network','Off keeps it on this computer only.']];
+    return { ...c, accent, rootClass: (this.props.motion ?? true) ? 'wl-motion' : '',
+      targets: [['local','This PC'],['ssh','SSH host']].map(([id,label]) => ({ label, checked: t === id ? 'true' : 'false', bg: t === id ? '#384956' : 'transparent', pick: () => this.setState({ target: id }) })),
+      isSsh: t === 'ssh', isLocal: t === 'local',
+      switches: swDefs.map(([id,label,help]) => { const on = sw[id]; return { label, help, on: on ? 'true' : 'false', fill: on ? accent : 'transparent', track: on ? accent : c.outline, knob: on ? '#003351' : c.outline, knobX: on ? '26px' : '4px', flip: () => this.setState({ sw: { ...sw, [id]: !on } }) }; }),
+      steps: labels.map(([label, meta], i) => { const done = i < doneUpTo || stage === 'ready'; const run = stage === 'progress' && i === doneUpTo; const bad = stage === 'failed' && i === 3; return { label, meta: done ? meta : run ? 'working…' : bad ? 'failed' : '', cls: run ? 'wl-run' : '', color: bad ? '#FFB4AB' : done || run ? accent : c.outline, dot: done ? accent : bad ? '#FFB4AB' : 'transparent' }; }),
+      isReady: stage === 'ready', isFailed: stage === 'failed',
+      where: t === 'ssh' ? 'pi@map-host.example' : 'this PC',
+      link: t === 'ssh' ? 'http://192.0.2.93:8100/' : 'http://192.0.2.59:8100/' };
+  }
+}
+</script>
+</body>
+</html>

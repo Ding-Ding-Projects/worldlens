@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hosted instances</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#8FCDFF}a:hover{color:#CEE5FF}
+.wl-motion .wl-card{transition:transform .2s cubic-bezier(.2,0,0,1)}
+.wl-motion .wl-card:hover{transform:translateY(-2px)}
+@media (prefers-reduced-motion: reduce){.wl-card{transition:none!important}}
+button:focus-visible,a:focus-visible{outline:3px solid #8FCDFF;outline-offset:2px}
+</style>
+</helmet>
+<div class="{{rootClass}}" style="width: 1280px; height: 820px; box-sizing: border-box; background: {{bg}}; color: {{onSurf}}; font-family: Roboto, Helvetica, sans-serif; padding: 28px 40px; display: flex; flex-direction: column; gap: 16px;">
+  <header style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+    <h1 style="margin: 0; font-size: 26px; font-weight: 500;">Hosted instances</h1>
+    <span style="font-size: 13px; color: {{onSurfVar}};">Only instances Worldlens created. Health is checked when this page opens and every 30 s.</span>
+    <button type="button" style="margin-left: auto; height: 40px; padding: 0 18px; border-radius: 20px; border: 1px solid {{outline}}; background: transparent; color: {{onSurf}}; font: 500 13px Roboto; cursor: pointer;">Check all now</button>
+  </header>
+  <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px;">
+    <sc-for list="{{items}}" as="i" hint-placeholder-count="4">
+      <article class="wl-card" style="background: {{surfCont}}; border-radius: 16px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span aria-hidden="true" style="width: 10px; height: 10px; border-radius: 5px; background: {{i.dot}};"></span>
+          <h2 style="margin: 0; font-size: 16px; font-weight: 500;">{{i.name}}</h2>
+          <span style="border: 1px solid {{outlineVar}}; border-radius: 8px; padding: 2px 8px; font-size: 11px;">{{i.kind}}</span>
+          <span style="margin-left: auto; font-size: 12px; color: {{i.stateColor}};">{{i.state}}</span>
+        </div>
+        <span style="font-size: 12px; color: {{onSurfVar}};">{{i.where}}</span>
+        <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+          <code style="flex: 1 1 220px; min-width: 0; background: {{surfHigh}}; padding: 8px 12px; border-radius: 10px; font: 500 13px 'Roboto Mono', monospace;">{{i.link}}</code>
+          <a href="#" style="height: 36px; padding: 0 16px; border-radius: 18px; background: {{accent}}; color: #003351; display: inline-flex; align-items: center; text-decoration: none; font: 500 13px Roboto;">Open</a>
+          <button type="button" style="height: 36px; padding: 0 14px; border-radius: 18px; border: 1px solid {{outline}}; background: transparent; color: {{onSurf}}; font: 500 13px Roboto; cursor: pointer;">Copy</button>
+        </div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button type="button" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid {{outlineVar}}; background: transparent; color: {{onSurf}}; font: 500 12px Roboto; cursor: pointer;">{{i.toggle}}</button>
+          <button type="button" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid {{outlineVar}}; background: transparent; color: {{onSurf}}; font: 500 12px Roboto; cursor: pointer;">Restart</button>
+          <button type="button" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid {{outlineVar}}; background: transparent; color: {{onSurf}}; font: 500 12px Roboto; cursor: pointer;">Logs</button>
+          <button type="button" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid {{outlineVar}}; background: transparent; color: {{onSurf}}; font: 500 12px Roboto; cursor: pointer;">Update map</button>
+          <button type="button" style="height: 32px; padding: 0 12px; border-radius: 16px; border: 1px solid #FFB4AB; background: transparent; color: #FFB4AB; font: 500 12px Roboto; cursor: pointer;">Remove…</button>
+        </div>
+        <span style="font-size: 11px; color: {{onSurfVar}}; font-family: 'Roboto Mono', monospace;">{{i.meta}}</span>
+      </article>
+    </sc-for>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#8FCDFF","options":["#8FCDFF","#7FD19A","#D1BFE7","#FFB68A"]},"motion":{"editor":"boolean","default":true},"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"count":{"editor":"int","default":4,"min":0,"max":4},"$preview":{"width":1280,"height":820}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const dark = (this.props.theme ?? 'dark') === 'dark';
+    const accent = this.props.accent ?? '#8FCDFF';
+    const c = dark
+      ? { bg:'#0B0E11', surfCont:'#1D2024', surfHigh:'#272A2E', onSurf:'#E1E2E8', onSurfVar:'#C2C7CF', outline:'#8C9199', outlineVar:'#42474E' }
+      : { bg:'#F7F9FF', surfCont:'#EBEEF4', surfHigh:'#E5E8EE', onSurf:'#181C20', onSurfVar:'#41474D', outline:'#6C737A', outlineVar:'#C1C7CE' };
+    const all = [
+      { name:'bayville-map', kind:'Container', where:'This PC · Docker Desktop', link:'http://192.0.2.59:8100/', up:true, meta:'healthy 4 s ago · render 19:28 · port 8100' },
+      { name:'bayville-pi', kind:'Container', where:'pi@map-host.example · SSH', link:'http://192.0.2.93:8100/', up:true, meta:'healthy 6 s ago · arm64' },
+      { name:'worldlens-bayville', kind:'Appliance', where:'VMware Workstation · 1024 MB · 2 CPU', link:'http://192.0.2.141/', up:false, meta:'did not answer 30 s ago · VM is powered off' },
+      { name:'lensbot-andyville', kind:'Live viewer', where:'This PC · Prismarine Viewer + LensBot', link:'http://192.0.2.59:3007/', up:true, meta:'bot online · 23 ms ping' }
+    ];
+    const n = Math.max(0, Math.min(4, this.props.count ?? 4));
+    return { ...c, accent, rootClass: (this.props.motion ?? true) ? 'wl-motion' : '',
+      items: all.slice(0, n).map(i => ({ ...i, dot: i.up ? '#7FD19A' : '#FFB4AB', state: i.up ? 'Running' : 'Stopped', stateColor: i.up ? '#7FD19A' : '#FFB4AB', toggle: i.up ? 'Stop' : 'Start' })) };
+  }
+}
+</script>
+</body>
+</html>
