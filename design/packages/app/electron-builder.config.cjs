@@ -141,6 +141,15 @@ module.exports = {
             filter: ["**/*"],
         },
         {
+            // The live viewer's container image, staged by scripts/build-liveviewer-image.mjs
+            // so hosting never downloads anything when somebody clicks Host. The directory
+            // is absent when no route could produce the image (see `--optional`), and the
+            // application then says the image is not part of this build.
+            from: "dist/liveviewer",
+            to: "liveviewer",
+            filter: ["liveviewer-image.tar", "liveviewer-image.json"],
+        },
+        {
             from: "../../../tools/oracle/out/jars",
             to: "jars",
             filter: ["**/*"],

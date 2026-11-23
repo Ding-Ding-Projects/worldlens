@@ -142,6 +142,18 @@ export class ProtectedBotAccounts {
     async authorize(reference: string): Promise<void> {
         await this.#read(reference);
     }
+    /**
+     * The decrypted sign-in cache, for the one caller that writes it into a hosting
+     * volume (the live viewer). The cache holds refresh tokens: never log it, never put it
+     * in an argument or an environment variable, and write it only with owner-only
+     * permissions.
+     */
+    async exportForHosting(
+        reference: string,
+    ): Promise<{ clientId: string; caches: Record<string, unknown> }> {
+        const account = await this.#read(reference);
+        return { clientId: account.clientId, caches: structuredClone(account.caches) };
+    }
     async authenticate(reference: string): Promise<JavaAccountSession> {
         const previous = this.#active.get(reference);
         if (previous) return previous;

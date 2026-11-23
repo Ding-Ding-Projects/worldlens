@@ -1,0 +1,27 @@
+{
+    "name": "@worldlens/liveviewer",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "Live 3D viewer container: a mineflayer bot plus Prismarine Viewer or Prismarine Web Client",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "test": "vitest run",
+        "typecheck": "tsc -p tsconfig.json --noEmit"
+    },
+    "dependencies": {
+        "compression": "^1.7.4",
+        "express": "^4.21.2",
+        "mineflayer": "4.39.0",
+        "mineflayer-pathfinder": "2.4.5",
+        "prismarine-viewer": "1.33.0",
+        "socket.io": "^4.8.1",
+        "vec3": "^0.1.10"
+    },
+    "devDependencies": {
+        "@types/compression": "^1.7.5",
+        "@types/express": "^4.17.21"
+    }
+}

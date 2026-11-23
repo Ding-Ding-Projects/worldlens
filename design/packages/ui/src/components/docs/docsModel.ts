@@ -154,6 +154,7 @@ export const APPLICATION_ORDER: readonly string[] = [
     "server-configuration-editor.md",
     "bots-and-commands.md",
     "managed-hosting.md",
+    "live-viewer.md",
 ];
 
 /**
