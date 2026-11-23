@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { VBtn, VTextField } from "vuetify/components";
+import { VBtn } from "vuetify/components";
+import PathField from "../PathField.vue";
 import { formatBytes } from "./nbtEditorModel.js";
 import type { ProjectFile, ProjectListing, RegionChunk } from "./nbtEditorBridge.js";
 
@@ -50,14 +51,13 @@ const readableChunks = computed(() => props.chunkList?.chunks ?? []);
 <template>
     <nav class="wl-nbt-files" :aria-label="t('nbt.files.label', 'Files')">
         <form class="wl-nbt-files__folder" @submit.prevent="submitFolder">
-            <v-text-field
+            <PathField
                 v-model="folder"
+                :field="t('nbt.files.folderField', 'world folder')"
+                semantic="folder"
                 :label="t('nbt.files.folder', 'World folder')"
+                :placeholder="t('nbt.files.folderHint', 'the folder holding level.dat')"
                 density="compact"
-                variant="outlined"
-                hide-details
-                spellcheck="false"
-                autocomplete="off"
             />
             <v-btn type="submit" size="small" variant="tonal" :disabled="folder.trim() === ''">{{ t('nbt.files.open', 'Open') }}</v-btn>
         </form>
@@ -119,7 +119,10 @@ const readableChunks = computed(() => props.chunkList?.chunks ?? []);
 
 <style scoped>
 .wl-nbt-files { display: flex; flex-direction: column; gap: 8px; min-height: 0; padding: 12px; border-radius: 16px; background: rgb(var(--v-theme-surface-container, var(--v-theme-surface))); font-size: 13px; }
-.wl-nbt-files__folder { display: flex; gap: 6px; align-items: center; }
+.wl-nbt-files__folder { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.wl-nbt-files__folder > :first-child { flex: 1 1 100%; min-width: 0; }
+.wl-nbt-files__folder :deep(.mb-path-field__row) { flex-wrap: nowrap; }
+.wl-nbt-files__folder :deep(.mb-path-field__row > .v-input) { flex: 1 1 auto; min-width: 0; }
 .wl-nbt-files__hint { margin: 0; font-size: 12px; color: rgb(var(--v-theme-on-surface-variant)); }
 .wl-nbt-files__list { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 6px; }
 .wl-nbt-files__group h3 { margin: 6px 8px 2px; font-size: 11px; font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; color: rgb(var(--v-theme-on-surface-variant)); overflow-wrap: anywhere; }

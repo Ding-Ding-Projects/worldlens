@@ -212,7 +212,7 @@ defineExpose({ focusRow });
                     :style="{ '--wl-hue': KIND_HUE[node(row.id)!.kind] }"
                     :title="node(row.id)!.listKind && node(row.id)!.listKind !== 'end' ? `${KIND_CHIP[node(row.id)!.kind]} of ${node(row.id)!.listKind}` : KIND_CHIP[node(row.id)!.kind]"
                 >{{ KIND_CHIP[node(row.id)!.kind] }}</span>
-                <span class="wl-nbt-name">{{ rowLabel(node(row.id)!, row.position) }}</span>
+                <span class="wl-nbt-name" :title="rowLabel(node(row.id)!, row.position)">{{ rowLabel(node(row.id)!, row.position) }}</span>
                 <NbtValueEditor
                     :ref="(el: unknown) => register(row.id, el)"
                     :node="node(row.id)!"
@@ -288,7 +288,9 @@ defineExpose({ focusRow });
     background: color-mix(in srgb, var(--wl-hue) 24%, rgb(var(--v-theme-surface)));
     color: color-mix(in srgb, var(--wl-hue) 55%, rgb(var(--v-theme-on-surface)));
 }
-.wl-nbt-name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgb(var(--v-theme-on-surface)); }
+/* A tag name is the thing being edited, so it keeps its full width and the value box gives way.
+   Only a name longer than most of the row is shortened, and then its full text is in the title. */
+.wl-nbt-name { flex: 0 0 auto; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: rgb(var(--v-theme-on-surface)); }
 .wl-nbt-link { background: none; border: 0; color: rgb(var(--v-theme-primary)); font-size: 12px; cursor: pointer; text-decoration: underline; min-height: 30px; padding: 0 4px; }
 @media (prefers-reduced-motion: no-preference) { .wl-nbt-row { transition: background 0.16s; } }
 @media (max-width: 720px) {

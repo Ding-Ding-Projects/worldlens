@@ -106,9 +106,10 @@ defineExpose({ focus: () => input.value?.focus() });
 </template>
 
 <style scoped>
-.wl-nbt-value { display: flex; align-items: center; gap: 8px; margin-left: auto; min-width: 0; }
+.wl-nbt-value { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; flex: 1 1 120px; min-width: 0; }
 .wl-nbt-input {
-    width: min(240px, 38vw);
+    width: min(240px, 100%);
+    min-width: 80px;
     height: 30px;
     border-radius: 6px;
     border: 1px solid rgba(var(--v-theme-on-surface), 0.28);

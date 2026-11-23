@@ -47,6 +47,8 @@ import {
     mdiImageMultipleOutline,
     mdiHarddisk,
     mdiCodeBraces,
+    mdiLanConnect,
+    mdiFileTreeOutline,
 } from "@mdi/js";
 import type { Component } from "vue";
 
@@ -74,6 +76,8 @@ export type CoreJobId =
     | "ollama"
     | "remoteHosting"
     | "dockerHosting"
+    | "hostedInstances"
+    | "nbtEditor"
     | "worldDownloader"
     | "screenshots"
     | "virtualDisks"
@@ -124,6 +128,8 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     ollama: "ollama",
     remoteHosting: "remoteHosting",
     dockerHosting: "dockerHosting",
+    hostedInstances: "hostedInstances",
+    nbtEditor: "nbtEditor",
     worldDownloader: "worldDownloader",
     screenshots: "screenshots",
     virtualDisks: "virtualDisks",
@@ -423,6 +429,24 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelFallback: "Docker hosting",
         icon: mdiServerNetwork,
         seedGroup: "finished",
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "hostedInstances",
+        semanticName: "hostedInstances",
+        labelKey: "tabs.page.hostedInstances",
+        labelFallback: "Hosted instances",
+        icon: mdiLanConnect,
+        seedGroup: "finished",
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "nbtEditor",
+        semanticName: "nbtEditor",
+        labelKey: "tabs.page.nbtEditor",
+        labelFallback: "NBT editor",
+        icon: mdiFileTreeOutline,
+        seedGroup: null,
         pinnedOnFreshWorkspace: false,
     },
     {

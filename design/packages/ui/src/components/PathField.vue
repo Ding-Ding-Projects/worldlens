@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, useId } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiFolderOpenOutline, mdiFileOutline } from "@mdi/js";
-import { VBtn, VTextField, VTooltip } from "vuetify/components";
+import { VBtn, VTextField, VTooltip, VIcon } from "vuetify/components";
 import { resolvePathFieldBridge, type PathFieldBridge } from "./pathFieldHost.js";
 import MountRootBrowser from "./mounts/MountRootBrowser.vue";
 import { resolveMountBrowserBridge } from "./mounts/mountBrowserHost.js";
@@ -229,6 +229,9 @@ async function browseFile(): Promise<void> {
                 width="44"
                 @click="browseFolder"
             >
+                <!-- The tooltip occupies the default slot, and Vuetify draws a slot instead of the
+                     `icon` prop, so the icon is drawn here explicitly or the button is empty. -->
+                <v-icon :icon="mdiFolderOpenOutline" aria-hidden="true" />
                 <v-tooltip v-if="resolvedBridge !== null" activator="parent" location="top" :text="folderAria" />
             </v-btn>
             <v-btn
@@ -243,6 +246,9 @@ async function browseFile(): Promise<void> {
                 width="44"
                 @click="browseFile"
             >
+                <!-- The tooltip occupies the default slot, and Vuetify draws a slot instead of the
+                     `icon` prop, so the icon is drawn here explicitly or the button is empty. -->
+                <v-icon :icon="mdiFileOutline" aria-hidden="true" />
                 <v-tooltip v-if="resolvedBridge !== null" activator="parent" location="top" :text="fileAria" />
             </v-btn>
         </div>
