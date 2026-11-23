@@ -18,6 +18,14 @@
       "name": "Virtual appliance"
     },
     {
+      "id": "mcserver",
+      "name": "Minecraft server appliance"
+    },
+    {
+      "id": "admin",
+      "name": "Server management site"
+    },
+    {
       "id": "running",
       "name": "Running copies"
     }
@@ -43,6 +51,26 @@
       "expand": "fill",
       "is_interactive": true
     },
+    "McServer.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Minecraft server appliance",
+      "page": "mcserver",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Admin.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Server management site",
+      "page": "admin",
+      "expand": "fill",
+      "is_interactive": true
+    },
     "Running.dc.html": {
       "x": 0,
       "y": 0,
@@ -57,6 +85,8 @@
   "order": [
     "Container.dc.html",
     "Appliance.dc.html",
+    "McServer.dc.html",
+    "Admin.dc.html",
     "Running.dc.html"
   ],
   "notes": {},

@@ -14,6 +14,10 @@
       "name": "Tree and SNBT"
     },
     {
+      "id": "controls",
+      "name": "Tailored controls"
+    },
+    {
       "id": "region",
       "name": "Region canvas"
     },
@@ -46,6 +50,16 @@
       "h": 900,
       "title": "Tree and SNBT",
       "page": "tree",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Controls.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Tailored controls",
+      "page": "controls",
       "expand": "fill",
       "is_interactive": true
     },
@@ -112,6 +126,7 @@
   },
   "order": [
     "Tree.dc.html",
+    "Controls.dc.html",
     "Region.dc.html",
     "Chunk.dc.html",
     "Structure.dc.html",

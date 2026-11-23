@@ -102,30 +102,29 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
           <button type="button" class="btn sl" style="background: var(--wl-primary); color: var(--wl-on-primary);"><span class="msr" aria-hidden="true" style="font-size: 20px;">save</span>Save and record</button>
         </div>
       </div>
-      <nav aria-label="NBT views" style="display: flex; flex-wrap: wrap; gap: 8px;"><a class="vnav sl" href="Tree.dc.html" aria-current="page"><span class="msr" aria-hidden="true" style="font-size:18px;">account_tree</span>Tree and SNBT</a><a class="vnav sl" href="Region.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">grid_on</span>Region</a><a class="vnav sl" href="Chunk.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">layers</span>Chunk</a><a class="vnav sl" href="Structure.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">view_in_ar</span>Structure</a><a class="vnav sl" href="MapArt.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">palette</span>Map art</a><a class="vnav sl" href="Inventory.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">backpack</span>Inventory and items</a><a class="vnav sl" href="LevelDat.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">public</span>World settings</a></nav>
+      <nav aria-label="NBT views" style="display: flex; flex-wrap: wrap; gap: 8px;"><a class="vnav sl" href="Tree.dc.html" aria-current="page"><span class="msr" aria-hidden="true" style="font-size:18px;">account_tree</span>Tree and SNBT</a><a class="vnav sl" href="Controls.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">tune</span>Tailored controls</a><a class="vnav sl" href="Region.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">grid_on</span>Region</a><a class="vnav sl" href="Chunk.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">layers</span>Chunk</a><a class="vnav sl" href="Structure.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">view_in_ar</span>Structure</a><a class="vnav sl" href="MapArt.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">palette</span>Map art</a><a class="vnav sl" href="Inventory.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">backpack</span>Inventory and items</a><a class="vnav sl" href="LevelDat.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">public</span>World settings</a></nav>
 
       <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: stretch; flex: 1;">
         <section class="card" aria-label="Open files" style="flex: 1 1 220px; max-width: 260px;">
           <h2 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 500;">Files</h2>
-          <label class="fld">World folder<span style="display: flex; gap: 6px;"><input class="inp mono" value="saves/heapandyville" aria-label="World folder" style="flex: 1;"><button type="button" class="tool sl" aria-label="Browse"><span class="msr" aria-hidden="true">folder_open</span></button></span></label>
           <sc-for list="{{files}}" as="f" hint-placeholder-count="8">
-            <button type="button" class="row sl" aria-selected="{{f.sel}}"><span class="msr" aria-hidden="true" style="font-size: 18px;">{{f.icon}}</span><span style="flex: 1; min-width: 0;" class="mono">{{f.name}}</span><span style="font-size: 12px; color: inherit; opacity: .8;">{{f.note}}</span></button>
+            <button type="button" class="row sl" aria-selected="{{f.sel}}"><span class="msr" aria-hidden="true" style="font-size: 18px;">{{f.icon}}</span><span style="flex: 1; min-width: 0;"><span style="display: block;">{{f.title}}</span><span class="mono" style="display: block; font-size: 11px; opacity: .8;">{{f.name}}</span></span></button>
           </sc-for>
         </section>
         <section class="card" aria-label="Tag tree" style="flex: 3 1 460px;">
           <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
-            <label style="flex: 1 1 220px; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 22px; background: var(--wl-surf-high);"><span class="msr" aria-hidden="true">search</span><input aria-label="Search tags" placeholder="Name or value" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--wl-on-surf); font: 400 15px/20px Roboto, sans-serif; outline: none;"><button type="button" class="sl" aria-label="Regex builder" style="border: 0; background: transparent; color: var(--wl-on-surf-var); font: 500 13px/20px 'Roboto Mono', monospace;">.*</button></label>
+            <label style="flex: 1 1 200px; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 22px; background: var(--wl-surf-high);"><span class="msr" aria-hidden="true">search</span><input aria-label="Search tags" placeholder="Name or value" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--wl-on-surf); font: 400 15px/20px Roboto, sans-serif; outline: none;"><button type="button" class="sl" aria-label="Regex builder" style="border: 0; background: transparent; color: var(--wl-on-surf-var); font: 500 13px/20px 'Roboto Mono', monospace;">.*</button></label>
+            <span style="display: inline-flex; align-items: center; gap: 8px; font-size: 14px;">Game names<button type="button" role="switch" class="sw" aria-checked="{{rawOn}}" aria-label="Show the names the game uses" onClick="{{toggleRaw}}"></button></span>
             <button type="button" class="btn sl" style="background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);"><span class="msr" aria-hidden="true" style="font-size: 20px;">find_replace</span>Find and replace</button>
-            <button type="button" class="btn sl" style="background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);"><span class="msr" aria-hidden="true" style="font-size: 20px;">rule</span>Check</button>
             <button type="button" class="btn sl" style="background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);"><span class="msr" aria-hidden="true" style="font-size: 20px;">download</span>Export</button>
           </div>
-          <div role="tree" aria-label="level.dat" style="display: flex; flex-direction: column; gap: 2px;">
+          <div role="tree" aria-label="World settings file" style="display: flex; flex-direction: column; gap: 2px;">
             <sc-for list="{{rows}}" as="r" hint-placeholder-count="14">
-              <button type="button" role="treeitem" aria-selected="{{r.sel}}" aria-level="{{r.level}}" class="row sl" onClick="{{r.pick}}" style="padding-left: {{r.indent}};">
+              <button type="button" role="treeitem" aria-selected="{{r.sel}}" aria-level="{{r.level}}" class="row sl" onClick="{{r.pick}}" style="padding-left: {{r.indent}}; min-height: 44px;">
                 <span class="msr" aria-hidden="true" style="font-size: 18px; width: 18px;">{{r.caret}}</span>
-                <span class="tchip" style="background: {{r.col}}; color: #FFFFFF;">{{r.type}}</span>
-                <span class="mono" style="min-width: 0;">{{r.name}}</span>
-                <span class="mono" style="margin-left: auto; color: inherit; opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%;">{{r.value}}</span>
+                <span class="tchip" style="background: {{r.col}}; color: #FFFFFF; min-width: 96px; font-family: Roboto, sans-serif;">{{r.chip}}</span>
+                <span style="min-width: 0;"><span style="display: block;">{{r.label}}</span><span class="mono" style="display: block; font-size: 11px; opacity: .75;">{{r.sub}}</span></span>
+                <span style="margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40%;">{{r.shown}}</span>
               </button>
             </sc-for>
           </div>
@@ -137,38 +136,24 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
             </sc-for>
           </div>
           <sc-if value="{{showValue}}" hint-placeholder-val="{{ true }}">
-            <div style="display: flex; align-items: center; gap: 8px;"><span class="tchip" style="background: {{sel.col}}; color: #FFFFFF;">{{sel.type}}</span><span class="mono" style="font-size: 15px;">{{sel.path}}</span></div>
-            <label class="fld">Value<input class="inp mono" value="{{sel.value}}" aria-label="Value"></label>
-            <p style="margin: 0; font-size: 13px; line-height: 18px; color: var(--wl-on-surf-var);">{{sel.hint}}</p>
-            <a href="{{sel.richHref}}" class="btn sl" style="align-self: flex-start; background: var(--wl-tert-cont); color: var(--wl-on-tert-cont);"><span class="msr" aria-hidden="true" style="font-size: 20px;">auto_awesome</span>{{sel.rich}}</a>
-            <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
-              <button type="button" class="btn sl" style="background: var(--wl-surf-high); color: var(--wl-on-surf);"><span class="msr" aria-hidden="true" style="font-size: 18px;">content_copy</span>Copy as SNBT</button>
-              <button type="button" class="btn sl" style="background: var(--wl-surf-high); color: var(--wl-on-surf);"><span class="msr" aria-hidden="true" style="font-size: 18px;">add</span>Add tag</button>
-              <button type="button" class="btn sl" style="background: var(--wl-surf-high); color: var(--wl-on-surf);"><span class="msr" aria-hidden="true" style="font-size: 18px;">swap_vert</span>Change type</button>
-              <button type="button" class="btn sl" style="background: var(--wl-surf-high); color: var(--wl-error);"><span class="msr" aria-hidden="true" style="font-size: 18px;">delete</span>Remove</button>
-            </div>
+            <div><h2 style="margin: 0; font-size: 22px; line-height: 28px; font-weight: 400;">{{sel.label}}</h2><p class="mono" style="margin: 2px 0 0; font-size: 12px; color: var(--wl-on-surf-var);">{{sel.path}} · {{sel.type}}</p></div>
+            <p style="margin: 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var);">{{sel.about}}</p>
+            <sc-if value="{{sel.isStepper}}" hint-placeholder-val="{{ true }}"><div class="step"><button type="button" class="sl" aria-label="Lower {{sel.label}}" onClick="{{dec}}"><span class="msr" aria-hidden="true">remove</span></button><output aria-live="polite" style="min-width: 96px;">{{sel.shown}}</output><button type="button" class="sl" aria-label="Raise {{sel.label}}" onClick="{{inc}}"><span class="msr" aria-hidden="true">add</span></button></div></sc-if>
+            <sc-if value="{{sel.isSelect}}" hint-placeholder-val="{{ false }}"><div role="radiogroup" aria-label="{{sel.label}}" style="display: flex; flex-wrap: wrap; gap: 6px;"><sc-for list="{{sel.options}}" as="o" hint-placeholder-count="4"><button type="button" role="radio" class="fchip sl" aria-checked="{{o.sel}}" aria-pressed="{{o.sel}}" onClick="{{o.pick}}">{{o.label}}</button></sc-for></div></sc-if>
+            <sc-if value="{{sel.isSwitch}}" hint-placeholder-val="{{ false }}"><div style="display: flex; align-items: center; gap: 12px;"><span style="flex: 1; font-size: 15px;">{{sel.shown}}</span><button type="button" role="switch" class="sw" aria-checked="{{sel.on}}" aria-label="{{sel.label}}" onClick="{{flip}}"></button></div></sc-if>
+            <sc-if value="{{sel.isTime}}" hint-placeholder-val="{{ false }}"><div style="font-size: 32px; line-height: 40px;">{{sel.shown}}</div><input type="range" min="0" max="23999" step="250" value="{{sel.raw}}" aria-label="{{sel.label}}" onChange="{{setRaw}}" style="accent-color: var(--wl-primary);"></sc-if>
+            <sc-if value="{{sel.isText}}" hint-placeholder-val="{{ false }}"><label class="fld">{{sel.label}}<input class="inp" value="{{sel.raw}}"></label></sc-if>
+            <sc-if value="{{sel.isGroup}}" hint-placeholder-val="{{ false }}"><a href="{{sel.richHref}}" class="btn sl" style="align-self: flex-start; background: var(--wl-tert-cont); color: var(--wl-on-tert-cont);"><span class="msr" aria-hidden="true" style="font-size: 20px;">auto_awesome</span>{{sel.rich}}</a></sc-if>
+            <p style="margin: 0; font-size: 12px; color: var(--wl-on-surf-var);">Stored as {{sel.rawShown}}. Every control writes the same value the game reads.</p>
           </sc-if>
           <sc-if value="{{showSnbt}}" hint-placeholder-val="{{ false }}">
-            <pre class="mono" style="margin: 0; padding: 16px; border-radius: 16px; background: var(--wl-surf-high); font-size: 13px; line-height: 20px; white-space: pre-wrap;">{Data: {
-  LevelName: "heapandyville",
-  SpawnX: 256,
-  SpawnY: 71,
-  SpawnZ: -48,
-  GameType: 0,
-  Difficulty: 2b,
-  hardcore: 0b,
-  DayTime: 6000L,
-  GameRules: {keepInventory: "true", ...}
-}}</pre>
-            <p style="margin: 0; font-size: 13px; color: var(--wl-on-surf-var);">Edits apply only when the text parses; an error names the line and column.</p>
+            <pre class="mono" style="margin: 0; padding: 16px; border-radius: 16px; background: var(--wl-surf-high); font-size: 13px; line-height: 20px; white-space: pre-wrap;">{Data: {LevelName: "heapandyville", SpawnX: 256, SpawnY: 71, SpawnZ: -48, GameType: 0, Difficulty: 2b, hardcore: 0b, DayTime: 6000L}}</pre>
           </sc-if>
           <sc-if value="{{showDiff}}" hint-placeholder-val="{{ false }}">
             <ol style="list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px;">
-              <li class="mono" style="padding: 10px 12px; border-radius: 12px; background: var(--wl-surf-high); font-size: 13px;">Data.SpawnX: 128 → 256</li>
-              <li class="mono" style="padding: 10px 12px; border-radius: 12px; background: var(--wl-surf-high); font-size: 13px;">Data.GameRules.keepInventory: "false" → "true"</li>
-              <li class="mono" style="padding: 10px 12px; border-radius: 12px; background: var(--wl-surf-high); font-size: 13px;">+ Data.CustomBossEvents."minecraft:wither"</li>
+              <li style="padding: 10px 12px; border-radius: 12px; background: var(--wl-surf-high); font-size: 14px;">Spawn X: 128 → 256</li>
+              <li style="padding: 10px 12px; border-radius: 12px; background: var(--wl-surf-high); font-size: 14px;">Game rules › Keep inventory: Off → On</li>
             </ol>
-            <p style="margin: 0; font-size: 13px; color: var(--wl-on-surf-var);">Against what is on disk. Pick a recorded version in History to compare with it instead.</p>
           </sc-if>
         </section>
       </div>
@@ -176,35 +161,42 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
   </div>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"theme": {"editor": "enum", "options": ["dark", "light", "contrast"], "default": "dark"}, "$preview": {"width": 1440, "height": 900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"theme": {"editor": "enum", "options": ["dark", "light", "contrast"], "default": "dark"}, "names": {"editor": "enum", "options": ["Friendly names", "Game names"], "default": "Friendly names"}, "$preview": {"width": 1440, "height": 900}}'>
 class Component extends DCLogic {
-  constructor(props) { super(props); this.state = { sel: 'spawnx', pane: 'Value' }; }
+  constructor(props) { super(props); this.state = { sel: 'diff', pane: 'Value', raw: null, vals: { name: 'heapandyville', gametype: 0, diff: 2, hard: 0, spawnx: 256, spawny: 71, spawnz: -48, day: 6000 } }; }
   renderVals() {
-    const C = {"BYTE": "#5B8DEF", "SHORT": "#4FA3A5", "INT": "#3F8F5A", "LONG": "#7A6FD6", "FLOAT": "#C27C2C", "DOUBLE": "#B5603B", "STRING": "#B84A7A", "LIST": "#6C737A", "COMPOUND": "#41474D", "BYTE[]": "#2F6FB0", "INT[]": "#2C7A4B", "LONG[]": "#5A4FB8"};
-    const raw = [
-      ['root','','COMPOUND','Data','12 entries',0,'expand_more'],
-      ['name','Data.LevelName','STRING','LevelName','"heapandyville"',1,''],
-      ['gametype','Data.GameType','INT','GameType','0',1,''],
-      ['diff','Data.Difficulty','BYTE','Difficulty','2',1,''],
-      ['spawnx','Data.SpawnX','INT','SpawnX','256',1,''],
-      ['spawny','Data.SpawnY','INT','SpawnY','71',1,''],
-      ['spawnz','Data.SpawnZ','INT','SpawnZ','-48',1,''],
-      ['day','Data.DayTime','LONG','DayTime','6000',1,''],
-      ['rules','Data.GameRules','COMPOUND','GameRules','52 entries',1,'chevron_right'],
-      ['player','Data.Player','COMPOUND','Player','47 entries',1,'chevron_right'],
-      ['inv','Data.Player.Inventory','LIST','Inventory','23 × COMPOUND',2,'chevron_right'],
-      ['uuid','Data.Player.UUID','INT[]','UUID','4 ints · 9f3c…e21a',2,''],
-      ['packs','Data.DataPacks','COMPOUND','DataPacks','2 entries',1,'chevron_right'],
-      ['border','Data.BorderSize','DOUBLE','BorderSize','59999968.0',1,'']
+    const raw = this.state.raw ?? (this.props.names === 'Game names');
+    const C = { Group: '#41474D', List: '#6C737A', Text: '#B84A7A', 'Whole number': '#3F8F5A', 'Large number': '#7A6FD6', 'Small number': '#5B8DEF', 'Yes or no': '#2F6FB0', Choice: '#C27C2C', 'Time of day': '#B5603B', Decimal: '#B5603B', ID: '#5A4FB8' };
+    const V = this.state.vals;
+    const clock = (t) => { const h = (Math.floor(t / 1000) + 6) % 24, m = Math.floor((t % 1000) * 0.06); return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0'); };
+    const F = [
+      ['root','Data','COMPOUND','Group','World settings','',0,'expand_more','group','12 fields'],
+      ['name','LevelName','STRING','Text','World name','The name shown in the world list.',1,'','text',null],
+      ['gametype','GameType','INT','Choice','Game mode','What new players start in.',1,'','select',['Survival','Creative','Adventure','Spectator']],
+      ['diff','Difficulty','BYTE','Choice','Difficulty','How hard mobs hit and how fast hunger drains.',1,'','select',['Peaceful','Easy','Normal','Hard']],
+      ['hard','hardcore','BYTE','Yes or no','Hardcore','One life; the world is deleted or becomes spectator-only on death.',1,'','switch',null],
+      ['spawnx','SpawnX','INT','Whole number','Spawn X','East-west block where players appear.',1,'','stepper',null],
+      ['spawny','SpawnY','INT','Whole number','Spawn Y','Height of the spawn point.',1,'','stepper',null],
+      ['spawnz','SpawnZ','INT','Whole number','Spawn Z','North-south block where players appear.',1,'','stepper',null],
+      ['day','DayTime','LONG','Time of day','Time of day','Ticks since the world began; 24,000 make one day.',1,'','time',null],
+      ['rules','GameRules','COMPOUND','Group','Game rules','52 switches and numbers that change how the game plays.',1,'chevron_right','group','52 rules'],
+      ['player','Player','COMPOUND','Group','Single-player player','Position, health and inventory of the player in single-player.',1,'chevron_right','group','47 fields'],
+      ['packs','DataPacks','COMPOUND','Group','Data packs','Which data packs are on and off.',1,'chevron_right','group','2 on, 2 off']
     ];
-    const rich = { spawnx: ['World settings: spawn','LevelDat.dc.html'], rules: ['World settings: game rules','LevelDat.dc.html'], inv: ['Inventory editor','Inventory.dc.html'], day: ['World settings: time','LevelDat.dc.html'], uuid: ['UUID editor','Inventory.dc.html'] };
-    const rows = raw.map(([id,path,type,name,value,level,caret]) => ({ id, path, type, name, value, level: level + 1, caret, col: C[type], indent: (8 + level * 22) + 'px', sel: this.state.sel === id ? 'true' : 'false', pick: () => this.setState({ sel: id }) }));
-    const s = rows.find((r) => r.id === this.state.sel) || rows[4];
-    const r = rich[s.id] || ['World settings','LevelDat.dc.html'];
-    const hint = s.type === 'INT' ? 'Whole number from -2147483648 to 2147483647.' : s.type === 'LONG' ? 'All 64 bits are kept; the value never passes through a floating-point number.' : s.type === 'BYTE' ? 'Number from -128 to 127.' : 'Typed editor for ' + s.type + '.';
-    const panes = ['Value','SNBT','Diff'].map((label) => ({ label, sel: this.state.pane === label ? 'true' : 'false', pick: () => this.setState({ pane: label }) }));
-    const files = [['public','level.dat','edited',1],['person','playerdata/9f3c….dat','',0],['map','data/map_12.dat','',0],['flag','data/raids.dat','',0],['view_in_ar','structures/castle.nbt','',0],['grid_on','region/r.0.0.mca','1,024 chunks',0],['grid_on','region/r.-1.0.mca','611 chunks',0],['dns','servers.dat','',0]].map(([icon,name,note,sel]) => ({ icon, name, note, sel: sel ? 'true' : 'false' }));
-    return { theme: this.props.theme ?? 'dark', rows, files, panes, sel: { ...s, hint, rich: r[0], richHref: r[1] }, showValue: this.state.pane === 'Value', showSnbt: this.state.pane === 'SNBT', showDiff: this.state.pane === 'Diff' };
+    const shownOf = (id, kind, opts) => { const v = V[id]; if (kind === 'select') return opts[v]; if (kind === 'switch') return v ? 'Yes' : 'No'; if (kind === 'time') return clock(v); if (kind === 'stepper') return v.toLocaleString('en-CA'); if (kind === 'text') return v; return ''; };
+    const rows = F.map(([id,key,type,plain,label,about,level,caret,kind,opts]) => ({ id, label: raw ? key : label, sub: raw ? label : key, chip: raw ? type : plain, col: C[plain], level: level + 1, caret, indent: (8 + level * 22) + 'px', shown: kind === 'group' ? opts : shownOf(id, kind, opts), sel: this.state.sel === id ? 'true' : 'false', pick: () => this.setState({ sel: id }) }));
+    const f = F.find((x) => x[0] === this.state.sel);
+    const [id,key,type,plain,label,about,,, kind, opts] = f;
+    const setV = (v) => this.setState({ vals: { ...this.state.vals, [id]: v } });
+    const sel = { label, path: 'Data.' + key, type: plain + ' (' + type + ')', about, shown: kind === 'group' ? '' : shownOf(id, kind, opts), raw: V[id], rawShown: kind === 'group' ? 'a compound' : type + ' ' + V[id],
+      isStepper: kind === 'stepper', isSelect: kind === 'select', isSwitch: kind === 'switch', isTime: kind === 'time', isText: kind === 'text', isGroup: kind === 'group', on: V[id] ? 'true' : 'false',
+      options: (kind === 'select' ? opts : []).map((o, i) => ({ label: o, sel: V[id] === i ? 'true' : 'false', pick: () => setV(i) })),
+      rich: id === 'rules' ? 'Open game rules' : id === 'player' ? 'Open inventory' : 'Open world settings', richHref: id === 'player' ? 'Inventory.dc.html' : 'LevelDat.dc.html' };
+    const panes = ['Value','SNBT','Diff'].map((p) => ({ label: p, sel: this.state.pane === p ? 'true' : 'false', pick: () => this.setState({ pane: p }) }));
+    const files = [['public','World settings','level.dat',1],['person','Steve (player)','playerdata/9f3c….dat',0],['map','Map #12','data/map_12.dat',0],['flag','Raids','data/raids.dat',0],['view_in_ar','Castle (structure)','structures/castle.nbt',0],['grid_on','Region 0, 0 (1,024 chunks)','region/r.0.0.mca',0],['dns','Server list','servers.dat',0]].map(([icon,title,name,sel]) => ({ icon, title, name, sel: sel ? 'true' : 'false' }));
+    return { theme: this.props.theme ?? 'dark', rows, files, panes, sel, rawOn: raw ? 'true' : 'false', toggleRaw: () => this.setState({ raw: !raw }),
+      showValue: this.state.pane === 'Value', showSnbt: this.state.pane === 'SNBT', showDiff: this.state.pane === 'Diff',
+      inc: () => setV(V[id] + 1), dec: () => setV(V[id] - 1), flip: () => setV(V[id] ? 0 : 1), setRaw: (e) => setV(Number(e.target.value)) };
   }
 }
 </script>
