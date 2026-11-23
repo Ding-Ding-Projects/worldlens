@@ -1,21 +1,23 @@
 {
   "comment": "Pinned appliance base images, one per architecture. Fill each in after the Appliance workflow publishes its asset: url (the .img.zst asset), zstSha256 (of the .zst) and imgSha256 (of the expanded .img). Null means that base is not pinned yet and fetch-appliance-base.mjs refuses to stage it. workloads lists what the base's boot script runs (map, app); a pin without it runs the map only.",
   "x86_64": {
-    "url": "https://github.com/Ding-Ding-Projects/worldlens/releases/download/v1.0.2300/worldlens-appliance-base-x86_64.img.zst",
-    "zstSha256": "a69b9518212169acfa6f7a006d0850a674a76fd964671482781984c91cd8e7be",
-    "imgSha256": "0199b11eaa06af5bd75844bbe5bf93dff9dea880c6b667da0372ce1c8a5dc723",
+    "url": "https://github.com/Ding-Ding-Projects/worldlens/releases/download/v1.0.2311/worldlens-appliance-base-x86_64.img.zst",
+    "zstSha256": "82fd616347119e0e7a42970e190310b842ac1d49a5e1df12a480395a31c1df6a",
+    "imgSha256": "5cdbfdcaed74e1fbc49035015c08f1cd969a56a438f95c91f0b2fda288faf4ec",
     "workloads": [
       "map",
-      "app"
+      "app",
+      "minecraft"
     ]
   },
   "aarch64-rpi": {
-    "url": "https://github.com/Ding-Ding-Projects/worldlens/releases/download/v1.0.2300/worldlens-appliance-base-aarch64-rpi.img.zst",
-    "zstSha256": "7c6e1394b5976b63e128632bd0fc122fe52964f4402b5ee99aea0748d6c1c6e6",
-    "imgSha256": "759b2baff1944f3b1b8193e8da0b2bf60a7f4e36ab3f4a3eee1dbcf403490b26",
+    "url": "https://github.com/Ding-Ding-Projects/worldlens/releases/download/v1.0.2311/worldlens-appliance-base-aarch64-rpi.img.zst",
+    "zstSha256": "754d96a38174c3d2163fcf6f712fc0bcadb42357a821f98a14de240d097daf85",
+    "imgSha256": "eb43126b3da7d3f81cbc935c0ae92783875cf329aa0e7ee3dd2e860d6a028ca2",
     "workloads": [
       "map",
-      "app"
+      "app",
+      "minecraft"
     ]
   }
 }

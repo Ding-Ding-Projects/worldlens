@@ -56,7 +56,7 @@ sudo sh appliance/build-base.sh --mapserver-tar worldlens-map-server-x86_64.tar 
 node design/packages/app/scripts/fetch-appliance-base.mjs --from out/worldlens-appliance-base-x86_64.img
 ```
 
-`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. Both bases are pinned to the `v1.0.2300` release assets (built 2026-11-23 by Appliance run 45274195226, from the boot script that runs both workloads); `--check` exits 0 only when every pin is complete. The installer copies `dist/appliance` to `resources/appliance`.
+`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. Both bases are pinned to the `v1.0.2311` release assets (built 2026-11-23 by Appliance run 45277496892, from the boot script that runs the map, app and Minecraft server workloads; that run's QEMU boot smoke passed for the map workload); `--check` exits 0 only when every pin is complete. The installer copies `dist/appliance` to `resources/appliance`.
 
 The base image is about 1.4 GiB raw (compresses well). `.github/workflows/appliance.yml` boots it once under QEMU and waits for `/health` before uploading it as a zstd asset with a SHA-256.
 
@@ -70,13 +70,13 @@ In the appliance dialog, **Raspberry Pi** writes this image to an SD card or a U
 
 **Run the whole WorldLens app, not only the map** in the appliance dialog makes the same disk run the WorldLens application (the hosted image, `docs/hosted-mode.md`) instead of the map server. Paste the `worldlens-hosted` image pinned by digest and set a password (at least 8 characters). The builder writes a `workload` entry (`kind: "app"`, the image, and only the password's SHA-256) into `worldlens-map.json`; on boot the script checks both again, pulls the image by digest (so the first start needs internet, and keeps retrying with a message on the console until it has it), and runs it with the copied map offered read-only as "Maps" and its own state in a named volume. The link is checked from this PC by its sign-in page rather than `/health`, with a 10 minute window for the first download.
 
-Only a base built from the current appliance scripts can do this. `appliance-base.pin.json` entries may list `"workloads": ["map", "app"]`; an entry that lists none is treated as map only, and the builder then refuses an app build with that reason instead of producing a disk that quietly runs the map. The `v1.0.2300` bases are pinned with `"workloads": ["map", "app"]`. The app workload has not yet been booted in a real virtual machine.
+Only a base built from the current appliance scripts can do this. `appliance-base.pin.json` entries may list `"workloads": ["map", "app"]`; an entry that lists none is treated as map only, and the builder then refuses an app build with that reason instead of producing a disk that quietly runs the map. The `v1.0.2311` bases are pinned with `"workloads": ["map", "app", "minecraft"]`. Their boot was proven under QEMU in CI with the map workload; the app workload has not yet been booted, because its image is not published yet.
 
 ## A Minecraft server appliance
 
 **Run a Minecraft server with its management site** in the appliance dialog makes the disk run two containers instead of the map: the Minecraft server image you choose (pinned by digest; players join on 25565/TCP and 19132/UDP, with the memory slider's value) and the WorldLens server site (`worldlens-server-site`, published by the CI `server-site-image` job from the `server-site` target of `Dockerfile.hosted`). The site is the web console with owner-first accounts (`docs/mcserver-web-console.md`): the first person to open the web port becomes the owner, and sign-in can need a password, a passkey or an authenticator code in any combination. It manages the server through the Docker socket and the shared server volume. The Minecraft EULA must be accepted in the dialog; the boot script checks every value again and pulls both images on first start. It serves plain HTTP on the local network, so passkeys need an HTTPS tunnel or proxy in front (see `docs/player-relay.md` for letting players in from outside).
 
-Like the app workload, this needs a base pinned with `"minecraft"` in its workloads; the `v1.0.2300` bases predate it, so the builder refuses with that reason until a newer base is built and pinned. Not yet booted in a real virtual machine.
+The `v1.0.2311` bases are pinned with `"minecraft"` in their workloads. Not yet booted with this workload in a virtual machine.
 
 ## Kernel and drivers
 
@@ -117,8 +117,8 @@ The installer carries both bases zstd-compressed (about 260 MB and 135 MB rather
 
 ### 成個 WorldLens 做 appliance
 
-對話框入面剔 **Run the whole WorldLens app, not only the map**，同一隻碟就會行 WorldLens 應用程式（hosted image）而唔係淨係地圖伺服器。貼上用 digest 鎖定嘅 `worldlens-hosted` 映像，再設一個最少 8 個字嘅密碼。Builder 會將 `workload`（映像同密碼嘅 SHA-256，冇原文）寫入 `worldlens-map.json`；開機腳本再檢查一次，用 digest 拉映像（所以第一次開機要上網，未拉到會喺螢幕講住並且一直重試），之後將複製入去嘅地圖以唯讀「Maps」畀個 app 用，狀態放喺 named volume。由呢部電腦檢查登入頁，第一次下載有 10 分鐘。只有用而家嘅 appliance 腳本 build 出嚟嘅 base 先做到：pin 要寫 `"workloads": ["map", "app"]`，冇寫就當淨係地圖，builder 會講明原因拒絕，唔會整出一隻靜靜雞照行地圖嘅碟。而家 pin 住嘅 `v1.0.2300` base 已經寫明 `"workloads": ["map", "app"]`，不過 app 模式未喺真虛擬機開過機。
+對話框入面剔 **Run the whole WorldLens app, not only the map**，同一隻碟就會行 WorldLens 應用程式（hosted image）而唔係淨係地圖伺服器。貼上用 digest 鎖定嘅 `worldlens-hosted` 映像，再設一個最少 8 個字嘅密碼。Builder 會將 `workload`（映像同密碼嘅 SHA-256，冇原文）寫入 `worldlens-map.json`；開機腳本再檢查一次，用 digest 拉映像（所以第一次開機要上網，未拉到會喺螢幕講住並且一直重試），之後將複製入去嘅地圖以唯讀「Maps」畀個 app 用，狀態放喺 named volume。由呢部電腦檢查登入頁，第一次下載有 10 分鐘。只有用而家嘅 appliance 腳本 build 出嚟嘅 base 先做到：pin 要寫 `"workloads": ["map", "app"]`，冇寫就當淨係地圖，builder 會講明原因拒絕，唔會整出一隻靜靜雞照行地圖嘅碟。而家 pin 住 `v1.0.2311` base，寫明 `"workloads": ["map", "app", "minecraft"]`；CI 已經用 QEMU 開機測過地圖模式，app 模式因為映像未發佈仲未開過。
 
 ### Minecraft 伺服器 appliance
 
-對話框剔 **Run a Minecraft server with its management site**，隻碟就會行兩個容器：你揀嘅 Minecraft 伺服器映像（用 digest 鎖定，玩家用 25565/TCP 同 19132/UDP 入，記憶體跟滑桿）同 WorldLens 管理網站（`worldlens-server-site`，CI 嘅 `server-site-image` job 發佈）。網站即係有「第一個入嚟做老細」帳戶嘅網頁主控台，登入可以要密碼、passkey、驗證碼任何組合，經 Docker socket 同共用 volume 管伺服器。一定要喺對話框接受 Minecraft EULA；開機腳本會再檢查所有值，第一次開機拉兩個映像。佢喺本地網絡用 HTTP，passkey 要前面有 HTTPS 隧道或者 proxy。同 app 模式一樣，要 pin 一個寫咗 `"minecraft"` 嘅 base；而家嘅 `v1.0.2300` 未有，builder 會講明原因拒絕。未喺真虛擬機開過。
+對話框剔 **Run a Minecraft server with its management site**，隻碟就會行兩個容器：你揀嘅 Minecraft 伺服器映像（用 digest 鎖定，玩家用 25565/TCP 同 19132/UDP 入，記憶體跟滑桿）同 WorldLens 管理網站（`worldlens-server-site`，CI 嘅 `server-site-image` job 發佈）。網站即係有「第一個入嚟做老細」帳戶嘅網頁主控台，登入可以要密碼、passkey、驗證碼任何組合，經 Docker socket 同共用 volume 管伺服器。一定要喺對話框接受 Minecraft EULA；開機腳本會再檢查所有值，第一次開機拉兩個映像。佢喺本地網絡用 HTTP，passkey 要前面有 HTTPS 隧道或者 proxy。而家 pin 住嘅 `v1.0.2311` base 已經包括 `"minecraft"`。呢個模式未喺虛擬機開過。
