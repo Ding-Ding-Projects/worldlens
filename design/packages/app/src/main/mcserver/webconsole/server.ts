@@ -26,6 +26,7 @@ import { verifyWebConsolePassword, type SafeStorageLike } from "./password.js";
 import { WebConsolePasswordStore } from "./passwordStore.js";
 import { SessionManager } from "./sessions.js";
 import { LockoutTracker, SignInGate, UnlockLadder, isRung } from "./lockout.js";
+import { buildAccountsHandler, type AccountsOptions } from "./accountsRoutes.js";
 
 const SESSION_COOKIE_NAME = "wl_console_session";
 
@@ -46,6 +47,11 @@ export interface WebConsoleServerOptions {
     readonly sessionManager?: SessionManager;
     readonly lockoutTracker?: LockoutTracker;
     readonly unlockLadder?: UnlockLadder;
+    /**
+     * Named accounts instead of one shared password: owner-first setup, invitations, and
+     * sign-in with any combination of password, passkey and authenticator code.
+     */
+    readonly accounts?: AccountsOptions;
 }
 
 export interface WebConsoleServerHandle {
@@ -413,7 +419,22 @@ export function buildWebConsoleHandlers(options: WebConsoleServerOptions): {
         },
     };
 
-    return { handlers: [signInHandler, apiHandler], sseManagers, sessions };
+    const accountRoutes =
+        options.accounts === undefined
+            ? null
+            : buildAccountsHandler({
+                  accounts: options.accounts,
+                  sessions,
+                  gate,
+                  now,
+                  readCookie: (req) => readCookie(req, SESSION_COOKIE_NAME),
+                  cookie: (token) => sessionCookieHeader(token, secureCookies, 12 * 60 * 60),
+                  clearCookie: () => clearCookieHeader(secureCookies),
+                  readJson: (req) => readJsonBody(req),
+                  send: sendJson,
+                  source: sourceKeyFor,
+              });
+    return { handlers: accountRoutes === null ? [signInHandler, apiHandler] : [accountRoutes.handler, signInHandler, apiHandler], sseManagers, sessions };
 }
 
 /** Runs the console with a real socket. */

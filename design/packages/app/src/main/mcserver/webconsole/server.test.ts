@@ -379,3 +379,40 @@ describe("web console server", () => {
         expect(parsed.reason).toBe("not-locked");
     });
 });
+
+describe("web console with named accounts", () => {
+    it("lets the first visitor become owner, closes sign-up, signs in again, and invites", async () => {
+        const { AccountBook } = await import("./accounts.js");
+        const saved: unknown[] = [];
+        const { handle } = await startTestServer({
+            accounts: { book: new AccountBook(), save: async (s) => void saved.push(s), rpId: "localhost", origin: "http://localhost", siteName: "Test server" },
+        });
+
+        const page = await request(handle, "GET", "/");
+        expect(page.body).toContain("/account.js");
+        const status = JSON.parse((await request(handle, "GET", "/api/auth/status")).body);
+        expect(status).toMatchObject({ authenticated: false, mode: "accounts", openForOwner: true });
+
+        const setup = await request(handle, "POST", "/api/accounts/setup-owner", { body: { name: "SpongeBob", password: "krabby patty 42", policy: ["password"] } });
+        expect(setup.status).toBe(200);
+        const cookie = extractCookie(setup.headers)!;
+        expect(JSON.parse((await request(handle, "GET", "/api/auth/status", { cookie })).body)).toMatchObject({ authenticated: true, account: { name: "SpongeBob", role: "owner" } });
+        expect(saved).toHaveLength(1);
+
+        const second = await request(handle, "POST", "/api/accounts/setup-owner", { body: { name: "Plankton", password: "chum bucket 42", policy: ["password"] } });
+        expect(second.status).toBe(409);
+
+        expect((await request(handle, "POST", "/api/auth/signin", { body: { name: "SpongeBob", password: "nope nope nope" } })).status).toBe(401);
+        expect((await request(handle, "POST", "/api/auth/signin", { body: { name: "SpongeBob", password: "krabby patty 42" } })).status).toBe(200);
+
+        expect((await request(handle, "POST", "/api/accounts/invite", { body: { role: "operator" } })).status).toBe(401);
+        const invite = JSON.parse((await request(handle, "POST", "/api/accounts/invite", { cookie, body: { role: "operator" } })).body);
+        const joined = await request(handle, "POST", "/api/accounts/accept", { body: { code: invite.code, name: "Patrick", password: "under a rock 42" } });
+        expect(joined.status).toBe(200);
+        const list = JSON.parse((await request(handle, "GET", "/api/accounts", { cookie })).body);
+        expect(list.accounts.map((a: { name: string; role: string }) => `${a.name}:${a.role}`)).toEqual(["SpongeBob:owner", "Patrick:operator"]);
+
+        // The lockout ladder's own routes still reach their handler.
+        expect((await request(handle, "GET", "/api/auth/ladder/status")).status).toBe(200);
+    });
+});

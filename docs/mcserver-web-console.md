@@ -26,7 +26,7 @@ The management site that runs inside the Minecraft server appliance needs more t
 - `totp.ts`: authenticator-app codes (RFC 6238: SHA-1, 30 s, 6 digits), one step of drift, each step accepted once, and the `otpauth://` link for the QR code.
 - `passkey.ts`: WebAuthn registration (`none` attestation) and sign-in for ES256 and Ed25519 keys, with node:crypto and a small CBOR reader: checks the ceremony type, one-time challenge, origin, relying party, user presence (and verification when asked), the signature, and that the counter moves forward.
 
-These are tested against the RFC 6238 vectors and real P-256 signatures. They are **not yet wired into the HTTP routes or a sign-in page**, and the appliance that would run this site is not built yet.
+These are tested against the RFC 6238 vectors and real P-256 signatures. Passing `accounts` (an `AccountBook`, a save function, the passkey host name and origin, and a site name) to `startWebConsoleServer` switches the console from the shared password to named accounts (`accountsRoutes.ts`): the page at `/` offers owner setup to the first visitor (choose the sign-in methods, set each one up, and become owner), then sign-in with exactly the fields the policy asks for, or joining with an invitation; `/api/accounts` lists people, and `invite`, `policy` and `remove` are there for owners and admins. Failed sign-ins go through the same lockout ladder as the password. The appliance that runs this site is not built yet, so nothing passes `accounts` today.
 
 ### Sessions
 
@@ -95,4 +95,4 @@ after the fact.
 
 ### 擁有者先到先得、passkey 同驗證碼
 
-伺服器 appliance 入面嘅管理網站唔夠一個共用密碼，所以登入核心而家有三部分：`accounts.ts`（冇帳戶時第一個登記嘅人做**擁有者**，有齊管理員權限，開放登記即刻關閉；其他人要用一次性、會過期嘅邀請碼加入，只有擁有者可以邀請 admin；擁有者揀登入要密碼、passkey、驗證碼定任何組合，第一位擁有者要將揀咗嘅全部設定好，改政策會鎖死人就拒絕並講出係邊個）、`totp.ts`（RFC 6238 驗證碼，容許一格時差，每格只收一次，附 QR 用嘅 `otpauth://` 連結）同 `passkey.ts`（WebAuthn 登記同登入，ES256 同 Ed25519，檢查挑戰、來源、網站、有人在場、簽名同計數器向前）。已經用 RFC 測試向量同真 P-256 簽名測過，但**未接上 HTTP 路由同登入頁**，跑呢個網站嘅 appliance 亦未整。
+伺服器 appliance 入面嘅管理網站唔夠一個共用密碼，所以登入核心而家有三部分：`accounts.ts`（冇帳戶時第一個登記嘅人做**擁有者**，有齊管理員權限，開放登記即刻關閉；其他人要用一次性、會過期嘅邀請碼加入，只有擁有者可以邀請 admin；擁有者揀登入要密碼、passkey、驗證碼定任何組合，第一位擁有者要將揀咗嘅全部設定好，改政策會鎖死人就拒絕並講出係邊個）、`totp.ts`（RFC 6238 驗證碼，容許一格時差，每格只收一次，附 QR 用嘅 `otpauth://` 連結）同 `passkey.ts`（WebAuthn 登記同登入，ES256 同 Ed25519，檢查挑戰、來源、網站、有人在場、簽名同計數器向前）。已經用 RFC 測試向量同真 P-256 簽名測過。畀 `accounts` 去 `startWebConsoleServer`，主控台就由共用密碼轉做具名帳戶：`/` 頁面畀第一位訪客設定擁有者（揀登入方式、逐樣設定），之後按政策要求登入，或者用邀請碼加入；擁有者同 admin 有邀請、改政策同移除。登入失敗一樣行鎖定階梯。跑呢個網站嘅 appliance 未整，所以而家冇地方傳 `accounts`。
