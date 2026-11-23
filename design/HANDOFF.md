@@ -1,5 +1,20 @@
 # Handoff
 
+## 2026-11-23 Work strip decluttered into two tool tabs
+
+What changed, all on `main`:
+
+- **Built-in tools** and **Other tools** tabs (`packages/ui/src/components/shell/toolHubs.ts`, `ToolHub.vue`). Built-in tools holds Docs, File converter, Base64, Drawing board, Authenticator, Locks, Support Tickets, Browser downloads, Ollama, Virtual disks and the Memory console; Other tools holds the NBT editor and Convert. The strip drops from 29 job tabs to 20. Each hub is a list-detail page that renders the job's own `App.vue` slot unchanged.
+- `WorkPane` routes a member id to its hub with that member picked, so the command palette, the job opener and every `revealPage` caller keep working. A saved workspace is folded onto the hubs once, keeping groups and pins. The picked tool persists under `worldlens-tool-hubs`.
+- Design boards in `design-sources/work-strip-declutter/`. Article: `docs/tabbed-navigation.md` § Tools gathered into two tabs (with Cantonese), and the site's tabbed-shell article.
+- Kid Mode labels for the two hubs, and for Hosted instances and NBT editor, which had none (`kidMode.contract.test.ts` was red on those two).
+
+Not done or not verified:
+
+- No capture of the hubs in the built Windows app; verified with jsdom tests only (`App.test.ts`, `toolHubs.test.ts`, `kid/`, `shell/`, `tabs/`, `site`).
+- `catalogueCoverage.test.ts` is still red on 20 keys from the sharing work (`tabs.page.hostedInstances` and `tabs.page.nbtEditor` in `App.vue`'s own list, `world.share.*`, `rendersInProgress.*`). Not touched here.
+- The command palette's open-page rows still list each tool by name; choosing one opens its hub.
+
 ## 2026-11-23 Share a finished render, NBT editor
 
 What changed, all on `main`:
