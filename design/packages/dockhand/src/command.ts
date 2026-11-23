@@ -39,6 +39,13 @@ export interface CommandOptions {
     readonly env?: NodeJS.ProcessEnv;
     /** Cancels the child process without waiting for its ordinary timeout. */
     readonly signal?: AbortSignal;
+    /**
+     * Text written to the child's standard input, then closed.
+     *
+     * The only route by which a value that must not appear in a process listing (a sign-in
+     * cache, for instance) reaches a command. Never put such a value in `args`.
+     */
+    readonly input?: string;
 }
 
 /** Runs `command` with `args` and reports what came back. Never rejects. */
@@ -63,7 +70,7 @@ const MAX_OUTPUT_BYTES = 4 * 1024 * 1024;
 
 export const execFileCommandRunner: CommandRunner = (command, args, options) =>
     new Promise<CommandOutput>((resolve) => {
-        execFile(
+        const child = execFile(
             command,
             [...args],
             {
@@ -96,4 +103,10 @@ export const execFileCommandRunner: CommandRunner = (command, args, options) =>
                 });
             },
         );
+        if (options?.input !== undefined) {
+            // A child that exits before reading raises EPIPE on this stream; the exit code
+            // already says what went wrong, so the stream error is swallowed.
+            child.stdin?.on("error", () => undefined);
+            child.stdin?.end(options.input);
+        }
     });
