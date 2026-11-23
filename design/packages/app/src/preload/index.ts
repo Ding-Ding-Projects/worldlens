@@ -2637,6 +2637,7 @@ interface WorldlensBridge {
     sharing: {
         savedSshHosts(): Promise<unknown>;
         checkLink(link: string): Promise<unknown>;
+        renderWebRoot(renderId: string): Promise<unknown>;
         openExternal(url: string): Promise<unknown>;
         reveal(target: string): Promise<unknown>;
     };

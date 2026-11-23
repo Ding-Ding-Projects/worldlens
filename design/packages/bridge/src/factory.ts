@@ -1262,6 +1262,7 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             checkLink: (link: unknown) => transport.invoke("sharing:checkLink", link),
             openExternal: (url: unknown) => transport.invoke("sharing:openExternal", url),
             reveal: (target: unknown) => transport.invoke("sharing:reveal", target),
+            renderWebRoot: (renderId: unknown) => transport.invoke("sharing:renderWebRoot", renderId),
         },
 
         converter: {

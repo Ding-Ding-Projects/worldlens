@@ -152,7 +152,11 @@ describe("VMware build", () => {
         expect(result.ok).toBe(false);
         expect(result.message).toMatch(/did not answer/);
         expect(result.steps.find((s) => s.id === "check")?.state).toBe("failed");
-        expect(await builder.instances()).toHaveLength(0);
+        // The VM exists and is still running, so it is recorded: the instance list is the only
+        // place a person can stop and remove it.
+        const kept = await builder.instances();
+        expect(kept).toHaveLength(1);
+        expect(result.instanceId).toBe(kept[0]?.id);
     });
     it("fails plainly when the tool is missing or vmrun refuses", async () => {
         const missing = new ApplianceBuilder(deps(fakeRunner(() => undefined).runner, { exists: () => false }));

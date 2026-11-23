@@ -468,6 +468,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "appliance:usbDisks",
     "sharing:checkLink",
     "sharing:openExternal",
+    "sharing:renderWebRoot",
     "sharing:reveal",
     "sharing:savedSshHosts",
     "nbtEditor:listProject",

@@ -77,7 +77,7 @@ export function virtualBoxCreatePlan(input: VirtualBoxPlanInput): Planned[] {
     const nic: string[] = input.network === "bridged" ? ["--nic1", "bridged", ...(input.bridgeAdapter ? ["--bridgeadapter1", input.bridgeAdapter] : [])] : ["--nic1", "nat"];
     const plan: Planned[] = [
         { file: vb, args: ["createvm", "--name", name, "--ostype", "Linux26_64", "--register", "--basefolder", input.folder], label: "Create the virtual machine" },
-        { file: vb, args: ["modifyvm", name, "--memory", String(input.memoryMb), "--cpus", String(input.cpus), "--ioapic", "on", "--boot1", "disk", "--boot2", "none", "--boot3", "none", "--boot4", "none", ...nic, nicType, "82540EM", "--graphicscontroller", "vmsvga", "--vram", "16"], label: "Set memory, processors and network" },
+        { file: vb, args: ["modifyvm", name, "--memory", String(input.memoryMb), "--cpus", String(input.cpus), "--ioapic", "on", "--boot1", "disk", "--boot2", "none", "--boot3", "none", "--boot4", "none", ...nic, nicType, "82540EM", "--graphicscontroller", "vmsvga", "--vram", "16", "--uart1", "0x3F8", "4", "--uartmode1", "file", `${input.folder}/console.log`], label: "Set memory, processors and network" },
         { file: vb, args: ["storagectl", name, "--name", "SATA", "--add", "sata", "--controller", "IntelAhci"], label: "Add the disk controller" },
         { file: vb, args: ["storageattach", name, "--storagectl", "SATA", "--port", "0", "--device", "0", "--type", "hdd", "--medium", input.vmdk], label: "Attach the appliance disk" },
     ];

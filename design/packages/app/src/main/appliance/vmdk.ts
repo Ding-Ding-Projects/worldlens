@@ -187,12 +187,19 @@ export function vmxText(spec: VmSpec): string {
         'sata0.present = "TRUE"',
         'sata0:0.present = "TRUE"',
         `sata0:0.fileName = ${quote(spec.diskFile)}`,
+        // vmxnet3 is a PCIe device, so the VM needs the PCIe root ports VMware's own templates
+        // declare; without them Workstation refuses to power on ("No PCIe slot available").
         'ethernet0.present = "TRUE"',
-        'ethernet0.virtualDev = "e1000e"',
+        'ethernet0.virtualDev = "vmxnet3"',
         `ethernet0.connectionType = "${spec.bridged ? "bridged" : "nat"}"`,
         'ethernet0.addressType = "generated"',
         'tools.syncTime = "FALSE"',
         'pciBridge0.present = "TRUE"',
+        ...[4, 5, 6, 7].flatMap((n) => [`pciBridge${n}.present = "TRUE"`, `pciBridge${n}.virtualDev = "pcieRootPort"`, `pciBridge${n}.functions = "8"`]),
+        // The serial console, as for VirtualBox, so a VM that does not come up can be diagnosed.
+        'serial0.present = "TRUE"',
+        'serial0.fileType = "file"',
+        'serial0.fileName = "console.log"',
         "",
     ].join("\n");
 }

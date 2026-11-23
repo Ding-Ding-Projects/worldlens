@@ -15,6 +15,7 @@ import {
     VTextField,
 } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
+import LiveViewerDialog from "../liveviewer/LiveViewerDialog.vue";
 import { createSettingMatcher } from "../config/regexEngine.js";
 import {
     loadRows,
@@ -51,6 +52,7 @@ const regex = ref(false);
 const flags = ref("i");
 const removing = ref<InstanceRow | null>(null);
 const removeTyped = ref("");
+const liveViewerOpen = ref(false);
 let timer: ReturnType<typeof setInterval> | null = null;
 
 const matcher = computed(() => createSettingMatcher(query.value, regex.value, flags.value));
@@ -176,6 +178,9 @@ defineExpose({ refresh });
             <v-btn :prepend-icon="mdiRefresh" :loading="loading" variant="outlined" @click="refresh">
                 {{ t("instances.checkAll", "Check all now") }}
             </v-btn>
+            <v-btn color="primary" variant="flat" data-start-live-viewer @click="liveViewerOpen = true">
+                {{ t("instances.startLive", "Start a live viewer") }}
+            </v-btn>
         </header>
         <ConfigSearchField
             v-model="query"
@@ -275,6 +280,7 @@ defineExpose({ refresh });
                 </v-card-actions>
             </v-card>
         </v-dialog>
+        <LiveViewerDialog v-model="liveViewerOpen" @update:model-value="(v) => !v && refresh()" />
         <v-snackbar :model-value="snackbar !== ''" timeout="3000" @update:model-value="(v) => !v && (snackbar = '')">
             {{ snackbar }}
         </v-snackbar>

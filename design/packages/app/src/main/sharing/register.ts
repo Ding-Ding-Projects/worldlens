@@ -13,6 +13,8 @@ import {
 } from "../sharehost/index.js";
 import { listSavedSshHosts, savedSshTarget } from "../sharehost/savedHosts.js";
 import { VocabularyStore } from "../vocabulary/store.js";
+import { renderWorkspace } from "../render/workspace.js";
+import { existsSync } from "node:fs";
 import {
     hostChoices,
     InstanceRegistry as LiveViewerRegistry,
@@ -134,6 +136,13 @@ export function registerSharing(ipcMain: IpcMain, options: SharingOptions): Shar
             return { ok: false, status: null, checkedAt: new Date().toISOString() };
         }
     });
+    // The web folder of one finished render, so a render picked from the Renders page can be
+    // built into an appliance. The id is validated the same way render ids are everywhere.
+    ipcMain.handle("sharing:renderWebRoot", (_event, renderId: unknown) => {
+        if (typeof renderId !== "string" || !/^[A-Za-z0-9._-]{1,128}$/u.test(renderId)) return null;
+        const webRoot = renderWorkspace(options.storageDir(), renderId).webRoot;
+        return existsSync(webRoot) ? webRoot : null;
+    });
     ipcMain.handle("sharing:reveal", (_event, target: unknown) => {
         if (typeof target !== "string" || target.length === 0) return false;
         shell.showItemInFolder(target);
@@ -211,7 +220,7 @@ export function registerSharing(ipcMain: IpcMain, options: SharingOptions): Shar
             shareHost.dispose();
             liveViewer.dispose();
             appliance.dispose();
-            for (const channel of ["sharing:savedSshHosts", "sharing:openExternal", "sharing:reveal", "sharing:checkLink", "liveViewer:clientId", "liveViewer:configureClient"]) {
+            for (const channel of ["sharing:savedSshHosts", "sharing:openExternal", "sharing:reveal", "sharing:checkLink", "sharing:renderWebRoot", "liveViewer:clientId", "liveViewer:configureClient"]) {
                 ipcMain.removeHandler(channel);
             }
         },

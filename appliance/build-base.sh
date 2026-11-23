@@ -65,14 +65,21 @@ mount -t devpts devpts "$WORK/root/dev/pts"
 printf '%s\n%s\n' "$ALPINE_REPO/main" "$ALPINE_REPO/community" > "$WORK/root/etc/apk/repositories"
 chroot "$WORK/root" /bin/sh -eu <<'CHROOT'
 apk update
-apk add --no-cache alpine-base openrc linux-virt linux-firmware-none mkinitfs syslinux e2fsprogs \
+# linux-lts rather than linux-virt: the same image boots in VirtualBox, VMware and on a real PC from
+# a USB stick, so it needs the common physical network drivers (and Realtek's firmware) as well as
+# the virtual ones. linux-virt has no Realtek driver at all.
+apk add --no-cache alpine-base openrc linux-lts linux-firmware-rtl_nic mkinitfs syslinux e2fsprogs \
     docker avahi dbus jq curl iproute2 util-linux open-vm-tools virtualbox-guest-additions
 # Initramfs must carry every storage driver a VM, a USB stick or a Raspberry-class board can present.
 mkdir -p /etc/mkinitfs
 printf 'features="ata base ext4 scsi virtio usb nvme mmc"\n' > /etc/mkinitfs/mkinitfs.conf
 KVER=$(ls /lib/modules | head -n1)
-mkinitfs -o /boot/initramfs-virt "$KVER"
-rc-update add devfs sysinit; rc-update add dmesg sysinit; rc-update add mdev sysinit
+mkinitfs -o /boot/initramfs-lts "$KVER"
+# hwdrivers loads the driver for whatever network card is present; mdev's scan alone left the
+# VirtualBox Intel card without a driver, so the appliance booted with no eth0.
+rc-update add devfs sysinit; rc-update add dmesg sysinit; rc-update add mdev sysinit; rc-update add hwdrivers sysinit
+# Belt and braces for the virtual machines the app creates: Intel (VirtualBox), VMware, virtio.
+printf 'af_packet\nipv6\ne1000\ne1000e\nvmxnet3\nvirtio_net\n' > /etc/modules
 rc-update add hwclock boot; rc-update add modules boot; rc-update add hostname boot; rc-update add bootmisc boot; rc-update add networking boot
 rc-update add dbus default; rc-update add avahi-daemon default; rc-update add docker default
 rc-update add open-vm-tools default; rc-update add virtualbox-guest-additions default
@@ -98,8 +105,8 @@ DEFAULT worldlens
 TIMEOUT 1
 PROMPT 0
 LABEL worldlens
-    LINUX /boot/vmlinuz-virt
-    INITRD /boot/initramfs-virt
+    LINUX /boot/vmlinuz-lts
+    INITRD /boot/initramfs-lts
     APPEND root=LABEL=worldlens-root rootfstype=ext4 modules=ext4 console=tty1 console=ttyS0 quiet
 EOF
 extlinux --install "$WORK/root/boot/extlinux" >/dev/null

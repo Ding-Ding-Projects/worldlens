@@ -257,6 +257,12 @@ export class ApplianceBuilder {
                 const route = await this.deps.runner.run("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", DEFAULT_ROUTE_QUERY], { timeoutMs: 20_000 }).catch(() => null);
                 adapter = chooseBridgeAdapter(parseBridgedAdapters(list.stdout), route?.stdout.trim() || null);
             }
+            // A NAT port forward onto a host port something else already holds fails silently:
+            // VirtualBox starts the VM anyway and the link reaches whatever owns the port.
+            if (request.network === "nat" && !(await hostPortFree(request.port))) {
+                progress.fail(`port ${request.port} is in use on this PC`);
+                return result({ ok: false, message: `Port ${request.port} is already in use on this PC, so a NAT forward to the virtual machine could not reach it. Choose another web port, or use Bridged networking.` });
+            }
             const plan = virtualBoxCreatePlan({ vboxmanage: tool.path, name: request.vmName, folder, vmdk: path.join(folder, vmdkName), memoryMb: request.memoryMb, cpus: request.cpus, network: request.network, bridgeAdapter: adapter, hostPort: request.port, guestPort: request.port, majorVersion: major });
             const failure = await ranPlans(plan);
             if (failure) {
@@ -289,22 +295,29 @@ export class ApplianceBuilder {
             }
             if (!ip) await sleep(3000);
         }
+        // From here on the VM exists, so every outcome is recorded: a failed check still leaves a
+        // running VM that the instance list must be able to stop and remove.
+        const record = (link: string) => this.deps.registry.add({ target: request.target as "vmware" | "virtualbox", name: request.vmName, handle, folder, link, port: request.port, hostName: request.hostName });
         if (!ip) {
             progress.fail("no address reported");
-            return result({ ok: false, message: "The virtual machine started but never reported an address within three minutes. It was left running so you can look at its console; remove it from the instance list when done." });
+            const kept = await record("");
+            return result({ ok: false, message: "The virtual machine started but never reported an address within three minutes. It was left running so you can look at its console; remove it from the instance list when done.", instanceId: kept.id });
         }
         progress.set("boot", "done", `${Math.max(1, Math.round((Date.now() - bootStart) / 1000))} s`);
 
         progress.set("check", "running");
         const port = hostPortForNat ?? request.port;
         const link = `http://${ip}${port === 80 ? "" : `:${port}`}/`;
-        const ok = await (this.deps.health ?? defaultHealth)(`${link}health`, 90_000);
+        // A first boot loads the map server image before it can answer: about a minute in
+        // VirtualBox on a fast PC, so the window is generous but still bounded.
+        const ok = await (this.deps.health ?? defaultHealth)(`${link}health`, 240_000);
         if (!ok) {
             progress.fail("no answer");
-            return result({ ok: false, message: `The virtual machine reported ${ip}, but ${link}health did not answer from this PC. The map was not reported ready.` });
+            const kept = await record(link);
+            return result({ ok: false, message: `The virtual machine reported ${ip}, but ${link}health did not answer from this PC. The map was not reported ready. It was left running and is on the instance list, where you can open its folder (console.log) or remove it.`, instanceId: kept.id });
         }
         progress.set("check", "done", "200 OK");
-        const instance = await this.deps.registry.add({ target: request.target as "vmware" | "virtualbox", name: request.vmName, handle, folder, link, port: request.port, hostName: request.hostName });
+        const instance = await record(link);
         return result({ ok: true, message: `The appliance is up in ${request.target === "vmware" ? "VMware" : "VirtualBox"}`, link, instanceId: instance.id });
     }
 
@@ -366,6 +379,16 @@ async function defaultMdns(host: string): Promise<string | null> {
     } catch {
         return null;
     }
+}
+
+/** True when nothing on this PC is listening on `port`, checked by trying to bind it. */
+async function hostPortFree(port: number): Promise<boolean> {
+    const net = await import("node:net");
+    return new Promise((resolve) => {
+        const server = net.createServer();
+        server.once("error", () => resolve(false));
+        server.listen(port, "0.0.0.0", () => server.close(() => resolve(true)));
+    });
 }
 
 async function defaultHealth(url: string, timeoutMs: number): Promise<boolean> {

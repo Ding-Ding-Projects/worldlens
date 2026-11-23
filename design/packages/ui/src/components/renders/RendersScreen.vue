@@ -39,6 +39,8 @@ import type { CiRenderBridge } from "../cirender/ciRenderBridge.js";
 import { resolveCiRenderBridge } from "../cirender/ciRenderBridge.js";
 import RenderProgressDetail from "../progress/RenderProgressDetail.vue";
 import RepairOffer from "../repair/RepairOffer.vue";
+import HostMapDialog from "../sharehost/HostMapDialog.vue";
+import ApplianceDialog from "../appliance/ApplianceDialog.vue";
 import type { RepairBridge } from "../repair/repairBridge.js";
 import { formatPercent } from "../progress/format.js";
 import type { ContainerOffersBridge } from "../world/containerOffers.js";
@@ -159,6 +161,55 @@ function isLive(row: ActiveRenderRow): boolean {
 /** The prototype's two bands: the live cards first, the settled rows under their own rule. */
 const activeRows = computed(() => filteredRows.value.filter(isLive));
 const settledRows = computed(() => filteredRows.value.filter((row) => !isLive(row)));
+
+/**
+ * Sharing a render that finished earlier, from this list rather than only from the panel that
+ * ran it. Only finished renders on this computer have a local web folder to share.
+ */
+interface SharingBridge {
+    savedSshHosts(): Promise<unknown>;
+    renderWebRoot(renderId: string): Promise<unknown>;
+}
+function sharingBridge(): SharingBridge | null {
+    return (window as { worldlens?: { sharing?: SharingBridge } }).worldlens?.sharing ?? null;
+}
+const shareRenderId = ref("");
+const shareMapRoot = ref("");
+const shareSshHosts = ref<readonly { id: string; label: string }[]>([]);
+const hostMapOpen = ref(false);
+const applianceOpen = ref(false);
+const shareProblem = ref<string | null>(null);
+function canShare(row: { route: string; state: string }): boolean {
+    return row.route === "local" && row.state === "finished";
+}
+async function shareRow(row: { renderId: string }, route: "host" | "appliance"): Promise<void> {
+    shareProblem.value = null;
+    shareRenderId.value = row.renderId;
+    const sharing = sharingBridge();
+    if (sharing === null) {
+        shareProblem.value = t("rendersInProgress.share.unavailable", "Sharing is not available in this build.");
+        return;
+    }
+    try {
+        const hosts = await sharing.savedSshHosts();
+        shareSshHosts.value = Array.isArray(hosts)
+            ? (hosts as { id: string; label: string; summary?: string }[]).map((h) => ({ id: h.id, label: h.summary ? `${h.label} · ${h.summary}` : h.label }))
+            : [];
+    } catch {
+        shareSshHosts.value = [];
+    }
+    if (route === "host") {
+        hostMapOpen.value = true;
+        return;
+    }
+    const webRoot = await sharing.renderWebRoot(row.renderId);
+    if (typeof webRoot !== "string") {
+        shareProblem.value = t("rendersInProgress.share.noWeb", "This render's map folder is not on this computer any more, so it cannot be built into an appliance.");
+        return;
+    }
+    shareMapRoot.value = webRoot;
+    applianceOpen.value = true;
+}
 
 /** `undefined` keeps the offer's own probe; anything else is passed through as given. */
 const repairBridgeValue = computed(() => props.repairBridge);
@@ -758,6 +809,24 @@ function percentLabel(row: ActiveRenderRow): string {
                                 </span>
                                 <div class="mb-renders__actions">
                                     <v-btn
+                                        v-if="canShare(row)"
+                                        variant="tonal"
+                                        size="small"
+                                        :data-share-host="row.key"
+                                        @click="shareRow(row, 'host')"
+                                    >
+                                        {{ t("rendersInProgress.row.hostMap", "Host the map") }}
+                                    </v-btn>
+                                    <v-btn
+                                        v-if="canShare(row)"
+                                        variant="tonal"
+                                        size="small"
+                                        :data-share-appliance="row.key"
+                                        @click="shareRow(row, 'appliance')"
+                                    >
+                                        {{ t("rendersInProgress.row.appliance", "Build an appliance") }}
+                                    </v-btn>
+                                    <v-btn
                                         v-if="row.canOpenConsole"
                                         variant="outlined"
                                         color="primary"
@@ -772,7 +841,10 @@ function percentLabel(row: ActiveRenderRow): string {
                     </AppearanceTarget>
                 </li>
             </ul>
+            <p v-if="shareProblem" class="mb-renders__meta" role="status">{{ shareProblem }}</p>
         </section>
+        <HostMapDialog v-model="hostMapOpen" :render-id="shareRenderId" :ssh-hosts="shareSshHosts" />
+        <ApplianceDialog v-model="applianceOpen" :map-root="shareMapRoot" />
     </div>
 </template>
 
