@@ -43,10 +43,8 @@ export interface SharingBridges {
     };
     readonly liveViewer?: {
         list(): Promise<unknown>;
-        start(id: string): Promise<unknown>;
-        stop(id: string): Promise<unknown>;
-        restart(id: string): Promise<unknown>;
-        remove(id: string): Promise<unknown>;
+        control(request: { id: string; action: "start" | "stop" | "restart" }): Promise<unknown>;
+        remove(request: { id: string; confirmName: string }): Promise<unknown>;
     };
     readonly sharing?: {
         checkLink(link: string): Promise<unknown>;
@@ -108,20 +106,24 @@ export function applianceRows(raw: unknown): InstanceRow[] {
 }
 
 export function liveRows(raw: unknown): InstanceRow[] {
-    return asArray(raw).map((r) => {
-        const id = str(r.instanceId, str(r.id));
-        const state = str(r.state, "unknown");
+    return asArray(raw).map((status) => {
+        const r = (status.instance ?? status) as Record<string, unknown>;
+        const id = str(r.id);
+        const state = str(status.state, "unknown");
+        const bot = status.botConnected === true ? "bot online" : status.botConnected === false ? "bot offline" : "";
+        const target = r.target as { kind?: unknown; label?: unknown } | undefined;
+        const where = target?.kind === "ssh" ? str(target.label, "SSH host") : "This PC";
         return {
             key: `live:${id}`,
             id,
             kind: "live" as const,
             name: str(r.name, id),
-            where: str(r.targetLabel, str(r.where)),
-            link: str(r.link),
+            where: `${where} · ${str(r.kind) === "web-client" ? "Prismarine Web Client" : "Prismarine Viewer"} · ${str(r.botName)} on ${str(r.serverLabel)}`,
+            link: str(r.url),
             running: state === "running" ? true : state === "stopped" ? false : null,
-            detail: str(r.detail, state),
+            detail: [state, bot].filter(Boolean).join(" · "),
             actions: ["start", "stop", "restart", "remove"],
-            removes: `the live viewer container ${str(r.containerName, str(r.name))} and its settings volume`,
+            removes: `the live viewer container ${str(r.containerName)} and its settings volumes`,
         };
     });
 }
@@ -136,8 +138,19 @@ export async function loadRows(bridges: SharingBridges): Promise<InstanceRow[]> 
 }
 
 export async function runAction(bridges: SharingBridges, row: InstanceRow, action: InstanceAction): Promise<{ ok: boolean; message: string }> {
-    const target =
-        row.kind === "container" ? bridges.shareHost : row.kind === "appliance" ? bridges.appliance : bridges.liveViewer;
+    if (row.kind === "live") {
+        const live = bridges.liveViewer;
+        if (!live || !row.actions.includes(action)) return { ok: false, message: "This instance cannot do that." };
+        try {
+            const answer = (action === "remove"
+                ? await live.remove({ id: row.id, confirmName: row.name })
+                : await live.control({ id: row.id, action: action as "start" | "stop" | "restart" })) as { ok?: unknown; failure?: { message?: unknown } } | null;
+            return { ok: answer?.ok !== false, message: str(answer?.failure?.message) };
+        } catch (error) {
+            return { ok: false, message: error instanceof Error ? error.message : String(error) };
+        }
+    }
+    const target = row.kind === "container" ? bridges.shareHost : bridges.appliance;
     const fn = (target as Record<string, ((id: string) => Promise<unknown>) | undefined> | undefined)?.[action];
     if (typeof fn !== "function" || !row.actions.includes(action)) return { ok: false, message: "This instance cannot do that." };
     try {

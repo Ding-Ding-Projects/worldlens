@@ -773,6 +773,7 @@ function registerIpc(): void {
         storageDir: () => startRendering().storageDirectory(),
         resourcesDir: app.isPackaged ? process.resourcesPath : null,
         openExternal: (url) => shell.openExternal(url),
+        mcServer: mcServerIpc,
     });
     app.on("will-quit", () => sharingIpc?.dispose());
     // The NBT editor. Every project it edits gets its own local Git history under user data.

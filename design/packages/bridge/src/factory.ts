@@ -1236,6 +1236,25 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             restore: (...args: unknown[]) => transport.invoke("nbtEditor:restore", ...args),
         },
 
+        liveViewer: {
+            choices: (...args: unknown[]) => transport.invoke("liveViewer:choices", ...args),
+            host: (...args: unknown[]) => transport.invoke("liveViewer:host", ...args),
+            cancel: (...args: unknown[]) => transport.invoke("liveViewer:cancel", ...args),
+            list: (...args: unknown[]) => transport.invoke("liveViewer:list", ...args),
+            control: (...args: unknown[]) => transport.invoke("liveViewer:control", ...args),
+            logs: (...args: unknown[]) => transport.invoke("liveViewer:logs", ...args),
+            remove: (...args: unknown[]) => transport.invoke("liveViewer:remove", ...args),
+            accounts: (...args: unknown[]) => transport.invoke("liveViewer:accounts", ...args),
+            createAccount: (...args: unknown[]) => transport.invoke("liveViewer:createAccount", ...args),
+            signIn: (...args: unknown[]) => transport.invoke("liveViewer:signIn", ...args),
+            cancelSignIn: (...args: unknown[]) => transport.invoke("liveViewer:cancelSignIn", ...args),
+            onEvent: (listener: BridgeListener) => {
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
+                transport.on("liveViewer:event", forward);
+                return () => transport.off("liveViewer:event", forward);
+            },
+        },
+
         sharing: {
             savedSshHosts: () => transport.invoke("sharing:savedSshHosts"),
             checkLink: (link: unknown) => transport.invoke("sharing:checkLink", link),

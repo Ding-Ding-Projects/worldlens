@@ -2618,6 +2618,20 @@ interface WorldlensBridge {
         diffCurrent(...args: unknown[]): Promise<unknown>;
         restore(...args: unknown[]): Promise<unknown>;
     };
+    liveViewer: {
+        choices(...args: unknown[]): Promise<unknown>;
+        host(...args: unknown[]): Promise<unknown>;
+        cancel(...args: unknown[]): Promise<unknown>;
+        list(...args: unknown[]): Promise<unknown>;
+        control(...args: unknown[]): Promise<unknown>;
+        logs(...args: unknown[]): Promise<unknown>;
+        remove(...args: unknown[]): Promise<unknown>;
+        accounts(...args: unknown[]): Promise<unknown>;
+        createAccount(...args: unknown[]): Promise<unknown>;
+        signIn(...args: unknown[]): Promise<unknown>;
+        cancelSignIn(...args: unknown[]): Promise<unknown>;
+        onEvent(listener: (event: unknown) => void): () => void;
+    };
     sharing: {
         savedSshHosts(): Promise<unknown>;
         checkLink(link: string): Promise<unknown>;

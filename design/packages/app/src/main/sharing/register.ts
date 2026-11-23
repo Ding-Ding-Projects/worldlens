@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +13,15 @@ import {
 } from "../sharehost/index.js";
 import { listSavedSshHosts, savedSshTarget } from "../sharehost/savedHosts.js";
 import { VocabularyStore } from "../vocabulary/store.js";
+import {
+    hostChoices,
+    InstanceRegistry as LiveViewerRegistry,
+    LiveViewerService,
+    readBundledImage as readLiveViewerImage,
+    registerLiveViewerHandlers,
+    serverChoices,
+} from "../liveviewer/index.js";
+import type { McServerIpc } from "../mcserver/ipc.js";
 
 /**
  * Everything that shares a finished render, registered in one place.
@@ -30,6 +41,26 @@ export interface SharingOptions {
     readonly resourcesDir: string | null;
     /** Opens an http or https link in the person's browser. */
     readonly openExternal: (url: string) => Promise<void>;
+    /** The server manager, whose servers and saved SSH hosts the live viewer offers. */
+    readonly mcServer: McServerIpc | null;
+}
+
+/**
+ * A random id for this installation, kept in user data, so the live viewer only ever manages
+ * containers this installation created even when two installs share one Docker host.
+ */
+function installationId(userData: string): string {
+    const file = join(userData, "installation-id");
+    try {
+        const value = readFileSync(file, "utf8").trim();
+        if (/^[a-f0-9-]{36}$/u.test(value)) return value;
+    } catch {
+        // Created below.
+    }
+    const value = randomUUID();
+    mkdirSync(userData, { recursive: true });
+    writeFileSync(file, value, { mode: 0o600 });
+    return value;
 }
 
 export interface SharingIpc {
@@ -109,9 +140,38 @@ export function registerSharing(ipcMain: IpcMain, options: SharingOptions): Shar
         reveal: (target) => shell.showItemInFolder(target),
     });
 
+    // The live viewer and its bot. Microsoft sign-in needs the bot account service, which this
+    // build does not wire yet, so accounts are null and the dialog says so; offline names work.
+    const mcServer = options.mcServer;
+    const liveViewer = registerLiveViewerHandlers(ipcMain, {
+        service: new LiveViewerService({
+            registry: new LiveViewerRegistry(options.userData),
+            owner: installationId(options.userData),
+            resolveSsh: (hostId) => mcServer?.hostProfiles.sshHost(hostId) ?? null,
+            accounts: null,
+            vocabulary: async () => (await vocabulary.read()).entries,
+            bundledImage: () => readLiveViewerImage(join(options.resourcesDir ?? devResourcesDir(), "liveviewer")),
+        }),
+        accounts: null,
+        servers: async () => {
+            if (mcServer === null) return [];
+            const listed = await mcServer.registry.list();
+            return listed.ok
+                ? serverChoices(listed.value, (id) => mcServer.hostProfiles.sshHost(id)?.target.host ?? null)
+                : [];
+        },
+        hosts: async () => {
+            if (mcServer === null) return [];
+            const listed = await mcServer.hostProfiles.list();
+            return hostChoices(listed.ok ? listed.value : []);
+        },
+        onEvent: (event) => broadcast("liveViewer:event", event),
+    });
+
     return {
         dispose() {
             shareHost.dispose();
+            liveViewer.dispose();
             appliance.dispose();
             for (const channel of ["sharing:savedSshHosts", "sharing:openExternal", "sharing:reveal", "sharing:checkLink"]) {
                 ipcMain.removeHandler(channel);
