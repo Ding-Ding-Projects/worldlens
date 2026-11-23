@@ -18,6 +18,16 @@ wrong guess takes the same time whether it differs in the first byte or the last
 route before authentication renders in ordinary professional English — no project jargon, no
 in-house vocabulary — because a stranger opening the sign-in page has no context for either.
 
+### Owner-first accounts, passkeys and authenticator codes
+
+The management site that runs inside the Minecraft server appliance needs more than one shared password, so the sign-in core now has three pieces in `design/packages/app/src/main/mcserver/webconsole/`:
+
+- `accounts.ts`: the first person to register while there are no accounts becomes the **owner** with full administrator rights, and open registration closes in the same step. Everyone else joins with a single-use, expiring invitation (only the owner can invite an admin). The owner chooses whether sign-in needs a password, a passkey, an authenticator code, or any combination; the first owner must set up every factor they choose, and a policy change that would lock anyone out is refused, naming who. Passwords are scrypt verifiers (at least 10 characters); unknown names cost the same work as known ones.
+- `totp.ts`: authenticator-app codes (RFC 6238: SHA-1, 30 s, 6 digits), one step of drift, each step accepted once, and the `otpauth://` link for the QR code.
+- `passkey.ts`: WebAuthn registration (`none` attestation) and sign-in for ES256 and Ed25519 keys, with node:crypto and a small CBOR reader: checks the ceremony type, one-time challenge, origin, relying party, user presence (and verification when asked), the signature, and that the counter moves forward.
+
+These are tested against the RFC 6238 vectors and real P-256 signatures. They are **not yet wired into the HTTP routes or a sign-in page**, and the appliance that would run this site is not built yet.
+
 ### Sessions
 
 A signed-in session is a 32-byte random token handed to the browser as a cookie. Only the
@@ -82,3 +92,7 @@ after the fact.
   controls are covered by the shared mount and bridge contract tests.
 - Not yet run: a real browser, on a different machine, signing in to a real running instance
   of this server over a real network connection.
+
+### 擁有者先到先得、passkey 同驗證碼
+
+伺服器 appliance 入面嘅管理網站唔夠一個共用密碼，所以登入核心而家有三部分：`accounts.ts`（冇帳戶時第一個登記嘅人做**擁有者**，有齊管理員權限，開放登記即刻關閉；其他人要用一次性、會過期嘅邀請碼加入，只有擁有者可以邀請 admin；擁有者揀登入要密碼、passkey、驗證碼定任何組合，第一位擁有者要將揀咗嘅全部設定好，改政策會鎖死人就拒絕並講出係邊個）、`totp.ts`（RFC 6238 驗證碼，容許一格時差，每格只收一次，附 QR 用嘅 `otpauth://` 連結）同 `passkey.ts`（WebAuthn 登記同登入，ES256 同 Ed25519，檢查挑戰、來源、網站、有人在場、簽名同計數器向前）。已經用 RFC 測試向量同真 P-256 簽名測過，但**未接上 HTTP 路由同登入頁**，跑呢個網站嘅 appliance 亦未整。
