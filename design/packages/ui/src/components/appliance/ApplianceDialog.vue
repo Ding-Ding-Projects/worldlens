@@ -27,7 +27,7 @@ import {
     type UsbDiskView,
 } from "./applianceHost.js";
 
-const props = withDefaults(defineProps<{ modelValue: boolean; mapRoot: string; bridge?: ApplianceBridge | null }>(), { bridge: undefined });
+const props = defineProps<{ modelValue: boolean; mapRoot: string; bridge?: ApplianceBridge | null | undefined }>();
 const emit = defineEmits<{ "update:modelValue": [value: boolean] }>();
 const { t } = useI18n();
 
