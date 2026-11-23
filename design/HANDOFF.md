@@ -1,5 +1,20 @@
 # Handoff
 
+## 2026-11-23 Chunk view, chunk picker, data pack creator, container deploy
+
+What changed (all on `main`, unit and component tests only; nothing here was driven in the packaged app yet):
+
+- NBT editor chunk view (`aab3cf3`): height, biome, block and light layers and block entities for a chunk opened from the region canvas.
+- Render only these chunks (`65dbdc9`): a picker on the map's render mask card; writes chunk-aligned mask boxes.
+- Data packs tab (`92e41bb`): recipes, functions, load/tick tags, tags, advancements, loot tables; pack format per version 1.20.5 to 26.1; saves a .zip. `docs/data-pack-creator.md`.
+- CI `hosted-image` job (`39c1dfb`) publishes `ghcr.io/<owner>/worldlens-hosted`; its first run was still queued when this was written.
+- Deploy WorldLens as a container (`62a6326`): a card on the Docker hosting screen. `@worldlens/dockhand` now accepts bind mounts, owned volumes at a fixed place and port mappings (it used to refuse mappings outright).
+- Designs: `design-sources/deploy-anywhere/Relay.dc.html` (players joining through a router port, an Oracle Cloud Always Free relay over WireGuard, or an SSH relay) and `design-sources/datapacks-and-chunks/`.
+
+Still to build, in order: the WorldLens virtual appliance flow (`Appliance.dc.html`, reusing `docs/appliance.md`), the Minecraft server appliance with its management site (first account becomes owner; password, passkey, TOTP or any combination; `McServer.dc.html`, `Admin.dc.html`), the player relay (`Relay.dc.html`), the Running copies list (`Running.dc.html`), then Bedrock LevelDB in the NBT editor.
+
+Note: commits `aab3cf3`, `3b23096` and `bfc87f0` carry a "Claude Opus 5.5" co-author trailer and author instead of the required "Claude Fable 5". They are pushed and were not rewritten.
+
 ## 2026-11-23 Work strip decluttered: one tool tab, BlueMap-ordered groups
 
 What changed, all on `main`:
