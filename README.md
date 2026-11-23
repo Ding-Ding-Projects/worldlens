@@ -764,7 +764,46 @@ Screenshots section._
 
 ![Current configuration workspace with unsaved defaults, save guidance and eight tabs, English light theme](docs/screenshots/config-workspace-ae1df096.png)
 
-The built editor identifies unsaved defaults or the open folder, keeps save guidance visible, and explains the active tab. All existing tabs and advanced fields remain. Group controls expand or collapse navigation without removing features. This genuine native capture is bound to source ae1df096, a 1280 by 800 logical viewport, 100% application zoom and actual 144 DPI. Further current workflow captures are being verified.
+The built editor identifies unsaved defaults or the open folder, keeps save guidance visible, and explains the active tab. All existing tabs and advanced fields remain. Group controls expand or collapse navigation without removing features. This genuine native capture is bound to source ae1df096, a 1280 by 800 logical viewport, 100% application zoom and actual 144 DPI. The current workflow gallery below adds all eight tabs and the working controls.
+
+
+### Current configuration controls, captured 22 October 2026
+
+These fifteen full-window images show the actual built editor at source `49d009b5`. English light-theme scenes use a 1280 by 800 logical window; the bilingual dark-theme scene uses the supported 800 by 600 minimum. Application zoom is 100% and physical display DPI is 144. Exact UTC capture times, image hashes and source identities are listed in the [configuration gallery](docs/configuration/current-gallery.md).
+
+| Render-thread and priority controls | Core form and recorded download choice |
+| --- | --- |
+| <img src="docs/screenshots/config-core-render-controls-49d009b5.png" alt="Core configuration showing render-thread count, thread-priority slider, defaults and update-cooldown control below the decorative artwork" width="420"> | <img src="docs/screenshots/config-core-fields-49d009b5.png" alt="Core configuration form with per-file search, advanced setting visibility, group controls and the existing recorded download choice" width="420"> |
+
+| Map selection and fields | Storage selection and fields |
+| --- | --- |
+| <img src="docs/screenshots/config-map-controls-49d009b5.png" alt="Maps editor with generated end, nether and overworld entries, duplicate and delete actions, world loader and world-folder controls" width="420"> | <img src="docs/screenshots/config-storage-controls-49d009b5.png" alt="Storage editor showing generated file and SQL entries, storage-type selection and the default map-output folder" width="420"> |
+
+| Web app groups expanded | Built-in web server fields |
+| --- | --- |
+| <img src="docs/screenshots/config-webapp-expanded-49d009b5.png" alt="Web app configuration with expanded groups, enable switch, web-root field and settings-file synchronization control" width="420"> | <img src="docs/screenshots/config-webserver-fields-49d009b5.png" alt="Web server configuration with the integrated-server switch, web-root field and the next network group" width="420"> |
+
+| Server plugin fields | Run flags |
+| --- | --- |
+| <img src="docs/screenshots/config-plugin-fields-49d009b5.png" alt="Server plugin configuration with live player-position and skin-download switches and their explanations" width="420"> | <img src="docs/screenshots/config-run-flags-49d009b5.png" alt="Run configuration showing render, edge repair, full re-render, watch and web-output flags without executing a command" width="420"> |
+
+| History before a folder is saved | Web app groups collapsed |
+| --- | --- |
+| <img src="docs/screenshots/config-history-state-49d009b5.png" alt="History tab explaining that configuration history starts after the generated defaults are saved to a folder" width="420"> | <img src="docs/screenshots/config-webapp-collapsed-49d009b5.png" alt="Web app configuration with all six groups collapsed and the file-source disclosure and Copy action still available" width="420"> |
+
+| Search across configuration screens | Anchored regex builder |
+| --- | --- |
+| <img src="docs/screenshots/config-global-search-results-49d009b5.png" alt="Global configuration search for render showing 58 matches across six screens and the file, group and value for each result" width="420"> | <img src="docs/screenshots/config-regex-builder-49d009b5.png" alt="Regex builder anchored to the global configuration search with pattern, supported flags, token controls and sample text" width="420"> |
+
+| Locked map deletion confirmation | Bilingual controls at minimum size |
+| --- | --- |
+| <img src="docs/screenshots/config-delete-confirmation-49d009b5.png" alt="Locked map deletion confirmation naming the generated map and retained tiles, with both keys off and Emergency exit available" width="420"> | <img src="docs/screenshots/config-bilingual-dark-minimum-49d009b5.png" alt="Bilingual dark-theme Web app configuration at the minimum logical window size showing the enable switch, web root, defaults and reset actions" width="420"> |
+
+| Search with no matches |
+| --- |
+| <img src="docs/screenshots/config-global-search-49d009b5.png" alt="Global configuration search for lighting showing zero matches and the owning workspace context" width="420"> |
+
+Generated defaults were used. The History frame shows the real no-folder explanation, not a populated history. The deletion frame shows the locked confirmation, then cancellation; no deletion occurred. The search-result frame contains 58 matches across six screens. No existing user configuration was saved or altered.
 
 [Configuration guide](docs/configuration/usability.md) · [Historical editor captures](docs/screenshots/archive/config-editor-before-20261022.md)
 

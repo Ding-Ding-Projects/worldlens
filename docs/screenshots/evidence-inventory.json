@@ -1,7 +1,7 @@
 {
   "version": 1,
   "description": "Complete hand-maintained inventory of every tracked screenshot and walkthrough image used as UI, runtime, issue, or documentation evidence. Product artwork, logos, icons, and engine textures are intentionally outside this ledger.",
-  "expectedTargetCount": 268,
+  "expectedTargetCount": 283,
   "evidenceRoots": [
     "docs/screenshots",
     "design/docs/assets/issues",
@@ -769,6 +769,68 @@
       "capturedFromInterfaceSource": false,
       "notGradedBecause": "One current configuration state, not complete field, screen-reader or installation acceptance.",
       "proofNote": "Exact native window, source/build hashes, capture timing, pixel review and owned normal-close teardown retained in the private task receipt."
+    },
+    {
+      "id": "configuration-controls-20261022",
+      "authority": ".claude/skills/run-worldlens/driver.mjs",
+      "command": "Build source 49d009b5 with build.bat --silent; launch the verified desktop output on a cheap Lowlevel hidden desktop with an isolated profile. Select language and theme through native controls, open configuration through search, and capture whole windows with exact timing and read-only CDP assertions.",
+      "reproducibility": "historical-exact-commit-hidden-desktop",
+      "replacementPolicy": "Preserve these original bytes and timestamps. A later interface change requires new separately identified captures.",
+      "expectedCount": 15,
+      "targets": [
+        "docs/screenshots/config-core-fields-49d009b5.png",
+        "docs/screenshots/config-map-controls-49d009b5.png",
+        "docs/screenshots/config-storage-controls-49d009b5.png",
+        "docs/screenshots/config-webapp-expanded-49d009b5.png",
+        "docs/screenshots/config-webserver-fields-49d009b5.png",
+        "docs/screenshots/config-plugin-fields-49d009b5.png",
+        "docs/screenshots/config-run-flags-49d009b5.png",
+        "docs/screenshots/config-history-state-49d009b5.png",
+        "docs/screenshots/config-webapp-collapsed-49d009b5.png",
+        "docs/screenshots/config-global-search-49d009b5.png",
+        "docs/screenshots/config-regex-builder-49d009b5.png",
+        "docs/screenshots/config-bilingual-dark-minimum-49d009b5.png",
+        "docs/screenshots/config-delete-confirmation-49d009b5.png",
+        "docs/screenshots/config-core-render-controls-49d009b5.png",
+        "docs/screenshots/config-global-search-results-49d009b5.png"
+      ],
+      "sourceCommits": {
+        "docs/screenshots/config-core-fields-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-map-controls-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-storage-controls-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-webapp-expanded-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-webserver-fields-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-plugin-fields-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-run-flags-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-history-state-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-webapp-collapsed-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-global-search-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-regex-builder-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-bilingual-dark-minimum-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-delete-confirmation-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-core-render-controls-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8",
+        "docs/screenshots/config-global-search-results-49d009b5.png": "49d009b5ad685022abbb47dcff00b43305589ba8"
+      },
+      "captureTimes": {
+        "docs/screenshots/config-core-fields-49d009b5.png": "2026-10-22T20:39:51.498Z",
+        "docs/screenshots/config-map-controls-49d009b5.png": "2026-10-22T20:40:02.077Z",
+        "docs/screenshots/config-storage-controls-49d009b5.png": "2026-10-22T20:40:12.676Z",
+        "docs/screenshots/config-webapp-expanded-49d009b5.png": "2026-10-22T20:40:26.009Z",
+        "docs/screenshots/config-webserver-fields-49d009b5.png": "2026-10-22T20:40:51.907Z",
+        "docs/screenshots/config-plugin-fields-49d009b5.png": "2026-10-22T20:41:02.942Z",
+        "docs/screenshots/config-run-flags-49d009b5.png": "2026-10-22T20:41:13.751Z",
+        "docs/screenshots/config-history-state-49d009b5.png": "2026-10-22T20:41:23.892Z",
+        "docs/screenshots/config-webapp-collapsed-49d009b5.png": "2026-10-22T20:40:37.104Z",
+        "docs/screenshots/config-global-search-49d009b5.png": "2026-10-22T20:41:40.173Z",
+        "docs/screenshots/config-regex-builder-49d009b5.png": "2026-10-22T20:41:50.798Z",
+        "docs/screenshots/config-bilingual-dark-minimum-49d009b5.png": "2026-10-22T20:50:11.044Z",
+        "docs/screenshots/config-delete-confirmation-49d009b5.png": "2026-10-22T20:44:39.968Z",
+        "docs/screenshots/config-core-render-controls-49d009b5.png": "2026-10-22T20:44:54.246Z",
+        "docs/screenshots/config-global-search-results-49d009b5.png": "2026-10-22T20:48:16.348Z"
+      },
+      "capturedFromInterfaceSource": false,
+      "notGradedBecause": "Bounded exact-source configuration workflow observations, not complete application, installer or physical-DPI acceptance.",
+      "proofNote": "All fifteen native PNGs inspected; zero observed console and page errors; raw hashes, exact start/completion intervals, immutable bundle copy, build receipt, interaction records and owned normal-close proof retained in promotion receipts. No configuration file was saved and the locked deletion confirmation was canceled."
     }
   ]
 }

@@ -852,6 +852,66 @@
         "worldlens-profile-migration-consent.png": {
             "at": "2026-08-07T05:48:12Z",
             "source": "committed"
+        },
+        "config-core-fields-49d009b5.png": {
+            "at": "2026-10-22T20:39:51.498Z",
+            "source": "captured"
+        },
+        "config-map-controls-49d009b5.png": {
+            "at": "2026-10-22T20:40:02.077Z",
+            "source": "captured"
+        },
+        "config-storage-controls-49d009b5.png": {
+            "at": "2026-10-22T20:40:12.676Z",
+            "source": "captured"
+        },
+        "config-webapp-expanded-49d009b5.png": {
+            "at": "2026-10-22T20:40:26.009Z",
+            "source": "captured"
+        },
+        "config-webserver-fields-49d009b5.png": {
+            "at": "2026-10-22T20:40:51.907Z",
+            "source": "captured"
+        },
+        "config-plugin-fields-49d009b5.png": {
+            "at": "2026-10-22T20:41:02.942Z",
+            "source": "captured"
+        },
+        "config-run-flags-49d009b5.png": {
+            "at": "2026-10-22T20:41:13.751Z",
+            "source": "captured"
+        },
+        "config-history-state-49d009b5.png": {
+            "at": "2026-10-22T20:41:23.892Z",
+            "source": "captured"
+        },
+        "config-webapp-collapsed-49d009b5.png": {
+            "at": "2026-10-22T20:40:37.104Z",
+            "source": "captured"
+        },
+        "config-global-search-49d009b5.png": {
+            "at": "2026-10-22T20:41:40.173Z",
+            "source": "captured"
+        },
+        "config-regex-builder-49d009b5.png": {
+            "at": "2026-10-22T20:41:50.798Z",
+            "source": "captured"
+        },
+        "config-bilingual-dark-minimum-49d009b5.png": {
+            "at": "2026-10-22T20:50:11.044Z",
+            "source": "captured"
+        },
+        "config-delete-confirmation-49d009b5.png": {
+            "at": "2026-10-22T20:44:39.968Z",
+            "source": "captured"
+        },
+        "config-core-render-controls-49d009b5.png": {
+            "at": "2026-10-22T20:44:54.246Z",
+            "source": "captured"
+        },
+        "config-global-search-results-49d009b5.png": {
+            "at": "2026-10-22T20:48:16.348Z",
+            "source": "captured"
         }
     }
 }
