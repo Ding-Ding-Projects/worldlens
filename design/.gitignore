@@ -27,3 +27,6 @@ packages/app/test/.update-feed-injection-scratch/
 packages/engine/test/.minecraft-client-cache/
 minecraft-client-*.jar
 minecraft-client-*.jar.unverified
+
+# The map server image tars and their manifest, produced by scripts/build-mapserver-image.mjs.
+packages/app/build/mapserver/

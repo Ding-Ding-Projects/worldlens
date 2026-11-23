@@ -132,6 +132,15 @@ module.exports = {
             filter: ["**/*"],
         },
         {
+            // The map server image for "Host the map": one docker-archive tar per architecture
+            // plus mapserver-image.json, produced by scripts/build-mapserver-image.mjs. Hosting
+            // loads it from here, so nothing is downloaded at host time. `package` and `make`
+            // run that script strictly before this config is read.
+            from: "build/mapserver",
+            to: "mapserver",
+            filter: ["**/*"],
+        },
+        {
             from: "../../../tools/oracle/out/jars",
             to: "jars",
             filter: ["**/*"],

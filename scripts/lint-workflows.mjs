@@ -190,11 +190,11 @@ const RELEASE_JOB_FINGERPRINT =
 const PINNED_ACTIONS = Object.freeze({
   "actions/checkout": Object.freeze({
     sha: "11d5960a326750d5838078e36cf38b85af677262",
-    count: 5,
+    count: 6,
   }),
   "actions/setup-node": Object.freeze({
     sha: "49933ea5288caeca8642d1e84afbd3f7d6820020",
-    count: 4,
+    count: 5,
   }),
   "actions/setup-java": Object.freeze({
     sha: "cf277c60eb25467037889841efdb72551f06f6c3",
@@ -202,11 +202,11 @@ const PINNED_ACTIONS = Object.freeze({
   }),
   "actions/upload-artifact": Object.freeze({
     sha: "ea165f8d65b6e75b540449e92b4886f43607fa02",
-    count: 4,
+    count: 5,
   }),
   "actions/download-artifact": Object.freeze({
     sha: "d3f86a106a0bac45b974a628896c90dbdf5c8093",
-    count: 6,
+    count: 7,
   }),
   "pnpm/action-setup": Object.freeze({
     sha: "f40ffcd9367d9f12939873eb1018b921a783ffaa",
@@ -222,15 +222,15 @@ const PINNED_ACTIONS = Object.freeze({
   }),
   "docker/setup-buildx-action": Object.freeze({
     sha: "37fe631027851001ddb9b187196cc803df7f5f0e",
-    count: 1,
+    count: 2,
   }),
   "docker/login-action": Object.freeze({
     sha: "dbcb813823bdd20940b903addbd779551569679f",
-    count: 1,
+    count: 2,
   }),
   "docker/build-push-action": Object.freeze({
     sha: "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
-    count: 2,
+    count: 3,
   }),
 });
 
@@ -503,7 +503,8 @@ const REVIEWED_RELEASE_CONDITION = Object.freeze([
 const EXPECTED_CI_CONDITIONS = Object.freeze([
   Object.freeze({
     scope: "jobs.package",
-    expression: "always() && needs.jars.result == 'success'",
+    expression:
+      "always() && needs.jars.result == 'success' && needs.map-server-image.result == 'success'",
   }),
   // The container-image job has no condition of its own - it runs on every event, like
   // `jars`. What is gated is where its output can go: a pull request builds the image to
@@ -523,6 +524,21 @@ const EXPECTED_CI_CONDITIONS = Object.freeze([
   }),
   Object.freeze({
     scope: "jobs.docker-image.steps.Record the pushed image digest",
+    expression: "github.event_name != 'pull_request'",
+  }),
+  // The map server image job pushes on the same terms as the container image job: a pull
+  // request still builds the bundled tars, but only a non-pull-request event may log in to
+  // or push to the registry.
+  Object.freeze({
+    scope: "jobs.map-server-image.steps.Log in to the map server registry",
+    expression: "github.event_name != 'pull_request'",
+  }),
+  Object.freeze({
+    scope: "jobs.map-server-image.steps.Build and push the map server image",
+    expression: "github.event_name != 'pull_request'",
+  }),
+  Object.freeze({
+    scope: "jobs.map-server-image.steps.Record the pushed map server digest",
     expression: "github.event_name != 'pull_request'",
   }),
   Object.freeze({
