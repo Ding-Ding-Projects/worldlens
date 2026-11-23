@@ -19,7 +19,9 @@ Bedrock LevelDB records open and save in the NBT editor (`e29253c`, `e3e15bd`: s
 
 The server appliance's management site now runs as its own program (`0231313`, `design/packages/app/src/serversite/main.ts`: env-configured, registers the appliance's `worldlens-mc` container as a local-docker server, accounts in a private file); it is not yet bundled into an image or started by the boot script.
 
-Still to build, in order: bundle `serversite/main.ts` (esbuild entry) into an image with Node and the Docker CLI, add a `minecraft` appliance workload whose boot script runs a Minecraft server container named `worldlens-mc` plus that site with the Docker socket, and a dialog option for it; the Minecraft server appliance (a headless entry that runs a server plus the web console with `accounts`, packaged as an appliance workload) that runs a server plus that site (`McServer.dc.html`, `Admin.dc.html`);
+The Minecraft server appliance workload is built (`c2a9c7d`: server-site bundle and image target, CI `server-site-image` job, boot script and dialog). Appliance run 45277496892 is building bases for `v1.0.2311` that include it.
+
+Still to do, in order: pin the `v1.0.2311` bases with `["map", "app", "minecraft"]` once that run succeeds; record the hosted and server-site image digests from the first CI run that has those jobs; the Minecraft server appliance (a headless entry that runs a server plus the web console with `accounts`, packaged as an appliance workload) that runs a server plus that site (`McServer.dc.html`, `Admin.dc.html`);
 
 Note: commits `aab3cf3`, `3b23096` and `bfc87f0` carry a "Claude Opus 5.5" co-author trailer and author instead of the required "Claude Fable 5". They are pushed and were not rewritten.
 
