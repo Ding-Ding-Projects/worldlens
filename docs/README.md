@@ -137,6 +137,7 @@ application has. The in-app documentation browser groups them the same way, unde
 | [Release notes and other provider text](./provider-text.md) | Rendering release notes, issue text and README previews as markup through one isolated renderer. |
 | [Control guides](./control-guides.md) | The explanation button beside a control, saying what it does and what each choice changes. |
 | [CoreProtect inspector](./coreprotect-inspector.md) | Opening a CoreProtect database to see who changed which blocks, highlighted on the live map and in the hosted map, with replay, file watching and copy-ready admin commands. |
+| [NBT editor](./nbt-editor.md) | A visual editor for level.dat, player data, region chunks and any NBT file, with typed editing, SNBT, search, undo, and a local Git history of every save with semantic diffs and restore. |
 
 ## Markers
 
