@@ -11,9 +11,9 @@ What changed (all on `main`, unit and component tests only; nothing here was dri
 - Deploy WorldLens as a container (`62a6326`): a card on the Docker hosting screen. `@worldlens/dockhand` now accepts bind mounts, owned volumes at a fixed place and port mappings (it used to refuse mappings outright).
 - Designs: `design-sources/deploy-anywhere/Relay.dc.html` (players joining through a router port, an Oracle Cloud Always Free relay over WireGuard, or an SSH relay) and `design-sources/datapacks-and-chunks/`.
 
-Later the same day: the appliance can run the whole WorldLens app (`ea0e455`; needs a base pinned with `"workloads": ["map", "app"]`, which the current `v1.0.2256` pins are not), WorldLens containers show on Hosted instances (`b1886a2`), and the server site's sign-in core exists (`5a2f517`: owner-first accounts, invitations, password/passkey/TOTP in any combination; tested, not wired into routes).
+Later the same day: the appliance can run the whole WorldLens app (`ea0e455`; needs a base pinned with `"workloads": ["map", "app"]`, which the current `v1.0.2256` pins are not), WorldLens containers show on Hosted instances (`b1886a2`), and the server site's sign-in core exists and is wired into the web console (`5a2f517`, `5566598`: owner-first accounts, invitations, password/passkey/TOTP in any combination; enabled by passing `accounts` to `startWebConsoleServer`, which nothing does yet).
 
-Still to build, in order: rebuild and pin an appliance base with the new boot script; wire the sign-in core into the web console routes and a sign-in page; the Minecraft server appliance that runs a server plus that site (`McServer.dc.html`, `Admin.dc.html`); the player relay (`Relay.dc.html`); Bedrock LevelDB in the NBT editor.
+Still to build, in order: rebuild and pin an appliance base with the new boot script; the Minecraft server appliance (a headless entry that runs a server plus the web console with `accounts`, packaged as an appliance workload) that runs a server plus that site (`McServer.dc.html`, `Admin.dc.html`); the player relay (`Relay.dc.html`); Bedrock LevelDB in the NBT editor.
 
 Note: commits `aab3cf3`, `3b23096` and `bfc87f0` carry a "Claude Opus 5.5" co-author trailer and author instead of the required "Claude Fable 5". They are pushed and were not rewritten.
 
