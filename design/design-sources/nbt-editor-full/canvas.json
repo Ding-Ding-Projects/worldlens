@@ -1,0 +1,124 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-23T19:40:00Z"
+  },
+  "title": "WorldLens: full NBT editor",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [
+    {
+      "id": "tree",
+      "name": "Tree and SNBT"
+    },
+    {
+      "id": "region",
+      "name": "Region canvas"
+    },
+    {
+      "id": "chunk",
+      "name": "Chunk views"
+    },
+    {
+      "id": "structure",
+      "name": "Structure canvas"
+    },
+    {
+      "id": "mapart",
+      "name": "Map art canvas"
+    },
+    {
+      "id": "inventory",
+      "name": "Inventory and item editors"
+    },
+    {
+      "id": "leveldat",
+      "name": "World settings"
+    }
+  ],
+  "boards": {
+    "Tree.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Tree and SNBT",
+      "page": "tree",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Region.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Region canvas",
+      "page": "region",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Chunk.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Chunk views",
+      "page": "chunk",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Structure.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Structure canvas",
+      "page": "structure",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "MapArt.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Map art canvas",
+      "page": "mapart",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "Inventory.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "Inventory and item editors",
+      "page": "inventory",
+      "expand": "fill",
+      "is_interactive": true
+    },
+    "LevelDat.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1440,
+      "h": 900,
+      "title": "World settings",
+      "page": "leveldat",
+      "expand": "fill",
+      "is_interactive": true
+    }
+  },
+  "order": [
+    "Tree.dc.html",
+    "Region.dc.html",
+    "Chunk.dc.html",
+    "Structure.dc.html",
+    "MapArt.dc.html",
+    "Inventory.dc.html",
+    "LevelDat.dc.html"
+  ],
+  "notes": {},
+  "designSystems": []
+}

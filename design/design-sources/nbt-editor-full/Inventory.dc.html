@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WorldLens NBT: Inventory and items</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+[data-wl-theme="dark"]{--wl-bg:#0B0E11;--wl-surface:#101418;--wl-surf-low:#191C20;--wl-surf-cont:#1D2024;--wl-surf-high:#272A2E;--wl-surf-highest:#323539;--wl-outline-var:#42474E;--wl-outline:#8C9199;--wl-on-surf-var:#C2C7CF;--wl-on-surf:#E1E2E8;--wl-primary:#8FCDFF;--wl-on-primary:#003351;--wl-prim-cont:#004B73;--wl-on-prim-cont:#CEE5FF;--wl-sec:#B7C9D9;--wl-sec-cont:#384956;--wl-on-sec-cont:#D3E5F5;--wl-tert:#D1BFE7;--wl-tert-cont:#4E4161;--wl-on-tert-cont:#EDDCFF;--wl-error:#FFB4AB;--wl-on-error:#410002;--wl-err-cont:#93000A;--wl-on-err-cont:#FFDAD6;--wl-scrim:rgba(0,0,0,.6)}
+[data-wl-theme="light"]{--wl-bg:#F7F9FF;--wl-surface:#FFFFFF;--wl-surf-low:#F1F4FA;--wl-surf-cont:#EBEEF4;--wl-surf-high:#E5E8EE;--wl-surf-highest:#DFE2E8;--wl-outline-var:#C1C7CE;--wl-outline:#6C737A;--wl-on-surf-var:#41474D;--wl-on-surf:#181C20;--wl-primary:#00639B;--wl-on-primary:#FFFFFF;--wl-prim-cont:#CDE5FF;--wl-on-prim-cont:#001D32;--wl-sec:#3B4A57;--wl-sec-cont:#D3E5F5;--wl-on-sec-cont:#0C1D29;--wl-tert:#66587B;--wl-tert-cont:#EDDCFF;--wl-on-tert-cont:#211634;--wl-error:#BA1A1A;--wl-on-error:#FFFFFF;--wl-err-cont:#FFDAD6;--wl-on-err-cont:#410002;--wl-scrim:rgba(0,0,0,.32)}
+[data-wl-theme="contrast"]{--wl-bg:#000000;--wl-surface:#000000;--wl-surf-low:#000000;--wl-surf-cont:#000000;--wl-surf-high:#141414;--wl-surf-highest:#1F1F1F;--wl-outline-var:#FFFFFF;--wl-outline:#FFFFFF;--wl-on-surf-var:#FFFFFF;--wl-on-surf:#FFFFFF;--wl-primary:#FFFFFF;--wl-on-primary:#000000;--wl-prim-cont:#FFFFFF;--wl-on-prim-cont:#000000;--wl-sec:#FFFF00;--wl-sec-cont:#000000;--wl-on-sec-cont:#FFFF00;--wl-tert:#FFFF00;--wl-tert-cont:#000000;--wl-on-tert-cont:#FFFF00;--wl-error:#FF5449;--wl-on-error:#000000;--wl-err-cont:#000000;--wl-on-err-cont:#FF5449;--wl-scrim:rgba(0,0,0,.85)}
+[data-wl-theme="contrast"] .card,[data-wl-theme="contrast"] .pane{outline:1px solid #FFFFFF}
+.msr{font-family:"Material Symbols Rounded";font-weight:normal;font-style:normal;font-size:24px;line-height:1;display:inline-block;white-space:nowrap;font-feature-settings:"liga";-webkit-font-smoothing:antialiased}
+.fill{font-variation-settings:"FILL" 1}
+a{color:var(--wl-primary);text-underline-offset:2px}a:hover{color:var(--wl-on-surf)}
+input::placeholder{color:var(--wl-on-surf-var);opacity:1}
+.sl{position:relative;overflow:hidden;cursor:pointer}
+.sl::after{content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;transition:opacity 150ms cubic-bezier(.2,0,0,1);pointer-events:none}
+.sl:hover::after{opacity:.08}.sl:active::after{opacity:.10}
+.sl:focus-visible,.ri:focus-visible{outline:3px solid var(--wl-primary);outline-offset:2px}
+.ri{display:flex;flex-direction:column;align-items:center;gap:4px;width:80px;text-decoration:none;color:var(--wl-on-surf-var);font:500 12px/16px Roboto,sans-serif;letter-spacing:.5px}
+.ri:hover{color:var(--wl-on-surf)}
+.ri .ind{width:56px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative;transition:background 200ms cubic-bezier(.2,0,0,1)}
+.ri:hover .ind{background:var(--wl-surf-high)}
+.ri[aria-current] {color:var(--wl-on-surf)}
+.ri[aria-current] .ind{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.ri[aria-current] .msr{font-variation-settings:"FILL" 1}
+.bdg{position:absolute;top:-4px;right:6px;min-width:16px;height:16px;border-radius:8px;background:var(--wl-error);color:var(--wl-on-error);font:500 11px/16px Roboto,sans-serif;text-align:center;padding:0 4px;box-sizing:border-box}
+.ib{width:48px;height:48px;border:0;border-radius:24px;background:transparent;color:var(--wl-on-surf-var);display:inline-flex;align-items:center;justify-content:center}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 12px;border-radius:12px;border:1px solid var(--wl-outline-var);background:transparent;color:var(--wl-on-surf);font:500 14px/20px Roboto,sans-serif;box-sizing:border-box}
+.chip[aria-current]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.fchip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);font:500 14px/20px Roboto,sans-serif}
+.fchip[aria-pressed="true"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 20px;border-radius:20px;border:0;font:500 14px/20px Roboto,sans-serif;text-decoration:none}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+
+.vnav{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--wl-outline-var);color:var(--wl-on-surf);text-decoration:none;font:500 14px/20px Roboto,sans-serif;box-sizing:border-box}
+.vnav[aria-current="page"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.tchip{display:inline-flex;align-items:center;justify-content:center;min-width:64px;height:22px;padding:0 6px;border-radius:6px;font:500 11px/16px 'Roboto Mono',monospace;letter-spacing:.3px;box-sizing:border-box}
+.row{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 8px;border:0;border-radius:10px;background:transparent;color:var(--wl-on-surf);font:400 14px/20px Roboto,sans-serif;text-align:left;width:100%;box-sizing:border-box}
+.row[aria-selected="true"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.fld{display:flex;flex-direction:column;gap:4px;font:500 12px/16px Roboto,sans-serif;color:var(--wl-on-surf-var)}
+.inp{height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);font:400 15px/20px Roboto,sans-serif;box-sizing:border-box;min-width:0}
+.mono{font-family:'Roboto Mono',monospace}
+.card{background:var(--wl-surf-cont);border-radius:24px;padding:20px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;min-width:0}
+.tool{width:44px;height:44px;border-radius:12px;border:0;background:var(--wl-surf-high);color:var(--wl-on-surf);display:inline-flex;align-items:center;justify-content:center}
+.tool[aria-pressed="true"]{background:var(--wl-prim-cont);color:var(--wl-on-prim-cont)}
+.sw{position:relative;display:inline-flex;width:52px;height:32px;border-radius:16px;border:2px solid var(--wl-outline);background:var(--wl-surf-highest);box-sizing:border-box;padding:0;flex:0 0 52px}
+.sw::after{content:"";position:absolute;top:6px;left:6px;width:16px;height:16px;border-radius:8px;background:var(--wl-outline);transition:all 150ms}
+.sw[aria-checked="true"]{background:var(--wl-primary);border-color:var(--wl-primary)}
+.sw[aria-checked="true"]::after{left:24px;top:4px;width:24px;height:24px;border-radius:12px;background:var(--wl-on-primary)}
+.step{display:inline-flex;align-items:center;gap:4px}
+.step button{width:40px;height:40px;border-radius:12px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);display:inline-flex;align-items:center;justify-content:center}
+.step output{min-width:56px;text-align:center;font:500 16px/24px 'Roboto Mono',monospace}
+.slot{width:48px;height:48px;border-radius:10px;border:1px solid var(--wl-outline-var);background:var(--wl-surf-high);color:var(--wl-on-surf);display:inline-flex;align-items:center;justify-content:center;position:relative;font:500 11px/14px Roboto,sans-serif;padding:0}
+.slot[aria-pressed="true"]{outline:3px solid var(--wl-primary);outline-offset:1px}
+.slot .cnt{position:absolute;right:3px;bottom:1px;font:700 11px/14px 'Roboto Mono',monospace}
+</style>
+</helmet>
+<div data-wl-theme="{{theme}}" style="min-height: 900px; background: var(--wl-bg); color: var(--wl-on-surf); font-family: Roboto, Helvetica, sans-serif; display: flex; flex-direction: column;">
+  <header style="display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 8px 16px 8px 24px; box-sizing: border-box; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 12px;"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--wl-prim-cont)"></rect><circle cx="16" cy="16" r="8" fill="none" stroke="var(--wl-on-prim-cont)" stroke-width="2.5"></circle><path d="M8 16h16M16 8c3 3 3 13 0 16M16 8c-3 3-3 13 0 16" fill="none" stroke="var(--wl-on-prim-cont)" stroke-width="1.5"></path></svg><span style="font-size: 18px; line-height: 24px; font-weight: 500;">WorldLens</span></div>
+    <label style="flex: 1 1 320px; max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 8px 0 16px; border-radius: 24px; background: var(--wl-surf-high); color: var(--wl-on-surf-var); box-sizing: border-box;">
+      <span class="msr" aria-hidden="true">search</span>
+      <input type="search" aria-label="Search everything" placeholder="Search maps, tools, settings and commands" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--wl-on-surf); font: 400 16px/24px Roboto, sans-serif; outline: none;">
+      <kbd style="font: 500 12px/16px 'Roboto Mono', monospace; padding: 4px 8px; border-radius: 8px; background: var(--wl-surf-highest); color: var(--wl-on-surf-var);">Ctrl Shift F</kbd>
+    </label>
+    <button type="button" class="sl ib" aria-label="Notifications"><span class="msr" aria-hidden="true">notifications</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1;">
+    <nav aria-label="Destinations" style="flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 12px 0 24px;">
+      <a href="Tree.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">home</span></span>Home</a>
+      <a href="Tree.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">map</span></span>Map</a>
+      <a href="Tree.dc.html" class="ri" aria-current="page"><span class="ind"><span class="msr" aria-hidden="true">handyman</span></span>Work</a>
+      <a href="Tree.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">dns</span></span>Servers</a>
+      <div style="flex: 1;"></div>
+      <a href="Tree.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">settings</span></span>Settings</a>
+    </nav>
+    <main class="pane" style="flex: 999 1 560px; min-width: 0; margin: 0 16px 16px 0; background: var(--wl-surface); border-radius: 28px; padding: 16px 28px 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px;">
+      <div role="tablist" aria-label="Open jobs" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--wl-outline-var);">
+        <span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">add_location_alt</span><span role="tab" aria-selected="false">Make a map</span></span>
+        <span class="chip" style="border-color: var(--wl-outline);"><span style="font: 500 12px/16px Roboto, sans-serif; color: var(--wl-on-surf-var); padding-right: 6px;">Worlds</span><span class="msr" aria-hidden="true" style="font-size: 18px;">cloud_download</span><span role="tab" aria-selected="false">Get a world</span><span class="msr" aria-hidden="true" style="font-size: 18px; margin-left: 8px;">sync_alt</span><span role="tab" aria-selected="false">Convert</span></span>
+        <span class="chip" aria-current="page"><span class="msr" aria-hidden="true" style="font-size: 18px;">account_tree</span><span role="tab" aria-selected="true">NBT editor</span></span>
+        <span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">bolt</span><span role="tab" aria-selected="false">Renders</span></span>
+        <span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">construction</span><span role="tab" aria-selected="false">Built-in tools</span></span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+        <div style="flex: 1 1 320px; min-width: 0;">
+          <h1 style="margin: 0; font-size: 28px; line-height: 36px; font-weight: 400;">Inventory and items</h1>
+          <p class="mono" style="margin: 2px 0 0; font-size: 13px; line-height: 18px; color: var(--wl-on-surf-var);">SUBInventory and items</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn sl" style="background: transparent; color: var(--wl-primary); border: 1px solid var(--wl-outline);"><span class="msr" aria-hidden="true" style="font-size: 20px;">undo</span>Undo</button>
+          <button type="button" class="btn sl" style="background: transparent; color: var(--wl-primary); border: 1px solid var(--wl-outline);"><span class="msr" aria-hidden="true" style="font-size: 20px;">history</span>History</button>
+          <button type="button" class="btn sl" style="background: var(--wl-primary); color: var(--wl-on-primary);"><span class="msr" aria-hidden="true" style="font-size: 20px;">save</span>Save and record</button>
+        </div>
+      </div>
+      <nav aria-label="NBT views" style="display: flex; flex-wrap: wrap; gap: 8px;"><a class="vnav sl" href="Tree.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">account_tree</span>Tree and SNBT</a><a class="vnav sl" href="Region.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">grid_on</span>Region</a><a class="vnav sl" href="Chunk.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">layers</span>Chunk</a><a class="vnav sl" href="Structure.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">view_in_ar</span>Structure</a><a class="vnav sl" href="MapArt.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">palette</span>Map art</a><a class="vnav sl" href="Inventory.dc.html" aria-current="page"><span class="msr" aria-hidden="true" style="font-size:18px;">backpack</span>Inventory and items</a><a class="vnav sl" href="LevelDat.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">public</span>World settings</a></nav>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;">
+        <section class="card" aria-label="Slots" style="flex: 2 1 480px;">
+          <div role="group" aria-label="Which inventory" style="display: flex; gap: 6px;">
+            <sc-for list="{{invs}}" as="v" hint-placeholder-count="3">
+              <button type="button" class="fchip sl" aria-pressed="{{v.sel}}" onClick="{{v.pick}}">{{v.label}}</button>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+            <div role="group" aria-label="Armour and off hand" style="display: flex; flex-direction: column; gap: 6px;">
+              <sc-for list="{{armor}}" as="s" hint-placeholder-count="5">
+                <button type="button" class="slot sl" aria-label="{{s.label}}" aria-pressed="{{s.sel}}" onClick="{{s.pick}}" style="background: {{s.bg}};"><span class="msr" aria-hidden="true" style="font-size: 22px;">{{s.icon}}</span><span class="cnt">{{s.count}}</span></button>
+              </sc-for>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div role="grid" aria-label="Main inventory" style="display: grid; grid-template-columns: repeat(9, 48px); gap: 6px;">
+                <sc-for list="{{main}}" as="s" hint-placeholder-count="27">
+                  <button type="button" class="slot sl" aria-label="{{s.label}}" aria-pressed="{{s.sel}}" onClick="{{s.pick}}" style="background: {{s.bg}};"><span class="msr" aria-hidden="true" style="font-size: 22px;">{{s.icon}}</span><span class="cnt">{{s.count}}</span></button>
+                </sc-for>
+              </div>
+              <div role="grid" aria-label="Hotbar" style="display: grid; grid-template-columns: repeat(9, 48px); gap: 6px;">
+                <sc-for list="{{hotbar}}" as="s" hint-placeholder-count="9">
+                  <button type="button" class="slot sl" aria-label="{{s.label}}" aria-pressed="{{s.sel}}" onClick="{{s.pick}}" style="background: {{s.bg}};"><span class="msr" aria-hidden="true" style="font-size: 22px;">{{s.icon}}</span><span class="cnt">{{s.count}}</span></button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <p style="margin: 0; font-size: 12px; color: var(--wl-on-surf-var);">Drag to move or swap, Shift-drag to split a stack. Every slot is also reachable with the arrow keys.</p>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+            <label class="fld">Health<input class="inp mono" value="20.0"></label>
+            <label class="fld">Food<input class="inp mono" value="18"></label>
+            <label class="fld">XP level<input class="inp mono" value="31"></label>
+          </div>
+        </section>
+        <section class="card" aria-label="Item editor" style="flex: 2 1 400px;">
+          <div style="display: flex; align-items: center; gap: 12px;"><span class="slot" aria-hidden="true" style="background: {{item.bg}};"><span class="msr" style="font-size: 24px;">{{item.icon}}</span></span><div><h2 style="margin: 0; font-size: 20px; line-height: 28px; font-weight: 400;">{{item.title}}</h2><p class="mono" style="margin: 0; font-size: 12px; color: var(--wl-on-surf-var);">{{item.id}} · slot {{item.slot}}</p></div></div>
+          <div style="display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 8px;">
+            <label class="fld">Item<select class="inp"><option>{{item.id}}</option><option>minecraft:diamond_pickaxe</option><option>minecraft:elytra</option><option>minecraft:leather_chestplate</option></select></label>
+            <div class="fld">Count<div class="step"><button type="button" class="sl" aria-label="Fewer" onClick="{{less}}"><span class="msr" aria-hidden="true">remove</span></button><output aria-live="polite">{{item.count}}</output><button type="button" class="sl" aria-label="More" onClick="{{more}}"><span class="msr" aria-hidden="true">add</span></button></div></div>
+          </div>
+          <div class="fld">Custom name
+            <div role="toolbar" aria-label="Text style" style="display: flex; gap: 4px;">
+              <button type="button" class="tool sl" aria-label="Bold" aria-pressed="{{bold}}" onClick="{{toggleBold}}"><span class="msr" aria-hidden="true">format_bold</span></button>
+              <button type="button" class="tool sl" aria-label="Italic" aria-pressed="{{italic}}" onClick="{{toggleItalic}}"><span class="msr" aria-hidden="true">format_italic</span></button>
+              <button type="button" class="tool sl" aria-label="Underline"><span class="msr" aria-hidden="true">format_underlined</span></button>
+              <button type="button" class="tool sl" aria-label="Text colour"><span class="msr" aria-hidden="true" style="color: #FFAA00;">format_color_text</span></button>
+              <button type="button" class="tool sl" aria-label="Obfuscated"><span class="msr" aria-hidden="true">blur_on</span></button>
+            </div>
+            <input class="inp" value="Heap Breaker" aria-label="Custom name text" style="font-weight: {{weight}}; font-style: {{fstyle}}; color: #FFAA00;">
+          </div>
+          <h3 style="margin: 0; font-size: 14px; font-weight: 500;">Enchantments</h3>
+          <sc-for list="{{ench}}" as="e" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; gap: 8px;"><span style="flex: 1; font-size: 14px;">{{e.name}}</span><div class="step"><button type="button" class="sl" aria-label="Lower {{e.name}}" onClick="{{e.down}}"><span class="msr" aria-hidden="true">remove</span></button><output>{{e.lvl}}</output><button type="button" class="sl" aria-label="Raise {{e.name}}" onClick="{{e.up}}"><span class="msr" aria-hidden="true">add</span></button></div><button type="button" class="tool sl" aria-label="Remove {{e.name}}" onClick="{{e.del}}"><span class="msr" aria-hidden="true">close</span></button></div>
+          </sc-for>
+          <button type="button" class="btn sl" style="align-self: flex-start; background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);"><span class="msr" aria-hidden="true" style="font-size: 20px;">add</span>Add enchantment</button>
+          <label class="fld">Durability {{dura}} / 1561<input type="range" min="0" max="1561" value="{{dura}}" onChange="{{setDura}}" style="accent-color: var(--wl-primary);"></label>
+          <div style="display: flex; align-items: center; gap: 12px;"><span style="flex: 1; font-size: 14px;">Unbreakable</span><button type="button" role="switch" class="sw" aria-checked="{{unbreak}}" aria-label="Unbreakable" onClick="{{toggleUnbreak}}"></button></div>
+          <p style="margin: 0; font-size: 12px; color: var(--wl-on-surf-var);">Lore, attribute modifiers, dye colour, trims, potion contents, written book pages and container contents each open their own editor from here. Item components (1.20.5 and later) and the older tag layout are both read and written.</p>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme": {"editor": "enum", "options": ["dark", "light", "contrast"], "default": "dark"}, "$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { slot: 0, inv: 'Inventory', count: 1, bold: true, italic: false, dura: 1402, unbreak: false, ench: [['Efficiency',5],['Unbreaking',3],['Fortune',3],['Mending',1]] }; }
+  renderVals() {
+    const items = { 0: ['minecraft:diamond_pickaxe','construction','#2E7D87',1], 1: ['minecraft:netherite_sword','swords','#4B3B47',1], 2: ['minecraft:torch','local_fire_department','#B07A2A',64], 3: ['minecraft:cooked_beef','lunch_dining','#7A4A2A',23], 4: ['minecraft:oak_log','forest','#6B5132',48], 8: ['minecraft:water_bucket','water_drop','#3A5FB0',1], 9: ['minecraft:cobblestone','texture','#6E6E6E',64], 10: ['minecraft:cobblestone','texture','#6E6E6E',64], 13: ['minecraft:diamond','diamond','#2E9AA6',7], 20: ['minecraft:redstone','bolt','#9A1D1D',41], 27: ['minecraft:map','map','#C9B77A',1], 100: ['minecraft:diamond_boots','ice_skating','#2E9AA6',1], 102: ['minecraft:elytra','paragliding','#6C6C8C',1], 103: ['minecraft:turtle_helmet','sports_motorsports','#3F8F5A',1], [-106]: ['minecraft:shield','shield','#7A6A4A',1] };
+    const mk = (n, label) => { const it = items[n]; const sel = this.state.slot === n; return { label: label + (it ? ': ' + it[0].split(':')[1].replace(/_/g, ' ') + (it[3] > 1 ? ' × ' + it[3] : '') : ': empty'), sel: sel ? 'true' : 'false', icon: it ? it[1] : '', bg: it ? 'color-mix(in srgb, ' + it[2] + ' 35%, var(--wl-surf-high))' : 'var(--wl-surf-high)', count: it && it[3] > 1 ? String(it[3]) : '', pick: () => this.setState({ slot: n, count: it ? it[3] : 1 }) }; };
+    const hotbar = Array.from({ length: 9 }, (_, i) => mk(i, 'Hotbar ' + (i + 1)));
+    const main = Array.from({ length: 27 }, (_, i) => mk(i + 9, 'Slot ' + (i + 9)));
+    const armor = [[103,'Head'],[102,'Chest'],[101,'Legs'],[100,'Feet'],[-106,'Off hand']].map(([n, l]) => mk(n, l));
+    const it = items[this.state.slot] || ['minecraft:air','block','var(--wl-surf-high)',0];
+    const invs = ['Inventory','Ender chest','Equipment'].map((label) => ({ label, sel: this.state.inv === label ? 'true' : 'false', pick: () => this.setState({ inv: label }) }));
+    const ench = this.state.ench.map(([name, lvl], i) => ({ name, lvl, up: () => { const e = this.state.ench.slice(); e[i] = [name, Math.min(255, lvl + 1)]; this.setState({ ench: e }); }, down: () => { const e = this.state.ench.slice(); e[i] = [name, Math.max(1, lvl - 1)]; this.setState({ ench: e }); }, del: () => this.setState({ ench: this.state.ench.filter((_, j) => j !== i) }) }));
+    return { theme: this.props.theme ?? 'dark', hotbar, main, armor, invs, ench,
+      item: { id: it[0], icon: it[1], bg: 'color-mix(in srgb, ' + it[2] + ' 35%, var(--wl-surf-high))', title: it[0].split(':')[1].replace(/_/g, ' '), slot: this.state.slot, count: this.state.count },
+      less: () => this.setState({ count: Math.max(1, this.state.count - 1) }), more: () => this.setState({ count: Math.min(99, this.state.count + 1) }),
+      bold: this.state.bold ? 'true' : 'false', italic: this.state.italic ? 'true' : 'false', weight: this.state.bold ? '700' : '400', fstyle: this.state.italic ? 'italic' : 'normal',
+      toggleBold: () => this.setState({ bold: !this.state.bold }), toggleItalic: () => this.setState({ italic: !this.state.italic }),
+      dura: this.state.dura, setDura: (e) => this.setState({ dura: Number(e.target.value) }), unbreak: this.state.unbreak ? 'true' : 'false', toggleUnbreak: () => this.setState({ unbreak: !this.state.unbreak }) };
+  }
+}
+</script>
+</body>
+</html>

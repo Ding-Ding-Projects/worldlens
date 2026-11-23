@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WorldLens NBT: World settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+[data-wl-theme="dark"]{--wl-bg:#0B0E11;--wl-surface:#101418;--wl-surf-low:#191C20;--wl-surf-cont:#1D2024;--wl-surf-high:#272A2E;--wl-surf-highest:#323539;--wl-outline-var:#42474E;--wl-outline:#8C9199;--wl-on-surf-var:#C2C7CF;--wl-on-surf:#E1E2E8;--wl-primary:#8FCDFF;--wl-on-primary:#003351;--wl-prim-cont:#004B73;--wl-on-prim-cont:#CEE5FF;--wl-sec:#B7C9D9;--wl-sec-cont:#384956;--wl-on-sec-cont:#D3E5F5;--wl-tert:#D1BFE7;--wl-tert-cont:#4E4161;--wl-on-tert-cont:#EDDCFF;--wl-error:#FFB4AB;--wl-on-error:#410002;--wl-err-cont:#93000A;--wl-on-err-cont:#FFDAD6;--wl-scrim:rgba(0,0,0,.6)}
+[data-wl-theme="light"]{--wl-bg:#F7F9FF;--wl-surface:#FFFFFF;--wl-surf-low:#F1F4FA;--wl-surf-cont:#EBEEF4;--wl-surf-high:#E5E8EE;--wl-surf-highest:#DFE2E8;--wl-outline-var:#C1C7CE;--wl-outline:#6C737A;--wl-on-surf-var:#41474D;--wl-on-surf:#181C20;--wl-primary:#00639B;--wl-on-primary:#FFFFFF;--wl-prim-cont:#CDE5FF;--wl-on-prim-cont:#001D32;--wl-sec:#3B4A57;--wl-sec-cont:#D3E5F5;--wl-on-sec-cont:#0C1D29;--wl-tert:#66587B;--wl-tert-cont:#EDDCFF;--wl-on-tert-cont:#211634;--wl-error:#BA1A1A;--wl-on-error:#FFFFFF;--wl-err-cont:#FFDAD6;--wl-on-err-cont:#410002;--wl-scrim:rgba(0,0,0,.32)}
+[data-wl-theme="contrast"]{--wl-bg:#000000;--wl-surface:#000000;--wl-surf-low:#000000;--wl-surf-cont:#000000;--wl-surf-high:#141414;--wl-surf-highest:#1F1F1F;--wl-outline-var:#FFFFFF;--wl-outline:#FFFFFF;--wl-on-surf-var:#FFFFFF;--wl-on-surf:#FFFFFF;--wl-primary:#FFFFFF;--wl-on-primary:#000000;--wl-prim-cont:#FFFFFF;--wl-on-prim-cont:#000000;--wl-sec:#FFFF00;--wl-sec-cont:#000000;--wl-on-sec-cont:#FFFF00;--wl-tert:#FFFF00;--wl-tert-cont:#000000;--wl-on-tert-cont:#FFFF00;--wl-error:#FF5449;--wl-on-error:#000000;--wl-err-cont:#000000;--wl-on-err-cont:#FF5449;--wl-scrim:rgba(0,0,0,.85)}
+[data-wl-theme="contrast"] .card,[data-wl-theme="contrast"] .pane{outline:1px solid #FFFFFF}
+.msr{font-family:"Material Symbols Rounded";font-weight:normal;font-style:normal;font-size:24px;line-height:1;display:inline-block;white-space:nowrap;font-feature-settings:"liga";-webkit-font-smoothing:antialiased}
+.fill{font-variation-settings:"FILL" 1}
+a{color:var(--wl-primary);text-underline-offset:2px}a:hover{color:var(--wl-on-surf)}
+input::placeholder{color:var(--wl-on-surf-var);opacity:1}
+.sl{position:relative;overflow:hidden;cursor:pointer}
+.sl::after{content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;transition:opacity 150ms cubic-bezier(.2,0,0,1);pointer-events:none}
+.sl:hover::after{opacity:.08}.sl:active::after{opacity:.10}
+.sl:focus-visible,.ri:focus-visible{outline:3px solid var(--wl-primary);outline-offset:2px}
+.ri{display:flex;flex-direction:column;align-items:center;gap:4px;width:80px;text-decoration:none;color:var(--wl-on-surf-var);font:500 12px/16px Roboto,sans-serif;letter-spacing:.5px}
+.ri:hover{color:var(--wl-on-surf)}
+.ri .ind{width:56px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative;transition:background 200ms cubic-bezier(.2,0,0,1)}
+.ri:hover .ind{background:var(--wl-surf-high)}
+.ri[aria-current] {color:var(--wl-on-surf)}
+.ri[aria-current] .ind{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.ri[aria-current] .msr{font-variation-settings:"FILL" 1}
+.bdg{position:absolute;top:-4px;right:6px;min-width:16px;height:16px;border-radius:8px;background:var(--wl-error);color:var(--wl-on-error);font:500 11px/16px Roboto,sans-serif;text-align:center;padding:0 4px;box-sizing:border-box}
+.ib{width:48px;height:48px;border:0;border-radius:24px;background:transparent;color:var(--wl-on-surf-var);display:inline-flex;align-items:center;justify-content:center}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 12px;border-radius:12px;border:1px solid var(--wl-outline-var);background:transparent;color:var(--wl-on-surf);font:500 14px/20px Roboto,sans-serif;box-sizing:border-box}
+.chip[aria-current]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.fchip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);font:500 14px/20px Roboto,sans-serif}
+.fchip[aria-pressed="true"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 20px;border-radius:20px;border:0;font:500 14px/20px Roboto,sans-serif;text-decoration:none}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+
+.vnav{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--wl-outline-var);color:var(--wl-on-surf);text-decoration:none;font:500 14px/20px Roboto,sans-serif;box-sizing:border-box}
+.vnav[aria-current="page"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.tchip{display:inline-flex;align-items:center;justify-content:center;min-width:64px;height:22px;padding:0 6px;border-radius:6px;font:500 11px/16px 'Roboto Mono',monospace;letter-spacing:.3px;box-sizing:border-box}
+.row{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 8px;border:0;border-radius:10px;background:transparent;color:var(--wl-on-surf);font:400 14px/20px Roboto,sans-serif;text-align:left;width:100%;box-sizing:border-box}
+.row[aria-selected="true"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.fld{display:flex;flex-direction:column;gap:4px;font:500 12px/16px Roboto,sans-serif;color:var(--wl-on-surf-var)}
+.inp{height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);font:400 15px/20px Roboto,sans-serif;box-sizing:border-box;min-width:0}
+.mono{font-family:'Roboto Mono',monospace}
+.card{background:var(--wl-surf-cont);border-radius:24px;padding:20px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;min-width:0}
+.tool{width:44px;height:44px;border-radius:12px;border:0;background:var(--wl-surf-high);color:var(--wl-on-surf);display:inline-flex;align-items:center;justify-content:center}
+.tool[aria-pressed="true"]{background:var(--wl-prim-cont);color:var(--wl-on-prim-cont)}
+.sw{position:relative;display:inline-flex;width:52px;height:32px;border-radius:16px;border:2px solid var(--wl-outline);background:var(--wl-surf-highest);box-sizing:border-box;padding:0;flex:0 0 52px}
+.sw::after{content:"";position:absolute;top:6px;left:6px;width:16px;height:16px;border-radius:8px;background:var(--wl-outline);transition:all 150ms}
+.sw[aria-checked="true"]{background:var(--wl-primary);border-color:var(--wl-primary)}
+.sw[aria-checked="true"]::after{left:24px;top:4px;width:24px;height:24px;border-radius:12px;background:var(--wl-on-primary)}
+.step{display:inline-flex;align-items:center;gap:4px}
+.step button{width:40px;height:40px;border-radius:12px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);display:inline-flex;align-items:center;justify-content:center}
+.step output{min-width:56px;text-align:center;font:500 16px/24px 'Roboto Mono',monospace}
+.slot{width:48px;height:48px;border-radius:10px;border:1px solid var(--wl-outline-var);background:var(--wl-surf-high);color:var(--wl-on-surf);display:inline-flex;align-items:center;justify-content:center;position:relative;font:500 11px/14px Roboto,sans-serif;padding:0}
+.slot[aria-pressed="true"]{outline:3px solid var(--wl-primary);outline-offset:1px}
+.slot .cnt{position:absolute;right:3px;bottom:1px;font:700 11px/14px 'Roboto Mono',monospace}
+</style>
+</helmet>
+<div data-wl-theme="{{theme}}" style="min-height: 900px; background: var(--wl-bg); color: var(--wl-on-surf); font-family: Roboto, Helvetica, sans-serif; display: flex; flex-direction: column;">
+  <header style="display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 8px 16px 8px 24px; box-sizing: border-box; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 12px;"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--wl-prim-cont)"></rect><circle cx="16" cy="16" r="8" fill="none" stroke="var(--wl-on-prim-cont)" stroke-width="2.5"></circle><path d="M8 16h16M16 8c3 3 3 13 0 16M16 8c-3 3-3 13 0 16" fill="none" stroke="var(--wl-on-prim-cont)" stroke-width="1.5"></path></svg><span style="font-size: 18px; line-height: 24px; font-weight: 500;">WorldLens</span></div>
+    <label style="flex: 1 1 320px; max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 8px 0 16px; border-radius: 24px; background: var(--wl-surf-high); color: var(--wl-on-surf-var); box-sizing: border-box;">
+      <span class="msr" aria-hidden="true">search</span>
+      <input type="search" aria-label="Search everything" placeholder="Search maps, tools, settings and commands" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--wl-on-surf); font: 400 16px/24px Roboto, sans-serif; outline: none;">
+      <kbd style="font: 500 12px/16px 'Roboto Mono', monospace; padding: 4px 8px; border-radius: 8px; background: var(--wl-surf-highest); color: var(--wl-on-surf-var);">Ctrl Shift F</kbd>
+    </label>
+    <button type="button" class="sl ib" aria-label="Notifications"><span class="msr" aria-hidden="true">notifications</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1;">
+    <nav aria-label="Destinations" style="flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 12px 0 24px;">
+      <a href="Tree.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">home</span></span>Home</a>
+      <a href="Tree.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">map</span></span>Map</a>
+      <a href="Tree.dc.html" class="ri" aria-current="page"><span class="ind"><span class="msr" aria-hidden="true">handyman</span></span>Work</a>
+      <a href="Tree.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">dns</span></span>Servers</a>
+      <div style="flex: 1;"></div>
+      <a href="Tree.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">settings</span></span>Settings</a>
+    </nav>
+    <main class="pane" style="flex: 999 1 560px; min-width: 0; margin: 0 16px 16px 0; background: var(--wl-surface); border-radius: 28px; padding: 16px 28px 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px;">
+      <div role="tablist" aria-label="Open jobs" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--wl-outline-var);">
+        <span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">add_location_alt</span><span role="tab" aria-selected="false">Make a map</span></span>
+        <span class="chip" style="border-color: var(--wl-outline);"><span style="font: 500 12px/16px Roboto, sans-serif; color: var(--wl-on-surf-var); padding-right: 6px;">Worlds</span><span class="msr" aria-hidden="true" style="font-size: 18px;">cloud_download</span><span role="tab" aria-selected="false">Get a world</span><span class="msr" aria-hidden="true" style="font-size: 18px; margin-left: 8px;">sync_alt</span><span role="tab" aria-selected="false">Convert</span></span>
+        <span class="chip" aria-current="page"><span class="msr" aria-hidden="true" style="font-size: 18px;">account_tree</span><span role="tab" aria-selected="true">NBT editor</span></span>
+        <span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">bolt</span><span role="tab" aria-selected="false">Renders</span></span>
+        <span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">construction</span><span role="tab" aria-selected="false">Built-in tools</span></span>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+        <div style="flex: 1 1 320px; min-width: 0;">
+          <h1 style="margin: 0; font-size: 28px; line-height: 36px; font-weight: 400;">World settings</h1>
+          <p class="mono" style="margin: 2px 0 0; font-size: 13px; line-height: 18px; color: var(--wl-on-surf-var);">SUBWorld settings</p>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button type="button" class="btn sl" style="background: transparent; color: var(--wl-primary); border: 1px solid var(--wl-outline);"><span class="msr" aria-hidden="true" style="font-size: 20px;">undo</span>Undo</button>
+          <button type="button" class="btn sl" style="background: transparent; color: var(--wl-primary); border: 1px solid var(--wl-outline);"><span class="msr" aria-hidden="true" style="font-size: 20px;">history</span>History</button>
+          <button type="button" class="btn sl" style="background: var(--wl-primary); color: var(--wl-on-primary);"><span class="msr" aria-hidden="true" style="font-size: 20px;">save</span>Save and record</button>
+        </div>
+      </div>
+      <nav aria-label="NBT views" style="display: flex; flex-wrap: wrap; gap: 8px;"><a class="vnav sl" href="Tree.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">account_tree</span>Tree and SNBT</a><a class="vnav sl" href="Region.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">grid_on</span>Region</a><a class="vnav sl" href="Chunk.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">layers</span>Chunk</a><a class="vnav sl" href="Structure.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">view_in_ar</span>Structure</a><a class="vnav sl" href="MapArt.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">palette</span>Map art</a><a class="vnav sl" href="Inventory.dc.html"><span class="msr" aria-hidden="true" style="font-size:18px;">backpack</span>Inventory and items</a><a class="vnav sl" href="LevelDat.dc.html" aria-current="page"><span class="msr" aria-hidden="true" style="font-size:18px;">public</span>World settings</a></nav>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;">
+        <section class="card" aria-label="World" style="flex: 1 1 340px;">
+          <h2 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 500;">World</h2>
+          <label class="fld">Name<input class="inp" value="heapandyville"></label>
+          <label class="fld">Seed<span style="display: flex; gap: 6px;"><input class="inp mono" value="-4172144997902289642" readonly style="flex: 1;"><button type="button" class="tool sl" aria-label="Copy seed"><span class="msr" aria-hidden="true">content_copy</span></button></span></label>
+          <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;">
+            <label class="fld">Game mode<select class="inp"><option>Survival</option><option>Creative</option><option>Adventure</option><option>Spectator</option></select></label>
+            <label class="fld">Difficulty<select class="inp"><option>Peaceful</option><option>Easy</option><option selected="">Normal</option><option>Hard</option></select></label>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px;"><span style="flex: 1; font-size: 14px;">Difficulty locked</span><button type="button" role="switch" class="sw" aria-checked="false" aria-label="Difficulty locked"></button></div>
+          <div style="display: flex; align-items: center; gap: 12px;"><span style="flex: 1; font-size: 14px;">Hardcore</span><button type="button" role="switch" class="sw" aria-checked="false" aria-label="Hardcore"></button></div>
+          <div style="display: flex; align-items: center; gap: 12px;"><span style="flex: 1; font-size: 14px;">Commands allowed</span><button type="button" role="switch" class="sw" aria-checked="true" aria-label="Commands allowed"></button></div>
+          <h3 style="margin: 6px 0 0; font-size: 14px; font-weight: 500;">Spawn</h3>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+            <label class="fld">X<input class="inp mono" value="256"></label>
+            <label class="fld">Y<input class="inp mono" value="71"></label>
+            <label class="fld">Z<input class="inp mono" value="-48"></label>
+          </div>
+          <a href="Region.dc.html" class="btn sl" style="align-self: flex-start; background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);"><span class="msr" aria-hidden="true" style="font-size: 20px;">my_location</span>Pick on the map</a>
+        </section>
+        <section class="card" aria-label="Time and weather" style="flex: 1 1 320px;">
+          <h2 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 500;">Time and weather</h2>
+          <div style="display: flex; align-items: center; gap: 16px;">
+            <svg viewBox="0 0 120 70" width="140" height="82" role="img" aria-label="Sun position for {{timeLabel}}"><path d="M10 60 A50 50 0 0 1 110 60" fill="none" stroke="var(--wl-outline-var)" stroke-width="3"></path><line x1="4" y1="60" x2="116" y2="60" stroke="var(--wl-outline)" stroke-width="2"></line><circle cx="{{sunX}}" cy="{{sunY}}" r="9" fill="#F2C14E"></circle></svg>
+            <div><div style="font-size: 32px; line-height: 40px;">{{timeLabel}}</div><div class="mono" style="font-size: 13px; color: var(--wl-on-surf-var);">DayTime {{ticks}} · day {{day}}</div></div>
+          </div>
+          <label class="fld">Time of day<input type="range" min="0" max="23999" step="250" value="{{ticks}}" onChange="{{setTime}}" style="accent-color: var(--wl-primary);"></label>
+          <div role="radiogroup" aria-label="Weather" style="display: flex; gap: 6px;">
+            <sc-for list="{{weather}}" as="w" hint-placeholder-count="3">
+              <button type="button" role="radio" class="fchip sl" aria-checked="{{w.sel}}" aria-pressed="{{w.sel}}" onClick="{{w.pick}}">{{w.label}}</button>
+            </sc-for>
+          </div>
+          <label class="fld">Weather lasts (minutes)<input class="inp mono" value="12"></label>
+          <h3 style="margin: 6px 0 0; font-size: 14px; font-weight: 500;">World border</h3>
+          <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+            <label class="fld">Centre X<input class="inp mono" value="0"></label>
+            <label class="fld">Centre Z<input class="inp mono" value="0"></label>
+            <label class="fld">Size<input class="inp mono" value="59999968"></label>
+          </div>
+          <h3 style="margin: 6px 0 0; font-size: 14px; font-weight: 500;">Data packs</h3>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;"><span class="fchip" aria-pressed="true">vanilla</span><span class="fchip" aria-pressed="true">file/heapandyville-tweaks</span><span class="fchip" aria-pressed="false">bundle</span><span class="fchip" aria-pressed="false">trade_rebalance</span></div>
+        </section>
+        <section class="card" aria-label="Game rules" style="flex: 1 1 340px;">
+          <h2 style="margin: 0; font-size: 16px; line-height: 24px; font-weight: 500;">Game rules</h2>
+          <label style="display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px; border-radius: 22px; background: var(--wl-surf-high);"><span class="msr" aria-hidden="true">search</span><input aria-label="Search game rules" placeholder="52 rules" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--wl-on-surf); font: 400 15px/20px Roboto, sans-serif; outline: none;"><button type="button" class="sl" aria-label="Regex builder" style="border: 0; background: transparent; color: var(--wl-on-surf-var); font: 500 13px/20px 'Roboto Mono', monospace;">.*</button></label>
+          <sc-for list="{{rules}}" as="r" hint-placeholder-count="8">
+            <div style="display: flex; align-items: center; gap: 12px; min-height: 44px;">
+              <span class="mono" style="flex: 1; min-width: 0; font-size: 13px;">{{r.name}}</span>
+              <sc-if value="{{r.isBool}}" hint-placeholder-val="{{ true }}"><button type="button" role="switch" class="sw" aria-checked="{{r.on}}" aria-label="{{r.name}}" onClick="{{r.toggle}}"></button></sc-if>
+              <sc-if value="{{r.isNum}}" hint-placeholder-val="{{ false }}"><div class="step"><button type="button" class="sl" aria-label="Lower {{r.name}}" onClick="{{r.down}}"><span class="msr" aria-hidden="true">remove</span></button><output>{{r.val}}</output><button type="button" class="sl" aria-label="Raise {{r.name}}" onClick="{{r.up}}"><span class="msr" aria-hidden="true">add</span></button></div></sc-if>
+            </div>
+          </sc-for>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme": {"editor": "enum", "options": ["dark", "light", "contrast"], "default": "dark"}, "$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { ticks: 6000, weather: 'Clear', rules: { keepInventory: true, doDaylightCycle: true, doMobSpawning: true, mobGriefing: false, doFireTick: false, doInsomnia: true, randomTickSpeed: 3, spawnRadius: 10, playersSleepingPercentage: 100, maxEntityCramming: 24 } }; }
+  renderVals() {
+    const t = this.state.ticks;
+    const hours = (Math.floor(t / 1000) + 6) % 24, mins = Math.floor((t % 1000) * 0.06);
+    const a = Math.PI * (t / 12000);
+    const day = t < 12500;
+    const rules = Object.keys(this.state.rules).map((name) => { const v = this.state.rules[name]; const isBool = typeof v === 'boolean'; return { name, isBool, isNum: !isBool, on: v ? 'true' : 'false', val: String(v), toggle: () => this.setState({ rules: { ...this.state.rules, [name]: !v } }), up: () => this.setState({ rules: { ...this.state.rules, [name]: v + 1 } }), down: () => this.setState({ rules: { ...this.state.rules, [name]: Math.max(0, v - 1) } }) }; });
+    const weather = ['Clear','Rain','Thunder'].map((label) => ({ label, sel: this.state.weather === label ? 'true' : 'false', pick: () => this.setState({ weather: label }) }));
+    return { theme: this.props.theme ?? 'dark', ticks: t, day: 412, timeLabel: String(hours).padStart(2, '0') + ':' + String(mins).padStart(2, '0'), sunX: day ? 60 - Math.cos(Math.min(Math.PI, a)) * 50 : 60, sunY: day ? 60 - Math.sin(Math.min(Math.PI, a)) * 50 : 64, setTime: (e) => this.setState({ ticks: Number(e.target.value) }), rules, weather };
+  }
+}
+</script>
+</body>
+</html>
