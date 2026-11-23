@@ -28,13 +28,14 @@
         "electron": "^37.10.3",
         "electron-builder": "^26.0.0",
         "esbuild": "^0.25.12",
+        "prismarine-auth": "3.1.1",
         "rcedit": "5.0.2",
         "sharp": "0.35.3"
     },
     "dependencies": {
         "@worldlens/bridge": "workspace:*",
-        "@worldlens/dockhand": "workspace:*",
         "@worldlens/config": "workspace:*",
+        "@worldlens/dockhand": "workspace:*",
         "@worldlens/engine": "workspace:*",
         "@worldlens/liveviewer": "workspace:*",
         "@worldlens/nbt": "workspace:*",

@@ -496,6 +496,8 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "nbtEditor:diffCurrent",
     "nbtEditor:restore",
     "liveViewer:choices",
+    "liveViewer:clientId",
+    "liveViewer:configureClient",
     "liveViewer:host",
     "liveViewer:cancel",
     "liveViewer:list",

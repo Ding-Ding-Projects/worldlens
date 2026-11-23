@@ -2620,6 +2620,8 @@ interface WorldlensBridge {
     };
     liveViewer: {
         choices(...args: unknown[]): Promise<unknown>;
+        clientId(): Promise<unknown>;
+        configureClient(value: string): Promise<unknown>;
         host(...args: unknown[]): Promise<unknown>;
         cancel(...args: unknown[]): Promise<unknown>;
         list(...args: unknown[]): Promise<unknown>;

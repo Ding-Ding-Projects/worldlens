@@ -49,6 +49,18 @@ const accounts = ref<{ accountRef: string; label: string }[]>([]);
 const accountsAvailable = ref(true);
 const chosenAccount = ref<string | null>(null);
 const newAccountLabel = ref("");
+/** Microsoft sign-in needs the application (client) ID registered for this install. */
+const clientConfigured = ref(true);
+const clientIdDraft = ref("");
+const clientIdMessage = ref("");
+const CLIENT_ID_PATTERN = /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
+async function saveClientId(): Promise<void> {
+    const b = bridge.value;
+    if (b === null || b.configureClient === undefined) return;
+    const answer = await b.configureClient(clientIdDraft.value.trim());
+    clientIdMessage.value = answer.ok ? t("liveViewer.auth.clientSaved", "Saved. You can add an account and sign in now.") : answer.message;
+    if (answer.ok) clientConfigured.value = true;
+}
 const deviceCode = ref<DeviceCode | null>(null);
 const signingIn = ref(false);
 const signedInNote = ref<string | null>(null);
@@ -287,6 +299,11 @@ onMounted(async () => {
         accountsAvailable.value = known.available;
         if (known.value.length > 0) chosenAccount.value = known.value[0]!.accountRef;
     }
+    const client = await b.clientId?.();
+    if (client !== undefined) {
+        clientConfigured.value = client.configured;
+        clientIdDraft.value = client.clientId;
+    }
     await refreshHosted();
 });
 
@@ -332,6 +349,15 @@ onBeforeUnmount(() => unsubscribe?.());
                             <template v-if="settings.auth === 'microsoft'">
                                 <VAlert v-if="!accountsAvailable" type="warning" variant="tonal" density="compact" data-test="lv-no-storage">{{ t("liveViewer.auth.noStorage", "Protected account storage is unavailable on this PC, so a Microsoft account cannot be kept.") }}</VAlert>
                                 <VSelect v-else v-model="chosenAccount" :items="accounts" item-title="label" item-value="accountRef" :label="t('liveViewer.auth.account', 'Account')" density="comfortable" hide-details :no-data-text="t('liveViewer.auth.noAccounts', 'No accounts yet. Add one below.')" data-test="lv-account" />
+                                <div v-if="accountsAvailable && !clientConfigured" class="lv-client" data-test="lv-client">
+                                    <span class="lv-help">{{ t("liveViewer.auth.clientHelp", "Microsoft sign-in uses the application (client) ID of an app registration in your Microsoft Entra account. Paste that ID once; it is kept on this PC.") }}</span>
+                                    <div class="lv-row">
+                                        <VTextField v-model="clientIdDraft" :label="t('liveViewer.auth.clientId', 'Application (client) ID')" placeholder="00000000-0000-0000-0000-000000000000" density="comfortable" hide-details spellcheck="false" autocomplete="off" data-test="lv-client-id" />
+                                        <VBtn variant="tonal" :disabled="!CLIENT_ID_PATTERN.test(clientIdDraft.trim())" data-test="lv-client-save" @click="saveClientId">{{ t("liveViewer.auth.clientSave", "Save") }}</VBtn>
+                                    </div>
+                                    <span v-if="!CLIENT_ID_PATTERN.test(clientIdDraft.trim())" class="lv-help">{{ t("liveViewer.auth.clientShape", "Save turns on once the ID has the shape 00000000-0000-0000-0000-000000000000.") }}</span>
+                                    <span v-if="clientIdMessage" class="lv-help" role="status">{{ clientIdMessage }}</span>
+                                </div>
                                 <div v-if="accountsAvailable" class="lv-row">
                                     <VTextField v-model="newAccountLabel" :label="t('liveViewer.auth.newLabel', 'New account label')" density="comfortable" hide-details data-test="lv-new-account" />
                                     <VBtn variant="tonal" :disabled="newAccountLabel.trim() === ''" data-test="lv-add-account" @click="addAccount">{{ t("liveViewer.auth.add", "Add") }}</VBtn>
@@ -448,6 +474,7 @@ onBeforeUnmount(() => unsubscribe?.());
 .lv-col { background: rgb(var(--v-theme-surface-variant), 0.12); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .lv-h { margin: 0; font-size: 0.95rem; font-weight: 500; }
 .lv-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; align-items: center; }
+.lv-client { display: flex; flex-direction: column; gap: 6px; }
 .lv-fs { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .lv-legend { font-size: 0.8rem; opacity: 0.8; margin-bottom: 4px; }
 .lv-help { font-size: 0.8rem; opacity: 0.85; overflow-wrap: anywhere; }

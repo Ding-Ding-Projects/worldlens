@@ -421,6 +421,20 @@ async function main() {
             banner: { js: nodeBuiltinRequireShimBanner },
         });
 
+        // The Microsoft sign-in worker for bot and live-viewer accounts. ProtectedBotAccounts
+        // forks it from beside the main bundle, so it is bundled here with prismarine-auth
+        // inside it; the packaged app then needs no node_modules to sign in.
+        await build({
+            entryPoints: ["src/main/mcserver/bots/auth-worker.mjs"],
+            outfile: "dist/main/auth-worker.mjs",
+            bundle: true,
+            platform: "node",
+            format: "esm",
+            target: "node22",
+            sourcemap: false,
+            banner: { js: nodeBuiltinRequireShimBanner },
+        });
+
         await build({
             entryPoints: ["src/main/ollama/provision.ts"],
             outfile: "dist/main/ollama/provision.js",

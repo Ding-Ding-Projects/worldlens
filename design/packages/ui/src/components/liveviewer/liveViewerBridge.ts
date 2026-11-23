@@ -130,6 +130,9 @@ export interface LiveViewerBridge {
     createAccount(label: string): Promise<Answer<{ accountRef: string; label: string }>>;
     signIn(accountRef: string): Promise<Answer<null>>;
     cancelSignIn(accountRef: string): Promise<boolean>;
+    /** Whether a Microsoft application (client) ID is saved for sign-in. Optional in older builds. */
+    clientId?(): Promise<{ configured: boolean; clientId: string }>;
+    configureClient?(value: string): Promise<{ ok: boolean; message: string }>;
     onEvent(listener: (event: ViewerEvent) => void): () => void;
 }
 

@@ -22,6 +22,8 @@ import {
     serverChoices,
 } from "../liveviewer/index.js";
 import type { McServerIpc } from "../mcserver/ipc.js";
+import { ProtectedBotAccounts } from "../mcserver/bots/accounts.js";
+import { createLiveViewerAccounts, createPromptSource } from "../liveviewer/index.js";
 
 /**
  * Everything that shares a finished render, registered in one place.
@@ -71,6 +73,11 @@ function broadcast(channel: string, payload: unknown): void {
     for (const window of BrowserWindow.getAllWindows()) {
         if (!window.isDestroyed()) window.webContents.send(channel, payload);
     }
+}
+
+/** The folder holding the bundled main process, where the sign-in worker is built beside it. */
+function mainBundleDir(): string {
+    return dirname(fileURLToPath(import.meta.url));
 }
 
 /** In a checkout the build scripts stage bundled parts under `packages/app/dist`. */
@@ -140,19 +147,50 @@ export function registerSharing(ipcMain: IpcMain, options: SharingOptions): Shar
         reveal: (target) => shell.showItemInFolder(target),
     });
 
-    // The live viewer and its bot. Microsoft sign-in needs the bot account service, which this
-    // build does not wire yet, so accounts are null and the dialog says so; offline names work.
+    // The live viewer and its bot. Offline names work everywhere; Microsoft accounts below.
     const mcServer = options.mcServer;
+    // Microsoft sign-in for the bot: the same protected account store the server manager's
+    // bots use, encrypted with the operating system's safe storage. The sign-in worker is
+    // bundled beside the main process. When safe storage is unavailable the store refuses to
+    // exist, and the dialog says so instead of keeping a token in the clear.
+    const prompts = createPromptSource();
+    const clientFile = join(options.userData, "bot-public-client.json");
+    const readClientId = (): string => {
+        try {
+            const value = (JSON.parse(readFileSync(clientFile, "utf8")) as { clientId?: unknown }).clientId;
+            return typeof value === "string" && /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/iu.test(value) ? value : "";
+        } catch {
+            return "";
+        }
+    };
+    let liveAccounts: ReturnType<typeof createLiveViewerAccounts> | null = null;
+    try {
+        const store = new ProtectedBotAccounts(
+            (prompt) => prompts.emit(prompt),
+            join(mainBundleDir(), "auth-worker.mjs"),
+        );
+        liveAccounts = createLiveViewerAccounts({ store, prompts, clientId: async () => readClientId() });
+    } catch {
+        liveAccounts = null;
+    }
+    ipcMain.handle("liveViewer:clientId", () => ({ configured: readClientId() !== "", clientId: readClientId() }));
+    ipcMain.handle("liveViewer:configureClient", (_event, value: unknown) => {
+        if (typeof value !== "string" || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/iu.test(value.trim()))
+            return { ok: false, message: "An application (client) ID looks like 00000000-0000-0000-0000-000000000000." };
+        mkdirSync(options.userData, { recursive: true });
+        writeFileSync(clientFile, JSON.stringify({ clientId: value.trim().toLowerCase() }), { mode: 0o600 });
+        return { ok: true, message: "" };
+    });
     const liveViewer = registerLiveViewerHandlers(ipcMain, {
         service: new LiveViewerService({
             registry: new LiveViewerRegistry(options.userData),
             owner: installationId(options.userData),
             resolveSsh: (hostId) => mcServer?.hostProfiles.sshHost(hostId) ?? null,
-            accounts: null,
+            accounts: liveAccounts,
             vocabulary: async () => (await vocabulary.read()).entries,
             bundledImage: () => readLiveViewerImage(join(options.resourcesDir ?? devResourcesDir(), "liveviewer")),
         }),
-        accounts: null,
+        accounts: liveAccounts,
         servers: async () => {
             if (mcServer === null) return [];
             const listed = await mcServer.registry.list();
@@ -173,7 +211,7 @@ export function registerSharing(ipcMain: IpcMain, options: SharingOptions): Shar
             shareHost.dispose();
             liveViewer.dispose();
             appliance.dispose();
-            for (const channel of ["sharing:savedSshHosts", "sharing:openExternal", "sharing:reveal", "sharing:checkLink"]) {
+            for (const channel of ["sharing:savedSshHosts", "sharing:openExternal", "sharing:reveal", "sharing:checkLink", "liveViewer:clientId", "liveViewer:configureClient"]) {
                 ipcMain.removeHandler(channel);
             }
         },

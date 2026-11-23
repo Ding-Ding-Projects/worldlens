@@ -1238,6 +1238,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
 
         liveViewer: {
             choices: (...args: unknown[]) => transport.invoke("liveViewer:choices", ...args),
+            clientId: () => transport.invoke("liveViewer:clientId"),
+            configureClient: (value: unknown) => transport.invoke("liveViewer:configureClient", value),
             host: (...args: unknown[]) => transport.invoke("liveViewer:host", ...args),
             cancel: (...args: unknown[]) => transport.invoke("liveViewer:cancel", ...args),
             list: (...args: unknown[]) => transport.invoke("liveViewer:list", ...args),

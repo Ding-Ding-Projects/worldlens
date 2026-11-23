@@ -1,5 +1,7 @@
-import { createRequire } from "node:module";
-const require = createRequire(import.meta.url);
+// Static imports so the build bundles prismarine-auth into this worker; the packaged app then
+// signs in with no node_modules beside it.
+import { Authflow } from "prismarine-auth";
+import metadata from "prismarine-auth/package.json" with { type: "json" };
 // Dedicated child: never print authentication responses, cache data or device codes.
 console.log = console.warn = console.error = () => {};
 const waiters = new Map();
@@ -14,9 +16,7 @@ process.on("message", async (message) => {
     }
     if (message?.kind !== "start") return;
     try {
-        const metadata = require("prismarine-auth/package.json");
         if (metadata.version !== "3.1.1") throw new Error("Unreviewed authentication runtime.");
-        const { Authflow } = require("prismarine-auth");
         const caches = message.caches ?? {};
         const persist = async () => {
             const id = ++sequence;
