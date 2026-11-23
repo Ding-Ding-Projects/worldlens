@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFile, readdir, stat } from "node:fs/promises";
+import { appendFile, copyFile, mkdir, readFile, readdir, stat } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { lz4BlockCompress, lz4BlockDecompress } from "@worldlens/engine";
 import {
@@ -9,7 +9,10 @@ import {
     diffTrees,
     externalChunkName,
     describeBedrockKey,
+    encodeWriteBatch,
+    lastSequence,
     listRegionChunks,
+    logRecordBytes,
     parseNbtPayload,
     readLevelDb,
     readNbtFile,
@@ -151,8 +154,10 @@ export class NbtEditorService {
     private readonly docs = new Map<string, Entry>();
     readonly history: ProjectHistory;
     private readonly worldInUse: WorldInUseCheck;
+    private readonly historyRoot: string;
 
     constructor(options: NbtEditorServiceOptions) {
+        this.historyRoot = options.historyRoot;
         this.history = options.history ?? new ProjectHistory({ root: options.historyRoot });
         this.worldInUse = options.worldInUse ?? probeSessionLock;
     }
@@ -218,6 +223,43 @@ export class NbtEditorService {
             };
         });
         return { records, problems };
+    }
+
+    /**
+     * Writes one Bedrock record by appending a batch to the world's newest LevelDB log, exactly
+     * as the game's own LevelDB would, with the next sequence number. A copy of that log is kept
+     * first, outside the world. The game must be closed: it holds the database while running.
+     */
+    private async saveBedrock(entry: Entry, keyHex: string): Promise<void> {
+        const live = await this.worldInUse(entry.projectDir);
+        if (live !== null) throw new NbtEditorRefusal(live);
+        const db = join(entry.projectDir, "db");
+        const names = (await readdir(db))
+            .filter((n) => /^\d+\.log$/.test(n))
+            .sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10));
+        const logName = names[names.length - 1];
+        if (logName === undefined)
+            throw new NbtEditorRefusal(
+                "This world has no LevelDB log to write to. Open it in Minecraft once, close it, and try again.",
+            );
+        const files = new Map<string, Uint8Array>();
+        for (const n of await readdir(db))
+            if (/\.(ldb|sst|log)$/i.test(n)) files.set(n, await this.readBounded(join(db, n)));
+        const logPath = join(db, logName);
+        const logBytes = files.get(logName) ?? new Uint8Array();
+        const doc = entry.session.doc;
+        const value = writeNbtPayload(doc.root, "little", doc.trailing);
+        const batch = encodeWriteBatch(
+            [{ key: Uint8Array.from(Buffer.from(keyHex, "hex")), value }],
+            lastSequence(files) + 1n,
+        );
+        const backupDir = join(this.historyRoot, "bedrock-backups");
+        await mkdir(backupDir, { recursive: true });
+        await copyFile(
+            logPath,
+            join(backupDir, `${Date.now()}-${basename(entry.projectDir)}-${logName}`),
+        );
+        await appendFile(logPath, logRecordBytes(batch, logBytes.length));
     }
 
     /** Opens one NBT record read-only. Several concatenated compounds open as a list. */
@@ -434,6 +476,16 @@ export class NbtEditorService {
         const entry = this.entry(docId);
         const session = entry.session;
         if (!session.state().dirty) throw new NbtEditorRefusal("There are no changes to save.");
+        if (entry.location.kind === "bedrock") {
+            await this.saveBedrock(entry, entry.location.key);
+            session.markSaved();
+            return {
+                message: `Saved ${entry.subject} to the world's LevelDB log.`,
+                commit: null,
+                backupPath: null,
+                state: session.state(),
+            };
+        }
         const message = (request.message ?? "").trim() || session.defaultMessage(entry.subject);
         const outcome = await this.writeThrough(entry, message, request.backup !== false, () =>
             this.currentBytes(entry),

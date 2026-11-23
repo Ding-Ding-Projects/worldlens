@@ -90,7 +90,7 @@ A chunk opened from the region canvas lands on **Chunk**: a 16 by 16 picture, we
 
 ### Bedrock worlds
 
-Choosing a Bedrock world folder lists its LevelDB records beside the files (**Bedrock world records**): the local player, other players, world records (portals, scoreboard, map data, villages) and each chunk's records (block entities, entities, pending ticks, sub-chunks and so on), named by dimension, chunk and kind, and searchable. NBT records open in the editor with every view and control, read as little-endian NBT; saving is refused with the reason. The reader (`design/packages/nbt/src/leveldb/`) reads both the write-ahead logs and the sorted tables (plain, Snappy, zlib or raw deflate blocks), keeps the newest value per key and drops deleted ones, and reports any file it cannot read.
+Choosing a Bedrock world folder lists its LevelDB records beside the files (**Bedrock world records**): the local player, other players, world records (portals, scoreboard, map data, villages) and each chunk's records (block entities, entities, pending ticks, sub-chunks and so on), named by dimension, chunk and kind, and searchable. NBT records open in the editor with every view and control, read as little-endian NBT. Saving appends one write batch to the world's newest LevelDB log with the next sequence number, fragmented and CRC-32C checksummed the way LevelDB's own writer does, after copying that log to `bedrock-backups` under the editor's history folder; the game then reads the new value. Close Minecraft first: it holds the database while running. The reader (`design/packages/nbt/src/leveldb/`) reads both the write-ahead logs and the sorted tables (plain, Snappy, zlib or raw deflate blocks), keeps the newest value per key and drops deleted ones, and reports any file it cannot read.
 
 ## History
 
@@ -119,7 +119,7 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 
 ## Not yet
 
-- Bedrock LevelDB records open read-only: saving one would mean writing LevelDB, which is not built. Records holding several NBT compounds show the first; the rest is kept as trailing bytes.
+- Bedrock records holding several NBT compounds show the first; the rest is kept as trailing bytes and written back unchanged. Bedrock saves are not recorded in the per-project Git history yet; each keeps a copy of the log instead.
 - Undo keeps whole-tree snapshots: at most 100 steps, fewer for a very large chunk (about 1.5 million tags in total across the stack).
 - Running servers on another machine are not detected; only this computer's `session.lock` and its managed servers are.
 
@@ -190,4 +190,4 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 
 ### Bedrock 世界
 
-揀一個 Bedrock 世界資料夾，檔案隔籬會列出佢 LevelDB 入面嘅紀錄（**Bedrock world records**）：本機玩家、其他玩家、世界紀錄（傳送門、計分板、地圖、村莊）同每個 chunk 嘅紀錄，按維度、chunk 同種類命名，可以搜尋。NBT 紀錄會用 little-endian 打開，所有檢視同控制項都用得；儲存會被拒絕並講明原因（寫 LevelDB 未做）。讀取器讀 log 同排序表（無壓縮、Snappy、zlib 或 raw deflate），每個鍵取最新值、刪咗嘅唔顯示，讀唔到嘅檔案會講出嚟。
+揀一個 Bedrock 世界資料夾，檔案隔籬會列出佢 LevelDB 入面嘅紀錄（**Bedrock world records**）：本機玩家、其他玩家、世界紀錄（傳送門、計分板、地圖、村莊）同每個 chunk 嘅紀錄，按維度、chunk 同種類命名，可以搜尋。NBT 紀錄會用 little-endian 打開，所有檢視同控制項都用得。儲存會喺世界最新嘅 LevelDB log 加一個寫入批次（下一個序號、照 LevelDB 自己嘅分塊同 CRC-32C），之前先將個 log 抄一份去編輯器歷史資料夾嘅 `bedrock-backups`；遊戲之後會讀到新值。記得先閂 Minecraft。讀取器讀 log 同排序表（無壓縮、Snappy、zlib 或 raw deflate），每個鍵取最新值、刪咗嘅唔顯示，讀唔到嘅檔案會講出嚟。

@@ -184,3 +184,36 @@ describe("Bedrock keys", () => {
         expect(describeBedrockKey(Uint8Array.from([0xff, 0x00])).label).toBe("0xff00");
     });
 });
+
+describe("LevelDB writing", () => {
+    it("matches the CRC-32C check value and LevelDB's masking", async () => {
+        const { crc32c, maskCrc } = await import("./leveldb.js");
+        expect(crc32c(enc.encode("123456789"))).toBe(0xe3069283);
+        expect(maskCrc(0)).toBe(0xa282ead8);
+    });
+
+    it("appends batches that read back, across block boundaries, with the newest sequence winning", async () => {
+        const { encodeWriteBatch, lastSequence, logRecordBytes } = await import("./leveldb.js");
+        const original = log(10, [["a", "one"]]);
+        const big = new Uint8Array(70_000).fill(7);
+        const batch = encodeWriteBatch(
+            [
+                { key: enc.encode("a"), value: big },
+                { key: enc.encode("gone"), value: null },
+            ],
+            11n,
+        );
+        const appended = bytes(original, logRecordBytes(batch, original.length));
+        const back = readLog(appended);
+        expect(
+            back.map((e) => [new TextDecoder().decode(e.key), e.value?.length ?? null, e.sequence]),
+        ).toEqual([
+            ["a", 3, 10n],
+            ["a", 70_000, 11n],
+            ["gone", null, 12n],
+        ]);
+        const files = new Map([["000003.log", appended]]);
+        expect(readLevelDb(files).entries[0]!.value).toHaveLength(70_000);
+        expect(lastSequence(files)).toBe(12n);
+    });
+});

@@ -661,7 +661,7 @@ describe("Bedrock worlds", () => {
         return new Uint8Array(Buffer.concat([header, batch]));
     }
 
-    it("lists a Bedrock world's records and opens an NBT one read-only", async () => {
+    it("lists a Bedrock world's records, opens an NBT one and saves it to the log", async () => {
         const bedrock = join(scratch, "bedrock-world");
         await mkdir(join(bedrock, "db"), { recursive: true });
         const player = documentFrom("{Health:20.0f,PlayerLevel:7}");
@@ -695,7 +695,15 @@ describe("Bedrock worlds", () => {
         );
         expect(level?.text).toBe("7");
         service.edit(doc.docId, { op: "setValue", id: level!.id, text: "8" });
-        await expect(service.save(doc.docId)).rejects.toThrow(/read-only/);
+        const saved = await service.save(doc.docId);
+        expect(saved.message).toMatch(/LevelDB log/);
+        // The game's own reader now sees the new value, at the next sequence number.
+        const again = await service.openBedrockRecord(bedrock, records[0]!.key);
+        const level2 = (await service.children(again.docId, again.root.id, 0, 10)).nodes.find(
+            (n) => n.name === "PlayerLevel",
+        );
+        expect(level2?.text).toBe("8");
+        expect((await readdir(join(historyRoot, "bedrock-backups"))).length).toBe(1);
         await expect(service.listBedrock(world)).rejects.toThrow(/not a Bedrock world/);
     });
 });

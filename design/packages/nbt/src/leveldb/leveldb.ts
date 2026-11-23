@@ -279,3 +279,115 @@ export function readLevelDb(files: ReadonlyMap<string, Uint8Array>): {
         .sort((a, b) => Buffer.compare(Buffer.from(a.key), Buffer.from(b.key)));
     return { entries, problems };
 }
+
+/* --------------------------------- Writing --------------------------------- */
+
+const CRC32C_TABLE = (() => {
+    const t = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) c = c & 1 ? 0x82f63b78 ^ (c >>> 1) : c >>> 1;
+        t[n] = c >>> 0;
+    }
+    return t;
+})();
+
+export function crc32c(bytes: Uint8Array, seed = 0): number {
+    let c = (seed ^ 0xffffffff) >>> 0;
+    for (const b of bytes) c = CRC32C_TABLE[(c ^ b) & 0xff]! ^ (c >>> 8);
+    return (c ^ 0xffffffff) >>> 0;
+}
+
+/** LevelDB stores checksums masked, so a CRC of data containing CRCs stays well behaved. */
+export function maskCrc(crc: number): number {
+    return (((crc >>> 15) | (crc << 17)) + 0xa282ead8) >>> 0;
+}
+
+function varintBytes(n: number): number[] {
+    const out: number[] = [];
+    while (n >= 0x80) {
+        out.push((n & 0x7f) | 0x80);
+        n = Math.floor(n / 128);
+    }
+    out.push(n);
+    return out;
+}
+
+/** A write batch putting each value (or deleting, when `value` is null) at `sequence` onwards. */
+export function encodeWriteBatch(
+    ops: readonly { key: Uint8Array; value: Uint8Array | null }[],
+    sequence: bigint,
+): Uint8Array {
+    const parts: number[] = [];
+    for (const op of ops) {
+        parts.push(op.value === null ? 0 : 1, ...varintBytes(op.key.length), ...op.key);
+        if (op.value !== null) parts.push(...varintBytes(op.value.length), ...op.value);
+    }
+    const out = new Uint8Array(12 + parts.length);
+    const view = new DataView(out.buffer);
+    view.setBigUint64(0, sequence, true);
+    view.setUint32(8, ops.length, true);
+    out.set(parts, 12);
+    return out;
+}
+
+/**
+ * The bytes to append to a log of `existingLength` bytes so it gains one more record holding
+ * `batch`, fragmented across 32 KiB blocks and checksummed the way LevelDB's own writer does.
+ */
+export function logRecordBytes(batch: Uint8Array, existingLength: number): Uint8Array {
+    const chunks: Uint8Array[] = [];
+    let offset = existingLength % LOG_BLOCK;
+    let left = batch.length;
+    let at = 0;
+    let first = true;
+    do {
+        const room = LOG_BLOCK - offset;
+        if (room < 7) {
+            chunks.push(new Uint8Array(room)); // trailer padding, as the writer does
+            offset = 0;
+            continue;
+        }
+        const length = Math.min(left, room - 7);
+        const end = left === length;
+        const type = first && end ? 1 : first ? 2 : end ? 4 : 3;
+        const data = batch.subarray(at, at + length);
+        const header = new Uint8Array(7);
+        const crc = maskCrc(crc32c(data, crc32c(Uint8Array.of(type))));
+        new DataView(header.buffer).setUint32(0, crc, true);
+        header[4] = length & 0xff;
+        header[5] = length >> 8;
+        header[6] = type;
+        chunks.push(header, data);
+        offset = (offset + 7 + length) % LOG_BLOCK;
+        at += length;
+        left -= length;
+        first = false;
+    } while (left > 0);
+    const total = chunks.reduce((n, c) => n + c.length, 0);
+    const out = new Uint8Array(total);
+    let p = 0;
+    for (const c of chunks) {
+        out.set(c, p);
+        p += c.length;
+    }
+    return out;
+}
+
+/** The highest sequence number any table or log in these files holds. */
+export function lastSequence(files: ReadonlyMap<string, Uint8Array>): bigint {
+    let max = 0n;
+    for (const [name, bytes] of files) {
+        try {
+            const entries = /\.(ldb|sst)$/i.test(name)
+                ? readTable(bytes)
+                : /\.log$/i.test(name)
+                  ? readLog(bytes)
+                  : [];
+            for (const e of entries) if (e.sequence > max) max = e.sequence;
+        } catch {
+            // An unreadable file is reported by readLevelDb; it cannot lower the maximum.
+        }
+    }
+    return max;
+}

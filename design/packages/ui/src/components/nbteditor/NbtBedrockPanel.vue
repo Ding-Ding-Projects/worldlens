@@ -35,7 +35,7 @@ const size = (n: number): string => (n < 1024 ? `${n} B` : `${(n / 1024).toFixed
             {{
                 t(
                     "nbt.bedrock.note",
-                    "Read from the world's db folder. Records open read-only for now.",
+                    "Read from the world's db folder. Close Minecraft before saving: saves are added to the world's database log.",
                 )
             }}
         </p>
