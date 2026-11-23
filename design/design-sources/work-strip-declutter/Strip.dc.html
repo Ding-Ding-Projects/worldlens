@@ -80,7 +80,7 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
       </div>
       <div style="max-width: 1160px; width: 100%; margin: 0 auto; display: flex; flex-direction: column; gap: 24px;">
         <div><h1 style="margin: 0; font-size: 36px; line-height: 44px; font-weight: 400;">Add a job</h1>
-        <p style="margin: 6px 0 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var); max-width: 72ch;">Map jobs come first, grouped by what they are for. Tools that every app carries, and Minecraft tools that are not about maps, each sit behind one tab.</p></div>
+        <p style="margin: 6px 0 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var); max-width: 72ch;">Every job is grouped by its step in making a BlueMap map, and every Minecraft tool stays in view. General tools that every app carries sit behind one Built-in tools tab.</p></div>
         <div role="group" aria-label="Compare" style="display: flex; gap: 8px;">
           <button type="button" class="fchip sl" aria-pressed="{{afterPressed}}" onClick="{{showAfter}}">Now</button>
           <button type="button" class="fchip sl" aria-pressed="{{beforePressed}}" onClick="{{showBefore}}">Before</button>
@@ -120,8 +120,7 @@ class Component extends DCLogic {
         {"id": "renders", "icon": "bolt", "label": "Renders", "href": "Strip.dc.html", "cls": ""},
         {"id": "servers", "icon": "public", "label": "Maps and servers", "href": "Strip.dc.html", "cls": ""},
         {"id": "pages", "icon": "ios_share", "label": "Publish to Pages", "href": "Strip.dc.html", "cls": ""},
-        {"id": "tools", "icon": "construction", "label": "Built-in tools", "href": "Tools.dc.html", "cls": "hubtab"},
-        {"id": "other", "icon": "extension", "label": "Other tools", "href": "Other.dc.html", "cls": "hubtab"}
+        {"id": "tools", "icon": "construction", "label": "Built-in tools", "href": "Tools.dc.html", "cls": "hubtab"}
       ]
     };
   }
@@ -132,7 +131,7 @@ class Component extends DCLogic {
     return {
       theme: this.props.theme ?? 'dark',
       jobs,
-      groups: [{"name": "Loose", "items": ["Make a map", "Project canvas", "Structures", "Get a world off a server", "Screenshots", "CoreProtect inspector"]}, {"name": "Rendering", "items": ["Projects", "GitHub runners", "Renders"]}, {"name": "Finished maps", "items": ["Maps and servers", "Minecraft servers", "Publish to Pages", "Watch it live", "Remote hosting", "Docker hosting", "Hosted instances"]}, {"name": "Keeping a copy", "items": ["Backups", "World repository"]}, {"name": "Tools", "items": ["Built-in tools", "Other tools"]}],
+      groups: [{"name": "Worlds", "items": ["Get a world off a server", "Convert", "NBT editor", "Structures", "CoreProtect inspector"]}, {"name": "Rendering", "items": ["Make a map", "Project canvas", "Projects", "GitHub runners", "Renders"]}, {"name": "Finished maps", "items": ["Maps and servers", "Minecraft servers", "Publish to Pages", "Watch it live", "Remote hosting", "Docker hosting", "Hosted instances", "Screenshots"]}, {"name": "Keeping a copy", "items": ["Backups", "World repository"]}, {"name": "Built-in tools", "items": ["Docs, File converter, Base64, Drawing board, Authenticator, Locks, Support Tickets, Browser downloads, Ollama, Virtual disks"]}],
       before: ["Make a map", "Projects", "GitHub runners", "Renders", "Maps and servers", "Minecraft servers", "Publish to Pages", "Watch it live", "Backups", "World repository", "Structures", "Convert", "File converter", "Authenticator", "Locks", "Support Tickets", "Browser downloads", "Docs", "Ollama", "Remote hosting", "Docker hosting", "Hosted instances", "NBT editor", "Get a world off a server", "Screenshots", "Virtual disks", "Base64", "Drawing board", "CoreProtect inspector"],
       showingAfter: view === 'now',
       showingBefore: view === 'before',

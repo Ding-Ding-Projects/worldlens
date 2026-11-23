@@ -441,14 +441,9 @@ export const CHROME_FIXED = {
     "tabs.page.coreprotect": { en: "CoreProtect inspector", yue: "CoreProtect 檢查器" },
     "tabs.page.worldDownloader": { en: "Get a world off a server", yue: "由伺服器攞返個世界" },
     "tabs.page.toolkit": { en: "Built-in tools", yue: "內置工具" },
-    "tabs.page.otherTools": { en: "Other tools", yue: "其他工具" },
     "toolHub.toolkit.lede": {
-        en: "General tools kept together in one tab, so the strip stays about maps. Pick one from the list; it opens beside it.",
+        en: "General tools kept together in one tab, so the strip stays about BlueMap maps. Pick one from the list; it opens beside it.",
         yue: "通用工具全部收埋喺呢一個分頁，等上面條分頁列專心講地圖。喺清單揀一樣，佢就喺隔籬打開。",
-    },
-    "toolHub.otherTools.lede": {
-        en: "Minecraft tools that are not about making, viewing or hosting a map. Pick one from the list; it opens beside it.",
-        yue: "唔關整地圖、睇地圖或者寄存地圖事嘅 Minecraft 工具。喺清單揀一樣，佢就喺隔籬打開。",
     },
     "toolHub.pick": { en: "Tool", yue: "工具" },
     "toolHub.empty": { en: "This build has none of these tools.", yue: "呢個版本一樣都冇。" },

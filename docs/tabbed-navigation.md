@@ -118,35 +118,43 @@ declared order rather than at the arithmetically-correct-but-unpredictable posit
 region is the promise that the landing tab stays at the front), skipping a page with no tab, and
 creating nothing at all for a seed left with no members.
 
-### Tools gathered into two tabs
+### General tools gathered into one tab, Minecraft tools grouped by world
 
-The Work strip later grew to 29 jobs, and about a dozen of them have nothing to do with maps.
-Since 2026-11-23 those sit inside two **hub tabs** instead of one tab each
-(`components/shell/toolHubs.ts`, drawn by `ToolHub.vue`):
+The Work strip later grew to 29 jobs, and about a dozen of them have nothing to do with BlueMap.
+Since 2026-11-23 those sit inside one **Built-in tools** tab (`components/shell/toolHubs.ts`,
+drawn by `ToolHub.vue`): Docs, File converter, Base64, Drawing board, Authenticator, Locks,
+Support Tickets, Browser downloads, Ollama, Virtual disks, and the Memory console where the build
+has one.
 
-| Hub tab            | What is in it                                                                                                                                                          |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Built-in tools** | Docs, File converter, Base64, Drawing board, Authenticator, Locks, Support Tickets, Browser downloads, Ollama, Virtual disks, Memory console (where the build has one) |
-| **Other tools**    | NBT editor, Convert                                                                                                                                                    |
+Every Minecraft tool stays visible in the strip, and every visible job sits in a group named for
+its step in making a BlueMap map:
 
-Map work stays in the strip. Minecraft servers stays too, because the Servers rail destination opens
-it and it is where a map's server lives.
+| Group              | Jobs                                                                                                                                |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Worlds**         | Get a world off a server, Convert, NBT editor, Structures, CoreProtect inspector                                                    |
+| **Rendering**      | Projects, GitHub runners, Renders                                                                                                   |
+| **Finished maps**  | Maps and servers, Minecraft servers, Publish to Pages, Watch it live, Remote hosting, Docker hosting, Hosted instances, Screenshots |
+| **Keeping a copy** | Backups, World repository                                                                                                           |
 
-- **A hub is a list-detail page, not a second tab strip.** A navigation list on the left names
+Make a map (pinned) and Project canvas stay loose at the front.
+
+- **The hub is a list-detail page, not a second tab strip.** A navigation list on the left names
   each tool; the picked tool is the job's own `App.vue` slot, rendered unchanged beside it. Below
   720 px of pane width the list becomes a select above the tool.
-- **Every old route still works.** `WorkPane` turns a member id into its hub with that member
+- **Every old route still works.** `WorkPane` turns a member id into the hub with that member
   picked, so `revealPage("base64")`, the command palette, the job opener and a glossary link to
   Docs all land on the right tool.
-- **The picked tool is remembered** per hub under `worldlens-tool-hubs`. A missing, stale or
-  unreadable value falls back to the hub's first tool.
-- **A saved workspace is folded once.** The first tab that showed a hub's tool becomes the hub,
-  keeping its place, group, pin and appearance; the other tabs of that hub close; the hub opens on
-  whichever tool was in front. A workspace with no such tabs is not rewritten.
+- **The picked tool is remembered** under `worldlens-tool-hubs`. A missing, stale or unreadable
+  value falls back to the first tool.
+- **A saved workspace is folded once.** The first tab that showed a member becomes the hub,
+  keeping its place, group, pin and appearance; other member tabs close; the hub opens on
+  whichever tool was in front. A short-lived "Other tools" hub tab from an earlier build turns
+  back into the NBT editor and Convert. A workspace with neither is not rewritten.
 
-Proof: `toolHubs.test.ts` (membership, the fold, storage) and `App.test.ts` ("keeps every available
-registered job reachable from the shell", "reaches every hub member from inside its hub", "reaches
-the docs browser through its own job"). Design boards: `design/design-sources/work-strip-declutter/`.
+Proof: `toolHubs.test.ts` and `App.test.ts` ("keeps every available registered job reachable from
+the shell", "reaches every hub member from inside its hub", "reaches the docs browser through its
+own job", "renders no group heading until a group has a member open"). Design boards:
+`design/design-sources/work-strip-declutter/`.
 
 ### Reaching a page a saved workspace predates
 
@@ -464,31 +472,31 @@ Publish to Pages、Watch it live，即係一張已經存在嘅地圖，同睇得
 贏 —— 釘住區就係「落地嗰個 tab 會留喺最前」呢個承諾）、跳過冇 tab 嘅頁面，而一個最後一個成員都冇嘅
 seed 就乜都唔會開。
 
-### 工具收埋喺兩個分頁
+### 通用工具收埋喺一個分頁，Minecraft 工具按世界分組
 
-之後工作列大到有 29 個 job，當中十幾個同地圖完全無關。由 2026-11-23 開始，呢啲收咗入兩個
-**工具分頁（hub tab）**，唔再一樣一個分頁（`components/shell/toolHubs.ts`，由 `ToolHub.vue` 畫）：
+之後工作列大到有 29 個 job，當中十幾個同 BlueMap 完全無關。由 2026-11-23 開始，呢啲收咗入一個
+**內置工具**分頁（`components/shell/toolHubs.ts`，由 `ToolHub.vue` 畫）：文件、檔案轉換器、Base64、
+畫板、認證器、鎖、支援票、瀏覽器下載、Ollama、虛擬磁碟，同埋版本有先出現嘅記憶控制台。
 
-| 工具分頁     | 入面有乜                                                                                                       |
-| ------------ | -------------------------------------------------------------------------------------------------------------- |
-| **內置工具** | 文件、檔案轉換器、Base64、畫板、認證器、鎖、支援票、瀏覽器下載、Ollama、虛擬磁碟、記憶控制台（版本有先會出現） |
-| **其他工具** | NBT 編輯器、轉換世界                                                                                           |
+所有 Minecraft 工具都留喺工作列見得到，而每個見得到嘅 job 都放喺一個用 BlueMap 整地圖步驟命名嘅群組：
 
-地圖嘅工作留喺工作列。Minecraft 伺服器都留低，因為側欄嘅「伺服器」直接開佢，地圖個伺服器就喺嗰度。
+| 群組             | Job                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| **世界**         | 由伺服器攞返個世界、轉換世界、NBT 編輯器、結構、CoreProtect 檢查器                          |
+| **Render 過程**  | 項目、GitHub runners、Render                                                                |
+| **整好咗嘅地圖** | 地圖同伺服器、Minecraft 伺服器、發佈去 Pages、即時睇、遠端寄存、Docker 寄存、寄存實例、截圖 |
+| **保存副本**     | 備份、世界 repository                                                                       |
 
-- **工具分頁係「清單＋內容」頁，唔係第二條分頁列。** 左邊導覽清單列出每樣工具；揀咗嗰樣就係個
-  job 喺 `App.vue` 原本嘅 slot，原封不動畫喺隔籬。面板窄過 720 px 嗰陣，清單會變成工具上面嘅下拉選單。
-- **舊路線全部照用。** `WorkPane` 會將成員 id 轉做佢嘅工具分頁，並且揀定嗰樣工具，所以
-  `revealPage("base64")`、指令面板、job opener 同詞彙表連去文件，全部都會落到啱嗰樣工具。
-- **揀過邊樣會記住**，每個工具分頁分開記，存喺 `worldlens-tool-hubs`。值唔見咗、過時或者讀唔到，
-  就返去嗰個分頁嘅第一樣工具。
-- **舊嘅 workspace 會摺一次。** 第一個顯示某工具分頁成員嘅分頁會變成嗰個工具分頁，位置、群組、
-  釘選同外觀全部保留；同一個工具分頁其他成員嘅分頁會關咗；工具分頁會開喺之前擺喺前面嗰樣工具。
-  冇呢類分頁嘅 workspace 唔會改寫。
+「整地圖」（釘住）同「項目畫布」喺最前面，唔入群組。
 
-證明：`toolHubs.test.ts`（成員、摺疊、儲存）同 `App.test.ts`（"keeps every available registered job
-reachable from the shell"、"reaches every hub member from inside its hub"、"reaches the docs browser
-through its own job"）。設計板：`design/design-sources/work-strip-declutter/`。
+- **工具分頁係「清單＋內容」頁，唔係第二條分頁列。** 左邊清單列出每樣工具；揀咗嗰樣就係個 job
+  喺 `App.vue` 原本嘅 slot，原封不動畫喺隔籬。面板窄過 720 px，清單變成工具上面嘅下拉選單。
+- **舊路線全部照用。** `WorkPane` 會將成員 id 轉做工具分頁並且揀定嗰樣工具。
+- **揀過邊樣會記住**，存喺 `worldlens-tool-hubs`；讀唔到就返去第一樣。
+- **舊 workspace 會摺一次。** 第一個成員分頁變成工具分頁，位置、群組、釘選同外觀保留；其他成員分頁關咗。
+  之前一個版本短暫出現過嘅「其他工具」分頁，會變返 NBT 編輯器同轉換世界。
+
+證明：`toolHubs.test.ts` 同 `App.test.ts`。設計板：`design/design-sources/work-strip-declutter/`。
 
 ### 去到一個比已儲存 workspace 更後出現嘅頁面
 

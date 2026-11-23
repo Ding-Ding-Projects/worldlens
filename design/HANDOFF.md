@@ -1,13 +1,13 @@
 # Handoff
 
-## 2026-11-23 Work strip decluttered into two tool tabs
+## 2026-11-23 Work strip decluttered: one tool tab, BlueMap-ordered groups
 
 What changed, all on `main`:
 
-- **Built-in tools** and **Other tools** tabs (`packages/ui/src/components/shell/toolHubs.ts`, `ToolHub.vue`). Built-in tools holds Docs, File converter, Base64, Drawing board, Authenticator, Locks, Support Tickets, Browser downloads, Ollama, Virtual disks and the Memory console; Other tools holds the NBT editor and Convert. The strip drops from 29 job tabs to 20. Each hub is a list-detail page that renders the job's own `App.vue` slot unchanged.
+- **Built-in tools** tab (`packages/ui/src/components/shell/toolHubs.ts`, `ToolHub.vue`) holds Docs, File converter, Base64, Drawing board, Authenticator, Locks, Support Tickets, Browser downloads, Ollama, Virtual disks and the Memory console. Every Minecraft tool stays in the strip; a new Worlds seed group (Get a world off a server, Convert, NBT editor, Structures, CoreProtect inspector) joins Rendering, Finished maps (now with Screenshots) and Keeping a copy. The strip drops from 29 job tabs to 19 plus the hub. A briefly shipped Other tools tab folds back into the NBT editor and Convert. Each hub is a list-detail page that renders the job's own `App.vue` slot unchanged.
 - `WorkPane` routes a member id to its hub with that member picked, so the command palette, the job opener and every `revealPage` caller keep working. A saved workspace is folded onto the hubs once, keeping groups and pins. The picked tool persists under `worldlens-tool-hubs`.
 - Design boards in `design-sources/work-strip-declutter/`. Article: `docs/tabbed-navigation.md` § Tools gathered into two tabs (with Cantonese), and the site's tabbed-shell article.
-- Kid Mode labels for the two hubs, and for Hosted instances and NBT editor, which had none (`kidMode.contract.test.ts` was red on those two).
+- Kid Mode labels for the hub, and for Hosted instances and NBT editor, which had none (`kidMode.contract.test.ts` was red on those two).
 
 Not done or not verified:
 

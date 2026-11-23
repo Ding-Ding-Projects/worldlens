@@ -631,6 +631,7 @@ export const TABS_FIXED = {
      * them. They are also only defaults: the moment the strip is drawn any of them can be
      * renamed, and the rename is what is persisted.
      */
+    "tabs.group.seed.worlds": { en: "Worlds", yue: "世界" },
     "tabs.group.seed.rendering": { en: "Rendering", yue: "Render 過程" },
     "tabs.group.seed.finished": { en: "Finished maps", yue: "整好咗嘅地圖" },
     "tabs.group.seed.copies": { en: "Keeping a copy", yue: "保存副本" },

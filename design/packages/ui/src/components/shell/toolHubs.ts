@@ -1,14 +1,15 @@
 /**
- * Two Work tabs that each hold several tools, so the strip stays about maps.
+ * One Work tab that holds the general tools, so the strip stays about BlueMap maps.
  *
  * The strip had grown to 29 jobs, and a dozen of them have nothing to do with making, viewing
  * or hosting a map: a Base64 encoder, an authenticator, a virtual disk manager. Every one of
  * them is somebody's reason to open the application, so none is deleted. They are gathered
- * instead:
+ * into **Built-in tools**, the general tools every application in this family carries.
  *
- *  - **Built-in tools** holds the general tools every application in this family carries.
- *  - **Other tools** holds the Minecraft tools that are not about a map (the NBT editor and
- *    the edition converter).
+ * Every Minecraft tool stays in the strip, visible: the NBT editor, Convert, Structures, the
+ * world downloader and the CoreProtect inspector all act on the world BlueMap renders, and they
+ * seed into the Worlds group in front of Rendering. An "Other tools" hub that briefly held the
+ * NBT editor and Convert is retired; `foldMembersIntoHubs` turns its tab back into those two.
  *
  * A member keeps its job id, its slot in `App.vue`, its command palette row and its label.
  * What changes is where it is drawn: `WorkPane` hands `TabbedNavigation` the hub instead of
@@ -21,8 +22,9 @@
  *
  * Design source: `design/design-sources/work-strip-declutter/`.
  */
-import { mdiPuzzleOutline, mdiToolboxOutline } from "@mdi/js";
+import { mdiToolboxOutline } from "@mdi/js";
 import {
+    addTab,
     closeTabs,
     setActiveTab,
     type TabStripState,
@@ -30,7 +32,7 @@ import {
 } from "../tabs/index.js";
 import { findJob, type JobId } from "./jobRegistry.js";
 
-export type HubId = "toolkit" | "otherTools";
+export type HubId = "toolkit";
 
 export interface ToolHubDefinition {
     readonly id: HubId;
@@ -50,7 +52,7 @@ export const TOOL_HUBS: readonly ToolHubDefinition[] = [
         labelFallback: "Built-in tools",
         ledeKey: "toolHub.toolkit.lede",
         ledeFallback:
-            "General tools kept together in one tab, so the strip stays about maps. Pick one from the list; it opens beside it.",
+            "General tools kept together in one tab, so the strip stays about BlueMap maps. Pick one from the list; it opens beside it.",
         icon: mdiToolboxOutline,
         members: [
             "docs",
@@ -66,17 +68,17 @@ export const TOOL_HUBS: readonly ToolHubDefinition[] = [
             "memory",
         ],
     },
-    {
-        id: "otherTools",
-        labelKey: "tabs.page.otherTools",
-        labelFallback: "Other tools",
-        ledeKey: "toolHub.otherTools.lede",
-        ledeFallback:
-            "Minecraft tools that are not about making, viewing or hosting a map. Pick one from the list; it opens beside it.",
-        icon: mdiPuzzleOutline,
-        members: ["nbtEditor", "chunker"],
-    },
 ];
+
+/** Hubs that existed in an earlier build, and the jobs their tab turns back into. */
+export const RETIRED_HUBS: Readonly<
+    Record<string, readonly { id: JobId; label: string; icon: string }[]>
+> = {
+    otherTools: [
+        { id: "nbtEditor", label: "NBT editor", icon: findJob("nbtEditor")?.icon ?? "" },
+        { id: "chunker", label: "Convert", icon: findJob("chunker")?.icon ?? "" },
+    ],
+};
 
 export const TOOL_HUB_IDS: readonly HubId[] = TOOL_HUBS.map((hub) => hub.id);
 
@@ -161,11 +163,37 @@ export interface HubFoldResult {
 }
 
 function foldStrip(
-    strip: TabStripState,
+    original: TabStripState,
     picked: Partial<Record<HubId, string>>,
 ): { strip: TabStripState; changed: boolean } {
+    let strip = original;
+    let unfolded = false;
+    for (const [retiredId, jobs] of Object.entries(RETIRED_HUBS)) {
+        const hubTab = strip.tabs.find((tab) => tab.pageId === retiredId);
+        if (hubTab === undefined) continue;
+        unfolded = true;
+        const [first, ...rest] = jobs;
+        if (first === undefined) continue;
+        strip = {
+            ...strip,
+            tabs: strip.tabs.map((tab) =>
+                tab.id === hubTab.id
+                    ? { ...tab, pageId: first.id, label: first.label, icon: first.icon }
+                    : tab,
+            ),
+        };
+        for (const job of rest) {
+            if (!strip.tabs.some((tab) => tab.pageId === job.id)) {
+                // addTab focuses what it opens; the tab in front stays in front.
+                const active = strip.activeTabId;
+                strip = addTab(strip, { pageId: job.id, label: job.label, icon: job.icon });
+                if (active !== null) strip = setActiveTab(strip, active);
+            }
+        }
+    }
+
     const memberTabs = strip.tabs.filter((tab) => HUB_MEMBER_IDS.has(tab.pageId));
-    if (memberTabs.length === 0) return { strip, changed: false };
+    if (memberTabs.length === 0) return { strip, changed: unfolded };
 
     const activeTab = strip.tabs.find((tab) => tab.id === strip.activeTabId) ?? null;
     const activeMember =

@@ -150,7 +150,7 @@ export function jobIdForSemanticName(name: string): JobId | null {
 }
 
 /** The three groups a fresh Work workspace seeds, unchanged from the pre-rewrite shell. */
-export type JobSeedGroup = "rendering" | "finished" | "copies";
+export type JobSeedGroup = "worlds" | "rendering" | "finished" | "copies";
 
 /**
  * One entry in the registry.
@@ -185,6 +185,19 @@ export interface JobDefinition {
  * re-seeded and the names are what their group headings already say.
  */
 export const JOB_SEED_GROUPS = [
+    /*
+     * Where a map starts: the Minecraft world itself. Getting one off a server, converting it
+     * between editions, editing its NBT, the structures it already holds and its CoreProtect
+     * history all act on the world BlueMap is about to render, so they open first, in front of
+     * Rendering, in the order the work actually happens.
+     */
+    {
+        id: "seed-worlds",
+        key: "worlds",
+        nameKey: "tabs.group.seed.worlds",
+        nameFallback: "Worlds",
+        color: "info",
+    },
     {
         id: "seed-rendering",
         key: "rendering",
@@ -270,9 +283,8 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
      * `openLockDataFolder` ("built, tested and unreachable until this") added them, but this
      * registry never learned their ids - so `TabbedNavigation` never knew they existed, no
      * new-tab menu item could open one, and no command-palette row could reveal one either.
-     * The same gap the doc comment describes, one file over. Loose rather than seeded into any
-     * of the three named groups below: none of Rendering, Finished maps or Keeping a copy
-     * describes what any of these four are for.
+     * The same gap the doc comment describes, one file over. Structures now seeds into Worlds,
+     * with the other tools that act on the world BlueMap renders.
      */
     {
         id: "structures",
@@ -280,20 +292,17 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.structures",
         labelFallback: "Structures",
         icon: mdiCubeOutline,
-        seedGroup: null,
+        seedGroup: "worlds",
         pinnedOnFreshWorkspace: false,
     },
-    /*
-     * Converting a world between editions. Loose for the same reason the four above are:
-     * it is neither rendering, nor a finished map, nor keeping a copy.
-     */
+    /* Converting a world between editions, before BlueMap renders it: Worlds. */
     {
         id: "chunker",
         semanticName: "chunker",
         labelKey: "tabs.page.chunker",
         labelFallback: "Convert",
         icon: mdiSwapHorizontal,
-        seedGroup: null,
+        seedGroup: "worlds",
         pinnedOnFreshWorkspace: false,
     },
     {
@@ -446,7 +455,7 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.nbtEditor",
         labelFallback: "NBT editor",
         icon: mdiFileTreeOutline,
-        seedGroup: null,
+        seedGroup: "worlds",
         pinnedOnFreshWorkspace: false,
     },
     {
@@ -455,11 +464,10 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.worldDownloader",
         labelFallback: "Get a world off a server",
         icon: mdiCloudDownloadOutline,
-        // Not seeded, like "world" (the wizard) above: this is an acquisition action - getting
-        // a world from a live server - not a "keep a copy of a map you already made" action the
-        // way backups/worldrepo beside it are. A fresh workspace should not imply this job is
-        // one of the ones about preserving your own output.
-        seedGroup: null,
+        // Worlds, not Keeping a copy: this is an acquisition action - getting a world from a
+        // live server to render - not a "keep a copy of a map you already made" action the way
+        // backups/worldrepo are.
+        seedGroup: "worlds",
         pinnedOnFreshWorkspace: false,
     },
     {
@@ -468,7 +476,7 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.coreprotect",
         labelFallback: "CoreProtect inspector",
         icon: mdiDatabaseSearchOutline,
-        seedGroup: null,
+        seedGroup: "worlds",
         pinnedOnFreshWorkspace: false,
     },
     {
@@ -504,7 +512,7 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.screenshots",
         labelFallback: "Screenshots",
         icon: mdiImageMultipleOutline,
-        seedGroup: null,
+        seedGroup: "finished",
         pinnedOnFreshWorkspace: false,
     },
     {

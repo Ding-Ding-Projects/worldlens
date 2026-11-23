@@ -41,8 +41,8 @@ export const tabbedShell: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        { strong: "General tools live in two tabs. " },
-                        "Since 2026-11-23 the Work strip keeps to map work. Docs, File converter, Base64, Drawing board, Authenticator, Locks, Support Tickets, Browser downloads, Ollama and Virtual disks sit inside one Built-in tools tab, and the NBT editor and Convert sit inside an Other tools tab. Each is a list-detail page: pick a tool from the list and it opens beside it, unchanged. Opening a tool by name from the command palette opens its tab with that tool picked, the picked tool is remembered, and a workspace saved before the change is folded onto the two tabs once, keeping its groups and pins.",
+                        { strong: "General tools live in one tab; Minecraft tools stay in view. " },
+                        "Since 2026-11-23 the Work strip is organised around making a BlueMap map. Docs, File converter, Base64, Drawing board, Authenticator, Locks, Support Tickets, Browser downloads, Ollama and Virtual disks sit inside one Built-in tools tab, a list-detail page where the picked tool opens beside the list. Every Minecraft tool stays in the strip: a Worlds group holds Get a world off a server, Convert, the NBT editor, Structures and the CoreProtect inspector, ahead of Rendering, Finished maps and Keeping a copy. Opening a tool by name opens the Built-in tools tab with it picked, and a saved workspace is folded once, keeping its groups and pins.",
                     ],
                 },
                 {

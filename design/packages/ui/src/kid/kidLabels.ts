@@ -177,9 +177,8 @@ export const KID_JOB_LABELS: Readonly<Record<string, FixedString>> = {
     "Memory console": { en: "Shared memory desk", yue: "共用記憶檯" },
     "Hosted instances": { en: "Maps out there", yue: "放咗出去嘅地圖" },
     "NBT editor": { en: "World notebook", yue: "世界筆記簿" },
-    // The two tool hubs from `toolHubs.ts`: tabs that each hold several tools.
+    // The tool hub from `toolHubs.ts`: one tab that holds the general tools.
     "Built-in tools": { en: "Toolbox", yue: "工具箱" },
-    "Other tools": { en: "More toys", yue: "更多玩具" },
 };
 
 /**

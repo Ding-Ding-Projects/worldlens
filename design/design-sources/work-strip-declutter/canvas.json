@@ -16,10 +16,6 @@
     {
       "id": "uh",
       "name": "Built-in tools tab"
-    },
-    {
-      "id": "other",
-      "name": "Other tools tab"
     }
   ],
   "boards": {
@@ -42,22 +38,11 @@
       "page": "uh",
       "expand": "fill",
       "is_interactive": true
-    },
-    "Other.dc.html": {
-      "x": 0,
-      "y": 0,
-      "w": 1440,
-      "h": 900,
-      "title": "Other tools tab",
-      "page": "other",
-      "expand": "fill",
-      "is_interactive": true
     }
   },
   "order": [
     "Strip.dc.html",
-    "Tools.dc.html",
-    "Other.dc.html"
+    "Tools.dc.html"
   ],
   "notes": {
     "n1": {

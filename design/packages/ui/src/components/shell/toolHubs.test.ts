@@ -77,7 +77,10 @@ describe("tool hubs", () => {
             expect(hubForMember(id)).toBeNull();
         }
         expect(hubForMember("base64")?.id).toBe("toolkit");
-        expect(hubForMember("nbtEditor")?.id).toBe("otherTools");
+        // Every Minecraft tool stays visible in the strip.
+        for (const id of ["nbtEditor", "chunker", "structures", "worldDownloader"]) {
+            expect(hubForMember(id)).toBeNull();
+        }
     });
 
     it("turns the first member tab into its hub and closes the rest", () => {
@@ -91,11 +94,11 @@ describe("tool hubs", () => {
             "world",
             "toolkit",
             "renders",
-            "otherTools",
+            "nbtEditor",
         ]);
         // The hub took the base64 tab's place and the active locks tab's focus.
         expect(after.activeTabId).toBe("t1");
-        expect(result.picked).toEqual({ toolkit: "locks", otherTools: "nbtEditor" });
+        expect(result.picked).toEqual({ toolkit: "locks" });
     });
 
     it("leaves a workspace with no member tabs untouched", () => {
@@ -111,11 +114,24 @@ describe("tool hubs", () => {
         expect(after.tabs.map((tab) => tab.pageId)).toEqual(["toolkit"]);
     });
 
+    it("turns a retired Other tools tab back into the NBT editor and Convert", () => {
+        const before: TabWorkspaceState = { strips: [strip(["world", "otherTools"], 0)] };
+        const result = foldMembersIntoHubs(before);
+        expect(result.changed).toBe(true);
+        const after = result.workspace.strips[0]!;
+        expect(after.tabs.map((tab) => tab.pageId).sort()).toEqual([
+            "chunker",
+            "nbtEditor",
+            "world",
+        ]);
+        expect(after.activeTabId).toBe("t0");
+    });
+
     it("persists the picked tool and ignores junk or stale values", () => {
         const storage = memoryStorage();
         writeHubSelection({ toolkit: "drawing" }, storage);
         expect(readHubSelection(storage)).toEqual({ toolkit: "drawing" });
-        storage.data.set(HUB_SELECTION_KEY, JSON.stringify({ toolkit: "renders", otherTools: 4 }));
+        storage.data.set(HUB_SELECTION_KEY, JSON.stringify({ toolkit: "renders" }));
         expect(readHubSelection(storage)).toEqual({});
         storage.data.set(HUB_SELECTION_KEY, "{not json");
         expect(readHubSelection(storage)).toEqual({});
