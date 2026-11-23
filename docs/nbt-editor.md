@@ -52,6 +52,10 @@ Keys are matched without case or underscores, so names from before and after the
 
 It reads a classic `level.dat` from its `Data` group, and any other file from its root, so the files Minecraft 26.1 split out of `level.dat` (`data/minecraft/game_rules.dat`, `weather.dat`, `world_clocks.dat`) open as forms too. A 26.1 `level.dat` offers buttons to open those files when the world has them. A search field with the regex builder narrows the form by readable name, game key or readable value.
 
+### Region canvas
+
+Showing a region file's chunks also switches the centre to **Region**: the region's 32 by 32 chunk slots as a picture, shaded by **Stored size**, **Last saved** or **Compression**. Empty slots are outlined and chunks the editor cannot open are hatched, so colour is never the only signal. Picking a chunk shows its block range, size, last save and compression (an external `.mcc` chunk says so); **Open this chunk**, or a double-click, opens it in the tree or form. The grid is one tab stop: the arrow keys move, Home and End jump along a row, and Enter picks.
+
 ### Keyboard
 
 The tree follows the ARIA tree pattern: <kbd>Up</kbd> and <kbd>Down</kbd> move, <kbd>Right</kbd> opens a branch or steps into it, <kbd>Left</kbd> closes it or steps to the parent, <kbd>Home</kbd> and <kbd>End</kbd> jump, <kbd>Enter</kbd> or <kbd>F2</kbd> edits (a branch opens or closes, an array opens its grid), <kbd>Delete</kbd> removes, <kbd>Ctrl</kbd>+<kbd>C</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> copy and paste a tag as SNBT. <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> and <kbd>Ctrl</kbd>+<kbd>S</kbd> undo, redo and save.
@@ -121,6 +125,10 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 標籤上面嘅 **Tree**（樹）同 **Settings form**（設定表格）可以喺同一個檔案嘅兩種睇法之間轉，揀咗會記住。表格跟世界設定設計排：**世界**、**出生點**、**時間同天氣**、**世界邊界**、**其他值**，入面每個群組（例如 **遊戲規則**、`difficulty_settings`）各自一節，最尾係 **關於呢個檔案**。每個值都用專屬控制項，同棵樹一樣嘅編輯、還原同歷史。列表、陣列同更深嘅群組會數出嚟，附連結去棵樹。
 
 傳統 `level.dat` 由 `Data` 群組讀起，其他檔案由根讀起，所以 26.1 由 `level.dat` 分出嚟嘅檔案（`data/minecraft/game_rules.dat`、`weather.dat`、`world_clocks.dat`）都會變成表格。26.1 嘅 `level.dat` 會喺世界有呢啲檔案時畀掣去開佢哋。搜尋欄（連 regex 建構器）可以用易明名、遊戲鍵或者易明數值收窄表格。
+
+### Region 畫布
+
+列出 region 檔案嘅 chunk 時，中間會轉去 **Region**：成個 region 32×32 個 chunk 位畫成一幅圖，可以按 **儲存大小**、**最後儲存** 或者 **壓縮** 上色。空位用框，開唔到嘅 chunk 用斜線，所以唔止靠顏色。揀一個 chunk 會顯示方塊範圍、大小、最後儲存同壓縮（放喺 `.mcc` 外部檔會講明）；**Open this chunk** 或者雙擊就喺樹或者表格打開。成個格仔係一個 tab 位：方向鍵移動，Home、End 跳去行頭行尾，Enter 揀。
 
 ### 講人話嘅名同專屬控制項
 

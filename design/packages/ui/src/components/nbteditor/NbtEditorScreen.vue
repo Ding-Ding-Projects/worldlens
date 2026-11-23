@@ -10,6 +10,7 @@ import NbtFilesPanel from "./NbtFilesPanel.vue";
 import NbtHistoryPanel from "./NbtHistoryPanel.vue";
 import NbtTagTree from "./NbtTagTree.vue";
 import NbtFormView from "./NbtFormView.vue";
+import NbtRegionCanvas from "./NbtRegionCanvas.vue";
 import { createNbtEditorState, type NbtEditorState } from "./nbtEditorState.js";
 import type { TagAction } from "./nbtEditorModel.js";
 import { nbtEditorBridge, type ArrayEdit, type NbtEditorBridge, type TagKind } from "./nbtEditorBridge.js";
@@ -70,7 +71,7 @@ function readView(): "tree" | "form" {
         return "tree";
     }
 }
-const view = ref<"tree" | "form">(readView());
+const view = ref<"tree" | "form" | "region">(readView());
 watch(view, (value) => {
     try {
         globalThis.localStorage?.setItem(VIEW_KEY, value);
@@ -433,17 +434,17 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                 :project-dir="editor.projectDir.value"
                 @open-project="openProject"
                 @open-file="openFile"
-                @show-chunks="(p: string) => editor.showChunks(p)"
+                @show-chunks="(p: string) => { editor.showChunks(p); view = 'region'; pane = 'tree'; }"
                 @open-chunk="openChunk"
                 @pick-file="pickFile"
             />
 
             <div v-show="!narrow || pane === 'tree'" class="wl-nbt-center">
-                <div v-if="!doc" class="wl-nbt-empty">
+                <div v-if="!doc && !(view === 'region' && editor.chunks.value)" class="wl-nbt-empty">
                     <p>{{ t('nbt.empty', 'Choose a file from the list, open a region chunk, or open any NBT file.') }}</p>
                 </div>
                 <v-btn-toggle
-                    v-if="doc"
+                    v-if="doc || editor.chunks.value"
                     v-model="view"
                     class="wl-nbt-view"
                     mandatory
@@ -454,10 +455,18 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                     :aria-label="t('nbt.view.label', 'Show the file as')"
                 >
                     <v-btn value="tree">{{ t('nbt.view.tree', 'Tree') }}</v-btn>
-                    <v-btn value="form">{{ t('nbt.view.form', 'Settings form') }}</v-btn>
+                    <v-btn value="form" :disabled="!doc">{{ t('nbt.view.form', 'Settings form') }}</v-btn>
+                    <v-btn value="region" :disabled="!editor.chunks.value">{{ t('nbt.view.region', 'Region') }}</v-btn>
                 </v-btn-toggle>
+                <nbt-region-canvas
+                    v-if="view === 'region' && editor.chunks.value"
+                    :path="editor.chunks.value.path"
+                    :chunks="editor.chunks.value.chunks"
+                    :open-index="openChunkIndex"
+                    @open="(index: number) => { const listed = editor.chunks.value; if (listed) { openChunk(listed.path, index); view = 'tree'; } }"
+                />
                 <nbt-form-view
-                    v-if="doc && view === 'form' && bridge"
+                    v-else-if="doc && view === 'form' && bridge"
                     :bridge="bridge"
                     :doc="doc"
                     :revision="revision"

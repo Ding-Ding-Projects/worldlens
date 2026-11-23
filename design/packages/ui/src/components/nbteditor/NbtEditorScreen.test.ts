@@ -221,6 +221,21 @@ describe("typed editing", () => {
         expect(localStorage.getItem("worldlens-nbt-view")).toBe("tree");
     });
 
+    it("draws a region file as a chunk canvas and opens the picked chunk", async () => {
+        const w = await open();
+        const regionButton = w.findAll("button").find((b) => b.text().includes("r.0.0.mca"))!;
+        await regionButton.trigger("click");
+        await flushPromises();
+        const canvas = w.find(".wl-region");
+        expect(canvas.exists()).toBe(true);
+        expect(canvas.findAll('[role="gridcell"]')).toHaveLength(1024);
+        await canvas.find('[aria-label="Chunk 0, 0: 100 B"]').trigger("click");
+        expect(canvas.text()).toContain("Chunk 0, 0");
+        await canvas.findAll("button").find((b) => b.text() === "Open this chunk")!.trigger("click");
+        await flushPromises();
+        expect(bridge.calls).toContain("openChunk C:/world/region/r.0.0.mca 0");
+    });
+
     it("opens the grid editor for an array and edits one cell", async () => {
         const w = await open();
         await expandData(w);
