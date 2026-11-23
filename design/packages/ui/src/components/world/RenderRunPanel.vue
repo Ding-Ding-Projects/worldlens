@@ -23,6 +23,8 @@ import {
 import RenderConsole from "../console/RenderConsole.vue";
 import RenderProgressDetail from "../progress/RenderProgressDetail.vue";
 import LiveSpeedControl from "./LiveSpeedControl.vue";
+import ShareRoutes from "./ShareRoutes.vue";
+import type { ShareRoute } from "./shareRoute.js";
 import { LOG_LIMIT, adviseOnFailure, formatDuration, phaseLabel } from "./renderRun.js";
 import type { RenderRun } from "./renderRun.js";
 import type { SettingsTarget } from "./worldBridge.js";
@@ -67,6 +69,8 @@ const emit = defineEmits<{
     settings: [target: SettingsTarget];
     /** Clears the ended run so another can be started. */
     again: [];
+    /** Opens one of the share routes for the finished render. */
+    share: [route: ShareRoute];
 }>();
 
 const { t } = useI18n();
@@ -312,6 +316,10 @@ function openMap(): void {
                         {{ t("world.run.another", "Render another map") }}
                     </v-btn>
                 </div>
+                <ShareRoutes
+                    :disabled="run.dataRoot.value === null"
+                    @share="(route) => emit('share', route)"
+                />
             </template>
 
             <template v-else-if="state === 'cancelled'">
