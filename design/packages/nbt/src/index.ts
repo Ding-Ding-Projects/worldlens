@@ -22,3 +22,4 @@ export * from "./adapters/PalettedArrayAdapter.js";
 export * from "./adapters/RegistryAdapter.js";
 export * from "./adapters/LenientListAdapter.js";
 export * from "./compression.js";
+export * from "./tree/index.js";
