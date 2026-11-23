@@ -87,6 +87,14 @@ sed -i "s/^#\?host-name=.*/host-name=$HOST/" /etc/avahi/avahi-daemon.conf 2>/dev
 rc-service avahi-daemon restart >/dev/null 2>&1 || true
 
 KIND=$(jq -r '.workload.kind // "map"' "$CONFIG")
+# The console titles in the config describe a map; the other workloads say what they really run.
+if [ "$KIND" = app ]; then
+    TITLE="WorldLens"
+    READY="WorldLens is running. Open this address from any computer on the network:"
+elif [ "$KIND" = minecraft ]; then
+    TITLE="Minecraft server"
+    READY="The server is running. Players join this computer's address on port 25565; the management site is here:"
+fi
 HEALTH_PATH=health
 if [ "$KIND" = app ]; then
     # The whole WorldLens application (the hosted image), pulled by digest. Both values were
@@ -153,7 +161,8 @@ url() {
 while true; do
     U=$(url) || U=
     if [ -n "$U" ] && curl -fsS -m 3 -o /dev/null "${U}${HEALTH_PATH}"; then
-        banner "$TITLE" "$READY" "$U   or   http://$HOST.local/"
+        if [ "$PORT" = 80 ]; then LOCAL="http://$HOST.local/"; else LOCAL="http://$HOST.local:$PORT/"; fi
+        banner "$TITLE" "$READY" "$U   or   $LOCAL"
         sleep 60
     else
         banner "$TITLE" "$STARTING"
