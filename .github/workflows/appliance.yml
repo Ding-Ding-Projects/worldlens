@@ -89,6 +89,8 @@ jobs:
         run: |
           set -euo pipefail
           pnpm install --frozen-lockfile --ignore-scripts
+          # The composer imports workspace packages through their built dist entries.
+          pnpm --filter "@worldlens/app^..." run build
           mkdir -p ../out/smoke-map
           printf '<!doctype html><title>smoke</title>smoke\n' > ../out/smoke-map/index.html
           pnpm --filter @worldlens/app exec esbuild src/main/appliance/cli.ts --bundle --platform=node --format=esm --outfile="$GITHUB_WORKSPACE/out/compose-cli.mjs"
