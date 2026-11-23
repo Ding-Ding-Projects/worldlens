@@ -46,6 +46,12 @@ Keys are matched without case or underscores, so names from before and after the
 
 **Game names** in the top bar shows the keys and types exactly as stored, with a typed field for every value. The choice is remembered on this computer.
 
+### Settings form
+
+**Tree** and **Settings form** above the tags switch between the two views of the same file; the choice is remembered. The form lays a world settings file out the way the World settings design does: **World**, **Spawn**, **Time and weather**, **World border**, **Other values**, one section per group inside it (such as **Game rules** or `difficulty_settings`), and **About this file** last. Every value uses its tailored control and the same edit, undo and history as the tree. Lists, arrays and deeper groups are counted with a link to the tree.
+
+It reads a classic `level.dat` from its `Data` group, and any other file from its root, so the files Minecraft 26.1 split out of `level.dat` (`data/minecraft/game_rules.dat`, `weather.dat`, `world_clocks.dat`) open as forms too. A 26.1 `level.dat` offers buttons to open those files when the world has them. A search field with the regex builder narrows the form by readable name, game key or readable value.
+
 ### Keyboard
 
 The tree follows the ARIA tree pattern: <kbd>Up</kbd> and <kbd>Down</kbd> move, <kbd>Right</kbd> opens a branch or steps into it, <kbd>Left</kbd> closes it or steps to the parent, <kbd>Home</kbd> and <kbd>End</kbd> jump, <kbd>Enter</kbd> or <kbd>F2</kbd> edits (a branch opens or closes, an array opens its grid), <kbd>Delete</kbd> removes, <kbd>Ctrl</kbd>+<kbd>C</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> copy and paste a tag as SNBT. <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> and <kbd>Ctrl</kbd>+<kbd>S</kbd> undo, redo and save.
@@ -109,6 +115,12 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 - **版面:** 闊嘅視窗並排顯示檔案、標籤、歷史;720 px 或以下三格變成分頁,手機唔會少咗功能;行高同欄位、開關變大啲方便撳;尊重減少動態設定;每個控制項有名、焦點框同鍵盤路徑。
 - **未做:** LZ4 壓縮嘅 chunk 同擺喺 `.mcc` 嘅 chunk 會列出同講明原因,但未開得;Bedrock 世界用 LevelDB,所以淨係開到 Bedrock `level.dat` 同獨立 NBT 檔;復原最多 100 步,好大嘅 chunk 少啲;唔會偵測其他電腦上面行緊嘅伺服器。
 - **驗證:** `tree.test.ts` 33 個測試、`nbteditor.test.ts` 23 個測試(用真嘅暫存世界同真嘅 Git)、介面 27 個測試。未做:喺建好嘅桌面程式入面行過,主程序接線同 preload 橋仲係另一步,亦未有建好介面嘅截圖。
+
+### 設定表格
+
+標籤上面嘅 **Tree**（樹）同 **Settings form**（設定表格）可以喺同一個檔案嘅兩種睇法之間轉，揀咗會記住。表格跟世界設定設計排：**世界**、**出生點**、**時間同天氣**、**世界邊界**、**其他值**，入面每個群組（例如 **遊戲規則**、`difficulty_settings`）各自一節，最尾係 **關於呢個檔案**。每個值都用專屬控制項，同棵樹一樣嘅編輯、還原同歷史。列表、陣列同更深嘅群組會數出嚟，附連結去棵樹。
+
+傳統 `level.dat` 由 `Data` 群組讀起，其他檔案由根讀起，所以 26.1 由 `level.dat` 分出嚟嘅檔案（`data/minecraft/game_rules.dat`、`weather.dat`、`world_clocks.dat`）都會變成表格。26.1 嘅 `level.dat` 會喺世界有呢啲檔案時畀掣去開佢哋。搜尋欄（連 regex 建構器）可以用易明名、遊戲鍵或者易明數值收窄表格。
 
 ### 講人話嘅名同專屬控制項
 

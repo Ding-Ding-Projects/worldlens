@@ -2,13 +2,14 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiRedo, mdiUndo } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardActions, VCardText, VCheckbox, VDialog, VSwitch, VTab, VTabs } from "vuetify/components";
+import { VAlert, VBtn, VBtnToggle, VCard, VCardActions, VCardText, VCheckbox, VDialog, VSwitch, VTab, VTabs } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import NbtArrayEditor from "./NbtArrayEditor.vue";
 import NbtDialogs from "./NbtDialogs.vue";
 import NbtFilesPanel from "./NbtFilesPanel.vue";
 import NbtHistoryPanel from "./NbtHistoryPanel.vue";
 import NbtTagTree from "./NbtTagTree.vue";
+import NbtFormView from "./NbtFormView.vue";
 import { createNbtEditorState, type NbtEditorState } from "./nbtEditorState.js";
 import type { TagAction } from "./nbtEditorModel.js";
 import { nbtEditorBridge, type ArrayEdit, type NbtEditorBridge, type TagKind } from "./nbtEditorBridge.js";
@@ -56,6 +57,36 @@ watch(gameNames, (value) => {
     }
 });
 const readable = computed(() => !gameNames.value);
+
+/*
+ * Tree or form. The form is the World settings page from the design: sections and a control per
+ * value. Both show the same document; `revision` makes the form read values again after any edit.
+ */
+const VIEW_KEY = "worldlens-nbt-view";
+function readView(): "tree" | "form" {
+    try {
+        return globalThis.localStorage?.getItem(VIEW_KEY) === "form" ? "form" : "tree";
+    } catch {
+        return "tree";
+    }
+}
+const view = ref<"tree" | "form">(readView());
+watch(view, (value) => {
+    try {
+        globalThis.localStorage?.setItem(VIEW_KEY, value);
+    } catch {
+        // Session only.
+    }
+});
+const revision = ref(0);
+async function undoEdit(): Promise<void> {
+    await editor?.undo();
+    revision.value += 1;
+}
+async function redoEdit(): Promise<void> {
+    await editor?.redo();
+    revision.value += 1;
+}
 const pane = ref<"files" | "tree" | "history">("tree");
 let media: MediaQueryList | null = null;
 function syncMedia(): void {
@@ -199,6 +230,7 @@ async function attempt(operation: Parameters<NonNullable<typeof editor>["applyEd
         return false;
     }
     dialogError.value = null;
+    revision.value += 1;
     return true;
 }
 
@@ -365,8 +397,8 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                     :label="t('nbt.gameNames', 'Game names')"
                     :title="t('nbt.gameNames.hint', 'Show the keys and types exactly as the game stores them, with a typed field for every value.')"
                 />
-                <v-btn :prepend-icon="mdiUndo" variant="outlined" rounded="pill" :disabled="!editor.state.value.canUndo" @click="editor.undo()">{{ t('nbt.undo', 'Undo') }}</v-btn>
-                <v-btn :prepend-icon="mdiRedo" variant="outlined" rounded="pill" :disabled="!editor.state.value.canRedo" @click="editor.redo()">{{ t('nbt.redo', 'Redo') }}</v-btn>
+                <v-btn :prepend-icon="mdiUndo" variant="outlined" rounded="pill" :disabled="!editor.state.value.canUndo" @click="undoEdit()">{{ t('nbt.undo', 'Undo') }}</v-btn>
+                <v-btn :prepend-icon="mdiRedo" variant="outlined" rounded="pill" :disabled="!editor.state.value.canRedo" @click="redoEdit()">{{ t('nbt.redo', 'Redo') }}</v-btn>
                 <v-btn
                     color="primary"
                     variant="flat"
@@ -410,8 +442,34 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                 <div v-if="!doc" class="wl-nbt-empty">
                     <p>{{ t('nbt.empty', 'Choose a file from the list, open a region chunk, or open any NBT file.') }}</p>
                 </div>
+                <v-btn-toggle
+                    v-if="doc"
+                    v-model="view"
+                    class="wl-nbt-view"
+                    mandatory
+                    density="comfortable"
+                    rounded="pill"
+                    color="secondary"
+                    variant="outlined"
+                    :aria-label="t('nbt.view.label', 'Show the file as')"
+                >
+                    <v-btn value="tree">{{ t('nbt.view.tree', 'Tree') }}</v-btn>
+                    <v-btn value="form">{{ t('nbt.view.form', 'Settings form') }}</v-btn>
+                </v-btn-toggle>
+                <nbt-form-view
+                    v-if="doc && view === 'form' && bridge"
+                    :bridge="bridge"
+                    :doc="doc"
+                    :revision="revision"
+                    :disabled="editor.busy.value"
+                    :files="editor.listing.value?.files ?? []"
+                    @commit="(id: number, text: string) => attempt({ op: 'setValue', id, text })"
+                    @flip="(id: number, on: boolean) => attempt({ op: 'setBool', id, on })"
+                    @open-file="openFile"
+                    @show-tree="view = 'tree'"
+                />
                 <nbt-tag-tree
-                    v-else
+                    v-else-if="doc"
                     :rows="editor.rows.value"
                     :cache="editor.cache"
                     :selected-id="editor.selectedId.value"
@@ -491,6 +549,7 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
 </template>
 
 <style scoped>
+.wl-nbt-view { align-self: flex-start; margin-bottom: 8px; }
 .wl-nbt-names { flex: 0 0 auto; }
 .wl-nbt-screen { display: flex; flex-direction: column; gap: 12px; padding: 20px 32px; height: 100%; min-height: 0; box-sizing: border-box; }
 .wl-nbt-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }

@@ -203,6 +203,24 @@ describe("typed editing", () => {
         expect(localStorage.getItem("worldlens-nbt-game-names")).toBe("0");
     });
 
+    it("shows the file as a settings form with sections and edits through the same controls", async () => {
+        const w = await open();
+        const toggle = w.findAll(".wl-nbt-view button").find((b) => b.text() === "Settings form")!;
+        await toggle.trigger("click");
+        await flushPromises();
+        const form = w.find(".wl-nbt-form");
+        expect(form.exists()).toBe(true);
+        const titles = form.findAll(".wl-nbt-form__title").map((h) => h.text());
+        expect(titles).toEqual(expect.arrayContaining(["World", "Spawn", "Game rules"]));
+        await form.find('button[aria-label="Raise Spawn X"]').trigger("click");
+        await flushPromises();
+        expect(bridge.edits).toContainEqual({ op: "setValue", id: 4, text: "129" });
+        expect(localStorage.getItem("worldlens-nbt-view")).toBe("form");
+        await w.findAll(".wl-nbt-view button").find((b) => b.text() === "Tree")!.trigger("click");
+        await flushPromises();
+        expect(localStorage.getItem("worldlens-nbt-view")).toBe("tree");
+    });
+
     it("opens the grid editor for an array and edits one cell", async () => {
         const w = await open();
         await expandData(w);
