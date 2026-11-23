@@ -44,6 +44,12 @@ export interface CreateInstanceRequest {
     readonly ports?: readonly number[];
     readonly volumes?: readonly string[];
     readonly removeToken?: string;
+    /** Ports with where they listen; `public` lets other machines connect. */
+    readonly portMappings?: readonly { readonly port: number; readonly bindMode: "loopback" | "public" }[];
+    /** Folders on this computer to mount at `/data/<name>`. */
+    readonly binds?: readonly { readonly source: string; readonly target: string; readonly readOnly: boolean }[];
+    readonly env?: readonly { readonly key: string; readonly value: string }[];
+    readonly restartPolicy?: "no" | "on-failure" | "unless-stopped" | "always";
 }
 export interface DockerHostingManagedInstance {
     readonly id: string;

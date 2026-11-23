@@ -43,6 +43,16 @@ funny-level, accessibility, responsive-layout and confirmation contracts. Full i
 pickers, actual server/map configuration editing, generated-file/folder handoff to Visual Studio Code,
 and complete history/bulk-action treatment remain open work.
 
+### Deploy WorldLens as a container
+
+The **Deploy WorldLens as a container** card at the top of the Docker hosting screen runs the whole application (the hosted image, `docs/hosted-mode.md`) in Docker on this computer. It builds one request from typed controls:
+
+- **WorldLens image**: the digest-pinned `worldlens-hosted` images Docker reports, or, behind an opt-in switch, a digest from a release or the CI summary. CI publishes the image as `ghcr.io/<owner>/worldlens-hosted` (job `hosted-image`); `docker create` pulls a missing digest.
+- **Folders it may open**: each chosen with the browse button, named, and read only or not. Each is bind-mounted at `/data/<id>` and declared in `WORLDLENS_MOUNTS`; the deployment's own records go to an owned named volume at `/data/state`.
+- **Port**, **Other machines on my network can open it** (publishes on every interface instead of loopback), **After a reboot** (restart policy) and a **password**, always required. Only the password's SHA-256 is sent, as `WORLDLENS_PASSWORD_SHA256`.
+
+Deploy creates the container and starts it, then lists it below with the other app-owned containers. The manager now also accepts folder mounts (`binds`: absolute source with no comma, quote, newline or `..`, target `/data/<name>`), owned named volumes at a fixed place (`worldlens-x:/data/<name>[:ro]`) and port mappings with a bind mode; two mounts at the same place are refused.
+
 ## Configuration and ownership boundary
 
 The ownership record must be created before a container mutation and must include a stable
@@ -198,3 +208,7 @@ map、config、health、log 同 update 狀態。
 headless capture。真 daemon ownership/refusal、create rollback、update、map/config state、
 persistent log/history、multi-bulk、VS Code handoff 同 packaged evidence 都仲係下一位 owner
 要補嘅工作。
+
+#### 將 WorldLens 部署做容器
+
+Docker hosting 畫面頂部嘅 **Deploy WorldLens as a container** 卡，會喺呢部電腦嘅 Docker 度行成個 WorldLens（hosted image）。全部用揀嘅：映像（Docker 報告嘅 `worldlens-hosted` digest，或者開咗開關先自己填 release 或 CI 摘要嘅 digest；CI 嘅 `hosted-image` job 會發佈 `ghcr.io/<owner>/worldlens-hosted`）、可以打開嘅資料夾（瀏覽按鈕揀、改名、揀唯讀，掛喺 `/data/<id>` 同寫入 `WORLDLENS_MOUNTS`，部署自己嘅紀錄放喺擁有嘅 named volume `/data/state`）、埠、**其他機都打開得**、重啟方式，同埋一定要有嘅密碼（只係傳 SHA-256）。撳 Deploy 會建立兼啟動容器。Manager 而家亦接受資料夾掛載（絕對路徑、冇逗號引號換行或 `..`、目標 `/data/<名>`）、固定位置嘅擁有 volume 同帶綁定模式嘅埠；兩個掛載撞同一位置會拒絕。

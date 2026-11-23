@@ -18,6 +18,7 @@ export {
     DOCKER_HOSTING_OWNER_LABEL,
 } from "@worldlens/dockhand";
 export type {
+    BindMount,
     CreateInstanceRequest,
     DockerHostingManagerOptions,
     DockerHostingSnapshot,

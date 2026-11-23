@@ -59,6 +59,7 @@ export {
     DOCKER_HOSTING_OWNER_LABEL,
 } from "./manager.js";
 export type {
+    BindMount,
     CreateInstanceRequest,
     DockerHostingManagerOptions,
     DockerHostingSnapshot,

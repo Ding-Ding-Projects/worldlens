@@ -1,6 +1,6 @@
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
-import { DockerHostingManager, type CreateInstanceRequest, type DockerHostingSnapshot, type ManagerAnswer } from "./manager.js";
+import { DockerHostingManager, type BindMount, type CreateInstanceRequest, type DockerHostingSnapshot, type EnvironmentEntry, type ManagerAnswer, type PortMapping, type RestartPolicy } from "./manager.js";
 
 export const DOCKER_HOSTING_CHANNELS = [
     "dockerhosting:status",
@@ -43,6 +43,12 @@ function createRequest(value: unknown): CreateInstanceRequest | null {
         image: record.image,
         ...(Array.isArray(record.ports) ? { ports: record.ports.filter((entry): entry is number => typeof entry === "number") } : {}),
         ...(Array.isArray(record.volumes) ? { volumes: record.volumes.filter((entry): entry is string => typeof entry === "string") } : {}),
+        // Everything below is passed through as sent: the manager validates each field and
+        // refuses the whole request on a bad one, so nothing here needs to second-guess it.
+        ...(Array.isArray(record.portMappings) ? { ports: record.portMappings as PortMapping[] } : {}),
+        ...(Array.isArray(record.env) ? { env: record.env as EnvironmentEntry[] } : {}),
+        ...(Array.isArray(record.binds) ? { binds: record.binds as BindMount[] } : {}),
+        ...(typeof record.restartPolicy === "string" ? { restartPolicy: record.restartPolicy as RestartPolicy } : {}),
     };
 }
 

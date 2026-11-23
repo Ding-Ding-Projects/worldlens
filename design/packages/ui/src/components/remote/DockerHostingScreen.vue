@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DeployWorldLensCard from "./DeployWorldLensCard.vue";
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiRefresh, mdiStopCircleOutline, mdiPlayCircleOutline, mdiRestart, mdiDeleteOutline } from "@mdi/js";
@@ -204,6 +205,7 @@ function exportSelection(): void {
                         <v-btn :prepend-icon="mdiRefresh" size="small" variant="text" :loading="loading" @click="refresh">{{ t("dockerHosting.refresh", "Refresh") }}</v-btn>
                     </div>
                     <v-alert v-if="error" type="error" variant="tonal" role="alert">{{ error }}</v-alert>
+                    <DeployWorldLensCard v-if="snapshot" :bridge="bridge" :snapshot="snapshot" @deployed="refresh" />
                     <v-card class="mb-docker-hosting__create" variant="outlined">
                         <v-card-title>{{ t("dockerHosting.create.title", "Create an app-owned container") }}</v-card-title>
                         <v-card-text>

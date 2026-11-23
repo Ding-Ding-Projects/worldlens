@@ -72,12 +72,34 @@ export interface PortMapping {
 export type RestartPolicy = "no" | "on-failure" | "unless-stopped" | "always";
 
 /** One environment variable. */
+/**
+ * A folder on the Docker host made visible inside the container.
+ *
+ * The caller chose it (the desktop app only sends folders the person picked), and the manager
+ * still checks the shape: an absolute source with no comma, quote or newline (so it cannot
+ * smuggle another `--mount` option), and a target confined to `/data/<name>`.
+ */
+export interface BindMount {
+    readonly source: string;
+    readonly target: string;
+    readonly readOnly: boolean;
+}
+
 export interface EnvironmentEntry {
     readonly key: string;
     readonly value: string;
 }
 
 const ENV_KEY = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const BIND_TARGET = /^\/data\/[a-z0-9][a-z0-9_-]{0,62}$/;
+
+function validBind(bind: unknown): bind is BindMount {
+    if (typeof bind !== "object" || bind === null) return false;
+    const b = bind as Record<string, unknown>;
+    if (typeof b.source !== "string" || typeof b.target !== "string" || typeof b.readOnly !== "boolean") return false;
+    const absolute = b.source.startsWith("/") || /^[A-Za-z]:[\\/]/.test(b.source);
+    return absolute && b.source.length <= 1024 && !/[,"'\r\n]/.test(b.source) && !b.source.split(/[\\/]/).includes("..") && BIND_TARGET.test(b.target);
+}
 
 /** Deprecated aliases, kept so the desktop application's imports keep resolving. */
 export const DOCKER_HOSTING_LABEL = "com.worldlens.docker-hosting";
@@ -143,6 +165,8 @@ export interface CreateInstanceRequest {
      * corrupt anything downstream that reads the container's environment line by line.
      */
     readonly env?: readonly EnvironmentEntry[];
+    /** Host folders to mount; see {@link BindMount}. */
+    readonly binds?: readonly BindMount[];
     /** Defaults to `unless-stopped`, which is what a deployed service almost always wants. */
     readonly restartPolicy?: RestartPolicy;
     /** Memory limit, in Docker's own notation (`512m`, `2g`). */
@@ -214,6 +238,12 @@ function validateId(value: unknown): value is string {
 
 function validateImage(value: unknown): value is string {
     return typeof value === "string" && IMAGE.test(value) && /@sha256:[a-f0-9]{64}$/.test(value) && !value.includes("\\") && !value.includes(" ");
+}
+
+function validMapping(value: unknown): value is PortMapping {
+    if (typeof value !== "object" || value === null) return false;
+    const m = value as Record<string, unknown>;
+    return validatePort(m.port) && (m.bindMode === undefined || m.bindMode === "loopback" || m.bindMode === "public");
 }
 
 function validatePort(value: unknown): value is number {
@@ -360,13 +390,14 @@ export class DockerHostingManager {
         const conflict = await this.probePorts(ports);
         if (conflict !== null) return { ok: false, failure: conflict };
         const fingerprint = this.fingerprint(request);
-        for (const volume of request.volumes ?? []) if (!volume.includes(":")) {
+        for (const entry of request.volumes ?? []) {
+            const volume = entry.split(":")[0]!;
             const inspected = await this.runner(this.docker, ["volume", "inspect", "--format", "{{json .}}", volume]);
             if (inspected.ok && !inspected.stdout.includes(`${this.labels.owner}=${this.owner}`)) return { ok: false, failure: failure("not-owned", `Named volume '${volume}' is not owned by this installation.`) };
             const created = inspected.ok ? inspected : await this.runner(this.docker, ["volume", "create", "--label", `${this.labels.hosting}=true`, "--label", `${this.labels.owner}=${this.owner}`, volume]);
             if (!created.ok) return { ok: false, failure: failure("command-failed", `Docker could not create owned volume '${volume}'.`, outputDetail(created)) };
         }
-        const args = ["create", "--label", `${this.labels.hosting}=true`, "--label", `${this.labels.owner}=${this.owner}`, "--label", `${this.labels.instance}=${request.id}`, "--label", `${this.labels.name}=${request.name}`, "--label", `${this.labels.version}=1`, "--label", `${this.labels.fingerprint}=${fingerprint}`, ...this.portArgs(ports), ...this.runtimeArgs(request), ...this.volumeArgs(request.volumes ?? []), request.image];
+        const args = ["create", "--label", `${this.labels.hosting}=true`, "--label", `${this.labels.owner}=${this.owner}`, "--label", `${this.labels.instance}=${request.id}`, "--label", `${this.labels.name}=${request.name}`, "--label", `${this.labels.version}=1`, "--label", `${this.labels.fingerprint}=${fingerprint}`, ...this.portArgs(ports), ...this.runtimeArgs(request), ...this.volumeArgs(request.volumes ?? []), ...this.bindArgs(request.binds ?? []), request.image];
         const output = await this.runner(this.docker, args);
         if (!output.ok) return { ok: false, failure: failure("command-failed", "Docker could not create this app-owned instance.", outputDetail(output)) };
         const refreshed = await this.inspectById(request.id);
@@ -488,8 +519,13 @@ export class DockerHostingManager {
 
     private validateCreate(request: CreateInstanceRequest): ManagerAnswer<null> {
         if (!validateId(request.id) || !safeName(request.name) || !validateImage(request.image)) return { ok: false, failure: failure("invalid-request", "Instance id, display name, and digest-pinned image are required.") };
-        if ((request.ports ?? []).some((port) => !validatePort(port)) || new Set(request.ports ?? []).size !== (request.ports ?? []).length) return { ok: false, failure: failure("invalid-request", "Ports must be unique integers from 1 through 65535.") };
-        if ((request.volumes ?? []).some((volume) => !this.validVolume(volume))) return { ok: false, failure: failure("invalid-request", "Volumes must be named Docker volumes or reside under the app-owned data root.") };
+        const portNumbers = (request.ports ?? []).map((port) => (typeof port === "number" ? port : validMapping(port) ? port.port : Number.NaN));
+        if (portNumbers.some((port) => !validatePort(port)) || new Set(portNumbers).size !== portNumbers.length) return { ok: false, failure: failure("invalid-request", "Ports must be unique integers from 1 through 65535.") };
+        if ((request.volumes ?? []).some((volume) => !this.validVolume(volume))) return { ok: false, failure: failure("invalid-request", "Volumes must be named Docker volumes or reside under the app-owned data root.") };
+        const binds = request.binds ?? [];
+        if (binds.some((bind) => !validBind(bind))) return { ok: false, failure: failure("invalid-request", "Folder mounts need an absolute folder without commas, quotes or line breaks, mounted at /data/<name>.") };
+        const targets = [...binds.map((bind) => bind.target), ...(request.volumes ?? []).flatMap((volume) => (volume.includes(":") ? [volume.split(":")[1]!] : []))];
+        if (new Set(targets).size !== targets.length) return { ok: false, failure: failure("invalid-request", "Two mounts use the same place inside the container.") };
         for (const entry of request.env ?? []) {
             if (!ENV_KEY.test(entry.key))
                 return {
@@ -563,6 +599,9 @@ export class DockerHostingManager {
         return (ports ?? []).map((port) => (typeof port === "number" ? { port } : port));
     }
     private volumeArgs(volumes: readonly string[]): string[] { return volumes.flatMap((volume) => ["-v", volume]); }
+    private bindArgs(binds: readonly BindMount[]): string[] {
+        return binds.flatMap((bind) => ["--mount", `type=bind,source=${bind.source},target=${bind.target}${bind.readOnly ? ",readonly" : ""}`]);
+    }
 
     private async persist(instances: readonly ManagedInstance[]): Promise<void> {
         if (this.recordFile === null) return;
@@ -582,12 +621,15 @@ export class DockerHostingManager {
     private validVolume(volume: unknown): volume is string {
         if (typeof volume !== "string" || volume.length === 0 || volume.length > 512 || /[\r\n]/.test(volume)) return false;
         const separator = volume.indexOf(":");
-        if (separator < 0) return new RegExp(`^${this.identity.ownerPrefix}-[a-z0-9][a-z0-9_.-]{0,120}$`).test(volume);
-        return false;
+        const named = new RegExp(`^${this.identity.ownerPrefix}-[a-z0-9][a-z0-9_.-]{0,120}$`);
+        if (separator < 0) return named.test(volume);
+        // `name:/data/<place>`, optionally `:ro`: an owned named volume at a fixed place inside.
+        const [name, target, mode, ...rest] = volume.split(":");
+        return rest.length === 0 && named.test(name ?? "") && BIND_TARGET.test(target ?? "") && (mode === undefined || mode === "ro");
     }
 
     private fingerprint(request: CreateInstanceRequest): string {
-        return createHash("sha256").update(JSON.stringify({ id: request.id, image: request.image, ports: request.ports ?? [], volumes: request.volumes ?? [] })).digest("hex").slice(0, 32);
+        return createHash("sha256").update(JSON.stringify({ id: request.id, image: request.image, ports: request.ports ?? [], volumes: request.volumes ?? [], binds: request.binds ?? [] })).digest("hex").slice(0, 32);
     }
 
     /**
