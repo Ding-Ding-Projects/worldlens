@@ -1,0 +1,16 @@
+#!/sbin/openrc-run
+# Starts the Worldlens map appliance boot script after the network and Docker are up.
+
+name="worldlens-map"
+description="Find the map data partition, start the map server and print its address"
+command="/usr/local/sbin/worldlens-map-boot"
+command_background="yes"
+pidfile="/run/worldlens-map.pid"
+output_log="/var/log/worldlens-map.log"
+error_log="/var/log/worldlens-map.log"
+
+depend() {
+    need net docker
+    use dbus avahi-daemon
+    after firewall
+}

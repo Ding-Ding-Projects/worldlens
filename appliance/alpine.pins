@@ -1,0 +1,5 @@
+# Pinned Alpine Linux inputs for the appliance base image. Update the version and the hash together.
+ALPINE_VERSION=3.24.4
+ALPINE_ROOTFS_URL=https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-minirootfs-3.24.4-x86_64.tar.gz
+ALPINE_ROOTFS_SHA256=cdaa38cb8de3537967ee5b6c9b6cd00cc962da2b018e6eea48696bb274923012
+ALPINE_REPO=https://dl-cdn.alpinelinux.org/alpine/v3.24

@@ -1,0 +1,144 @@
+name: Appliance
+
+# Builds the small Linux appliance that boots straight into a rendered map, boots it once under
+# QEMU to prove it comes up, and publishes the base image with its checksum. It runs apart from the
+# release graph in ci.yml: it produces an input the desktop app bundles, not a release by itself.
+#
+# This workflow runs no tests and no lint. The one check is the boot smoke: the image must start and
+# its map server must answer /health with 200 over QEMU user-mode networking.
+#
+# It waits for the map-server image sources (design/packages/mapserver/Dockerfile). Until that file
+# exists the job is skipped rather than building a placeholder.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - appliance/**
+      - design/packages/mapserver/**
+      - design/packages/app/src/main/appliance/**
+      - .github/workflows/appliance.yml
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Attach the built image to this existing release tag (leave empty to only upload an artifact)
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  appliance:
+    name: Appliance base image (x86_64)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Locate the map-server image sources
+        id: source
+        run: |
+          if [ -f design/packages/mapserver/Dockerfile ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::design/packages/mapserver/Dockerfile is not in this commit yet, so the appliance image is not built."
+          fi
+
+      - name: Build and save the map-server image
+        if: steps.source.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          docker build -t worldlens-map-server:bundled -f design/packages/mapserver/Dockerfile .
+          mkdir -p out
+          docker save worldlens-map-server:bundled -o out/worldlens-map-server-x86_64.tar
+
+      - name: Install image tooling
+        if: steps.source.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends qemu-system-x86 qemu-utils zstd syslinux syslinux-common extlinux fdisk e2fsprogs
+
+      - name: Build the base image
+        if: steps.source.outputs.present == 'true'
+        run: sudo sh appliance/build-base.sh --mapserver-tar out/worldlens-map-server-x86_64.tar --out out
+
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        if: steps.source.outputs.present == 'true'
+        with:
+          package_json_file: design/package.json
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.source.outputs.present == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: design/pnpm-lock.yaml
+
+      # Compose a disk with the same code the desktop app uses (copy base, append map tar as the
+      # data partition, patch the MBR), so the smoke proves the real layout rather than a lookalike.
+      - name: Compose a smoke disk with the app's own code
+        if: steps.source.outputs.present == 'true'
+        working-directory: design
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile --ignore-scripts
+          mkdir -p ../out/smoke-map
+          printf '<!doctype html><title>smoke</title>smoke\n' > ../out/smoke-map/index.html
+          pnpm --filter @worldlens/app exec esbuild src/main/appliance/cli.ts --bundle --platform=node --format=esm --outfile="$GITHUB_WORKSPACE/out/compose-cli.mjs"
+          node "$GITHUB_WORKSPACE/out/compose-cli.mjs" --base "$GITHUB_WORKSPACE/out/worldlens-appliance-base-x86_64.img" --map "$GITHUB_WORKSPACE/out/smoke-map" --out "$GITHUB_WORKSPACE/out/smoke.img" --host worldlens-map --port 80
+
+      - name: Boot smoke under QEMU
+        if: steps.source.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          qemu-system-x86_64 -machine accel=kvm:tcg -m 1024 -smp 2 \
+            -drive file=out/smoke.img,format=raw,if=virtio \
+            -netdev user,id=n0,hostfwd=tcp::18080-:80 -device virtio-net-pci,netdev=n0 \
+            -display none -serial file:out/console.log -daemonize -pidfile out/qemu.pid
+          ok=0
+          for i in $(seq 1 120); do
+            if curl -fsS -m 3 -o /dev/null http://127.0.0.1:18080/health; then ok=1; break; fi
+            sleep 5
+          done
+          kill "$(cat out/qemu.pid)" || true
+          if [ "$ok" != 1 ]; then
+            echo "::error::the appliance did not answer /health within ten minutes"
+            tail -n 80 out/console.log || true
+            exit 1
+          fi
+          echo "appliance answered /health"
+
+      - name: Compress and checksum
+        if: steps.source.outputs.present == 'true'
+        run: |
+          set -euo pipefail
+          cd out
+          zstd -19 -T0 -f worldlens-appliance-base-x86_64.img -o worldlens-appliance-base-x86_64.img.zst
+          sha256sum worldlens-appliance-base-x86_64.img worldlens-appliance-base-x86_64.img.zst > worldlens-appliance-base-x86_64.sha256.txt
+          cat worldlens-appliance-base-x86_64.sha256.txt
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: steps.source.outputs.present == 'true'
+        with:
+          name: appliance-base-x86_64
+          path: |
+            out/worldlens-appliance-base-x86_64.img.zst
+            out/worldlens-appliance-base-x86_64.sha256.txt
+          if-no-files-found: error
+
+      - name: Attach to a release
+        if: steps.source.outputs.present == 'true' && github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" out/worldlens-appliance-base-x86_64.img.zst out/worldlens-appliance-base-x86_64.sha256.txt --clobber
+          gh release view "$TAG" --json assets --jq '.assets[].name'
