@@ -13,6 +13,7 @@ import NbtFormView from "./NbtFormView.vue";
 import NbtRegionCanvas from "./NbtRegionCanvas.vue";
 import NbtMapCanvas from "./NbtMapCanvas.vue";
 import NbtInventoryView from "./NbtInventoryView.vue";
+import NbtStructureView from "./NbtStructureView.vue";
 import { createNbtEditorState, type NbtEditorState } from "./nbtEditorState.js";
 import type { TagAction } from "./nbtEditorModel.js";
 import { nbtEditorBridge, type ArrayEdit, type NbtEditorBridge, type TagKind } from "./nbtEditorBridge.js";
@@ -73,7 +74,7 @@ function readView(): "tree" | "form" {
         return "tree";
     }
 }
-const view = ref<"tree" | "form" | "region" | "map" | "inventory">(readView());
+const view = ref<"tree" | "form" | "region" | "map" | "inventory" | "structure">(readView());
 
 watch(view, (value) => {
     try {
@@ -123,6 +124,12 @@ const doc = computed(() => editor?.doc.value ?? null);
 const isMapFile = computed(() => doc.value !== null && /(?:^|[\\/])(?:map_\d+|maps[\\/]\d+)\.dat$/i.test(doc.value.path));
 /** Player data, or an older level.dat that carries the single-player player. */
 const isPlayerFile = computed(() => doc.value !== null && (/(?:^|[\\/])(?:playerdata|players[\\/]data)[\\/][^\\/]+\.dat$/i.test(doc.value.path) || /level\.dat$/i.test(doc.value.path)));
+/** A structure template (`.nbt`). */
+const isStructureFile = computed(() => doc.value !== null && /\.nbt$/i.test(doc.value.path));
+watch(isStructureFile, (structure) => {
+    if (structure) view.value = "structure";
+    else if (view.value === "structure") view.value = "tree";
+});
 watch(isMapFile, (map) => {
     if (map) view.value = "map";
     else if (view.value === "map") view.value = "tree";
@@ -469,6 +476,7 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                     <v-btn value="form" :disabled="!doc">{{ t('nbt.view.form', 'Settings form') }}</v-btn>
                     <v-btn value="region" :disabled="!editor.chunks.value">{{ t('nbt.view.region', 'Region') }}</v-btn>
                     <v-btn v-if="isMapFile" value="map">{{ t('nbt.view.map', 'Map art') }}</v-btn>
+                    <v-btn v-if="isStructureFile" value="structure">{{ t('nbt.view.structure', 'Structure') }}</v-btn>
                     <v-btn v-if="isPlayerFile" value="inventory">{{ t('nbt.view.inventory', 'Inventory') }}</v-btn>
                 </v-btn-toggle>
                 <nbt-region-canvas
@@ -477,6 +485,14 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                     :chunks="editor.chunks.value.chunks"
                     :open-index="openChunkIndex"
                     @open="(index: number) => { const listed = editor.chunks.value; if (listed) { openChunk(listed.path, index); view = 'tree'; } }"
+                />
+                <nbt-structure-view
+                    v-else-if="doc && view === 'structure' && isStructureFile && bridge"
+                    :bridge="bridge"
+                    :doc="doc"
+                    :revision="revision"
+                    :disabled="editor.busy.value"
+                    @replace="(id: number, text: string) => attempt({ op: 'replaceSnbt', id, text })"
                 />
                 <nbt-inventory-view
                     v-else-if="doc && view === 'inventory' && isPlayerFile && bridge"

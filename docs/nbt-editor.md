@@ -70,6 +70,12 @@ The canvas can be painted without a mouse: it takes focus, the arrow keys move a
 
 Player data (`playerdata/<uuid>.dat`, `players/data/<uuid>.dat` from 26.1, and the single-player player inside an older `level.dat`) adds an **Inventory** view: armour and off hand, the 27 main slots and the hotbar, or the ender chest, each stack shown with a short code, a colour of its own and its count, and named in full for screen readers ("Hotbar 1: Diamond Pickaxe"). Picking a stack lists every value it holds with its tailored control, nested the way the item stores them: the id, the count, and each component or legacy tag value, so enchantment levels in `minecraft:enchantments` are steppers from 1 to 255 named after the enchantment. Picking an empty slot offers **Put it here** with an item id and a count, written in the file's own layout (components and `count` from 1.20.5, `Count` as a byte before; armour into `equipment` from 1.21.5).
 
+### Structure editor
+
+A structure template (`.nbt`) opens on **Structure**: one layer at a time as a grid, west to east and north to south, with an isometric preview of the whole build where layers above the current one are faint. **Paint** puts the chosen palette entry in every cell you drag over and **Pick** takes a cell's entry; the arrows beside the layer number (or Page Up and Page Down) change the height. The palette lists every block state with a readable name, its properties and how many blocks use it. A stroke sends the whole block list as one edit, one undo step, and each block's own data (a chest's items, a sign's text) is carried through unchanged. Structures wider than 96 blocks, or too large to read as text, stay in the tree.
+
+Keyboard: the grid is one tab stop; arrows move, Space paints, P picks.
+
 ### Keyboard
 
 The tree follows the ARIA tree pattern: <kbd>Up</kbd> and <kbd>Down</kbd> move, <kbd>Right</kbd> opens a branch or steps into it, <kbd>Left</kbd> closes it or steps to the parent, <kbd>Home</kbd> and <kbd>End</kbd> jump, <kbd>Enter</kbd> or <kbd>F2</kbd> edits (a branch opens or closes, an array opens its grid), <kbd>Delete</kbd> removes, <kbd>Ctrl</kbd>+<kbd>C</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> copy and paste a tag as SNBT. <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> and <kbd>Ctrl</kbd>+<kbd>S</kbd> undo, redo and save.
@@ -155,6 +161,12 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 ### 背包同物品編輯器
 
 玩家資料（`playerdata/<uuid>.dat`，26.1 之後係 `players/data/<uuid>.dat`，仲有舊 `level.dat` 入面嘅單人玩家）會多一個 **Inventory** 檢視：盔甲同副手、27 格主背包同快捷欄，或者終界箱；每疊物品有短碼、自己嘅顏色同數量，螢幕閱讀器會讀出全名（「快捷欄 1：鑽石鎬」）。揀一疊會列出佢所有值，每個用專屬控制項，跟物品本身嘅層次排：ID、數量、每個組件或者舊式 tag 值，所以 `minecraft:enchantments` 入面嘅附魔等級係 1 至 255 嘅加減器，用附魔名做標籤。揀空格會有 **Put it here**（放喺度），填物品 ID 同數量，用返檔案本身嘅格式寫（1.20.5 之後用組件同 `count`，之前用 byte 嘅 `Count`；1.21.5 之後盔甲放入 `equipment`）。
+
+### 結構編輯器
+
+結構模板（`.nbt`）會用 **Structure** 打開：一次一層畫成格仔，西至東、北至南，隔籬有成個建築嘅等角預覽，而家呢層以上會淡啲。**Paint**（畫）會將揀咗嘅調色盤項目畫落拖過嘅每一格，**Pick**（吸）攞返嗰格嘅項目；層數隔籬嘅箭咀（或者 Page Up、Page Down）轉高度。調色盤列出每個方塊狀態嘅易明名、屬性同用咗幾多個。每一筆將成個方塊列表當一個編輯送出，一步還原，每個方塊自己嘅資料（箱嘅物品、告示牌文字）原封不動。闊過 96 格或者大到讀唔晒做文字嘅結構留喺樹度改。
+
+鍵盤：成個格仔係一個 tab 位；方向鍵移動，Space 畫，P 吸。
 
 ### 講人話嘅名同專屬控制項
 
