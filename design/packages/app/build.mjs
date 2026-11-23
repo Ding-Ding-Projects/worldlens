@@ -380,6 +380,10 @@ async function main() {
     if (!hostedOnly) {
         await stageRenderEngines(undefined, { requireJava: false });
         await stageHostingRuntime();
+        // The bundled map server image for "Host the map". Optional here so a development
+        // build on a machine without Docker still builds; `package` and `make` run the same
+        // script strictly, and a build without it reports hosting as unavailable.
+        execFileSync(process.execPath, ["scripts/build-mapserver-image.mjs", "--optional"], { stdio: "inherit" });
 
         /** Main process: ESM (Electron ≥28 supports ESM entry points). */
         await build({
