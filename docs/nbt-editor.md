@@ -88,6 +88,10 @@ The search bar looks through tag names, values, or both. Plain text is the defau
 
 A chunk opened from the region canvas lands on **Chunk**: a 16 by 16 picture, west to east and north to south, with four layers. **Height** reads the chosen heightmap (motion blocking, world surface, ocean floor and the rest) and shades each column by its surface Y. **Biome**, **Blocks** and **Light** read the section at the height on the slider: biomes by 4-block cell, the block palette by colour, and block light from 0 to 15. Every cell has a spoken name ("x 7, z 2: Stone"). The side panel lists the chunk's block entities (chests, signs, spawners) with their positions and the generation step. Since 1.17 mobs and items live in the entities folder's region files; open that region to edit them. Values are still edited in the tree and form, and the picture reads again after every edit and undo.
 
+### Bedrock worlds
+
+Choosing a Bedrock world folder lists its LevelDB records beside the files (**Bedrock world records**): the local player, other players, world records (portals, scoreboard, map data, villages) and each chunk's records (block entities, entities, pending ticks, sub-chunks and so on), named by dimension, chunk and kind, and searchable. NBT records open in the editor with every view and control, read as little-endian NBT; saving is refused with the reason. The reader (`design/packages/nbt/src/leveldb/`) reads both the write-ahead logs and the sorted tables (plain, Snappy, zlib or raw deflate blocks), keeps the newest value per key and drops deleted ones, and reports any file it cannot read.
+
 ## History
 
 Each project has its own small Git repository, kept under the application's data directory and never inside the world folder, so a world gains no `.git` and nothing that scans it changes.
@@ -115,7 +119,7 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 
 ## Not yet
 
-- Bedrock worlds store their data in LevelDB, not NBT files, so only a Bedrock `level.dat` and standalone NBT files open here.
+- Bedrock LevelDB records open read-only: saving one would mean writing LevelDB, which is not built. Records holding several NBT compounds show the first; the rest is kept as trailing bytes.
 - Undo keeps whole-tree snapshots: at most 100 steps, fewer for a very large chunk (about 1.5 million tags in total across the stack).
 - Running servers on another machine are not detected; only this computer's `session.lock` and its managed servers are.
 
@@ -183,3 +187,7 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 ### Chunk 檢視
 
 由 region 畫布打開嘅 chunk 會直接去 **Chunk**：16 乘 16 嘅圖，西至東、北至南，有四層。**Height**（高度）讀揀咗嘅 heightmap，按每條柱嘅地面 Y 上色。**Biome**（生態域）、**Blocks**（方塊）同 **Light**（光）讀滑桿嗰個高度嘅 section：生態域每 4 格一格、方塊按調色盤上色、方塊光由 0 到 15。每格都有讀得出嘅名（「x 7, z 2: Stone」）。側邊列出呢個 chunk 嘅方塊實體（箱、告示牌、生怪籠）同佢哋嘅位置，仲有生成步驟。1.17 之後生物同物品喺 entities 資料夾嘅 region 檔，打開嗰個 region 先改得。數值照舊喺樹同表格度改，每次編輯同還原之後幅圖都會重新讀。
+
+### Bedrock 世界
+
+揀一個 Bedrock 世界資料夾，檔案隔籬會列出佢 LevelDB 入面嘅紀錄（**Bedrock world records**）：本機玩家、其他玩家、世界紀錄（傳送門、計分板、地圖、村莊）同每個 chunk 嘅紀錄，按維度、chunk 同種類命名，可以搜尋。NBT 紀錄會用 little-endian 打開，所有檢視同控制項都用得；儲存會被拒絕並講明原因（寫 LevelDB 未做）。讀取器讀 log 同排序表（無壓縮、Snappy、zlib 或 raw deflate），每個鍵取最新值、刪咗嘅唔顯示，讀唔到嘅檔案會講出嚟。

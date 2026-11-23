@@ -29,7 +29,18 @@ export interface NodeView {
 
 export type DocumentLocation =
     | { readonly kind: "file" }
-    | { readonly kind: "chunk"; readonly regionPath: string; readonly index: number; readonly x: number; readonly z: number };
+    | { readonly kind: "chunk"; readonly regionPath: string; readonly index: number; readonly x: number; readonly z: number }
+    /** A record in a Bedrock world's LevelDB, opened read-only. */
+    | { readonly kind: "bedrock"; readonly key: string; readonly label: string };
+
+/** One record in a Bedrock world's database, as listed for opening. */
+export interface BedrockRecord {
+    readonly key: string;
+    readonly label: string;
+    readonly group: "chunk" | "player" | "world" | "entity" | "other";
+    readonly nbt: boolean;
+    readonly size: number;
+}
 
 export interface DocumentInfo {
     readonly docId: string;

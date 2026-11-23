@@ -2596,6 +2596,8 @@ interface WorldlensBridge {
         inferProject(...args: unknown[]): Promise<unknown>;
         worldStatus(...args: unknown[]): Promise<unknown>;
         listChunks(...args: unknown[]): Promise<unknown>;
+        listBedrock(...args: unknown[]): Promise<unknown>;
+        openBedrockRecord(...args: unknown[]): Promise<unknown>;
         pickFile(...args: unknown[]): Promise<unknown>;
         openFile(...args: unknown[]): Promise<unknown>;
         openChunk(...args: unknown[]): Promise<unknown>;

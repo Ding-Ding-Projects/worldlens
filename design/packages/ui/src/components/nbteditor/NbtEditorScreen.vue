@@ -15,6 +15,7 @@ import NbtMapCanvas from "./NbtMapCanvas.vue";
 import NbtInventoryView from "./NbtInventoryView.vue";
 import NbtStructureView from "./NbtStructureView.vue";
 import NbtChunkView from "./NbtChunkView.vue";
+import NbtBedrockPanel from "./NbtBedrockPanel.vue";
 import { createNbtEditorState, type NbtEditorState } from "./nbtEditorState.js";
 import type { TagAction } from "./nbtEditorModel.js";
 import { nbtEditorBridge, type ArrayEdit, type NbtEditorBridge, type TagKind } from "./nbtEditorBridge.js";
@@ -449,8 +450,8 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
         </v-tabs>
 
         <div class="wl-nbt-body" :class="{ 'is-narrow': narrow }">
+            <div v-show="!narrow || pane === 'files'" class="wl-nbt-left">
             <nbt-files-panel
-                v-show="!narrow || pane === 'files'"
                 :listing="editor.listing.value"
                 :open-path="openRelative"
                 :chunk-list="editor.chunks.value"
@@ -462,6 +463,15 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                 @open-chunk="openChunk"
                 @pick-file="pickFile"
             />
+            <nbt-bedrock-panel
+                v-if="editor.bedrock.value"
+                class="wl-nbt-bedrock"
+                :records="editor.bedrock.value.records"
+                :problems="editor.bedrock.value.problems"
+                :open-key="doc?.location.kind === 'bedrock' ? doc.location.key : null"
+                @open="(key: string) => guarded(() => void editor?.openBedrockRecord(key).then(() => (pane = 'tree')))"
+            />
+            </div>
 
             <div v-show="!narrow || pane === 'tree'" class="wl-nbt-center">
                 <div v-if="!doc && !(view === 'region' && editor.chunks.value)" class="wl-nbt-empty">
@@ -635,6 +645,7 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
 .wl-nbt-notice { flex: none; }
 .wl-nbt-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 240px minmax(0, 1fr) 320px; gap: 16px; }
 .wl-nbt-body.is-narrow { grid-template-columns: minmax(0, 1fr); }
+.wl-nbt-left { display: flex; flex-direction: column; gap: 16px; min-width: 0; min-height: 0; overflow: auto; }
 .wl-nbt-center { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .wl-nbt-empty { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 24px; border: 2px dashed rgba(var(--v-theme-on-surface), 0.2); border-radius: 16px; color: rgb(var(--v-theme-on-surface-variant)); }
 .wl-nbt-foot { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 12px; color: rgb(var(--v-theme-on-surface-variant)); }

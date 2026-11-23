@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, readdir, stat } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { lz4BlockCompress, lz4BlockDecompress } from "@worldlens/engine";
 import {
@@ -8,8 +8,10 @@ import {
     decompressPayload,
     diffTrees,
     externalChunkName,
+    describeBedrockKey,
     listRegionChunks,
     parseNbtPayload,
+    readLevelDb,
     readNbtFile,
     regionCoordinates,
     storedRegionChunk,
@@ -31,6 +33,7 @@ import type {
     ChildrenPage,
     ChunkListing,
     DiffOutcome,
+    BedrockRecord,
     DocumentInfo,
     DocumentLocation,
     EditOperation,
@@ -173,6 +176,80 @@ export class NbtEditorService {
     async listChunks(path: string): Promise<ChunkListing> {
         const bytes = await this.readBounded(path);
         return { path, chunks: listRegionChunks(bytes, REGION_SUPPORT) };
+    }
+
+    /* ------------------------------------------------------------ Bedrock */
+
+    /** Reads a Bedrock world's `db` folder (tables and logs) into memory, newest value per key. */
+    private async bedrockEntries(
+        worldDir: string,
+    ): Promise<{ entries: { key: Uint8Array; value: Uint8Array }[]; problems: string[] }> {
+        const db = join(resolve(worldDir), "db");
+        const names = await readdir(db).catch(() => null);
+        if (names === null)
+            throw new NbtEditorRefusal(
+                "That folder has no db folder, so it is not a Bedrock world.",
+            );
+        const files = new Map<string, Uint8Array>();
+        let total = 0;
+        for (const name of names) {
+            if (!/\.(ldb|sst|log)$/i.test(name)) continue;
+            const bytes = await this.readBounded(join(db, name));
+            total += bytes.length;
+            if (total > MAX_FILE_BYTES)
+                throw new NbtEditorRefusal(
+                    "That Bedrock world's database is larger than 1 GB, which this editor does not open.",
+                );
+            files.set(name, bytes);
+        }
+        return readLevelDb(files);
+    }
+
+    async listBedrock(worldDir: string): Promise<{ records: BedrockRecord[]; problems: string[] }> {
+        const { entries, problems } = await this.bedrockEntries(worldDir);
+        const records = entries.map((e) => {
+            const d = describeBedrockKey(e.key);
+            return {
+                key: Buffer.from(e.key).toString("hex"),
+                label: d.label,
+                group: d.group,
+                nbt: d.nbt,
+                size: e.value.length,
+            };
+        });
+        return { records, problems };
+    }
+
+    /** Opens one NBT record read-only. Several concatenated compounds open as a list. */
+    async openBedrockRecord(worldDir: string, keyHex: string): Promise<DocumentInfo> {
+        if (!/^([0-9a-f]{2}){1,512}$/.test(keyHex))
+            throw new NbtEditorRefusal("That is not a Bedrock record key.");
+        const { entries } = await this.bedrockEntries(worldDir);
+        const found = entries.find((e) => Buffer.from(e.key).toString("hex") === keyHex);
+        if (found === undefined)
+            throw new NbtEditorRefusal("That record is no longer in the world.");
+        const label = describeBedrockKey(found.key).label;
+        const parsed = parseNbtPayload(found.value, "little");
+        const doc: NbtDocument = {
+            root: parsed.root,
+            endianness: "little",
+            compression: "none",
+            bedrockHeader: null,
+            trailing: parsed.trailing,
+            nextId: parsed.nextId,
+        };
+        const projectDir = resolve(worldDir);
+        return this.register({
+            session: new EditorSession(doc),
+            path: join(projectDir, "db"),
+            projectDir,
+            relativePath: "db",
+            location: { kind: "bedrock", key: keyHex, label },
+            historyPath: `db/${keyHex}`,
+            compressionType: 0,
+            signature: "",
+            subject: label,
+        });
     }
 
     private async readBounded(path: string): Promise<Uint8Array> {
@@ -383,6 +460,10 @@ export class NbtEditorService {
         backup: boolean,
         produce: () => { file: Uint8Array | null; chunk: Uint8Array | null },
     ): Promise<Omit<SaveOutcome, "state">> {
+        if (entry.location.kind === "bedrock")
+            throw new NbtEditorRefusal(
+                "Bedrock records open read-only for now: saving would mean writing LevelDB, which this editor does not do yet.",
+            );
         const live = await this.worldInUse(entry.projectDir);
         if (live !== null) throw new NbtEditorRefusal(live);
         const signature = await fileSignature(entry.path).catch(() => null);

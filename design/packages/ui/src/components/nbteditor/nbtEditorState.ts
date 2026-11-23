@@ -19,6 +19,7 @@ import type {
     NbtChange,
     NbtEditorBridge,
     NodeView,
+    BedrockRecord,
     ProjectListing,
     RegionChunk,
     SearchOutcome,
@@ -133,13 +134,23 @@ export function createNbtEditorState(bridge: NbtEditorBridge) {
         if (status !== null) world.value = status;
     }
 
+    /** A Bedrock world's records (LevelDB), listed when the chosen folder has a `db` folder. */
+    const bedrock = ref<{ records: readonly BedrockRecord[]; problems: readonly string[] } | null>(null);
+
     async function openProject(dir: string): Promise<void> {
         const result = await ask(bridge.listProject(dir));
         if (result === null) return;
         projectDir.value = result.projectDir;
         listing.value = result;
         chunks.value = null;
+        bedrock.value = null;
         await refreshWorld(result.projectDir);
+        // A Bedrock world keeps its chunks and players in LevelDB; list them when there is one.
+        // A Java world simply has no db folder, which is not worth a notice.
+        if (bridge.listBedrock !== undefined) {
+            const answer = await bridge.listBedrock(result.projectDir).catch(() => null);
+            if (answer?.ok === true && answer.value.records.length > 0) bedrock.value = answer.value;
+        }
     }
 
     async function openFile(relativeOrAbsolute: string, absolute = false): Promise<void> {
@@ -180,6 +191,26 @@ export function createNbtEditorState(bridge: NbtEditorBridge) {
         busy.value = true;
         try {
             const info = await ask(bridge.openChunk(joinPath(dir, relativePath), index, { projectDir: dir }));
+            if (info !== null) await adopt(info);
+        } finally {
+            busy.value = false;
+        }
+    }
+
+
+    async function showBedrock(): Promise<void> {
+        const dir = projectDir.value;
+        if (dir === null || bridge.listBedrock === undefined) return;
+        const result = await ask(bridge.listBedrock(dir));
+        if (result !== null) bedrock.value = result;
+    }
+
+    async function openBedrockRecord(key: string): Promise<void> {
+        const dir = projectDir.value;
+        if (dir === null || bridge.openBedrockRecord === undefined) return;
+        busy.value = true;
+        try {
+            const info = await ask(bridge.openBedrockRecord(dir, key));
             if (info !== null) await adopt(info);
         } finally {
             busy.value = false;
@@ -482,6 +513,9 @@ export function createNbtEditorState(bridge: NbtEditorBridge) {
         projectDir,
         listing,
         chunks,
+        bedrock,
+        showBedrock,
+        openBedrockRecord,
         world,
         backupBeforeSave,
         query,

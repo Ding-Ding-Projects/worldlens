@@ -475,6 +475,8 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "nbtEditor:inferProject",
     "nbtEditor:worldStatus",
     "nbtEditor:listChunks",
+    "nbtEditor:listBedrock",
+    "nbtEditor:openBedrockRecord",
     "nbtEditor:pickFile",
     "nbtEditor:openFile",
     "nbtEditor:openChunk",

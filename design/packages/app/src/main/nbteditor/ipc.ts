@@ -18,6 +18,8 @@ export const NBT_EDITOR_CHANNELS = [
     "nbtEditor:inferProject",
     "nbtEditor:worldStatus",
     "nbtEditor:listChunks",
+    "nbtEditor:listBedrock",
+    "nbtEditor:openBedrockRecord",
     "nbtEditor:pickFile",
     "nbtEditor:openFile",
     "nbtEditor:openChunk",
@@ -116,6 +118,8 @@ export function registerNbtEditorHandlers(
     handle("nbtEditor:inferProject", (file) => service.inferProject(text(file, "The file")));
     handle("nbtEditor:worldStatus", (dir) => service.worldStatus(text(dir, "The project folder")));
     handle("nbtEditor:listChunks", (file) => service.listChunks(text(file, "The region file")));
+    handle("nbtEditor:listBedrock", (dir) => service.listBedrock(text(dir, "The Bedrock world folder")));
+    handle("nbtEditor:openBedrockRecord", (dir, key) => service.openBedrockRecord(text(dir, "The Bedrock world folder"), text(key, "The record key")));
     handle("nbtEditor:pickFile", () => options.pickFile());
     handle("nbtEditor:openFile", (file, extra) => {
         const o = extra === undefined ? {} : record(extra);

@@ -34,7 +34,8 @@ export interface NodeView {
 
 export type DocumentLocation =
     | { readonly kind: "file" }
-    | { readonly kind: "chunk"; readonly regionPath: string; readonly index: number; readonly x: number; readonly z: number };
+    | { readonly kind: "chunk"; readonly regionPath: string; readonly index: number; readonly x: number; readonly z: number }
+    | { readonly kind: "bedrock"; readonly key: string; readonly label: string };
 
 export interface DocumentState {
     readonly dirty: boolean;
@@ -80,6 +81,14 @@ export interface RegionChunk {
     readonly timestamp: number;
     readonly readable: boolean;
     readonly unsupported: string | null;
+}
+
+export interface BedrockRecord {
+    readonly key: string;
+    readonly label: string;
+    readonly group: "chunk" | "player" | "world" | "entity" | "other";
+    readonly nbt: boolean;
+    readonly size: number;
 }
 
 export interface ChildrenPage {
@@ -179,6 +188,9 @@ export interface NbtEditorBridge {
     inferProject(file: string): Promise<Answer<string>>;
     worldStatus(projectDir: string): Promise<Answer<{ writable: boolean; reason: string | null }>>;
     listChunks(file: string): Promise<Answer<{ path: string; chunks: readonly RegionChunk[] }>>;
+    /** A Bedrock world's records, read from its LevelDB `db` folder. Absent in older builds. */
+    listBedrock?(worldDir: string): Promise<Answer<{ records: readonly BedrockRecord[]; problems: readonly string[] }>>;
+    openBedrockRecord?(worldDir: string, key: string): Promise<Answer<DocumentInfo>>;
     pickFile(): Promise<Answer<string | null>>;
     openFile(file: string, options?: { projectDir?: string; endianness?: "big" | "little" }): Promise<Answer<DocumentInfo>>;
     openChunk(file: string, index: number, options?: { projectDir?: string }): Promise<Answer<DocumentInfo>>;

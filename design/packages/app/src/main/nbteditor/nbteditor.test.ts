@@ -11,6 +11,7 @@ import {
     readRegionChunk,
     toSnbt,
     writeNbtFile,
+    writeNbtPayload,
     type NbtDocument,
 } from "@worldlens/nbt";
 import { lz4BlockCompress, lz4BlockDecompress } from "@worldlens/engine";
@@ -632,5 +633,69 @@ describe("channels", () => {
             ok: false,
             message: "busy",
         });
+    });
+});
+
+describe("Bedrock worlds", () => {
+    /** One log record putting each key and value, the way Bedrock's LevelDB writes them. */
+    function logWith(puts: [Uint8Array, Uint8Array][]): Uint8Array {
+        const varint = (n: number): number[] => {
+            const out: number[] = [];
+            while (n >= 0x80) {
+                out.push((n & 0x7f) | 0x80);
+                n >>>= 7;
+            }
+            out.push(n);
+            return out;
+        };
+        const head = Buffer.alloc(12);
+        head.writeBigUInt64LE(1n);
+        head.writeUInt32LE(puts.length, 8);
+        const body = Buffer.from(
+            puts.flatMap(([k, v]) => [1, ...varint(k.length), ...k, ...varint(v.length), ...v]),
+        );
+        const batch = Buffer.concat([head, body]);
+        const header = Buffer.alloc(7);
+        header.writeUInt16LE(batch.length, 4);
+        header[6] = 1;
+        return new Uint8Array(Buffer.concat([header, batch]));
+    }
+
+    it("lists a Bedrock world's records and opens an NBT one read-only", async () => {
+        const bedrock = join(scratch, "bedrock-world");
+        await mkdir(join(bedrock, "db"), { recursive: true });
+        const player = documentFrom("{Health:20.0f,PlayerLevel:7}");
+        const value = writeNbtPayload(player.root, "little");
+        await writeFile(
+            join(bedrock, "db", "000003.log"),
+            logWith([[new TextEncoder().encode("~local_player"), value]]),
+        );
+
+        const { records, problems } = await service.listBedrock(bedrock);
+        expect(problems).toEqual([]);
+        expect(records).toEqual([
+            {
+                key: Buffer.from("~local_player").toString("hex"),
+                label: "Local player",
+                group: "player",
+                nbt: true,
+                size: value.length,
+            },
+        ]);
+
+        const doc = await service.openBedrockRecord(bedrock, records[0]!.key);
+        expect(doc.location).toEqual({
+            kind: "bedrock",
+            key: records[0]!.key,
+            label: "Local player",
+        });
+        expect(doc.endianness).toBe("little");
+        const level = (await service.children(doc.docId, doc.root.id, 0, 10)).nodes.find(
+            (n) => n.name === "PlayerLevel",
+        );
+        expect(level?.text).toBe("7");
+        service.edit(doc.docId, { op: "setValue", id: level!.id, text: "8" });
+        await expect(service.save(doc.docId)).rejects.toThrow(/read-only/);
+        await expect(service.listBedrock(world)).rejects.toThrow(/not a Bedrock world/);
     });
 });

@@ -1213,6 +1213,8 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             inferProject: (...args: unknown[]) => transport.invoke("nbtEditor:inferProject", ...args),
             worldStatus: (...args: unknown[]) => transport.invoke("nbtEditor:worldStatus", ...args),
             listChunks: (...args: unknown[]) => transport.invoke("nbtEditor:listChunks", ...args),
+            listBedrock: (...args: unknown[]) => transport.invoke("nbtEditor:listBedrock", ...args),
+            openBedrockRecord: (...args: unknown[]) => transport.invoke("nbtEditor:openBedrockRecord", ...args),
             pickFile: (...args: unknown[]) => transport.invoke("nbtEditor:pickFile", ...args),
             openFile: (...args: unknown[]) => transport.invoke("nbtEditor:openFile", ...args),
             openChunk: (...args: unknown[]) => transport.invoke("nbtEditor:openChunk", ...args),

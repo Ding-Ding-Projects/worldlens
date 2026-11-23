@@ -9,7 +9,7 @@ export const nbtEditor: Article = {
     category: "application",
     status: "ported-unverified",
     statusNote:
-        "On the default branch and driven in the built application on 2026-11-23: a real level.dat was opened, a value changed, saved, and recorded as a new commit beside its baseline. LZ4 and external (.mcc) chunks open; chunks also show height, biome, block and light layers. Bedrock LevelDB worlds are not supported.",
+        "On the default branch and driven in the built application on 2026-11-23: a real level.dat was opened, a value changed, saved, and recorded as a new commit beside its baseline. LZ4 and external (.mcc) chunks open; chunks also show height, biome, block and light layers. Bedrock worlds list their LevelDB records, and NBT records open read-only.",
     sections: [
         {
             id: "behaviour",
