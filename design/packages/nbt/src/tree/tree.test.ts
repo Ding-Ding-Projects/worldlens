@@ -9,6 +9,10 @@ import {
     diffTrees,
     indexTree,
     listRegionChunks,
+    storedRegionChunk,
+    writeStoredRegionChunk,
+    externalChunkName,
+    MAX_INLINE_CHUNK_BYTES,
     parseNbtPayload,
     parseScalarText,
     parseSnbt,
@@ -61,11 +65,9 @@ describe("binary codec", () => {
     it("parses a hand-assembled file (independent of the writer)", () => {
         // compound "" { byte "a" = 7, string "s" = "hi", int-list "l" = [1, 2] }
         const bytes = Uint8Array.from([
-            0x0a, 0x00, 0x00,
-            0x01, 0x00, 0x01, 0x61, 0x07,
-            0x08, 0x00, 0x01, 0x73, 0x00, 0x02, 0x68, 0x69,
-            0x09, 0x00, 0x01, 0x6c, 0x03, 0x00, 0x00, 0x00, 0x02, 0, 0, 0, 1, 0, 0, 0, 2,
-            0x00,
+            0x0a, 0x00, 0x00, 0x01, 0x00, 0x01, 0x61, 0x07, 0x08, 0x00, 0x01, 0x73, 0x00, 0x02,
+            0x68, 0x69, 0x09, 0x00, 0x01, 0x6c, 0x03, 0x00, 0x00, 0x00, 0x02, 0, 0, 0, 1, 0, 0, 0,
+            2, 0x00,
         ]);
         const doc = readNbtFile(bytes);
         expect(toSnbt(doc.root)).toBe('{a:7b,s:"hi",l:[1,2]}');
@@ -74,12 +76,31 @@ describe("binary codec", () => {
 
     it("preserves duplicate names, an empty list's declared type, and trailing bytes", () => {
         const bytes = Uint8Array.from([
-            0x0a, 0x00, 0x00,
-            0x01, 0x00, 0x01, 0x61, 0x01,
-            0x01, 0x00, 0x01, 0x61, 0x02,
-            0x09, 0x00, 0x01, 0x6c, 0x03, 0x00, 0x00, 0x00, 0x00, // empty list declared as ints
+            0x0a,
             0x00,
-            0xde, 0xad,
+            0x00,
+            0x01,
+            0x00,
+            0x01,
+            0x61,
+            0x01,
+            0x01,
+            0x00,
+            0x01,
+            0x61,
+            0x02,
+            0x09,
+            0x00,
+            0x01,
+            0x6c,
+            0x03,
+            0x00,
+            0x00,
+            0x00,
+            0x00, // empty list declared as ints
+            0x00,
+            0xde,
+            0xad,
         ]);
         const doc = readNbtFile(bytes);
         expect(doc.root.children!.map((c) => c.name)).toEqual(["a", "a", "l"]);
@@ -122,7 +143,9 @@ describe("binary codec", () => {
         });
         const bytes = writeNbtFile(doc);
         expect(bytes[0]).toBe(10);
-        expect(new DataView(bytes.buffer, bytes.byteOffset).getInt32(4, true)).toBe(bytes.length - 8);
+        expect(new DataView(bytes.buffer, bytes.byteOffset).getInt32(4, true)).toBe(
+            bytes.length - 8,
+        );
         const reread = readNbtFile(bytes);
         expect(reread.endianness).toBe("little");
         expect(reread.bedrockHeader).toEqual({ version: 10 });
@@ -131,9 +154,15 @@ describe("binary codec", () => {
     });
 
     it("rejects damaged data with a plain message", () => {
-        expect(() => readNbtFile(Uint8Array.from([0x0a, 0x00, 0x00, 0x01, 0x00]))).toThrow(NbtError);
+        expect(() => readNbtFile(Uint8Array.from([0x0a, 0x00, 0x00, 0x01, 0x00]))).toThrow(
+            NbtError,
+        );
         expect(() => readNbtFile(Uint8Array.from([0x01, 0x02, 0x03]))).toThrow(/compound/);
-        expect(() => parseNbtPayload(Uint8Array.from([0x0a, 0, 0, 0x09, 0, 1, 0x6c, 0x03, 0xff, 0xff, 0xff, 0xff, 0]))).toThrow(/negative/);
+        expect(() =>
+            parseNbtPayload(
+                Uint8Array.from([0x0a, 0, 0, 0x09, 0, 1, 0x6c, 0x03, 0xff, 0xff, 0xff, 0xff, 0]),
+            ),
+        ).toThrow(/negative/);
     });
 });
 
@@ -160,7 +189,9 @@ describe("SNBT", () => {
 
     it("accepts what people type: true/false, bare decimals, unquoted words, trailing commas", () => {
         const doc = emptyDoc();
-        expect(toSnbt(parseSnbt("{a:true,b:false,c:1.5,d:word,e:[1,2,],}", doc))).toBe("{a:1b,b:0b,c:1.5d,d:\"word\",e:[1,2]}");
+        expect(toSnbt(parseSnbt("{a:true,b:false,c:1.5,d:word,e:[1,2,],}", doc))).toBe(
+            '{a:1b,b:0b,c:1.5d,d:"word",e:[1,2]}',
+        );
     });
 
     it("refuses mixed lists, out-of-range numbers and stray text with a position", () => {
@@ -183,7 +214,9 @@ describe("SNBT", () => {
 
     it("pretty prints with indentation", () => {
         const doc = emptyDoc();
-        expect(toSnbt(parseSnbt("{a:{b:1},c:[1,2]}", doc), { indent: 2 })).toBe("{\n  a: {\n    b: 1\n  },\n  c: [\n    1,\n    2\n  ]\n}");
+        expect(toSnbt(parseSnbt("{a:{b:1},c:[1,2]}", doc), { indent: 2 })).toBe(
+            "{\n  a: {\n    b: 1\n  },\n  c: [\n    1,\n    2\n  ]\n}",
+        );
     });
 });
 
@@ -208,7 +241,8 @@ describe("typed values", () => {
 describe("editing", () => {
     const fresh = () => new TreeEditor(snbtDoc('{a:1,b:{c:"x",d:[1,2,3]},e:[B;1b,2b],f:5b}'));
     const byPath = (editor: TreeEditor, path: string): NbtNode => {
-        for (const [id] of editor.index) if (pathOf(editor.index, id) === path) return editor.index.get(id)!.node;
+        for (const [id] of editor.index)
+            if (pathOf(editor.index, id) === path) return editor.index.get(id)!.node;
         throw new Error(`no node at ${path}`);
     };
 
@@ -283,7 +317,9 @@ describe("editing", () => {
         expect(pathOf(editor.index, a.id)).toBe("b.a");
         expect(() => editor.move(b.id, byPath(editor, "b.c").id)).toThrow();
         expect(() => editor.move(b.id, b.id)).toThrow(/inside itself/);
-        expect(() => editor.move(byPath(editor, "f").id, byPath(editor, "b.d").id)).toThrow(/holds int/);
+        expect(() => editor.move(byPath(editor, "f").id, byPath(editor, "b.d").id)).toThrow(
+            /holds int/,
+        );
         const names = () => editor.doc.root.children!.map((c) => c.name);
         editor.nudge(byPath(editor, "f").id, -1);
         expect(names().indexOf("f")).toBe(names().indexOf("e") - 1);
@@ -331,9 +367,13 @@ describe("search", () => {
     });
 
     it("supports regular expressions and reports a bad one instead of throwing", () => {
-        expect(searchTree(root, { ...base, query: "^S.*n$", regex: true, values: false }).ids.length).toBe(1);
+        expect(
+            searchTree(root, { ...base, query: "^S.*n$", regex: true, values: false }).ids.length,
+        ).toBe(1);
         expect(searchTree(root, { ...base, query: "(", regex: true }).error).toMatch(/./);
-        expect(searchTree(root, { ...base, query: "x", regex: true, flags: "z" }).error).toMatch(/flags/);
+        expect(searchTree(root, { ...base, query: "x", regex: true, flags: "z" }).error).toMatch(
+            /flags/,
+        );
     });
 
     it("stops at its time budget and at its limit", () => {
@@ -366,8 +406,12 @@ describe("semantic diff", () => {
     it("is empty for identical trees and caps very large diffs", () => {
         const a = snbtDoc(EVERYTHING).root;
         expect(diffTrees(a, snbtDoc(EVERYTHING).root).changes).toEqual([]);
-        const big = snbtDoc(`{${Array.from({ length: 50 }, (_, i) => `k${i}:${i}`).join(",")}}`).root;
-        const other = snbtDoc(`{${Array.from({ length: 50 }, (_, i) => `k${i}:${i + 1}`).join(",")}}`).root;
+        const big = snbtDoc(
+            `{${Array.from({ length: 50 }, (_, i) => `k${i}:${i}`).join(",")}}`,
+        ).root;
+        const other = snbtDoc(
+            `{${Array.from({ length: 50 }, (_, i) => `k${i}:${i + 1}`).join(",")}}`,
+        ).root;
         const capped = diffTrees(big, other, 10);
         expect(capped.changes).toHaveLength(10);
         expect(capped.truncated).toBe(true);
@@ -383,7 +427,10 @@ describe("region files", () => {
         let next = 2;
         for (const [index, snbt] of Object.entries(chunks)) {
             const payload = writeNbtPayload(snbtDoc(snbt).root);
-            const doc = snbtDoc(snbt, { compression: compressionType === 1 ? "gzip" : compressionType === 2 ? "zlib" : "none" });
+            const doc = snbtDoc(snbt, {
+                compression:
+                    compressionType === 1 ? "gzip" : compressionType === 2 ? "zlib" : "none",
+            });
             const stored = writeNbtFile(doc);
             void payload;
             const total = 5 + stored.length;
@@ -424,9 +471,19 @@ describe("region files", () => {
         expect(toSnbt(doc.root)).toBe("{DataVersion:2}");
         const editor = new TreeEditor({ ...snbtDoc("{}"), root: doc.root, nextId: doc.nextId });
         editor.add(doc.root.id, "string", "added", "x");
-        const updated = replaceRegionChunk(region, 33, writeNbtPayload(doc.root), compressionType, 1800000000);
-        expect(toSnbt(parseNbtPayload(readRegionChunk(updated, 33).payload).root)).toBe('{DataVersion:2,added:"x"}');
-        expect(Array.from(readRegionChunk(updated, 0).payload)).toEqual(Array.from(readRegionChunk(region, 0).payload));
+        const updated = replaceRegionChunk(
+            region,
+            33,
+            writeNbtPayload(doc.root),
+            compressionType,
+            1800000000,
+        );
+        expect(toSnbt(parseNbtPayload(readRegionChunk(updated, 33).payload).root)).toBe(
+            '{DataVersion:2,added:"x"}',
+        );
+        expect(Array.from(readRegionChunk(updated, 0).payload)).toEqual(
+            Array.from(readRegionChunk(region, 0).payload),
+        );
         const before = listRegionChunks(region);
         const after = listRegionChunks(updated);
         expect(after.find((c) => c.index === 0)).toEqual(before.find((c) => c.index === 0));
@@ -441,8 +498,12 @@ describe("region files", () => {
         expect(moved.sector).toBeGreaterThanOrEqual(region.length / 4096);
         expect(moved.sectors).toBe(2);
         expect(updated.length % 4096).toBe(0);
-        expect(toSnbt(parseNbtPayload(readRegionChunk(updated, 1).payload).root)).toBe("{DataVersion:2}");
-        expect(parseNbtPayload(readRegionChunk(updated, 0).payload).root.children![0]!.value).toHaveLength(6000);
+        expect(toSnbt(parseNbtPayload(readRegionChunk(updated, 1).payload).root)).toBe(
+            "{DataVersion:2}",
+        );
+        expect(
+            parseNbtPayload(readRegionChunk(updated, 0).payload).root.children![0]!.value,
+        ).toHaveLength(6000);
     });
 
     it("says why an unsupported chunk cannot be opened", () => {
@@ -460,5 +521,41 @@ describe("indexing", () => {
         const index = indexTree(doc.root);
         const c = [...index.values()].find((l) => l.node.name === "c")!;
         expect(pathOf(index, c.node.id)).toBe("a.b[1].c");
+    });
+});
+
+describe("region support for LZ4 and external chunks", () => {
+    function slot(type: number, body: Uint8Array): Uint8Array {
+        const header = new Uint8Array(8192);
+        new DataView(header.buffer).setUint32(0, (2 << 8) | 1, false);
+        const sector = new Uint8Array(4096);
+        new DataView(sector.buffer).setUint32(0, body.length + 1, false);
+        sector[4] = type;
+        sector.set(body, 5);
+        const out = new Uint8Array(8192 + 4096);
+        out.set(header);
+        out.set(sector, 8192);
+        return out;
+    }
+
+    it("marks LZ4 and .mcc chunks unreadable unless the caller supports them", () => {
+        const lz4 = slot(4, new Uint8Array([1, 2, 3]));
+        expect(listRegionChunks(lz4)[0]!.unsupported).toMatch(/LZ4/);
+        expect(listRegionChunks(lz4, { lz4: true })[0]!.readable).toBe(true);
+        const external = slot(2 | 0x80, new Uint8Array(0));
+        expect(listRegionChunks(external)[0]!.unsupported).toMatch(/\.mcc/);
+        expect(listRegionChunks(external, { external: true })[0]!.readable).toBe(true);
+        expect(storedRegionChunk(external, 0)).toMatchObject({
+            compressionType: 130,
+            external: true,
+        });
+    });
+
+    it("names the .mcc file from the region and slot, and writes stored bytes back", () => {
+        expect(externalChunkName(-1, 2, 33)).toBe("c.-31.65.mcc");
+        const region = slot(4, new Uint8Array([9, 9]));
+        const out = writeStoredRegionChunk(region, 0, new Uint8Array([7, 7, 7]), 4, 42);
+        expect(Array.from(storedRegionChunk(out, 0).stored)).toEqual([7, 7, 7]);
+        expect(MAX_INLINE_CHUNK_BYTES).toBe(255 * 4096 - 5);
     });
 });

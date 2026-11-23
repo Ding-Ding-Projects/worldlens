@@ -56,6 +56,10 @@ It reads a classic `level.dat` from its `Data` group, and any other file from it
 
 Showing a region file's chunks also switches the centre to **Region**: the region's 32 by 32 chunk slots as a picture, shaded by **Stored size**, **Last saved** or **Compression**. Empty slots are outlined and chunks the editor cannot open are hatched, so colour is never the only signal. Picking a chunk shows its block range, size, last save and compression (an external `.mcc` chunk says so); **Open this chunk**, or a double-click, opens it in the tree or form. The grid is one tab stop: the arrow keys move, Home and End jump along a row, and Enter picks.
 
+### LZ4 and external chunks
+
+Region chunks compressed with LZ4 (compression byte 4, the lz4-java block stream) open and save as LZ4. A chunk too large for its region file lives in `c.<x>.<z>.mcc` beside it, with 128 added to its compression byte; it opens from that file, and a save that makes a chunk too large moves it there the way the game does (the `.mcc` file is written before the region that points at it). A chunk that shrinks back under the limit is written inline again; the old `.mcc` file is left in place, unread. A missing `.mcc` file is named in the refusal.
+
 ### Keyboard
 
 The tree follows the ARIA tree pattern: <kbd>Up</kbd> and <kbd>Down</kbd> move, <kbd>Right</kbd> opens a branch or steps into it, <kbd>Left</kbd> closes it or steps to the parent, <kbd>Home</kbd> and <kbd>End</kbd> jump, <kbd>Enter</kbd> or <kbd>F2</kbd> edits (a branch opens or closes, an array opens its grid), <kbd>Delete</kbd> removes, <kbd>Ctrl</kbd>+<kbd>C</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> copy and paste a tag as SNBT. <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> and <kbd>Ctrl</kbd>+<kbd>S</kbd> undo, redo and save.
@@ -91,8 +95,6 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 
 ## Not yet
 
-- LZ4-compressed region chunks (Minecraft 24w04a and later can store them) are listed and explained but not opened.
-- Chunks stored in a separate `.mcc` file are listed and explained but not opened.
 - Bedrock worlds store their data in LevelDB, not NBT files, so only a Bedrock `level.dat` and standalone NBT files open here.
 - Undo keeps whole-tree snapshots: at most 100 steps, fewer for a very large chunk (about 1.5 million tags in total across the stack).
 - Running servers on another machine are not detected; only this computer's `session.lock` and its managed servers are.
@@ -117,7 +119,7 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 - **歷史:** 每個專案有自己細細個 Git 倉庫,擺喺程式資料夾入面,唔會喺世界資料夾入面生 `.git`。**儲存並記錄** 可以寫訊息(會按真實改動建議預設訊息,例如 `Edit Data.SpawnX in level.dat`),並列出會寫乜。一個檔案第一次儲存會連同「第一次打開時嘅原狀」一齊記,所以第一個改動都還原得。**比較** 係語義比較,`Data.SpawnX: 128 -> 256`,唔係邊啲 byte 郁咗;**同而家比較** 就拎某個版本同開住嘅文件比。**還原** 係將舊版本當新一條記錄寫返,歷史永遠唔會被改寫,所以還原都可以再還原。整個 `.dat` 或 `.nbt` 照磁碟原樣存;chunk 就存佢自己未壓縮嘅 NBT,咁歷史同比較淨係關呢個 chunk 事,唔會拖埋成個 region。
 - **安全:** 受管伺服器行緊個世界,或者 `session.lock` 鎖住(Windows 真係鎖,其他系統只係建議,所以程式亦會傳入自己伺服器嘅資料夾),就唔准儲存同還原,會講原因,改動留喺編輯器,伺服器停咗再存。儲存前預設備份(可以關),保留每個檔案最近十個。寫檔先寫臨時檔再改名,當機都唔會得半個檔。開咗之後磁碟上面嘅檔案變咗,唔會蓋過去,要重新開。未儲存嘅改動,開第二樣之前會問。冇改過嘅檔案永遠唔會被重寫,儲存掣要有改動先用得。沒改嘅讀寫喺 NBT 內容層面逐 byte 一樣,包括重複名、空列表宣告嘅類型、NaN、唔係有效文字嘅字串同根後面多出嘅 byte;壓縮會按原本包裝重做,但壓縮器可能揀唔同 byte,所以改過嘅檔案壓縮後 byte 可能唔同,入面資料就一樣。
 - **版面:** 闊嘅視窗並排顯示檔案、標籤、歷史;720 px 或以下三格變成分頁,手機唔會少咗功能;行高同欄位、開關變大啲方便撳;尊重減少動態設定;每個控制項有名、焦點框同鍵盤路徑。
-- **未做:** LZ4 壓縮嘅 chunk 同擺喺 `.mcc` 嘅 chunk 會列出同講明原因,但未開得;Bedrock 世界用 LevelDB,所以淨係開到 Bedrock `level.dat` 同獨立 NBT 檔;復原最多 100 步,好大嘅 chunk 少啲;唔會偵測其他電腦上面行緊嘅伺服器。
+- **未做:** Bedrock 世界用 LevelDB,所以淨係開到 Bedrock `level.dat` 同獨立 NBT 檔;復原最多 100 步,好大嘅 chunk 少啲;唔會偵測其他電腦上面行緊嘅伺服器。
 - **驗證:** `tree.test.ts` 33 個測試、`nbteditor.test.ts` 23 個測試(用真嘅暫存世界同真嘅 Git)、介面 27 個測試。未做:喺建好嘅桌面程式入面行過,主程序接線同 preload 橋仲係另一步,亦未有建好介面嘅截圖。
 
 ### 設定表格
@@ -129,6 +131,10 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 ### Region 畫布
 
 列出 region 檔案嘅 chunk 時，中間會轉去 **Region**：成個 region 32×32 個 chunk 位畫成一幅圖，可以按 **儲存大小**、**最後儲存** 或者 **壓縮** 上色。空位用框，開唔到嘅 chunk 用斜線，所以唔止靠顏色。揀一個 chunk 會顯示方塊範圍、大小、最後儲存同壓縮（放喺 `.mcc` 外部檔會講明）；**Open this chunk** 或者雙擊就喺樹或者表格打開。成個格仔係一個 tab 位：方向鍵移動，Home、End 跳去行頭行尾，Enter 揀。
+
+### LZ4 同外部 chunk
+
+用 LZ4 壓縮嘅 region chunk（壓縮位元組 4，lz4-java 區塊串流）開得、存返都係 LZ4。太大放唔入 region 檔嘅 chunk 會放喺隔籬嘅 `c.<x>.<z>.mcc`，壓縮位元組加 128；會由嗰個檔開，存檔時變得太大就好似遊戲咁搬過去（先寫 `.mcc`，再寫指住佢嘅 region）。縮返細過上限就寫返入 region，舊 `.mcc` 留低唔讀。`.mcc` 唔見咗會講明係邊個檔。
 
 ### 講人話嘅名同專屬控制項
 

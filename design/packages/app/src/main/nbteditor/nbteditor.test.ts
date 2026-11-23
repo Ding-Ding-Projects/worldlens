@@ -13,6 +13,8 @@ import {
     writeNbtFile,
     type NbtDocument,
 } from "@worldlens/nbt";
+import { lz4BlockCompress, lz4BlockDecompress } from "@worldlens/engine";
+import { storedRegionChunk } from "@worldlens/nbt";
 import { NBT_EDITOR_CHANNELS, registerNbtEditorHandlers } from "./ipc.js";
 import { chunkHistoryPath, projectKey } from "./history.js";
 import { combineWorldChecks, probeSessionLock } from "./safety.js";
@@ -67,7 +69,8 @@ let historyRoot: string;
 let inUse: string | null;
 let service: NbtEditorService;
 
-const LEVEL = "{Data:{LevelName:\"Example survival\",SpawnX:128,SpawnY:71,SpawnZ:-112,allowCommands:0b,GameRules:{doDaylightCycle:1b},Pos:[1.0d,2.0d,3.0d]}}";
+const LEVEL =
+    '{Data:{LevelName:"Example survival",SpawnX:128,SpawnY:71,SpawnZ:-112,allowCommands:0b,GameRules:{doDaylightCycle:1b},Pos:[1.0d,2.0d,3.0d]}}';
 
 beforeEach(async () => {
     scratch = await mkdtemp(join(tmpdir(), "worldlens-nbt-"));
@@ -77,8 +80,14 @@ beforeEach(async () => {
     await mkdir(join(world, "playerdata"), { recursive: true });
     await mkdir(join(world, "region"), { recursive: true });
     await writeFile(join(world, "level.dat"), writeNbtFile(documentFrom(LEVEL)));
-    await writeFile(join(world, "playerdata", "abc.dat"), writeNbtFile(documentFrom("{Health:20.0f}")));
-    await writeFile(join(world, "region", "r.0.0.mca"), regionWith({ 0: "{DataVersion:1,Status:\"full\"}", 33: "{DataVersion:2}" }));
+    await writeFile(
+        join(world, "playerdata", "abc.dat"),
+        writeNbtFile(documentFrom("{Health:20.0f}")),
+    );
+    await writeFile(
+        join(world, "region", "r.0.0.mca"),
+        regionWith({ 0: '{DataVersion:1,Status:"full"}', 33: "{DataVersion:2}" }),
+    );
     service = new NbtEditorService({ historyRoot, worldInUse: () => inUse });
 });
 
@@ -104,7 +113,11 @@ function nodeNamed(info: DocumentInfo, service_: NbtEditorService, path: string[
 describe("opening", () => {
     it("lists the world's NBT files and region files", async () => {
         const listing = await service.listProject(world);
-        expect(listing.files.map((f) => f.relativePath)).toEqual(["level.dat", "playerdata/abc.dat", "region/r.0.0.mca"]);
+        expect(listing.files.map((f) => f.relativePath)).toEqual([
+            "level.dat",
+            "playerdata/abc.dat",
+            "region/r.0.0.mca",
+        ]);
         expect(listing.files[2]!.kind).toBe("region");
     });
 
@@ -114,11 +127,18 @@ describe("opening", () => {
         expect(info.compression).toBe("gzip");
         expect(info.endianness).toBe("big");
         expect(info.historyPath).toBe("playerdata/abc.dat");
-        expect(info.state).toEqual({ dirty: false, canUndo: false, canRedo: false, changeCount: 0 });
+        expect(info.state).toEqual({
+            dirty: false,
+            canUndo: false,
+            canRedo: false,
+            changeCount: 0,
+        });
     });
 
     it("refuses to open a region file as a whole and lists its chunks instead", async () => {
-        await expect(service.openFile(join(world, "region", "r.0.0.mca"))).rejects.toThrow(/Choose one of its chunks/);
+        await expect(service.openFile(join(world, "region", "r.0.0.mca"))).rejects.toThrow(
+            /Choose one of its chunks/,
+        );
         const listing = await service.listChunks(join(world, "region", "r.0.0.mca"));
         expect(listing.chunks.map((c) => [c.x, c.z])).toEqual([
             [0, 0],
@@ -136,14 +156,19 @@ describe("saving with history", () => {
         expect(edited.state.changeCount).toBe(1);
         expect(service.defaultMessage(info.docId)).toBe("Edit Data.SpawnX in level.dat");
 
-        const saved = await service.save(info.docId, { message: "Move spawn to the village square" });
+        const saved = await service.save(info.docId, {
+            message: "Move spawn to the village square",
+        });
         expect(saved.commit?.message).toBe("Move spawn to the village square");
         expect(saved.state.dirty).toBe(false);
         expect(saved.backupPath).not.toBeNull();
         expect(toSnbt((await onDisk("level.dat")).root)).toContain("SpawnX:256");
 
         const history = await service.listHistory(world, "level.dat");
-        expect(history.map((h) => h.message)).toEqual(["Move spawn to the village square", "Baseline: level.dat as first opened"]);
+        expect(history.map((h) => h.message)).toEqual([
+            "Move spawn to the village square",
+            "Baseline: level.dat as first opened",
+        ]);
         expect(history[0]!.files).toEqual(["level.dat"]);
         expect(await readdir(join(historyRoot, projectKey(world), "backups"))).toHaveLength(1);
     });
@@ -158,27 +183,44 @@ describe("saving with history", () => {
 
     it("generates a message when none is given", async () => {
         const info = await service.openFile(join(world, "level.dat"));
-        service.edit(info.docId, { op: "setBool", id: nodeNamed(info, service, ["Data", "allowCommands"]), on: true });
+        service.edit(info.docId, {
+            op: "setBool",
+            id: nodeNamed(info, service, ["Data", "allowCommands"]),
+            on: true,
+        });
         const saved = await service.save(info.docId);
         expect(saved.commit?.message).toBe("Edit Data.allowCommands in level.dat");
     });
 
     it("skips the backup when asked", async () => {
         const info = await service.openFile(join(world, "level.dat"));
-        service.edit(info.docId, { op: "setValue", id: nodeNamed(info, service, ["Data", "SpawnY"]), text: "80" });
+        service.edit(info.docId, {
+            op: "setValue",
+            id: nodeNamed(info, service, ["Data", "SpawnY"]),
+            text: "80",
+        });
         const saved = await service.save(info.docId, { backup: false });
         expect(saved.backupPath).toBeNull();
     });
 
     it("refuses to write while a server has the world open, and changes nothing", async () => {
         const info = await service.openFile(join(world, "level.dat"));
-        service.edit(info.docId, { op: "setValue", id: nodeNamed(info, service, ["Data", "SpawnY"]), text: "80" });
+        service.edit(info.docId, {
+            op: "setValue",
+            id: nodeNamed(info, service, ["Data", "SpawnY"]),
+            text: "80",
+        });
         inUse = "A managed server is running this world.";
         const before = await readFile(join(world, "level.dat"));
-        await expect(service.save(info.docId, { message: "x" })).rejects.toThrow(/managed server is running/);
+        await expect(service.save(info.docId, { message: "x" })).rejects.toThrow(
+            /managed server is running/,
+        );
         expect(Buffer.compare(await readFile(join(world, "level.dat")), before)).toBe(0);
         expect(await service.listHistory(world, null)).toEqual([]);
-        expect(await service.worldStatus(world)).toEqual({ writable: false, reason: "A managed server is running this world." });
+        expect(await service.worldStatus(world)).toEqual({
+            writable: false,
+            reason: "A managed server is running this world.",
+        });
         // The edit is still there, ready to save when the server stops.
         inUse = null;
         await service.save(info.docId, { message: "later" });
@@ -187,8 +229,15 @@ describe("saving with history", () => {
 
     it("refuses to overwrite a file that changed after it was opened", async () => {
         const info = await service.openFile(join(world, "level.dat"));
-        service.edit(info.docId, { op: "setValue", id: nodeNamed(info, service, ["Data", "SpawnY"]), text: "80" });
-        await writeFile(join(world, "level.dat"), writeNbtFile(documentFrom("{Data:{SpawnY:1,extra:\"newer\"}}")));
+        service.edit(info.docId, {
+            op: "setValue",
+            id: nodeNamed(info, service, ["Data", "SpawnY"]),
+            text: "80",
+        });
+        await writeFile(
+            join(world, "level.dat"),
+            writeNbtFile(documentFrom('{Data:{SpawnY:1,extra:"newer"}}')),
+        );
         await expect(service.save(info.docId, { message: "x" })).rejects.toThrow(/changed on disk/);
         expect(toSnbt((await onDisk("level.dat")).root)).toContain("newer");
     });
@@ -221,7 +270,9 @@ describe("history", () => {
         );
         expect(diff.changes).toHaveLength(2);
         const against = await service.diffAgainstCurrent(info.docId, first.sha);
-        expect(against.changes).toEqual([{ path: "Data.SpawnX", change: "changed", before: "256", after: "999" }]);
+        expect(against.changes).toEqual([
+            { path: "Data.SpawnX", change: "changed", before: "256", after: "999" },
+        ]);
     });
 
     it("restores an earlier version as a new commit and reloads the document", async () => {
@@ -246,17 +297,120 @@ describe("history", () => {
         const info = await twoSaves();
         const history = await service.listHistory(world, "level.dat");
         inUse = "busy";
-        await expect(service.restore(info.docId, history[history.length - 1]!.sha)).rejects.toThrow(NbtEditorRefusal);
+        await expect(service.restore(info.docId, history[history.length - 1]!.sha)).rejects.toThrow(
+            NbtEditorRefusal,
+        );
     });
 
     it("lists project-wide history across files", async () => {
         await twoSaves();
         const player = await service.openFile(join(world, "playerdata", "abc.dat"));
-        service.edit(player.docId, { op: "setValue", id: nodeNamed(player, service, ["Health"]), text: "10" });
+        service.edit(player.docId, {
+            op: "setValue",
+            id: nodeNamed(player, service, ["Health"]),
+            text: "10",
+        });
         await service.save(player.docId, { message: "wound" });
         const all = await service.listHistory(world, null);
         expect(all.map((h) => h.message)).toContain("wound");
-        expect(new Set(all.flatMap((h) => h.files))).toEqual(new Set(["level.dat", "playerdata/abc.dat"]));
+        expect(new Set(all.flatMap((h) => h.files))).toEqual(
+            new Set(["level.dat", "playerdata/abc.dat"]),
+        );
+    });
+});
+
+/** A region whose chunks are given already compressed, with their compression byte. */
+function rawRegion(
+    entries: readonly { index: number; type: number; body: Uint8Array }[],
+): Uint8Array {
+    const header = new Uint8Array(8192);
+    const dv = new DataView(header.buffer);
+    const bodies: Uint8Array[] = [];
+    let next = 2;
+    for (const e of entries) {
+        const count = Math.max(1, Math.ceil((5 + e.body.length) / 4096));
+        const block = new Uint8Array(count * 4096);
+        new DataView(block.buffer).setUint32(0, e.body.length + 1, false);
+        block[4] = e.type;
+        block.set(e.body, 5);
+        bodies.push(block);
+        dv.setUint32(e.index * 4, ((next << 8) | count) >>> 0, false);
+        dv.setUint32(4096 + e.index * 4, 1700000000, false);
+        next += count;
+    }
+    const out = new Uint8Array(8192 + bodies.reduce((total, b) => total + b.length, 0));
+    out.set(header);
+    let at = 8192;
+    for (const b of bodies) {
+        out.set(b, at);
+        at += b.length;
+    }
+    return out;
+}
+
+describe("LZ4 and external region chunks", () => {
+    async function setUp(): Promise<string> {
+        const lz4Payload = writeNbtFile(
+            documentFrom('{DataVersion:3,Kind:"lz4"}', { compression: "none" }),
+        );
+        const mccPayload = writeNbtFile(
+            documentFrom('{DataVersion:4,Kind:"mcc"}', { compression: "zlib" }),
+        );
+        const file = join(world, "region", "r.1.0.mca");
+        await writeFile(
+            file,
+            rawRegion([
+                { index: 0, type: 4, body: new Uint8Array(await lz4BlockCompress(lz4Payload)) },
+                { index: 1, type: 2 | 0x80, body: new Uint8Array(0) },
+            ]),
+        );
+        // Region 1,0 slot 1 is chunk 33, 0.
+        await writeFile(join(world, "region", "c.33.0.mcc"), mccPayload);
+        return file;
+    }
+
+    it("lists both as openable", async () => {
+        const file = await setUp();
+        const listing = await service.listChunks(file);
+        expect(listing.chunks.map((c) => [c.index, c.compressionType, c.readable])).toEqual([
+            [0, 4, true],
+            [1, 130, true],
+        ]);
+    });
+
+    it("opens an LZ4 chunk, saves it as LZ4, and reads back the edit", async () => {
+        const file = await setUp();
+        const info = await service.openChunk(file, 0);
+        service.edit(info.docId, {
+            op: "setValue",
+            id: nodeNamed(info, service, ["DataVersion"]),
+            text: "9",
+        });
+        await service.save(info.docId, { message: "lz4 edit" });
+        const stored = storedRegionChunk(new Uint8Array(await readFile(file)), 0);
+        expect(stored.compressionType).toBe(4);
+        const payload = new Uint8Array(await lz4BlockDecompress(stored.stored));
+        expect(toSnbt(parseNbtPayload(payload).root)).toBe('{DataVersion:9,Kind:"lz4"}');
+    });
+
+    it("follows an external chunk into its .mcc file and brings it back inline once it fits", async () => {
+        const file = await setUp();
+        const info = await service.openChunk(file, 1);
+        service.edit(info.docId, {
+            op: "setValue",
+            id: nodeNamed(info, service, ["DataVersion"]),
+            text: "5",
+        });
+        await service.save(info.docId, { message: "mcc edit" });
+        const stored = storedRegionChunk(new Uint8Array(await readFile(file)), 1);
+        expect(stored.compressionType).toBe(2);
+        expect(stored.external).toBe(false);
+    });
+
+    it("says which .mcc file is missing instead of opening nothing", async () => {
+        const file = await setUp();
+        await rm(join(world, "region", "c.33.0.mcc"));
+        await expect(service.openChunk(file, 1)).rejects.toThrow(/c\.33\.0\.mcc, which is missing/);
     });
 });
 
@@ -267,35 +421,58 @@ describe("region chunks", () => {
         const info = await service.openChunk(file, 33);
         expect(info.location).toMatchObject({ kind: "chunk", index: 33, x: 1, z: 1 });
         expect(info.historyPath).toBe(chunkHistoryPath("region/r.0.0.mca", 1, 1));
-        service.edit(info.docId, { op: "add", parentId: info.root.id, kind: "string", name: "Marker", text: "edited" });
+        service.edit(info.docId, {
+            op: "add",
+            parentId: info.root.id,
+            kind: "string",
+            name: "Marker",
+            text: "edited",
+        });
         const saved = await service.save(info.docId, { message: "Mark the chunk" });
         expect(saved.commit).not.toBeNull();
 
         const bytes = new Uint8Array(await readFile(file));
-        expect(toSnbt(parseNbtPayload(readRegionChunk(bytes, 33).payload).root)).toBe('{DataVersion:2,Marker:"edited"}');
+        expect(toSnbt(parseNbtPayload(readRegionChunk(bytes, 33).payload).root)).toBe(
+            '{DataVersion:2,Marker:"edited"}',
+        );
         expect(Array.from(readRegionChunk(bytes, 0).payload)).toEqual(Array.from(otherBefore));
         expect(listRegionChunks(bytes)).toHaveLength(2);
 
         const history = await service.listHistory(world, info.historyPath);
-        expect(history.map((h) => h.message)).toEqual(["Mark the chunk", "Baseline: chunk 1, 1 of r.0.0.mca as first opened"]);
+        expect(history.map((h) => h.message)).toEqual([
+            "Mark the chunk",
+            "Baseline: chunk 1, 1 of r.0.0.mca as first opened",
+        ]);
         const diff = await service.diffCommit(world, info.historyPath, history[0]!.sha);
-        expect(diff.changes).toEqual([{ path: "Marker", change: "added", before: null, after: '"edited"' }]);
+        expect(diff.changes).toEqual([
+            { path: "Marker", change: "added", before: null, after: '"edited"' },
+        ]);
     });
 
     it("restores a chunk to an earlier version inside the region file", async () => {
         const file = join(world, "region", "r.0.0.mca");
         const info = await service.openChunk(file, 33);
-        service.edit(info.docId, { op: "setValue", id: nodeNamed(info, service, ["DataVersion"]), text: "77" });
+        service.edit(info.docId, {
+            op: "setValue",
+            id: nodeNamed(info, service, ["DataVersion"]),
+            text: "77",
+        });
         await service.save(info.docId, { message: "bump" });
         const history = await service.listHistory(world, info.historyPath);
         await service.restore(info.docId, history[history.length - 1]!.sha);
         const bytes = new Uint8Array(await readFile(file));
-        expect(toSnbt(parseNbtPayload(readRegionChunk(bytes, 33).payload).root)).toBe("{DataVersion:2}");
+        expect(toSnbt(parseNbtPayload(readRegionChunk(bytes, 33).payload).root)).toBe(
+            "{DataVersion:2}",
+        );
     });
 
     it("refuses a chunk save while the world is in use", async () => {
         const info = await service.openChunk(join(world, "region", "r.0.0.mca"), 0);
-        service.edit(info.docId, { op: "setValue", id: nodeNamed(info, service, ["DataVersion"]), text: "5" });
+        service.edit(info.docId, {
+            op: "setValue",
+            id: nodeNamed(info, service, ["DataVersion"]),
+            text: "5",
+        });
         inUse = "busy";
         await expect(service.save(info.docId)).rejects.toThrow(/busy/);
     });
@@ -305,7 +482,9 @@ describe("undo and redo", () => {
     it("tracks cleanliness by revision, so undoing back to disk reads as clean", async () => {
         const info = await service.openFile(join(world, "level.dat"));
         const spawnX = nodeNamed(info, service, ["Data", "SpawnX"]);
-        expect(service.edit(info.docId, { op: "setValue", id: spawnX, text: "1" }).state.dirty).toBe(true);
+        expect(
+            service.edit(info.docId, { op: "setValue", id: spawnX, text: "1" }).state.dirty,
+        ).toBe(true);
         const undone = service.undo(info.docId);
         expect(undone.state).toMatchObject({ dirty: false, canUndo: false, canRedo: true });
         expect(undone.refreshAll).toBe(true);
@@ -321,9 +500,15 @@ describe("undo and redo", () => {
     it("a refused edit leaves the tree and the undo stack exactly as they were", async () => {
         const info = await service.openFile(join(world, "level.dat"));
         const spawnX = nodeNamed(info, service, ["Data", "SpawnX"]);
-        expect(() => service.edit(info.docId, { op: "setValue", id: spawnX, text: "99999999999" })).toThrow(/range of a int/);
-        expect(() => service.edit(info.docId, { op: "rename", id: spawnX, name: "SpawnY" })).toThrow(/already/);
-        expect(() => service.edit(info.docId, { op: "replaceSnbt", id: spawnX, text: "{" })).toThrow();
+        expect(() =>
+            service.edit(info.docId, { op: "setValue", id: spawnX, text: "99999999999" }),
+        ).toThrow(/range of a int/);
+        expect(() =>
+            service.edit(info.docId, { op: "rename", id: spawnX, name: "SpawnY" }),
+        ).toThrow(/already/);
+        expect(() =>
+            service.edit(info.docId, { op: "replaceSnbt", id: spawnX, text: "{" }),
+        ).toThrow();
         const state = service.describe(info.docId).state;
         expect(state).toEqual({ dirty: false, canUndo: false, canRedo: false, changeCount: 0 });
         expect(service.node(info.docId, spawnX).text).toBe("128");
@@ -338,20 +523,43 @@ describe("reading the tree", () => {
         expect(page.total).toBe(7);
         expect(page.nodes).toHaveLength(2);
         const pos = nodeNamed(info, service, ["Data", "Pos"]);
-        expect(service.node(info.docId, pos)).toMatchObject({ kind: "list", summary: "3 × double", listKind: "double" });
+        expect(service.node(info.docId, pos)).toMatchObject({
+            kind: "list",
+            summary: "3 × double",
+            listKind: "double",
+        });
         expect(service.snbt(info.docId, pos, false).text).toBe("[1.0d,2.0d,3.0d]");
-        const hits = service.search(info.docId, { query: "spawn", regex: false, flags: "i", names: true, values: false });
+        const hits = service.search(info.docId, {
+            query: "spawn",
+            regex: false,
+            flags: "i",
+            names: true,
+            values: false,
+        });
         expect(hits.hits.map((h) => h.path)).toEqual(["Data.SpawnX", "Data.SpawnY", "Data.SpawnZ"]);
         expect(service.ancestors(info.docId, hits.hits[0]!.id)).toEqual([info.root.id, data]);
-        const regexHits = service.search(info.docId, { query: "^Spawn[XZ]$", regex: true, flags: "", names: true, values: false });
+        const regexHits = service.search(info.docId, {
+            query: "^Spawn[XZ]$",
+            regex: true,
+            flags: "",
+            names: true,
+            values: false,
+        });
         expect(regexHits.hits).toHaveLength(2);
-        expect(service.node(info.docId, nodeNamed(info, service, ["Data", "allowCommands"])).isBool).toBe(true);
+        expect(
+            service.node(info.docId, nodeNamed(info, service, ["Data", "allowCommands"])).isBool,
+        ).toBe(true);
     });
 
     it("keeps 64-bit values exact across the boundary", async () => {
-        await writeFile(join(world, "big.dat"), writeNbtFile(documentFrom("{Seed:-4172144997902289642L}")));
+        await writeFile(
+            join(world, "big.dat"),
+            writeNbtFile(documentFrom("{Seed:-4172144997902289642L}")),
+        );
         const info = await service.openFile(join(world, "big.dat"));
-        expect(service.node(info.docId, nodeNamed(info, service, ["Seed"])).text).toBe("-4172144997902289642");
+        expect(service.node(info.docId, nodeNamed(info, service, ["Seed"])).text).toBe(
+            "-4172144997902289642",
+        );
     });
 });
 
@@ -373,7 +581,8 @@ describe("channels", () => {
         return {
             handlers,
             ipc: {
-                handle: (channel: string, fn: (event: unknown, ...args: unknown[]) => unknown) => void handlers.set(channel, fn),
+                handle: (channel: string, fn: (event: unknown, ...args: unknown[]) => unknown) =>
+                    void handlers.set(channel, fn),
                 removeHandler: (channel: string) => void handlers.delete(channel),
             },
         };
@@ -381,7 +590,10 @@ describe("channels", () => {
 
     it("registers every channel once and removes them again", () => {
         const { handlers, ipc } = fakeIpc();
-        const registered = registerNbtEditorHandlers(ipc as never, { service, pickFile: async () => null });
+        const registered = registerNbtEditorHandlers(ipc as never, {
+            service,
+            pickFile: async () => null,
+        });
         expect([...handlers.keys()].sort()).toEqual([...NBT_EDITOR_CHANNELS].sort());
         registered.dispose();
         expect(handlers.size).toBe(0);
@@ -390,19 +602,35 @@ describe("channels", () => {
     it("answers refusals as values and never throws across the boundary", async () => {
         const { handlers, ipc } = fakeIpc();
         registerNbtEditorHandlers(ipc as never, { service, pickFile: async () => null });
-        const call = async <T>(channel: string, ...args: unknown[]): Promise<Answer<T>> => (await handlers.get(channel)!({}, ...args)) as Answer<T>;
+        const call = async <T>(channel: string, ...args: unknown[]): Promise<Answer<T>> =>
+            (await handlers.get(channel)!({}, ...args)) as Answer<T>;
         const opened = await call<DocumentInfo>("nbtEditor:openFile", join(world, "level.dat"));
         expect(opened.ok).toBe(true);
         if (!opened.ok) return;
         const spawnX = nodeNamed(opened.value, service, ["Data", "SpawnX"]);
-        const bad = await call("nbtEditor:edit", opened.value.docId, { op: "setValue", id: spawnX, text: "banana" });
+        const bad = await call("nbtEditor:edit", opened.value.docId, {
+            op: "setValue",
+            id: spawnX,
+            text: "banana",
+        });
         expect(bad).toEqual({ ok: false, message: '"banana" is not a whole number.' });
-        expect(await call("nbtEditor:edit", opened.value.docId, { op: "launchMissiles" })).toMatchObject({ ok: false });
+        expect(
+            await call("nbtEditor:edit", opened.value.docId, { op: "launchMissiles" }),
+        ).toMatchObject({ ok: false });
         expect(await call("nbtEditor:openFile", 42)).toMatchObject({ ok: false });
-        expect(await call("nbtEditor:openChunk", join(world, "region", "r.0.0.mca"), 99999)).toMatchObject({ ok: false });
-        const good = await call("nbtEditor:edit", opened.value.docId, { op: "setValue", id: spawnX, text: "5" });
+        expect(
+            await call("nbtEditor:openChunk", join(world, "region", "r.0.0.mca"), 99999),
+        ).toMatchObject({ ok: false });
+        const good = await call("nbtEditor:edit", opened.value.docId, {
+            op: "setValue",
+            id: spawnX,
+            text: "5",
+        });
         expect(good.ok).toBe(true);
         inUse = "busy";
-        expect(await call("nbtEditor:save", opened.value.docId, { message: "m" })).toEqual({ ok: false, message: "busy" });
+        expect(await call("nbtEditor:save", opened.value.docId, { message: "m" })).toEqual({
+            ok: false,
+            message: "busy",
+        });
     });
 });

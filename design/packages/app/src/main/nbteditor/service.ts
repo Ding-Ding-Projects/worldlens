@@ -1,21 +1,31 @@
 import { randomUUID } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
-import { basename, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { lz4BlockCompress, lz4BlockDecompress } from "@worldlens/engine";
 import {
+    MAX_INLINE_CHUNK_BYTES,
+    compressPayload,
+    decompressPayload,
     diffTrees,
+    externalChunkName,
     listRegionChunks,
     parseNbtPayload,
     readNbtFile,
-    readRegionChunk,
     regionCoordinates,
-    replaceRegionChunk,
+    storedRegionChunk,
+    writeStoredRegionChunk,
     writeNbtFile,
     writeNbtPayload,
     type Endianness,
     type NbtDocument,
 } from "@worldlens/nbt";
 import { ProjectHistory, chunkHistoryPath, type HistoryCommit } from "./history.js";
-import { inferProjectDir, listProjectFiles, relativeInside, type ProjectListing } from "./project.js";
+import {
+    inferProjectDir,
+    listProjectFiles,
+    relativeInside,
+    type ProjectListing,
+} from "./project.js";
 import type {
     ArrayPage,
     ChildrenPage,
@@ -34,7 +44,73 @@ import type {
     SearchRequest,
 } from "./protocol.js";
 import { EditorSession, viewOf } from "./session.js";
-import { backUpFile, fileSignature, probeSessionLock, writeFileAtomically, type WorldInUseCheck } from "./safety.js";
+import {
+    backUpFile,
+    fileSignature,
+    probeSessionLock,
+    writeFileAtomically,
+    type WorldInUseCheck,
+} from "./safety.js";
+
+/* ------------------------------------------------------------ region chunk codecs */
+
+/** Region chunks this service can open: gzip, zlib, none, LZ4 and external `.mcc` chunks. */
+const REGION_SUPPORT = { lz4: true, external: true } as const;
+
+function chunkCompression(base: number): "gzip" | "zlib" | "none" {
+    return base === 1 ? "gzip" : base === 2 ? "zlib" : "none";
+}
+
+/** Where an external chunk of this region lives, or null for a region file with an unusual name. */
+function externalPath(regionPath: string, index: number): string | null {
+    const coords = regionCoordinates(basename(regionPath));
+    return coords === null
+        ? null
+        : join(dirname(regionPath), externalChunkName(coords.x, coords.z, index));
+}
+
+/** The uncompressed NBT payload of one chunk, following it into its `.mcc` file when needed. */
+async function readChunkPayload(
+    regionPath: string,
+    bytes: Uint8Array,
+    index: number,
+): Promise<{ payload: Uint8Array; compressionType: number }> {
+    const { compressionType, stored, external } = storedRegionChunk(bytes, index);
+    let body = stored;
+    if (external) {
+        const path = externalPath(regionPath, index);
+        if (path === null)
+            throw new NbtEditorRefusal(
+                "This chunk is stored in a separate .mcc file, but the region file's name does not say which.",
+            );
+        const info = await stat(path).catch(() => null);
+        if (info === null || !info.isFile())
+            throw new NbtEditorRefusal(
+                `This chunk is stored in ${basename(path)}, which is missing.`,
+            );
+        body = new Uint8Array(await readFile(path));
+    }
+    const base = compressionType & 0x7f;
+    const payload =
+        base === 4
+            ? new Uint8Array(await lz4BlockDecompress(body))
+            : decompressPayload(body, chunkCompression(base));
+    return { payload, compressionType };
+}
+
+/** Compresses a chunk the way it was stored (same method), moving it to or from a `.mcc` file by size. */
+async function encodeChunk(
+    payload: Uint8Array,
+    compressionType: number,
+): Promise<{ body: Uint8Array; type: number; external: boolean }> {
+    const base = compressionType & 0x7f;
+    const body =
+        base === 4
+            ? new Uint8Array(await lz4BlockCompress(payload))
+            : compressPayload(payload, chunkCompression(base));
+    const external = body.length > MAX_INLINE_CHUNK_BYTES;
+    return { body, type: external ? base | 0x80 : base, external };
+}
 
 /** A refusal whose message is meant to be shown to the person as it is. */
 export class NbtEditorRefusal extends Error {
@@ -96,25 +172,39 @@ export class NbtEditorService {
 
     async listChunks(path: string): Promise<ChunkListing> {
         const bytes = await this.readBounded(path);
-        return { path, chunks: listRegionChunks(bytes) };
+        return { path, chunks: listRegionChunks(bytes, REGION_SUPPORT) };
     }
 
     private async readBounded(path: string): Promise<Uint8Array> {
         const info = await stat(path).catch(() => null);
-        if (info === null || !info.isFile()) throw new NbtEditorRefusal("That file does not exist.");
-        if (info.size > MAX_FILE_BYTES) throw new NbtEditorRefusal("That file is larger than 1 GB, which this editor does not open.");
+        if (info === null || !info.isFile())
+            throw new NbtEditorRefusal("That file does not exist.");
+        if (info.size > MAX_FILE_BYTES)
+            throw new NbtEditorRefusal(
+                "That file is larger than 1 GB, which this editor does not open.",
+            );
         return new Uint8Array(await readFile(path));
     }
 
     /* ------------------------------------------------------------ opening */
 
-    async openFile(path: string, options: { projectDir?: string; endianness?: Endianness } = {}): Promise<DocumentInfo> {
+    async openFile(
+        path: string,
+        options: { projectDir?: string; endianness?: Endianness } = {},
+    ): Promise<DocumentInfo> {
         const full = resolve(path);
-        if (full.toLowerCase().endsWith(".mca")) throw new NbtEditorRefusal("That is a region file. Choose one of its chunks to edit.");
-        const projectDir = options.projectDir === undefined ? await inferProjectDir(full) : resolve(options.projectDir);
+        if (full.toLowerCase().endsWith(".mca"))
+            throw new NbtEditorRefusal("That is a region file. Choose one of its chunks to edit.");
+        const projectDir =
+            options.projectDir === undefined
+                ? await inferProjectDir(full)
+                : resolve(options.projectDir);
         const relativePath = relativeInside(projectDir, full) ?? basename(full);
         const bytes = await this.readBounded(full);
-        const doc = readNbtFile(bytes, options.endianness === undefined ? {} : { endianness: options.endianness });
+        const doc = readNbtFile(
+            bytes,
+            options.endianness === undefined ? {} : { endianness: options.endianness },
+        );
         return this.register({
             session: new EditorSession(doc),
             path: full,
@@ -128,13 +218,21 @@ export class NbtEditorService {
         });
     }
 
-    async openChunk(path: string, index: number, options: { projectDir?: string } = {}): Promise<DocumentInfo> {
+    async openChunk(
+        path: string,
+        index: number,
+        options: { projectDir?: string } = {},
+    ): Promise<DocumentInfo> {
         const full = resolve(path);
-        if (!regionCoordinates(basename(full)) && !full.toLowerCase().endsWith(".mca")) throw new NbtEditorRefusal("That is not a region file.");
-        const projectDir = options.projectDir === undefined ? await inferProjectDir(full) : resolve(options.projectDir);
+        if (!regionCoordinates(basename(full)) && !full.toLowerCase().endsWith(".mca"))
+            throw new NbtEditorRefusal("That is not a region file.");
+        const projectDir =
+            options.projectDir === undefined
+                ? await inferProjectDir(full)
+                : resolve(options.projectDir);
         const relativePath = relativeInside(projectDir, full) ?? basename(full);
         const bytes = await this.readBounded(full);
-        const { payload, compressionType } = readRegionChunk(bytes, index);
+        const { payload, compressionType } = await readChunkPayload(full, bytes, index);
         const parsed = parseNbtPayload(payload, "big");
         const doc: NbtDocument = {
             root: parsed.root,
@@ -260,7 +358,9 @@ export class NbtEditorService {
         const session = entry.session;
         if (!session.state().dirty) throw new NbtEditorRefusal("There are no changes to save.");
         const message = (request.message ?? "").trim() || session.defaultMessage(entry.subject);
-        const outcome = await this.writeThrough(entry, message, request.backup !== false, () => this.currentBytes(entry));
+        const outcome = await this.writeThrough(entry, message, request.backup !== false, () =>
+            this.currentBytes(entry),
+        );
         session.markSaved();
         return { ...outcome, state: session.state() };
     }
@@ -287,15 +387,42 @@ export class NbtEditorService {
         if (live !== null) throw new NbtEditorRefusal(live);
         const signature = await fileSignature(entry.path).catch(() => null);
         if (signature !== entry.signature)
-            throw new NbtEditorRefusal("The file changed on disk after it was opened. Reopen it so its newer contents are not overwritten.");
+            throw new NbtEditorRefusal(
+                "The file changed on disk after it was opened. Reopen it so its newer contents are not overwritten.",
+            );
         const produced = produce();
         const onDisk = await this.readBounded(entry.path);
         let newFileBytes: Uint8Array;
         let previousRecorded: Uint8Array;
+        let externalWrite: { path: string; bytes: Uint8Array } | null = null;
         if (entry.location.kind === "chunk") {
             if (produced.chunk === null) throw new NbtEditorRefusal("Nothing to write.");
-            previousRecorded = readRegionChunk(onDisk, entry.location.index).payload;
-            newFileBytes = replaceRegionChunk(onDisk, entry.location.index, produced.chunk, entry.compressionType);
+            previousRecorded = (await readChunkPayload(entry.path, onDisk, entry.location.index))
+                .payload;
+            const encoded = await encodeChunk(produced.chunk, entry.compressionType);
+            if (encoded.external) {
+                // Too large for the region's own sectors: the game keeps such a chunk in c.<x>.<z>.mcc
+                // and records only its compression byte (plus 128) in the region file.
+                const target = externalPath(entry.path, entry.location.index);
+                if (target === null)
+                    throw new NbtEditorRefusal(
+                        "This chunk is now too large for the region file, and the region file's name does not say where its .mcc file belongs.",
+                    );
+                externalWrite = { path: target, bytes: encoded.body };
+                newFileBytes = writeStoredRegionChunk(
+                    onDisk,
+                    entry.location.index,
+                    new Uint8Array(0),
+                    encoded.type,
+                );
+            } else {
+                newFileBytes = writeStoredRegionChunk(
+                    onDisk,
+                    entry.location.index,
+                    encoded.body,
+                    encoded.type,
+                );
+            }
         } else {
             if (produced.file === null) throw new NbtEditorRefusal("Nothing to write.");
             previousRecorded = onDisk;
@@ -304,16 +431,40 @@ export class NbtEditorService {
         const recordedNew = entry.location.kind === "chunk" ? produced.chunk! : produced.file!;
 
         let backupPath: string | null = null;
-        if (backup) backupPath = await backUpFile(entry.path, this.history.backupDirectory(entry.projectDir), entry.relativePath.replace(/[\\/]/gu, "__"));
+        if (backup)
+            backupPath = await backUpFile(
+                entry.path,
+                this.history.backupDirectory(entry.projectDir),
+                entry.relativePath.replace(/[\\/]/gu, "__"),
+            );
         // Record the starting point before touching the world, so a failure here leaves the file alone.
         if (!(await this.history.hasHistory(entry.projectDir, entry.historyPath)))
-            await this.history.record(entry.projectDir, entry.historyPath, previousRecorded, `Baseline: ${entry.subject} as first opened`);
+            await this.history.record(
+                entry.projectDir,
+                entry.historyPath,
+                previousRecorded,
+                `Baseline: ${entry.subject} as first opened`,
+            );
+        // The .mcc file first: a region that points at an external chunk must never exist before it.
+        if (externalWrite !== null)
+            await writeFileAtomically(externalWrite.path, externalWrite.bytes);
         await writeFileAtomically(entry.path, newFileBytes);
         entry.signature = await fileSignature(entry.path);
-        const commit = await this.history.record(entry.projectDir, entry.historyPath, recordedNew, message);
+        const commit = await this.history.record(
+            entry.projectDir,
+            entry.historyPath,
+            recordedNew,
+            message,
+        );
         return {
-            message: commit === null ? "Saved. The content matched the last recorded version, so no history entry was added." : `Saved and recorded as ${commit.shortSha}.`,
-            commit: commit === null ? null : { sha: commit.sha, shortSha: commit.shortSha, message: commit.message },
+            message:
+                commit === null
+                    ? "Saved. The content matched the last recorded version, so no history entry was added."
+                    : `Saved and recorded as ${commit.shortSha}.`,
+            commit:
+                commit === null
+                    ? null
+                    : { sha: commit.sha, shortSha: commit.shortSha, message: commit.message },
             backupPath,
         };
     }
@@ -330,7 +481,10 @@ export class NbtEditorService {
         const after = await this.history.read(dir, sha, historyPath);
         const parent = await this.history.parentVersion(dir, sha, historyPath);
         const emptyRoot = readNbtFile(writeNbtFile(emptyDocument())).root;
-        const before = parent === null ? emptyRoot : readNbtFile(await this.history.read(dir, parent.sha, historyPath)).root;
+        const before =
+            parent === null
+                ? emptyRoot
+                : readNbtFile(await this.history.read(dir, parent.sha, historyPath)).root;
         const diff = diffTrees(before, readNbtFile(after).root);
         return { changes: diff.changes, truncated: diff.truncated, isFirst: parent === null };
     }
@@ -338,7 +492,9 @@ export class NbtEditorService {
     /** Compares a recorded version with what the open document holds now. */
     async diffAgainstCurrent(docId: string, sha: string): Promise<DiffOutcome> {
         const entry = this.entry(docId);
-        const recorded = readNbtFile(await this.history.read(entry.projectDir, sha, entry.historyPath));
+        const recorded = readNbtFile(
+            await this.history.read(entry.projectDir, sha, entry.historyPath),
+        );
         const diff = diffTrees(recorded.root, entry.session.doc.root);
         return { changes: diff.changes, truncated: diff.truncated, isFirst: false };
     }
@@ -354,11 +510,26 @@ export class NbtEditorService {
         const doc = readNbtFile(recorded);
         const short = sha.slice(0, 7);
         const produced =
-            entry.location.kind === "chunk" ? { file: null, chunk: recorded } : { file: recorded, chunk: null };
-        await this.writeThrough(entry, `Restore ${entry.subject} to ${short}`, backup, () => produced);
+            entry.location.kind === "chunk"
+                ? { file: null, chunk: recorded }
+                : { file: recorded, chunk: null };
+        await this.writeThrough(
+            entry,
+            `Restore ${entry.subject} to ${short}`,
+            backup,
+            () => produced,
+        );
         if (entry.location.kind === "chunk") {
             const parsed = parseNbtPayload(recorded, "big");
-            entry.session = new EditorSession({ ...doc, root: parsed.root, trailing: parsed.trailing, nextId: parsed.nextId, endianness: "big", compression: "none", bedrockHeader: null });
+            entry.session = new EditorSession({
+                ...doc,
+                root: parsed.root,
+                trailing: parsed.trailing,
+                nextId: parsed.nextId,
+                endianness: "big",
+                compression: "none",
+                bedrockHeader: null,
+            });
         } else {
             entry.session = new EditorSession(doc);
         }
@@ -367,7 +538,13 @@ export class NbtEditorService {
 }
 
 function toView(commit: HistoryCommit): HistoryEntryView {
-    return { sha: commit.sha, shortSha: commit.shortSha, time: commit.time, message: commit.message, files: commit.files };
+    return {
+        sha: commit.sha,
+        shortSha: commit.shortSha,
+        time: commit.time,
+        message: commit.message,
+        files: commit.files,
+    };
 }
 
 function emptyDocument(): NbtDocument {
@@ -390,4 +567,3 @@ function emptyDocument(): NbtDocument {
         nextId: 2,
     };
 }
-
