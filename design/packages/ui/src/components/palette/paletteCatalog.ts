@@ -398,6 +398,20 @@ const PAGE_NOTES: Record<string, { description: [string, string]; keywords: read
         ],
         keywords: ["docker", "hosting", "container", "host"],
     },
+    hostedInstances: {
+        description: [
+            "palette.page.hostedInstances",
+            "Every hosted map, appliance and live viewer this app created, with health, link, open, copy, stop and remove.",
+        ],
+        keywords: ["instances", "hosted", "appliance", "container", "virtual machine", "link", "share"],
+    },
+    nbtEditor: {
+        description: [
+            "palette.page.nbtEditor",
+            "Edit NBT files and region chunks with typed controls, search, undo and a Git history for each project.",
+        ],
+        keywords: ["nbt", "level.dat", "playerdata", "region", "chunk", "snbt", "editor", "history"],
+    },
     screenshots: {
         description: [
             "palette.page.screenshots",

@@ -193,6 +193,7 @@ import { registerVocabularyHandlers } from "./vocabulary/index.js";
 import { registerConverterHandlers, type ConverterIpc } from "./converter/index.js";
 import { registerVirtualDiskHandlers, type VirtualDiskIpc } from "./vdisk/ipc.js";
 import { registerSharing, type SharingIpc } from "./sharing/register.js";
+import { combineWorldChecks, NbtEditorService, registerNbtEditorHandlers, type NbtEditorIpc } from "./nbteditor/index.js";
 import { registerBase64Handlers, type Base64Ipc } from "./base64/ipc.js";
 import { registerEditorHandlers, type EditorIpc } from "./editors/ipc.js";
 import { EditorService } from "./editors/editors.js";
@@ -524,6 +525,7 @@ let managedHostingIpc: { dispose(): void } | null = null;
 let converterIpc: ConverterIpc | null = null;
 let vdiskIpc: VirtualDiskIpc | null = null;
 let sharingIpc: SharingIpc | null = null;
+let nbtEditorIpc: NbtEditorIpc | null = null;
 let editorIpc: EditorIpc | null = null;
 let extensionIpc: ExtensionIpc | null = null;
 let base64Ipc: Base64Ipc | null = null;
@@ -773,6 +775,27 @@ function registerIpc(): void {
         openExternal: (url) => shell.openExternal(url),
     });
     app.on("will-quit", () => sharingIpc?.dispose());
+    // The NBT editor. Every project it edits gets its own local Git history under user data.
+    // A world a server has open is refused through the session.lock probe, which is a
+    // mandatory lock on Windows; the running-server list is not wired in yet, which matters
+    // only on platforms where that lock is advisory (see docs/nbt-editor.md).
+    nbtEditorIpc = registerNbtEditorHandlers(ipcMain, {
+        service: new NbtEditorService({
+            historyRoot: join(app.getPath("userData"), "nbt-history"),
+            worldInUse: combineWorldChecks(() => []),
+        }),
+        pickFile: async () =>
+            (
+                await dialog.showOpenDialog({
+                    properties: ["openFile"],
+                    filters: [
+                        { name: "NBT", extensions: ["dat", "dat_old", "nbt", "mca", "mcr"] },
+                        { name: "All files", extensions: ["*"] },
+                    ],
+                })
+            ).filePaths[0] ?? null,
+    });
+    app.on("will-quit", () => nbtEditorIpc?.dispose());
     // The Base64 toolkit's file side: streamed same-folder conversion, previews and exports.
     base64Ipc = registerBase64Handlers(ipcMain, {
         showItemInFolder: (fullPath) => shell.showItemInFolder(fullPath),

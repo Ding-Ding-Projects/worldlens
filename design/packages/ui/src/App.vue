@@ -26,6 +26,8 @@ import {
     mdiMapPlus,
     mdiProgressClock,
     mdiServerNetwork,
+    mdiLanConnect,
+    mdiFileTreeOutline,
     mdiSourceRepository,
     mdiWeb,
 } from "@mdi/js";
@@ -139,6 +141,8 @@ import type { ServerRecord } from "./components/mcserver/serverModel.js";
 import WebConsolePanel from "./components/mcserver/WebConsolePanel.vue";
 import SupportTickets from "./components/locks/SupportTickets.vue";
 import { DockerHostingScreen, RemoteHostingScreen } from "./components/remote/index.js";
+import InstancesScreen from "./components/sharing/InstancesScreen.vue";
+import NbtEditorScreen from "./components/nbteditor/NbtEditorScreen.vue";
 import WorldDownloaderScreen from "./components/worlddownloader/WorldDownloaderScreen.vue";
 import {
     dropRenderHostMissingReason,
@@ -631,6 +635,8 @@ const PAGE_DOCS = "docs";
 const PAGE_OLLAMA = "ollama";
 const PAGE_REMOTE_HOSTING = "remoteHosting";
 const PAGE_DOCKER_HOSTING = "dockerHosting";
+const PAGE_HOSTED_INSTANCES = "hostedInstances";
+const PAGE_NBT_EDITOR = "nbtEditor";
 const PAGE_WORLD_DOWNLOADER = "worldDownloader";
 const PAGE_SCREENSHOTS = "screenshots";
 /* The virtual disk manager: VHD, VHDX, VHD Set and ISO, Quick pack and map storage in a VHDX. */
@@ -929,6 +935,16 @@ const pages = computed<TabPage[]>(() => [
         id: PAGE_DOCKER_HOSTING,
         label: t("tabs.page.dockerHosting", "Docker hosting"),
         icon: mdiServerNetwork,
+    },
+    {
+        id: PAGE_HOSTED_INSTANCES,
+        label: t("tabs.page.hostedInstances", "Hosted instances"),
+        icon: mdiLanConnect,
+    },
+    {
+        id: PAGE_NBT_EDITOR,
+        label: t("tabs.page.nbtEditor", "NBT editor"),
+        icon: mdiFileTreeOutline,
     },
     {
         id: PAGE_WORLD_DOWNLOADER,
@@ -3050,6 +3066,20 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
                     <DockerHostingScreen />
                 </template>
 
+
+                <template #hostedInstances>
+
+                    <InstancesScreen />
+
+                </template>
+
+
+                <template #nbtEditor>
+
+                    <NbtEditorScreen />
+
+                </template>
+
                 <template #worldDownloader>
                     <WorldDownloaderScreen />
                 </template>
@@ -3705,6 +3735,20 @@ function pageMarkerSet(page: MenuPage | null | undefined): AnyMarkerSetData | nu
 
                             <template #dockerHosting>
                                 <DockerHostingScreen />
+                            </template>
+
+
+                            <template #hostedInstances>
+
+                                <InstancesScreen />
+
+                            </template>
+
+
+                            <template #nbtEditor>
+
+                                <NbtEditorScreen />
+
                             </template>
 
                             <template #worldDownloader>

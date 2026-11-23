@@ -71,6 +71,31 @@ export function registerSharing(ipcMain: IpcMain, options: SharingOptions): Shar
         await options.openExternal(url);
         return true;
     });
+    // Health as checked right now, from this PC: a bounded GET of `<link>health`. Only
+    // http(s) links on private or loopback addresses or `.local` names are checked, so the
+    // renderer can never use this to reach an arbitrary host.
+    ipcMain.handle("sharing:checkLink", async (_event, link: unknown) => {
+        if (typeof link !== "string") return { ok: false, status: null, checkedAt: new Date().toISOString() };
+        let url: URL;
+        try {
+            url = new URL("health", link.endsWith("/") ? link : `${link}/`);
+        } catch {
+            return { ok: false, status: null, checkedAt: new Date().toISOString() };
+        }
+        const host = url.hostname;
+        const allowed =
+            /^https?:$/u.test(url.protocol) &&
+            (/^(127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|169\.254\.)/u.test(host) ||
+                host === "localhost" ||
+                host.endsWith(".local"));
+        if (!allowed) return { ok: false, status: null, checkedAt: new Date().toISOString() };
+        try {
+            const response = await fetch(url, { signal: AbortSignal.timeout(4000), redirect: "manual" });
+            return { ok: response.status === 200 || response.status === 401, status: response.status, checkedAt: new Date().toISOString() };
+        } catch {
+            return { ok: false, status: null, checkedAt: new Date().toISOString() };
+        }
+    });
     ipcMain.handle("sharing:reveal", (_event, target: unknown) => {
         if (typeof target !== "string" || target.length === 0) return false;
         shell.showItemInFolder(target);
@@ -88,7 +113,7 @@ export function registerSharing(ipcMain: IpcMain, options: SharingOptions): Shar
         dispose() {
             shareHost.dispose();
             appliance.dispose();
-            for (const channel of ["sharing:savedSshHosts", "sharing:openExternal", "sharing:reveal"]) {
+            for (const channel of ["sharing:savedSshHosts", "sharing:openExternal", "sharing:reveal", "sharing:checkLink"]) {
                 ipcMain.removeHandler(channel);
             }
         },

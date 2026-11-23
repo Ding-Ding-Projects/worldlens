@@ -20,6 +20,8 @@ export const PRODUCTION_APP_PAGE_IDS = [
     "ollama",
     "remoteHosting",
     "dockerHosting",
+    "hostedInstances",
+    "nbtEditor",
     "screenshots",
     "virtualDisks",
     "base64",

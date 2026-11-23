@@ -2591,8 +2591,36 @@ interface WorldlensBridge {
         openExternal(url: string): Promise<unknown>;
         onProgress(listener: (progress: unknown) => void): () => void;
     };
+    nbtEditor: {
+        listProject(...args: unknown[]): Promise<unknown>;
+        inferProject(...args: unknown[]): Promise<unknown>;
+        worldStatus(...args: unknown[]): Promise<unknown>;
+        listChunks(...args: unknown[]): Promise<unknown>;
+        pickFile(...args: unknown[]): Promise<unknown>;
+        openFile(...args: unknown[]): Promise<unknown>;
+        openChunk(...args: unknown[]): Promise<unknown>;
+        describe(...args: unknown[]): Promise<unknown>;
+        close(...args: unknown[]): Promise<unknown>;
+        node(...args: unknown[]): Promise<unknown>;
+        children(...args: unknown[]): Promise<unknown>;
+        arrayPage(...args: unknown[]): Promise<unknown>;
+        snbt(...args: unknown[]): Promise<unknown>;
+        ancestors(...args: unknown[]): Promise<unknown>;
+        search(...args: unknown[]): Promise<unknown>;
+        pendingChanges(...args: unknown[]): Promise<unknown>;
+        defaultMessage(...args: unknown[]): Promise<unknown>;
+        edit(...args: unknown[]): Promise<unknown>;
+        undo(...args: unknown[]): Promise<unknown>;
+        redo(...args: unknown[]): Promise<unknown>;
+        save(...args: unknown[]): Promise<unknown>;
+        history(...args: unknown[]): Promise<unknown>;
+        diffCommit(...args: unknown[]): Promise<unknown>;
+        diffCurrent(...args: unknown[]): Promise<unknown>;
+        restore(...args: unknown[]): Promise<unknown>;
+    };
     sharing: {
         savedSshHosts(): Promise<unknown>;
+        checkLink(link: string): Promise<unknown>;
         openExternal(url: string): Promise<unknown>;
         reveal(target: string): Promise<unknown>;
     };
