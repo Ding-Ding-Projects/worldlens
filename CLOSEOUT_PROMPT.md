@@ -1,31 +1,14 @@
-# Worldlens closeout prompt (updated 2026-11-02)
+# Closeout prompt
 
-Continue in `Ding-Ding-Projects/worldlens` on `main`. Read `AGENTS.md` and the
-2026-10-30 entry at the top of `design/HANDOFF.md` first.
-
-New since 2026-11-02: Contour (`design/contour/`) is approved and replaces
-`design/Worldlens.dc.html` as the design target. Read the 2026-11-02 entries at
-the top of `design/HANDOFF.md` for what is already built (overlays, shell, Home)
-and the order of what is next.
-
-Goal: the shipped UI in `design/packages/ui` must match the approved Contour design
-`design/contour/` (render its states by editing the `state = {...}`
-defaults), using pure Vuetify Material 3 components and design-system tokens,
-removing no feature, and every visible control must perform its action.
-
-1. Start from `9c9988c`, an unverified checkpoint. Run the tabs, menu, config,
-   runtimeSettings and settings suites one directory at a time with
-   `NODE_OPTIONS=--max-old-space-size=3072` and fix what it broke.
-2. Finish the appearance editor, regex builders, options editor and tab overlays
-   restyle against Contour.
-3. Finish the runtime-settings wiring listed in the handoff (density, language,
-   Focus, time awareness, next action, Momentum, display name, quiet hours) with
-   tests that prove the visible effect.
-4. Build the accessibility tools menu, then settings sub-pages, info-icon
-   guidance, the external editor picker, a shared export chooser and
-   collapsible filters.
-5. Update `README.md`, the affected `docs/` articles with their Cantonese
-   sections, and the site articles under `design/packages/site/src/content/`.
-6. Verify with `pnpm lint`, `pnpm --filter @worldlens/ui typecheck`, chunked
-   vitest, `pnpm design-tokens:check`, then commit and push to `main` after each
-   coherent step, never force-pushing.
+```text
+WorldLens (Ding-Ding-Projects/worldlens), main at the commit that adds this file.
+Done: the Work strip keeps to map work. General tools (Docs, File converter, Base64, Drawing board,
+Authenticator, Locks, Support Tickets, Browser downloads, Ollama, Virtual disks, Memory console) live in
+one "Built-in tools" tab; the NBT editor and Convert live in an "Other tools" tab. Code:
+design/packages/ui/src/components/shell/toolHubs.ts, ToolHub.vue, WorkPane.vue. Old routes open the hub
+with the tool picked; saved workspaces fold once. Design boards: design/design-sources/work-strip-declutter/.
+Verified: jsdom tests in App.test.ts, toolHubs.test.ts, shell/, tabs/, kid/, site (all green).
+Not verified: a capture of the hubs in the packaged Windows app. Still red and untouched:
+copy/catalogueCoverage.test.ts on 20 keys from the sharing work.
+Next: capture both hub tabs from the built app, then fix the catalogue coverage keys.
+```
