@@ -54,7 +54,7 @@ jobs:
         if: steps.source.outputs.present == 'true'
         run: |
           set -euo pipefail
-          docker build -t worldlens-map-server:bundled -f design/packages/mapserver/Dockerfile .
+          docker build -t worldlens-map-server:bundled design/packages/mapserver
           mkdir -p out
           docker save worldlens-map-server:bundled -o out/worldlens-map-server-x86_64.tar
 
