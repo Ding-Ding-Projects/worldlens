@@ -26,6 +26,7 @@ import ConfigSearchField from "../config/ConfigSearchField.vue";
 import ConfigSuperConfirm from "../config/ConfigSuperConfirm.vue";
 import ServerJobHeader from "./ServerJobHeader.vue";
 import { useServerStore } from "./useServers.js";
+import RelayPlanner from "./RelayPlanner.vue";
 import {
     filterServers,
     flavourName,
@@ -786,6 +787,7 @@ async function stopOne(id: string): Promise<void> {
                 </VCard>
             </div>
         </template>
+        <RelayPlanner class="wl-mcserver-relay" />
     </div>
 </template>
 
