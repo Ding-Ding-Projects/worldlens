@@ -192,6 +192,7 @@ import type { AddonIpc } from "./addons/index.js";
 import { registerVocabularyHandlers } from "./vocabulary/index.js";
 import { registerConverterHandlers, type ConverterIpc } from "./converter/index.js";
 import { registerVirtualDiskHandlers, type VirtualDiskIpc } from "./vdisk/ipc.js";
+import { registerSharing, type SharingIpc } from "./sharing/register.js";
 import { registerBase64Handlers, type Base64Ipc } from "./base64/ipc.js";
 import { registerEditorHandlers, type EditorIpc } from "./editors/ipc.js";
 import { EditorService } from "./editors/editors.js";
@@ -522,6 +523,7 @@ let botIpc: { dispose(): void } | null = null;
 let managedHostingIpc: { dispose(): void } | null = null;
 let converterIpc: ConverterIpc | null = null;
 let vdiskIpc: VirtualDiskIpc | null = null;
+let sharingIpc: SharingIpc | null = null;
 let editorIpc: EditorIpc | null = null;
 let extensionIpc: ExtensionIpc | null = null;
 let base64Ipc: Base64Ipc | null = null;
@@ -760,6 +762,17 @@ function registerIpc(): void {
     // instead of a missing channel.
     vdiskIpc = registerVirtualDiskHandlers(ipcMain, { dataDir: app.getPath("userData") });
     app.on("will-quit", () => vdiskIpc?.dispose());
+    // Sharing a finished render: host it in a container, build the appliance image, and
+    // the routes that join them. One module owns the wiring; see `sharing/register.ts`.
+    sharingIpc = registerSharing(ipcMain, {
+        userData: app.getPath("userData"),
+        vocabularyDirectory:
+            smokeMode && screenshotUserData !== "" ? screenshotUserData : applicationDataDirectory,
+        storageDir: () => startRendering().storageDirectory(),
+        resourcesDir: app.isPackaged ? process.resourcesPath : null,
+        openExternal: (url) => shell.openExternal(url),
+    });
+    app.on("will-quit", () => sharingIpc?.dispose());
     // The Base64 toolkit's file side: streamed same-folder conversion, previews and exports.
     base64Ipc = registerBase64Handlers(ipcMain, {
         showItemInFolder: (fullPath) => shell.showItemInFolder(fullPath),

@@ -11,6 +11,9 @@ import { WIZARD_STEP_META } from "./wizardSteps.js";
 import ContainerOffers from "./ContainerOffers.vue";
 import InterruptedRenders from "./InterruptedRenders.vue";
 import RenderRunPanel from "./RenderRunPanel.vue";
+import HostMapDialog from "../sharehost/HostMapDialog.vue";
+import ApplianceDialog from "../appliance/ApplianceDialog.vue";
+import type { ShareRoute } from "./shareRoute.js";
 import WorldWizard from "./WorldWizard.vue";
 import WorldGeneratorDialog from "../mcserver/WorldGeneratorDialog.vue";
 import ProjectCanvas from "../canvas/ProjectCanvas.vue";
@@ -169,6 +172,36 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 const generatorOpen = ref(false);
+
+/**
+ * The share routes a finished render offers. Each opens its own guided dialog; the
+ * saved SSH hosts are read when a dialog opens so a host saved a moment ago in the
+ * server manager is offered straight away.
+ */
+const hostMapOpen = ref(false);
+const applianceOpen = ref(false);
+const savedSshHosts = ref<readonly { id: string; label: string }[]>([]);
+async function openShare(route: ShareRoute): Promise<void> {
+    const sharing = (window as { worldlens?: { sharing?: { savedSshHosts(): Promise<unknown> } } }).worldlens?.sharing;
+    if (sharing) {
+        try {
+            const hosts = await sharing.savedSshHosts();
+            savedSshHosts.value = Array.isArray(hosts)
+                ? (hosts as { id: string; label: string; summary?: string }[]).map((h) => ({
+                      id: h.id,
+                      label: h.summary ? `${h.label} · ${h.summary}` : h.label,
+                  }))
+                : [];
+        } catch {
+            savedSshHosts.value = [];
+        }
+    }
+    if (route === "host") hostMapOpen.value = true;
+    else if (route === "appliance") applianceOpen.value = true;
+    else shareRouteRequested.value = route;
+}
+/** A route whose dialog is not mounted on this screen; the shell answers it. */
+const shareRouteRequested = ref<ShareRoute | null>(null);
 
 /**
  * "Search all five steps", in the page header beside the title.
@@ -723,7 +756,14 @@ async function resume(renderId: string): Promise<void> {
             @open="(dataRoot, mapIds) => emit('openMap', dataRoot, mapIds)"
             @settings="(target) => emit('settings', target)"
             @again="again"
+            @share="openShare"
         />
+        <HostMapDialog
+            v-model="hostMapOpen"
+            :render-id="run.renderId.value ?? ''"
+            :ssh-hosts="savedSshHosts"
+        />
+        <ApplianceDialog v-model="applianceOpen" :map-root="run.dataRoot.value ?? ''" />
 
         <!--
             Publishing the render that just finished to the machine it was sent to, so the

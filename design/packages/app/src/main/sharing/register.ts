@@ -1,0 +1,96 @@
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { BrowserWindow, shell, type IpcMain } from "electron";
+import { registerApplianceHandlers } from "../appliance/index.js";
+import {
+    createShareHostService,
+    defaultBundledImageDir,
+    registerShareHostHandlers,
+    SHARE_HOST_EVENT_CHANNEL,
+} from "../sharehost/index.js";
+import { listSavedSshHosts, savedSshTarget } from "../sharehost/savedHosts.js";
+import { VocabularyStore } from "../vocabulary/store.js";
+
+/**
+ * Everything that shares a finished render, registered in one place.
+ *
+ * Hosting the map in a container, building the appliance image, and (as they land) the
+ * live viewer and the NBT editor each own their own IPC module; this file only supplies
+ * the app-level facts they need - the render storage folder, the user-data folder, the
+ * saved SSH hosts, the trusted host keys and the person's loaded wording - so the main
+ * entry gains one call instead of four blocks.
+ */
+export interface SharingOptions {
+    readonly userData: string;
+    /** Where the person's loaded wording file lives (the same folder the upload control writes to). */
+    readonly vocabularyDirectory: string;
+    readonly storageDir: () => string;
+    /** The packaged app's resources folder, or null in a checkout. */
+    readonly resourcesDir: string | null;
+    /** Opens an http or https link in the person's browser. */
+    readonly openExternal: (url: string) => Promise<void>;
+}
+
+export interface SharingIpc {
+    dispose(): void;
+}
+
+function broadcast(channel: string, payload: unknown): void {
+    for (const window of BrowserWindow.getAllWindows()) {
+        if (!window.isDestroyed()) window.webContents.send(channel, payload);
+    }
+}
+
+/** In a checkout the build scripts stage bundled parts under `packages/app/dist`. */
+function devResourcesDir(): string {
+    return join(dirname(fileURLToPath(import.meta.url)), "..", "..", "dist");
+}
+
+export function registerSharing(ipcMain: IpcMain, options: SharingOptions): SharingIpc {
+    const vocabulary = new VocabularyStore(options.vocabularyDirectory);
+    const knownHostsFile = join(options.userData, "known_hosts");
+    const userKnownHostsFile = join(homedir(), ".ssh", "known_hosts");
+
+    const shareHost = registerShareHostHandlers(ipcMain, {
+        service: createShareHostService({
+            storageDir: options.storageDir,
+            userDataDir: () => options.userData,
+            sshTarget: (id) => savedSshTarget(options.userData, id),
+            knownHostsFile: () => knownHostsFile,
+            userKnownHostsFile: () => userKnownHostsFile,
+            bundledImageDir: defaultBundledImageDir,
+            vocabulary,
+        }),
+        onEvent: (operationId, event) => broadcast(SHARE_HOST_EVENT_CHANNEL, { operationId, event }),
+    });
+
+    ipcMain.handle("sharing:savedSshHosts", () => listSavedSshHosts(options.userData));
+    ipcMain.handle("sharing:openExternal", async (_event, url: unknown) => {
+        if (typeof url !== "string" || !/^https?:\/\/[^\s]+$/iu.test(url)) return false;
+        await options.openExternal(url);
+        return true;
+    });
+    ipcMain.handle("sharing:reveal", (_event, target: unknown) => {
+        if (typeof target !== "string" || target.length === 0) return false;
+        shell.showItemInFolder(target);
+        return true;
+    });
+
+    const appliance = registerApplianceHandlers(ipcMain, {
+        dataDir: options.userData,
+        resourcesDir: options.resourcesDir ?? devResourcesDir(),
+        vocabulary: async () => (await vocabulary.read()).entries,
+        reveal: (target) => shell.showItemInFolder(target),
+    });
+
+    return {
+        dispose() {
+            shareHost.dispose();
+            appliance.dispose();
+            for (const channel of ["sharing:savedSshHosts", "sharing:openExternal", "sharing:reveal"]) {
+                ipcMain.removeHandler(channel);
+            }
+        },
+    };
+}

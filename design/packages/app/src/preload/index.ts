@@ -2564,6 +2564,38 @@ interface WorldlensBridge {
         prepareMapDisk(vhdx: string, sizeBytes: number): Promise<unknown>;
         onProgress(listener: (progress: unknown) => void): () => void;
     };
+    shareHost: {
+        check(target: unknown): Promise<unknown>;
+        maps(renderId: string): Promise<unknown>;
+        checkPort(target: unknown, port: number): Promise<unknown>;
+        host(request: unknown, operationId: string): Promise<unknown>;
+        cancel(operationId: string): Promise<unknown>;
+        list(): Promise<unknown>;
+        start(id: string): Promise<unknown>;
+        stop(id: string): Promise<unknown>;
+        restart(id: string): Promise<unknown>;
+        update(id: string): Promise<unknown>;
+        remove(id: string): Promise<unknown>;
+        openExternal(url: string): Promise<unknown>;
+        onEvent(listener: (operationId: unknown, event: unknown) => void): () => void;
+    };
+    appliance: {
+        tools(): Promise<unknown>;
+        usbDisks(): Promise<unknown>;
+        build(request: unknown): Promise<unknown>;
+        instances(): Promise<unknown>;
+        start(id: string): Promise<unknown>;
+        stop(id: string): Promise<unknown>;
+        remove(id: string): Promise<unknown>;
+        reveal(target: string): Promise<unknown>;
+        openExternal(url: string): Promise<unknown>;
+        onProgress(listener: (progress: unknown) => void): () => void;
+    };
+    sharing: {
+        savedSshHosts(): Promise<unknown>;
+        openExternal(url: string): Promise<unknown>;
+        reveal(target: string): Promise<unknown>;
+    };
     converter: {
         catalog(): Promise<unknown>;
         inspect(path: string): Promise<unknown>;

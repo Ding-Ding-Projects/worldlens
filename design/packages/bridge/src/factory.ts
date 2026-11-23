@@ -1168,6 +1168,52 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
         },
 
+        shareHost: {
+            check: (target: unknown) => transport.invoke("shareHost:check", target),
+            maps: (renderId: unknown) => transport.invoke("shareHost:maps", renderId),
+            checkPort: (target: unknown, port: unknown) => transport.invoke("shareHost:checkPort", { target, port }),
+            host: (request: unknown, operationId: unknown) => transport.invoke("shareHost:host", { request, operationId }),
+            cancel: (operationId: unknown) => transport.invoke("shareHost:cancel", operationId),
+            list: () => transport.invoke("shareHost:list"),
+            start: (id: unknown) => transport.invoke("shareHost:start", id),
+            stop: (id: unknown) => transport.invoke("shareHost:stop", id),
+            restart: (id: unknown) => transport.invoke("shareHost:restart", id),
+            update: (id: unknown) => transport.invoke("shareHost:update", id),
+            remove: (id: unknown) => transport.invoke("shareHost:remove", id),
+            openExternal: (url: unknown) => transport.invoke("sharing:openExternal", url),
+            onEvent: (listener: (operationId: unknown, event: unknown) => void) => {
+                const forward = (_event: unknown, payload: unknown): void => {
+                    const value = payload as { operationId?: unknown; event?: unknown } | null;
+                    listener(value?.operationId, value?.event);
+                };
+                transport.on("shareHost:event", forward);
+                return () => transport.off("shareHost:event", forward);
+            },
+        },
+
+        appliance: {
+            tools: () => transport.invoke("appliance:tools"),
+            usbDisks: () => transport.invoke("appliance:usbDisks"),
+            build: (request: unknown) => transport.invoke("appliance:build", request),
+            instances: () => transport.invoke("appliance:instances"),
+            start: (id: unknown) => transport.invoke("appliance:start", id),
+            stop: (id: unknown) => transport.invoke("appliance:stop", id),
+            remove: (id: unknown) => transport.invoke("appliance:remove", id),
+            reveal: (target: unknown) => transport.invoke("appliance:reveal", target),
+            openExternal: (url: unknown) => transport.invoke("sharing:openExternal", url),
+            onProgress: (listener: BridgeListener) => {
+                const forward = (_event: unknown, payload: unknown): void => listener(payload);
+                transport.on("appliance:progress", forward);
+                return () => transport.off("appliance:progress", forward);
+            },
+        },
+
+        sharing: {
+            savedSshHosts: () => transport.invoke("sharing:savedSshHosts"),
+            openExternal: (url: unknown) => transport.invoke("sharing:openExternal", url),
+            reveal: (target: unknown) => transport.invoke("sharing:reveal", target),
+        },
+
         converter: {
             catalog: () => transport.invoke("converter:catalog"),
             inspect: (path: unknown) => transport.invoke("converter:inspect", path),
