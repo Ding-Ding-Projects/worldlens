@@ -65,7 +65,7 @@ export interface ApplianceRequestView {
     exportFormat?: ExportFormat;
     exportDir?: string;
     /** Absent: the finished map. `app`: the whole WorldLens app; only the password's SHA-256 is sent. */
-    workload?: { kind: "app"; image: string; passwordSha256: string };
+    workload?: { kind: "app"; image: string; passwordSha256: string } | { kind: "minecraft"; serverImage: string; siteImage: string; eulaAccepted: boolean; memoryGb: number };
 }
 
 export interface ApplianceBridge {
@@ -105,12 +105,21 @@ export interface ApplianceFormState {
     runApp: boolean;
     appImage: string;
     appPassword: string;
+    /** Run a Minecraft server plus its management site instead. */
+    runServer: boolean;
+    serverImage: string;
+    siteImage: string;
+    eulaAccepted: boolean;
+    serverMemoryGb: number;
 }
+
+export const PINNED_IMAGE_PATTERN = /^[a-z0-9][a-z0-9._/-]{0,200}(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$/u;
+export const SITE_IMAGE_PATTERN = /^[a-z0-9][a-z0-9._/-]{0,200}\/worldlens-server-site(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$/u;
 
 export const HOSTED_IMAGE_PATTERN = /^[a-z0-9][a-z0-9._/-]{0,200}\/worldlens-hosted(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$/u;
 
 export function defaultForm(): ApplianceFormState {
-    return { target: "vmware", vmName: "worldlens-map", network: "bridged", memoryMb: 1024, cpus: 2, hostName: "worldlens-map", port: "80", askAccessCode: true, accessCode: "", usbDiskNumber: null, usbConfirmName: "", exportFormat: "vmdk", exportDir: "", runApp: false, appImage: "", appPassword: "" };
+    return { target: "vmware", vmName: "worldlens-map", network: "bridged", memoryMb: 1024, cpus: 2, hostName: "worldlens-map", port: "80", askAccessCode: true, accessCode: "", usbDiskNumber: null, usbConfirmName: "", exportFormat: "vmdk", exportDir: "", runApp: false, appImage: "", appPassword: "", runServer: false, serverImage: "", siteImage: "", eulaAccepted: false, serverMemoryGb: 2 };
 }
 
 /** The reason the build button is disabled, or null. Mirrors the main process; the main process re-checks. */
@@ -129,6 +138,12 @@ export function formProblem(form: ApplianceFormState, mapRoot: string, usb: read
         if (form.usbConfirmName.trim().toLowerCase() !== disk.name.toLowerCase()) return "Type the drive name to confirm the erase.";
     }
     if (form.target === "export" && !form.exportDir.trim()) return "Choose where to save the image.";
+    if (form.runApp && form.runServer) return "Choose either the WorldLens app or a Minecraft server, not both.";
+    if (form.runServer) {
+        if (!PINNED_IMAGE_PATTERN.test(form.serverImage.trim())) return "Minecraft server: paste the server image pinned by digest.";
+        if (!SITE_IMAGE_PATTERN.test(form.siteImage.trim())) return "Minecraft server: paste the worldlens-server-site image pinned by digest.";
+        if (!form.eulaAccepted) return "Minecraft server: accept the Minecraft EULA.";
+    }
     if (form.runApp) {
         if (!HOSTED_IMAGE_PATTERN.test(form.appImage.trim())) return "WorldLens app: paste the worldlens-hosted image pinned by digest.";
         if (form.appPassword.length < 8) return "WorldLens app: a password of at least 8 characters.";

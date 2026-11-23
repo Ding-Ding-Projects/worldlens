@@ -41,13 +41,16 @@ export interface MapConfig {
     readonly labels: Readonly<Record<LabelKey, string>>;
     readonly created: string;
     /** Absent for a map appliance; see `ApplianceWorkload`. Read by the boot script. */
-    readonly workload?: { readonly kind: "app"; readonly image: string; readonly passwordSha256: string };
+    readonly workload?:
+        | { readonly kind: "app"; readonly image: string; readonly passwordSha256: string }
+        | { readonly kind: "minecraft"; readonly serverImage: string; readonly siteImage: string; readonly eulaAccepted: boolean; readonly memoryGb: number };
 }
 
 export function buildMapConfig(input: { hostName: string; port: number; accessCode: string | null; vocabulary: Readonly<Record<string, string>>; now?: Date | undefined; workload?: ApplianceWorkload | undefined }): MapConfig {
-    const app = input.workload?.kind === "app" ? input.workload : null;
+    const w = input.workload;
     return {
-        ...(app === null ? {} : { workload: { kind: "app" as const, image: app.image, passwordSha256: app.passwordSha256 } }),
+        ...(w?.kind === "app" ? { workload: { kind: "app" as const, image: w.image, passwordSha256: w.passwordSha256 } } : {}),
+        ...(w?.kind === "minecraft" ? { workload: { kind: "minecraft" as const, serverImage: w.serverImage, siteImage: w.siteImage, eulaAccepted: w.eulaAccepted, memoryGb: w.memoryGb } } : {}),
         schema: 1,
         hostname: input.hostName,
         port: input.port,

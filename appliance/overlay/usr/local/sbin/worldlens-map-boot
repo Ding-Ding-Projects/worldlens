@@ -106,6 +106,33 @@ if [ "$KIND" = app ]; then
         -v "$DATA/map:/data/maps:ro" -v worldlens-app-state:/data/state \
         "$APP_IMAGE" >> /var/log/worldlens-map.log 2>&1 || { banner "$TITLE" "The WorldLens app did not start."; exit 1; }
     HEALTH_PATH=
+elif [ "$KIND" = minecraft ]; then
+    # A Minecraft server plus its management site (owner-first accounts). Images by digest,
+    # checked again here because this script runs as root.
+    MC_IMAGE=$(jq -r '.workload.serverImage // ""' "$CONFIG")
+    SITE_IMAGE=$(jq -r '.workload.siteImage // ""' "$CONFIG")
+    MC_EULA=$(jq -r '.workload.eulaAccepted // false' "$CONFIG")
+    MC_MEM=$(jq -r '.workload.memoryGb // 2' "$CONFIG")
+    echo "$MC_IMAGE" | grep -Eq '^[a-z0-9][a-z0-9._/-]{0,200}(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$' || { banner "$TITLE" "The Minecraft server image in this appliance is not valid. Rebuild it from WorldLens."; exit 1; }
+    echo "$SITE_IMAGE" | grep -Eq '^[a-z0-9][a-z0-9._/-]{0,200}/worldlens-server-site(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$' || { banner "$TITLE" "The management site image in this appliance is not valid. Rebuild it from WorldLens."; exit 1; }
+    [ "$MC_EULA" = true ] || { banner "$TITLE" "The Minecraft EULA was not accepted, so the server will not start. Rebuild it from WorldLens."; exit 1; }
+    echo "$MC_MEM" | grep -Eq '^[0-9]{1,2}$' || MC_MEM=2
+    for IMG in "$MC_IMAGE" "$SITE_IMAGE"; do
+        until docker image inspect "$IMG" >/dev/null 2>&1; do
+            banner "$TITLE" "Downloading the Minecraft server. The first start needs an internet connection."
+            docker pull "$IMG" >> /var/log/worldlens-map.log 2>&1 || sleep 15
+        done
+    done
+    docker rm -f worldlens-mc worldlens-site >/dev/null 2>&1
+    docker run -d --name worldlens-mc --restart always -p 25565:25565 -p 19132:19132/udp \
+        -e EULA=TRUE -e MEMORY="${MC_MEM}G" -v worldlens-mc-data:/data \
+        "$MC_IMAGE" >> /var/log/worldlens-map.log 2>&1 || { banner "$TITLE" "The Minecraft server did not start."; exit 1; }
+    docker run -d --name worldlens-site --restart always -p "$PORT:8443" \
+        -v /var/run/docker.sock:/var/run/docker.sock -v worldlens-site-state:/data/state -v worldlens-mc-data:/data/server \
+        -e WORLDLENS_SITE_HOST="$HOST.local" -e WORLDLENS_SITE_LAN_HTTP=1 -e WORLDLENS_SITE_ORIGIN="http://$HOST.local:$PORT" \
+        -e WORLDLENS_MC_NAME="$HOST" \
+        "$SITE_IMAGE" >> /var/log/worldlens-map.log 2>&1 || { banner "$TITLE" "The management site did not start."; exit 1; }
+    HEALTH_PATH=
 else
     if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
         say "loading the bundled map-server image"

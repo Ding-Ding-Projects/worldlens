@@ -30,7 +30,16 @@ export interface ApplianceRequest {
 
 export type ApplianceWorkload =
     | { readonly kind: "map" }
-    | { readonly kind: "app"; readonly image: string; readonly passwordSha256: string };
+    | { readonly kind: "app"; readonly image: string; readonly passwordSha256: string }
+    /**
+     * A Minecraft server plus its management site (owner-first accounts). Both images are
+     * pulled by digest on first boot. `eulaAccepted` records that the person accepted the
+     * Minecraft EULA in the dialog; the server does not start without it.
+     */
+    | { readonly kind: "minecraft"; readonly serverImage: string; readonly siteImage: string; readonly eulaAccepted: boolean; readonly memoryGb: number };
+
+const PINNED_IMAGE = /^[a-z0-9][a-z0-9._/-]{0,200}(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$/u;
+const SITE_IMAGE = /^[a-z0-9][a-z0-9._/-]{0,200}\/worldlens-server-site(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$/u;
 
 const HOSTED_IMAGE = /^[a-z0-9][a-z0-9._/-]{0,200}\/worldlens-hosted(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$/u;
 
@@ -107,6 +116,12 @@ export function validateRequest(request: ApplianceRequest): string | null {
     if (request.workload?.kind === "app") {
         if (!HOSTED_IMAGE.test(request.workload.image)) return "Choose the WorldLens hosted image pinned by digest (…/worldlens-hosted@sha256:…).";
         if (!/^[a-f0-9]{64}$/u.test(request.workload.passwordSha256)) return "Set a password for the WorldLens app.";
+    }
+    if (request.workload?.kind === "minecraft") {
+        if (!PINNED_IMAGE.test(request.workload.serverImage)) return "Choose the Minecraft server image pinned by digest.";
+        if (!SITE_IMAGE.test(request.workload.siteImage)) return "Choose the WorldLens server site image pinned by digest (…/worldlens-server-site@sha256:…).";
+        if (request.workload.eulaAccepted !== true) return "Accept the Minecraft EULA to run a server.";
+        if (!Number.isInteger(request.workload.memoryGb) || request.workload.memoryGb < 1 || request.workload.memoryGb > 32) return "Server memory must be 1 to 32 GB.";
     }
     if (request.target === "export") {
         if (!request.exportFormat) return "Choose an image format.";

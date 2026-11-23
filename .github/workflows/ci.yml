@@ -848,6 +848,110 @@ jobs:
           name: hosted-image-digest
           path: hosted-image-digest.json
           if-no-files-found: error
+
+  # The Minecraft server appliance's management site (`--target server-site` of the hosted
+  # Dockerfile): the web console with owner-first accounts, run beside the server container.
+  server-site-image:
+    name: Server management site image
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Resolve the image identity
+        id: identity
+        run: |
+          identity=$(node scripts/release-version.mjs \
+            --package design/packages/app/package.json \
+            --run-number "$GITHUB_RUN_NUMBER" \
+            --format lines)
+          version=$(printf '%s\n' "$identity" | sed -n 1p)
+          if [ -z "$version" ]; then
+            echo "::error::release version resolver returned no version"
+            exit 1
+          fi
+          repository=$(printf '%s' "$GITHUB_REPOSITORY" | tr '[:upper:]' '[:lower:]')
+          repository_owner=${repository%%/*}
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${repository_owner}/worldlens-server-site" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4
+
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+
+      # The workflow token, for the reason given on the same step in `docker-image`.
+      - name: Log in to the container registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build the image without pushing
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          file: design/packages/app/Dockerfile.hosted
+          target: server-site
+          platforms: linux/amd64
+          push: false
+          build-args: |
+            WORLDLENS_SOURCE_COMMIT=${{ github.sha }}
+
+      - name: Build and push the image
+        id: push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: .
+          file: design/packages/app/Dockerfile.hosted
+          target: server-site
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          build-args: |
+            WORLDLENS_SOURCE_COMMIT=${{ github.sha }}
+          tags: |
+            ${{ steps.identity.outputs.image }}:${{ steps.identity.outputs.version }}
+            ${{ steps.identity.outputs.image }}:sha-${{ github.sha }}
+            ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && format('{0}:latest', steps.identity.outputs.image) || '' }}
+
+      # The digest record: the application's image script pins this value, never a tag.
+      - name: Record the pushed image digest
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE: ${{ steps.identity.outputs.image }}
+          VERSION: ${{ steps.identity.outputs.version }}
+          DIGEST: ${{ steps.push.outputs.digest }}
+        run: |
+          if [ -z "$DIGEST" ]; then
+            echo "::error::the push step reported no digest"
+            exit 1
+          fi
+          printf '{"image":"%s","version":"%s","digest":"%s","commit":"%s"}\n' "$IMAGE" "$VERSION" "$DIGEST" "$GITHUB_SHA" > server-site-image-digest.json
+          {
+            echo "## Server management site image"
+            echo
+            echo "Version \`$VERSION\`, built for \`linux/amd64\` and \`linux/arm64\`."
+            echo
+            echo '```'
+            echo "${IMAGE}@${DIGEST}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the digest record
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: server-site-image-digest
+          path: server-site-image-digest.json
+          if-no-files-found: error
   # packages/config/test/javaRoundTrip.test.ts is the one test that proves the whole
   # point of the HOCON reader/writer: it generates a config set, edits real values
   # through this package's own reader/writer (the same code path the options GUI

@@ -186,6 +186,15 @@ describe("VMware build", () => {
         expect((await both.build(request({ workload: app }), () => undefined)).ok).toBe(true);
         expect(urls).toEqual(["http://192.0.2.141/"]);
     });
+    it("runs a Minecraft server only on a base that can, with pinned images and an accepted EULA", async () => {
+        const mc = { kind: "minecraft" as const, serverImage: `docker.io/itzg/minecraft-server@sha256:${"1".repeat(64)}`, siteImage: `ghcr.io/ding-ding-projects/worldlens-server-site@sha256:${"2".repeat(64)}`, eulaAccepted: true, memoryGb: 4 };
+        expect(validateRequest(request({ workload: { ...mc, eulaAccepted: false } }))).toMatch(/EULA/);
+        expect(validateRequest(request({ workload: { ...mc, siteImage: "ghcr.io/x/other@sha256:" + "2".repeat(64) } }))).toMatch(/server-site/);
+        expect(validateRequest(request({ workload: mc }))).toBeNull();
+        const { runner } = fakeRunner(() => undefined);
+        const refused = await new ApplianceBuilder(deps(runner, { base: async () => ({ ...base, workloads: ["map", "app"] }) })).build(request({ workload: mc }), () => undefined);
+        expect(refused.message).toMatch(/cannot run a Minecraft server yet/);
+    });
     it("refuses a base whose checksum is wrong before anything is started", async () => {
         const { runner, calls } = fakeRunner(() => undefined);
         const builder = new ApplianceBuilder(deps(runner, { base: async () => ({ path: base.path, sha256: "0".repeat(64) }) }));

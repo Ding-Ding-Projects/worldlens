@@ -20,3 +20,24 @@ describe("appliance form: the whole WorldLens app", () => {
         ).not.toContain("long enough");
     });
 });
+
+describe("appliance form: a Minecraft server", () => {
+    it("needs both images pinned and the EULA accepted", () => {
+        const form = { ...defaultForm(), askAccessCode: false, runServer: true };
+        expect(formProblem(form, "/maps/a", [])).toMatch(/server image/);
+        const serverImage = `docker.io/itzg/minecraft-server@sha256:${"1".repeat(64)}`;
+        const siteImage = `ghcr.io/ding-ding-projects/worldlens-server-site@sha256:${"2".repeat(64)}`;
+        expect(formProblem({ ...form, serverImage }, "/maps/a", [])).toMatch(/server-site/);
+        expect(formProblem({ ...form, serverImage, siteImage }, "/maps/a", [])).toMatch(/EULA/);
+        expect(
+            formProblem({ ...form, serverImage, siteImage, eulaAccepted: true }, "/maps/a", []),
+        ).toBeNull();
+        expect(
+            formProblem(
+                { ...form, serverImage, siteImage, eulaAccepted: true, runApp: true },
+                "/maps/a",
+                [],
+            ),
+        ).toMatch(/not both/);
+    });
+});

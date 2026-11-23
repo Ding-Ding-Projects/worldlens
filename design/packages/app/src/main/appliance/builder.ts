@@ -149,6 +149,8 @@ export class ApplianceBuilder {
         const base = await this.deps.base(arch);
         if (!base) return result({ ok: false, message: arch === "aarch64-rpi" ? "This build of Worldlens does not carry the Raspberry Pi appliance image. Run the fetch-appliance-base script and rebuild." : "This build of Worldlens does not carry the appliance base image. Run the fetch-appliance-base script and rebuild." });
 
+        if (request.workload?.kind === "minecraft" && !(base.workloads ?? ["map"]).includes("minecraft"))
+            return result({ ok: false, message: "The appliance base bundled with this build cannot run a Minecraft server yet. It needs a base built from the current appliance scripts and pinned with the minecraft workload." });
         if (request.workload?.kind === "app" && !(base.workloads ?? ["map"]).includes("app"))
             return result({ ok: false, message: "The appliance base bundled with this build only runs a finished map. Running the whole WorldLens app needs a base built from the current appliance scripts; until one is pinned, deploy WorldLens as a container instead." });
 
@@ -318,7 +320,7 @@ export class ApplianceBuilder {
         const link = `http://${ip}${port === 80 ? "" : `:${port}`}/`;
         // A first boot loads the map server image before it can answer: about a minute in
         // VirtualBox on a fast PC, so the window is generous but still bounded.
-        const ok = await (this.deps.health ?? defaultHealth)(request.workload?.kind === "app" ? link : `${link}health`, request.workload?.kind === "app" ? 600_000 : 240_000);
+        const ok = await (this.deps.health ?? defaultHealth)(request.workload !== undefined && request.workload.kind !== "map" ? link : `${link}health`, request.workload !== undefined && request.workload.kind !== "map" ? 600_000 : 240_000);
         if (!ok) {
             progress.fail("no answer");
             const kept = await record(link);

@@ -68,7 +68,7 @@ async function stageLocal(arch, source) {
     const imgSha256 = await sha256File(source);
     await pipeline(createReadStream(source), zlib.createZstdCompress(), createWriteStream(target));
     // A base built from this checkout carries this checkout's boot script, which runs both.
-    await writeManifest(arch, { file: zstName, compression: "zstd", sha256: imgSha256, zstSha256: await sha256File(target), bytes: (await stat(source)).size, workloads: ["map", "app"] });
+    await writeManifest(arch, { file: zstName, compression: "zstd", sha256: imgSha256, zstSha256: await sha256File(target), bytes: (await stat(source)).size, workloads: ["map", "app", "minecraft"] });
 }
 
 /** The pin for one base. Older pin files kept the PC base at the top level. */
@@ -107,7 +107,7 @@ async function stage(arch, pin) {
         throw new Error(`${arch}: the expanded base does not match the pinned image sha256; deleted it`);
     }
     // Which workloads that base's boot script runs. Older pins name none: they run the map only.
-    const workloads = Array.isArray(pin.workloads) ? pin.workloads.filter((w) => w === "map" || w === "app") : ["map"];
+    const workloads = Array.isArray(pin.workloads) ? pin.workloads.filter((w) => w === "map" || w === "app" || w === "minecraft") : ["map"];
     await writeManifest(arch, { file: zstName, compression: "zstd", sha256: pin.imgSha256, zstSha256: pin.zstSha256, bytes, workloads });
 }
 

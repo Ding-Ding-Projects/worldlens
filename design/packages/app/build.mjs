@@ -495,6 +495,24 @@ async function main() {
 
     assertHostedBundleIsElectronFree("dist/hosted/index.js");
 
+    // The Minecraft server appliance's management site, run from the same image family.
+    await build({
+        entryPoints: ["src/serversite/cli.ts"],
+        outfile: "dist/hosted/server-site.js",
+        bundle: true,
+        platform: "node",
+        format: "esm",
+        target: "node22",
+        define: {
+            __WORLDLENS_BUILT_AT__: JSON.stringify(resolveBuildTimestamp(process.env)),
+            __WORLDLENS_UPDATED_AT__: JSON.stringify(versionUpdatedAt),
+            __WORLDLENS_SOURCE_COMMIT__: JSON.stringify(resolveBuildCommit(process.env)),
+        },
+        banner: { js: nodeBuiltinRequireShimBanner },
+        sourcemap: true,
+    });
+    assertHostedBundleIsElectronFree("dist/hosted/server-site.js");
+
     await buildManagedMapHost();
 
     console.log("app build done");

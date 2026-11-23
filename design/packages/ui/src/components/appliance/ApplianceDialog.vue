@@ -127,6 +127,7 @@ async function run(): Promise<void> {
     try {
         const request = buildRequest(form.value, props.mapRoot);
         if (form.value.runApp) request.workload = { kind: "app", image: form.value.appImage.trim(), passwordSha256: await sha256Hex(form.value.appPassword) };
+        if (form.value.runServer) request.workload = { kind: "minecraft", serverImage: form.value.serverImage.trim(), siteImage: form.value.siteImage.trim(), eulaAccepted: form.value.eulaAccepted, memoryGb: form.value.serverMemoryGb };
         result.value = await b.build(request);
         steps.value = result.value.steps.length ? result.value.steps : steps.value;
     } catch (error) {
@@ -263,6 +264,23 @@ function open(): void {
                             <input v-model="form.appPassword" type="password" autocomplete="new-password" data-field="appPassword" :disabled="busy" />
                         </label>
                         <p class="wl-appliance__hint">{{ t("appliance.appNote", "The first start downloads the app, so the appliance needs internet once. The map is offered to the app read-only. Only a SHA-256 of the password is written to the image.") }}</p>
+                    </template>
+                    <label class="wl-appliance__check"><input v-model="form.runServer" type="checkbox" data-field="runServer" :disabled="busy" /> {{ t("appliance.runServer", "Run a Minecraft server with its management site") }}</label>
+                    <template v-if="form.runServer">
+                        <label>
+                            {{ t("appliance.serverImage", "Minecraft server image (pinned by digest)") }}
+                            <input v-model="form.serverImage" data-field="serverImage" autocomplete="off" :disabled="busy" />
+                        </label>
+                        <label>
+                            {{ t("appliance.siteImage", "Management site image (pinned by digest)") }}
+                            <input v-model="form.siteImage" data-field="siteImage" autocomplete="off" placeholder="ghcr.io/ding-ding-projects/worldlens-server-site@sha256:…" :disabled="busy" />
+                        </label>
+                        <label>
+                            {{ t("appliance.serverMemory", { gb: form.serverMemoryGb }, "Server memory: {gb} GB") }}
+                            <input v-model.number="form.serverMemoryGb" type="range" min="1" max="16" step="1" data-field="serverMemory" :disabled="busy" />
+                        </label>
+                        <label class="wl-appliance__check"><input v-model="form.eulaAccepted" type="checkbox" data-field="eula" :disabled="busy" /> {{ t("appliance.eula", "I accept the Minecraft EULA (minecraft.net/eula)") }}</label>
+                        <p class="wl-appliance__hint">{{ t("appliance.serverNote", "Players join on port 25565 (Java) and 19132 (Bedrock). The management site opens on the web port; the first person to open it becomes the owner.") }}</p>
                     </template>
                     <p v-if="problem" class="wl-appliance__hint" data-role="problem">{{ problem }}</p>
                     <button type="submit" class="wl-appliance__cta" data-action="build" :disabled="busy || !!problem">{{ busy ? t("appliance.working", "Working…") : cta }}</button>

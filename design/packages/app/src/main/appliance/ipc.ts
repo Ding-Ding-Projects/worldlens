@@ -51,7 +51,7 @@ export async function readBundledBase(resourcesDir: string, arch: "x86_64" | "aa
     if (found === null) return null;
     try {
         const manifest = JSON.parse(await fs.readFile(path.join(resourcesDir, "appliance", arch === "aarch64-rpi" ? "base-rpi.json" : "base.json"), "utf8")) as { workloads?: unknown };
-        const workloads = Array.isArray(manifest.workloads) ? manifest.workloads.filter((w): w is string => w === "map" || w === "app") : ["map"];
+        const workloads = Array.isArray(manifest.workloads) ? manifest.workloads.filter((w): w is string => w === "map" || w === "app" || w === "minecraft") : ["map"];
         return { ...found, workloads };
     } catch {
         return { ...found, workloads: ["map"] };
