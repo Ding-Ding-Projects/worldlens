@@ -15,7 +15,9 @@ Later the same day: the appliance can run the whole WorldLens app (`ea0e455`; ne
 
 The player relay planner is built (`cd3febf`, `docs/player-relay.md`: Oracle cloud-init, SSH setup script, router steps, WireGuard keys; files to paste or run, not yet run on a real VM). An Appliance workflow run attaching new bases to release `v1.0.2300` was dispatched (run 45274195226); once it succeeds, pin its assets in `design/packages/app/appliance-base.pin.json` with `"workloads": ["map", "app"]`.
 
-Still to build, in order: pin the new appliance base; the Minecraft server appliance (a headless entry that runs a server plus the web console with `accounts`, packaged as an appliance workload) that runs a server plus that site (`McServer.dc.html`, `Admin.dc.html`); Bedrock LevelDB in the NBT editor.
+Bedrock LevelDB records open read-only in the NBT editor (`e29253c`), and the `v1.0.2300` appliance bases that run both workloads are pinned (`d3256f1`; app mode not yet booted in a real VM).
+
+Still to build, in order: the Minecraft server appliance (a headless entry that runs a server plus the web console with `accounts`, packaged as an appliance workload) that runs a server plus that site (`McServer.dc.html`, `Admin.dc.html`);
 
 Note: commits `aab3cf3`, `3b23096` and `bfc87f0` carry a "Claude Opus 5.5" co-author trailer and author instead of the required "Claude Fable 5". They are pushed and were not rewritten.
 
