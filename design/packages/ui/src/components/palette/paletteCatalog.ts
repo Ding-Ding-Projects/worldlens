@@ -412,6 +412,13 @@ const PAGE_NOTES: Record<string, { description: [string, string]; keywords: read
         ],
         keywords: ["nbt", "level.dat", "playerdata", "region", "chunk", "snbt", "editor", "history"],
     },
+    datapacks: {
+        description: [
+            "palette.page.datapacks",
+            "Make a data pack with typed controls: recipes on a crafting grid, functions, tags, advancements and loot tables, checked for the chosen version and saved as a .zip.",
+        ],
+        keywords: ["data pack", "datapack", "recipe", "function", "mcfunction", "advancement", "loot table", "tag", "pack.mcmeta"],
+    },
     screenshots: {
         description: [
             "palette.page.screenshots",

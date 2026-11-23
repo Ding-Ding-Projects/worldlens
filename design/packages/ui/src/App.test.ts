@@ -490,7 +490,7 @@ describe("the tab strip", () => {
 
         expect(shellGroupHeads().map((head) => head.getAttribute("aria-label"))).toEqual([
             "Rendering, 3 tabs",
-            "Worlds, 5 tabs",
+            "Worlds, 6 tabs",
             "Finished maps, 8 tabs",
             "Keeping a copy, 2 tabs",
         ]);

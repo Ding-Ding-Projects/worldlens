@@ -9,7 +9,7 @@ export const nbtEditor: Article = {
     category: "application",
     status: "ported-unverified",
     statusNote:
-        "On the default branch and driven in the built application on 2026-11-23: a real level.dat was opened, a value changed, saved, and recorded as a new commit beside its baseline. LZ4 region chunks and Bedrock LevelDB worlds are not supported.",
+        "On the default branch and driven in the built application on 2026-11-23: a real level.dat was opened, a value changed, saved, and recorded as a new commit beside its baseline. LZ4 and external (.mcc) chunks open; chunks also show height, biome, block and light layers. Bedrock LevelDB worlds are not supported.",
     sections: [
         {
             id: "behaviour",
@@ -83,6 +83,7 @@ export const nbtEditor: Article = {
     ],
     suggested: [
         { articleId: "backups", reason: "Whole-world backups beside the per-file history here." },
+        { articleId: "data-pack-creator", reason: "Make a data pack for the same world." },
         {
             articleId: "world-reading",
             reason: "How Worldlens reads the same world files this editor changes.",

@@ -94,6 +94,7 @@ import { shareHost } from "./share-host.js";
 import { applianceImage } from "./appliance-image.js";
 import { liveViewer } from "./live-viewer.js";
 import { nbtEditor } from "./nbt-editor.js";
+import { dataPackCreator } from "./data-pack-creator.js";
 import { serverGeneration } from "./server-generation.js";
 import { serverConfigurationEditor } from "./server-configuration-editor.js";
 import { botsAndCommands } from "./bots-and-commands.js";
@@ -177,6 +178,7 @@ export const articles: readonly Article[] = [
     applianceImage,
     liveViewer,
     nbtEditor,
+    dataPackCreator,
     serverGeneration,
     serverConfigurationEditor,
     botsAndCommands,

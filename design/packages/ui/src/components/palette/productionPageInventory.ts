@@ -22,6 +22,7 @@ export const PRODUCTION_APP_PAGE_IDS = [
     "dockerHosting",
     "hostedInstances",
     "nbtEditor",
+    "datapacks",
     "screenshots",
     "virtualDisks",
     "base64",

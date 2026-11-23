@@ -78,6 +78,7 @@ export type CoreJobId =
     | "dockerHosting"
     | "hostedInstances"
     | "nbtEditor"
+    | "datapacks"
     | "worldDownloader"
     | "screenshots"
     | "virtualDisks"
@@ -130,6 +131,7 @@ export const JOB_IDS_BY_SEMANTIC_NAME = {
     dockerHosting: "dockerHosting",
     hostedInstances: "hostedInstances",
     nbtEditor: "nbtEditor",
+    datapacks: "datapacks",
     worldDownloader: "worldDownloader",
     screenshots: "screenshots",
     virtualDisks: "virtualDisks",
@@ -455,6 +457,15 @@ export const JOB_DEFINITIONS: readonly JobDefinition[] = [
         labelKey: "tabs.page.nbtEditor",
         labelFallback: "NBT editor",
         icon: mdiFileTreeOutline,
+        seedGroup: "worlds",
+        pinnedOnFreshWorkspace: false,
+    },
+    {
+        id: "datapacks",
+        semanticName: "datapacks",
+        labelKey: "tabs.page.datapacks",
+        labelFallback: "Data packs",
+        icon: mdiCodeBraces,
         seedGroup: "worlds",
         pinnedOnFreshWorkspace: false,
     },
