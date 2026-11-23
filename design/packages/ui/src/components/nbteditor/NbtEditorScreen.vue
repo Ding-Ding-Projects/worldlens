@@ -11,6 +11,7 @@ import NbtHistoryPanel from "./NbtHistoryPanel.vue";
 import NbtTagTree from "./NbtTagTree.vue";
 import NbtFormView from "./NbtFormView.vue";
 import NbtRegionCanvas from "./NbtRegionCanvas.vue";
+import NbtMapCanvas from "./NbtMapCanvas.vue";
 import { createNbtEditorState, type NbtEditorState } from "./nbtEditorState.js";
 import type { TagAction } from "./nbtEditorModel.js";
 import { nbtEditorBridge, type ArrayEdit, type NbtEditorBridge, type TagKind } from "./nbtEditorBridge.js";
@@ -71,7 +72,8 @@ function readView(): "tree" | "form" {
         return "tree";
     }
 }
-const view = ref<"tree" | "form" | "region">(readView());
+const view = ref<"tree" | "form" | "region" | "map">(readView());
+
 watch(view, (value) => {
     try {
         globalThis.localStorage?.setItem(VIEW_KEY, value);
@@ -116,6 +118,12 @@ function refreshWorld(): void {
 /* ------------------------------------------------------------------ documents */
 
 const doc = computed(() => editor?.doc.value ?? null);
+/** A map item file: `data/map_<n>.dat`, or `data/minecraft/maps/<n>.dat` from 26.1. */
+const isMapFile = computed(() => doc.value !== null && /(?:^|[\\/])(?:map_\d+|maps[\\/]\d+)\.dat$/i.test(doc.value.path));
+watch(isMapFile, (map) => {
+    if (map) view.value = "map";
+    else if (view.value === "map") view.value = "tree";
+});
 const openRelative = computed(() => {
     const d = doc.value;
     if (d === null) return null;
@@ -457,6 +465,7 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                     <v-btn value="tree">{{ t('nbt.view.tree', 'Tree') }}</v-btn>
                     <v-btn value="form" :disabled="!doc">{{ t('nbt.view.form', 'Settings form') }}</v-btn>
                     <v-btn value="region" :disabled="!editor.chunks.value">{{ t('nbt.view.region', 'Region') }}</v-btn>
+                    <v-btn v-if="isMapFile" value="map">{{ t('nbt.view.map', 'Map art') }}</v-btn>
                 </v-btn-toggle>
                 <nbt-region-canvas
                     v-if="view === 'region' && editor.chunks.value"
@@ -464,6 +473,16 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                     :chunks="editor.chunks.value.chunks"
                     :open-index="openChunkIndex"
                     @open="(index: number) => { const listed = editor.chunks.value; if (listed) { openChunk(listed.path, index); view = 'tree'; } }"
+                />
+                <nbt-map-canvas
+                    v-else-if="doc && view === 'map' && isMapFile && bridge"
+                    :bridge="bridge"
+                    :doc="doc"
+                    :revision="revision"
+                    :disabled="editor.busy.value"
+                    @replace="(id: number, text: string) => attempt({ op: 'replaceSnbt', id, text })"
+                    @commit="(id: number, text: string) => attempt({ op: 'setValue', id, text })"
+                    @flip="(id: number, on: boolean) => attempt({ op: 'setBool', id, on })"
                 />
                 <nbt-form-view
                     v-else-if="doc && view === 'form' && bridge"

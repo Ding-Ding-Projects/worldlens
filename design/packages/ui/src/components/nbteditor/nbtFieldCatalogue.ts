@@ -292,6 +292,25 @@ const CATALOGUE: Readonly<Record<string, Entry>> = {
     custompotioncolor: { label: "Potion colour", plainType: "Colour", control: color },
     customcolor: { label: "Colour", plainType: "Colour", control: color },
     mapcolor: { label: "Map colour", plainType: "Colour", control: color },
+    scale: {
+        label: "Map scale",
+        plainType: "Choice",
+        control: (k) =>
+            k === "byte" || k === "int"
+                ? {
+                      type: "choice",
+                      options: ["1:1", "1:2", "1:4", "1:8", "1:16"].map((label, i) => ({
+                          value: String(i),
+                          label,
+                      })),
+                  }
+                : null,
+    },
+    xcenter: { label: "Centre X", control: stepper(-COORD, COORD) },
+    zcenter: { label: "Centre Z", control: stepper(-COORD, COORD) },
+    locked: { label: "Locked", plainType: "Yes or no" },
+    trackingposition: { label: "Show players", plainType: "Yes or no" },
+    unlimitedtracking: { label: "Show players far away", plainType: "Yes or no" },
     inhabitedtime: { label: "Time players spent here", plainType: "Duration", control: duration },
     lastupdate: { label: "Last updated at tick" },
     xpos: { label: "Chunk X" },

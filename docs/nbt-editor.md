@@ -60,6 +60,12 @@ Showing a region file's chunks also switches the centre to **Region**: the regio
 
 Region chunks compressed with LZ4 (compression byte 4, the lz4-java block stream) open and save as LZ4. A chunk too large for its region file lives in `c.<x>.<z>.mcc` beside it, with 128 added to its compression byte; it opens from that file, and a save that makes a chunk too large moves it there the way the game does (the `.mcc` file is written before the region that points at it). A chunk that shrinks back under the limit is written inline again; the old `.mcc` file is left in place, unread. A missing `.mcc` file is named in the refusal.
 
+### Map art canvas
+
+A map item file (`data/map_<n>.dat`, or `data/minecraft/maps/<n>.dat` from 26.1) opens on **Map art**: its 128 by 128 pixels drawn with the game's own map colours (61 base colours, each in four shades), with **Pen**, **Line**, **Fill** and **Pick colour**. **Import picture** scales a picture to 128 by 128 and matches every pixel to the nearest map colour (transparent where the picture is); **Export PNG** saves what is shown. Each stroke or import is one edit and one undo step, sent as the whole colour array, so history and diffs work as for any other change. The map's settings (scale 1:1 to 1:16, centre, dimension, locked, show players) sit beside the canvas with their own controls.
+
+The canvas can be painted without a mouse: it takes focus, the arrow keys move a cursor pixel, Space paints or fills there, and P picks the colour under it.
+
 ### Keyboard
 
 The tree follows the ARIA tree pattern: <kbd>Up</kbd> and <kbd>Down</kbd> move, <kbd>Right</kbd> opens a branch or steps into it, <kbd>Left</kbd> closes it or steps to the parent, <kbd>Home</kbd> and <kbd>End</kbd> jump, <kbd>Enter</kbd> or <kbd>F2</kbd> edits (a branch opens or closes, an array opens its grid), <kbd>Delete</kbd> removes, <kbd>Ctrl</kbd>+<kbd>C</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> copy and paste a tag as SNBT. <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> and <kbd>Ctrl</kbd>+<kbd>S</kbd> undo, redo and save.
@@ -135,6 +141,12 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 ### LZ4 同外部 chunk
 
 用 LZ4 壓縮嘅 region chunk（壓縮位元組 4，lz4-java 區塊串流）開得、存返都係 LZ4。太大放唔入 region 檔嘅 chunk 會放喺隔籬嘅 `c.<x>.<z>.mcc`，壓縮位元組加 128；會由嗰個檔開，存檔時變得太大就好似遊戲咁搬過去（先寫 `.mcc`，再寫指住佢嘅 region）。縮返細過上限就寫返入 region，舊 `.mcc` 留低唔讀。`.mcc` 唔見咗會講明係邊個檔。
+
+### 地圖畫布
+
+地圖物品檔（`data/map_<n>.dat`，26.1 之後係 `data/minecraft/maps/<n>.dat`）會用 **Map art** 打開：128×128 個像素用遊戲自己嘅地圖顏色（61 個底色，每個四級明暗）畫出嚟，有 **筆**、**直線**、**填色** 同 **吸色**。**匯入圖片** 會將圖縮做 128×128，每個像素配最接近嘅地圖顏色（透明位保持透明）；**匯出 PNG** 存低而家見到嘅樣。每一筆或者每次匯入都係一個編輯、一步還原，成個顏色陣列一齊送，所以歷史同比較照常用。地圖設定（比例 1:1 至 1:16、中心、維度、鎖定、顯示玩家）喺畫布隔籬，用專屬控制項。
+
+唔使滑鼠都畫得：畫布可以攞焦點，方向鍵移動游標像素，Space 喺嗰度畫或者填色，P 吸嗰格嘅顏色。
 
 ### 講人話嘅名同專屬控制項
 
