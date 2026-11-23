@@ -1000,6 +1000,7 @@ function confirmRemoval(): void {
                     :world="maskWorld"
                     :disabled="file.readOnly"
                     :explicit="renderMaskExplicit"
+                    :world-folder="world"
                     @update:model-value="setRenderMask"
                     @clear="clearRenderMask"
                 />

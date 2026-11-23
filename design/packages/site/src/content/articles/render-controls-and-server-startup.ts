@@ -33,6 +33,18 @@ export const renderControlsAndServerStartup: Article = {
             ]
         },
         {
+            "id": "only-these-chunks",
+            "title": "Render only these chunks",
+            "blocks": [
+                {
+                    "kind": "paragraph",
+                    "content": [
+                        "Render only these chunks, on a map's render mask card, opens a top view of the chunks the chosen dimension has actually generated, read from region file headers. Drag a rectangle, circle or freehand shape, or click one chunk, to pick; hold Alt to remove. Arrow keys, Space and Shift work from the keyboard. Applying replaces the mask with chunk-aligned boxes, merged so a tidy area stays a few boxes, and BlueMap then renders only those chunks."
+                    ]
+                }
+            ]
+        },
+        {
             "id": "live-map",
             "title": "Watch the map while rendering",
             "blocks": [

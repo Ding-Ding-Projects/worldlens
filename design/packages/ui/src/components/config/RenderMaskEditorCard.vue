@@ -14,6 +14,8 @@ import { mdiChevronDown, mdiChevronUp, mdiMapMarkerPath } from "@mdi/js";
 import { VAlert, VBtn, VCard, VCardText, VCardTitle, VChip } from "vuetify/components";
 import type { PlainValue } from "@worldlens/config";
 import ConfigMaskField from "./ConfigMaskField.vue";
+import ChunkPickerCanvas from "./ChunkPickerCanvas.vue";
+import { nbtEditorBridge } from "../nbteditor/nbtEditorBridge.js";
 import { UNKNOWN_WORLD, type WorldOrientation } from "./maskCanvas.js";
 
 const props = withDefaults(
@@ -25,8 +27,10 @@ const props = withDefaults(
         disabled?: boolean;
         /** Whether this map file has an explicit `render-mask` key to remove. */
         explicit?: boolean;
+        /** The world folder, for the "render only these chunks" picker. */
+        worldFolder?: string;
     }>(),
-    { world: () => UNKNOWN_WORLD, disabled: false, explicit: false },
+    { world: () => UNKNOWN_WORLD, disabled: false, explicit: false, worldFolder: "" },
 );
 
 const emit = defineEmits<{
@@ -37,6 +41,13 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const root = ref<HTMLElement | null>(null);
 const open = ref(false);
+const picking = ref(false);
+const chunkBridge = nbtEditorBridge();
+const folder = computed(() => props.worldFolder ?? "");
+function applyChunks(records: PlainValue[]): void {
+    emit("update:modelValue", records);
+    picking.value = false;
+}
 const isDisabled = computed(() => props.disabled === true);
 // Keep the optional source prop definite for the template under exactOptionalPropertyTypes.
 const worldOrientation = computed<WorldOrientation>(() => props.world ?? UNKNOWN_WORLD);
@@ -133,6 +144,37 @@ defineExpose({ openAndFocus });
                         )
                     }}
                 </v-alert>
+
+                <v-btn
+                    :disabled="isDisabled || folder.trim() === ''"
+                    variant="tonal"
+                    size="small"
+                    rounded="pill"
+                    :aria-expanded="picking ? 'true' : 'false'"
+                    aria-controls="project-chunk-picker"
+                    @click="picking = !picking"
+                >
+                    {{ t("project.mask.pickChunks", "Render only these chunks…") }}
+                </v-btn>
+                <p v-if="folder.trim() === ''" class="mb-render-mask-card__summary">
+                    {{
+                        t(
+                            "project.mask.pickNeedsWorld",
+                            "Picking chunks needs this project's world folder to be set.",
+                        )
+                    }}
+                </p>
+                <div v-if="picking" id="project-chunk-picker" class="mb-render-mask-card__editor">
+                    <ChunkPickerCanvas
+                        :bridge="chunkBridge"
+                        :world-folder="folder"
+                        :dimension="dimension"
+                        :model-value="maskValue"
+                        :spawn="worldOrientation.spawn"
+                        @apply="applyChunks"
+                        @cancel="picking = false"
+                    />
+                </div>
 
                 <div
                     v-if="open"

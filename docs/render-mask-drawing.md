@@ -138,6 +138,12 @@ component binds to: call `createShapeDraft`/`setFieldText`/`setFieldNumber` for 
 value, `estimateRenderCost` for the live cost readout, `checkCloudFidelity` for the explicit
 cross-route parity contract, and `exportMaskFile`/`parseMaskFile` for the share/reuse file.
 
+### Render only these chunks
+
+**Render only these chunks…** on the map's render mask card opens a top view of the chunks this dimension has actually generated, read from the region file headers (no chunk is decompressed). Chunks are shaded by when the game last saved them, or plain. Pick with a rectangle, circle, freehand shape or a single click; hold Alt or turn on **Remove instead** to take chunks away. The keyboard works too: arrow keys move a cursor (its state is announced), Space or Enter toggles, Shift with an arrow picks as it moves. **Select all generated**, **Clear** and **Around spawn** are quick picks.
+
+**Use these chunks as the mask** replaces the mask with chunk-aligned boxes: each run of picked chunks in a row is one box, and runs that line up across rows merge. An existing mask made only of chunk-aligned boxes opens already picked; any other mask is shown as a note that applying replaces it. At most 256 region files are read, and the picker says so when a world has more. It needs the desktop app and the project's world folder; the button names the missing condition when either is absent.
+
 ## Failure modes
 
 - **A field mid-invalid-edit never moves the drawing or the saved value.** `draftToRecord` reads
@@ -294,3 +300,9 @@ Command palette 有一個專屬嘅 **Render mask editor** 目的地。佢會將 
 - [Local version history for config folders](./config-history.md) —— 儲存咗嘅 mask 本來就繼承嘅嗰套歷史。
 - [The regex builder and the search bars it reaches](./regex-builder.md) —— 當繪圖介面嘅形狀清單需要搜尋列嗰陣，應該跟嘅搜尋列模式。
 - [Language modes and funny levels](./language-and-tone.md) —— `maskDraw.ts` catalogue 跟緊嘅語調／事實分工。
+
+### 淨係 render 呢啲 chunk
+
+地圖 render mask 卡上面嘅 **Render only these chunks…** 會打開一個俯視圖，只畫呢個維度真係生成咗嘅 chunk（讀 region 檔頭，唔使解壓任何 chunk），可以按最後儲存時間上色或者純色。用長方形、圓形、手畫形狀或者單擊嚟揀；撳住 Alt 或者開 **Remove instead** 就係減。鍵盤都得：方向鍵郁游標（會讀出狀態），Space 或 Enter 切換，Shift 加方向鍵邊郁邊揀。**Select all generated**、**Clear** 同 **Around spawn** 係快捷揀法。
+
+**Use these chunks as the mask** 會將 mask 換成對齊 chunk 嘅方格：每行連續揀咗嘅 chunk 變一格，上下對齊嘅再合併。如果而家個 mask 全部係對齊 chunk 嘅方格，打開就已經揀好；其他 mask 會出提示話套用會取代佢。最多讀 256 個 region 檔，多過就會講明。要用桌面 app 同專案嘅世界資料夾；缺咗邊樣，按鈕隔籬會講。
