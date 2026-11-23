@@ -370,6 +370,13 @@ function entryFor(name: string, path: readonly string[], kind: TagKind): Entry |
         (parent === "dyedcolor" || parent === "potioncontents")
     )
         return { label: "Colour", plainType: "Colour", control: color };
+    if (parent === "levels" && (kind === "int" || kind === "short" || kind === "byte"))
+        return {
+            label: readableResource(name.includes(":") ? name : `minecraft:${name}`),
+            plainType: "Level",
+            control: stepper(1, 255),
+        };
+    if (key === "lvl") return { label: "Level", plainType: "Level", control: stepper(1, 255) };
     if (key === "id" && kind === "string")
         return {
             label: path.length === 0 ? "ID" : "What it is",

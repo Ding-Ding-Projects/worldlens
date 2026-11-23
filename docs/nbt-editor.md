@@ -66,6 +66,10 @@ A map item file (`data/map_<n>.dat`, or `data/minecraft/maps/<n>.dat` from 26.1)
 
 The canvas can be painted without a mouse: it takes focus, the arrow keys move a cursor pixel, Space paints or fills there, and P picks the colour under it.
 
+### Inventory and item editor
+
+Player data (`playerdata/<uuid>.dat`, `players/data/<uuid>.dat` from 26.1, and the single-player player inside an older `level.dat`) adds an **Inventory** view: armour and off hand, the 27 main slots and the hotbar, or the ender chest, each stack shown with a short code, a colour of its own and its count, and named in full for screen readers ("Hotbar 1: Diamond Pickaxe"). Picking a stack lists every value it holds with its tailored control, nested the way the item stores them: the id, the count, and each component or legacy tag value, so enchantment levels in `minecraft:enchantments` are steppers from 1 to 255 named after the enchantment. Picking an empty slot offers **Put it here** with an item id and a count, written in the file's own layout (components and `count` from 1.20.5, `Count` as a byte before; armour into `equipment` from 1.21.5).
+
 ### Keyboard
 
 The tree follows the ARIA tree pattern: <kbd>Up</kbd> and <kbd>Down</kbd> move, <kbd>Right</kbd> opens a branch or steps into it, <kbd>Left</kbd> closes it or steps to the parent, <kbd>Home</kbd> and <kbd>End</kbd> jump, <kbd>Enter</kbd> or <kbd>F2</kbd> edits (a branch opens or closes, an array opens its grid), <kbd>Delete</kbd> removes, <kbd>Ctrl</kbd>+<kbd>C</kbd> and <kbd>Ctrl</kbd>+<kbd>V</kbd> copy and paste a tag as SNBT. <kbd>Ctrl</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd> and <kbd>Ctrl</kbd>+<kbd>S</kbd> undo, redo and save.
@@ -147,6 +151,10 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 地圖物品檔（`data/map_<n>.dat`，26.1 之後係 `data/minecraft/maps/<n>.dat`）會用 **Map art** 打開：128×128 個像素用遊戲自己嘅地圖顏色（61 個底色，每個四級明暗）畫出嚟，有 **筆**、**直線**、**填色** 同 **吸色**。**匯入圖片** 會將圖縮做 128×128，每個像素配最接近嘅地圖顏色（透明位保持透明）；**匯出 PNG** 存低而家見到嘅樣。每一筆或者每次匯入都係一個編輯、一步還原，成個顏色陣列一齊送，所以歷史同比較照常用。地圖設定（比例 1:1 至 1:16、中心、維度、鎖定、顯示玩家）喺畫布隔籬，用專屬控制項。
 
 唔使滑鼠都畫得：畫布可以攞焦點，方向鍵移動游標像素，Space 喺嗰度畫或者填色，P 吸嗰格嘅顏色。
+
+### 背包同物品編輯器
+
+玩家資料（`playerdata/<uuid>.dat`，26.1 之後係 `players/data/<uuid>.dat`，仲有舊 `level.dat` 入面嘅單人玩家）會多一個 **Inventory** 檢視：盔甲同副手、27 格主背包同快捷欄，或者終界箱；每疊物品有短碼、自己嘅顏色同數量，螢幕閱讀器會讀出全名（「快捷欄 1：鑽石鎬」）。揀一疊會列出佢所有值，每個用專屬控制項，跟物品本身嘅層次排：ID、數量、每個組件或者舊式 tag 值，所以 `minecraft:enchantments` 入面嘅附魔等級係 1 至 255 嘅加減器，用附魔名做標籤。揀空格會有 **Put it here**（放喺度），填物品 ID 同數量，用返檔案本身嘅格式寫（1.20.5 之後用組件同 `count`，之前用 byte 嘅 `Count`；1.21.5 之後盔甲放入 `equipment`）。
 
 ### 講人話嘅名同專屬控制項
 
