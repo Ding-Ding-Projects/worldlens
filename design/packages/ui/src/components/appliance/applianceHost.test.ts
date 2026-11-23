@@ -25,7 +25,9 @@ describe("appliance form: the whole WorldLens app", () => {
 
 describe("appliance form: a Minecraft server", () => {
     it("needs both images pinned and the EULA accepted", () => {
-        const form = { ...defaultForm(), askAccessCode: false, runServer: true };
+        // Both images arrive filled in; only the EULA is left for the person.
+        expect(formProblem({ ...defaultForm(), askAccessCode: false, runServer: true }, "/maps/a", [])).toMatch(/EULA/);
+        const form = { ...defaultForm(), askAccessCode: false, runServer: true, serverImage: "", siteImage: "" };
         expect(formProblem(form, "/maps/a", [])).toMatch(/server image/);
         const serverImage = `docker.io/itzg/minecraft-server@sha256:${"1".repeat(64)}`;
         const siteImage = `ghcr.io/ding-ding-projects/worldlens-server-site@sha256:${"2".repeat(64)}`;

@@ -5,7 +5,7 @@
  * The bridge is resolved as a whole or not at all, like the mounts bridge: a half-wired bridge shows
  * a working-looking control that throws the moment somebody presses it.
  */
-import { PUBLISHED_HOSTED_IMAGE, PUBLISHED_SERVER_SITE_IMAGE } from "../remote/publishedImages.js";
+import { PUBLISHED_HOSTED_IMAGE, PUBLISHED_SERVER_SITE_IMAGE, SUGGESTED_SERVER_IMAGE } from "../remote/publishedImages.js";
 
 export type ApplianceTarget = "vmware" | "virtualbox" | "usb" | "rpi" | "export";
 
@@ -120,7 +120,7 @@ export const SITE_IMAGE_PATTERN = /^[a-z0-9][a-z0-9._/-]{0,200}\/worldlens-serve
 export const HOSTED_IMAGE_PATTERN = /^[a-z0-9][a-z0-9._/-]{0,200}\/worldlens-hosted(:[A-Za-z0-9._-]{1,64})?@sha256:[a-f0-9]{64}$/u;
 
 export function defaultForm(): ApplianceFormState {
-    return { target: "vmware", vmName: "worldlens-map", network: "bridged", memoryMb: 1024, cpus: 2, hostName: "worldlens-map", port: "80", askAccessCode: true, accessCode: "", usbDiskNumber: null, usbConfirmName: "", exportFormat: "vmdk", exportDir: "", runApp: false, appImage: PUBLISHED_HOSTED_IMAGE, appPassword: "", runServer: false, serverImage: "", siteImage: PUBLISHED_SERVER_SITE_IMAGE ?? "", eulaAccepted: false, serverMemoryGb: 2 };
+    return { target: "vmware", vmName: "worldlens-map", network: "bridged", memoryMb: 1024, cpus: 2, hostName: "worldlens-map", port: "80", askAccessCode: true, accessCode: "", usbDiskNumber: null, usbConfirmName: "", exportFormat: "vmdk", exportDir: "", runApp: false, appImage: PUBLISHED_HOSTED_IMAGE, appPassword: "", runServer: false, serverImage: SUGGESTED_SERVER_IMAGE, siteImage: PUBLISHED_SERVER_SITE_IMAGE ?? "", eulaAccepted: false, serverMemoryGb: 2 };
 }
 
 /** The reason the build button is disabled, or null. Mirrors the main process; the main process re-checks. */
