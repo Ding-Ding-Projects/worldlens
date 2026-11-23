@@ -6,11 +6,11 @@ It reads and writes files on the computer it runs on, so it is part of the deskt
 
 ## What it opens
 
-| Source | How |
-| --- | --- |
+| Source         | How                                                                                                                                                                                                                              |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | A world folder | Type or paste the folder in **World folder**. The list shows `level.dat`, `playerdata/*.dat`, `data/*.dat`, `structures/*.nbt`, `servers.dat` and every region file under `region`, `entities`, `poi` and the dimension folders. |
-| A region chunk | Choose a region file in the list, then a chunk by its coordinates. The chunk's own NBT opens; the rest of the region file is left alone. |
-| Any NBT file | **Open any NBT file...** from anywhere. If it sits inside a world the project is that world; otherwise it is its own project. |
+| A region chunk | Choose a region file in the list, then a chunk by its coordinates. The chunk's own NBT opens; the rest of the region file is left alone.                                                                                         |
+| Any NBT file   | **Open any NBT file...** from anywhere. If it sits inside a world the project is that world; otherwise it is its own project.                                                                                                    |
 
 Gzip, zlib and uncompressed files are detected. Java files are big-endian; Bedrock files are little-endian, and a Bedrock `level.dat` keeps its eight-byte header (the version and the payload length, which is rewritten to match on save). The top bar shows what was found.
 
@@ -23,6 +23,28 @@ Gzip, zlib and uncompressed files are detected. Java files are big-endian; Bedro
 - **Structure.** Add, rename, duplicate, move up or down, and remove from the row menu. A compound will not take two tags with the same name through the editor, and a tag cannot be moved inside itself.
 - **SNBT.** Any subtree can be viewed and edited as SNBT, the text form the game's commands use. Nothing changes if the text is not valid, and the error says where. **Copy as SNBT** and **Paste SNBT here** move a tag between files.
 - **Undo and redo** cover every edit. Undoing back to what is on disk reads as clean again.
+
+### Readable names and tailored controls
+
+The tree reads in plain language by default. A known field shows its meaning (**Spawn X**, **Game mode**, **Keep inventory on death**) with the game's key in its tooltip, the chip says what kind of value it is (**Whole number**, **Yes or no**, **Time of day**, **Colour**), and the value is shown the way a person reads it (**Creative**, **Yes**, **12:00, day 2**, **6 min 2 s**, **Diamond Pickaxe**). An unknown key is split into words.
+
+Each value gets the control that fits it, chosen from `nbtFieldCatalogue.ts` and the facts in [nbt-research.md](nbt-research.md):
+
+| Kind of field                                                                              | Control                                                     |
+| ------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| Yes or no (a 0/1 byte, or a `"true"`/`"false"` game rule)                                  | Switch                                                      |
+| Fixed set (game mode, difficulty as a number or, from 26.1, a word; chunk generation step) | Select by name                                              |
+| Bounded number (spawn, item count 1 to 99, health, experience, border, game-rule numbers)  | Stepper with real limits and a unit                         |
+| Range (food, saturation, held slot, air, sleeping percentage, chances)                     | Slider                                                      |
+| Time of day (`DayTime`)                                                                    | Slider within the day with the clock; the day count is kept |
+| Durations in ticks (weather, fire, cooldowns, world age, time players spent)               | Minutes and seconds with ±1 s and ±1 min                    |
+| RGB colours (dye colour in both item layouts, potion and map colours)                      | Colour picker with hex                                      |
+| Resource ids (`minecraft:…`)                                                               | Readable name beside the id                                 |
+| Free text and anything unknown                                                             | Typed field with the type's range check                     |
+
+Keys are matched without case or underscores, so names from before and after the 1.21.11 game rule rename land on the same control. Every control sends the same edit the text field would, so undo, history, backups and the running-server refusal are unchanged, and integers step with 64-bit arithmetic.
+
+**Game names** in the top bar shows the keys and types exactly as stored, with a typed field for every value. The choice is remembered on this computer.
 
 ### Keyboard
 
@@ -39,7 +61,7 @@ Each project has its own small Git repository, kept under the application's data
 - **Save and record** asks for an optional message (a default such as `Edit Data.SpawnX in level.dat` is suggested from the real changes) and lists what will be written.
 - The first save of a file also records the file **as it was first opened**, so even the very first change can be compared and undone.
 - **Diff** shows what changed by name, `Data.SpawnX: 128 -> 256`, not which bytes moved. Compound members are matched by name, list members by position. **Compare with now** compares a recorded version with the open document.
-- **Restore** writes an earlier version back as a *new* entry. History is never rewritten, so a restore can itself be restored.
+- **Restore** writes an earlier version back as a _new_ entry. History is never rewritten, so a restore can itself be restored.
 - A whole `.dat` or `.nbt` file is stored as it is on disk. A region chunk is stored as its own uncompressed NBT, so its history and diffs are about that chunk and do not drag the rest of the region along.
 - **This file** or **Whole project** switches the list between the open file's history and every file recorded for the project.
 
@@ -51,7 +73,7 @@ Each project has its own small Git repository, kept under the application's data
 - **A file that changed on disk after it was opened is not overwritten.** Reopen it to see the newer contents.
 - **Unsaved edits are protected.** Opening something else asks before discarding them.
 - **Unmodified files are never rewritten.** Save is disabled until something changed. Opening a file and saving it unchanged is not possible, so the bytes on disk are never touched without an edit.
-- **Round trips are exact at the tag level.** Reading and writing without a change reproduces the same NBT payload byte for byte, including duplicate names, the declared type of an empty list, NaN payloads, string bytes that are not valid text, and bytes after the root. Compression is re-applied with the file's original wrapping; because a compressor may choose different bytes, the *compressed* bytes of a file you did edit can differ from the original while the data inside is identical.
+- **Round trips are exact at the tag level.** Reading and writing without a change reproduces the same NBT payload byte for byte, including duplicate names, the declared type of an empty list, NaN payloads, string bytes that are not valid text, and bytes after the root. Compression is re-applied with the file's original wrapping; because a compressor may choose different bytes, the _compressed_ bytes of a file you did edit can differ from the original while the data inside is identical.
 
 ## Layout and accessibility
 
@@ -87,3 +109,11 @@ Wide windows show files, tags and history side by side. At 720 px and below the 
 - **版面:** 闊嘅視窗並排顯示檔案、標籤、歷史;720 px 或以下三格變成分頁,手機唔會少咗功能;行高同欄位、開關變大啲方便撳;尊重減少動態設定;每個控制項有名、焦點框同鍵盤路徑。
 - **未做:** LZ4 壓縮嘅 chunk 同擺喺 `.mcc` 嘅 chunk 會列出同講明原因,但未開得;Bedrock 世界用 LevelDB,所以淨係開到 Bedrock `level.dat` 同獨立 NBT 檔;復原最多 100 步,好大嘅 chunk 少啲;唔會偵測其他電腦上面行緊嘅伺服器。
 - **驗證:** `tree.test.ts` 33 個測試、`nbteditor.test.ts` 23 個測試(用真嘅暫存世界同真嘅 Git)、介面 27 個測試。未做:喺建好嘅桌面程式入面行過,主程序接線同 preload 橋仲係另一步,亦未有建好介面嘅截圖。
+
+### 講人話嘅名同專屬控制項
+
+標籤樹預設講人話：識得嘅欄位會顯示意思（**出生點 X**、**遊戲模式**、**死咗保留物品**），遊戲原本嘅鍵放喺提示；類型晶片講明係乜嘢值（**整數**、**是否**、**一日入面嘅時間**、**顏色**）；數值用人睇得明嘅方式顯示（**創造**、**是**、**12:00，第 2 日**、**6 分 2 秒**、**鑽石鎬**）。唔識嘅鍵會拆開做字。
+
+每個值都用啱佢嘅控制項：是否用開關；固定選項用名揀；有界數字用加減器，有真正上下限同單位；範圍用滑桿；`DayTime` 用一日之內嘅滑桿加時鐘，日數保留；tick 時長用分秒，±1 秒、±1 分；RGB 顏色（兩種物品格式嘅染色、藥水同地圖顏色）用顏色選擇器；資源 ID 旁邊顯示易明嘅名；自由文字同唔識嘅嘢用有範圍檢查嘅欄位。鍵比對唔分大細楷同底線，1.21.11 改名前後都對得上。每個控制項送出嘅編輯同文字欄一樣，所以還原、歷史、備份同「伺服器運行緊唔准寫」全部照舊，整數用 64 位元計。
+
+頂欄嘅 **Game names**（遊戲名）會顯示原本嘅鍵同類型，每個值用文字欄；呢個選擇會喺呢部電腦記住。

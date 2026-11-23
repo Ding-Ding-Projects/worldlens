@@ -6,6 +6,7 @@ import { VBtn, VIcon, VList, VListItem, VMenu } from "vuetify/components";
 import NbtValueEditor from "./NbtValueEditor.vue";
 import { KIND_CHIP, KIND_HUE, isContainer, treeKeyAction, visibleWindow, rowLabel, type Row, type TagAction, type TreeCache } from "./nbtEditorModel.js";
 import type { NodeView } from "./nbtEditorBridge.js";
+import { KIND_PLAIN, fieldInfo, readableValue, type FieldInfo } from "./nbtFieldCatalogue.js";
 
 /**
  * The tag tree: a virtualised list that follows the ARIA tree pattern.
@@ -21,6 +22,8 @@ const props = defineProps<{
     selectedId: number | null;
     matches: ReadonlySet<number>;
     disabled?: boolean | undefined;
+    /** Readable names, plain types and tailored controls; false shows the game's own keys and types. */
+    readable?: boolean | undefined;
 }>();
 
 const emit = defineEmits<{
@@ -72,6 +75,53 @@ function onScroll(): void {
 
 function node(id: number): NodeView | undefined {
     return props.cache.nodes.get(id);
+}
+
+/** Names of the tags above a node, nearest last, for the catalogue's context rules. */
+function pathOf(id: number): string[] {
+    const names: string[] = [];
+    let at = props.cache.parent.get(id) ?? null;
+    let guard = 0;
+    while (at !== null && at !== undefined && guard++ < 64) {
+        const n = props.cache.nodes.get(at);
+        if (n?.name) names.unshift(n.name);
+        at = props.cache.parent.get(at) ?? null;
+    }
+    return names;
+}
+
+/** Per visible row: what it means and how to show it. Only the rows in view are computed. */
+const infos = computed(() => {
+    const out = new Map<number, FieldInfo>();
+    for (const { row } of slice.value) {
+        if (row.type !== "node") continue;
+        const n = node(row.id);
+        if (n !== undefined) out.set(row.id, fieldInfo(n, pathOf(row.id)));
+    }
+    return out;
+});
+
+function shownLabel(id: number, position: number): string {
+    const n = node(id)!;
+    if (props.readable === false) return rowLabel(n, position);
+    const info = infos.value.get(id);
+    return info !== undefined && info.label !== "" ? info.label : rowLabel(n, position);
+}
+
+function chipText(id: number): string {
+    const n = node(id)!;
+    if (props.readable === false) return KIND_CHIP[n.kind];
+    return infos.value.get(id)?.plainType ?? KIND_PLAIN[n.kind];
+}
+
+function rowTitle(id: number, position: number): string {
+    const n = node(id)!;
+    const raw = rowLabel(n, position);
+    const info = infos.value.get(id);
+    const parts = [props.readable === false ? (info?.label ?? raw) : raw, KIND_CHIP[n.kind]];
+    if (info?.about) parts.push(info.about);
+    if (props.readable !== false && info !== undefined && !["compound", "list"].includes(n.kind)) parts.push(readableValue(n, info));
+    return parts.join(" · ");
 }
 
 /** Keep the roving tab stop on the selected row when the selection changes from outside. */
@@ -211,12 +261,13 @@ defineExpose({ focusRow });
                     class="wl-nbt-chip"
                     :style="{ '--wl-hue': KIND_HUE[node(row.id)!.kind] }"
                     :title="node(row.id)!.listKind && node(row.id)!.listKind !== 'end' ? `${KIND_CHIP[node(row.id)!.kind]} of ${node(row.id)!.listKind}` : KIND_CHIP[node(row.id)!.kind]"
-                >{{ KIND_CHIP[node(row.id)!.kind] }}</span>
-                <span class="wl-nbt-name" :title="rowLabel(node(row.id)!, row.position)">{{ rowLabel(node(row.id)!, row.position) }}</span>
+                >{{ chipText(row.id) }}</span>
+                <span class="wl-nbt-name" :title="rowTitle(row.id, row.position)">{{ shownLabel(row.id, row.position) }}</span>
                 <NbtValueEditor
                     :ref="(el: unknown) => register(row.id, el)"
                     :node="node(row.id)!"
-                    :label="rowLabel(node(row.id)!, row.position)"
+                    :label="shownLabel(row.id, row.position)"
+                    :info="readable === false ? undefined : infos.get(row.id)"
                     :disabled="disabled"
                     @commit="(text: string) => emit('commit', row.id, text)"
                     @flip="(on: boolean) => emit('flip', row.id, on)"
@@ -284,7 +335,7 @@ defineExpose({ focusRow });
 .wl-nbt-caret { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: rgb(var(--v-theme-on-surface-variant)); cursor: pointer; padding: 0; flex: none; }
 .wl-nbt-caret--none { cursor: default; }
 .wl-nbt-chip {
-    flex: none; min-width: 58px; text-align: center; font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 6px;
+    flex: none; min-width: 58px; text-align: center; font-size: 10px; font-weight: 500; padding: 2px 6px; border-radius: 6px; font-family: Roboto, sans-serif; white-space: nowrap;
     background: color-mix(in srgb, var(--wl-hue) 24%, rgb(var(--v-theme-surface)));
     color: color-mix(in srgb, var(--wl-hue) 55%, rgb(var(--v-theme-on-surface)));
 }

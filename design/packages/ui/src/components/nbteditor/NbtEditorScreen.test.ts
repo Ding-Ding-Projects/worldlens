@@ -62,13 +62,13 @@ describe("the editor without the desktop app", () => {
 });
 
 describe("opening a file", () => {
-    it("lists the project, opens a file and shows the tag tree with typed chips", async () => {
+    it("lists the project, opens a file and shows the tag tree with readable type chips", async () => {
         const w = await open();
         expect(bridge.calls).toContain("listProject C:/world");
         expect(bridge.calls.some((c) => c.startsWith("openFile C:/world"))).toBe(true);
         expect(w.find('[role="tree"]').exists()).toBe(true);
         const items = rows(w);
-        expect(items.map((r) => r.text())).toEqual([expect.stringContaining("COMPOUND"), expect.stringContaining("COMPOUND"), expect.stringContaining("DOUBLE")]);
+        expect(items.map((r) => r.text())).toEqual([expect.stringContaining("Group"), expect.stringContaining("Group"), expect.stringContaining("Precise decimal")]);
         expect(items[0]!.attributes("aria-level")).toBe("1");
         expect(items[1]!.attributes("aria-level")).toBe("2");
         expect(items[1]!.attributes("aria-expanded")).toBe("false");
@@ -130,7 +130,7 @@ describe("typed editing", () => {
     it("sends a valid value on Enter and refuses an out-of-range one before sending", async () => {
         const w = await open();
         await expandData(w);
-        const input = w.find('input[aria-label="SpawnX value"]');
+        const input = w.find('input[aria-label="Spawn X value"]');
         await input.setValue("99999999999");
         expect(w.find('[role="alert"]').text()).toMatch(/Must be between/);
         await input.trigger("keydown", { key: "Enter" });
@@ -141,14 +141,14 @@ describe("typed editing", () => {
         await input.trigger("keydown", { key: "Enter" });
         await flushPromises();
         expect(bridge.edits).toEqual([{ op: "setValue", id: 4, text: "256" }]);
-        expect((w.find('input[aria-label="SpawnX value"]').element as HTMLInputElement).value).toBe("256");
+        expect((w.find('input[aria-label="Spawn X value"]').element as HTMLInputElement).value).toBe("256");
         expect(w.text()).toContain("1 unsaved changes");
     });
 
     it("puts the old value back on Escape", async () => {
         const w = await open();
         await expandData(w);
-        const input = w.find('input[aria-label="SpawnX value"]');
+        const input = w.find('input[aria-label="Spawn X value"]');
         await input.setValue("5");
         await input.trigger("keydown", { key: "Escape" });
         expect((input.element as HTMLInputElement).value).toBe("128");
@@ -158,12 +158,12 @@ describe("typed editing", () => {
     it("shows a boolean byte as a switch and flips it", async () => {
         const w = await open();
         await expandData(w);
-        const toggle = w.find('button[role="switch"][aria-label="allowCommands"]');
+        const toggle = w.find('button[role="switch"][aria-label="Commands allowed"]');
         expect(toggle.attributes("aria-checked")).toBe("false");
         await toggle.trigger("click");
         await flushPromises();
         expect(bridge.edits).toContainEqual({ op: "setBool", id: 5, on: true });
-        expect(w.find('button[role="switch"][aria-label="allowCommands"]').attributes("aria-checked")).toBe("true");
+        expect(w.find('button[role="switch"][aria-label="Commands allowed"]').attributes("aria-checked")).toBe("true");
     });
 
     it("surfaces a refusal from the main process as a message", async () => {
@@ -173,12 +173,34 @@ describe("typed editing", () => {
         // only through its own check, which the client check normally gets there first; force it with a long).
         const bad = bridge.edit;
         bridge.edit = async () => ({ ok: false, message: "That edit was refused." });
-        const input = w.find('input[aria-label="SpawnX value"]');
+        const input = w.find('input[aria-label="Spawn X value"]');
         await input.setValue("7");
         await input.trigger("keydown", { key: "Enter" });
         await flushPromises();
         expect(w.text()).toContain("That edit was refused.");
         bridge.edit = bad;
+    });
+
+    it("steps a known number with its own stepper instead of typing", async () => {
+        const w = await open();
+        await expandData(w);
+        await w.find('button[aria-label="Raise Spawn X"]').trigger("click");
+        await flushPromises();
+        expect(bridge.edits).toContainEqual({ op: "setValue", id: 4, text: "129" });
+    });
+
+    it("shows the game's own keys and types when Game names is on, and remembers it", async () => {
+        const w = await open();
+        await expandData(w);
+        expect(w.text()).toContain("Spawn X");
+        await w.find(".wl-nbt-names input").setValue(true);
+        await flushPromises();
+        expect(rows(w).map((r) => r.text())).toContainEqual(expect.stringContaining("COMPOUND"));
+        expect(w.find('input[aria-label="SpawnX value"]').exists()).toBe(true);
+        expect(localStorage.getItem("worldlens-nbt-game-names")).toBe("1");
+        await w.find(".wl-nbt-names input").setValue(false);
+        await flushPromises();
+        expect(localStorage.getItem("worldlens-nbt-game-names")).toBe("0");
     });
 
     it("opens the grid editor for an array and edits one cell", async () => {
@@ -249,7 +271,7 @@ describe("saving", () => {
         await rows(w)[1]!.trigger("click");
         await rows(w)[1]!.trigger("keydown", { key: "ArrowRight" });
         await flushPromises();
-        const input = w.find('input[aria-label="SpawnX value"]');
+        const input = w.find('input[aria-label="Spawn X value"]');
         await input.setValue("256");
         await input.trigger("keydown", { key: "Enter" });
         await flushPromises();

@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
 import { mdiRedo, mdiUndo } from "@mdi/js";
-import { VAlert, VBtn, VCard, VCardActions, VCardText, VCheckbox, VDialog, VTab, VTabs } from "vuetify/components";
+import { VAlert, VBtn, VCard, VCardActions, VCardText, VCheckbox, VDialog, VSwitch, VTab, VTabs } from "vuetify/components";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import NbtArrayEditor from "./NbtArrayEditor.vue";
 import NbtDialogs from "./NbtDialogs.vue";
@@ -34,6 +34,28 @@ const editor = (bridge === null ? null : createNbtEditorState(bridge)) as NbtEdi
 /* ------------------------------------------------------------------ layout */
 
 const narrow = ref(false);
+
+/*
+ * Readable by default: field names in words, plain types and a control that fits each value.
+ * "Game names" shows the raw keys and types instead. Remembered on this computer.
+ */
+const GAME_NAMES_KEY = "worldlens-nbt-game-names";
+function readGameNames(): boolean {
+    try {
+        return globalThis.localStorage?.getItem(GAME_NAMES_KEY) === "1";
+    } catch {
+        return false;
+    }
+}
+const gameNames = ref(readGameNames());
+watch(gameNames, (value) => {
+    try {
+        globalThis.localStorage?.setItem(GAME_NAMES_KEY, value ? "1" : "0");
+    } catch {
+        // Storage refused: the choice lasts for this session.
+    }
+});
+const readable = computed(() => !gameNames.value);
 const pane = ref<"files" | "tree" | "history">("tree");
 let media: MediaQueryList | null = null;
 function syncMedia(): void {
@@ -333,6 +355,16 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                         <span class="wl-nbt-search__summary" role="status">{{ searchSummary }}</span>
                     </div>
                 </div>
+                <v-switch
+                    v-model="gameNames"
+                    class="wl-nbt-names"
+                    color="primary"
+                    density="compact"
+                    hide-details
+                    inset
+                    :label="t('nbt.gameNames', 'Game names')"
+                    :title="t('nbt.gameNames.hint', 'Show the keys and types exactly as the game stores them, with a typed field for every value.')"
+                />
                 <v-btn :prepend-icon="mdiUndo" variant="outlined" rounded="pill" :disabled="!editor.state.value.canUndo" @click="editor.undo()">{{ t('nbt.undo', 'Undo') }}</v-btn>
                 <v-btn :prepend-icon="mdiRedo" variant="outlined" rounded="pill" :disabled="!editor.state.value.canRedo" @click="editor.redo()">{{ t('nbt.redo', 'Redo') }}</v-btn>
                 <v-btn
@@ -384,6 +416,7 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
                     :cache="editor.cache"
                     :selected-id="editor.selectedId.value"
                     :matches="matchIds"
+                    :readable="readable"
                     @select="(id: number) => (editor.selectedId.value = id)"
                     @toggle="(id: number) => editor.toggle(id)"
                     @commit="(id: number, text: string) => attempt({ op: 'setValue', id, text })"
@@ -458,6 +491,7 @@ const tagCount = computed(() => doc.value?.root.childCount ?? 0);
 </template>
 
 <style scoped>
+.wl-nbt-names { flex: 0 0 auto; }
 .wl-nbt-screen { display: flex; flex-direction: column; gap: 12px; padding: 20px 32px; height: 100%; min-height: 0; box-sizing: border-box; }
 .wl-nbt-head { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px; }
 .wl-nbt-head__title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
