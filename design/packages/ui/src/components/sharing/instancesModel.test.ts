@@ -48,12 +48,21 @@ describe("instancesModel", () => {
         expect(c?.removes).toContain("worldlens-map-c1-data");
 
         const [a] = applianceRows([appliance]);
-        expect(a).toMatchObject({ kind: "appliance", running: null, where: "VirtualBox · worldlens-map" });
+        expect(a).toMatchObject({
+            kind: "appliance",
+            running: null,
+            where: "VirtualBox · worldlens-map",
+        });
         expect(a?.actions).not.toContain("update");
         expect(a?.removes).toContain("C:/vms/worldlens-example");
 
         const [l] = liveRows({ ok: true, value: [live] });
-        expect(l).toMatchObject({ kind: "live", running: true, name: "lensbot", detail: "running · bot online" });
+        expect(l).toMatchObject({
+            kind: "live",
+            running: true,
+            name: "lensbot",
+            detail: "running · bot online",
+        });
         expect(l?.where).toContain("LensBot on Survival server");
     });
 
@@ -83,5 +92,55 @@ describe("instancesModel", () => {
         expect(remove).toHaveBeenCalledWith({ id: "l1", confirmName: "lensbot" });
         const [a] = applianceRows([appliance]);
         expect(await runAction(bridges, a!, "update")).toMatchObject({ ok: false });
+    });
+});
+
+describe("WorldLens deployed as a container", () => {
+    it("lists only hosted-image containers, with a local link, and stops through an authorization", async () => {
+        const { appRows, linkFromPorts, runAction } = await import("./instancesModel.js");
+        expect(linkFromPorts(["127.0.0.1:8110->8110/tcp"])).toBe("http://localhost:8110/");
+        expect(linkFromPorts([])).toBe("");
+        const snapshot = {
+            containers: [
+                {
+                    id: "a1",
+                    name: "WorldLens",
+                    image: `ghcr.io/x/worldlens-hosted@sha256:${"f".repeat(64)}`,
+                    status: "Up 2 minutes",
+                    running: true,
+                    ports: ["0.0.0.0:8110->8110/tcp"],
+                },
+                {
+                    id: "b2",
+                    name: "Map",
+                    image: "ghcr.io/x/worldlens-map-server@sha256:1",
+                    status: "Up",
+                    running: true,
+                    ports: [],
+                },
+            ],
+        };
+        const rows = appRows(snapshot);
+        expect(rows.map((r) => r.id)).toEqual(["a1"]);
+        expect(rows[0]).toMatchObject({
+            kind: "app",
+            link: "http://localhost:8110/",
+            actions: ["start", "stop", "restart"],
+        });
+        const calls: unknown[] = [];
+        const dockerHosting = {
+            inspect: async () => ({ ok: true as const, snapshot: snapshot as never }),
+            authorize: async () => ({ ok: true as const, token: "tok" }),
+            mutate: async (request: unknown) => {
+                calls.push(request);
+                return { ok: true as const, snapshot: snapshot as never };
+            },
+        };
+        expect(await runAction({ dockerHosting }, rows[0]!, "stop")).toEqual({
+            ok: true,
+            message: "",
+        });
+        expect(calls).toEqual([{ operation: "stop", containerId: "a1", authorization: "tok" }]);
+        expect((await runAction({ dockerHosting }, rows[0]!, "remove")).ok).toBe(false);
     });
 });

@@ -64,6 +64,8 @@ function kindLabel(row: InstanceRow): string {
         ? t("instances.kind.container", "Container")
         : row.kind === "appliance"
           ? t("instances.kind.appliance", "Appliance")
+          : row.kind === "app"
+            ? t("instances.kind.app", "WorldLens app")
           : t("instances.kind.live", "Live viewer");
 }
 

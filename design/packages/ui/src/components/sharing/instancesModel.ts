@@ -7,8 +7,9 @@
  * state: a row's health is whatever the last real check returned, and "not checked yet"
  * until one has.
  */
+import { resolveDockerHostingBridge, type DockerHostingBridge, type DockerHostingContainer } from "../remote/dockerHostingBridge.js";
 
-export type InstanceKind = "container" | "appliance" | "live";
+export type InstanceKind = "container" | "appliance" | "live" | "app";
 export type InstanceAction = "start" | "stop" | "restart" | "update" | "remove";
 export type Health = "healthy" | "unreachable" | "unchecked";
 
@@ -46,6 +47,8 @@ export interface SharingBridges {
         control(request: { id: string; action: "start" | "stop" | "restart" }): Promise<unknown>;
         remove(request: { id: string; confirmName: string }): Promise<unknown>;
     };
+    /** The Docker hosting manager, for WorldLens itself deployed as a container. */
+    readonly dockerHosting?: Pick<DockerHostingBridge, "inspect" | "mutate" | "authorize"> | null;
     readonly sharing?: {
         checkLink(link: string): Promise<unknown>;
         openExternal(url: string): Promise<unknown>;
@@ -54,7 +57,37 @@ export interface SharingBridges {
 
 export function resolveSharingBridges(): SharingBridges {
     if (typeof window === "undefined") return {};
-    return ((window as { worldlens?: SharingBridges }).worldlens ?? {}) as SharingBridges;
+    const base = ((window as unknown as { worldlens?: SharingBridges }).worldlens ?? {}) as SharingBridges;
+    return { ...base, dockerHosting: resolveDockerHostingBridge() };
+}
+
+/** `127.0.0.1:8110->8110/tcp` → `http://localhost:8110/`; `0.0.0.0:…` is reachable from other machines too. */
+export function linkFromPorts(ports: readonly string[]): string {
+    for (const p of ports) {
+        const m = /(?:^|\s|,)(?:(\d+\.\d+\.\d+\.\d+|\[?::\]?):)?(\d+)->\d+\/tcp/.exec(p);
+        if (m) return `http://localhost:${m[2]}/`;
+    }
+    return "";
+}
+
+/** WorldLens deployed as a container through the Docker hosting manager. */
+export function appRows(snapshot: unknown): InstanceRow[] {
+    const containers = (snapshot as { containers?: unknown } | null)?.containers;
+    if (!Array.isArray(containers)) return [];
+    return containers
+        .filter((c): c is DockerHostingContainer => typeof c === "object" && c !== null && /\/worldlens-hosted[@:]/.test(str((c as { image?: unknown }).image)))
+        .map((c) => ({
+            key: `app:${c.id}`,
+            id: c.id,
+            kind: "app" as const,
+            name: c.name,
+            where: "This PC · Docker",
+            link: linkFromPorts(c.ports),
+            running: c.running,
+            detail: c.status,
+            actions: ["start", "stop", "restart"] as const,
+            removes: "",
+        }));
 }
 
 function str(value: unknown, fallback = ""): string {
@@ -129,12 +162,14 @@ export function liveRows(raw: unknown): InstanceRow[] {
 }
 
 export async function loadRows(bridges: SharingBridges): Promise<InstanceRow[]> {
-    const [containers, appliances, live] = await Promise.all([
+    const docker = bridges.dockerHosting ?? null;
+    const [containers, appliances, live, apps] = await Promise.all([
         bridges.shareHost?.list().catch(() => []) ?? Promise.resolve([]),
         bridges.appliance?.instances().catch(() => []) ?? Promise.resolve([]),
         bridges.liveViewer?.list().catch(() => []) ?? Promise.resolve([]),
+        docker === null ? Promise.resolve(null) : docker.inspect().then((r) => (r.ok ? r.snapshot : null)).catch(() => null),
     ]);
-    return [...containerRows(containers), ...applianceRows(appliances), ...liveRows(live)];
+    return [...appRows(apps), ...containerRows(containers), ...applianceRows(appliances), ...liveRows(live)];
 }
 
 export async function runAction(bridges: SharingBridges, row: InstanceRow, action: InstanceAction): Promise<{ ok: boolean; message: string }> {
@@ -146,6 +181,22 @@ export async function runAction(bridges: SharingBridges, row: InstanceRow, actio
                 ? await live.remove({ id: row.id, confirmName: row.name })
                 : await live.control({ id: row.id, action: action as "start" | "stop" | "restart" })) as { ok?: unknown; failure?: { message?: unknown } } | null;
             return { ok: answer?.ok !== false, message: str(answer?.failure?.message) };
+        } catch (error) {
+            return { ok: false, message: error instanceof Error ? error.message : String(error) };
+        }
+    }
+    if (row.kind === "app") {
+        const docker = bridges.dockerHosting;
+        if (!docker || !row.actions.includes(action) || action === "remove" || action === "update") return { ok: false, message: "Use the Docker hosting screen for that." };
+        try {
+            let authorization: string | undefined;
+            if (action === "stop") {
+                const token = await docker.authorize({ operation: "stop", containerId: row.id });
+                if (!token.ok) return { ok: false, message: token.failure.message };
+                authorization = token.token;
+            }
+            const answer = await docker.mutate({ operation: action, containerId: row.id, ...(authorization === undefined ? {} : { authorization }) });
+            return answer.ok ? { ok: true, message: "" } : { ok: false, message: answer.failure.message };
         } catch (error) {
             return { ok: false, message: error instanceof Error ? error.message : String(error) };
         }
