@@ -174,20 +174,29 @@ Run on 23 November 2026 against a vanilla 1.20.4 server in offline mode on this 
   registry route, which was exercised end to end against a small public image pinned by digest
   and loaded with `docker load`.
 
-Not verified: a Microsoft sign-in (it needs a real account and a registered client id), hosting
-over a real SSH host (the SSH path is tested against a fake runner only), the Web Client rendering
-in a browser, the `linux/arm64` image, the GHCR digest route against GHCR itself (nothing has been
-pushed yet), and the dialog in the running desktop application.
+- 2026-11-23: the dialog was opened in the built desktop application from Hosted instances and
+  captured; every option is a real control and Host names the exact reason it is disabled.
+- 2026-11-23: the `linux/arm64` image was built and run under Docker's arm64 emulation; its web
+  server answered and `/health` reported the bot's real connection state.
+- Microsoft sign-in is wired: the app creates the protected account store (operating-system safe
+  storage) and its sign-in worker is bundled beside the main process. The dialog asks once for the
+  Microsoft application (client) ID that sign-in needs.
+
+Not verified: a Microsoft sign-in with a real account (it needs that account and a registered
+client ID), hosting this viewer over a real SSH host (the map hosting route has been proven over
+SSH; this viewer's SSH path is tested against a fake runner only), the Web Client rendering in a
+browser, and the GHCR digest route against GHCR itself.
 
 ## Status
 
 The container, hosting module, IPC handlers, accounts adapter, image script, CI job and dialog are
-implemented and unit-tested. They are **not registered** yet: the main process has to call
-`registerLiveViewerHandlers`, the preload has to expose `worldlens.liveViewer`, and the application
-shell has to open `LiveViewerDialog`. Until then the dialog says that hosting needs the desktop
-application and keeps Host disabled. `design/packages/app/liveviewer-image.pin.json` does not exist
-yet either; once CI has pushed the image, commit `{ "image": "ghcr.io/...", "digest": "sha256:..." }`
-there so a build host without Docker can fetch it.
+implemented, unit-tested and registered: the main process calls `registerLiveViewerHandlers`
+through the sharing registration, the preload exposes `worldlens.liveViewer`, and **Hosted
+instances → Start a live viewer** opens `LiveViewerDialog` in the desktop application. The image
+is built into the installer's resources at packaging time (`build-liveviewer-image.mjs`), so a
+click never downloads it. `design/packages/app/liveviewer-image.pin.json` is still to be committed
+once CI has pushed the image, as `{ "image": "ghcr.io/...", "digest": "sha256:..." }`, so a build
+host without Docker can fetch it.
 
 ## Related reading
 
@@ -211,6 +220,7 @@ there so a build host without Docker can fetch it.
 - 實例管理：記錄喺應用資料夾，列出狀態、開始、停止、打開同移除（要打返名先會刪）。
 - Microsoft 登入用裝置代碼流程，登入資料受作業系統保護儲存；放上主機時只經標準輸入寫入無網絡嘅
   一次性容器，唔會出現喺參數、環境變數或日誌。
-- 已驗證：喺 1.20.4 離線伺服器上真正跑過容器、機械人加入、連結可開、移除乾淨。未驗證：Microsoft
-  登入、真實 SSH 主機、Web Client 喺瀏覽器嘅顯示、arm64 映像、GHCR 摘要路線、同桌面應用入面實際運行。
-- 狀態：模組同對話框已寫好並有測試，但主程序、預載同應用外殼仲未接駁，所以暫時只會提示需要桌面應用。
+- 已驗證：喺 1.20.4 離線伺服器上真正跑過容器、機械人加入、連結可開、移除乾淨；對話框喺真程式入面打開過；arm64 映像喺模擬下跑過。
+- Microsoft 登入已經駁好：帳戶倉用作業系統保護儲存，登入工人跟程式一齊打包，對話框會問一次應用程式 ID。
+- 未驗證：用真帳戶登入 Microsoft、呢個檢視器經真實 SSH 主機託管、Web Client 喺瀏覽器嘅顯示、GHCR 摘要路線。
+- 狀態：已經接駁入桌面應用，喺「Hosted instances」撳「Start a live viewer」就開到。

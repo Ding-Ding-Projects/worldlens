@@ -68,4 +68,14 @@ When a personal vocabulary file is loaded, the labels the map server shows (its 
 * `node --test design/packages/app/scripts/build-mapserver-image.test.mjs` (tar format, registry assembly, digest checks).
 * `WORLDLENS_LIVE_DOCKER=1 pnpm --dir design exec vitest run packages/app/src/main/sharehost/hostMap.live.test.ts` hosts a map on the local Docker daemon and fetches it from the detected LAN address, with and without the access code, then removes it.
 
-Not covered by an automated run: hosting over a real SSH connection, arm64 containers executing, and Windows firewall prompts.
+* `WORLDLENS_LIVE_SSH=user@host vitest run packages/app/src/main/sharehost/hostMap.ssh.live.test.ts` hosts a map on a real SSH host: the bundled image is streamed over SSH into `docker load`, the map is packed into a volume there, health and the access code are checked from this PC at the host's address, and the instance is removed. It passed on 2026-11-23 against an x86_64 Docker host.
+* The arm64 image was built and run under Docker's arm64 emulation on 2026-11-23: it served a mounted map with `/health` 200.
+
+Not covered by an automated run: an arm64 container on real arm64 hardware, and Windows firewall prompts.
+
+## 廣東話
+
+渲染完撳「Host the map」，揀呢部電腦或者已儲存嘅 SSH 主機，就會喺容器入面開一個地圖伺服器，畀返一條網絡連結，可以打開同複製。
+- 伺服器映像跟住安裝檔一齊派，撳嘅時候唔會下載任何嘢。
+- 已驗證：本機 Docker 同真實 SSH 主機都真係跑過，健康檢查同存取碼都過關，試完清走；arm64 映像喺模擬下都開到地圖。
+- 未驗證：真實 arm64 硬件上面跑、Windows 防火牆提示。

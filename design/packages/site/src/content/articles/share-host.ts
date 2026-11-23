@@ -9,7 +9,7 @@ export const shareHost: Article = {
     category: "delivery",
     status: "ported-unverified",
     statusNote:
-        "Built and on the default branch. A real local Docker run passed end to end on 2026-11-23: bundled image loaded, map packed, container started, health and access code checked from this PC. Hosting over a real SSH host and running the arm64 image have not been run.",
+        "Built and on the default branch. A real local Docker run passed end to end on 2026-11-23: bundled image loaded, map packed, container started, health and access code checked from this PC. Hosting on a real SSH host passed the same checks the same day, and the arm64 image served a map under emulation. Real arm64 hardware has not been run.",
     sections: [
         {
             id: "behaviour",
@@ -52,7 +52,7 @@ export const shareHost: Article = {
             id: "verification",
             title: "Verification",
             blocks: [
-                { kind: "paragraph", content: "Unit tests cover the hosting plan, packing, port and health checks, the registry and the dialog. A live Docker test on Windows hosted a real map and confirmed 401 without the code and 200 with it. Not verified: hosting over a real SSH host, running the arm64 image, and reaching the link from a second computer." },
+                { kind: "paragraph", content: "Unit tests cover the hosting plan, packing, port and health checks, the registry and the dialog. A live Docker test on Windows hosted a real map and confirmed 401 without the code and 200 with it. On 2026-11-23 an opt-in live test hosted a map on a real SSH Docker host: image streamed over SSH, map packed there, health and access code checked from this PC, instance removed. The arm64 image served a map under emulation. Not verified: real arm64 hardware, and reaching the link from a second computer." },
             ],
         },
     ],

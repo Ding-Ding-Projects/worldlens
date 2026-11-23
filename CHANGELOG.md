@@ -20,12 +20,117 @@ full message for the in-app changelog viewer.
 
 ## Unreleased
 
+### Desktop shell
+
+- Add the Raspberry Pi appliance and bundle both bases compressed - [`42f0793584`](https://github.com/Ding-Ding-Projects/worldlens/commit/42f0793584c25339f34f97bd52ced04c93b5ec76)
+
+### Elsewhere in the repository
+
+- Add design boards for a decluttered Work strip - [`b7f607c7ee`](https://github.com/Ding-Ding-Projects/worldlens/commit/b7f607c7ee8ee622f3ddaca4e29598cacdecbbcf)
+
+## 1.0.2255 - 2026-11-23
+
+Tagged at [`5e384276e7`](https://github.com/Ding-Ding-Projects/worldlens/commit/5e384276e7610a98251f6d1adbccdd9e2d357ec1).
+
+### Elsewhere in the repository
+
+- Remove a stray empty file from the appliance folder - [`5e384276e7`](https://github.com/Ding-Ding-Projects/worldlens/commit/5e384276e7610a98251f6d1adbccdd9e2d357ec1)
+
+## 1.0.2254 - 2026-11-23
+
+Tagged at [`15f73e676e`](https://github.com/Ding-Ding-Projects/worldlens/commit/15f73e676e4b3b53f03557910409aff7853dcad2).
+
+### Desktop shell
+
+- Make the appliance boot and answer in VirtualBox and VMware - [`15f73e676e`](https://github.com/Ding-Ding-Projects/worldlens/commit/15f73e676e4b3b53f03557910409aff7853dcad2)
+
+## 1.0.2249 - 2026-11-23
+
+Tagged at [`6a51559447`](https://github.com/Ding-Ding-Projects/worldlens/commit/6a515594476f3b6befd8a62a2e0cd649407969f4).
+
+### Build, release and tooling
+
+- Build workspace packages before composing the appliance smoke disk - [`6a51559447`](https://github.com/Ding-Ding-Projects/worldlens/commit/6a515594476f3b6befd8a62a2e0cd649407969f4)
+
+## 1.0.2248 - 2026-11-23
+
+Tagged at [`6256a21642`](https://github.com/Ding-Ding-Projects/worldlens/commit/6256a216429012976c9f07f12baa1d33cafb1742).
+
+### Desktop shell
+
+- Turn on Microsoft sign-in for the live viewer bot - [`6256a21642`](https://github.com/Ding-Ding-Projects/worldlens/commit/6256a216429012976c9f07f12baa1d33cafb1742)
+
+## 1.0.2247 - 2026-11-23
+
+Tagged at [`03dd3111a8`](https://github.com/Ding-Ding-Projects/worldlens/commit/03dd3111a88d86c5b7330d8e7ae25a3e781f0bcf).
+
+### Desktop shell
+
+- Build the appliance's map server from its own folder; prove SSH hosting - [`03dd3111a8`](https://github.com/Ding-Ding-Projects/worldlens/commit/03dd3111a88d86c5b7330d8e7ae25a3e781f0bcf)
+
+## 1.0.2244 - 2026-11-23
+
+Tagged at [`ba4f37d02d`](https://github.com/Ding-Ding-Projects/worldlens/commit/ba4f37d02d835bebbb3f3dd6540b5084f7b4dfcd).
+
+### Documentation
+
+- List the share features and the NBT editor in the README - [`ba4f37d02d`](https://github.com/Ding-Ding-Projects/worldlens/commit/ba4f37d02d835bebbb3f3dd6540b5084f7b4dfcd)
+
+## 1.0.2243 - 2026-11-23
+
+Tagged at [`be7075e280`](https://github.com/Ding-Ding-Projects/worldlens/commit/be7075e28015a437b436e16b97ed38891b4b43b2).
+
+### Landing page and documentation site
+
+- Document sharing a finished render and the NBT editor - [`7ffa223ffa`](https://github.com/Ding-Ding-Projects/worldlens/commit/7ffa223fface6ea81639578da51e7b8e122a25b0)
+
+## 1.0.2240 - 2026-11-23
+
+Tagged at [`24ff91d1fa`](https://github.com/Ding-Ding-Projects/worldlens/commit/24ff91d1faab66cf1808b0ada115c00133b57337).
+
 ### Interface
 
 - Fix clipped NBT tag names and the missing browse icon - [`24ff91d1fa`](https://github.com/Ding-Ding-Projects/worldlens/commit/24ff91d1faab66cf1808b0ada115c00133b57337)
+
+## 1.0.2238 - 2026-11-23
+
+Tagged at [`7db094c19d`](https://github.com/Ding-Ding-Projects/worldlens/commit/7db094c19d04210c5dfe920a380db04efdf59aa5).
+
+### Interface
+
 - Type the appliance dialog's optional bridge prop correctly - [`7db094c19d`](https://github.com/Ding-Ding-Projects/worldlens/commit/7db094c19d04210c5dfe920a380db04efdf59aa5)
+
+## 1.0.2236 - 2026-11-23
+
+Tagged at [`fc7e2ced82`](https://github.com/Ding-Ding-Projects/worldlens/commit/fc7e2ced8278929670e012be70ffa3ca907a2cce).
+
+### Interface
+
 - Wire the live viewer and list its instances - [`fc7e2ced82`](https://github.com/Ding-Ding-Projects/worldlens/commit/fc7e2ced8278929670e012be70ffa3ca907a2cce)
+
+## 1.0.2234 - 2026-11-23
+
+Tagged at [`80507b2a19`](https://github.com/Ding-Ding-Projects/worldlens/commit/80507b2a198ae29575ef074a056b8980c73a389d).
+
+### Interface
+
 - Add the hosted instances page and wire the NBT editor - [`fb59e8eea7`](https://github.com/Ding-Ding-Projects/worldlens/commit/fb59e8eea770b7017f3d5b96002825bc248cf5d1)
+
+### Desktop shell
+
+- Merge remote-tracking branch 'origin/worktree-agent-aaecfbaa69ed9c71a' - [`2079466fa1`](https://github.com/Ding-Ding-Projects/worldlens/commit/2079466fa1fe52b153f1bcfbd51ae3f782f12f67) _(summary of 2 commits, also listed here)_
+- Add a one-click live 3D viewer with a mineflayer bot - [`18ef7c0509`](https://github.com/Ding-Ding-Projects/worldlens/commit/18ef7c0509785e9b476c675007876ec68a57832e)
+
+### Build, release and tooling
+
+- Bring the workflow lint up to date with the new image jobs - [`80507b2a19`](https://github.com/Ding-Ding-Projects/worldlens/commit/80507b2a198ae29575ef074a056b8980c73a389d)
+
+## 1.0.2232 - 2026-11-23
+
+Tagged at [`57c58eaf13`](https://github.com/Ding-Ding-Projects/worldlens/commit/57c58eaf13a739608e959b189577f2a43be6a256).
+
+### Interface
+
 - Merge remote-tracking branch 'origin/worktree-agent-a3b80a1d3a45922cd' - [`57c58eaf13`](https://github.com/Ding-Ding-Projects/worldlens/commit/57c58eaf13a739608e959b189577f2a43be6a256) _(summary of 4 commits, also listed here)_
 - Add the visual NBT editor screen and its documentation - [`fa7f103ed4`](https://github.com/Ding-Ding-Projects/worldlens/commit/fa7f103ed49430305be3070d09c2adcb1a705637)
 
@@ -35,22 +140,19 @@ full message for the in-app changelog viewer.
 
 ### Desktop shell
 
-- Merge remote-tracking branch 'origin/worktree-agent-aaecfbaa69ed9c71a' - [`2079466fa1`](https://github.com/Ding-Ding-Projects/worldlens/commit/2079466fa1fe52b153f1bcfbd51ae3f782f12f67) _(summary of 2 commits, also listed here)_
-- Add a one-click live 3D viewer with a mineflayer bot - [`18ef7c0509`](https://github.com/Ding-Ding-Projects/worldlens/commit/18ef7c0509785e9b476c675007876ec68a57832e)
 - Add the NBT editor service with a per-project Git history - [`84873b9a4c`](https://github.com/Ding-Ding-Projects/worldlens/commit/84873b9a4c8166785b87b08602dcb3cab528c15a)
 - Wire map hosting and the appliance builder into the app - [`ce9d6e3b28`](https://github.com/Ding-Ding-Projects/worldlens/commit/ce9d6e3b28a1baeb455d500e404ca706e0796a36)
+
+## 1.0.2230 - 2026-11-23
+
+Tagged at [`ba76efafb7`](https://github.com/Ding-Ding-Projects/worldlens/commit/ba76efafb7d161fab47cad518d23c6cc1705b847).
+
+### Desktop shell
+
 - Merge remote-tracking branch 'origin/worktree-agent-ac91f13fbde292be4' - [`ba76efafb7`](https://github.com/Ding-Ding-Projects/worldlens/commit/ba76efafb7d161fab47cad518d23c6cc1705b847) _(summary of 2 commits, also listed here)_
 - Add a one-click appliance OS image builder for a finished render - [`ca6076a326`](https://github.com/Ding-Ding-Projects/worldlens/commit/ca6076a3265a3a527847c468235b693fcc6461b0)
 - Merge remote-tracking branch 'origin/worktree-agent-a7d0304f2fe1de718' - [`80b03d45b1`](https://github.com/Ding-Ding-Projects/worldlens/commit/80b03d45b13fd2187701c5f4d52bcf031113f822) _(summary of 2 commits, also listed here)_
 - Add one-click "Host the map" with a bundled map server image - [`975f43870a`](https://github.com/Ding-Ding-Projects/worldlens/commit/975f43870a576486c2444fa96f65d10a225e4c3f)
-
-### Landing page and documentation site
-
-- Document sharing a finished render and the NBT editor - [`7ffa223ffa`](https://github.com/Ding-Ding-Projects/worldlens/commit/7ffa223fface6ea81639578da51e7b8e122a25b0)
-
-### Build, release and tooling
-
-- Bring the workflow lint up to date with the new image jobs - [`80507b2a19`](https://github.com/Ding-Ding-Projects/worldlens/commit/80507b2a198ae29575ef074a056b8980c73a389d)
 
 ## 1.0.2223 - 2026-11-23
 

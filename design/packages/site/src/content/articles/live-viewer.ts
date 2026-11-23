@@ -9,7 +9,7 @@ export const liveViewer: Article = {
     category: "delivery",
     status: "ported-unverified",
     statusNote:
-        "On the default branch. A real Docker run against a vanilla 1.20.4 server passed on 2026-11-23: the bot joined and the viewer page answered from this PC. Microsoft sign-in is not wired in this build, and SSH hosting and the arm64 image have not been run.",
+        "On the default branch. A real Docker run against a vanilla 1.20.4 server passed on 2026-11-23: the bot joined and the viewer page answered from this PC. The dialog opens from Hosted instances in the built app, Microsoft sign-in is wired (protected account store and bundled sign-in worker), and the arm64 image ran under emulation. A sign-in with a real account and SSH hosting of the viewer have not been run.",
     sections: [
         {
             id: "behaviour",
@@ -52,7 +52,7 @@ export const liveViewer: Article = {
             id: "verification",
             title: "Verification",
             blocks: [
-                { kind: "paragraph", content: "Unit tests cover configuration, the hosting plan and the dialog. A real Docker run joined a real server and served the viewer and the web client. Not verified: Microsoft sign-in, SSH hosting, the arm64 image, and Web Client rendering in a browser." },
+                { kind: "paragraph", content: "Unit tests cover configuration, the hosting plan and the dialog. A real Docker run joined a real server and served the viewer and the web client. The dialog was opened and captured in the built application, and the arm64 image ran under emulation on 2026-11-23. Not verified: a Microsoft sign-in with a real account, SSH hosting of the viewer, and Web Client rendering in a browser." },
             ],
         },
     ],

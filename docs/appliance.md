@@ -60,9 +60,46 @@ node design/packages/app/scripts/fetch-appliance-base.mjs --from out/worldlens-a
 
 The base image is about 1.4 GiB raw (compresses well). `.github/workflows/appliance.yml` boots it once under QEMU and waits for `/health` before uploading it as a zstd asset with a SHA-256.
 
-## What is not built or not verified
+## Raspberry Pi
 
-- Raspberry Pi (arm64): not built. The base script only builds x86_64.
-- The base image build script and the QEMU boot smoke have not been run yet; they need a Linux runner and the map-server image sources.
-- No real VMware or VirtualBox machine has been booted from a composed disk and no USB drive has been written by this code. The disk, VMDK, VHDX and command plans are covered by tests; VirtualBox's own parser has opened the generated VMDK (sparse and flat) and VHDX files.
-- The VHDX has not been mounted by Windows or Hyper-V.
+`appliance/build-base-rpi.sh` builds `worldlens-appliance-base-aarch64-rpi.img` for a Raspberry Pi 3, 4 or 5. A Pi's firmware reads partition 1, which must be FAT, so the layout is a 256 MiB FAT boot partition (firmware, `vmlinuz-rpi`, `initramfs-rpi`, device trees for the Pi 3, 4, 400, 5 and 500 families, `config.txt`, `cmdline.txt`) and an ext4 root with Docker, avahi and the same `worldlens-map` service. The kernel and the firmware come from the same Alpine package set, so their versions always match. The desktop app appends the map as partition 3, exactly as it appends partition 2 on the PC image.
+
+In the appliance dialog, **Raspberry Pi** writes this image to an SD card or a USB drive through the same verified disk write as the PC USB stick: removable drives only (USB, SD and MMC buses, never the boot or system disk), the drive name typed to confirm, administrator approval through the Windows prompt, and a SHA-256 read-back before it says done.
+
+## Kernel and drivers
+
+The PC image uses Alpine's `linux-lts` kernel rather than `linux-virt`. The same image boots in VirtualBox, in VMware and from a USB stick on a real PC, so it needs the common physical network drivers (and Realtek's firmware) as well as the virtual ones; `linux-virt` has no Realtek driver at all. `hwdrivers` loads the driver for whatever network card is present, and `/etc/modules` also lists the Intel, VMware and virtio drivers so a virtual machine always gets its network.
+
+## Bundled bases
+
+The installer carries both bases zstd-compressed (about 260 MB and 135 MB rather than 3.2 GB raw). `scripts/fetch-appliance-base.mjs` stages them at build time from `appliance-base.pin.json`, checking both the compressed and the expanded SHA-256. The app expands the base it needs into its own data folder on first use, checks it against the recorded digest again, and reuses it after that. Nothing is downloaded when somebody clicks.
+
+## Verified
+
+- The PC base builds in WSL and in CI, and boots under QEMU to `/health` 200 within about 15 seconds; CI repeats that boot on every change to the appliance.
+- **VirtualBox, one click:** on this PC the app's own builder composed a disk, created and started the VM, and got `/health` 200 through a NAT forward in 72 seconds; the VM was then removed.
+- **VMware, one click:** the same builder started the VM in VMware Workstation, read its address through the guest tools and got `/health` 200 in 24 seconds; the VM was then removed.
+- The Raspberry Pi image builds in WSL with arm64 emulation; its boot partition and root were inspected, and under QEMU's Raspberry Pi 3 model it starts its kernel, loads its initramfs and mounts its root.
+- Both live checks are opt-in tests: `WORLDLENS_LIVE_VBOX_BASE=<base.img> [WORLDLENS_LIVE_VM_TARGET=vmware] vitest run packages/app/src/main/appliance/vm.live.test.ts`.
+
+## Found by the first real boots, and fixed
+
+- VirtualBox booted the appliance with no network: the virt kernel had the Intel driver but nothing loaded it.
+- VMware refused to power on: the network card was a PCIe device and the VM declared no PCIe root ports. It now uses `vmxnet3` with VMware's standard four root ports.
+- A VM whose check failed was never recorded, so it kept running with no way to remove it from the app. It is now recorded on every outcome.
+- A NAT forward onto a port already in use started a VM whose link reached something else. The port is now checked first.
+- Both build scripts reported success when a step failed; they now keep the real exit code and delete a partial image.
+
+## Not verified yet
+
+- A Raspberry Pi image booted on a real board, and a real SD card or USB drive written by the app (it needs a drive chosen in the dialog and the administrator prompt approved).
+- The `.vhdx` mounted by Windows or Hyper-V, and the `.ova` imported into VMware or VirtualBox.
+- The pinned bases: `appliance-base.pin.json` is filled in once the workflow has attached both assets to a release.
+
+## 廣東話
+
+一撳就整一部開機即用嘅地圖機：VMware、VirtualBox、USB 手指、樹莓派記憶卡，或者匯出映像自己裝。
+- 已經喺呢部電腦真係試過：VirtualBox 72 秒、VMware 24 秒就由呢部電腦打得開 `/health`，試完自動刪走部虛擬機。
+- 第一次真開機揪出幾隻蟲，全部修好：VirtualBox 冇網卡驅動、VMware 冇 PCIe 位、失敗嘅虛擬機冇記錄、NAT 端口撞車、建置腳本失敗都報成功。
+- 樹莓派版本已經砌好，模擬器入面開到核心、掛到根目錄；但仲未喺真嘅樹莓派上面開過，亦未真係寫過記憶卡或者 USB。
+- 兩個底層映像壓縮後放入安裝檔，第一次用先喺本機解壓同驗指紋，唔使臨時下載。

@@ -4,11 +4,12 @@
 
 - [x] Three share cards on the finished-render panel (Host the map, Build an appliance, Live viewer and bot), disabled until the render has output. Tests pass.
 - [x] Host the map in a container on this PC: bundled map server image (amd64 and arm64, built at build time), packed map in a private volume, verified network link with Open and Copy, optional access code. A real local Docker run passed end to end.
-- [ ] Host the map over a real SSH host. Built and unit tested only.
-- [ ] Appliance image: builder, disk writers (.img, .vmdk, .vhdx, .ova), VMware and VirtualBox plans, USB writer with typed confirmation and read-back are built and unit tested. Blocked on the first published appliance base image; no virtual machine boot or USB write has run.
-- [ ] Raspberry Pi arm64 appliance image. Not built.
+- [x] Host the map over a real SSH host. An opt-in live test passed against a real Docker host on 2026-11-23 (image streamed over SSH, health and access code checked, instance removed).
+- [x] Appliance one-click VirtualBox and VMware: the app's builder booted a composed disk to a healthy link in both (72 s and 24 s) on 2026-11-23; CI boots the base under QEMU on every change.
+- [ ] Appliance USB stick and SD card write on real media (needs a drive chosen in the dialog and the administrator prompt approved); VHDX in Hyper-V and OVA import not run.
+- [ ] Raspberry Pi arm64 appliance image. Built in WSL and CI, mounts its root under QEMU's Pi 3 model; not booted on a real board.
 - [x] Live viewer with a mineflayer bot (Prismarine Viewer or Prismarine Web Client), every option a control. A real Docker run joined a real 1.20.4 server.
-- [ ] Microsoft sign-in for the live viewer bot. Needs the bot account service wired into the app.
+- [ ] Microsoft sign-in for the live viewer bot. Wired (protected account store, bundled sign-in worker, client ID field); not run with a real account.
 - [x] Hosted instances page: every hosted map, appliance and live viewer, with health checked from this PC, Open, Copy, Start, Stop, Restart, Update and Remove with name confirmation. Seen in the built app (empty state).
 - [x] NBT editor with a Git history per project. A real level.dat was edited, saved and recorded in the built app.
 - [ ] Share dialogs captured in the built app after a real finished render. Pending a throwaway render setup.

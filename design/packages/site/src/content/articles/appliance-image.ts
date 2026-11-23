@@ -9,7 +9,7 @@ export const applianceImage: Article = {
     category: "delivery",
     status: "ported-unverified",
     statusNote:
-        "The builder, disk writers, virtual machine plans and dialog are on the default branch with unit tests. No virtual machine has booted a composed disk yet and no USB stick has been written, because the appliance base image is published by a workflow that has not run yet.",
+        "On the default branch. On 2026-11-23 the app's own builder booted a composed disk in VirtualBox (link healthy in 72 seconds) and in VMware Workstation (24 seconds), and CI boots the base under QEMU on every change. A Raspberry Pi image is built; it has not booted on a real board, and no USB stick or SD card has been written yet.",
     sections: [
         {
             id: "behaviour",
@@ -52,7 +52,7 @@ export const applianceImage: Article = {
             id: "verification",
             title: "Verification",
             blocks: [
-                { kind: "paragraph", content: "Unit tests cover the tar and partition writers, the VMDK, VHDX and OVA formats, the VMware and VirtualBox command plans, the USB safety checks and the dialog. VirtualBox parsed the generated disks. Not verified: booting a composed disk, writing a real USB stick, Hyper-V mounting the VHDX, importing the OVA, and the Raspberry Pi image, which is not built." },
+                { kind: "paragraph", content: "Unit tests cover the tar and partition writers, the VMDK, VHDX and OVA formats, the VMware and VirtualBox command plans, the USB and SD safety checks, the bundled base expansion and the dialog. Verified on 2026-11-23: one-click VirtualBox and VMware boots to a healthy link, removed afterwards; the PC base booting under QEMU in CI; the Raspberry Pi image mounting its root under QEMU's Pi 3 model. The first real boots found five defects (missing network driver, no PCIe root ports for VMware, unrecorded failed VMs, NAT port collisions, build scripts reporting success on failure), all fixed. Not verified: a real Raspberry Pi board, writing a real USB stick or SD card, Hyper-V mounting the VHDX, and importing the OVA." },
             ],
         },
     ],
