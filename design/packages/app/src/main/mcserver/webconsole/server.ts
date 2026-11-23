@@ -42,6 +42,8 @@ export interface WebConsoleServerOptions {
     /** True when the caller has terminated TLS in front of this server (a reverse proxy).
      * Only then may a non-loopback host be accepted. */
     readonly tlsTerminated?: boolean;
+    /** The operator explicitly allows plain HTTP on a non-loopback address (a local network). */
+    readonly allowPlainHttp?: boolean;
     readonly now?: () => number;
     readonly schoolMode?: () => boolean;
     readonly sessionManager?: SessionManager;
@@ -440,7 +442,7 @@ export function buildWebConsoleHandlers(options: WebConsoleServerOptions): {
 /** Runs the console with a real socket. */
 export async function startWebConsoleServer(options: WebConsoleServerOptions): Promise<WebConsoleServerHandle> {
     const host = options.host ?? "127.0.0.1";
-    if (!isLoopbackHost(host) && options.tlsTerminated !== true) {
+    if (!isLoopbackHost(host) && options.tlsTerminated !== true && options.allowPlainHttp !== true) {
         throw new Error(
             "Refusing to bind the web console to a non-loopback address without TLS: the sign-in password would cross the network in the clear.",
         );
