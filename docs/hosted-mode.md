@@ -209,11 +209,11 @@ person as far as the server is concerned.
 CI publishes this image as `ghcr.io/<owner>/worldlens-hosted` (job `hosted-image`). The digest offered by default in **Deploy WorldLens as a container** and in the appliance dialog's app option (`design/packages/ui/src/components/remote/publishedImages.ts`):
 
 ```
-ghcr.io/ding-ding-projects/worldlens-hosted@sha256:00f60380d5428869a9dc63d47757131dce3b9e13cd20c86d201d807671c6df21
+ghcr.io/ding-ding-projects/worldlens-hosted@sha256:a24d49d3a7d55b60848f49094b3ccdce6fe07262a1d55c84fe4e3f76e314b773
 ```
 
-Version 1.0.2435, commit `b5313d8`, CI run 45350438213, 2026-11-24 (the first published digest was version 1.0.2340, `bde9835`, run 45278760421). Not yet pulled and started outside CI.
+Version 1.0.2439, commit `784d2e2`, CI run 45351724377, 2026-11-24 (the first published digest was version 1.0.2340, `bde9835`, run 45278760421). Not yet pulled and started outside CI.
 
-已發佈映像：CI 嘅 `hosted-image` job 發佈 `ghcr.io/<owner>/worldlens-hosted`，預設 digest 而家係上面嗰行（版本 1.0.2435，commit `b5313d8`，2026-11-24；第一個係 1.0.2340），用喺容器部署卡同 appliance app 選項。CI 以外未拉落嚟行過。
+已發佈映像：CI 嘅 `hosted-image` job 發佈 `ghcr.io/<owner>/worldlens-hosted`，預設 digest 而家係上面嗰行（版本 1.0.2439，commit `784d2e2`，2026-11-24；第一個係 1.0.2340），用喺容器部署卡同 appliance app 選項。CI 以外未拉落嚟行過。
 
 NBT 編輯器嘅通道（包括將整好嘅 data pack 存入世界）、專用機建構器同分享卡喺託管模式拒絕：NBT 編輯器用完整路徑，仲未限制喺掛載咗嘅資料夾入面；另外兩樣係喺桌面機度做嘢。託管地圖同即時檢視器要 Docker socket 授權先開，因為兩樣都會開容器。
