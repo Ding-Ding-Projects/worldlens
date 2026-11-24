@@ -1305,15 +1305,21 @@ const openJobIds = ref<readonly string[]>([]);
  * value has been written - a crash between the two leaves it to run again rather than leaving a
  * half-migrated strip stamped as finished. Idempotent, so calling it on every mount is safe.
  */
-onMounted(() => {
-    if (migrationAlreadyRan()) return;
-    const result = migrateWorkspace(readTabWorkspace());
-    if (result.workspace !== null) writeTabWorkspace(result.workspace);
-    unresolvedPageIds.value = result.unresolvedPageIds;
+// The write runs here, during setup, and not in onMounted: children mount before their parent,
+// so Work's tab strip used to read the old workspace first and keep it in memory, and the next
+// change it made wrote that stale copy straight over the migrated one. A twelve-page workspace
+// pruned against the new page list could come back with no tabs at all, and Work stayed empty.
+const migration = migrationAlreadyRan() ? null : migrateWorkspace(readTabWorkspace());
+if (migration !== null) {
+    if (migration.workspace !== null) writeTabWorkspace(migration.workspace);
+    unresolvedPageIds.value = migration.unresolvedPageIds;
     markMigrationRan();
-    shell.destination.value = result.destination;
-    if (result.activeJobId !== null) {
-        void nextTick(() => revealJob(result.activeJobId as string));
+}
+onMounted(() => {
+    if (migration === null) return;
+    shell.destination.value = migration.destination;
+    if (migration.activeJobId !== null) {
+        void nextTick(() => revealJob(migration.activeJobId as string));
     }
 });
 
