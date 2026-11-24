@@ -15,6 +15,8 @@ it("drives status, people and the two-key removal gate from the real routes it c
       : String(url) === "/api/servers" ? { ok: true, value: [{ id: "s1", name: "Survival" }] }
       : String(url) === "/api/accounts" ? { ok: true, accounts: [{ id: "a", name: "Bob", role: "owner", password: true, totp: false, passkeys: 1 }, { id: "b", name: "Ann", role: "viewer", password: true, totp: false, passkeys: 0 }] }
       : String(url) === "/api/auth/status" ? { account: { name: "Bob", role: "owner" } }
+      : String(url).endsWith("/players") && !init?.method ? { ok: true, value: [{ name: "Steve", uuid: "u", op: false, whitelisted: true, banned: false, banReason: null }] }
+      : String(url).endsWith("/players") || String(url).endsWith("/command") ? { ok: true, value: { command: JSON.parse(init.body).command ?? "op Steve" } }
       : { ok: true };
     return { status: 200, json: async () => body } as any;
   }) as any;
@@ -34,4 +36,14 @@ it("drives status, people and the two-key removal gate from the real routes it c
   slide.value = "100"; slide.dispatchEvent(new (globalThis as any).Event("change"));
   await new Promise((r) => setTimeout(r, 20));
   expect(calls).toContain("POST /api/accounts/remove");
+
+  // Players come from the server's files, with actions for someone who may change things.
+  expect(doc().getElementById("players").textContent).toContain("Steve · whitelisted");
+  (doc().querySelector('[aria-label="Make operator Steve"]') as any).click();
+  await new Promise((r) => setTimeout(r, 20));
+  expect(calls).toContain("POST /api/servers/s1/players");
+  (doc().getElementById("online") as any).click();
+  await new Promise((r) => setTimeout(r, 20));
+  expect(calls).toContain("POST /api/servers/s1/command");
+  expect(doc().getElementById("policy-box").hidden).toBe(false);
 });

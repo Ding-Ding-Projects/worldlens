@@ -28,6 +28,8 @@ import { SessionManager } from "./sessions.js";
 import { LockoutTracker, SignInGate, UnlockLadder, isRung } from "./lockout.js";
 import { buildAccountsHandler, type AccountsOptions } from "./accountsRoutes.js";
 import { MANAGE_PAGE, MANAGE_SCRIPT } from "./managePage.js";
+import { cleanCommand, knownPlayers, sendCommand } from "./players.js";
+import { buildPlayerCommand, type PlayerAction } from "../players/model.js";
 import { installDataPack, MAX_SERVER_DATAPACK_BYTES } from "../datapackInstall.js";
 
 const SESSION_COOKIE_NAME = "wl_console_session";
@@ -419,6 +421,49 @@ export function buildWebConsoleHandlers(options: WebConsoleServerOptions): {
                 const timeoutMs = typeof b.timeoutMs === "number" && b.timeoutMs > 0 && b.timeoutMs <= 600_000 ? b.timeoutMs : 60_000;
                 const stopped = await built.value.stop({ graceful, timeoutMs });
                 sendJson(res, stopped.ok ? 200 : 502, stopped);
+                return true;
+            }
+
+            if (parts.length === 4 && (parts[3] === "players" || parts[3] === "command")) {
+                const id = parts[2] as string;
+                const found = await options.registry.get(id);
+                if (!found.ok) {
+                    sendJson(res, 404, found);
+                    return true;
+                }
+                const built = createTransport(found.value.ref, { ...options.factory, writeScope: found.value.writeScope });
+                if (!built.ok) {
+                    sendJson(res, 502, built);
+                    return true;
+                }
+                if (parts[3] === "players" && req.method === "GET") {
+                    const players = await knownPlayers(built.value);
+                    sendJson(res, players.ok ? 200 : 404, players);
+                    return true;
+                }
+                if (req.method !== "POST") return false;
+                let body: Record<string, unknown> = {};
+                try {
+                    const parsed = await readJsonBody(req);
+                    if (typeof parsed === "object" && parsed !== null) body = parsed as Record<string, unknown>;
+                } catch {
+                    sendJson(res, 400, { ok: false, error: "The request could not be read." });
+                    return true;
+                }
+                const command =
+                    parts[3] === "command"
+                        ? cleanCommand(body.command)
+                        : buildPlayerCommand({
+                              action: body.action as PlayerAction,
+                              name: typeof body.name === "string" ? body.name : "",
+                              ...(typeof body.reason === "string" ? { reason: body.reason } : {}),
+                          });
+                if (!command.ok) {
+                    sendJson(res, 400, command);
+                    return true;
+                }
+                const sent = await sendCommand(built.value, command.value);
+                sendJson(res, sent.ok ? 200 : 502, sent.ok ? { ok: true, value: { command: command.value } } : sent);
                 return true;
             }
 

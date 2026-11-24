@@ -4,7 +4,8 @@
  * Before this, signing in reloaded `/` and the site answered 404: the sign-in page was the
  * only page there was, and every server control existed only as an API. This page is built on
  * those same routes and nothing else: the server list, its status, start, stop and restart,
- * the live console over server-sent events, putting a data pack into the server's world, and,
+ * the live console over server-sent events with a command box, the players the server knows
+ * with operator, whitelist, kick and ban actions, putting a data pack into the server's world, and,
  * when the site runs with named accounts, the people who can manage it, invitations and
  * removal. Removing a person goes through a two-key and slider gate on the page itself.
  *
@@ -77,6 +78,19 @@ input[type=range]{width:100%}
   <section class="wide" aria-labelledby="h-console">
     <h2 id="h-console">Console</h2>
     <pre id="log" role="log" aria-live="polite" tabindex="0" aria-label="Server console"></pre>
+    <form class="row changes" id="cmd-form">
+      <label style="flex:1 1 260px">Send a command (no slash needed)<input type="text" id="cmd" maxlength="256" autocomplete="off"></label>
+      <button type="submit" id="cmd-send">Send</button>
+      <button type="button" class="alt" id="online">Who is online</button>
+    </form>
+  </section>
+  <section class="wide" aria-labelledby="h-players">
+    <h2 id="h-players">Players</h2>
+    <p class="note">Everyone this server has seen, from its own player files. Who is online right now shows in the console when you press Who is online.</p>
+    <label>Find a player<input type="text" id="player-find" autocomplete="off"></label>
+    <ul id="players"></ul>
+    <p class="note" id="players-why"></p>
+    <label class="changes">Reason for a kick or ban (optional)<input type="text" id="reason" maxlength="200" autocomplete="off"></label>
   </section>
   <section class="wide" id="people" hidden aria-labelledby="h-people">
     <h2 id="h-people">People who can manage this server</h2>
@@ -86,6 +100,14 @@ input[type=range]{width:100%}
       <button type="button" id="invite">Invite someone</button>
     </div>
     <p class="note" id="invite-code" role="status"></p>
+    <fieldset id="policy-box" class="changes" style="border:1px solid #42474e;border-radius:16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+      <legend>What everyone must use to sign in</legend>
+      <label style="flex-direction:row;align-items:center"><input type="checkbox" id="p-password"> Password</label>
+      <label style="flex-direction:row;align-items:center"><input type="checkbox" id="p-passkey"> Passkey</label>
+      <label style="flex-direction:row;align-items:center"><input type="checkbox" id="p-totp"> Authenticator code</label>
+      <button type="button" id="policy-save">Save</button>
+      <span class="note" id="policy-why"></span>
+    </fieldset>
     <div class="gate" id="gate" hidden role="group" aria-labelledby="gate-title">
       <strong id="gate-title"></strong>
       <p class="note">Both keys, then slide all the way to confirm. Cancel or Escape stops it; nothing is removed until the slider reaches the end.</p>
@@ -107,6 +129,9 @@ let current = null;
 let source = null;
 let removing = null;
 let returnFocus = null;
+let role = null;
+let players = [];
+const canChange = () => role !== "viewer";
 const say = (text) => { $("status").textContent = text; };
 async function api(path, init) {
   const r = await fetch(path, init);
@@ -145,6 +170,54 @@ function choose(id) {
     } catch {}
   });
   refreshStatus();
+  loadPlayers();
+}
+async function loadPlayers() {
+  players = [];
+  if (current !== null) {
+    const r = await api("/api/servers/" + encodeURIComponent(current) + "/players");
+    players = r.body.ok ? r.body.value : [];
+    $("players-why").textContent = r.body.ok ? (players.length ? "" : "No players yet.") : reason(r.body);
+  }
+  drawPlayers();
+}
+function drawPlayers() {
+  const q = $("player-find").value.trim().toLowerCase();
+  const list = $("players");
+  list.innerHTML = "";
+  for (const p of players.filter((x) => q === "" || x.name.toLowerCase().includes(q))) {
+    const li = document.createElement("li");
+    const text = document.createElement("span");
+    text.textContent = p.name + [p.op ? " · operator" : "", p.whitelisted ? " · whitelisted" : "", p.banned ? " · banned" + (p.banReason ? " (" + p.banReason + ")" : "") : ""].join("");
+    li.append(text);
+    if (canChange()) {
+      const row = document.createElement("span");
+      row.className = "row";
+      const actions = [[p.op ? "deop" : "op", p.op ? "Remove operator" : "Make operator"], [p.whitelisted ? "whitelist-remove" : "whitelist-add", p.whitelisted ? "Take off whitelist" : "Whitelist"], ["kick", "Kick"], [p.banned ? "pardon" : "ban", p.banned ? "Unban" : "Ban"]];
+      for (const [action, label] of actions) {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = action === "ban" ? "danger" : "alt"; b.textContent = label;
+        b.setAttribute("aria-label", label + " " + p.name);
+        b.addEventListener("click", () => playerAction(action, p.name));
+        row.append(b);
+      }
+      li.append(row);
+    }
+    list.append(li);
+  }
+}
+async function playerAction(action, name) {
+  if (current === null) return;
+  const body = { action, name };
+  if ((action === "kick" || action === "ban") && $("reason").value.trim()) body.reason = $("reason").value.trim();
+  const r = await api("/api/servers/" + encodeURIComponent(current) + "/players", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  say(r.body.ok ? "Sent: " + r.body.value.command : reason(r.body));
+  setTimeout(loadPlayers, 1500);
+}
+async function sendCmd(command) {
+  if (current === null) return;
+  const r = await api("/api/servers/" + encodeURIComponent(current) + "/command", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ command }) });
+  say(r.body.ok ? "Sent: " + r.body.value.command : reason(r.body));
 }
 async function refreshStatus() {
   if (current === null) return;
@@ -192,6 +265,7 @@ async function loadPeople() {
   const r = await api("/api/accounts");
   if (!r.body.ok) { $("people").hidden = true; return; }
   $("people").hidden = false;
+  for (const f of ["password", "passkey", "totp"]) $("p-" + f).checked = (r.body.policy || []).includes(f);
   const list = $("accounts");
   list.innerHTML = "";
   for (const a of r.body.accounts) {
@@ -200,7 +274,7 @@ async function loadPeople() {
     const text = document.createElement("span");
     text.textContent = a.name + " · " + a.role + " · signs in with " + (ways || "nothing yet");
     li.append(text);
-    if (a.role !== "owner") {
+    if (a.role !== "owner" && (role === "owner" || role === "admin")) {
       const b = document.createElement("button");
       b.type = "button"; b.className = "danger"; b.textContent = "Remove";
       b.setAttribute("aria-label", "Remove " + a.name);
@@ -237,6 +311,15 @@ async function slid() {
   setTimeout(() => { closeGate(); loadPeople(); }, 600);
 }
 $("pick").addEventListener("change", (e) => choose(e.target.value));
+$("player-find").addEventListener("input", drawPlayers);
+$("cmd-form").addEventListener("submit", (e) => { e.preventDefault(); const c = $("cmd").value; if (c.trim()) { sendCmd(c); $("cmd").value = ""; } });
+$("online").addEventListener("click", () => sendCmd("list"));
+$("policy-save").addEventListener("click", async () => {
+  const policy = ["password", "passkey", "totp"].filter((f) => $("p-" + f).checked);
+  if (!policy.length) { $("policy-why").textContent = "Choose at least one."; return; }
+  const r = await api("/api/accounts/policy", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ policy }) });
+  $("policy-why").textContent = r.body.ok ? "Saved. Everyone signs in with: " + r.body.policy.join(", ") + "." : reason(r.body);
+});
 $("start").addEventListener("click", () => lifecycle("start"));
 $("stop").addEventListener("click", () => lifecycle("stop"));
 $("restart").addEventListener("click", () => lifecycle("restart"));
@@ -252,8 +335,16 @@ $("invite").addEventListener("click", async () => {
   $("invite-code").textContent = r.body.ok ? "Give this single-use code to the new person: " + r.body.code : reason(r.body);
 });
 $("signout").addEventListener("click", async () => { await api("/api/auth/signout", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }); location.reload(); });
-api("/api/auth/status").then((r) => { const a = r.body.account; $("who").textContent = a ? "Signed in as " + a.name + " (" + a.role + ")" : "Signed in"; });
-loadServers();
-loadPeople();
+api("/api/auth/status").then((r) => {
+  const a = r.body.account;
+  role = a ? a.role : null;
+  $("who").textContent = a ? "Signed in as " + a.name + " (" + a.role + ")" : "Signed in";
+  // A viewer sees everything and changes nothing, so the change controls are not shown at all.
+  for (const el of document.querySelectorAll(".changes")) el.hidden = !canChange();
+  for (const b of ["start", "stop", "restart", "upload", "invite"]) $(b).hidden = !canChange();
+  $("policy-box").hidden = !(role === "owner" || role === "admin");
+  loadServers();
+  loadPeople();
+});
 setInterval(refreshStatus, 15000);
 `;

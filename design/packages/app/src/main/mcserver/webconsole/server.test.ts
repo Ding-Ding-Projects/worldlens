@@ -451,6 +451,9 @@ describe("web console with named accounts", () => {
         expect((await request(handle, "POST", "/api/servers/x/start", { cookie: viewerCookie })).status).toBe(403);
         expect((await request(handle, "POST", "/api/servers/x/datapacks?name=a.zip", { cookie: viewerCookie })).status).toBe(403);
         expect((await request(handle, "POST", "/api/servers/x/start", { cookie })).status).toBe(404);
+        expect((await request(handle, "POST", "/api/servers/x/command", { cookie: viewerCookie, body: { command: "list" } })).status).toBe(403);
+        expect((await request(handle, "POST", "/api/servers/x/players", { cookie: viewerCookie, body: { action: "op", name: "Steve" } })).status).toBe(403);
+        expect((await request(handle, "GET", "/api/servers/x/players", { cookie: viewerCookie })).status).toBe(404);
         expect((await request(handle, "GET", "/", { cookie: viewerCookie })).body).toContain("Server management");
 
         // The lockout ladder's own routes still reach their handler.
