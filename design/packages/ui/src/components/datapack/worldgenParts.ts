@@ -466,6 +466,8 @@ export interface LevelValueEffect {
          * on fire, swimming, a baby); undefined for none. Kept beside `chance`, never with it.
          */
         flag?: "is_sneaking" | "is_sprinting" | "is_on_fire" | "is_swimming" | "is_baby" | undefined;
+        /** A `location_check` requirement on biomes (an id or `#tag`); undefined for none. */
+        biome?: string | undefined;
         /** run_function: the function id. play_sound: the sound id. */
         target?: string;
         mobEffect: string;
@@ -580,6 +582,7 @@ function readAction(component: string, raw: Json): LevelValueEffect {
     if (Object.keys(raw).some((k) => !["effect", "enchanted", "affected", "requirements"].includes(k))) return kept;
     let chance: number | undefined;
     let flag: NonNullable<LevelValueEffect["action"]>["flag"];
+    let biome: string | undefined;
     if (raw["requirements"] !== undefined) {
         const req = obj(raw["requirements"]);
         if (req === null) return kept;
@@ -597,10 +600,14 @@ function readAction(component: string, raw: Json): LevelValueEffect {
             )
                 return kept;
             flag = only as typeof flag;
+        } else if (cond === "location_check" && Object.keys(req).length === 2) {
+            const predicate = obj(req["predicate"]);
+            if (predicate === null || Object.keys(predicate).length !== 1 || typeof predicate["biomes"] !== "string") return kept;
+            biome = predicate["biomes"] as string;
         } else return kept;
     }
     const withChance = <T extends object>(a: T): T =>
-        ({ ...a, ...(chance === undefined ? {} : { chance }), ...(flag === undefined ? {} : { flag }) }) as T;
+        ({ ...a, ...(chance === undefined ? {} : { chance }), ...(flag === undefined ? {} : { flag }), ...(biome === undefined ? {} : { biome }) }) as T;
     const type = short(effect["type"]);
     if (type === "replace_block") {
         const provider = obj(effect["block_state"]);
@@ -711,7 +718,9 @@ function writeEffect(e: LevelValueEffect): unknown {
                     }
                   : null;
         const requirements =
-            a.flag !== undefined
+            a.biome !== undefined
+                ? { requirements: { condition: "minecraft:location_check", predicate: { biomes: a.biome } } }
+                : a.flag !== undefined
                 ? { requirements: { condition: "minecraft:entity_properties", entity: "this", predicate: { flags: { [a.flag]: true } } } }
                 : a.chance === undefined
                   ? {}

@@ -151,7 +151,7 @@ describe("rule processor rules and enchantment effects", async () => {
     });
 
     it("writes a mob effect action and keeps one with requirements", async () => {
-        const withReq = { requirements: { condition: "minecraft:location_check", predicate: { biomes: "#minecraft:is_ocean" } }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite", duration: 4 } };
+        const withReq = { requirements: { condition: "minecraft:all_of", terms: [] }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite", duration: 4 } };
         const text = JSON.stringify({ effects: { "minecraft:post_attack": [withReq] } });
         const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
         expect(effects[0]!.editable).toBe(false);
@@ -245,6 +245,17 @@ describe("block placing and flag requirements", async () => {
         const text = JSON.stringify({ effects: { "minecraft:post_attack": [web] } });
         const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
         expect(effects[0]).toMatchObject({ editable: true, action: { kind: "replace_block", target: "minecraft:cobweb", flag: "is_sneaking" } });
+        expect(JSON.parse(m.writeEffects(text, effects))).toEqual(JSON.parse(text));
+    });
+});
+
+describe("biome requirements", async () => {
+    const m = await import("./worldgenParts.js");
+    it("reads and writes a biome location check", () => {
+        const a = { requirements: { condition: "minecraft:location_check", predicate: { biomes: "#minecraft:is_ocean" } }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite", duration: 4 } };
+        const text = JSON.stringify({ effects: { "minecraft:post_attack": [a] } });
+        const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
+        expect(effects[0]!.action).toMatchObject({ biome: "#minecraft:is_ocean" });
         expect(JSON.parse(m.writeEffects(text, effects))).toEqual(JSON.parse(text));
     });
 });

@@ -58,11 +58,13 @@ const entities = [...ENTITY_TYPE_IDS];
 const sounds = [...SOUND_IDS];
 const particles = [...PARTICLE_IDS];
 const blocks = [...BLOCK_IDS];
-type When = "always" | "chance" | "is_sneaking" | "is_sprinting" | "is_on_fire" | "is_swimming" | "is_baby";
-const whenOf = (a: NonNullable<LevelValueEffect["action"]>): When => a.flag ?? (a.chance !== undefined ? "chance" : "always");
+type When = "always" | "chance" | "biome" | "is_sneaking" | "is_sprinting" | "is_on_fire" | "is_swimming" | "is_baby";
+const whenOf = (a: NonNullable<LevelValueEffect["action"]>): When =>
+    a.biome !== undefined ? "biome" : (a.flag ?? (a.chance !== undefined ? "chance" : "always"));
 const whenItems = computed(() => [
     { value: "always", title: t("datapack.ench.always", "Every time") },
     { value: "chance", title: t("datapack.ench.sometimes", "Only sometimes") },
+    { value: "biome", title: t("datapack.ench.inBiome", "Only in a biome") },
     { value: "is_sneaking", title: t("datapack.ench.sneaking", "Only while sneaking") },
     { value: "is_sprinting", title: t("datapack.ench.sprinting", "Only while sprinting") },
     { value: "is_on_fire", title: t("datapack.ench.onFire", "Only while on fire") },
@@ -70,9 +72,10 @@ const whenItems = computed(() => [
     { value: "is_baby", title: t("datapack.ench.baby", "Only for a baby") },
 ]);
 function setWhen(i: number, w: When): void {
-    if (w === "always") changeAction(i, { chance: undefined, flag: undefined });
-    else if (w === "chance") changeAction(i, { chance: 0.5, flag: undefined });
-    else changeAction(i, { chance: undefined, flag: w });
+    if (w === "always") changeAction(i, { chance: undefined, flag: undefined, biome: undefined });
+    else if (w === "chance") changeAction(i, { chance: 0.5, flag: undefined, biome: undefined });
+    else if (w === "biome") changeAction(i, { chance: undefined, flag: undefined, biome: "#minecraft:is_ocean" });
+    else changeAction(i, { chance: undefined, flag: w, biome: undefined });
 }
 const attributes = [...ATTRIBUTE_IDS];
 function changeAttribute(i: number, patch: Partial<NonNullable<LevelValueEffect["attribute"]>>): void {
@@ -150,6 +153,7 @@ const interactions = computed(() => [
                         <v-slider :model-value="e.perLevel" :min="0" :max="e.action.kind === 'explode' ? 4 : 30" :step="0.5" thumb-label hide-details :label="e.action.kind === 'explode' ? t('datapack.ench.perRadius', 'Radius more per level') : t('datapack.ench.perSecond', 'Seconds more per level')" @update:model-value="(v: number) => change(i, { perLevel: v })" />
                     </template>
                     <v-select :model-value="whenOf(e.action)" :items="whenItems" :label="t('datapack.ench.when', 'When')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: When) => setWhen(i, v)" />
+                    <v-text-field v-if="e.action.biome !== undefined" :model-value="e.action.biome" :label="t('datapack.ench.biome', 'Biome id or #tag')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string) => changeAction(i, { biome: v })" />
                     <v-slider v-if="e.action.chance !== undefined" :model-value="Math.round(e.action.chance * 100)" :min="1" :max="100" :step="1" thumb-label hide-details :label="t('datapack.ench.chance', 'Chance (%)')" @update:model-value="(v: number) => changeAction(i, { chance: v / 100 })" />
                 </template>
                 <template v-else-if="e.editable">
