@@ -99,3 +99,37 @@ describe("jigsaw pools and processors", async () => {
         expect(back.processors.slice(2).map((p) => p["processor_type"])).toEqual(["minecraft:block_rot", "minecraft:gravity", "minecraft:block_ignore"]);
     });
 });
+
+describe("rule processor rules and enchantment effects", async () => {
+    const m = await import("./worldgenParts.js");
+    it("reads swap rules, writes a chance as random_block_match, and keeps an unusual rule", () => {
+        const odd = { input_predicate: { predicate_type: "minecraft:tag_match", tag: "x" }, location_predicate: { predicate_type: "minecraft:always_true" }, output_state: { Name: "minecraft:air" } };
+        const rules = m.readRules({ processor_type: "minecraft:rule", rules: [{ input_predicate: { predicate_type: "minecraft:block_match", block: "minecraft:stone" }, location_predicate: { predicate_type: "minecraft:always_true" }, output_state: { Name: "minecraft:andesite" } }, odd] })!;
+        expect(rules.map((r) => r.editable)).toEqual([true, false]);
+        rules[0]!.chance = 0.25;
+        expect(m.writeRule(rules[0]!)).toMatchObject({ input_predicate: { predicate_type: "minecraft:random_block_match", block: "minecraft:stone", probability: 0.25 } });
+        expect(m.writeRule(rules[1]!)).toEqual(odd);
+        expect(m.readRules({ processor_type: "minecraft:block_rot" })).toBeNull();
+    });
+
+    it("reads level-scaled value effects and keeps everything else", () => {
+        const text = JSON.stringify({
+            max_level: 3,
+            effects: {
+                "minecraft:damage": [{ effect: { type: "minecraft:add", value: { type: "minecraft:linear", base: 1, per_level_above_first: 0.5 } } }],
+                "minecraft:post_attack": [{ enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite", duration: 4 } }],
+                "minecraft:prevent_equipment_drop": {},
+            },
+        });
+        const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
+        expect(effects.map((e) => `${e.component}:${e.editable}`)).toEqual(["minecraft:damage:true", "minecraft:post_attack:false", "minecraft:prevent_equipment_drop:false"]);
+        effects[0]!.perLevel = 0;
+        effects.push(m.newEffect("minecraft:knockback"));
+        const back = JSON.parse(m.writeEffects(text, effects)) as { max_level: number; effects: Record<string, unknown> };
+        expect(back.max_level).toBe(3);
+        expect(back.effects["minecraft:damage"]).toEqual([{ effect: { type: "minecraft:add", value: 1 } }]);
+        expect(back.effects["minecraft:post_attack"]).toEqual(JSON.parse(text).effects["minecraft:post_attack"]);
+        expect(back.effects["minecraft:prevent_equipment_drop"]).toEqual({});
+        expect(back.effects["minecraft:knockback"]).toEqual([{ effect: { type: "minecraft:add", value: { type: "minecraft:linear", base: 1, per_level_above_first: 0.5 } } }]);
+    });
+});

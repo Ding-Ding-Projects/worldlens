@@ -299,3 +299,185 @@ export function newProcessor(kind: (typeof NEW_PROCESSOR_KINDS)[number]): Proces
             return { kind, blocks: ["minecraft:structure_block"], raw: {} };
     }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Rule processor rules                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One rule of a rule processor, when it is the common shape: a block (or a block with a
+ * chance) becomes another block, anywhere. Any other rule is kept as written (`editable` false).
+ */
+export interface SwapRule {
+    from: string;
+    /** 1 means every match; below 1 is random_block_match's probability. */
+    chance: number;
+    to: string;
+    raw: Json;
+    editable: boolean;
+}
+
+export function readRules(processor: Json): SwapRule[] | null {
+    if (short(processor["processor_type"]) !== "rule" || !Array.isArray(processor["rules"])) return null;
+    return (processor["rules"] as unknown[]).map((entry): SwapRule => {
+        const raw = obj(entry) ?? {};
+        const input = obj(raw["input_predicate"]);
+        const location = obj(raw["location_predicate"]);
+        const output = obj(raw["output_state"]);
+        const kind = short(input?.["predicate_type"]);
+        const fine =
+            input !== null &&
+            (kind === "block_match" || kind === "random_block_match") &&
+            typeof input["block"] === "string" &&
+            (location === null || short(location["predicate_type"]) === "always_true") &&
+            raw["position_predicate"] === undefined &&
+            output !== null &&
+            typeof output["Name"] === "string" &&
+            Object.keys(output).length === 1;
+        return {
+            from: fine ? (input!["block"] as string) : "",
+            chance: fine && kind === "random_block_match" && typeof input!["probability"] === "number" ? (input!["probability"] as number) : 1,
+            to: fine ? (output!["Name"] as string) : "",
+            raw,
+            editable: fine,
+        };
+    });
+}
+
+export function writeRule(rule: SwapRule): Json {
+    if (!rule.editable) return rule.raw;
+    return {
+        ...rule.raw,
+        input_predicate:
+            rule.chance >= 1
+                ? { predicate_type: "minecraft:block_match", block: rule.from }
+                : { predicate_type: "minecraft:random_block_match", block: rule.from, probability: rule.chance },
+        location_predicate: { predicate_type: "minecraft:always_true" },
+        output_state: { Name: rule.to },
+    };
+}
+
+export const newRule = (): SwapRule => ({
+    from: "minecraft:cobblestone",
+    chance: 0.3,
+    to: "minecraft:mossy_cobblestone",
+    raw: {},
+    editable: true,
+});
+
+/* -------------------------------------------------------------------------- */
+/* Enchantment effects                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * One value effect of an enchantment in its common shape: an `add` or `multiply` by a number
+ * that grows with the level (`linear`) or stays the same (a plain number). Effects of any
+ * other shape, and requirements on them, are kept as written.
+ */
+export interface LevelValueEffect {
+    component: string;
+    operation: "add" | "multiply";
+    base: number;
+    perLevel: number;
+    raw: Json;
+    editable: boolean;
+}
+
+/** Value effect components the editor offers for a new effect. */
+export const VALUE_EFFECT_COMPONENTS = [
+    "minecraft:damage",
+    "minecraft:armor_effectiveness",
+    "minecraft:knockback",
+    "minecraft:damage_protection",
+    "minecraft:item_damage",
+    "minecraft:ammo_use",
+    "minecraft:projectile_piercing",
+    "minecraft:projectile_count",
+    "minecraft:projectile_spread",
+    "minecraft:crossbow_charge_time",
+    "minecraft:trident_spin_attack_strength",
+    "minecraft:fishing_time_reduction",
+    "minecraft:fishing_luck_bonus",
+    "minecraft:block_experience",
+    "minecraft:mob_experience",
+    "minecraft:repair_with_xp",
+    "minecraft:equipment_drops",
+] as const;
+
+function levelNumber(v: unknown): { base: number; perLevel: number } | null {
+    if (typeof v === "number") return { base: v, perLevel: 0 };
+    const o = obj(v);
+    if (o !== null && short(o["type"]) === "linear" && typeof o["base"] === "number" && typeof o["per_level_above_first"] === "number")
+        return { base: o["base"], perLevel: o["per_level_above_first"] };
+    return null;
+}
+
+export function readEffects(enchantment: Json): LevelValueEffect[] {
+    const effects = obj(enchantment["effects"]);
+    if (effects === null) return [];
+    const out: LevelValueEffect[] = [];
+    for (const [component, list] of Object.entries(effects)) {
+        if (!Array.isArray(list)) {
+            out.push({ component, operation: "add", base: 0, perLevel: 0, raw: { __whole: list }, editable: false });
+            continue;
+        }
+        for (const entry of list as unknown[]) {
+            const raw = obj(entry) ?? {};
+            const effect = obj(raw["effect"]);
+            const op = short(effect?.["type"]);
+            const value = levelNumber(effect?.["value"] ?? effect?.["factor"]);
+            const fine =
+                effect !== null &&
+                (op === "add" || op === "multiply") &&
+                value !== null &&
+                Object.keys(raw).every((k) => k === "effect") &&
+                Object.keys(effect).length === 2;
+            out.push({
+                component,
+                operation: op === "multiply" ? "multiply" : "add",
+                base: value?.base ?? 0,
+                perLevel: value?.perLevel ?? 0,
+                raw,
+                editable: fine,
+            });
+        }
+    }
+    return out;
+}
+
+function writeEffect(e: LevelValueEffect): unknown {
+    if (!e.editable) return e.raw;
+    const value =
+        e.perLevel === 0 ? e.base : { type: "minecraft:linear", base: e.base, per_level_above_first: e.perLevel };
+    return {
+        effect:
+            e.operation === "add"
+                ? { type: "minecraft:add", value }
+                : { type: "minecraft:multiply", factor: value },
+    };
+}
+
+/** Writes the effects back, grouped by component in first-seen order, keeping other fields. */
+export function writeEffects(text: string, effects: readonly LevelValueEffect[]): string {
+    const o = parseObject(text) ?? {};
+    const grouped: Record<string, unknown> = {};
+    for (const e of effects) {
+        if (!e.editable && "__whole" in e.raw) {
+            grouped[e.component] = e.raw["__whole"];
+            continue;
+        }
+        const list = (grouped[e.component] as unknown[] | undefined) ?? [];
+        list.push(writeEffect(e));
+        grouped[e.component] = list;
+    }
+    return writeJson({ ...o, effects: grouped });
+}
+
+export const newEffect = (component: string): LevelValueEffect => ({
+    component,
+    operation: "add",
+    base: 1,
+    perLevel: 0.5,
+    raw: {},
+    editable: true,
+});

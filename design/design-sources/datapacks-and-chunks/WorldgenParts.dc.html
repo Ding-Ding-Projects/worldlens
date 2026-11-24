@@ -141,7 +141,7 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
     <sc-if value="{{isProc}}" hint-placeholder-val="{{ false }}">
       <p class="note">Processors change blocks as a structure is placed, in order.</p>
       <div class="step"><h3>1. Rot (lose some blocks)</h3><label class="fld">Keep: {{keep}}%<input type="range" min="0" max="100" value="{{keep}}" onInput="{{setKeep}}" aria-label="Share of blocks kept"></label></div>
-      <div class="step"><h3>2. Rule: swap blocks</h3><p class="note">Kept exactly as written; edit it in the JSON.</p></div>
+      <div class="step"><h3>2. Rule: swap blocks</h3><div class="row"><label class="fld">Block<select class="inp"><option>minecraft:cobblestone</option><option>minecraft:stone_bricks</option></select></label><label class="fld">Chance: {{ruleChance}}%<input type="range" min="1" max="100" value="{{ruleChance}}" onInput="{{setRule}}" aria-label="Chance each block is swapped"></label><label class="fld">Becomes<select class="inp"><option>minecraft:mossy_cobblestone</option><option>minecraft:cracked_stone_bricks</option></select></label></div><button type="button" class="fchip sl" style="align-self: flex-start;">Add a rule</button></div>
       <div class="row"><label class="fld">Add a processor<select class="inp"><option>Rot</option><option>Gravity (follow the ground)</option><option>Ignore blocks</option></select></label><button type="button" class="btn sl" style="background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);">Add</button></div>
     </sc-if>
     <sc-if value="{{isNoise}}" hint-placeholder-val="{{ false }}">
@@ -164,7 +164,7 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"theme": {"editor": "enum", "options": ["dark", "light", "contrast"], "default": "dark"}, "$preview": {"width": 1440, "height": 900}}'>
 class Component extends DCLogic {
-  constructor(props) { super(props); this.state = { pw: [10, 4, 1], keep: 80, tab: 0, count: 4, lo: -64, hi: 16, size: 9, hidden: 0, spacing: 32, separation: 8, sea: 63 }; }
+  constructor(props) { super(props); this.state = { pw: [10, 4, 1], keep: 80, rule: 30, tab: 0, count: 4, lo: -64, hi: 16, size: 9, hidden: 0, spacing: 32, separation: 8, sea: 63 }; }
   render() {
     const S = this.state;
     const T = ['Placed feature', 'Ore', 'Structure spacing', 'Noise settings', 'Jigsaw pool', 'Processors'];
@@ -189,7 +189,7 @@ class Component extends DCLogic {
     ];
     return { theme: this.props.theme ?? 'dark',
       tabs: T.map((label, i) => ({ label, sel: S.tab === i ? 'true' : 'false', pick: () => this.setState({ tab: i }) })),
-      isPool: S.tab === 4, isProc: S.tab === 5, keep: S.keep, setKeep: num('keep'),
+      isPool: S.tab === 4, isProc: S.tab === 5, keep: S.keep, setKeep: num('keep'), ruleChance: S.rule, setRule: num('rule'),
       pool: ['heap:house/small', 'heap:house/big', 'heap:house/tower'].map((loc, i) => { const tot = S.pw.reduce((a, b) => a + b, 0); return { loc, w: S.pw[i], share: Math.round(S.pw[i] / tot * 100) + '%', aria: 'Weight of ' + loc, set: (e) => { const pw = [...S.pw]; pw[i] = Number(e.target.value); this.setState({ pw }); } }; }),
       isPlaced: S.tab === 0, isOre: S.tab === 1, isSet: S.tab === 2, isNoise: S.tab === 3,
       count: S.count, lo: S.lo, hi: S.hi, setCount: num('count'), setLo: num('lo'), setHi: num('hi'),
@@ -199,7 +199,7 @@ class Component extends DCLogic {
       setLabel: 'Placement grid, ' + S.spacing + ' chunk cells', setNote: S.separation >= S.spacing ? 'Separation has to be smaller than spacing; the game refuses this.' : 'About one ' + 'structure every ' + (S.spacing * 16) + ' blocks each way, never closer than ' + (S.separation * 16) + ' blocks to the next cell.',
       sea: S.sea, setSea: num('sea'),
       fileName: ['worldgen/placed_feature/deep_diamonds.json', 'worldgen/configured_feature/diamond_vein.json', 'worldgen/structure_set/towers.json', 'worldgen/noise_settings/flatter.json', 'worldgen/template_pool/houses.json', 'worldgen/processor_list/ruined.json'][S.tab],
-      json: JSON.stringify(S.tab === 4 ? { fallback: 'minecraft:empty', elements: ['heap:house/small', 'heap:house/big', 'heap:house/tower'].map((location, i) => ({ weight: S.pw[i], element: { element_type: 'minecraft:single_pool_element', location, processors: 'minecraft:empty', projection: 'rigid' } })) } : S.tab === 5 ? { processors: [{ processor_type: 'minecraft:block_rot', integrity: S.keep / 100 }, { processor_type: 'minecraft:rule', rules: [] }] } : files[S.tab], null, 2) };
+      json: JSON.stringify(S.tab === 4 ? { fallback: 'minecraft:empty', elements: ['heap:house/small', 'heap:house/big', 'heap:house/tower'].map((location, i) => ({ weight: S.pw[i], element: { element_type: 'minecraft:single_pool_element', location, processors: 'minecraft:empty', projection: 'rigid' } })) } : S.tab === 5 ? { processors: [{ processor_type: 'minecraft:block_rot', integrity: S.keep / 100 }, { processor_type: 'minecraft:rule', rules: [{ input_predicate: { predicate_type: 'minecraft:random_block_match', block: 'minecraft:cobblestone', probability: S.rule / 100 }, location_predicate: { predicate_type: 'minecraft:always_true' }, output_state: { Name: 'minecraft:mossy_cobblestone' } }] }] } : files[S.tab], null, 2) };
   }
 }
 </script>

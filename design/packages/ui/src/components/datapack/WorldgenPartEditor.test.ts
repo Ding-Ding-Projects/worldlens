@@ -78,3 +78,26 @@ describe("WorldgenPartEditor pools and processors", () => {
         expect(procs.at(-1)!.processor_type).toBe("minecraft:block_rot");
     });
 });
+
+describe("rule swaps and enchantment effects", async () => {
+    const { default: EnchantmentEffects } = await import("./EnchantmentEffects.vue");
+    it("adds a swap rule inside a rule processor", async () => {
+        const w = make("processor_list", JSON.stringify({ processors: [{ processor_type: "minecraft:rule", rules: [] }] }));
+        await w.findAll("button").find((b) => b.text() === "Add a rule")!.trigger("click");
+        const rules = (last(w)["processors"] as { rules: { output_state: { Name: string } }[] }[])[0]!.rules;
+        expect(rules[0]!.output_state.Name).toBe("minecraft:mossy_cobblestone");
+    });
+
+    it("adds an effect to an enchantment and keeps its other fields", async () => {
+        const text = newPart("enchantment", "zap", "p").text;
+        const w = mount(EnchantmentEffects, {
+            props: { text },
+            global: { plugins: [createVuetify({ components, directives }), createI18n({ legacy: false, locale: "en", missingWarn: false, fallbackWarn: false })] },
+        });
+        expect(w.text()).toContain("No effects yet");
+        await w.findAll("button").find((b) => b.text() === "Add effect")!.trigger("click");
+        const out = JSON.parse((w.emitted("update:text")!.at(-1) as [string])[0]) as { effects: Record<string, unknown>; max_level: number };
+        expect(Object.keys(out.effects)).toEqual(["minecraft:damage"]);
+        expect(out.max_level).toBe(3);
+    });
+});

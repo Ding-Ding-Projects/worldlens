@@ -192,6 +192,15 @@ interface DestructiveFile {
  * Ordered by path so the diff of adding one reads as an addition rather than a reshuffle.
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
+    "components/datapack/WorldgenPartEditor.vue": {
+        count: 3,
+        destroys: "one placement step, jigsaw piece or processor in a data pack file being edited",
+        standing: "buffer",
+        note:
+            "removeStep, removePiece and removeProcessor edit the data pack draft in this window: " +
+            "nothing is written to disk until the pack is saved, and the step can be added again " +
+            "from the same list.",
+    },
     "components/nbteditor/NbtArrayEditor.vue": {
         count: 1,
         destroys: "one value of an NBT array open in the editor",

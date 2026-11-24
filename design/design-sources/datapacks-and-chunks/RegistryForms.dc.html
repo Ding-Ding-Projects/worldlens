@@ -108,6 +108,11 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
         <sc-if value="{{f.isColour}}" hint-placeholder-val="{{ false }}"><label class="fld">{{f.label}}<span style="display: flex; gap: 8px; align-items: center;"><span style="width: 32px; height: 32px; border-radius: 8px; background: {{f.value}};"></span><input class="inp" value="{{f.value}}" onInput="{{f.set}}"></span></label></sc-if>
       </sc-for>
     </div>
+    <sc-if value="{{isEnch}}" hint-placeholder-val="{{ true }}">
+      <h3 style="margin: 0; font: 500 14px Roboto, sans-serif;">Effects by level</h3>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; padding: 12px; border-radius: 16px; background: var(--wl-surf-high);"><label class="fld">Effect<select class="inp"><option>Extra damage</option><option>Knockback</option><option>Armour effectiveness</option></select></label><label class="fld">How<select class="inp"><option>Add</option><option>Multiply</option></select></label><label class="fld">At level 1: {{base}}<input type="range" min="0" max="10" step="0.5" value="{{base}}" onInput="{{setBase}}" aria-label="Value at level 1"></label><label class="fld">More per level: {{per}}<input type="range" min="0" max="5" step="0.5" value="{{per}}" onInput="{{setPer}}" aria-label="Added per level"></label></div>
+      <p class="note">Effects with conditions or actions (setting fire, summoning) are kept as written.</p>
+    </sc-if>
   </section>
   <section class="card" aria-label="Live file">
     <h2 style="margin: 0; font-size: 16px; font-weight: 500;">{{fileName}}</h2>
@@ -120,7 +125,7 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"theme": {"editor": "enum", "options": ["dark", "light", "contrast"], "default": "dark"}, "$preview": {"width": 1440, "height": 900}}'>
 class Component extends DCLogic {
-  constructor(props) { super(props); this.state = { tab: 0, v: {} }; }
+  constructor(props) { super(props); this.state = { tab: 0, v: {}, base: 1, per: 0.5 }; }
   render() {
     const S = this.state;
     const K = [
@@ -135,11 +140,13 @@ class Component extends DCLogic {
     const put = (f, x) => this.setState({ v: { ...S.v, [S.tab + f[0]]: x } });
     const json = {};
     for (const f of F) json[f[0]] = f[0] === 'description' ? { text: val(f) } : val(f);
+    if (S.tab === 0) json.effects = { 'minecraft:damage': [{ effect: { type: 'minecraft:add', value: S.per ? { type: 'minecraft:linear', base: S.base, per_level_above_first: S.per } : S.base } }] };
     return { theme: this.props.theme ?? 'dark',
       tabs: K.map((k, i) => ({ label: k[0], sel: S.tab === i ? 'true' : 'false', pick: () => this.setState({ tab: i }) })),
       fields: F.map((f) => ({ label: f[1], value: val(f), isNum: f[2] === 'n', isText: f[2] === 't', isSel: f[2] === 's', isSw: f[2] === 'w', isColour: f[2] === 'c', min: f[4], max: f[5], step: f[6],
         options: f[2] === 's' ? f[4].map((v) => ({ v, sel: v === val(f) })) : [],
         set: (e) => put(f, f[2] === 'n' ? Number(e.target.value) : f[2] === 'w' ? e.target.checked : e.target.value) })),
+      isEnch: S.tab === 0, base: S.base, per: S.per, setBase: (e) => this.setState({ base: Number(e.target.value) }), setPer: (e) => this.setState({ per: Number(e.target.value) }),
       fileName: file, json: JSON.stringify(json, null, 2) };
   }
 }

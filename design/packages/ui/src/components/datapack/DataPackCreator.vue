@@ -27,6 +27,7 @@ import FunctionEditor from "./FunctionEditor.vue";
 import ItemModifierEditor from "./ItemModifierEditor.vue";
 import WorldgenPartEditor from "./WorldgenPartEditor.vue";
 import PartForm from "./PartForm.vue";
+import EnchantmentEffects from "./EnchantmentEffects.vue";
 import { hasForm } from "./partForms.js";
 import { BLOCK_IDS, ITEM_IDS } from "../mcserver/commandBuilderData.js";
 import {
@@ -1155,6 +1156,7 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                         :namespace="part.namespace ?? pack.namespace"
                     />
                     <PartForm v-else-if="hasForm(part.kind)" v-model:text="part.text" :kind="part.kind" />
+                    <EnchantmentEffects v-if="part.kind === 'enchantment'" v-model:text="part.text" />
                     <v-textarea
                         v-model="part.text"
                         :label="t('datapack.part.json', 'The file, as JSON')"

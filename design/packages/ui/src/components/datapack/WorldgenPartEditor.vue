@@ -13,6 +13,10 @@ import {
     NEW_PLACEMENT_KINDS,
     NEW_PROCESSOR_KINDS,
     newPoolPiece,
+    newRule,
+    readRules,
+    writeRule,
+    type SwapRule,
     newProcessor,
     readPool,
     readProcessors,
@@ -139,6 +143,17 @@ function removeProcessor(i: number): void {
 const addingProcessor = ref<(typeof NEW_PROCESSOR_KINDS)[number]>("block_rot");
 function addProcessor(): void {
     emit("update:text", writeProcessors(props.text, [...(processors.value ?? []), newProcessor(addingProcessor.value)]));
+}
+/* Rules inside a rule processor, edited in place on the processor's raw object. */
+const rulesOf = (p: Processor): SwapRule[] | null => (p.kind === "other" ? readRules(p.raw) : null);
+function writeRules(i: number, p: Processor, rules: SwapRule[]): void {
+    if (p.kind !== "other") return;
+    changeProcessor(i, { ...p, raw: { ...p.raw, rules: rules.map(writeRule) } });
+}
+function changeRule(i: number, p: Processor, r: number, patch: Partial<SwapRule>): void {
+    const rules = rulesOf(p);
+    if (rules === null) return;
+    writeRules(i, p, rules.map((x, k) => (k === r ? { ...x, ...patch } : x)));
 }
 const processorLabel = (kind: string): string =>
     ({
@@ -409,6 +424,18 @@ const HEIGHTMAPS = ["WORLD_SURFACE_WG", "WORLD_SURFACE", "OCEAN_FLOOR_WG", "OCEA
                             hide-details
                             @update:model-value="(v: string[]) => changeProcessor(i, { ...p, blocks: v })"
                         />
+                        <template v-else-if="rulesOf(p) !== null">
+                            <div v-for="(r, k) in rulesOf(p)" :key="k" class="wl-wg__rule">
+                                <template v-if="r.editable">
+                                    <v-combobox :model-value="r.from" :items="blocks" :label="t('datapack.wg.ruleFrom', 'Block')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeRule(i, p, k, { from: v.includes(':') ? v : `minecraft:${v}` })" />
+                                    <v-slider :model-value="Math.round(r.chance * 100)" :min="1" :max="100" :step="1" thumb-label hide-details :label="t('datapack.wg.ruleChance', 'Chance (%)')" @update:model-value="(v: number) => changeRule(i, p, k, { chance: v / 100 })" />
+                                    <v-combobox :model-value="r.to" :items="blocks" :label="t('datapack.wg.ruleTo', 'Becomes')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeRule(i, p, k, { to: v.includes(':') ? v : `minecraft:${v}` })" />
+                                </template>
+                                <p v-else class="wl-wg__note">{{ t("datapack.wg.ruleKept", "This rule has conditions with no editor yet; it is kept as written.") }}</p>
+                                <v-btn size="small" variant="text" color="error" :aria-label="t('datapack.wg.removeRule', { n: k + 1 }, 'Remove rule {n}')" @click="writeRules(i, p, (rulesOf(p) ?? []).filter((_, x) => x !== k))">{{ t("datapack.remove", "Remove") }}</v-btn>
+                            </div>
+                            <v-btn variant="tonal" size="small" rounded="pill" class="wl-wg__start" @click="writeRules(i, p, [...(rulesOf(p) ?? []), newRule()])">{{ t("datapack.wg.addRule", "Add a rule") }}</v-btn>
+                        </template>
                         <p v-else class="wl-wg__note">{{ t("datapack.mod.kept", "No editor for this one yet. It is kept exactly as written; change it in the JSON below.") }}</p>
                     </li>
                 </ol>
@@ -515,6 +542,15 @@ const HEIGHTMAPS = ["WORLD_SURFACE_WG", "WORLD_SURFACE", "OCEAN_FLOOR_WG", "OCEA
 }
 .wl-wg__dot {
     fill: rgb(var(--v-theme-tertiary, var(--v-theme-primary)));
+}
+.wl-wg__rule {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 8px;
+    align-items: center;
+}
+.wl-wg__start {
+    align-self: flex-start;
 }
 .wl-wg__note {
     margin: 0;
