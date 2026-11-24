@@ -4,12 +4,16 @@
  * fine to choose instead, and the pickers still accept any digest-pinned reference.
  */
 
-/** `hosted-image` job of CI run 45278760421 (commit bde9835, version 1.0.2340), 2026-11-23. */
+/** `hosted-image` job of CI run 45342848152 (commit e1bb8a4, version 1.0.2414), 2026-11-24. */
 export const PUBLISHED_HOSTED_IMAGE =
-    "ghcr.io/ding-ding-projects/worldlens-hosted@sha256:ed9d646bf15f8f5ea3cfbf2fe4b568d0e7b18630aa2b631118ed337beee3eb7c";
+    "ghcr.io/ding-ding-projects/worldlens-hosted@sha256:ac80725fbdcf993c7205ff99058bbab354cb32ef6e974b93cae166faef7f0097";
 
-/** `server-site-image` job of CI run 45280184307 (commit 6aade1a, version 1.0.2342), 2026-11-23. */
-export const PUBLISHED_SERVER_SITE_IMAGE: string | null = "ghcr.io/ding-ding-projects/worldlens-server-site@sha256:090b05ea87f124db6ea6d7eef17e3ed0004d3b79585374444104f27108fecbfd";
+/**
+ * `server-site-image` job of CI run 45342848152 (commit e1bb8a4, version 1.0.2414), 2026-11-24.
+ * The first image with the signed-in management page; the one before it (1.0.2342) answered
+ * 404 after sign-in.
+ */
+export const PUBLISHED_SERVER_SITE_IMAGE: string | null = "ghcr.io/ding-ding-projects/worldlens-server-site@sha256:74eca0fd5a8a0b2f507a8fd7b732ad1867be4ee76b701bf2541eaa63316ed477";
 
 /**
  * A Minecraft server image to start from: itzg/minecraft-server (Apache-2.0, a community image,

@@ -18,7 +18,9 @@ A pack can be saved onto a managed server (`mcserver:datapack:install`, `datapac
 
 Every other registry part has a form of its fields (`partForms.ts`, `PartForm.vue`, board `RegistryForms.dc.html`); jigsaw pools and processor lists have step editors too. Enchantment value effects by level and rule processor swap rules have editors too; effects with conditions or actions and complex rule conditions stay JSON.
 
-Still to do: those conditional effects and rule conditions, a new server-site image digest pinned in `publishedImages.ts` once CI publishes one with this page, the Oracle relay test on a real VM (needs the user). A full `npx vitest run packages/ui --maxWorkers=3` on 2026-11-24 passed 6381 tests in 498 files (2 skipped); it exits 1 only on two vitest worker RPC timeouts ("Timeout calling onTaskUpdate") under load, and runs with more workers were cut short by the worker channel closing. The `packages/site` "keeps no secret on screen" test waited one macrotask for a Web Crypto digest and failed under load; it now waits for the outcome (`vi.waitFor`, 2 s bound) and passed three full runs in a row.
+The hosted and server-site image defaults are now version 1.0.2414 from CI run 45342848152 (`e1bb8a4`), the first server-site image with the signed-in management page; a server appliance built from now on gets it. Not yet booted in a VM with that image.
+
+Still to do: those conditional effects and rule conditions, the Oracle relay test on a real VM (needs the user). A full `npx vitest run packages/ui --maxWorkers=3` on 2026-11-24 passed 6381 tests in 498 files (2 skipped); it exits 1 only on two vitest worker RPC timeouts ("Timeout calling onTaskUpdate") under load, and runs with more workers were cut short by the worker channel closing. The `packages/site` "keeps no secret on screen" test waited one macrotask for a Web Crypto digest and failed under load; it now waits for the outcome (`vi.waitFor`, 2 s bound) and passed three full runs in a row.
 
 ## 2026-11-23 Chunk view, chunk picker, data pack creator, container deploy
 

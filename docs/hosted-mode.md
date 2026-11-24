@@ -206,14 +206,14 @@ person as far as the server is concerned.
 
 ## Published image
 
-CI publishes this image as `ghcr.io/<owner>/worldlens-hosted` (job `hosted-image`). The first published digest, offered by default in **Deploy WorldLens as a container** and in the appliance dialog's app option (`design/packages/ui/src/components/remote/publishedImages.ts`):
+CI publishes this image as `ghcr.io/<owner>/worldlens-hosted` (job `hosted-image`). The digest offered by default in **Deploy WorldLens as a container** and in the appliance dialog's app option (`design/packages/ui/src/components/remote/publishedImages.ts`):
 
 ```
-ghcr.io/ding-ding-projects/worldlens-hosted@sha256:ed9d646bf15f8f5ea3cfbf2fe4b568d0e7b18630aa2b631118ed337beee3eb7c
+ghcr.io/ding-ding-projects/worldlens-hosted@sha256:ac80725fbdcf993c7205ff99058bbab354cb32ef6e974b93cae166faef7f0097
 ```
 
-Version 1.0.2340, commit `bde9835`, CI run 45278760421, 2026-11-23. Not yet pulled and started outside CI.
+Version 1.0.2414, commit `e1bb8a4`, CI run 45342848152, 2026-11-24 (the first published digest was version 1.0.2340, `bde9835`, run 45278760421). Not yet pulled and started outside CI.
 
-已發佈映像：CI 嘅 `hosted-image` job 發佈 `ghcr.io/<owner>/worldlens-hosted`，第一個 digest（上面嗰行，版本 1.0.2340，commit `bde9835`）而家係容器部署卡同 appliance app 選項嘅預設。CI 以外未拉落嚟行過。
+已發佈映像：CI 嘅 `hosted-image` job 發佈 `ghcr.io/<owner>/worldlens-hosted`，預設 digest 而家係上面嗰行（版本 1.0.2414，commit `e1bb8a4`，2026-11-24；第一個係 1.0.2340），用喺容器部署卡同 appliance app 選項。CI 以外未拉落嚟行過。
 
 NBT 編輯器嘅通道（包括將整好嘅 data pack 存入世界）、專用機建構器同分享卡喺託管模式拒絕：NBT 編輯器用完整路徑，仲未限制喺掛載咗嘅資料夾入面；另外兩樣係喺桌面機度做嘢。託管地圖同即時檢視器要 Docker socket 授權先開，因為兩樣都會開容器。
