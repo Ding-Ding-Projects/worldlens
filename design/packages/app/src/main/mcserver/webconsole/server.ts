@@ -20,7 +20,6 @@ import { HttpServer, type HttpHandler, SseConnectionManager } from "@worldlens/s
 
 import type { ServerRegistry } from "../registry.js";
 import { createTransport, type FactoryDeps } from "../transport/factory.js";
-import type { ConsoleSession } from "../transport/types.js";
 
 import { verifyWebConsolePassword, type SafeStorageLike } from "./password.js";
 import { WebConsolePasswordStore } from "./passwordStore.js";
@@ -29,6 +28,7 @@ import { LockoutTracker, SignInGate, UnlockLadder, isRung } from "./lockout.js";
 import { buildAccountsHandler, type AccountsOptions } from "./accountsRoutes.js";
 import { MANAGE_PAGE, MANAGE_SCRIPT } from "./managePage.js";
 import { cleanCommand, knownPlayers, sendCommand } from "./players.js";
+import { readTail, startConsoleFeed, type ConsoleFeed } from "./consoleFeed.js";
 import { buildPlayerCommand, type PlayerAction } from "../players/model.js";
 import { installDataPack, MAX_SERVER_DATAPACK_BYTES } from "../datapackInstall.js";
 
@@ -172,7 +172,7 @@ export function buildWebConsoleHandlers(options: WebConsoleServerOptions): {
     const schoolMode = options.schoolMode ?? (() => false);
     const secureCookies = options.tlsTerminated === true || false;
     const sseManagers = new Map<string, SseConnectionManager>();
-    const consoleSessions = new Map<string, ConsoleSession>();
+    const consoleFeeds = new Map<string, ConsoleFeed>();
 
     function requireSession(req: http.IncomingMessage): boolean {
         const token = readCookie(req, SESSION_COOKIE_NAME);
@@ -506,22 +506,34 @@ export function buildWebConsoleHandlers(options: WebConsoleServerOptions): {
                 }
                 manager.open(req, res);
 
-                if (!consoleSessions.has(id)) {
+                let feed = consoleFeeds.get(id);
+                if (feed === undefined) {
                     const found = await options.registry.get(id);
                     if (found.ok) {
                         const built = createTransport(found.value.ref, { ...options.factory, writeScope: found.value.writeScope });
                         if (built.ok) {
-                            const attached = await built.value.attach({ tail: 200 });
-                            if (attached.ok) {
-                                consoleSessions.set(id, attached.value);
-                                void (async () => {
-                                    for await (const line of attached.value.lines) {
-                                        manager?.broadcast("line", JSON.stringify(line));
-                                    }
-                                })();
-                            }
+                            const transport = built.value;
+                            const watched = manager;
+                            const started = startConsoleFeed({
+                                read: () => readTail(transport, 200),
+                                emit: (line) => watched.broadcast("line", JSON.stringify(line)),
+                            });
+                            feed = started;
+                            consoleFeeds.set(id, started);
+                            // Stop reading when nobody is watching; the next browser starts it again.
+                            watched.addHasConnectionsListener((has) => {
+                                if (!has && consoleFeeds.get(id) === started) {
+                                    started.stop();
+                                    consoleFeeds.delete(id);
+                                }
+                            });
                         }
                     }
+                }
+                // Every browser starts from the recent history, the first one included.
+                await feed?.ready;
+                for (const line of feed?.history() ?? []) {
+                    res.write(`event: line\ndata: ${JSON.stringify(line)}\n\n`);
                 }
                 return true;
             }

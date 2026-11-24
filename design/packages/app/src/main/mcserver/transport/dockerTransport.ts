@@ -526,7 +526,14 @@ export function createDockerTransport(options: DockerTransportOptions): ServerTr
                     // identically on all three transports for exactly that reason.
                     return fail("unsupported", "Send this server's commands over RCON.");
                 }
-                const sent = await run(["exec", container, "mc-send-to-console", command], 20_000);
+                let sent = await run(["exec", container, "mc-send-to-console", command], 20_000);
+                // The itzg helper refuses to run as root and names the user it needs
+                // ("Exec needs to be run with user ID 1000"); docker exec runs as root
+                // unless told otherwise, so ask again as that user.
+                const needed = sent.ok ? null : /run with user ID (\d{1,10})/.exec(`${sent.stderr}\n${sent.stdout}`);
+                if (needed !== null) {
+                    sent = await run(["exec", "--user", needed[1]!, container, "mc-send-to-console", command], 20_000);
+                }
                 if (!sent.ok) return classify(sent, "send that command");
                 return ok(undefined);
             },

@@ -391,6 +391,23 @@ describe("dockerTransport console", () => {
         expect(answer.failure.message).toContain("read");
     });
 
+    it("asks again as the user the itzg console helper names", async () => {
+        const { transport, calls } = build(
+            (args) =>
+                args.includes("mc-send-to-console") && !args.includes("--user")
+                    ? output({ ok: false, exitCode: 1, stderr: "[ERROR] Exec needs to be run with user ID 1000" })
+                    : output({ stdout: "" }),
+            fakeChannel(),
+            { console: "exec-helper" },
+        );
+        const attached = await transport.attach();
+        if (!attached.ok) throw new Error("attach failed");
+        const answer = await attached.value.send("list");
+        expect(answer.ok).toBe(true);
+        const sends = calls.filter((c) => JSON.stringify(c).includes("mc-send-to-console"));
+        expect(JSON.stringify(sends.at(-1))).toContain('"--user","1000","mc-paper","mc-send-to-console","list"');
+    });
+
     it("refuses a command containing a line break", async () => {
         const { transport } = build(() => output({ stdout: "" }), fakeChannel(), { console: "exec-helper" });
         const attached = await transport.attach();
