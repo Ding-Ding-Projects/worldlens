@@ -18,7 +18,7 @@ A pack can be saved onto a managed server (`mcserver:datapack:install`, `datapac
 
 Every other registry part has a form of its fields (`partForms.ts`, `PartForm.vue`, board `RegistryForms.dc.html`); nested parts (enchantment effects, jigsaw pool elements, processor lists) stay JSON.
 
-Still to do: controls for those nested parts, a new server-site image digest pinned in `publishedImages.ts` once CI publishes one with this page, the Oracle relay test on a real VM (needs the user). A full `npx vitest run packages/ui --maxWorkers=3` on 2026-11-24 passed 6381 tests in 498 files (2 skipped); it exits 1 only on two vitest worker RPC timeouts ("Timeout calling onTaskUpdate") under load, and runs with more workers were cut short by the worker channel closing. `packages/site` "keeps no secret on screen" failed once in three runs and passed alone; it looks timing-sensitive.
+Still to do: controls for those nested parts, a new server-site image digest pinned in `publishedImages.ts` once CI publishes one with this page, the Oracle relay test on a real VM (needs the user). A full `npx vitest run packages/ui --maxWorkers=3` on 2026-11-24 passed 6381 tests in 498 files (2 skipped); it exits 1 only on two vitest worker RPC timeouts ("Timeout calling onTaskUpdate") under load, and runs with more workers were cut short by the worker channel closing. The `packages/site` "keeps no secret on screen" test waited one macrotask for a Web Crypto digest and failed under load; it now waits for the outcome (`vi.waitFor`, 2 s bound) and passed three full runs in a row.
 
 ## 2026-11-23 Chunk view, chunk picker, data pack creator, container deploy
 

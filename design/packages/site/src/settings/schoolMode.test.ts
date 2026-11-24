@@ -17,7 +17,7 @@
  * key, which is the one failure mode that leaves a person stuck in their own browser.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Preferences } from "../platform/Preferences.js";
 import { SchoolMode, SCHOOL_SUPPRESSED_SETTING_IDS } from "./schoolMode.js";
@@ -162,10 +162,10 @@ describe("the mode's panel", () => {
 
         secret.value = "2468";
         action.click();
-        // The click handler awaits a digest, so let the microtask queue drain before asserting.
-        await new Promise((resolve) => setTimeout(resolve, 0));
-
-        expect(mode.enabled).toBe(true);
+        // The click handler awaits a SHA-256 digest from Web Crypto, which can take more than
+        // one turn of the event loop on a busy machine. Waiting a single macrotask made this
+        // fail about one run in three under load, so wait for the outcome itself, bounded.
+        await vi.waitFor(() => expect(mode.enabled).toBe(true), { timeout: 2000, interval: 10 });
         expect(secret.value).toBe("");
         panel.destroy();
     });
