@@ -45,6 +45,8 @@ import {
     type RecipeKind,
 } from "./datapackModel.js";
 import { zipStore } from "./zipStore.js";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
+import { NEW_PART_KINDS, newPart, partError, partKind, type PackPart } from "./datapackParts.js";
 import { readZip } from "./zipRead.js";
 
 const { t } = useI18n();
@@ -72,7 +74,17 @@ watch(
     { deep: true },
 );
 
-type Section = "pack" | "recipes" | "functions" | "tags" | "advancements" | "lootTables" | "predicates" | "biomes";
+type Section =
+    | "pack"
+    | "overlays"
+    | "recipes"
+    | "functions"
+    | "tags"
+    | "advancements"
+    | "lootTables"
+    | "predicates"
+    | "biomes"
+    | "parts";
 const section = ref<Section>("recipes");
 const pick = ref(0);
 watch(section, () => (pick.value = 0));
@@ -114,17 +126,103 @@ const sections = computed(() => [
         label: t("datapack.section.biomes", "Biomes"),
         count: (pack.value.biomes ?? []).length,
     },
+    {
+        id: "parts" as const,
+        label: t("datapack.section.parts", "More parts"),
+        count: (pack.value.parts ?? []).length,
+    },
+    {
+        id: "overlays" as const,
+        label: t("datapack.section.overlays", "Version overlays"),
+        count: (pack.value.overlays ?? []).length,
+    },
 ]);
 
+/* Search over the sections and every entry's name, with the shared regex builder. */
+const query = ref("");
+const queryRegex = ref(false);
+const queryFlags = ref("i");
+const queryTest = computed<(text: string) => boolean>(() => {
+    const q = query.value.slice(0, 512);
+    if (q.trim() === "") return () => true;
+    if (!queryRegex.value) {
+        const needle = q.trim().toLowerCase();
+        return (text) => text.toLowerCase().includes(needle);
+    }
+    try {
+        const re = new RegExp(q, queryFlags.value.replace(/[^imsu]/g, ""));
+        return (text) => re.test(text);
+    } catch {
+        return () => false;
+    }
+});
+function entriesOf(id: Section): { name: string }[] {
+    if (id === "pack" || id === "overlays") return [];
+    if (id === "predicates") return pack.value.predicates ?? [];
+    if (id === "biomes") return pack.value.biomes ?? [];
+    if (id === "parts") return pack.value.parts ?? [];
+    return pack.value[id] as { name: string }[];
+}
+const shownSections = computed(() =>
+    sections.value.filter(
+        (s) => queryTest.value(s.label) || entriesOf(s.id).some((e) => queryTest.value(e.name)),
+    ),
+);
+const searchSample = computed(() =>
+    sections.value.flatMap((s) => [s.label, ...entriesOf(s.id).map((e) => e.name)]).join("\n"),
+);
+/** Entries of the open section that match the search, with their real index. */
+const shownItems = computed(() =>
+    items.value
+        .map((it, i) => ({ it, i }))
+        .filter(({ it }) => query.value.trim() === "" || queryTest.value(it.name) || queryTest.value(sections.value.find((x) => x.id === section.value)?.label ?? "")),
+);
+
+/* More parts: every other registry, edited as checked JSON. */
+const newKind = ref(NEW_PART_KINDS[0]!.id);
+const partKindItems = computed(() =>
+    NEW_PART_KINDS.map((k) => ({ value: k.id, title: t(`datapack.part.${k.id}`, k.label) })),
+);
+const part = computed<PackPart | undefined>(() =>
+    section.value === "parts" ? (pack.value.parts ?? [])[pick.value] : undefined,
+);
+const partProblem = computed(() => (part.value ? partError(part.value) : null));
+function formatPart(): void {
+    if (!part.value || partProblem.value !== null) return;
+    part.value.text = `${JSON.stringify(JSON.parse(part.value.text), null, 2)}\n`;
+}
+function resetPart(): void {
+    if (!part.value) return;
+    part.value.text = newPart(part.value.kind, part.value.name, pack.value.namespace).text;
+}
+
+/* Overlays: folders whose files replace the base ones on some versions. */
+function addOverlay(): void {
+    const list = (pack.value.overlays ??= []);
+    let directory = "overlay";
+    for (let n = 2; list.some((o) => o.directory === directory); n++) directory = `overlay_${n}`;
+    list.push({ directory, oldest: Math.min(PACK_VERSIONS.length - 1, 1), newest: 0 });
+}
+
 const items = computed(() => {
-    if (section.value === "pack") return [];
+    if (section.value === "pack" || section.value === "overlays") return [];
+    if (section.value === "parts") return (pack.value.parts ??= []);
     if (section.value === "predicates") return (pack.value.predicates ??= []);
     if (section.value === "biomes") return (pack.value.biomes ??= []);
     return pack.value[section.value] as { name: string }[];
 });
 function add(): void {
     const s = section.value;
-    if (s === "pack") return;
+    if (s === "pack" || s === "overlays") return;
+    if (s === "parts") {
+        const list = (pack.value.parts ??= []);
+        let name = `new_${newKind.value}`;
+        for (let n = 2; list.some((i) => i.name === name && i.kind === newKind.value); n++)
+            name = `new_${newKind.value}_${n}`;
+        list.push(newPart(newKind.value, name, pack.value.namespace));
+        pick.value = list.length - 1;
+        return;
+    }
     const base = {
         recipes: "new_recipe",
         functions: "new_function",
@@ -157,7 +255,7 @@ const currentName = computed({
 });
 function removeCurrent(): void {
     const s = section.value;
-    if (s === "pack") return;
+    if (s === "pack" || s === "overlays") return;
     (items.value as unknown[]).splice(pick.value, 1);
     pick.value = Math.max(0, pick.value - 1);
 }
@@ -368,13 +466,24 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                 variant="outlined"
                 hide-details
             />
+            <config-search-field
+                v-model="query"
+                v-model:regex="queryRegex"
+                v-model:flags="queryFlags"
+                :label="t('datapack.search', 'Find a part or file')"
+                :sample="searchSample"
+                density="compact"
+            />
             <div
                 role="listbox"
                 :aria-label="t('datapack.contents', 'What the pack holds')"
                 class="wl-dp__list"
             >
+                <p v-if="!shownSections.length" class="wl-dp__note">
+                    {{ t("datapack.searchNone", "Nothing in this pack matches that.") }}
+                </p>
                 <button
-                    v-for="s in sections"
+                    v-for="s in shownSections"
                     :key="s.id"
                     type="button"
                     role="option"
@@ -413,10 +522,62 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                     variant="outlined"
                 />
             </template>
+            <template v-else-if="section === 'overlays'">
+                <p class="wl-dp__note">
+                    {{
+                        t(
+                            "datapack.overlays.note",
+                            "An overlay is a folder beside data/ whose files replace the base ones on the versions you pick, so one pack can work across versions. Its files come along when a pack is opened and are saved back.",
+                        )
+                    }}
+                </p>
+                <p v-if="!(pack.overlays ?? []).length" class="wl-dp__note">
+                    {{ t("datapack.overlays.none", "No overlays. Every version reads the base files.") }}
+                </p>
+                <div v-for="(o, i) in pack.overlays ?? []" :key="i" class="wl-dp__row">
+                    <v-text-field
+                        v-model="o.directory"
+                        :label="t('datapack.overlays.folder', 'Folder name')"
+                        density="comfortable"
+                        variant="outlined"
+                        hide-details
+                        class="wl-dp__grow"
+                    />
+                    <v-select
+                        v-model="o.oldest"
+                        :items="versionItems"
+                        :label="t('datapack.overlays.oldest', 'From')"
+                        density="comfortable"
+                        variant="outlined"
+                        hide-details
+                    />
+                    <v-select
+                        v-model="o.newest"
+                        :items="versionItems"
+                        :label="t('datapack.overlays.newest', 'Up to')"
+                        density="comfortable"
+                        variant="outlined"
+                        hide-details
+                    />
+                    <v-btn
+                        variant="text"
+                        rounded="pill"
+                        color="error"
+                        :aria-label="t('datapack.overlays.remove', { name: o.directory }, 'Remove overlay {name}')"
+                        @click="(pack.overlays ?? []).splice(i, 1)"
+                        >{{ t("datapack.remove", "Remove") }}</v-btn
+                    >
+                </div>
+                <div class="wl-dp__row">
+                    <v-btn variant="tonal" rounded="pill" @click="addOverlay">{{
+                        t("datapack.overlays.add", "Add an overlay")
+                    }}</v-btn>
+                </div>
+            </template>
             <template v-else>
                 <div class="wl-dp__row">
                     <v-btn-toggle
-                        v-if="items.length"
+                        v-if="shownItems.length"
                         v-model="pick"
                         mandatory
                         density="comfortable"
@@ -425,10 +586,20 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                         class="wl-dp__wrap"
                         :aria-label="t('datapack.entries', 'Entries')"
                     >
-                        <v-btn v-for="(it, i) in items" :key="i" :value="i" size="small">{{
+                        <v-btn v-for="{ it, i } in shownItems" :key="i" :value="i" size="small">{{
                             it.name
                         }}</v-btn>
                     </v-btn-toggle>
+                    <v-select
+                        v-if="section === 'parts'"
+                        v-model="newKind"
+                        :items="partKindItems"
+                        :label="t('datapack.part.kind', 'Kind of part')"
+                        density="comfortable"
+                        variant="outlined"
+                        hide-details
+                        class="wl-dp__kind"
+                    />
                     <v-btn variant="tonal" rounded="pill" @click="add">{{
                         t("datapack.add", "Add")
                     }}</v-btn>
@@ -796,6 +967,46 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                     </div>
                 </template>
 
+                <template v-if="part">
+                    <p class="wl-dp__note">
+                        {{ t(`datapack.part.${part.kind}`, partKind(part.kind)?.label ?? part.kind) }}
+                        <span v-if="part.namespace">
+                            ·
+                            {{
+                                t(
+                                    "datapack.part.namespace",
+                                    { namespace: part.namespace },
+                                    "kept under {namespace}, where it was opened from",
+                                )
+                            }}
+                        </span>
+                    </p>
+                    <v-textarea
+                        v-model="part.text"
+                        :label="t('datapack.part.json', 'The file, as JSON')"
+                        :error-messages="partProblem ?? []"
+                        rows="14"
+                        auto-grow
+                        variant="outlined"
+                        spellcheck="false"
+                        class="wl-dp__json"
+                    />
+                    <div class="wl-dp__row">
+                        <v-btn
+                            variant="tonal"
+                            rounded="pill"
+                            :disabled="partProblem !== null"
+                            @click="formatPart"
+                            >{{ t("datapack.part.format", "Tidy the layout") }}</v-btn
+                        >
+                        <span v-if="partProblem !== null" class="wl-dp__note">{{
+                            t("datapack.part.formatWhy", "Tidying needs valid JSON first.")
+                        }}</span>
+                        <v-btn variant="text" rounded="pill" @click="resetPart">{{
+                            t("datapack.part.reset", "Start again from the template")
+                        }}</v-btn>
+                    </div>
+                </template>
                 <template v-if="biome">
                     <svg viewBox="0 0 600 220" width="100%" class="wl-dp__climate" role="group" :aria-label="t('datapack.climate', 'Climate graph: warmer to the right, wetter higher; choose a biome to edit it')">
                         <text x="20" y="215" class="wl-dp__axis">{{ t("datapack.cold", "cold") }}</text>
@@ -1057,6 +1268,15 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
 .wl-dp__wrap {
     flex-wrap: wrap;
     height: auto !important;
+}
+.wl-dp__kind {
+    min-width: 14rem;
+    flex: 0 1 18rem;
+}
+.wl-dp__json :deep(textarea) {
+    font-family: var(--wl-font-mono, ui-monospace, "Cascadia Code", Consolas, monospace);
+    font-size: 0.875rem;
+    line-height: 1.45;
 }
 .wl-dp__grow {
     flex: 1 1 200px;

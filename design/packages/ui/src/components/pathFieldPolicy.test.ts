@@ -282,6 +282,18 @@ function fieldIdentity(field: { readonly key: string | null; readonly tag: strin
     return field.key ?? field.tag.slice(0, 60);
 }
 const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
+    "components/datapack/DataPackCreator.vue::datapack.overlays.folder": {
+        reason: "not-a-location",
+        note:
+            "The name of an overlay folder inside the pack being built, beside its data folder. " +
+            "It names a folder in a .zip that does not exist yet, not one on this computer.",
+    },
+    "components/datapack/DataPackCreator.vue::datapack.part.json": {
+        reason: "not-a-location",
+        note:
+            "The JSON body of a registry file inside the pack (an enchantment, a structure set " +
+            "and so on). Its label says file because it is the file's content, not its location.",
+    },
     "components/datapack/DataPackCreator.vue::datapack.name": {
         reason: "not-a-location",
         note:

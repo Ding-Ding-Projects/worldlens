@@ -13,6 +13,16 @@
  * Design: `design/design-sources/datapacks-and-chunks/DataPack.dc.html`. Pure.
  */
 
+import {
+    OVERLAY_DIRECTORY,
+    partError,
+    partFromPath,
+    partKind,
+    partPath,
+    type PackOverlay,
+    type PackPart,
+} from "./datapackParts.js";
+
 export interface PackVersion {
     readonly label: string;
     /** Major data pack format. */
@@ -225,6 +235,10 @@ export interface DataPack {
     lootTables: LootTable[];
     predicates?: Predicate[];
     biomes?: Biome[];
+    /** Every other registry file, edited as checked JSON. */
+    parts?: PackPart[];
+    /** Folders whose files replace the base ones on some game versions. */
+    overlays?: PackOverlay[];
     /** Files kept exactly as they were opened, for parts this editor does not edit yet. */
     extraFiles?: Record<string, string>;
     /** Binary files (pack.png and the like) kept as they were opened, base64. */
@@ -247,6 +261,8 @@ export function emptyPack(): DataPack {
         lootTables: [],
         predicates: [],
         biomes: [],
+        parts: [],
+        overlays: [],
     };
 }
 
@@ -368,9 +384,32 @@ export function packMeta(pack: DataPack): Record<string, unknown> {
     const v = version(pack);
     const description =
         pack.description.trim() === "" ? `${pack.namespace} data pack` : pack.description;
-    return v.major >= 82
-        ? { pack: { description, min_format: [v.major, v.minor], max_format: [v.major, v.minor] } }
-        : { pack: { description, pack_format: v.major } };
+    const meta: Record<string, unknown> =
+        v.major >= 82
+            ? { pack: { description, min_format: [v.major, v.minor], max_format: [v.major, v.minor] } }
+            : { pack: { description, pack_format: v.major } };
+    const overlays = (pack.overlays ?? []).filter((o) => OVERLAY_DIRECTORY.test(o.directory));
+    if (overlays.length > 0) {
+        meta["overlays"] = {
+            entries: overlays.map((o) => {
+                const oldest = PACK_VERSIONS[Math.max(o.oldest, o.newest)] ?? PACK_VERSIONS.at(-1)!;
+                const newest = PACK_VERSIONS[Math.min(o.oldest, o.newest)] ?? PACK_VERSIONS[0]!;
+                // From format 82 an overlay names its range the way the pack does; before it,
+                // as a whole-number range.
+                return v.major >= 82
+                    ? {
+                          directory: o.directory,
+                          min_format: [oldest.major, oldest.minor],
+                          max_format: [newest.major, newest.minor],
+                      }
+                    : {
+                          directory: o.directory,
+                          formats: { min_inclusive: oldest.major, max_inclusive: newest.major },
+                      };
+            }),
+        };
+    }
+    return meta;
 }
 
 /** The shaped recipe's pattern and key, trimmed to the used rows and columns. */
@@ -562,6 +601,12 @@ export function packFiles(pack: DataPack): Map<string, string> {
             `data/${ns}/${folder(pack, "loot_table")}/${l.name}.json`,
             json(lootTableJson(l)),
         );
+    for (const part of pack.parts ?? []) {
+        const path = partPath(part, ns, version(pack).major);
+        if (path === null) continue;
+        const text = part.text.replace(/\r\n/g, "\n");
+        files.set(path, text.endsWith("\n") ? text : `${text}\n`);
+    }
     return files;
 }
 
@@ -612,6 +657,28 @@ export function packProblems(pack: DataPack): PackProblem[] {
     names("Tag", pack.tags);
     names("Advancement", pack.advancements);
     names("Loot table", pack.lootTables);
+    const parts = pack.parts ?? [];
+    for (const kind of new Set(parts.map((p) => p.kind)))
+        names(partKind(kind)?.label ?? kind, parts.filter((p) => p.kind === kind));
+    for (const part of parts) {
+        const error = partError(part);
+        if (error !== null)
+            out.push({
+                where: `${partKind(part.kind)?.label ?? part.kind} ${part.name}`,
+                message: `This is not valid JSON: ${error}`,
+            });
+    }
+    const dirs = new Set<string>();
+    for (const o of pack.overlays ?? []) {
+        if (!OVERLAY_DIRECTORY.test(o.directory))
+            out.push({
+                where: `Overlay ${o.directory || "(unnamed)"}`,
+                message: "An overlay folder may only use a–z, 0–9, _ and -.",
+            });
+        if (dirs.has(o.directory))
+            out.push({ where: `Overlay ${o.directory}`, message: "Two overlays share this folder." });
+        dirs.add(o.directory);
+    }
     for (const r of pack.recipes) {
         const where = `Recipe ${r.name}`;
         if (r.result.trim() === "") out.push({ where, message: "Choose what it makes." });
@@ -668,6 +735,7 @@ export function packFromFiles(files: ReadonlyMap<string, string>): {
 } {
     const pack = emptyPack();
     const extra: Record<string, string> = {};
+    const parts: { ns: string; part: PackPart }[] = [];
     const root =
         [...files.keys()].find((k) => k.endsWith("pack.mcmeta"))?.replace(/pack\.mcmeta$/, "") ??
         "";
@@ -723,6 +791,11 @@ export function packFromFiles(files: ReadonlyMap<string, string>): {
         }
         const load = /^data\/minecraft\/tags\/functions?\/(load|tick)\.json$/.exec(path);
         if (load) continue; // rebuilt from each function's switches below
+        const part = partFromPath(path, text);
+        if (part !== null) {
+            parts.push({ ns: part.namespace ?? "", part });
+            continue;
+        }
         extra[path] = text;
     }
     const ns = [...namespaces]
@@ -742,6 +815,44 @@ export function packFromFiles(files: ReadonlyMap<string, string>): {
         } catch {
             /* ignore an unreadable tag */
         }
+    }
+    // A part under the pack's own namespace follows the namespace if it is renamed; one under
+    // another namespace (an override of `minecraft`, say) keeps the namespace it came from.
+    for (const { ns: from, part } of parts) {
+        if (from === pack.namespace) delete part.namespace;
+        (pack.parts ??= []).push(part);
+    }
+    try {
+        const meta = JSON.parse(files.get(`${root}pack.mcmeta`) ?? "{}") as {
+            overlays?: { entries?: { directory?: unknown; formats?: unknown; min_format?: unknown; max_format?: unknown }[] };
+        };
+        const major = (value: unknown): number | null =>
+            typeof value === "number"
+                ? value
+                : Array.isArray(value)
+                  ? Number(value[0])
+                  : null;
+        const index = (m: number | null, fallback: number): number => {
+            const i = PACK_VERSIONS.findIndex((v) => v.major === m);
+            return i >= 0 ? i : fallback;
+        };
+        for (const e of meta.overlays?.entries ?? []) {
+            if (typeof e.directory !== "string") continue;
+            const formats = e.formats as { min_inclusive?: unknown; max_inclusive?: unknown } | number | undefined;
+            const lo =
+                major(e.min_format) ??
+                (typeof formats === "number" ? formats : major(formats?.min_inclusive));
+            const hi =
+                major(e.max_format) ??
+                (typeof formats === "number" ? formats : major(formats?.max_inclusive));
+            (pack.overlays ??= []).push({
+                directory: e.directory,
+                oldest: index(lo, PACK_VERSIONS.length - 1),
+                newest: index(hi, 0),
+            });
+        }
+    } catch {
+        /* overlays stay empty when pack.mcmeta cannot be read */
     }
     pack.extraFiles = extra;
     return { pack, kept: Object.keys(extra).length };

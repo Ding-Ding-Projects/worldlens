@@ -117,4 +117,38 @@ describe("DataPackCreator function editor", () => {
         const chips = w.findAll(".wl-fn__chip").map((c) => c.text());
         expect(chips).toEqual(expect.arrayContaining(["tellraw", "teleport"]));
     });
+
+    it("adds another registry part, checks its JSON and filters by search", async () => {
+        const w = make();
+        const option = (label: string) =>
+            w.findAll('[role="option"]').find((b) => b.text().startsWith(label))!;
+        await option("More parts").trigger("click");
+        await w.findAll("button").find((b) => b.text() === "Add")!.trigger("click");
+        await flushPromises();
+        const json = w.find(".wl-dp__json textarea");
+        expect((json.element as HTMLTextAreaElement).value).toContain("set_count");
+        await json.setValue("{ nope");
+        expect(w.text()).toContain("This is not valid JSON");
+        await json.setValue('[{"function":"minecraft:set_count","count":3}]');
+        expect(w.text()).not.toContain("This is not valid JSON");
+
+        const search = w.find(".wl-dp__nav .mb-config-search input");
+        await search.setValue("new_item_modifier");
+        expect(w.findAll('[role="option"]').map((o) => o.text())).toEqual([
+            expect.stringContaining("More parts"),
+        ]);
+        await search.setValue("zzz-nothing");
+        expect(w.text()).toContain("Nothing in this pack matches that.");
+    });
+
+    it("adds a version overlay that reaches pack.mcmeta", async () => {
+        const w = make();
+        await w.findAll('[role="option"]').find((b) => b.text().startsWith("Version overlays"))!.trigger("click");
+        await w.findAll("button").find((b) => b.text() === "Add an overlay")!.trigger("click");
+        await flushPromises();
+        const draft = JSON.parse(localStorage.getItem("worldlens-datapack-draft") ?? "{}") as {
+            overlays?: { directory: string }[];
+        };
+        expect(draft.overlays?.[0]?.directory).toBe("overlay");
+    });
 });

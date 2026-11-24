@@ -174,7 +174,7 @@ describe("predicates", () => {
 });
 
 describe("opening an existing pack", () => {
-    it("makes functions and tags editable, keeps everything else, and writes it all back", async () => {
+    it("makes functions, tags and other files editable, and writes it all back", async () => {
         const { packFromFiles } = await import("./datapackModel.js");
         const { readZip } = await import("./zipRead.js");
         const { zipStore } = await import("./zipStore.js");
@@ -210,7 +210,10 @@ describe("opening an existing pack", () => {
             tags: [{ name: "gems", registry: "item" }],
         });
         expect(PACK_VERSIONS[pack.versionIndex]!.major).toBe(61);
-        expect(kept).toBe(1);
+        // The recipe the visual editor cannot read opens as an editable JSON part now, so
+        // nothing is left kept out of sight.
+        expect(kept).toBe(0);
+        expect(pack.parts).toMatchObject([{ kind: "recipe", name: "odd" }]);
         const out = packFiles(pack);
         expect(out.get("data/heap/recipe/odd.json")).toContain("bookcloning");
         expect(out.get("data/minecraft/tags/function/tick.json")).toContain("heap:tick");
