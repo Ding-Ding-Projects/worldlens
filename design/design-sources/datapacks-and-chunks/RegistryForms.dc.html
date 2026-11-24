@@ -111,7 +111,9 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
     <sc-if value="{{isEnch}}" hint-placeholder-val="{{ true }}">
       <h3 style="margin: 0; font: 500 14px Roboto, sans-serif;">Effects by level</h3>
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; padding: 12px; border-radius: 16px; background: var(--wl-surf-high);"><label class="fld">Effect<select class="inp"><option>Extra damage</option><option>Knockback</option><option>Armour effectiveness</option></select></label><label class="fld">How<select class="inp"><option>Add</option><option>Multiply</option></select></label><label class="fld">At level 1: {{base}}<input type="range" min="0" max="10" step="0.5" value="{{base}}" onInput="{{setBase}}" aria-label="Value at level 1"></label><label class="fld">More per level: {{per}}<input type="range" min="0" max="5" step="0.5" value="{{per}}" onInput="{{setPer}}" aria-label="Added per level"></label></div>
-      <p class="note">Effects with conditions or actions (setting fire, summoning) are kept as written.</p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; padding: 12px; border-radius: 16px; background: var(--wl-surf-high);"><strong style="grid-column: 1 / -1; font: 500 13px Roboto, sans-serif;">After an attack: set on fire</strong><label class="fld">Whose enchantment<select class="inp"><option>The attacker</option><option>The one hit</option></select></label><label class="fld">Acts on<select class="inp"><option>The one hit</option><option>The attacker</option></select></label><label class="fld">Burns for (s) at level 1: 4<input type="range" min="0" max="60" value="4" aria-label="Burn seconds"></label></div>
+      <div style="display: flex; gap: 8px; flex-wrap: wrap;"><button type="button" class="fchip sl">Add: set the one hit on fire</button><button type="button" class="fchip sl">Add: give the one hit an effect</button></div>
+      <p class="note">Effects with requirements or other actions (summoning, explosions) are kept as written.</p>
     </sc-if>
   </section>
   <section class="card" aria-label="Live file">

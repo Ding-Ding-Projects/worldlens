@@ -103,13 +103,29 @@ describe("jigsaw pools and processors", async () => {
 describe("rule processor rules and enchantment effects", async () => {
     const m = await import("./worldgenParts.js");
     it("reads swap rules, writes a chance as random_block_match, and keeps an unusual rule", () => {
-        const odd = { input_predicate: { predicate_type: "minecraft:tag_match", tag: "x" }, location_predicate: { predicate_type: "minecraft:always_true" }, output_state: { Name: "minecraft:air" } };
+        const odd = { input_predicate: { predicate_type: "minecraft:block_match", block: "minecraft:stone" }, location_predicate: { predicate_type: "minecraft:always_true" }, position_predicate: { predicate_type: "minecraft:axis_aligned_linear_pos", min_chance: 0, max_chance: 1 }, output_state: { Name: "minecraft:air" } };
         const rules = m.readRules({ processor_type: "minecraft:rule", rules: [{ input_predicate: { predicate_type: "minecraft:block_match", block: "minecraft:stone" }, location_predicate: { predicate_type: "minecraft:always_true" }, output_state: { Name: "minecraft:andesite" } }, odd] })!;
         expect(rules.map((r) => r.editable)).toEqual([true, false]);
         rules[0]!.chance = 0.25;
         expect(m.writeRule(rules[0]!)).toMatchObject({ input_predicate: { predicate_type: "minecraft:random_block_match", block: "minecraft:stone", probability: 0.25 } });
         expect(m.writeRule(rules[1]!)).toEqual(odd);
         expect(m.readRules({ processor_type: "minecraft:block_rot" })).toBeNull();
+    });
+
+    it("reads and writes tags and a where-condition on swap rules", () => {
+        const rule = {
+            input_predicate: { predicate_type: "minecraft:random_tag_match", tag: "minecraft:logs", probability: 0.5 },
+            location_predicate: { predicate_type: "minecraft:tag_match", tag: "minecraft:dirt" },
+            output_state: { Name: "minecraft:stripped_oak_log" },
+        };
+        const [read] = m.readRules({ processor_type: "minecraft:rule", rules: [rule] })!;
+        expect(read).toMatchObject({ from: "#minecraft:logs", chance: 0.5, where: "#minecraft:dirt", editable: true });
+        expect(m.writeRule(read!)).toEqual(rule);
+        expect(m.writeRule({ ...read!, from: "minecraft:stone", chance: 1, where: "" })).toEqual({
+            input_predicate: { predicate_type: "minecraft:block_match", block: "minecraft:stone" },
+            location_predicate: { predicate_type: "minecraft:always_true" },
+            output_state: { Name: "minecraft:stripped_oak_log" },
+        });
     });
 
     it("reads level-scaled value effects and keeps everything else", () => {
@@ -122,7 +138,8 @@ describe("rule processor rules and enchantment effects", async () => {
             },
         });
         const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
-        expect(effects.map((e) => `${e.component}:${e.editable}`)).toEqual(["minecraft:damage:true", "minecraft:post_attack:false", "minecraft:prevent_equipment_drop:false"]);
+        expect(effects.map((e) => `${e.component}:${e.editable}`)).toEqual(["minecraft:damage:true", "minecraft:post_attack:true", "minecraft:prevent_equipment_drop:false"]);
+        expect(effects[1]!.action).toMatchObject({ enchanted: "attacker", affected: "victim", kind: "ignite" });
         effects[0]!.perLevel = 0;
         effects.push(m.newEffect("minecraft:knockback"));
         const back = JSON.parse(m.writeEffects(text, effects)) as { max_level: number; effects: Record<string, unknown> };
@@ -131,5 +148,22 @@ describe("rule processor rules and enchantment effects", async () => {
         expect(back.effects["minecraft:post_attack"]).toEqual(JSON.parse(text).effects["minecraft:post_attack"]);
         expect(back.effects["minecraft:prevent_equipment_drop"]).toEqual({});
         expect(back.effects["minecraft:knockback"]).toEqual([{ effect: { type: "minecraft:add", value: { type: "minecraft:linear", base: 1, per_level_above_first: 0.5 } } }]);
+    });
+
+    it("writes a mob effect action and keeps one with requirements", async () => {
+        const withReq = { requirements: { condition: "minecraft:random_chance", chance: 0.5 }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite", duration: 4 } };
+        const text = JSON.stringify({ effects: { "minecraft:post_attack": [withReq] } });
+        const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
+        expect(effects[0]!.editable).toBe(false);
+        effects.push(m.newAction("apply_mob_effect"));
+        const back = JSON.parse(m.writeEffects(text, effects)) as { effects: Record<string, unknown[]> };
+        expect(back.effects["minecraft:post_attack"]![0]).toEqual(withReq);
+        expect(back.effects["minecraft:post_attack"]![1]).toEqual({
+            enchanted: "attacker",
+            affected: "victim",
+            effect: { type: "minecraft:apply_mob_effect", to_apply: "minecraft:slowness", min_duration: { type: "minecraft:linear", base: 3, per_level_above_first: 1 }, max_duration: { type: "minecraft:linear", base: 3, per_level_above_first: 1 }, min_amplifier: 0, max_amplifier: 0 },
+        });
+        const reread = m.readEffects(back as unknown as Record<string, unknown>);
+        expect(reread[1]!.editable).toBe(true);
     });
 });

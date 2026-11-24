@@ -99,5 +99,11 @@ describe("rule swaps and enchantment effects", async () => {
         const out = JSON.parse((w.emitted("update:text")!.at(-1) as [string])[0]) as { effects: Record<string, unknown>; max_level: number };
         expect(Object.keys(out.effects)).toEqual(["minecraft:damage"]);
         expect(out.max_level).toBe(3);
+        await w.setProps({ text: JSON.stringify(out) });
+        await w.findAll("button").find((b) => b.text() === "Add: set the one hit on fire")!.trigger("click");
+        const fire = JSON.parse((w.emitted("update:text")!.at(-1) as [string])[0]) as { effects: Record<string, unknown[]> };
+        expect(fire.effects["minecraft:post_attack"]![0]).toMatchObject({ enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite" } });
+        await w.setProps({ text: JSON.stringify(fire) });
+        expect(w.text()).toContain("After an attack: set on fire");
     });
 });

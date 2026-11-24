@@ -305,39 +305,71 @@ export function newProcessor(kind: (typeof NEW_PROCESSOR_KINDS)[number]): Proces
 /* -------------------------------------------------------------------------- */
 
 /**
- * One rule of a rule processor, when it is the common shape: a block (or a block with a
- * chance) becomes another block, anywhere. Any other rule is kept as written (`editable` false).
+ * One rule of a rule processor, in the shapes people write: a block or a block tag (with a
+ * chance, or every time) becomes another block, anywhere or only where the block it replaces
+ * sits on a given block or tag. A tag is written as `#name`. Any other rule (a position
+ * predicate, block state matches, output with properties) is kept as written (`editable` false).
  */
 export interface SwapRule {
+    /** `minecraft:stone` or `#minecraft:base_stone_overworld`. */
     from: string;
-    /** 1 means every match; below 1 is random_block_match's probability. */
+    /** 1 means every match; below 1 is the random match's probability. */
     chance: number;
     to: string;
+    /** Empty for anywhere; otherwise the block or `#tag` that must be at the location. */
+    where: string;
     raw: Json;
     editable: boolean;
+}
+
+/** Reads a block_match / tag_match family predicate as `id` or `#tag`, with its chance. */
+function matchOf(p: Json | null): { what: string; chance: number } | null {
+    if (p === null) return null;
+    const kind = short(p["predicate_type"]);
+    const extra = Object.keys(p).filter((k) => !["predicate_type", "block", "tag", "probability"].includes(k));
+    if (extra.length > 0) return null;
+    const chance = typeof p["probability"] === "number" ? p["probability"] : 1;
+    if ((kind === "block_match" || kind === "random_block_match") && typeof p["block"] === "string")
+        return { what: p["block"], chance: kind === "random_block_match" ? chance : 1 };
+    if ((kind === "tag_match" || kind === "random_tag_match") && typeof p["tag"] === "string")
+        return { what: `#${p["tag"]}`, chance: kind === "random_tag_match" ? chance : 1 };
+    return null;
+}
+
+function writeMatch(what: string, chance: number): Json {
+    const tag = what.startsWith("#");
+    const id = tag ? what.slice(1) : what;
+    if (chance >= 1) return tag ? { predicate_type: "minecraft:tag_match", tag: id } : { predicate_type: "minecraft:block_match", block: id };
+    return tag
+        ? { predicate_type: "minecraft:random_tag_match", tag: id, probability: chance }
+        : { predicate_type: "minecraft:random_block_match", block: id, probability: chance };
 }
 
 export function readRules(processor: Json): SwapRule[] | null {
     if (short(processor["processor_type"]) !== "rule" || !Array.isArray(processor["rules"])) return null;
     return (processor["rules"] as unknown[]).map((entry): SwapRule => {
         const raw = obj(entry) ?? {};
-        const input = obj(raw["input_predicate"]);
-        const location = obj(raw["location_predicate"]);
+        const input = matchOf(obj(raw["input_predicate"]));
+        const locationRaw = obj(raw["location_predicate"]);
+        const location =
+            locationRaw === null || short(locationRaw["predicate_type"]) === "always_true"
+                ? { what: "", chance: 1 }
+                : matchOf(locationRaw);
         const output = obj(raw["output_state"]);
-        const kind = short(input?.["predicate_type"]);
         const fine =
             input !== null &&
-            (kind === "block_match" || kind === "random_block_match") &&
-            typeof input["block"] === "string" &&
-            (location === null || short(location["predicate_type"]) === "always_true") &&
+            location !== null &&
+            location.chance === 1 &&
             raw["position_predicate"] === undefined &&
+            raw["block_entity_modifier"] === undefined &&
             output !== null &&
             typeof output["Name"] === "string" &&
             Object.keys(output).length === 1;
         return {
-            from: fine ? (input!["block"] as string) : "",
-            chance: fine && kind === "random_block_match" && typeof input!["probability"] === "number" ? (input!["probability"] as number) : 1,
+            from: fine ? input!.what : "",
+            chance: fine ? input!.chance : 1,
             to: fine ? (output!["Name"] as string) : "",
+            where: fine ? location!.what : "",
             raw,
             editable: fine,
         };
@@ -348,11 +380,8 @@ export function writeRule(rule: SwapRule): Json {
     if (!rule.editable) return rule.raw;
     return {
         ...rule.raw,
-        input_predicate:
-            rule.chance >= 1
-                ? { predicate_type: "minecraft:block_match", block: rule.from }
-                : { predicate_type: "minecraft:random_block_match", block: rule.from, probability: rule.chance },
-        location_predicate: { predicate_type: "minecraft:always_true" },
+        input_predicate: writeMatch(rule.from, rule.chance),
+        location_predicate: rule.where === "" ? { predicate_type: "minecraft:always_true" } : writeMatch(rule.where, 1),
         output_state: { Name: rule.to },
     };
 }
@@ -361,6 +390,7 @@ export const newRule = (): SwapRule => ({
     from: "minecraft:cobblestone",
     chance: 0.3,
     to: "minecraft:mossy_cobblestone",
+    where: "",
     raw: {},
     editable: true,
 });
@@ -376,6 +406,18 @@ export const newRule = (): SwapRule => ({
  */
 export interface LevelValueEffect {
     component: string;
+    /**
+     * Set for an "after an attack" action instead of a value: who carries the enchantment
+     * (`attacker` or `victim`), who it acts on, and what it does. `base`/`perLevel` are then
+     * the fire duration in seconds; for a mob effect they are its length in seconds.
+     */
+    action?: {
+        enchanted: "attacker" | "victim";
+        affected: "attacker" | "victim";
+        kind: "ignite" | "apply_mob_effect";
+        mobEffect: string;
+        amplifier: number;
+    };
     operation: "add" | "multiply";
     base: number;
     perLevel: number;
@@ -424,6 +466,10 @@ export function readEffects(enchantment: Json): LevelValueEffect[] {
         for (const entry of list as unknown[]) {
             const raw = obj(entry) ?? {};
             const effect = obj(raw["effect"]);
+            if (component === "minecraft:post_attack") {
+                out.push(readAction(component, raw));
+                continue;
+            }
             const op = short(effect?.["type"]);
             const value = levelNumber(effect?.["value"] ?? effect?.["factor"]);
             const fine =
@@ -445,8 +491,65 @@ export function readEffects(enchantment: Json): LevelValueEffect[] {
     return out;
 }
 
+const PARTY = (v: unknown): "attacker" | "victim" | null =>
+    v === "attacker" || v === "victim" ? v : null;
+
+/** An "after an attack" entry: set something on fire, or give it a mob effect. */
+function readAction(component: string, raw: Json): LevelValueEffect {
+    const kept: LevelValueEffect = { component, operation: "add", base: 0, perLevel: 0, raw, editable: false };
+    const effect = obj(raw["effect"]);
+    const enchanted = PARTY(raw["enchanted"]);
+    const affected = PARTY(raw["affected"]);
+    if (effect === null || enchanted === null || affected === null) return kept;
+    if (Object.keys(raw).some((k) => !["effect", "enchanted", "affected"].includes(k))) return kept;
+    const type = short(effect["type"]);
+    if (type === "ignite" && Object.keys(effect).length === 2) {
+        const d = levelNumber(effect["duration"]);
+        if (d === null) return kept;
+        return { ...kept, base: d.base, perLevel: d.perLevel, editable: true, action: { enchanted, affected, kind: "ignite", mobEffect: "", amplifier: 0 } };
+    }
+    if (type === "apply_mob_effect") {
+        const toApply = effect["to_apply"];
+        const min = levelNumber(effect["min_duration"]);
+        const max = levelNumber(effect["max_duration"]);
+        const amp = levelNumber(effect["min_amplifier"]);
+        const ampMax = levelNumber(effect["max_amplifier"]);
+        const same = (a: { base: number; perLevel: number } | null, b: { base: number; perLevel: number } | null) =>
+            a !== null && b !== null && a.base === b.base && a.perLevel === b.perLevel;
+        if (typeof toApply !== "string" || !same(min, max) || !same(amp, ampMax) || amp!.perLevel !== 0) return kept;
+        if (Object.keys(effect).length !== 6) return kept;
+        return {
+            ...kept,
+            base: min!.base,
+            perLevel: min!.perLevel,
+            editable: true,
+            action: { enchanted, affected, kind: "apply_mob_effect", mobEffect: toApply, amplifier: amp!.base },
+        };
+    }
+    return kept;
+}
+
 function writeEffect(e: LevelValueEffect): unknown {
     if (!e.editable) return e.raw;
+    if (e.action !== undefined) {
+        const seconds =
+            e.perLevel === 0 ? e.base : { type: "minecraft:linear", base: e.base, per_level_above_first: e.perLevel };
+        return {
+            enchanted: e.action.enchanted,
+            affected: e.action.affected,
+            effect:
+                e.action.kind === "ignite"
+                    ? { type: "minecraft:ignite", duration: seconds }
+                    : {
+                          type: "minecraft:apply_mob_effect",
+                          to_apply: e.action.mobEffect,
+                          min_duration: seconds,
+                          max_duration: seconds,
+                          min_amplifier: e.action.amplifier,
+                          max_amplifier: e.action.amplifier,
+                      },
+        };
+    }
     const value =
         e.perLevel === 0 ? e.base : { type: "minecraft:linear", base: e.base, per_level_above_first: e.perLevel };
     return {
@@ -472,6 +575,16 @@ export function writeEffects(text: string, effects: readonly LevelValueEffect[])
     }
     return writeJson({ ...o, effects: grouped });
 }
+
+export const newAction = (kind: "ignite" | "apply_mob_effect"): LevelValueEffect => ({
+    component: "minecraft:post_attack",
+    operation: "add",
+    base: kind === "ignite" ? 4 : 3,
+    perLevel: kind === "ignite" ? 4 : 1,
+    raw: {},
+    editable: true,
+    action: { enchanted: "attacker", affected: "victim", kind, mobEffect: "minecraft:slowness", amplifier: 0 },
+});
 
 export const newEffect = (component: string): LevelValueEffect => ({
     component,

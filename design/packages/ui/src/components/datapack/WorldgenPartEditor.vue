@@ -427,9 +427,10 @@ const HEIGHTMAPS = ["WORLD_SURFACE_WG", "WORLD_SURFACE", "OCEAN_FLOOR_WG", "OCEA
                         <template v-else-if="rulesOf(p) !== null">
                             <div v-for="(r, k) in rulesOf(p)" :key="k" class="wl-wg__rule">
                                 <template v-if="r.editable">
-                                    <v-combobox :model-value="r.from" :items="blocks" :label="t('datapack.wg.ruleFrom', 'Block')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeRule(i, p, k, { from: v.includes(':') ? v : `minecraft:${v}` })" />
+                                    <v-combobox :model-value="r.from" :items="blocks" :label="t('datapack.wg.ruleFrom', 'Block or #tag')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeRule(i, p, k, { from: v.includes(':') || v.startsWith('#') ? v : `minecraft:${v}` })" />
                                     <v-slider :model-value="Math.round(r.chance * 100)" :min="1" :max="100" :step="1" thumb-label hide-details :label="t('datapack.wg.ruleChance', 'Chance (%)')" @update:model-value="(v: number) => changeRule(i, p, k, { chance: v / 100 })" />
                                     <v-combobox :model-value="r.to" :items="blocks" :label="t('datapack.wg.ruleTo', 'Becomes')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeRule(i, p, k, { to: v.includes(':') ? v : `minecraft:${v}` })" />
+                                    <v-combobox :model-value="r.where" :items="['', ...blocks]" :label="t('datapack.wg.ruleWhere', 'Only on this block or #tag (empty: anywhere)')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => changeRule(i, p, k, { where: v ?? '' })" />
                                 </template>
                                 <p v-else class="wl-wg__note">{{ t("datapack.wg.ruleKept", "This rule has conditions with no editor yet; it is kept as written.") }}</p>
                                 <v-btn size="small" variant="text" color="error" :aria-label="t('datapack.wg.removeRule', { n: k + 1 }, 'Remove rule {n}')" @click="writeRules(i, p, (rulesOf(p) ?? []).filter((_, x) => x !== k))">{{ t("datapack.remove", "Remove") }}</v-btn>
