@@ -132,6 +132,11 @@ describe("DataPackCreator function editor", () => {
         await json.setValue('[{"function":"minecraft:set_count","count":3}]');
         expect(w.text()).not.toContain("This is not valid JSON");
 
+        // The item modifier's steps are editable visually as well, and write back to the JSON.
+        await w.findAll("button").find((b) => b.text() === "Add step")!.trigger("click");
+        expect((json.element as HTMLTextAreaElement).value).toContain("minecraft:set_count");
+        expect(w.findAll(".wl-mod__step")).toHaveLength(2);
+
         const search = w.find(".wl-dp__nav .mb-config-search input");
         await search.setValue("new_item_modifier");
         expect(w.findAll('[role="option"]').map((o) => o.text())).toEqual([

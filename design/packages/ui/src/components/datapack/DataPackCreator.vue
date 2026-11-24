@@ -24,6 +24,7 @@ import {
 import CommandBuilder from "../mcserver/CommandBuilder.vue";
 import PredicateBlockEditor from "./PredicateBlockEditor.vue";
 import FunctionEditor from "./FunctionEditor.vue";
+import ItemModifierEditor from "./ItemModifierEditor.vue";
 import { BLOCK_IDS, ITEM_IDS } from "../mcserver/commandBuilderData.js";
 import {
     PACK_VERSIONS,
@@ -1084,6 +1085,10 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                             }}
                         </span>
                     </p>
+                    <ItemModifierEditor
+                        v-if="part.kind === 'item_modifier'"
+                        v-model:text="part.text"
+                    />
                     <v-textarea
                         v-model="part.text"
                         :label="t('datapack.part.json', 'The file, as JSON')"
