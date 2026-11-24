@@ -126,9 +126,14 @@ export const APPLICATION_ORDER: readonly string[] = [
     "control-guides.md",
     "coreprotect-inspector.md",
     "nbt-editor.md",
+    "nbt-research.md",
+    "data-pack-creator.md",
     // "Running it somewhere other than a desktop" in docs/README.md. Ways of running this
     // application rather than a fourth kind of thing, so they share its heading here.
     "hosted-mode.md",
+    "appliance.md",
+    "player-relay.md",
+    "share-host.md",
     "container-image.md",
     "wharf.md",
     // These two were indexed in docs/README.md without ever being named here, so the in-app

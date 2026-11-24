@@ -619,6 +619,14 @@ const REGISTRY: readonly OverlayEntry[] = [
         status: "clean",
     },
     {
+        file: "components/nbteditor/NbtTagTree.vue",
+        surface:
+            "The per-tag actions menu on each row of the NBT tree.",
+        ownVMenu: true,
+        wrapsAppearanceTarget: false,
+        status: "clean",
+    },
+    {
         file: "components/mcserver/PlayerManager.vue",
         surface:
             "The per-player actions menu on each row of the player list.",

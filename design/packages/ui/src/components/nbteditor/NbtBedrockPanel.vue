@@ -5,7 +5,8 @@
  */
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { VBtn, VBtnToggle, VTextField } from "vuetify/components";
+import { VBtn, VBtnToggle } from "vuetify/components";
+import ConfigSearchField from "../config/ConfigSearchField.vue";
 import type { BedrockRecord } from "./nbtEditorBridge.js";
 
 const props = defineProps<{
@@ -18,13 +19,32 @@ const { t } = useI18n();
 
 const group = ref<"nbt" | "all">("nbt");
 const query = ref("");
+const regex = ref(false);
+const flags = ref("i");
 const LIMIT = 500;
-const shown = computed(() => {
-    const q = query.value.trim().toLowerCase();
-    return props.records.filter(
-        (r) => (group.value === "all" || r.nbt) && (q === "" || r.label.toLowerCase().includes(q)),
-    );
+const matcher = computed<(text: string) => boolean>(() => {
+    const q = query.value.slice(0, 512);
+    if (q.trim() === "") return () => true;
+    if (!regex.value) {
+        const needle = q.trim().toLowerCase();
+        return (text) => text.toLowerCase().includes(needle);
+    }
+    try {
+        const re = new RegExp(q, flags.value.replace(/[^imsu]/g, ""));
+        return (text) => re.test(text.slice(0, 4096));
+    } catch {
+        return () => false;
+    }
 });
+const shown = computed(() =>
+    props.records.filter((r) => (group.value === "all" || r.nbt) && matcher.value(r.label)),
+);
+const sample = computed(() =>
+    props.records
+        .slice(0, 200)
+        .map((r) => r.label)
+        .join("\n"),
+);
 const size = (n: number): string => (n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`);
 </script>
 
@@ -50,13 +70,13 @@ const size = (n: number): string => (n < 1024 ? `${n} B` : `${(n / 1024).toFixed
             <v-btn value="nbt" size="small">{{ t("nbt.bedrock.nbtOnly", "NBT records") }}</v-btn>
             <v-btn value="all" size="small">{{ t("nbt.bedrock.all", "Everything") }}</v-btn>
         </v-btn-toggle>
-        <v-text-field
+        <config-search-field
             v-model="query"
+            v-model:regex="regex"
+            v-model:flags="flags"
             :label="t('nbt.bedrock.search', 'Search records')"
+            :sample="sample"
             density="compact"
-            variant="outlined"
-            hide-details
-            clearable
         />
         <p class="wl-bedrock__note">
             {{

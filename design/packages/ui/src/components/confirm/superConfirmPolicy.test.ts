@@ -192,6 +192,15 @@ interface DestructiveFile {
  * Ordered by path so the diff of adding one reads as an addition rather than a reshuffle.
  */
 const DESTRUCTIVE_FILES: Record<string, DestructiveFile> = {
+    "components/nbteditor/NbtArrayEditor.vue": {
+        count: 1,
+        destroys: "one value of an NBT array open in the editor",
+        standing: "buffer",
+        note:
+            "removeAt edits the editor's unsaved document: nothing is written until Save, the " +
+            "edit is on the editor's undo stack, and every save is recorded in the file's " +
+            "history so an earlier version can be restored.",
+    },
     "components/drawing/DrawingBoard.vue": {
         count: 2,
         destroys: "the touched part of strokes on the drawing board, under the eraser",

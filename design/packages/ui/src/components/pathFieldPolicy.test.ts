@@ -282,6 +282,13 @@ function fieldIdentity(field: { readonly key: string | null; readonly tag: strin
     return field.key ?? field.tag.slice(0, 60);
 }
 const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
+    "components/datapack/DataPackCreator.vue::datapack.name": {
+        reason: "not-a-location",
+        note:
+            "The file name of a function, tag, advancement or loot table inside the pack being " +
+            "built, like my_pack:tick. It names an entry in a .zip that does not exist yet, not " +
+            "a file or folder on this computer.",
+    },
     "components/vdisk/VirtualDisksScreen.vue::<VTextField v-model=\"destination\" :label=\"op === 'mirror' ? ": {
         reason: "own-browse",
         note:

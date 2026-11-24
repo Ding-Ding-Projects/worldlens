@@ -77,6 +77,13 @@ const DEFAULT_SEARCH_MARKERS = [
  */
 const REGISTRY: readonly MenuRegistryEntry[] = [
     {
+        file: "nbteditor/NbtTagTree.vue",
+        builtVia: "v-menu",
+        menu: "The per-tag actions menu on each row of the NBT tree.",
+        status: "not-applicable",
+        reason: "A handful of fixed actions for the one tag on that row (add, rename, copy, delete and the like); the tree's own search above it is where tags are filtered.",
+    },
+    {
         file: "appearance/AppearanceTarget.vue",
         builtVia: "v-menu",
         menu: "The generic 'Edit appearance...' context menu every per-element target opens.",

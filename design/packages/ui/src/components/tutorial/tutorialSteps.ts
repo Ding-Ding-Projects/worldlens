@@ -110,8 +110,9 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
     },
     {
         id: "wrapUp",
-        pageId: "docs",
-        anchor: '[data-tutorial-anchor="tab-docs"]',
+        // Docs lives inside the general tools tab now, so the tour points at that tab.
+        pageId: "toolkit",
+        anchor: '[data-tutorial-anchor="tab-toolkit"]',
     },
 ];
 

@@ -106,6 +106,7 @@ import { EDITORS_FIXED } from "./editors.js";
 import { EXTENSIONS_FIXED } from "./extensions.js";
 import { INFO_FIXED } from "./info.js";
 import { COREPROTECT_FIXED } from "./coreprotect.js";
+import { WORLDTOOLS_FIXED } from "./worldTools.js";
 import {
     WORLDDOWNLOADER_FACTS,
     WORLDDOWNLOADER_FIXED,
@@ -186,6 +187,7 @@ export const SURFACE_FIXED = {
     ...EXTENSIONS_FIXED,
     ...INFO_FIXED,
     ...COREPROTECT_FIXED,
+    ...WORLDTOOLS_FIXED,
     ...MEASUREDWORLDGEN_FIXED,
     ...CHROME_FIXED,
     ...CHUNKER_FIXED,

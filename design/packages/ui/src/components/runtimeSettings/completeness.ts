@@ -116,7 +116,7 @@ export function validateRuntimeCoverage(
                 errors.push(`${row.id}:${field}`);
             if (options.root !== undefined && field !== "localization" && Array.isArray(values)) {
                 for (const value of values) {
-                    const path = `${options.root}/${value}`.replaceAll("/", "\\");
+                    const path = `${options.root}/${value}`;
                     if (options.exists !== undefined && !options.exists(path)) errors.push(`${row.id}:${field}:missing:${value}`);
                 }
             }

@@ -507,8 +507,9 @@ export function resolveScheduledOverrides(
 ): RuntimeOverrides {
     const active = rules
         .filter((rule) => scheduledRuleMatches(rule, at) && rule.source === "local")
-        .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
-        .reverse();
+        // Applied in order, so the last write wins: higher priority last, and between equal
+        // priorities the later id, compared by code unit so every locale agrees.
+        .sort((a, b) => a.priority - b.priority || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     const next: Record<string, unknown> = {};
     for (const rule of active) {
         const key = rule.setting;

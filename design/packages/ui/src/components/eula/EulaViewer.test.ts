@@ -173,7 +173,11 @@ describe("the export menu", () => {
         search!.dispatchEvent(new Event("input", { bubbles: true }));
         await settle();
 
-        const rows = [...document.querySelectorAll(".v-list-item")].map((row) => row.textContent ?? "");
+        // Scoped to the menu's own overlay: the document's section list is a list too.
+        const menu = search!.closest(".v-overlay__content") ?? document;
+        const rows = [...menu.querySelectorAll(".v-list-item")].map(
+            (row) => row.textContent ?? "",
+        );
         expect(rows.some((text) => text.includes("Copy the whole document"))).toBe(true);
         expect(rows.every((text) => !text.includes("Markdown"))).toBe(true);
         expect(rows).toHaveLength(1);

@@ -90,6 +90,33 @@ interface BlockingSurface {
  * that cannot fill this field honestly is a surface that should have been a notification.
  */
 const BLOCKING_SURFACES: Record<string, BlockingSurface> = {
+    "components/nbteditor/NbtArrayEditor.vue": {
+        count: 1,
+        decision:
+            "An editor the user opened themselves to change a large NBT array, and can close again.",
+    },
+    "components/nbteditor/NbtDialogs.vue": {
+        count: 1,
+        decision:
+            "Add, rename or retype a tag: a form the user opened and must complete or cancel.",
+    },
+    "components/nbteditor/NbtEditorScreen.vue": {
+        count: 1,
+        decision: "Discard unsaved NBT edits to open something else, or keep editing.",
+    },
+    "components/nbteditor/NbtHistoryPanel.vue": {
+        count: 1,
+        decision: "Restore an earlier version of the file, or keep the current one.",
+    },
+    "components/sharehost/HostMapDialog.vue": {
+        count: 1,
+        decision:
+            "Choose where and how a map is hosted, which the user opened and must complete or cancel.",
+    },
+    "components/sharing/InstancesScreen.vue": {
+        count: 1,
+        decision: "Remove a hosted instance and the data it names, or keep it.",
+    },
     "components/config/ConfigApplyDialog.vue": {
         count: 1,
         decision: "Write these files to disk, or go back. The plan is stated before anything is written.",
