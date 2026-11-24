@@ -16,6 +16,7 @@
  */
 import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import { randomUUID } from "node:crypto";
+import { isAppRendererSender } from "../appRendererSender.js";
 import { join } from "node:path";
 import { worldgenCollection } from "./collection.js";
 import {
@@ -139,13 +140,7 @@ export function installWorldgenActionsIpc(options: Options): { dispose(): void }
             return brokerCliTransport({ lease });
         },
     });
-    const trusted =
-        options.isTrustedSender ??
-        ((event: IpcMainInvokeEvent) =>
-            !!event.sender &&
-            !event.sender.isDestroyed() &&
-            event.sender.getURL().startsWith("file:") &&
-            (!event.senderFrame || event.senderFrame === event.sender.mainFrame));
+    const trusted = options.isTrustedSender ?? isAppRendererSender;
     const handle = (
         name: (typeof WORLDGEN_ACTION_CHANNELS)[number],
         operation: (value: unknown) => Promise<unknown>,

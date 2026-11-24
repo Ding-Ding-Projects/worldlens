@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { trustAppRenderer } from "../../appRendererSender.js";
 import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -59,10 +60,12 @@ function setup(root: string) {
         removeHandler: (channel: string) => handlers.delete(channel),
     } as unknown as Pick<IpcMain, "handle" | "removeHandler">;
     const sender = {
+        id: 7,
         isDestroyed: () => false,
-        getURL: () => "file:///workspace/index.html",
+        getURL: () => "http://127.0.0.1:4100/",
         send: vi.fn(),
     };
+    trustAppRenderer(sender, "http://127.0.0.1:4100");
     const event = { sender } as unknown as IpcMainInvokeEvent;
     const server = {
         id: "generated",

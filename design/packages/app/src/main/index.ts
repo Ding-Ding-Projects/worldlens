@@ -204,6 +204,7 @@ import type { RuntimeSettingsIpc } from "./runtimeSettings/ipc.js";
 import { RuntimeCredentialStore, RuntimeSourceRegistry } from "./runtimeSettings/registry.js";
 import { createRuntimeSettingsService } from "./runtimeSettings/service.js";
 import { RuntimeHistoryService } from "./runtimeSettings/history.js";
+import { forgetAppRenderer, isAppRendererSender, trustAppRenderer } from "./appRendererSender.js";
 
 const squirrelStartupHandled = handleSquirrelShortcutEvent({
     platform: process.platform,
@@ -1069,11 +1070,7 @@ function startRendering(): RenderIpc {
             runtimeBundlePath: path.join(dirname, "..", "managed-host.mjs"),
         }),
         resolveHost: unconfiguredHostResolver(),
-        authorizeSender: (event) => {
-            const sender = (event as Electron.IpcMainInvokeEvent).sender;
-            const frame = (event as Electron.IpcMainInvokeEvent).senderFrame;
-            return !sender.isDestroyed() && sender.getURL().startsWith("file:") && (!frame || frame === sender.mainFrame);
-        },
+        authorizeSender: (event) => isAppRendererSender(event as Electron.IpcMainInvokeEvent),
         sendDeviceChallenge: (event, challenge) => {
             const sender = (event as Electron.IpcMainInvokeEvent).sender;
             if (!sender.isDestroyed()) sender.send("managedHosting:deviceChallenge", challenge);
@@ -2235,6 +2232,11 @@ async function createWindow(): Promise<void> {
             sandbox: true,
         },
     });
+
+    // The IPC handlers that act on servers and accounts accept this window's own interface,
+    // served from `baseUrl`, and nothing else; see `appRendererSender.ts`.
+    trustAppRenderer(window.webContents, baseUrl);
+    window.once("closed", forgetAppRenderer);
 
     protectBackgroundRender(window, {
         hasWork: () => (renderIpc?.orchestrator.hasActiveWork() ?? false) ||

@@ -1,6 +1,7 @@
 import { dirname, join } from "node:path";
 import { readFile } from "node:fs/promises";
 import type { IpcMain, IpcMainInvokeEvent, WebContents } from "electron";
+import { isAppRendererSender } from "../../appRendererSender.js";
 import { createServerRegistry, type ServerRegistry, type ServerRecord } from "../registry.js";
 import { listCatalogue, type FetchText } from "../flavours/catalogue.js";
 import { createLocalServer } from "../create.js";
@@ -71,13 +72,8 @@ export interface GenerationRegistrationOptions {
 const idPattern = /^[a-z][a-z0-9-]{0,62}$/;
 const isObject = (value: unknown): value is Record<string, unknown> =>
     typeof value === "object" && value !== null && !Array.isArray(value);
-function trusted(event: IpcMainInvokeEvent): boolean {
-    return (
-        !event.sender.isDestroyed() &&
-        event.sender.getURL().startsWith("file:") &&
-        (!event.senderFrame || event.senderFrame === event.sender.mainFrame)
-    );
-}
+/** The application's own interface only; see `appRendererSender.ts`. */
+const trusted = (event: IpcMainInvokeEvent): boolean => isAppRendererSender(event);
 function parseInput(value: unknown): GenerationRunInput | null {
     if (!isObject(value)) return null;
     const allowed = [

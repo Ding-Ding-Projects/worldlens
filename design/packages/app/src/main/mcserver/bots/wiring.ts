@@ -2,6 +2,7 @@ import type { IpcMain, IpcMainInvokeEvent } from "electron";
 import type { ProductionBotPorts } from "./production.js";
 import type { ServerRegistry } from "../registry.js";
 import { fail, ok, type Answer } from "../transport/types.js";
+import { isAppRendererSender } from "../../appRendererSender.js";
 import { loadMineflayerRuntime } from "./mineflayer.js";
 import { describeBotProfiles, type BotCapability } from "./profiles.js";
 import {
@@ -65,13 +66,8 @@ export interface BotIpcOptions {
     readonly mineflayerVersions?: () => readonly string[];
 }
 
-function trusted(event: IpcMainInvokeEvent): boolean {
-    return (
-        !event.sender.isDestroyed() &&
-        event.sender.getURL().startsWith("file:") &&
-        (!event.senderFrame || event.senderFrame === event.sender.mainFrame)
-    );
-}
+/** The application's own interface only; see `appRendererSender.ts`. */
+const trusted = (event: IpcMainInvokeEvent): boolean => isAppRendererSender(event);
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
     typeof value === "object" && value !== null && !Array.isArray(value);
