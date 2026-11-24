@@ -72,3 +72,16 @@ describe("overlays", () => {
         expect(packProblems(pack).some((p) => p.where === "Overlay Bad Name")).toBe(true);
     });
 });
+
+describe("advancement parents", () => {
+    it("refuses a parent that would make a loop", async () => {
+        const { canParent, newAdvancement } = await import("./datapackModel.js");
+        const a = { ...newAdvancement("a"), parent: "" };
+        const b = { ...newAdvancement("b"), parent: "a" };
+        const c = { ...newAdvancement("c"), parent: "b" };
+        const list = [a, b, c];
+        expect(canParent(list, 2, 0)).toBe(true);
+        expect(canParent(list, 0, 2)).toBe(false);
+        expect(canParent(list, 1, 1)).toBe(false);
+    });
+});

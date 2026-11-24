@@ -191,6 +191,12 @@ export interface NbtEditorBridge {
     /** A Bedrock world's records, read from its LevelDB `db` folder. Absent in older builds. */
     listBedrock?(worldDir: string): Promise<Answer<{ records: readonly BedrockRecord[]; problems: readonly string[] }>>;
     openBedrockRecord?(worldDir: string, key: string): Promise<Answer<DocumentInfo>>;
+    /** Writes a built data pack into a Java world's datapacks folder. Absent in older builds. */
+    saveDataPack?(
+        worldDir: string,
+        fileName: string,
+        base64: string,
+    ): Promise<Answer<{ path: string; bytes: number; replaced: boolean }>>;
     pickFile(): Promise<Answer<string | null>>;
     openFile(file: string, options?: { projectDir?: string; endianness?: "big" | "little" }): Promise<Answer<DocumentInfo>>;
     openChunk(file: string, index: number, options?: { projectDir?: string }): Promise<Answer<DocumentInfo>>;

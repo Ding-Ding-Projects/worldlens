@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushPromises, mount } from "@vue/test-utils";
 import { createI18n } from "vue-i18n";
 import { createVuetify } from "vuetify";
@@ -150,5 +150,54 @@ describe("DataPackCreator function editor", () => {
             overlays?: { directory: string }[];
         };
         expect(draft.overlays?.[0]?.directory).toBe("overlay");
+    });
+
+    it("makes one advancement the parent of another by dragging", async () => {
+        const w = make();
+        await w.findAll('[role="option"]').find((b) => b.text().startsWith("Advancements"))!.trigger("click");
+        const addBtn = () => w.findAll("button").find((b) => b.text() === "Add")!;
+        await addBtn().trigger("click");
+        await addBtn().trigger("click");
+        await flushPromises();
+        const nodes = w.findAll(".wl-dp__node");
+        expect(nodes).toHaveLength(2);
+        await nodes[1]!.trigger("pointerdown");
+        await nodes[0]!.trigger("pointerenter");
+        await nodes[0]!.trigger("pointerup");
+        expect(w.text()).toContain("new_advancement_2 now comes after new_advancement.");
+        const nodes2 = w.findAll(".wl-dp__node");
+        await nodes2[0]!.trigger("pointerdown");
+        await nodes2[1]!.trigger("pointerup");
+        expect(w.text()).toContain("cannot be its parent");
+    });
+
+    describe("saving into a world", () => {
+        afterEach(() => {
+            delete (window as unknown as { worldlens?: unknown }).worldlens;
+        });
+
+        it("says it needs the desktop app when there is no bridge", () => {
+            const w = make();
+            expect(w.text()).toContain("Saving into a world needs the desktop app.");
+        });
+
+        it("writes the zip into the chosen world through the bridge", async () => {
+            const saveDataPack = vi.fn(async () => ({
+                ok: true as const,
+                value: { path: "/w/datapacks/my_pack.zip", bytes: 22, replaced: false },
+            }));
+            (window as unknown as { worldlens: unknown }).worldlens = { nbtEditor: { saveDataPack } };
+            const w = make();
+            expect(w.text()).toContain("Choose a world first.");
+            const field = w.findAll("input").find((i) => i.element.closest(".wl-dp") && i.attributes("aria-label") === undefined && (i.element as HTMLInputElement).type === "text" && i.element.closest(".v-text-field")?.textContent?.includes("World folder"));
+            expect(field).toBeDefined();
+            await field!.setValue("/w");
+            await w.findAll("button").find((b) => b.text() === "Save into this world")!.trigger("click");
+            await flushPromises();
+            expect(saveDataPack).toHaveBeenCalledWith("/w", "my_pack.zip", expect.any(String));
+            const sent = (saveDataPack.mock.calls[0] as unknown as [string, string, string])[2];
+            expect(atob(sent).slice(0, 2)).toBe("PK");
+            expect(w.text()).toContain("Saved /w/datapacks/my_pack.zip.");
+        });
     });
 });

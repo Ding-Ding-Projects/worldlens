@@ -260,6 +260,30 @@ const BY_PREFIX: Readonly<Record<string, ChannelPolicy>> = Object.freeze({
         "Export, build and publish the map from the desktop application; this deployment is the result of that work, not the place to do it.",
     ),
 
+    nbtEditor: refused(
+        "The NBT editor opens, writes and keeps history for files by their full path, and it " +
+            "does not yet confine those paths to the folders the operator mounted. Until it " +
+            "does, a visitor could reach files outside the mounts, so it is not exposed.",
+        "Use the NBT editor in the desktop app.",
+    ),
+    appliance: refused(
+        "Building an appliance writes disk images, starts virtual machines and writes USB " +
+            "sticks on the machine running the app, none of which a container can do for the host.",
+        "Build appliances from the desktop app.",
+    ),
+    shareHost: optIn(
+        "docker-socket",
+        "Hosting a map starts a container on this machine or on an SSH host, which needs the Docker socket bind-mounted in.",
+    ),
+    liveViewer: optIn(
+        "docker-socket",
+        "The live viewer and its bot run as containers, which needs the Docker socket bind-mounted in.",
+    ),
+    sharing: refused(
+        "The share cards reveal folders and open links on the computer running the desktop app.",
+        "Open the link from this browser, or share from the desktop app.",
+    ),
+
     // Genuinely meaningless here, each for its own reason rather than a shared one.
     clipboard: refused(
         "The clipboard belongs to the computer running the browser, not to the server.",

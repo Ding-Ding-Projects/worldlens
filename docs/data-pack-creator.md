@@ -28,6 +28,8 @@ The **Data packs** tab (Work strip, Worlds group) makes a Java Edition data pack
 - **More parts** covers every other registry a pack can add to, each started from a small file the game reads: item modifiers, enchantments and enchantment providers, damage types, armour trim materials and patterns, banner patterns, paintings, chat types, jukebox songs, goat horn sounds, dimensions and dimension types, noise settings, density functions, configured and placed features, structures, structure sets, jigsaw template pools, processor lists and cave carvers. These are edited as JSON, checked as you type, with **Tidy the layout** and **Start again from the template**. Folders follow the version (`item_modifier` from 1.21, `item_modifiers` before).
 - **Version overlays** add `overlays.entries` to `pack.mcmeta`: a folder name and the oldest and newest version it applies to, written as `min_format` / `max_format` from format 82 and as a `formats` range before.
 - **Open a pack (.zip)** reads an existing pack. Functions and item and block tags open in their visual editors; every other registry file, including a recipe, advancement or loot table the visual editors cannot read back, opens under **More parts**. A file under another namespace (an override of `minecraft`, say) keeps that namespace. Anything that is not a registry file is kept exactly as it was and written back.
+- **Advancements** are drawn as a tree. Drag one onto another to make that its parent; a drop that would make a loop is refused and says why.
+- **Save into a world** (desktop app) lists the Minecraft worlds this computer has, or takes a folder from the browse button, and writes `<namespace>.zip` into that world's `datapacks` folder. The folder must hold `level.dat`, the file is written beside its final name and renamed over it, and a pack of the same name is replaced and reported as replaced.
 - **Find a part or file** searches section names and every entry's name, plain text by default with the regex builder beside it.
 - **Check and export** lists every problem by place, previews any file, and **Save as .zip** (enabled once there are no problems) downloads `<namespace>.zip`. Put it in the world's `datapacks` folder and run `/reload`.
 
@@ -40,7 +42,7 @@ Pack info holds the namespace and description. Everything else is a typed contro
 - Blocked storage: the editor works but the draft is not kept between visits.
 - The command check knows command names, not their arguments; the game may still reject a line.
 - A part's JSON is checked for being JSON, not against the game's schema for that registry; the game may still reject a field.
-- Not built yet: visual editors for the parts listed under **More parts**, arranging advancements by dragging, and saving straight into a world or an appliance.
+- Not built yet: visual editors for the parts listed under **More parts**, and saving into a server appliance. In a hosted deployment the save-into-world channel is refused with the rest of the NBT editor's channels, because they do not yet confine paths to the mounted folders.
 
 ## Security considerations
 
@@ -66,4 +68,4 @@ Files are built in memory and written as a stored (uncompressed) ZIP with relati
 - **Open a pack (.zip)** 打開現有 pack：函數同物品方塊標籤入視覺編輯器，其他 registry 檔案（包括視覺編輯器讀唔返嘅配方、進度、戰利品表）喺 **More parts** 打開；其他 namespace（例如覆寫 `minecraft`）嘅檔案保留原本 namespace。
 - **Find a part or file** 搜尋分類名同每個項目名，預設純文字，旁邊有 regex 建構器。
 
-草稿存喺瀏覽器儲存，撳 **Start over** 先清。ZIP 只用相對路徑，有 `..` 會拒絕，乜都唔會傳出去。函數啟用後有管理員權限，所以只開你睇過嘅 pack。part 嘅 JSON 只檢查係咪 JSON，唔係對住遊戲 schema，遊戲都可能拒絕某啲欄位。未做：More parts 嘅視覺編輯器、拖嚟排進度、直接存入世界或者專用機。匯出嘅 pack 未喺真遊戲度載入過。
+草稿存喺瀏覽器儲存，撳 **Start over** 先清。ZIP 只用相對路徑，有 `..` 會拒絕，乜都唔會傳出去。函數啟用後有管理員權限，所以只開你睇過嘅 pack。part 嘅 JSON 只檢查係咪 JSON，唔係對住遊戲 schema，遊戲都可能拒絕某啲欄位。進度樹可以拖一個去另一個度，令後者做佢嘅上一個進度，會整成循環嘅就拒絕兼講原因。**Save into a world**（桌面版）列出呢部電腦嘅世界或者用瀏覽掣揀資料夾，將 `<namespace>.zip` 寫入嗰個世界嘅 `datapacks`；資料夾一定要有 `level.dat`，先寫暫存檔再改名，同名嘅會取代兼講明。未做：More parts 嘅視覺編輯器、存入伺服器專用機；託管模式下呢個存檔通道同 NBT 編輯器其他通道一樣拒絕。匯出嘅 pack 未喺真遊戲度載入過。

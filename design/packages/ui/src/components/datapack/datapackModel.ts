@@ -495,6 +495,22 @@ export function recipeJson(pack: DataPack, r: Recipe): Record<string, unknown> {
     }
 }
 
+/**
+ * Whether `child` may take `parent` as its parent without making a loop. An advancement is
+ * never its own parent, and never the parent of one it already comes before.
+ */
+export function canParent(list: readonly Advancement[], child: number, parent: number): boolean {
+    if (child === parent || list[child] === undefined || list[parent] === undefined) return false;
+    const byName = new Map(list.map((a, i) => [a.name, i]));
+    const seen = new Set<number>();
+    for (let at: number | undefined = parent; at !== undefined; at = byName.get(list[at]!.parent)) {
+        if (at === child) return false;
+        if (seen.has(at)) break;
+        seen.add(at);
+    }
+    return true;
+}
+
 export function advancementJson(pack: DataPack, a: Advancement): Record<string, unknown> {
     const out: Record<string, unknown> = {
         display: {

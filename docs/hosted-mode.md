@@ -144,6 +144,12 @@ software rather than as software that knows where it is running.
 socket, SSH and GitHub credentials each have their own grant, and an ungranted channel names
 the grant that would allow it.
 
+The NBT editor's channels (including saving a built data pack into a world), the appliance
+builder and the share cards are refused: the NBT editor addresses files by full path and does
+not yet confine them to the mounted folders, and the other two act on the desktop machine
+itself. Hosting a map and the live viewer are opt-in behind the Docker socket grant, because
+both start containers.
+
 **A permitted channel that nothing has wired yet answers "no handler is registered".** That gap
 is deliberately visible. Narrowing the policy to whatever happens to be wired would hide it.
 
@@ -209,3 +215,5 @@ ghcr.io/ding-ding-projects/worldlens-hosted@sha256:ed9d646bf15f8f5ea3cfbf2fe4b56
 Version 1.0.2340, commit `bde9835`, CI run 45278760421, 2026-11-23. Not yet pulled and started outside CI.
 
 已發佈映像：CI 嘅 `hosted-image` job 發佈 `ghcr.io/<owner>/worldlens-hosted`，第一個 digest（上面嗰行，版本 1.0.2340，commit `bde9835`）而家係容器部署卡同 appliance app 選項嘅預設。CI 以外未拉落嚟行過。
+
+NBT 編輯器嘅通道（包括將整好嘅 data pack 存入世界）、專用機建構器同分享卡喺託管模式拒絕：NBT 編輯器用完整路徑，仲未限制喺掛載咗嘅資料夾入面；另外兩樣係喺桌面機度做嘢。託管地圖同即時檢視器要 Docker socket 授權先開，因為兩樣都會開容器。

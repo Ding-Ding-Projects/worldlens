@@ -26,6 +26,7 @@ export const dataPackCreator: Article = {
                         "More parts covers every other registry a pack can add to: item modifiers, enchantments, damage types, armour trims, banner patterns, paintings, chat types, jukebox songs, goat horns, dimensions, noise settings, density functions, features, structures, structure sets, jigsaw pools, processor lists and cave carvers. Each starts from a small file the game reads and is edited as JSON, checked as you type.",
                         "Version overlays let one pack carry files for other versions, written into pack.mcmeta in the style the chosen version reads.",
                         "Open a pack (.zip) reads an existing pack: functions and tags open in their editors, every other registry file opens under More parts, and anything else is kept and written back unchanged. A search over every part and file name sits above the list, with the regex builder beside it.",
+                        "Advancements are drawn as a tree: drag one onto another to make that its parent, and a drop that would make a loop is refused. In the desktop app, Save into a world writes the pack into a world's datapacks folder, picked from the worlds on this computer.",
                         "Check and export lists every problem by place. Save as .zip is enabled once there are none; put the file in the world's datapacks folder and run /reload.",
                     ],
                 },
@@ -50,7 +51,7 @@ export const dataPackCreator: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "The draft lives in this profile's browser storage until it is exported or cleared; if storage is blocked the editor still works but the draft is not kept. The command check knows the first word of each command, not every argument, so a line can pass here and still be rejected by the game. A part's JSON is checked for being JSON, not against the game's schema, so the game may still reject a field. Visual editors for the parts under More parts, arranging advancements by dragging, and saving straight into a world or an appliance are not built yet.",
+                        "The draft lives in this profile's browser storage until it is exported or cleared; if storage is blocked the editor still works but the draft is not kept. The command check knows the first word of each command, not every argument, so a line can pass here and still be rejected by the game. A part's JSON is checked for being JSON, not against the game's schema, so the game may still reject a field. Visual editors for the parts under More parts and saving into a server appliance are not built yet.",
                     ],
                 },
             ],

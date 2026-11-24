@@ -498,6 +498,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "nbtEditor:diffCommit",
     "nbtEditor:diffCurrent",
     "nbtEditor:restore",
+    "nbtEditor:saveDataPack",
     "liveViewer:choices",
     "liveViewer:clientId",
     "liveViewer:configureClient",

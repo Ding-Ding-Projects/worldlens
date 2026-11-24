@@ -12,6 +12,7 @@ import type { IpcMain } from "electron";
 import { NbtError, type Endianness } from "@worldlens/nbt";
 import type { Answer, EditOperation, SaveRequest, SearchRequest } from "./protocol.js";
 import { NbtEditorRefusal, type NbtEditorService } from "./service.js";
+import { saveDataPackToWorld } from "./datapackSave.js";
 
 export const NBT_EDITOR_CHANNELS = [
     "nbtEditor:listProject",
@@ -41,6 +42,7 @@ export const NBT_EDITOR_CHANNELS = [
     "nbtEditor:diffCommit",
     "nbtEditor:diffCurrent",
     "nbtEditor:restore",
+    "nbtEditor:saveDataPack",
 ] as const;
 
 export interface NbtEditorIpc {
@@ -178,6 +180,10 @@ export function registerNbtEditorHandlers(
     );
     handle("nbtEditor:diffCurrent", (doc, sha) => service.diffAgainstCurrent(text(doc, "The document"), text(sha, "The version")));
     handle("nbtEditor:restore", (doc, sha, backup) => service.restore(text(doc, "The document"), text(sha, "The version"), boolean(backup, true)));
+    handle("nbtEditor:saveDataPack", (dir, name, data) => {
+        if (typeof data !== "string" || data.length === 0) throw new NbtEditorRefusal("The pack is missing.");
+        return saveDataPackToWorld(text(dir, "The world folder"), text(name, "The file name"), data);
+    });
 
     return {
         service,

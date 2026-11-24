@@ -27,6 +27,7 @@ import FunctionEditor from "./FunctionEditor.vue";
 import { BLOCK_IDS, ITEM_IDS } from "../mcserver/commandBuilderData.js";
 import {
     PACK_VERSIONS,
+    canParent,
     emptyPack,
     lineProblem,
     newAdvancement,
@@ -45,6 +46,10 @@ import {
     type RecipeKind,
 } from "./datapackModel.js";
 import { zipStore } from "./zipStore.js";
+import PathField from "../PathField.vue";
+import MinecraftWorldList from "../world/MinecraftWorldList.vue";
+import { resolveWorldCatalogBridge } from "../world/worldCatalog.js";
+import { nbtEditorBridge } from "../nbteditor/nbtEditorBridge.js";
 import ConfigSearchField from "../config/ConfigSearchField.vue";
 import { NEW_PART_KINDS, newPart, partError, partKind, type PackPart } from "./datapackParts.js";
 import { readZip } from "./zipRead.js";
@@ -403,6 +408,41 @@ const advTree = computed(() => {
     return { nodes, edges, width, height };
 });
 
+/* Dragging one advancement onto another makes the second its parent. */
+const dragFrom = ref<number | null>(null);
+const dropOn = ref<number | null>(null);
+const dragNote = ref("");
+function startDrag(i: number, event: PointerEvent): void {
+    dragFrom.value = i;
+    dropOn.value = null;
+    (event.currentTarget as Element | null)?.releasePointerCapture?.(event.pointerId);
+}
+function overNode(i: number): void {
+    if (dragFrom.value !== null) dropOn.value = i;
+}
+function endDrag(i: number | null): void {
+    const from = dragFrom.value;
+    dragFrom.value = null;
+    dropOn.value = null;
+    if (from === null || i === null || from === i) return;
+    const list = pack.value.advancements;
+    if (!canParent(list, from, i)) {
+        dragNote.value = t(
+            "datapack.advLoop",
+            { child: list[from]!.name, parent: list[i]!.name },
+            "{parent} already comes after {child}, so it cannot be its parent.",
+        );
+        return;
+    }
+    list[from]!.parent = list[i]!.name;
+    pick.value = from;
+    dragNote.value = t(
+        "datapack.advParented",
+        { child: list[from]!.name, parent: list[i]!.name },
+        "{child} now comes after {parent}.",
+    );
+}
+
 /** The pack's files as an indented tree, for the side panel. */
 const fileTree = computed(() => {
     const out: { label: string; path: string | null; depth: number }[] = [];
@@ -419,10 +459,55 @@ const fileTree = computed(() => {
     return out;
 });
 
-function exportZip(): void {
+function zipBytes(): Uint8Array {
     const all = new Map<string, string | Uint8Array>(files.value);
     for (const [path, b64] of Object.entries(pack.value.extraBinary ?? {})) all.set(path, Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
-    const bytes = zipStore(all);
+    return zipStore(all);
+}
+
+/* Saving straight into a Java world, through the desktop app. */
+const saver = nbtEditorBridge();
+const canSaveToWorld = typeof saver?.saveDataPack === "function";
+const worldCatalog = resolveWorldCatalogBridge();
+const worldFolder = ref(localStorage.getItem("worldlens-datapack-world") ?? "");
+watch(worldFolder, (value) => {
+    try {
+        localStorage.setItem("worldlens-datapack-world", value);
+    } catch {
+        /* storage blocked: the folder is still used for this visit */
+    }
+});
+const savingToWorld = ref(false);
+const worldResult = ref("");
+async function saveToWorld(): Promise<void> {
+    if (savingToWorld.value || saver?.saveDataPack === undefined || worldFolder.value.trim() === "") return;
+    savingToWorld.value = true;
+    worldResult.value = "";
+    try {
+        const bytes = zipBytes();
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 0x8000)
+            binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        const name = `${slug(pack.value.namespace)}.zip`;
+        const answer = await saver.saveDataPack(worldFolder.value.trim(), name, btoa(binary));
+        worldResult.value = answer.ok
+            ? answer.value.replaced
+                ? t("datapack.world.replaced", { path: answer.value.path }, "Replaced {path}. Run /reload in game to use the new version.")
+                : t("datapack.world.saved", { path: answer.value.path }, "Saved {path}. Run /reload in game, or open the world, to turn it on.")
+            : t("datapack.world.failed", { reason: answer.message }, "The pack was not saved: {reason}");
+    } finally {
+        savingToWorld.value = false;
+    }
+}
+const saveToWorldWhy = computed(() => {
+    if (!canSaveToWorld) return t("datapack.world.noBridge", "Saving into a world needs the desktop app. Save as .zip instead.");
+    if (problems.value.length > 0) return t("datapack.fixFirst", "Fix the problems above to save the pack.");
+    if (worldFolder.value.trim() === "") return t("datapack.world.chooseFirst", "Choose a world first.");
+    return "";
+});
+
+function exportZip(): void {
+    const bytes = zipBytes();
     const name = `${slug(pack.value.namespace)}.zip`;
     const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/zip" }));
     const a = document.createElement("a");
@@ -851,19 +936,28 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                         :viewBox="`0 0 ${advTree.width} ${advTree.height}`"
                         :width="advTree.width"
                         role="group"
-                        :aria-label="t('datapack.advTree', 'Advancement tree; choose one to edit it')"
+                        :aria-label="t('datapack.advTree', 'Advancement tree; choose one to edit it, or drag one onto another to make that its parent')"
+                        @pointerup="endDrag(null)"
+                        @pointerleave="endDrag(null)"
                     >
                         <line v-for="(e, k) in advTree.edges" :key="'e' + k" :x1="e.from.x + 65" :y1="e.from.y + 40" :x2="e.to.x + 65" :y2="e.to.y" class="wl-dp__edge" />
                         <g
                             v-for="n in advTree.nodes"
                             :key="n.i"
                             class="wl-dp__node"
-                            :class="{ 'is-on': n.i === pick }"
+                            :class="{
+                                'is-on': n.i === pick,
+                                'is-dragging': n.i === dragFrom,
+                                'is-target': n.i === dropOn && dropOn !== dragFrom,
+                            }"
                             tabindex="0"
                             role="button"
                             :aria-label="n.name"
                             :aria-pressed="n.i === pick ? 'true' : 'false'"
                             @click="pick = n.i"
+                            @pointerdown="startDrag(n.i, $event)"
+                            @pointerenter="overNode(n.i)"
+                            @pointerup.stop="endDrag(n.i)"
                             @keydown.enter.prevent="pick = n.i"
                             @keydown.space.prevent="pick = n.i"
                         >
@@ -871,6 +965,15 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                             <text :x="n.x + 65" :y="n.y + 25" text-anchor="middle">{{ n.name.length > 16 ? n.name.slice(0, 15) + "…" : n.name }}</text>
                         </g>
                     </svg>
+                    <p class="wl-dp__note" role="status">
+                        {{
+                            dragNote ||
+                            t(
+                                "datapack.advDragHint",
+                                "Drag an advancement onto another to make that its parent, or pick the parent below.",
+                            )
+                        }}
+                    </p>
                     <div class="wl-dp__row">
                         <v-text-field
                             v-model="adv.title"
@@ -1181,6 +1284,33 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                 {{ t("datapack.fixFirst", "Fix the problems above to save the pack.") }}
             </p>
             <p class="wl-dp__note" aria-live="polite">{{ exported }}</p>
+            <h3 class="wl-dp__subtitle">{{ t("datapack.world.title", "Save into a world") }}</h3>
+            <template v-if="canSaveToWorld">
+                <MinecraftWorldList
+                    :model-value="worldFolder"
+                    :bridge="worldCatalog"
+                    @choose="(folder: string) => (worldFolder = folder)"
+                />
+                <PathField
+                    v-model="worldFolder"
+                    field="world folder"
+                    semantic="folder"
+                    :label="t('datapack.world.folder', 'World folder')"
+                    density="compact"
+                />
+            </template>
+            <div class="wl-dp__row">
+                <v-btn
+                    variant="tonal"
+                    rounded="pill"
+                    :disabled="saveToWorldWhy !== ''"
+                    :loading="savingToWorld"
+                    @click="saveToWorld"
+                    >{{ t("datapack.world.save", "Save into this world") }}</v-btn
+                >
+            </div>
+            <p v-if="saveToWorldWhy" class="wl-dp__note">{{ saveToWorldWhy }}</p>
+            <p class="wl-dp__note" role="status">{{ worldResult }}</p>
         </section>
     </div>
 </template>
@@ -1269,6 +1399,10 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
     flex-wrap: wrap;
     height: auto !important;
 }
+.wl-dp__subtitle {
+    margin: 16px 0 4px;
+    font: var(--md-sys-typescale-title-small, 500 0.875rem/1.25rem sans-serif);
+}
 .wl-dp__kind {
     min-width: 14rem;
     flex: 0 1 18rem;
@@ -1277,6 +1411,16 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
     font-family: var(--wl-font-mono, ui-monospace, "Cascadia Code", Consolas, monospace);
     font-size: 0.875rem;
     line-height: 1.45;
+}
+.wl-dp__node.is-dragging rect {
+    opacity: 0.6;
+}
+.wl-dp__node.is-target rect {
+    stroke: rgb(var(--v-theme-primary));
+    stroke-width: 3;
+}
+.wl-dp__tree {
+    touch-action: none;
 }
 .wl-dp__grow {
     flex: 1 1 200px;
