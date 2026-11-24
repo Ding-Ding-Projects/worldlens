@@ -14,7 +14,9 @@ Item modifiers have a step editor over their JSON (`itemModifier.ts`, `ItemModif
 
 World generation parts (placed features, ores, structure sets, noise settings) have typed editors (`worldgenParts.ts`, `WorldgenPartEditor.vue`), designed first on the `WorldgenParts.dc.html` board.
 
-Still to do: typed editors for the remaining More parts kinds, saving a pack into a server appliance, the Oracle relay test on a real VM (needs the user). A full `npx vitest run packages/ui --maxWorkers=3` on 2026-11-24 passed 6381 tests in 498 files (2 skipped); it exits 1 only on two vitest worker RPC timeouts ("Timeout calling onTaskUpdate") under load, and runs with more workers were cut short by the worker channel closing. `packages/site` "keeps no secret on screen" failed once in three runs and passed alone; it looks timing-sensitive.
+A pack can be saved onto a managed server (`mcserver:datapack:install`, `datapackInstall.ts`), and the management web console has `POST /api/servers/<id>/datapacks`. The server appliance's management site still has no signed-in page at all: after sign-in, `/` falls through to no handler, so its upload and every other API are reachable only by API for now.
+
+Still to do: typed editors for the remaining More parts kinds, a signed-in page on the server appliance's management site (designs `McServer.dc.html`, `Admin.dc.html`), the Oracle relay test on a real VM (needs the user). A full `npx vitest run packages/ui --maxWorkers=3` on 2026-11-24 passed 6381 tests in 498 files (2 skipped); it exits 1 only on two vitest worker RPC timeouts ("Timeout calling onTaskUpdate") under load, and runs with more workers were cut short by the worker channel closing. `packages/site` "keeps no secret on screen" failed once in three runs and passed alone; it looks timing-sensitive.
 
 ## 2026-11-23 Chunk view, chunk picker, data pack creator, container deploy
 

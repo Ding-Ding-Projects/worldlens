@@ -183,6 +183,10 @@ export function createWorldlensBridge<TBridge>(transport: BridgeTransport): TBri
             },
             logTail: (id: unknown, lines: unknown) =>
                 transport.invoke("mcserver:log:tail", id, lines),
+            datapacks: {
+                install: (id: unknown, fileName: unknown, base64: unknown) =>
+                    transport.invoke("mcserver:datapack:install", id, fileName, base64),
+            },
             adopt: {
                 discover: () => transport.invoke("mcserver:adopt:discover"),
                 confirm: (request: unknown) => transport.invoke("mcserver:adopt", request),

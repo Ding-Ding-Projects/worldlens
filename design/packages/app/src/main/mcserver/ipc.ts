@@ -35,6 +35,7 @@ import {
     type AdoptionStore,
 } from "./adopt/record.js";
 import { releaseAdoption } from "./adopt/release.js";
+import { installDataPack, MAX_SERVER_DATAPACK_BYTES } from "./datapackInstall.js";
 import { listWorlds } from "./adopt/worlds.js";
 import { createServerBackup, listServerBackups, restoreServerBackup } from "./adopt/backups.js";
 import { createTransport, type FactoryDeps } from "./transport/factory.js";
@@ -135,6 +136,7 @@ export const MCSERVER_CHANNELS = {
     fileRead: "mcserver:file:read",
     fileWrite: "mcserver:file:write",
     logTail: "mcserver:log:tail",
+    datapackInstall: "mcserver:datapack:install",
     webConsoleStatus: "mcserver:webconsole:status",
     webConsoleStart: "mcserver:webconsole:start",
     webConsoleStop: "mcserver:webconsole:stop",
@@ -1322,6 +1324,23 @@ export function registerMcServerHandlers(
                     kind: "config",
                 },
             );
+        },
+
+        [MCSERVER_CHANNELS.datapackInstall]: async (
+            _event: never,
+            id: unknown,
+            fileName: unknown,
+            base64: unknown,
+        ) => {
+            if (typeof fileName !== "string" || typeof base64 !== "string" || base64.length === 0) {
+                return fail("invalid-request", "The pack could not be read.");
+            }
+            if (base64.length > Math.ceil((MAX_SERVER_DATAPACK_BYTES * 4) / 3) + 4) {
+                return fail("invalid-request", "The pack is larger than 64 MiB.");
+            }
+            const opened = await open(id);
+            if (!opened.ok) return opened;
+            return installDataPack(opened.value.transport, fileName, new Uint8Array(Buffer.from(base64, "base64")));
         },
 
         [MCSERVER_CHANNELS.logTail]: async (_event: never, id: unknown, lines: unknown) => {

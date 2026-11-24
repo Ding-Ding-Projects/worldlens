@@ -205,4 +205,21 @@ describe("DataPackCreator function editor", () => {
             expect(w.text()).toContain("Saved /w/datapacks/my_pack.zip.");
         });
     });
+
+    it("saves the pack onto a managed server through its transport", async () => {
+        const install = vi.fn(async () => ({
+            ok: true as const,
+            value: { path: "world/datapacks/my_pack.zip", replaced: true, world: "world" },
+        }));
+        (window as unknown as { worldlens: unknown }).worldlens = {
+            mcserver: { list: async () => ({ ok: true, value: [{ id: "s1", name: "Survival" }] }), datapacks: { install } },
+        };
+        const w = make();
+        await flushPromises();
+        await w.findAll("button").find((b) => b.text() === "Save onto this server")!.trigger("click");
+        await flushPromises();
+        expect(install).toHaveBeenCalledWith("s1", "my_pack.zip", expect.any(String));
+        expect(w.text()).toContain("Replaced world/datapacks/my_pack.zip on the server.");
+        delete (window as unknown as { worldlens?: unknown }).worldlens;
+    });
 });

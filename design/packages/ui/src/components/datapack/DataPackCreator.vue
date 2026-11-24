@@ -501,6 +501,62 @@ async function saveToWorld(): Promise<void> {
         savingToWorld.value = false;
     }
 }
+/* Saving onto a server WorldLens manages (local, Docker or SSH), through its own transport. */
+interface ServerHost {
+    list?(): Promise<{ ok: boolean; value?: readonly { id: string; name: string }[] }>;
+    datapacks?: {
+        install?(
+            id: string,
+            fileName: string,
+            base64: string,
+        ): Promise<
+            | { ok: true; value: { path: string; replaced: boolean; world: string } }
+            | { ok: false; failure: { message: string } }
+        >;
+    };
+}
+const serverHost = (globalThis as { worldlens?: { mcserver?: ServerHost } }).worldlens?.mcserver ?? null;
+const canSaveToServer = typeof serverHost?.datapacks?.install === "function";
+const servers = ref<{ value: string; title: string }[]>([]);
+const serverId = ref<string | null>(null);
+const savingToServer = ref(false);
+const serverResult = ref("");
+if (canSaveToServer && typeof serverHost?.list === "function") {
+    void serverHost.list().then((answer) => {
+        if (!answer.ok || answer.value === undefined) return;
+        servers.value = answer.value.map((s) => ({ value: s.id, title: s.name }));
+        if (serverId.value === null && servers.value.length === 1) serverId.value = servers.value[0]!.value;
+    });
+}
+const saveToServerWhy = computed(() => {
+    if (!canSaveToServer) return t("datapack.server.noBridge", "Saving onto a server needs the desktop app.");
+    if (problems.value.length > 0) return t("datapack.fixFirst", "Fix the problems above to save the pack.");
+    if (servers.value.length === 0)
+        return t("datapack.server.none", "No servers are managed here yet. Add one on Minecraft servers first.");
+    if (serverId.value === null) return t("datapack.server.chooseFirst", "Choose a server first.");
+    return "";
+});
+async function saveToServer(): Promise<void> {
+    const install = serverHost?.datapacks?.install;
+    if (savingToServer.value || install === undefined || serverId.value === null) return;
+    savingToServer.value = true;
+    serverResult.value = "";
+    try {
+        const bytes = zipBytes();
+        let binary = "";
+        for (let i = 0; i < bytes.length; i += 0x8000)
+            binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+        const answer = await install(serverId.value, `${slug(pack.value.namespace)}.zip`, btoa(binary));
+        serverResult.value = answer.ok
+            ? answer.value.replaced
+                ? t("datapack.server.replaced", { path: answer.value.path }, "Replaced {path} on the server. Run /reload there to use it.")
+                : t("datapack.server.saved", { path: answer.value.path }, "Saved {path} on the server. Run /reload there to turn it on.")
+            : t("datapack.server.failed", { reason: answer.failure.message }, "The pack was not saved: {reason}");
+    } finally {
+        savingToServer.value = false;
+    }
+}
+
 const saveToWorldWhy = computed(() => {
     if (!canSaveToWorld) return t("datapack.world.noBridge", "Saving into a world needs the desktop app. Save as .zip instead.");
     if (problems.value.length > 0) return t("datapack.fixFirst", "Fix the problems above to save the pack.");
@@ -1322,6 +1378,28 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
             </div>
             <p v-if="saveToWorldWhy" class="wl-dp__note">{{ saveToWorldWhy }}</p>
             <p class="wl-dp__note" role="status">{{ worldResult }}</p>
+            <h3 class="wl-dp__subtitle">{{ t("datapack.server.title", "Save onto a server") }}</h3>
+            <v-select
+                v-if="canSaveToServer && servers.length"
+                v-model="serverId"
+                :items="servers"
+                :label="t('datapack.server.which', 'Server')"
+                density="compact"
+                variant="outlined"
+                hide-details
+            />
+            <div class="wl-dp__row">
+                <v-btn
+                    variant="tonal"
+                    rounded="pill"
+                    :disabled="saveToServerWhy !== ''"
+                    :loading="savingToServer"
+                    @click="saveToServer"
+                    >{{ t("datapack.server.save", "Save onto this server") }}</v-btn
+                >
+            </div>
+            <p v-if="saveToServerWhy" class="wl-dp__note">{{ saveToServerWhy }}</p>
+            <p class="wl-dp__note" role="status">{{ serverResult }}</p>
         </section>
     </div>
 </template>

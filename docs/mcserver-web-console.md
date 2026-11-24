@@ -13,6 +13,8 @@ own controls (`webConsoleStart`, `webConsoleStop`, `webConsoleBind`,
 `webConsoleSetPassword`, `webConsoleStatus`), which call straight through to
 `startWebConsoleServer` in the main process.
 
+A signed-in session can also put a data pack onto a server: `POST /api/servers/<id>/datapacks?name=<file>.zip` with the .zip as the request body (64 MiB at most). It goes through the same `installDataPack` the desktop app uses, which reads `level-name` from the server's `server.properties`, makes `<level-name>/datapacks`, and writes the pack there through the server's transport and write scope, backing up a pack of the same name and saying that it was replaced. On the Minecraft server appliance this is the route a page on its management site would upload to; that page is not built yet.
+
 Signing in uses a password, checked with scrypt and a `timingSafeEqual` comparison so a
 wrong guess takes the same time whether it differs in the first byte or the last. Every
 route before authentication renders in ordinary professional English — no project jargon, no
@@ -88,6 +90,7 @@ after the fact.
 - `packages/app/src/main/mcserver/webconsole/server.test.ts` covers the HTTP server itself:
   routing, the loopback/non-loopback bind refusal, and the authenticated surface end to end
   against an in-memory transport.
+- `server.test.ts` also proves the data pack route refuses an unsigned request (401) and answers 404 for a server it does not know; `datapackInstall.test.ts` covers the level-name lookup, the folder and file it writes, and the refusals.
 - `packages/ui/src/components/mcserver/WebConsolePanel.vue`'s start/stop/bind/set-password
   controls are covered by the shared mount and bridge contract tests.
 - Not yet run: a real browser, on a different machine, signing in to a real running instance

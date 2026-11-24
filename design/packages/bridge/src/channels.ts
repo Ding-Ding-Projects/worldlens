@@ -265,6 +265,7 @@ export const BRIDGE_INVOKE_CHANNELS = Object.freeze([
     "mcserver:java:resolve",
     "mcserver:list",
     "mcserver:log:tail",
+    "mcserver:datapack:install",
     "mcserver:players:action",
     "mcserver:players:list",
     "mcserver:plugins:install",

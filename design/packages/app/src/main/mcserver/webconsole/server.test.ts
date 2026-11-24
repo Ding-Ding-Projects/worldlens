@@ -255,6 +255,28 @@ describe("web console server", () => {
         expect(res.status).toBe(401);
     });
 
+    it("takes a data pack upload only from a signed-in session, for a server it knows", async () => {
+        const dataFolder = `${process.env["TEMP"] ?? "/tmp"}/wl-test-${Math.random()}`;
+        const vault = fakeVault();
+        const record = await buildWebConsolePasswordRecord(vault, "pw-for-packs", { N: 1024, r: 4, p: 1, keylen: 32 });
+        const handle = await startWebConsoleServer({
+            registry: createServerRegistry({ dataFolder }),
+            safeStorage: vault,
+            dataFolder,
+            host: "127.0.0.1",
+            port: 0,
+        });
+        activeHandles.push(handle);
+        const { WebConsolePasswordStore } = await import("./passwordStore.js");
+        await new WebConsolePasswordStore(dataFolder).put(record as Buffer);
+
+        expect((await request(handle, "POST", "/api/servers/nope/datapacks?name=a.zip")).status).toBe(401);
+        const signedIn = await request(handle, "POST", "/api/auth/signin", { body: { password: "pw-for-packs" } });
+        const cookie = extractCookie(signedIn.headers) as string;
+        const missing = await request(handle, "POST", "/api/servers/nope/datapacks?name=a.zip", { cookie });
+        expect(missing.status).toBe(404);
+    });
+
     it("sign-out clears the cookie and the session no longer authenticates", async () => {
         const dataFolder = `${process.env["TEMP"] ?? "/tmp"}/wl-test-${Math.random()}`;
         const vault = fakeVault();

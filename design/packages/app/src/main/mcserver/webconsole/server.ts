@@ -27,6 +27,7 @@ import { WebConsolePasswordStore } from "./passwordStore.js";
 import { SessionManager } from "./sessions.js";
 import { LockoutTracker, SignInGate, UnlockLadder, isRung } from "./lockout.js";
 import { buildAccountsHandler, type AccountsOptions } from "./accountsRoutes.js";
+import { installDataPack, MAX_SERVER_DATAPACK_BYTES } from "../datapackInstall.js";
 
 const SESSION_COOKIE_NAME = "wl_console_session";
 
@@ -384,6 +385,35 @@ export function buildWebConsoleHandlers(options: WebConsoleServerOptions): {
                 const timeoutMs = typeof b.timeoutMs === "number" && b.timeoutMs > 0 && b.timeoutMs <= 600_000 ? b.timeoutMs : 60_000;
                 const stopped = await built.value.stop({ graceful, timeoutMs });
                 sendJson(res, stopped.ok ? 200 : 502, stopped);
+                return true;
+            }
+
+            if (parts.length === 4 && parts[3] === "datapacks" && req.method === "POST") {
+                // The body is the .zip itself; the file name comes in the query string.
+                const id = parts[2] as string;
+                const fileName = url.searchParams.get("name") ?? "";
+                const chunks: Buffer[] = [];
+                let total = 0;
+                for await (const chunk of req) {
+                    total += (chunk as Buffer).length;
+                    if (total > MAX_SERVER_DATAPACK_BYTES) {
+                        sendJson(res, 413, { ok: false, error: "The pack is larger than 64 MiB." });
+                        return true;
+                    }
+                    chunks.push(chunk as Buffer);
+                }
+                const found = await options.registry.get(id);
+                if (!found.ok) {
+                    sendJson(res, 404, found);
+                    return true;
+                }
+                const built = createTransport(found.value.ref, { ...options.factory, writeScope: found.value.writeScope });
+                if (!built.ok) {
+                    sendJson(res, 502, built);
+                    return true;
+                }
+                const installed = await installDataPack(built.value, fileName, new Uint8Array(Buffer.concat(chunks)));
+                sendJson(res, installed.ok ? 200 : installed.failure.code === "invalid-request" ? 400 : 502, installed);
                 return true;
             }
 

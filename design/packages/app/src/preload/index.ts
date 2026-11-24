@@ -2805,6 +2805,9 @@ interface WorldlensBridge {
             ): Promise<unknown>;
         };
         logTail(id: string, lines?: number): Promise<unknown>;
+        datapacks: {
+            install(id: string, fileName: string, base64: string): Promise<unknown>;
+        };
         adopt: {
             discover(): Promise<unknown>;
             confirm(request: {
