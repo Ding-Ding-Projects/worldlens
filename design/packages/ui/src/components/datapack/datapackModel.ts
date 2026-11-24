@@ -193,6 +193,7 @@ export function emptyPack(): DataPack {
         tags: [],
         advancements: [],
         lootTables: [],
+        predicates: [],
     };
 }
 

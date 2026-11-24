@@ -77,3 +77,21 @@ describe("DataPackCreator", () => {
         expect(w.text()).toContain("No problems found");
     });
 });
+
+describe("DataPackCreator predicates", () => {
+    beforeEach(() => localStorage.clear());
+    it("adds a predicate and writes its file", async () => {
+        const w = make();
+        await w
+            .findAll('[role="option"]')
+            .find((b) => b.text().startsWith("Predicates"))!
+            .trigger("click");
+        await w
+            .findAll("button")
+            .find((b) => b.text() === "Add")!
+            .trigger("click");
+        expect(w.text()).toContain("Snap conditions together");
+        expect(w.text()).toContain("All of");
+        expect(w.text()).toContain("predicate/new_predicate.json");
+    });
+});

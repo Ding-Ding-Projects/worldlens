@@ -22,6 +22,7 @@ import {
     VTextarea,
 } from "vuetify/components";
 import CommandBuilder from "../mcserver/CommandBuilder.vue";
+import PredicateBlockEditor from "./PredicateBlockEditor.vue";
 import { BLOCK_IDS, ITEM_IDS } from "../mcserver/commandBuilderData.js";
 import {
     PACK_VERSIONS,
@@ -30,6 +31,7 @@ import {
     newAdvancement,
     newFunction,
     newLootTable,
+    newPredicate,
     newRecipe,
     newTag,
     packFiles,
@@ -46,7 +48,7 @@ const STORE = "worldlens-datapack-draft";
 function readDraft(): DataPack {
     try {
         const raw = localStorage.getItem(STORE);
-        if (raw) return { ...emptyPack(), ...(JSON.parse(raw) as Partial<DataPack>) };
+        if (raw) return { ...emptyPack(), predicates: [], ...(JSON.parse(raw) as Partial<DataPack>) };
     } catch {
         /* a bad or missing draft starts empty */
     }
@@ -65,7 +67,7 @@ watch(
     { deep: true },
 );
 
-type Section = "pack" | "recipes" | "functions" | "tags" | "advancements" | "lootTables";
+type Section = "pack" | "recipes" | "functions" | "tags" | "advancements" | "lootTables" | "predicates";
 const section = ref<Section>("recipes");
 const pick = ref(0);
 watch(section, () => (pick.value = 0));
@@ -97,11 +99,18 @@ const sections = computed(() => [
         label: t("datapack.section.lootTables", "Loot tables"),
         count: pack.value.lootTables.length,
     },
+    {
+        id: "predicates" as const,
+        label: t("datapack.section.predicates", "Predicates"),
+        count: (pack.value.predicates ?? []).length,
+    },
 ]);
 
-const items = computed(() =>
-    section.value === "pack" ? [] : (pack.value[section.value] as { name: string }[]),
-);
+const items = computed(() => {
+    if (section.value === "pack") return [];
+    if (section.value === "predicates") return (pack.value.predicates ??= []);
+    return pack.value[section.value] as { name: string }[];
+});
 function add(): void {
     const s = section.value;
     if (s === "pack") return;
@@ -111,6 +120,7 @@ function add(): void {
         tags: "new_tag",
         advancements: "new_advancement",
         lootTables: "new_loot_table",
+        predicates: "new_predicate",
     }[s];
     let name = base;
     for (let n = 2; items.value.some((i) => i.name === name); n++) name = `${base}_${n}`;
@@ -120,8 +130,9 @@ function add(): void {
         tags: newTag,
         advancements: newAdvancement,
         lootTables: newLootTable,
+        predicates: newPredicate,
     }[s](name);
-    (pack.value[s] as unknown[]).push(made);
+    (items.value as unknown[]).push(made);
     pick.value = items.value.length - 1;
 }
 const currentName = computed({
@@ -134,7 +145,7 @@ const currentName = computed({
 function removeCurrent(): void {
     const s = section.value;
     if (s === "pack") return;
-    (pack.value[s] as unknown[]).splice(pick.value, 1);
+    (items.value as unknown[]).splice(pick.value, 1);
     pick.value = Math.max(0, pick.value - 1);
 }
 const recipe = computed(() =>
@@ -146,6 +157,9 @@ const fn = computed(() =>
 const tag = computed(() => (section.value === "tags" ? pack.value.tags[pick.value] : undefined));
 const adv = computed(() =>
     section.value === "advancements" ? pack.value.advancements[pick.value] : undefined,
+);
+const predicate = computed(() =>
+    section.value === "predicates" ? (pack.value.predicates ?? [])[pick.value] : undefined,
 );
 const loot = computed(() =>
     section.value === "lootTables" ? pack.value.lootTables[pick.value] : undefined,
@@ -728,6 +742,11 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                             :label="t('datapack.hidden', 'Hidden until earned')"
                         />
                     </div>
+                </template>
+
+                <template v-if="predicate">
+                    <p class="wl-dp__note">{{ t("datapack.pred.help", "Snap conditions together. Groups hold other blocks; the pack writes the game's predicate file.") }}</p>
+                    <predicate-block-editor :block="predicate.root" />
                 </template>
 
                 <template v-if="loot">
