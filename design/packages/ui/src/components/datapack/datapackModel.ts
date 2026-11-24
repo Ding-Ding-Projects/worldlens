@@ -183,7 +183,12 @@ export interface DataPack {
     predicates?: Predicate[];
     /** Files kept exactly as they were opened, for parts this editor does not edit yet. */
     extraFiles?: Record<string, string>;
+    /** Binary files (pack.png and the like) kept as they were opened, base64. */
+    extraBinary?: Record<string, string>;
 }
+
+/** Text files that are part of a pack; anything else is kept as binary. */
+export const isPackText = (path: string): boolean => /\.(json|mcfunction|mcmeta|txt|nbt\.snbt)$/i.test(path);
 
 export function emptyPack(): DataPack {
     return {

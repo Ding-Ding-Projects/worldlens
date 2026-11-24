@@ -33,6 +33,7 @@ import {
     newLootTable,
     newPredicate,
     packFromFiles,
+    isPackText,
     newRecipe,
     newTag,
     packFiles,
@@ -229,8 +230,12 @@ async function openZip(event: Event): Promise<void> {
     if (!file) return;
     try {
         const entries = await readZip(new Uint8Array(await file.arrayBuffer()));
-        const text = new Map([...entries].map(([k, v]) => [k, new TextDecoder().decode(v)]));
+        const text = new Map([...entries].filter(([k]) => isPackText(k)).map(([k, v]) => [k, new TextDecoder().decode(v)]));
         const { pack: loaded, kept } = packFromFiles(text);
+        const root = [...text.keys()].find((k) => k.endsWith("pack.mcmeta"))?.replace(/pack\.mcmeta$/, "") ?? "";
+        loaded.extraBinary = Object.fromEntries(
+            [...entries].filter(([k]) => !isPackText(k) && k.startsWith(root)).map(([k, v]) => [k.slice(root.length), btoa(String.fromCharCode(...v))]),
+        );
         pack.value = loaded;
         section.value = "pack";
         opened.value = t("datapack.opened", { name: file.name, kept }, "Opened {name}. Functions and tags are editable; {kept} other file(s) are kept exactly as they were.");
@@ -289,7 +294,9 @@ const fileTree = computed(() => {
 });
 
 function exportZip(): void {
-    const bytes = zipStore(files.value);
+    const all = new Map<string, string | Uint8Array>(files.value);
+    for (const [path, b64] of Object.entries(pack.value.extraBinary ?? {})) all.set(path, Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+    const bytes = zipStore(all);
     const name = `${slug(pack.value.namespace)}.zip`;
     const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/zip" }));
     const a = document.createElement("a");
