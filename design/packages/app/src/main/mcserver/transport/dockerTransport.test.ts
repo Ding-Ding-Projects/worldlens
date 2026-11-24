@@ -362,11 +362,25 @@ describe("dockerTransport console", () => {
         const lines: string[] = [];
         for await (const line of attached.value.lines) lines.push(line.text);
         expect(lines).toEqual(["[12:00:00 INFO]: Starting minecraft server", "[12:00:30 INFO]: Done!"]);
-        expect(calls[0]?.args).toEqual(["logs", "--tail", "200", "mc-paper"]);
+        expect(calls[0]?.args).toEqual(["logs", "--timestamps", "--tail", "200", "mc-paper"]);
         // No --follow, and above all no `attach`: a stray signal through an attached TTY
         // would take a live server full of players down with it.
         expect(calls[0]?.args).not.toContain("--follow");
         expect(calls[0]?.args[0]).not.toBe("attach");
+    });
+
+    it("puts stdout and stderr back in the order they were written", async () => {
+        const { transport } = build(() =>
+            output({
+                stdout: "2026-11-24T07:51:12.5Z [init] Starting\n2026-11-24T07:52:21.000000001Z [Server] ping one",
+                stderr: "2026-11-24T07:51:13.25Z WARNING: Unsafe",
+            }),
+        );
+        const attached = await transport.attach({ tail: 200 });
+        if (!attached.ok) throw new Error("attach failed");
+        const lines: string[] = [];
+        for await (const line of attached.value.lines) lines.push(`${line.stream}:${line.text}`);
+        expect(lines).toEqual(["stdout:[init] Starting", "stderr:WARNING: Unsafe", "stdout:[Server] ping one"]);
     });
 
     it("points console writes at RCON rather than pretending to send them", async () => {

@@ -80,6 +80,40 @@ export interface FileChannel {
     discard(stagedPath: string): Promise<void>;
 }
 
+const LOG_STAMP = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})) (.*)$/;
+
+/** A sortable key for an RFC 3339 stamp with up to nanosecond digits, in UTC. */
+function stampKey(at: string): string {
+    if (at === "") return "";
+    const fraction = /\.(\d+)/.exec(at)?.[1] ?? "";
+    const whole = new Date(at.replace(/\.\d+/, ""));
+    if (Number.isNaN(whole.getTime())) return at;
+    return `${whole.toISOString().slice(0, 19)}.${fraction.padEnd(9, "0").slice(0, 9)}`;
+}
+
+/**
+ * Interleaves `docker logs --timestamps` stdout and stderr back into the order they were
+ * written, and strips the timestamps from the text. A line without a stamp keeps its place
+ * after the line before it.
+ */
+export function mergeTimestampedLogs(stdout: string, stderr: string, now: () => string): ConsoleLine[] {
+    const parse = (text: string, stream: "stdout" | "stderr") => {
+        const out: { at: string; sortKey: string; text: string; stream: "stdout" | "stderr"; order: number }[] = [];
+        let last = "";
+        for (const raw of text.split(/\r?\n/)) {
+            if (raw === "") continue;
+            const m = LOG_STAMP.exec(raw);
+            const at = m ? m[1]! : last;
+            last = at;
+            out.push({ at, sortKey: stampKey(at), text: m ? m[2]! : raw, stream, order: out.length });
+        }
+        return out;
+    };
+    const all = [...parse(stdout, "stdout"), ...parse(stderr, "stderr")];
+    all.sort((a, b) => (a.sortKey < b.sortKey ? -1 : a.sortKey > b.sortKey ? 1 : a.stream === b.stream ? a.order - b.order : 0));
+    return all.map((l) => ({ stream: l.stream, text: l.text, at: l.at === "" ? now() : l.at }));
+}
+
 export interface DockerTransportOptions {
     readonly ref: TransportRef;
     readonly containerRef: string;
@@ -484,16 +518,18 @@ export function createDockerTransport(options: DockerTransportOptions): ServerTr
         // A one-shot replay rather than a live follow. The supervising session layer above
         // re-reads on an interval and de-duplicates, which is what lets a dropped SSH
         // connection be re-established without the transcript doubling up.
+        // --timestamps, because docker hands back stdout and stderr as two separate streams:
+        // putting one after the other moved every stderr line (Java warnings, the image's own
+        // [init] lines) to the end, so a reader comparing two replays saw lines jump around
+        // and treated old ones as new. The timestamps put both streams back in order.
         const output = await options.runner(
             docker,
-            ["logs", "--tail", String(tail), container],
+            ["logs", "--timestamps", "--tail", String(tail), container],
             { timeoutMs: 30_000, signal: controller.signal },
         );
         if (!output.ok) return classify(output, "read that server's log");
 
-        for (const line of `${output.stdout}\n${output.stderr}`.split(/\r?\n/)) {
-            if (line !== "") queue.push({ stream: "stdout", text: line, at: now() });
-        }
+        for (const line of mergeTimestampedLogs(output.stdout, output.stderr, now)) queue.push(line);
         finish("stream-ended", output.exitCode);
 
         const session: ConsoleSession = {
