@@ -142,3 +142,33 @@ describe("zip writer", () => {
         expect(() => zipStore(new Map([["../evil", "x"]]))).toThrow(/Unsafe/);
     });
 });
+
+describe("predicates", () => {
+    it("writes nested condition blocks as the game's predicate JSON", async () => {
+        const { predicateJson, newPredicate } = await import("./datapackModel.js");
+        const root = {
+            kind: "all" as const,
+            children: [
+                { kind: "weather" as const, raining: true, thundering: false },
+                { kind: "not" as const, child: { kind: "biome" as const, biome: "plains" } },
+                { kind: "chance" as const, chance: 0.25 },
+            ],
+        };
+        expect(predicateJson(root)).toEqual({
+            condition: "minecraft:all_of",
+            terms: [
+                { condition: "minecraft:weather_check", raining: true, thundering: false },
+                {
+                    condition: "minecraft:inverted",
+                    term: {
+                        condition: "minecraft:location_check",
+                        predicate: { biomes: "minecraft:plains" },
+                    },
+                },
+                { condition: "minecraft:random_chance", chance: 0.25 },
+            ],
+        });
+        const pack = { ...emptyPack(), predicates: [{ ...newPredicate("rainy"), root }] };
+        expect([...packFiles(pack).keys()]).toContain("data/my_pack/predicate/rainy.json");
+    });
+});

@@ -109,6 +109,68 @@ export interface LootTable {
     entries: LootEntry[];
 }
 
+/** One predicate condition block. Groups hold other blocks. */
+export type PredicateBlock =
+    | { kind: "all" | "any"; children: PredicateBlock[] }
+    | { kind: "not"; child: PredicateBlock | null }
+    | { kind: "weather"; raining: boolean; thundering: boolean }
+    | { kind: "chance"; chance: number }
+    | { kind: "biome"; biome: string }
+    | { kind: "time"; min: number; max: number }
+    | { kind: "score"; objective: string; min: number; max: number };
+
+export interface Predicate {
+    name: string;
+    root: PredicateBlock;
+}
+
+export const newPredicate = (name: string): Predicate => ({
+    name,
+    root: { kind: "all", children: [] },
+});
+
+export function predicateJson(b: PredicateBlock): Record<string, unknown> {
+    switch (b.kind) {
+        case "all":
+            return { condition: "minecraft:all_of", terms: b.children.map(predicateJson) };
+        case "any":
+            return { condition: "minecraft:any_of", terms: b.children.map(predicateJson) };
+        case "not":
+            return {
+                condition: "minecraft:inverted",
+                term:
+                    b.child === null
+                        ? { condition: "minecraft:all_of", terms: [] }
+                        : predicateJson(b.child),
+            };
+        case "weather":
+            return {
+                condition: "minecraft:weather_check",
+                raining: b.raining,
+                thundering: b.thundering,
+            };
+        case "chance":
+            return { condition: "minecraft:random_chance", chance: b.chance };
+        case "biome":
+            return {
+                condition: "minecraft:location_check",
+                predicate: { biomes: fullId(b.biome) },
+            };
+        case "time":
+            return {
+                condition: "minecraft:time_check",
+                value: { min: b.min, max: b.max },
+                period: 24000,
+            };
+        case "score":
+            return {
+                condition: "minecraft:entity_scores",
+                entity: "this",
+                scores: { [b.objective]: { min: b.min, max: b.max } },
+            };
+    }
+}
+
 export interface DataPack {
     namespace: string;
     description: string;
@@ -118,6 +180,7 @@ export interface DataPack {
     tags: PackTag[];
     advancements: Advancement[];
     lootTables: LootTable[];
+    predicates?: Predicate[];
 }
 
 export function emptyPack(): DataPack {
@@ -432,6 +495,11 @@ export function packFiles(pack: DataPack): Map<string, string> {
         files.set(
             `data/${ns}/${folder(pack, "advancement")}/${a.name}.json`,
             json(advancementJson(pack, a)),
+        );
+    for (const pr of pack.predicates ?? [])
+        files.set(
+            `data/${ns}/${singular(pack) ? "predicate" : "predicates"}/${pr.name}.json`,
+            json(predicateJson(pr.root)),
         );
     for (const l of pack.lootTables)
         files.set(
