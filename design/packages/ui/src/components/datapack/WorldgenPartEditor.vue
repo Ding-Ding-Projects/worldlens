@@ -11,6 +11,15 @@ import { VBtn, VCombobox, VRangeSlider, VSelect, VSlider, VSwitch, VTextField } 
 import { BLOCK_IDS } from "../mcserver/commandBuilderData.js";
 import {
     NEW_PLACEMENT_KINDS,
+    NEW_PROCESSOR_KINDS,
+    newPoolPiece,
+    newProcessor,
+    readPool,
+    readProcessors,
+    writePool,
+    writeProcessors,
+    type PoolPiece,
+    type Processor,
     getAt,
     newPlacement,
     parseObject,
@@ -24,7 +33,7 @@ import {
     type PlacementStep,
 } from "./worldgenParts.js";
 
-const props = defineProps<{ kind: string; text: string }>();
+const props = withDefaults(defineProps<{ kind: string; text: string; namespace?: string }>(), { namespace: "my_pack" });
 const emit = defineEmits<{ "update:text": [text: string] }>();
 const { t } = useI18n();
 
@@ -100,6 +109,45 @@ const cells = computed(() => {
 });
 
 const blocks = [...BLOCK_IDS];
+
+/* Jigsaw pool */
+const pool = computed(() => (props.kind === "template_pool" ? readPool(props.text) : null));
+const poolTotal = computed(() => (pool.value ?? []).reduce((sum, p) => sum + Math.max(0, p.weight), 0));
+function changePiece(i: number, patch: Partial<PoolPiece>): void {
+    if (!pool.value) return;
+    const list = pool.value.map((p, k) => (k === i ? { ...p, ...patch } : p));
+    emit("update:text", writePool(props.text, list));
+}
+function removePiece(i: number): void {
+    if (!pool.value) return;
+    emit("update:text", writePool(props.text, pool.value.filter((_, k) => k !== i)));
+}
+function addPiece(): void {
+    emit("update:text", writePool(props.text, [...(pool.value ?? []), newPoolPiece(props.namespace)]));
+}
+
+/* Processor list */
+const processors = computed(() => (props.kind === "processor_list" ? readProcessors(props.text) : null));
+function changeProcessor(i: number, next: Processor): void {
+    if (!processors.value) return;
+    emit("update:text", writeProcessors(props.text, processors.value.map((p, k) => (k === i ? next : p))));
+}
+function removeProcessor(i: number): void {
+    if (!processors.value) return;
+    emit("update:text", writeProcessors(props.text, processors.value.filter((_, k) => k !== i)));
+}
+const addingProcessor = ref<(typeof NEW_PROCESSOR_KINDS)[number]>("block_rot");
+function addProcessor(): void {
+    emit("update:text", writeProcessors(props.text, [...(processors.value ?? []), newProcessor(addingProcessor.value)]));
+}
+const processorLabel = (kind: string): string =>
+    ({
+        block_rot: t("datapack.wg.rot", "Rot (lose some blocks)"),
+        gravity: t("datapack.wg.gravity", "Follow the ground"),
+        block_ignore: t("datapack.wg.ignore", "Leave these blocks out"),
+    })[kind] ?? kind;
+const processorItems = computed(() => NEW_PROCESSOR_KINDS.map((k) => ({ value: k, title: processorLabel(k) })));
+const HEIGHTMAPS = ["WORLD_SURFACE_WG", "WORLD_SURFACE", "OCEAN_FLOOR_WG", "OCEAN_FLOOR", "MOTION_BLOCKING", "MOTION_BLOCKING_NO_LEAVES"];
 </script>
 
 <template>
@@ -263,6 +311,111 @@ const blocks = [...BLOCK_IDS];
                             : t("datapack.wg.spreadNote", { every: spread.spacing * 16, gap: spread.separation * 16 }, "About one every {every} blocks each way, and at least {gap} blocks from the next cell's start area.")
                     }}
                 </p>
+            </template>
+        </template>
+
+        <template v-else-if="kind === 'template_pool'">
+            <p v-if="pool === null" class="wl-wg__note">{{ t("datapack.wg.noPool", "This file has no list of pieces to edit here.") }}</p>
+            <template v-else>
+                <v-text-field
+                    :model-value="str('fallback')"
+                    :label="t('datapack.wg.fallback', 'Fallback pool when a piece does not fit')"
+                    density="comfortable"
+                    variant="outlined"
+                    hide-details
+                    @update:model-value="(v: string) => set('fallback', v)"
+                />
+                <ol class="wl-wg__steps">
+                    <li v-for="(p, i) in pool" :key="i" class="wl-wg__step">
+                        <div class="wl-wg__head">
+                            <strong>{{ i + 1 }}. {{ p.editable ? p.location : String(p.raw.element_type ?? "") }}</strong>
+                            <v-btn size="small" variant="text" color="error" :aria-label="t('datapack.wg.removePiece', { n: i + 1 }, 'Remove piece {n}')" @click="removePiece(i)">{{ t("datapack.remove", "Remove") }}</v-btn>
+                        </div>
+                        <div class="wl-wg__row">
+                            <v-text-field
+                                v-if="p.editable"
+                                :model-value="p.location"
+                                :label="t('datapack.wg.location', 'Structure file (id)')"
+                                density="comfortable"
+                                variant="outlined"
+                                hide-details
+                                @update:model-value="(v: string) => changePiece(i, { location: v })"
+                            />
+                            <v-slider
+                                :model-value="p.weight"
+                                :min="1"
+                                :max="150"
+                                :step="1"
+                                thumb-label
+                                hide-details
+                                :label="t('datapack.wg.share', { share: poolTotal ? Math.round((p.weight / poolTotal) * 100) : 0 }, 'Weight ({share}% of picks)')"
+                                @update:model-value="(v: number) => changePiece(i, { weight: v })"
+                            />
+                            <v-select
+                                v-if="p.editable"
+                                :model-value="p.projection"
+                                :items="[
+                                    { value: 'rigid', title: t('datapack.wg.rigid', 'Keep its shape') },
+                                    { value: 'terrain_matching', title: t('datapack.wg.terrain', 'Follow the terrain') },
+                                ]"
+                                :label="t('datapack.wg.projection', 'Placement')"
+                                density="comfortable"
+                                variant="outlined"
+                                hide-details
+                                @update:model-value="(v: 'rigid' | 'terrain_matching') => changePiece(i, { projection: v })"
+                            />
+                        </div>
+                        <p v-if="!p.editable" class="wl-wg__note">{{ t("datapack.mod.kept", "No editor for this one yet. It is kept exactly as written; change it in the JSON below.") }}</p>
+                    </li>
+                </ol>
+                <div class="wl-wg__add"><v-btn variant="tonal" rounded="pill" @click="addPiece">{{ t("datapack.wg.addPiece", "Add a piece") }}</v-btn></div>
+            </template>
+        </template>
+
+        <template v-else-if="kind === 'processor_list'">
+            <p v-if="processors === null" class="wl-wg__note">{{ t("datapack.wg.noProcessors", "This file has no processor list to edit here.") }}</p>
+            <template v-else>
+                <ol class="wl-wg__steps">
+                    <li v-for="(p, i) in processors" :key="i" class="wl-wg__step">
+                        <div class="wl-wg__head">
+                            <strong>{{ i + 1 }}. {{ p.kind === "other" ? p.name : processorLabel(p.kind) }}</strong>
+                            <v-btn size="small" variant="text" color="error" :aria-label="t('datapack.mod.remove', { n: i + 1 }, 'Remove step {n}')" @click="removeProcessor(i)">{{ t("datapack.remove", "Remove") }}</v-btn>
+                        </div>
+                        <v-slider
+                            v-if="p.kind === 'block_rot'"
+                            :model-value="Math.round(p.integrity * 100)"
+                            :min="0"
+                            :max="100"
+                            :step="1"
+                            thumb-label
+                            hide-details
+                            :label="t('datapack.wg.keep', 'Blocks kept (%)')"
+                            @update:model-value="(v: number) => changeProcessor(i, { ...p, integrity: v / 100 })"
+                        />
+                        <div v-else-if="p.kind === 'gravity'" class="wl-wg__row">
+                            <v-select :model-value="p.heightmap" :items="HEIGHTMAPS" :label="t('datapack.wg.heightmap', 'Ground it follows')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string) => changeProcessor(i, { ...p, heightmap: v })" />
+                            <v-slider :model-value="p.offset" :min="-16" :max="16" :step="1" thumb-label hide-details :label="t('datapack.wg.offset', 'Offset (blocks)')" @update:model-value="(v: number) => changeProcessor(i, { ...p, offset: v })" />
+                        </div>
+                        <v-combobox
+                            v-else-if="p.kind === 'block_ignore'"
+                            :model-value="p.blocks"
+                            :items="blocks"
+                            multiple
+                            chips
+                            closable-chips
+                            :label="t('datapack.wg.ignored', 'Blocks left out')"
+                            density="comfortable"
+                            variant="outlined"
+                            hide-details
+                            @update:model-value="(v: string[]) => changeProcessor(i, { ...p, blocks: v })"
+                        />
+                        <p v-else class="wl-wg__note">{{ t("datapack.mod.kept", "No editor for this one yet. It is kept exactly as written; change it in the JSON below.") }}</p>
+                    </li>
+                </ol>
+                <div class="wl-wg__add">
+                    <v-select v-model="addingProcessor" :items="processorItems" :label="t('datapack.wg.newProcessor', 'New processor')" density="comfortable" variant="outlined" hide-details />
+                    <v-btn variant="tonal" rounded="pill" @click="addProcessor">{{ t("datapack.mod.addStep", "Add step") }}</v-btn>
+                </div>
             </template>
         </template>
 

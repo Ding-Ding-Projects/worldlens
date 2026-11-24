@@ -18,7 +18,7 @@ globalThis.ResizeObserver ??= class {
 
 describe("registry part forms", () => {
     it("covers every new part kind that has no editor of its own", () => {
-        const own = new Set(["item_modifier", "placed_feature", "configured_feature", "structure_set", "noise_settings", "processor_list"]);
+        const own = new Set(["item_modifier", "placed_feature", "configured_feature", "structure_set", "noise_settings", "processor_list", "template_pool"]);
         for (const k of NEW_PART_KINDS) if (!own.has(k.id)) expect(hasForm(k.id), k.id).toBe(true);
     });
 

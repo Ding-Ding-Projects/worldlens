@@ -118,8 +118,6 @@ export const PART_FORMS: Readonly<Record<string, readonly PartField[]>> = {
         n("max_distance_from_center", "Reach from the start (blocks)", 1, 128, 1, 80),
         sw("use_expansion_hack", "Use the expansion hack"),
     ],
-    template_pool: [tx("fallback", "Fallback pool")],
-    processor_list: [],
     configured_carver: [
         ch("type", "Kind", ["minecraft:cave", "minecraft:nether_cave", "minecraft:canyon"]),
         n("config.probability", "Chance per chunk", 0, 1, 0.01, 0.15),

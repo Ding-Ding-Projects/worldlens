@@ -181,3 +181,121 @@ export function readSpread(text: string): { spacing: number; separation: number 
 /** The game refuses a spread whose separation is not smaller than its spacing. */
 export const spreadProblem = (s: { spacing: number; separation: number }): string | null =>
     s.separation >= s.spacing ? "Separation has to be smaller than spacing." : null;
+
+/* -------------------------------------------------------------------------- */
+/* Jigsaw pools                                                                */
+/* -------------------------------------------------------------------------- */
+
+export interface PoolPiece {
+    weight: number;
+    location: string;
+    projection: "rigid" | "terrain_matching";
+    /** The element object as it was, so fields with no control here are kept. */
+    raw: Json;
+    /** False for an element kind other than a single or legacy single piece. */
+    editable: boolean;
+}
+
+export function readPool(text: string): PoolPiece[] | null {
+    const o = parseObject(text);
+    if (o === null || !Array.isArray(o["elements"])) return null;
+    const out: PoolPiece[] = [];
+    for (const entry of o["elements"] as unknown[]) {
+        const e = obj(entry);
+        if (e === null) return null;
+        const el = obj(e["element"]) ?? {};
+        const kind = short(el["element_type"]);
+        const editable = (kind === "single_pool_element" || kind === "legacy_single_pool_element") && typeof el["location"] === "string";
+        out.push({
+            weight: typeof e["weight"] === "number" ? e["weight"] : 1,
+            location: typeof el["location"] === "string" ? el["location"] : "",
+            projection: el["projection"] === "terrain_matching" ? "terrain_matching" : "rigid",
+            raw: el,
+            editable,
+        });
+    }
+    return out;
+}
+
+export function writePool(text: string, pieces: readonly PoolPiece[]): string {
+    const o = parseObject(text) ?? {};
+    return writeJson({
+        ...o,
+        elements: pieces.map((p) => ({
+            weight: p.weight,
+            element: p.editable ? { ...p.raw, location: p.location, projection: p.projection } : p.raw,
+        })),
+    });
+}
+
+export function newPoolPiece(namespace: string): PoolPiece {
+    return {
+        weight: 1,
+        location: `${namespace}:new_piece`,
+        projection: "rigid",
+        raw: { element_type: "minecraft:single_pool_element", location: `${namespace}:new_piece`, processors: "minecraft:empty", projection: "rigid" },
+        editable: true,
+    };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Processor lists                                                             */
+/* -------------------------------------------------------------------------- */
+
+export type Processor =
+    | { kind: "block_rot"; integrity: number; raw: Json }
+    | { kind: "gravity"; heightmap: string; offset: number; raw: Json }
+    | { kind: "block_ignore"; blocks: string[]; raw: Json }
+    | { kind: "other"; name: string; raw: Json };
+
+export const NEW_PROCESSOR_KINDS = ["block_rot", "gravity", "block_ignore"] as const;
+
+export function readProcessors(text: string): Processor[] | null {
+    const o = parseObject(text);
+    if (o === null || !Array.isArray(o["processors"])) return null;
+    return (o["processors"] as unknown[]).map((entry): Processor => {
+        const raw = obj(entry) ?? {};
+        const name = short(raw["processor_type"]);
+        if (name === "block_rot" && typeof raw["integrity"] === "number")
+            return { kind: "block_rot", integrity: raw["integrity"], raw };
+        if (name === "gravity")
+            return {
+                kind: "gravity",
+                heightmap: typeof raw["heightmap"] === "string" ? raw["heightmap"] : "WORLD_SURFACE_WG",
+                offset: typeof raw["offset"] === "number" ? raw["offset"] : 0,
+                raw,
+            };
+        if (name === "block_ignore" && Array.isArray(raw["blocks"]) && (raw["blocks"] as unknown[]).every((b) => typeof obj(b)?.["Name"] === "string"))
+            return { kind: "block_ignore", blocks: (raw["blocks"] as Json[]).map((b) => b["Name"] as string), raw };
+        return { kind: "other", name: name || "(no type)", raw };
+    });
+}
+
+export function writeProcessor(p: Processor): Json {
+    switch (p.kind) {
+        case "block_rot":
+            return { ...p.raw, processor_type: "minecraft:block_rot", integrity: p.integrity };
+        case "gravity":
+            return { ...p.raw, processor_type: "minecraft:gravity", heightmap: p.heightmap, offset: p.offset };
+        case "block_ignore":
+            return { ...p.raw, processor_type: "minecraft:block_ignore", blocks: p.blocks.map((Name) => ({ Name })) };
+        default:
+            return p.raw;
+    }
+}
+
+export function writeProcessors(text: string, list: readonly Processor[]): string {
+    const o = parseObject(text) ?? {};
+    return writeJson({ ...o, processors: list.map(writeProcessor) });
+}
+
+export function newProcessor(kind: (typeof NEW_PROCESSOR_KINDS)[number]): Processor {
+    switch (kind) {
+        case "block_rot":
+            return { kind, integrity: 0.8, raw: {} };
+        case "gravity":
+            return { kind, heightmap: "WORLD_SURFACE_WG", offset: 0, raw: {} };
+        default:
+            return { kind, blocks: ["minecraft:structure_block"], raw: {} };
+    }
+}

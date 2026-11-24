@@ -60,3 +60,21 @@ describe("WorldgenPartEditor", () => {
         expect(make("configured_feature", '{"type":"minecraft:tree","config":{}}').find(".wl-wg__row").exists()).toBe(false);
     });
 });
+
+describe("WorldgenPartEditor pools and processors", () => {
+    it("shows each jigsaw piece's share of the picks and adds a piece", async () => {
+        const w = make("template_pool");
+        expect(w.text()).toContain("Weight (100% of picks)");
+        await w.findAll("button").find((b) => b.text() === "Add a piece")!.trigger("click");
+        const elements = last(w)["elements"] as unknown[];
+        expect(elements).toHaveLength(2);
+    });
+
+    it("draws the rot processor and adds another step", async () => {
+        const w = make("processor_list");
+        expect(w.text()).toContain("Rot (lose some blocks)");
+        await w.findAll("button").find((b) => b.text() === "Add step")!.trigger("click");
+        const procs = last(w)["processors"] as { processor_type: string }[];
+        expect(procs.at(-1)!.processor_type).toBe("minecraft:block_rot");
+    });
+});

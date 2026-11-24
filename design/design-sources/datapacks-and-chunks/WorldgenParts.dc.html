@@ -95,7 +95,7 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
     <main class="pane" style="flex: 999 1 560px; min-width: 0; margin: 0 16px 16px 0; background: var(--wl-surface); border-radius: 28px; padding: 16px 28px 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px;">
       <div role="tablist" aria-label="Open jobs" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--wl-outline-var);"><span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">add_location_alt</span><span role="tab" aria-selected="false">Make a map</span></span><span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">rocket_launch</span><span role="tab" aria-selected="false">Deploy WorldLens</span></span><span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">bolt</span><span role="tab" aria-selected="false">Renders</span></span><span class="chip" aria-current="page"><span class="msr" aria-hidden="true" style="font-size: 18px;">data_object</span><span role="tab" aria-selected="true">Data packs</span></span><span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">construction</span><span role="tab" aria-selected="false">Built-in tools</span></span></div>
       <div><h1 style="margin: 0; font-size: 28px; line-height: 36px; font-weight: 400;">World generation parts</h1>
-      <p style="margin: 2px 0 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var);">Placed features, ore veins, structure spacing and noise settings, each as typed steps with a live file.</p></div>
+      <p style="margin: 2px 0 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var);">Placed features, ore veins, structure spacing, noise settings, jigsaw pools and processors, each as typed steps with a live file.</p></div>
       
       <div style="display: grid; grid-template-columns: minmax(0, 3fr) minmax(260px, 1.2fr); gap: 16px; align-items: start;">
   <section class="card" aria-label="World generation editor">
@@ -133,6 +133,17 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
       </svg>
       <p class="note">{{setNote}}</p>
     </sc-if>
+    <sc-if value="{{isPool}}" hint-placeholder-val="{{ false }}">
+      <p class="note">Each piece a jigsaw can pick, with its weight shown as a real share of all the picks.</p>
+      <sc-for list="{{pool}}" as="p" hint-placeholder-count="3"><div class="step"><div class="row"><label class="fld">Structure file<input class="inp" value="{{p.loc}}"></label><label class="fld">Weight {{p.w}} ({{p.share}})<input type="range" min="1" max="50" value="{{p.w}}" onInput="{{p.set}}" aria-label="{{p.aria}}"></label><label class="fld">Projection<select class="inp"><option>rigid</option><option>terrain_matching</option></select></label></div></div></sc-for>
+      <button type="button" class="btn sl" style="align-self: flex-start; background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);">Add a piece</button>
+    </sc-if>
+    <sc-if value="{{isProc}}" hint-placeholder-val="{{ false }}">
+      <p class="note">Processors change blocks as a structure is placed, in order.</p>
+      <div class="step"><h3>1. Rot (lose some blocks)</h3><label class="fld">Keep: {{keep}}%<input type="range" min="0" max="100" value="{{keep}}" onInput="{{setKeep}}" aria-label="Share of blocks kept"></label></div>
+      <div class="step"><h3>2. Rule: swap blocks</h3><p class="note">Kept exactly as written; edit it in the JSON.</p></div>
+      <div class="row"><label class="fld">Add a processor<select class="inp"><option>Rot</option><option>Gravity (follow the ground)</option><option>Ignore blocks</option></select></label><button type="button" class="btn sl" style="background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);">Add</button></div>
+    </sc-if>
     <sc-if value="{{isNoise}}" hint-placeholder-val="{{ false }}">
       <p class="note">The shape of a dimension: sea level, height limits and what fills it.</p>
       <div class="row"><label class="fld">Sea level: {{sea}}<input type="range" min="-64" max="320" value="{{sea}}" onInput="{{setSea}}" aria-label="Sea level"></label><label class="fld">Bottom (min_y)<select class="inp"><option>-64</option><option>0</option><option>-128</option></select></label><label class="fld">Height<select class="inp"><option>384</option><option>256</option><option>512</option></select></label></div>
@@ -153,10 +164,10 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"theme": {"editor": "enum", "options": ["dark", "light", "contrast"], "default": "dark"}, "$preview": {"width": 1440, "height": 900}}'>
 class Component extends DCLogic {
-  constructor(props) { super(props); this.state = { tab: 0, count: 4, lo: -64, hi: 16, size: 9, hidden: 0, spacing: 32, separation: 8, sea: 63 }; }
+  constructor(props) { super(props); this.state = { pw: [10, 4, 1], keep: 80, tab: 0, count: 4, lo: -64, hi: 16, size: 9, hidden: 0, spacing: 32, separation: 8, sea: 63 }; }
   render() {
     const S = this.state;
-    const T = ['Placed feature', 'Ore', 'Structure spacing', 'Noise settings'];
+    const T = ['Placed feature', 'Ore', 'Structure spacing', 'Noise settings', 'Jigsaw pool', 'Processors'];
     const num = (k) => (e) => this.setState({ [k]: Number(e.target.value) });
     const yToPx = (y) => 20 + (320 - y) / 384 * 360;
     const lo = Math.min(S.lo, S.hi), hi = Math.max(S.lo, S.hi);
@@ -178,6 +189,8 @@ class Component extends DCLogic {
     ];
     return { theme: this.props.theme ?? 'dark',
       tabs: T.map((label, i) => ({ label, sel: S.tab === i ? 'true' : 'false', pick: () => this.setState({ tab: i }) })),
+      isPool: S.tab === 4, isProc: S.tab === 5, keep: S.keep, setKeep: num('keep'),
+      pool: ['heap:house/small', 'heap:house/big', 'heap:house/tower'].map((loc, i) => { const tot = S.pw.reduce((a, b) => a + b, 0); return { loc, w: S.pw[i], share: Math.round(S.pw[i] / tot * 100) + '%', aria: 'Weight of ' + loc, set: (e) => { const pw = [...S.pw]; pw[i] = Number(e.target.value); this.setState({ pw }); } }; }),
       isPlaced: S.tab === 0, isOre: S.tab === 1, isSet: S.tab === 2, isNoise: S.tab === 3,
       count: S.count, lo: S.lo, hi: S.hi, setCount: num('count'), setLo: num('lo'), setHi: num('hi'),
       bandY: yToPx(hi), bandH: Math.max(4, yToPx(lo) - yToPx(hi)), seaY: yToPx(63), gaugeLabel: 'Lands between Y ' + lo + ' and Y ' + hi,
@@ -185,8 +198,8 @@ class Component extends DCLogic {
       spacing: S.spacing, separation: S.separation, setSpacing: num('spacing'), setSeparation: num('separation'), cells,
       setLabel: 'Placement grid, ' + S.spacing + ' chunk cells', setNote: S.separation >= S.spacing ? 'Separation has to be smaller than spacing; the game refuses this.' : 'About one ' + 'structure every ' + (S.spacing * 16) + ' blocks each way, never closer than ' + (S.separation * 16) + ' blocks to the next cell.',
       sea: S.sea, setSea: num('sea'),
-      fileName: ['worldgen/placed_feature/deep_diamonds.json', 'worldgen/configured_feature/diamond_vein.json', 'worldgen/structure_set/towers.json', 'worldgen/noise_settings/flatter.json'][S.tab],
-      json: JSON.stringify(files[S.tab], null, 2) };
+      fileName: ['worldgen/placed_feature/deep_diamonds.json', 'worldgen/configured_feature/diamond_vein.json', 'worldgen/structure_set/towers.json', 'worldgen/noise_settings/flatter.json', 'worldgen/template_pool/houses.json', 'worldgen/processor_list/ruined.json'][S.tab],
+      json: JSON.stringify(S.tab === 4 ? { fallback: 'minecraft:empty', elements: ['heap:house/small', 'heap:house/big', 'heap:house/tower'].map((location, i) => ({ weight: S.pw[i], element: { element_type: 'minecraft:single_pool_element', location, processors: 'minecraft:empty', projection: 'rigid' } })) } : S.tab === 5 ? { processors: [{ processor_type: 'minecraft:block_rot', integrity: S.keep / 100 }, { processor_type: 'minecraft:rule', rules: [] }] } : files[S.tab], null, 2) };
   }
 }
 </script>

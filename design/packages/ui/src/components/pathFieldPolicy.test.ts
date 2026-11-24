@@ -282,6 +282,12 @@ function fieldIdentity(field: { readonly key: string | null; readonly tag: strin
     return field.key ?? field.tag.slice(0, 60);
 }
 const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
+    "components/datapack/WorldgenPartEditor.vue::datapack.wg.location": {
+        reason: "not-a-location",
+        note:
+            "A jigsaw piece's structure id, like my_pack:house/small. The game resolves it to a " +
+            "structure file inside a data pack, not to a file or folder on this computer.",
+    },
     "components/datapack/DataPackCreator.vue::datapack.overlays.folder": {
         reason: "not-a-location",
         note:

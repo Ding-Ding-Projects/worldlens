@@ -1149,9 +1149,10 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                         v-model:text="part.text"
                     />
                     <WorldgenPartEditor
-                        v-else-if="['placed_feature', 'configured_feature', 'structure_set', 'noise_settings'].includes(part.kind)"
+                        v-else-if="['placed_feature', 'configured_feature', 'structure_set', 'noise_settings', 'template_pool', 'processor_list'].includes(part.kind)"
                         v-model:text="part.text"
                         :kind="part.kind"
+                        :namespace="part.namespace ?? pack.namespace"
                     />
                     <PartForm v-else-if="hasForm(part.kind)" v-model:text="part.text" :kind="part.kind" />
                     <v-textarea
