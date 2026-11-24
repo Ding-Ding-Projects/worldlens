@@ -282,6 +282,12 @@ function fieldIdentity(field: { readonly key: string | null; readonly tag: strin
     return field.key ?? field.tag.slice(0, 60);
 }
 const PATH_FIELD_EXEMPTIONS: Record<string, Exemption> = {
+    "components/datapack/EnchantmentEffects.vue::datapack.ench.function": {
+        reason: "not-a-location",
+        note:
+            "A function id inside the data pack, like my_pack:on_hit. The game resolves it to an " +
+            ".mcfunction in a pack, not to a file or folder on this computer.",
+    },
     "components/datapack/WorldgenPartEditor.vue::datapack.wg.location": {
         reason: "not-a-location",
         note:

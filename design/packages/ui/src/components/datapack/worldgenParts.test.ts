@@ -196,3 +196,17 @@ describe("summon, explode, chance requirements and position fades", async () => 
         expect(m.writeRule({ ...r!, position: null })).not.toHaveProperty("position_predicate");
     });
 });
+
+describe("function and sound actions", async () => {
+    const m = await import("./worldgenParts.js");
+    it("reads, keeps and adds run_function and play_sound actions", () => {
+        const fn = { enchanted: "attacker", affected: "victim", effect: { type: "minecraft:run_function", function: "p:hit" } };
+        const snd = { enchanted: "attacker", affected: "attacker", effect: { type: "minecraft:play_sound", sound: "minecraft:block.bell.use", volume: 1, pitch: 1.5 } };
+        const text = JSON.stringify({ effects: { "minecraft:post_attack": [fn, snd] } });
+        const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
+        expect(effects.map((e) => [e.editable, e.action?.kind, e.action?.target])).toEqual([[true, "run_function", "p:hit"], [true, "play_sound", "minecraft:block.bell.use"]]);
+        expect(JSON.parse(m.writeEffects(text, effects))).toEqual(JSON.parse(text));
+        const back = JSON.parse(m.writeEffects(text, [...effects, m.newAction("run_function")])) as { effects: Record<string, Record<string, unknown>[]> };
+        expect(back.effects["minecraft:post_attack"]![2]).toMatchObject({ effect: { type: "minecraft:run_function", function: "my_pack:on_hit" } });
+    });
+});
