@@ -122,7 +122,7 @@ input::placeholder{color:var(--wl-on-surf-var);opacity:1}
           <h2 style="margin: 4px 0 0; font-size: 16px; font-weight: 500;">People who can manage this server</h2>
           <sc-for list="{{people}}" as="u" hint-placeholder-count="3"><div style="display: flex; align-items: center; gap: 10px;"><span class="msr" aria-hidden="true">{{u.icon}}</span><span style="flex: 1;"><span style="display: block;">{{u.name}}</span><span style="display: block; font-size: 12px; color: var(--wl-on-surf-var);">{{u.how}}</span></span><span class="fchip" aria-pressed="{{u.owner}}">{{u.role}}</span></div></sc-for>
           <button type="button" class="btn sl" style="align-self: flex-start; background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);"><span class="msr" aria-hidden="true" style="font-size: 20px;">person_add</span>Invite someone</button>
-          <p style="margin: 0; font-size: 12px; color: var(--wl-on-surf-var);">The owner is the first account created on this appliance and has every right. Invitations are single use and expire; each person chooses password, passkey, authenticator code or a combination, at least what the owner requires.</p>
+          <p style="margin: 0; font-size: 12px; color: var(--wl-on-surf-var);">The owner is the first account created on this appliance and has every right. Invitations are single use and expire; each person chooses password, passkey, authenticator code or a combination, at least what the owner requires. Built as the site's signed-in page: image worldlens-server-site 1.0.2439, pinned 2026-11-24 after a real vanilla 26.3 server took a command, a live console line and a data pack through it. Viewers see no change controls.</p>
         </section>
       </div>
     </main>
