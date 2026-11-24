@@ -23,6 +23,7 @@ import {
 } from "vuetify/components";
 import CommandBuilder from "../mcserver/CommandBuilder.vue";
 import PredicateBlockEditor from "./PredicateBlockEditor.vue";
+import FunctionEditor from "./FunctionEditor.vue";
 import { BLOCK_IDS, ITEM_IDS } from "../mcserver/commandBuilderData.js";
 import {
     PACK_VERSIONS,
@@ -605,15 +606,7 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                             :label="t('datapack.onTick', 'Run every tick')"
                         />
                     </div>
-                    <v-textarea
-                        v-model="functionText"
-                        :label="t('datapack.lines', 'Commands, one per line')"
-                        rows="6"
-                        auto-grow
-                        variant="outlined"
-                        class="wl-dp__mono"
-                        spellcheck="false"
-                    />
+                    <function-editor v-model="functionText" />
                     <ul v-if="lineChecks.length" class="wl-dp__problems" role="list">
                         <li v-for="c in lineChecks" :key="c.n">
                             {{ t("datapack.lineN", { n: c.n }, "Line {n}") }}: {{ c.problem }}

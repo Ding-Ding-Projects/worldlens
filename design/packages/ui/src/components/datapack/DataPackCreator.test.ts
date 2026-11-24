@@ -95,3 +95,26 @@ describe("DataPackCreator predicates", () => {
         expect(w.text()).toContain("predicate/new_predicate.json");
     });
 });
+
+describe("DataPackCreator function editor", () => {
+    beforeEach(() => localStorage.clear());
+    it("colours commands, flags unknown ones and suggests completions", async () => {
+        const w = make();
+        await w
+            .findAll('[role="option"]')
+            .find((b) => b.text().startsWith("Functions"))!
+            .trigger("click");
+        await w
+            .findAll("button")
+            .find((b) => b.text() === "Add")!
+            .trigger("click");
+        const area = w.find("textarea.wl-fn__input");
+        await area.setValue("say hi\nsya oops\ntel");
+        (area.element as HTMLTextAreaElement).setSelectionRange(18, 18);
+        await area.trigger("keyup");
+        expect(w.find(".wl-fn__cmd").text()).toBe("say");
+        expect(w.find(".wl-fn__bad").text()).toBe("sya");
+        const chips = w.findAll(".wl-fn__chip").map((c) => c.text());
+        expect(chips).toEqual(expect.arrayContaining(["tellraw", "teleport"]));
+    });
+});
