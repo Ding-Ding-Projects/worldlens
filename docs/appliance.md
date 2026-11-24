@@ -56,7 +56,7 @@ sudo sh appliance/build-base.sh --mapserver-tar worldlens-map-server-x86_64.tar 
 node design/packages/app/scripts/fetch-appliance-base.mjs --from out/worldlens-appliance-base-x86_64.img
 ```
 
-`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. Both bases are pinned to the `v1.0.2376` release assets (built 2026-11-23 by Appliance run 45311032724 from commit `9cada2a`, with the storage partition and boot fixes; that run's QEMU boot smoke passed for the map workload); `--check` exits 0 only when every pin is complete. The installer copies `dist/appliance` to `resources/appliance`.
+`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. Both bases are pinned to the `v1.0.2420` release assets (built 2026-11-24 by Appliance run 45347962463 from commit `95a85e3`, which starts the Minecraft server with its console pipe so the management site can send commands; that run's QEMU boot smoke passed; the x86_64 asset's compressed and expanded checksums were checked against the published `.sha256.txt` after download); `--check` exits 0 only when every pin is complete. The installer copies `dist/appliance` to `resources/appliance`.
 
 The base image is about 1.4 GiB raw (compresses well). `.github/workflows/appliance.yml` boots it once under QEMU and waits for `/health` before uploading it as a zstd asset with a SHA-256.
 
@@ -122,3 +122,5 @@ The installer carries both bases zstd-compressed (about 260 MB and 135 MB rather
 ### Minecraft 伺服器 appliance
 
 對話框剔 **Run a Minecraft server with its management site**，隻碟就會行兩個容器：你揀嘅 Minecraft 伺服器映像（用 digest 鎖定，玩家用 25565/TCP 同 19132/UDP 入，記憶體跟滑桿）同 WorldLens 管理網站（`worldlens-server-site`，CI 嘅 `server-site-image` job 發佈）。網站即係有「第一個入嚟做老細」帳戶嘅網頁主控台，登入可以要密碼、passkey、驗證碼任何組合，經 Docker socket 同共用 volume 管伺服器。一定要喺對話框接受 Minecraft EULA；開機腳本會再檢查所有值，第一次開機拉兩個映像。佢喺本地網絡用 HTTP，passkey 要前面有 HTTPS 隧道或者 proxy。而家 pin 住嘅 `v1.0.2311` base 已經包括 `"minecraft"`。2026-11-23 用 QEMU 開機時發現 Minecraft 伺服器映像塞唔落 base 嘅根檔案系統（解壓時「no space left on device」）。而家 builder 會喺地圖資料後面加一個空嘅疏鬆儲存分割區（伺服器 16 GiB、app 8 GiB，未用唔佔位），開機腳本第一次開機會格式化（只限完全係空嘅時候）並將 Docker 資料放喺度。下次 build base 生效。
+
+底層映像而家釘喺 `v1.0.2420`（2026-11-24，Appliance run 45347962463，commit `95a85e3`）：Minecraft 伺服器開機時有主控台水喉，管理網站送指令先得；QEMU 開機測試過咗，x86_64 嘅壓縮同展開 checksum 下載後對過。
