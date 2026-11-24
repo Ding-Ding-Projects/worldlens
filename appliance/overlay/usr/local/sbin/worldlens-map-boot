@@ -19,7 +19,7 @@ IMAGE=worldlens-map-server:bundled
 INTERNAL_PORT=8080
 TTY=/dev/tty1
 
-say() { printf '%s\n' "$*" >> /var/log/worldlens-map.log; }
+say() { printf '%s\n' "$*" >> /var/log/worldlens-map.log; printf 'worldlens: %s\n' "$*" > /dev/console 2>/dev/null || true; }
 
 banner() {
     # $1 title  $2 line  $3 optional address
@@ -109,8 +109,8 @@ use_storage() {
             [ "$P" = "$DEV" ] && continue
             grep -q "^$P " /proc/mounts && continue
             [ "$(cat "$SYS/size")" -ge 4194304 ] || continue
-            [ -z "$(blkid "$P" 2>/dev/null)" ] || continue
-            [ "$(dd if="$P" bs=1M count=1 2>/dev/null | tr -d '\000' | wc -c)" = 0 ] || continue
+            # An all-zero first MiB means no file system or partition data of any kind is there.
+            [ "$(dd if="$P" bs=1M count=1 2>/dev/null | od -An -v -tx1 | tr -d ' 0\n' | wc -c)" = 0 ] || continue
             say "formatting $P for container storage"
             mkfs.ext4 -q -L worldlens-docker "$P" && STORE=$P && break
         done
