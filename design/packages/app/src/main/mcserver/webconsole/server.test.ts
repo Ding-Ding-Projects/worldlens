@@ -271,8 +271,17 @@ describe("web console server", () => {
         await new WebConsolePasswordStore(dataFolder).put(record as Buffer);
 
         expect((await request(handle, "POST", "/api/servers/nope/datapacks?name=a.zip")).status).toBe(401);
+        expect((await request(handle, "GET", "/manage.js")).status).toBe(401);
         const signedIn = await request(handle, "POST", "/api/auth/signin", { body: { password: "pw-for-packs" } });
         const cookie = extractCookie(signedIn.headers) as string;
+        // Signing in leads to the management page, not to a 404.
+        const page = await request(handle, "GET", "/", { cookie });
+        expect(page.status).toBe(200);
+        expect(page.body).toContain("Server management");
+        expect(page.body).toContain('src="/manage.js"');
+        const script = await request(handle, "GET", "/manage.js", { cookie });
+        expect(script.status).toBe(200);
+        expect(script.body).toContain("/api/servers");
         const missing = await request(handle, "POST", "/api/servers/nope/datapacks?name=a.zip", { cookie });
         expect(missing.status).toBe(404);
     });
@@ -433,6 +442,16 @@ describe("web console with named accounts", () => {
         expect(joined.status).toBe(200);
         const list = JSON.parse((await request(handle, "GET", "/api/accounts", { cookie })).body);
         expect(list.accounts.map((a: { name: string; role: string }) => `${a.name}:${a.role}`)).toEqual(["SpongeBob:owner", "Patrick:operator"]);
+
+        // A viewer may look at servers but not start one or add a data pack; an owner may try.
+        const viewerInvite = JSON.parse((await request(handle, "POST", "/api/accounts/invite", { cookie, body: { role: "viewer" } })).body);
+        const viewer = await request(handle, "POST", "/api/accounts/accept", { body: { code: viewerInvite.code, name: "Gary", password: "meow meow 42" } });
+        const viewerCookie = extractCookie(viewer.headers) as string;
+        expect((await request(handle, "GET", "/api/servers", { cookie: viewerCookie })).status).toBe(200);
+        expect((await request(handle, "POST", "/api/servers/x/start", { cookie: viewerCookie })).status).toBe(403);
+        expect((await request(handle, "POST", "/api/servers/x/datapacks?name=a.zip", { cookie: viewerCookie })).status).toBe(403);
+        expect((await request(handle, "POST", "/api/servers/x/start", { cookie })).status).toBe(404);
+        expect((await request(handle, "GET", "/", { cookie: viewerCookie })).body).toContain("Server management");
 
         // The lockout ladder's own routes still reach their handler.
         expect((await request(handle, "GET", "/api/auth/ladder/status")).status).toBe(200);

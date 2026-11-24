@@ -53,7 +53,7 @@ export const dataPackCreator: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "The draft lives in this profile's browser storage until it is exported or cleared; if storage is blocked the editor still works but the draft is not kept. The command check knows the first word of each command, not every argument, so a line can pass here and still be rejected by the game. A part's JSON is checked for being JSON, not against the game's schema, so the game may still reject a field. Typed editors for the parts under More parts other than item modifiers and those four world generation kinds are not built yet, and the server appliance's management site has an upload route for packs but no page that uses it.",
+                        "The draft lives in this profile's browser storage until it is exported or cleared; if storage is blocked the editor still works but the draft is not kept. The command check knows the first word of each command, not every argument, so a line can pass here and still be rejected by the game. A part's JSON is checked for being JSON, not against the game's schema, so the game may still reject a field. Typed editors for the parts under More parts other than item modifiers and those four world generation kinds are not built yet. On a server appliance, the management site's signed-in page can upload a pack too.",
                     ],
                 },
             ],

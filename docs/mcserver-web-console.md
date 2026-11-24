@@ -13,7 +13,7 @@ own controls (`webConsoleStart`, `webConsoleStop`, `webConsoleBind`,
 `webConsoleSetPassword`, `webConsoleStatus`), which call straight through to
 `startWebConsoleServer` in the main process.
 
-A signed-in session can also put a data pack onto a server: `POST /api/servers/<id>/datapacks?name=<file>.zip` with the .zip as the request body (64 MiB at most). It goes through the same `installDataPack` the desktop app uses, which reads `level-name` from the server's `server.properties`, makes `<level-name>/datapacks`, and writes the pack there through the server's transport and write scope, backing up a pack of the same name and saying that it was replaced. On the Minecraft server appliance this is the route a page on its management site would upload to; that page is not built yet.
+A signed-in session can also put a data pack onto a server: `POST /api/servers/<id>/datapacks?name=<file>.zip` with the .zip as the request body (64 MiB at most). It goes through the same `installDataPack` the desktop app uses, which reads `level-name` from the server's `server.properties`, makes `<level-name>/datapacks`, and writes the pack there through the server's transport and write scope, backing up a pack of the same name and saying that it was replaced. After signing in, `/` is the management page (`webconsole/managePage.ts`, design `design/design-sources/deploy-anywhere/Admin.dc.html`); before 2026-11-24 it answered 404, so signing in led to an empty error. The page lists the registered servers, shows each one's state, starts, stops and restarts it, follows the live console, adds a data pack from a chosen .zip, and with named accounts lists the people who can manage the server, makes single-use invitations by role, and removes a person behind two keys and a slider that must reach the end. With named accounts, a viewer can look but every change (start, stop, adding a pack) answers 403.
 
 Signing in uses a password, checked with scrypt and a `timingSafeEqual` comparison so a
 wrong guess takes the same time whether it differs in the first byte or the last. Every
@@ -90,11 +90,14 @@ after the fact.
 - `packages/app/src/main/mcserver/webconsole/server.test.ts` covers the HTTP server itself:
   routing, the loopback/non-loopback bind refusal, and the authenticated surface end to end
   against an in-memory transport.
+- `managePage.test.ts` runs the page's script in jsdom against the routes it calls: state, people, and that removal needs both keys and a full slide. `server.test.ts` proves signing in now leads to the page, that its script needs a session, and that a viewer gets 403 on start and on a data pack.
 - `server.test.ts` also proves the data pack route refuses an unsigned request (401) and answers 404 for a server it does not know; `datapackInstall.test.ts` covers the level-name lookup, the folder and file it writes, and the refusals.
 - `packages/ui/src/components/mcserver/WebConsolePanel.vue`'s start/stop/bind/set-password
   controls are covered by the shared mount and bridge contract tests.
 - Not yet run: a real browser, on a different machine, signing in to a real running instance
   of this server over a real network connection.
+
+登入之後 `/` 係管理頁（以前係 404）：列出伺服器、狀態、開機關機重開、即時主控台、上傳 data pack；用帳戶模式時仲有管理人員名單、按角色發一次性邀請碼、移除人要撳兩條鎖匙再拉盡滑桿。Viewer 只可以睇，開機關機同加 pack 都會答 403。
 
 ### 擁有者先到先得、passkey 同驗證碼
 

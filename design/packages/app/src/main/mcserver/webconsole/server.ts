@@ -27,6 +27,7 @@ import { WebConsolePasswordStore } from "./passwordStore.js";
 import { SessionManager } from "./sessions.js";
 import { LockoutTracker, SignInGate, UnlockLadder, isRung } from "./lockout.js";
 import { buildAccountsHandler, type AccountsOptions } from "./accountsRoutes.js";
+import { MANAGE_PAGE, MANAGE_SCRIPT } from "./managePage.js";
 import { installDataPack, MAX_SERVER_DATAPACK_BYTES } from "../datapackInstall.js";
 
 const SESSION_COOKIE_NAME = "wl_console_session";
@@ -180,8 +181,32 @@ export function buildWebConsoleHandlers(options: WebConsoleServerOptions): {
         async handle(req, res): Promise<boolean> {
             const url = new URL(req.url ?? "/", "http://localhost");
 
+            if (url.pathname === "/manage.js" && req.method === "GET") {
+                if (!requireSession(req)) {
+                    sendJson(res, 401, { ok: false, error: "Sign in required." });
+                    return true;
+                }
+                res.writeHead(200, {
+                    "content-type": "text/javascript; charset=utf-8",
+                    "cache-control": "no-store",
+                    "x-content-type-options": "nosniff",
+                });
+                res.end(MANAGE_SCRIPT);
+                return true;
+            }
+
             if (url.pathname === "/" && req.method === "GET") {
-                if (requireSession(req)) return false; // fall through to static app handler
+                if (requireSession(req)) {
+                    // Signed in: the management page. This used to fall through to nothing and
+                    // answer 404, so signing in led to an empty error page.
+                    res.writeHead(200, {
+                        "content-type": "text/html; charset=utf-8",
+                        "cache-control": "no-store",
+                        "x-content-type-options": "nosniff",
+                    });
+                    res.end(MANAGE_PAGE);
+                    return true;
+                }
                 res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" });
                 res.end(SIGN_IN_PAGE_HTML);
                 return true;
@@ -311,6 +336,15 @@ export function buildWebConsoleHandlers(options: WebConsoleServerOptions): {
             if (!requireSession(req)) {
                 sendJson(res, 401, { ok: false, error: "Sign in required." });
                 return true;
+            }
+            // With named accounts, a viewer may look but not change anything: starting,
+            // stopping and adding a data pack need an operator, an admin or the owner.
+            if (req.method !== "GET" && accountRoutes !== null) {
+                const me = accountRoutes.accountFor(req);
+                if (me === null || me.role === "viewer") {
+                    sendJson(res, 403, { ok: false, error: "Your role can look at this server but not change it." });
+                    return true;
+                }
             }
 
             const parts = url.pathname.split("/").filter(Boolean); // ["api", "servers", ...]
