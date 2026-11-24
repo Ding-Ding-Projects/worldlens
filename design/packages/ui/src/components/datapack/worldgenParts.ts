@@ -460,7 +460,7 @@ export interface LevelValueEffect {
     action?: {
         enchanted: "attacker" | "victim";
         affected: "attacker" | "victim";
-        kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode" | "run_function" | "play_sound";
+        kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode" | "run_function" | "play_sound" | "damage_item" | "spawn_particles";
         /** run_function: the function id. play_sound: the sound id. */
         target?: string;
         mobEffect: string;
@@ -582,6 +582,13 @@ function readAction(component: string, raw: Json): LevelValueEffect {
     }
     const withChance = <T extends object>(a: T): T => (chance === undefined ? a : { ...a, chance });
     const type = short(effect["type"]);
+    if (type === "damage_item") {
+        const amount = levelNumber(effect["amount"]);
+        if (amount !== null && Object.keys(effect).length === 2)
+            return { ...kept, base: amount.base, perLevel: amount.perLevel, editable: true, action: withChance({ enchanted, affected, kind: "damage_item" as const, mobEffect: "", amplifier: 0 }) };
+    }
+    if (type === "spawn_particles" && typeof obj(effect["particle"])?.["type"] === "string")
+        return { ...kept, editable: true, action: withChance({ enchanted, affected, kind: "spawn_particles" as const, mobEffect: "", amplifier: 0, target: obj(effect["particle"])!["type"] as string }) };
     if (type === "run_function" && typeof effect["function"] === "string" && Object.keys(effect).length === 2)
         return { ...kept, editable: true, action: withChance({ enchanted, affected, kind: "run_function" as const, mobEffect: "", amplifier: 0, target: effect["function"] as string }) };
     if (type === "play_sound" && typeof effect["sound"] === "string" && Object.keys(effect).every((k) => ["type", "sound", "volume", "pitch"].includes(k)))
@@ -641,7 +648,19 @@ function writeEffect(e: LevelValueEffect): unknown {
         const a = e.action;
         const oldEffect = obj(e.raw["effect"]) ?? {};
         const effect =
-            a.kind === "run_function"
+            a.kind === "damage_item"
+                ? { type: "minecraft:damage_item", amount: seconds }
+                : a.kind === "spawn_particles"
+                  ? {
+                        horizontal_position: { type: "in_bounding_box" },
+                        vertical_position: { type: "in_bounding_box" },
+                        horizontal_velocity: {},
+                        vertical_velocity: {},
+                        ...oldEffect,
+                        type: "minecraft:spawn_particles",
+                        particle: { ...(obj(oldEffect["particle"]) ?? {}), type: a.target ?? "minecraft:flame" },
+                    }
+                  : a.kind === "run_function"
                 ? { type: "minecraft:run_function", function: a.target ?? "" }
                 : a.kind === "play_sound"
                   ? { volume: 1, pitch: 1, ...oldEffect, type: "minecraft:play_sound", sound: a.target ?? "minecraft:entity.generic.explode" }
@@ -709,11 +728,13 @@ export function writeEffects(text: string, effects: readonly LevelValueEffect[])
     return writeJson({ ...o, effects: grouped });
 }
 
-export const newAction = (kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode" | "run_function" | "play_sound"): LevelValueEffect => ({
+export const newAction = (
+    kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode" | "run_function" | "play_sound" | "damage_item" | "spawn_particles",
+): LevelValueEffect => ({
     component: "minecraft:post_attack",
     operation: "add",
-    base: kind === "ignite" ? 4 : kind === "explode" ? 2 : 3,
-    perLevel: kind === "ignite" ? 4 : kind === "explode" ? 0.5 : 1,
+    base: kind === "ignite" ? 4 : kind === "explode" ? 2 : kind === "damage_item" ? 1 : 3,
+    perLevel: kind === "ignite" ? 4 : kind === "explode" ? 0.5 : kind === "damage_item" ? 0 : 1,
     raw: {},
     editable: true,
     action: {
@@ -726,6 +747,7 @@ export const newAction = (kind: "ignite" | "apply_mob_effect" | "summon_entity" 
         ...(kind === "explode" ? { createFire: false, blockInteraction: "none" as const, chance: 0.1 } : {}),
         ...(kind === "run_function" ? { target: "my_pack:on_hit" } : {}),
         ...(kind === "play_sound" ? { target: "minecraft:entity.experience_orb.pickup" } : {}),
+        ...(kind === "spawn_particles" ? { target: "minecraft:flame" } : {}),
     },
 });
 

@@ -223,3 +223,17 @@ describe("attribute effects", async () => {
         expect(back.effects["minecraft:attributes"]).toHaveLength(2);
     });
 });
+
+describe("particles and item wear", async () => {
+    const m = await import("./worldgenParts.js");
+    it("reads particles keeping their positions, and writes item wear", () => {
+        const fx = { enchanted: "attacker", affected: "victim", effect: { type: "minecraft:spawn_particles", particle: { type: "minecraft:flame" }, horizontal_position: { type: "entity_position", offset: 0 }, vertical_position: { type: "in_bounding_box" }, horizontal_velocity: { base: 0.1 }, vertical_velocity: {} } };
+        const text = JSON.stringify({ effects: { "minecraft:post_attack": [fx] } });
+        const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
+        expect(effects[0]).toMatchObject({ editable: true, action: { kind: "spawn_particles", target: "minecraft:flame" } });
+        effects[0]!.action!.target = "minecraft:heart";
+        const back = JSON.parse(m.writeEffects(text, [...effects, m.newAction("damage_item")])) as { effects: Record<string, Record<string, Record<string, unknown>>[]> };
+        expect(back.effects["minecraft:post_attack"]![0]!.effect).toMatchObject({ particle: { type: "minecraft:heart" }, horizontal_position: { type: "entity_position", offset: 0 }, horizontal_velocity: { base: 0.1 } });
+        expect(back.effects["minecraft:post_attack"]![1]!.effect).toEqual({ type: "minecraft:damage_item", amount: 1 });
+    });
+});
