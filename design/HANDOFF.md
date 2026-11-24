@@ -21,7 +21,9 @@ The server appliance's management site now runs as its own program (`0231313`, `
 
 The Minecraft server appliance workload is built (`c2a9c7d`: server-site bundle and image target, CI `server-site-image` job, boot script and dialog). Appliance run 45277496892 is building bases for `v1.0.2311` that include it.
 
-Still to do, in order: pin the `v1.0.2311` bases with `["map", "app", "minecraft"]` once that run succeeds; record the hosted and server-site image digests from the first CI run that has those jobs; the Minecraft server appliance (a headless entry that runs a server plus the web console with `accounts`, packaged as an appliance workload) that runs a server plus that site (`McServer.dc.html`, `Admin.dc.html`);
+QEMU evidence 2026-11-23: the app appliance booted, pulled the published hosted image and served the app (401 to an unsigned bridge call). The Minecraft server appliance ran out of root space (fixed with a storage partition, `9965ef6`, `1072fe5`); the rerun reached "formatting /dev/vda3" and did not report further within 16 minutes under TCG, so the server workload is still unproven. The user asked for a much richer data pack creator (designer pass first: every pack part, visual advancement tree, loot cards, predicate blocks, worldgen, function editor with autocomplete, open existing packs, overlays).
+
+Still to do, in order: the data pack creator redesign; prove the server workload boots (check mkfs/docker restart in use_storage); pin the `v1.0.2311` bases with `["map", "app", "minecraft"]` once that run succeeds; record the hosted and server-site image digests from the first CI run that has those jobs; the Minecraft server appliance (a headless entry that runs a server plus the web console with `accounts`, packaged as an appliance workload) that runs a server plus that site (`McServer.dc.html`, `Admin.dc.html`);
 
 Note: commits `aab3cf3`, `3b23096` and `bfc87f0` carry a "Claude Opus 5.5" co-author trailer and author instead of the required "Claude Fable 5". They are pushed and were not rewritten.
 
