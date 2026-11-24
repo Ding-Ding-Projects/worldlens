@@ -1,0 +1,62 @@
+// @vitest-environment jsdom
+
+import { describe, expect, it } from "vitest";
+import { mount } from "@vue/test-utils";
+import { createI18n } from "vue-i18n";
+import { createVuetify } from "vuetify";
+import * as components from "vuetify/components";
+import * as directives from "vuetify/directives";
+import WorldgenPartEditor from "./WorldgenPartEditor.vue";
+import { newPart } from "./datapackParts.js";
+
+globalThis.ResizeObserver ??= class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+} as unknown as typeof ResizeObserver;
+
+function make(kind: string, text = newPart(kind, "x", "p").text) {
+    return mount(WorldgenPartEditor, {
+        props: { kind, text },
+        global: {
+            plugins: [
+                createVuetify({ components, directives }),
+                createI18n({ legacy: false, locale: "en", missingWarn: false, fallbackWarn: false }),
+            ],
+        },
+    });
+}
+const last = (w: ReturnType<typeof make>): Record<string, unknown> =>
+    JSON.parse((w.emitted("update:text")!.at(-1) as [string])[0]) as Record<string, unknown>;
+
+describe("WorldgenPartEditor", () => {
+    it("shows placement steps with a depth gauge, and adds a step", async () => {
+        const w = make("placed_feature");
+        expect(w.findAll(".wl-wg__step")).toHaveLength(4);
+        expect(w.find("svg.wl-wg__gauge").attributes("aria-label")).toBe("Lands between Y -64 and Y 16");
+        await w.findAll("button").find((b) => b.text() === "Add step")!.trigger("click");
+        const placement = last(w)["placement"] as { type: string }[];
+        expect(placement.at(-1)!.type).toBe("minecraft:rarity_filter");
+    });
+
+    it("draws the structure grid and warns when separation is not smaller", () => {
+        const ok = make("structure_set");
+        expect(ok.findAll(".wl-wg__dot")).toHaveLength(16);
+        const bad = make("structure_set", JSON.stringify({ structures: [], placement: { type: "minecraft:random_spread", spacing: 8, separation: 8, salt: 1 } }));
+        expect(bad.text()).toContain("Separation has to be smaller than spacing");
+    });
+
+    it("edits noise settings switches without losing other fields", async () => {
+        const w = make("noise_settings");
+        const swAquifer = w.findAll("input[type='checkbox']")[0]!;
+        await swAquifer.setValue(false);
+        const out = last(w);
+        expect(out["aquifers_enabled"]).toBe(false);
+        expect((out["noise"] as { height: number }).height).toBe(384);
+    });
+
+    it("says when the JSON cannot be edited here", () => {
+        expect(make("noise_settings", "{").text()).toContain("Fix the JSON below");
+        expect(make("configured_feature", '{"type":"minecraft:tree","config":{}}').find(".wl-wg__row").exists()).toBe(false);
+    });
+});

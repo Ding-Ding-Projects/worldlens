@@ -12,7 +12,9 @@ All on `main`, unit and component tests only; none of it was driven in the packa
 
 Item modifiers have a step editor over their JSON (`itemModifier.ts`, `ItemModifierEditor.vue`). The studio already lays out as navigation, editor and files columns, wrapping on narrow windows.
 
-Still to do: visual editors for the other More parts kinds (worldgen first), saving a pack into a server appliance, the Oracle relay test on a real VM (needs the user). A full `npx vitest run packages/ui --maxWorkers=3` on 2026-11-24 passed 6381 tests in 498 files (2 skipped); it exits 1 only on two vitest worker RPC timeouts ("Timeout calling onTaskUpdate") under load, and runs with more workers were cut short by the worker channel closing. `packages/site` "keeps no secret on screen" failed once in three runs and passed alone; it looks timing-sensitive.
+World generation parts (placed features, ores, structure sets, noise settings) have typed editors (`worldgenParts.ts`, `WorldgenPartEditor.vue`), designed first on the `WorldgenParts.dc.html` board.
+
+Still to do: typed editors for the remaining More parts kinds, saving a pack into a server appliance, the Oracle relay test on a real VM (needs the user). A full `npx vitest run packages/ui --maxWorkers=3` on 2026-11-24 passed 6381 tests in 498 files (2 skipped); it exits 1 only on two vitest worker RPC timeouts ("Timeout calling onTaskUpdate") under load, and runs with more workers were cut short by the worker channel closing. `packages/site` "keeps no secret on screen" failed once in three runs and passed alone; it looks timing-sensitive.
 
 ## 2026-11-23 Chunk view, chunk picker, data pack creator, container deploy
 

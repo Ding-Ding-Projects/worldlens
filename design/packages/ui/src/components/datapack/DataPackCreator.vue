@@ -25,6 +25,7 @@ import CommandBuilder from "../mcserver/CommandBuilder.vue";
 import PredicateBlockEditor from "./PredicateBlockEditor.vue";
 import FunctionEditor from "./FunctionEditor.vue";
 import ItemModifierEditor from "./ItemModifierEditor.vue";
+import WorldgenPartEditor from "./WorldgenPartEditor.vue";
 import { BLOCK_IDS, ITEM_IDS } from "../mcserver/commandBuilderData.js";
 import {
     PACK_VERSIONS,
@@ -1088,6 +1089,11 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                     <ItemModifierEditor
                         v-if="part.kind === 'item_modifier'"
                         v-model:text="part.text"
+                    />
+                    <WorldgenPartEditor
+                        v-else-if="['placed_feature', 'configured_feature', 'structure_set', 'noise_settings'].includes(part.kind)"
+                        v-model:text="part.text"
+                        :kind="part.kind"
                     />
                     <v-textarea
                         v-model="part.text"

@@ -22,6 +22,7 @@ import {
     type PackOverlay,
     type PackPart,
 } from "./datapackParts.js";
+import { readSpread, spreadProblem } from "./worldgenParts.js";
 
 export interface PackVersion {
     readonly label: string;
@@ -677,6 +678,11 @@ export function packProblems(pack: DataPack): PackProblem[] {
     for (const kind of new Set(parts.map((p) => p.kind)))
         names(partKind(kind)?.label ?? kind, parts.filter((p) => p.kind === kind));
     for (const part of parts) {
+        if (part.kind === "structure_set") {
+            const spread = readSpread(part.text);
+            const issue = spread === null ? null : spreadProblem(spread);
+            if (issue !== null) out.push({ where: `Structure set ${part.name}`, message: issue });
+        }
         const error = partError(part);
         if (error !== null)
             out.push({

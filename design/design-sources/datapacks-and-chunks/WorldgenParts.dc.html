@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WorldLens: World generation parts</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Roboto+Mono:wght@400;500&amp;family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+[data-wl-theme="dark"]{--wl-bg:#0B0E11;--wl-surface:#101418;--wl-surf-low:#191C20;--wl-surf-cont:#1D2024;--wl-surf-high:#272A2E;--wl-surf-highest:#323539;--wl-outline-var:#42474E;--wl-outline:#8C9199;--wl-on-surf-var:#C2C7CF;--wl-on-surf:#E1E2E8;--wl-primary:#8FCDFF;--wl-on-primary:#003351;--wl-prim-cont:#004B73;--wl-on-prim-cont:#CEE5FF;--wl-sec:#B7C9D9;--wl-sec-cont:#384956;--wl-on-sec-cont:#D3E5F5;--wl-tert:#D1BFE7;--wl-tert-cont:#4E4161;--wl-on-tert-cont:#EDDCFF;--wl-error:#FFB4AB;--wl-on-error:#410002;--wl-err-cont:#93000A;--wl-on-err-cont:#FFDAD6;--wl-scrim:rgba(0,0,0,.6)}
+[data-wl-theme="light"]{--wl-bg:#F7F9FF;--wl-surface:#FFFFFF;--wl-surf-low:#F1F4FA;--wl-surf-cont:#EBEEF4;--wl-surf-high:#E5E8EE;--wl-surf-highest:#DFE2E8;--wl-outline-var:#C1C7CE;--wl-outline:#6C737A;--wl-on-surf-var:#41474D;--wl-on-surf:#181C20;--wl-primary:#00639B;--wl-on-primary:#FFFFFF;--wl-prim-cont:#CDE5FF;--wl-on-prim-cont:#001D32;--wl-sec:#3B4A57;--wl-sec-cont:#D3E5F5;--wl-on-sec-cont:#0C1D29;--wl-tert:#66587B;--wl-tert-cont:#EDDCFF;--wl-on-tert-cont:#211634;--wl-error:#BA1A1A;--wl-on-error:#FFFFFF;--wl-err-cont:#FFDAD6;--wl-on-err-cont:#410002;--wl-scrim:rgba(0,0,0,.32)}
+[data-wl-theme="contrast"]{--wl-bg:#000000;--wl-surface:#000000;--wl-surf-low:#000000;--wl-surf-cont:#000000;--wl-surf-high:#141414;--wl-surf-highest:#1F1F1F;--wl-outline-var:#FFFFFF;--wl-outline:#FFFFFF;--wl-on-surf-var:#FFFFFF;--wl-on-surf:#FFFFFF;--wl-primary:#FFFFFF;--wl-on-primary:#000000;--wl-prim-cont:#FFFFFF;--wl-on-prim-cont:#000000;--wl-sec:#FFFF00;--wl-sec-cont:#000000;--wl-on-sec-cont:#FFFF00;--wl-tert:#FFFF00;--wl-tert-cont:#000000;--wl-on-tert-cont:#FFFF00;--wl-error:#FF5449;--wl-on-error:#000000;--wl-err-cont:#000000;--wl-on-err-cont:#FF5449;--wl-scrim:rgba(0,0,0,.85)}
+[data-wl-theme="contrast"] .card,[data-wl-theme="contrast"] .pane{outline:1px solid #FFFFFF}
+.msr{font-family:"Material Symbols Rounded";font-weight:normal;font-style:normal;font-size:24px;line-height:1;display:inline-block;white-space:nowrap;font-feature-settings:"liga";-webkit-font-smoothing:antialiased}
+.fill{font-variation-settings:"FILL" 1}
+a{color:var(--wl-primary);text-underline-offset:2px}a:hover{color:var(--wl-on-surf)}
+input::placeholder{color:var(--wl-on-surf-var);opacity:1}
+.sl{position:relative;overflow:hidden;cursor:pointer}
+.sl::after{content:"";position:absolute;inset:0;border-radius:inherit;background:currentColor;opacity:0;transition:opacity 150ms cubic-bezier(.2,0,0,1);pointer-events:none}
+.sl:hover::after{opacity:.08}.sl:active::after{opacity:.10}
+.sl:focus-visible,.ri:focus-visible{outline:3px solid var(--wl-primary);outline-offset:2px}
+.ri{display:flex;flex-direction:column;align-items:center;gap:4px;width:80px;text-decoration:none;color:var(--wl-on-surf-var);font:500 12px/16px Roboto,sans-serif;letter-spacing:.5px}
+.ri:hover{color:var(--wl-on-surf)}
+.ri .ind{width:56px;height:32px;border-radius:16px;display:flex;align-items:center;justify-content:center;position:relative;transition:background 200ms cubic-bezier(.2,0,0,1)}
+.ri:hover .ind{background:var(--wl-surf-high)}
+.ri[aria-current] {color:var(--wl-on-surf)}
+.ri[aria-current] .ind{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.ri[aria-current] .msr{font-variation-settings:"FILL" 1}
+.bdg{position:absolute;top:-4px;right:6px;min-width:16px;height:16px;border-radius:8px;background:var(--wl-error);color:var(--wl-on-error);font:500 11px/16px Roboto,sans-serif;text-align:center;padding:0 4px;box-sizing:border-box}
+.ib{width:48px;height:48px;border:0;border-radius:24px;background:transparent;color:var(--wl-on-surf-var);display:inline-flex;align-items:center;justify-content:center}
+.chip{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 6px 0 12px;border-radius:12px;border:1px solid var(--wl-outline-var);background:transparent;color:var(--wl-on-surf);font:500 14px/20px Roboto,sans-serif;box-sizing:border-box}
+.chip[aria-current]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.fchip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 14px;border-radius:18px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);font:500 14px/20px Roboto,sans-serif}
+.fchip[aria-pressed="true"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.btn{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 20px;border-radius:20px;border:0;font:500 14px/20px Roboto,sans-serif;text-decoration:none}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{transition-duration:.001ms!important;animation-duration:.001ms!important}}
+
+.vnav{display:inline-flex;align-items:center;gap:6px;height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--wl-outline-var);color:var(--wl-on-surf);text-decoration:none;font:500 14px/20px Roboto,sans-serif;box-sizing:border-box}
+.vnav[aria-current="page"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont);border-color:transparent}
+.tchip{display:inline-flex;align-items:center;justify-content:center;min-width:64px;height:22px;padding:0 6px;border-radius:6px;font:500 11px/16px 'Roboto Mono',monospace;letter-spacing:.3px;box-sizing:border-box}
+.row{display:flex;align-items:center;gap:8px;min-height:36px;padding:0 8px;border:0;border-radius:10px;background:transparent;color:var(--wl-on-surf);font:400 14px/20px Roboto,sans-serif;text-align:left;width:100%;box-sizing:border-box}
+.row[aria-selected="true"]{background:var(--wl-sec-cont);color:var(--wl-on-sec-cont)}
+.fld{display:flex;flex-direction:column;gap:4px;font:500 12px/16px Roboto,sans-serif;color:var(--wl-on-surf-var)}
+.inp{height:44px;padding:0 12px;border-radius:8px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);font:400 15px/20px Roboto,sans-serif;box-sizing:border-box;min-width:0}
+.mono{font-family:'Roboto Mono',monospace}
+.card{background:var(--wl-surf-cont);border-radius:24px;padding:20px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;min-width:0}
+.tool{width:44px;height:44px;border-radius:12px;border:0;background:var(--wl-surf-high);color:var(--wl-on-surf);display:inline-flex;align-items:center;justify-content:center}
+.tool[aria-pressed="true"]{background:var(--wl-prim-cont);color:var(--wl-on-prim-cont)}
+.sw{position:relative;display:inline-flex;width:52px;height:32px;border-radius:16px;border:2px solid var(--wl-outline);background:var(--wl-surf-highest);box-sizing:border-box;padding:0;flex:0 0 52px}
+.sw::after{content:"";position:absolute;top:6px;left:6px;width:16px;height:16px;border-radius:8px;background:var(--wl-outline);transition:all 150ms}
+.sw[aria-checked="true"]{background:var(--wl-primary);border-color:var(--wl-primary)}
+.sw[aria-checked="true"]::after{left:24px;top:4px;width:24px;height:24px;border-radius:12px;background:var(--wl-on-primary)}
+.step{display:inline-flex;align-items:center;gap:4px}
+.step button{width:40px;height:40px;border-radius:12px;border:1px solid var(--wl-outline);background:transparent;color:var(--wl-on-surf);display:inline-flex;align-items:center;justify-content:center}
+.step output{min-width:56px;text-align:center;font:500 16px/24px 'Roboto Mono',monospace}
+.slot{width:48px;height:48px;border-radius:10px;border:1px solid var(--wl-outline-var);background:var(--wl-surf-high);color:var(--wl-on-surf);display:inline-flex;align-items:center;justify-content:center;position:relative;font:500 11px/14px Roboto,sans-serif;padding:0}
+.slot[aria-pressed="true"]{outline:3px solid var(--wl-primary);outline-offset:1px}
+.slot .cnt{position:absolute;right:3px;bottom:1px;font:700 11px/14px 'Roboto Mono',monospace}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--wl-outline-var)}
+.tab{height:44px;padding:0 16px;border:0;background:transparent;color:var(--wl-on-surf-var);font:500 14px Roboto,sans-serif;border-bottom:3px solid transparent}
+.tab[aria-selected="true"]{color:var(--wl-primary);border-bottom-color:var(--wl-primary)}
+.json{margin:0;padding:12px;border-radius:12px;background:var(--wl-surf-highest);font:400 12px/18px 'Roboto Mono',monospace;white-space:pre-wrap;max-height:560px;overflow:auto}
+.step{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border-radius:16px;background:var(--wl-surf-high)}
+.step h3{margin:0;font:500 14px Roboto,sans-serif}
+.note{margin:0;font:400 13px/18px Roboto,sans-serif;color:var(--wl-on-surf-var)}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.row > label{flex:1 1 180px}
+</style>
+</helmet>
+<div data-wl-theme="{{theme}}" style="min-height: 900px; background: var(--wl-bg); color: var(--wl-on-surf); font-family: Roboto, Helvetica, sans-serif; display: flex; flex-direction: column;">
+  <header style="display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 8px 16px 8px 24px; box-sizing: border-box; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 12px;"><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="var(--wl-prim-cont)"></rect><circle cx="16" cy="16" r="8" fill="none" stroke="var(--wl-on-prim-cont)" stroke-width="2.5"></circle><path d="M8 16h16M16 8c3 3 3 13 0 16M16 8c-3 3-3 13 0 16" fill="none" stroke="var(--wl-on-prim-cont)" stroke-width="1.5"></path></svg><span style="font-size: 18px; line-height: 24px; font-weight: 500;">WorldLens</span></div>
+    <label style="flex: 1 1 320px; max-width: 640px; margin: 0 auto; display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 8px 0 16px; border-radius: 24px; background: var(--wl-surf-high); color: var(--wl-on-surf-var); box-sizing: border-box;">
+      <span class="msr" aria-hidden="true">search</span>
+      <input type="search" aria-label="Search everything" placeholder="Search maps, tools, settings and commands" style="flex: 1; min-width: 0; border: 0; background: transparent; color: var(--wl-on-surf); font: 400 16px/24px Roboto, sans-serif; outline: none;">
+      <kbd style="font: 500 12px/16px 'Roboto Mono', monospace; padding: 4px 8px; border-radius: 8px; background: var(--wl-surf-highest); color: var(--wl-on-surf-var);">Ctrl Shift F</kbd>
+    </label>
+    <button type="button" class="sl ib" aria-label="Notifications"><span class="msr" aria-hidden="true">notifications</span></button>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; flex: 1;">
+    <nav aria-label="Destinations" style="flex: 0 0 96px; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 12px 0 24px;">
+      <a href="Container.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">home</span></span>Home</a>
+      <a href="Container.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">map</span></span>Map</a>
+      <a href="Container.dc.html" class="ri" aria-current="page"><span class="ind"><span class="msr" aria-hidden="true">handyman</span></span>Work</a>
+      <a href="Container.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">dns</span></span>Servers</a>
+      <div style="flex: 1;"></div>
+      <a href="Container.dc.html" class="ri"><span class="ind"><span class="msr" aria-hidden="true">settings</span></span>Settings</a>
+    </nav>
+    <main class="pane" style="flex: 999 1 560px; min-width: 0; margin: 0 16px 16px 0; background: var(--wl-surface); border-radius: 28px; padding: 16px 28px 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px;">
+      <div role="tablist" aria-label="Open jobs" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--wl-outline-var);"><span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">add_location_alt</span><span role="tab" aria-selected="false">Make a map</span></span><span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">rocket_launch</span><span role="tab" aria-selected="false">Deploy WorldLens</span></span><span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">bolt</span><span role="tab" aria-selected="false">Renders</span></span><span class="chip" aria-current="page"><span class="msr" aria-hidden="true" style="font-size: 18px;">data_object</span><span role="tab" aria-selected="true">Data packs</span></span><span class="chip"><span class="msr" aria-hidden="true" style="font-size: 18px;">construction</span><span role="tab" aria-selected="false">Built-in tools</span></span></div>
+      <div><h1 style="margin: 0; font-size: 28px; line-height: 36px; font-weight: 400;">World generation parts</h1>
+      <p style="margin: 2px 0 0; font-size: 14px; line-height: 20px; color: var(--wl-on-surf-var);">Placed features, ore veins, structure spacing and noise settings, each as typed steps with a live file.</p></div>
+      
+      <div style="display: grid; grid-template-columns: minmax(0, 3fr) minmax(260px, 1.2fr); gap: 16px; align-items: start;">
+  <section class="card" aria-label="World generation editor">
+    <div class="tabs" role="tablist"><sc-for list="{{tabs}}" as="t" hint-placeholder-count="4"><button type="button" role="tab" class="tab sl" aria-selected="{{t.sel}}" onClick="{{t.pick}}">{{t.label}}</button></sc-for></div>
+    <sc-if value="{{isPlaced}}" hint-placeholder-val="{{ true }}">
+      <p class="note">A placed feature is a list of placement steps. Each step is a card; the depth gauge shows where the feature can land.</p>
+      <div style="display: grid; grid-template-columns: minmax(0, 1fr) 120px; gap: 16px;">
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="step"><h3>1. How many tries per chunk</h3><label class="fld">Count: {{count}}<input type="range" min="1" max="64" value="{{count}}" onInput="{{setCount}}" aria-label="Tries per chunk"></label></div>
+          <div class="step"><h3>2. Spread across the chunk</h3><p class="note">in_square: moves each try to a random spot in the chunk.</p></div>
+          <div class="step"><h3>3. Height range</h3><div class="row"><label class="fld">Lowest Y: {{lo}}<input type="range" min="-64" max="320" value="{{lo}}" onInput="{{setLo}}" aria-label="Lowest Y"></label><label class="fld">Highest Y: {{hi}}<input type="range" min="-64" max="320" value="{{hi}}" onInput="{{setHi}}" aria-label="Highest Y"></label></div><label class="fld">Spread<select class="inp"><option>Uniform</option><option>Trapezoid (most in the middle)</option></select></label></div>
+          <div class="step"><h3>4. Only where the biome has it</h3><p class="note">biome filter: keeps the feature to biomes that list it.</p></div>
+          <div class="row"><label class="fld">Add a step<select class="inp"><option>Rarity (1 in N chunks)</option><option>Surface water depth</option><option>Heightmap</option><option>Block survives</option><option>Random offset</option></select></label><button type="button" class="btn sl" style="background: var(--wl-sec-cont); color: var(--wl-on-sec-cont);">Add step</button></div>
+        </div>
+        <svg viewBox="0 0 120 400" width="120" role="img" aria-label="{{gaugeLabel}}" style="background: var(--wl-surf-highest); border-radius: 16px;">
+          <rect x="30" y="{{bandY}}" width="60" height="{{bandH}}" rx="8" fill="var(--wl-primary)" opacity="0.6"></rect>
+          <line x1="20" y1="{{seaY}}" x2="100" y2="{{seaY}}" stroke="#4A90D9" stroke-width="2" stroke-dasharray="4 3"></line>
+          <text x="60" y="16" text-anchor="middle" fill="var(--wl-on-surf-var)" font-size="11" font-family="Roboto">Y 320</text>
+          <text x="60" y="394" text-anchor="middle" fill="var(--wl-on-surf-var)" font-size="11" font-family="Roboto">Y -64</text>
+        </svg>
+      </div>
+    </sc-if>
+    <sc-if value="{{isOre}}" hint-placeholder-val="{{ false }}">
+      <p class="note">An ore vein: which block, how big, and what it may replace.</p>
+      <div class="row"><label class="fld">Ore block<select class="inp"><option>minecraft:diamond_ore</option><option>minecraft:emerald_ore</option><option>minecraft:ancient_debris</option></select></label><label class="fld">Vein size: {{size}}<input type="range" min="1" max="64" value="{{size}}" onInput="{{setSize}}" aria-label="Vein size"></label></div>
+      <label class="fld">Hidden from air: {{hidden}}%<input type="range" min="0" max="100" value="{{hidden}}" onInput="{{setHidden}}" aria-label="Chance to skip blocks touching air"></label>
+      <div class="row"><span class="fchip">#stone_ore_replaceables</span><span class="fchip">#deepslate_ore_replaceables</span><button type="button" class="fchip sl" style="border-style: dashed;">Add a target</button></div>
+      <svg viewBox="0 0 300 120" width="100%" role="img" aria-label="Vein preview" style="background: var(--wl-surf-highest); border-radius: 16px;"><sc-for list="{{vein}}" as="v" hint-placeholder-count="8"><rect x="{{v.x}}" y="{{v.y}}" width="14" height="14" fill="{{v.c}}" rx="2"></rect></sc-for></svg>
+    </sc-if>
+    <sc-if value="{{isSet}}" hint-placeholder-val="{{ false }}">
+      <p class="note">Where a structure can start: one cell per spacing, a random spot in each that keeps the separation from the edge.</p>
+      <div class="row"><label class="fld">Spacing (chunks): {{spacing}}<input type="range" min="2" max="64" value="{{spacing}}" onInput="{{setSpacing}}" aria-label="Spacing"></label><label class="fld">Separation (chunks): {{separation}}<input type="range" min="1" max="63" value="{{separation}}" onInput="{{setSeparation}}" aria-label="Separation"></label></div>
+      <svg viewBox="0 0 320 320" width="320" role="img" aria-label="{{setLabel}}" style="background: var(--wl-surf-highest); border-radius: 16px; align-self: center;">
+        <sc-for list="{{cells}}" as="c" hint-placeholder-count="16"><g><rect x="{{c.x}}" y="{{c.y}}" width="{{c.w}}" height="{{c.w}}" fill="none" stroke="var(--wl-outline-var)"></rect><rect x="{{c.ix}}" y="{{c.iy}}" width="{{c.iw}}" height="{{c.iw}}" fill="var(--wl-primary)" opacity="0.15"></rect><circle cx="{{c.px}}" cy="{{c.py}}" r="5" fill="var(--wl-tert)"></circle></g></sc-for>
+      </svg>
+      <p class="note">{{setNote}}</p>
+    </sc-if>
+    <sc-if value="{{isNoise}}" hint-placeholder-val="{{ false }}">
+      <p class="note">The shape of a dimension: sea level, height limits and what fills it.</p>
+      <div class="row"><label class="fld">Sea level: {{sea}}<input type="range" min="-64" max="320" value="{{sea}}" onInput="{{setSea}}" aria-label="Sea level"></label><label class="fld">Bottom (min_y)<select class="inp"><option>-64</option><option>0</option><option>-128</option></select></label><label class="fld">Height<select class="inp"><option>384</option><option>256</option><option>512</option></select></label></div>
+      <div class="row"><label class="fld">Filled with<select class="inp"><option>minecraft:stone</option><option>minecraft:netherrack</option><option>minecraft:end_stone</option></select></label><label class="fld">Fluid<select class="inp"><option>minecraft:water</option><option>minecraft:lava</option></select></label></div>
+      <div class="row"><span class="fchip" aria-pressed="true">Aquifers</span><span class="fchip" aria-pressed="true">Ore veins</span><span class="fchip">No mobs at generation</span></div>
+    </sc-if>
+  </section>
+  <section class="card" aria-label="Live file">
+    <h2 style="margin: 0; font-size: 16px; font-weight: 500;">{{fileName}}</h2>
+    <pre class="json">{{json}}</pre>
+    <p style="margin: 0; font: 400 12px Roboto, sans-serif; color: var(--wl-primary);">✓ Valid JSON. Steps with no editor are kept as written.</p>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap;"><button type="button" class="fchip sl">Tidy the layout</button><button type="button" class="fchip sl">Start again from the template</button></div>
+  </section>
+</div>
+    </main>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme": {"editor": "enum", "options": ["dark", "light", "contrast"], "default": "dark"}, "$preview": {"width": 1440, "height": 900}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { tab: 0, count: 4, lo: -64, hi: 16, size: 9, hidden: 0, spacing: 32, separation: 8, sea: 63 }; }
+  render() {
+    const S = this.state;
+    const T = ['Placed feature', 'Ore', 'Structure spacing', 'Noise settings'];
+    const num = (k) => (e) => this.setState({ [k]: Number(e.target.value) });
+    const yToPx = (y) => 20 + (320 - y) / 384 * 360;
+    const lo = Math.min(S.lo, S.hi), hi = Math.max(S.lo, S.hi);
+    const cells = [];
+    const n = 4, w = 80;
+    for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+      const inner = w * (S.spacing - S.separation) / S.spacing;
+      const seed = Math.sin(i * 12.9898 + j * 78.233) * 43758.5453; const r = seed - Math.floor(seed);
+      const seed2 = Math.sin(i * 39.3468 + j * 11.135) * 24634.6345; const r2 = seed2 - Math.floor(seed2);
+      cells.push({ x: i * w, y: j * w, w, ix: i * w, iy: j * w, iw: Math.max(2, inner), px: i * w + r * inner, py: j * w + r2 * inner });
+    }
+    const vein = [];
+    for (let k = 0; k < Math.min(S.size, 40); k++) { const a = k * 2.399; const rr = 4 + Math.sqrt(k) * 9; vein.push({ x: 150 + Math.cos(a) * rr * 1.6, y: 55 + Math.sin(a) * rr * 0.8, c: k % 5 === 0 && S.hidden > 30 ? '#555' : '#5BD3C7' }); }
+    const files = [
+      { feature: 'heapandyville:deep_diamonds', placement: [{ type: 'minecraft:count', count: S.count }, { type: 'minecraft:in_square' }, { type: 'minecraft:height_range', height: { type: 'minecraft:uniform', min_inclusive: { absolute: lo }, max_inclusive: { absolute: hi } } }, { type: 'minecraft:biome' }] },
+      { type: 'minecraft:ore', config: { size: S.size, discard_chance_on_air_exposure: S.hidden / 100, targets: [{ target: { predicate_type: 'minecraft:tag_match', tag: 'minecraft:stone_ore_replaceables' }, state: { Name: 'minecraft:diamond_ore' } }] } },
+      { structures: [{ structure: 'heapandyville:tower', weight: 1 }], placement: { type: 'minecraft:random_spread', spacing: S.spacing, separation: Math.min(S.separation, S.spacing - 1), salt: 14357617 } },
+      { sea_level: S.sea, aquifers_enabled: true, ore_veins_enabled: true, default_block: { Name: 'minecraft:stone' }, default_fluid: { Name: 'minecraft:water', Properties: { level: '0' } }, noise: { min_y: -64, height: 384, size_horizontal: 1, size_vertical: 2 } },
+    ];
+    return { theme: this.props.theme ?? 'dark',
+      tabs: T.map((label, i) => ({ label, sel: S.tab === i ? 'true' : 'false', pick: () => this.setState({ tab: i }) })),
+      isPlaced: S.tab === 0, isOre: S.tab === 1, isSet: S.tab === 2, isNoise: S.tab === 3,
+      count: S.count, lo: S.lo, hi: S.hi, setCount: num('count'), setLo: num('lo'), setHi: num('hi'),
+      bandY: yToPx(hi), bandH: Math.max(4, yToPx(lo) - yToPx(hi)), seaY: yToPx(63), gaugeLabel: 'Lands between Y ' + lo + ' and Y ' + hi,
+      size: S.size, hidden: S.hidden, setSize: num('size'), setHidden: num('hidden'), vein,
+      spacing: S.spacing, separation: S.separation, setSpacing: num('spacing'), setSeparation: num('separation'), cells,
+      setLabel: 'Placement grid, ' + S.spacing + ' chunk cells', setNote: S.separation >= S.spacing ? 'Separation has to be smaller than spacing; the game refuses this.' : 'About one ' + 'structure every ' + (S.spacing * 16) + ' blocks each way, never closer than ' + (S.separation * 16) + ' blocks to the next cell.',
+      sea: S.sea, setSea: num('sea'),
+      fileName: ['worldgen/placed_feature/deep_diamonds.json', 'worldgen/configured_feature/diamond_vein.json', 'worldgen/structure_set/towers.json', 'worldgen/noise_settings/flatter.json'][S.tab],
+      json: JSON.stringify(files[S.tab], null, 2) };
+  }
+}
+</script>
+</body>
+</html>
