@@ -1,5 +1,17 @@
 # Handoff
 
+## 2026-11-24 Palette freeze, tools tab, contract checks, data pack studio parts
+
+All on `main`, unit and component tests only; none of it was driven in the packaged app yet.
+
+- Typing in the command palette froze the window with a large personal vocabulary loaded: `applyVocabulary` compiled one pattern per phrase per label. It now compiles one alternation per loaded file and memoises results (`8901be5`). Vocabulary keys also match a label's capitalised first letter.
+- The general tools tab is "Universal features", opens on a fresh Work strip, and is offered once to an older saved workspace (`8901be5`).
+- The fourteen failing UI contract checks are fixed (`8e0e02a`): copy for the chunk picker, deploy card and share cards (`copy/surfaces/worldTools.ts`), inventories for the NBT dialogs and menus, docs index rows, stale changelog trailers, the tour's last step, the runtime coverage path separator and scheduled-rule tie order.
+- Data pack studio (`9209093`, `3def175`): More parts (every other registry as checked JSON, with starting templates and version-correct folders), version overlays, search over parts and files, opened packs put every registry file in an editor, drag one advancement onto another to parent it, and Save into a world through a new `nbtEditor:saveDataPack` channel.
+- The hosted capability profile classifies the NBT editor, appliance, sharing, host-map and live-viewer channels (refused, refused, refused, opt-in, opt-in).
+
+Still to do: visual editors for the More parts kinds (item modifiers and worldgen first), saving a pack into a server appliance, the three-column studio layout from `design-sources/datapacks-and-chunks/DataPackStudio.dc.html`, the Oracle relay test on a real VM (needs the user). A full `npx vitest run packages/ui --maxWorkers=3` on 2026-11-24 passed 6381 tests in 498 files (2 skipped); it exits 1 only on two vitest worker RPC timeouts ("Timeout calling onTaskUpdate") under load, and runs with more workers were cut short by the worker channel closing. `packages/site` "keeps no secret on screen" failed once in three runs and passed alone; it looks timing-sensitive.
+
 ## 2026-11-23 Chunk view, chunk picker, data pack creator, container deploy
 
 What changed (all on `main`, unit and component tests only; nothing here was driven in the packaged app yet):
