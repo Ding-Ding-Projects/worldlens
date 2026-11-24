@@ -116,7 +116,8 @@ use_storage() {
         done
     fi
     [ -n "$STORE" ] || { say "no storage partition; using the root file system"; return 0; }
-    grep -q " /var/lib/docker " /proc/mounts && return 0
+    # /var/lib/docker can already be a mount point in the base; only skip when it is this store.
+    grep -q "^$STORE /var/lib/docker " /proc/mounts && return 0
     say "storage $STORE ready; moving Docker onto it"
     # --nodeps: this script is itself a service that needs docker, so a plain stop would make
     # OpenRC stop this script too, which is exactly how the first QEMU runs hung here.
