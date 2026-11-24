@@ -216,3 +216,18 @@ describe("opening an existing pack", () => {
         expect(out.get("data/minecraft/tags/function/tick.json")).toContain("heap:tick");
     });
 });
+
+describe("biomes", () => {
+    it("writes climate and colours as a worldgen biome", async () => {
+        const { biomeJson, newBiome } = await import("./datapackModel.js");
+        expect(biomeJson({ ...newBiome("misty"), skyColor: "#ff0000" })).toMatchObject({
+            temperature: 0.8,
+            downfall: 0.4,
+            has_precipitation: true,
+            effects: { sky_color: 0xff0000 },
+        });
+        const pack = { ...emptyPack(), versionIndex: 0, biomes: [newBiome("misty")] };
+        expect([...packFiles(pack).keys()]).toContain("data/my_pack/worldgen/biome/misty.json");
+        expect(packProblems(pack)).toEqual([]);
+    });
+});

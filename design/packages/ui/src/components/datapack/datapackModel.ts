@@ -171,6 +171,49 @@ export function predicateJson(b: PredicateBlock): Record<string, unknown> {
     }
 }
 
+/** A custom biome: climate and colours. Placement in the world needs a dimension's biome source. */
+export interface Biome {
+    name: string;
+    temperature: number;
+    downfall: number;
+    precipitation: boolean;
+    skyColor: string;
+    fogColor: string;
+    waterColor: string;
+    waterFogColor: string;
+}
+
+export const newBiome = (name: string): Biome => ({
+    name,
+    temperature: 0.8,
+    downfall: 0.4,
+    precipitation: true,
+    skyColor: "#78a7ff",
+    fogColor: "#c0d8ff",
+    waterColor: "#3f76e4",
+    waterFogColor: "#050533",
+});
+
+const colourInt = (hex: string): number => Number.parseInt(hex.replace("#", ""), 16) || 0;
+
+export function biomeJson(b: Biome): Record<string, unknown> {
+    return {
+        has_precipitation: b.precipitation,
+        temperature: b.temperature,
+        downfall: b.downfall,
+        effects: {
+            sky_color: colourInt(b.skyColor),
+            fog_color: colourInt(b.fogColor),
+            water_color: colourInt(b.waterColor),
+            water_fog_color: colourInt(b.waterFogColor),
+        },
+        spawners: {},
+        spawn_costs: {},
+        carvers: [],
+        features: [],
+    };
+}
+
 export interface DataPack {
     namespace: string;
     description: string;
@@ -181,6 +224,7 @@ export interface DataPack {
     advancements: Advancement[];
     lootTables: LootTable[];
     predicates?: Predicate[];
+    biomes?: Biome[];
     /** Files kept exactly as they were opened, for parts this editor does not edit yet. */
     extraFiles?: Record<string, string>;
     /** Binary files (pack.png and the like) kept as they were opened, base64. */
@@ -188,7 +232,8 @@ export interface DataPack {
 }
 
 /** Text files that are part of a pack; anything else is kept as binary. */
-export const isPackText = (path: string): boolean => /\.(json|mcfunction|mcmeta|txt|nbt\.snbt)$/i.test(path);
+export const isPackText = (path: string): boolean =>
+    /\.(json|mcfunction|mcmeta|txt|nbt\.snbt)$/i.test(path);
 
 export function emptyPack(): DataPack {
     return {
@@ -201,6 +246,7 @@ export function emptyPack(): DataPack {
         advancements: [],
         lootTables: [],
         predicates: [],
+        biomes: [],
     };
 }
 
@@ -504,6 +550,8 @@ export function packFiles(pack: DataPack): Map<string, string> {
             `data/${ns}/${folder(pack, "advancement")}/${a.name}.json`,
             json(advancementJson(pack, a)),
         );
+    for (const b of pack.biomes ?? [])
+        files.set(`data/${ns}/worldgen/biome/${b.name}.json`, json(biomeJson(b)));
     for (const pr of pack.predicates ?? [])
         files.set(
             `data/${ns}/${singular(pack) ? "predicate" : "predicates"}/${pr.name}.json`,

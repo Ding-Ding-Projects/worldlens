@@ -33,6 +33,7 @@ import {
     newFunction,
     newLootTable,
     newPredicate,
+    newBiome,
     packFromFiles,
     isPackText,
     newRecipe,
@@ -52,7 +53,7 @@ const STORE = "worldlens-datapack-draft";
 function readDraft(): DataPack {
     try {
         const raw = localStorage.getItem(STORE);
-        if (raw) return { ...emptyPack(), predicates: [], ...(JSON.parse(raw) as Partial<DataPack>) };
+        if (raw) return { ...emptyPack(), predicates: [], biomes: [], ...(JSON.parse(raw) as Partial<DataPack>) };
     } catch {
         /* a bad or missing draft starts empty */
     }
@@ -71,7 +72,7 @@ watch(
     { deep: true },
 );
 
-type Section = "pack" | "recipes" | "functions" | "tags" | "advancements" | "lootTables" | "predicates";
+type Section = "pack" | "recipes" | "functions" | "tags" | "advancements" | "lootTables" | "predicates" | "biomes";
 const section = ref<Section>("recipes");
 const pick = ref(0);
 watch(section, () => (pick.value = 0));
@@ -108,11 +109,17 @@ const sections = computed(() => [
         label: t("datapack.section.predicates", "Predicates"),
         count: (pack.value.predicates ?? []).length,
     },
+    {
+        id: "biomes" as const,
+        label: t("datapack.section.biomes", "Biomes"),
+        count: (pack.value.biomes ?? []).length,
+    },
 ]);
 
 const items = computed(() => {
     if (section.value === "pack") return [];
     if (section.value === "predicates") return (pack.value.predicates ??= []);
+    if (section.value === "biomes") return (pack.value.biomes ??= []);
     return pack.value[section.value] as { name: string }[];
 });
 function add(): void {
@@ -125,6 +132,7 @@ function add(): void {
         advancements: "new_advancement",
         lootTables: "new_loot_table",
         predicates: "new_predicate",
+        biomes: "new_biome",
     }[s];
     let name = base;
     for (let n = 2; items.value.some((i) => i.name === name); n++) name = `${base}_${n}`;
@@ -135,6 +143,7 @@ function add(): void {
         advancements: newAdvancement,
         lootTables: newLootTable,
         predicates: newPredicate,
+        biomes: newBiome,
     }[s](name);
     (items.value as unknown[]).push(made);
     pick.value = items.value.length - 1;
@@ -161,6 +170,17 @@ const fn = computed(() =>
 const tag = computed(() => (section.value === "tags" ? pack.value.tags[pick.value] : undefined));
 const adv = computed(() =>
     section.value === "advancements" ? pack.value.advancements[pick.value] : undefined,
+);
+const biome = computed(() => (section.value === "biomes" ? (pack.value.biomes ?? [])[pick.value] : undefined));
+/** The climate graph: temperature across (-0.5 to 2), rainfall up (0 to 1). */
+const climate = computed(() =>
+    (pack.value.biomes ?? []).map((b, i) => ({
+        i,
+        name: b.name,
+        x: 20 + ((Math.min(2, Math.max(-0.5, b.temperature)) + 0.5) / 2.5) * 560,
+        y: 200 - Math.min(1, Math.max(0, b.downfall)) * 180,
+        colour: b.skyColor,
+    })),
 );
 const predicate = computed(() =>
     section.value === "predicates" ? (pack.value.predicates ?? [])[pick.value] : undefined,
@@ -776,6 +796,28 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                     </div>
                 </template>
 
+                <template v-if="biome">
+                    <svg viewBox="0 0 600 220" width="100%" class="wl-dp__climate" role="group" :aria-label="t('datapack.climate', 'Climate graph: warmer to the right, wetter higher; choose a biome to edit it')">
+                        <text x="20" y="215" class="wl-dp__axis">{{ t("datapack.cold", "cold") }}</text>
+                        <text x="580" y="215" text-anchor="end" class="wl-dp__axis">{{ t("datapack.hot", "hot") }}</text>
+                        <text x="24" y="16" class="wl-dp__axis">{{ t("datapack.wet", "wet") }}</text>
+                        <g v-for="c in climate" :key="c.i" class="wl-dp__node" :class="{ 'is-on': c.i === pick }" tabindex="0" role="button" :aria-label="c.name" @click="pick = c.i" @keydown.enter.prevent="pick = c.i">
+                            <circle :cx="c.x" :cy="c.y" r="12" :fill="c.colour" />
+                            <text :x="c.x + 16" :y="c.y + 4">{{ c.name }}</text>
+                        </g>
+                    </svg>
+                    <v-slider v-model="biome.temperature" :min="-0.5" :max="2" :step="0.05" thumb-label :label="t('datapack.temperature', 'Temperature')" hide-details />
+                    <v-slider v-model="biome.downfall" :min="0" :max="1" :step="0.05" thumb-label :label="t('datapack.downfall', 'Rainfall')" hide-details />
+                    <p class="wl-dp__note">{{ t("datapack.biomeNote", "Colours are written in the effects block. From 1.21.11 some biome colours also come from environment attributes, so check them in game.") }}</p>
+                    <v-switch v-model="biome.precipitation" color="primary" hide-details :label="t('datapack.precipitation', 'Rain or snow falls here')" />
+                    <div class="wl-dp__row">
+                        <label v-for="f in (['skyColor', 'fogColor', 'waterColor', 'waterFogColor'] as const)" :key="f" class="wl-dp__colour">
+                            <input v-model="biome[f]" type="color" />
+                            <span>{{ { skyColor: t("datapack.sky", "Sky"), fogColor: t("datapack.fog", "Fog"), waterColor: t("datapack.water", "Water"), waterFogColor: t("datapack.waterFog", "Underwater fog") }[f] }} {{ biome[f] }}</span>
+                        </label>
+                    </div>
+                </template>
+
                 <template v-if="predicate">
                     <p class="wl-dp__note">{{ t("datapack.pred.help", "Snap conditions together. Groups hold other blocks; the pack writes the game's predicate file.") }}</p>
                     <predicate-block-editor :block="predicate.root" />
@@ -1104,6 +1146,12 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
 .wl-dp__open { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 20px; border: 1px solid rgb(var(--v-theme-outline, var(--v-theme-on-surface))); cursor: pointer; font: 500 14px Roboto, sans-serif; position: relative; align-self: flex-start; }
 .wl-dp__open:focus-within { outline: 3px solid rgb(var(--v-theme-primary)); outline-offset: 2px; }
 .wl-dp__file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.wl-dp__climate { background: linear-gradient(90deg, rgba(80, 140, 255, 0.18), rgba(255, 170, 60, 0.18)); border-radius: 16px; }
+.wl-dp__axis { fill: rgb(var(--v-theme-on-surface-variant)); font: 400 11px Roboto, sans-serif; }
+.wl-dp__climate .wl-dp__node text { fill: rgb(var(--v-theme-on-surface)); font: 500 12px Roboto, sans-serif; }
+.wl-dp__climate .is-on circle { stroke: rgb(var(--v-theme-primary)); stroke-width: 3; }
+.wl-dp__colour { display: inline-flex; align-items: center; gap: 8px; font: 400 13px Roboto, sans-serif; }
+.wl-dp__colour input { width: 44px; height: 44px; border: 0; padding: 0; background: transparent; cursor: pointer; }
 .wl-dp__drop {
     padding: 8px 0;
     border-top: 1px solid rgba(var(--v-theme-on-surface), 0.1);
