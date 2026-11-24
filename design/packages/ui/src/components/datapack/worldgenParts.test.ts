@@ -103,7 +103,7 @@ describe("jigsaw pools and processors", async () => {
 describe("rule processor rules and enchantment effects", async () => {
     const m = await import("./worldgenParts.js");
     it("reads swap rules, writes a chance as random_block_match, and keeps an unusual rule", () => {
-        const odd = { input_predicate: { predicate_type: "minecraft:block_match", block: "minecraft:stone" }, location_predicate: { predicate_type: "minecraft:always_true" }, position_predicate: { predicate_type: "minecraft:axis_aligned_linear_pos", min_chance: 0, max_chance: 1 }, output_state: { Name: "minecraft:air" } };
+        const odd = { input_predicate: { predicate_type: "minecraft:block_match", block: "minecraft:stone" }, location_predicate: { predicate_type: "minecraft:always_true" }, position_predicate: { predicate_type: "minecraft:linear_pos", min_chance: 0, max_chance: 1 }, output_state: { Name: "minecraft:air" } };
         const rules = m.readRules({ processor_type: "minecraft:rule", rules: [{ input_predicate: { predicate_type: "minecraft:block_match", block: "minecraft:stone" }, location_predicate: { predicate_type: "minecraft:always_true" }, output_state: { Name: "minecraft:andesite" } }, odd] })!;
         expect(rules.map((r) => r.editable)).toEqual([true, false]);
         rules[0]!.chance = 0.25;
@@ -151,7 +151,7 @@ describe("rule processor rules and enchantment effects", async () => {
     });
 
     it("writes a mob effect action and keeps one with requirements", async () => {
-        const withReq = { requirements: { condition: "minecraft:random_chance", chance: 0.5 }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite", duration: 4 } };
+        const withReq = { requirements: { condition: "minecraft:entity_properties", entity: "this", predicate: { flags: { is_on_fire: true } } }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite", duration: 4 } };
         const text = JSON.stringify({ effects: { "minecraft:post_attack": [withReq] } });
         const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
         expect(effects[0]!.editable).toBe(false);
@@ -165,5 +165,34 @@ describe("rule processor rules and enchantment effects", async () => {
         });
         const reread = m.readEffects(back as unknown as Record<string, unknown>);
         expect(reread[1]!.editable).toBe(true);
+    });
+});
+
+describe("summon, explode, chance requirements and position fades", async () => {
+    const m = await import("./worldgenParts.js");
+    it("reads and writes summon and explode actions with a random chance requirement", () => {
+        const summon = { requirements: { condition: "minecraft:random_chance", chance: 0.2 }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:summon_entity", entity: "minecraft:lightning_bolt", join_team: false } };
+        const boom = { enchanted: "attacker", affected: "victim", effect: { type: "minecraft:explode", radius: { type: "minecraft:linear", base: 2, per_level_above_first: 0.5 }, create_fire: true, block_interaction: "none", sound: "minecraft:entity.generic.explode", small_particle: { type: "minecraft:explosion" }, large_particle: { type: "minecraft:explosion_emitter" } } };
+        const text = JSON.stringify({ effects: { "minecraft:post_attack": [summon, boom] } });
+        const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
+        expect(effects.map((e) => [e.editable, e.action?.kind, e.action?.chance])).toEqual([[true, "summon_entity", 0.2], [true, "explode", undefined]]);
+        expect(JSON.parse(m.writeEffects(text, effects))).toEqual(JSON.parse(text));
+        const added = [...effects, m.newAction("explode"), m.newAction("summon_entity")];
+        const back = JSON.parse(m.writeEffects(text, added)) as { effects: Record<string, Record<string, unknown>[]> };
+        expect(back.effects["minecraft:post_attack"]![2]).toMatchObject({ requirements: { chance: 0.1 }, effect: { type: "minecraft:explode", block_interaction: "none" } });
+        expect(back.effects["minecraft:post_attack"]![3]).toMatchObject({ effect: { type: "minecraft:summon_entity", entity: "minecraft:lightning_bolt" } });
+    });
+
+    it("reads a position fade on a swap rule and can remove it", () => {
+        const rule = {
+            input_predicate: { predicate_type: "minecraft:block_match", block: "minecraft:stone" },
+            location_predicate: { predicate_type: "minecraft:always_true" },
+            position_predicate: { predicate_type: "minecraft:axis_aligned_linear_pos", axis: "y", min_chance: 1, max_chance: 0, min_dist: 0, max_dist: 10 },
+            output_state: { Name: "minecraft:andesite" },
+        };
+        const [r] = m.readRules({ processor_type: "minecraft:rule", rules: [rule] })!;
+        expect(r).toMatchObject({ editable: true, position: { axis: "y", minChance: 1, maxChance: 0, minDist: 0, maxDist: 10 } });
+        expect(m.writeRule(r!)).toEqual(rule);
+        expect(m.writeRule({ ...r!, position: null })).not.toHaveProperty("position_predicate");
     });
 });

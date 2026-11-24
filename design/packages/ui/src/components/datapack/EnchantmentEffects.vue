@@ -8,8 +8,8 @@
  */
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
-import { VBtn, VCombobox, VSelect, VSlider } from "vuetify/components";
-import { EFFECT_IDS } from "../mcserver/commandBuilderData.js";
+import { VBtn, VCombobox, VSelect, VSlider, VSwitch } from "vuetify/components";
+import { EFFECT_IDS, ENTITY_TYPE_IDS } from "../mcserver/commandBuilderData.js";
 import {
     VALUE_EFFECT_COMPONENTS,
     newAction,
@@ -40,7 +40,7 @@ function add(): void {
     emit("update:text", writeEffects(props.text, [...(effects.value ?? []), newEffect(adding.value)]));
 }
 const componentItems = VALUE_EFFECT_COMPONENTS.map((c) => ({ value: c, title: short(c) }));
-function addAction(kind: "ignite" | "apply_mob_effect"): void {
+function addAction(kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode"): void {
     emit("update:text", writeEffects(props.text, [...(effects.value ?? []), newAction(kind)]));
 }
 function changeAction(i: number, patch: Partial<NonNullable<LevelValueEffect["action"]>>): void {
@@ -53,6 +53,21 @@ const parties = computed(() => [
     { value: "victim", title: t("datapack.ench.victim", "The one hit") },
 ]);
 const mobEffects = [...EFFECT_IDS];
+const entities = [...ENTITY_TYPE_IDS];
+const actionTitle = (kind: string): string =>
+    ({
+        ignite: t("datapack.ench.ignite", "After an attack: set on fire"),
+        apply_mob_effect: t("datapack.ench.applyEffect", "After an attack: give an effect"),
+        summon_entity: t("datapack.ench.summon", "After an attack: summon"),
+        explode: t("datapack.ench.explode", "After an attack: explode"),
+    })[kind] ?? kind;
+const interactions = computed(() => [
+    { value: "none", title: t("datapack.ench.biNone", "Breaks no blocks") },
+    { value: "block", title: t("datapack.ench.biBlock", "Breaks blocks, they drop") },
+    { value: "mob", title: t("datapack.ench.biMob", "Like a mob explosion (follows mob griefing)") },
+    { value: "tnt", title: t("datapack.ench.biTnt", "Like TNT (follows the TNT rule)") },
+    { value: "trigger", title: t("datapack.ench.biTrigger", "Only presses buttons and the like") },
+]);
 </script>
 
 <template>
@@ -62,14 +77,23 @@ const mobEffects = [...EFFECT_IDS];
         <template v-else>
             <p v-if="!effects.length" class="wl-ee__note">{{ t("datapack.ench.none", "No effects yet. Without one the enchantment does nothing.") }}</p>
             <div v-for="(e, i) in effects" :key="i" class="wl-ee__row">
-                <strong>{{ e.action ? (e.action.kind === "ignite" ? t("datapack.ench.ignite", "After an attack: set on fire") : t("datapack.ench.applyEffect", "After an attack: give an effect")) : short(e.component) }}</strong>
+                <strong>{{ e.action ? actionTitle(e.action.kind) : short(e.component) }}</strong>
                 <template v-if="e.editable && e.action">
                     <v-select :model-value="e.action.enchanted" :items="parties" :label="t('datapack.ench.carrier', 'Whose enchantment')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: 'attacker' | 'victim') => changeAction(i, { enchanted: v })" />
                     <v-select :model-value="e.action.affected" :items="parties" :label="t('datapack.ench.target', 'Acts on')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: 'attacker' | 'victim') => changeAction(i, { affected: v })" />
                     <v-combobox v-if="e.action.kind === 'apply_mob_effect'" :model-value="e.action.mobEffect" :items="mobEffects" :label="t('datapack.ench.mobEffect', 'Effect')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeAction(i, { mobEffect: v.includes(':') ? v : `minecraft:${v}` })" />
                     <v-slider v-if="e.action.kind === 'apply_mob_effect'" :model-value="e.action.amplifier" :min="0" :max="9" :step="1" thumb-label hide-details :label="t('datapack.ench.amplifier', 'Strength (0 is level I)')" @update:model-value="(v: number) => changeAction(i, { amplifier: v })" />
-                    <v-slider :model-value="e.base" :min="0" :max="60" :step="0.5" thumb-label hide-details :label="e.action.kind === 'ignite' ? t('datapack.ench.fire', 'Burns for (seconds) at level 1') : t('datapack.ench.length', 'Lasts (seconds) at level 1')" @update:model-value="(v: number) => change(i, { base: v })" />
-                    <v-slider :model-value="e.perLevel" :min="0" :max="30" :step="0.5" thumb-label hide-details :label="t('datapack.ench.perSecond', 'Seconds more per level')" @update:model-value="(v: number) => change(i, { perLevel: v })" />
+                    <v-combobox v-if="e.action.kind === 'summon_entity'" :model-value="e.action.entity" :items="entities" :label="t('datapack.ench.entity', 'What appears')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeAction(i, { entity: v.includes(':') ? v : `minecraft:${v}` })" />
+                    <template v-if="e.action.kind === 'explode'">
+                        <v-select :model-value="e.action.blockInteraction" :items="interactions" :label="t('datapack.ench.blocks', 'What it does to blocks')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: 'none' | 'block' | 'mob' | 'tnt' | 'trigger') => changeAction(i, { blockInteraction: v })" />
+                        <v-switch :model-value="e.action.createFire === true" :label="t('datapack.ench.createFire', 'Starts fires')" color="primary" density="compact" hide-details @update:model-value="(v: boolean | null) => changeAction(i, { createFire: v === true })" />
+                    </template>
+                    <template v-if="e.action.kind !== 'summon_entity'">
+                        <v-slider :model-value="e.base" :min="0" :max="e.action.kind === 'explode' ? 16 : 60" :step="0.5" thumb-label hide-details :label="e.action.kind === 'ignite' ? t('datapack.ench.fire', 'Burns for (seconds) at level 1') : e.action.kind === 'explode' ? t('datapack.ench.radius', 'Radius (blocks) at level 1') : t('datapack.ench.length', 'Lasts (seconds) at level 1')" @update:model-value="(v: number) => change(i, { base: v })" />
+                        <v-slider :model-value="e.perLevel" :min="0" :max="e.action.kind === 'explode' ? 4 : 30" :step="0.5" thumb-label hide-details :label="e.action.kind === 'explode' ? t('datapack.ench.perRadius', 'Radius more per level') : t('datapack.ench.perSecond', 'Seconds more per level')" @update:model-value="(v: number) => change(i, { perLevel: v })" />
+                    </template>
+                    <v-switch :model-value="e.action.chance !== undefined" :label="t('datapack.ench.sometimes', 'Only sometimes')" color="primary" density="compact" hide-details @update:model-value="(v: boolean | null) => changeAction(i, v ? { chance: 0.5 } : { chance: undefined })" />
+                    <v-slider v-if="e.action.chance !== undefined" :model-value="Math.round(e.action.chance * 100)" :min="1" :max="100" :step="1" thumb-label hide-details :label="t('datapack.ench.chance', 'Chance (%)')" @update:model-value="(v: number) => changeAction(i, { chance: v / 100 })" />
                 </template>
                 <template v-else-if="e.editable">
                     <v-select
@@ -97,6 +121,8 @@ const mobEffects = [...EFFECT_IDS];
             <div class="wl-ee__add">
                 <v-btn variant="text" rounded="pill" @click="addAction('ignite')">{{ t("datapack.ench.addIgnite", "Add: set the one hit on fire") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAction('apply_mob_effect')">{{ t("datapack.ench.addMobEffect", "Add: give the one hit an effect") }}</v-btn>
+                <v-btn variant="text" rounded="pill" @click="addAction('summon_entity')">{{ t("datapack.ench.addSummon", "Add: summon (lightning by default)") }}</v-btn>
+                <v-btn variant="text" rounded="pill" @click="addAction('explode')">{{ t("datapack.ench.addExplode", "Add: explode") }}</v-btn>
             </div>
         </template>
     </section>

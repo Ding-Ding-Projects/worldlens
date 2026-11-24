@@ -318,6 +318,11 @@ export interface SwapRule {
     to: string;
     /** Empty for anywhere; otherwise the block or `#tag` that must be at the location. */
     where: string;
+    /**
+     * A fade along one axis from the structure's start (`axis_aligned_linear_pos`): the
+     * chance goes from `minChance` at `minDist` blocks to `maxChance` at `maxDist`. Null for none.
+     */
+    position: { axis: "x" | "y" | "z"; minChance: number; maxChance: number; minDist: number; maxDist: number } | null;
     raw: Json;
     editable: boolean;
 }
@@ -345,6 +350,25 @@ function writeMatch(what: string, chance: number): Json {
         : { predicate_type: "minecraft:random_block_match", block: id, probability: chance };
 }
 
+/** undefined when the predicate is there but not one this editor draws; null for none. */
+function readPosition(value: unknown): SwapRule["position"] | undefined {
+    if (value === undefined) return null;
+    const p = obj(value);
+    if (p === null) return undefined;
+    const kind = short(p["predicate_type"]);
+    if (kind === "always_true") return null;
+    if (kind !== "axis_aligned_linear_pos") return undefined;
+    const axis = p["axis"] ?? "y";
+    const num = (k: string, d: number): number | null => (p[k] === undefined ? d : typeof p[k] === "number" ? (p[k] as number) : null);
+    const minChance = num("min_chance", 0);
+    const maxChance = num("max_chance", 0);
+    const minDist = num("min_dist", 0);
+    const maxDist = num("max_dist", 0);
+    if ((axis !== "x" && axis !== "y" && axis !== "z") || minChance === null || maxChance === null || minDist === null || maxDist === null)
+        return undefined;
+    return { axis, minChance, maxChance, minDist, maxDist };
+}
+
 export function readRules(processor: Json): SwapRule[] | null {
     if (short(processor["processor_type"]) !== "rule" || !Array.isArray(processor["rules"])) return null;
     return (processor["rules"] as unknown[]).map((entry): SwapRule => {
@@ -356,11 +380,12 @@ export function readRules(processor: Json): SwapRule[] | null {
                 ? { what: "", chance: 1 }
                 : matchOf(locationRaw);
         const output = obj(raw["output_state"]);
+        const position = readPosition(raw["position_predicate"]);
         const fine =
             input !== null &&
             location !== null &&
             location.chance === 1 &&
-            raw["position_predicate"] === undefined &&
+            position !== undefined &&
             raw["block_entity_modifier"] === undefined &&
             output !== null &&
             typeof output["Name"] === "string" &&
@@ -370,6 +395,7 @@ export function readRules(processor: Json): SwapRule[] | null {
             chance: fine ? input!.chance : 1,
             to: fine ? (output!["Name"] as string) : "",
             where: fine ? location!.what : "",
+            position: fine ? (position ?? null) : null,
             raw,
             editable: fine,
         };
@@ -378,11 +404,24 @@ export function readRules(processor: Json): SwapRule[] | null {
 
 export function writeRule(rule: SwapRule): Json {
     if (!rule.editable) return rule.raw;
+    const { position_predicate: _old, ...rest } = rule.raw;
     return {
-        ...rule.raw,
+        ...rest,
         input_predicate: writeMatch(rule.from, rule.chance),
         location_predicate: rule.where === "" ? { predicate_type: "minecraft:always_true" } : writeMatch(rule.where, 1),
         output_state: { Name: rule.to },
+        ...(rule.position === null
+            ? {}
+            : {
+                  position_predicate: {
+                      predicate_type: "minecraft:axis_aligned_linear_pos",
+                      axis: rule.position.axis,
+                      min_chance: rule.position.minChance,
+                      max_chance: rule.position.maxChance,
+                      min_dist: rule.position.minDist,
+                      max_dist: rule.position.maxDist,
+                  },
+              }),
     };
 }
 
@@ -391,6 +430,7 @@ export const newRule = (): SwapRule => ({
     chance: 0.3,
     to: "minecraft:mossy_cobblestone",
     where: "",
+    position: null,
     raw: {},
     editable: true,
 });
@@ -414,9 +454,16 @@ export interface LevelValueEffect {
     action?: {
         enchanted: "attacker" | "victim";
         affected: "attacker" | "victim";
-        kind: "ignite" | "apply_mob_effect";
+        kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode";
         mobEffect: string;
         amplifier: number;
+        /** summon_entity: the entity summoned. */
+        entity?: string;
+        /** explode: whether it sets fire, and what it does to blocks. */
+        createFire?: boolean;
+        blockInteraction?: "none" | "block" | "mob" | "tnt" | "trigger";
+        /** A `random_chance` requirement, 0 to 1; undefined for none. */
+        chance?: number | undefined;
     };
     operation: "add" | "multiply";
     base: number;
@@ -501,12 +548,37 @@ function readAction(component: string, raw: Json): LevelValueEffect {
     const enchanted = PARTY(raw["enchanted"]);
     const affected = PARTY(raw["affected"]);
     if (effect === null || enchanted === null || affected === null) return kept;
-    if (Object.keys(raw).some((k) => !["effect", "enchanted", "affected"].includes(k))) return kept;
+    if (Object.keys(raw).some((k) => !["effect", "enchanted", "affected", "requirements"].includes(k))) return kept;
+    let chance: number | undefined;
+    if (raw["requirements"] !== undefined) {
+        const req = obj(raw["requirements"]);
+        if (req === null || short(req["condition"]) !== "random_chance" || typeof req["chance"] !== "number" || Object.keys(req).length !== 2)
+            return kept;
+        chance = req["chance"];
+    }
+    const withChance = <T extends object>(a: T): T => (chance === undefined ? a : { ...a, chance });
     const type = short(effect["type"]);
+    if (type === "summon_entity" && typeof effect["entity"] === "string" && Object.keys(effect).every((k) => ["type", "entity", "join_team"].includes(k))) {
+        return { ...kept, editable: true, action: withChance({ enchanted, affected, kind: "summon_entity" as const, mobEffect: "", amplifier: 0, entity: effect["entity"] as string }) };
+    }
+    if (type === "explode") {
+        const radius = levelNumber(effect["radius"]);
+        const bi = effect["block_interaction"];
+        const allowed = ["type", "radius", "create_fire", "block_interaction", "attribute_to_user", "small_particle", "large_particle", "sound"];
+        if (radius !== null && (bi === "none" || bi === "block" || bi === "mob" || bi === "tnt" || bi === "trigger") && Object.keys(effect).every((k) => allowed.includes(k)))
+            return {
+                ...kept,
+                raw,
+                base: radius.base,
+                perLevel: radius.perLevel,
+                editable: true,
+                action: withChance({ enchanted, affected, kind: "explode" as const, mobEffect: "", amplifier: 0, createFire: effect["create_fire"] === true, blockInteraction: bi }),
+            };
+    }
     if (type === "ignite" && Object.keys(effect).length === 2) {
         const d = levelNumber(effect["duration"]);
         if (d === null) return kept;
-        return { ...kept, base: d.base, perLevel: d.perLevel, editable: true, action: { enchanted, affected, kind: "ignite", mobEffect: "", amplifier: 0 } };
+        return { ...kept, base: d.base, perLevel: d.perLevel, editable: true, action: withChance({ enchanted, affected, kind: "ignite" as const, mobEffect: "", amplifier: 0 }) };
     }
     if (type === "apply_mob_effect") {
         const toApply = effect["to_apply"];
@@ -523,7 +595,7 @@ function readAction(component: string, raw: Json): LevelValueEffect {
             base: min!.base,
             perLevel: min!.perLevel,
             editable: true,
-            action: { enchanted, affected, kind: "apply_mob_effect", mobEffect: toApply, amplifier: amp!.base },
+            action: withChance({ enchanted, affected, kind: "apply_mob_effect" as const, mobEffect: toApply, amplifier: amp!.base }),
         };
     }
     return kept;
@@ -534,7 +606,32 @@ function writeEffect(e: LevelValueEffect): unknown {
     if (e.action !== undefined) {
         const seconds =
             e.perLevel === 0 ? e.base : { type: "minecraft:linear", base: e.base, per_level_above_first: e.perLevel };
+        const a = e.action;
+        const oldEffect = obj(e.raw["effect"]) ?? {};
+        const effect =
+            a.kind === "summon_entity"
+                ? { ...oldEffect, type: "minecraft:summon_entity", entity: a.entity ?? "minecraft:lightning_bolt" }
+                : a.kind === "explode"
+                  ? {
+                        sound: "minecraft:entity.generic.explode",
+                        small_particle: { type: "minecraft:explosion" },
+                        large_particle: { type: "minecraft:explosion_emitter" },
+                        ...oldEffect,
+                        type: "minecraft:explode",
+                        radius: seconds,
+                        create_fire: a.createFire === true,
+                        block_interaction: a.blockInteraction ?? "none",
+                    }
+                  : null;
+        if (effect !== null)
+            return {
+                ...(a.chance === undefined ? {} : { requirements: { condition: "minecraft:random_chance", chance: a.chance } }),
+                enchanted: a.enchanted,
+                affected: a.affected,
+                effect,
+            };
         return {
+            ...(a.chance === undefined ? {} : { requirements: { condition: "minecraft:random_chance", chance: a.chance } }),
             enchanted: e.action.enchanted,
             affected: e.action.affected,
             effect:
@@ -576,14 +673,22 @@ export function writeEffects(text: string, effects: readonly LevelValueEffect[])
     return writeJson({ ...o, effects: grouped });
 }
 
-export const newAction = (kind: "ignite" | "apply_mob_effect"): LevelValueEffect => ({
+export const newAction = (kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode"): LevelValueEffect => ({
     component: "minecraft:post_attack",
     operation: "add",
-    base: kind === "ignite" ? 4 : 3,
-    perLevel: kind === "ignite" ? 4 : 1,
+    base: kind === "ignite" ? 4 : kind === "explode" ? 2 : 3,
+    perLevel: kind === "ignite" ? 4 : kind === "explode" ? 0.5 : 1,
     raw: {},
     editable: true,
-    action: { enchanted: "attacker", affected: "victim", kind, mobEffect: "minecraft:slowness", amplifier: 0 },
+    action: {
+        enchanted: "attacker",
+        affected: "victim",
+        kind,
+        mobEffect: "minecraft:slowness",
+        amplifier: 0,
+        ...(kind === "summon_entity" ? { entity: "minecraft:lightning_bolt", chance: 0.2 } : {}),
+        ...(kind === "explode" ? { createFire: false, blockInteraction: "none" as const, chance: 0.1 } : {}),
+    },
 });
 
 export const newEffect = (component: string): LevelValueEffect => ({
