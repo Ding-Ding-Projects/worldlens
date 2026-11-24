@@ -446,6 +446,12 @@ export const newRule = (): SwapRule => ({
  */
 export interface LevelValueEffect {
     component: string;
+    /** Set for a `minecraft:attributes` entry: which attribute, how, and its modifier id. */
+    attribute?: {
+        id: string;
+        attribute: string;
+        operation: "add_value" | "add_multiplied_base" | "add_multiplied_total";
+    };
     /**
      * Set for an "after an attack" action instead of a value: who carries the enchantment
      * (`attacker` or `victim`), who it acts on, and what it does. `base`/`perLevel` are then
@@ -515,6 +521,22 @@ export function readEffects(enchantment: Json): LevelValueEffect[] {
         for (const entry of list as unknown[]) {
             const raw = obj(entry) ?? {};
             const effect = obj(raw["effect"]);
+            if (component === "minecraft:attributes") {
+                const amount = levelNumber(raw["amount"]);
+                const op = raw["operation"];
+                const fine =
+                    typeof raw["id"] === "string" &&
+                    typeof raw["attribute"] === "string" &&
+                    amount !== null &&
+                    (op === "add_value" || op === "add_multiplied_base" || op === "add_multiplied_total") &&
+                    Object.keys(raw).length === 4;
+                out.push(
+                    fine
+                        ? { component, operation: "add", base: amount!.base, perLevel: amount!.perLevel, raw, editable: true, attribute: { id: raw["id"] as string, attribute: raw["attribute"] as string, operation: op } }
+                        : { component, operation: "add", base: 0, perLevel: 0, raw, editable: false },
+                );
+                continue;
+            }
             if (component === "minecraft:post_attack") {
                 out.push(readAction(component, raw));
                 continue;
@@ -609,6 +631,10 @@ function readAction(component: string, raw: Json): LevelValueEffect {
 
 function writeEffect(e: LevelValueEffect): unknown {
     if (!e.editable) return e.raw;
+    if (e.attribute !== undefined) {
+        const amount = e.perLevel === 0 ? e.base : { type: "minecraft:linear", base: e.base, per_level_above_first: e.perLevel };
+        return { id: e.attribute.id, attribute: e.attribute.attribute, amount, operation: e.attribute.operation };
+    }
     if (e.action !== undefined) {
         const seconds =
             e.perLevel === 0 ? e.base : { type: "minecraft:linear", base: e.base, per_level_above_first: e.perLevel };
@@ -701,6 +727,16 @@ export const newAction = (kind: "ignite" | "apply_mob_effect" | "summon_entity" 
         ...(kind === "run_function" ? { target: "my_pack:on_hit" } : {}),
         ...(kind === "play_sound" ? { target: "minecraft:entity.experience_orb.pickup" } : {}),
     },
+});
+
+export const newAttribute = (namespace: string): LevelValueEffect => ({
+    component: "minecraft:attributes",
+    operation: "add",
+    base: 0.1,
+    perLevel: 0.05,
+    raw: {},
+    editable: true,
+    attribute: { id: `${namespace}:enchantment_bonus`, attribute: "minecraft:movement_speed", operation: "add_multiplied_base" },
 });
 
 export const newEffect = (component: string): LevelValueEffect => ({

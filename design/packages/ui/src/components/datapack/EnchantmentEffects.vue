@@ -9,10 +9,11 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VBtn, VCombobox, VSelect, VSlider, VSwitch, VTextField } from "vuetify/components";
-import { EFFECT_IDS, ENTITY_TYPE_IDS, SOUND_IDS } from "../mcserver/commandBuilderData.js";
+import { ATTRIBUTE_IDS, EFFECT_IDS, ENTITY_TYPE_IDS, SOUND_IDS } from "../mcserver/commandBuilderData.js";
 import {
     VALUE_EFFECT_COMPONENTS,
     newAction,
+    newAttribute,
     newEffect,
     parseObject,
     readEffects,
@@ -20,7 +21,7 @@ import {
     type LevelValueEffect,
 } from "./worldgenParts.js";
 
-const props = defineProps<{ text: string }>();
+const props = withDefaults(defineProps<{ text: string; namespace?: string }>(), { namespace: "my_pack" });
 const emit = defineEmits<{ "update:text": [text: string] }>();
 const { t } = useI18n();
 
@@ -55,6 +56,16 @@ const parties = computed(() => [
 const mobEffects = [...EFFECT_IDS];
 const entities = [...ENTITY_TYPE_IDS];
 const sounds = [...SOUND_IDS];
+const attributes = [...ATTRIBUTE_IDS];
+function changeAttribute(i: number, patch: Partial<NonNullable<LevelValueEffect["attribute"]>>): void {
+    const e = effects.value?.[i];
+    if (!e?.attribute) return;
+    change(i, { attribute: { ...e.attribute, ...patch } });
+}
+function addAttribute(): void {
+    const ns = props.namespace;
+    emit("update:text", writeEffects(props.text, [...(effects.value ?? []), newAttribute(ns)]));
+}
 const actionTitle = (kind: string): string =>
     ({
         ignite: t("datapack.ench.ignite", "After an attack: set on fire"),
@@ -80,8 +91,26 @@ const interactions = computed(() => [
         <template v-else>
             <p v-if="!effects.length" class="wl-ee__note">{{ t("datapack.ench.none", "No effects yet. Without one the enchantment does nothing.") }}</p>
             <div v-for="(e, i) in effects" :key="i" class="wl-ee__row">
-                <strong>{{ e.action ? actionTitle(e.action.kind) : short(e.component) }}</strong>
-                <template v-if="e.editable && e.action">
+                <strong>{{ e.action ? actionTitle(e.action.kind) : e.attribute ? t("datapack.ench.attribute", "While equipped: change an attribute") : short(e.component) }}</strong>
+                <template v-if="e.editable && e.attribute">
+                    <v-combobox :model-value="e.attribute.attribute" :items="attributes" :label="t('datapack.ench.which', 'Attribute')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeAttribute(i, { attribute: v.includes(':') ? v : `minecraft:${v}` })" />
+                    <v-select
+                        :model-value="e.attribute.operation"
+                        :items="[
+                            { value: 'add_value', title: t('datapack.ench.addValue', 'Add a number') },
+                            { value: 'add_multiplied_base', title: t('datapack.ench.addBase', 'Add a share of the base') },
+                            { value: 'add_multiplied_total', title: t('datapack.ench.addTotal', 'Multiply the total') },
+                        ]"
+                        :label="t('datapack.ench.how', 'How')"
+                        density="comfortable"
+                        variant="outlined"
+                        hide-details
+                        @update:model-value="(v: 'add_value' | 'add_multiplied_base' | 'add_multiplied_total') => changeAttribute(i, { operation: v })"
+                    />
+                    <v-slider :model-value="e.base" :min="-2" :max="10" :step="0.05" thumb-label hide-details :label="t('datapack.ench.base', 'At level 1')" @update:model-value="(v: number) => change(i, { base: v })" />
+                    <v-slider :model-value="e.perLevel" :min="-1" :max="5" :step="0.05" thumb-label hide-details :label="t('datapack.ench.per', 'More per level')" @update:model-value="(v: number) => change(i, { perLevel: v })" />
+                </template>
+                <template v-else-if="e.editable && e.action">
                     <v-select :model-value="e.action.enchanted" :items="parties" :label="t('datapack.ench.carrier', 'Whose enchantment')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: 'attacker' | 'victim') => changeAction(i, { enchanted: v })" />
                     <v-select :model-value="e.action.affected" :items="parties" :label="t('datapack.ench.target', 'Acts on')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: 'attacker' | 'victim') => changeAction(i, { affected: v })" />
                     <v-combobox v-if="e.action.kind === 'apply_mob_effect'" :model-value="e.action.mobEffect" :items="mobEffects" :label="t('datapack.ench.mobEffect', 'Effect')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeAction(i, { mobEffect: v.includes(':') ? v : `minecraft:${v}` })" />
@@ -128,6 +157,7 @@ const interactions = computed(() => [
                 <v-btn variant="text" rounded="pill" @click="addAction('apply_mob_effect')">{{ t("datapack.ench.addMobEffect", "Add: give the one hit an effect") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAction('summon_entity')">{{ t("datapack.ench.addSummon", "Add: summon (lightning by default)") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAction('explode')">{{ t("datapack.ench.addExplode", "Add: explode") }}</v-btn>
+                <v-btn variant="text" rounded="pill" @click="addAttribute">{{ t("datapack.ench.addAttribute", "Add: change an attribute while equipped") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAction('run_function')">{{ t("datapack.ench.addFunction", "Add: run a function") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAction('play_sound')">{{ t("datapack.ench.addSound", "Add: play a sound") }}</v-btn>
             </div>

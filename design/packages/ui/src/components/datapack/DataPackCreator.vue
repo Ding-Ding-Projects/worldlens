@@ -1156,7 +1156,7 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                         :namespace="part.namespace ?? pack.namespace"
                     />
                     <PartForm v-else-if="hasForm(part.kind)" v-model:text="part.text" :kind="part.kind" />
-                    <EnchantmentEffects v-if="part.kind === 'enchantment'" v-model:text="part.text" />
+                    <EnchantmentEffects v-if="part.kind === 'enchantment'" v-model:text="part.text" :namespace="part.namespace ?? pack.namespace" />
                     <v-textarea
                         v-model="part.text"
                         :label="t('datapack.part.json', 'The file, as JSON')"

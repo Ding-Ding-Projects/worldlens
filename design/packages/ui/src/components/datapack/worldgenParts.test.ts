@@ -210,3 +210,16 @@ describe("function and sound actions", async () => {
         expect(back.effects["minecraft:post_attack"]![2]).toMatchObject({ effect: { type: "minecraft:run_function", function: "my_pack:on_hit" } });
     });
 });
+
+describe("attribute effects", async () => {
+    const m = await import("./worldgenParts.js");
+    it("reads, keeps and adds attribute modifiers", () => {
+        const attr = { id: "p:speed", attribute: "minecraft:movement_speed", amount: { type: "minecraft:linear", base: 0.1, per_level_above_first: 0.05 }, operation: "add_multiplied_base" };
+        const text = JSON.stringify({ effects: { "minecraft:attributes": [attr] } });
+        const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
+        expect(effects[0]).toMatchObject({ editable: true, base: 0.1, perLevel: 0.05, attribute: { attribute: "minecraft:movement_speed" } });
+        expect(JSON.parse(m.writeEffects(text, effects))).toEqual(JSON.parse(text));
+        const back = JSON.parse(m.writeEffects(text, [...effects, m.newAttribute("ns")])) as { effects: Record<string, unknown[]> };
+        expect(back.effects["minecraft:attributes"]).toHaveLength(2);
+    });
+});
