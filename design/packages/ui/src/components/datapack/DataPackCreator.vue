@@ -223,6 +223,13 @@ const previewText = computed(
 const exported = ref("");
 const opened = ref("");
 
+/** Base64 in chunks, so a large structure file does not overflow the call stack. */
+function toBase64(bytes: Uint8Array): string {
+    let out = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return btoa(out);
+}
+
 async function openZip(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -234,7 +241,7 @@ async function openZip(event: Event): Promise<void> {
         const { pack: loaded, kept } = packFromFiles(text);
         const root = [...text.keys()].find((k) => k.endsWith("pack.mcmeta"))?.replace(/pack\.mcmeta$/, "") ?? "";
         loaded.extraBinary = Object.fromEntries(
-            [...entries].filter(([k]) => !isPackText(k) && k.startsWith(root)).map(([k, v]) => [k.slice(root.length), btoa(String.fromCharCode(...v))]),
+            [...entries].filter(([k]) => !isPackText(k) && k.startsWith(root)).map(([k, v]) => [k.slice(root.length), toBase64(v)]),
         );
         pack.value = loaded;
         section.value = "pack";
