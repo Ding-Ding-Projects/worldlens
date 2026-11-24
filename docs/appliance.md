@@ -56,7 +56,7 @@ sudo sh appliance/build-base.sh --mapserver-tar worldlens-map-server-x86_64.tar 
 node design/packages/app/scripts/fetch-appliance-base.mjs --from out/worldlens-appliance-base-x86_64.img
 ```
 
-`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. Both bases are pinned to the `v1.0.2311` release assets (built 2026-11-23 by Appliance run 45277496892, from the boot script that runs the map, app and Minecraft server workloads; that run's QEMU boot smoke passed for the map workload); `--check` exits 0 only when every pin is complete. The installer copies `dist/appliance` to `resources/appliance`.
+`fetch-appliance-base.mjs` without `--from` downloads the asset named in `design/packages/app/appliance-base.pin.json` at build time, verifies both the compressed and the expanded checksums, and stages it in `dist/appliance/`. Both bases are pinned to the `v1.0.2376` release assets (built 2026-11-23 by Appliance run 45311032724 from commit `9cada2a`, with the storage partition and boot fixes; that run's QEMU boot smoke passed for the map workload); `--check` exits 0 only when every pin is complete. The installer copies `dist/appliance` to `resources/appliance`.
 
 The base image is about 1.4 GiB raw (compresses well). `.github/workflows/appliance.yml` boots it once under QEMU and waits for `/health` before uploading it as a zstd asset with a SHA-256.
 
