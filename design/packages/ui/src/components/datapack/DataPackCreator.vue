@@ -205,6 +205,55 @@ const previewText = computed(
 );
 const exported = ref("");
 
+/** Each drop's real chance per pick: its weight over the pool's total. */
+const lootChances = computed(() => {
+    const entries = loot.value?.entries ?? [];
+    const total = entries.reduce((n, e) => n + Math.max(0, e.weight), 0);
+    return entries.map((e) => (total === 0 ? 0 : e.weight / total));
+});
+
+/** The pack's advancements as a tree: roots on top, children under their parent. */
+const advTree = computed(() => {
+    const list = pack.value.advancements;
+    const byName = new Map(list.map((a, i) => [a.name, i]));
+    const depth = (i: number, seen = new Set<number>()): number => {
+        const parent = byName.get(list[i]!.parent);
+        if (parent === undefined || seen.has(parent)) return 0;
+        seen.add(i);
+        return depth(parent, seen) + 1;
+    };
+    const rows = new Map<number, number>();
+    const nodes = list.map((a, i) => {
+        const d = depth(i);
+        const col = rows.get(d) ?? 0;
+        rows.set(d, col + 1);
+        return { i, name: a.title || a.name, frame: a.frame, x: 16 + col * 150, y: 16 + d * 70 };
+    });
+    const edges = list.flatMap((a, i) => {
+        const p = byName.get(a.parent);
+        return p === undefined ? [] : [{ from: nodes[p]!, to: nodes[i]! }];
+    });
+    const width = Math.max(320, ...nodes.map((n) => n.x + 150));
+    const height = Math.max(100, ...nodes.map((n) => n.y + 60));
+    return { nodes, edges, width, height };
+});
+
+/** The pack's files as an indented tree, for the side panel. */
+const fileTree = computed(() => {
+    const out: { label: string; path: string | null; depth: number }[] = [];
+    const seen = new Set<string>();
+    for (const path of [...files.value.keys()].sort()) {
+        const parts = path.split("/");
+        parts.forEach((part, d) => {
+            const key = parts.slice(0, d + 1).join("/");
+            if (seen.has(key)) return;
+            seen.add(key);
+            out.push({ label: d === parts.length - 1 ? part : `${part}/`, path: d === parts.length - 1 ? path : null, depth: d });
+        });
+    }
+    return out;
+});
+
 function exportZip(): void {
     const bytes = zipStore(files.value);
     const name = `${slug(pack.value.namespace)}.zip`;
@@ -560,6 +609,31 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                 </template>
 
                 <template v-if="adv">
+                    <svg
+                        class="wl-dp__tree"
+                        :viewBox="`0 0 ${advTree.width} ${advTree.height}`"
+                        :width="advTree.width"
+                        role="group"
+                        :aria-label="t('datapack.advTree', 'Advancement tree; choose one to edit it')"
+                    >
+                        <line v-for="(e, k) in advTree.edges" :key="'e' + k" :x1="e.from.x + 65" :y1="e.from.y + 40" :x2="e.to.x + 65" :y2="e.to.y" class="wl-dp__edge" />
+                        <g
+                            v-for="n in advTree.nodes"
+                            :key="n.i"
+                            class="wl-dp__node"
+                            :class="{ 'is-on': n.i === pick }"
+                            tabindex="0"
+                            role="button"
+                            :aria-label="n.name"
+                            :aria-pressed="n.i === pick ? 'true' : 'false'"
+                            @click="pick = n.i"
+                            @keydown.enter.prevent="pick = n.i"
+                            @keydown.space.prevent="pick = n.i"
+                        >
+                            <rect :x="n.x" :y="n.y" width="130" height="40" :rx="n.frame === 'challenge' ? 20 : n.frame === 'goal' ? 14 : 6" />
+                            <text :x="n.x + 65" :y="n.y + 25" text-anchor="middle">{{ n.name.length > 16 ? n.name.slice(0, 15) + "…" : n.name }}</text>
+                        </g>
+                    </svg>
                     <div class="wl-dp__row">
                         <v-text-field
                             v-model="adv.title"
@@ -685,6 +759,10 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                         "
                     />
                     <div v-for="(e, i) in loot.entries" :key="i" class="wl-dp__row wl-dp__drop">
+                        <div class="wl-dp__chance" :aria-label="t('datapack.chance', { pct: (lootChances[i]! * 100).toFixed(1) }, 'Chance per pick: {pct}%')">
+                            <span class="wl-dp__bar" :style="{ width: `${Math.round(lootChances[i]! * 100)}%` }" />
+                            <span class="wl-dp__pct">{{ (lootChances[i]! * 100).toFixed(1) }}%</span>
+                        </div>
                         <v-combobox
                             v-model="e.item"
                             :items="[...ITEM_IDS]"
@@ -762,6 +840,12 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
                 <li v-for="(p, i) in problems" :key="i">
                     <strong>{{ p.where }}</strong
                     >: {{ p.message }}
+                </li>
+            </ul>
+            <ul class="wl-dp__files" role="tree" :aria-label="t('datapack.files', 'Files in the pack')">
+                <li v-for="f in fileTree" :key="f.label + f.depth + (f.path ?? '')" role="treeitem" :style="{ paddingLeft: `${8 + f.depth * 12}px` }">
+                    <button v-if="f.path" type="button" class="wl-dp__file" :aria-current="preview === f.path ? 'true' : undefined" @click="preview = f.path">{{ f.label }}</button>
+                    <span v-else class="wl-dp__folder">{{ f.label }}</span>
                 </li>
             </ul>
             <v-select
@@ -951,6 +1035,21 @@ const versionItems = PACK_VERSIONS.map((v, i) => ({
         sans-serif;
     color: rgb(var(--v-theme-on-surface-variant));
 }
+.wl-dp__tree { max-width: 100%; height: auto; background: rgba(var(--v-theme-on-surface), 0.04); border-radius: 16px; }
+.wl-dp__edge { stroke: rgb(var(--v-theme-on-surface-variant)); stroke-width: 2; }
+.wl-dp__node rect { fill: rgb(var(--v-theme-surface)); stroke: rgb(var(--v-theme-primary)); stroke-width: 1.5; }
+.wl-dp__node.is-on rect { fill: rgb(var(--v-theme-secondary-container, var(--v-theme-secondary))); stroke-width: 3; }
+.wl-dp__node text { fill: rgb(var(--v-theme-on-surface)); font: 500 12px Roboto, sans-serif; }
+.wl-dp__node { cursor: pointer; outline: none; }
+.wl-dp__node:focus-visible rect { stroke-width: 4; }
+.wl-dp__chance { position: relative; flex: 1 1 100%; height: 18px; border-radius: 9px; background: rgba(var(--v-theme-on-surface), 0.08); overflow: hidden; }
+.wl-dp__bar { position: absolute; inset: 0 auto 0 0; background: rgb(var(--v-theme-primary)); border-radius: 9px; }
+.wl-dp__pct { position: relative; padding-left: 8px; font: 500 11px/18px Roboto, sans-serif; mix-blend-mode: difference; color: #fff; }
+.wl-dp__files { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow: auto; font: 400 12px/18px "Roboto Mono", monospace; }
+.wl-dp__file { border: 0; background: transparent; color: inherit; font: inherit; padding: 2px 6px; border-radius: 6px; cursor: pointer; text-align: left; }
+.wl-dp__file[aria-current="true"] { background: rgb(var(--v-theme-secondary-container, var(--v-theme-secondary))); }
+.wl-dp__file:focus-visible { outline: 2px solid rgb(var(--v-theme-primary)); }
+.wl-dp__folder { color: rgb(var(--v-theme-on-surface-variant)); }
 .wl-dp__drop {
     padding: 8px 0;
     border-top: 1px solid rgba(var(--v-theme-on-surface), 0.1);
