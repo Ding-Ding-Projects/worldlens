@@ -9,7 +9,7 @@
 import { computed, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import { VBtn, VCombobox, VSelect, VSlider, VSwitch, VTextField } from "vuetify/components";
-import { ATTRIBUTE_IDS, EFFECT_IDS, ENTITY_TYPE_IDS, PARTICLE_IDS, SOUND_IDS } from "../mcserver/commandBuilderData.js";
+import { ATTRIBUTE_IDS, BLOCK_IDS, EFFECT_IDS, ENTITY_TYPE_IDS, PARTICLE_IDS, SOUND_IDS } from "../mcserver/commandBuilderData.js";
 import {
     VALUE_EFFECT_COMPONENTS,
     newAction,
@@ -57,6 +57,23 @@ const mobEffects = [...EFFECT_IDS];
 const entities = [...ENTITY_TYPE_IDS];
 const sounds = [...SOUND_IDS];
 const particles = [...PARTICLE_IDS];
+const blocks = [...BLOCK_IDS];
+type When = "always" | "chance" | "is_sneaking" | "is_sprinting" | "is_on_fire" | "is_swimming" | "is_baby";
+const whenOf = (a: NonNullable<LevelValueEffect["action"]>): When => a.flag ?? (a.chance !== undefined ? "chance" : "always");
+const whenItems = computed(() => [
+    { value: "always", title: t("datapack.ench.always", "Every time") },
+    { value: "chance", title: t("datapack.ench.sometimes", "Only sometimes") },
+    { value: "is_sneaking", title: t("datapack.ench.sneaking", "Only while sneaking") },
+    { value: "is_sprinting", title: t("datapack.ench.sprinting", "Only while sprinting") },
+    { value: "is_on_fire", title: t("datapack.ench.onFire", "Only while on fire") },
+    { value: "is_swimming", title: t("datapack.ench.swimming", "Only while swimming") },
+    { value: "is_baby", title: t("datapack.ench.baby", "Only for a baby") },
+]);
+function setWhen(i: number, w: When): void {
+    if (w === "always") changeAction(i, { chance: undefined, flag: undefined });
+    else if (w === "chance") changeAction(i, { chance: 0.5, flag: undefined });
+    else changeAction(i, { chance: undefined, flag: w });
+}
 const attributes = [...ATTRIBUTE_IDS];
 function changeAttribute(i: number, patch: Partial<NonNullable<LevelValueEffect["attribute"]>>): void {
     const e = effects.value?.[i];
@@ -77,6 +94,7 @@ const actionTitle = (kind: string): string =>
         play_sound: t("datapack.ench.playSound", "After an attack: play a sound"),
         damage_item: t("datapack.ench.damageItem", "After an attack: wear the item"),
         spawn_particles: t("datapack.ench.particles", "After an attack: show particles"),
+        replace_block: t("datapack.ench.replaceBlock", "After an attack: place a block"),
     })[kind] ?? kind;
 const interactions = computed(() => [
     { value: "none", title: t("datapack.ench.biNone", "Breaks no blocks") },
@@ -121,16 +139,17 @@ const interactions = computed(() => [
                     <v-combobox v-if="e.action.kind === 'summon_entity'" :model-value="e.action.entity" :items="entities" :label="t('datapack.ench.entity', 'What appears')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeAction(i, { entity: v.includes(':') ? v : `minecraft:${v}` })" />
                     <v-text-field v-if="e.action.kind === 'run_function'" :model-value="e.action.target" :label="t('datapack.ench.function', 'Function (namespace:path)')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string) => changeAction(i, { target: v })" />
                     <v-combobox v-if="e.action.kind === 'play_sound'" :model-value="e.action.target" :items="sounds" :label="t('datapack.ench.sound', 'Sound')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeAction(i, { target: v.includes(':') ? v : `minecraft:${v}` })" />
+                    <v-combobox v-if="e.action.kind === 'replace_block'" :model-value="e.action.target" :items="blocks" :label="t('datapack.ench.block', 'Block placed at the one hit')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeAction(i, { target: v.includes(':') ? v : `minecraft:${v}` })" />
                     <v-combobox v-if="e.action.kind === 'spawn_particles'" :model-value="e.action.target" :items="particles" :label="t('datapack.ench.particle', 'Particle')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: string | null) => v && changeAction(i, { target: v.includes(':') ? v : `minecraft:${v}` })" />
                     <template v-if="e.action.kind === 'explode'">
                         <v-select :model-value="e.action.blockInteraction" :items="interactions" :label="t('datapack.ench.blocks', 'What it does to blocks')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: 'none' | 'block' | 'mob' | 'tnt' | 'trigger') => changeAction(i, { blockInteraction: v })" />
                         <v-switch :model-value="e.action.createFire === true" :label="t('datapack.ench.createFire', 'Starts fires')" color="primary" density="compact" hide-details @update:model-value="(v: boolean | null) => changeAction(i, { createFire: v === true })" />
                     </template>
-                    <template v-if="!['summon_entity', 'run_function', 'play_sound', 'spawn_particles'].includes(e.action.kind)">
+                    <template v-if="!['summon_entity', 'run_function', 'play_sound', 'spawn_particles', 'replace_block'].includes(e.action.kind)">
                         <v-slider :model-value="e.base" :min="0" :max="e.action.kind === 'explode' ? 16 : 60" :step="0.5" thumb-label hide-details :label="e.action.kind === 'ignite' ? t('datapack.ench.fire', 'Burns for (seconds) at level 1') : e.action.kind === 'explode' ? t('datapack.ench.radius', 'Radius (blocks) at level 1') : e.action.kind === 'damage_item' ? t('datapack.ench.wear', 'Durability used at level 1') : t('datapack.ench.length', 'Lasts (seconds) at level 1')" @update:model-value="(v: number) => change(i, { base: v })" />
                         <v-slider :model-value="e.perLevel" :min="0" :max="e.action.kind === 'explode' ? 4 : 30" :step="0.5" thumb-label hide-details :label="e.action.kind === 'explode' ? t('datapack.ench.perRadius', 'Radius more per level') : t('datapack.ench.perSecond', 'Seconds more per level')" @update:model-value="(v: number) => change(i, { perLevel: v })" />
                     </template>
-                    <v-switch :model-value="e.action.chance !== undefined" :label="t('datapack.ench.sometimes', 'Only sometimes')" color="primary" density="compact" hide-details @update:model-value="(v: boolean | null) => changeAction(i, v ? { chance: 0.5 } : { chance: undefined })" />
+                    <v-select :model-value="whenOf(e.action)" :items="whenItems" :label="t('datapack.ench.when', 'When')" density="comfortable" variant="outlined" hide-details @update:model-value="(v: When) => setWhen(i, v)" />
                     <v-slider v-if="e.action.chance !== undefined" :model-value="Math.round(e.action.chance * 100)" :min="1" :max="100" :step="1" thumb-label hide-details :label="t('datapack.ench.chance', 'Chance (%)')" @update:model-value="(v: number) => changeAction(i, { chance: v / 100 })" />
                 </template>
                 <template v-else-if="e.editable">
@@ -163,6 +182,7 @@ const interactions = computed(() => [
                 <v-btn variant="text" rounded="pill" @click="addAction('explode')">{{ t("datapack.ench.addExplode", "Add: explode") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAttribute">{{ t("datapack.ench.addAttribute", "Add: change an attribute while equipped") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAction('spawn_particles')">{{ t("datapack.ench.addParticles", "Add: show particles") }}</v-btn>
+                <v-btn variant="text" rounded="pill" @click="addAction('replace_block')">{{ t("datapack.ench.addBlock", "Add: place a block (cobweb)") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAction('damage_item')">{{ t("datapack.ench.addWear", "Add: wear the item") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAction('run_function')">{{ t("datapack.ench.addFunction", "Add: run a function") }}</v-btn>
                 <v-btn variant="text" rounded="pill" @click="addAction('play_sound')">{{ t("datapack.ench.addSound", "Add: play a sound") }}</v-btn>

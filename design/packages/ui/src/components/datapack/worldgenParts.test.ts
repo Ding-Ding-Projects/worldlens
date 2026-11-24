@@ -151,7 +151,7 @@ describe("rule processor rules and enchantment effects", async () => {
     });
 
     it("writes a mob effect action and keeps one with requirements", async () => {
-        const withReq = { requirements: { condition: "minecraft:entity_properties", entity: "this", predicate: { flags: { is_on_fire: true } } }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite", duration: 4 } };
+        const withReq = { requirements: { condition: "minecraft:location_check", predicate: { biomes: "#minecraft:is_ocean" } }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:ignite", duration: 4 } };
         const text = JSON.stringify({ effects: { "minecraft:post_attack": [withReq] } });
         const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
         expect(effects[0]!.editable).toBe(false);
@@ -235,5 +235,16 @@ describe("particles and item wear", async () => {
         const back = JSON.parse(m.writeEffects(text, [...effects, m.newAction("damage_item")])) as { effects: Record<string, Record<string, Record<string, unknown>>[]> };
         expect(back.effects["minecraft:post_attack"]![0]!.effect).toMatchObject({ particle: { type: "minecraft:heart" }, horizontal_position: { type: "entity_position", offset: 0 }, horizontal_velocity: { base: 0.1 } });
         expect(back.effects["minecraft:post_attack"]![1]!.effect).toEqual({ type: "minecraft:damage_item", amount: 1 });
+    });
+});
+
+describe("block placing and flag requirements", async () => {
+    const m = await import("./worldgenParts.js");
+    it("reads a sneaking requirement and a placed block, and writes them back", () => {
+        const web = { requirements: { condition: "minecraft:entity_properties", entity: "this", predicate: { flags: { is_sneaking: true } } }, enchanted: "attacker", affected: "victim", effect: { type: "minecraft:replace_block", block_state: { type: "minecraft:simple_state_provider", state: { Name: "minecraft:cobweb" } } } };
+        const text = JSON.stringify({ effects: { "minecraft:post_attack": [web] } });
+        const effects = m.readEffects(JSON.parse(text) as Record<string, unknown>);
+        expect(effects[0]).toMatchObject({ editable: true, action: { kind: "replace_block", target: "minecraft:cobweb", flag: "is_sneaking" } });
+        expect(JSON.parse(m.writeEffects(text, effects))).toEqual(JSON.parse(text));
     });
 });

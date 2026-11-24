@@ -460,7 +460,12 @@ export interface LevelValueEffect {
     action?: {
         enchanted: "attacker" | "victim";
         affected: "attacker" | "victim";
-        kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode" | "run_function" | "play_sound" | "damage_item" | "spawn_particles";
+        kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode" | "run_function" | "play_sound" | "damage_item" | "spawn_particles" | "replace_block";
+        /**
+         * An `entity_properties` requirement on `this` with one flag (sneaking, sprinting,
+         * on fire, swimming, a baby); undefined for none. Kept beside `chance`, never with it.
+         */
+        flag?: "is_sneaking" | "is_sprinting" | "is_on_fire" | "is_swimming" | "is_baby" | undefined;
         /** run_function: the function id. play_sound: the sound id. */
         target?: string;
         mobEffect: string;
@@ -574,14 +579,35 @@ function readAction(component: string, raw: Json): LevelValueEffect {
     if (effect === null || enchanted === null || affected === null) return kept;
     if (Object.keys(raw).some((k) => !["effect", "enchanted", "affected", "requirements"].includes(k))) return kept;
     let chance: number | undefined;
+    let flag: NonNullable<LevelValueEffect["action"]>["flag"];
     if (raw["requirements"] !== undefined) {
         const req = obj(raw["requirements"]);
-        if (req === null || short(req["condition"]) !== "random_chance" || typeof req["chance"] !== "number" || Object.keys(req).length !== 2)
-            return kept;
-        chance = req["chance"];
+        if (req === null) return kept;
+        const cond = short(req["condition"]);
+        if (cond === "random_chance" && typeof req["chance"] === "number" && Object.keys(req).length === 2) chance = req["chance"];
+        else if (cond === "entity_properties" && req["entity"] === "this" && Object.keys(req).length === 3) {
+            const flags = obj(obj(req["predicate"])?.["flags"]);
+            const keys = flags === null ? [] : Object.keys(flags);
+            const only = keys[0];
+            if (
+                keys.length !== 1 ||
+                Object.keys(obj(req["predicate"]) ?? {}).length !== 1 ||
+                flags![only!] !== true ||
+                !["is_sneaking", "is_sprinting", "is_on_fire", "is_swimming", "is_baby"].includes(only!)
+            )
+                return kept;
+            flag = only as typeof flag;
+        } else return kept;
     }
-    const withChance = <T extends object>(a: T): T => (chance === undefined ? a : { ...a, chance });
+    const withChance = <T extends object>(a: T): T =>
+        ({ ...a, ...(chance === undefined ? {} : { chance }), ...(flag === undefined ? {} : { flag }) }) as T;
     const type = short(effect["type"]);
+    if (type === "replace_block") {
+        const provider = obj(effect["block_state"]);
+        const state = obj(provider?.["state"]);
+        if (provider !== null && short(provider["type"]) === "simple_state_provider" && typeof state?.["Name"] === "string")
+            return { ...kept, editable: true, action: withChance({ enchanted, affected, kind: "replace_block" as const, mobEffect: "", amplifier: 0, target: state["Name"] as string }) };
+    }
     if (type === "damage_item") {
         const amount = levelNumber(effect["amount"]);
         if (amount !== null && Object.keys(effect).length === 2)
@@ -648,7 +674,13 @@ function writeEffect(e: LevelValueEffect): unknown {
         const a = e.action;
         const oldEffect = obj(e.raw["effect"]) ?? {};
         const effect =
-            a.kind === "damage_item"
+            a.kind === "replace_block"
+                ? {
+                      ...oldEffect,
+                      type: "minecraft:replace_block",
+                      block_state: { type: "minecraft:simple_state_provider", state: { Name: a.target ?? "minecraft:cobweb" } },
+                  }
+                : a.kind === "damage_item"
                 ? { type: "minecraft:damage_item", amount: seconds }
                 : a.kind === "spawn_particles"
                   ? {
@@ -678,15 +710,21 @@ function writeEffect(e: LevelValueEffect): unknown {
                         block_interaction: a.blockInteraction ?? "none",
                     }
                   : null;
+        const requirements =
+            a.flag !== undefined
+                ? { requirements: { condition: "minecraft:entity_properties", entity: "this", predicate: { flags: { [a.flag]: true } } } }
+                : a.chance === undefined
+                  ? {}
+                  : { requirements: { condition: "minecraft:random_chance", chance: a.chance } };
         if (effect !== null)
             return {
-                ...(a.chance === undefined ? {} : { requirements: { condition: "minecraft:random_chance", chance: a.chance } }),
+                ...requirements,
                 enchanted: a.enchanted,
                 affected: a.affected,
                 effect,
             };
         return {
-            ...(a.chance === undefined ? {} : { requirements: { condition: "minecraft:random_chance", chance: a.chance } }),
+            ...requirements,
             enchanted: e.action.enchanted,
             affected: e.action.affected,
             effect:
@@ -729,7 +767,7 @@ export function writeEffects(text: string, effects: readonly LevelValueEffect[])
 }
 
 export const newAction = (
-    kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode" | "run_function" | "play_sound" | "damage_item" | "spawn_particles",
+    kind: "ignite" | "apply_mob_effect" | "summon_entity" | "explode" | "run_function" | "play_sound" | "damage_item" | "spawn_particles" | "replace_block",
 ): LevelValueEffect => ({
     component: "minecraft:post_attack",
     operation: "add",
@@ -748,6 +786,7 @@ export const newAction = (
         ...(kind === "run_function" ? { target: "my_pack:on_hit" } : {}),
         ...(kind === "play_sound" ? { target: "minecraft:entity.experience_orb.pickup" } : {}),
         ...(kind === "spawn_particles" ? { target: "minecraft:flame" } : {}),
+        ...(kind === "replace_block" ? { target: "minecraft:cobweb" } : {}),
     },
 });
 

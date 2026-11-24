@@ -54,7 +54,7 @@ export const dataPackCreator: Article = {
                 {
                     kind: "paragraph",
                     content: [
-                        "The draft lives in this profile's browser storage until it is exported or cleared; if storage is blocked the editor still works but the draft is not kept. The command check knows the first word of each command, not every argument, so a line can pass here and still be rejected by the game. A part's JSON is checked for being JSON, not against the game's schema, so the game may still reject a field. Enchantment requirements other than a random chance, the rarest actions (replacing blocks, changing items) and position conditions other than an axis fade are still edited as JSON. On a server appliance, the management site's signed-in page can upload a pack too.",
+                        "The draft lives in this profile's browser storage until it is exported or cleared; if storage is blocked the editor still works but the draft is not kept. The command check knows the first word of each command, not every argument, so a line can pass here and still be rejected by the game. A part's JSON is checked for being JSON, not against the game's schema, so the game may still reject a field. Enchantment requirements other than a chance or a single while-state, actions with block-state rules or item changes, and position conditions other than an axis fade are still edited as JSON. On a server appliance, the management site's signed-in page can upload a pack too.",
                     ],
                 },
             ],
